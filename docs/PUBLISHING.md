@@ -43,6 +43,29 @@ The project page needs no separate step. It is served by GitHub Pages
 from `docs/` on the main branch, so the same push that publishes the
 code publishes the page, usually within a minute.
 
+## What the published images must show
+
+Every image in README.md and on the project page shows REAL DATA
+DISPLAYED AS A MAP: a named place, recognisable geography, region
+outlines, and a legend where the classes need one. Not an abstract
+pattern, however handsome.
+
+The reason is what a reader is actually asking. Someone who lands on
+the page wants to know what they could produce at the end of an
+afternoon with their own data, and a field of coloured hexagons
+answers a different question — it shows the technique's mechanics
+rather than its output. The plugin's whole claim is that several
+attributes of real places can be read from one map; images that omit
+the places and the attributes argue against it.
+
+Practically: prefer the packaged Auckland deprivation data or another
+real dataset over synthetic grids, keep the region outlines on, show
+a legend, and size the image so the pattern is legible rather than
+decorative. Where a figure from the published article can be used
+under its licence, that is better still, since those figures were made
+to carry exactly this argument — attribute them in the caption and
+record the licence beside the file.
+
 ## The QGIS plugin repository
 
 The plugin is not yet submitted to plugins.qgis.org. What is already

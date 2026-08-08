@@ -27,17 +27,35 @@ export QT_QPA_PLATFORM=offscreen PYTHONHOME="$QP/Frameworks"
 export PROJ_LIB="$QP/Resources/qgis/proj" QGIS_PREFIX_PATH="$QP/MacOS"
 PY="$QP/MacOS/python3.12"
 
-echo "[$(date +%H:%M:%S)] coverage record"
-"$PY" -u tools/coverage_per_test.py > "$LOGS/coverage-$SEED.log" 2>&1
+# Every stage is checked. A driver that announces CYCLE-DONE whether
+# or not its stages ran is worse than no driver: cycle seven's batch
+# refused to start against a stale coverage record and the cycle
+# reported completion in zero seconds, which read as success.
+stage() {
+  local label="$1"; shift
+  local log="$1"; shift
+  echo "[$(date +%H:%M:%S)] $label"
+  if ! "$@" > "$log" 2>&1; then
+    echo "[$(date +%H:%M:%S)] STAGE FAILED: $label"
+    echo "    last line: $(tail -1 "$log")"
+    echo "[$(date +%H:%M:%S)] CYCLE ABANDONED at $label"
+    exit 1
+  fi
+}
 
-echo "[$(date +%H:%M:%S)] batch (seed $SEED, sample $SAMPLE, $WORKERS workers)"
-"$PY" -u tools/mutate_auto.py --sample "$SAMPLE" --seed "$SEED" \
-    --workers "$WORKERS" > "$LOGS/batch-$SEED.log" 2>&1
+stage "coverage record" "$LOGS/coverage-$SEED.log" \
+  "$PY" -u tools/coverage_per_test.py
+
+stage "batch (seed $SEED, sample $SAMPLE, $WORKERS workers)" \
+  "$LOGS/batch-$SEED.log" \
+  "$PY" -u tools/mutate_auto.py --sample "$SAMPLE" --seed "$SEED" \
+    --workers "$WORKERS"
 
 previous=$(git describe --tags --abbrev=0 2>/dev/null)
 if [ -n "$previous" ]; then
-  echo "[$(date +%H:%M:%S)] incremental guard since $previous"
-  "$PY" -u tools/mutate_auto.py --since "$previous" --workers "$WORKERS" \
-      --require 70 > "$LOGS/incremental-$SEED.log" 2>&1
+  stage "incremental guard since $previous" \
+    "$LOGS/incremental-$SEED.log" \
+    "$PY" -u tools/mutate_auto.py --since "$previous" \
+      --workers "$WORKERS" --require 70
 fi
 echo "[$(date +%H:%M:%S)] CYCLE-DONE seed $SEED"

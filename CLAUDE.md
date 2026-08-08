@@ -120,6 +120,18 @@ obligations: they exist so nobody pays twice for the same discovery.
   each test individually with its result and measured values; report
   those per-test results to the user whenever something is published
   (an explicit user requirement, 2026-08).
+- **Published images show real data displayed as a map.** Every image
+  in README.md and docs/index.html shows a named place with
+  recognisable geography, region outlines and a legend where the
+  classes need one -- not an abstract pattern. A reader is asking what
+  they could produce with their own data at the end of an afternoon,
+  and a field of coloured hexagons answers a different question: it
+  shows the mechanics rather than the output, and quietly argues
+  against the plugin's own claim that several attributes of real
+  places can be read from one map. Figures from the published article
+  are better still where their licence allows, attributed in the
+  caption. (User instruction, 2026-08-08; details in
+  docs/PUBLISHING.md.)
 - **A release publishes CONTENT, not only a zip, and the content is
   re-checked every time.** README.md and docs/index.html show the
   dialog and a set of maps; those are claims about how the plugin

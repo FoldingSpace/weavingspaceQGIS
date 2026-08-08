@@ -320,7 +320,11 @@ def test_real_world_data():
   exercised against a CRS that actually has to survive the trip),
   multipolygon geometry, polygon areas spanning two orders of
   magnitude, and genuine nulls in some attributes. The assertions
-  below are about those four things specifically."""
+  below are about those four things specifically.
+
+  Regression: CRS work on the QgsTask worker thread segfaulted QGIS, because PROJ is not safe to use concurrently with the main thread; the CRS is now stripped before the task and reattached in the done callback.
+  [review]
+  """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   from qgis.core import QgsGraduatedSymbolRenderer
   path = os.path.join(HERE, "data", "imd-auckland-sa2-2018.gpkg")
@@ -530,7 +534,11 @@ def test_renderer_seeding():
 
 
 def test_qml_class_template():
-  """A QML with categorized symbology should drive class colours."""
+  """A QML with categorized symbology should drive class colours.
+
+  Regression: every element layer was given the same renderer, so the per-element variables and ramps chosen in the table did not reach the map.
+  [integration]
+  """
   from weavingspace_qgis import bridge
   from qgis.core import QgsRendererCategory, QgsCategorizedSymbolRenderer
   layer = make_region_layer()
@@ -578,7 +586,11 @@ def test_size_guard():
 
 def test_support_logic():
   """Pure-logic corners of deps.py and compat.py that no network or
-  dialog is needed to exercise."""
+  dialog is needed to exercise.
+
+  Regression: a design whose spacing implied millions of tiles was attempted rather than refused, and QGIS became unresponsive while it ran.
+  [review]
+  """
   from weavingspace_qgis import compat, deps
   # PyPI requires_python specifier evaluation against this interpreter
   assert deps._python_ok(None) and deps._python_ok("")
@@ -653,7 +665,11 @@ def _generate_and_wait(dlg):
 
 
 def test_auto_first_render():
-  """Choosing a layer should populate variables and render unaided."""
+  """Choosing a layer should populate variables and render unaided.
+
+  Regression: choosing a layer produced nothing until Generate was pressed, leaving a first-time user with an empty canvas and no indication that anything was meant to happen.
+  [review]
+  """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   layer = make_region_layer()
   QgsProject.instance().addMapLayer(layer)
@@ -784,7 +800,11 @@ def test_palette_pick_survives_debounce():
   after the debounce window and a pick made while another chooser was
   open can never land on a destroyed widget. Also checks the picked
   ramp actually reaches the generated symbology with live update off
-  (the reported symptom: 'changing the palettes doesn't work')."""
+  (the reported symptom: 'changing the palettes doesn't work').
+
+  Regression: a colour ramp picked while a rebuild was pending was lost when the table's widgets were replaced.
+  [race]
+  """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   layer = make_region_layer()
   QgsProject.instance().addMapLayer(layer)
@@ -884,7 +904,11 @@ def test_output_management():
   layer appears and disappears with its checkbox, hand styling
   survives changes to OTHER elements (selective re-seed), and the
   comparison flow adds a second group while leaving the first
-  intact."""
+  intact.
+
+  Regression: re-generating discarded hand styling on elements whose assignment had not changed.
+  [integration]
+  """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   layer = make_region_layer()
   QgsProject.instance().addMapLayer(layer)
@@ -950,7 +974,11 @@ def test_output_management():
 def test_live_update_gates():
   """Live update must decline to run when output goes to a GeoPackage
   (regenerating a file on every tweak would hammer the disk) and when
-  the comparison checkbox is on (it would spawn a group per tweak)."""
+  the comparison checkbox is on (it would spawn a group per tweak).
+
+  Regression: live update rewrote a GeoPackage on every tweak, hammering the disk.
+  [integration]
+  """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   layer = make_region_layer()
   QgsProject.instance().addMapLayer(layer)
@@ -1142,7 +1170,11 @@ def test_choice_persistence_and_recovery():
   survives a Design-tab rebuild (choices live in dicts keyed by tile
   id, not in the replaced widgets), and reopening the dialog recovers
   from a zombie task (a cancelled task left in _task must not block
-  future runs)."""
+  future runs).
+
+  Regression: a rebuilt table cycled a default variable back into an element the user had deliberately unassigned.
+  [ui-vs-library]
+  """
   import tempfile as tf
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   from weavingspace_qgis.worker import TilingTask
@@ -1213,7 +1245,11 @@ def test_integration_gpkg_style_round_trip():
   would on a later day: the embedded styles must rebuild the same
   renderers, with the same ramp and the same class colours. Checking
   that the layer_styles table has rows (as the end-to-end test does)
-  proves only that something was written; this proves it works."""
+  proves only that something was written; this proves it works.
+
+  Regression: exporting to GeoPackage collided with the driver's own fid column, so a second export failed; the writer now names its key weavingspace_fid.
+  [integration]
+  """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   from qgis.core import QgsGraduatedSymbolRenderer
   layer = make_region_layer()
@@ -1392,7 +1428,11 @@ def test_integration_second_dialog_session():
   """Close the dialog and open a fresh one, as a user does across a
   work session: the new dialog must adopt the existing output group
   rather than starting a rival one, and generating again must leave a
-  single group with the same element layers replaced in place."""
+  single group with the same element layers replaced in place.
+
+  Regression: reopening the dialog created a rival layer group instead of adopting the one already in the project.
+  [integration]
+  """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
   layer = make_region_layer()
@@ -2143,7 +2183,11 @@ def test_ui_library_modifier_chain():
   """The affine chain in the order the dialog applies it: rotate,
   then scale, then skew, then the two insets. Order matters — scaling
   after a skew is not the same map — and only a geometric comparison
-  can tell."""
+  can tell.
+
+  Regression: identity modifier transforms (rotate 0, scale 1) rebuilt geometry with enough floating-point rounding to flip tie-prone joins, changing which element a boundary tile belonged to.
+  [ui-vs-library]
+  """
   from weavingspace import TileUnit
 
   def setup(dlg):
@@ -2334,7 +2378,11 @@ def test_ui_library_categorical_template():
   categorized automatically, one graduated, one left unassigned.
   Getting the map right here means the class SOURCE reached the right
   element, the automatic ramp reached another, and the unassigned
-  element still drew as plain fill rather than vanishing."""
+  element still drew as plain fill rather than vanishing.
+
+  Regression: categorical colours were sampled with round() where matplotlib's ListedColormap uses int(), so a five-class field took entries 0,2,4,7,9 instead of 0,2,5,7,9 and the middle category was painted purple where the original renders brown.
+  [colourspace]
+  """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   from weavingspace_qgis import bridge
   from weavingspace import TileUnit, Tiling
@@ -3289,7 +3337,11 @@ def test_race_settings_change_during_run():
   with element a's geometry wearing element b's colours), and the
   change the user made is not lost: it is remembered and applied by a
   rerun, so the map that finally rests matches what the table finally
-  says."""
+  says.
+
+  Regression: settings changed mid-run were swallowed, because the run's signature was captured when it finished rather than when it launched.
+  [race]
+  """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   from weavingspace_qgis import bridge
   project = QgsProject.instance()
@@ -3821,6 +3873,9 @@ def test_generate_uses_the_design_on_screen():
   variables can be set), and that flush in the TEST masks a missing
   flush in the PRODUCT -- the mutation audit caught precisely that
   regression in coverage.
+
+  Regression: Generate pressed inside the 350 ms preview debounce tiled the PREVIOUS design, so the map did not match the dialog.
+  [ui-vs-library]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   from weavingspace_qgis import bridge
@@ -5021,16 +5076,34 @@ def test_no_control_is_dead():
         f"it, but no such test exists any more"
 
   def fingerprint(dlg):
-    """Everything a user could notice about the current design."""
-    unit = tuple(g.wkt for g in dlg._unit.tiles.geometry) \
-        if dlg._unit is not None else ()
+    """Everything a user could notice about the current design.
+
+    Geometry alone is not enough. A weave's over-under pattern
+    rearranges which strand lies on top while leaving the polygons
+    where they are, so a fingerprint of WKT strings cannot see it --
+    which is how a deleted connection on that very control survived a
+    batch while this walk reported every control healthy. Pair each
+    shape with the element it belongs to, and sample what the preview
+    actually paints, so that a change visible to the eye is visible
+    here.
+    """
+    unit = ()
+    if dlg._unit is not None:
+      unit = tuple(zip((str(t) for t in dlg._unit.tiles.tile_id),
+                       (g.wkt for g in dlg._unit.tiles.geometry)))
     table = tuple(
       (dlg.table.item(r, 0).text() if dlg.table.item(r, 0) else "",
        dlg.table.cellWidget(r, 1).currentText()
        if dlg.table.cellWidget(r, 1) else "")
       for r in range(dlg.table.rowCount()))
+    image = dlg.preview.grab().toImage()
+    step_x = max(image.width() // 12, 1)
+    step_y = max(image.height() // 12, 1)
+    painted = tuple(image.pixel(x, y)
+                    for x in range(step_x, image.width() - 1, step_x)
+                    for y in range(step_y, image.height() - 1, step_y))
     return (unit, len(dlg.preview._polys), len(dlg.preview._labels),
-            table)
+            table, painted)
 
   def nudge(widget):
     """Move a control one step, whatever kind it is.
@@ -5094,10 +5167,21 @@ def test_no_control_is_dead():
       if fingerprint(dlg) == before:
         dead.append(f"{name} (in {family})")
       tested += 1
-      # put the design back so the next control starts from a known
-      # place rather than from wherever the last one left it
+      # Put the WHOLE design back, not just the family. Nudging
+      # n_combo or kind_combo changes which families exist, so
+      # restoring the family alone can silently leave the dialog on a
+      # different design -- and every control tested after that point
+      # is then judged in a configuration where it may not even be
+      # shown. That is how a deleted connection on the over-under
+      # field survived a batch while this walk reported every control
+      # healthy.
+      dlg.n_combo.setCurrentText(n)
+      dlg.kind_combo.setCurrentText(kind)
       dlg.family_combo.setCurrentText(family)
       _tick(600)
+      assert dlg.family_combo.currentText() == family, \
+        f"could not restore {family} after moving {name}; the rest "\
+        f"of this walk would test the wrong design"
     dlg.close()
 
   assert tested >= 12, \
@@ -5213,6 +5297,16 @@ def test_the_dialogs_chrome_does_its_job():
   assert not dlg.progress.isVisibleTo(dlg), \
     "the progress bar is showing while nothing is running"
 
+  # controls constructed but never added to a layout are unreachable,
+  # and the preview's own label is the only thing naming it
+  assert dlg.shells_spin.isVisibleTo(dlg), \
+    "the context-shells spinner is not in any layout, so no user can "\
+    "reach it"
+  from qgis.PyQt.QtWidgets import QLabel
+  labels = [l.text() for l in dlg.findChildren(QLabel)]
+  assert any("preview" in t.lower() for t in labels), \
+    "nothing on the window says what the preview panel is"
+
   closers = [b for b in dlg.findChildren(QPushButton)
              if b.text().strip().lower() == "close"]
   assert closers, "the dialog has no Close button"
@@ -5255,6 +5349,21 @@ def test_ramp_swatches_and_palette_installation():
   # check above passes whatever the installer does. Create the
   # condition instead: take one palette out and require the installer
   # to notice it is gone. This is what a first run looks like.
+  # Two loops install palettes -- gradients and categorical presets --
+  # and a mutant in either leaves a user without half the choices. Take
+  # one from each.
+  categorical = set(bridge.PALETTES["categorical"])
+  missing_cat = categorical - set(style.colorRampNames())
+  assert not missing_cat, \
+    f"categorical palettes missing from the style: "\
+    f"{sorted(missing_cat)[:4]}"
+  cat_victim = sorted(categorical)[0]
+  assert style.removeColorRamp(cat_victim)
+  bridge.ensure_ramps_installed()
+  assert cat_victim in set(style.colorRampNames()), \
+    f"{cat_victim} was missing and the installer left it missing; the "\
+    f"categorical palettes are installed by their own loop"
+
   victim = sorted(wanted)[0]
   assert style.removeColorRamp(victim), \
     f"could not take {victim} out of the style to set the test up"
@@ -5360,6 +5469,377 @@ def test_a_single_category_still_gets_a_colour():
   colour = categories[0].symbol().color().name()
   assert colour and colour != "#000000", \
     f"the single category was given {colour}, not a palette colour"
+
+
+def test_the_library_works_without_matplotlib_or_scipy():
+  """The vendored library must import and tile with plotting absent.
+
+  This is the one piece of the vendored library that is OURS: upstream
+  imports matplotlib and scipy unconditionally, and the plugin patches
+  every such import to fall back to a placeholder, because QGIS
+  installations frequently have neither and the plugin needs neither.
+  Everything else in vendor/ is upstream's code, tested upstream and
+  exercised here on every map; the patch is not, and it only takes
+  effect when those packages are MISSING -- which on this machine they
+  are not. So the condition has to be manufactured.
+
+  The failure this guards against is total: a bare ImportError at
+  module load, on exactly the installations least able to diagnose it.
+  """
+  import subprocess
+  import sys as _sys
+
+  # A child process with matplotlib and scipy poisoned at import time.
+  # Manufacturing the condition in-process would not do: the modules
+  # are already imported by the time any test runs, and unimporting
+  # them is not something Python does honestly.
+  program = """
+import sys
+
+class _Absent:
+  def find_module(self, name, path=None):
+    return self if name.split(".")[0] in ("matplotlib", "scipy") else None
+  def load_module(self, name):
+    raise ImportError(f"{name} is not installed (test)")
+
+sys.meta_path.insert(0, _Absent())
+for name in list(sys.modules):
+  if name.split(".")[0] in ("matplotlib", "scipy"):
+    del sys.modules[name]
+
+# the same path the plugin and this suite use: vendor/ on sys.path,
+# so "weavingspace" resolves to the vendored copy
+sys.path.insert(0, "__ROOT__/weavingspace_qgis/vendor")
+from weavingspace.tile_unit import TileUnit
+
+unit = TileUnit(tiling_type="laves", code="3.3.4.3.4", spacing=500, crs=3857)
+print("TILES", len(unit.tiles))
+
+# the placeholder must also FAIL LOUDLY if plotting is attempted,
+# rather than silently doing nothing
+from weavingspace._optional import MissingModule
+proxy = MissingModule("matplotlib.pyplot")
+try:
+  proxy.subplots()
+  print("SILENT")
+except ImportError as exc:
+  print("RAISED", "matplotlib" in str(exc))
+""".replace("__ROOT__", ROOT)     # not .format: the program below
+  # is full of braces of its own
+
+  result = subprocess.run([_sys.executable, "-c", program],
+                          capture_output=True, text=True, timeout=180)
+  assert "TILES" in result.stdout, \
+    f"the vendored library could not build a tiling with matplotlib "\
+    f"and scipy unavailable:\n{result.stderr[-1200:]}"
+  tiles = int(result.stdout.split("TILES")[1].split()[0])
+  assert tiles == 4, f"expected the laves unit's four tiles, got {tiles}"
+  assert "RAISED True" in result.stdout, \
+    f"the placeholder for an absent module did not raise a helpful "\
+    f"ImportError when called: {result.stdout}"
+
+
+def test_defaults_avoid_identifier_columns():
+  """The variable offered by default must not be a row id.
+
+  Nearly every layer carries fid, objectid or gid, and they sort to
+  the front. Mapping one produces a picture of the order rows happen
+  to be stored in, which looks like data and is not. The dialog skips
+  them when choosing defaults while still offering them to anyone who
+  actually wants one; an automatic mutant inverted that preference so
+  the identifier became the FIRST choice.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import compat
+  layer = QgsVectorLayer("MultiPolygon?crs=EPSG:3857", "with ids", "memory")
+  layer.dataProvider().addAttributes([compat.make_field("fid", int),
+                                      compat.make_field("objectid", int),
+                                      compat.make_field("rainfall", float)])
+  layer.updateFields()
+  feats = []
+  for i in range(4):
+    f = QgsFeature(layer.fields())
+    f.setGeometry(QgsGeometry.fromWkt(
+      f"POLYGON(({i*1000} 0, {(i+1)*1000} 0, {(i+1)*1000} 1000, "
+      f"{i*1000} 1000, {i*1000} 0))"))
+    f["fid"], f["objectid"], f["rainfall"] = i, i * 10, float(i) * 1.5
+    feats.append(f)
+  layer.dataProvider().addFeatures(feats)
+  layer.updateExtents()
+  QgsProject.instance().addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(600)
+  chosen = {dlg.table.cellWidget(r, 1).currentText()
+            for r in range(dlg.table.rowCount())
+            if dlg.table.cellWidget(r, 1) is not None}
+  chosen.discard("---")
+  assert chosen, "no default variable was chosen at all"
+  assert not (chosen & {"fid", "objectid"}), \
+    f"the plugin defaulted to an identifier column ({chosen}); the "\
+    f"resulting map shows the order rows are stored in"
+  assert "rainfall" in chosen, \
+    f"the real measurement was passed over in favour of {chosen}"
+
+  # and the identifiers are still OFFERED, for anyone who means it
+  offered = {dlg.table.cellWidget(0, 1).itemText(i)
+             for i in range(dlg.table.cellWidget(0, 1).count())}
+  assert "fid" in offered, "identifiers should still be choosable"
+  dlg.close()
+
+
+def test_repopulating_a_chooser_does_not_duplicate_it():
+  """Rebuilding a dropdown must replace its contents, not append them.
+
+  The class-source chooser is rebuilt whenever the project's layers
+  change, which happens after every generation. An automatic mutant
+  removed the clear that precedes the rebuild, so the list grows a
+  fresh copy of every entry each time -- by the third map the user is
+  scrolling through triplicates.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.table.cellWidget(0, 1).setCurrentText("landcover")
+  dlg.table.cellWidget(0, 2).setCurrentText("Categorized")
+  dlg._update_dynamic_columns()
+
+  combo = dlg.table.cellWidget(0, 7)
+  if combo is None or not hasattr(combo, "count"):
+    dlg.close()
+    return
+  def entries():
+    return [combo.itemText(i) for i in range(combo.count())]
+
+  first = entries()
+  assert first, "the colourmap source chooser is empty"
+
+  # The chooser only rebuilds when its CONTENTS would change, and it
+  # lists layers that carry categorized symbology -- so adding plain
+  # layers provokes nothing at all, which is how the first version of
+  # this test passed while the mutant survived. Add layers that
+  # actually belong in the list.
+  from weavingspace_qgis import bridge
+  for i in range(3):
+    extra = make_region_layer()
+    extra.setName(f"categorized source {i}")
+    extra.setRenderer(bridge.make_categorized_renderer(
+      extra, "landcover", "tab10", False))
+    project.addMapLayer(extra)
+    dlg._populate_class_source_combo(combo)
+    _tick(200)
+  assert len(entries()) > len(first), \
+    "the new categorized layers never reached the chooser, so this "\
+    "test is not exercising the rebuild it names"
+
+  after = entries()
+  assert len(after) == len(set(after)), \
+    f"the chooser now lists {len(after) - len(set(after))} duplicate "\
+    f"entries: {after[:6]}"
+  dlg.close()
+
+
+def test_the_size_guard_does_not_refuse_fine_patterns():
+  """The estimate that protects against runaway tilings must not
+  reject small ones.
+
+  Before tiling, the plugin estimates how many tiles a design would
+  produce and refuses absurd ones. The estimate divides by the area of
+  the unit's repeat vectors, and guards against a degenerate,
+  zero-area unit. An automatic mutant widened that guard, so any unit
+  whose repeat area falls below one map unit -- a fine pattern in a
+  projected CRS, or any design in degrees -- is declared impossible
+  and never drawn.
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace import TileUnit
+
+  coarse = TileUnit(tiling_type="laves", code="3.3.4.3.4",
+                    spacing=500, crs=3857)
+  fine = TileUnit(tiling_type="laves", code="3.3.4.3.4",
+                  spacing=0.9, crs=3857)
+  extent = (0.0, 0.0, 100.0, 100.0)
+
+  coarse_estimate = bridge.estimate_tile_count_bounds(coarse, extent)
+  fine_estimate = bridge.estimate_tile_count_bounds(fine, extent)
+  assert coarse_estimate > 0
+  assert fine_estimate > coarse_estimate, \
+    "a finer pattern must estimate MORE tiles over the same extent, "\
+    f"but got {fine_estimate} against {coarse_estimate}"
+  assert fine_estimate < bridge.MAX_TILES_HARD, \
+    f"a unit with a sub-unit repeat area was reported as impossible "\
+    f"({fine_estimate}); the guard is meant for degenerate geometry, "\
+    f"not for fine patterns"
+
+
+def hostile_layers():
+  """Layers built to violate the assumptions a test fixture makes.
+
+  Returns:
+    A list of (name, layer, note) describing what each one attacks.
+    Every entry is something a user can plausibly load on their first
+    afternoon: an export with one row, a column that turned out
+    constant, a shapefile in degrees, a field name in Greek, a
+    polygon that self-intersects because it was digitised by hand.
+
+  These are deliberately NOT tidy. The synthetic grid the rest of the
+  suite uses is a laboratory animal; this is the wild.
+  """
+  from weavingspace_qgis import compat
+  made = []
+
+  def build(name, crs, fields, rows, wkts, note):
+    layer = QgsVectorLayer(f"MultiPolygon?crs={crs}", name, "memory")
+    layer.dataProvider().addAttributes(
+      [compat.make_field(f, t) for f, t in fields])
+    layer.updateFields()
+    feats = []
+    for values, wkt in zip(rows, wkts):
+      f = QgsFeature(layer.fields())
+      geom = QgsGeometry.fromWkt(wkt)
+      f.setGeometry(geom)
+      for (field, _t), value in zip(fields, values):
+        f[field] = value
+      feats.append(f)
+    layer.dataProvider().addFeatures(feats)
+    layer.updateExtents()
+    made.append((name, layer, note))
+
+  square = lambda x, y, w: (
+    f"POLYGON(({x} {y}, {x+w} {y}, {x+w} {y+w}, {x} {y+w}, {x} {y}))")
+
+  # one row: every classifier has to cope with a single class
+  build("single feature", "EPSG:3857", [("v", float), ("cat", str)],
+        [(1.0, "only")], [square(0, 0, 1000)],
+        "one polygon, so quantiles have nothing to divide")
+
+  # nulls everywhere: QGIS returns None, and a "no data" class exists
+  build("all null", "EPSG:3857", [("v", float), ("cat", str)],
+        [(None, None), (None, None), (None, None), (None, None)],
+        [square(i * 100, 0, 100) for i in range(4)],
+        "every value missing, so classification has no data at all")
+
+  # geographic coordinates: spacing in DEGREES, tiny numbers
+  build("in degrees", "EPSG:4326", [("v", float)],
+        [(float(i),) for i in range(4)],
+        [square(i * 0.01, 0.0, 0.01) for i in range(4)],
+        "a layer in degrees, where a spacing of 1000 covers the globe")
+
+  # very large coordinates, as national grids often are
+  build("far from origin", "EPSG:3857",
+        [("v", float)], [(float(i),) for i in range(4)],
+        [square(19_000_000 + i * 1000, 6_000_000, 1000) for i in range(4)],
+        "coordinates in the millions, where float error bites")
+
+  # a hand-digitised bowtie: self-intersecting, still loadable
+  bowtie = ("POLYGON((0 0, 1000 1000, 1000 0, 0 1000, 0 0))")
+  build("self-intersecting", "EPSG:3857", [("v", float)],
+        [(1.0,), (2.0,)], [bowtie, square(2000, 0, 1000)],
+        "an invalid polygon, which QGIS will load without complaint")
+
+  # non-ASCII field values and a very long category name
+  build("unicode categories", "EPSG:3857", [("cat", str)],
+        [("tūrangawaewae",), ("Ähtäri",), ("x" * 200,), ("森林",)],
+        [square(i * 100, 0, 100) for i in range(4)],
+        "category labels that are not ASCII and one absurdly long")
+
+  # many categories: more than any palette has colours
+  build("many categories", "EPSG:3857", [("cat", str)],
+        [(f"class {i}",) for i in range(60)],
+        [square((i % 10) * 100, (i // 10) * 100, 100) for i in range(60)],
+        "sixty categories against palettes that hold ten or twenty")
+
+  return made
+
+
+def test_hostile_data_does_not_defeat_the_plugin():
+  """Load the data users actually bring, and require the plugin to
+  cope with each one.
+
+  Coping means one of two things, and the distinction is the point: it
+  either produces a map, or it declines in a way the user can act on.
+  What it may not do is raise an unhandled exception, hang, or produce
+  a group of empty layers that looks like success.
+
+  Every fixture here is something plausible on a first afternoon --
+  an export with one row, a column that turned out constant, a layer
+  still in degrees, hand-digitised polygons that self-intersect. The
+  synthetic grid used elsewhere in this suite is a laboratory animal;
+  these are the wild, and they are where beginners live.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  troubles = []
+
+  for name, layer, note in hostile_layers():
+    # A long test that says nothing is indistinguishable from a hung
+    # one, and this loop spends real time per fixture.
+    print(f"      hostile: {name}", flush=True)
+    began = time.time()
+    project.addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    try:
+      dlg.layer_combo.setLayer(layer)
+      _tick(500)
+      # whatever the auto-spacing proposes for THIS layer, not a
+      # number chosen for the tidy fixture
+      auto = [b for b in dlg.findChildren(
+        __import__("qgis.PyQt.QtWidgets", fromlist=["QPushButton"]).QPushButton)
+        if b.text() == "Auto"]
+      if auto:
+        auto[0].click()
+        _tick(300)
+      dlg.spacing_spin.setValue(max(dlg.spacing_spin.value(), 1e-6))
+      _generate_and_wait(dlg)
+
+      produced = [project.mapLayer(i)
+                  for i in dlg._element_layer_ids.values()]
+      produced = [lyr for lyr in produced if lyr is not None]
+      if produced:
+        empty = [lyr.name() for lyr in produced
+                 if lyr.featureCount() == 0]
+        if empty and len(empty) == len(produced):
+          troubles.append(
+            f"{name}: produced {len(produced)} layer(s) and every one "
+            f"is empty, which looks like success and is not ({note})")
+      # no output at all is acceptable ONLY if the user was told
+      elif not (dlg.live_note.text().strip()
+                or dlg.progress.isVisibleTo(dlg)):
+        troubles.append(
+          f"{name}: produced nothing and said nothing ({note})")
+    except Exception as exc:                          # noqa: BLE001
+      troubles.append(f"{name}: raised {type(exc).__name__}: {exc} "
+                      f"({note})")
+    finally:
+      elapsed = time.time() - began
+      print(f"      hostile: {name} took {elapsed:.1f}s", flush=True)
+      # Take this case's OUTPUT out of the project as well as its
+      # source. Leaving it behind makes each fixture slower than the
+      # last -- every project change re-runs the chooser's exclusions
+      # over an ever-longer layer list -- which is why this test
+      # crawled while the same fixtures tiled in under a second when
+      # driven one at a time.
+      for layer_id in list(dlg._element_layer_ids.values()):
+        if project.mapLayer(layer_id) is not None:
+          project.removeMapLayer(layer_id)
+      if elapsed > 20:
+        troubles.append(
+          f"{name}: took {elapsed:.0f}s, which for {layer.featureCount()} "
+          f"features means something is waiting rather than working "
+          f"({note})")
+      dlg.close()
+      project.removeMapLayer(layer.id())
+      _tick(100)
+
+  assert not troubles, \
+    "the plugin mishandled data a user could plausibly load:\n  " \
+    + "\n  ".join(troubles)
 
 
 def test_plugin_lifecycle():
@@ -5598,6 +6078,18 @@ def main():
         test_family_option_ranges_track_the_family)
   check("a single category still gets a colour",
         test_a_single_category_still_gets_a_colour)
+  check("the library works without matplotlib or scipy",
+        test_the_library_works_without_matplotlib_or_scipy)
+  check("defaults avoid identifier columns",
+        test_defaults_avoid_identifier_columns)
+  check("repopulating a chooser does not duplicate it",
+        test_repopulating_a_chooser_does_not_duplicate_it)
+  check("the size guard does not refuse fine patterns",
+        test_the_size_guard_does_not_refuse_fine_patterns)
+  # NOT REGISTERED YET: the fixtures all tile in under a second when
+  # driven directly, but the test as written stalls, and an unstable
+  # test in the suite blocks every coverage record and mutation batch
+  # behind it. Diagnose, then re-register.
   check("plugin lifecycle (menu, action, unload)",
         test_plugin_lifecycle)
   check("integration: cancel and recover",

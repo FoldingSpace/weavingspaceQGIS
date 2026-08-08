@@ -38,6 +38,9 @@ BASE = [None]
 DIALOG = "weavingspace_qgis/dialog.py"
 BRIDGE = "weavingspace_qgis/bridge.py"
 CATALOG = "weavingspace_qgis/catalog.py"
+# the ONE part of the vendored library that is ours: the
+# patch making matplotlib and scipy optional
+VENDOR_TILEABLE = ("weavingspace_qgis/vendor/weavingspace/tileable.py")
 
 # name, file, exact source to replace, replacement, test that must fail
 MUTATIONS = [
@@ -131,6 +134,53 @@ MUTATIONS = [
        test="test_a_finished_run_leaves_nothing_armed",
        why="an ordinary Generate not arming a live rebuild nobody "
            "asked for"),
+  dict(name="identifier-default", file=DIALOG,
+       old="preferred = [f for f in numeric if f.lower() not in id_like] or numeric",
+       new="preferred = [f for f in numeric if f.lower() in id_like] or numeric",
+       test="test_defaults_avoid_identifier_columns",
+       why="the default variable being a measurement rather than a "
+           "row id, which maps storage order and looks like data"),
+  dict(name="chooser-clear", file=DIALOG,
+       old="      combo.clear()",
+       new="      pass  # mutation: entries appended, never replaced",
+       test="test_repopulating_a_chooser_does_not_duplicate_it",
+       why="a dropdown rebuilt without duplicating everything in it"),
+  dict(name="size-guard-degenerate", file=BRIDGE,
+       old="  if det <= 0:",
+       new="  if det <= 1:",
+       test="test_the_size_guard_does_not_refuse_fine_patterns",
+       why="fine patterns being drawn rather than declared impossible"),
+  dict(name="categorical-palette-install", file=BRIDGE,
+       old="""    if name.lower() in existing:
+      continue
+    save(name, QgsPresetSchemeColorRamp""",
+       new="""    if name.lower() not in existing:
+      continue
+    save(name, QgsPresetSchemeColorRamp""",
+       test="test_ramp_swatches_and_palette_installation",
+       why="the categorical palettes, installed by their own loop, "
+           "reaching a fresh QGIS profile"),
+  dict(name="shells-spinner-layout", file=DIALOG,
+       old="shells_row.addWidget(self.shells_spin)",
+       new="pass  # mutation: the spinner is never added to a layout",
+       test="test_the_dialogs_chrome_does_its_job",
+       why="the context-shells control being reachable at all"),
+  dict(name="optional-matplotlib-patch", file=VENDOR_TILEABLE,
+       old="""except ImportError:
+  from weavingspace._optional import MissingModule
+  plt = MissingModule("matplotlib.pyplot")""",
+       new="""except ImportError:
+  raise  # mutation: the plugin's patch reverted to upstream""",
+       test="test_the_library_works_without_matplotlib_or_scipy",
+       why="the vendored library importing at all where matplotlib is "
+           "absent, which is most Linux QGIS installations"),
+  dict(name="over-under-connect", file=DIALOG,
+       old="self.opt_over_under.textChanged.connect(self._queue_preview)",
+       new="pass  # mutation: typing a pattern reaches nothing",
+       test="test_no_control_is_dead",
+       why="the over-under pattern field acting through its own "
+           "signal; the walk claims to cover every control, and this "
+           "is the check on that claim"),
   dict(name="dead-control-walk", file=DIALOG,
        old="self.spacing_spin.valueChanged.connect(self._queue_preview)",
        new="pass  # mutation: the spacing control reaches nothing",
