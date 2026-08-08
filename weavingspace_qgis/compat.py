@@ -103,3 +103,27 @@ def classification_method(scheme: str):
   }
   cls = getattr(qc, names.get(scheme, "QgsClassificationQuantile"), None)
   return cls() if cls is not None else None
+
+
+def map_unit_label(layer) -> str:
+  """The abbreviation for a layer's distance units, e.g. "m".
+
+  Args:
+    layer: the region layer whose CRS decides what "spacing" counts
+      in. Read on the main thread; this touches the layer.
+
+  Returns:
+    QGIS's own abbreviation for that CRS's distance unit ("m", "ft",
+    "\u00b0"), or "map units" when it has none, which is the phrase the
+    dialog's own spacing label uses so an unknown unit still reads as
+    a sentence.
+
+  This lives here rather than beside its caller because the enum it
+  reads is exactly the kind of thing QGIS moves: 3.30 relocated the
+  distance units to Qgis.DistanceUnit, and a future release may do it
+  again. When it breaks, this is the one line to fix.
+  """
+  from qgis.core import QgsUnitTypes
+  return QgsUnitTypes.toAbbreviatedString(layer.crs().mapUnits()) \
+      or "map units"
+

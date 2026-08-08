@@ -491,18 +491,13 @@ def map_unit_label(layer: QgsVectorLayer) -> str:
     layer: the region layer whose CRS sets what "spacing" counts in.
 
   Returns:
-    QGIS's own abbreviation for that CRS's distance unit ("m", "ft",
-    "°"), or "map units" when it has none — the phrase the
-    dialog's own spacing label uses, so an unknown unit still reads as
-    a sentence. Call it on the main thread: it reads the layer.
-
-    QgsUnitTypes is the version-sensitive part (QGIS 3.30 moved the
-    distance-unit enum to Qgis.DistanceUnit); if a future QGIS breaks
-    this line, the fix belongs in compat.py with the rest.
+    Whatever compat.map_unit_label returns. The call itself lives in
+    compat.py because the enum behind it is version-sensitive, and
+    this project keeps every such call in one place so a QGIS upgrade
+    breaks one file rather than several.
   """
-  from qgis.core import QgsUnitTypes
-  return QgsUnitTypes.toAbbreviatedString(layer.crs().mapUnits()) \
-      or "map units"
+  from weavingspace_qgis import compat
+  return compat.map_unit_label(layer)
 
 
 def coverage_message(missing: int, unit_count: int, spacing: float,
@@ -528,9 +523,11 @@ def coverage_message(missing: int, unit_count: int, spacing: float,
   """
   if missing <= 0:
     return None
-  rounded = round(spacing, 3)
-  spacing_text = f"{rounded:,.0f}" if rounded == int(rounded) \
-      else f"{rounded:,}"
+  # Six decimals then strip: that is the spacing spin box's own
+  # resolution, so the number in the message is the number the user
+  # typed. Rounding harder would print "0 m" for the fine spacings a
+  # degree-based or very local CRS makes reasonable
+  spacing_text = f"{spacing:,.6f}".rstrip("0").rstrip(".")
   return (f"At {spacing_text} {unit_label} spacing, {missing:,} of "
           f"{unit_count:,} areas received no tiles and appear nowhere "
           f"on the map.")

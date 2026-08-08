@@ -134,6 +134,12 @@ MUTATIONS = [
        test="test_a_finished_run_leaves_nothing_armed",
        why="an ordinary Generate not arming a live rebuild nobody "
            "asked for"),
+  dict(name="coverage-warning-spacing", file=BRIDGE,
+       old="def coverage_message(missing: int, unit_count: int, spacing: float,",
+       new="def coverage_message(missing: int, unit_count: int, spacing: float=0,",
+       test="test_the_map_says_which_areas_it_left_out",
+       why="the coverage notice naming the SPACING that produced the "
+           "drops, without which a stack of them is unreadable"),
   dict(name="stale-field-assignment", file=DIALOG,
        old='      if prev and prev["var"] in fields:',
        new='      if prev and prev["var"] is not None:',

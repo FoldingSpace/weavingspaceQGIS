@@ -6371,6 +6371,90 @@ def test_the_user_changes_the_data_underneath():
   dlg.close()
 
 
+def test_the_map_says_which_areas_it_left_out():
+  """A coarse spacing drops small areas; the map must say how many.
+
+  Each tile takes its value from the area it falls in, so an area
+  smaller than the pattern's grain can receive no tiles at all and
+  appear nowhere -- unlike a choropleth, where every area is always
+  drawn. The areas that vanish are systematically the small ones,
+  which in social data are often the densest and most deprived, so
+  this is a cartographic fact the map's author should be shown rather
+  than a fault to hide.
+
+  The message names the SPACING as well as the count, because people
+  arrive at a spacing by trying several and each try pushes another
+  notice: without the number they are a stack of identical
+  complaints, and with it they are the coverage cost of each spacing
+  tried.
+
+  Measured overhead of computing this: worst case 1.68% of the
+  worker's time on the Auckland data (155 areas), against a budget of
+  15%. See tools/measure_coverage_warning.py; if a change makes it
+  expensive, that harness is how to find out.
+  """
+  from weavingspace_qgis import bridge
+
+  # the sentence itself, where the numbers are known exactly
+  message = bridge.coverage_message(15, 155, 1500.0, "m")
+  assert message, "a run that dropped 15 areas said nothing"
+  assert "15" in message and "155" in message, \
+    f"the count and the total must both be in the message: {message}"
+  assert "1,500" in message or "1500" in message, \
+    f"the spacing must be in the message, or a stack of these is "\
+    f"unreadable: {message}"
+  assert "m " in message or " m," in message or "m spacing" in message, \
+    f"the spacing needs its units: {message}"
+  assert bridge.coverage_message(0, 155, 400.0, "m") is None, \
+    "full coverage must say nothing at all"
+
+  # and end to end: a layer with one deliberately tiny area
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import compat
+  project = QgsProject.instance()
+  layer = QgsVectorLayer("MultiPolygon?crs=EPSG:3857", "uneven", "memory")
+  layer.dataProvider().addAttributes([compat.make_field("v", float)])
+  layer.updateFields()
+  feats = []
+  for i in range(3):                       # three large areas
+    f = QgsFeature(layer.fields())
+    f.setGeometry(QgsGeometry.fromWkt(
+      f"POLYGON(({i*3000} 0, {i*3000+3000} 0, {i*3000+3000} 3000, "
+      f"{i*3000} 3000, {i*3000} 0))"))
+    f["v"] = float(i)
+    feats.append(f)
+  tiny = QgsFeature(layer.fields())        # and one far smaller than a tile
+  tiny.setGeometry(QgsGeometry.fromWkt(
+    "POLYGON((9000 0, 9040 0, 9040 40, 9000 40, 9000 0))"))
+  tiny["v"] = 9.0
+  feats.append(tiny)
+  layer.dataProvider().addFeatures(feats)
+  layer.updateExtents()
+  project.addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=None)     # headless: notes land in the dialog
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  dlg.spacing_spin.setValue(1500)
+  dlg.table.cellWidget(0, 1).setCurrentText("v")
+  _generate_and_wait(dlg)
+  _tick(300)
+
+  note = dlg.live_note.text()
+  assert "received no tiles" in note, \
+    f"an area smaller than the pattern's grain vanished from the map "\
+    f"and nothing said so; the note read {note!r}"
+  assert "1500" in note or "1,500" in note, \
+    f"the note must name the spacing that caused it: {note!r}"
+
+  # the tracing column must not reach the user's layers
+  out = project.mapLayer(dlg._element_layer_ids["a"])
+  names = [f.name() for f in out.fields()]
+  assert not any(n.startswith("ws_unit_id") for n in names), \
+    f"the id used to count coverage leaked into the output: {names}"
+  dlg.close()
+
+
 def test_plugin_lifecycle():
   """The QGIS entry points themselves: classFactory, initGui, the
   toolbar action opening the dialog, and unload. Nothing else in the
@@ -6625,6 +6709,8 @@ def main():
         test_a_comma_decimal_locale_does_not_corrupt_numbers)
   check("the user changes the data underneath",
         test_the_user_changes_the_data_underneath)
+  check("the map says which areas it left out",
+        test_the_map_says_which_areas_it_left_out)
   check("plugin lifecycle (menu, action, unload)",
         test_plugin_lifecycle)
   check("integration: cancel and recover",
