@@ -4995,16 +4995,30 @@ def test_no_control_is_dead():
   # reason: an entry here is an assertion that the control matters
   # somewhere this test does not look, and an unexplained entry is
   # how a dead control would hide.
+  # Each entry names the test that DOES cover the control, and the
+  # existence of that test is checked below. An exemption list is
+  # precisely where a dead control would hide, so an entry here is a
+  # citation rather than an excuse.
   ELSEWHERE = {
-    "live_check": "gates automatic regeneration; changes nothing on "
-                  "screen until a setting moves",
-    "gpkg_widget": "chooses an output file, which affects the next "
-                   "run rather than the current design",
-    "layer_combo": "covered by its own tests, and switching layers "
-                   "auto-sizes spacing, which would make this test "
-                   "pass for the wrong reason",
-    "opacity_spin": "per-element, exercised through the table",
+    "live_check": (None, "gates automatic regeneration; it changes "
+                         "nothing on screen until a setting moves"),
+    "gpkg_widget": (None, "chooses an output file, which affects the "
+                          "next run rather than the current design"),
+    "layer_combo": ("test_switching_region_layer_counts_as_a_change",
+                    "switching layers also auto-sizes spacing, which "
+                    "would make this walk pass for the wrong reason"),
+    "mod_p_inset": ("test_ui_library_modifier_chain",
+                    "insets the group at TILING time, so the tile "
+                    "unit and its preview are unchanged by design"),
+    "mod_glyph": ("test_ui_library_glyph_scaling",
+                  "scales tiles as glyphs when the map is built; the "
+                  "unit itself keeps its geometry"),
   }
+  for exempt, (covering, _why) in ELSEWHERE.items():
+    if covering is not None:
+      assert covering in globals(), \
+        f"{exempt} is exempt from this walk because {covering} covers "\
+        f"it, but no such test exists any more"
 
   def fingerprint(dlg):
     """Everything a user could notice about the current design."""
@@ -5092,6 +5106,75 @@ def test_no_control_is_dead():
   assert not dead, \
     f"{len(dead)} control(s) changed nothing when moved, so a user "\
     f"operating them would see no response at all: {', '.join(dead)}"
+
+
+def test_a_row_without_classes_says_so():
+  """A row whose style has no class count must show a dash, not a number.
+
+  The Classes cell is shared by every kind of row, and for a
+  categorical or single-colour element there is no such thing as a
+  class count. It is therefore parked at its minimum and given a dash
+  to display. An automatic mutant moved that value off the minimum,
+  which makes the dash vanish and the cell claim, in a column headed
+  Classes, that the element has one.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+
+  dlg.table.cellWidget(0, 1).setCurrentText("landcover")
+  dlg.table.cellWidget(0, 2).setCurrentText("Single colour")
+  dlg._update_dynamic_columns()
+  k_spin = dlg.table.cellWidget(0, 3)
+  if k_spin is not None:
+    assert k_spin.value() == k_spin.minimum(), \
+      f"a Single colour row has no class count, so its Classes cell "\
+      f"must sit at the minimum where its placeholder shows; it "\
+      f"reads {k_spin.value()}"
+    assert k_spin.specialValueText().strip(), \
+      "and the minimum needs a placeholder, or the cell shows a bare 0"
+    assert not k_spin.isEnabled(), "it is not editable either"
+  dlg.close()
+
+
+def test_a_finished_run_leaves_nothing_armed():
+  """When live update is off, finishing a run must not queue another.
+
+  The dialog remembers that a live regeneration was wanted while a run
+  was in flight, and starts it once the run is over. That memory
+  begins empty. An automatic mutant started it FULL, which means the
+  first ordinary Generate ends by arming a timer nobody asked for.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  assert not dlg._live_pending, \
+    "a dialog that has done nothing yet cannot have work pending"
+
+  dlg.spacing_spin.setValue(520)
+  _generate_and_wait(dlg)
+
+  # The timer being ARMED is normal: _queue_live starts it as a plain
+  # funnel and _maybe_live_generate is the thing that decides. What
+  # must not happen is a second tiling, so count tilings rather than
+  # timers -- an assertion about the timer would pin an implementation
+  # detail that is legitimately true, which is how this test failed
+  # when it was first written.
+  runs = []
+  original = dlg._generate
+  dlg._generate = lambda *a, **k: (runs.append(1), original(*a, **k))[1]
+  _tick(1500)          # long enough for the live timer to fire
+  assert not runs, \
+    f"finishing a run started {len(runs)} more, with live update "\
+    f"switched off; the user would watch the map rebuild itself for "\
+    f"no reason"
+  assert dlg._task is None, "and the run should be over"
+  dlg._generate = original
+  dlg.close()
 
 
 def test_plugin_lifecycle():
@@ -5318,6 +5401,10 @@ def main():
   check("switching region layer counts as a change",
         test_switching_region_layer_counts_as_a_change)
   check("no control is dead", test_no_control_is_dead)
+  check("a row without classes says so",
+        test_a_row_without_classes_says_so)
+  check("a finished run leaves nothing armed",
+        test_a_finished_run_leaves_nothing_armed)
   check("plugin lifecycle (menu, action, unload)",
         test_plugin_lifecycle)
   check("integration: cancel and recover",

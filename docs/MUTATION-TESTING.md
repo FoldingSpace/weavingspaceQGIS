@@ -149,6 +149,10 @@ the honest answer is a hundred mutants and several hours, spend them.
 
 ## Running it
 
+The full procedure -- cycles, supervision, triage, the integrity
+hazards and the stopping rule -- is `docs/MUTATION-LOOP.md`. What
+follows is the mechanics of the tool itself.
+
 ```
 QT_QPA_PLATFORM=offscreen PYTHONHOME=... <qgis python> \
     tools/mutate_auto.py --sample 30 --seed 3

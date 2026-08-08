@@ -87,6 +87,27 @@ MUTATIONS = [
        test="test_catalogue_values_are_what_they_claim",
        why="where a hex-slice's cuts start; the element count is "
            "identical either way, so counting cannot catch it"),
+  dict(name="classes-placeholder", file=DIALOG,
+       old="""      k_spin.setSpecialValueText("\u2013")
+      k_spin.setValue(0)""",
+       new="""      k_spin.setSpecialValueText("\u2013")
+      k_spin.setValue(1)""",
+       test="test_a_row_without_classes_says_so",
+       why="a categorical row's Classes cell showing a dash rather "
+           "than claiming one class"),
+  dict(name="live-pending-initial", file=DIALOG,
+       old="self._live_pending = False",
+       new="self._live_pending = True",
+       test="test_a_finished_run_leaves_nothing_armed",
+       why="an ordinary Generate not arming a live rebuild nobody "
+           "asked for"),
+  dict(name="dead-control-walk", file=DIALOG,
+       old="self.spacing_spin.valueChanged.connect(self._queue_preview)",
+       new="pass  # mutation: the spacing control reaches nothing",
+       test="test_no_control_is_dead",
+       why="the systematic walk itself: if deleting a connection does "
+           "not fail it, the walk is decoration. Spacing is the "
+           "control chosen here because its effect is unmistakable"),
   dict(name="nice-number-base", file=DIALOG,
        old="mant = x / 10 ** exp",
        new="mant = x / 11 ** exp",

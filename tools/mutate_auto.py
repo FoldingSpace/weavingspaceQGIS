@@ -459,12 +459,25 @@ def run_tests(names, base):
   """
   code = RUNNER.format(root=base, tests=list(names))
   watchdog = os.path.join(base, "tools", "watchdog.py")
+  # The wall-clock ceiling has to scale with the work. A mutant on a
+  # heavily covered line is confirmed against every test that touches
+  # it -- sixty or more -- and a fixed 300 seconds cannot fit that,
+  # least of all with three workers competing. Batch five produced
+  # four "stalls" at 313-314 seconds, all running the same 66 tests:
+  # not four hangs, one ceiling.
+  limit = max(300, 15 * len(names))
   result = subprocess.run(
-    [sys.executable, watchdog, "--stall", "40", "--timeout", "300",
-     "--quiet", "--", sys.executable, "-c", code],
+    [sys.executable, watchdog, "--stall", "40",
+     "--timeout", str(limit), "--quiet", "--", sys.executable,
+     "-c", code],
     cwd=base, capture_output=True, text=True)
-  if result.returncode in (124, 125):
+  if result.returncode == 125:
+    # no CPU and no output for 40 seconds: the program really did
+    # stop, which is a test noticing something via the watchdog
     return "stalled"
+  if result.returncode == 124:
+    # we ran out of patience, which says nothing about the mutant
+    return "timeout"
   return "survived" if result.returncode == 0 else "killed"
 
 
@@ -642,6 +655,12 @@ def main():
 
   killed = survived = stalled = 0
   survivors = []
+  # Runs that hit the wall-clock ceiling. NOT a verdict: counting them
+  # as caught would let the machine's load flatter the suite, and
+  # counting them as survivors would blame the tests for a scheduling
+  # decision. They are reported and excluded, and their existence is
+  # a sign the ceiling needs raising rather than the tests improving.
+  timeouts = []
 
   # Everything below happens in a throwaway copy. The project itself
   # is never opened for writing, so an interrupted campaign cannot
@@ -745,6 +764,8 @@ def main():
         killed += 1
       elif verdict == "stalled":
         stalled += 1
+      elif verdict == "timeout":
+        timeouts.append((mutant, tests))
       else:
         survived += 1
         survivors.append((mutant, tests))
@@ -763,6 +784,8 @@ def main():
           killed += 1
         elif verdict == "stalled":
           stalled += 1
+        elif verdict == "timeout":
+          timeouts.append((mutant, tests))
         else:
           survived += 1
           survivors.append((mutant, tests))
@@ -774,6 +797,12 @@ def main():
   caught = killed + stalled
   rate = 100 * caught / max(total, 1)
   bound = clopper_pearson_lower(caught, total)
+  if timeouts:
+    print(f"\n{len(timeouts)} run(s) hit the time limit and are "
+          f"EXCLUDED from the rate below; they are not verdicts:")
+    for mutant, tests in timeouts:
+      print(f"  {mutant} ({len(tests)} tests)")
+
   print(f"\nfirst-run kill rate: {caught}/{total} = {rate:.0f}%"
         f"  (killed {killed}, stalled {stalled}, survived {survived})")
   print(f"true rate is at least {bound * 100:.0f}% with 95% "

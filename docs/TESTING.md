@@ -2,9 +2,12 @@
 
 This is the consolidated record of how testing is done here and, more
 usefully, of the ways it has gone wrong. Nearly every rule below was
-paid for once already. Read it before writing or changing tests;
+paid for once already. Read it before writing or changing tests.
 `docs/MUTATION-TESTING.md` covers the campaign that keeps the suite
-honest, and CLAUDE.md makes both binding.
+honest and what we promise about its score;
+`docs/MUTATION-LOOP.md` is the runbook for actually running that
+campaign, from launching a cycle to the stopping rule. CLAUDE.md makes
+all three binding.
 
 The suite lives in `tests/run_tests.py` (behaviour), `tests/visual_tests.py`
 (a rendered gallery, scored in a perceptual colourspace), and

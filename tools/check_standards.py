@@ -181,7 +181,8 @@ def check_binding_documents():
   missing file is worse than no rule, and a document nothing points at
   is a document nobody opens, so both directions are checked here.
   """
-  for name in ("docs/TESTING.md", "docs/MUTATION-TESTING.md"):
+  for name in ("docs/TESTING.md", "docs/MUTATION-TESTING.md",
+               "docs/MUTATION-LOOP.md"):
     path = os.path.join(ROOT, name)
     if not os.path.exists(path):
       problems.append(f"{name} is missing, but CLAUDE.md declares it "

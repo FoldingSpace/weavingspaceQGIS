@@ -154,7 +154,13 @@ obligations: they exist so nobody pays twice for the same discovery.
   written or changed.** `docs/TESTING.md` holds the shapes that earn
   their keep here and the lessons each paid for once; nearly every
   rule in it exists because its absence cost this project real time.
-  `docs/MUTATION-TESTING.md` holds the campaign and its commitments.
+  `docs/MUTATION-TESTING.md` holds the campaign and its commitments,
+  and `docs/MUTATION-LOOP.md` is the runbook for running that campaign
+  again from scratch: how to launch a cycle (`tools/loop/cycle.sh`),
+  how to supervise it so the machine is never idle and no watcher goes
+  silent or repeats itself (`tools/loop/health.sh`, a stage monitor
+  and a ten-minute heartbeat), how to triage a survivor into one of
+  five kinds, and when the campaign may be called finished.
   Treat both as you would the hard rules above: when you find yourself
   about to do something they warn against, the document is right and
   the shortcut is not. When one of them turns out to be wrong, change
@@ -314,6 +320,12 @@ first, kept here so they are unmissable:
   still running. Wait on the pid, and if a log must be matched,
   include a case-insensitive alternation broad enough to catch the
   failure modes as well as the success line.
+- A watcher that REPEATS itself misleads as badly as one that goes
+  silent: a monitor grepping a whole log each pass re-reported the
+  same historical failure every 45 seconds as though it were news,
+  which makes the current state unreadable. Track an offset per file
+  and emit only what is new. Between this and the twelve-hour poll
+  above, the rule is: a watcher must report change, not state.
 - macOS code-signing (library validation) refuses PyPI C extensions
   inside the signed QGIS process; side tooling that needs matplotlib
   runs in .venv-reference, never in QGIS's Python.
