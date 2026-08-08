@@ -6205,6 +6205,172 @@ def test_random_designs_match_the_library():
     f"library:\n  " + "\n  ".join(failures[:6])
 
 
+def test_a_comma_decimal_locale_does_not_corrupt_numbers():
+  """The plugin must work where the decimal separator is a comma.
+
+  On a French, German or Brazilian system Qt formats and parses
+  numbers with a comma, and every float the plugin reads from a spin
+  box, writes into a GeoPackage or round-trips through a QML is a
+  candidate for silent corruption. None of it is visible on a machine
+  running in English, which is why this test forces the locale in a
+  child process: QLocale has to be set before any widget exists, so it
+  cannot be done in the middle of a suite that has already built
+  dialogs.
+
+  What would go wrong is not a crash but a wrong map: a spacing of
+  1234.5 read as 12345, or an offset of 0.05 read as 5.
+  """
+  import subprocess
+  import sys as _sys
+
+  program = """
+import importlib.util, os, sys
+from qgis.PyQt.QtCore import QLocale
+# German: comma decimal separator, full stop as the group separator.
+QLocale.setDefault(QLocale(QLocale.Language.German, QLocale.Country.Germany))
+ROOT = "__ROOT__"
+spec = importlib.util.spec_from_file_location(
+    "rt", os.path.join(ROOT, "tests", "run_tests.py"))
+rt = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(rt)
+from qgis.core import QgsApplication, QgsProject
+QgsApplication.setPrefixPath(os.environ.get("QGIS_PREFIX_PATH", "/usr"), True)
+app = QgsApplication([], True)
+app.initQgis()
+rt._no_modal_dialogs()
+from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+layer = rt.make_region_layer()
+QgsProject.instance().addMapLayer(layer)
+dlg = WeavingSpaceDialog(iface=rt._Iface())
+dlg.live_check.setChecked(False)
+
+# a spacing with a fractional part, and a fine offset
+dlg.spacing_spin.setValue(1234.5)
+dlg.n_combo.setCurrentText("2")
+dlg.kind_combo.setCurrentText("tiling")
+dlg.family_combo.setCurrentText("hex-slice 2")
+dlg.opt_offset.setValue(0.05)
+dlg._rebuild_unit()
+print("SPACING %r" % dlg.spacing_spin.value())
+print("OFFSET %r" % dlg.opt_offset.value())
+print("SHOWN %s" % dlg.spacing_spin.text())
+
+rt._generate_and_wait(dlg)
+ids = list(dlg._element_layer_ids.values())
+counts = [QgsProject.instance().mapLayer(i).featureCount() for i in ids]
+print("TILES %d" % sum(counts))
+
+# and the same design through a GeoPackage, where the numbers are
+# written and read back by a driver that has its own opinions
+import tempfile
+path = os.path.join(tempfile.mkdtemp(), "locale.gpkg")
+dlg.gpkg_widget.setFilePath(path)
+rt._generate_and_wait(dlg)
+print("WROTE %d" % (1 if os.path.exists(path) else 0))
+sys.stdout.flush()
+os._exit(0)
+""".replace("__ROOT__", ROOT)
+
+  result = subprocess.run([_sys.executable, "-c", program],
+                          capture_output=True, text=True, timeout=300)
+  out = dict(line.split(" ", 1) for line in result.stdout.splitlines()
+             if line.split(" ")[0].isupper() and " " in line)
+  assert "SPACING" in out, \
+    f"the plugin did not survive a comma-decimal locale:\n" \
+    f"{result.stderr[-1500:]}"
+  assert abs(float(out["SPACING"]) - 1234.5) < 1e-9, \
+    f"a spacing of 1234.5 came back as {out['SPACING']} under a "\
+    f"comma-decimal locale"
+  assert abs(float(out["OFFSET"]) - 0.05) < 1e-9, \
+    f"an offset of 0.05 came back as {out['OFFSET']}"
+  # the DISPLAY should be localised even though the value is not
+  assert "," in out["SHOWN"] or "." in out["SHOWN"], \
+    f"the spin box showed {out['SHOWN']!r}"
+  assert int(out["TILES"]) > 0, \
+    "no tiles were produced under a comma-decimal locale"
+  assert out.get("WROTE") == "1", \
+    "the GeoPackage was not written under a comma-decimal locale"
+
+
+def test_the_user_changes_the_data_underneath():
+  """QGIS-side changes while the dialog is open must not defeat it.
+
+  Users rename layers, edit attributes, delete fields and remove
+  layers, and they do it with the plugin's window still open. The
+  suite tests what the PLUGIN does thoroughly and what QGIS does to it
+  barely at all. None of these should raise; each should either keep
+  working or decline in a way the user can act on.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import compat
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.spacing_spin.setValue(600)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(400)
+
+  # 1. renaming the layer: the chooser should follow, not lose it
+  layer.setName("renamed by the user")
+  _tick(300)
+  assert dlg.layer_combo.currentLayer() is layer, \
+    "renaming the region layer lost the dialog's selection"
+  _generate_and_wait(dlg)
+  assert dlg._element_layer_ids, "generation failed after a rename"
+
+  # 2. adding a field mid-session: it should become choosable
+  layer.dataProvider().addAttributes([compat.make_field("added", float)])
+  layer.updateFields()
+  _tick(400)
+  dlg._refresh_table()
+  offered = {dlg.table.cellWidget(0, 1).itemText(i)
+             for i in range(dlg.table.cellWidget(0, 1).count())}
+  assert "added" in offered, \
+    f"a field added to the layer never appeared in the chooser: "\
+    f"{sorted(offered)}"
+
+  # 3. deleting the field a row is mapped to: the dialog must cope
+  index = layer.fields().indexOf("v1")
+  assert index >= 0
+  layer.dataProvider().deleteAttributes([index])
+  layer.updateFields()
+  _tick(400)
+  dlg._refresh_table()
+  after = {a["id"]: a["var"] for a in dlg._assignments()}
+  assert "v1" not in after.values(), \
+    f"an element is still mapped to a field that no longer exists: "\
+    f"{after}"
+  # Generating now either works or declines, and BOTH are acceptable;
+  # what matters is that it does not raise and does not leave a run in
+  # flight. _generate_and_wait cannot be used here: it waits for a
+  # completion callback, and a run that legitimately never starts
+  # leaves it sitting out its whole backstop -- which is exactly what
+  # happened when this test was first written.
+  MODALS.clear()
+  dlg._generate()
+  if dlg._task is not None:
+    assert _settle(dlg, 60), "the run never finished"
+  else:
+    assert MODALS, \
+      "generation declined after the mapped field was deleted, and "\
+      "said nothing about why"
+
+  # 4. removing the layer entirely, with the dialog idle
+  project.removeMapLayer(layer.id())
+  _tick(400)
+  MODALS.clear()
+  dlg._generate()
+  _tick(600)
+  assert dlg._task is None, \
+    "a run was started against a layer that no longer exists"
+  assert MODALS or dlg.live_note.text().strip(), \
+    "the region layer was gone and the plugin said nothing at all"
+  dlg.close()
+
+
 def test_plugin_lifecycle():
   """The QGIS entry points themselves: classFactory, initGui, the
   toolbar action opening the dialog, and unload. Nothing else in the
@@ -6455,6 +6621,10 @@ def main():
         test_an_over_large_inset_empties_the_design_visibly)
   check("random designs match the library",
         test_random_designs_match_the_library)
+  check("a comma-decimal locale does not corrupt numbers",
+        test_a_comma_decimal_locale_does_not_corrupt_numbers)
+  check("the user changes the data underneath",
+        test_the_user_changes_the_data_underneath)
   check("plugin lifecycle (menu, action, unload)",
         test_plugin_lifecycle)
   check("integration: cancel and recover",

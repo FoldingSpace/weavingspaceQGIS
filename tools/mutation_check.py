@@ -134,6 +134,13 @@ MUTATIONS = [
        test="test_a_finished_run_leaves_nothing_armed",
        why="an ordinary Generate not arming a live rebuild nobody "
            "asked for"),
+  dict(name="stale-field-assignment", file=DIALOG,
+       old='      if prev and prev["var"] in fields:',
+       new='      if prev and prev["var"] is not None:',
+       test="test_the_user_changes_the_data_underneath",
+       why="an element stops being mapped to a field the user has "
+           "deleted from the layer, rather than carrying a name that "
+           "no longer exists into the next run"),
   dict(name="single-category-first-colour", file=BRIDGE,
        old="          if n > 1 else 0",
        new="          if n > 1 else 1",

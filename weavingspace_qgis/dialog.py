@@ -2202,7 +2202,10 @@ class WeavingSpaceDialog(QDialog):
     are-you-sure confirmation. The path from here: build a CRS-less
     copy of the inputs, run weavingspace's Tiling in the task's worker
     thread, then ``done`` reattaches the CRS and hands the result to
-    ``_on_generated`` on the main thread.
+    ``_on_generated`` on the main thread. ``done`` also reports the
+    run's coverage: how many areas of the region the pattern missed
+    entirely, which is a fact about the map rather than a fault, and
+    goes to the message bar rather than a dialog.
     """
     if self._task is not None:
       self._live_pending = True  # one run at a time; rerun when done
@@ -2297,6 +2300,19 @@ class WeavingSpaceDialog(QDialog):
       if part is not None:
         part.crs = None
 
+    # Trace each tile back to the area it took its data from. The
+    # column goes on the worker's copy of the region, travels with the
+    # library's own attribute join onto the tiles, and comes off again
+    # inside the worker, so nothing downstream ever sees it. This is
+    # what makes the coverage count below a set difference over one
+    # integer column rather than a second spatial pass.
+    unit_id_column = bridge.add_unit_ids(region)
+    unit_count = len(region)
+    # Written on the worker thread, read on the main thread in done().
+    # Safe without a lock: QGIS delivers finished() as a queued signal
+    # after run() has returned, so the write happens-before the read
+    coverage = {"missing": None}
+
     as_icons = self.opt_icons.isChecked()
     join_proto = self.opt_join_prototiles.isChecked()
     retain = self.opt_retain.isChecked()
@@ -2314,6 +2330,12 @@ class WeavingSpaceDialog(QDialog):
         retain_tileables=retain,
         ragged_edges=ragged)
       task.setProgress(90)
+      # Count here, where the tiled frame is already in memory and
+      # still carries the tracing column; the same call strips the
+      # column off again. Measured at 1% of the run on the packaged
+      # Auckland data (tools/measure_coverage_warning.py)
+      coverage["missing"] = bridge.count_units_without_tiles(
+        tm.map, unit_id_column, unit_count)
       return None if task.isCanceled() else tm.map
 
     self.generate_btn.setEnabled(False)
@@ -2333,12 +2355,29 @@ class WeavingSpaceDialog(QDialog):
     # went missing.
     run_sig = self._run_signature()
     geometry_sig = self._geometry_signature()
+    # Snapshotted for the same reason: the coverage notice names the
+    # spacing THIS map was tiled at, and the user is free to type a
+    # different one while it runs. map_unit_label reads the layer, so
+    # it also has to happen here on the main thread
+    spacing_used = self.spacing_spin.value()
+    unit_label = bridge.map_unit_label(layer)
 
     def done(gdf, error):
       if gdf is not None and result_crs is not None:
         gdf.crs = result_crs  # reattach on the main thread (pyproj-safe)
       self._on_generated(gdf, error, family, layer, assignments, path,
                          run_sig, geometry_sig, live)
+      # The coverage notice goes out AFTER _on_generated, never inside
+      # it: that method's finally clears live_note, which is where
+      # _report_quietly writes when there is no QGIS window (headless
+      # runs, the test harness), so a notice pushed earlier would be
+      # wiped a moment later. A run that failed, was cancelled, or
+      # produced nothing at all has already said so more loudly
+      if error is None and gdf is not None and len(gdf) > 0:
+        note = bridge.coverage_message(coverage["missing"], unit_count,
+                                       spacing_used, unit_label)
+        if note is not None:
+          self._report_quietly(note)
 
     self._task = TilingTask(
       f"WeavingSpace: tiling with {family}", work, done)

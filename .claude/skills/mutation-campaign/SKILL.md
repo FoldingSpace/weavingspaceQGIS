@@ -3,9 +3,9 @@ name: mutation-campaign
 description: Run a mutation-testing campaign to measure and genuinely improve how good a test suite is — sampling mutants, triaging survivors, verifying that new tests actually fail, and deciding when a score can be defended. Use this whenever the user wants to know whether their tests are any good, asks about mutation testing or mutation score, says coverage looks high but they don't trust it, wants to raise a mutation score toward a target, or is writing tests to close gaps that a mutation tool found. Also use it when someone proposes to accept a surviving mutant as "equivalent", or asks how many mutants they need to sample — both are places where a campaign quietly turns into a vanity metric.
 derived_from:
   - path: docs/MUTATION-LOOP.md
-    sha256: PENDING
+    sha256: 749db6709ad3b561bbe25f6b7e38b5e0be1d077498d7528765d8f33e20c78235
   - path: docs/MUTATION-TESTING.md
-    sha256: PENDING
+    sha256: b6365d3bcd95d3483d93a27fc02f5800a0acb39b6f551413169321e545055519
 ---
 
 # Running a mutation campaign

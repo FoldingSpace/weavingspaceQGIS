@@ -423,6 +423,119 @@ def min_reasonable_spacing(unit, region_gdf, spacing: float) -> float:
   return spacing * math.sqrt(est / MAX_TILES_HARD)
 
 
+# ----------------------------------------------------------- tile coverage
+
+def add_unit_ids(region_gdf) -> str:
+  """Number the region's areas so tiles can be traced back to them.
+
+  A tiled map is not a choropleth: where the spacing is coarse
+  relative to a small area, that area can win no tile at all and then
+  appears nowhere on the map, silently. The tiling itself gives no way
+  to notice, because weavingspace drops its own internal region id
+  (DZID) before handing back the map. So the plugin puts a column of its own on the
+  region: every non-geometry column of the region rides along through
+  the library's attribute join onto the tiles, which turns "who was
+  left out?" into a difference between two sets of integers rather
+  than a second spatial pass over the geometry.
+
+  Args:
+    region_gdf: the region frame about to be tiled. MUTATED: it gains
+      one integer column. Pass the worker's own copy, not a frame the
+      rest of the plugin still reads.
+
+  Returns:
+    The name of the column added, which is "ws_unit_id" unless the
+    user's own data already has that field, in which case a digit is
+    appended until the name is free (the same guard weavingspace
+    itself uses for its DZID column, and for the same reason: the name
+    has to survive an overlay against arbitrary user attributes).
+  """
+  name = "ws_unit_id"
+  i = 0
+  while name in region_gdf.columns:
+    name = f"ws_unit_id{i}"
+    i += 1
+  region_gdf[name] = range(len(region_gdf))
+  return name
+
+
+def count_units_without_tiles(tiled_gdf, id_column: str,
+                              unit_count: int) -> int:
+  """How many region areas the finished tiling left empty.
+
+  Args:
+    tiled_gdf: the tiled map as the library returned it, one row per
+      tile, carrying the tracing column added by ``add_unit_ids``.
+      MUTATED: that column is dropped here, in place, so it never
+      reaches the output layers or the GeoPackage. In place because
+      ``drop`` without it copies the whole frame, and this frame is
+      the largest thing in the run.
+    id_column: the column name ``add_unit_ids`` returned.
+    unit_count: how many areas the region had before tiling.
+
+  Returns:
+    The number of areas no tile drew its data from: areas the
+    cartographer will not find on the map. Counting distinct ids is a
+    hash over one integer column, so the cost is linear in tiles and
+    trivial beside the tiling that produced them.
+  """
+  served = tiled_gdf[id_column].nunique()
+  tiled_gdf.drop(columns=[id_column], inplace=True)
+  return unit_count - served
+
+
+def map_unit_label(layer: QgsVectorLayer) -> str:
+  """The abbreviation for a layer's distance units, e.g. "m".
+
+  Args:
+    layer: the region layer whose CRS sets what "spacing" counts in.
+
+  Returns:
+    QGIS's own abbreviation for that CRS's distance unit ("m", "ft",
+    "°"), or "map units" when it has none — the phrase the
+    dialog's own spacing label uses, so an unknown unit still reads as
+    a sentence. Call it on the main thread: it reads the layer.
+
+    QgsUnitTypes is the version-sensitive part (QGIS 3.30 moved the
+    distance-unit enum to Qgis.DistanceUnit); if a future QGIS breaks
+    this line, the fix belongs in compat.py with the rest.
+  """
+  from qgis.core import QgsUnitTypes
+  return QgsUnitTypes.toAbbreviatedString(layer.crs().mapUnits()) \
+      or "map units"
+
+
+def coverage_message(missing: int, unit_count: int, spacing: float,
+                     unit_label: str) -> str | None:
+  """The message bar's warning about areas the pattern missed.
+
+  Args:
+    missing: how many areas received no tiles (from
+      ``count_units_without_tiles``).
+    unit_count: how many areas the region layer holds altogether.
+    spacing: the spacing this run used, in the region's map units.
+    unit_label: what those units are called, from ``map_unit_label``.
+
+  Returns:
+    One sentence for the message bar, or None when every area got at
+    least one tile and there is nothing to say.
+
+    The spacing is in the sentence deliberately. Users arrive at a
+    spacing by trying several, and each try pushes another of these
+    notices; without the number they are a stack of identical
+    complaints, and with it they are the coverage cost of each spacing
+    the user tried, side by side.
+  """
+  if missing <= 0:
+    return None
+  rounded = round(spacing, 3)
+  spacing_text = f"{rounded:,.0f}" if rounded == int(rounded) \
+      else f"{rounded:,}"
+  return (f"At {spacing_text} {unit_label} spacing, {missing:,} of "
+          f"{unit_count:,} areas received no tiles and appear nowhere "
+          f"on the map.")
+
+
 # ------------------------------------------------------- renderer seeding
 
 def _fill_symbol(colour: str, outline: bool) -> QgsFillSymbol:

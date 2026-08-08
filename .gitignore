@@ -1,3 +1,8 @@
+# Working notes and investigations that are not part of the
+# published project: thinking-in-progress, findings not yet
+# decided upon, material we may or may not act on.
+dev/
+
 # Build products and generated evidence. Reports are attached to
 # GitHub Releases instead of committed: they run to tens of megabytes
 # per version, and git keeps every blob forever.

@@ -144,6 +144,12 @@ def check_images(since):
       problems.append(f"{name} is shown in the published pages but does "
                       f"not exist")
       continue
+    # Figures reproduced from the published article are fixed: they
+    # show what the technique produced in print, and regenerating them
+    # would mean altering someone's published work. Only OUR renders
+    # are expected to be retaken each release.
+    if os.path.basename(name).startswith("paper-"):
+      continue
     if since and os.path.getmtime(full) < since:
       age = (time.time() - os.path.getmtime(full)) / 86400
       problems.append(

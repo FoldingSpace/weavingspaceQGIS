@@ -7,7 +7,12 @@ laid across the study area and each kind of shape is coloured by a
 different attribute. Project page:
 [foldingspace.github.io/weavingspaceQGIS](https://foldingspace.github.io/weavingspaceQGIS/).
 
-![A Laves 3.3.4.3.4 tiling carrying four variables](docs/img/four-variables.png)
+![Four deprivation indices in a basket weave, and seven in a hexagon 7-colouring, both over central Auckland](docs/img/paper-fig1-auckland-deprivation.png)
+
+*Four indices of deprivation in a basket weave, and seven in a
+7-colouring of hexagons, both over the centre of Auckland. Each legend
+names which element carries which variable. Figure 1 from O'Sullivan
+and Bergmann (2026), reproduced by the authors.*
 
 ## An experimental prototype
 
@@ -41,6 +46,14 @@ which is the point. You can refine symbology in the Layer Styling
 panel, export to GeoPackage with the styles embedded, and place the
 result in a print layout, and the plugin will not fight you for
 control of any of it.
+
+![Anthropogenic biomes at six moments in time across northeastern North America](docs/img/paper-fig2-anthropogenic-biomes.png)
+
+*Six moments in time in one map: anthropogenic biomes across the
+northeast of North America, after Ellis et al. (2021). Figure 2 from
+O'Sullivan and Bergmann (2026), reproduced by the authors.*
+
+The plugin draws the same kinds of map from your own layers:
 
 <p align="center">
   <img src="docs/img/twill-weave.png" width="45%" alt="A twill weave with gaps">
@@ -111,7 +124,10 @@ browser-based tool built on the same library:
 ## Licence and citation
 
 MIT, for both the plugin and the bundled library; see
-[LICENSE.md](LICENSE.md) for both notices. If the plugin contributes to
+[LICENSE.md](LICENSE.md) for both notices. The two figures above are
+reproduced from the *Cartographic Perspectives* article by its authors,
+who retain copyright in them; they are not covered by this
+repository's MIT licence and are not offered for reuse here. If the plugin contributes to
 work you publish, please cite the article above; `CITATION.cff` carries
 the machine-readable form.
 
