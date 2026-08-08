@@ -1,0 +1,461 @@
+#!/usr/bin/env python3
+"""Cut a release: run every check, write the report, then build the zip.
+
+Usage:
+    python3 release.py            # find QGIS automatically (macOS)
+    QGIS_PYTHON=... QGIS_PREFIX_PATH=... python3 release.py   # explicit
+
+This is THE way to put out a version (see MAINTAINING.md). It will not
+produce a zip unless everything passes. Steps, in order:
+
+1. functional suite (tests/run_tests.py) under QGIS's bundled Python —
+   the regression record of everything this project has fixed: the
+   pyproj/threading rule, the tile-count guard, auto-render, per-row
+   symbology behaviour, GeoPackage output, spacing persistence, QML
+   round-trips;
+2. visual gallery (tests/visual_tests.py), rendering canonical
+   weavingspace outputs to PNGs with image assertions (including
+   CIELAB distance-to-ramp checks) and writing
+   reports/v<version>/index.html;
+3. reference comparison (tools/visual_reference_report.py) in a
+   separate Python environment with geopandas and matplotlib: each
+   gallery render is scored in Lab colourspace against weavingspace's
+   own TiledMap.render on identical inputs (the web app's rendering
+   path), with the Quant: Unclassed render as fallback where quantile
+   classing alone explains a mismatch; writes visual-comparison.pdf.
+   The environment is found via $REFERENCE_PYTHON, else
+   .venv-reference/ (created automatically on first use — this cannot
+   run under QGIS's Python because macOS code-signing refuses PyPI C
+   extensions in the signed QGIS process);
+4. build.py, producing dist/weavingspace_qgis.zip.
+
+Environment discovery: on macOS the newest /Applications/QGIS*.app is
+used, deriving the interpreter and the env vars its Python needs
+(PYTHONHOME because the app's python is relocated; PROJ_LIB so PROJ
+finds its coordinate database; QT_QPA_PLATFORM=offscreen so no windows
+open). On other platforms set QGIS_PYTHON and QGIS_PREFIX_PATH
+yourself — see "Running the tests" in MAINTAINING.md for per-platform
+commands.
+"""
+
+import argparse
+import glob
+import os
+import shutil
+import re
+import subprocess
+import sys
+import time
+
+ROOT = os.path.dirname(os.path.abspath(__file__))
+
+
+def plugin_version():
+  with open(os.path.join(ROOT, "weavingspace_qgis", "metadata.txt"),
+            encoding="utf-8") as f:
+    for line in f:
+      if line.startswith("version="):
+        return line.split("=", 1)[1].strip()
+  return "unknown"
+
+
+def qgis_environment():
+  """(python_executable, env) for running scripts under QGIS's Python."""
+  env = dict(os.environ)
+  env.setdefault("QT_QPA_PLATFORM", "offscreen")
+  explicit = os.environ.get("QGIS_PYTHON")
+  if explicit:
+    return explicit, env
+  apps = sorted(glob.glob("/Applications/QGIS*.app"))
+  if not apps:
+    sys.exit("No QGIS app found; set QGIS_PYTHON and QGIS_PREFIX_PATH "
+             "(see MAINTAINING.md).")
+  contents = os.path.join(apps[-1], "Contents")
+  pythons = sorted(glob.glob(os.path.join(contents, "MacOS", "python3.*")))
+  if not pythons:
+    sys.exit(f"No bundled python3 in {contents}/MacOS")
+  env["PYTHONHOME"] = os.path.join(contents, "Frameworks")
+  env["PROJ_LIB"] = os.path.join(contents, "Resources", "qgis", "proj")
+  env["QGIS_PREFIX_PATH"] = os.path.join(contents, "MacOS")
+  return pythons[0], env
+
+
+def run(step, cmd, env, capture=False):
+  """Run one step, streaming (or capturing) output; exit on failure so
+  no zip can be produced from a failing state."""
+  print(f"\n=== {step} ===")
+  result = subprocess.run(cmd, env=env, cwd=ROOT,
+                          capture_output=capture, text=True)
+  output = (result.stdout or "") + (result.stderr or "") if capture else ""
+  if capture:
+    print(output[-2000:])
+  if result.returncode != 0:
+    sys.exit(f"RELEASE ABORTED: {step} failed "
+             f"(exit {result.returncode}); no zip was built.")
+  return output
+
+
+def test_docstrings():
+  """{display name: first docstring sentence} for every functional
+  test, read from tests/run_tests.py itself (the AST, so nothing needs
+  importing under QGIS here). The display names come from the check()
+  calls in its main(); the sentences from each test function's
+  docstring. Used to annotate the testing report."""
+  import ast
+  import re
+  path = os.path.join(ROOT, "tests", "run_tests.py")
+  with open(path, encoding="utf-8") as f:
+    source = f.read()
+  tree = ast.parse(source)
+  docs = {}
+  for node in ast.walk(tree):
+    if isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):
+      doc = ast.get_docstring(node) or ""
+      first = doc.replace("\n", " ").split(". ")[0].strip()
+      docs[node.name] = (first + "." if first and not first.endswith(".")
+                         else first)
+  names = {}
+  for m in re.finditer(r'check\("([^"]+)",\s*\n?\s*(test_\w+)\)',
+                       source):
+    names[m.group(1)] = docs.get(m.group(2), "")
+  return names
+
+
+def write_testing_report(report_dir, version, functional, visual,
+                         comparison, coverage=""):
+  """One markdown file per release listing every test individually:
+  each functional test with its result and what it verifies, each
+  visual case with its measured values, each reference comparison
+  with its colourspace scores. This is the record the release notes
+  point at; a release without it is incomplete."""
+  lines = [f"# Testing report — v{version}", ""]
+  lines += ["## Functional suite (tests/run_tests.py)", ""]
+  annotations = test_docstrings()
+  for ln in functional.splitlines():
+    if ln.startswith(("PASS", "FAIL")):
+      name = ln[4:].strip()
+      note = annotations.get(name, "")
+      lines.append(f"- **{ln[:4].strip()}** {name}"
+                   + (f" — {note}" if note else ""))
+  lines.append("")
+  lines += ["## Visual gallery (tests/visual_tests.py)", ""]
+  for ln in visual.splitlines():
+    if ln.startswith(("PASS", "FAIL")):
+      body = ln[4:].strip()
+      name, _, detail = body.partition(" :: ")
+      lines.append(f"- **{ln[:4].strip()}** {name}"
+                   + (f" — {detail}" if detail.strip() else ""))
+  lines.append("")
+  lines += ["## Reference comparison "
+            "(tools/visual_reference_report.py)", ""]
+  for ln in comparison.splitlines():
+    if ln.startswith(("PASS", "FAIL")):
+      lines.append(f"- **{ln[:4].strip()}** {ln[4:].strip()}")
+  summary = [ln for ln in coverage.splitlines()
+             if ln.startswith("coverage:")]
+  if summary:
+    lines += ["## Coverage of plugin code", "",
+              f"- {summary[-1]} (see coverage.md for the per-module "
+              "table and the untested line runs)", ""]
+  lines += ["", "Artifacts: index.html (gallery renders), "
+            "visual-comparison.pdf (side-by-side against the original "
+            "renderer), coverage.md, functional.txt (raw run).",
+            "",
+            "Not part of the gate, run before substantial releases: "
+            "`tools/mutation_check.py` breaks each guarded behaviour "
+            "in turn and confirms its test fails."]
+  path = os.path.join(report_dir, "testing-report.md")
+  with open(path, "w", encoding="utf-8") as f:
+    f.write("\n".join(lines) + "\n")
+  print(f"testing report: {path}")
+
+
+def prune_old_reports(keep=3):
+  """Delete all but the most recent report directories.
+
+  Args:
+    keep: how many versions to retain, newest first.
+
+  Returns:
+    None. Each release writes renders, a gallery, a comparison PDF
+    and per-test output -- a few megabytes that are worth having for
+    the version you just cut and the couple before it, and dead
+    weight after that (they reached 136 MB across twenty versions
+    before anyone looked). The zip in dist/ and the plugin installed
+    in QGIS are what actually ship; these are evidence, and evidence
+    for a version nobody is looking at any more is just disk.
+  """
+  import re
+  import shutil
+  reports = os.path.join(ROOT, "reports")
+  if not os.path.isdir(reports):
+    return
+
+  def as_version(name):
+    parts = re.findall(r"\d+", name)
+    return tuple(int(p) for p in parts) if parts else (0,)
+
+  versions = sorted((d for d in os.listdir(reports)
+                     if d.startswith("v") and
+                     os.path.isdir(os.path.join(reports, d))),
+                    key=as_version)
+  removed = 0
+  for old_dir in versions[:-keep] if keep else versions:
+    path = os.path.join(reports, old_dir)
+    size = sum(os.path.getsize(os.path.join(dp, f))
+               for dp, _dn, fn in os.walk(path) for f in fn)
+    shutil.rmtree(path, ignore_errors=True)
+    removed += size
+  if removed:
+    print(f"tidied {removed / 1e6:.0f} MB of superseded reports "
+          f"(kept the newest {keep})")
+
+
+def git(*arguments, check=True, quiet=False):
+  """Run a git command in the project directory.
+
+  Args:
+    *arguments: the command, without the leading "git".
+    check: raise if git fails. False where a non-zero status is an
+      answer rather than an error (asking whether a tag exists).
+    quiet: do not echo the command.
+
+  Returns:
+    The completed process, with stdout captured.
+  """
+  if not quiet:
+    print(f"  git {' '.join(arguments)}")
+  return subprocess.run(["git", *arguments], cwd=ROOT, check=check,
+                        capture_output=True, text=True)
+
+
+def changelog_entry(version):
+  """The changelog lines for this version, as a paragraph.
+
+  Args:
+    version: the version being released.
+
+  Returns:
+    The text of the entry, or an empty string when there is none.
+    Used as the commit message body, so that the history says what
+    changed in the same words the plugin manager will show a user.
+  """
+  path = os.path.join(ROOT, "weavingspace_qgis", "metadata.txt")
+  with open(path, encoding="utf-8") as handle:
+    text = handle.read()
+  match = re.search(rf"^changelog=(.*?)(?=^\w+=|\Z)", text,
+                    re.S | re.M)
+  if not match:
+    return ""
+  for block in match.group(1).split("\n\n"):
+    if version in block:
+      return " ".join(line.strip() for line in block.splitlines()).strip()
+  return ""
+
+
+def commit_and_tag(version, report_dir, push):
+  """Record the release in version control, and optionally publish it.
+
+  Args:
+    version: the version being released.
+    report_dir: this release's report directory, whose files are
+      attached to the GitHub release.
+    push: whether to send the result to GitHub. False leaves
+      everything local and prints the commands instead.
+
+  Returns:
+    None.
+
+  Committing and tagging are local and can be undone with one
+  command, so they are unconditional: the repository should never
+  disagree with the zip that was just built. Pushing and publishing
+  cannot be undone once anyone has fetched, so they need the flag.
+  """
+  print("\n=== version control ===")
+  inside = git("rev-parse", "--git-dir", check=False, quiet=True)
+  if inside.returncode != 0:
+    print("  not a git repository yet; skipping.\n"
+          "  To start one:  git init && git add -A && "
+          "git commit -m 'Initial commit'")
+    return
+
+  # asked twice, deliberately: the steps above generate files, and a
+  # secret introduced by a generator is still a leaked secret
+  run("secrets audit (pre-commit)",
+      [sys.executable, os.path.join("tools", "check_no_secrets.py")],
+      dict(os.environ))
+
+  git("add", "-A")
+  staged = git("diff", "--cached", "--quiet", check=False, quiet=True)
+  if staged.returncode == 0:
+    print("  nothing to commit; the tree already matches this release")
+  else:
+    entry = changelog_entry(version)
+    message = f"Release v{version}"
+    if entry:
+      message += f"\n\n{entry}"
+    git("commit", "-m", message)
+
+  tag = f"v{version}"
+  exists = git("rev-parse", "-q", "--verify", f"refs/tags/{tag}",
+               check=False, quiet=True)
+  if exists.returncode == 0:
+    print(f"  tag {tag} already exists and will not be moved; bump the "
+          f"version in metadata.txt for a new release")
+  else:
+    git("tag", "-a", tag, "-m", f"WeavingSpace plugin {tag}")
+
+  assets = [os.path.join(ROOT, "dist", "weavingspace_qgis.zip"),
+            os.path.join(report_dir, "testing-report.md"),
+            os.path.join(report_dir, "visual-comparison.pdf")]
+  assets = [a for a in assets if os.path.exists(a)]
+
+  if not push:
+    print("\n  Local only. To publish this release:")
+    print(f"    git push origin HEAD && git push origin {tag}")
+    print(f"    gh release create {tag} \\\n         "
+          + " \\\n         ".join(assets)
+          + f" \\\n         --title '{tag}' --notes-file "
+            f"{os.path.relpath(assets[1], ROOT) if len(assets) > 1 else ''}")
+    print("  or re-run with --push to do both.")
+    return
+
+  git("push", "origin", "HEAD")
+  git("push", "origin", tag)
+  if shutil.which("gh") is None:
+    print("  gh is not installed, so the tag is pushed but no GitHub "
+          "release was created. Either install it (brew install gh; "
+          "gh auth login) or attach the files by hand at\n"
+          "  https://github.com/FoldingSpace/weavingspaceQGIS/releases/new")
+    return
+  notes = os.path.join(report_dir, "testing-report.md")
+  command = ["gh", "release", "create", tag, *assets, "--title", tag]
+  if os.path.exists(notes):
+    command += ["--notes-file", notes]
+  print(f"  {' '.join(command[:4])} ...")
+  subprocess.run(command, cwd=ROOT, check=True)
+  print(f"  published: "
+        f"https://github.com/FoldingSpace/weavingspaceQGIS/releases/tag/{tag}")
+  print("  the project page updates itself from docs/ on the next "
+        "GitHub Pages build, usually within a minute")
+
+
+def main():
+  parser = argparse.ArgumentParser(
+    description="Build, test, document and publish a release.")
+  parser.add_argument(
+    "--push", action="store_true",
+    help="after the gates pass, push the branch and tag and create the "
+         "GitHub release. Without this the commit and tag stay local "
+         "and the commands to publish them are printed.")
+  args = parser.parse_args()
+
+  started = time.time()
+  version = plugin_version()
+  print(f"Releasing WeavingSpace plugin v{version}")
+  python, env = qgis_environment()
+  print(f"QGIS Python: {python}")
+
+  report_dir = os.path.join(ROOT, "reports", f"v{version}")
+  os.makedirs(report_dir, exist_ok=True)
+  # the functional suite writes its UI-vs-library renders here, and
+  # the comparison step turns them into PDF pages
+  env["WEAVINGSPACE_REPORT_DIR"] = report_dir
+
+  # 0. the project's own rules, before anything expensive runs: a
+  # release that breaks them should fail in seconds, not after the
+  # visual gallery
+  run("standards check",
+      [sys.executable, os.path.join("tools", "check_standards.py")],
+      dict(os.environ))
+
+  # 0b. and nothing that must not be published, checked before any of
+  # the expensive work and again immediately before the commit. A
+  # leaked key is the one failure that cannot be undone by a later
+  # release, so it is worth asking twice.
+  run("secrets audit",
+      [sys.executable, os.path.join("tools", "check_no_secrets.py")],
+      dict(os.environ))
+
+  # 1. functional suite; captured so the report can include it
+  functional = run("functional suite",
+                   [python, "-u", os.path.join("tests", "run_tests.py")],
+                   env, capture=True)
+  with open(os.path.join(report_dir, "functional.txt"), "w",
+            encoding="utf-8") as f:
+    # keep the readable tail (PASS/FAIL lines), not Qt's noise
+    lines = [ln for ln in functional.splitlines()
+             if ln.startswith(("PASS", "FAIL")) or "passed" in ln]
+    f.write("\n".join(lines))
+
+  # 1b. coverage of plugin code, from a second run of the same suite
+  # (cheap: sys.monitoring disables each line after its first hit).
+  # Reported, never gating: coverage is a map of untested ground, not
+  # a target to satisfy.
+  coverage = run("coverage report",
+                 [python, "-u", os.path.join("tools", "coverage_report.py"),
+                  report_dir], env, capture=True)
+
+  # 2. visual gallery + HTML report (captured for the testing report)
+  visual = run("visual gallery",
+               [python, "-u", os.path.join("tests", "visual_tests.py")],
+               env, capture=True)
+
+  # 3. colourspace comparison against the original renderer, in a
+  # plain (non-QGIS) environment that carries geopandas + matplotlib
+  ref_python = os.environ.get("REFERENCE_PYTHON")
+  if not ref_python:
+    venv_dir = os.path.join(ROOT, ".venv-reference")
+    ref_python = os.path.join(venv_dir, "bin", "python3")
+    if not os.path.exists(ref_python):
+      print("\n=== creating reference environment (.venv-reference) ===")
+      run("create reference venv",
+          [sys.executable, "-m", "venv", venv_dir], dict(os.environ))
+      run("install reference packages",
+          [os.path.join(venv_dir, "bin", "pip"), "install", "--quiet",
+           "geopandas", "matplotlib", "networkx", "mapclassify"],
+          dict(os.environ))
+  comparison = run(
+      "reference comparison",
+      [ref_python, os.path.join("tools", "visual_reference_report.py"),
+       report_dir], dict(os.environ), capture=True)
+
+  write_testing_report(report_dir, version, functional, visual,
+                       comparison, coverage)
+
+  # 3b. re-photograph what we publish. The README and the project page
+  # show the dialog and a set of maps, and both are claims about how
+  # the plugin currently looks and what it currently produces. They go
+  # stale silently, so they are retaken from THIS release's gallery
+  # rather than carried forward.
+  run("refresh published images",
+      [python, "-u", os.path.join("tools", "make_site_images.py"),
+       "--gallery", report_dir], env)
+
+  # 3c. and then check every other claim the published files make:
+  # the citation version, the changelog entry, the images, the links,
+  # the vendored library version, the repository URLs. Mechanical
+  # corrections are applied; anything needing words stops the release.
+  run("published content audit",
+      [sys.executable, os.path.join("tools", "sync_release_content.py"),
+       "--fix", "--since", str(started)], dict(os.environ))
+
+  # 4. build the zip only now that everything has passed
+  run("build zip", [sys.executable, "build.py"], dict(os.environ))
+
+  prune_old_reports(keep=3)
+
+  # 5. version control. Committing and tagging are local and
+  # reversible, so they always happen; pushing is neither, so it
+  # happens only when asked for on this invocation.
+  commit_and_tag(version, report_dir, push=args.push)
+
+  print(f"\nRelease v{version} complete."
+        f"\n  zip:        dist/weavingspace_qgis.zip"
+        f"\n  report:     reports/v{version}/index.html"
+        f"\n  tests:      reports/v{version}/testing-report.md"
+        f"\n  comparison: reports/v{version}/visual-comparison.pdf")
+
+
+if __name__ == "__main__":
+  main()

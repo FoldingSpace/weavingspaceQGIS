@@ -1,0 +1,48 @@
+cff-version: 1.2.0
+title: WeavingSpace QGIS plugin
+message: >-
+  If you use this plugin in work you publish, please cite the article
+  describing the technique (given under preferred-citation below). Cite
+  the software itself as well if the implementation matters to your
+  argument.
+type: software
+authors:
+  - given-names: Luke
+    family-names: Bergmann
+    affiliation: University of British Columbia
+repository-code: https://github.com/FoldingSpace/weavingspaceQGIS
+url: https://foldingspace.github.io/weavingspaceQGIS/
+abstract: >-
+  A QGIS plugin for tiled and woven maps of multivariate area data. A
+  repeating pattern of shapes is laid across a study area and each kind
+  of shape carries a different attribute, so that several variables can
+  be read from one map. The plugin builds on the weavingspace library
+  by David O'Sullivan and Luke Bergmann, and returns ordinary QGIS
+  layers seeded with standard renderers rather than a finished image.
+  It is an experimental prototype.
+keywords:
+  - cartography
+  - multivariate mapping
+  - tiling
+  - weaving
+  - QGIS
+  - choropleth
+license: MIT
+version: 0.23.0
+date-released: '2026-08-07'
+preferred-citation:
+  type: article
+  title: >-
+    Using MapWeaver to make tiled and woven maps of multivariate
+    thematic data
+  authors:
+    - given-names: David
+      family-names: O'Sullivan
+    - given-names: Luke
+      family-names: Bergmann
+  journal: Cartographic Perspectives
+  volume: 108
+  start: 41
+  end: 52
+  year: 2026
+  doi: 10.14714/CP108.2109

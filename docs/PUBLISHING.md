@@ -1,0 +1,83 @@
+# Publishing: releases, the project page, and the QGIS plugin repository
+
+Three audiences receive this software, and a release serves all of
+them at once: people who install the zip, people who read the project
+page, and (eventually) people who find the plugin from inside QGIS
+itself. What follows is the procedure and the state of preparation for
+the third.
+
+## A release
+
+    python3 release.py            # everything, staying local
+    python3 release.py --push     # the same, then publish
+
+The stages run in a deliberate order. The project's own standards and
+the secrets audit come first, so a release that breaks a rule fails in
+seconds rather than after the visual gallery. Then the functional
+suite, coverage, the visual gallery, and the colourspace comparison
+against the original renderer, each gating. Then the testing report,
+which lists every test with its result and measured values.
+
+After that come the publication steps. The images in README.md and
+docs/index.html are retaken from this release's gallery, including a
+fresh grab of the dialog, because those pictures are claims about how
+the plugin looks now. The published-content audit then checks the
+claims that are not pictures: that CITATION.cff names this version
+(it mends this itself), that metadata.txt carries a changelog entry
+for it, that every referenced image exists and was actually
+regenerated, that relative links resolve, that the vendored library
+version claimed in prose matches the stamp
+`weavingspace_qgis/vendor/VENDOR-VERSION.txt` written by the vendoring
+tool, and that the repository and page URLs agree with metadata.txt.
+Anything mechanical is corrected; anything needing words stops the
+release, because rewriting prose automatically at release time is how
+documentation turns to mush.
+
+Only then is the zip built, and only then does git see anything. The
+commit and the tag are unconditional, since both are local and undone
+with one command, and the repository should never disagree with the
+zip just built. The push and the GitHub Release happen only with
+`--push`. An existing tag is never moved: bump the version instead.
+
+The project page needs no separate step. It is served by GitHub Pages
+from `docs/` on the main branch, so the same push that publishes the
+code publishes the page, usually within a minute.
+
+## The QGIS plugin repository
+
+The plugin is not yet submitted to plugins.qgis.org. What is already
+in place: `metadata.txt` carries name, version, description, about,
+author and email, `qgisMinimumVersion` and `qgisMaximumVersion`,
+`supportsQt6`, tags, category, icon, a changelog, and
+`experimental=True`, which is honest and should stay until the
+prototype stops being one. The tracker, repository and homepage fields
+point at this repository and its page. The zip that `build.py`
+produces already has the shape the repository requires: a single
+top-level folder containing `__init__.py` and `metadata.txt`.
+
+Three things to settle before submitting.
+
+An OSGeo user ID is needed to upload, and it belongs to a person
+rather than to the software; register at id.osgeo.org and the plugin
+is then owned by that account.
+
+The bundled library needs to be visible rather than discovered.
+`weavingspace_qgis/vendor/weavingspace/` is a copy of an MIT-licensed
+library, which is permitted, and LICENSE.md reproduces its notice in
+full. Say so in the submission rather than leaving a reviewer to find
+a vendor directory and wonder.
+
+The dependency download needs the same treatment. `deps.py` fetches
+wheels from PyPI when geopandas, pandas or shapely are missing, which
+on QGIS 4 mostly means Linux. Reviewers look closely at plugins that
+fetch code at runtime, and rightly so. The behaviour is disclosed in
+the metadata, the README and the project page: the plugin asks first,
+downloads into its own folder, and changes nothing else in the QGIS
+installation. Disclosing it plainly is both the honest course and the
+faster one; plugins get rejected for hiding this, not for doing it.
+
+Two smaller matters. The plugin's name must be unique in the
+repository, and "WeavingSpace" appears to be free. And a submitted
+plugin acquires users who upgrade through the plugin manager, so the
+changelog stops being a formality: from that point on, every release
+needs an entry a user can act on.

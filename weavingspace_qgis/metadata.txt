@@ -1,0 +1,38 @@
+[general]
+name=WeavingSpace
+qgisMinimumVersion=4.0
+qgisMaximumVersion=4.99
+supportsQt6=True
+description=Tiled and woven maps that carry several variables at once, built on the weavingspace library
+about=Creates tiled and woven map layers that carry several attributes
+    of a polygon dataset in a single map, using the weavingspace library
+    by David O'Sullivan and Luke Bergmann (bundled, MIT licensed).
+    Choose a tiling or weave design, assign a variable and colour ramp
+    to each pattern element, and the plugin adds a group of ordinary
+    QGIS layers seeded with standard renderers, ready for the usual
+    styling tools. The method is described in O'Sullivan and Bergmann
+    (2026), Cartographic Perspectives 108. This is an experimental
+    prototype, mostly co-written by Luke Bergmann with large language
+    models. Requires QGIS 4 or later. It needs geopandas, pandas, and
+    shapely, which most QGIS 4 installations already include; where
+    they are missing (notably on Linux), the plugin asks first and then
+    downloads the wheels from PyPI into its own folder, changing
+    nothing else in your QGIS installation.
+version=0.23.0
+author=Luke Bergmann
+email=luke.bergmann@gmail.com
+tracker=https://github.com/FoldingSpace/weavingspaceQGIS/issues
+repository=https://github.com/FoldingSpace/weavingspaceQGIS
+homepage=https://foldingspace.github.io/weavingspaceQGIS/
+tags=cartography,choropleth,multivariate,tiling,weaving,symbology
+category=Vector
+icon=icon.png
+experimental=True
+hasProcessingProvider=no
+server=False
+
+; Shown in the QGIS plugin manager. Keep the newest version first, and
+; describe what a USER would notice rather than what changed in the code.
+changelog=0.23.0 Reverse-ramp switches and per-element opacity in the
+    data table; grid and stripe families with row and column controls;
+    published as a public repository with a project page.

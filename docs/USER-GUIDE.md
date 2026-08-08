@@ -1,0 +1,198 @@
+# WeavingSpace user guide
+
+Mapping several attributes of the same areas at once is a long-standing
+challenge of thematic cartography, and it has partial answers already:
+multivariate choropleths (bivariate and trivariate colour schemes)
+blend two or three attributes into a single symbology, though their
+legends must be learned and their ceiling arrives quickly. This plugin
+takes a different route. It lays a small repeating pattern of shapes
+across your study area and colours each kind of shape by its own
+attribute, with its own ordinary symbology, so that each variable stays
+individually legible while sharing a single map. With two or three
+variables the result can be read value by value, much as a choropleth
+is. With many, it reads instead as a texture, in which broad agreement
+forms smooth tone and local exception announces itself. Nor are those
+the only readings such maps repay (a shared ramp, for one, turns the
+pattern into an instrument for noticing local disagreement; we take up
+others in a paper presently under review). It is worth deciding early
+which reading you are designing for.
+
+The technique, and the vocabulary used here, come from the weavingspace
+library, which can also be driven from a browser: MapWeaver
+(https://dosull.github.io/mapweaver/app/) makes the same kinds of maps
+outside QGIS, and is worth a look if you would rather not start here.
+The thinking behind the technique, with worked examples, is set out in
+an open-access article:
+
+> O'Sullivan, D., & Bergmann, L. (2026). Using MapWeaver to make tiled
+> and woven maps of multivariate thematic data. *Cartographic
+> Perspectives*, 108, 41–52. https://doi.org/10.14714/CP108.2109
+>
+> O'Sullivan, D., & Bergmann, L. Tilings and weaves for multivariate
+> mapping. Manuscript under review.
+
+This guide restates the practical parts. The article is short and
+generously illustrated, and we would sooner you read it than this.
+
+## Words we use
+
+The *tileable unit* is the small repeating group of shapes stamped
+across the map. Everything on the Design tab configures this one
+object; the map is simply many copies of it. Within the unit, each
+distinct shape is an *element*, labelled a, b, c, and so on. An element
+is a slot that one variable may occupy, so a unit with four elements
+can carry four variables. The *prototile* is the plain rectangle or
+hexagon recording how the unit repeats, and it is what the group inset
+shrinks. In woven patterns the elements ride on *strands*, the ribbons
+running across the map; a strands code such as `ab-|cd` names which
+elements travel in each direction, and a hyphen leaves a deliberate
+gap, often the only way to tell otherwise-identical strands apart in a
+twill. *Spacing* is the grain of the pattern in map units: the size of
+the repeating unit for tilings, the distance between neighbouring
+strands for weaves. *Aspect* is how much of that spacing a strand
+fills; at 1.0 the weave is solid, and smaller values open it up.
+
+## A way of working
+
+Begin with the data: one polygon layer, in the projected CRS you intend
+to publish in, with your attributes as fields. (Geographic layers are
+reprojected to Web Mercator so that you can explore, which is rarely
+the projection you should finish in.) Then rough in a design. Choose
+the number of elements, tiling or weave, and a family, and keep the
+spacing coarse at first; large tiles compute quickly, the preview and
+the live map follow your changes, and nothing about an early spacing
+choice is binding. Assign variables and colours on the Data & colours
+tab. Refine with rotation, insets, and the scale and skew controls, and
+only then tighten the spacing. What the plugin adds to your project is
+a group of ordinary layers, one per element, so the finishing moves are
+ones you already know: restyle in QGIS's built-in Layer Styling
+panel, save to GeoPackage, compose a print layout.
+
+## Choosing a design
+
+Tiled or woven? The two carry the same information, and we would not
+argue you toward either in general. Tilings give compact side-by-side
+patches, and they are the form to choose if you want the icon option or
+glyph-like scaling. Weaves let the eye follow a strand from one side of
+the map to the other, which can make comparisons between distant places
+easier to sustain. Try both; live update makes changing your mind
+cheap. Two plainer families round out the catalogue: stripes runs the
+elements as parallel bands, and grid arrays them as squares, with rows
+and columns you can adjust (asking for fewer elements than the array
+has cells leaves regular openings in the pattern, which can read as a
+built-in breathing space).
+
+How many variables to map is a design question more than a technical
+one. Two to four supports genuine value-by-value reading. The catalogue
+runs to twenty and nothing stops you using them all, but somewhere past
+six or seven the map stops being a table you look things up in and
+becomes a texture you scan for pattern and exception. That may be
+exactly what you want; it is better decided than discovered.
+
+A sensible final spacing is near the typical width of your polygons,
+divided, for a weave, by the number of strands per direction. Areas
+much smaller than the repeating unit will not show every element at any
+spacing; where polygon sizes vary widely this is unavoidable, and it is
+the same compromise that any choropleth of mixed-size units strikes.
+The Auto button proposes a coarse value from the layer extent, meant
+for iteration rather than publication.
+
+Rotation usually helps. A square pattern aligned with the frame can
+look mechanical; for two-direction weaves we find angles between about
+fifteen and seventy-five degrees congenial, while hexagon-based
+patterns repeat their own symmetry at multiples of thirty degrees and
+change little there. The insets open gaps. Tiles inset opens a thin gap
+around every tile (which also strengthens the woven look); group inset
+opens one around each whole unit, so that a reader can see which
+elements belong together. Group inset exists only for tilings, since
+pulling a weave apart at unit boundaries would sever its strands; in
+weaves, the hyphens of a strands code do the equivalent work.
+
+An element you leave on `---` carries no variable and draws as plain
+fill, which is a legitimate design: a woven map with two of its four
+strands blank reads quite differently from one with all four working.
+That choice stays put as you change the design around it.
+
+## Colour
+
+The Data & colours tab gives each element layer its initial
+symbology, built as a standard QGIS renderer from the Style choices,
+so nothing chosen here is final; the built-in Layer Styling panel can
+revisit all of it. Each element's Style dropdown also fixes how numeric
+values are classed (quantiles, equal intervals, natural breaks, or
+pretty breaks), and a narrow Classes column appears beside it while any
+element is graduated, so different elements may be classed differently
+and into different numbers of classes. Quant: Unclassed gives the look of a
+continuous ramp, cut into fifty linear steps: indistinguishable from
+an unclassed choropleth at map scale, while remaining an ordinary
+graduated renderer in the styling panel. Two strategies are worth distinguishing. Giving each
+element its own ramp (Reds beside Blues beside Greens) makes it easy to
+tell which element carries which variable, and is the default. Giving
+related variables one shared ramp turns the unit into an instrument for
+noticing disagreement: where the variables move together, the pattern
+reads as a single smooth tone, and an element out of step with its
+neighbours shows up as speckle.
+
+Categorical fields (land cover, dominant crop, period labels) are
+initially symbolized with a categorized renderer, one colour per class.
+Whenever an element is
+categorized, a Categ colourmap src column appears in the table (and
+withdraws when it has nothing to govern). There each element chooses
+where its class codes, names, and colours come from: automatic
+assignment, any loaded layer that already carries categorized
+symbology, or a QGIS style file (a QML saved from any layer, holding
+your usual scheme). A file chosen once is offered to every categorized
+element, and values a scheme does not mention fall back to automatic
+colours. The same QML can of course be loaded onto an element layer
+through QGIS's own Load Style command; choosing it in the dialog
+instead makes the scheme part of the design, so it is reapplied
+whenever symbology is rebuilt and travels into the GeoPackage export. For numeric data, sequential ramps suit ordered
+magnitudes, diverging ramps suit values with a meaningful midpoint, and
+the qualitative sets (tab10 and its relatives) are for categories only.
+
+## The map option switches
+
+*Join data using whole tileable* asks every element in a unit to take
+its data from the same underlying area, so that each unit reads as a
+coherent local summary. Left off, each tile follows whichever area it
+overlaps most, which is more faithful tile by tile but lets a unit
+straddle a boundary and mix its sources; for weaves we generally leave
+it off. *Retain complete tileables* keeps whole units that touch the
+region, letting the pattern spill outward, and is mostly of interest
+alongside the whole-tileable join. *Clip by map units* trims the
+pattern to the region outline; it aids orientation, fragments the edge
+tiles, and is the slowest step, so we suggest leaving it off until the
+end. The unclipped, ragged edge sits more comfortably with the pattern
+as a design, in our view. *Use tileable as icon* places one unit at the
+centre of each polygon instead of tiling continuously, a gentler
+multivariate symbol that pairs well with the outlines layer.
+
+A first map appears of its own accord once a layer and variables are
+in place, and live update then regenerates it as you adjust settings,
+replacing the previous result so long as the estimated tile count
+stays modest. Past that it pauses with a note rather than attempt something
+heroic, and the Generate button remains for deliberate large runs.
+
+## Saving and sharing
+
+Set *Save to GeoPackage* and every element layer is written into a
+single file with its symbology embedded: one `.gpkg` that a colleague
+can drop into QGIS and see your map as you styled it. Left empty, the
+layers are temporary and live only with the project. Regenerating
+replaces the previous group and keeps whatever styling you have refined
+by hand; an element's symbology is rebuilt only when you change its
+variable, style, ramp, or classification in the dialog. *Create as new group*
+keeps a previous attempt alongside for comparison, with a different
+file if you are saving to disk.
+
+## Limits worth knowing
+
+Tile counts grow with the square of the inverse spacing, so a small
+spacing over a large region asks for an enormous number of polygons.
+The plugin estimates the count first and declines runs that would
+exhaust memory, suggesting a workable spacing instead. Layer identities
+change when you regenerate (the styling carries over), so layers placed
+in a print layout need re-picking afterwards. There is no tile-shaped
+legend yet; the layer panel lists each element's classes, and a legend
+composed from the element layers in a print layout does the job. We welcome reports of anything else that surprises
+you.

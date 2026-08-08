@@ -1,0 +1,25 @@
+# Build products and generated evidence. Reports are attached to
+# GitHub Releases instead of committed: they run to tens of megabytes
+# per version, and git keeps every blob forever.
+dist/
+reports/
+.venv-reference/
+__pycache__/
+*.pyc
+.DS_Store
+
+# Never committed, for privacy rather than secrecy: the private style
+# guide that governs this project's prose lives outside the repository,
+# and these names are listed so a stray copy cannot arrive by accident.
+bergmann-osullivan-voice-dna.md
+anti-ai-writing-style.md
+
+# Credentials, in every shape they usually take. tools/check_no_secrets.py
+# is the real guard; this is the belt to its braces.
+.env
+.env.*
+*.pem
+*.key
+*_rsa
+*_ed25519
+.netrc

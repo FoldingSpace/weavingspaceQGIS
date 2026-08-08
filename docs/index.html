@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WeavingSpace QGIS plugin</title>
+<meta name="description" content="A QGIS plugin for tiled and woven maps of multivariate area data, built on the weavingspace library.">
+<style>
+  :root {
+    color-scheme: light dark;
+    --ink: #1a1a1a;
+    --paper: #fdfdfc;
+    --quiet: #57534e;
+    --rule: #d8d5d0;
+    --link: #35566b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e8e6e3;
+      --paper: #16181a;
+      --quiet: #a9a49d;
+      --rule: #33373b;
+      --link: #9dc0d4;
+    }
+  }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 17px/1.62 Palatino, "Palatino Linotype", "Iowan Old Style",
+          Georgia, "Times New Roman", serif;
+  }
+  .page {
+    max-width: 40em;
+    margin: 0 auto;
+    padding: 4.5rem 1.5rem 6rem;
+  }
+  h1 {
+    font-size: 1.6rem;
+    font-weight: 600;
+    line-height: 1.25;
+    margin: 0 0 0.15rem;
+    letter-spacing: 0.01em;
+  }
+  .byline {
+    color: var(--quiet);
+    font-size: 0.9rem;
+    margin: 0 0 2.4rem;
+  }
+  h2 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 3rem 0 0.7rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  p { margin: 0 0 1.05rem; }
+  a { color: var(--link); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  ol { padding-left: 1.3rem; }
+  li { margin-bottom: 0.5rem; }
+  figure { margin: 1.8rem 0; }
+  figure img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--rule);
+  }
+  figcaption {
+    color: var(--quiet);
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+  }
+  .plates {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 1.1rem;
+    margin: 1.8rem 0 0.6rem;
+  }
+  .plates img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: 1px solid var(--rule);
+  }
+  .plates p {
+    color: var(--quiet);
+    font-size: 0.8rem;
+    margin: 0.4rem 0 0;
+  }
+  .obtain {
+    border: 1px solid var(--rule);
+    padding: 1rem 1.2rem;
+    margin: 1.8rem 0;
+  }
+  .obtain p:last-child { margin-bottom: 0; }
+  blockquote {
+    margin: 0 0 1.05rem;
+    padding-left: 1rem;
+    border-left: 2px solid var(--rule);
+    color: var(--quiet);
+    font-size: 0.94rem;
+  }
+  footer {
+    margin-top: 3.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--rule);
+    color: var(--quiet);
+    font-size: 0.85rem;
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+<h1>WeavingSpace: tiled and woven maps in QGIS</h1>
+<p class="byline">An experimental QGIS plugin built on the weavingspace
+library of David O&rsquo;Sullivan and Luke Bergmann.</p>
+
+<p>Mapping several attributes of the same areas in a single map remains
+an awkward problem. This plugin takes one particular approach to it:
+a small repeating pattern of shapes is laid across the study area, and
+each kind of shape is coloured by a different attribute, so that
+several variables can be read from one map rather than from a row of
+them side by side. The technique, its cartographic reasoning, and its
+limits are set out in the article listed below.</p>
+
+<figure>
+  <img src="img/four-variables.png" alt="A Laves 3.3.4.3.4 tiling in which four differently shaped tiles each carry a different variable">
+  <figcaption>A Laves 3.3.4.3.4 tiling carrying four variables at once.
+  Index of Multiple Deprivation domains, Auckland statistical area 2
+  units, 2018.</figcaption>
+</figure>
+
+<p>What the plugin adds to a QGIS project is not a picture but a group
+of ordinary layers, one per pattern element, each seeded with a
+standard graduated or categorized renderer. Everything after that is
+normal QGIS work: the Layer Styling panel, GeoPackage export with
+styles embedded, print layouts. Tilings and weaves are both available,
+along with grids and stripes, geometric modifiers, per-element colour
+ramps and opacity, and the option to draw the pattern as glyphs
+instead.</p>
+
+<div class="plates">
+  <div>
+    <img src="img/twill-weave.png" alt="A twill weave with gaps between the strands">
+    <p>A twill weave, with gaps.</p>
+  </div>
+  <div>
+    <img src="img/categorical.png" alt="A tiled map of categorical land cover classes">
+    <p>Categorical data, from an imported colour mapping.</p>
+  </div>
+  <div>
+    <img src="img/hex-slice.png" alt="A hexagonal tiling sliced with an offset">
+    <p>A hex slice, offset.</p>
+  </div>
+  <div>
+    <img src="img/icons.png" alt="Tiles drawn as separate glyphs rather than as a continuous tiling">
+    <p>The same unit drawn as glyphs.</p>
+  </div>
+</div>
+
+<h2>Obtaining it</h2>
+
+<div class="obtain">
+  <p><a href="https://github.com/FoldingSpace/weavingspaceQGIS/releases/latest">Download
+  the plugin</a> (a file named <code>weavingspace_qgis.zip</code>, under
+  <em>Assets</em>), then in QGIS choose <strong>Plugins &#9654; Manage
+  and Install Plugins&hellip; &#9654; Install from ZIP</strong> and pick
+  the file. No account, no git, and no command line are needed.</p>
+  <p>Source, issues, and documentation:
+  <a href="https://github.com/FoldingSpace/weavingspaceQGIS">github.com/FoldingSpace/weavingspaceQGIS</a>.</p>
+</div>
+
+<p>QGIS 4 or later is required. The plugin needs geopandas, pandas,
+shapely, pyproj, and networkx, which the QGIS 4 packages for Windows
+and macOS already include; where they are missing, most often on Linux,
+the plugin offers a one-time download of the right wheels into its own
+folder and does nothing else to your installation.</p>
+
+<figure>
+  <img src="img/dialog.png" alt="The plugin dialog, showing the design tab and a preview of the tile unit">
+  <figcaption>The design tab, with the tile unit previewed at the
+  right. Each lettered element takes its own variable and colours.</figcaption>
+</figure>
+
+<h2>A prototype, and how it was made</h2>
+
+<p>This is research software. It was mostly co-written by Luke Bergmann
+and large language models (Claude Fable and Opus, working through
+Claude Code), which seems worth saying plainly rather than leaving to
+be inferred: the design decisions, the cartographic judgements, and the
+review are Bergmann&rsquo;s, while much of the code, the tests, and the
+documentation were drafted by machine and then read, corrected, and
+argued with. The obvious hazards of such an arrangement are met, as far
+as they can be, with a heavy test suite in which every map-producing
+test compares its output against the library called directly, pixel by
+pixel in a perceptual colourspace. Rough edges should nonetheless be
+expected, and we would rather hear about them than not.</p>
+
+<p>This applies to the prose as much as to the code. The text on this
+page, in the repository&rsquo;s documentation, and in the plugin&rsquo;s
+own help and tooltips contains LLM-generated writing, drafted to our
+voice and then edited by us. The publications listed below do not, and
+are our own writing throughout.</p>
+
+<h2>Further reading</h2>
+
+<blockquote>
+  <p>O&rsquo;Sullivan, D., &amp; Bergmann, L. (2026). Using MapWeaver to
+  make tiled and woven maps of multivariate thematic data.
+  <em>Cartographic Perspectives</em>, 108, 41&ndash;52.
+  <a href="https://doi.org/10.14714/CP108.2109">doi:10.14714/CP108.2109</a></p>
+  <p>O&rsquo;Sullivan, D., &amp; Bergmann, L. Tilings and weaves for
+  multivariate mapping. Manuscript under review.</p>
+</blockquote>
+
+<p>The library that does the tiling mathematics, with its own examples,
+is at <a href="https://github.com/DOSull/weavingspace">github.com/DOSull/weavingspace</a>.
+If you would like to make maps like these outside QGIS, MapWeaver is a
+browser-based tool built on the same library:
+<a href="https://dosull.github.io/mapweaver/app/">dosull.github.io/mapweaver/app</a>.</p>
+
+<footer>
+<p>Plugin &copy; 2026 Luke Bergmann, MIT licensed; the bundled
+weavingspace library &copy; 2021&ndash;26 David O&rsquo;Sullivan and
+Luke Bergmann, likewise MIT. Maps on this page were drawn from the
+Index of Multiple Deprivation data distributed with the weavingspace
+library&rsquo;s examples.</p>
+</footer>
+
+</main>
+</body>
+</html>
