@@ -5177,6 +5177,191 @@ def test_a_finished_run_leaves_nothing_armed():
   dlg.close()
 
 
+def test_the_dialogs_chrome_does_its_job():
+  """The parts of the window that are not the design: the region
+  chooser's filter, the idle progress bar, and the Close button.
+
+  None of these is exotic and all three were undefended. Automatic
+  mutants removed the layer filter (so the chooser offers point and
+  line layers, which cannot be tiled at all), made the progress bar
+  visible while nothing runs, and disconnected Close, leaving a button
+  that does nothing whatever when clicked.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from qgis.PyQt.QtWidgets import QPushButton
+  project = QgsProject.instance()
+  polygons = make_region_layer()
+  project.addMapLayer(polygons)
+  # something that cannot be tiled, which the chooser must not offer
+  points = QgsVectorLayer("Point?crs=EPSG:3857", "sample points", "memory")
+  feature = QgsFeature()
+  feature.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(500, 500)))
+  points.dataProvider().addFeatures([feature])
+  points.updateExtents()
+  project.addMapLayer(points)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  offered = [dlg.layer_combo.layer(i).name()
+             for i in range(dlg.layer_combo.count())
+             if dlg.layer_combo.layer(i) is not None]
+  assert "sample points" not in offered, \
+    f"the region chooser is offering a point layer, which cannot be "\
+    f"tiled: {offered}"
+  assert polygons.name() in offered, "and it must still offer polygons"
+
+  assert not dlg.progress.isVisibleTo(dlg), \
+    "the progress bar is showing while nothing is running"
+
+  closers = [b for b in dlg.findChildren(QPushButton)
+             if b.text().strip().lower() == "close"]
+  assert closers, "the dialog has no Close button"
+  dlg.show()
+  _tick(200)
+  assert dlg.isVisible()
+  closers[0].click()
+  _tick(200)
+  assert not dlg.isVisible(), \
+    "clicking Close did nothing; the button is not connected to "\
+    "anything"
+  dlg.close()
+
+
+def test_ramp_swatches_and_palette_installation():
+  """The colour ramps a user picks from: installed once, and shown.
+
+  The plugin adds its palettes to the QGIS style the first time it
+  runs, skipping any already there, and draws a small swatch beside
+  every ramp name so a choice can be made by eye. Automatic mutants
+  inverted the already-there test (so nothing new is ever installed)
+  and inverted the guard that attaches a swatch (so the list becomes
+  a column of names).
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from qgis.core import QgsStyle
+
+  bridge.ensure_ramps_installed()
+  style = QgsStyle.defaultStyle()
+  wanted = set(bridge.PALETTES["sequential"]) | \
+      set(bridge.PALETTES["diverging"])
+  missing = wanted - set(style.colorRampNames())
+  assert not missing, \
+    f"{len(missing)} of the plugin's palettes never reached the QGIS "\
+    f"style, so a user cannot choose them: {sorted(missing)[:4]}"
+
+  # The style persists in the user's profile, so on a machine that has
+  # run this plugin before, everything is already installed and the
+  # check above passes whatever the installer does. Create the
+  # condition instead: take one palette out and require the installer
+  # to notice it is gone. This is what a first run looks like.
+  victim = sorted(wanted)[0]
+  assert style.removeColorRamp(victim), \
+    f"could not take {victim} out of the style to set the test up"
+  assert victim not in set(style.colorRampNames())
+  bridge.ensure_ramps_installed()
+  assert victim in set(style.colorRampNames()), \
+    f"{victim} was missing from the style and the installer left it "\
+    f"missing; on a fresh QGIS profile the user would have none of "\
+    f"the plugin's palettes"
+  bridge.ensure_ramps_installed()          # again: additive, not doubled
+  assert len([n for n in style.colorRampNames() if n == victim]) == 1
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.table.cellWidget(0, 2).setCurrentText("Quant: Quantiles")
+  dlg._update_dynamic_columns()
+  combo = dlg.table.cellWidget(0, 4)
+  assert combo is not None and combo.count() > 0
+  blank = sum(1 for i in range(combo.count()) if combo.itemIcon(i).isNull())
+  assert blank == 0, \
+    f"{blank} of {combo.count()} ramps are listed without a swatch; "\
+    f"the list is names only and cannot be read by eye"
+  dlg.close()
+
+
+def test_family_option_ranges_track_the_family():
+  """A family's options must be bounded by what THAT family accepts.
+
+  The inner angle of a hex dissection runs from -50 to 85 and of a
+  square one from -30 to 70; the ranges are set as the family changes.
+  An automatic mutant deleted that, leaving whichever range happened
+  to be in force and letting a user dial in a value the library
+  cannot use.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import catalog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+
+  seen = {}
+  for n, families in catalog.TILINGS_BY_N.items():
+    for name, entry in families.items():
+      kind = entry.get("tiling_type", "")
+      if "dissect" not in kind:
+        continue
+      hexagonal = "hex" in kind
+      if hexagonal in seen:
+        continue
+      seen[hexagonal] = (n, name)
+  assert len(seen) == 2, \
+    "this test needs both a hex and a non-hex dissection family"
+
+  ranges = {}
+  for hexagonal, (n, name) in seen.items():
+    dlg.n_combo.setCurrentText(str(n))
+    dlg.kind_combo.setCurrentText("tiling")
+    dlg.family_combo.setCurrentText(name)
+    _tick(700)
+    ranges[hexagonal] = (dlg.opt_offset_angle.minimum(),
+                         dlg.opt_offset_angle.maximum())
+  assert ranges[True] != ranges[False], \
+    f"both dissection families offer the same inner-angle range "\
+    f"{ranges[True]}; the range is not following the family, so one "\
+    f"of them accepts values its geometry cannot use"
+  assert ranges[True] == (-50, 85), f"hex dissections: {ranges[True]}"
+  assert ranges[False] == (-30, 70), f"square dissections: {ranges[False]}"
+  dlg.close()
+
+
+def test_a_single_category_still_gets_a_colour():
+  """A field with exactly ONE distinct value must still render.
+
+  Categorical colours are sampled across the palette by position,
+  which divides by the number of categories minus one -- fine until
+  there is only one, when the division is by zero. The guard that
+  handles it was mutated and survived, because every categorical
+  fixture in the suite has three or four classes. Real data has
+  columns that turn out to be constant.
+  """
+  from weavingspace_qgis import bridge, compat
+  layer = QgsVectorLayer("MultiPolygon?crs=EPSG:3857", "one", "memory")
+  layer.dataProvider().addAttributes([compat.make_field("only", str)])
+  layer.updateFields()
+  feats = []
+  for i in range(3):
+    f = QgsFeature(layer.fields())
+    f.setGeometry(QgsGeometry.fromWkt(
+      f"POLYGON(({i} 0, {i+1} 0, {i+1} 1, {i} 1, {i} 0))"))
+    f["only"] = "the same value"
+    feats.append(f)
+  layer.dataProvider().addFeatures(feats)
+  layer.updateExtents()
+
+  renderer = bridge.make_categorized_renderer(layer, "only", "tab10", False)
+  assert renderer is not None, "a one-class field produced no renderer"
+  categories = [c for c in renderer.categories() if c.value()]
+  assert len(categories) == 1, \
+    f"expected one category, got {len(categories)}"
+  colour = categories[0].symbol().color().name()
+  assert colour and colour != "#000000", \
+    f"the single category was given {colour}, not a palette colour"
+
+
 def test_plugin_lifecycle():
   """The QGIS entry points themselves: classFactory, initGui, the
   toolbar action opening the dialog, and unload. Nothing else in the
@@ -5405,6 +5590,14 @@ def main():
         test_a_row_without_classes_says_so)
   check("a finished run leaves nothing armed",
         test_a_finished_run_leaves_nothing_armed)
+  check("the dialog's chrome does its job",
+        test_the_dialogs_chrome_does_its_job)
+  check("ramp swatches and palette installation",
+        test_ramp_swatches_and_palette_installation)
+  check("family option ranges track the family",
+        test_family_option_ranges_track_the_family)
+  check("a single category still gets a colour",
+        test_a_single_category_still_gets_a_colour)
   check("plugin lifecycle (menu, action, unload)",
         test_plugin_lifecycle)
   check("integration: cancel and recover",

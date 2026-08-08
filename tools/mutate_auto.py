@@ -577,7 +577,20 @@ def main():
       print(f"  {display}")
     if len(unrecorded) > 8:
       print(f"  ... and {len(unrecorded) - 8} more")
-    if not args.allow_stale_coverage:
+    # A SAMPLE must not run against a stale record: the rate would be
+    # understated and the newest tests ignored, which is the whole
+    # reason for this check. A targeted re-judge (--only) is a
+    # different act -- it asks whether specific known mutants are
+    # caught, usually to settle a timing question -- so it proceeds
+    # with the warning above rather than being blocked by it. The
+    # verdicts are still read in that light: a test absent from the
+    # record cannot kill, so a survivor here may simply be untested
+    # by the record rather than by the suite.
+    if args.only:
+      print("proceeding anyway: --only re-judges named mutations "
+            "rather than estimating a rate, so a stale record cannot "
+            "understate anything except these verdicts\n")
+    elif not args.allow_stale_coverage:
       print("\nRe-record first:\n  QT_QPA_PLATFORM=offscreen ... "
             "<qgis python> tools/coverage_per_test.py\n"
             "or pass --allow-stale-coverage if you genuinely mean to "

@@ -168,9 +168,36 @@ asserted an implementation detail that was legitimately true.
 **Stale coverage.** The record decides which tests are offered the
 chance to notice a mutant, so tests missing from it cannot kill
 anything. The error is one-directional: survivors overstated, newest
-work ignored. `mutate_auto.py` now refuses to run against a stale
+work ignored. `mutate_auto.py` refuses to SAMPLE against a stale
 record; do not reach for `--allow-stale-coverage` to make that
-message go away.
+message go away. A targeted `--only` re-judge proceeds with a warning
+instead, because it asks whether specific known mutants are caught
+rather than estimating a rate -- read those verdicts in that light,
+since a survivor there may be untested by the RECORD rather than by
+the suite.
+
+**Do not edit tests while a cycle is queued.** Every test written
+invalidates the coverage record the queued run depends on, and the run
+then refuses to start, which reads as a job that died. This happened
+twice in one campaign. Either let the cycle finish before writing
+tests, or order the chain so coverage is recorded inside it, after the
+editing is done.
+
+**The environment carries state, and it can make a mutant
+unobservable.** QGIS keeps its colour ramps in the user's profile, so
+on a machine that has run the plugin before, the palettes are already
+installed and a mutant that breaks installation changes nothing a test
+can see. The test has to CREATE the condition -- remove one palette,
+then require the installer to notice it is gone, which is what a first
+run actually looks like. Before accepting that a mutant is
+unobservable, ask whether the environment is quietly satisfying the
+thing under test.
+
+**Read the verdict lines carefully.** `mutation_check.py` prints
+`caught` indented and `SURVIVED` at the margin. A grep written for one
+will silently drop the other, and two unverified entries were nearly
+recorded as kills that way. Prefer reading the tool's own summary
+line to matching its formatting.
 
 **A failing test inflates the score.** If any test fails on unmutated
 code, every mutant it covers looks killed. Confirm the suite is green
@@ -201,8 +228,41 @@ What it takes to defend "at least 70%":
 |     100 |           80 |           80% | 70.8% |
 
 Choose the size from the rate the improvement rounds are converging
-to. A suite genuinely near 90% certifies on thirty mutants; one near
-80% needs a hundred, and no amount of wishing shrinks that.
+to. But that table understates the problem, because it asks only what
+result would suffice, not how likely a good suite is to produce it.
+The probability of CERTIFYING, given a true rate:
+
+| n | kills needed | observed | true 0.75 | true 0.80 | true 0.85 |
+|--:|-------------:|---------:|----------:|----------:|----------:|
+|   30 |  27 | 90.0% |  4% | 12% | 32% |
+|   60 |  50 | 83.3% |  9% | 32% | 72% |
+|  100 |  80 | 80.0% | 15% | 56% | 93% |
+|  150 | 117 | 78.0% | 23% | 77% | 99% |
+|  300 | 226 | 75.3% | 48% | 98% | 100% |
+
+Read the 0.85 column first. A suite that genuinely catches 85% of
+mutants FAILS to certify on thirty of them about two-thirds of the
+time, because 27/30 is a demanding result even when the underlying
+rate is good. Batches of thirty are the right size for steering --
+they find gaps cheaply -- and the wrong size for certifying anything.
+
+So the endgame has two levers and they do different work. Raising the
+true rate makes the SOFTWARE better and is the only lever that helps
+when the rate is genuinely below target: no sample size will certify
+0.72, and a bigger sample merely establishes 0.72 more precisely.
+Raising n makes the MEASUREMENT sharper and is what converts an
+already-good suite into a defensible claim. Improve until the point
+estimate is comfortably clear of the target -- around 0.85 -- then
+spend the hours on a large certification sample rather than hoping a
+batch of thirty comes up 27.
+
+Draw the certification sample in ONE run (`--sample 150`) rather than
+pooling several. A single run draws distinct mutants from the shuffled
+pool; separate seeds can resample the same mutant, and pooling is only
+legitimate if the suite did not change between batches, which is
+exactly the discipline hardest to keep over several hours. At three
+workers, 150 mutants is a couple of hours; that is the cheapest part
+of this whole exercise.
 
 The campaign ends with a CERTIFICATION batch: run after the suite
 stops changing, with no fixes made during it, on mutants never seen
@@ -214,3 +274,18 @@ suite stamp the tool prints.
 Then update the campaign history table in `docs/MUTATION-TESTING.md`,
 including the bad batches. A record that shows only the good rounds is
 not a record.
+
+## What a cycle actually costs, from this campaign
+
+Batches of thirty at two or three workers ran fifteen to twenty-seven
+minutes; the coverage record about ten; triage, test-writing and
+kill-verification longer than the machine time in every cycle. Roughly
+two thirds of the elapsed hours were the human-shaped half, and most
+of the wasted time was neither: it was the machine standing idle
+between stages because nobody noticed a job had finished, which is why
+the supervision section above exists at all.
+
+Per batch, expect eight to fifteen survivors early on, most of them
+real gaps rather than curiosities. Expect one or two of the tests you
+write to pass without discriminating; that is normal and is exactly
+what step 6 is for.

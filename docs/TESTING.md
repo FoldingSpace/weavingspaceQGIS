@@ -108,6 +108,16 @@ connection could be deleted and the test would still pass. A user has
 no such option. Change the control and let only the dialog's own
 debounce run.
 
+**The environment can satisfy the thing under test.** QGIS stores
+colour ramps in the user's profile, so on a machine that has run the
+plugin before, its palettes are already installed and a test that
+merely asserts they are present passes no matter what the installer
+does. Create the condition the test needs -- remove one palette, then
+require the installer to put it back -- rather than assuming a clean
+machine. The same caution applies anywhere state outlives the process:
+the QGIS style, the plugin's own settings, a GeoPackage left behind by
+an earlier test.
+
 **Defaults are masked by the things that override them.** The 1000 m
 spacing default is invisible in any test that loads a layer, because
 auto-spacing immediately overwrites it. Assert a default where nothing
