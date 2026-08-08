@@ -57,6 +57,7 @@ import math
 import json
 import os
 import random
+import re
 import subprocess
 import sys
 import time
@@ -69,6 +70,9 @@ COVERAGE = os.path.join(ROOT, "reports", "per-test-coverage.json")
 
 # {file: {line numbers that run at import}}, filled in by main()
 MODULE_LEVEL = {}
+
+# set to 1 when a --require threshold is missed, so a release can gate
+_exit_code = [0]
 
 # The one call whose effect is invisible chrome. Kept to a single
 # entry on purpose: a broad list would have swallowed resize() (which
@@ -97,6 +101,22 @@ EQUIVALENT = [
       "Applied in a sandbox and compared after a family change: unit "
       "n, every tile WKT, the field text, table row count, preview "
       "labels and all element assignments were identical.",
+  },
+  {
+    "file": "weavingspace_qgis/dialog.py",
+    "snippet": "self.opt_offset.setDecimals(2)",
+    "mutation": "call removed",
+    "reason":
+      "QDoubleSpinBox already defaults to two decimals, so this call "
+      "restates Qt's own behaviour. It is kept in the source on "
+      "purpose -- pinning the precision explicitly means a future Qt "
+      "changing its default cannot quietly coarsen the control -- but "
+      "removing it changes nothing observable TODAY, which is what a "
+      "mutation score can measure.",
+    "evidence":
+      "A bare QDoubleSpinBox under this QGIS build reports "
+      "decimals() == 2, and 0.05 assigned to one with no setDecimals "
+      "call reads back as exactly 0.05.",
   },
 ]
 
@@ -293,6 +313,46 @@ def suite_stamp():
   return f"{tests} tests, last edited {edited}"
 
 
+def changed_lines(ref):
+  """Which lines of the target files this branch has added or changed.
+
+  Args:
+    ref: any git revision to compare against -- a tag like v0.22.0,
+      "HEAD~1", or a branch name.
+
+  Returns:
+    {path: {line numbers}} for lines that are NEW or MODIFIED relative
+    to ref, taken from git's own diff rather than guessed.
+
+  This is what makes mutation testing affordable as a routine guard
+  rather than a campaign. A full run samples a pool of a thousand
+  mutations across the whole plugin and answers "how good is the
+  suite"; that question does not need asking on every change. The
+  question that does is "is the code I just wrote defended", and its
+  pool is only the lines that changed. On a normal day that is a
+  handful of mutants and a few minutes.
+  """
+  changed = {}
+  for name in TARGETS:
+    path = os.path.join("weavingspace_qgis", name) \
+        if not name.startswith("weavingspace_qgis") else name
+    try:
+      diff = subprocess.run(
+        ["git", "diff", "-U0", ref, "--", path],
+        cwd=ROOT, capture_output=True, text=True, check=True).stdout
+    except (subprocess.CalledProcessError, FileNotFoundError):
+      continue
+    lines = set()
+    for hunk in re.finditer(r"^@@ -\S+ \+(\d+)(?:,(\d+))? @@", diff,
+                            re.M):
+      start = int(hunk.group(1))
+      count = int(hunk.group(2) or 1)
+      lines.update(range(start, start + count))
+    if lines:
+      changed[path] = lines
+  return changed
+
+
 def is_equivalent(mutant):
   """Is this a mutation already PROVEN to change nothing observable?
 
@@ -440,6 +500,38 @@ def main():
                       help="apply NO mutation and check the tests pass "
                            "in the sandbox; a 100%% kill rate means "
                            "nothing if the harness fails everything")
+  parser.add_argument(
+    "--require", type=float, default=None,
+    help="exit non-zero if the kill rate falls below this percentage. "
+         "Only enforced on samples of five or more, because a rate "
+         "over three mutants is not a rate")
+  parser.add_argument(
+    "--since", default=None,
+    help="mutate only lines added or changed since this git revision "
+         "(a tag, HEAD~1, a branch). This is the routine guard: it "
+         "asks whether the code just written is defended, which is a "
+         "different and much cheaper question than how good the whole "
+         "suite is")
+  parser.add_argument(
+    "--only", default=None,
+    help="comma-separated file:line specs to re-judge instead of "
+         "sampling, e.g. weavingspace_qgis/dialog.py:508")
+  parser.add_argument(
+    "--allow-stale-coverage", action="store_true",
+    help="run even though tests exist that the coverage record does "
+         "not know about. They cannot kill anything, so the rate will "
+         "understate the suite")
+  parser.add_argument(
+    "--workers", type=int, default=2,
+    help="mutants to judge at once, each in its OWN sandbox and its "
+         "own QGIS process. Two by default: measured 1.9x at three "
+         "workers with identical verdicts, but a worker costs about "
+         "0.6-0.9 GB and a campaign killed by memory pressure at "
+         "mutant 19 of 20 costs more than the parallelism saved. "
+         "Raise it when the machine has room, and watch the STALL "
+         "count -- a mutant slowed past the watchdog's patience is "
+         "recorded as caught, so contention can quietly flatter the "
+         "score")
   parser.add_argument("--max-tests", type=int, default=4,
                       help="most tests to run per mutant (the cheapest "
                            "covering tests are preferred)")
@@ -457,6 +549,30 @@ def main():
     print(f"note: {len(missing)} recorded test(s) no longer match a "
           f"check() call, e.g. {missing[:2]}")
 
+  # The record decides which tests are even OFFERED the chance to
+  # notice a mutant, so a test missing from it can never kill
+  # anything. That is not noise, it is a one-directional error that
+  # flatters nobody: survivors are overstated and the suite's newest
+  # work is exactly what gets ignored. Batch three lost two verdicts
+  # this way before the check existed.
+  unrecorded = [d for d in names if d not in coverage]
+  if unrecorded:
+    print(f"\nSTALE COVERAGE: {len(unrecorded)} test(s) in the suite "
+          f"are absent from the record, so they cannot kill any "
+          f"mutant:")
+    for display in unrecorded[:8]:
+      print(f"  {display}")
+    if len(unrecorded) > 8:
+      print(f"  ... and {len(unrecorded) - 8} more")
+    if not args.allow_stale_coverage:
+      print("\nRe-record first:\n  QT_QPA_PLATFORM=offscreen ... "
+            "<qgis python> tools/coverage_per_test.py\n"
+            "or pass --allow-stale-coverage if you genuinely mean to "
+            "measure against the older suite.")
+      sys.exit(2)
+    print("continuing anyway, as asked; the rate will understate the "
+          "suite\n")
+
   pool = []
   for name in TARGETS:
     full = os.path.join(SRC, name)
@@ -467,6 +583,37 @@ def main():
   if known_equivalent:
     print(f"excluded {len(known_equivalent)} mutation(s) proven "
           f"equivalent; see EQUIVALENT in this file for the evidence")
+  if args.since:
+    changed = changed_lines(args.since)
+    total_changed = sum(len(v) for v in changed.values())
+    pool = [m for m in pool
+            if m.line in changed.get(m.path, ())]
+    print(f"{total_changed} line(s) changed since {args.since}, "
+          f"carrying {len(pool)} mutation(s)")
+    if not pool:
+      print("nothing mutable has changed; the suite is unaffected")
+      return
+    args.sample = min(args.sample, len(pool)) if args.sample else len(pool)
+
+  if args.only:
+    # Re-judge named mutations rather than sampling. This is how a
+    # previous batch's survivors get a second, honest hearing after
+    # the suite has been strengthened -- and after a stale coverage
+    # record has been replaced, which is its own reason for a verdict
+    # to have been wrong the first time.
+    wanted = set()
+    for spec in args.only.split(","):
+      path, _, line = spec.strip().rpartition(":")
+      wanted.add((path, int(line)))
+    pool = [m for m in pool if (m.path, m.line) in wanted]
+    found = {(m.path, m.line) for m in pool}
+    for spec in sorted(wanted - found):
+      print(f"note: no mutation available at {spec[0]}:{spec[1]} "
+            f"(the line may have changed since it was reported)")
+    print(f"re-judging {len(pool)} mutation(s) at {len(found)} "
+          f"named line(s)\n")
+    args.sample = max(args.sample, len(pool))
+
   rng = random.Random(args.seed)
   rng.shuffle(pool)
 
@@ -502,12 +649,22 @@ def main():
   # hypothetical: a killed audit did exactly that before this.
   sys.path.insert(0, HERE)
   from sandbox import discard, make_sandbox
-  base = make_sandbox("auto")
-  print(f"mutating a copy at {base}\n")
+  # One sandbox per worker. Each is a separate copy of the tree and
+  # each mutant runs in its own QGIS process, so two workers can never
+  # see each other's mutation, each other's QgsProject, or each
+  # other's temporary files.
+  bases = [make_sandbox(f"auto{i}") for i in range(args.workers)]
+  base = bases[0]
+  if args.workers == 1:
+    print(f"mutating a copy at {base}\n")
+  else:
+    print(f"mutating {args.workers} copies, one per worker, at "
+          f"{os.path.dirname(base)}\n")
   import signal
 
   def cleanup(*_a):
-    discard(base)
+    for sandbox in bases:
+      discard(sandbox)
     raise SystemExit(130)
 
   for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
@@ -537,37 +694,82 @@ def main():
           "'killed' verdict really is a test noticing a change")
     return
 
-  for i, (mutant, tests, all_tests) in enumerate(chosen, 1):
-    path, original = apply_mutant(mutant, base)
-    started = time.perf_counter()
+  def judge(job):
+    """Decide one mutant's fate inside one sandbox.
+
+    Args:
+      job: (index, mutant, cheap tests, every covering test, sandbox).
+
+    Returns:
+      (index, mutant, tests actually run, verdict, seconds).
+
+    The sandbox is restored afterwards whatever happens, so one
+    mutant cannot contaminate the next to use that copy.
+    """
+    index, mutant, tests, all_tests, sandbox = job
+    path, original = apply_mutant(mutant, sandbox)
+    began = time.perf_counter()
     try:
-      verdict = run_tests(tests, base)
+      verdict = run_tests(tests, sandbox)
       if verdict == "survived" and len(all_tests) > len(tests):
         # Survival is a claim about the WHOLE suite, and the sample
         # above is a shortcut. Three survivors in the first batch had
         # a test that would have caught them sitting just outside the
         # four chosen, so confirm against every covering test before
         # reporting a gap that is really a truncation.
-        verdict = run_tests(all_tests, base)
+        verdict = run_tests(all_tests, sandbox)
         tests = all_tests
     finally:
       with open(path, "w", encoding="utf-8") as f:
         f.write(original)
-    seconds = time.perf_counter() - started
-    if verdict == "killed":
-      killed += 1
-    elif verdict == "stalled":
-      stalled += 1
-    else:
-      survived += 1
-      survivors.append((mutant, tests))
-    print(f"{i:>3}/{len(chosen)} {verdict:>8}  {mutant}  "
+    return index, mutant, tests, verdict, time.perf_counter() - began
+
+  def report(result):
+    """Print one verdict and count it."""
+    index, mutant, tests, verdict, seconds = result
+    print(f"{index:>3}/{len(chosen)} {verdict:>8}  {mutant}  "
           f"({len(tests)} test(s), {seconds:.0f}s)")
     print(f"        {mutant.before.strip()[:88]}")
     if verdict == "survived":
       print(f"     -> {mutant.after.strip()[:88]}")
 
-  discard(base)
+  jobs = [(i, mutant, tests, all_tests, bases[(i - 1) % len(bases)])
+          for i, (mutant, tests, all_tests) in enumerate(chosen, 1)]
+  wall = time.perf_counter()
+  if args.workers == 1:
+    results = (judge(job) for job in jobs)
+    for result in results:
+      report(result)
+      _index, mutant, tests, verdict, _seconds = result
+      if verdict == "killed":
+        killed += 1
+      elif verdict == "stalled":
+        stalled += 1
+      else:
+        survived += 1
+        survivors.append((mutant, tests))
+  else:
+    # Each worker owns one sandbox for the whole run, so jobs are
+    # handed out round-robin and a thread only ever touches its own
+    # copy. Threads are the right tool despite the GIL: every worker
+    # spends its life blocked in subprocess.run waiting for a QGIS
+    # process to finish.
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=args.workers) as pool:
+      for result in pool.map(judge, jobs):
+        report(result)
+        _index, mutant, tests, verdict, _seconds = result
+        if verdict == "killed":
+          killed += 1
+        elif verdict == "stalled":
+          stalled += 1
+        else:
+          survived += 1
+          survivors.append((mutant, tests))
+  wall = time.perf_counter() - wall
+
+  for sandbox in bases:
+    discard(sandbox)
   total = killed + survived + stalled
   caught = killed + stalled
   rate = 100 * caught / max(total, 1)
@@ -579,6 +781,8 @@ def main():
         f"n={total})")
   print(f"measured against {suite_stamp()}; the number expires when "
         f"the suite changes")
+  print(f"{wall / 60:.0f} min of wall clock with {args.workers} "
+        f"worker(s)")
 
   # Stratified, because a single blended figure lets deterministic
   # logic hide behind Qt plumbing. bridge.py and catalog.py are pure
@@ -598,6 +802,20 @@ def main():
       got = tried - lost
       print(f"  {path:<44} {got:>3}/{tried:<3} = "
             f"{100 * got / max(tried, 1):>3.0f}%")
+  if args.require is not None:
+    if total < 5:
+      print(f"\n{total} mutation(s) is too few to hold to a "
+            f"threshold; reporting only")
+    elif rate < args.require:
+      print(f"\nBELOW THRESHOLD: {rate:.0f}% caught, {args.require:.0f}% "
+            f"required. The code that changed is not defended by the "
+            f"tests that changed with it. Close the gaps below, or "
+            f"say plainly why each survivor is acceptable.")
+      _exit_code[0] = 1
+    else:
+      print(f"\nnew code holds: {rate:.0f}% caught against a "
+            f"{args.require:.0f}% requirement")
+
   if survivors:
     print("\nsurvivors, for triage (weak assertion / unreached in "
           "practice / equivalent):")
@@ -609,3 +827,4 @@ def main():
 
 if __name__ == "__main__":
   main()
+  sys.exit(_exit_code[0])

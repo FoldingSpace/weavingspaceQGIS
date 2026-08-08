@@ -173,12 +173,16 @@ def check(name, fn):
     project.clear()
 
 
-def make_region_layer(n=4, cell=1000):
+def make_region_layer(n=4, cell=1000, origin=(0, 0)):
   """A small synthetic region layer.
 
   Args:
     n: grid side, so the layer holds n*n square polygons.
     cell: each square's side in map units (EPSG:3857).
+    origin: (x, y) of the grid's lower-left corner. Defaults to the
+      origin; pass something far away when a test needs TWO regions
+      that cannot be confused for one another, as when checking that
+      switching the region layer really re-tiles.
 
   Returns:
     A memory layer with four attributes: ``v1`` and ``v2`` are simple
@@ -201,10 +205,11 @@ def make_region_layer(n=4, cell=1000):
   for i in range(n):
     for j in range(n):
       f = QgsFeature(layer.fields())
-      ring = [QgsPointXY(i * cell, j * cell),
-              QgsPointXY((i + 1) * cell, j * cell),
-              QgsPointXY((i + 1) * cell, (j + 1) * cell),
-              QgsPointXY(i * cell, (j + 1) * cell)]
+      ox, oy = origin
+      ring = [QgsPointXY(ox + i * cell, oy + j * cell),
+              QgsPointXY(ox + (i + 1) * cell, oy + j * cell),
+              QgsPointXY(ox + (i + 1) * cell, oy + (j + 1) * cell),
+              QgsPointXY(ox + i * cell, oy + (j + 1) * cell)]
       f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
       f["v1"], f["v2"], f["v3"] = float(i), float(j), i * j
       f["landcover"] = cats[(i + j) % len(cats)]
@@ -3940,6 +3945,18 @@ def test_catalogue_values_are_what_they_claim():
         assert entry["n"] == n or entry["tiling_type"] in ("grid",), \
           f"{name}: declares n={entry['n']} under key {n}"
 
+  # every declared offset, not only hex-slice 2's: a mutant moved
+  # "hex-slice 7" from 0 to 1 and nothing noticed, because the sweep
+  # only ever counted elements
+  known_offsets = {"hex-slice 2": 0, "hex-slice 7": 0,
+                   "hex-dissection 4": 0, "hex-dissection 7": 0}
+  for name, expected in known_offsets.items():
+    for n, families in catalog.TILINGS_BY_N.items():
+      if name in families and "offset" in families[name]:
+        assert families[name]["offset"] == expected, \
+          f"{name} declares offset {families[name]['offset']}, not "\
+          f"{expected}; the cuts would start somewhere else entirely"
+
   # the two library extras are still there and still parameterised
   assert catalog.TILINGS_BY_N[4]["grid 4"]["tiling_type"] == "grid"
   assert catalog.TILINGS_BY_N[4]["stripes 4"]["n"] == 4
@@ -4435,6 +4452,28 @@ def test_controls_respond_without_being_prompted():
     "editing rows/cols after a family change did nothing: the "\
     "signals were left blocked"
 
+  # 1b. the star point angle, which has its own connection. The family
+  # is looked up rather than named: "star 6" does not exist, and an
+  # earlier version of this block silently skipped itself for that
+  # reason, which is how a deleted connection survived a batch.
+  from weavingspace_qgis import catalog as _catalog
+  star = next(((n, name) for n, fams in _catalog.TILINGS_BY_N.items()
+               for name, entry in fams.items()
+               if "point_angle" in entry), None)
+  assert star is not None, "the catalogue should offer a star family"
+  dlg.n_combo.setCurrentText(str(star[0]))
+  dlg.kind_combo.setCurrentText("tiling")
+  dlg.family_combo.setCurrentText(star[1])
+  _tick(700)
+  assert dlg.opt_point_angle.isVisibleTo(dlg), \
+    f"{star[1]} should show its point-angle control"
+  if True:
+    before_star = dlg._unit.tiles.geometry.iloc[0].wkt
+    dlg.opt_point_angle.setValue(dlg.opt_point_angle.value() + 15)
+    _tick(700)
+    assert dlg._unit.tiles.geometry.iloc[0].wkt != before_star, \
+      "changing the star's point angle did not reach the design"
+
   # 2. a colour picked on a Single colour row must reach the element's
   # memory on its own, so it survives a later rebuild
   dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
@@ -4602,6 +4641,457 @@ def test_group_sits_on_top_of_the_layers_panel():
   assert len(children) > 1, \
     "the layers that were there before should still be, below it"
   dlg.close()
+
+
+def test_plugin_never_offers_its_own_output_as_a_region():
+  """The region chooser must not list the layers the plugin itself
+  made.
+
+  Tiling a tiled map is meaningless, and the chooser fills with output
+  after every generation, so the exclusion is what keeps it usable at
+  all. CLAUDE.md records this as a settled invariant, and no test
+  checked it: an automatic mutant deleted the call that applies it and
+  the whole suite passed.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.spacing_spin.setValue(520)
+  _generate_and_wait(dlg)
+
+  produced = set(dlg._element_layer_ids.values())
+  assert produced, "the run should have produced element layers"
+  offered = {dlg.layer_combo.layer(i).id()
+             for i in range(dlg.layer_combo.count())
+             if dlg.layer_combo.layer(i) is not None}
+  overlap = produced & offered
+  assert not overlap, \
+    f"the region chooser is offering {len(overlap)} of the plugin's "\
+    f"own output layers; tiling a tiled map is not a thing a user can "\
+    f"mean"
+  assert layer.id() in offered, \
+    "the real region layer should still be offered"
+
+  # A DIFFERENT dialog, opened while that output is already in the
+  # project, must exclude it before it runs anything at all. This is
+  # the case the constructor's call covers: the other call site runs
+  # only after a generation, so a test that generates first cannot
+  # tell whether the constructor did its job. Reopening the plugin on
+  # a project that already holds a tiled map is entirely ordinary.
+  dlg.close()
+  second = WeavingSpaceDialog(iface=_Iface())
+  second.live_check.setChecked(False)
+  offered_now = {second.layer_combo.layer(i).id()
+                 for i in range(second.layer_combo.count())
+                 if second.layer_combo.layer(i) is not None}
+  assert not produced & offered_now, \
+    "a newly opened dialog offers the tiled output of an earlier run "\
+    "as a region layer, before it has generated anything itself"
+  second.close()
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.spacing_spin.setValue(520)
+
+  # and it survives a second generation, which is when the chooser
+  # churns most
+  _generate_and_wait(dlg)
+  offered = {dlg.layer_combo.layer(i).id()
+             for i in range(dlg.layer_combo.count())
+             if dlg.layer_combo.layer(i) is not None}
+  assert not set(dlg._element_layer_ids.values()) & offered, \
+    "outputs leaked into the chooser on the second run"
+  dlg.close()
+
+
+def test_design_controls_are_usable_as_designed():
+  """The numbers that decide what a control can express.
+
+  A default spacing, a step size, a decimal place: each is one line in
+  the dialog's construction, and automatic mutants deleted four of
+  them without any test noticing. They are not cosmetic. A spacing
+  spin that opens at its minimum of 0.000001 gives a first-time user a
+  million tiles; an offset spin with one decimal cannot express 0.05
+  at all; a modifier spin whose step reverts to 1.0 turns a rotation
+  nudge into a lurch.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from qgis.PyQt.QtWidgets import QPushButton
+
+  # First, with an EMPTY project. Nothing can auto-size the spacing
+  # here, so what the spin holds is the declared default and nothing
+  # else. Once a layer is present, auto-spacing overwrites it and
+  # masks its absence entirely, which is how an automatic mutant
+  # deleted the default and walked past the first version of this
+  # test.
+  bare = WeavingSpaceDialog(iface=_Iface())
+  assert bare.spacing_spin.value() == 1000, \
+    f"with no layer to size against, spacing should open at its "\
+    f"declared default of 1000, not {bare.spacing_spin.value()}"
+  bare.close()
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+
+  assert dlg.spacing_spin.value() > 1, \
+    f"spacing opens at {dlg.spacing_spin.value()}, which at the spin's "\
+    f"own minimum would ask for an impossible number of tiles"
+
+  # the Auto button must be in the layout, not merely constructed:
+  # a widget that is never added is a feature the user cannot reach
+  buttons = [b for b in dlg.findChildren(QPushButton)
+             if b.text() == "Auto"]
+  assert buttons, "the Auto spacing button is missing from the dialog"
+  assert buttons[0].parent() is not None and buttons[0].isVisibleTo(dlg), \
+    "the Auto button exists but was never added to a layout, so no "\
+    "user can click it"
+  # and it does something
+  dlg.spacing_spin.setValue(12345)
+  buttons[0].click()
+  _tick(400)
+  assert dlg.spacing_spin.value() != 12345, \
+    "the Auto button did not set a spacing from the layer"
+
+  # fractional offsets: 0.05 is a value the control must be able to hold
+  dlg.opt_offset.setValue(0.05)
+  assert abs(dlg.opt_offset.value() - 0.05) < 1e-9, \
+    f"the offset spin rounded 0.05 to {dlg.opt_offset.value()}; it "\
+    f"needs two decimals"
+
+  # modifier spins step in fractions, not whole units
+  for name, ceiling in (("mod_rotate", 45), ("mod_scale_x", 1),
+                        ("mod_skew_x", 45), ("mod_inset", 100)):
+    box = getattr(dlg, name, None)
+    if box is None:
+      continue
+    assert box.singleStep() <= max(ceiling / 20.0, 0.05), \
+      f"{name} steps by {box.singleStep()}, too coarse for nudging a "\
+      f"design"
+  dlg.close()
+
+
+def test_preview_colours_follow_the_variable():
+  """Assigning a variable must recolour the preview, not just the map.
+
+  The preview is the only thing on screen while a design is being
+  worked out, and picking a variable silently re-picks the styling
+  mode to suit the field's type. An automatic mutant removed the
+  repaint that follows, leaving the preview showing the colours of a
+  choice the user had already moved on from.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.n_combo.setCurrentText("4")
+  dlg.kind_combo.setCurrentText("tiling")
+  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _tick(700)
+
+  # what the preview actually paints, sampled across its face
+  def preview_colours():
+    image = dlg.preview.grab().toImage()
+    step_x, step_y = max(image.width() // 8, 1), max(image.height() // 8, 1)
+    return [image.pixelColor(x, y).name()
+            for x in range(step_x, image.width() - 1, step_x)
+            for y in range(step_y, image.height() - 1, step_y)]
+
+  # start from an element the user has deliberately unassigned, which
+  # draws as plain fill; assigning a variable then auto-picks a
+  # styling mode for the field's type, and the preview must follow
+  dlg.table.cellWidget(0, 1).setCurrentText("---")
+  dlg.table.cellWidget(1, 1).setCurrentText("---")
+  _tick(700)
+  before = preview_colours()
+
+  # assign variables again, and let ONLY the dialog's own machinery act
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  dlg.table.cellWidget(1, 1).setCurrentText("v2")
+  _tick(700)
+
+  after = preview_colours()
+  assert after != before, \
+    "the preview kept its old colours after variables were assigned; "\
+    "the only thing on screen during design is now out of date"
+  dlg.close()
+
+
+def test_auto_spacing_offers_a_round_number():
+  """The spacing the Auto button proposes must READ as a number a
+  person would choose.
+
+  It is derived from the layer extent and then rounded up to one of
+  1, 2, 2.5 or 5 times a power of ten, which is the difference
+  between offering 2500 and offering 2371.8438. An automatic mutant
+  changed the base of that rounding from ten to eleven and nothing
+  noticed, because every test that used Auto only checked that the
+  value had changed.
+  """
+  import math
+
+  from weavingspace_qgis.dialog import _nice_number
+
+  # whatever goes in, what comes out is a clean number
+  allowed = (1, 2, 2.5, 5, 10)
+  for x in (0.03, 1.0, 3.7, 12.0, 87.5, 240.0, 999.0, 1001.0,
+            12345.0, 987654.0):
+    got = _nice_number(x)
+    assert got >= x, f"_nice_number({x}) returned {got}, which is less"
+    mantissa = got / 10 ** math.floor(math.log10(got))
+    assert any(abs(mantissa - m) < 1e-9 for m in allowed), \
+      f"_nice_number({x}) returned {got}, whose leading digits "\
+      f"({mantissa}) are not one of {allowed}: a spacing box would "\
+      f"show a number nobody would have chosen"
+
+  # and the specific roundings that make it worth having
+  assert _nice_number(1001) == 2000
+  assert _nice_number(2100) == 2500
+  assert _nice_number(0) == 1.0, "a degenerate extent must not divide by zero"
+
+
+def test_preview_draws_the_middle_of_the_patch():
+  """With context shells on, the preview must include the CENTRE unit.
+
+  The shells are drawn to show how a unit repeats, and a patch built
+  without its central unit leaves a hole exactly where the user is
+  looking. An automatic mutant flipped include_0 to False and the
+  suite passed, because nothing compared the preview against the
+  patch the library would build.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.n_combo.setCurrentText("4")
+  dlg.kind_combo.setCurrentText("tiling")
+  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  dlg.shells_spin.setValue(1)
+  _tick(900)
+
+  # Count the drawable parts of a patch the way anything drawing it
+  # must: multipart geometries contribute each of their pieces, and
+  # empty or non-areal pieces contribute nothing.
+  def parts(patch):
+    total = 0
+    for shape in patch.geometry:
+      pieces = shape.geoms if hasattr(shape, "geoms") else [shape]
+      for piece in pieces:
+        if piece.is_empty or not hasattr(piece, "exterior"):
+          continue
+        total += 1
+    return total
+
+  with_centre = parts(dlg._unit.get_local_patch(r=1, include_0=True))
+  without_centre = parts(dlg._unit.get_local_patch(r=1, include_0=False))
+  assert with_centre != without_centre, \
+    "this library build does not distinguish the two patches, so the "\
+    "assertion below would prove nothing"
+
+  # _polys is what the widget paints; _labels comes from the unit's own
+  # tiles and stays the same size whatever the shells are, which is
+  # why it cannot answer this question
+  drawn = len(dlg.preview._polys)
+  assert drawn == with_centre, \
+    f"the preview painted {drawn} shapes; a one-shell patch has "\
+    f"{with_centre} with its centre and {without_centre} without, so "\
+    f"the middle of the pattern is missing from the only thing on "\
+    f"screen during design"
+  dlg.close()
+
+
+def test_switching_region_layer_counts_as_a_change():
+  """Changing the region layer must force a re-tiling.
+
+  The plugin skips work when nothing that matters has changed, and it
+  decides that by comparing signatures. If the signature forgets WHICH
+  layer was tiled, then choosing a different region looks like no
+  change at all, and the user is left looking at the previous layer's
+  map. An automatic mutant inverted exactly that test and survived,
+  because every existing test pressed Generate, which does the work
+  regardless.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  first = make_region_layer()
+  first.setName("first region")
+  project.addMapLayer(first)
+  # a second region somewhere else entirely
+  second = make_region_layer(origin=(500000, 500000))
+  second.setName("second region")
+  project.addMapLayer(second)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(first)
+  dlg.spacing_spin.setValue(520)
+  _tick(500)
+  before_run = dlg._run_signature()
+  before_geom = dlg._geometry_signature()
+
+  dlg.layer_combo.setLayer(second)
+  _tick(500)
+  # Choosing a layer also auto-sizes the spacing, and spacing is part
+  # of the signature -- so without putting it back, this test would
+  # pass on the spacing alone and prove nothing about layer identity.
+  # That is exactly how it first passed while the mutant survived.
+  dlg.spacing_spin.setValue(520)
+  _tick(300)
+  assert dlg._run_signature() != before_run, \
+    "choosing a different region layer did not change the run "\
+    "signature, so the plugin would skip the work and leave the old "\
+    "map on screen"
+  assert dlg._geometry_signature() != before_geom, \
+    "and it must count as a GEOMETRY change: a different region "\
+    "cannot be answered by re-seeding renderers"
+
+  # and the map really does follow the new layer
+  _generate_and_wait(dlg)
+  out = project.mapLayer(dlg._element_layer_ids["a"])
+  assert out.extent().intersects(second.extent()), \
+    "the tiled output does not overlap the region that was chosen"
+  dlg.close()
+
+
+def test_no_control_is_dead():
+  """Every control a user can reach must change SOMETHING by itself.
+
+  This is the systematic version of a lesson learned one control at a
+  time. Automatic mutants delete signal connections, and each deletion
+  leaves a control that looks normal, accepts input, and does nothing
+  at all; five separate tests were written to catch five such
+  deletions before it became obvious that the property is general.
+  The dialog carries more than thirty connections, so testing them
+  individually is a losing race.
+
+  The method: for each control the current family actually shows,
+  fingerprint what the user can see (the unit's geometry, what the
+  preview paints, what the table says), nudge the control by one step,
+  let ONLY the dialog's own debounce run, and require the fingerprint
+  to move. Controls that legitimately change nothing visible are
+  listed by name with a reason, and that list is short on purpose:
+  each entry is a promise that the control does its work somewhere
+  else.
+
+  The test walks several families, because the option controls are
+  family-specific and a design with no stars never shows a point
+  angle.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from qgis.PyQt.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox,
+                                   QLineEdit, QSpinBox)
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+
+  # Controls whose effect is deliberately elsewhere. Each needs a
+  # reason: an entry here is an assertion that the control matters
+  # somewhere this test does not look, and an unexplained entry is
+  # how a dead control would hide.
+  ELSEWHERE = {
+    "live_check": "gates automatic regeneration; changes nothing on "
+                  "screen until a setting moves",
+    "gpkg_widget": "chooses an output file, which affects the next "
+                   "run rather than the current design",
+    "layer_combo": "covered by its own tests, and switching layers "
+                   "auto-sizes spacing, which would make this test "
+                   "pass for the wrong reason",
+    "opacity_spin": "per-element, exercised through the table",
+  }
+
+  def fingerprint(dlg):
+    """Everything a user could notice about the current design."""
+    unit = tuple(g.wkt for g in dlg._unit.tiles.geometry) \
+        if dlg._unit is not None else ()
+    table = tuple(
+      (dlg.table.item(r, 0).text() if dlg.table.item(r, 0) else "",
+       dlg.table.cellWidget(r, 1).currentText()
+       if dlg.table.cellWidget(r, 1) else "")
+      for r in range(dlg.table.rowCount()))
+    return (unit, len(dlg.preview._polys), len(dlg.preview._labels),
+            table)
+
+  def nudge(widget):
+    """Move a control one step, whatever kind it is.
+
+    Returns:
+      True if the control could be moved at all. A spin already at its
+      maximum is stepped down instead, since the point is movement.
+    """
+    if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
+      step = widget.singleStep()
+      target = widget.value() + step
+      if target > widget.maximum():
+        target = widget.value() - step
+      if target < widget.minimum() or target == widget.value():
+        return False
+      widget.setValue(target)
+      return True
+    if isinstance(widget, QComboBox):
+      if widget.count() < 2:
+        return False
+      widget.setCurrentIndex((widget.currentIndex() + 1) % widget.count())
+      return True
+    if isinstance(widget, QCheckBox):
+      widget.setChecked(not widget.isChecked())
+      return True
+    if isinstance(widget, QLineEdit):
+      widget.setText("1,2,2,1" if widget.text() != "1,2,2,1" else "2,1")
+      return True
+    return False
+
+  families = [("4", "tiling", "laves 3.3.4.3.4"),
+              ("2", "tiling", "hex-slice 2"),
+              ("4", "weave", "twill weave ab|cd"),
+              ("4", "tiling", "grid 4")]
+  tested, dead = 0, []
+  for n, kind, family in families:
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.n_combo.setCurrentText(n)
+    dlg.kind_combo.setCurrentText(kind)
+    dlg.family_combo.setCurrentText(family)
+    _tick(800)
+
+    # every named control this family actually shows
+    names = [a for a in dir(dlg)
+             if a.startswith(("opt_", "mod_")) or a in
+             ("spacing_spin", "shells_spin", "n_combo", "kind_combo",
+              "family_combo")]
+    for name in sorted(names):
+      if name in ELSEWHERE:
+        continue
+      widget = getattr(dlg, name, None)
+      if widget is None or not hasattr(widget, "isVisibleTo"):
+        continue
+      if not widget.isVisibleTo(dlg) or not widget.isEnabled():
+        continue
+      before = fingerprint(dlg)
+      if not nudge(widget):
+        continue
+      _tick(800)          # only the dialog's own debounce may act
+      if fingerprint(dlg) == before:
+        dead.append(f"{name} (in {family})")
+      tested += 1
+      # put the design back so the next control starts from a known
+      # place rather than from wherever the last one left it
+      dlg.family_combo.setCurrentText(family)
+      _tick(600)
+    dlg.close()
+
+  assert tested >= 12, \
+    f"only {tested} controls were exercised; the walk is not reaching "\
+    f"the dialog's controls and would pass whatever was broken"
+  assert not dead, \
+    f"{len(dead)} control(s) changed nothing when moved, so a user "\
+    f"operating them would see no response at all: {', '.join(dead)}"
 
 
 def test_plugin_lifecycle():
@@ -4815,6 +5305,19 @@ def main():
         test_first_field_is_not_a_special_case)
   check("the map group sits on top of the layers panel",
         test_group_sits_on_top_of_the_layers_panel)
+  check("the plugin never offers its own output as a region",
+        test_plugin_never_offers_its_own_output_as_a_region)
+  check("design controls are usable as designed",
+        test_design_controls_are_usable_as_designed)
+  check("preview colours follow the variable",
+        test_preview_colours_follow_the_variable)
+  check("auto spacing offers a round number",
+        test_auto_spacing_offers_a_round_number)
+  check("the preview draws the middle of the patch",
+        test_preview_draws_the_middle_of_the_patch)
+  check("switching region layer counts as a change",
+        test_switching_region_layer_counts_as_a_change)
+  check("no control is dead", test_no_control_is_dead)
   check("plugin lifecycle (menu, action, unload)",
         test_plugin_lifecycle)
   check("integration: cancel and recover",

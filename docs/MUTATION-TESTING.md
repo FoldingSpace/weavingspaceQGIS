@@ -154,14 +154,82 @@ QT_QPA_PLATFORM=offscreen PYTHONHOME=... <qgis python> \
     tools/mutate_auto.py --sample 30 --seed 3
 ```
 
-Run `tools/coverage_per_test.py` first if the suite has changed; the
-per-test line record is what makes each mutant cost seconds instead of
-minutes. Run `--control` after any change to the harness itself: it
+Run `tools/coverage_per_test.py` first WHENEVER the suite has changed.
+This is not housekeeping. The per-test line record is what makes each
+mutant cost seconds instead of minutes, and it is also what decides
+which tests get the chance to notice a mutation: a test that is not in
+the record is never selected, no matter how squarely it covers the
+line. Batch three was run against a record of 59 tests when the suite
+held more, so every test written during the campaign was invisible to
+the harness, and at least two of the reported survivors are lines that
+an existing test asserts on directly. A stale record does not make the
+score noisy, it makes it wrong in one direction: survivors are
+overstated and the suite is flattered by its own newest work being
+ignored.
+
+`--workers N` judges N mutants at once, each in its own sandbox and
+its own QGIS process, so no two workers share a mutation, a
+QgsProject, or a temporary directory.
+
+Measured on this project's machine (eight cores), six mutants at a
+fixed seed: thirteen minutes serially, seven minutes with three
+workers, and the two runs returned IDENTICAL verdicts on every
+mutant, which is the check that matters. Contention is real and
+visible in the per-mutant times, which inflated by fifteen to fifty
+per cent (one went from 176 to 261 seconds) exactly as CLAUDE.md's
+warning about concurrent QGIS processes predicts; the wall clock
+still nearly halves, because the alternative is those same processes
+idling one at a time.
+
+Two workers is the standing default here, and the reason is memory
+rather than cores: a worker is only about half a gigabyte, but the
+development machine runs with swap nearly exhausted, and a run killed
+at mutant nineteen of twenty has cost more than it saved. Raise it if
+the machine has room.
+
+`--only file:line,file:line` re-judges named mutations instead of
+sampling. This is how an earlier batch's survivors get a second
+hearing after the suite has been strengthened, which is a different
+question from sampling fresh mutants and should not be mixed with it:
+re-judged verdicts say whether a KNOWN gap has been closed, and only
+a fresh sample can estimate the rate. Run `--control` after any change to the harness itself: it
 applies no mutation and requires the sandboxed tests to pass. A 100%
 kill rate means nothing if the harness fails everything, which is not
 a hypothetical either — an early run reported a perfect score because
 display names and function names had drifted apart and every test set
 was empty.
+
+## Keeping new code from eroding it quietly
+
+A campaign measures the suite as it stands. It says nothing about the
+code written next week, and rerunning hours of sampling on every
+change is not a habit anyone keeps. The routine guard is therefore a
+different, cheaper question, asked every release:
+
+    tools/mutate_auto.py --since v0.22.0 --require 70
+
+`--since` takes git's own diff and keeps only the mutations that fall
+on lines added or changed since that revision. On an ordinary change
+that is a handful of mutants and a few minutes, because the cost is
+proportional to the change rather than to the codebase. `--require`
+makes it a gate: below the threshold the release stops, on the
+grounds that code arriving with tests that do not defend it is how a
+score decays without anyone deciding to let it.
+
+`release.py` runs this against the previous release tag, after
+re-recording per-test coverage so that tests written alongside the
+new code can actually be selected. Samples smaller than five are
+reported without being held to a threshold, since a rate over three
+mutants is not a rate. The first release, having no previous tag,
+skips it and says so.
+
+What this does NOT do is replace the periodic full campaign. Changed
+lines are where new gaps arrive, but old code drifts too: a
+refactor elsewhere can quietly stop a test reaching what it names.
+Full sampling still answers "how good is the suite", and the
+incremental gate answers "is this week's work defended". They are
+different questions and the cheap one does not subsume the expensive
+one.
 
 ## Campaign history
 
@@ -170,6 +238,7 @@ was empty.
 | hand-picked | 41 | 41 | 100% | measures our judgement, not the suite |
 | auto 1 | 15 | 8 | 53% | catalogue option VALUES were unasserted; typed input reached the unit only because tests rebuilt it themselves |
 | auto 2 | 20 | 7 | 35% | whole controls worked only because tests called the rebuild; the Help tab could be deleted unnoticed; a layer's first field was a boundary case |
+| auto 3 | 30 | 15 | 50% | the region chooser could offer the plugin's own output; the spacing default and the Auto button could vanish; a catalogue offset could move. Understated: run against a stale coverage record, so the campaign's own new tests were never selected |
 
 The decline from 53% to 35% was not a regression. Batch two happened
 to sample the dialog's wiring, where the suite was weakest, and that

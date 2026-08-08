@@ -41,6 +41,69 @@ CATALOG = "weavingspace_qgis/catalog.py"
 
 # name, file, exact source to replace, replacement, test that must fail
 MUTATIONS = [
+  # Written after an automatic campaign found each gap. Every test
+  # added to close a mutant belongs here, because a test verified only
+  # to PASS proves nothing: six were written in one session, all
+  # passing, and most then failed to kill the very mutants they were
+  # written for. These entries are how that cannot happen quietly
+  # again.
+  dict(name="region-chooser-exclusions", file=DIALOG,
+       old="""    self._build_ui()
+    self._update_layer_exclusions()""",
+       new="""    self._build_ui()""",
+       test="test_plugin_never_offers_its_own_output_as_a_region",
+       why="a dialog opened on a project that already holds a tiled "
+           "map must not offer that map as a region layer"),
+  dict(name="spacing-default", file=DIALOG,
+       old="self.spacing_spin.setValue(1000)",
+       new="pass  # mutation: no declared default spacing",
+       test="test_design_controls_are_usable_as_designed",
+       why="the spacing a first-time user is given, before any layer "
+           "can auto-size it"),
+  dict(name="auto-spacing-button", file=DIALOG,
+       old="spacing_row.addWidget(auto)",
+       new="pass  # mutation: the button is never added to a layout",
+       test="test_design_controls_are_usable_as_designed",
+       why="a control constructed but never added is a feature no "
+           "user can reach"),
+  dict(name="modifier-step-size", file=DIALOG,
+       old="box.setSingleStep(step)",
+       new="pass  # mutation: whole-unit steps",
+       test="test_design_controls_are_usable_as_designed",
+       why="nudging a rotation or an inset, rather than lurching"),
+  dict(name="point-angle-connection", file=DIALOG,
+       old="self.opt_point_angle.valueChanged.connect(self._queue_preview)",
+       new="pass  # mutation: the control reaches nothing",
+       test="test_controls_respond_without_being_prompted",
+       why="a star's point angle acting through its own signal"),
+  dict(name="group-on-top", file=DIALOG,
+       old="return root.insertGroup(0, name), True",
+       new="return root.insertGroup(1, name), True",
+       test="test_group_sits_on_top_of_the_layers_panel",
+       why="a freshly generated map landing where it can be seen"),
+  dict(name="catalogue-offset", file=CATALOG,
+       old='"hex-slice 7": dict(type="tiling", tiling_type="hex-slice", n=7, offset=0)',
+       new='"hex-slice 7": dict(type="tiling", tiling_type="hex-slice", n=7, offset=1)',
+       test="test_catalogue_values_are_what_they_claim",
+       why="where a hex-slice's cuts start; the element count is "
+           "identical either way, so counting cannot catch it"),
+  dict(name="nice-number-base", file=DIALOG,
+       old="mant = x / 10 ** exp",
+       new="mant = x / 11 ** exp",
+       test="test_auto_spacing_offers_a_round_number",
+       why="the Auto button proposing 2500 rather than 2371.8438"),
+  dict(name="preview-patch-centre", file=DIALOG,
+       old="patch = unit.get_local_patch(r=shells, include_0=True)",
+       new="patch = unit.get_local_patch(r=shells, include_0=False)",
+       test="test_preview_draws_the_middle_of_the_patch",
+       why="the centre of the pattern being drawn at all, with "
+           "context shells on"),
+  dict(name="signature-layer-identity", file=DIALOG,
+       old="      layer.id() if layer is not None else None,",
+       new="      layer.id() if layer is None else None,",
+       test="test_switching_region_layer_counts_as_a_change",
+       why="a different region layer counting as a change, rather "
+           "than leaving the previous layer's map on screen"),
   dict(name="chooser-race", file=DIALOG,
        old='lambda _i, c=mode_combo: c.setProperty("touched", True))',
        new="lambda _i, c=mode_combo: None)",

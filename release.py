@@ -423,6 +423,27 @@ def main():
   write_testing_report(report_dir, version, functional, visual,
                        comparison, coverage)
 
+  # 3a. Record which lines each test executes, then hold the code that
+  # CHANGED since the last release to account: mutate only those lines
+  # and require the tests to catch them. This is the routine guard
+  # against a slow slide. The full campaign asks how good the suite is
+  # over the whole plugin and takes hours; this asks whether today's
+  # work is defended, costs minutes, and is the one that runs every
+  # time. Skipped on the first release, when there is no previous tag
+  # to compare against.
+  run("per-test coverage record",
+      [python, "-u", os.path.join("tools", "coverage_per_test.py")], env)
+  previous = subprocess.run(["git", "describe", "--tags", "--abbrev=0"],
+                            cwd=ROOT, capture_output=True, text=True)
+  if previous.returncode == 0 and previous.stdout.strip():
+    run(f"new-code mutation guard (since {previous.stdout.strip()})",
+        [python, "-u", os.path.join("tools", "mutate_auto.py"),
+         "--since", previous.stdout.strip(), "--sample", "12",
+         "--workers", "2", "--require", "70"], env)
+  else:
+    print("\n=== new-code mutation guard ===\n  no previous release "
+          "tag to compare against; skipped this once")
+
   # 3b. re-photograph what we publish. The README and the project page
   # show the dialog and a set of maps, and both are claims about how
   # the plugin currently looks and what it currently produces. They go

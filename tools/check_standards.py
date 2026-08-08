@@ -170,6 +170,30 @@ def check_audit_tools():
       f"the mutation catalogue has shrunk to {count} entries; it is "
       "meant to grow with the behaviours worth guarding")
   check_equivalence_claims()
+  check_binding_documents()
+
+
+def check_binding_documents():
+  """The documents CLAUDE.md declares binding still exist and are cited.
+
+  CLAUDE.md requires docs/TESTING.md and docs/MUTATION-TESTING.md to
+  be read before tests are written or changed. A rule that points at a
+  missing file is worse than no rule, and a document nothing points at
+  is a document nobody opens, so both directions are checked here.
+  """
+  for name in ("docs/TESTING.md", "docs/MUTATION-TESTING.md"):
+    path = os.path.join(ROOT, name)
+    if not os.path.exists(path):
+      problems.append(f"{name} is missing, but CLAUDE.md declares it "
+                      f"binding on anyone writing tests")
+      continue
+    if os.path.getsize(path) < 2000:
+      problems.append(f"{name} has been reduced to a stub; it is "
+                      f"meant to carry the lessons, not a heading")
+    with open(os.path.join(ROOT, "CLAUDE.md"), encoding="utf-8") as f:
+      if name not in f.read():
+        problems.append(f"CLAUDE.md no longer points at {name}, so "
+                        f"nothing will send a reader to it")
 
 
 def check_equivalence_claims():

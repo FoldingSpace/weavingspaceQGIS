@@ -150,6 +150,27 @@ obligations: they exist so nobody pays twice for the same discovery.
   upstream adopting our own convex-hull optimisation, which let us
   retire a patch instead of carrying a duplicate of it forever.
   (Standing user instruction, 2026-08-07.)
+- **The testing documents are binding, and are read BEFORE tests are
+  written or changed.** `docs/TESTING.md` holds the shapes that earn
+  their keep here and the lessons each paid for once; nearly every
+  rule in it exists because its absence cost this project real time.
+  `docs/MUTATION-TESTING.md` holds the campaign and its commitments.
+  Treat both as you would the hard rules above: when you find yourself
+  about to do something they warn against, the document is right and
+  the shortcut is not. When one of them turns out to be wrong, change
+  the document deliberately and say why, exactly as with the
+  standards checker.
+- **New code is held to account at every release, not only during a
+  campaign.** `release.py` re-records per-test coverage and then runs
+  `tools/mutate_auto.py --since <previous tag> --require 70`, which
+  mutates ONLY the lines that changed and stops the release if the
+  tests written alongside them fail to catch 70% of those mutants.
+  Cost is proportional to the change, so it runs every time, which is
+  the point: a mutation score decays not through decisions but
+  through changes that nobody measured. This does not replace the
+  periodic full campaign — changed lines are where new gaps arrive,
+  but a refactor elsewhere can quietly stop an old test reaching what
+  it names, and only full sampling finds that.
 - **Mutation testing has commitments, and they bind.** The full
   reasoning is in `docs/MUTATION-TESTING.md`; what must not be
   forgotten while working: close a survivor with the test the
@@ -241,91 +262,29 @@ obligations: they exist so nobody pays twice for the same discovery.
   only as the inside-the-polygon fallback for concave shapes (it comes
   from a bbox-midheight scanline and reads off-centre).
 
-**Testing.**
-- The highest-value test shape here is UI-against-library: drive the
-  dialog, then build the same map by calling weavingspace directly
-  with what those settings MEAN, and compare geometry element by
-  element and then interior pixels. Three real bugs came out of it
-  that every "a map appeared" assertion had passed over: Generate
-  inside the 350 ms preview debounce tiled the PREVIOUS design;
-  identity modifier transforms (rotate 0, scale 1) rebuilt geometry
-  with enough rounding to flip tie-prone joins; and a rebuilt table
-  cycled a default variable back into an element the user had
-  deliberately unassigned. Write the expected side from the settings,
-  never from _build_unit, or the test agrees with the bug.
+**Testing.** The full record now lives in `docs/TESTING.md`, which is
+REQUIRED READING before writing or changing tests, together with
+`docs/MUTATION-TESTING.md` for the campaign that keeps the suite
+honest. Both are binding, not background. The four that get violated
+first, kept here so they are unmissable:
 - Tests must run with an EMPTY project. Everything shares the one
   QgsProject singleton, so a test that leaves layers behind changes
   which layer the next dialog picks; a single real failure once
   cascaded into four unrelated ones.
-- Integration sessions beat single-behaviour tests for this plugin:
-  the failures live in state carried across generations. Check at
-  several MOMENTS inside a session, not only at the end, since a
-  wrong intermediate state usually corrects itself by the last
-  generation and hides.
-- Stress with no waiting between actions. The debounce races only
-  appear when changes arrive faster than the timers.
-- Mutation-check the guards (tools/mutation_check.py): break the
-  behaviour, confirm the test fails. A four-class assertion once
-  "covered" the tab10 sampling bug because both the right and wrong
-  formulas agree at four classes.
-- A surviving mutant has four possible meanings, and they need
-  different answers. Most often, and especially among randomly
-  generated mutants, it is a REAL GAP: a behaviour a user depends on
-  that nothing asserts (a whole tab that could be deleted unnoticed,
-  an output group that must sit at the top of the layers panel).
-  Otherwise: a WEAK ASSERTION (assert the colour, not the
-  renderer class — a stripped layer is reborn single-symbol grey and
-  satisfies a class check); a test that no longer REACHES the code it
-  names (the selective re-seed test quietly stopped doing so the day
-  the restyle fast path landed); or an EQUIVALENT MUTANT that changes
-  no behaviour and cannot be caught (QGIS 4 returns None for NULL, so
-  normalising it is a no-op). Diagnose which before touching
-  anything, and mark equivalents in the catalogue rather than
-  deleting them — if a future QGIS makes the branch live, it will
-  start being caught, and that is a signal.
-- Test a switch where it BITES. Measured, not assumed:
-  retain-complete-tileables changes nothing unless the whole-tileable
-  join is on and edges are ragged; the join changes no data at all in
-  icon mode. Both were "covered" by tests in configurations where
-  severing the control from the library changed nothing.
-- Race testing has three layers, and they catch different things:
-  handpicked races for known-dangerous moments (mid-flight settings
-  change, two Generates, restyle during a run, close during a run,
-  region layer deleted mid-run); a sweep changing EVERY control while
-  a tiling is in flight, because any control can be swallowed the
-  same way; and a seeded fuzz test firing random action sequences and
-  asserting invariants (one group, no orphaned layers, no task left
-  in flight, and the map matching what the table asks for). The
-  invariant that matters most is that last one: it is what caught a
-  ramp picked mid-run being lost.
-- Wholesale span-rewrites of a test file can silently DROP assertions,
-  and absent tests pass (a graduated-controls block vanished this way
-  unnoticed). Prefer targeted edits; after any rewrite, grep for the
-  assertions you believe exist.
-- Image metrics must be calibrated against known-good output before
-  thresholds are trusted. Unweighted unique-colour comparisons are
-  dominated by antialiasing blends (a visually identical pair scored
-  dE 11); weight by pixels.
-- A test that changes a Design control must let that legitimate
-  rebuild settle before grabbing widget references.
-- Progress "stuck" at a fixed percent is a lifecycle bug until timing
-  on real data proves otherwise; faulthandler.enable() turns silent
-  native deaths into stack traces (that is how the pyproj/PROJ thread
-  crash was found).
-- Never run two suites at once. Two QGIS processes rendering and
-  tiling on the same machine slow each other to a crawl, and the
-  result reads as a hang; one release was abandoned at 40 minutes for
-  exactly this. Run one, in the background, and wait on it.
-- A test helper that waits for a completion callback must first check
-  that anything was STARTED. When the restyle fast path landed, every
-  style-only step in a test sat out the helper's 120-second backstop
-  waiting for a callback that was never coming: two tests went from
-  seven seconds to twenty minutes, and the release looked hung. If a
-  code path can now finish synchronously, the waiter has to know.
-- Diagnose a suspected hang by CPU, not by elapsed time: a process
-  burning 2 minutes of CPU across 40 minutes of wall clock is
-  blocked, not busy, and that distinction points straight at the
-  cause.
+- A test that PASSES is not a test that WORKS. It has to fail when the
+  behaviour it names is broken, and the only way to know is to break
+  it. Every test written to close a mutation gap gets an entry in
+  `tools/mutation_check.py`, which does exactly that and runs at
+  release. Six tests written in one session were verified to pass,
+  and most of them then failed to kill the very mutants they were
+  written for.
+- The highest-value shape here is UI-against-library: drive the
+  dialog, build the same map by calling weavingspace directly with
+  what those settings MEAN, compare geometry element by element and
+  then interior pixels. Write the expected side from the settings,
+  never from `_build_unit`, or the test agrees with the bug.
+- Every test that produces a map checks it visually (`visual_pair` or
+  `visual_gamut`), and those checks appear in the release PDF.
 
 **Process.**
 - Check upstream's actual semantics before reimplementing behaviour:
@@ -346,6 +305,15 @@ obligations: they exist so nobody pays twice for the same discovery.
   BEFORE any write, and beware a trailing comma turning a string into
   a tuple (it aborted two patch runs here); for single replacements
   prefer the Edit tool.
+- When waiting on a long background run, key the wait on the PROCESS
+  ENDING, not on log text you predicted. A watcher polling for "tests
+  recorded" sat in a sleep loop for twelve hours because the tool
+  actually prints "recorded 75 tests", and its fallback pattern
+  ("Error") missed the crash line too, which read "Fatal Python
+  error". Silence from a watcher is not evidence that the work is
+  still running. Wait on the pid, and if a log must be matched,
+  include a case-insensitive alternation broad enough to catch the
+  failure modes as well as the success line.
 - macOS code-signing (library validation) refuses PyPI C extensions
   inside the signed QGIS process; side tooling that needs matplotlib
   runs in .venv-reference, never in QGIS's Python.

@@ -91,6 +91,14 @@ def main():
   covered = len({line for lines in per_test.values() for line in lines})
   print(f"\nrecorded {len(per_test)} tests covering {covered} lines "
         f"-> {os.path.relpath(out, ROOT)}")
+  # Leave from HERE, before this function returns. QGIS, PROJ and Qt
+  # tear down in an order Python's exit sequence does not respect, and
+  # the crash lands as main()'s locals are destroyed -- after the
+  # record is safely written, so it costs nothing but a fatal signal
+  # on the way out, which would one day fail a release for no reason.
+  sys.stdout.flush()
+  sys.stderr.flush()
+  os._exit(0)
 
 
 if __name__ == "__main__":
