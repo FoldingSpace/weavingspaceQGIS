@@ -46,7 +46,9 @@ reports which plugin lines this suite never reaches;
 
 import faulthandler
 import json
+import math
 import os
+import random
 import signal
 import sys
 import tempfile
@@ -3510,6 +3512,14 @@ def test_race_region_layer_removed_during_run():
   project.removeMapLayer(layer.id())   # mid-flight
   assert _settle(dlg, 60), "the dialog must recover, not hang"
   assert dlg._task is None
+  # The recovery path resets the whole UI, not just the button: a
+  # progress bar left on screen after a run that died says the plugin
+  # is still working when it is not, and this branch is reached ONLY
+  # when the source layer disappears, so the ordinary completion
+  # tests cannot defend it.
+  assert not dlg.progress.isVisibleTo(dlg), \
+    "the progress bar is still showing after the run was abandoned; "\
+    "the dialog looks busy while doing nothing"
   assert dlg.generate_btn.isEnabled(), \
     "the dialog must be usable after its region vanished"
   dlg.close()
@@ -4004,7 +4014,9 @@ def test_catalogue_values_are_what_they_claim():
   # "hex-slice 7" from 0 to 1 and nothing noticed, because the sweep
   # only ever counted elements
   known_offsets = {"hex-slice 2": 0, "hex-slice 7": 0,
-                   "hex-dissection 4": 0, "hex-dissection 7": 0}
+                   "hex-dissection 4": 0, "hex-dissection 7": 0,
+                   "square-slice 2": 0, "square-slice 3": 0,
+                   "square-slice 4": 0}
   for name, expected in known_offsets.items():
     for n, families in catalog.TILINGS_BY_N.items():
       if name in families and "offset" in families[name]:
@@ -5297,11 +5309,34 @@ def test_the_dialogs_chrome_does_its_job():
   assert not dlg.progress.isVisibleTo(dlg), \
     "the progress bar is showing while nothing is running"
 
+  # and it goes away again AFTERWARDS. Two separate lines hide it --
+  # one at construction, one when a run finishes -- and a test that
+  # only checks the fresh dialog leaves the second undefended.
+  dlg.spacing_spin.setValue(520)
+  _generate_and_wait(dlg)
+  _tick(200)
+  assert not dlg.progress.isVisibleTo(dlg), \
+    "the progress bar is still showing after the run finished"
+
   # controls constructed but never added to a layout are unreachable,
   # and the preview's own label is the only thing naming it
   assert dlg.shells_spin.isVisibleTo(dlg), \
     "the context-shells spinner is not in any layout, so no user can "\
     "reach it"
+  # A whole form can go missing the same way a single control can.
+  # Visibility is the wrong question for these: they sit on other tabs,
+  # and a widget on a page that is not current is legitimately not
+  # visible. What must hold is that each one is IN the dialog's
+  # hierarchy -- a widget built but never added to a layout keeps
+  # whatever parent it was constructed with and never becomes a
+  # descendant of the window.
+  for name in ("gpkg_widget", "opt_new_group", "live_check"):
+    widget = getattr(dlg, name, None)
+    assert widget is not None, f"the dialog has no {name}"
+    assert dlg.isAncestorOf(widget), \
+      f"{name} is not inside the dialog's widget tree, so it was "\
+      f"built and then left out of every layout; an entire output "\
+      f"form can go missing as easily as one control"
   from qgis.PyQt.QtWidgets import QLabel
   labels = [l.text() for l in dlg.findChildren(QLabel)]
   assert any("preview" in t.lower() for t in labels), \
@@ -5469,6 +5504,15 @@ def test_a_single_category_still_gets_a_colour():
   colour = categories[0].symbol().color().name()
   assert colour and colour != "#000000", \
     f"the single category was given {colour}, not a palette colour"
+  # and specifically the palette's FIRST entry. "Some colour" is not
+  # enough: an automatic mutant handed the lone class the second
+  # entry, which is invisible in isolation and wrong the moment two
+  # such maps are compared, or a second category appears and takes
+  # the colour this one had.
+  first = bridge.PALETTES["categorical"]["tab10"][0]
+  assert colour.lower() == first.lower(), \
+    f"a single category should take the palette's first colour "\
+    f"({first}), not {colour}"
 
 
 def test_the_library_works_without_matplotlib_or_scipy():
@@ -5758,88 +5802,407 @@ def hostile_layers():
 
 
 def test_hostile_data_does_not_defeat_the_plugin():
-  """Load the data users actually bring, and require the plugin to
-  cope with each one.
+  """Load the data users actually bring, each in its own process.
 
-  Coping means one of two things, and the distinction is the point: it
-  either produces a map, or it declines in a way the user can act on.
-  What it may not do is raise an unhandled exception, hang, or produce
-  a group of empty layers that looks like success.
+  Coping means one of two things, and the distinction is the point: the
+  plugin either produces a map, or it declines in a way the user can
+  act on. What it may not do is raise an unhandled exception, hang, or
+  hand back a group of empty layers that looks like success.
 
-  Every fixture here is something plausible on a first afternoon --
-  an export with one row, a column that turned out constant, a layer
-  still in degrees, hand-digitised polygons that self-intersect. The
-  synthetic grid used elsewhere in this suite is a laboratory animal;
-  these are the wild, and they are where beginners live.
+  Every fixture is plausible on a first afternoon -- an export with
+  one row, a column that turned out constant, a layer still in
+  degrees, coordinates in the millions, polygons that self-intersect
+  because they were digitised by hand, category labels that are not
+  ASCII or absurdly long, more categories than any palette has
+  colours. The synthetic grid used elsewhere in this suite is a
+  laboratory animal; these are the wild.
+
+  Each fixture gets a FRESH PROCESS. An earlier version ran them all
+  in one, and the fixtures slowed each other down until the test
+  looked hung: state accumulates across dialogs and projects in ways
+  that have nothing to do with the data under test. Isolation also
+  means one pathological layer can crash without taking the suite
+  with it -- which is the failure mode that matters, since a crash is
+  exactly what this test is looking for.
   """
-  from weavingspace_qgis.dialog import WeavingSpaceDialog
-  project = QgsProject.instance()
-  troubles = []
+  import subprocess
+  import sys as _sys
 
-  for name, layer, note in hostile_layers():
-    # A long test that says nothing is indistinguishable from a hung
-    # one, and this loop spends real time per fixture.
-    print(f"      hostile: {name}", flush=True)
-    began = time.time()
-    project.addMapLayer(layer)
-    dlg = WeavingSpaceDialog(iface=_Iface())
+  program = """
+import importlib.util, os, sys, time
+ROOT = "__ROOT__"
+spec = importlib.util.spec_from_file_location(
+    "rt", os.path.join(ROOT, "tests", "run_tests.py"))
+rt = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(rt)
+from qgis.core import QgsApplication, QgsProject
+QgsApplication.setPrefixPath(os.environ.get("QGIS_PREFIX_PATH", "/usr"), True)
+app = QgsApplication([], True)
+app.initQgis()
+rt._no_modal_dialogs()
+from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+wanted = sys.argv[1]
+for name, layer, note in rt.hostile_layers():
+    if name != wanted:
+        continue
+    QgsProject.instance().addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=rt._Iface())
     dlg.live_check.setChecked(False)
+    began = time.time()
     try:
-      dlg.layer_combo.setLayer(layer)
-      _tick(500)
-      # whatever the auto-spacing proposes for THIS layer, not a
-      # number chosen for the tidy fixture
-      auto = [b for b in dlg.findChildren(
-        __import__("qgis.PyQt.QtWidgets", fromlist=["QPushButton"]).QPushButton)
-        if b.text() == "Auto"]
-      if auto:
-        auto[0].click()
-        _tick(300)
-      dlg.spacing_spin.setValue(max(dlg.spacing_spin.value(), 1e-6))
-      _generate_and_wait(dlg)
+        dlg.layer_combo.setLayer(layer)
+        rt._tick(500)
+        rt._generate_and_wait(dlg)
+        produced = [QgsProject.instance().mapLayer(i)
+                    for i in dlg._element_layer_ids.values()]
+        produced = [l for l in produced if l is not None]
+        counts = [l.featureCount() for l in produced]
+        # "Told" includes a message box the harness intercepted: the
+        # boxes are stubbed so a headless run cannot block, and what
+        # they were asked is kept in MODALS. Reading only live_note
+        # counted a perfectly good warning as silence, and nearly had
+        # me report a silent failure that was not one.
+        told = bool(dlg.live_note.text().strip()) or bool(rt.MODALS)
+        said = rt.MODALS[-1][1][:60] if rt.MODALS else ""
+        print("RESULT layers=%d features=%d told=%d seconds=%.1f said=%s"
+              % (len(produced), sum(counts), told, time.time() - began,
+                 said))
+    except Exception as exc:
+        print("RAISED %s: %s" % (type(exc).__name__, str(exc)[:200]))
+    dlg.close()
+sys.stdout.flush()
+os._exit(0)
+""".replace("__ROOT__", ROOT)
 
-      produced = [project.mapLayer(i)
-                  for i in dlg._element_layer_ids.values()]
-      produced = [lyr for lyr in produced if lyr is not None]
-      if produced:
-        empty = [lyr.name() for lyr in produced
-                 if lyr.featureCount() == 0]
-        if empty and len(empty) == len(produced):
-          troubles.append(
-            f"{name}: produced {len(produced)} layer(s) and every one "
-            f"is empty, which looks like success and is not ({note})")
-      # no output at all is acceptable ONLY if the user was told
-      elif not (dlg.live_note.text().strip()
-                or dlg.progress.isVisibleTo(dlg)):
-        troubles.append(
-          f"{name}: produced nothing and said nothing ({note})")
-    except Exception as exc:                          # noqa: BLE001
-      troubles.append(f"{name}: raised {type(exc).__name__}: {exc} "
+  troubles = []
+  for name, _layer, note in hostile_layers():
+    result = subprocess.run(
+      [_sys.executable, "-c", program, name],
+      capture_output=True, text=True, timeout=180)
+    line = next((l for l in result.stdout.splitlines()
+                 if l.startswith(("RESULT", "RAISED"))), "")
+    print(f"      hostile: {name}: {line or 'no result'}", flush=True)
+
+    if line.startswith("RAISED"):
+      troubles.append(f"{name}: {line[7:]} ({note})")
+      continue
+    if not line:
+      tail = result.stderr.strip().splitlines()[-2:]
+      troubles.append(f"{name}: the process produced no verdict "
+                      f"({note}); last words: {' | '.join(tail)}")
+      continue
+    fields = dict(part.split("=", 1) for part in line.split()[1:]
+                  if "=" in part)
+    layers, features = int(fields["layers"]), int(fields["features"])
+    if layers and not features:
+      troubles.append(
+        f"{name}: produced {layers} layer(s) and not one feature "
+        f"between them, which looks like success and is not ({note})")
+    elif not layers and not int(fields["told"]):
+      troubles.append(f"{name}: produced nothing and said nothing "
                       f"({note})")
-    finally:
-      elapsed = time.time() - began
-      print(f"      hostile: {name} took {elapsed:.1f}s", flush=True)
-      # Take this case's OUTPUT out of the project as well as its
-      # source. Leaving it behind makes each fixture slower than the
-      # last -- every project change re-runs the chooser's exclusions
-      # over an ever-longer layer list -- which is why this test
-      # crawled while the same fixtures tiled in under a second when
-      # driven one at a time.
-      for layer_id in list(dlg._element_layer_ids.values()):
-        if project.mapLayer(layer_id) is not None:
-          project.removeMapLayer(layer_id)
-      if elapsed > 20:
-        troubles.append(
-          f"{name}: took {elapsed:.0f}s, which for {layer.featureCount()} "
-          f"features means something is waiting rather than working "
-          f"({note})")
-      dlg.close()
-      project.removeMapLayer(layer.id())
-      _tick(100)
 
   assert not troubles, \
     "the plugin mishandled data a user could plausibly load:\n  " \
     + "\n  ".join(troubles)
+
+
+def _library_unit_for(entry, spacing, crs=3857, shape=None,
+                      over_under=None, aspect=0.75):
+  """Build the library unit an entry MEANS, restated independently.
+
+  Args:
+    entry: one value from catalog.TILINGS_BY_N.
+    spacing: the pattern's grain in map units.
+    crs: EPSG code for the geometry.
+    shape: (rows, cols) for the grid family, which takes its array
+      shape from the dialog rather than from the catalogue.
+    over_under: the passing pattern as a tuple, for twill and basket
+      weaves; the user types this, so the caller states it.
+    aspect: strand width as a fraction of the spacing (weaves only).
+
+  Returns:
+    A Tileable built by calling weavingspace directly.
+
+  This deliberately does NOT call catalog.make_unit. The mapping from
+  a catalogue entry to a library constructor is exactly what the sweep
+  tests, and reusing the plugin's own mapping would agree with
+  whatever that mapping gets wrong -- the same reason the hand-written
+  comparisons build their expected side from the settings rather than
+  from _build_unit.
+
+  Where a value is a SETTING rather than catalogue data -- a grid's
+  array shape, a weave's passing pattern and strand width -- there is
+  nothing to restate, and inventing a rule here just disagrees with a
+  deliberate design decision. An early version did exactly that, using
+  exact factorisation for grids where the plugin makes a near-square
+  array with empty cells, and fifteen sweep cases "failed" over it. So
+  the caller states those and both sides use the same value.
+  """
+  from weavingspace import TileUnit, WeaveUnit
+
+  if entry["type"] == "tiling":
+    kwargs = dict(tiling_type=entry["tiling_type"], spacing=spacing,
+                  crs=crs)
+    for key in ("n", "code", "offset", "offset_angle", "point_angle"):
+      if key in entry:
+        kwargs[key] = entry[key]
+    if entry["tiling_type"] == "grid":
+      kwargs["nrows"], kwargs["ncols"] = shape
+    return TileUnit(**kwargs)
+
+  n = 1
+  if entry["weave_type"] in ("twill", "basket"):
+    n = over_under if over_under is not None else (2, 2)
+  return WeaveUnit(weave_type=entry["weave_type"], spacing=spacing,
+                   strands=entry["strands"], n=n, aspect=aspect, crs=crs)
+
+
+def _dialog_for_setup(setup):
+  """Open a dialog, apply `setup`, and let the rebuild land.
+
+  Returns:
+    The dialog, for a caller that wants to inspect state rather than
+    compare output. The sweep uses it when a design collapses to no
+    tiles at all, where there is nothing to render and the question
+    becomes what the dialog SAYS about it.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  setup(dlg)
+  dlg._rebuild_unit()
+  return dlg
+
+
+def test_an_over_large_inset_empties_the_design_visibly():
+  """Insetting a tile by more than its own width must say so, and be
+  undoable.
+
+  A stripes unit at 20 elements gives each stripe a twentieth of the
+  spacing, so a tile inset of 5% of the spacing exceeds the whole
+  stripe and every tile is consumed. That is arithmetic, not a fault,
+  and the library does the same. What matters is what the user sees:
+  the preview must say the design is empty rather than merely going
+  blank, and -- the part that would be a real defect -- the element
+  assignments must survive, rather than being discarded along with the
+  table rows.
+
+  Found by the randomised differential sweep, which drew this
+  combination by chance.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.n_combo.setCurrentText("20")
+  dlg.kind_combo.setCurrentText("tiling")
+  dlg.family_combo.setCurrentText("stripes 20")
+  dlg.spacing_spin.setValue(800)
+  dlg._rebuild_unit()
+  assert dlg.table.rowCount() == 20, "twenty stripes to begin with"
+
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  dlg.table.cellWidget(1, 1).setCurrentText("v2")
+  _tick(400)
+
+  dlg.mod_t_inset.setValue(5.0)          # wider than a stripe
+  dlg._rebuild_unit()
+  assert dlg.table.rowCount() == 0, \
+    "an inset wider than the stripe should leave no tiles"
+  assert dlg.preview._message, \
+    "the preview went empty without saying why; a user would think "\
+    "the plugin had broken"
+
+  dlg.mod_t_inset.setValue(2.0)          # back to something workable
+  dlg._rebuild_unit()
+  assert dlg.table.rowCount() == 20, "the stripes should return"
+  assignments = {a["id"]: a["var"] for a in dlg._assignments()}
+  assert assignments.get("a") == "v1" and assignments.get("b") == "v2", \
+    f"the element assignments were discarded when the design briefly "\
+    f"collapsed, and the user has to retype them: {assignments}"
+  dlg.close()
+
+
+def test_random_designs_match_the_library():
+  """Draw designs at random and require each to match the library.
+
+  The hand-picked comparisons elsewhere in this file are the
+  regression record: each pins a defect that actually happened, and
+  they stay. This is the other half of the job. They test the
+  combinations somebody thought of; a sweep tests the ones nobody did,
+  which is where the tie-prone join failure lived -- it needed a
+  particular family, a particular spacing, and a modifier that was
+  supposed to change nothing.
+
+  Each case draws a family, a spacing, modifiers, variables, ramps and
+  opacities, drives the dialog to exactly that, and compares the
+  result against a unit built by calling weavingspace directly.
+  Geometry first, then interior pixels.
+
+  Scale it with the environment rather than by editing:
+  WEAVINGSPACE_SWEEP_CASES sets how many designs to draw (a handful
+  during a release, hundreds during a campaign) and
+  WEAVINGSPACE_SWEEP_SEED makes any failure reproducible -- the seed
+  is printed with every case so a failing draw can be rerun alone.
+  """
+  from weavingspace_qgis import catalog
+
+  cases = int(os.environ.get("WEAVINGSPACE_SWEEP_CASES", "6"))
+  seed = int(os.environ.get("WEAVINGSPACE_SWEEP_SEED", "20260808"))
+  rng = random.Random(seed)
+  print(f"      sweep: {cases} case(s), seed {seed}", flush=True)
+
+  pool = [(n, name, entry)
+          for n, families in catalog.TILINGS_BY_N.items()
+          for name, entry in families.items()
+          # the custom ("this") weave needs a matrix the dialog has no
+          # UI for yet, so it cannot be driven from here
+          if entry.get("weave_type") != "this"]
+  assert len(pool) > 20, f"only {len(pool)} families to draw from"
+  assert any(e["type"] != "tiling" for _n, _name, e in pool), \
+    "the draw should include weaves as well as tilings"
+
+  ramp_names = ["Reds", "Blues", "Greens", "Purples", "Oranges", "Greys"]
+  fields = ["v1", "v2", "v3"]
+  failures = []
+
+  for case in range(cases):
+    n, name, entry = rng.choice(pool)
+    spacing = rng.choice([400, 500, 650, 800])
+    elements = entry.get("n", n) if entry["type"] == "tiling" else n
+    variables = [fields[i % len(fields)] for i in range(elements)]
+    ramps = [ramp_names[(i + case) % len(ramp_names)]
+             for i in range(elements)]
+    opacities = ([rng.choice([100, 100, 80, 60]) for _ in range(elements)]
+                 if rng.random() < 0.5 else None)
+
+    # A weave's passing pattern and strand width are typed by the
+    # user, so the sweep chooses them and tells both sides.
+    pattern, over_under, aspect = None, None, 0.75
+    if entry["type"] != "tiling":
+      pattern = rng.choice(["2", "1,2", "2,2", "1,2,2,1", "3"])
+      # The passing pattern's meaning is a documented rule, ported
+      # from the web app: the comma-separated numbers ARE the pattern,
+      # an odd-length list is trimmed to even length, and anything
+      # unparseable falls back to (2, 2). A single number is therefore
+      # a ONE-element pattern -- "3" means (3,), not (3, 3) -- which
+      # is the sort of thing worth restating carefully: assuming the
+      # doubled reading here put two sweep cases into disagreement
+      # over geometry that was perfectly correct.
+      digits = [int(d) for d in pattern.split(",")]
+      keep = 2 * len(digits) // 2
+      over_under = tuple(digits[:keep]) if keep else (2, 2)
+      aspect = rng.choice([0.75, 0.75, 0.5, 0.9])
+
+    # A grid's array shape is a setting too.
+    shape = None
+    if entry.get("tiling_type") == "grid":
+      rows = rng.randint(1, max(1, elements))
+      shape = (rows, -(-elements // rows))      # ceiling division
+
+    # Modifiers, drawn from a set that deliberately includes the
+    # identities. Rotate 0 and scale 1 are supposed to change nothing,
+    # and the one real bug this shape of test has found was exactly
+    # there. Half the cases get none at all, so the plain path stays
+    # exercised.
+    mods = {"rotate": 0.0, "scale": (1.0, 1.0), "skew": (0.0, 0.0),
+            "tile_inset": 0.0, "prototile_inset": 0.0}
+    if rng.random() < 0.5:
+      mods["rotate"] = rng.choice([0.0, 0.0, 15.0, 30.0, -22.5])
+      mods["scale"] = rng.choice([(1.0, 1.0), (1.0, 1.0), (0.8, 1.0),
+                                  (1.0, 0.75)])
+      mods["skew"] = rng.choice([(0.0, 0.0), (0.0, 0.0), (10.0, 0.0)])
+      if entry["type"] == "tiling":
+        # Insets are drawn for tilings only. A weave has no prototile
+        # to inset, and the plugin scales a weave's TILE inset by the
+        # strand width on purpose, so thin strands do not vanish at
+        # values a tiling shrugs off. That scaling is a design
+        # decision of the plugin's rather than a library semantic, so
+        # this sweep cannot derive it independently -- and a sweep
+        # that copied the rule would only be checking that the code
+        # agrees with itself. The hand-written weave comparisons cover
+        # inset weaves against a deliberately stated expectation.
+        mods["tile_inset"] = rng.choice([0.0, 0.0, 2.0])
+        mods["prototile_inset"] = rng.choice([0.0, 0.0, 3.0])
+
+    label = f"sweep {case} {name} at {spacing}"
+    if shape:
+      label += f" ({shape[0]}x{shape[1]})"
+    if pattern:
+      label += f" [{pattern}]"
+    print(f"      {label}", flush=True)
+
+    def setup(dlg, n=n, name=name, spacing=spacing, shape=shape,
+              mods=mods, entry=entry, pattern=pattern, aspect=aspect):
+      dlg.n_combo.setCurrentText(str(n))
+      dlg.kind_combo.setCurrentText(
+        "tiling" if entry["type"] == "tiling" else "weave")
+      dlg.family_combo.setCurrentText(name)
+      if pattern is not None:
+        dlg.opt_over_under.setText(pattern)
+        dlg.opt_aspect.setValue(aspect)
+      dlg.spacing_spin.setValue(spacing)
+      if shape:
+        dlg.opt_grid_rows.setValue(shape[0])
+        dlg.opt_grid_cols.setValue(shape[1])
+      dlg.mod_rotate.setValue(mods["rotate"])
+      dlg.mod_scale_x.setValue(mods["scale"][0])
+      dlg.mod_scale_y.setValue(mods["scale"][1])
+      dlg.mod_skew_x.setValue(mods["skew"][0])
+      dlg.mod_skew_y.setValue(mods["skew"][1])
+      dlg.mod_t_inset.setValue(mods["tile_inset"])
+      dlg.mod_p_inset.setValue(mods["prototile_inset"])
+
+    try:
+      expected = _library_unit_for(entry, spacing, shape=shape,
+                                   over_under=over_under, aspect=aspect)
+      # Apply the same modifiers by calling the library directly, in
+      # the order a reader of the dialog would expect.
+      if mods["rotate"]:
+        expected = expected.transform_rotate(mods["rotate"])
+      if mods["scale"] != (1.0, 1.0):
+        expected = expected.transform_scale(*mods["scale"])
+      if mods["skew"] != (0.0, 0.0):
+        expected = expected.transform_skew(*mods["skew"])
+      if mods["tile_inset"]:
+        expected = expected.inset_tiles(
+          mods["tile_inset"] * spacing / 100)
+      if mods["prototile_inset"]:
+        expected = expected.inset_prototile(
+          mods["prototile_inset"] * spacing / 100)
+
+      # A design can legitimately come out EMPTY: inset a stripe by
+      # more than its own width and every tile is consumed, which is
+      # arithmetic rather than a fault. Agreement then means both
+      # sides produce nothing, and comparing renders of nothing would
+      # only measure the background.
+      if len(expected.tiles) == 0:
+        empty = _dialog_for_setup(setup)
+        assert empty.table.rowCount() == 0, \
+          f"the library makes no tiles here but the dialog shows "\
+          f"{empty.table.rowCount()} rows"
+        assert empty.preview._message, \
+          "the design collapsed to nothing and the preview said so"
+        empty.close()
+        continue
+
+      _compare_ui_to_library(
+        label, setup, expected, {}, variables=tuple(variables),
+        ramps=tuple(ramps), opacities=opacities)
+    except AssertionError as exc:
+      failures.append(f"{label} (seed {seed}): {exc}")
+    except Exception as exc:                          # noqa: BLE001
+      failures.append(f"{label} (seed {seed}) raised "
+                      f"{type(exc).__name__}: {exc}")
+
+  assert not failures, \
+    f"{len(failures)} of {cases} random designs did not match the "\
+    f"library:\n  " + "\n  ".join(failures[:6])
 
 
 def test_plugin_lifecycle():
@@ -6086,10 +6449,12 @@ def main():
         test_repopulating_a_chooser_does_not_duplicate_it)
   check("the size guard does not refuse fine patterns",
         test_the_size_guard_does_not_refuse_fine_patterns)
-  # NOT REGISTERED YET: the fixtures all tile in under a second when
-  # driven directly, but the test as written stalls, and an unstable
-  # test in the suite blocks every coverage record and mutation batch
-  # behind it. Diagnose, then re-register.
+  check("hostile data does not defeat the plugin",
+        test_hostile_data_does_not_defeat_the_plugin)
+  check("an over-large inset empties the design visibly",
+        test_an_over_large_inset_empties_the_design_visibly)
+  check("random designs match the library",
+        test_random_designs_match_the_library)
   check("plugin lifecycle (menu, action, unload)",
         test_plugin_lifecycle)
   check("integration: cancel and recover",

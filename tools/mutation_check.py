@@ -134,6 +134,34 @@ MUTATIONS = [
        test="test_a_finished_run_leaves_nothing_armed",
        why="an ordinary Generate not arming a live rebuild nobody "
            "asked for"),
+  dict(name="single-category-first-colour", file=BRIDGE,
+       old="          if n > 1 else 0",
+       new="          if n > 1 else 1",
+       test="test_a_single_category_still_gets_a_colour",
+       why="a lone category taking the palette's FIRST colour, so two "
+           "maps of the same data agree and a second category does "
+           "not steal the first one's colour"),
+  dict(name="output-form-layout", file=DIALOG,
+       old="    olayout.addLayout(out_form)",
+       new="    pass  # mutation: the whole output form is never added",
+       test="test_the_dialogs_chrome_does_its_job",
+       why="the GeoPackage and grouping controls existing in the "
+           "window rather than only in the source"),
+  dict(name="progress-hidden-after-run", file=DIALOG,
+       old="""        self.generate_btn.setEnabled(True)
+        self.progress.setVisible(False)""",
+       new="""        self.generate_btn.setEnabled(True)
+        pass  # mutation: the bar stays on screen after the run""",
+       test="test_race_region_layer_removed_during_run",
+       why="the progress bar going away when a run is ABANDONED, "
+           "which is a different code path from normal completion "
+           "and reached only when the source layer disappears"),
+  dict(name="square-slice-offset", file=CATALOG,
+       old='"square-slice 2": dict(type="tiling", tiling_type="square-slice", n=2, offset=0)',
+       new='"square-slice 2": dict(type="tiling", tiling_type="square-slice", n=2, offset=1)',
+       test="test_catalogue_values_are_what_they_claim",
+       why="where a square slice's cuts begin; the element count is "
+           "the same either way, so counting cannot catch it"),
   dict(name="identifier-default", file=DIALOG,
        old="preferred = [f for f in numeric if f.lower() not in id_like] or numeric",
        new="preferred = [f for f in numeric if f.lower() in id_like] or numeric",
