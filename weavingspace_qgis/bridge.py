@@ -500,6 +500,77 @@ def map_unit_label(layer: QgsVectorLayer) -> str:
   return compat.map_unit_label(layer)
 
 
+def renderer_fill_colours(layer) -> list:
+  """Every fill colour a layer's renderer will actually paint.
+
+  Args:
+    layer: an output layer with its renderer already seeded.
+
+  Returns:
+    A list of (r, g, b) tuples on 0..255 -- one per class for a
+    graduated or categorized renderer, one for a single-symbol one,
+    and an empty list if the renderer is of some kind this does not
+    know. Read from the renderer rather than recomputed from the ramp,
+    so it reflects what the map will look like even when the user has
+    refined the symbology by hand in the Layer Styling panel.
+  """
+  renderer = layer.renderer()
+  colours = []
+  for accessor in ("ranges", "categories"):
+    items = getattr(renderer, accessor, None)
+    if callable(items):
+      for item in items():
+        symbol = item.symbol()
+        if symbol is not None:
+          colour = symbol.color()
+          colours.append((colour.red(), colour.green(), colour.blue()))
+      return colours
+  symbol = getattr(renderer, "symbol", None)
+  if callable(symbol) and symbol() is not None:
+    colour = symbol().color()
+    colours.append((colour.red(), colour.green(), colour.blue()))
+  return colours
+
+
+def categorical_shift_message(field: str, previous: int | None,
+                              current: int) -> str | None:
+  """Warn that a categorical field's colours have moved under the user.
+
+  Args:
+    field: the attribute whose class count changed, named so the user
+      knows which element to look at.
+    previous: how many distinct values it had on the last run in this
+      session, or None the first time it is seen.
+    current: how many it has now.
+
+  Returns:
+    One sentence for the message bar, or None when nothing moved.
+
+  Why this is worth saying. Categorical colours are sampled across the
+  palette by position -- entry int(i * len(palette) / (k - 1)) for
+  class i of k -- which is matplotlib's ListedColormap rule and what
+  the original renderer does, so the plugin is behaving correctly.
+  The consequence is still surprising: measured on tab10, going from
+  three classes to four changes the colour of two of the three
+  originals, and four to five changes three of four. Only the first
+  and last classes stay put, because the formula pins the palette's
+  endpoints.
+
+  A cartographer who filters their data, or maps a neighbouring region
+  with one class more, gets a map whose colours mean something
+  different from the last one, with nothing to say so. The remedy
+  already exists in the plugin -- import a colour mapping for that
+  element and the colours stop moving -- so the message names it.
+  """
+  if previous is None or previous == current or current < 2:
+    return None
+  return (f"'{field}' now has {current} categories where it had "
+          f"{previous}, so the colours of the existing classes have "
+          f"changed: they are sampled across the palette by position. "
+          f"Import a colour mapping (QML) for that element to keep "
+          f"colours the same from one map to the next.")
+
+
 def coverage_message(missing: int, unit_count: int, spacing: float,
                      unit_label: str) -> str | None:
   """The message bar's warning about areas the pattern missed.

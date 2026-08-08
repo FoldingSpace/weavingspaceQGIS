@@ -3,6 +3,12 @@
 # decided upon, material we may or may not act on.
 dev/
 
+# Agent worktrees live inside the repo directory. Git skips a
+# registered worktree, but an unregistered leftover would be
+# swept in by the release's git add -A, which commits a whole
+# second copy of the project.
+.claude/worktrees/
+
 # Build products and generated evidence. Reports are attached to
 # GitHub Releases instead of committed: they run to tens of megabytes
 # per version, and git keeps every blob forever.

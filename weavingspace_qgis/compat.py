@@ -124,6 +124,14 @@ def map_unit_label(layer) -> str:
   again. When it breaks, this is the one line to fix.
   """
   from qgis.core import QgsUnitTypes
+  # A geographic layer is REPROJECTED to Web Mercator before anything
+  # is tiled (see bridge.layer_to_gdf), so the spacing the user sets
+  # and the coverage notice reports are metres, whatever the layer's
+  # own units say. Reading the layer's CRS here produced "At 2,000 deg
+  # spacing ..." for a number that was metres -- a label contradicting
+  # the quantity beside it.
+  if layer.crs().isGeographic():
+    return "m"
   return QgsUnitTypes.toAbbreviatedString(layer.crs().mapUnits()) \
       or "map units"
 

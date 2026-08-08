@@ -38,6 +38,8 @@ BASE = [None]
 DIALOG = "weavingspace_qgis/dialog.py"
 BRIDGE = "weavingspace_qgis/bridge.py"
 CATALOG = "weavingspace_qgis/catalog.py"
+COMPAT = "weavingspace_qgis/compat.py"
+PERCEPTION = "weavingspace_qgis/perception.py"
 # the ONE part of the vendored library that is ours: the
 # patch making matplotlib and scipy optional
 VENDOR_TILEABLE = ("weavingspace_qgis/vendor/weavingspace/tileable.py")
@@ -134,6 +136,34 @@ MUTATIONS = [
        test="test_a_finished_run_leaves_nothing_armed",
        why="an ordinary Generate not arming a live rebuild nobody "
            "asked for"),
+  dict(name="cvd-simulation", file=PERCEPTION,
+       old="""  if vision == "normal":
+    return tuple(float(v) for v in rgb)""",
+       new="""  if True:
+    return tuple(float(v) for v in rgb)""",
+       test="test_colours_a_reader_cannot_separate_are_reported",
+       why="colour-vision deficiency actually being simulated; without "
+           "it every pair looks as separable as it does to a reader "
+           "with normal vision, which is the whole point"),
+  dict(name="shared-ramp-exemption", file=PERCEPTION,
+       old="      if first in shared and shared[first] == shared.get(second):",
+       new="      if False:",
+       test="test_colours_a_reader_cannot_separate_are_reported",
+       why="a shared-ramp design, which distinguishes elements by "
+           "shape, not being warned about as though it were a fault"),
+  dict(name="categorical-shift-notice", file=DIALOG,
+       old="          shift = bridge.categorical_shift_message(",
+       new="          shift = None or bridge.no_such_message(",
+       test="test_a_changed_category_count_warns_that_colours_moved",
+       why="telling the user that a changed class count has moved the "
+           "colours of the classes that were already there"),
+  dict(name="coverage-unit-label", file=COMPAT,
+       old='  if layer.crs().isGeographic():\n    return "m"',
+       new='  if False:\n    return "m"',
+       test="test_the_map_says_which_areas_it_left_out",
+       why="the coverage notice giving the units the plugin actually "
+           "tiles in; a geographic layer is reprojected, so its "
+           "spacing is metres and saying 'deg' contradicts the number"),
   dict(name="coverage-warning-spacing", file=BRIDGE,
        old="def coverage_message(missing: int, unit_count: int, spacing: float,",
        new="def coverage_message(missing: int, unit_count: int, spacing: float=0,",
@@ -165,10 +195,14 @@ MUTATIONS = [
         self.progress.setVisible(False)""",
        new="""        self.generate_btn.setEnabled(True)
         pass  # mutation: the bar stays on screen after the run""",
-       test="test_race_region_layer_removed_during_run",
-       why="the progress bar going away when a run is ABANDONED, "
-           "which is a different code path from normal completion "
-           "and reached only when the source layer disappears"),
+       test="test_choice_persistence_and_recovery",
+       why="a dialog REOPENED after its run died without reporting "
+           "must not still show a progress bar frozen at that run's "
+           "percentage, which reads as 'still working'. This line is "
+           "in showEvent's zombie recovery, not in the "
+           "layer-disappeared path an earlier version of this entry "
+           "named; ordinary completion is hidden by _finish_run and "
+           "is defended elsewhere"),
   dict(name="square-slice-offset", file=CATALOG,
        old='"square-slice 2": dict(type="tiling", tiling_type="square-slice", n=2, offset=0)',
        new='"square-slice 2": dict(type="tiling", tiling_type="square-slice", n=2, offset=1)',

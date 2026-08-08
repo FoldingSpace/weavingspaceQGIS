@@ -504,6 +504,10 @@ class WeavingSpaceDialog(QDialog):
     self._live_timer.setInterval(900)
     self._live_timer.timeout.connect(self._maybe_live_generate)
     self._live_pending = False
+    # {field: how many distinct values it had last run}, so a
+    # categorical field that gains or loses a class can be
+    # reported: its existing colours will have moved.
+    self._category_counts = {}
     self._build_ui()
     self._update_layer_exclusions()
     # order matters: families must be populated (_on_n_changed) before
@@ -2378,6 +2382,28 @@ class WeavingSpaceDialog(QDialog):
                                        spacing_used, unit_label)
         if note is not None:
           self._report_quietly(note)
+        # And whether any categorical field's class count moved since
+        # the last run: if it did, the colours of the classes that
+        # were already there have moved with it. Counted from the
+        # frame in hand, which already holds the values that were
+        # mapped, so this costs a nunique() per categorical element
+        # and no second pass over the data.
+        note = getattr(self, "_pending_colour_note", None)
+        if note is not None:
+          self._report_quietly(note)
+          self._pending_colour_note = None
+        for assignment in assignments:
+          field = assignment.get("var")
+          if not field or assignment.get("mode") != "Categorized":
+            continue
+          if field not in gdf.columns:
+            continue
+          current = int(gdf[field].nunique(dropna=True))
+          shift = bridge.categorical_shift_message(
+            field, self._category_counts.get(field), current)
+          self._category_counts[field] = current
+          if shift is not None:
+            self._report_quietly(shift)
 
     self._task = TilingTask(
       f"WeavingSpace: tiling with {family}", work, done)
@@ -2688,6 +2714,10 @@ class WeavingSpaceDialog(QDialog):
     by_id = {a["id"]: a for a in assignments}
     tile_ids = sorted(set(gdf["tile_id"]))
     warned_cardinality = []
+    # {tile_id: the fills that element will paint}, gathered as the
+    # renderers go on so the separability check sees the map's real
+    # colours -- including any the user refined by hand
+    element_fills = {}
 
     templates, template_errors = {}, []
     for token in {a.get("class_source") for a in assignments
@@ -2760,6 +2790,7 @@ class WeavingSpaceDialog(QDialog):
         out.setOpacity(max(0, min(100, a.get("opacity", 100))) / 100.0)
       if path:
         bridge.embed_style(out)
+      element_fills[tid] = bridge.renderer_fill_colours(out)
       out.setCustomProperty("weavingspace_output", True)
       # the element this layer carries, so a dialog opened later in
       # the session can adopt the group instead of starting a rival
@@ -2799,12 +2830,35 @@ class WeavingSpaceDialog(QDialog):
                                else self._geometry_signature())
     self._update_layer_exclusions()
 
+    # Are any two ELEMENTS' colours too close for a reader to
+    # separate? Asked of the finished renderers, under ordinary vision
+    # and the two red-green deficiencies. The plugin does not change
+    # anyone's ramps on the strength of it; which colours to use is
+    # the cartographer's decision, and this only makes the cost of a
+    # choice visible while it can still be changed.
+    from weavingspace_qgis import perception
+    colour_clash = perception.clash_message(
+      perception.clashes(
+        {tid: fills for tid, fills in element_fills.items() if fills},
+        shared={a["id"]: (a.get("ramp"), a.get("reverse"),
+                          a.get("class_source"))
+                for a in assignments}))
+    # Stashed rather than reported here. This runs inside
+    # _on_generated, whose finally clears live_note -- so a notice
+    # pushed now is wiped a moment later, which is exactly what
+    # happened the first time, and is why the coverage notice waits
+    # too. The done callback sends it once the dust has settled.
+    self._pending_colour_note = colour_clash
+
     if self.iface is not None:
       note = f"'{self._group_name}': {len(gdf)} tiles across " \
              f"{len(tile_ids)} element layers"
       if path:
         note += f", saved to {path}"
       self.iface.messageBar().pushSuccess("WeavingSpace", note)
+      if colour_clash is not None:
+        self.iface.messageBar().pushWarning("WeavingSpace", colour_clash)
+
       if warned_cardinality:
         self.iface.messageBar().pushWarning(
           "WeavingSpace",

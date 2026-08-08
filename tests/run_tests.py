@@ -1222,15 +1222,36 @@ def test_choice_persistence_and_recovery():
   assert combo3 is not None and combo3.currentData() == "file:" + qml, \
     "class-source choice must survive removal and recreation"
 
-  # zombie-task recovery on reopen
-  dead = TilingTask("dead", lambda t: None, lambda r, e: None)
-  dead.cancel()
-  dlg._task = dead
-  dlg.generate_btn.setEnabled(False)
+  # Zombie-task recovery on reopen. The dialog can be left believing a
+  # run is in flight when it is not: close it while generating in a
+  # state where cancelling raises (closeEvent swallows that), and
+  # _task stays set with the progress bar up and Generate disabled.
+  # Reopening from the toolbar reuses the same dialog and runs
+  # showEvent, which is the only place that repairs it.
+  #
+  # The bar has to be genuinely UP before this is worth asserting. An
+  # earlier version set a dead task on a dialog that had never run, so
+  # the bar was hidden anyway and the assertion would have passed with
+  # the recovery removed -- the environment satisfying the thing under
+  # test.
+  dlg.show()
+  dlg.spacing_spin.setValue(540)
+  dlg._generate()
+  assert dlg._task is not None, "a run should be in flight"
+  assert dlg.progress.isVisibleTo(dlg), "and its progress bar showing"
+  running = dlg._task
+  running._reported = True      # the run ends and nobody is told
+  for _ in range(240):          # poll: _settle waits for _task to clear,
+    _tick(50)                   # which is exactly what cannot happen here
+    if running.status() not in compat.task_active_statuses():
+      break
   dlg.hide()
-  dlg.show()  # showEvent runs the recovery
+  dlg.show()                    # showEvent runs the recovery
   assert dlg._task is None, "zombie task must be cleared on reopen"
   assert dlg.generate_btn.isEnabled()
+  assert not dlg.progress.isVisibleTo(dlg), \
+    "the reopened dialog still shows a progress bar frozen at the "\
+    "dead run's percentage, which reads as 'still working'"
   dlg.close()
 
 
@@ -3514,9 +3535,12 @@ def test_race_region_layer_removed_during_run():
   assert dlg._task is None
   # The recovery path resets the whole UI, not just the button: a
   # progress bar left on screen after a run that died says the plugin
-  # is still working when it is not, and this branch is reached ONLY
-  # when the source layer disappears, so the ordinary completion
-  # tests cannot defend it.
+  # is still working when it is not. (An earlier version of this
+  # comment claimed this branch was the only place the bar is hidden.
+  # It is not: _finish_run hides it at the end of every ordinary run,
+  # and test_the_dialogs_chrome_does_its_job defends that. The line
+  # that genuinely lacked a test is in showEvent's zombie recovery,
+  # covered in test_choice_persistence_and_recovery.)
   assert not dlg.progress.isVisibleTo(dlg), \
     "the progress bar is still showing after the run was abandoned; "\
     "the dialog looks busy while doing nothing"
@@ -6333,6 +6357,8 @@ def test_the_user_changes_the_data_underneath():
     f"{sorted(offered)}"
 
   # 3. deleting the field a row is mapped to: the dialog must cope
+  mapped_before = {a["id"] for a in dlg._assignments() if a["var"]}
+  assert mapped_before, "some elements should be mapped before this"
   index = layer.fields().indexOf("v1")
   assert index >= 0
   layer.dataProvider().deleteAttributes([index])
@@ -6343,6 +6369,20 @@ def test_the_user_changes_the_data_underneath():
   assert "v1" not in after.values(), \
     f"an element is still mapped to a field that no longer exists: "\
     f"{after}"
+  # Losing a column must cost an element its VARIABLE, not its place
+  # in the map. The weaker assertion above passes either way: it holds
+  # when the element re-defaults to a surviving field, and equally when
+  # the element is left unassigned and drawn as flat fill. Measured,
+  # the difference reaches the map -- two of four elements come out
+  # with a single-symbol renderer instead of a graduated one.
+  surviving = {f.name() for f in layer.fields()}
+  for tid in mapped_before:
+    assert after.get(tid), \
+      f"element {tid} was mapped before the field was deleted and is "\
+      f"mapped to nothing now; it will draw as flat fill"
+    assert after[tid] in surviving, \
+      f"element {tid} is mapped to {after[tid]!r}, which is not a "\
+      f"field of the layer: {sorted(surviving)}"
   # Generating now either works or declines, and BOTH are acceptable;
   # what matters is that it does not raise and does not leave a run in
   # flight. _generate_and_wait cannot be used here: it waits for a
@@ -6452,6 +6492,324 @@ def test_the_map_says_which_areas_it_left_out():
   names = [f.name() for f in out.fields()]
   assert not any(n.startswith("ws_unit_id") for n in names), \
     f"the id used to count coverage leaked into the output: {names}"
+  dlg.close()
+
+
+def test_adversarial_sequences():
+  """Every dangerous pairing of "start work" and "interfere with it".
+
+  The uniform fuzz above wanders; this one goes straight for the
+  transitions that have actually broken this plugin. Each defect in
+  the register that came from a race had the same shape: something
+  starts, something else changes before it finishes, and the finishing
+  code writes state belonging to the earlier request. A ramp picked
+  mid-run was lost that way; settings changed mid-run were swallowed
+  because the signature was captured at completion rather than at
+  launch.
+
+  So rather than sampling, this enumerates the product: each way of
+  starting work, crossed with each way of interfering, with no
+  settling in between. The invariant is the one that caught the lost
+  ramp -- the map must show what the table asks for -- plus the
+  structural ones: one group, no orphaned layers, no task in flight,
+  the dialog usable afterwards.
+
+  Failures are collected rather than raised, so one bad pairing does
+  not hide the other nineteen.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  import tempfile as tf
+  project = QgsProject.instance()
+
+  def provocations(dlg):
+    """Ways of setting work in motion."""
+    return [
+      ("generate", lambda: dlg._generate()),
+      ("live change", lambda: (dlg.live_check.setChecked(True),
+                               dlg.spacing_spin.setValue(560))[0]),
+    ]
+
+  def perturbations(dlg, layer):
+    """Ways of interfering before it can finish."""
+    return [
+      ("second generate", lambda: dlg._generate()),
+      ("spacing", lambda: dlg.spacing_spin.setValue(640)),
+      ("family", lambda: dlg.family_combo.setCurrentText("hex-slice 4")),
+      ("element count", lambda: dlg.n_combo.setCurrentText("2")),
+      ("variable", lambda: dlg.table.cellWidget(0, 1).setCurrentText("v2")
+       if dlg.table.cellWidget(0, 1) else None),
+      ("ramp", lambda: dlg.table.cellWidget(0, 4).setCurrentText("PuBu")
+       if hasattr(dlg.table.cellWidget(0, 4), "setCurrentText") else None),
+      ("style", lambda: dlg.table.cellWidget(0, 2).setCurrentText(
+        "Quant: Equal intervals") if dlg.table.cellWidget(0, 2) else None),
+      ("rotate", lambda: dlg.mod_rotate.setValue(20)),
+      ("new group toggle", lambda: dlg.opt_new_group.setChecked(
+        not dlg.opt_new_group.isChecked())),
+      ("gpkg path", lambda: dlg.gpkg_widget.setFilePath(
+        os.path.join(tf.mkdtemp(), "adversarial.gpkg"))),
+      ("live toggle", lambda: dlg.live_check.setChecked(
+        not dlg.live_check.isChecked())),
+    ]
+
+  problems = []
+  scenario = 0
+  for start_index in range(2):
+    for perturb_index in range(11):
+      scenario += 1
+      project.clear()
+      layer = make_region_layer()
+      project.addMapLayer(layer)
+      dlg = WeavingSpaceDialog(iface=_Iface())
+      dlg.live_check.setChecked(False)
+      dlg.spacing_spin.setValue(520)
+      _settle(dlg, 60)
+
+      start_name, start = provocations(dlg)[start_index]
+      perturb_name, perturb = perturbations(dlg, layer)[perturb_index]
+      label = f"{start_name} then {perturb_name}"
+      try:
+        start()
+        perturb()                      # deliberately no settling between
+      except Exception as exc:                       # noqa: BLE001
+        problems.append(f"{label}: raised {type(exc).__name__}: {exc}")
+        dlg.close()
+        continue
+
+      if not _settle(dlg, 120):
+        problems.append(f"{label}: never came to rest")
+      if dlg._task is not None:
+        problems.append(f"{label}: a task was left in flight")
+      if not dlg.generate_btn.isEnabled():
+        problems.append(f"{label}: Generate left disabled")
+      groups = [c for c in project.layerTreeRoot().children()
+                if c.nodeType() == 0]
+      if len(groups) > 2:               # two only when "new group" is on
+        problems.append(f"{label}: {len(groups)} output groups")
+      for tid, lid in dlg._element_layer_ids.items():
+        if project.mapLayer(lid) is None:
+          problems.append(f"{label}: element {tid} points at a layer "
+                          f"that is gone")
+      # The map is NOT required to match the table at this point, and
+      # asserting that it does was wrong: with live update off, a run
+      # captures its settings when it launches -- deliberately, so a
+      # change made mid-run is deferred rather than swallowed -- so a
+      # finished map legitimately shows what was asked for a moment
+      # before the user changed their mind. Seven of these pairings
+      # "failed" on that misreading.
+      #
+      # What must hold is that the dialog can always be brought back
+      # into agreement: press Generate once more, let it settle, and
+      # now the map is what the table says. That is the property the
+      # lost-ramp defect actually violated.
+      dlg.live_check.setChecked(False)
+      dlg._generate()
+      if not _settle(dlg, 120):
+        problems.append(f"{label}: could not be brought to rest again")
+      elif dlg._element_layer_ids:
+        ok, detail = _map_matches_table(dlg)
+        if not ok:
+          problems.append(f"{label}: after a further Generate, {detail}")
+      dlg.close()
+
+  assert not problems, \
+    f"{len(problems)} of {scenario} adversarial pairings broke an "\
+    f"invariant:\n  " + "\n  ".join(problems[:8])
+
+
+def test_a_changed_category_count_warns_that_colours_moved():
+  """When a categorical field gains or loses a class, say so.
+
+  Categorical colours are sampled across the palette by position:
+  entry int(i * len(palette) / (k - 1)) for class i of k. That is
+  matplotlib's ListedColormap rule and the plugin reproduces it
+  deliberately, so the plugin is not doing anything wrong -- but a
+  consequence follows that a cartographer will not expect. MEASURED,
+  with tab10: going from three categories to four changes the colour
+  of two of the three original classes; four to five changes three of
+  four; five to six changes three of five. Only the first and last
+  classes stay put, because the formula pins the palette's endpoints.
+
+  So two maps of the same place made a month apart, or two neighbouring
+  regions whose data happen to carry different numbers of classes, use
+  different colours for the same category, and nothing says so. That is
+  a comparison hazard rather than a bug, and the remedy already exists:
+  import a colour mapping (a QML) for that element and the colours stop
+  moving.
+
+  The warning fires only when a count CHANGES within a session, which
+  is the moment the colours actually shift under the user's feet;
+  warning on every categorical map would be noise nobody reads.
+  """
+  from weavingspace_qgis import bridge
+
+  # the sentence, where the numbers are known exactly
+  message = bridge.categorical_shift_message("landcover", 4, 5)
+  assert message, "a category count that changed said nothing"
+  assert "landcover" in message, \
+    f"the message must name the field that changed: {message}"
+  assert "4" in message and "5" in message, \
+    f"it must give both counts, so the reader can see what happened: "\
+    f"{message}"
+  lowered = message.lower()
+  assert "colour" in lowered, f"say what moved: {message}"
+  assert "qml" in lowered or "colour mapping" in lowered, \
+    f"and what to do about it, which is to pin the colours with an "\
+    f"imported mapping: {message}"
+  assert bridge.categorical_shift_message("landcover", 4, 4) is None, \
+    "an unchanged count must say nothing"
+  assert bridge.categorical_shift_message("landcover", None, 4) is None, \
+    "the first sight of a field is not a change"
+
+  # and the underlying fact the warning is about, measured here so a
+  # future palette change that removed the hazard would show up
+  from weavingspace_qgis import compat
+  def categorised(n):
+    layer = QgsVectorLayer("MultiPolygon?crs=EPSG:3857", "c", "memory")
+    layer.dataProvider().addAttributes([compat.make_field("cat", str)])
+    layer.updateFields()
+    feats = []
+    for i in range(n):
+      f = QgsFeature(layer.fields())
+      f.setGeometry(QgsGeometry.fromWkt(
+        f"POLYGON(({i*10} 0, {i*10+10} 0, {i*10+10} 10, {i*10} 10, "
+        f"{i*10} 0))"))
+      f["cat"] = f"class {i}"
+      feats.append(f)
+    layer.dataProvider().addFeatures(feats)
+    layer.updateExtents()
+    renderer = bridge.make_categorized_renderer(layer, "cat", "tab10", False)
+    return {str(c.value()): c.symbol().color().name()
+            for c in renderer.categories() if c.value()}
+
+  # and end to end: the same field, mapped twice with a class filtered
+  # out in between, must produce the notice
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()          # landcover has four classes
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.spacing_spin.setValue(700)
+  dlg.table.cellWidget(0, 1).setCurrentText("landcover")
+  dlg.table.cellWidget(0, 2).setCurrentText("Categorized")
+  dlg._update_dynamic_columns()
+  _generate_and_wait(dlg)
+  _tick(200)
+  assert "categories" not in dlg.live_note.text(), \
+    "the first sight of a field is not a change and must say nothing"
+
+  # remove every feature of one class, so the count drops
+  doomed = [f.id() for f in layer.getFeatures()
+            if f["landcover"] == "crops"]
+  assert doomed, "the fixture should have a crops class to remove"
+  layer.dataProvider().deleteFeatures(doomed)
+  layer.updateExtents()
+  _tick(300)
+  # Editing the DATA does not change the design's signature, so a
+  # plain second Generate takes the restyle fast path and never
+  # re-reads the layer -- by design, since a style change must not
+  # re-tile. Move the spacing as well, which is what a cartographer
+  # does anyway after filtering, so a genuine run happens.
+  dlg.spacing_spin.setValue(680)
+  _tick(300)
+  _generate_and_wait(dlg)
+  _tick(200)
+  note = dlg.live_note.text()
+  assert "landcover" in note and "categories" in note, \
+    f"a class disappeared and the colours of the rest moved with it, "\
+    f"and the plugin said {note!r}"
+  dlg.close()
+
+  four, five = categorised(4), categorised(5)
+  moved = [k for k in four if k in five and four[k] != five[k]]
+  assert moved, \
+    "adding a category no longer moves any existing colour -- which "\
+    "would be good news, but this warning and its wording assume it "\
+    "does, so both need revisiting"
+  assert len(moved) >= 2, \
+    f"expected most classes to move when a fifth is added, got {moved}"
+
+
+def test_colours_a_reader_cannot_separate_are_reported():
+  """Elements whose colours collapse must be named, including for
+  readers with a colour-vision deficiency.
+
+  A tiled multivariate map asks its reader to separate interleaved
+  element shapes and read each one's colour as a different variable.
+  Where two elements' fills are too close, that reading fails in a way
+  the map does not admit to: it looks finished and carries fewer
+  variables than it claims. Roughly one man in twelve has a red-green
+  deficiency, and the default ramp set is built almost entirely on the
+  red-green axis.
+
+  Measured, and reproduced here: Reds' third class against Greens'
+  fourth is Delta-E 100.7 for a normal-vision reader and 4.7 for a
+  protanope. The plugin does not change anyone's ramps over this --
+  which colours to use is the cartographer's decision -- it makes the
+  cost of a choice visible while it can still be changed.
+
+  A SHARED ramp across elements is not a clash. That design
+  distinguishes elements by shape and is what the technique's authors
+  recommend for many variables; warning there would be wrong, and the
+  remedy the message suggests IS a shared ramp.
+  """
+  from weavingspace_qgis import perception as p
+
+  def rgb(text):
+    text = text.lstrip("#")
+    return tuple(int(text[i:i + 2], 16) for i in (0, 2, 4))
+
+  # the arithmetic, against numbers measured by the standalone tool on
+  # rendered maps -- two independent implementations agreeing
+  assert abs(p.distance(rgb("#fa694c"), rgb("#228b45"), "normal")
+             - 100.7) < 0.5
+  assert abs(p.distance(rgb("#fa694c"), rgb("#228b45"), "protanopia")
+             - 4.7) < 0.5, \
+    "a pair 100 apart for most readers is 4.7 apart for a protanope; "\
+    "if this number moved, the simulation changed"
+  assert abs(p.distance(rgb("#17becf"), rgb("#9e9bc9"), "deuteranopia")
+             - 2.7) < 0.5
+
+  # elements that clash, and the message about them
+  clashing = p.clashes({"a": [rgb("#fa694c")], "b": [rgb("#228b45")]})
+  assert clashing, "a red and a green that collapse for protanopes " \
+    "must be reported"
+  assert clashing[0][2] == "protanopia", \
+    f"and reported under the vision that fails: {clashing[0]}"
+  message = p.clash_message(clashing)
+  assert "'a'" in message and "'b'" in message, \
+    f"the message must name the elements: {message}"
+  assert "protanopia" in message, f"and the vision: {message}"
+
+  # a shared ramp is not a clash
+  same = [rgb("#fff5f0"), rgb("#fa694c"), rgb("#67000d")]
+  assert not p.clashes({"a": same, "b": same},
+                       shared={"a": ("Reds", False, None),
+                               "b": ("Reds", False, None)}), \
+    "elements sharing a ramp are meant to share colours; that design "\
+    "is what the paper recommends and must not be warned about"
+  assert p.clashes({"a": same, "b": same}), \
+    "but identical colours from DIFFERENT ramps still collapse"
+  assert p.clash_message([]) is None, "silence when nothing is close"
+
+  # and end to end, through a real map
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.spacing_spin.setValue(700)
+  for row, ramp in enumerate(("Reds", "Greens", "Blues", "Purples")):
+    widget = dlg.table.cellWidget(row, 4)
+    if hasattr(widget, "setCurrentText"):
+      widget.setCurrentText(ramp)
+  _tick(300)
+  _generate_and_wait(dlg)
+  _tick(200)
+  note = dlg.live_note.text()
+  assert "tell apart" in note, \
+    f"four ramps on the red-green axis produced no warning: {note!r}"
   dlg.close()
 
 
@@ -6711,6 +7069,11 @@ def main():
         test_the_user_changes_the_data_underneath)
   check("the map says which areas it left out",
         test_the_map_says_which_areas_it_left_out)
+  check("adversarial sequences", test_adversarial_sequences)
+  check("a changed category count warns that colours moved",
+        test_a_changed_category_count_warns_that_colours_moved)
+  check("colours a reader cannot separate are reported",
+        test_colours_a_reader_cannot_separate_are_reported)
   check("plugin lifecycle (menu, action, unload)",
         test_plugin_lifecycle)
   check("integration: cancel and recover",
