@@ -150,8 +150,11 @@ obligations: they exist so nobody pays twice for the same discovery.
   upstream adopting our own convex-hull optimisation, which let us
   retire a patch instead of carrying a duplicate of it forever.
   (Standing user instruction, 2026-08-07.)
-- **The testing documents are binding, and are read BEFORE tests are
-  written or changed.** `docs/TESTING.md` holds the shapes that earn
+- **The testing documents are binding, are read BEFORE tests are
+  written or changed, and are UPDATED the moment one of them is proved
+  incomplete.** A lesson learned and not written down is a lesson
+  about to be paid for twice, which is the provenance of a good many
+  entries in these files. `docs/TESTING.md` holds the shapes that earn
   their keep here and the lessons each paid for once; nearly every
   rule in it exists because its absence cost this project real time.
   `docs/MUTATION-TESTING.md` holds the campaign and its commitments,
