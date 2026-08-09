@@ -1,0 +1,126 @@
+# Continuous integration for the WeavingSpace QGIS plugin.
+#
+# WHY THIS EXISTS, and what it is deliberately NOT for.
+#
+# This plugin is developed on one macOS machine with one QGIS. The
+# module that exists precisely because QGIS moves its APIs
+# (weavingspace_qgis/compat.py) has therefore never run against any
+# QGIS but that one. CI's job here is the coverage a laptop cannot
+# give: a DIFFERENT platform, a DIFFERENT QGIS, and a CLEAN checkout
+# with none of the untracked files a working tree accumulates.
+#
+# Linux is the right target for a first CI, and not only because the
+# official QGIS containers make it easy. Linux is where QGIS uses the
+# distribution's Python, so it is the platform where deps.py's
+# PyPI-provisioning path actually fires -- the very code a plugin
+# repository reviewer will look at hardest, and the code this project
+# cannot exercise at home.
+#
+# NOT done here, on purpose:
+#
+#   the visual gallery and the Lab-colourspace reference comparison.
+#   Their thresholds were tuned against this machine's fonts and
+#   antialiasing; a runner with different fonts would fail them for
+#   reasons that mean nothing, and a noisy gate is one people switch
+#   off. They stay in the local release.
+#
+#   the secrets audit as the ONLY check. It runs here too, but the
+#   authoritative run is local and pre-commit: CI sees the code after
+#   a push, by which time a leaked key is already public and rotation
+#   is the only remedy.
+#
+#   releasing. release.py promotes a locally reviewed candidate; see
+#   docs/PUBLISHING.md.
+#
+# FIRST RUN WILL PROBABLY FAIL. Container tags move, and the image's
+# Python may or may not carry every package. Read the log, adjust the
+# matrix, and expect two or three iterations -- that is normal for a
+# CI file and not a sign the approach is wrong.
+
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # Fast checks first, on a plain runner with no QGIS at all. A typo
+  # in a docstring should fail in twenty seconds rather than after a
+  # container pull and a twenty-minute suite.
+  standards:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Documentation and rule standards
+        run: python3 tools/check_standards.py
+      - name: Secrets and machine-specific paths
+        run: python3 tools/check_no_secrets.py
+      - name: User-facing text has been reviewed
+        run: python3 tools/text_review.py --check
+
+  # The suite, inside QGIS's own image. The matrix is the entire point
+  # of this job: two QGIS versions, so a change that only works on the
+  # one installed at home fails here rather than in somebody's issue
+  # tracker.
+  suite:
+    runs-on: ubuntu-latest
+    needs: standards
+    strategy:
+      fail-fast: false
+      matrix:
+        # Verified against hub.docker.com/r/qgis/qgis/tags on
+        # 2026-08-09. Each leg answers a different question:
+        #
+        #   4.0.0  -- the floor metadata.txt DECLARES
+        #             (qgisMinimumVersion=4.0). If this fails, the
+        #             metadata is promising something untrue and
+        #             users on 4.0 will install a plugin that cannot
+        #             run.
+        #   4.0.3  -- exactly what the developer's machine runs, so a
+        #             failure here is a LINUX-versus-macOS difference
+        #             rather than a version one. The control leg.
+        #   stable -- currently 4.2.1, two minor versions ahead of
+        #             anything this project has ever been run on, and
+        #             a moving target: when a new QGIS breaks us it
+        #             fails here rather than in a user's issue.
+        #
+        # NOT `latest`: on this repository it is a 3.44 NIGHTLY, below
+        # our declared minimum, so the plugin would not even load --
+        # and a nightly is a poor thing to gate on regardless.
+        qgis: ["4.0.0", "4.0.3", "stable"]
+    container:
+      image: qgis/qgis:${{ matrix.qgis }}
+      # The suite renders offscreen and never opens a window.
+      options: --user root
+    env:
+      QT_QPA_PLATFORM: offscreen
+      # The plugin's own dependency provisioner may fetch wheels on a
+      # machine whose QGIS lacks them, which is exactly the Linux path
+      # worth exercising. Left on deliberately.
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: What QGIS is this, actually
+        # Recorded every run: when a failure appears months from now,
+        # the first question is always which QGIS and which Python.
+        run: |
+          python3 -c "import qgis.core; print('QGIS', qgis.core.Qgis.QGIS_VERSION)"
+          python3 --version
+          python3 -c "import geopandas, shapely, pandas; print('geopandas', geopandas.__version__, '| shapely', shapely.__version__, '| pandas', pandas.__version__)" || echo "scientific stack incomplete -- deps.py's provisioning path is what this platform exercises"
+
+      - name: Functional suite
+        run: python3 -u tests/run_tests.py
+
+      - name: Keep the report when it fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-${{ matrix.qgis }}
+          path: reports/
+          if-no-files-found: ignore

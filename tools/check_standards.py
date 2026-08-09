@@ -285,6 +285,52 @@ def check_binding_documents():
                         f"nothing will send a reader to it")
 
 
+def check_skill_provenance():
+  """Do the skills still match the documents they were derived from?
+
+  Returns:
+    None; appends to the module-level ``problems``.
+
+  A skill in .claude/skills/ records the documents it was written
+  from, with a sha256 of each. That provenance exists so a skill
+  cannot quietly outlive its source -- and until this check, nothing
+  verified it: docs/MUTATION-TESTING.md changed and the
+  mutation-campaign skill went on claiming to derive from a version
+  that no longer existed.
+
+  A skill teaching the wrong procedure is worse than an absent one,
+  because it is followed with confidence. When this fires, REREAD the
+  source and update the skill's guidance, then refresh the hash. Do
+  not refresh the hash alone: that silences the check without doing
+  the work it exists to prompt.
+  """
+  import hashlib
+  skills = os.path.join(ROOT, ".claude", "skills")
+  if not os.path.isdir(skills):
+    return
+  for name in sorted(os.listdir(skills)):
+    manifest = os.path.join(skills, name, "SKILL.md")
+    if not os.path.exists(manifest):
+      continue
+    text = open(manifest, encoding="utf-8").read()
+    for source, claimed in re.findall(
+        r"path: (\S+)\n\s+sha256: (\w+)", text):
+      full = os.path.join(ROOT, source)
+      if not os.path.exists(full):
+        problems.append(
+          f"skill {name!r} derives from {source}, which no longer "
+          f"exists")
+        continue
+      with open(full, "rb") as handle:
+        actual = hashlib.sha256(handle.read()).hexdigest()
+      if actual != claimed:
+        problems.append(
+          f"skill {name!r} was derived from {source}, which has "
+          f"changed since. Reread it, update the skill's guidance if "
+          f"the procedure moved, then refresh the sha256 -- refreshing "
+          f"the hash alone silences the check without doing the work.")
+
+
 def check_derived_documents():
   """Are the generated documents current with the suite they describe?
 
@@ -419,6 +465,7 @@ def main():
   check_user_facing_text()
   check_audit_tools()
   check_derived_documents()
+  check_skill_provenance()
   if problems:
     print(f"{len(problems)} standards problem(s):\n")
     for problem in problems:

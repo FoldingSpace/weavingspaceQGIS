@@ -41,6 +41,7 @@ commands.
 import argparse
 import datetime
 import glob
+import json
 import os
 import shutil
 import re
@@ -94,6 +95,257 @@ def qgis_environment():
   return pythons[0], env
 
 
+# The stages a release goes through, in order, so the progress chart
+# can show what is still to come rather than only what has happened.
+# Names must match the `step` passed to run(); anything run() sees that
+# is not here is appended when it starts, so the chart stays honest if
+# a stage is added and this list is forgotten.
+EXPECTED_STAGES = [
+  "standards check", "secrets audit", "functional suite",
+  "coverage report", "visual gallery", "create reference venv",
+  "install reference packages", "reference comparison",
+  "testing report", "per-test coverage record", "refresh published images",
+  "test map", "bug register", "published content audit",
+  "build release candidate", "candidate dossier", "build zip",
+]
+
+# name -> [status, seconds]. status is "done", "running" or "failed".
+STAGE_STATE = {}
+STAGE_ORDER = []
+# stage -> seconds it has currently gone without using any cpu.
+STAGE_IDLE = {}
+
+# Where the last run's stage durations are kept, so this run can
+# estimate. In dist/ because that is local, persistent and never
+# committed: timings belong to a machine, not to the repository, and
+# quoting somebody else's hardware back at a user would be worse than
+# saying nothing.
+TIMINGS_PATH = os.path.join(ROOT, "dist", "stage-timings.json")
+
+
+def load_timings():
+  """Stage durations recorded by previous runs.
+
+  Returns:
+    {stage name: seconds}, empty when nothing has been recorded or
+    the file cannot be read. Unreadable is treated as absent
+    deliberately: a corrupt timing file must cost an estimate, never
+    a release.
+  """
+  try:
+    with open(TIMINGS_PATH, encoding="utf-8") as handle:
+      recorded = json.load(handle)
+    return {str(k): float(v) for k, v in recorded.items()}
+  except (OSError, ValueError, TypeError, AttributeError):
+    return {}
+
+
+def remember_timing(step, seconds):
+  """Record how long a stage took, for the next run to quote.
+
+  Args:
+    step: the stage name.
+    seconds: how long it took.
+
+  Returns:
+    None. Failures to write are swallowed: this is a convenience for
+    the next run and must never be the thing that stops this one.
+
+  Only SUCCESSFUL stages are recorded, by the caller. A stage that
+  failed or was killed says nothing about how long the work takes.
+  """
+  try:
+    known = load_timings()
+    known[step] = round(seconds, 1)
+    os.makedirs(os.path.dirname(TIMINGS_PATH), exist_ok=True)
+    with open(TIMINGS_PATH, "w", encoding="utf-8") as handle:
+      json.dump(known, handle, indent=2, sort_keys=True)
+  except OSError:
+    pass
+
+
+def _spell(seconds):
+  """Seconds as a short human duration: 8s, 3m, 1h04m."""
+  seconds = int(seconds)
+  if seconds < 90:
+    return f"{seconds}s"
+  if seconds < 3600:
+    return f"{seconds // 60}m"
+  return f"{seconds // 3600}h{(seconds % 3600) // 60:02d}m"
+
+# When this release began. Module level because the abort path inside
+# run() prints the chart too, and a failure should say what had
+# already passed rather than only what broke.
+RELEASE_STARTED = time.time()
+
+# How long a stage may accumulate NO cpu time before it is considered
+# stuck rather than slow. Ten minutes for ordinary stages: everything
+# here is compute, so ten minutes of a completely idle process tree
+# means it is waiting for something that is never coming -- most
+# likely a modal dialog offscreen, which is this project's classic
+# hang.
+STALL_SECONDS = 600
+
+# How often the watcher looks. Thirty seconds is frequent enough to
+# notice a hang promptly and rare enough that the sampling costs
+# nothing; it is a named constant so tests can turn it down and
+# exercise the watchdog in seconds rather than minutes.
+SAMPLE_SECONDS = 30
+
+# Stages that are SUPPOSED to be idle, because they are waiting on a
+# network rather than computing. Calling these stuck would be the
+# false alarm that teaches people to switch watchdogs off.
+NETWORK_STAGES = {"create reference venv", "install reference packages"}
+NETWORK_STALL_SECONDS = 2700
+
+# The backstop. CPU-idleness cannot catch a stage SPINNING, since an
+# infinite loop accumulates cpu happily forever, so an absolute
+# ceiling stays -- set high enough that only a runaway reaches it.
+ABSOLUTE_CEILING = 4 * 3600
+
+
+def tree_cpu_seconds(pid):
+  """Total cpu time used by a process and everything it started.
+
+  Args:
+    pid: the process to measure.
+
+  Returns:
+    Seconds of cpu time across the whole tree, or None when it cannot
+    be read -- the process finishing between listing and measuring is
+    ordinary, not an error.
+
+  The whole TREE, because release.py's stages are subprocesses that
+  themselves spawn: the suite runs QGIS, which forks for the
+  hostile-data cases. Measuring only the direct child would report a
+  busy release as idle.
+  """
+  try:
+    listing = subprocess.run(
+      ["ps", "-eo", "pid=,ppid=,time="], capture_output=True, text=True,
+      timeout=30)
+  except (subprocess.SubprocessError, OSError):
+    return None
+  if listing.returncode != 0:
+    return None
+  children, times = {}, {}
+  for line in listing.stdout.splitlines():
+    parts = line.split()
+    if len(parts) < 3:
+      continue
+    try:
+      this, parent = int(parts[0]), int(parts[1])
+    except ValueError:
+      continue
+    children.setdefault(parent, []).append(this)
+    # ps prints cpu time as [DD-]HH:MM:SS
+    clock = parts[2]
+    days = 0
+    if "-" in clock:
+      day_part, clock = clock.split("-", 1)
+      days = int(day_part)
+    bits = [float(b) for b in clock.split(":")]
+    while len(bits) < 3:
+      bits.insert(0, 0.0)
+    times[this] = days * 86400 + bits[0] * 3600 + bits[1] * 60 + bits[2]
+  total, stack = 0.0, [pid]
+  seen = set()
+  while stack:
+    current = stack.pop()
+    if current in seen:
+      continue
+    seen.add(current)
+    total += times.get(current, 0.0)
+    stack.extend(children.get(current, []))
+  return total
+
+
+def stage_chart(started):
+  """The progress chart, as a block of text.
+
+  Args:
+    started: time.time() when the release began.
+
+  Returns:
+    A multi-line string listing every stage with its state and, for
+    those that have finished, how long they took. Stages not yet
+    reached are listed too, because "what is left" is most of what
+    somebody watching wants to know.
+  """
+  now = time.time()
+  expected = load_timings()
+  remaining = 0.0
+  lines = [f"\n=== progress at {time.strftime('%H:%M')} "
+           f"(running {int((now - started) // 60)}m) ==="]
+  seen = list(STAGE_ORDER)
+  for name in EXPECTED_STAGES:
+    if name not in seen:
+      seen.append(name)
+  for name in seen:
+    state = STAGE_STATE.get(name)
+    if state is None:
+      guess = expected.get(name)
+      lines.append(f"  ..  {name}"
+                   + (f"  ~{_spell(guess)}" if guess else ""))
+      if guess:
+        remaining += guess
+    elif state[0] == "running":
+      ran = now - state[1]
+      idle = STAGE_IDLE.get(name, 0)
+      allowance = (NETWORK_STALL_SECONDS if name in NETWORK_STAGES
+                   else STALL_SECONDS)
+      mark, note = ">>", ""
+      if idle > allowance / 2:
+        mark = "!!"
+        note = (f"  NO CPU FOR {int(idle // 60)}m -- stopping at "
+                f"{int(allowance // 60)}m idle")
+      guess = expected.get(name)
+      if guess and not note:
+        left = guess - ran
+        note = (f"  ~{_spell(left)} left" if left > 0
+                else f"  over its usual {_spell(guess)}")
+        remaining += max(left, 0)
+      lines.append(f"  {mark}  {name}  (running "
+                   f"{int(ran // 60)}m{int(ran % 60):02d}s){note}")
+    elif state[0] == "failed":
+      lines.append(f"  XX  {name}  FAILED")
+    else:
+      lines.append(f"  ok  {name}  {_spell(state[1])}")
+  if remaining > 0:
+    finish = time.strftime("%H:%M", time.localtime(now + remaining))
+    lines.append(f"  -- about {_spell(remaining)} left, finishing "
+                 f"around {finish}")
+  elif not expected:
+    lines.append("  -- no previous run to estimate from; this one is "
+                 "measuring itself")
+  return "\n".join(lines)
+
+
+def start_progress(started):
+  """Print the chart every ten minutes until the release finishes.
+
+  Args:
+    started: time.time() when the release began.
+
+  Returns:
+    The threading.Event that stops it. Set it when the release ends.
+
+  A daemon thread, so it can never keep the process alive, and it
+  waits before its first report so a run that finishes quickly says
+  nothing at all. Ten minutes is chosen against the stages: the suite
+  and the gallery are the long ones, and a chart every ten minutes
+  distinguishes "still going" from "stuck" without becoming noise.
+  """
+  stop = threading.Event()
+
+  def tick():
+    while not stop.wait(600):
+      print(stage_chart(started), flush=True)
+
+  threading.Thread(target=tick, daemon=True).start()
+  return stop
+
+
 def run(step, cmd, env, capture=False):
   """Run one release step, and abandon the release if it fails.
 
@@ -119,13 +371,78 @@ def run(step, cmd, env, capture=False):
     above all no zip, can be produced from a state that has already
     failed a gate.
   """
-  print(f"\n=== {step} ===")
-  result = subprocess.run(cmd, env=env, cwd=ROOT,
-                          capture_output=capture, text=True)
+  print(f"\n=== {step} ===", flush=True)
+  if step not in STAGE_ORDER:
+    STAGE_ORDER.append(step)
+  STAGE_STATE[step] = ["running", time.time()]
+  began = time.time()
+  stalled = []
+  process = subprocess.Popen(
+    cmd, env=env, cwd=ROOT, text=True,
+    stdout=subprocess.PIPE if capture else None,
+    stderr=subprocess.STDOUT if capture else None)
+
+  def watch():
+    """Stop the stage if it goes long enough without using any cpu."""
+    allowance = (NETWORK_STALL_SECONDS if step in NETWORK_STAGES
+                 else STALL_SECONDS)
+    last_cpu, idle_since = None, time.time()
+    while process.poll() is None:
+      time.sleep(SAMPLE_SECONDS)
+      used = tree_cpu_seconds(process.pid)
+      now = time.time()
+      # a hundredth of a second of movement is enough to call it
+      # alive; ps reports to that resolution and a working tree
+      # moves far more
+      if used is None or last_cpu is None or used > last_cpu + 0.01:
+        idle_since = now
+      last_cpu = used if used is not None else last_cpu
+      STAGE_IDLE[step] = now - idle_since
+      if now - idle_since > allowance or now - began > ABSOLUTE_CEILING:
+        stalled.append(
+          "used no cpu at all" if now - began <= ABSOLUTE_CEILING
+          else "ran past the absolute ceiling while still busy")
+        process.kill()
+        return
+
+  watcher = threading.Thread(target=watch, daemon=True)
+  watcher.start()
+  output_text = process.communicate()[0] if capture else None
+  returncode = process.wait()
+  STAGE_IDLE.pop(step, None)
+  spent = time.time() - began
+  STAGE_STATE[step] = ("failed" if (returncode or stalled) else "done",
+                       spent)
+  if not returncode and not stalled:
+    # only a stage that actually finished says anything about how
+    # long the work takes
+    remember_timing(step, spent)
+  if stalled:
+    print(stage_chart(RELEASE_STARTED), flush=True)
+    sys.exit(
+      f"RELEASE ABORTED: {step} {stalled[0]} and has been stopped; no "
+      f"zip was built.\n"
+      f"  It was killed because it had stopped doing work, not because "
+      f"it was slow:\n"
+      f"  the whole process tree accumulated no cpu time. That usually "
+      f"means it is\n  waiting for something that will never come -- "
+      f"most often a modal dialog\n  offscreen, which is this "
+      f"project's classic hang.\n"
+      f"  Look at reports/ for how far it got.")
+
+  class _Finished:
+    """The bits of CompletedProcess the rest of run() reads."""
+    def __init__(self, code, text):
+      self.returncode = code
+      self.stdout = text
+      self.stderr = ""
+
+  result = _Finished(returncode, output_text)
   output = (result.stdout or "") + (result.stderr or "") if capture else ""
   if capture:
     print(output[-2000:])
   if result.returncode != 0:
+    print(stage_chart(RELEASE_STARTED), flush=True)
     sys.exit(f"RELEASE ABORTED: {step} failed "
              f"(exit {result.returncode}); no zip was built.")
   return output
@@ -542,6 +859,13 @@ def main():
   # 0. the project's own rules, before anything expensive runs: a
   # release that breaks them should fail in seconds, not after the
   # visual gallery
+  # Say where we have got to every ten minutes. A release runs for
+  # the better part of an hour and its longest stages capture their
+  # output, so without this the log sits unchanged long enough to
+  # look like a hang -- which cost two healthy runs, killed by
+  # somebody watching a silent log.
+  progress = start_progress(RELEASE_STARTED)
+
   run("standards check",
       [sys.executable, os.path.join("tools", "check_standards.py")],
       dict(os.environ))
@@ -596,6 +920,8 @@ def main():
     run("build zip", [sys.executable, "build.py"], dict(os.environ))
     prune_old_reports(keep=3)
     commit_and_tag(version, report_dir, push=args.push)
+    progress.set()
+    print(stage_chart(RELEASE_STARTED))
     print(f"\nRelease v{version} complete (promoted from "
           f"{receipt['label']})."
           f"\n  zip:        dist/weavingspace_qgis.zip"
@@ -742,6 +1068,8 @@ def main():
       # aborts on failure, so reaching this line is the proof.
       receipt = write_receipt(version, label, tree_digest())
       print(f"  receipt: {os.path.relpath(receipt, ROOT)}")
+    progress.set()
+    print(stage_chart(RELEASE_STARTED))
     print(f"\nRelease candidate built from a passing tree. Nothing was "
           f"committed, tagged or published.\n"
           f"  candidates: dist/\n"
@@ -760,6 +1088,8 @@ def main():
   # happens only when asked for on this invocation.
   commit_and_tag(version, report_dir, push=args.push)
 
+  progress.set()
+  print(stage_chart(RELEASE_STARTED))
   print(f"\nRelease v{version} complete."
         f"\n  zip:        dist/weavingspace_qgis.zip"
         f"\n  report:     reports/v{version}/index.html"

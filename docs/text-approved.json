@@ -34,6 +34,11 @@
   "excerpt": "> O'Sullivan, D., & Bergmann, L. (2026). Using MapWeaver to ",
   "where": "README.md"
  },
+ "0819f7de1b758f09": {
+  "approved": "2026-08-09",
+  "excerpt": "WeavingSpace needs a few Python components",
+  "where": "weavingspace_qgis/plugin.py"
+ },
  "0880d166059e76b9": {
   "approved": "2026-08-09",
   "excerpt": "This layer does not report its size, so live update cannot f",
@@ -58,6 +63,11 @@
   "approved": "2026-08-09",
   "excerpt": "<p>What the plugin adds to a QGIS project is not an image fi",
   "where": "docs/index.html"
+ },
+ "0ea2af6e5e184614": {
+  "approved": "2026-08-09",
+  "excerpt": "Missing or too old: {} If you approve, WeavingSpace will: \u2022 ",
+  "where": "weavingspace_qgis/plugin.py"
  },
  "0eec116b706692e6": {
   "approved": "2026-08-08",
@@ -183,6 +193,11 @@
   "approved": "2026-08-08",
   "excerpt": "<figure>\n  <img src=\"img/dialog.png\" alt=\"The plugin dialog,",
   "where": "docs/index.html"
+ },
+ "302693fce18f3e49": {
+  "approved": "2026-08-09",
+  "excerpt": "WeavingSpace draws its maps with three well-known Python lib",
+  "where": "weavingspace_qgis/plugin.py"
  },
  "31eee4ae893d3233": {
   "approved": "2026-08-09",
@@ -683,6 +698,11 @@
   "approved": "2026-08-08",
   "excerpt": "A first map appears of its own accord once a layer and varia",
   "where": "docs/USER-GUIDE.md"
+ },
+ "a84c0a92551890cb": {
+  "approved": "2026-08-09",
+  "excerpt": "Download and open WeavingSpace",
+  "where": "weavingspace_qgis/plugin.py"
  },
  "a8c3672a23666329": {
   "approved": "2026-08-09",

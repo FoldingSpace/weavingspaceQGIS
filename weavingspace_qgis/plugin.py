@@ -60,10 +60,9 @@ def dependency_consent_box(parent, missing):
   box.setWindowTitle("WeavingSpace needs a few Python components")
   box.setIcon(_Box.Icon.Question)
   box.setText(
-    "WeavingSpace draws its maps with three well-known Python "
-    "libraries. This QGIS either does not have them or has versions "
-    "too old to use, so they have to be fetched before the plugin "
-    "can open.")
+    "WeavingSpace draws its maps with three well-known Python libraries. This "
+    "QGIS installation either does not have them or has versions too old to "
+    "use, so they have to be fetched before the plugin can open.")
   box.setInformativeText(
     f"Missing or too old:  {names}\n"
     "\n"

@@ -5,7 +5,7 @@ derived_from:
   - path: docs/MUTATION-LOOP.md
     sha256: 749db6709ad3b561bbe25f6b7e38b5e0be1d077498d7528765d8f33e20c78235
   - path: docs/MUTATION-TESTING.md
-    sha256: b6365d3bcd95d3483d93a27fc02f5800a0acb39b6f551413169321e545055519
+    sha256: 16bee3264621078d6d0f5b1da7b0b5c170f2b15dac708b8dd2cba50ce1dc1b03
 ---
 
 # Running a mutation campaign

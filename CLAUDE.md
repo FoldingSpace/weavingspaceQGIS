@@ -243,6 +243,23 @@ obligations: they exist so nobody pays twice for the same discovery.
   upstream adopting our own convex-hull optimisation, which let us
   retire a patch instead of carrying a duplicate of it forever.
   (Standing user instruction, 2026-08-07.)
+- **Two procedures live as SKILLS, and the rules here name them so
+  they get invoked.** `.claude/skills/tests-that-can-fail` is read
+  before writing or reviewing a test, and whenever a new test passes
+  first time — it catalogues the ways a test passes without
+  exercising anything, which this project has produced at a rate of
+  roughly one in five. `.claude/skills/dependency-bug-workaround` is
+  read before compensating for a bug in QGIS or any other dependency;
+  it is why the NULL class-break workaround carries a canary test that
+  will announce the day QGIS fixes it. Skills record the documents
+  they were derived from with a sha256, and
+  `tools/check_standards.py` fails when a source has changed since —
+  a skill teaching a superseded procedure is worse than none, because
+  it is followed with confidence. Naming them here is deliberate: the
+  `long-job-supervision` skill already described the CPU-versus-elapsed
+  check and the "wait on the process, not on predicted log text" rule,
+  and both were rediscovered the hard way in a session that never
+  invoked it. Authorship was not the problem; invocation was.
 - **The testing documents are binding, are read BEFORE tests are
   written or changed, and are UPDATED the moment one of them is proved
   incomplete.** A lesson learned and not written down is a lesson
