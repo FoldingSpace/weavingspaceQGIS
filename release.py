@@ -434,6 +434,14 @@ def main():
          "GitHub release. Without this the commit and tag stay local "
          "and the commands to publish them are printed.")
   parser.add_argument(
+    "--quick", action="store_true",
+    help="with --rc, skip the visual gallery, the coverage record "
+         "and the colourspace comparison. For iterating on a "
+         "candidate: those three take most of the wall clock and "
+         "only speak to RENDERING, so skip them while the changes "
+         "under review are elsewhere, and drop the flag for the "
+         "candidate you intend to release from.")
+  parser.add_argument(
     "--rc", action="store_true",
     help="build a numbered release candidate for hands-on testing and "
          "stop. Runs the same correctness gates, skips the publication "
@@ -486,15 +494,27 @@ def main():
                  [python, "-u", os.path.join("tools", "coverage_report.py"),
                   report_dir], env, capture=True)
 
-  # 2. visual gallery + HTML report (captured for the testing report)
-  visual = run("visual gallery",
-               [python, "-u", os.path.join("tests", "visual_tests.py")],
-               env, capture=True)
+  # 2. visual gallery + HTML report (captured for the testing report).
+  # These three stages — gallery, reference comparison, per-test
+  # coverage — are most of the wall clock and all speak to RENDERING.
+  # --quick skips them so a candidate can be rebuilt in a couple of
+  # minutes while the changes under review are elsewhere. The
+  # candidate you actually release from is built without it.
+  visual = comparison = ""
+  if args.quick:
+    print("\n=== visual gallery, reference comparison and coverage "
+          "SKIPPED (--quick) ===")
+    print("    This candidate carries no rendering evidence. Build "
+          "the release candidate without --quick.")
+  else:
+    visual = run("visual gallery",
+                 [python, "-u", os.path.join("tests", "visual_tests.py")],
+                 env, capture=True)
 
   # 3. colourspace comparison against the original renderer, in a
   # plain (non-QGIS) environment that carries geopandas + matplotlib
   ref_python = os.environ.get("REFERENCE_PYTHON")
-  if not ref_python:
+  if not args.quick and not ref_python:
     venv_dir = os.path.join(ROOT, ".venv-reference")
     ref_python = os.path.join(venv_dir, "bin", "python3")
     if not os.path.exists(ref_python):
@@ -505,10 +525,11 @@ def main():
           [os.path.join(venv_dir, "bin", "pip"), "install", "--quiet",
            "geopandas", "matplotlib", "networkx", "mapclassify"],
           dict(os.environ))
-  comparison = run(
-      "reference comparison",
-      [ref_python, os.path.join("tools", "visual_reference_report.py"),
-       report_dir], dict(os.environ), capture=True)
+  if not args.quick:
+    comparison = run(
+        "reference comparison",
+        [ref_python, os.path.join("tools", "visual_reference_report.py"),
+         report_dir], dict(os.environ), capture=True)
 
   write_testing_report(report_dir, version, functional, visual,
                        comparison, coverage)
@@ -570,6 +591,16 @@ def main():
     # the tree looking released when it is not.
     run("build release candidate",
         [sys.executable, "build.py", "--rc"], dict(os.environ))
+    # Name the candidate that was just built, then write its dossier:
+    # the page the reviewer actually reads. Derived from the tree, so
+    # it cannot describe a different candidate than the one on disk.
+    built = sorted(glob.glob(os.path.join(ROOT, "dist",
+                                          "weavingspace_qgis-*rc*.zip")))
+    if built:
+      label = os.path.basename(built[-1])[len("weavingspace_qgis-"):-4]
+      run("candidate dossier",
+          [sys.executable, os.path.join("tools", "candidate_dossier.py"),
+           label], dict(os.environ))
     print(f"\nRelease candidate built from a passing tree. Nothing was "
           f"committed, tagged or published.\n"
           f"  candidates: dist/\n"
