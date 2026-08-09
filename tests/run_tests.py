@@ -1583,6 +1583,134 @@ def test_every_control_explains_itself():
   dlg.close()
 
 
+def test_the_preview_actually_draws_what_it_is_given():
+  """The design view renders: filled, fitted, centred and smoothed.
+
+  The preview's painting code is the least-covered part of the plugin
+  — a cost-stratum census put dialog.py's thinly-covered mutants at
+  50% caught, and the largest single family among the survivors was
+  this widget: the brush, the pen, the render hint, the scale and
+  offset arithmetic, and the margin. Almost nothing rendered the
+  preview and looked at the result, so removing any one of those
+  calls changed a picture nobody examined.
+
+  Rather than one test per call, this asserts what the widget is FOR,
+  which is the thing all of them serve:
+
+    it draws something at all (a brush that never gets set leaves an
+    empty widget, and a path never moved to leaves nothing to fill);
+    every element colour the dialog handed it actually appears (a
+    wrong or missing brush shows up as a colour that is not there);
+    the drawing fits inside the widget with its margin, and sits
+    roughly centred (the scale, the offsets and the margin decide
+    this, and an error in any of them pushes the pattern off-centre
+    or over the edge);
+    and edges are smoothed (the render hint), visible as colours
+    between the fills that neither fill accounts for.
+
+  Regression: the preview's painting had almost no coverage, and removing its brush, pen, render hint or fitting arithmetic changed a picture no test looked at.
+  """
+  from qgis.PyQt.QtGui import QColor, QImage, QPainter
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  # SHOW it before measuring or rendering. A widget that has never
+  # been shown reports a geometry its paint code does not use: this
+  # preview reported 640 wide while painting as though it were 328,
+  # so every fitting measurement was out by the difference. CLAUDE.md
+  # records the same lesson for grab().
+  dlg.show()
+  dlg.layer_combo.setLayer(layer)
+  _tick(400)
+  dlg._rebuild_unit()
+  _tick(200)
+  assert dlg.preview._polys, "the preview was given nothing to draw"
+
+  # Render at the WIDGET's own geometry. QWidget.render draws at that
+  # geometry whatever canvas it is given, so a canvas of some other
+  # shape crops the drawing and every measurement below then describes
+  # the canvas. The widget is in a layout and will not take a size it
+  # is told, so ask it what it is rather than deciding for it.
+  wide, high = dlg.preview.width(), dlg.preview.height()
+  assert wide > 50 and high > 50, \
+    f"the preview has no useful size to render ({wide}x{high})"
+  image = QImage(wide, high, QImage.Format.Format_RGB32)
+  image.fill(QColor("#ffffff"))
+  painter = QPainter(image)
+  dlg.preview.render(painter)
+  painter.end()
+
+  # What colours reached the picture, and where the ink sits. The
+  # widget paints its own background across the whole rectangle, so
+  # "not white" is not the test for ink -- taking the background from
+  # a corner and excluding it is. Without that, the drawing appears
+  # to start at pixel 0 and every fitting assertion is meaningless.
+  corner = QColor(image.pixel(1, 1))
+  back = (corner.red(), corner.green(), corner.blue())
+
+  def is_background(key):
+    return all(abs(key[i] - back[i]) <= 6 for i in range(3))
+
+  seen, xs, ys = {}, [], []
+  for x in range(0, wide, 2):
+    for y in range(0, high, 2):
+      colour = QColor(image.pixel(x, y))
+      key = (colour.red(), colour.green(), colour.blue())
+      if key == (255, 255, 255) or is_background(key):
+        continue
+      seen[key] = seen.get(key, 0) + 1
+      xs.append(x)
+      ys.append(y)
+
+  assert xs, "the preview drew nothing at all"
+  painted = len(xs)
+  sampled = (wide // 2) * (high // 2)
+  assert painted > sampled * 0.05, \
+    f"only {painted / sampled:.1%} of the preview was painted; the "\
+    f"unit should fill a good part of it"
+
+  # As many substantial fills as there are elements. Comparing against
+  # _id_colours directly does not work: those carry alpha, and the
+  # widget blends each one with its background, so the painted colour
+  # is never the nominal one. What must hold is that each element
+  # contributes its own distinct area of colour -- a missing brush
+  # shows up as one fewer.
+  substantial = [key for key, count in seen.items()
+                 if count > sampled * 0.01]
+  elements = len(dlg.preview._id_colours)
+  assert len(substantial) >= elements, \
+    f"{len(substantial)} substantial fill(s) for {elements} "\
+    f"elements; an element is not being drawn"
+
+  # fitted, with its margin, and roughly centred
+  assert min(xs) >= 2 and min(ys) >= 2, \
+    f"the drawing touches the edge (x from {min(xs)}, y from "\
+    f"{min(ys)}); the margin is not being applied"
+  assert max(xs) <= wide - 3 and max(ys) <= high - 3, \
+    f"the drawing runs past the far edge (x to {max(xs)} of {wide}, "\
+    f"y to {max(ys)} of {high}), so it is scaled too large to fit"
+  cx, cy = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
+  assert abs(cx - wide / 2) < wide * 0.15, \
+    f"the drawing centres at x={cx:.0f} in a {wide}px widget; the "\
+    f"horizontal offset is wrong"
+  assert abs(cy - high / 2) < high * 0.15, \
+    f"the drawing centres at y={cy:.0f} in a {high}px widget; the "\
+    f"vertical offset is wrong"
+
+  # antialiasing: colours that are neither a fill nor the background
+  fills = {(QColor(c).red(), QColor(c).green(), QColor(c).blue())
+           for c in dlg.preview._id_colours.values()}
+  blended = sum(count for key, count in seen.items()
+                if all(abs(key[0] - f[0]) > 6 or abs(key[1] - f[1]) > 6
+                       or abs(key[2] - f[2]) > 6 for f in fills))
+  assert blended > 0, \
+    "no colour between the fills anywhere: edges are not being "\
+    "smoothed, so the render hint is not set"
+  dlg.close()
+
+
 def test_the_design_view_draws_no_tile_outlines():
   """The preview shows areas of colour, not a mesh.
 
@@ -9067,6 +9195,8 @@ def main():
         test_every_control_accepts_the_range_it_should)
   check("every control explains itself",
         test_every_control_explains_itself)
+  check("the preview actually draws what it is given",
+        test_the_preview_actually_draws_what_it_is_given)
   check("the design view draws no tile outlines",
         test_the_design_view_draws_no_tile_outlines)
   check("colour legibility warnings are opt-in",
