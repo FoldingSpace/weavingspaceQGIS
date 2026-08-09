@@ -34,6 +34,11 @@
   "excerpt": "> O'Sullivan, D., & Bergmann, L. (2026). Using MapWeaver to ",
   "where": "README.md"
  },
+ "0880d166059e76b9": {
+  "approved": "2026-08-09",
+  "excerpt": "This layer does not report its size, so live update cannot f",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "0adb038e39b338a0": {
   "approved": "2026-08-09",
   "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",
@@ -143,6 +148,11 @@
   "approved": "2026-08-08",
   "excerpt": "({} other pair(s) are close too)",
   "where": "weavingspace_qgis/perception.py"
+ },
+ "1db79100037046e0": {
+  "approved": "2026-08-09",
+  "excerpt": "{} of {} areas have no value for '{}'. They draw as no data,",
+  "where": "weavingspace_qgis/bridge.py"
  },
  "1df17998146a26fc": {
   "approved": "2026-08-08",
@@ -339,6 +349,11 @@
   "excerpt": "Renders a first map as soon as a layer and variables are in ",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "586c69c9fb68f583": {
+  "approved": "2026-08-09",
+  "excerpt": "Every area has the same value for '{}', so it draws as one c",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "58c7303af577c996": {
   "approved": "2026-08-08",
   "excerpt": "The library and its examples are at\n[github.com/DOSull/weavi",
@@ -368,6 +383,11 @@
   "approved": "2026-08-08",
   "excerpt": "for a reader with deuteranopia",
   "where": "weavingspace_qgis/perception.py"
+ },
+ "601499e9f5e6488b": {
+  "approved": "2026-08-09",
+  "excerpt": "That layer's data is no longer available. Reload it in QGIS,",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "60ce038cebf7e701": {
   "approved": "2026-08-08",
@@ -459,6 +479,11 @@
   "excerpt": "Choosing {} for element '{}' discarded {} colour(s) you had ",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "7680bbe84486c14c": {
+  "approved": "2026-08-09",
+  "excerpt": "{} is no longer in the layer, so the elements using it now s",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "78745481edf68bd8": {
   "approved": "2026-08-08",
   "excerpt": ". Is that field really categorical?",
@@ -489,9 +514,19 @@
   "excerpt": "Number of classes; categorized rows show how many categories",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "8218f03d677adfe4": {
+  "approved": "2026-08-09",
+  "excerpt": "'{}' holds text, so it is drawn as categories rather than a ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "8242b395903dbba5": {
   "approved": "2026-08-08",
   "excerpt": "Scale as glyph (independent of tiling)",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "833f0e7895b7a071": {
+  "approved": "2026-08-09",
+  "excerpt": "The region layer was removed from the project, so there is n",
   "where": "weavingspace_qgis/dialog.py"
  },
  "887f012f004af6d1": {
@@ -594,6 +629,11 @@
   "excerpt": "Create as new group (keep the previous result)",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "9bc197f228806dd1": {
+  "approved": "2026-08-09",
+  "excerpt": "The layer's coordinate system changed, so the spacing has be",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "9e471b0afdf7f1d1": {
   "approved": "2026-08-08",
   "excerpt": "<p>This is experimental research software and should be trea",
@@ -644,6 +684,11 @@
   "excerpt": "A first map appears of its own accord once a layer and varia",
   "where": "docs/USER-GUIDE.md"
  },
+ "a8c3672a23666329": {
+  "approved": "2026-08-09",
+  "excerpt": "That layer's data is no longer available, so the map cannot ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "aa2a80e206a7838e": {
   "approved": "2026-08-08",
   "excerpt": "The tile unit could not be built.",
@@ -662,6 +707,11 @@
  "ae2dbfa74d7268a2": {
   "approved": "2026-08-09",
   "excerpt": "Draws and redraws the map as you change settings, without pr",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "af0f5b5f974901ff": {
+  "approved": "2026-08-09",
+  "excerpt": "That layer's data is no longer available, so a spacing canno",
   "where": "weavingspace_qgis/dialog.py"
  },
  "af8378b340dbf545": {
@@ -713,6 +763,11 @@
   "approved": "2026-08-08",
   "excerpt": "Rotation usually helps. A square pattern aligned with the fr",
   "where": "docs/USER-GUIDE.md"
+ },
+ "c92f28bce418b754": {
+  "approved": "2026-08-09",
+  "excerpt": "That layer has no usable extent, so a spacing cannot be sugg",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "c98d24d841b53582": {
   "approved": "2026-08-09",
@@ -827,6 +882,11 @@
  "e28d4124937d4ab7": {
   "approved": "2026-08-08",
   "excerpt": "restyled {} (no re-tiling needed)",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "e2f50e3072a5736c": {
+  "approved": "2026-08-09",
+  "excerpt": "{} is no longer in the layer, and there is nothing left to s",
   "where": "weavingspace_qgis/dialog.py"
  },
  "e384d6874060ed59": {

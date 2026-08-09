@@ -143,6 +143,27 @@ and the pass/fail set before and after; they must match exactly.
 
 ## Lessons, each paid for once
 
+**A workaround for someone else's bug needs a canary.** When this
+plugin works around a defect in QGIS, the workaround outlives every
+memory of why it exists and becomes folklore nobody dares touch. So
+each one gets a test that asserts THE BUG, going straight to the
+dependency with the plugin out of the way
+(`test_qgis_still_counts_nulls_as_zero` is the model). While it
+passes, the workaround is earning its place. When it fails, the
+upstream bug is fixed and the suite has just told you so. The failure
+message must say that in as many words, and must say "do not relax
+this assertion", because the reflex on a red suite is to make it
+green and that reflex would hide exactly the change the test exists
+to report.
+
+**A tool that filters what it shows you can hide what you needed to
+see.** `text_review.py` skipped any string starting with `{`, to
+avoid format keys — and thereby dropped every user-facing sentence
+opening with an interpolated value, three of which were live. The
+tool's own docstring said a false negative ships unread text, which
+is what happened. When a heuristic decides what a human reviews,
+check what it is throwing away, not just what it keeps.
+
 **An invariant can demand that the software get it wrong.** The
 sequence test asserted that every edit changes the map. Two of its
 steps then failed, and both times the plugin was right and the test

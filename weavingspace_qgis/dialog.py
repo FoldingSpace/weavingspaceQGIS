@@ -1632,9 +1632,8 @@ class WeavingSpaceDialog(QDialog):
       if not self._said_live_cannot_track:
         self._said_live_cannot_track = True
         self._report_quietly(
-          "This layer does not report how many features it has, so "
-          "live update cannot tell when it changes. Press Generate to "
-          "redraw it.")
+          "This layer does not report its size, so live update "
+          "cannot follow it. Press Generate to redraw.")
       return
     if not any(a["var"] for a in self._assignments()):
       return
@@ -3097,9 +3096,8 @@ class WeavingSpaceDialog(QDialog):
       if not live:
         QMessageBox.critical(
           self, "WeavingSpace",
-          "That layer's data is no longer available. Its file may "
-          "have been moved or deleted. Reload it in QGIS, or choose "
-          "another layer.")
+          "That layer's data is no longer available. Reload it in "
+          "QGIS, or choose another layer.")
       return
 
     fields = sorted({a["var"] for a in assignments if a["var"]})
@@ -3255,6 +3253,18 @@ class WeavingSpaceDialog(QDialog):
           if bridge.numeric_values_are_constant(gdf[field]):
             said_constant.add(field)
             self._report_quietly(bridge.constant_field_message(field))
+          # Gaps in the column, counted from the frame just mapped.
+          # The breaks already exclude them (see
+          # bridge.make_graduated_renderer); this is the half the
+          # user can read, and it is what gives them a chance of
+          # understanding if QGIS's own Classify button later moves
+          # every break by counting the nulls as zero.
+          missing = int(gdf[field].isna().sum())
+          note = bridge.missing_values_message(
+            field, missing, int(len(gdf)))
+          if note is not None:
+            said_constant.add(field)
+            self._report_quietly(note)
         for assignment in assignments:
           field = assignment.get("var")
           if not field or assignment.get("mode") != "Categorized":

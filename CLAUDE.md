@@ -596,6 +596,32 @@ Confirmed with the user via an explicit design review:
   deliberately not listened to in general, because it fires on style
   changes and re-tiling on those is the cost the restyle fast path
   exists to avoid.
+- **NULLs are kept out of class breaks, and that is a WORKAROUND with
+  an expiry test.** QGIS's classifier counts a NULL as zero while its
+  own `minimumValue()` excludes nulls, so QGIS disagrees with itself
+  and the classifier wins: a column with gaps gets a spurious 0-0
+  class and every break shifted toward zero, on a map that looks
+  perfectly plausible. Measured identically on the memory provider and
+  on a GeoPackage through OGR (QGIS 4.0.3, 2026-08-09), so it reaches
+  real data. `make_graduated_renderer` corrects the INPUT rather than
+  the output: it hides the nulls with a subset string, lets QGIS's own
+  classifier run, and restores the layer. Reimplementing quantiles,
+  equal intervals, Jenks and pretty breaks here would mean owning four
+  algorithms and inventing new ways to disagree with the styling panel
+  the user opens next. It is safe because the layer being filtered is
+  the ELEMENT OUTPUT layer, which the plugin creates and owns — never
+  the user's region layer — and a provider that refuses the subset
+  falls through to the old behaviour, since wrong breaks beat no map.
+  The corrected breaks survive a project save and reload, a GeoPackage
+  reopened elsewhere, and the plugin's own restyle path; they revert
+  only if the user presses **Classify** in QGIS's Graduated panel,
+  which recomputes with nulls counted as zero. That is why the notice
+  exists as well as the fix. **When QGIS fixes this**,
+  `test_qgis_still_counts_nulls_as_zero` fails — it asserts the bug,
+  deliberately, going straight to QGIS. Treat that failure as good
+  news: delete the marked block in `make_graduated_renderer` and the
+  canary, keep `missing_values_message`, and do NOT relax the
+  assertion to make the suite green. (User instruction, 2026-08-09.)
 - **Raster sources are not a case here.** A COG, a WMS or any other
   raster cannot be a region layer: the region chooser filters to
   polygon layers, and the tiling joins data to POLYGONS. Raster-backed

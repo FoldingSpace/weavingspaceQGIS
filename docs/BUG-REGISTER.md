@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-44 defect(s) with a regression test.
+45 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -70,6 +70,8 @@ there is no separate list to remember.
   guarded by `test_awkward_layers_are_handled_or_declined`
 - **cancel's immediate report to the dialog was untested; removing it left the window disabled until the abandoned work finished.**  
   guarded by `test_cancelling_frees_the_dialog_at_once`
+- **QGIS's classifier counts a NULL as zero (its own minimumValue does not, so QGIS disagrees with itself), so nine values of 1..9 beside five nulls classified as 0-0, 0-2.5, 2.5-5.75, 5.75-9 instead of 1-3, 3-5, 5-7, 7-9 — every break in the wrong place, a legend class meaning "missing" that reads as a number, and nothing on screen to say so; measured identically on the memory provider and on a GeoPackage through OGR.**  
+  guarded by `test_class_breaks_ignore_nulls`
 - **the colour-separability warning fired unconditionally, on every map, whether or not anyone wanted that opinion.**  
   guarded by `test_colour_legibility_warnings_are_opt_in`
 - **the geometry signature held the layer's ID and nothing about its contents, so deleting half the features left every term identical and the run was answered by repainting tiles built from data that no longer existed — pressing Generate did not help, which is what made it serious.**  
@@ -115,7 +117,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 28
+- unrecorded: 29
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5
 - reading the code: 3

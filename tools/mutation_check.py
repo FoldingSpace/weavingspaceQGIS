@@ -55,6 +55,16 @@ MUTATIONS = [
   # written for. These entries are how that cannot happen quietly
   # again.
   # ---- this round's defects, each undone here so its test is proved
+  dict(name="nulls-excluded-from-breaks", file=BRIDGE,
+       old="""    if layer.setSubsetString(combined):
+      restore = previous""",
+       new="""    if False:  # mutation: classify the nulls along with the data
+      restore = previous""",
+       test="test_class_breaks_ignore_nulls",
+       why="QGIS counts a NULL as zero when it computes class breaks, "
+           "so a column with gaps gets a spurious 0-0 class and every "
+           "break shifted; the map is wrong everywhere and nothing on "
+           "screen says so"),
   dict(name="output-crs-invented", file=BRIDGE,
        old="""  if gdf.crs is None:""",
        new="""  if False:  # mutation: let QGIS default the output to EPSG:4326""",

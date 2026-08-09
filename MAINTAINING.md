@@ -139,6 +139,46 @@ one that depends on the controls, it belongs in the signature beside
 the others — and think about which of the two signatures, because
 that is the line between re-tiling and re-painting.
 
+## Working around a QGIS bug, and knowing when to stop
+
+There is one active workaround for a defect in QGIS itself, and the
+pattern around it is meant to be reused rather than admired.
+
+**The defect.** QGIS's classifier counts a NULL as zero when computing
+class breaks. Its own `minimumValue()` excludes nulls, so QGIS
+contradicts itself; nine values of 1..9 beside five nulls classify as
+0-0, 0-2.5, 2.5-5.75, 5.75-9 instead of 1-3, 3-5, 5-7, 7-9. Verified
+on the memory provider and on a GeoPackage through OGR under QGIS
+4.0.3.
+
+**The workaround.** `bridge.make_graduated_renderer` applies
+`"field" IS NOT NULL` as a subset string, calls QGIS's own classifier,
+and restores whatever subset was there before. It corrects the input
+instead of computing breaks here, which would mean maintaining four
+classification algorithms and diverging from the styling panel. It
+filters the ELEMENT OUTPUT layer, which this plugin creates and owns.
+A provider that refuses the subset falls through to the unfiltered
+path, because wrong breaks beat no map.
+
+**What it survives.** Project save and reload, a GeoPackage reopened
+elsewhere with its embedded style, and the plugin's own restyle path.
+It reverts only when the user presses Classify in QGIS's Graduated
+panel. It cannot be hardened past that without leaving the filter on
+permanently, which would hide the no-data features from the map — a
+worse error, since a missing place reads as no place rather than as
+missing data.
+
+**How you will know it can go.**
+`test_qgis_still_counts_nulls_as_zero` asserts the bug, with the
+plugin out of the way. Its failure means QGIS fixed it; delete the
+marked block and the canary, keep the notice.
+
+**Reuse this shape.** Any future workaround for a dependency's bug
+gets: the measurement recorded with a date and version, the fix at
+the narrowest point, a comment at the fix saying when it can be
+removed, and a canary test asserting the upstream bug so the suite
+announces the day it is fixed.
+
 ## Invariants — do not break these
 
 1. **The worker thread never touches pyproj/PROJ.** QGIS uses the same

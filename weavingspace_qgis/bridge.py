@@ -689,6 +689,29 @@ def numeric_values_are_constant(values) -> bool:
   return len(seen) == 1
 
 
+def missing_values_message(field: str, missing: int, total: int):
+  """The notice for a column with gaps in it.
+
+  Args:
+    field: the attribute name, as the user chose it in the table.
+    missing: how many mapped areas have no value for it.
+    total: how many areas were mapped altogether.
+
+  Returns:
+    One sentence for the message bar, or None when nothing is
+    missing. Worth saying whatever the breaks do: a reader looking at
+    a patch of no-data colour is owed the count, and a user who later
+    presses Classify in QGIS's own panel -- which recomputes with
+    nulls counted as zero, moving every break -- has at least been
+    told the column has gaps.
+  """
+  if missing <= 0:
+    return None
+  return (f"{missing:,} of {total:,} areas have no value for "
+          f"'{field}'. They draw as no data, outside the class "
+          f"breaks.")
+
+
 def constant_field_message(field: str) -> str:
   """The notice for a column that turned out to hold one value.
 
@@ -703,8 +726,8 @@ def constant_field_message(field: str) -> str:
     user who does not know the column is constant will look for the
     fault in the pattern instead of in the data.
   """
-  return (f"Every area has the same value for '{field}', so it is "
-          f"drawn as one class rather than a range of colours.")
+  return (f"Every area has the same value for '{field}', so it "
+          f"draws as one class, not a range.")
 
 
 def make_graduated_renderer(layer: QgsVectorLayer, field: str,
@@ -764,7 +787,10 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   # (see constant_field_message). Placed after the Unclassed line so
   # it overrides that scheme's fixed 50 too.
   index = layer.fields().indexOf(field)
-  if index >= 0 and numeric_values_are_constant(layer.uniqueValues(index)):
+  # One pass over the column answers both questions below: is it
+  # constant, and does it contain nulls.
+  values = layer.uniqueValues(index) if index >= 0 else set()
+  if index >= 0 and numeric_values_are_constant(values):
     k = 1
   renderer = QgsGraduatedSymbolRenderer(field)
   renderer.setSourceSymbol(_fill_symbol("#c0c0c0", outline))
@@ -772,7 +798,53 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   method = compat.classification_method(scheme)
   if method is not None:
     renderer.setClassificationMethod(method)
-  renderer.updateClasses(layer, k)
+
+  # ---- NULLs, and why this layer is filtered before being classified
+  #
+  # QGIS's classifier counts a NULL as ZERO. Its own minimumValue()
+  # excludes nulls, so QGIS contradicts itself and the classifier
+  # wins: nine values of 1..9 with five nulls beside them come back
+  # as 0-0, 0-2.5, 2.5-5.75, 5.75-9 instead of 1-3, 3-5, 5-7, 7-9.
+  # Every break is in the wrong place and the legend gains a class
+  # that means "missing" while reading as a number. Nothing about it
+  # is visible: no error, no empty layer, just a choropleth that is
+  # quietly wrong. Measured the same on the memory provider and on a
+  # GeoPackage through OGR (2026-08-09, QGIS 4.0.3), so it is the
+  # classifier and not one provider's quirk.
+  #
+  # So the INPUT is corrected rather than the output: hide the nulls,
+  # let QGIS classify exactly what it should have classified, put the
+  # layer back. The alternative -- computing breaks here -- would mean
+  # owning quantiles, equal intervals, Jenks and pretty breaks as four
+  # algorithms, and every place our arithmetic differed from QGIS's
+  # would be a fresh way for this plugin to disagree with the styling
+  # panel the user opens next.
+  #
+  # Safe because this is the ELEMENT OUTPUT layer, which the plugin
+  # creates and owns. The user's region layer is never filtered.
+  #
+  # WHEN QGIS FIXES THIS, and it may: the filtering becomes redundant
+  # rather than harmful, since a classifier that already ignores nulls
+  # gets the same answer either way. You will hear about it from
+  # test_qgis_still_counts_nulls_as_zero, which asserts the UNFILTERED
+  # behaviour is still broken and fails on the day it stops being.
+  # That test exists to be a canary, so treat its failure as good news
+  # and delete this block rather than "fixing" the test.
+  restore = None
+  if index >= 0 and any(v is None or v == NULL for v in values):
+    previous = layer.subsetString()
+    clause = f'"{field}" IS NOT NULL'
+    combined = f"({previous}) AND {clause}" if previous else clause
+    # A provider may refuse a subset string. Wrong breaks beat no map,
+    # so a refusal falls through to classifying everything, exactly as
+    # before this block existed.
+    if layer.setSubsetString(combined):
+      restore = previous
+  try:
+    renderer.updateClasses(layer, k)
+  finally:
+    if restore is not None:
+      layer.setSubsetString(restore)
   return renderer
 
 

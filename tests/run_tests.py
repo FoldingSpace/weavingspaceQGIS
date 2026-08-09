@@ -5779,6 +5779,8 @@ def test_class_breaks_ignore_nulls():
   column with those rows absent entirely. The two must agree: the
   present values are identical, so any difference is the nulls
   leaking into the arithmetic.
+
+  Regression: QGIS's classifier counts a NULL as zero (its own minimumValue does not, so QGIS disagrees with itself), so nine values of 1..9 beside five nulls classified as 0-0, 0-2.5, 2.5-5.75, 5.75-9 instead of 1-3, 3-5, 5-7, 7-9 — every break in the wrong place, a legend class meaning "missing" that reads as a number, and nothing on screen to say so; measured identically on the memory provider and on a GeoPackage through OGR.
   """
   from weavingspace_qgis import bridge, compat
   values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
@@ -6322,6 +6324,276 @@ def test_numeric_conversions_are_exact():
     f"{span:.0f} m extent, which is the signature of the scaling " \
     f"having been dropped rather than applied"
   dlg.close()
+
+
+def test_qgis_still_counts_nulls_as_zero():
+  """A canary. Its failure is GOOD NEWS: read this before fixing it.
+
+  QGIS's classifier counts a NULL as zero when it computes class
+  breaks, while QGIS's own minimumValue() excludes nulls -- so QGIS
+  disagrees with itself and the classifier wins. Measured on the
+  memory provider and on a GeoPackage through OGR under QGIS 4.0.3 on
+  2026-08-09.
+
+  bridge.make_graduated_renderer works around it by hiding the nulls,
+  letting QGIS classify what remains, and restoring the layer. That
+  workaround is invisible once written, and the risk with any
+  workaround is that it outlives the bug it was written for and
+  becomes folklore nobody dares remove.
+
+  So this test asserts the BUG, deliberately, going straight to QGIS
+  and bypassing the plugin entirely. While it passes, the workaround
+  is still earning its place. When it FAILS, QGIS has fixed the
+  underlying behaviour and the right response is:
+
+    delete the null-filtering block in bridge.make_graduated_renderer
+    (it is marked, and says so);
+    delete this test;
+    keep bridge.missing_values_message and the notice, which are
+    about telling the reader a column has gaps and are worth having
+    whatever the classifier does.
+
+  What it must NOT prompt is "fix the test" by relaxing it. A green
+  suite bought by asserting less is the thing this whole file exists
+  to prevent.
+  """
+  from qgis.core import QgsGraduatedSymbolRenderer
+  from weavingspace_qgis import compat
+
+  values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+  layer = QgsVectorLayer("Polygon?crs=EPSG:3857", "canary", "memory")
+  layer.dataProvider().addAttributes([compat.make_field("v", float)])
+  layer.updateFields()
+  feats = []
+  for k, value in enumerate(values + [None] * 5):
+    x, y = (k % 5) * 100.0, (k // 5) * 100.0
+    ring = [QgsPointXY(x, y), QgsPointXY(x + 100, y),
+            QgsPointXY(x + 100, y + 100), QgsPointXY(x, y + 100)]
+    f = QgsFeature(layer.fields())
+    f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+    f["v"] = value
+    feats.append(f)
+  layer.dataProvider().addFeatures(feats)
+  layer.updateExtents()
+
+  index = layer.fields().indexOf("v")
+  assert layer.minimumValue(index) == 1.0, \
+    f"QGIS now reports the column's minimum as " \
+    f"{layer.minimumValue(index)}; this test's premise has moved and " \
+    f"it needs rereading rather than adjusting"
+
+  # straight to QGIS, with no plugin in the way
+  renderer = QgsGraduatedSymbolRenderer("v")
+  method = compat.classification_method("Quantiles")
+  if method is not None:
+    renderer.setClassificationMethod(method)
+  renderer.updateClasses(layer, 4)
+  lowest = renderer.ranges()[0]
+
+  assert lowest.lowerValue() == 0.0, \
+    f"GOOD NEWS, PROBABLY: QGIS's classifier no longer counts nulls " \
+    f"as zero -- the lowest class now starts at " \
+    f"{lowest.lowerValue()} rather than 0.0, where the column's " \
+    f"smallest actual value is 1.0. The null-filtering workaround in " \
+    f"bridge.make_graduated_renderer is now redundant and can be " \
+    f"deleted along with this test. Read this test's docstring before " \
+    f"changing anything: do not relax the assertion to make the suite " \
+    f"green, because that would hide the very change it exists to " \
+    f"report."
+
+
+def _numeric_layer(rows, name="vals", field="v"):
+  """A polygon layer whose one numeric column holds exactly these rows.
+
+  Args:
+    rows: values in feature order; None makes a NULL.
+    name: the layer name.
+    field: the attribute name.
+
+  Returns:
+    A memory layer with one square per row.
+  """
+  from weavingspace_qgis import compat
+  layer = QgsVectorLayer("Polygon?crs=EPSG:3857", name, "memory")
+  layer.dataProvider().addAttributes([compat.make_field(field, float)])
+  layer.updateFields()
+  feats = []
+  for k, value in enumerate(rows):
+    x, y = (k % 5) * 100.0, (k // 5) * 100.0
+    ring = [QgsPointXY(x, y), QgsPointXY(x + 100, y),
+            QgsPointXY(x + 100, y + 100), QgsPointXY(x, y + 100)]
+    f = QgsFeature(layer.fields())
+    f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+    f[field] = value
+    feats.append(f)
+  layer.dataProvider().addFeatures(feats)
+  layer.updateExtents()
+  return layer
+
+
+def test_classifying_leaves_the_layer_as_it_found_it():
+  """The null workaround must not leak its filter.
+
+  Excluding the nulls means hiding rows from the layer, and a filter
+  left behind afterwards would be far worse than the bug it fixes:
+  the no-data features would stop existing as far as the map, the
+  attribute table and any export are concerned. Places would vanish
+  rather than be drawn as no data.
+
+  Checked for a column with nulls, without nulls, and for a layer
+  that already carries a subset string of the user's own -- which
+  must come back exactly as it was, not merely non-empty.
+  """
+  from weavingspace_qgis import bridge
+
+  with_nulls = _numeric_layer([1.0, 2.0, None, 4.0, None, 6.0])
+  before = with_nulls.featureCount()
+  bridge.make_graduated_renderer(
+    with_nulls, "v", "Reds", "Quantiles", 3, False)
+  assert with_nulls.subsetString() == "", \
+    f"a filter was left on the layer: " \
+    f"{with_nulls.subsetString()!r}. The no-data features would stop " \
+    f"appearing on the map, in the attribute table and in any export"
+  assert with_nulls.featureCount() == before, \
+    f"the layer holds {with_nulls.featureCount()} features and held " \
+    f"{before} before it was classified"
+
+  without = _numeric_layer([1.0, 2.0, 3.0, 4.0])
+  bridge.make_graduated_renderer(without, "v", "Reds", "Quantiles", 2, False)
+  assert without.subsetString() == "", \
+    "a column with no nulls should never have been filtered at all"
+
+  # a filter the USER put there, which the workaround must preserve
+  mine = _numeric_layer([1.0, 2.0, None, 4.0, None, 9.0])
+  assert mine.setSubsetString('"v" <> 9'), "the fixture refused a filter"
+  kept = mine.subsetString()
+  seen = mine.featureCount()
+  bridge.make_graduated_renderer(mine, "v", "Reds", "Quantiles", 2, False)
+  assert mine.subsetString() == kept, \
+    f"the user's own filter came back as {mine.subsetString()!r} " \
+    f"rather than {kept!r}"
+  assert mine.featureCount() == seen, \
+    "the user's filter no longer selects what it did"
+
+
+def test_no_data_features_still_draw_after_classifying():
+  """Hiding nulls to classify must not hide them on the map.
+
+  The workaround filters the layer for the length of one call. If any
+  of that leaked into what gets drawn, areas with no value would
+  disappear from the map entirely -- which is a worse error than the
+  shifted breaks it was written to fix, because a missing place looks
+  like no place rather than like missing data.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import compat
+  layer = QgsVectorLayer("Polygon?crs=EPSG:3857", "gappy", "memory")
+  layer.dataProvider().addAttributes([compat.make_field("v", float)])
+  layer.updateFields()
+  rows = [1.0, 2.0, None, 4.0, 5.0, None, 7.0, 8.0, 9.0]
+  feats = []
+  for k, value in enumerate(rows):
+    x, y = (k % 3) * 1000.0, (k // 3) * 1000.0
+    ring = [QgsPointXY(x, y), QgsPointXY(x + 1000, y),
+            QgsPointXY(x + 1000, y + 1000), QgsPointXY(x, y + 1000)]
+    f = QgsFeature(layer.fields())
+    f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+    f["v"] = value
+    feats.append(f)
+  layer.dataProvider().addFeatures(feats)
+  layer.updateExtents()
+  QgsProject.instance().addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg.table.cellWidget(0, 1).setCurrentText("v")
+  _tick(200)
+  dlg.spacing_spin.setValue(400)
+  dlg._generate()
+  assert _settle(dlg, seconds=90), "the run never settled"
+  _tick(300)
+
+  checked = 0
+  for lid in dlg._element_layer_ids.values():
+    out = QgsProject.instance().mapLayer(lid)
+    if out is None:
+      continue
+    assert out.subsetString() == "", \
+      f"{out.name()} came out of the run carrying a filter " \
+      f"{out.subsetString()!r}; areas with no value are hidden rather " \
+      f"than drawn as no data"
+    checked += 1
+  assert checked, "no output layers to check"
+
+  said = " ".join(text for _kind, text in BAR_MESSAGES)
+  assert "no value" in said, \
+    f"nothing told the user the column has gaps; the bar received " \
+    f"{BAR_MESSAGES!r}. They are owed the count, and it is what gives " \
+    f"them a chance of understanding if QGIS's own Classify button " \
+    f"later moves every break"
+  dlg.close()
+
+
+def test_every_scheme_excludes_nulls():
+  """The workaround covers all the classification schemes, not one.
+
+  It was written and measured against quantiles. Equal intervals,
+  natural breaks and pretty breaks read the same column through the
+  same classifier, so each is exposed the same way -- and a fix that
+  happened to be applied on the quantile path alone would leave three
+  schemes quietly wrong, which is the shape of defect this project
+  has already had (one renderer seeded for every element).
+
+  Unclassed is included deliberately: it is 50 equal intervals over
+  the column's range, so a null counted as zero stretches the whole
+  ramp downwards.
+  """
+  from weavingspace_qgis import bridge
+  values = [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0]
+  trouble = []
+  for scheme in ("Quantiles", "Equal intervals", "Natural breaks (Jenks)",
+                 "Pretty breaks", "Unclassed"):
+    padded = _numeric_layer(values + [None] * 4, f"padded-{scheme}")
+    clean = _numeric_layer(values, f"clean-{scheme}")
+    got = [(round(r.lowerValue(), 4), round(r.upperValue(), 4))
+           for r in bridge.make_graduated_renderer(
+             padded, "v", "Reds", scheme, 4, False).ranges()]
+    want = [(round(r.lowerValue(), 4), round(r.upperValue(), 4))
+            for r in bridge.make_graduated_renderer(
+              clean, "v", "Reds", scheme, 4, False).ranges()]
+    if got != want:
+      trouble.append(f"{scheme}: {got} with nulls, {want} without")
+  assert not trouble, \
+    "these schemes still let nulls into the breaks:\n  " + \
+    "\n  ".join(trouble)
+
+
+def test_a_constant_column_with_gaps():
+  """Constant and full of holes at once: the two rules must compose.
+
+  A column that is 7 wherever it has a value, and null elsewhere, is
+  both of the awkward cases this file handles: it collapses to a
+  single class, AND its nulls must stay out of the breaks. Handled
+  separately they interact badly -- counting the nulls as zero makes
+  the column look like it has two values, so the collapse never
+  fires and the map gets a spurious range from 0 to 7.
+  """
+  from weavingspace_qgis import bridge
+  layer = _numeric_layer([7.0, 7.0, None, 7.0, None, 7.0])
+  ranges = bridge.make_graduated_renderer(
+    layer, "v", "Reds", "Quantiles", 5, False).ranges()
+  bounds = [(round(r.lowerValue(), 4), round(r.upperValue(), 4))
+            for r in ranges]
+  assert len(ranges) == 1, \
+    f"a column that is 7 where it has a value got {len(ranges)} " \
+    f"classes {bounds}; the nulls are being counted, so the column " \
+    f"looks like it varies when it does not"
+  assert bounds[0] == (7.0, 7.0), \
+    f"the single class is {bounds[0]}, not (7.0, 7.0); a break " \
+    f"reaching down to zero is a null wearing a number"
+  assert layer.subsetString() == "", "a filter was left behind"
 
 
 def test_region_outlines_are_cased():
@@ -13876,6 +14148,16 @@ def main():
         test_two_notices_never_share_one_slot)
   check("numeric conversions are exact",
         test_numeric_conversions_are_exact)
+  check("QGIS still counts nulls as zero (canary)",
+        test_qgis_still_counts_nulls_as_zero)
+  check("classifying leaves the layer as it found it",
+        test_classifying_leaves_the_layer_as_it_found_it)
+  check("no-data features still draw after classifying",
+        test_no_data_features_still_draw_after_classifying)
+  check("every scheme excludes nulls",
+        test_every_scheme_excludes_nulls)
+  check("a constant column with gaps",
+        test_a_constant_column_with_gaps)
   check("region outlines are cased", test_region_outlines_are_cased)
   check("installed palettes span their declared colours",
         test_installed_palettes_span_their_declared_colours)

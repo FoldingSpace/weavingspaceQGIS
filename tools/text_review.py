@@ -83,7 +83,18 @@ def looks_like_prose(text):
   """
   if len(text) < 25 or text.count(" ") < 3:
     return False
-  if text.strip().startswith(("#", "/", "{", "<?", "http")):
+  if text.strip().startswith(("#", "/", "<?", "http")):
+    return False
+  # A LEADING placeholder is not a reason to skip a sentence. This
+  # rule used to reject anything starting with "{", to skip format
+  # keys -- and it thereby dropped every user-facing sentence that
+  # opens with an interpolated value ("{} of {} areas have no value
+  # for '{}' ..."), which shipped unread as a result. The length and
+  # word-count tests above already exclude bare format keys, so what
+  # is rejected here is a string that is placeholders and punctuation
+  # and nothing else.
+  without_placeholders = re.sub(r"\{[^}]*\}", " ", text)
+  if not any(c.isalpha() for c in without_placeholders):
     return False
   if not any(c.islower() for c in text):
     return False
