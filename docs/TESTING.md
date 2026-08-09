@@ -66,14 +66,35 @@ configuration call. Fixing those individually took most of a day and
 covered only what had been sampled; the tables cover what has not
 been sampled yet.
 
-Two cautions learnt while writing them. Read the values from a LIVE
-object rather than transcribing them from the source — a table
-written from the code it checks agrees with that code's bugs. And
-watch what the environment supplies: the declared spacing default is
-1000, but a dialog built with a layer present shows 500, because
-auto-spacing legitimately sized it to that layer. The table asserts
-what a user meets on a fresh dialog with an empty project, and the
-auto-spacing behaviour is a separate test.
+**What a table test IS, stated plainly, because it is easy to
+overclaim.** A table of defaults, ranges and steps is REGRESSION
+protection, not correctness testing. It cannot tell you a default is
+wrong today; it can only tell you it changed. An earlier version of
+this section claimed that reading the values from a live object rather
+than transcribing them from the source stops the table agreeing with
+the code's bugs — that was wrong. Reading from a live object is still
+deriving the expectation from the implementation, by another route.
+The justification for these tables is that the values are design
+decisions recorded in CLAUDE.md and a silent change to one is a real
+regression; it is not that they verify anything.
+
+That has a consequence for the mutation score, and it should be said
+out loud. A table kills numeric mutants very cheaply: `20 -> 21` dies
+because a line says 20, which is one step from asserting that 20
+equals 20. **The score rises further than the detection ability
+does.** When a round adds table tests, expect the rate to improve for
+two different reasons, and do not read the whole improvement as the
+suite getting better at noticing bugs. Where it matters, classify
+which mutants newly died: those caught by behavioural tests (the
+preview must draw, cancel must return the dialog, a ramp must produce
+its declared colours) are detection; those caught by a pinned
+constant are regression cover.
+
+Watch, too, what the environment supplies: the declared spacing
+default is 1000, but a dialog built with a layer present shows 500,
+because auto-spacing legitimately sized it to that layer. The table
+asserts what a user meets on a fresh dialog with an empty project,
+and the auto-spacing behaviour is a separate test.
 
 **Integration sessions over single behaviours.** The failures in this
 plugin live in state carried across generations, so a session that
