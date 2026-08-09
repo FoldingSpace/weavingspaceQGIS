@@ -91,6 +91,54 @@ QT_QPA_PLATFORM=offscreen QGIS_PREFIX_PATH=/usr python3 tests/run_tests.py
 
 All tests print PASS/FAIL and the process exits non-zero on failure.
 
+## Keeping up with a layer that changes underneath you
+
+QGIS is live and this dialog is not modal to it, so the region layer
+can change while the plugin is pointed at it. Three mechanisms cover
+it, and each exists because the other two have a blind spot.
+
+**The fingerprint** (`_layer_fingerprint`) reads
+the feature count, the extent rounded to the metre, the field names
+and the CRS. It is cheap enough to ask on every debounce tick and it
+catches edits made straight through the data provider, which is what
+Processing and a good deal of plugin code do and which emits nothing
+this dialog could hear. It goes into BOTH `_geometry_signature` and
+`_run_signature`. Before it existed, those tuples held the layer's ID
+and nothing about its contents, so deleting half the features left
+every term identical: the run was classified as a style-only change
+and answered by re-seeding renderers over tiles built from data that
+no longer existed. Pressing Generate did not help, which is what made
+it serious rather than merely untidy.
+
+**The signals** (`_watch_layer`, `_WATCHED_SIGNALS`) catch what the
+fingerprint cannot: a value retyped, a vertex moved inside the
+bounding box. Simplification is the clean example — Douglas-Peucker
+keeps the extreme vertices, so the count and the bounding box both
+survive it while every polygon changes. Connections are made through
+`getattr` and each is optional, because the list is QGIS's and a
+future release may drop one; a missing signal should cost one blind
+spot, not an exception on every layer change. The whole disconnect
+loop is wrapped too: when a layer is removed from the project its C++
+object goes with it, and then even asking the Python wrapper for an
+attribute raises — which is precisely when this runs, since removing
+the layer is what changed the combo. `repaintRequested` is
+deliberately absent: it fires on style changes, and re-tiling on those
+is the cost the restyle fast path exists to avoid.
+
+**The honest gap** is a layer nothing local can observe. WFS, OGC API
+- Features, an ArcGIS service and PostGIS all change server-side with
+no event here, and may report `featureCount()` as -1 or an estimate.
+An explicit Generate always re-tiles them; live update does not chase
+them, because polling somebody's endpoint unattended is not a thing to
+do behind their back. A layer with QGIS's own auto-refresh enabled is
+followed, since switching that on is the user saying the data moves.
+
+When adding a setting that depends on the layer's CONTENTS rather than
+on the dialog's controls, it belongs in the fingerprint. When adding
+one that depends on the controls, it belongs in the signature beside
+the others — and think about which of the two signatures, because
+that is the line between re-tiling and re-painting.
+
 ## Invariants — do not break these
 
 1. **The worker thread never touches pyproj/PROJ.** QGIS uses the same

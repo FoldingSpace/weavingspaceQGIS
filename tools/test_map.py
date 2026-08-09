@@ -67,6 +67,19 @@ AREAS = [
   ("Agreement with the library",
    ("ui vs library", "library", "metamorphic", "differential",
     "random designs", "inset percentage")),
+  # Robustness comes BEFORE the output rule, and that order is the
+  # whole point. Matching is first-rule-wins on the test's display
+  # name, and the output rule's "layer" keyword is greedy: it claimed
+  # "hostile numbers", "a reprojected layer", "the layer changes
+  # without being edited" and two more, so the map reported five
+  # tests in the robustness area while a dozen sat elsewhere. A map
+  # that misplaces its own coverage is worse than no map, because it
+  # is consulted when deciding where to write tests next.
+  ("Robustness and the world outside",
+   ("hostile", "awkward", "locale", "data underneath", "data changed",
+    "qgis changes", "deps", "missing", "plugin lifecycle", "recover",
+    "nonsense", "extremes", "reprojected", "without being edited",
+    "will not say", "no crs", "refreshes itself", "uncommitted")),
   ("Output: layers, groups, GeoPackage",
    ("layer", "group", "gpkg", "geopackage", "output", "outline",
     "export", "region chooser")),
@@ -74,9 +87,6 @@ AREAS = [
    ("famil", "modifier", "rotate", "skew", "inset", "spacing",
     "catalogue", "catalog", "offset", "grid", "weave", "strand",
     "tiling", "design", "element count", "control")),
-  ("Robustness and the world outside",
-   ("hostile", "locale", "data underneath", "deps", "missing",
-    "plugin lifecycle", "recover")),
 ]
 
 

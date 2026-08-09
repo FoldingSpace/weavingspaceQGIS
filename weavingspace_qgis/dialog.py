@@ -118,6 +118,25 @@ def _plugin_version() -> str:
   return "unknown"
 
 
+def compat_layer_available(dialog, layer) -> bool:
+  """compat.layer_data_is_available, imported at the point of use.
+
+  Args:
+    dialog: unused; present so the live gate can call this as one
+      short line beside its other guards.
+    layer: the layer to test.
+
+  Returns:
+    Whatever compat.layer_data_is_available says.
+
+  This exists only to keep the import out of a guard clause in the
+  middle of the live-render gate, which is already a long list of
+  conditions and reads better without an import wedged into it.
+  """
+  from . import compat
+  return compat.layer_data_is_available(layer)
+
+
 def _polygon_filter():
   """Filter value so the region combo lists only polygon layers."""
   from . import compat
@@ -533,6 +552,26 @@ class WeavingSpaceDialog(QDialog):
     # which layer auto-spacing last ran for (it must run once per
     # newly chosen layer, never on the combo's spurious re-emissions)
     self._auto_spacing_layer = None
+    # Bumped whenever the region layer tells us it changed. The
+    # signatures below include it, so an edit made in QGIS while this
+    # dialog is open cannot be mistaken for "nothing has changed".
+    self._data_version = 0
+    self._watched_layer = None
+    self._watched_fields = ()
+    # None until a layer is chosen, so choosing the first one is not
+    # mistaken for the CRS having been changed underneath us.
+    self._watched_crs = None
+    # So that losing a layer can be told apart from never having had
+    # one: the dialog opens with the combo empty and that is not an
+    # event worth reporting.
+    self._had_a_layer = False
+    # Said once per layer, not once per debounce tick: a warning
+    # repeated every 900ms is one a user learns to stop reading.
+    self._said_live_cannot_track = False
+    # Likewise once per layer: a source that has gone stays gone, and
+    # repeating it on every debounce tick teaches the user to ignore
+    # the message line.
+    self._said_source_gone = False
     self._retire_previous_instance()
     self._adopt_existing_group()
     bridge.ensure_ramps_installed()
@@ -1083,6 +1122,28 @@ class WeavingSpaceDialog(QDialog):
     """
     self._cat_count_cache = {}
     layer = self.layer_combo.currentLayer()
+    # Hear the layer itself, not merely the fact that a different one
+    # was chosen: a user editing in QGIS never touches this combo.
+    if layer is not self._watched_layer:
+      self._watch_layer(layer)
+      self._said_live_cannot_track = False      # a new layer, a new answer
+      self._said_source_gone = False
+      self._watched_fields = tuple(
+        f.name() for f in layer.fields()) if layer is not None else ()
+      self._watched_crs = layer.crs().authid() if layer is not None else None
+    if layer is None and self._had_a_layer:
+      # The layer combo empties itself when its layer leaves the
+      # project, and does it silently. A user who removed a layer for
+      # some unrelated reason is otherwise left with a dialog whose
+      # controls all still look armed and a Generate button that will
+      # simply tell them to choose a layer.
+      self._had_a_layer = False
+      self._report_quietly(
+        "The region layer was removed from the project, so there is "
+        "nothing to map. Choose another layer.")
+    elif layer is not None:
+      self._had_a_layer = True
+    self._adapt_to_the_layer(layer)
     # derive spacing once per newly chosen layer; the combo re-emits
     # layerChanged whenever project layers shuffle (e.g. after every
     # generation), and that must not clobber a hand-set spacing
@@ -1095,13 +1156,341 @@ class WeavingSpaceDialog(QDialog):
     self._rebuild_unit()
     self._queue_live()
 
+  def _layer_fingerprint(self):
+    """What the region layer CONTAINS, cheaply enough to ask often.
+
+    Returns:
+      A comparable tuple — feature count, extent rounded to the metre,
+      field names, CRS — or None when no layer is chosen. Combined
+      with ``_data_version`` this goes into both signatures.
+
+    Why both this and the signals. This part is cheap, deterministic,
+    and catches edits made straight through the data provider, which
+    is what Processing and a good deal of plugin code do and which
+    emits nothing this dialog could hear. It cannot catch an edit that
+    leaves the count and the bounding box alone — a value retyped, a
+    vertex nudged inwards — which is exactly what the signals are for.
+    Neither mechanism covers the other's blind spot, so the plugin
+    uses both.
+
+    The extent is rounded because it is floating-point and asking
+    twice about an unchanged layer must give the same answer; a metre
+    is far below the size of anything these tiles are drawn at.
+    """
+    from . import compat
+    layer = self.layer_combo.currentLayer()
+    if layer is None:
+      return None
+    if not compat.layer_data_is_available(layer):
+      # The source is gone -- a deleted file, a dropped connection.
+      # Reading extent() here would segfault QGIS outright, so the
+      # fingerprint says "unavailable" and lets the callers refuse.
+      return ("unavailable",)
+    count = layer.featureCount()
+    if count < 0:
+      # The provider does not know yet. Remote sources -- WFS, OGC API
+      # - Features, an ArcGIS service, PostGIS over a slow link --
+      # answer -1 until they have fetched, and some only ever return an
+      # estimate. A number like that is worse than no number: it would
+      # report changes that never happened and hide ones that did,
+      # according to which way the estimate drifted. None says "not
+      # known", and _data_is_unobservable decides what to do about it.
+      #
+      # Nothing is bumped here. An earlier version incremented the
+      # data version from inside this method, which is a side effect
+      # in a getter and, worse, a loop: both signatures call this on
+      # every debounce tick, so an uncountable layer re-tiled
+      # continuously -- across a network, with nobody watching.
+      count = None
+    ext = layer.extent()
+    return (
+      count,
+      (round(ext.xMinimum()), round(ext.yMinimum()),
+       round(ext.xMaximum()), round(ext.yMaximum())),
+      tuple(f.name() for f in layer.fields()),
+      layer.crs().authid(),
+    )
+
+  def _data_is_unobservable(self) -> bool:
+    """Whether this layer can change without the plugin being able to tell.
+
+    Returns:
+      True for a layer that will not say how many features it has.
+      That is the honest signature of a source living somewhere else
+      -- a WFS, an OGC API - Features endpoint, an ArcGIS service, a
+      database over a slow link -- which can be rewritten on a server
+      with no file touched here and no signal raised.
+
+    There is no clever way to close this gap. Counting the features
+    ourselves means pulling the whole dataset across a network, and
+    doing that on a debounce tick is worse than the problem. So the
+    plugin is explicit about what it does not know, and the two
+    callers answer differently: see _restyle_only, which always
+    re-tiles such a layer when the user asks, and _maybe_live_generate,
+    which declines to chase it.
+    """
+    layer = self.layer_combo.currentLayer()
+    return layer is not None and layer.featureCount() < 0
+
+  def _bump_data_version(self, *_args):
+    """Record that the region layer changed under us.
+
+    Args:
+      *_args: whatever the emitting signal carries; all of them are
+        ignored, because the only thing being recorded is THAT
+        something changed.
+
+    Returns:
+      None. The counter feeds both signatures, so the next run cannot
+      be skipped as a no-op, and a live update is queued so a user
+      watching the map sees it follow their edit.
+    """
+    self._data_version += 1
+    # Follow the edit as well as recording it. This is the only place
+    # a field being renamed, dropped or retyped is heard: the layer
+    # COMBO does not change when a user edits the layer it is already
+    # pointed at, so _on_layer_changed never runs and an element would
+    # go on naming a column that has gone -- failing later, at the
+    # join, with a message about a missing column rather than about
+    # the edit that removed it.
+    self._adapt_to_the_layer(self._watched_layer)
+    self._queue_live()
+
+  # The layer signals worth hearing. Editing through QGIS's own tools
+  # goes through the edit buffer and ends in committedX / dataChanged;
+  # updatedFields covers a column added, dropped or renamed; crsChanged
+  # covers a CRS reassigned without reprojecting, which changes what
+  # every coordinate means without changing one of them.
+  _WATCHED_SIGNALS = ("dataChanged", "updatedFields", "crsChanged",
+                      "featureAdded", "featuresDeleted", "geometryChanged",
+                      "attributeValueChanged", "committedGeometriesChanges",
+                      "committedAttributeValuesChanges", "editingStopped",
+                      # A subset filter set in Layer Properties changes
+                      # which features exist for everything downstream,
+                      # without touching one of them.
+                      "subsetStringChanged",
+                      # The layer now reads from somewhere else, or has
+                      # been reloaded from a file that changed underneath
+                      # it. QGIS does not watch files, so this arrives
+                      # only when something asks the layer to reload --
+                      # the Reload command, an auto-refresh interval --
+                      # but when it does arrive the map is out of date.
+                      "dataSourceChanged")
+
+  # repaintRequested is deliberately NOT in that list, though it looks
+  # tempting. It fires on every style change too, and re-tiling on a
+  # style change is the exact cost the restyle fast path exists to
+  # avoid.
+
+  def _watch_layer(self, layer):
+    """Listen to the chosen layer, and stop listening to the last one.
+
+    Args:
+      layer: the newly chosen region layer, or None.
+
+    Returns:
+      None. Connections are made defensively: the signal list is
+      QGIS's, and a future release may drop one. A missing signal
+      should cost this plugin one blind spot, not an exception on
+      every layer change, so each is connected only if it exists.
+    """
+    previous = self._watched_layer
+    if previous is not None and previous is not layer:
+      # The whole loop is guarded, not merely the disconnect. When a
+      # layer is removed from the project its C++ object goes with it,
+      # and then even ASKING the Python wrapper for an attribute
+      # raises RuntimeError -- which is precisely the moment this runs,
+      # since removing the layer is what changed the combo.
+      try:
+        # repaintRequested is included on the way OUT whether or not it
+        # was connected on the way in: disconnecting something that was
+        # never connected is caught below, whereas leaving one behind
+        # would re-tile on every style change of a layer the user has
+        # moved on from.
+        for name in tuple(self._WATCHED_SIGNALS) + ("repaintRequested",):
+          signal = getattr(previous, name, None)
+          if signal is not None:
+            try:
+              signal.disconnect(self._bump_data_version)
+            except (TypeError, RuntimeError):
+              pass          # never connected; nothing to undo
+      except RuntimeError:
+        pass                # the layer is already gone, signals with it
+    self._watched_layer = layer
+    if layer is None:
+      return
+    # A layer QGIS reloads on a timer is one the user has declared
+    # dynamic, and its reload arrives as a repaint rather than as any
+    # of the editing signals. That is the ONLY circumstance in which
+    # repaintRequested is worth hearing: on an ordinary layer it also
+    # fires for every style change, and re-tiling on those is the whole
+    # cost the restyle fast path exists to avoid.
+    from . import compat          # imported here, as elsewhere in this file
+    names = list(self._WATCHED_SIGNALS)
+    if compat.layer_auto_refreshes(layer):
+      names.append("repaintRequested")
+    for name in names:
+      signal = getattr(layer, name, None)
+      if signal is not None:
+        try:
+          signal.connect(self._bump_data_version)
+        except (TypeError, RuntimeError):
+          pass
+
+  def _adapt_to_the_layer(self, layer):
+    """Follow the layer when an edit makes a setting untrue.
+
+    Args:
+      layer: the current region layer, or None.
+
+    Returns:
+      None. Settings may be changed, and anything changed is reported.
+
+    Adapting rather than only complaining, because in these cases
+    there is exactly one sensible answer and making the user find it
+    is busywork. Where there is NOT one sensible answer the dialog
+    does not guess: a field that vanished while another appeared may
+    be a rename or may be two unrelated edits, and quietly pointing an
+    element at the new column would map data the user never asked
+    for. That case unassigns the element and says so, which is the
+    honest response to an ambiguity.
+    """
+    if layer is None:
+      return
+    from . import compat
+    if not compat.layer_data_is_available(layer):
+      return                      # nothing safe to read; see _generate
+
+    # The spacing is a number of the LAYER's units, so a CRS change
+    # silently changes what it means: 500 metres becomes 500 feet, or
+    # 500 of whatever a layer with no CRS is counted in. Re-deriving
+    # is the only sensible answer -- the old number is not wrong so
+    # much as no longer about anything -- and it is exactly the kind
+    # of adaptation that must be announced, because a user who typed
+    # a spacing will otherwise find it changed with no explanation.
+    authid = layer.crs().authid()
+    if self._watched_crs is not None and authid != self._watched_crs:
+      self._watched_crs = authid
+      before = self.spacing_spin.value()
+      self._auto_spacing()
+      after = self.spacing_spin.value()
+      if abs(after - before) > 1e-9:
+        self._report_quietly(
+          f"The layer's coordinate system changed, so the spacing has "
+          f"been recalculated as {after:,.6f}".rstrip("0").rstrip(".")
+          + " " + compat.map_unit_label(layer) + ".")
+    else:
+      self._watched_crs = authid
+
+    names = tuple(f.name() for f in layer.fields())
+    if names == self._watched_fields:
+      return
+    lost = [n for n in self._watched_fields if n not in names]
+    self._watched_fields = names
+
+    # Whatever else changed, the choosers must now offer exactly the
+    # columns the layer has. A column ADDED in QGIS -- the Field
+    # Calculator is the usual way -- was previously invisible here
+    # until the user switched layers and back, with nothing on screen
+    # to suggest that was the remedy.
+    #
+    # In place, never by rebuilding the table: a rebuild replaces every
+    # cell widget, and one arriving mid-interaction is the "race among
+    # choosers" this project has already paid for once, where an open
+    # dropdown dies and the pick commits to a dead widget. Editing the
+    # items of the existing combos leaves widget identity alone, which
+    # is what that race's regression test checks.
+    wanted = ["---"] + list(names)
+    # What each row was showing BEFORE the item lists are rewritten.
+    # Rewriting them drops any selection naming a column that has gone,
+    # so a later pass asking "which rows lost their column" would find
+    # none: they would all read "---" already, and the re-default below
+    # would never fire. Read first, then rewrite.
+    chosen_by_row = {}
+    for row in range(self.table.rowCount()):
+      combo = self.table.cellWidget(row, 1)
+      if combo is not None and hasattr(combo, "currentText"):
+        chosen_by_row[row] = combo.currentText()
+    for row in range(self.table.rowCount()):
+      combo = self.table.cellWidget(row, 1)
+      if combo is None or not hasattr(combo, "itemText"):
+        continue
+      if [combo.itemText(i) for i in range(combo.count())] == wanted:
+        continue
+      chosen = chosen_by_row.get(row, combo.currentText())
+      combo.blockSignals(True)
+      combo.clear()
+      combo.addItems(wanted)
+      # A choice that survived the edit is kept; one whose column has
+      # gone falls back to unassigned, and the message below says so.
+      combo.setCurrentText(chosen if chosen in wanted else "---")
+      combo.blockSignals(False)
+
+    if not lost:
+      return
+    # An element pointed at a column that is no longer there. Leaving
+    # it would fail at the join, deep inside a run, with a message
+    # about a missing column rather than about the user's own edit.
+    #
+    # It re-defaults to a surviving field rather than being unassigned,
+    # and that is a settled decision rather than a convenience: losing
+    # a column costs an element its VARIABLE, not its place on the map.
+    # An element left unassigned draws as flat fill, so a deletion in
+    # QGIS would quietly cost the map two of its four variables. The
+    # preference is the same one _refresh_table uses -- numeric fields,
+    # skipping the ones that are obviously row identifiers -- because
+    # two rules for "which field would this element sensibly show"
+    # would drift apart and then disagree in front of a user.
+    fields = self._layer_fields()
+    id_like = {"fid", "objectid", "id", "gid", "ogc_fid"}
+    numeric = [f for f in fields if self._field_is_numeric(f)]
+    preferred = [f for f in numeric if f.lower() not in id_like] \
+        or numeric or fields
+    moved = []
+    for row in range(self.table.rowCount()):
+      combo = self.table.cellWidget(row, 1)
+      was = chosen_by_row.get(row)
+      if combo is None or was not in lost:
+        continue
+      identifier = self.table.item(row, 0)
+      now = preferred[row % len(preferred)] if preferred else "---"
+      combo.blockSignals(True)
+      combo.setCurrentText(now)
+      combo.blockSignals(False)
+      moved.append((was, now))
+      # the hand-picked category colours belonged to the OLD field and
+      # mean nothing for the new one; they are keyed by field, so the
+      # element's other fields keep theirs
+      if identifier is not None:
+        self._category_colours.get(identifier.text(), {}).pop(was, None)
+    if moved:
+      gone = sorted({was for was, _ in moved})
+      landed = sorted({now for _, now in moved if now != "---"})
+      if landed:
+        self._report_quietly(
+          f"{', '.join(gone)} is no longer in the layer, so the "
+          f"elements using it now show "
+          f"{', '.join(landed)} instead.")
+      else:
+        self._report_quietly(
+          f"{', '.join(gone)} is no longer in the layer, and there is "
+          f"nothing left to show in its place.")
+
   def _auto_spacing(self):
     """Derive a coarse spacing from the layer extent (about fifteen
     repeating units across), rounded to a clean number. Degrees are
     scaled to rough metres because geographic layers get reprojected
     to Web Mercator before tiling."""
+    from . import compat
     layer = self.layer_combo.currentLayer()
     if layer is None:
+      return
+    if not compat.layer_data_is_available(layer):
+      # extent() on a layer whose source has gone segfaults QGIS; see
+      # compat.layer_data_is_available.
+      self._report_quietly(
+        "That layer's data is no longer available, so a spacing "
+        "cannot be suggested.")
       return
     ext = layer.extent()
     dim = max(ext.width(), ext.height())
@@ -1116,7 +1505,7 @@ class WeavingSpaceDialog(QDialog):
       # answer either way.
       self._report_quietly(
         "That layer has no usable extent, so a spacing cannot be "
-        "suggested. Set its CRS, or type a spacing.")
+        "suggested. Type a spacing instead.")
 
   def _layer_fields(self) -> list[str]:
     """Attribute (column) names of the region layer; ``fields()`` is
@@ -1222,6 +1611,30 @@ class WeavingSpaceDialog(QDialog):
       return
     layer = self.layer_combo.currentLayer()
     if layer is None or self._unit is None:
+      return
+    if not compat_layer_available(self, layer):
+      # Same crash, reached from the live path -- and reachable long
+      # before any of this session's changes: live update on, the file
+      # deleted underneath, and QGIS is gone with no diagnostic.
+      if not self._said_source_gone:
+        self._said_source_gone = True
+        self._report_quietly(
+          "That layer's data is no longer available, so the map "
+          "cannot be updated.")
+      return
+    if self._data_is_unobservable():
+      # Live update works by noticing that something changed. This
+      # layer will not say, so the only way to keep up would be to
+      # re-tile on every tick -- which for a remote source means
+      # fetching somebody's whole dataset over and over, unattended,
+      # because a dialog happens to be open. Say so instead, once, and
+      # leave Generate to do it when the user actually wants it.
+      if not self._said_live_cannot_track:
+        self._said_live_cannot_track = True
+        self._report_quietly(
+          "This layer does not report how many features it has, so "
+          "live update cannot tell when it changes. Press Generate to "
+          "redraw it.")
       return
     if not any(a["var"] for a in self._assignments()):
       return
@@ -1916,7 +2329,7 @@ class WeavingSpaceDialog(QDialog):
       mode_combo.setProperty(
         "touched", bool(prev and prev.get("style_touched")))
       mode_combo.activated.connect(
-        lambda _i, c=mode_combo: c.setProperty("touched", True))
+        lambda _i, c=mode_combo, v=var_combo: self._on_mode_chosen(c, v))
       mode_combo.currentIndexChanged.connect(
         self._refresh_preview_colours)
       self.table.setCellWidget(row, 2, mode_combo)
@@ -2265,6 +2678,16 @@ class WeavingSpaceDialog(QDialog):
         scheme = self.GRAD_SCHEMES[mode_raw]
       else:
         mode = mode_raw
+      # A graduated renderer classifies NUMBERS, and over a text field
+      # it comes back with no ranges at all, so every tile falls
+      # outside every class and the layer draws as nothing. The
+      # choosers are corrected as the user works (_on_mode_chosen,
+      # _follow_variable), but this is the one place every consumer
+      # reads -- the run, the restyle fast path, the signature, a
+      # session restored from a saved project -- so the correction is
+      # made here as well and cannot be got round.
+      if mode == "Graduated" and var and not self._field_is_numeric(var):
+        mode, mode_raw, scheme = "Categorized", "Categorized", "Quantiles"
       choice = (file_combo.currentData() if file_combo is not None
                 else self._class_choices.get(
                   id_item.text() if id_item else "", ""))
@@ -2321,6 +2744,45 @@ class WeavingSpaceDialog(QDialog):
       return "Single colour"
     return "Quant: Quantiles" if self._field_is_numeric(var_text) \
       else "Categorized"
+
+  def _on_mode_chosen(self, mode_combo, var_combo):
+    """React to the user picking an element's style by hand.
+
+    Args:
+      mode_combo: the style chooser just used. It is marked as
+        touched, which is what stops the style following the field's
+        type from then on.
+      var_combo: the same row's variable chooser, read for the field
+        the style would apply to.
+
+    Returns:
+      None. The style may be snapped back to Categorized, and the
+      user told why.
+
+    _follow_variable already covers one order: a style chosen, then
+    the variable changed to text. This is the order it cannot see --
+    the text field chosen FIRST, then a Quant: style picked on top of
+    it. Nothing corrected that, so the chooser went on reading
+    "Quant: Quantiles" while the map was drawn by a graduated
+    renderer over words. Such a renderer has no ranges at all, every
+    tile falls outside every class, and all of the element layers
+    paint nothing whatever -- a run that reports success and produces
+    an empty map.
+    """
+    mode_combo.setProperty("touched", True)
+    var = var_combo.currentText()
+    if mode_combo.currentText() in self.GRAD_SCHEMES and \
+        var not in ("", "---") and not self._field_is_numeric(var):
+      # blockSignals so the correction does not read as another user
+      # choice; the preview refresh the signal would have done is
+      # called directly instead.
+      mode_combo.blockSignals(True)
+      mode_combo.setCurrentText("Categorized")
+      mode_combo.blockSignals(False)
+      self._report_quietly(
+        f"'{var}' holds text, so it is drawn as categories rather "
+        f"than a range of values.")
+      self._refresh_preview_colours()
 
   def _follow_variable(self, var_combo, mode_combo):
     """Keep a row's style in step with its variable.
@@ -2412,6 +2874,13 @@ class WeavingSpaceDialog(QDialog):
       self.opt_outlines.isChecked(),
       self.gpkg_widget.filePath().strip() or None,
       tuple(sorted(a["var"] for a in self._assignments() if a["var"])),
+      # What the layer HOLDS, not merely which layer it is. Without
+      # this, deleting half the features left every term here
+      # identical, so the run was treated as a style-only change and
+      # answered by re-seeding the renderers on tiles built from data
+      # that no longer existed -- a map of deleted places, redrawn on
+      # demand and never marked as out of date.
+      self._layer_fingerprint(), self._data_version,
     )
 
   def _restyle_only(self) -> bool:
@@ -2435,6 +2904,14 @@ class WeavingSpaceDialog(QDialog):
       # "Create as new group" asks for a SECOND result to compare
       # against, which repainting the first one cannot provide, even
       # though nothing about the geometry changed
+      return False
+    if self._data_is_unobservable():
+      # A layer that will not say how many features it has may have
+      # been rewritten on a server since the last run, with nothing
+      # locally to show for it. The fingerprint cannot see that, so
+      # the fast path would repaint tiles built from data that is no
+      # longer there. The user pressed Generate: re-tile, and let the
+      # cost be the price of an answer that is actually current.
       return False
     if self._geometry_signature() != self._last_geometry_sig:
       return False
@@ -2517,6 +2994,10 @@ class WeavingSpaceDialog(QDialog):
              a.get("single_colour"), a.get("reverse", False),
              a.get("opacity", 100))
             for a in self._assignments()),
+      # See _geometry_signature: live update compares this tuple to
+      # decide a run would be a no-op, and an edit to the layer must
+      # not look like one.
+      self._layer_fingerprint(), self._data_version,
     )
 
   @staticmethod
@@ -2606,6 +3087,19 @@ class WeavingSpaceDialog(QDialog):
         "You asked to keep the previous result as its own group, but "
         "writing to the same GeoPackage would overwrite its data. "
         "Choose a different file for this run.")
+      return
+
+    from . import compat
+    if not compat.layer_data_is_available(layer):
+      # Reading from a layer whose source has gone is not merely an
+      # error: extent() alone segfaults QGIS. Refuse while there is
+      # still a plugin here to refuse with.
+      if not live:
+        QMessageBox.critical(
+          self, "WeavingSpace",
+          "That layer's data is no longer available. Its file may "
+          "have been moved or deleted. Reload it in QGIS, or choose "
+          "another layer.")
       return
 
     fields = sorted({a["var"] for a in assignments if a["var"]})
@@ -2745,6 +3239,22 @@ class WeavingSpaceDialog(QDialog):
         if note is not None:
           self._report_quietly(note)
           self._pending_colour_note = None
+        # A column that turned out to hold one value everywhere. The
+        # renderer has already collapsed to a single class (see
+        # bridge.make_graduated_renderer); this is the half of it the
+        # user can read. Taken from the frame just mapped rather than
+        # from the layer, which is where the values actually went, and
+        # deduplicated because several elements may share one field.
+        said_constant = set()
+        for assignment in assignments:
+          field = assignment.get("var")
+          if not field or assignment.get("mode") != "Graduated":
+            continue
+          if field in said_constant or field not in gdf.columns:
+            continue
+          if bridge.numeric_values_are_constant(gdf[field]):
+            said_constant.add(field)
+            self._report_quietly(bridge.constant_field_message(field))
         for assignment in assignments:
           field = assignment.get("var")
           if not field or assignment.get("mode") != "Categorized":

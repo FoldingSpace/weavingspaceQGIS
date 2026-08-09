@@ -143,6 +143,71 @@ and the pass/fail set before and after; they must match exactly.
 
 ## Lessons, each paid for once
 
+**An invariant can demand that the software get it wrong.** The
+sequence test asserted that every edit changes the map. Two of its
+steps then failed, and both times the plugin was right and the test
+was not. Dropping the only mapped column leaves nothing assigned, so
+the run is refused and the previous map stays -- correctly, and out
+loud. Reprojecting a 3857 layer to 4326 gives back the SAME map,
+because geographic layers are reprojected to Web Mercator before
+tiling, so the tiles arrive where they began. A sweeping invariant
+("everything changes the map") is comfortable to write and will
+quietly encode a misunderstanding; state the expected behaviour per
+step, and when a step surprises you, work out which of the two of you
+is wrong before changing either.
+
+**Assert what must be true, not the easiest observable nearby.** The
+same test asserted that the spacing NUMBER changes when the CRS does.
+It does not: reprojecting the same ground re-derives the same
+metre-equivalent spacing, so 500 stays 500 -- which is the
+degrees-against-metres equivalence holding. What must be true is that
+the plugin NOTICED, so the assertion is on the dialog's record of the
+CRS.
+
+**A stub that collects nothing hides whatever passes through it.** The
+message-bar stub absorbed its calls and returned a FRESH instance per
+`messageBar()` call, on the reasoning that a test wanting to know what
+was said could read the dialog's note line instead. That reasoning was
+wrong twice over. `_report_quietly` writes to the note line only when
+there is NO iface, so the path a real user is on went nowhere
+observable; and after a run the note line is cleared within a second
+anyway, because adding output layers makes the layer combo re-emit,
+which queues a live render, whose first act is to clear it. Every
+notice the plugin raises after a run — areas that received no tiles,
+categories whose colours moved, a constant column — was therefore
+invisible to the suite in both paths at once, and the coverage notice
+had been shipping unverified for months. `_Bar` now records into
+`BAR_MESSAGES`, which `check` clears per test. A stub exists to keep
+the code path identical, not to swallow the evidence.
+
+**"Immediately" is one interleaving out of many.** Race tests here
+fired their second action with no delay, which only ever exercises the
+state before any debounce has fired. The dialog has two debounces (350
+ms preview, 900 ms live) and a task whose completion does main-thread
+work, so an action at 400 ms meets a different machine from one at 0
+ms, and one at 1,000 ms meets a third.
+`test_staggered_actions_during_a_run` sweeps a delay across both
+boundaries for each action. When adding a race test, ask which
+*stages* exist, not merely whether two things can happen at once.
+
+**A fixture can make a case vacuous without failing.** The first
+version of the simplify case built square regions — and Douglas-
+Peucker keeps every vertex of a square, so "simplify" returned the
+identical polygon and the test asserted that an unchanged region gave
+an unchanged map. It passed for a while as a fix was being written,
+proving nothing. The polygons now carry a notch that simplification
+actually removes. Whenever a test mutates a fixture, check that the
+mutation CHANGED it.
+
+**Fingerprint the thing the user would notice.** That same test
+compared tile count and extent, both of which survive a region being
+reshaped inside its own bounding box, while the map genuinely changes
+because each tile has drawn from a different area. The fingerprint now
+reads the VALUES joined onto the tiles. A comparison that cannot see
+the defect is not a weaker test, it is a passing one.
+
+
+
 **Tests must run with an EMPTY project.** Everything shares the one
 QgsProject singleton, so a test that leaves layers behind changes
 which layer the next dialog picks. A single real failure once cascaded

@@ -49,6 +49,7 @@ import json
 import math
 import os
 import random
+import re
 import signal
 import sys
 import tempfile
@@ -175,6 +176,7 @@ def check(name, fn):
   project = QgsProject.instance()
   project.clear()
   MODALS.clear()
+  BAR_MESSAGES.clear()
   started = time.perf_counter()
   try:
     fn()
@@ -668,22 +670,39 @@ def test_support_logic():
     assert compat.classification_method(scheme) is not None, scheme
 
 
+BAR_MESSAGES = []
+
+
 class _Bar:
-  """A stand-in for QGIS's message bar, for tests that run headless.
+  """A stand-in for QGIS's message bar that REMEMBERS what it was told.
 
   The real bar belongs to the QGIS main window, which does not exist
-  here. Collecting nothing is deliberate: tests that care what was
-  said read the dialog's own note line instead, and a stub that
-  merely absorbs the call keeps the code path identical to a real
-  session's.
+  here. It used to absorb the calls and collect nothing, on the
+  reasoning that a test wanting to know what was said could read the
+  dialog's own note line instead. That reasoning was wrong, and it hid
+  a whole class of behaviour:
+
+  ``_report_quietly`` writes to the note line ONLY when there is no
+  iface. With one, the notice goes to this bar -- which is the path a
+  real user is on. And the note line is no good as a substitute after
+  a RUN, because adding output layers makes the layer combo re-emit,
+  which queues a live render, whose first act is to clear the note
+  (dialog._maybe_live_generate). So every notice this plugin raises
+  after a run -- areas that received no tiles, categories whose
+  colours moved, a column that turned out constant -- was invisible to
+  the suite in both paths at once.
+
+  Messages land in the module-level BAR_MESSAGES, which ``check``
+  clears before each test, so a test can assert what a user would have
+  read.
   """
   def pushSuccess(self, *a):
-    """Absorb a success notice, as the real bar would display one."""
-    pass
+    """Record a success notice, as the real bar would display one."""
+    BAR_MESSAGES.append(("success", " ".join(str(x) for x in a)))
 
   def pushWarning(self, *a):
-    """Absorb a warning, as the real bar would display one."""
-    pass
+    """Record a warning, as the real bar would display one."""
+    BAR_MESSAGES.append(("warning", " ".join(str(x) for x in a)))
 
 
 class _Iface:
@@ -698,9 +717,25 @@ class _Iface:
     """The parent a real dialog would be given; None is accepted."""
     return None
 
+  def __init__(self):
+    # ONE bar, not a fresh one per call. Handing out a new instance
+    # each time made the recording above impossible to use: whatever
+    # the plugin pushed went to an object the test never saw again.
+    self._bar = _Bar()
+
   def messageBar(self):
-    """The stub bar, so pushWarning and pushSuccess have somewhere to go."""
-    return _Bar()
+    """The stub bar, so pushWarning and pushSuccess have somewhere to go.
+
+    Created on demand rather than only in __init__. Subclasses of this
+    stub define their own __init__ and do not all call super(), and an
+    AttributeError raised inside a Qt signal handler does not fail a
+    test -- Qt aborts the process, taking the whole suite with it and
+    reporting a fatal error rather than a failure. That happened here
+    exactly once, which is once more than it should.
+    """
+    if not hasattr(self, "_bar"):
+      self._bar = _Bar()
+    return self._bar
 
 
 def _generate_and_wait(dlg):
@@ -1936,6 +1971,4357 @@ def test_awkward_layers_are_handled_or_declined():
 
   assert not trouble, "awkward layers mishandled:\n  " + \
     "\n  ".join(trouble)
+
+
+def _hostile_number_layers():
+  """The layers whose NUMBERS, rather than whose shapes, are hostile.
+
+  Returns:
+    A list of (label, layer, bar) where bar says what this case has to
+    achieve. Built as a function rather than inline so the fixtures
+    are described in one place and the test below reads as the
+    question it asks.
+
+  Geometry that is merely awkward is covered elsewhere
+  (test_awkward_layers_are_handled_or_declined, hostile_layers). What
+  is NOT covered is arithmetic: coordinates measured in degrees, where
+  every number is smaller by five orders of magnitude than anything
+  the guards were written against; attribute values that are not
+  finite; and a layer that declines to say what its coordinates mean
+  at all.
+  """
+  from qgis.core import QgsCoordinateReferenceSystem
+  from weavingspace_qgis import compat
+  made = []
+
+  def grid(name, crs, cell, values, n=4, field="v1"):
+    layer = QgsVectorLayer(f"Polygon?crs={crs}", name, "memory")
+    layer.dataProvider().addAttributes([compat.make_field(field, float)])
+    layer.updateFields()
+    feats, k = [], 0
+    for i in range(n):
+      for j in range(n):
+        x, y = i * cell, j * cell
+        ring = [QgsPointXY(x, y), QgsPointXY(x + cell, y),
+                QgsPointXY(x + cell, y + cell), QgsPointXY(x, y + cell)]
+        f = QgsFeature(layer.fields())
+        f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+        f[field] = values[k % len(values)]
+        feats.append(f)
+        k += 1
+    layer.dataProvider().addFeatures(feats)
+    layer.updateExtents()
+    return layer
+
+  values = [1.0, 2.0, 3.0, 4.0]
+  # 0.01 degrees is about 1113 m at the equator, so this layer and the
+  # next describe the SAME piece of ground in different units.
+  made.append(("a layer in degrees",
+               grid("degrees", "EPSG:4326", 0.01, values),
+               "must produce a map of the same grain as the same "
+               "ground in metres"))
+  made.append(("the same ground in metres",
+               grid("metres", "EPSG:3857", 1113.0, values),
+               "the yardstick the degree case is measured against"))
+  made.append(("infinities and NaN in the data",
+               grid("nonfinite", "EPSG:3857", 1000.0,
+                    [1.0, float("inf"), float("nan"), -float("inf"), 2.0]),
+               "must not crash on values no class break can fall "
+               "between"))
+  no_crs = grid("no crs", "EPSG:3857", 1000.0, values)
+  no_crs.setCrs(QgsCoordinateReferenceSystem())
+  made.append(("a layer with no CRS at all", no_crs,
+               "must tile in the layer's own coordinates AND leave "
+               "the output saying it does not know the CRS either"))
+  return made
+
+
+def test_hostile_numbers_are_handled_or_declined():
+  """Layers whose arithmetic is hostile, not whose geometry is.
+
+  Four cases, each a real import:
+
+    a layer in degrees, where the extent is 0.04 wide rather than
+      4,000, so auto-spacing and the tile-count guard meet numbers
+      five orders of magnitude from anything they were written
+      against. This is the likeliest of the four to be met on a first
+      afternoon, since a downloaded shapefile is usually WGS84;
+    the same ground in metres, which is the yardstick: a plugin that
+      handles degrees by accident, giving a map of a wildly different
+      grain, has not handled them;
+    infinities and NaN in a double column, which reach classification
+      and the ramp;
+    a layer with no CRS at all, which QGIS permits and which some
+      users genuinely want -- a floor plan, a scanned map, a diagram
+      -- so the right behaviour is to get on with it rather than to
+      complain.
+
+  The degree case is checked by EQUIVALENCE rather than by a
+  threshold. The same ground described two ways should give maps of
+  the same grain, and that is a statement about the plugin rather
+  than about a number somebody chose: if the reprojection scaling in
+  _auto_spacing were dropped, degrees would auto-space to about 0.005
+  and ask for hundreds of millions of tiles, which no threshold has
+  to be invented to notice.
+
+  The no-CRS case checks the OUTPUT's CRS as well as the map, and
+  that half is the regression: the input said it did not know, and
+  the output used to say EPSG:4326 -- coordinates in the thousands
+  presented as degrees, a map placed at longitude 3197 that QGIS
+  would cheerfully reproject as though the number meant something.
+  No warning is raised for it, deliberately: a layer without a CRS is
+  sometimes exactly what a user has and wants.
+
+  Regression: a layer with no CRS produced output layers stamped EPSG:4326, because a memory layer whose URI names no CRS is given 4326 by QGIS rather than left blank.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  trouble = []
+  counts = {}
+  for label, layer, bar in _hostile_number_layers():
+    project = QgsProject.instance()
+    for existing in list(project.mapLayers().values()):
+      project.removeMapLayer(existing.id())
+    MODALS.clear()
+    if not layer.isValid():
+      trouble.append(f"{label}: the fixture itself is invalid")
+      continue
+    project.addMapLayer(layer)
+    dlg = None
+    try:
+      dlg = WeavingSpaceDialog(iface=None)
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(300)                    # let auto-spacing derive its value
+      dlg._generate()
+      if not _settle(dlg, seconds=60):
+        trouble.append(f"{label}: never settled — the plugin hung; {bar}")
+        continue
+      _tick(200)
+      outputs = [QgsProject.instance().mapLayer(i)
+                 for i in dlg._element_layer_ids.values()]
+      outputs = [o for o in outputs if o is not None]
+      counts[label] = sum(o.featureCount() for o in outputs)
+      made = bool(outputs)
+      said = bool(dlg.live_note.text().strip()) or bool(MODALS)
+      if not made and not said:
+        trouble.append(f"{label}: no output and no message; {bar}")
+      if label == "a layer with no CRS at all":
+        if not made:
+          trouble.append(
+            f"{label}: produced nothing. A layer with no CRS is tiled "
+            f"in its own coordinates and should simply work; {bar}")
+        for out in outputs:
+          if out.crs().isValid():
+            trouble.append(
+              f"{label}: the output layer claims {out.crs().authid()}, "
+              f"a CRS the input never had. Coordinates here run to "
+              f"thousands, so calling them degrees puts the map "
+              f"somewhere impossible and invites QGIS to reproject it")
+            break
+    except Exception as exc:
+      trouble.append(f"{label}: raised {type(exc).__name__}: {exc}")
+    finally:
+      if dlg is not None:
+        dlg.close()
+
+  degrees = counts.get("a layer in degrees", 0)
+  metres = counts.get("the same ground in metres", 0)
+  if degrees and metres:
+    ratio = degrees / metres
+    if not 0.5 <= ratio <= 2.0:
+      trouble.append(
+        f"the same ground gave {degrees:,} tiles in degrees and "
+        f"{metres:,} in metres (ratio {ratio:.3f}). A geographic layer "
+        f"is reprojected before tiling, so the two should agree; a "
+        f"large ratio means the spacing was read in the wrong units")
+  elif not degrees:
+    trouble.append("the layer in degrees produced no tiles at all")
+
+  assert not trouble, "hostile numbers mishandled:\n  " + \
+    "\n  ".join(trouble)
+
+
+def test_a_quantitative_style_never_stands_on_text():
+  """A quantitative style on a field of words must not paint nothing.
+
+  A graduated renderer classifies numbers. Over a text field QGIS
+  builds one with NO ranges at all, so every tile falls outside every
+  class and the layer draws as nothing — four element layers, each
+  full of features, painting an empty map while the run reports
+  success. That is the exact failure
+  test_hostile_data_does_not_defeat_the_plugin names as unacceptable:
+  a group of empty layers that looks like it worked.
+
+  The dialog already yielded a Quant: style to Categorized when the
+  VARIABLE changed to text. The hole was the other order — choose the
+  text field first, then pick a quantitative style on top of it —
+  which nothing corrected.
+
+  Both halves are checked, because either alone is still a defect:
+  what the map DOES (every feature paints), and what the chooser SAYS
+  (it must not go on offering a style the map is not using). A
+  control that lies about the map is worse than one that corrects
+  itself.
+
+  Regression: choosing a Quant: style on a text field produced a graduated renderer with no ranges, so 0 of 112 features painted and four empty layers were reported as a successful run.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from qgis.core import QgsRenderContext
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg.table.cellWidget(1, 1).setCurrentText("landcover")
+  _tick(100)
+
+  # The chooser, driven the way a click drives it: activated is what
+  # marks the style as hand-picked, and a programmatic setCurrentText
+  # alone leaves that flag off — which is why an earlier version of
+  # this check passed against the broken build.
+  mode = dlg.table.cellWidget(1, 2)
+  index = mode.findText("Quant: Quantiles")
+  mode.setCurrentIndex(index)
+  mode.activated.emit(index)
+  _tick(150)
+  assert dlg.table.cellWidget(1, 2).currentText() == "Categorized", \
+    f"the style chooser still reads " \
+    f"{dlg.table.cellWidget(1, 2).currentText()!r} on a text field, " \
+    f"so it is describing a map the plugin will not draw"
+  assert "text" in dlg.live_note.text().lower(), \
+    f"nothing was said about the correction: {dlg.live_note.text()!r}"
+
+  # And structurally, however the state arrived. This half must be
+  # driven WITHOUT the activated signal: setCurrentText does not fire
+  # it, so _on_mode_chosen never runs and the combo is left genuinely
+  # reading "Quant: Quantiles" over a text field -- which is the state
+  # a restored project or a future code path could produce. Only the
+  # guard in _assignments stands between that state and a map of
+  # nothing. Driving this through the signal instead let the whole
+  # structural guard be deleted with this test still passing.
+  mode = dlg.table.cellWidget(1, 2)
+  mode.blockSignals(True)
+  mode.setCurrentText("Quant: Quantiles")
+  mode.blockSignals(False)
+  mode.setProperty("touched", True)
+  _tick(100)
+  assert mode.currentText() == "Quant: Quantiles", \
+    "the test failed to put the chooser into the state it means to test"
+  for assignment in dlg._assignments():
+    if assignment["var"] == "landcover":
+      assert assignment["mode"] != "Graduated", \
+        "an assignment still carries Graduated over a text field, so " \
+        "the run will build a renderer with no classes and paint " \
+        "nothing"
+
+  dlg.spacing_spin.setValue(400)
+  dlg._generate()
+  assert _settle(dlg, seconds=60), "the run never settled"
+  _tick(200)
+  checked = 0
+  for lid in dlg._element_layer_ids.values():
+    out = QgsProject.instance().mapLayer(lid)
+    if out is None or out.featureCount() == 0:
+      continue
+    renderer = out.renderer()
+    context = QgsRenderContext()
+    renderer.startRender(context, out.fields())
+    painted = sum(1 for f in out.getFeatures()
+                  if renderer.symbolForFeature(f, context) is not None)
+    renderer.stopRender(context)
+    assert painted == out.featureCount(), \
+      f"{painted} of {out.featureCount()} features would paint in " \
+      f"{out.name()}; the rest fall outside every class and the map " \
+      f"is silently empty there"
+    checked += 1
+  assert checked >= 1, "no output layer was checked; the test proved nothing"
+  dlg.close()
+
+
+def test_a_constant_column_draws_one_class_and_says_so():
+  """A column with one value everywhere gets one class, and a notice.
+
+  Asked for five classes over a column that is 7 everywhere, QGIS
+  returns five, every one of them reading "7 - 7", each in a
+  different colour. The MAP was never wrong — every feature lands in
+  the first class, so it draws in one colour — but the legend beside
+  it shows five, and the legend is the part a reader trusts to say
+  what the colours mean.
+
+  So: one class, and say so. The saying matters as much as the
+  collapse, because a user looking at a flat map needs to know the
+  cause is the data rather than the pattern, and nothing else on
+  screen tells them.
+
+  The notice is read from the MESSAGE BAR, not the dialog's note
+  line. That is where a real session's notices go, and the note line
+  is no use here anyway: adding output layers makes the layer combo
+  re-emit, which queues a live render, which clears the note within a
+  second of the run finishing.
+
+  Regression: a constant column produced five identical classes in five colours; the user's own instruction was that it should revert to a single class with a warning.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import compat
+  layer = QgsVectorLayer("Polygon?crs=EPSG:3857", "constant", "memory")
+  layer.dataProvider().addAttributes([compat.make_field("v", float)])
+  layer.updateFields()
+  feats = []
+  for k in range(9):
+    i, j = k % 3, k // 3
+    x, y = i * 1000.0, j * 1000.0
+    ring = [QgsPointXY(x, y), QgsPointXY(x + 1000, y),
+            QgsPointXY(x + 1000, y + 1000), QgsPointXY(x, y + 1000)]
+    f = QgsFeature(layer.fields())
+    f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+    f["v"] = 7.0
+    feats.append(f)
+  layer.dataProvider().addFeatures(feats)
+  layer.updateExtents()
+  QgsProject.instance().addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg.table.cellWidget(1, 1).setCurrentText("v")
+  _tick(150)
+  assert any(a["mode"] == "Graduated" and a["var"] == "v"
+             for a in dlg._assignments()), \
+    "the numeric column did not get a quantitative style, so this " \
+    "test is not exercising what it claims"
+  dlg.spacing_spin.setValue(400)
+  dlg._generate()
+  assert _settle(dlg, seconds=60), "the run never settled"
+  _tick(250)
+
+  checked = 0
+  for lid in dlg._element_layer_ids.values():
+    out = QgsProject.instance().mapLayer(lid)
+    if out is None or out.featureCount() == 0:
+      continue
+    renderer = out.renderer()
+    if not hasattr(renderer, "ranges"):
+      continue
+    ranges = list(renderer.ranges())
+    assert len(ranges) == 1, \
+      f"{out.name()} has {len(ranges)} classes over a column that is " \
+      f"7 everywhere: " \
+      f"{[(r.lowerValue(), r.upperValue()) for r in ranges]}. A legend " \
+      f"showing variation the data does not have misleads the reader"
+    checked += 1
+  assert checked >= 1, "no graduated layer was checked"
+
+  said = " ".join(text for _kind, text in BAR_MESSAGES)
+  assert "same value" in said, \
+    f"nothing told the user the column is constant; the bar received " \
+    f"{BAR_MESSAGES!r}. A flat map with no explanation reads as a " \
+    f"fault in the pattern"
+  dlg.close()
+
+
+def test_awkward_attribute_values_keep_their_meaning():
+  """Attribute mess that a fixed column type cannot prevent.
+
+  A QGIS field has one type, so a space cannot hide inside a double
+  column. The same mess arrives by other doors, and each of these is
+  an ordinary import:
+
+    numbers living in a text column ("1", "2", "10", "100"), which is
+      what a CSV gives when the column was quoted;
+    stray whitespace, so "3" and " 3" are distinct values that look
+      identical in a legend;
+    an empty string beside a genuine NULL, which are different facts
+      about a place and must not be merged.
+
+  What is checked is that each distinct value SURVIVES as its own
+  class. The temptation in every one of these cases is to tidy —
+  trim the whitespace, fold the empty string into no-data — and
+  tidying is a silent edit of somebody's data. Two areas that differ
+  in the table must differ on the map, even when the difference is
+  one the reader will have to go back to the data to understand.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import compat
+  cases = [
+    ("numbers in a text column", ["1", "2", "10", "100", "2", "10"], 4),
+    ("stray whitespace", ["3", " 3", "3 ", "4", "4", "3"], 4),
+    ("an empty string beside NULL", ["a", "", None, "b", "", "a"], 3),
+  ]
+  trouble = []
+  for label, values, expected in cases:
+    project = QgsProject.instance()
+    for existing in list(project.mapLayers().values()):
+      project.removeMapLayer(existing.id())
+    MODALS.clear()
+    layer = QgsVectorLayer("Polygon?crs=EPSG:3857", "attrs", "memory")
+    layer.dataProvider().addAttributes([compat.make_field("v", str)])
+    layer.updateFields()
+    feats = []
+    for k, value in enumerate(values):
+      i, j = k % 3, k // 3
+      x, y = i * 1000.0, j * 1000.0
+      ring = [QgsPointXY(x, y), QgsPointXY(x + 1000, y),
+              QgsPointXY(x + 1000, y + 1000), QgsPointXY(x, y + 1000)]
+      f = QgsFeature(layer.fields())
+      f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+      f["v"] = value
+      feats.append(f)
+    layer.dataProvider().addFeatures(feats)
+    layer.updateExtents()
+    project.addMapLayer(layer)
+    dlg = None
+    try:
+      dlg = WeavingSpaceDialog(iface=None)
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(300)
+      dlg.table.cellWidget(1, 1).setCurrentText("v")
+      _tick(150)
+      dlg.spacing_spin.setValue(400)
+      dlg._generate()
+      if not _settle(dlg, seconds=60):
+        trouble.append(f"{label}: never settled")
+        continue
+      _tick(200)
+      seen = None
+      for lid in dlg._element_layer_ids.values():
+        out = QgsProject.instance().mapLayer(lid)
+        if out is None or not hasattr(out.renderer(), "categories"):
+          continue
+        # the catch-all for values the data does not have is not one
+        # of the data's own values, so it is not counted here
+        seen = [c.value() for c in out.renderer().categories()
+                if c.value() is not None and c.value() != ""]
+        seen = [v for v in seen] + \
+               [c.value() for c in out.renderer().categories()
+                if c.value() == ""]
+        break
+      if seen is None:
+        trouble.append(f"{label}: no categorized layer was produced")
+        continue
+      if len(seen) != expected:
+        trouble.append(
+          f"{label}: {len(seen)} classes ({sorted(map(repr, seen))}), "
+          f"expected {expected}. Distinct values must stay distinct; "
+          f"merging them silently edits the data")
+    except Exception as exc:
+      trouble.append(f"{label}: raised {type(exc).__name__}: {exc}")
+    finally:
+      if dlg is not None:
+        dlg.close()
+
+  assert not trouble, "attribute values lost their meaning:\n  " + \
+    "\n  ".join(trouble)
+
+
+def test_the_editor_copes_with_thousands_of_categories():
+  """The Categorical colour editor, given a field with 2,000 values.
+
+  The editor builds one row and one button per value, each with its
+  own swatch and stylesheet. That is fine at the twenty or so
+  categories anybody sensibly maps, and it is unbounded: nothing in
+  the code caps the list, because the values come from whatever field
+  the user picked. A field of postcodes or parcel ids is a plausible
+  mistake, and the cost of the mistake should be a useless map rather
+  than a frozen QGIS.
+
+  Two things are asserted. The window must still be sized to its
+  fifteen visible rows rather than to two thousand, since a dialogue
+  taller than the screen has no way to be closed; and building it
+  must take a few seconds at most. The time limit is deliberately
+  loose — this is a guard against work per row growing into something
+  quadratic, not a benchmark.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  import time
+  from weavingspace_qgis import compat
+  from weavingspace_qgis.category_editor import (CategoryColourDialog,
+                                                 VISIBLE_ROWS)
+  layer = QgsVectorLayer("Polygon?crs=EPSG:3857", "manycats", "memory")
+  layer.dataProvider().addAttributes([compat.make_field("cat", str)])
+  layer.updateFields()
+  feats = []
+  for k in range(2000):
+    i, j = k % 45, k // 45
+    x, y = i * 100.0, j * 100.0
+    ring = [QgsPointXY(x, y), QgsPointXY(x + 100, y),
+            QgsPointXY(x + 100, y + 100), QgsPointXY(x, y + 100)]
+    f = QgsFeature(layer.fields())
+    f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+    f["cat"] = f"class {k}"
+    feats.append(f)
+  layer.dataProvider().addFeatures(feats)
+  layer.updateExtents()
+  QgsProject.instance().addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg.table.cellWidget(1, 1).setCurrentText("cat")
+  dlg._update_dynamic_columns()
+  _tick(150)
+
+  assignment = next(a for a in dlg._assignments() if a["var"] == "cat")
+  began = time.time()
+  colours, order = dlg._current_category_colours(assignment)
+  assert order is not None and len(order) > 1500, \
+    f"only {0 if order is None else len(order)} classes were derived " \
+    f"from 2,000 distinct values"
+  editor = CategoryColourDialog("a", "cat", order, colours,
+                                lambda *a: None, dlg)
+  spent = time.time() - began
+  assert spent < 30, \
+    f"the editor took {spent:.1f}s to open on {len(order)} values; " \
+    f"the cost per row has grown into something a user will read as " \
+    f"a hang"
+  assert editor.table.rowCount() == len(order), \
+    "the editor dropped rows rather than scrolling them"
+  # sized to its visible rows, not to its contents: a window taller
+  # than the screen cannot be closed
+  row_height = editor.table.rowHeight(0) or 20
+  assert editor.height() < row_height * (VISIBLE_ROWS + 12), \
+    f"the window is {editor.height()}px tall for {len(order)} rows; " \
+    f"it should be sized to {VISIBLE_ROWS} visible rows and scroll"
+  editor.close()
+  dlg.close()
+
+
+def test_free_text_inputs_survive_nonsense():
+  """The boxes that take prose, given prose that means nothing.
+
+  Spin boxes are fenced by Qt — a range, a step, a number of decimals
+  — so no test can put a word in one. The exposure is the two inputs
+  that accept free text: the weave's passing pattern, and the output
+  path. Both are typed into rather than chosen from, so both will
+  eventually receive a paste, a stray newline, an empty string, and
+  somebody's idea of a joke.
+
+  The bar is the plugin's usual one and no higher: produce a map, or
+  say something a user can act on. Never a traceback, never a hang,
+  and never silence. A refusal is as good a pass as a map here — the
+  point is that the plugin stays in a state the user can carry on
+  from.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  patterns = [
+    ("empty", ""), ("only spaces", "   "), ("a word", "over under"),
+    ("doubled punctuation", "1,,2"), ("trailing comma", "1,2,"),
+    ("negative", "-3"), ("zero", "0"), ("absurdly large", "99999999"),
+    ("decimals", "1.5,2.5"), ("letters", "abc"), ("mixed", "1,a,2"),
+    ("non-ASCII", "\u4e00\u4e8c\u4e09"), ("a newline", "1\n2"),
+    ("very long", "1," * 200 + "1"),
+    ("something SQL-shaped", "1); DROP TABLE tiles;--"),
+  ]
+  paths = [
+    ("a directory, not a file", "/tmp"),
+    ("a directory that does not exist", "/no/such/place/out.gpkg"),
+    ("somewhere unwritable", "/out.gpkg"),
+    ("no extension", "/tmp/weavingspace_test_plain"),
+  ]
+
+  trouble = []
+
+  def attempt(label, configure):
+    project = QgsProject.instance()
+    for existing in list(project.mapLayers().values()):
+      project.removeMapLayer(existing.id())
+    MODALS.clear()
+    layer = make_region_layer(n=3)
+    project.addMapLayer(layer)
+    dlg = None
+    try:
+      dlg = WeavingSpaceDialog(iface=None)
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(250)
+      configure(dlg)
+      _tick(150)
+      dlg.spacing_spin.setValue(600)
+      dlg._generate()
+      if not _settle(dlg, seconds=60):
+        trouble.append(f"{label}: never settled — the plugin hung")
+        return
+      _tick(150)
+      made = bool(dlg._element_layer_ids)
+      said = bool(dlg.live_note.text().strip()) or bool(MODALS)
+      if not made and not said:
+        trouble.append(
+          f"{label}: no output and no message; the user pressed "
+          f"Generate and nothing whatever happened")
+      if not dlg.generate_btn.isEnabled():
+        trouble.append(f"{label}: Generate left disabled afterwards")
+    except Exception as exc:
+      trouble.append(f"{label}: raised {type(exc).__name__}: {exc}")
+    finally:
+      if dlg is not None:
+        dlg.close()
+
+  for label, text in patterns:
+    def configure(dlg, text=text):
+      dlg.kind_combo.setCurrentText("weave")
+      _tick(100)
+      dlg.opt_over_under.setText(text)
+    attempt(f"passing pattern {label!r}", configure)
+
+  for label, path in paths:
+    def configure(dlg, path=path):
+      dlg.gpkg_widget.setFilePath(path)
+    attempt(f"output path {label!r}", configure)
+
+  assert not trouble, "free-text input mishandled:\n  " + \
+    "\n  ".join(trouble)
+
+
+def test_the_coverage_count_matches_the_map():
+  """The "areas received no tiles" count, recomputed independently.
+
+  At a coarse spacing some areas fall between tiles and appear
+  nowhere, and the plugin says so. That notice is the only thing
+  standing between a user and a map that quietly omits places, so the
+  number in it has to be right rather than approximately right.
+
+  The plugin counts by tracing: a column added to the region before
+  tiling, whose distinct values after tiling say which areas a tile
+  drew data from. This test never touches that column. It gives every
+  area a value no other area has, maps that field to every element,
+  and then asks which of those values can be found in the finished
+  layers. Same question, different method — and a count computed the
+  way the code computes it would agree with the code whether or not
+  either was right.
+
+  The comparison is against what is ON THE MAP, which is the claim
+  the sentence makes: not what the tiling returned, and not what the
+  frame held before the output layers were built.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import compat
+  layer = QgsVectorLayer("Polygon?crs=EPSG:3857", "uids", "memory")
+  layer.dataProvider().addAttributes([compat.make_field("uid", float)])
+  layer.updateFields()
+  feats = []
+  side = 6
+  for k in range(side * side):
+    i, j = k % side, k // side
+    x, y = i * 400.0, j * 400.0
+    ring = [QgsPointXY(x, y), QgsPointXY(x + 400, y),
+            QgsPointXY(x + 400, y + 400), QgsPointXY(x, y + 400)]
+    f = QgsFeature(layer.fields())
+    f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+    f["uid"] = float(k)             # unique per area: the whole trick
+    feats.append(f)
+  layer.dataProvider().addFeatures(feats)
+  layer.updateExtents()
+  QgsProject.instance().addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  # every element carries the same field, because the plugin's count
+  # asks whether ANY element's tile drew from an area
+  for row in range(dlg.table.rowCount()):
+    combo = dlg.table.cellWidget(row, 1)
+    if combo is not None:
+      combo.setCurrentText("uid")
+  _tick(200)
+  # coarse enough that whole areas fall between tiles
+  dlg.spacing_spin.setValue(1200)
+  dlg._generate()
+  assert _settle(dlg, seconds=90), "the run never settled"
+  _tick(250)
+
+  present = set()
+  for lid in dlg._element_layer_ids.values():
+    out = QgsProject.instance().mapLayer(lid)
+    if out is None:
+      continue
+    index = out.fields().indexOf("uid")
+    if index < 0:
+      continue
+    for value in out.uniqueValues(index):
+      if value is not None:
+        present.add(round(float(value)))
+  independent = (side * side) - len(present)
+
+  said = " ".join(text for _kind, text in BAR_MESSAGES)
+  match = re.search(r"([\d,]+) of ([\d,]+) areas received no tiles", said)
+  if independent == 0:
+    assert match is None, \
+      f"every area reached the map, but the user was told " \
+      f"{said!r}. A false warning about missing places is worse than " \
+      f"none: it sends a cartographer looking for a fault that is " \
+      f"not there"
+    return
+  assert match is not None, \
+    f"{independent} of {side * side} areas appear nowhere on the map " \
+    f"and nothing was said. The bar received {BAR_MESSAGES!r}"
+  claimed = int(match.group(1).replace(",", ""))
+  total = int(match.group(2).replace(",", ""))
+  assert total == side * side, \
+    f"the notice counts {total} areas; the layer has {side * side}"
+  assert claimed == independent, \
+    f"the notice says {claimed} areas received no tiles; counting the " \
+    f"values actually present in the output layers gives " \
+    f"{independent}. The sentence is the only warning a user gets " \
+    f"that places are missing, so it has to be the true number"
+  dlg.close()
+
+
+def test_staggered_actions_during_a_run():
+  """A second action DURING a run, at every stage of the run.
+
+  Every other race test here fires its second action immediately, and
+  immediately is one interleaving out of many — the one where the
+  action lands before any debounce has fired. The dialog has two
+  debounces (preview at 350ms, live update at 900ms) and a task whose
+  completion does main-thread work of its own, so an action arriving
+  at 400ms meets a different state from one arriving at 0ms, and one
+  at 1,000ms meets a third.
+
+  The delays below straddle both debounce boundaries deliberately
+  rather than being round numbers: before either fires, between them,
+  after both, and later still, when the run itself may already have
+  finished and the action is landing on the layer-adding that follows
+  it.
+
+  The invariant is the same at every delay and for every action: the
+  dialog settles, Generate comes back, and the map that ends up on
+  screen is the one the LAST instruction asked for. A plugin that
+  survives simultaneous actions but loses an instruction issued half a
+  second later has only moved the bug somewhere harder to find.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  delays = [0, 200, 500, 1000, 1800]
+  trouble = []
+
+  def run_case(label, delay, act, verify):
+    project = QgsProject.instance()
+    for existing in list(project.mapLayers().values()):
+      project.removeMapLayer(existing.id())
+    MODALS.clear()
+    layer = make_region_layer(n=3)
+    project.addMapLayer(layer)
+    dlg = None
+    try:
+      dlg = WeavingSpaceDialog(iface=None)
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(250)
+      dlg.spacing_spin.setValue(500)
+      dlg._generate()
+      _tick(delay)                  # let the run get however far it gets
+      act(dlg)
+      if not _settle(dlg, seconds=90):
+        trouble.append(f"{label} after {delay}ms: never settled")
+        return
+      _tick(250)
+      if not dlg.generate_btn.isEnabled():
+        trouble.append(
+          f"{label} after {delay}ms: Generate left disabled, so the "
+          f"user cannot carry on")
+        return
+      problem = verify(dlg)
+      if problem:
+        trouble.append(f"{label} after {delay}ms: {problem}")
+    except Exception as exc:
+      trouble.append(
+        f"{label} after {delay}ms: raised {type(exc).__name__}: {exc}")
+    finally:
+      if dlg is not None:
+        dlg.close()
+
+  def change_spacing(dlg):
+    dlg.spacing_spin.setValue(800)
+
+  def check_spacing(dlg):
+    if abs(dlg.spacing_spin.value() - 800) > 1e-6:
+      return f"spacing ended at {dlg.spacing_spin.value()}, not 800"
+    return None
+
+  def press_generate_again(dlg):
+    dlg._generate()
+
+  def check_one_group(dlg):
+    root = QgsProject.instance().layerTreeRoot()
+    groups = [g for g in root.children()
+              if hasattr(g, "children") and g.name() == dlg._group_name]
+    if len(groups) > 1:
+      return (f"{len(groups)} groups named {dlg._group_name!r}; a "
+              f"second run must replace the first in place")
+    if not dlg._element_layer_ids:
+      return "the second run left no output at all"
+    return None
+
+  def change_variable(dlg):
+    combo = dlg.table.cellWidget(0, 1)
+    if combo is not None:
+      combo.setCurrentText("v2")
+
+  def check_variable(dlg):
+    if not dlg._element_layer_ids:
+      return "no output layers after changing the variable mid-run"
+    for assignment in dlg._assignments():
+      if assignment["id"] == dlg.table.item(0, 0).text():
+        if assignment["var"] != "v2":
+          return (f"the first element ended on {assignment['var']!r}, "
+                  f"not the v2 chosen during the run")
+    return None
+
+  def change_family(dlg):
+    combo = dlg.family_combo
+    if combo.count() > 1:
+      combo.setCurrentIndex((combo.currentIndex() + 1) % combo.count())
+
+  def check_family(dlg):
+    # A family change is GEOMETRY: it must not be answered from the
+    # tiles already on screen, and it must leave a map behind.
+    if not dlg._element_layer_ids:
+      return "no output after changing the family mid-run"
+    return None
+
+  def change_ramp(dlg):
+    for row in range(dlg.table.rowCount()):
+      combo = dlg.table.cellWidget(row, 3)
+      if combo is not None and hasattr(combo, "count") and combo.count() > 1:
+        combo.setCurrentIndex((combo.currentIndex() + 1) % combo.count())
+        return
+
+  def check_ramp(dlg):
+    # A ramp change is STYLE, and the interesting part is that it
+    # arrives while the geometry it will be applied to is still being
+    # built. The restyle path must not run against half-built layers.
+    if not dlg._element_layer_ids:
+      return "no output after changing a ramp mid-run"
+    return None
+
+  def cancel_it(dlg):
+    # There is no cancel BUTTON handler to call: cancelling happens
+    # through the task itself, which is also what closeEvent does.
+    if dlg._task is not None:
+      dlg._task.cancel()
+
+  def check_cancelled(dlg):
+    # Cancelling is allowed to leave no map. What it may not leave is
+    # a dialog that cannot be used again, which the shared check above
+    # already covers, or a task still claiming to be in flight.
+    if dlg._task is not None:
+      return "a task is still in flight after cancelling"
+    return None
+
+  def change_opacity(dlg):
+    spin = dlg.table.cellWidget(0, 6)
+    if spin is not None and hasattr(spin, "setValue"):
+      spin.setValue(55)
+
+  def check_opacity(dlg):
+    # Opacity is per-element and lives in a dict keyed by tile id, not
+    # in the row widget, so a table rebuild landing mid-run is exactly
+    # what would lose it.
+    if not dlg._element_layer_ids:
+      return "no output after changing opacity mid-run"
+    for assignment in dlg._assignments():
+      if assignment["id"] == dlg.table.item(0, 0).text():
+        if assignment.get("opacity") != 55:
+          return (f"opacity ended at {assignment.get('opacity')}, "
+                  f"not the 55 set during the run")
+    return None
+
+  def switch_on_live_update(dlg):
+    dlg.live_check.setChecked(True)
+
+  def check_live_on(dlg):
+    # Switching live update on mid-run queues a second run behind the
+    # first. Both must not land on the map at once, and the dialog
+    # must come to rest rather than re-triggering itself forever.
+    if dlg._task is not None:
+      return "a task is still in flight after live update was enabled"
+    if not dlg._element_layer_ids:
+      return "no output after switching live update on mid-run"
+    return None
+
+  def switch_region_layer(dlg):
+    other = make_region_layer(n=3, origin=(50_000, 50_000))
+    other.setName("a different region")
+    QgsProject.instance().addMapLayer(other)
+    dlg.layer_combo.setLayer(other)
+
+  def check_region_switch(dlg):
+    chosen = dlg.layer_combo.currentLayer()
+    if chosen is None:
+      return "no region layer is selected after switching mid-run"
+    if chosen.name() != "a different region":
+      return (f"the region ended as {chosen.name()!r}, not the layer "
+              f"chosen during the run")
+    if not dlg._element_layer_ids:
+      return "no output after switching the region layer mid-run"
+    return None
+
+  def switch_tabs(dlg):
+    tabs = getattr(dlg, "tabs", None)
+    if tabs is not None and hasattr(tabs, "count") and tabs.count() > 1:
+      tabs.setCurrentIndex((tabs.currentIndex() + 1) % tabs.count())
+
+  def check_tabs(dlg):
+    # Switching tabs mid-run resizes and re-lays-out widgets the
+    # finishing run is about to write into. sizeHint is stale before a
+    # real layout pass, which this project has been caught by before.
+    if not dlg._element_layer_ids:
+      return "no output after switching tabs mid-run"
+    return None
+
+  def open_the_colour_editor(dlg):
+    # Only meaningful when something is categorized; with this fixture
+    # nothing is, so the honest thing is to exercise the path that
+    # DECIDES whether the button is live, which runs against a table
+    # being written to by the finishing run.
+    dlg._update_dynamic_columns()
+
+  def check_editor_path(dlg):
+    if not dlg._element_layer_ids:
+      return "no output after touching the editor column mid-run"
+    return None
+
+  actions = [
+    ("spacing changed mid-run", change_spacing, check_spacing),
+    ("tabs switched mid-run", switch_tabs, check_tabs),
+    ("the Edit colours column refreshed mid-run", open_the_colour_editor,
+     check_editor_path),
+    ("opacity changed mid-run", change_opacity, check_opacity),
+    ("live update switched on mid-run", switch_on_live_update,
+     check_live_on),
+    ("the region layer switched mid-run", switch_region_layer,
+     check_region_switch),
+    ("Generate pressed again mid-run", press_generate_again,
+     check_one_group),
+    ("a variable changed mid-run", change_variable, check_variable),
+    ("the family changed mid-run", change_family, check_family),
+    ("a ramp changed mid-run", change_ramp, check_ramp),
+    ("cancelled mid-run", cancel_it, check_cancelled),
+  ]
+  for label, act, verify in actions:
+    for delay in delays:
+      run_case(label, delay, act, verify)
+
+  assert not trouble, \
+    "staggered actions during a run:\n  " + "\n  ".join(trouble)
+
+
+def _fingerprint(dlg):
+  """What is on the map right now, cheaply and comparably.
+
+  Args:
+    dlg: the dialog, after a run has settled.
+
+  Returns:
+    (tile count, extent rounded to the metre, sum of the v1 values
+    the tiles carry) across every element layer the last run
+    produced. Rounded because a tiling is floating-point work and two
+    runs of the SAME settings must compare equal; a metre is far
+    below the size of any tile these tests make, so a real change to
+    the region cannot hide inside the rounding.
+
+    The third term earns its place: a region can be reshaped without
+    its bounding box moving or its feature count changing, and then
+    the first two terms are identical while the map is genuinely
+    different, because each tile has drawn its data from a different
+    area.
+  """
+  total, boxes, joined = 0, [], 0.0
+  for lid in dlg._element_layer_ids.values():
+    out = QgsProject.instance().mapLayer(lid)
+    if out is None:
+      continue
+    total += out.featureCount()
+    ext = out.extent()
+    if not ext.isEmpty():
+      boxes.append((round(ext.xMinimum()), round(ext.yMinimum()),
+                    round(ext.xMaximum()), round(ext.yMaximum())))
+    # The VALUES the tiles carry, not only how many tiles there are.
+    # Reshaping a region without moving its bounding box leaves the
+    # count and the extent identical while changing which area each
+    # tile drew its data from -- so a fingerprint of count and extent
+    # alone would call a genuinely different map unchanged, and this
+    # test would pass over the bug it exists to find.
+    index = out.fields().indexOf("v1")
+    if index >= 0:
+      for feature in out.getFeatures():
+        value = feature.attribute(index)
+        if value is not None and value == value:      # not NULL, not NaN
+          try:
+            joined += float(value)
+          except (TypeError, ValueError):
+            pass
+  if not boxes:
+    return (total, None, round(joined, 3))
+  return (total, (min(b[0] for b in boxes), min(b[1] for b in boxes),
+                  max(b[2] for b in boxes), max(b[3] for b in boxes)),
+          round(joined, 3))
+
+
+def _editable_region(name="region", n=4, cell=1000.0):
+  """A region layer this suite is free to edit, with two fields.
+
+  Args:
+    name: the layer name, which some cases rename.
+    n: grid side, so the layer holds n*n squares.
+    cell: each square's side, in EPSG:3857 metres.
+
+  Returns:
+    A memory layer with ``v1`` (numeric) and ``cat`` (text). Built
+    here rather than with make_region_layer because these tests
+    change the schema, and a fixture several other tests share is the
+    wrong thing to mutate.
+  """
+  from weavingspace_qgis import compat
+  layer = QgsVectorLayer("Polygon?crs=EPSG:3857", name, "memory")
+  layer.dataProvider().addAttributes([compat.make_field("v1", float),
+                                      compat.make_field("cat", str)])
+  layer.updateFields()
+  feats = []
+  for i in range(n):
+    for j in range(n):
+      x, y = i * cell, j * cell
+      # A notch in the top edge, deep enough that simplifying at a
+      # tolerance of 400 removes it. Plain squares made the simplify
+      # case meaningless: Douglas-Peucker keeps every vertex of a
+      # square, so "simplify" returned the identical polygon and the
+      # map was right not to change.
+      ring = [QgsPointXY(x, y), QgsPointXY(x + cell, y),
+              QgsPointXY(x + cell, y + cell),
+              QgsPointXY(x + cell * 0.6, y + cell * 0.7),
+              QgsPointXY(x + cell * 0.4, y + cell),
+              QgsPointXY(x, y + cell)]
+      f = QgsFeature(layer.fields())
+      f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+      f["v1"] = float(i * n + j)
+      f["cat"] = ["forest", "water", "urban", "crops"][(i + j) % 4]
+      feats.append(f)
+  layer.dataProvider().addFeatures(feats)
+  layer.updateExtents()
+  return layer
+
+
+def test_data_changed_in_qgis_while_the_plugin_is_open():
+  """A user edits the layer in QGIS while the dialog is open.
+
+  The dialog is not modal to QGIS, so everything a user can do to a
+  layer they can do while the plugin is pointed at it. Each case here
+  is a thing QGIS actually offers:
+
+    features deleted, and features added;
+    the geometry rewritten in place, which is what Processing's "edit
+      features in place" mode does for buffer, simplify or dissolve;
+    a field renamed, deleted, or changed from numeric to text;
+    the layer renamed;
+    the CRS reassigned WITHOUT reprojecting, so every coordinate
+      stays where it was and only its meaning changes;
+    the layer removed from the project altogether.
+
+  The bar has two parts, and the second is the one worth writing
+  down. The plugin must not crash — but it also must not leave a map
+  that is quietly out of date. A stale map is the worst outcome
+  available here, worse than an error: it is a picture of data that
+  no longer exists, presented as though it were current, and nothing
+  on screen says otherwise.
+
+  So each case does the edit and then asks for a new map explicitly,
+  which is the path a user takes when they know they changed
+  something. Whether the plugin should also NOTICE unprompted is a
+  separate question, asked by the test below this one.
+
+  Regression: the geometry signature held the layer's ID and nothing about its contents, so deleting half the features left every term identical and the run was answered by repainting tiles built from data that no longer existed — pressing Generate did not help, which is what made it serious.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import compat
+  from qgis.core import QgsCoordinateReferenceSystem
+
+  def delete_half(layer, dlg):
+    ids = [f.id() for f in layer.getFeatures()]
+    layer.dataProvider().deleteFeatures(ids[: len(ids) // 2])
+    layer.updateExtents()
+
+  def add_features(layer, dlg):
+    feats = []
+    for i in range(4):
+      x, y = 10_000.0 + i * 1000, 10_000.0
+      ring = [QgsPointXY(x, y), QgsPointXY(x + 1000, y),
+              QgsPointXY(x + 1000, y + 1000), QgsPointXY(x, y + 1000)]
+      f = QgsFeature(layer.fields())
+      f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+      f["v1"], f["cat"] = 99.0, "added"
+      feats.append(f)
+    layer.dataProvider().addFeatures(feats)
+    layer.updateExtents()
+
+  def rewrite_geometry(layer, dlg):
+    # what an in-place buffer or simplify leaves behind: the same
+    # features, the same ids, different shapes
+    changes = {}
+    for f in layer.getFeatures():
+      box = f.geometry().boundingBox()
+      box.grow(-200)
+      changes[f.id()] = QgsGeometry.fromRect(box)
+    layer.dataProvider().changeGeometryValues(changes)
+    layer.updateExtents()
+
+  def simplify_in_place(layer, dlg):
+    # What QGIS's Simplify tool leaves behind, through the edit
+    # session it actually uses. Douglas-Peucker keeps the extreme
+    # vertices, so the feature count and the bounding box are both
+    # unchanged afterwards and only the shapes differ -- the case a
+    # cheap fingerprint of the layer cannot see, and the reason the
+    # dialog listens to the layer's signals as well as measuring it.
+    layer.startEditing()
+    for f in layer.getFeatures():
+      layer.changeGeometry(f.id(), f.geometry().simplify(400.0))
+    layer.commitChanges()
+    layer.updateExtents()
+
+  def edit_values_only(layer, dlg):
+    # An attribute retyped in the table: same features, same shapes,
+    # same extent, different numbers. Nothing about the layer's SIZE
+    # changes, so this too rests on the signals.
+    layer.startEditing()
+    index = layer.fields().indexOf("v1")
+    for f in layer.getFeatures():
+      layer.changeAttributeValue(f.id(), index, float(f.id()) * 3.0)
+    layer.commitChanges()
+
+  def rename_field(layer, dlg):
+    index = layer.fields().indexOf("v1")
+    layer.dataProvider().renameAttributes({index: "v1_renamed"})
+    layer.updateFields()
+
+  def delete_field(layer, dlg):
+    index = layer.fields().indexOf("v1")
+    layer.dataProvider().deleteAttributes([index])
+    layer.updateFields()
+
+  def retype_field(layer, dlg):
+    # QGIS has no in-place type change for a memory layer; dropping
+    # the column and re-adding it under the same name is what the
+    # user ends up doing, and it is the state that matters -- a field
+    # the dialog has assigned a QUANTITATIVE style now holds text.
+    index = layer.fields().indexOf("v1")
+    layer.dataProvider().deleteAttributes([index])
+    layer.updateFields()
+    layer.dataProvider().addAttributes([compat.make_field("v1", str)])
+    layer.updateFields()
+    index = layer.fields().indexOf("v1")
+    changes = {f.id(): {index: "some text"} for f in layer.getFeatures()}
+    layer.dataProvider().changeAttributeValues(changes)
+
+  def leave_edits_uncommitted(layer, dlg):
+    # An edit session left open, as it is whenever somebody is part
+    # way through digitising. getFeatures() returns the buffer's
+    # version, so the plugin sees edits the file has never had.
+    layer.startEditing()
+    ids = [f.id() for f in layer.getFeatures()]
+    layer.deleteFeatures(ids[: len(ids) // 2])
+    # deliberately no commit and no rollback
+
+  def rename_layer(layer, dlg):
+    layer.setName("renamed by the user")
+
+  def reassign_crs(layer, dlg):
+    # no reprojection: the numbers stay, their meaning changes. This
+    # is the destructive one, because a layer of metre-sized numbers
+    # relabelled as degrees is off the edge of the world.
+    layer.setCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
+
+  def drop_crs(layer, dlg):
+    layer.setCrs(QgsCoordinateReferenceSystem())
+
+  def remove_layer(layer, dlg):
+    QgsProject.instance().removeMapLayer(layer.id())
+
+  cases = [
+    ("features deleted", delete_half, True),
+    ("features added", add_features, True),
+    ("geometry rewritten in place", rewrite_geometry, True),
+    ("geometry simplified in place", simplify_in_place, True),
+    ("attribute values edited", edit_values_only, False),
+    ("edits left uncommitted", leave_edits_uncommitted, True),
+    ("a field renamed", rename_field, False),
+    ("a field deleted", delete_field, False),
+    ("a field changed from numbers to text", retype_field, False),
+    ("the layer renamed", rename_layer, False),
+    ("the CRS reassigned without reprojecting", reassign_crs, False),
+    ("the CRS cleared", drop_crs, False),
+    ("the layer removed from the project", remove_layer, False),
+  ]
+
+  trouble = []
+  for label, mutate, expect_change in cases:
+    project = QgsProject.instance()
+    for existing in list(project.mapLayers().values()):
+      project.removeMapLayer(existing.id())
+    MODALS.clear()
+    BAR_MESSAGES.clear()
+    layer = _editable_region()
+    project.addMapLayer(layer)
+    dlg = None
+    try:
+      dlg = WeavingSpaceDialog(iface=None)
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(300)
+      dlg.spacing_spin.setValue(500)
+      dlg._generate()
+      if not _settle(dlg, seconds=60):
+        trouble.append(f"{label}: the FIRST run never settled")
+        continue
+      _tick(200)
+      before = _fingerprint(dlg)
+      if before[0] == 0:
+        trouble.append(f"{label}: the first run produced nothing to compare")
+        continue
+
+      mutate(layer, dlg)
+      _tick(300)
+      # What the user was told AT THE MOMENT OF THE EDIT. Read now,
+      # not after the run: adding output layers makes the layer combo
+      # re-emit, which queues a live render, whose first act is to
+      # clear the note line. Reading later reports a message that was
+      # shown as a message that never was.
+      said_at_the_edit = (bool(dlg.live_note.text().strip())
+                          or bool(MODALS) or bool(BAR_MESSAGES))
+      dlg._generate()               # the user knows they changed something
+      if not _settle(dlg, seconds=60):
+        trouble.append(f"{label}: never settled after the edit — a hang")
+        continue
+      _tick(250)
+
+      after = _fingerprint(dlg)
+      said = bool(dlg.live_note.text().strip()) or bool(MODALS) \
+          or bool(BAR_MESSAGES)
+      if after[0] == 0 and not said:
+        trouble.append(
+          f"{label}: the map went empty and nothing was said. A user "
+          f"who edits a layer and then gets a blank map is owed a "
+          f"reason")
+      if expect_change and after == before:
+        trouble.append(
+          f"{label}: the map is unchanged ({before}) after the data "
+          f"changed. It is now a picture of data that no longer "
+          f"exists, shown as though it were current")
+      if not dlg.generate_btn.isEnabled():
+        trouble.append(f"{label}: Generate left disabled afterwards")
+      if label in ("a field deleted", "a field renamed"):
+        # The documented adaptation, not merely survival: an element
+        # pointed at a column that has gone is unassigned, and the
+        # user is told. Left alone it would fail at the join, deep in
+        # a run, with a message about a missing column rather than
+        # about the edit the user just made.
+        still = [a["var"] for a in dlg._assignments() if a["var"]]
+        if "v1" in still:
+          trouble.append(
+            f"{label}: an element still points at 'v1', which is no "
+            f"longer in the layer")
+        if not said_at_the_edit:
+          trouble.append(
+            f"{label}: the element was changed and nothing was said; "
+            f"a setting that alters itself in silence is worse than "
+            f"one that fails")
+    except Exception as exc:
+      trouble.append(f"{label}: raised {type(exc).__name__}: {exc}")
+    finally:
+      if dlg is not None:
+        dlg.close()
+
+  assert not trouble, "data changed under the plugin:\n  " + \
+    "\n  ".join(trouble)
+
+
+def test_live_update_notices_the_data_changing():
+  """With live update ON, an edit to the layer must reach the map.
+
+  Live update exists so a user can watch the map follow what they do.
+  It skips a run whose settings match the last one, compared through
+  ``_run_signature`` — and that signature holds the layer's ID and
+  its CRS, but nothing about the layer's CONTENTS. Delete half the
+  features and every term in it is identical, so the run is skipped
+  as a no-op and the map goes on showing the deleted data.
+
+  That is the failure this test exists for, and it is worse than a
+  crash: the user is watching the map precisely because they expect
+  it to keep up, so a map that silently stops following is being
+  trusted at the moment it stops being true.
+
+  Regression: the live-update signature described the settings but not the data, so an in-place geometry edit or a deletion left the map showing what had been deleted.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = _editable_region()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(True)
+  dlg.layer_combo.setLayer(layer)
+  dlg.spacing_spin.setValue(500)
+  assert _settle(dlg, seconds=60), "the first live render never settled"
+  _tick(300)
+  before = _fingerprint(dlg)
+  assert before[0] > 0, "live update produced no first map to compare"
+
+  ids = [f.id() for f in layer.getFeatures()]
+  layer.dataProvider().deleteFeatures(ids[: len(ids) // 2])
+  layer.updateExtents()
+  # everything the live path waits on: the debounce (900ms) and then
+  # the run it may or may not start
+  dlg._queue_live()
+  _tick(1500)
+  assert _settle(dlg, seconds=60), "the dialog never settled after the edit"
+  _tick(300)
+
+  after = _fingerprint(dlg)
+  assert after != before, \
+    f"live update left the map unchanged ({before}) after half the " \
+    f"features were deleted. The signature it compares describes the " \
+    f"settings but not the data, so the map still shows areas that " \
+    f"are no longer in the layer"
+  dlg.close()
+
+
+def test_the_layer_changes_without_being_edited():
+  """A layer can stop matching the map without anyone editing it.
+
+  Two ways, both ordinary and neither involving the plugin's own
+  controls:
+
+    a SUBSET FILTER, set in Layer Properties. Every feature is still
+      in the file; the layer simply stops offering most of them, and
+      everything downstream — including this plugin — sees a smaller
+      layer;
+    the FILE CHANGING ON DISK, and the layer being reloaded. Another
+      tool regenerates the data, or another QGIS window edits it, and
+      the user hits Reload.
+
+  QGIS does not watch files, so the second only reaches the plugin
+  once something has asked the layer to reload; before that the layer
+  itself is still showing the old data and the map agrees with it,
+  which is the correct state of affairs. What must not happen is the
+  layer reloading and the map staying behind.
+
+  The GeoPackage is written to a temporary directory and edited
+  through a SECOND handle on the same file, which is as close as a
+  test gets to another program changing the data underneath.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from qgis.core import QgsVectorFileWriter
+  import shutil
+  import tempfile
+
+  # ---------------------------------------------- a subset filter
+  layer = _editable_region()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg.spacing_spin.setValue(500)
+  dlg._generate()
+  assert _settle(dlg, seconds=60), "the first run never settled"
+  _tick(200)
+  before = _fingerprint(dlg)
+  assert before[0] > 0, "the first run produced nothing to compare"
+
+  layer.setSubsetString('"v1" < 8')
+  _tick(300)
+  dlg._generate()
+  assert _settle(dlg, seconds=60), "never settled after the filter"
+  _tick(200)
+  after = _fingerprint(dlg)
+  assert after != before, \
+    f"a subset filter left the map unchanged ({before}). Most of the " \
+    f"layer's features are now filtered out, so the map is showing " \
+    f"areas the layer no longer offers"
+  dlg.close()
+  QgsProject.instance().removeMapLayer(layer.id())
+
+  # --------------------------------------- the file changing on disk
+  folder = tempfile.mkdtemp(prefix="weavingspace_reload_")
+  try:
+    path = os.path.join(folder, "region.gpkg")
+    source = _editable_region()
+    options = QgsVectorFileWriter.SaveVectorOptions()
+    options.driverName = "GPKG"
+    options.layerName = "region"
+    written = QgsVectorFileWriter.writeAsVectorFormatV3(
+      source, path, QgsProject.instance().transformContext(), options)
+    assert written[0] == QgsVectorFileWriter.WriterError.NoError, \
+      f"could not write the test GeoPackage: {written}"
+
+    disk = QgsVectorLayer(f"{path}|layername=region", "on disk", "ogr")
+    assert disk.isValid(), "the GeoPackage layer did not load"
+    QgsProject.instance().addMapLayer(disk)
+    dlg = WeavingSpaceDialog(iface=None)
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(disk)
+    _tick(300)
+    dlg.spacing_spin.setValue(500)
+    dlg._generate()
+    assert _settle(dlg, seconds=60), "the on-disk run never settled"
+    _tick(200)
+    before = _fingerprint(dlg)
+    assert before[0] > 0, "the on-disk run produced nothing to compare"
+
+    # another handle on the same file: as close as this gets to
+    # another program rewriting the data underneath
+    other = QgsVectorLayer(f"{path}|layername=region", "other", "ogr")
+    ids = [f.id() for f in other.getFeatures()]
+    other.dataProvider().deleteFeatures(ids[: len(ids) // 2])
+    del other
+
+    disk.reload()                 # what the Reload command does
+    _tick(300)
+    dlg._generate()
+    assert _settle(dlg, seconds=60), "never settled after the reload"
+    _tick(200)
+    after = _fingerprint(dlg)
+    assert after != before, \
+      f"the file changed on disk and the layer was reloaded, and the " \
+      f"map is unchanged ({before}). It is drawn from data that is no " \
+      f"longer in the file"
+    dlg.close()
+  finally:
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+class _UncountableLayer(QgsVectorLayer):
+  """A layer that will not say how many features it has.
+
+  Remote providers behave this way: a WFS, an OGC API - Features
+  endpoint or an ArcGIS service answers -1 until it has fetched, and
+  some only ever return an estimate. There is no way to reach a real
+  one from a test — and no wish to, since a suite that needs a network
+  is a suite that fails for reasons of its own — so the ONE behaviour
+  that matters is reproduced directly.
+
+  Overriding featureCount is enough because that is exactly the
+  question the plugin asks (``_data_is_unobservable``), and answering
+  it is the whole of what a remote source does differently here.
+  """
+
+  def featureCount(self):
+    """Say "I do not know", as a remote provider does before fetching."""
+    return -1
+
+
+def test_a_layer_that_will_not_say_how_big_it_is():
+  """A source the plugin cannot inspect is a snapshot, and admits it.
+
+  Some layers can change with nothing happening locally: a WFS, an
+  OGC API - Features endpoint, an ArcGIS service, a database another
+  person is writing to. No file changes, no signal fires, and the
+  fingerprint the plugin takes of a layer is identical before and
+  after. Such providers also decline to say how many features they
+  hold, which is the one thing about them a test can reproduce
+  faithfully.
+
+  Two responses, and they differ by who asked:
+
+    pressing Generate must RE-TILE, never repaint the tiles already on
+      screen. The user asked, so the cost is bounded by their patience,
+      and answering from a cache would draw data that may be gone;
+    live update must NOT chase it. Keeping up would mean re-tiling on
+      every debounce tick, and for a remote source that means fetching
+      somebody's whole dataset over and over because a dialog happens
+      to be open. It declines, and says so, so the user knows the map
+      is a snapshot rather than assuming it is keeping up.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import compat
+  layer = _UncountableLayer("Polygon?crs=EPSG:3857", "remote", "memory")
+  layer.dataProvider().addAttributes([compat.make_field("v1", float)])
+  layer.updateFields()
+  feats = []
+  for k in range(9):
+    i, j = k % 3, k // 3
+    x, y = i * 1000.0, j * 1000.0
+    ring = [QgsPointXY(x, y), QgsPointXY(x + 1000, y),
+            QgsPointXY(x + 1000, y + 1000), QgsPointXY(x, y + 1000)]
+    f = QgsFeature(layer.fields())
+    f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+    f["v1"] = float(k)
+    feats.append(f)
+  layer.dataProvider().addFeatures(feats)
+  layer.updateExtents()
+  assert layer.featureCount() == -1, \
+    "the fixture is not behaving like a remote provider"
+  QgsProject.instance().addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  assert dlg._data_is_unobservable(), \
+    "the dialog thinks it can tell when this layer changes"
+
+  dlg.spacing_spin.setValue(500)
+  dlg._generate()
+  assert _settle(dlg, seconds=60), "the run never settled"
+  _tick(200)
+  assert dlg._element_layer_ids, "no map was produced at all"
+
+  # Nothing has changed, which for an ordinary layer is exactly when
+  # the fast path repaints instead of re-tiling. Here it must not:
+  # "nothing has changed" is a statement this layer cannot support.
+  assert dlg._restyle_only() is False, \
+    "an unobservable layer took the restyle fast path, so pressing " \
+    "Generate would repaint tiles built from data that may already " \
+    "have been replaced on the server"
+
+  # And live update declines rather than polling somebody's endpoint
+  dlg.live_note.setText("")
+  dlg.live_check.setChecked(True)
+  dlg._maybe_live_generate()
+  _tick(200)
+  assert "live update" in dlg.live_note.text().lower(), \
+    f"live update said nothing about being unable to track this " \
+    f"layer: {dlg.live_note.text()!r}"
+  dlg.close()
+
+
+def test_a_reprojected_layer_is_followed():
+  """The region reprojected in place: new coordinates, same ground.
+
+  Reassigning a CRS and reprojecting are different acts and the suite
+  covers the first elsewhere. This is the second, and the commoner
+  one: every coordinate is genuinely transformed, so the numbers the
+  tiling works in change completely while the piece of ground does
+  not.
+
+  Two things must hold, and they pull in opposite directions, which
+  is what makes the pair worth asserting together. The map must
+  CHANGE, because tiles laid out in metres are not tiles laid out in
+  degrees and leaving the old ones on screen would put the map in the
+  wrong place. And the map must stay RECOGNISABLE — a comparable
+  number of tiles — because it is the same ground at the same
+  spacing, and a plugin that reprojects into a map of a wildly
+  different grain has mangled it rather than followed it.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from qgis.core import (QgsCoordinateReferenceSystem,
+                         QgsCoordinateTransform)
+  layer = _editable_region()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg.spacing_spin.setValue(500)
+  dlg._generate()
+  assert _settle(dlg, seconds=60), "the first run never settled"
+  _tick(200)
+  before = _fingerprint(dlg)
+  assert before[0] > 0, "the first run produced nothing to compare"
+
+  # what Processing's "Reproject layer" produces, applied to the same
+  # layer: every geometry transformed, then the CRS relabelled
+  target = QgsCoordinateReferenceSystem("EPSG:4326")
+  transform = QgsCoordinateTransform(
+    layer.crs(), target, QgsProject.instance())
+  layer.startEditing()
+  for feature in layer.getFeatures():
+    geometry = feature.geometry()
+    geometry.transform(transform)
+    layer.changeGeometry(feature.id(), geometry)
+  layer.commitChanges()
+  layer.setCrs(target)
+  layer.updateExtents()
+  _tick(300)
+  # the spacing that suited metres is meaningless in degrees, and a
+  # user reprojecting would press Auto; so would anyone sensible
+  dlg._auto_spacing()
+  _tick(150)
+  dlg._generate()
+  assert _settle(dlg, seconds=90), "never settled after the reprojection"
+  _tick(250)
+  after = _fingerprint(dlg)
+
+  assert after != before, \
+    f"the layer was reprojected and the map is unchanged ({before}). " \
+    f"Tiles laid out in metres are in the wrong place entirely once " \
+    f"the region is in degrees"
+  assert after[0] > 0, "the reprojected layer produced no tiles at all"
+  ratio = after[0] / before[0]
+  assert 0.4 <= ratio <= 2.5, \
+    f"the same ground gave {before[0]:,} tiles before reprojection " \
+    f"and {after[0]:,} after (ratio {ratio:.2f}). It is the same " \
+    f"ground at the same relative spacing, so the grain should be " \
+    f"comparable; it is not, so the units went astray somewhere"
+  dlg.close()
+
+
+def test_the_spacing_box_at_its_extremes():
+  """The spacing spinner driven to both ends of its range.
+
+  Qt fences a spin box — a range, a step, a number of decimals — so no
+  test can put a word in one, and that has been the argument for
+  leaving them alone. It is an argument about the WIDGET, and it says
+  nothing about what the plugin does with the numbers at the ends of
+  the range, which are 0.000001 and a million million.
+
+  The small end is the dangerous one and has a guard already: a
+  spacing far below the size of the region asks for astronomically
+  many tiles, and attempting it exhausts memory inside GEOS and takes
+  QGIS down. The guard must hold at the very bottom of the range, not
+  merely at the small values somebody thought to try by hand.
+
+  The large end is the harmless-looking one: a single tile larger than
+  the world. It has no reason to crash, and it must not silently
+  produce nothing while looking like it worked.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  trouble = []
+  for label, spacing in [("the smallest spacing the box allows", 1e-6),
+                         ("a spacing larger than the world", 1e12),
+                         ("one metre, on a four-kilometre region", 1.0)]:
+    project = QgsProject.instance()
+    for existing in list(project.mapLayers().values()):
+      project.removeMapLayer(existing.id())
+    MODALS.clear()
+    layer = make_region_layer(n=3)
+    project.addMapLayer(layer)
+    dlg = None
+    try:
+      dlg = WeavingSpaceDialog(iface=None)
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(250)
+      dlg.spacing_spin.setValue(spacing)
+      dlg._generate()
+      if not _settle(dlg, seconds=90):
+        trouble.append(
+          f"{label}: never settled. At this spacing the guard should "
+          f"refuse immediately rather than attempt the tiling")
+        continue
+      _tick(200)
+      made = bool(dlg._element_layer_ids)
+      said = bool(dlg.live_note.text().strip()) or bool(MODALS)
+      if not made and not said:
+        trouble.append(f"{label}: no output and no explanation")
+      if not dlg.generate_btn.isEnabled():
+        trouble.append(f"{label}: Generate left disabled afterwards")
+    except Exception as exc:
+      trouble.append(f"{label}: raised {type(exc).__name__}: {exc}")
+    finally:
+      if dlg is not None:
+        dlg.close()
+  assert not trouble, "the spacing box at its limits:\n  " + \
+    "\n  ".join(trouble)
+
+
+def test_qgis_changes_around_the_plugin():
+  """QGIS itself moving while the dialog is open.
+
+  The plugin holds references that outlive a single action: the
+  region layer, the ids of the layers it produced, the name of the
+  group it put them in. Ordinary QGIS commands invalidate all of
+  those, and none of them tells the plugin first.
+
+  Each case here is a menu item:
+
+    the project closed or cleared, which deletes every layer at once,
+      including the ones this dialog is holding ids for;
+    the output group deleted from the layers panel, which is how a
+      user tidies up before generating again;
+    an edit session rolled back rather than committed, so the layer
+      returns to what it was and the map must not follow the edit
+      that was abandoned;
+    the file behind a layer deleted on disk, leaving a layer object
+      that is still in the project and no longer has any data;
+    the project's own CRS changed, which alters how everything is
+      DRAWN without altering any layer;
+    the region layer duplicated, so two layers hold identical data
+      and the plugin must not confuse them.
+
+  The bar is the plugin's usual one: no crash, no hang, and a dialog
+  the user can go on using. Producing nothing is a perfectly good
+  answer to several of these — there is no map to be made from a
+  project with no layers in it — but falling over is not, and neither
+  is carrying on as though the layer were still there.
+
+  Regression: deleting the file behind a layer and reloading it made layer.extent() segfault QGIS outright — no exception, no traceback, nothing in the log — and isValid() returned True while the provider was gone; the live-update gate read that extent on every debounce, so the crash was reachable without pressing anything.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from qgis.core import QgsCoordinateReferenceSystem, QgsVectorFileWriter
+  import shutil
+  import tempfile
+
+  def clear_the_project(layer, dlg, folder):
+    QgsProject.instance().clear()
+
+  def delete_the_output_group(layer, dlg, folder):
+    root = QgsProject.instance().layerTreeRoot()
+    group = root.findGroup(dlg._group_name or "")
+    if group is not None:
+      root.removeChildNode(group)
+
+  def roll_back_an_edit(layer, dlg, folder):
+    layer.startEditing()
+    ids = [f.id() for f in layer.getFeatures()]
+    layer.deleteFeatures(ids[: len(ids) // 2])
+    layer.rollBack()              # the user changed their mind
+
+  def delete_the_file(layer, dlg, folder):
+    for name in os.listdir(folder):
+      os.remove(os.path.join(folder, name))
+    layer.reload()
+
+  def change_the_project_crs(layer, dlg, folder):
+    QgsProject.instance().setCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
+
+  def duplicate_the_layer(layer, dlg, folder):
+    twin = QgsVectorLayer("Polygon?crs=EPSG:3857", layer.name(), "memory")
+    twin.dataProvider().addAttributes(layer.fields().toList())
+    twin.updateFields()
+    twin.dataProvider().addFeatures(list(layer.getFeatures()))
+    twin.updateExtents()
+    QgsProject.instance().addMapLayer(twin)
+
+  # on_disk says whether the case needs a file to delete; only one
+  # does, and writing a GeoPackage for the others would slow the test
+  # down for nothing
+  cases = [
+    ("the project cleared", clear_the_project, False),
+    ("the output group deleted", delete_the_output_group, False),
+    ("an edit rolled back", roll_back_an_edit, False),
+    ("the file deleted on disk", delete_the_file, True),
+    ("the project CRS changed", change_the_project_crs, False),
+    ("the region layer duplicated", duplicate_the_layer, False),
+  ]
+
+  trouble = []
+  for label, mutate, on_disk in cases:
+    project = QgsProject.instance()
+    for existing in list(project.mapLayers().values()):
+      project.removeMapLayer(existing.id())
+    MODALS.clear()
+    BAR_MESSAGES.clear()
+    folder = tempfile.mkdtemp(prefix="weavingspace_qgis_change_")
+    dlg = None
+    try:
+      if on_disk:
+        source = _editable_region()
+        path = os.path.join(folder, "region.gpkg")
+        options = QgsVectorFileWriter.SaveVectorOptions()
+        options.driverName = "GPKG"
+        options.layerName = "region"
+        QgsVectorFileWriter.writeAsVectorFormatV3(
+          source, path, project.transformContext(), options)
+        layer = QgsVectorLayer(f"{path}|layername=region", "region", "ogr")
+      else:
+        layer = _editable_region()
+      if not layer.isValid():
+        trouble.append(f"{label}: the fixture itself is invalid")
+        continue
+      project.addMapLayer(layer)
+
+      dlg = WeavingSpaceDialog(iface=None)
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(300)
+      dlg.spacing_spin.setValue(500)
+      dlg._generate()
+      if not _settle(dlg, seconds=60):
+        trouble.append(f"{label}: the FIRST run never settled")
+        continue
+      _tick(200)
+      if not dlg._element_layer_ids:
+        trouble.append(f"{label}: the first run produced no map")
+        continue
+
+      mutate(layer, dlg, folder)
+      _tick(400)
+
+      # Ask for another map. Several of these cases have no map to
+      # give, which is fine; falling over is not.
+      dlg._generate()
+      if not _settle(dlg, seconds=60):
+        trouble.append(f"{label}: never settled afterwards — a hang")
+        continue
+      _tick(250)
+      if not dlg.generate_btn.isEnabled():
+        trouble.append(f"{label}: Generate left disabled, so the user "
+                       f"is stuck")
+      # and the dialog must still answer ordinary questions about
+      # itself afterwards, which is where a dangling layer reference
+      # shows up
+      dlg._assignments()
+      dlg._run_signature()
+      dlg._restyle_only()
+    except Exception as exc:
+      trouble.append(f"{label}: raised {type(exc).__name__}: {exc}")
+    finally:
+      if dlg is not None:
+        try:
+          dlg.close()
+        except Exception as exc:
+          trouble.append(f"{label}: closing raised "
+                         f"{type(exc).__name__}: {exc}")
+      shutil.rmtree(folder, ignore_errors=True)
+      QgsProject.instance().setCrs(
+        QgsCoordinateReferenceSystem("EPSG:3857"))
+
+  assert not trouble, "QGIS changed around the plugin:\n  " + \
+    "\n  ".join(trouble)
+
+
+def test_the_plugin_in_another_locale():
+  """The dialog under a locale where a comma is a decimal point.
+
+  Most of Europe writes 1,5 for one and a half. Qt honours that: a
+  QDoubleSpinBox in a German or French locale displays and parses
+  commas, and the number a user types is read through the locale
+  rather than through Python's own rules.
+
+  This plugin has a specific collision waiting in that fact. The
+  passing pattern is typed as "1,2,2,1", where every comma is a
+  SEPARATOR between strand counts — and in these locales a comma is
+  what a user has been taught means a decimal point. So the same
+  character carries two meanings in one dialog, and the test is
+  whether the plugin still produces a map rather than misreading one
+  as the other.
+
+  The locale is restored afterwards whatever happens. Leaving it set
+  would change the behaviour of every test that ran later, and a
+  suite whose results depend on the order its tests ran in is not
+  measuring the software.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from qgis.PyQt.QtCore import QLocale
+  original = QLocale()
+  trouble = []
+  try:
+    for name, tag in [("German", "de_DE"), ("French", "fr_FR"),
+                      ("Arabic (right to left)", "ar_EG")]:
+      QLocale.setDefault(QLocale(tag))
+      project = QgsProject.instance()
+      for existing in list(project.mapLayers().values()):
+        project.removeMapLayer(existing.id())
+      MODALS.clear()
+      layer = make_region_layer(n=3)
+      project.addMapLayer(layer)
+      dlg = None
+      try:
+        dlg = WeavingSpaceDialog(iface=None)
+        dlg.live_check.setChecked(False)
+        dlg.layer_combo.setLayer(layer)
+        _tick(250)
+        dlg.spacing_spin.setValue(500.5)
+        if abs(dlg.spacing_spin.value() - 500.5) > 1e-6:
+          trouble.append(
+            f"{name}: the spacing box holds "
+            f"{dlg.spacing_spin.value()} after being set to 500.5")
+        # the collision: commas as separators, in a locale where a
+        # comma is a decimal point
+        dlg.kind_combo.setCurrentText("weave")
+        _tick(100)
+        dlg.opt_over_under.setText("1,2,2,1")
+        _tick(100)
+        dlg.spacing_spin.setValue(600)
+        dlg._generate()
+        if not _settle(dlg, seconds=60):
+          trouble.append(f"{name}: never settled")
+          continue
+        _tick(150)
+        made = bool(dlg._element_layer_ids)
+        said = bool(dlg.live_note.text().strip()) or bool(MODALS)
+        if not made and not said:
+          trouble.append(
+            f"{name}: no output and no message from a passing pattern "
+            f"of 1,2,2,1")
+      except Exception as exc:
+        trouble.append(f"{name}: raised {type(exc).__name__}: {exc}")
+      finally:
+        if dlg is not None:
+          dlg.close()
+  finally:
+    QLocale.setDefault(original)
+  assert not trouble, "under another locale:\n  " + "\n  ".join(trouble)
+
+
+def test_a_layer_that_refreshes_itself():
+  """A layer QGIS reloads on a timer is followed.
+
+  QGIS lets a layer refresh itself at an interval, which is what
+  somebody watching a live feed switches on. Turning it on is the
+  user stating that this data moves, and it is the one circumstance
+  where the plugin follows a layer's REPAINT signal — ordinarily it
+  must not, because repaints also fire on every style change and
+  re-tiling on those is the entire cost the restyle fast path exists
+  to avoid.
+
+  So two things are asserted together, and the second is what stops
+  the first from being implemented carelessly: the refreshing layer
+  IS followed, and an ordinary layer is NOT followed on a repaint.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import compat
+  layer = _editable_region()
+  QgsProject.instance().addMapLayer(layer)
+
+  ordinary = WeavingSpaceDialog(iface=None)
+  ordinary.live_check.setChecked(False)
+  ordinary.layer_combo.setLayer(layer)
+  _tick(300)
+  before = ordinary._data_version
+  layer.triggerRepaint()
+  _tick(200)
+  assert ordinary._data_version == before, \
+    "an ordinary layer's repaint counted as a data change, so every " \
+    "style change would re-tile the map"
+  ordinary.close()
+
+  # now with auto-refresh on, which is the user saying it moves
+  # QGIS 4's spelling only; the plugin does not support QGIS 3, so a
+  # fallback here would be testing a branch compat deliberately does
+  # not carry.
+  enabled = False
+  if hasattr(layer, "setAutoRefreshMode"):
+    from qgis.core import Qgis
+    layer.setAutoRefreshMode(Qgis.AutoRefreshMode.ReloadData)
+    enabled = True
+  if not enabled or not compat.layer_auto_refreshes(layer):
+    # This QGIS spells it differently again. Say so rather than
+    # passing silently: a test that quietly skips its own subject is
+    # indistinguishable from one that works.
+    assert False, \
+      "auto-refresh could not be switched on in this QGIS, so " \
+      "compat.layer_auto_refreshes needs a branch for this version"
+
+  watching = WeavingSpaceDialog(iface=None)
+  watching.live_check.setChecked(False)
+  watching.layer_combo.setLayer(layer)
+  _tick(300)
+  before = watching._data_version
+  layer.triggerRepaint()
+  _tick(200)
+  assert watching._data_version > before, \
+    "a layer QGIS refreshes on a timer was not followed; its reload " \
+    "arrives as a repaint, and nothing else announces it"
+  watching.close()
+
+
+def test_the_spacing_follows_the_coordinate_system():
+  """Change the layer's CRS and the spacing stops meaning what it meant.
+
+  Spacing is counted in the layer's own units. Relabel the layer and
+  500 is no longer 500 metres — it is 500 feet, or 500 of whatever a
+  layer with no CRS is measured in — and the map that comes out is the
+  wrong size by whatever the ratio between those units happens to be.
+
+  The old number is not so much wrong as no longer about anything, so
+  the dialog re-derives it. That is an adaptation the user did not
+  ask for, which makes announcing it part of the behaviour rather
+  than a courtesy: somebody who typed a spacing and finds it changed
+  with no explanation has been given a reason to distrust every other
+  number in the dialog.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from qgis.core import QgsCoordinateReferenceSystem
+  layer = _editable_region()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  before = dlg.spacing_spin.value()
+  assert before > 0, "no spacing was derived for the original layer"
+
+  # relabelled as degrees without moving a coordinate: the extent is
+  # now 0.004 "degrees" wide rather than 4,000 metres, so any spacing
+  # that suited metres is now absurd
+  layer.setCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
+  _tick(400)
+
+  after = dlg.spacing_spin.value()
+  assert after != before, \
+    f"the spacing is still {before} after the layer's CRS changed. " \
+    f"It is a count of the layer's units, and those units are not " \
+    f"what they were"
+  said = " ".join(text for _kind, text in BAR_MESSAGES)
+  assert "coordinate system" in said, \
+    f"the spacing changed by itself and nothing said why; the bar " \
+    f"received {BAR_MESSAGES!r}"
+  dlg.close()
+
+
+def test_a_sequence_of_edits_under_the_plugin():
+  """Several edits in a row, with maps drawn in between.
+
+  Every other data-change test does one edit against a fresh dialog.
+  That is the right way to find out WHICH edit breaks something, and
+  it is the wrong way to find out whether the plugin's record of the
+  layer stays true over a session, because each test throws the
+  dialog away before the second edit could contradict the first.
+
+  This runs one dialog through a sequence: features deleted, then the
+  geometry reshaped, then a field dropped, then the CRS changed, then
+  the dropped field added back — with a map generated after each. The
+  states worth catching are the ones where two records disagree: the
+  field list updated while the CRS record was not, an element left
+  unassigned after its column returns, a fingerprint that stopped
+  changing because something cached went stale three edits ago.
+
+  Each step asserts that the map moved, since every one of these
+  edits changes what the map should show. A step that leaves the map
+  identical is the stale-map defect returning by a longer road.
+
+  Regression: a column added in QGIS — with the Field Calculator, the usual way — never appeared in the variable choosers, because their item lists are built during a table rebuild and a rebuild happens when the LAYER changes, not when its columns do; the column stayed invisible until the user switched layers and back.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import compat
+  from qgis.core import (QgsCoordinateReferenceSystem,
+                         QgsCoordinateTransform)
+
+  layer = _editable_region()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg.spacing_spin.setValue(500)
+
+  def regenerate(step):
+    dlg._generate()
+    assert _settle(dlg, seconds=60), f"{step}: the run never settled"
+    _tick(200)
+    return _fingerprint(dlg)
+
+  history = [regenerate("the first run")]
+  assert history[0][0] > 0, "the first run produced nothing"
+
+  # 1. delete a quarter of the features
+  ids = [f.id() for f in layer.getFeatures()]
+  layer.dataProvider().deleteFeatures(ids[: max(1, len(ids) // 4)])
+  layer.updateExtents()
+  _tick(300)
+  history.append(regenerate("after deleting features"))
+
+  # 2. reshape what is left, through an edit session
+  layer.startEditing()
+  for f in layer.getFeatures():
+    layer.changeGeometry(f.id(), f.geometry().simplify(400.0))
+  layer.commitChanges()
+  layer.updateExtents()
+  _tick(300)
+  history.append(regenerate("after simplifying"))
+
+  # 3. drop the field an element is using
+  index = layer.fields().indexOf("v1")
+  layer.dataProvider().deleteAttributes([index])
+  layer.updateFields()
+  _tick(400)
+  assert "v1" not in [a["var"] for a in dlg._assignments() if a["var"]], \
+    "an element still points at 'v1' after the column was dropped"
+  # Dropping the only mapped column leaves NOTHING assigned, and a run
+  # with nothing assigned is refused -- correctly, and out loud. So the
+  # sequence continues the way a user would: pick another column. This
+  # was worth getting wrong once. The first version of this test
+  # expected the map to change here, and it did not, because the
+  # plugin had politely declined to draw one.
+  for row in range(dlg.table.rowCount()):
+    combo = dlg.table.cellWidget(row, 1)
+    if combo is not None:
+      combo.setCurrentText("cat")
+      break
+  _tick(250)
+  history.append(regenerate("after dropping a field and choosing another"))
+
+  # 4. reproject, which changes both the coordinates and what the
+  # spacing counts in. RELABELLING instead -- setCrs alone, leaving
+  # coordinates in the thousands and calling them degrees -- puts the
+  # layer outside the CRS's domain, and the size guard then refuses
+  # the run and leaves the previous map up. That refusal is correct,
+  # and it made the first version of this step assert that a refused
+  # run should have changed the map.
+  target = QgsCoordinateReferenceSystem("EPSG:4326")
+  transform = QgsCoordinateTransform(layer.crs(), target,
+                                     QgsProject.instance())
+  layer.startEditing()
+  for f in layer.getFeatures():
+    moved = f.geometry()
+    moved.transform(transform)
+    layer.changeGeometry(f.id(), moved)
+  layer.commitChanges()
+  layer.setCrs(target)
+  layer.updateExtents()
+  _tick(400)
+  # NOT "the number changed". Reprojecting the same ground re-derives
+  # the same metre-equivalent spacing, so 500 stays 500 -- which is
+  # the degrees-against-metres equivalence holding, and asserting a
+  # change here would have demanded that the plugin get it wrong.
+  # What must be true is that the plugin NOTICED.
+  assert dlg._watched_crs == "EPSG:4326", \
+    f"the dialog still records the CRS as {dlg._watched_crs!r} four " \
+    f"edits into the session; its record of the layer has gone stale"
+  assert dlg.spacing_spin.value() > 0, \
+    f"the spacing is {dlg.spacing_spin.value()} after reprojection"
+  history.append(regenerate("after changing the CRS"))
+
+  # 5. bring the field back and use it again
+  layer.dataProvider().addAttributes([compat.make_field("v1", float)])
+  layer.updateFields()
+  index = layer.fields().indexOf("v1")
+  changes = {f.id(): {index: float(f.id())} for f in layer.getFeatures()}
+  layer.dataProvider().changeAttributeValues(changes)
+  _tick(400)
+  # and the user goes back to it, which is the point of bringing it
+  # back: an element that was unassigned three edits ago must be
+  # assignable again, with the column offered in the chooser
+  combo = dlg.table.cellWidget(0, 1)
+  offered = [combo.itemText(i) for i in range(combo.count())]
+  assert "v1" in offered, \
+    f"the returned column is not offered in the chooser: {offered}"
+  combo.setCurrentText("v1")
+  _tick(250)
+  history.append(regenerate("after the field came back"))
+
+  # Step 4 is the reprojection, and it must NOT change the map. A
+  # geographic layer is reprojected to Web Mercator before tiling, so
+  # a layer that started in 3857 and was reprojected to 4326 arrives
+  # back where it began: the same ground, the same tiles. Demanding a
+  # change there would demand that the plugin get it wrong, which the
+  # first version of this test duly did.
+  unchanged_on_purpose = {4}
+  for step in range(1, len(history)):
+    if step in unchanged_on_purpose:
+      assert history[step] == history[step - 1], \
+        f"step {step} changed the map ({history[step - 1]} -> " \
+        f"{history[step]}). Reprojecting a layer to 4326 and tiling " \
+        f"it should give back the same map, since geographic layers " \
+        f"are reprojected to Web Mercator before tiling"
+      continue
+    assert history[step] != history[step - 1], \
+      f"step {step} left the map identical to step {step - 1} " \
+      f"({history[step]}). That edit changes what the map should " \
+      f"show, so an unchanged map means the plugin stopped following " \
+      f"the layer partway through the session"
+  assert dlg.generate_btn.isEnabled(), \
+    "Generate is disabled at the end of the sequence"
+  dlg.close()
+
+
+def test_symbology_edited_in_qgis_while_the_editor_is_open():
+  """QGIS restyles the output while the colour editor is open.
+
+  The Categorical colour editor is modal to the PLUGIN dialog and
+  nothing else. That is deliberate and settled: application-modal
+  would freeze the map canvas too, and a colour chosen without being
+  able to look at the map is chosen blind.
+
+  The consequence is that QGIS's own styling panel stays reachable
+  the whole time the editor is open, pointed at the very layers the
+  editor is about to write to. So a user can replace an output
+  layer's categorized renderer with a single-symbol one, or delete
+  the layer outright, and then pick a colour in a window that was
+  built from a renderer which no longer exists.
+
+  What must not happen is a crash, or the plugin writing into a
+  renderer of a type it did not create. What SHOULD happen is that
+  the pick is recorded — the editor never holds a layer, by design;
+  it writes to the dialog's own record and lets the restyle path find
+  whatever layers exist — so the colour survives to the next run even
+  when the layer it was picked against has been replaced underneath.
+  """
+  from qgis.core import QgsSingleSymbolRenderer, QgsFillSymbol
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+  from weavingspace_qgis import bridge
+
+  dlg, layer, tid = _categorical_dialog()
+  dlg.spacing_spin.setValue(500)
+  dlg._generate()
+  assert _settle(dlg, seconds=60), "the run never settled"
+  _tick(200)
+  assert dlg._element_layer_ids, "no output to restyle"
+
+  assignment = next(a for a in dlg._assignments()
+                    if a["id"] == tid and a["var"])
+  colours, order = dlg._current_category_colours(assignment)
+  assert order, "no categories to edit"
+
+  picked = []
+
+  def on_change(value, colour):
+    dlg._category_colours.setdefault(tid, {}) \
+       .setdefault(assignment["var"], {})[str(value)] = colour
+    picked.append((value, colour))
+    dlg._apply_style_change()
+
+  editor = CategoryColourDialog(tid, assignment["var"], order, colours,
+                                on_change, dlg)
+
+  # QGIS replaces the renderer the editor was built from, exactly as
+  # the styling panel does
+  target = QgsProject.instance().mapLayer(dlg._element_layer_ids[tid])
+  assert target is not None, "the element layer went missing"
+  target.setRenderer(QgsSingleSymbolRenderer(
+    QgsFillSymbol.createSimple({"color": "#123456"})))
+  target.triggerRepaint()
+  _tick(200)
+
+  # ...and now a colour is picked in the window built from the old one
+  first = order[0]
+  on_change(first, "#ff8800")
+  _tick(300)
+  assert picked, "the pick was not recorded at all"
+  stored = dlg._category_colours.get(tid, {}) \
+      .get(assignment["var"], {}).get(str(first))
+  assert stored == "#ff8800", \
+    f"the colour picked while QGIS was restyling the layer was not " \
+    f"kept ({stored!r}); the editor writes to the dialog's record, " \
+    f"which is what makes it safe to use while the map moves"
+
+  # and a QGIS user deleting the layer outright must not take the
+  # editor with it
+  QgsProject.instance().removeMapLayer(target.id())
+  _tick(200)
+  on_change(order[-1] if len(order) > 1 else first, "#00aa77")
+  _tick(200)
+  editor.close()
+
+  # the record survives to the next run, which is the promise
+  dlg._generate()
+  assert _settle(dlg, seconds=60), "the run after the edit never settled"
+  _tick(250)
+  kept = dlg._category_colours.get(tid, {}) \
+      .get(assignment["var"], {}).get(str(first))
+  assert kept == "#ff8800", \
+    f"the hand-picked colour was lost across the run ({kept!r})"
+  dlg.close()
+
+
+def test_the_dialog_closed_partway_through_a_run():
+  """Closed mid-run, at every stage of the run.
+
+  There is already a close-during-a-run test, and it closes
+  immediately. Immediately is the easy moment: nothing has been laid
+  out, the worker has barely started, and the completion handler has
+  not begun writing to widgets. The dangerous moments are later --
+  while the task is running, and especially while its DONE callback
+  is adding layers on the main thread, which is when the dialog's own
+  widgets are being written to by a run that is about to find them
+  destroyed.
+
+  A closed dialog cannot be asked how it feels, so the assertions are
+  the ones that survive it: nothing raised, no task left in flight,
+  and — the real check — a NEW dialog can be built and used
+  afterwards. If the previous run left a half-attached task or a
+  dangling reference, that is where it surfaces, and it surfaces as a
+  broken plugin rather than a mysterious one.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  trouble = []
+  for delay in [0, 200, 500, 1000, 1800]:
+    project = QgsProject.instance()
+    for existing in list(project.mapLayers().values()):
+      project.removeMapLayer(existing.id())
+    MODALS.clear()
+    layer = make_region_layer(n=3)
+    project.addMapLayer(layer)
+    try:
+      dlg = WeavingSpaceDialog(iface=None)
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(250)
+      dlg.spacing_spin.setValue(500)
+      dlg._generate()
+      _tick(delay)
+      dlg.close()
+      _tick(1200)          # let whatever was in flight land, or not
+
+      after = WeavingSpaceDialog(iface=None)
+      after.live_check.setChecked(False)
+      after.layer_combo.setLayer(layer)
+      _tick(250)
+      after.spacing_spin.setValue(500)
+      after._generate()
+      if not _settle(after, seconds=60):
+        trouble.append(
+          f"closed after {delay}ms: the NEXT dialog never settled, so "
+          f"the closed run left something behind")
+      elif not after._element_layer_ids:
+        trouble.append(
+          f"closed after {delay}ms: the next dialog produced no map")
+      after.close()
+    except Exception as exc:
+      trouble.append(
+        f"closed after {delay}ms: raised {type(exc).__name__}: {exc}")
+  assert not trouble, "closing mid-run:\n  " + "\n  ".join(trouble)
+
+
+def test_the_colour_editor_opened_partway_through_a_run():
+  """Open the editor and pick a colour at each stage of a run.
+
+  The editor is deliberately usable while a run is in flight: it never
+  holds a layer, it writes to the dialog's own record, and the restyle
+  path finds whatever layers exist when it gets there. That design is
+  what makes this safe, and this test is what checks the design still
+  holds at moments other than the convenient one.
+
+  The delays straddle both debounces and reach past the end of a
+  typical run, so the pick lands variously before the worker starts,
+  while it is tiling, and while the completion handler is building
+  output layers on the main thread. The last of those is the
+  interesting one: the handler must RE-READ the colour record rather
+  than use the snapshot the run began with, or a colour chosen during
+  a run is destroyed at the moment the run lands.
+
+  Regression: a colour picked while a run was in flight was overwritten when the run finished, because the output builder trusted the assignments the run was launched with.
+  """
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+  trouble = []
+  for delay in [0, 200, 500, 1000, 1800]:
+    project = QgsProject.instance()
+    for existing in list(project.mapLayers().values()):
+      project.removeMapLayer(existing.id())
+    MODALS.clear()
+    dlg = None
+    try:
+      dlg, layer, tid = _categorical_dialog()
+      dlg.spacing_spin.setValue(500)
+      assignment = next(a for a in dlg._assignments()
+                        if a["id"] == tid and a["var"])
+      field = assignment["var"]
+      colours, order = dlg._current_category_colours(assignment)
+      if not order:
+        trouble.append(f"{delay}ms: no categories to edit")
+        continue
+      value = order[0]
+
+      dlg._generate()
+      _tick(delay)
+
+      def picked(v, colour, tid=tid, field=field):
+        dlg._category_colours.setdefault(tid, {}) \
+           .setdefault(field, {})[str(v)] = colour
+        dlg._apply_style_change()
+
+      editor = CategoryColourDialog(tid, field, order, colours,
+                                    picked, dlg)
+      picked(value, "#ff0099")
+      editor.close()
+
+      if not _settle(dlg, seconds=90):
+        trouble.append(f"{delay}ms: the run never settled")
+        continue
+      _tick(300)
+      kept = dlg._category_colours.get(tid, {}).get(field, {}).get(
+        str(value))
+      if kept != "#ff0099":
+        trouble.append(
+          f"{delay}ms: the colour picked during the run is now "
+          f"{kept!r}; a run that finishes must not discard a choice "
+          f"made while it was working")
+      if not dlg.generate_btn.isEnabled():
+        trouble.append(f"{delay}ms: Generate left disabled afterwards")
+    except Exception as exc:
+      trouble.append(f"{delay}ms: raised {type(exc).__name__}: {exc}")
+    finally:
+      if dlg is not None:
+        dlg.close()
+  assert not trouble, \
+    "the colour editor during a run:\n  " + "\n  ".join(trouble)
+
+
+def test_every_numeric_input_at_its_limits():
+  """Drive each spin box to its minimum and maximum, and generate.
+
+  The dialog has a dozen numeric inputs: spacing, the preview's
+  context shells, five family options, the affine modifiers, grid rows
+  and columns, class count, opacity. Qt fences each with a range, so
+  no test can put a word in one -- and that says nothing about what
+  the plugin does with the numbers AT the ends of those ranges, which
+  is where a value nobody imagined typing actually lives.
+
+  The controls are DISCOVERED rather than listed. A list of widget
+  names is correct until somebody adds a control, and then it is
+  quietly incomplete in exactly the way that matters; asking the
+  dialog what it has means a new spinner is covered the day it
+  appears.
+
+  Each case sets one control to one extreme, leaves everything else
+  alone, and asks for a map. Minimums are the dangerous end -- a
+  spacing far below the region's size asks for astronomically many
+  tiles, and the guard against that is the only thing standing
+  between a user and GEOS exhausting memory -- while maximums are
+  mostly harmless and mostly boring, which is why they are the ones
+  nobody tries by hand.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from qgis.PyQt.QtWidgets import QAbstractSpinBox
+
+  # one dialog, only to find out what controls exist
+  probe_layer = make_region_layer(n=3)
+  QgsProject.instance().addMapLayer(probe_layer)
+  probe = WeavingSpaceDialog(iface=None)
+  probe.live_check.setChecked(False)
+  _tick(200)
+  named = []
+  for name in dir(probe):
+    if name.startswith("__"):
+      continue
+    try:
+      widget = getattr(probe, name)
+    except Exception:
+      continue
+    if isinstance(widget, QAbstractSpinBox) and hasattr(widget, "minimum"):
+      named.append(name)
+  probe.close()
+  QgsProject.instance().removeMapLayer(probe_layer.id())
+  assert len(named) >= 8, \
+    f"only {len(named)} spin boxes were found ({named}); this test " \
+    f"is meant to cover all of them and is not finding them"
+
+  trouble = []
+  for name in sorted(named):
+    for end in ("minimum", "maximum"):
+      project = QgsProject.instance()
+      for existing in list(project.mapLayers().values()):
+        project.removeMapLayer(existing.id())
+      MODALS.clear()
+      layer = make_region_layer(n=3)
+      project.addMapLayer(layer)
+      dlg = None
+      label = f"{name} at its {end}"
+      try:
+        dlg = WeavingSpaceDialog(iface=None)
+        dlg.live_check.setChecked(False)
+        dlg.layer_combo.setLayer(layer)
+        _tick(250)
+        widget = getattr(dlg, name)
+        widget.setValue(getattr(widget, end)())
+        _tick(150)
+        dlg._generate()
+        if not _settle(dlg, seconds=90):
+          trouble.append(
+            f"{label}: never settled. A value at the end of a range "
+            f"should be refused promptly, not attempted")
+          continue
+        _tick(150)
+        made = bool(dlg._element_layer_ids)
+        said = bool(dlg.live_note.text().strip()) or bool(MODALS)
+        if not made and not said:
+          trouble.append(
+            f"{label} ({widget.value()}): no output and no message")
+        if not dlg.generate_btn.isEnabled():
+          trouble.append(f"{label}: Generate left disabled afterwards")
+      except Exception as exc:
+        trouble.append(f"{label}: raised {type(exc).__name__}: {exc}")
+      finally:
+        if dlg is not None:
+          dlg.close()
+
+  assert not trouble, "numeric inputs at their limits:\n  " + \
+    "\n  ".join(trouble)
+
+
+def _project_round_trip(folder, name="project.qgz"):
+  """Write the project, empty it, and read it back.
+
+  Args:
+    folder: a temporary directory to write into.
+    name: the project file name; .qgz is QGIS's zipped format and is
+      what a user gets from File > Save.
+
+  Returns:
+    The path written. Afterwards QgsProject.instance() holds whatever
+    survived the round trip, which is the point: not what was in
+    memory a moment ago, but what QGIS could reconstruct from a file.
+
+  clear() between the write and the read matters. Without it QGIS
+  keeps the live layers and read() merges into them, so the test would
+  be reading its own memory rather than the file and would pass
+  whatever the file contained.
+  """
+  path = os.path.join(folder, name)
+  project = QgsProject.instance()
+  assert project.write(path), f"the project would not write to {path}"
+  project.clear()
+  assert not project.mapLayers(), "clear() left layers behind"
+  assert project.read(path), f"the project would not read back from {path}"
+  return path
+
+
+def test_a_saved_project_brings_back_its_colours():
+  """Hand-picked colours survive being saved, closed and reopened.
+
+  The colours a user picks in the Categorical colour editor are stored
+  on each output layer as a custom property, which QGIS writes into
+  the project file. That is the mechanism by which an afternoon's
+  work survives quitting QGIS, and it was tested only up to the point
+  of WRITING the property: nothing read one back off a project that
+  had actually been through a file.
+
+  GeoPackage output is used deliberately. Temporary output is memory
+  layers, and memory layers do not survive a project save at all, so a
+  round trip of those tests a different question (the one below).
+
+  The assertions follow the user's own path: the colour is on the
+  layer, the layer is found again by the dialog, and the dialog's own
+  record has adopted it — because it is that record, not the layer
+  property, which the next run and the next restyle read from.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from qgis.core import QgsVectorFileWriter
+  import shutil
+  import tempfile
+
+  folder = tempfile.mkdtemp(prefix="weavingspace_project_")
+  try:
+    dlg, layer, tid = _categorical_dialog()
+    # the region layer must live on disk too, or the reopened project
+    # has nothing to point at
+    region_path = os.path.join(folder, "region.gpkg")
+    options = QgsVectorFileWriter.SaveVectorOptions()
+    options.driverName = "GPKG"
+    options.layerName = "region"
+    QgsVectorFileWriter.writeAsVectorFormatV3(
+      layer, region_path, QgsProject.instance().transformContext(),
+      options)
+    QgsProject.instance().removeMapLayer(layer.id())
+    disk_region = QgsVectorLayer(f"{region_path}|layername=region",
+                                 "region", "ogr")
+    assert disk_region.isValid(), "the region did not survive being written"
+    QgsProject.instance().addMapLayer(disk_region)
+    dlg.layer_combo.setLayer(disk_region)
+    _tick(300)
+    dlg.table.cellWidget(1, 1).setCurrentText("landcover")
+    _tick(200)
+
+    assignment = next(a for a in dlg._assignments()
+                      if a["id"] == tid and a["var"])
+    field = assignment["var"]
+    colours, order = dlg._current_category_colours(assignment)
+    assert order, "no categories to colour"
+    chosen = str(order[0])
+    dlg._category_colours.setdefault(tid, {}) \
+       .setdefault(field, {})[chosen] = "#ff00aa"
+
+    out_path = os.path.join(folder, "map.gpkg")
+    dlg.gpkg_widget.setFilePath(out_path)
+    dlg.spacing_spin.setValue(500)
+    dlg._generate()
+    assert _settle(dlg, seconds=90), "the run never settled"
+    _tick(250)
+    assert dlg._element_layer_ids, "no output was produced"
+    dlg.close()
+
+    _project_round_trip(folder)
+    _tick(300)
+
+    # the property is on a layer that came out of a FILE
+    carried = None
+    for lyr in QgsProject.instance().mapLayers().values():
+      if lyr.customProperty("weavingspace_tile_id") == tid:
+        carried = lyr.customProperty("weavingspace_category_colours")
+    assert carried, \
+      "no output layer in the reopened project carries the " \
+      "hand-picked colours; an afternoon's work does not survive " \
+      "quitting QGIS"
+    assert "#ff00aa" in carried, \
+      f"the layer came back but not the colour: {carried!r}"
+
+    # and a dialog opened on that project adopts them, which is what
+    # the next run and the next restyle actually read
+    reopened = WeavingSpaceDialog(iface=None)
+    reopened.live_check.setChecked(False)
+    _tick(300)
+    adopted = reopened._category_colours.get(tid, {}).get(field, {})
+    assert adopted.get(chosen) == "#ff00aa", \
+      f"the reopened dialog did not adopt the saved colours: " \
+      f"{reopened._category_colours!r}"
+    reopened.close()
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_saved_project_with_temporary_output():
+  """Saving a project whose map is temporary layers.
+
+  Temporary output is memory layers, and a memory layer's DATA does
+  not go into a project file. So a user who generates a map, saves,
+  quits and comes back has a project that remembers a group and some
+  layers which hold nothing -- or holds nothing at all, depending on
+  what QGIS chose to write.
+
+  Either way the plugin must open on it without falling over, and
+  must not present the remains as a finished map. There is no fix to
+  assert here beyond that: the honest behaviour is to cope, and the
+  reason to test it is that "cope" is exactly what code does not do
+  when it assumes a layer it remembers still has features in it.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from qgis.core import QgsVectorFileWriter
+  import shutil
+  import tempfile
+
+  folder = tempfile.mkdtemp(prefix="weavingspace_temp_project_")
+  try:
+    region_path = os.path.join(folder, "region.gpkg")
+    source = _editable_region()
+    options = QgsVectorFileWriter.SaveVectorOptions()
+    options.driverName = "GPKG"
+    options.layerName = "region"
+    QgsVectorFileWriter.writeAsVectorFormatV3(
+      source, region_path, QgsProject.instance().transformContext(),
+      options)
+    layer = QgsVectorLayer(f"{region_path}|layername=region",
+                           "region", "ogr")
+    QgsProject.instance().addMapLayer(layer)
+
+    dlg = WeavingSpaceDialog(iface=None)
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    dlg.spacing_spin.setValue(500)
+    dlg._generate()
+    assert _settle(dlg, seconds=90), "the run never settled"
+    _tick(250)
+    assert dlg._element_layer_ids, "no output to save"
+    dlg.close()
+
+    _project_round_trip(folder, "temporary.qgz")
+    _tick(300)
+
+    # whatever came back, the plugin opens on it and stays usable
+    reopened = WeavingSpaceDialog(iface=None)
+    reopened.live_check.setChecked(False)
+    _tick(400)
+    assert reopened.generate_btn.isEnabled(), \
+      "the dialog opened on a reopened project with Generate disabled"
+    # and it does not claim to be holding a map it cannot draw
+    for tid, lid in list(reopened._element_layer_ids.items()):
+      out = QgsProject.instance().mapLayer(lid)
+      assert out is None or out.isValid(), \
+        f"element {tid} was adopted from the project but its layer " \
+        f"is not valid; the dialog is holding a reference to nothing"
+    # asking it to work must not raise on the remains
+    reopened._assignments()
+    reopened._run_signature()
+    reopened._restyle_only()
+    reopened.close()
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_geopackage_reopens_with_its_styles():
+  """The GeoPackage a user keeps, opened fresh.
+
+  The GeoPackage is the output that outlives the session: it is what
+  gets emailed, archived and reopened next month. The plugin writes
+  each element as a layer and embeds its style, so opening the file
+  should give back the map rather than a set of grey polygons.
+
+  This loads the file into an EMPTY project, the way a colleague
+  would, rather than reading the layers the run left in memory.
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  folder = tempfile.mkdtemp(prefix="weavingspace_gpkg_")
+  try:
+    layer = make_region_layer()
+    QgsProject.instance().addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=None)
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    out_path = os.path.join(folder, "map.gpkg")
+    dlg.gpkg_widget.setFilePath(out_path)
+    dlg.spacing_spin.setValue(500)
+    dlg._generate()
+    assert _settle(dlg, seconds=90), "the run never settled"
+    _tick(250)
+    written = {tid: QgsProject.instance().mapLayer(lid)
+               for tid, lid in dlg._element_layer_ids.items()}
+    written = {t: l for t, l in written.items() if l is not None}
+    assert written, "nothing was written"
+    before = {t: type(l.renderer()).__name__ for t, l in written.items()}
+    dlg.close()
+    QgsProject.instance().clear()
+    _tick(200)
+
+    assert os.path.exists(out_path), "no GeoPackage on disk"
+    from qgis.core import QgsProviderRegistry
+    parts = QgsProviderRegistry.instance().querySublayers(out_path)
+    assert parts, f"the GeoPackage holds no layers: {out_path}"
+    reopened = {}
+    for part in parts:
+      name = part.name()
+      lyr = QgsVectorLayer(f"{out_path}|layername={name}", name, "ogr")
+      if lyr.isValid():
+        lyr.loadDefaultStyle()
+        reopened[name] = lyr
+    assert reopened, "none of the GeoPackage's layers loaded"
+    styled = [n for n, l in reopened.items()
+              if type(l.renderer()).__name__ in
+              ("QgsGraduatedSymbolRenderer", "QgsCategorizedSymbolRenderer")]
+    assert styled, \
+      f"every layer reopened as plain symbology " \
+      f"({ {n: type(l.renderer()).__name__ for n, l in reopened.items()} }); " \
+      f"the run wrote {before}, so the embedded styles did not survive " \
+      f"the file being reopened"
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_the_project_is_cleared_during_a_run():
+  """File > Close Project, with a tiling still in flight.
+
+  Cleared AFTER a run is covered. Cleared DURING one is a different
+  machine: the worker is on another thread holding a frame built from
+  a layer that is about to be destroyed, and the completion handler
+  is about to add layers to a project that no longer has the region
+  they came from. Main-thread work at the end of a run is where two
+  of this plugin's bugs have already lived.
+
+  Nothing may raise, nothing may be left in flight, and QGIS must
+  still be here afterwards -- which the test proves by building and
+  running another dialog on a new layer.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  trouble = []
+  for delay in [0, 300, 900, 1600]:
+    project = QgsProject.instance()
+    project.clear()
+    MODALS.clear()
+    layer = make_region_layer(n=3)
+    project.addMapLayer(layer)
+    try:
+      dlg = WeavingSpaceDialog(iface=None)
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(250)
+      dlg.spacing_spin.setValue(500)
+      dlg._generate()
+      _tick(delay)
+      QgsProject.instance().clear()       # File > Close Project
+      _tick(1500)
+      if dlg._task is not None:
+        trouble.append(
+          f"cleared after {delay}ms: a task is still in flight")
+      dlg.close()
+
+      after = make_region_layer(n=3)
+      QgsProject.instance().addMapLayer(after)
+      second = WeavingSpaceDialog(iface=None)
+      second.live_check.setChecked(False)
+      second.layer_combo.setLayer(after)
+      _tick(250)
+      second.spacing_spin.setValue(500)
+      second._generate()
+      if not _settle(second, seconds=60):
+        trouble.append(
+          f"cleared after {delay}ms: the NEXT dialog never settled")
+      elif not second._element_layer_ids:
+        trouble.append(
+          f"cleared after {delay}ms: the next dialog made no map")
+      second.close()
+    except Exception as exc:
+      trouble.append(
+        f"cleared after {delay}ms: raised {type(exc).__name__}: {exc}")
+  assert not trouble, \
+    "the project cleared during a run:\n  " + "\n  ".join(trouble)
+
+
+def test_compat_helpers_cope_with_other_qgis_versions():
+  """compat's fallback branches, which this QGIS never reaches.
+
+  compat.py exists so that a QGIS upgrade breaks one file rather than
+  several, and its helpers carry branches for spellings this build
+  does not use. Those branches are the least exercised code in the
+  project and they run at the worst possible moment: on somebody
+  else's QGIS, on the day it changes.
+
+  They cannot be reached by running a different QGIS here, so they are
+  driven with stand-ins shaped like what a FUTURE release might hand
+  over: one missing the accessor entirely, and one whose methods raise
+  the way a half-deleted wrapper does. Backwards compatibility is not
+  among them -- the plugin targets QGIS 4+, so a branch for QGIS 3
+  could never run.
+
+  The bar is that every answer is a plain boolean and nothing
+  propagates: a helper that raises inside a signal handler aborts QGIS
+  rather than failing politely, which this suite was shown once
+  already today.
+  """
+  from weavingspace_qgis import compat
+
+  class Angry:
+    """A layer whose accessors raise, as a half-deleted one does."""
+    def autoRefreshMode(self):              # noqa: N802
+      raise RuntimeError("wrapped C/C++ object has been deleted")
+
+    def isValid(self):                      # noqa: N802
+      raise RuntimeError("wrapped C/C++ object has been deleted")
+
+  class Bare:
+    """A layer without the accessor, as a future release may give.
+
+    Deliberately NOT a QGIS 3 layer. This plugin targets QGIS 4+, so
+    the older spelling is unsupported and carrying a branch for it
+    would mean maintaining code that can never run. The case worth
+    covering is the one ahead: a release that renames or drops the
+    accessor again.
+    """
+
+  assert compat.layer_auto_refreshes(Bare()) is False, \
+    "a build whose accessor this plugin does not recognise must " \
+    "answer False. A wrong False costs one missed refresh; a wrong " \
+    "True re-tiles the whole map on every repaint, style changes " \
+    "included"
+  assert compat.layer_auto_refreshes(Angry()) is False, \
+    "a layer whose accessors raise must not propagate out of compat"
+
+  assert compat.layer_data_is_available(None) is False, \
+    "no layer is not an available layer"
+  assert compat.layer_data_is_available(Angry()) is False, \
+    "a layer whose wrapper has been deleted must answer False rather " \
+    "than raise; this runs inside a Qt signal handler, where an " \
+    "exception aborts the application instead of failing a test"
+
+  # and the real thing still answers correctly, so the stand-ins have
+  # not simply proved that everything returns False
+  layer = make_region_layer(n=2)
+  assert compat.layer_data_is_available(layer) is True, \
+    "a perfectly good layer was reported unavailable"
+  assert compat.layer_auto_refreshes(layer) is False, \
+    "a layer with no auto-refresh set was reported as refreshing"
+
+
+def test_an_undone_edit_is_followed_back():
+  """Ctrl+Z in QGIS, and the map that must follow it back.
+
+  Undo is not a special case of editing, it is editing in reverse, and
+  the plugin hears it the same way: the layer emits, the fingerprint
+  changes, the map is rebuilt. The reason to test it separately is
+  that a cache keyed on "has anything changed" can be perfectly
+  correct going forwards and still return a stale answer coming back
+  -- the layer after an undo looks exactly like the layer before the
+  edit, which is the one state a naive change-counter would call
+  unchanged.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = _editable_region()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg.spacing_spin.setValue(500)
+  dlg._generate()
+  assert _settle(dlg, seconds=60), "the first run never settled"
+  _tick(200)
+  original = _fingerprint(dlg)
+  assert original[0] > 0, "the first run produced nothing"
+
+  # An edit inside an open session, NOT committed. Committing first
+  # would make the undo unavailable: QGIS's per-layer undo stack
+  # belongs to the edit buffer and is emptied when the buffer is
+  # committed, so "edit, commit, undo" is not a thing a user can do
+  # and a test built on it proves nothing. Ctrl+Z lives between
+  # startEditing and commit, which is where this test lives too.
+  layer.startEditing()
+  ids = [f.id() for f in layer.getFeatures()]
+  layer.deleteFeatures(ids[: len(ids) // 3])
+  layer.updateExtents()
+  _tick(400)
+  dlg._generate()
+  assert _settle(dlg, seconds=60), "the run after the edit never settled"
+  _tick(200)
+  edited = _fingerprint(dlg)
+  assert edited != original, \
+    f"the map did not follow the edit ({original}), so this test " \
+    f"cannot say anything about following the undo"
+
+  # ...and now Ctrl+Z, still inside the same session
+  assert layer.undoStack().canUndo(), \
+    "there is nothing on the undo stack, so this test is not " \
+    "exercising undo at all"
+  while layer.undoStack().canUndo():
+    layer.undoStack().undo()
+  layer.updateExtents()
+  _tick(500)
+  dlg._generate()
+  assert _settle(dlg, seconds=60), "the run after the undo never settled"
+  _tick(200)
+  restored = _fingerprint(dlg)
+  assert restored == original, \
+    f"after undoing the edit the map is {restored}, not the " \
+    f"{original} it drew before. Undo returns the layer to a state " \
+    f"the plugin has already seen, which is the one case a " \
+    f"change-counter reports as no change"
+  layer.rollBack()
+  dlg.close()
+
+
+def test_a_large_region_is_handled():
+  """A region with thousands of polygons, not nine.
+
+  Every other test in this file runs on a handful of squares, and the
+  guards those tests exercise are sized for national datasets: the
+  tile-count estimate, the confirmation threshold, the hard refusal
+  that exists because a small spacing on a big extent exhausts memory
+  inside GEOS and takes QGIS down. Checking a threshold of hundreds of
+  thousands against a nine-polygon fixture tests the arithmetic and
+  not the behaviour.
+
+  Three phases, along the two axes that scale independently. Tile
+  count comes from extent over spacing and NOT from the polygon
+  count, so a large region at a coarse spacing stresses the spatial
+  join while a small one at a fine spacing stresses geometry and
+  layer building. Testing only the first would leave the thresholds --
+  all of which count TILES -- exercised against a toy number.
+
+    a sensible spacing over 2,500 polygons must work: finish, in a
+      time a user would sit through, with a map at the end;
+    a spacing asking for tens of thousands of tiles must also work,
+      since that is what the confirmation threshold promises is
+      merely slow rather than impossible;
+    a spacing asking for astronomically many must be REFUSED, and
+      refused promptly, rather than attempted and discovered to be
+      impossible somewhere inside a C++ library that takes the
+      application down with it.
+
+  The region is deliberately modest by real-world standards (2,500
+  polygons; a census tract file is ten times that) because the point
+  is to leave toy scale behind, not to benchmark. The time limit is
+  loose for the same reason: it is there to catch something quadratic,
+  not to measure this machine.
+  """
+  import time
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import compat
+
+  layer = QgsVectorLayer("Polygon?crs=EPSG:3857", "big", "memory")
+  layer.dataProvider().addAttributes([compat.make_field("v1", float),
+                                      compat.make_field("cat", str)])
+  layer.updateFields()
+  side, cell = 50, 200.0            # 2,500 polygons over 10 km
+  feats = []
+  for i in range(side):
+    for j in range(side):
+      x, y = i * cell, j * cell
+      ring = [QgsPointXY(x, y), QgsPointXY(x + cell, y),
+              QgsPointXY(x + cell, y + cell), QgsPointXY(x, y + cell)]
+      f = QgsFeature(layer.fields())
+      f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+      f["v1"] = float(i * side + j)
+      f["cat"] = ["forest", "water", "urban", "crops"][(i + j) % 4]
+      feats.append(f)
+  layer.dataProvider().addFeatures(feats)
+  layer.updateExtents()
+  assert layer.featureCount() == side * side
+  QgsProject.instance().addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(400)
+
+  # 1. a sensible spacing must produce a map, in a sane time
+  dlg.spacing_spin.setValue(600)
+  began = time.time()
+  dlg._generate()
+  assert _settle(dlg, seconds=300), \
+    "a 2,500-polygon region never settled at a sensible spacing"
+  _tick(300)
+  spent = time.time() - began
+  assert dlg._element_layer_ids, \
+    f"no map from a 2,500-polygon region after {spent:.0f}s"
+  tiles = sum(
+    QgsProject.instance().mapLayer(lid).featureCount()
+    for lid in dlg._element_layer_ids.values()
+    if QgsProject.instance().mapLayer(lid) is not None)
+  assert tiles > 0, "the map came back empty"
+  assert spent < 240, \
+    f"{tiles:,} tiles over 2,500 polygons took {spent:.0f}s; that is " \
+    f"long enough that something has become superlinear"
+  print(f"      large region: {tiles:,} tiles in {spent:.1f}s", flush=True)
+
+  # 2. a spacing that asks for TENS OF THOUSANDS of tiles. The count
+  # comes from extent over spacing, not from the polygon count, so
+  # phase 1 above stressed the spatial join and left tile volume at
+  # toy scale. This is the axis the thresholds are written against:
+  # past MAX_TILES_CONFIRM (40,000) the plugin asks before proceeding,
+  # and the confirmation is answered "yes" by the harness, so what is
+  # measured here is the plugin doing its most expensive work for
+  # real -- building and styling tens of thousands of features.
+  MODALS.clear()
+  dlg.spacing_spin.setValue(60)
+  began = time.time()
+  dlg._generate()
+  assert _settle(dlg, seconds=600), \
+    "a map of tens of thousands of tiles never settled"
+  _tick(400)
+  spent = time.time() - began
+  many = sum(
+    QgsProject.instance().mapLayer(lid).featureCount()
+    for lid in dlg._element_layer_ids.values()
+    if QgsProject.instance().mapLayer(lid) is not None)
+  said = bool(MODALS) or bool(dlg.live_note.text().strip())
+  assert many > 10_000 or said, \
+    f"a spacing of 60 over a 10 km region produced only {many:,} " \
+    f"tiles and said nothing; either the estimate is far off or the " \
+    f"run quietly did something smaller than it was asked for"
+  if many:
+    print(f"      dense map: {many:,} tiles in {spent:.1f}s", flush=True)
+    assert spent < 420, \
+      f"{many:,} tiles took {spent:.0f}s. The thresholds promise this " \
+      f"size of map is workable, so a user who accepts the " \
+      f"confirmation must not be left waiting past the point of " \
+      f"abandoning it"
+  assert dlg.generate_btn.isEnabled(), \
+    "Generate left disabled after a large map"
+
+  # 3. and a fine spacing over the same region must be refused, fast.
+  # This is the guard that exists because attempting it exhausts
+  # memory inside GEOS and takes the application with it.
+  MODALS.clear()
+  dlg.spacing_spin.setValue(0.5)
+  began = time.time()
+  dlg._generate()
+  assert _settle(dlg, seconds=120), \
+    "a spacing of 0.5 over a 10 km region never settled; it should " \
+    "have been refused without the tiling ever being attempted"
+  refusal = time.time() - began
+  _tick(200)
+  said = bool(dlg.live_note.text().strip()) or bool(MODALS)
+  assert said, \
+    "a spacing that asks for astronomically many tiles was not " \
+    "refused and nothing was said"
+  assert refusal < 30, \
+    f"the refusal took {refusal:.0f}s; the estimate is meant to be " \
+    f"cheap so that an impossible request is turned away at once"
+  assert dlg.generate_btn.isEnabled(), "Generate left disabled"
+  dlg.close()
+
+
+def test_a_geopackage_is_rewritten_and_renamed():
+  """Writing over an existing GeoPackage, and awkward names in it.
+
+  The output file is the thing a user keeps, so it is also the thing
+  they overwrite: the same path, run after run, as a map is refined.
+  Each run must leave a file holding THIS run's layers and not an
+  accumulation of every previous attempt, which is the failure mode of
+  a writer that appends where it meant to replace.
+
+  Names are the other half. A layer name comes from the element and
+  its variable, so a field called ``densité`` or one with spaces and
+  punctuation in it ends up inside the GeoPackage, where SQLite has
+  its own opinions about identifiers.
+  """
+  import shutil
+  import tempfile
+  from qgis.core import QgsProviderRegistry
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import compat
+
+  folder = tempfile.mkdtemp(prefix="weavingspace_rewrite_")
+  try:
+    layer = QgsVectorLayer("Polygon?crs=EPSG:3857", "region", "memory")
+    layer.dataProvider().addAttributes([
+      compat.make_field("densité", float),
+      compat.make_field("a field with spaces", float)])
+    layer.updateFields()
+    feats = []
+    for k in range(16):
+      i, j = k % 4, k // 4
+      x, y = i * 1000.0, j * 1000.0
+      ring = [QgsPointXY(x, y), QgsPointXY(x + 1000, y),
+              QgsPointXY(x + 1000, y + 1000), QgsPointXY(x, y + 1000)]
+      f = QgsFeature(layer.fields())
+      f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+      f["densité"] = float(k)
+      f["a field with spaces"] = float(k % 3)
+      feats.append(f)
+    layer.dataProvider().addFeatures(feats)
+    layer.updateExtents()
+    QgsProject.instance().addMapLayer(layer)
+
+    path = os.path.join(folder, "output.gpkg")
+    counts = []
+    for run in range(3):
+      dlg = WeavingSpaceDialog(iface=None)
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(300)
+      for row in range(dlg.table.rowCount()):
+        combo = dlg.table.cellWidget(row, 1)
+        if combo is not None:
+          combo.setCurrentText("densité" if row % 2 == 0
+                               else "a field with spaces")
+      _tick(200)
+      dlg.gpkg_widget.setFilePath(path)
+      # a different spacing each time, as somebody refining a map does
+      dlg.spacing_spin.setValue(500 + run * 100)
+      dlg._generate()
+      assert _settle(dlg, seconds=120), f"run {run} never settled"
+      _tick(250)
+      assert dlg._element_layer_ids, f"run {run} produced no output"
+      dlg.close()
+
+      parts = QgsProviderRegistry.instance().querySublayers(path)
+      names = sorted(p.name() for p in parts)
+      counts.append(len(names))
+      assert names, f"run {run} left a GeoPackage with no layers"
+      for name in names:
+        reopened = QgsVectorLayer(f"{path}|layername={name}", name, "ogr")
+        assert reopened.isValid(), \
+          f"run {run} wrote a layer that will not open: {name!r}"
+
+    assert counts[0] == counts[1] == counts[2], \
+      f"the GeoPackage grew across runs ({counts}); each run must " \
+      f"REPLACE the previous result rather than adding to it, or a " \
+      f"user refining a map accumulates every attempt in one file"
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_the_plugin_is_unloaded_during_a_run():
+  """QGIS disables the plugin while a tiling is in flight.
+
+  Unloading is what happens when a user turns the plugin off in the
+  Plugin Manager, and what QGIS does to every plugin on its way out.
+  Doing it mid-run means the menu action, the toolbar icon and the
+  plugin object itself go away while a worker thread is still tiling
+  and a completion handler is still queued to touch widgets.
+
+  A closed dialog is covered elsewhere; this is stronger, because
+  unload also removes the object that owns the dialog. The bar is
+  that nothing raises, nothing is left running, and QGIS survives --
+  which is shown by building a working dialog afterwards, since a
+  half-torn-down plugin tends to take the next thing with it rather
+  than announce itself.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  import weavingspace_qgis as package
+
+  class _UnloadIface(_Iface):
+    """Enough of QgisInterface for registration and teardown."""
+
+    def __init__(self):
+      super().__init__()
+      self.menu_items, self.toolbar_items = [], []
+
+    def addPluginToMenu(self, menu, action):    # noqa: N802 (QGIS API)
+      self.menu_items.append((menu, action))
+
+    def removePluginMenu(self, menu, action):   # noqa: N802
+      self.menu_items = [x for x in self.menu_items if x[1] is not action]
+
+    def addToolBarIcon(self, action):           # noqa: N802
+      self.toolbar_items.append(action)
+
+    def removeToolBarIcon(self, action):        # noqa: N802
+      self.toolbar_items = [a for a in self.toolbar_items
+                            if a is not action]
+
+  trouble = []
+  for delay in [0, 400, 1200]:
+    project = QgsProject.instance()
+    project.clear()
+    MODALS.clear()
+    layer = make_region_layer(n=3)
+    project.addMapLayer(layer)
+    try:
+      iface = _UnloadIface()
+      instance = package.classFactory(iface)
+      instance.initGui()
+
+      dlg = WeavingSpaceDialog(iface=iface)
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(250)
+      dlg.spacing_spin.setValue(500)
+      dlg._generate()
+      _tick(delay)
+
+      instance.unload()             # the Plugin Manager switch
+      _tick(1500)
+      if iface.menu_items or iface.toolbar_items:
+        trouble.append(
+          f"unloaded after {delay}ms: the menu or toolbar entry is "
+          f"still registered")
+      dlg.close()
+      _tick(400)
+
+      after = make_region_layer(n=3)
+      QgsProject.instance().addMapLayer(after)
+      second = WeavingSpaceDialog(iface=None)
+      second.live_check.setChecked(False)
+      second.layer_combo.setLayer(after)
+      _tick(250)
+      second.spacing_spin.setValue(500)
+      second._generate()
+      if not _settle(second, seconds=90):
+        trouble.append(
+          f"unloaded after {delay}ms: a dialog built afterwards never "
+          f"settled, so the torn-down run left something behind")
+      elif not second._element_layer_ids:
+        trouble.append(
+          f"unloaded after {delay}ms: the next dialog made no map")
+      second.close()
+    except Exception as exc:
+      trouble.append(
+        f"unloaded after {delay}ms: raised {type(exc).__name__}: {exc}")
+  assert not trouble, \
+    "the plugin unloaded during a run:\n  " + "\n  ".join(trouble)
+
+
+def _families_with(dlg, count):
+  """Family names offering exactly this many elements.
+
+  Args:
+    dlg: an open dialog, used for its catalogue combos.
+    count: how many elements the family should have.
+
+  Returns:
+    A list of family names, possibly empty. Read from the catalogue
+    rather than hard-coded, so a catalogue that gains or loses a
+    family does not silently make these tests vacuous.
+  """
+  from weavingspace_qgis import catalog
+  return [name for name, entry in
+          catalog.TILINGS_BY_N.get(count, {}).items()
+          if entry.get("weave_type") != "this"]
+
+
+def test_hand_picked_colours_do_not_bleed_across_families():
+  """A colour picked for one design must not appear in another's.
+
+  Hand-picked colours are keyed {tile_id: {field: {value: colour}}},
+  and nothing clears that when the family changes. Keeping them is the
+  intent -- a user trying another design should not lose their work --
+  but it means a choice made for element "a" of one family is still
+  sitting there when element "a" of a completely different family
+  appears, and the second "a" is a different shape doing a different
+  job.
+
+  What must hold is narrower than "nothing carries over", because
+  carrying over is the point. It is that a colour reaches an element
+  only through the SAME field it was chosen for, and that an element
+  which did not exist when the colour was picked has none of its own.
+  Anything looser and a user finds a design they never touched already
+  wearing someone else's decisions.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  dlg, layer, tid = _categorical_dialog()
+  assignment = next(a for a in dlg._assignments()
+                    if a["id"] == tid and a["var"])
+  field = assignment["var"]
+  colours, order = dlg._current_category_colours(assignment)
+  assert order, "no categories to colour"
+  value = str(order[0])
+  dlg._category_colours.setdefault(tid, {}) \
+     .setdefault(field, {})[value] = "#ff00aa"
+
+  bigger = _families_with(dlg, 7)
+  if not bigger:
+    dlg.close()
+    return                        # this catalogue has no seven-element
+                                  # family; nothing to compare against
+  dlg.n_combo.setCurrentText("7")
+  _tick(200)
+  dlg.family_combo.setCurrentText(bigger[0])
+  dlg._rebuild_unit()
+  _tick(300)
+  assert dlg.table.rowCount() == 7, \
+    f"asked for a seven-element family and got {dlg.table.rowCount()} rows"
+
+  ids = [dlg.table.item(r, 0).text() for r in range(dlg.table.rowCount())]
+  fresh = [i for i in ids if i != tid]
+  assert fresh, "the larger family shares every id with the smaller one"
+  for other in fresh:
+    picked = dlg._category_colours.get(other, {})
+    assert not picked, \
+      f"element {other!r} did not exist when the colour was chosen " \
+      f"and already carries hand-picked colours {picked!r}"
+
+  # the element that DID exist keeps its choice, and only for the
+  # field it was chosen against
+  kept = dlg._category_colours.get(tid, {})
+  assert kept.get(field, {}).get(value) == "#ff00aa", \
+    "the original element lost the colour that was picked for it"
+  for other_field, entries in kept.items():
+    if other_field != field:
+      assert value not in entries, \
+        f"the colour picked for {field!r} has leaked onto " \
+        f"{other_field!r}; two fields sharing a value name must not " \
+        f"share its colour"
+  dlg.close()
+
+
+def test_element_state_survives_a_family_change_and_back():
+  """Try another design, come back, and find your work intact.
+
+  Ramp, single colour and opacity all live in dictionaries keyed by
+  element rather than in the table's widgets, precisely so that a
+  table rebuild does not destroy them. Changing family rebuilds the
+  table, so this is that promise under the operation most likely to
+  break it.
+
+  The test goes away to a family with a DIFFERENT element count and
+  returns, because same-count families rebuild the table without ever
+  discarding a row, which is the easy case and not the one that
+  fails.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+
+  start_families = _families_with(dlg, 4)
+  other_families = _families_with(dlg, 7)
+  if not start_families or not other_families:
+    dlg.close()
+    return
+  dlg.n_combo.setCurrentText("4")
+  _tick(150)
+  dlg.family_combo.setCurrentText(start_families[0])
+  dlg._rebuild_unit()
+  _tick(250)
+
+  # choose something distinctive per element
+  ids = [dlg.table.item(r, 0).text() for r in range(dlg.table.rowCount())]
+  wanted_ramps = ["Blues", "Greens", "Oranges", "Purples"]
+  touched = 0
+  for row, tid in enumerate(ids):
+    _var, _mode, _k, ramp, _rev, opacity, _src = dlg._row_widgets(row)
+    if ramp is not None and hasattr(ramp, "setCurrentText"):
+      ramp.setCurrentText(wanted_ramps[row % len(wanted_ramps)])
+      touched += 1
+    if opacity is not None and hasattr(opacity, "setValue"):
+      opacity.setValue(40 + row * 10)
+  _tick(250)
+  # Without this the test can pass having changed NOTHING: every guard
+  # above skips, and the comparison below then holds trivially.
+  assert touched, \
+    "no element's ramp could be set, so the comparison below would " \
+    "compare unchanged state against itself and prove nothing"
+  before = {a["id"]: (a["ramp"], a.get("opacity"))
+            for a in dlg._assignments()}
+  assert len(before) == 4, f"expected four elements, got {before}"
+  assert len({r for r, _o in before.values()}) > 1, \
+    f"every element ended on the same ramp ({before}); the choices " \
+    f"this test is about were not actually made"
+
+  dlg.n_combo.setCurrentText("7")
+  _tick(150)
+  dlg.family_combo.setCurrentText(other_families[0])
+  dlg._rebuild_unit()
+  _tick(300)
+  assert dlg.table.rowCount() == 7, "the excursion did not take"
+
+  dlg.n_combo.setCurrentText("4")
+  _tick(150)
+  dlg.family_combo.setCurrentText(start_families[0])
+  dlg._rebuild_unit()
+  _tick(300)
+  after = {a["id"]: (a["ramp"], a.get("opacity"))
+           for a in dlg._assignments()}
+  assert after == before, \
+    f"coming back to the same family gave {after}, not the {before} " \
+    f"that was chosen. Per-element choices are held outside the table " \
+    f"exactly so a rebuild cannot lose them"
+  dlg.close()
+
+
+def test_element_state_follows_the_element_count():
+  """State for elements that no longer exist must not reach the map.
+
+  The per-element dictionaries are never pruned, so after a visit to a
+  seven-element family the entries for e, f and g are still there when
+  a four-element family is showing. They are harmless only as long as
+  nothing reads them for a design that has no such elements.
+
+  So: the assignments the run is built from must describe exactly the
+  elements the family has, and the map must come out with exactly that
+  many layers. A stale entry reaching the output would show up as an
+  element nobody asked for, drawn from a choice made for a different
+  design.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+
+  small = _families_with(dlg, 4)
+  large = _families_with(dlg, 7)
+  if not small or not large:
+    dlg.close()
+    return
+
+  for count, families in ((7, large), (4, small)):
+    dlg.n_combo.setCurrentText(str(count))
+    _tick(150)
+    dlg.family_combo.setCurrentText(families[0])
+    dlg._rebuild_unit()
+    _tick(300)
+    assignments = dlg._assignments()
+    assert len(assignments) == count, \
+      f"{count}-element family produced {len(assignments)} assignments"
+    ids = {a["id"] for a in assignments}
+    assert len(ids) == count, f"duplicate element ids: {sorted(ids)}"
+
+  dlg.spacing_spin.setValue(500)
+  dlg._generate()
+  assert _settle(dlg, seconds=90), "the run never settled"
+  _tick(250)
+  produced = {t for t, lid in dlg._element_layer_ids.items()
+              if QgsProject.instance().mapLayer(lid) is not None}
+  expected = {a["id"] for a in dlg._assignments()}
+  assert produced == expected, \
+    f"the map holds elements {sorted(produced)} but the design has " \
+    f"{sorted(expected)}. An element left over from a larger family " \
+    f"has reached the output"
+  dlg.close()
+
+
+def _write_class_qml(path, pairs, field="landcover"):
+  """Author a categorized QML the way QGIS does.
+
+  Args:
+    path: where to write it.
+    pairs: [(value, colour, label)] for the classes to record.
+    field: the attribute the scheme classifies.
+
+  Returns:
+    The path written. Built by giving a real layer a real renderer and
+    asking QGIS to save it, rather than by writing XML here: a
+    hand-written file would test this plugin against my idea of the
+    format instead of against the format QGIS actually produces.
+  """
+  from qgis.core import QgsRendererCategory, QgsCategorizedSymbolRenderer
+  layer = make_region_layer()
+  categories = [
+    QgsRendererCategory(value, QgsFillSymbol.createSimple({"color": colour}),
+                        label)
+    for value, colour, label in pairs]
+  layer.setRenderer(QgsCategorizedSymbolRenderer(field, categories))
+  layer.saveNamedStyle(path)
+  return path
+
+
+def test_a_class_source_file_that_changes_on_disk():
+  """The QML is rewritten after being chosen.
+
+  A user picks a class scheme, then goes back to QGIS, edits the
+  colours and saves over the same file -- which is the ordinary way
+  anybody refines a scheme. The next map must use what the file says
+  NOW, not what it said when it was picked.
+
+  The risk is a cached template: reading the file once and keeping it
+  is the obvious optimisation, and it is invisible until somebody
+  edits the file. This is the same shape as the stale-map defect, one
+  level out: a derived fact whose source is free to change with no
+  event to announce it.
+  """
+  from weavingspace_qgis import bridge
+  import shutil
+  import tempfile
+
+  folder = tempfile.mkdtemp(prefix="weavingspace_qml_")
+  try:
+    qml = os.path.join(folder, "scheme.qml")
+    _write_class_qml(qml, [("forest", "#112233", "Forest"),
+                           ("water", "#445566", "Water")])
+    first = bridge.load_categorized_template(qml)
+    assert set(first) == {"forest", "water"}, \
+      f"the first read did not see the scheme: {sorted(first)}"
+    assert first["forest"][0].color().name() == "#112233"
+
+    # QGIS rewrites the same path with different colours and an extra
+    # class, exactly as saving an edited scheme does
+    _write_class_qml(qml, [("forest", "#aa0000", "Forest"),
+                           ("water", "#00aa00", "Water"),
+                           ("urban", "#0000aa", "Urban")])
+    second = bridge.load_categorized_template(qml)
+    assert set(second) == {"forest", "water", "urban"}, \
+      f"the rewritten file was not seen: {sorted(second)}. A template " \
+      f"cached from the first read means a user edits their scheme, " \
+      f"saves it, regenerates, and gets the old colours with nothing " \
+      f"to explain why"
+    assert second["forest"][0].color().name() == "#aa0000", \
+      "the class survived but its colour is the one from before the edit"
+  finally:
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_class_source_file_that_goes_away():
+  """The QML is deleted, moved or renamed after being chosen.
+
+  A class source is remembered as a path, and a path is a promise
+  about someone else's disk. The file gets tidied into another folder,
+  the project moves to a different machine, the scheme is renamed.
+
+  The element must fall back to its ramp and the map must still be
+  drawn. What may not happen is a run that dies on a missing file:
+  the class source is one element's styling, and losing it is not a
+  reason to lose the map.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import bridge
+  import shutil
+  import tempfile
+
+  folder = tempfile.mkdtemp(prefix="weavingspace_qml_gone_")
+  try:
+    qml = os.path.join(folder, "scheme.qml")
+    _write_class_qml(qml, [("forest", "#112233", "Forest"),
+                           ("water", "#445566", "Water")])
+    dlg, layer, tid = _categorical_dialog()
+    dlg._class_choices[tid] = f"file:{qml}"
+    _tick(150)
+    assert dlg._template_for(f"file:{qml}"), \
+      "the scheme did not load while the file was there, so this test " \
+      "cannot say anything about it going away"
+
+    os.remove(qml)
+    _tick(150)
+    gone = dlg._template_for(f"file:{qml}")
+    assert gone is None or gone == {}, \
+      f"a deleted class source still yields a template: {gone!r}"
+
+    dlg.spacing_spin.setValue(500)
+    dlg._generate()
+    assert _settle(dlg, seconds=90), \
+      "the run never settled with a class source that had been deleted"
+    _tick(250)
+    assert dlg._element_layer_ids, \
+      "a missing class file cost the whole map; it is one element's " \
+      "styling, and the fallback is the element's own ramp"
+    assert dlg.generate_btn.isEnabled(), "Generate left disabled"
+    dlg.close()
+  finally:
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_class_source_that_does_not_match_the_data():
+  """A scheme whose classes are not the data's values.
+
+  Class schemes get shared and reused: a colleague's file, last
+  year's categories, a scheme written for a different column
+  altogether. So the values in the QML routinely will not be the
+  values in the layer, in every combination -- some shared, none
+  shared, the file naming classes the data has never had.
+
+  The rule is the documented one: the file is the authority for the
+  classes it names, and anything the data has which the file does not
+  mention falls back to an automatic colour. Both halves matter. A
+  file that governs values it never mentions would paint a category
+  from a scheme that says nothing about it; a file ignored for the
+  values it DOES name would make choosing it pointless.
+  """
+  from weavingspace_qgis import bridge
+  import shutil
+  import tempfile
+
+  folder = tempfile.mkdtemp(prefix="weavingspace_qml_odd_")
+  try:
+    layer = make_region_layer()
+    values = {f["landcover"] for f in layer.getFeatures()}
+    assert "forest" in values, "the fixture changed under this test"
+
+    # a scheme naming ONE value the data has and two it does not
+    qml = os.path.join(folder, "partial.qml")
+    _write_class_qml(qml, [("forest", "#ff0000", "Forest"),
+                           ("tundra", "#00ff00", "Tundra"),
+                           ("desert", "#0000ff", "Desert")])
+    template = bridge.load_categorized_template(qml)
+    gdf = bridge.layer_to_gdf(layer, ["landcover"])
+    out = bridge.gdf_to_layer(gdf, "partial")
+    bridge.seed_renderer(out, {"id": "a", "var": "landcover",
+                               "mode": "Categorized", "ramp": "tab10",
+                               "outline": False}, template)
+    renderer = out.renderer()
+    drawn = {c.value(): c.symbol().color().name()
+             for c in renderer.categories() if c.value() is not None}
+    assert drawn.get("forest") == "#ff0000", \
+      f"the file names 'forest' and the map drew it " \
+      f"{drawn.get('forest')!r}; a chosen scheme must govern the " \
+      f"classes it actually names"
+    for absent in ("tundra", "desert"):
+      assert absent not in drawn, \
+        f"the map has a class {absent!r} that the DATA does not " \
+        f"contain; a scheme may colour the data, not invent it"
+    for value in values:
+      assert value in drawn, \
+        f"{value!r} is in the data and has no class; values the file " \
+        f"does not mention must fall back to an automatic colour, " \
+        f"not vanish"
+
+    # and a scheme sharing NOTHING with the data
+    qml2 = os.path.join(folder, "alien.qml")
+    _write_class_qml(qml2, [("alpha", "#123456", "Alpha"),
+                            ("beta", "#654321", "Beta")])
+    template2 = bridge.load_categorized_template(qml2)
+    out2 = bridge.gdf_to_layer(gdf, "alien")
+    bridge.seed_renderer(out2, {"id": "a", "var": "landcover",
+                                "mode": "Categorized", "ramp": "tab10",
+                                "outline": False}, template2)
+    drawn2 = {c.value() for c in out2.renderer().categories()
+              if c.value() is not None}
+    assert drawn2 >= values, \
+      f"a scheme sharing nothing with the data left it drawn as " \
+      f"{sorted(drawn2)}; every value still needs a colour"
+    assert not (drawn2 & {"alpha", "beta"}), \
+      f"classes from the file appear on a map whose data has no such " \
+      f"values: {sorted(drawn2 & {'alpha', 'beta'})}"
+  finally:
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def _styled_by_hand(layer, colour="#7700ff"):
+  """Give a layer a renderer the plugin would never produce.
+
+  Args:
+    layer: the output layer to restyle.
+    colour: a fill nothing in the plugin's palettes uses, so its
+      presence afterwards proves the user's own styling survived
+      rather than a coincidence of ramps.
+
+  Returns:
+    The colour set, for the caller to look for later.
+
+  A single-symbol renderer in a garish colour stands in for whatever a
+  user does in the Layer Styling panel. The point is not the symbol,
+  it is that the plugin did not choose it.
+  """
+  from qgis.core import QgsSingleSymbolRenderer
+  layer.setRenderer(QgsSingleSymbolRenderer(
+    QgsFillSymbol.createSimple({"color": colour})))
+  layer.triggerRepaint()
+  return colour
+
+
+def test_hand_styling_survives_an_unrelated_change():
+  """Restyle one element in QGIS, change another, regenerate.
+
+  Generate replaces the group in place, and hand styling survives
+  unless THAT element's assignment changed. The comparison deciding
+  it is a per-element signature, and the register already carries one
+  defect from this exact machinery: re-generating once discarded hand
+  styling on elements whose assignment had not changed.
+
+  So this drives the case the rule exists for. A user styles element
+  by hand, then adjusts a different element entirely -- a ramp, an
+  opacity, a variable -- and regenerates. The element they touched
+  should be re-seeded by the plugin; the one they styled should be
+  left exactly as they left it.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg.spacing_spin.setValue(500)
+  dlg._generate()
+  assert _settle(dlg, seconds=90), "the first run never settled"
+  _tick(250)
+  ids = sorted(dlg._element_layer_ids)
+  assert len(ids) >= 2, f"need at least two elements, got {ids}"
+  mine, theirs = ids[0], ids[1]
+
+  styled = QgsProject.instance().mapLayer(dlg._element_layer_ids[mine])
+  colour = _styled_by_hand(styled)
+
+  # change a DIFFERENT element: its ramp
+  row_of = {dlg.table.item(r, 0).text(): r
+            for r in range(dlg.table.rowCount())}
+  # through the dialog's own accessor: the ramp is the FOURTH cell,
+  # not the third, and addressing cells by number is how two of these
+  # tests came to be testing the class-count spinner
+  ramp_combo = dlg._row_widgets(row_of[theirs])[3]
+  if ramp_combo is None or not hasattr(ramp_combo, "setCurrentText"):
+    for tid in ids:
+      candidate = dlg._row_widgets(row_of[tid])[3]
+      if candidate is not None and hasattr(candidate, "setCurrentText") \
+          and tid != mine:
+        theirs, ramp_combo = tid, candidate
+        break
+  assert ramp_combo is not None and hasattr(ramp_combo, "setCurrentText"), \
+    "no OTHER element offers a ramp, so an unrelated change cannot " \
+    "be made and this test would prove nothing"
+  before_ramp = ramp_combo.currentText()
+  ramp_combo.setCurrentText(
+    "Greens" if before_ramp != "Greens" else "Blues")
+  _tick(300)
+
+  dlg._generate()
+  assert _settle(dlg, seconds=90), "the second run never settled"
+  _tick(250)
+
+  after = QgsProject.instance().mapLayer(dlg._element_layer_ids[mine])
+  assert after is not None, f"element {mine} lost its layer entirely"
+  renderer = after.renderer()
+  kept = (type(renderer).__name__ == "QgsSingleSymbolRenderer"
+          and renderer.symbol().color().name().lower() == colour.lower())
+  assert kept, \
+    f"element {mine} was styled by hand and came back as " \
+    f"{type(renderer).__name__}; nothing about that element changed, " \
+    f"so re-generating must leave a user's own styling alone"
+  dlg.close()
+
+
+def test_hand_styling_yields_when_its_own_element_changes():
+  """The other half: change THAT element and the plugin takes it back.
+
+  The rule has two directions and only one of them is a courtesy.
+  Preserving hand styling forever would make the ramp and variable
+  controls dead for any element a user had ever touched in QGIS --
+  they would change the table and nothing would happen to the map,
+  with no explanation.
+
+  So when the element's OWN assignment changes, the plugin re-seeds
+  it and the hand styling goes. Asserting both directions together is
+  the point: either alone can be satisfied by a rule that is simply
+  wrong in the other.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  # Pin the first element to a numeric variable with a quantitative
+  # style, so its ramp cell is a COMBO. Left to defaults the cell can
+  # be a colour button instead (Single colour rows swap the widget),
+  # and then there is no ramp to change and nothing to test.
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  mode = dlg.table.cellWidget(0, 2)
+  index = mode.findText("Quant: Quantiles")
+  mode.setCurrentIndex(index)
+  mode.activated.emit(index)
+  _tick(300)
+  dlg.spacing_spin.setValue(500)
+  dlg._generate()
+  assert _settle(dlg, seconds=90), "the first run never settled"
+  _tick(250)
+  ids = sorted(dlg._element_layer_ids)
+  mine = dlg.table.item(0, 0).text()
+  assert mine in ids, f"the pinned element {mine} is not in the map"
+  styled = QgsProject.instance().mapLayer(dlg._element_layer_ids[mine])
+  colour = _styled_by_hand(styled)
+
+  # The ramp cell holds a QgsColorButton instead of a combo when the
+  # row is on Single colour, so the element to test is chosen by
+  # which row actually offers a ramp rather than by position.
+  row_of = {dlg.table.item(r, 0).text(): r
+            for r in range(dlg.table.rowCount())}
+  ramp_combo = dlg._row_widgets(row_of[mine])[3]
+  if ramp_combo is None or not hasattr(ramp_combo, "setCurrentText"):
+    for tid in ids:
+      candidate = dlg._row_widgets(row_of[tid])[3]
+      if candidate is not None and hasattr(candidate, "setCurrentText"):
+        mine = tid
+        ramp_combo = candidate
+        styled = QgsProject.instance().mapLayer(
+          dlg._element_layer_ids[mine])
+        colour = _styled_by_hand(styled)
+        break
+  assert ramp_combo is not None and hasattr(ramp_combo, "setCurrentText"), \
+    "no element in this design offers a ramp, so the yielding rule " \
+    "cannot be exercised"
+  ramp_combo.setCurrentText(
+    "Purples" if ramp_combo.currentText() != "Purples" else "Oranges")
+  _tick(300)
+
+  dlg._generate()
+  assert _settle(dlg, seconds=90), "the second run never settled"
+  _tick(250)
+  after = QgsProject.instance().mapLayer(dlg._element_layer_ids[mine])
+  assert after is not None, f"element {mine} lost its layer"
+  renderer = after.renderer()
+  still_mine = (type(renderer).__name__ == "QgsSingleSymbolRenderer"
+                and renderer.symbol().color().name().lower()
+                == colour.lower())
+  assert not still_mine, \
+    f"element {mine} kept its hand styling after ITS OWN ramp was " \
+    f"changed. The control would then be dead for any element the " \
+    f"user had ever styled in QGIS, with nothing to say why"
+  dlg.close()
+
+
+def test_class_breaks_ignore_nulls():
+  """Nulls must not be classified as though they were numbers.
+
+  Real columns have gaps. A quantile break computed over a column
+  where a third of the values are missing is only correct if the
+  missing ones are left out of the calculation: counted as zero, or
+  as anything at all, they drag every break towards that value and
+  the map is wrong everywhere while looking perfectly plausible.
+
+  This is the failure mode worth the most care, because nothing about
+  it is visible. There is no error, no empty layer, no warning -- just
+  a choropleth whose classes are in the wrong places.
+
+  The check compares breaks over a column with nulls against the same
+  column with those rows absent entirely. The two must agree: the
+  present values are identical, so any difference is the nulls
+  leaking into the arithmetic.
+  """
+  from weavingspace_qgis import bridge, compat
+  values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+
+  def build(name, rows):
+    layer = QgsVectorLayer("Polygon?crs=EPSG:3857", name, "memory")
+    layer.dataProvider().addAttributes([compat.make_field("v", float)])
+    layer.updateFields()
+    feats = []
+    for k, value in enumerate(rows):
+      i, j = k % 4, k // 4
+      x, y = i * 1000.0, j * 1000.0
+      ring = [QgsPointXY(x, y), QgsPointXY(x + 1000, y),
+              QgsPointXY(x + 1000, y + 1000), QgsPointXY(x, y + 1000)]
+      f = QgsFeature(layer.fields())
+      f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+      f["v"] = value
+      feats.append(f)
+    layer.dataProvider().addFeatures(feats)
+    layer.updateExtents()
+    return layer
+
+  # the same nine numbers, once with five nulls mixed in and once
+  # without them present at all
+  padded = build("padded", values + [None] * 5)
+  clean = build("clean", values)
+  breaks = {}
+  for name, lyr in (("with nulls", padded), ("without", clean)):
+    renderer = bridge.make_graduated_renderer(
+      lyr, "v", "Reds", "Quantiles", 4, False)
+    breaks[name] = [(round(r.lowerValue(), 6), round(r.upperValue(), 6))
+                    for r in renderer.ranges()]
+  assert breaks["with nulls"] == breaks["without"], \
+    f"class breaks moved when nulls were added to the column: " \
+    f"{breaks['with nulls']} against {breaks['without']}. The " \
+    f"present values are identical in both, so the missing ones are " \
+    f"being counted -- every class boundary on the map is in the " \
+    f"wrong place, and nothing on screen says so"
+
+
+def test_null_features_draw_as_no_data():
+  """A feature with no value must be drawn as having no value.
+
+  Having kept nulls out of the class breaks, the other half is what
+  the null features themselves are drawn as. They must not fall into
+  the bottom class, which would tell a reader that an area with no
+  measurement has the lowest measurement -- a specific, confident and
+  wrong statement about a place.
+  """
+  from qgis.core import QgsRenderContext
+  from weavingspace_qgis import bridge, compat
+  layer = QgsVectorLayer("Polygon?crs=EPSG:3857", "gaps", "memory")
+  layer.dataProvider().addAttributes([compat.make_field("v", float)])
+  layer.updateFields()
+  rows = [1.0, 2.0, None, 4.0, 5.0, None, 7.0, 8.0, 9.0]
+  feats = []
+  for k, value in enumerate(rows):
+    i, j = k % 3, k // 3
+    x, y = i * 1000.0, j * 1000.0
+    ring = [QgsPointXY(x, y), QgsPointXY(x + 1000, y),
+            QgsPointXY(x + 1000, y + 1000), QgsPointXY(x, y + 1000)]
+    f = QgsFeature(layer.fields())
+    f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+    f["v"] = value
+    feats.append(f)
+  layer.dataProvider().addFeatures(feats)
+  layer.updateExtents()
+
+  renderer = bridge.make_graduated_renderer(
+    layer, "v", "Reds", "Quantiles", 4, False)
+  layer.setRenderer(renderer)
+  context = QgsRenderContext()
+  from qgis.core import NULL
+  renderer.startRender(context, layer.fields())
+  lowest = renderer.ranges()[0]
+  for feature in layer.getFeatures():
+    value = feature.attribute("v")
+    missing = value is None or value == NULL
+    symbol = renderer.symbolForFeature(feature, context)
+    if missing:
+      assert symbol is None or \
+          symbol.color().name() != lowest.symbol().color().name(), \
+        "a feature with no value is drawn in the bottom class's " \
+        "colour, which tells a reader the area has the lowest " \
+        "measurement rather than none"
+  renderer.stopRender(context)
+
+
+def test_the_preview_shows_the_design_the_map_draws():
+  """The design view and the map must be the same design.
+
+  There are two paths from the controls to a picture: the preview
+  draws the tile unit directly, and the map tiles a region with it.
+  If those disagree the user is choosing a design by looking at
+  something the map will not produce, which is a failure they see
+  instantly and cannot diagnose.
+
+  The comparison is by element -- the ids and their count -- rather
+  than pixel by pixel, since the two draw at different scales and with
+  different context. The ids are what the whole table is keyed by, so
+  a disagreement there means the two halves are not describing the
+  same design at all.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg.spacing_spin.setValue(500)
+  dlg._rebuild_unit()
+  _tick(300)
+
+  unit = dlg._unit
+  assert unit is not None, "no unit was built for the preview"
+  preview_ids = sorted(set(str(t) for t in unit.tiles.tile_id))
+  table_ids = sorted(dlg.table.item(r, 0).text()
+                     for r in range(dlg.table.rowCount()))
+  assert preview_ids == table_ids, \
+    f"the design view holds elements {preview_ids} and the table " \
+    f"offers {table_ids}; the user is styling elements the preview " \
+    f"is not showing, or the reverse"
+
+  dlg._generate()
+  assert _settle(dlg, seconds=90), "the run never settled"
+  _tick(250)
+  map_ids = sorted(dlg._element_layer_ids)
+  assert map_ids == preview_ids, \
+    f"the map drew elements {map_ids} and the design view showed " \
+    f"{preview_ids}; the picture used to choose the design is not " \
+    f"the design that was drawn"
+  dlg.close()
+
+
+def test_the_preview_follows_the_modifier_chain():
+  """A modifier that changes the map must change the design view.
+
+  The design view exists to be looked at while modifiers are being
+  adjusted -- that is what the control panel next to it is for. A
+  preview that did not follow them would be worse than no preview: it
+  would show a design the user has already changed, and they would
+  adjust against a stale picture.
+
+  Rotation is the one to test, because it is the modifier whose
+  effect on a unit's BOUNDS is unmistakable and cheap to measure,
+  where a scale could be confused with the preview's own fitting and
+  a skew of a symmetric unit can leave the bounds nearly alone.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg.spacing_spin.setValue(500)
+  dlg._rebuild_unit()
+  _tick(300)
+  before = tuple(round(v, 4) for v in dlg._unit.tiles.total_bounds)
+
+  dlg.mod_rotate.setValue(37.0)
+  dlg._rebuild_unit()
+  _tick(400)
+  after = tuple(round(v, 4) for v in dlg._unit.tiles.total_bounds)
+  assert after != before, \
+    f"rotating by 37 degrees left the design view's unit at {before}; " \
+    f"the view is what a user watches while adjusting modifiers, so " \
+    f"one that does not follow them shows a design already abandoned"
+
+  dlg.mod_rotate.setValue(0.0)
+  dlg._rebuild_unit()
+  _tick(400)
+  restored = tuple(round(v, 4) for v in dlg._unit.tiles.total_bounds)
+  assert restored == before, \
+    f"setting the rotation back to zero gave {restored}, not the " \
+    f"{before} it started at. Identity modifiers rebuilding geometry " \
+    f"differently is a defect this project has had once already"
+  dlg.close()
+
+
+def test_the_outlines_layer_is_drawn_as_specified():
+  """The region outline: cased, and cased the right way round.
+
+  The outline is a settled design decision -- a wide white line under
+  a narrow black one -- so that boundaries stay legible over pale and
+  dark parts of the pattern alike. The register already carries one
+  defect here (losing the black line entirely was invisible), and the
+  existing test checks the casing EXISTS.
+
+  Existing is not the same as correct. Swap the two widths and the
+  casing is inverted: a black line under a white one, which reads as
+  a white boundary and disappears against pale tiles. Assert the
+  order and the relative widths, since those are what make it a
+  casing rather than two lines.
+  """
+  from weavingspace_qgis import bridge
+  layer = make_region_layer()
+  outlines = bridge.region_outline_layer(layer)
+  assert outlines is not None, "no outlines layer was built"
+  renderer = outlines.renderer()
+  symbol = renderer.symbol()
+  assert symbol.symbolLayerCount() >= 2, \
+    f"the outline has {symbol.symbolLayerCount()} symbol layer(s); a " \
+    f"casing is two lines, a wide one under a narrow one"
+
+  widths, colours = [], []
+  for i in range(symbol.symbolLayerCount()):
+    part = symbol.symbolLayer(i)
+    props = part.properties()
+    width = props.get("outline_width") or props.get("line_width")
+    colour = props.get("outline_color") or props.get("line_color") or ""
+    if width is not None:
+      widths.append(float(width))
+      colours.append(colour)
+  assert len(widths) >= 2, f"could not read two line widths: {widths}"
+
+  # drawn in order, so the FIRST is underneath
+  assert widths[0] > widths[1], \
+    f"the underneath line is {widths[0]} wide and the one on top is " \
+    f"{widths[1]}; casing means the wide line goes UNDER the narrow " \
+    f"one, and inverted it reads as a white boundary that vanishes " \
+    f"against pale tiles"
+
+  def brightness(spec):
+    parts = [p for p in spec.split(",") if p.strip().isdigit()]
+    return sum(int(p) for p in parts[:3]) if len(parts) >= 3 else None
+
+  under, over = brightness(colours[0]), brightness(colours[1])
+  if under is not None and over is not None:
+    assert under > over, \
+      f"the wide line underneath is darker than the narrow line on " \
+      f"top ({colours[0]!r} under {colours[1]!r}); the casing is the " \
+      f"wrong way round"
+
+
+def test_output_layers_are_named_and_grouped_as_specified():
+  """Layer names and the group carry meaning, so they are asserted.
+
+  A user reads the layers panel to know which element carries which
+  variable, and the group is how the whole map is moved, hidden or
+  removed as one thing. Both are asserted here as VALUES rather than
+  as existence: a name that stopped naming its variable, or a group
+  that lost its name, would leave the panel technically populated and
+  practically unreadable.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog, GROUP_BASE_NAME
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg.spacing_spin.setValue(500)
+  dlg._generate()
+  assert _settle(dlg, seconds=90), "the run never settled"
+  _tick(250)
+
+  assignments = {a["id"]: a for a in dlg._assignments()}
+  named = 0
+  for tid, lid in dlg._element_layer_ids.items():
+    out = QgsProject.instance().mapLayer(lid)
+    assert out is not None, f"element {tid} has no layer"
+    name = out.name()
+    assert tid in name, \
+      f"layer {name!r} does not name its element {tid!r}; the panel " \
+      f"is how a user tells the elements apart"
+    variable = assignments.get(tid, {}).get("var")
+    if variable:
+      assert variable in name, \
+        f"layer {name!r} does not name the variable {variable!r} it " \
+        f"carries"
+      named += 1
+    assert out.customProperty("weavingspace_output"), \
+      f"{name!r} is not marked as this plugin's output, so the " \
+      f"region chooser will offer the map as a region to tile"
+    assert out.customProperty("weavingspace_tile_id") == tid, \
+      f"{name!r} does not carry its element id as a property, so a " \
+      f"reopened project cannot adopt it"
+  assert named, "no element carried a variable, so naming was untested"
+
+  root = QgsProject.instance().layerTreeRoot()
+  group = root.findGroup(dlg._group_name or GROUP_BASE_NAME)
+  assert group is not None, \
+    f"no layer-tree group named {dlg._group_name!r}; the map is meant " \
+    f"to be movable and removable as one thing"
+  assert root.children().index(group) == 0, \
+    "the group is not at the top of the layers panel, where a freshly " \
+    "generated map can be seen"
+  dlg.close()
+
+
+def test_the_ramp_and_scheme_lists_are_what_they_claim():
+  """The offered ramps and schemes, asserted as whole sets.
+
+  Three register entries are of the form "unasserted as a class": the
+  control ranges, the defaults, the catalogue offsets. Each was
+  invisible until something moved one member. Lists of choices have
+  the same exposure -- a ramp quietly dropped, a classification
+  scheme that stops being offered, a categorical ramp appearing among
+  the quantitative ones -- and none of it fails, it just narrows what
+  a user can do.
+
+  Asserted as SETS against the source of truth, so adding a ramp
+  deliberately does not fail the test while losing one does.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import bridge, compat
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+
+  # every classification scheme the dialog offers must be one compat
+  # can actually instantiate, or choosing it silently falls back
+  for label in dlg.GRAD_SCHEMES.values():
+    if label == "Unclassed":
+      continue
+    assert compat.classification_method(label) is not None, \
+      f"the style chooser offers {label!r} and compat cannot build " \
+      f"it, so choosing it quietly gives QGIS's default instead"
+
+  # the style list must contain every graduated scheme plus the two
+  # non-graduated modes, and nothing else
+  expected_modes = set(dlg.GRAD_SCHEMES) | {"Categorized", "Single colour"}
+  assert set(dlg.MODES) == expected_modes, \
+    f"the style list is {sorted(dlg.MODES)} but the schemes and modes " \
+    f"it is built from are {sorted(expected_modes)}"
+
+  # and the ramps offered to a row must be real ramps
+  _var, _mode, _k, ramp, _rev, _op, _src = dlg._row_widgets(0)
+  if ramp is not None and hasattr(ramp, "count"):
+    offered = {ramp.itemText(i) for i in range(ramp.count())}
+    assert offered, "no ramps are offered at all"
+    known = set(bridge.CATEGORICAL_RAMPS)
+    for group in bridge.PALETTES.values():
+      known |= set(group)
+    unknown = {r for r in offered if r not in known}
+    assert not unknown, \
+      f"the ramp chooser offers {sorted(unknown)}, which are not in " \
+      f"the palettes this plugin installs or knows about"
+  dlg.close()
+
+
+def test_every_family_shows_its_own_options():
+  """Each family's option rows appear for it and for no other.
+
+  Family options are shown and hidden as the family changes -- offset
+  for slices and dissections, point angle for stars, aspect and the
+  passing pattern for weaves, rows and columns for grids. A control
+  left visible for a family that ignores it invites a user to set
+  something with no effect; one hidden for a family that needs it
+  makes a documented feature unreachable, which is a register entry
+  this project already has in another form.
+
+  Every family in the catalogue is driven, rather than a sample,
+  because the failure is per-family and a sample is exactly how a
+  family nobody thought of keeps its bug.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import catalog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+
+  trouble = []
+  checked = 0
+  for n, families in sorted(catalog.TILINGS_BY_N.items()):
+    for name, entry in families.items():
+      if entry.get("weave_type") == "this":
+        continue
+      is_weave = entry["type"] != "tiling"
+      # The KIND combo first: weave families are only listed while the
+      # dialog is in weave mode, so setting the family without it
+      # silently leaves the previous family selected and every
+      # assertion below then describes the wrong design.
+      dlg.kind_combo.setCurrentText("weave" if is_weave else "tiling")
+      _tick(60)
+      dlg.n_combo.setCurrentText(str(n))
+      _tick(60)
+      dlg.family_combo.setCurrentText(name)
+      _tick(60)
+      if dlg.family_combo.currentText() != name:
+        trouble.append(f"{name}: could not be selected at all "
+                       f"(the chooser stayed on "
+                       f"{dlg.family_combo.currentText()!r})")
+        continue
+      checked += 1
+      tiling_type = entry.get("tiling_type", "")
+      weave_type = entry.get("weave_type", "")
+
+      # The rule, stated here from the documented semantics rather
+      # than read off the dialog: a rule copied from the code under
+      # test agrees with it however wrong it is. A weave is given a
+      # strand width; only TWILL and BASKET weaves are given a
+      # passing pattern, because a plain weave's is fixed. Rows and
+      # columns belong to the grid family, and the point angle to
+      # star1.
+      expected = {
+        "the strand width": (dlg.opt_aspect, is_weave),
+        "the passing pattern": (dlg.opt_over_under,
+                                is_weave and weave_type in ("twill",
+                                                            "basket")),
+        "rows and columns": (dlg.opt_grid_rows,
+                             not is_weave and tiling_type == "grid"),
+        "the point angle": (dlg.opt_point_angle,
+                            not is_weave and tiling_type == "star1"),
+      }
+      for label, (widget, wanted) in expected.items():
+        # isVisibleTo, not isVisible: this dialog is never shown, so
+        # isVisible() is False for every widget in it and every
+        # assertion built on it would be vacuous in one direction and
+        # wrong in the other.
+        shown = widget.isVisibleTo(dlg)
+        if wanted and not shown:
+          trouble.append(f"{name}: {label} is hidden but this family "
+                         f"needs it")
+        elif shown and not wanted:
+          trouble.append(f"{name}: {label} is offered and this family "
+                         f"ignores it")
+  assert checked > 20, f"only {checked} families were driven"
+  assert not trouble, \
+    "family options shown for the wrong families:\n  " + \
+    "\n  ".join(trouble[:10])
+  dlg.close()
+
+
+def test_two_notices_never_share_one_slot():
+  """Several things worth saying, said at once, none lost.
+
+  The register carries a defect of exactly this shape: two warnings
+  from one run shared a single label and the last silently erased the
+  first. The fix was to JOIN notices rather than replace them, and
+  the test for it pushes two.
+
+  One run can now raise more than two -- areas that received no
+  tiles, categories whose colours moved, a constant column, a field
+  that has gone, a layer that cannot be tracked. So this pushes five,
+  because a joining rule that works for two and truncates at three
+  fails exactly when the most is wrong at once, which is when a
+  reader most needs to be told.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  _tick(200)
+  dlg.live_note.setText("")
+  notices = [
+    "15 of 155 areas received no tiles",
+    "'landcover' now has 7 categories rather than 5",
+    "Every area has the same value for 'v3'",
+    "'v1' is no longer in the layer",
+    "This layer does not report how many features it has",
+  ]
+  for notice in notices:
+    dlg._report_quietly(notice)
+  shown = dlg.live_note.text()
+  for notice in notices:
+    assert notice in shown, \
+      f"{notice!r} was raised and is not in the note line: {shown!r}. " \
+      f"Notices are joined rather than replaced precisely so that the " \
+      f"run with the most wrong with it is not the one that says least"
+  dlg.close()
+
+
+def test_numeric_conversions_are_exact():
+  """The unit conversions between the dialog and everything else.
+
+  Two register entries are conversion defects: categorical colours
+  sampled with round() where matplotlib uses int(), and an inset
+  percentage defended only by comparisons whose tolerance was wider
+  than the error. Both are the same shape -- arithmetic that is
+  nearly right, producing a map that is nearly right, which no
+  visual check catches.
+
+  The conversions still unpinned are the ones between a control's
+  units and the units of whatever consumes them: opacity as a
+  percentage against QGIS's 0-1 fraction, and the degrees-to-metres
+  scaling that lets a geographic layer's extent be compared against
+  thresholds written in metres.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from qgis.core import QgsCoordinateReferenceSystem
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+
+  # opacity: the table says percent, QGIS wants a fraction
+  _var, _mode, _k, _ramp, _rev, opacity, _src = dlg._row_widgets(0)
+  assert opacity is not None and hasattr(opacity, "setValue"), \
+    "no opacity control on the first row"
+  for percent in (0, 40, 55, 100):
+    opacity.setValue(percent)
+    _tick(80)
+    stated = next(a["opacity"] for a in dlg._assignments()
+                  if a["id"] == dlg.table.item(0, 0).text())
+    assert stated == percent, \
+      f"the table shows {percent} and the assignment carries " \
+      f"{stated}"
+  dlg.spacing_spin.setValue(500)
+  opacity.setValue(40)
+  _tick(150)
+  dlg._generate()
+  assert _settle(dlg, seconds=90), "the run never settled"
+  _tick(250)
+  first = dlg.table.item(0, 0).text()
+  out = QgsProject.instance().mapLayer(dlg._element_layer_ids[first])
+  assert out is not None, "the first element has no layer"
+  assert abs(out.opacity() - 0.40) < 1e-6, \
+    f"40% in the table became {out.opacity()} on the layer; QGIS " \
+    f"counts opacity from 0 to 1 and the table from 0 to 100, and a " \
+    f"map at 40/100 of the intended opacity looks merely 'a bit pale'"
+
+  # degrees to metres: the scaling that lets a geographic extent be
+  # compared against thresholds written in metres
+  geographic = make_region_layer()
+  geographic.setCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
+  QgsProject.instance().addMapLayer(geographic)
+  dlg.layer_combo.setLayer(geographic)
+  _tick(400)
+  derived = dlg.spacing_spin.value()
+  extent = geographic.extent()
+  span = max(extent.width(), extent.height()) * 111_000
+  assert derived > 0, "no spacing was derived for a geographic layer"
+  assert derived <= span, \
+    f"the derived spacing {derived} exceeds the layer's whole extent " \
+    f"of about {span:.0f} m; the degrees-to-metres scaling has been " \
+    f"applied the wrong way round"
+  assert derived > span / 1000, \
+    f"the derived spacing {derived} is a thousandth of the layer's " \
+    f"{span:.0f} m extent, which is the signature of the scaling " \
+    f"having been dropped rather than applied"
+  dlg.close()
 
 
 def test_region_outlines_are_cased():
@@ -8269,9 +12655,21 @@ def test_random_designs_match_the_library():
   result against a unit built by calling weavingspace directly.
   Geometry first, then interior pixels.
 
+  A share of cases -- 40% by default -- drive the whole modifier
+  CHAIN at once, every one of rotate, scale, skew and both insets
+  non-identity together. Those cases are about how the modifiers
+  COMPOSE, which is where the order of operations lives and where the
+  single hand-written chain comparison in this file already guards a
+  real defect. Drawing each modifier independently, as the other
+  branch does, produces an all-active case about half a percent of the
+  time, so composition was effectively untested however many cases
+  were run.
+
   Scale it with the environment rather than by editing:
   WEAVINGSPACE_SWEEP_CASES sets how many designs to draw (a handful
-  during a release, hundreds during a campaign) and
+  during a release, hundreds during a campaign),
+  WEAVINGSPACE_SWEEP_CHAIN_SHARE sets how many of them are chain
+  cases (1.0 for a sweep entirely about composition), and
   WEAVINGSPACE_SWEEP_SEED makes any failure reproducible -- the seed
   is printed with every case so a failing draw can be rerun alone.
   """
@@ -8310,6 +12708,18 @@ def test_random_designs_match_the_library():
     # user, so the sweep chooses them and tells both sides.
     pattern, over_under, aspect = None, None, 0.75
     if entry["type"] != "tiling":
+      aspect = rng.choice([0.75, 0.75, 0.5, 0.9])
+    # A passing pattern belongs to TWILL and BASKET weaves only. A
+    # plain weave is over-one-under-one by definition, so the dialog
+    # hides the control for it and ignores whatever is in the box --
+    # correctly. This sweep used to type a pattern for every weave and
+    # hand the same pattern to the library, which duly wove something
+    # else: two of 1,200 cases diverged by about half their pixels,
+    # and both were plain weaves given a pattern they cannot have.
+    # The oracle was wrong, not the plugin, which is where the
+    # divergence in a sweep of this kind has always turned out to be.
+    if entry["type"] != "tiling" and \
+        entry.get("weave_type") in ("twill", "basket"):
       pattern = rng.choice(["2", "1,2", "2,2", "1,2,2,1", "3"])
       # The passing pattern's meaning is a documented rule, ported
       # from the web app: the comma-separated numbers ARE the pattern,
@@ -8322,7 +12732,6 @@ def test_random_designs_match_the_library():
       digits = [int(d) for d in pattern.split(",")]
       keep = 2 * len(digits) // 2
       over_under = tuple(digits[:keep]) if keep else (2, 2)
-      aspect = rng.choice([0.75, 0.75, 0.5, 0.9])
 
     # A grid's array shape is a setting too.
     shape = None
@@ -8337,7 +12746,36 @@ def test_random_designs_match_the_library():
     # exercised.
     mods = {"rotate": 0.0, "scale": (1.0, 1.0), "skew": (0.0, 0.0),
             "tile_inset": 0.0, "prototile_inset": 0.0}
-    if rng.random() < 0.5:
+    # A share of cases exercise the whole CHAIN at once: every
+    # modifier non-identity, so the case is about how they COMPOSE
+    # rather than about any one of them. Drawn separately because the
+    # branch below cannot produce it in any useful quantity -- each
+    # modifier there is chosen from a pool containing its own
+    # identity, so all five landing active at once has a probability
+    # of about half a percent, and four hundred cases yield two.
+    #
+    # Composition is where the order of operations shows: scale then
+    # skew is not skew then scale, and an inset takes a different bite
+    # after a scale than before one. The single hand-written chain
+    # comparison in this file guards a defect that actually happened
+    # there, which is the usual sign that a region wants sampling and
+    # not one example.
+    chain = rng.random() < float(
+      os.environ.get("WEAVINGSPACE_SWEEP_CHAIN_SHARE", "0.4"))
+    if chain:
+      mods["rotate"] = rng.choice([15.0, 30.0, -22.5, 45.0, -7.5])
+      mods["scale"] = rng.choice([(0.8, 1.0), (1.0, 0.75), (0.9, 1.1),
+                                  (1.25, 0.8)])
+      mods["skew"] = rng.choice([(10.0, 0.0), (0.0, 8.0), (6.0, -6.0)])
+      if entry["type"] == "tiling":
+        # Kept modest deliberately. A large inset composed with a
+        # shrinking scale consumes the tile entirely, and while the
+        # empty-design path below handles that correctly, a sweep
+        # whose chain cases mostly collapse to nothing is measuring
+        # the empty path rather than the composition.
+        mods["tile_inset"] = rng.choice([1.0, 2.0])
+        mods["prototile_inset"] = rng.choice([1.0, 3.0])
+    elif rng.random() < 0.5:
       mods["rotate"] = rng.choice([0.0, 0.0, 15.0, 30.0, -22.5])
       mods["scale"] = rng.choice([(1.0, 1.0), (1.0, 1.0), (0.8, 1.0),
                                   (1.0, 0.75)])
@@ -8360,6 +12798,19 @@ def test_random_designs_match_the_library():
       label += f" ({shape[0]}x{shape[1]})"
     if pattern:
       label += f" [{pattern}]"
+    if chain:
+      # named in the label so a failure says at a glance whether it
+      # was a composition case or a single modifier
+      # Plain words only. The label becomes a FILENAME for the two
+      # renders (slug = label with spaces and commas replaced), so a
+      # slash in it silently writes into a directory that does not
+      # exist: both images come back null, and the comparison reports
+      # "0 interior pixels" as though the maps were empty. That cost
+      # one confident misdiagnosis of the harness.
+      label += (f" chain rot {mods['rotate']} scale "
+                f"{mods['scale'][0]}x{mods['scale'][1]} skew "
+                f"{mods['skew'][0]}x{mods['skew'][1]} insets "
+                f"{mods['tile_inset']}-{mods['prototile_inset']}")
     print(f"      {label}", flush=True)
 
     def setup(dlg, n=n, name=name, spacing=spacing, shape=shape,
@@ -8368,9 +12819,16 @@ def test_random_designs_match_the_library():
       dlg.kind_combo.setCurrentText(
         "tiling" if entry["type"] == "tiling" else "weave")
       dlg.family_combo.setCurrentText(name)
+      # Strand width applies to EVERY weave; only the passing pattern
+      # is twill/basket-only. Setting the two together meant a plain
+      # weave kept the dialog's default aspect while the oracle used
+      # the drawn one, and the two maps then differed by about five
+      # per cent of area -- a real disagreement about an unreal
+      # design.
+      if entry["type"] != "tiling":
+        dlg.opt_aspect.setValue(aspect)
       if pattern is not None:
         dlg.opt_over_under.setText(pattern)
-        dlg.opt_aspect.setValue(aspect)
       dlg.spacing_spin.setValue(spacing)
       if shape:
         dlg.opt_grid_rows.setValue(shape[0])
@@ -9028,6 +13486,7 @@ def test_plugin_lifecycle():
     """Enough of QgisInterface for the plugin's registration calls."""
 
     def __init__(self):
+      super().__init__()          # the recording message bar
       self.menu_items, self.toolbar_items = [], []
 
     def addPluginToMenu(self, menu, action):  # noqa: N802 (QGIS API)
@@ -9317,6 +13776,106 @@ def main():
         test_colour_legibility_warnings_are_opt_in)
   check("awkward layers are handled or declined",
         test_awkward_layers_are_handled_or_declined)
+  check("hostile numbers are handled or declined",
+        test_hostile_numbers_are_handled_or_declined)
+  check("a quantitative style never stands on text",
+        test_a_quantitative_style_never_stands_on_text)
+  check("a constant column draws one class and says so",
+        test_a_constant_column_draws_one_class_and_says_so)
+  check("awkward attribute values keep their meaning",
+        test_awkward_attribute_values_keep_their_meaning)
+  check("the editor copes with thousands of categories",
+        test_the_editor_copes_with_thousands_of_categories)
+  check("free-text inputs survive nonsense",
+        test_free_text_inputs_survive_nonsense)
+  check("the coverage count matches the map",
+        test_the_coverage_count_matches_the_map)
+  check("staggered actions during a run",
+        test_staggered_actions_during_a_run)
+  check("data changed in QGIS while the plugin is open",
+        test_data_changed_in_qgis_while_the_plugin_is_open)
+  check("live update notices the data changing",
+        test_live_update_notices_the_data_changing)
+  check("the layer changes without being edited",
+        test_the_layer_changes_without_being_edited)
+  check("a layer that will not say how big it is",
+        test_a_layer_that_will_not_say_how_big_it_is)
+  check("a reprojected layer is followed",
+        test_a_reprojected_layer_is_followed)
+  check("the spacing box at its extremes",
+        test_the_spacing_box_at_its_extremes)
+  check("QGIS changes around the plugin",
+        test_qgis_changes_around_the_plugin)
+  check("the plugin in another locale",
+        test_the_plugin_in_another_locale)
+  check("a layer that refreshes itself",
+        test_a_layer_that_refreshes_itself)
+  check("the spacing follows the coordinate system",
+        test_the_spacing_follows_the_coordinate_system)
+  check("a sequence of edits under the plugin",
+        test_a_sequence_of_edits_under_the_plugin)
+  check("symbology edited in QGIS while the editor is open",
+        test_symbology_edited_in_qgis_while_the_editor_is_open)
+  check("the dialog closed partway through a run",
+        test_the_dialog_closed_partway_through_a_run)
+  check("the colour editor opened partway through a run",
+        test_the_colour_editor_opened_partway_through_a_run)
+  check("every numeric input at its limits",
+        test_every_numeric_input_at_its_limits)
+  check("a saved project brings back its colours",
+        test_a_saved_project_brings_back_its_colours)
+  check("a saved project with temporary output",
+        test_a_saved_project_with_temporary_output)
+  check("a GeoPackage reopens with its styles",
+        test_a_geopackage_reopens_with_its_styles)
+  check("the project is cleared during a run",
+        test_the_project_is_cleared_during_a_run)
+  check("compat helpers cope with other QGIS versions",
+        test_compat_helpers_cope_with_other_qgis_versions)
+  check("an undone edit is followed back",
+        test_an_undone_edit_is_followed_back)
+  check("a large region is handled",
+        test_a_large_region_is_handled)
+  check("a GeoPackage is rewritten and renamed",
+        test_a_geopackage_is_rewritten_and_renamed)
+  check("the plugin is unloaded during a run",
+        test_the_plugin_is_unloaded_during_a_run)
+  check("hand-picked colours do not bleed across families",
+        test_hand_picked_colours_do_not_bleed_across_families)
+  check("element state survives a family change and back",
+        test_element_state_survives_a_family_change_and_back)
+  check("element state follows the element count",
+        test_element_state_follows_the_element_count)
+  check("a class source file that changes on disk",
+        test_a_class_source_file_that_changes_on_disk)
+  check("a class source file that goes away",
+        test_a_class_source_file_that_goes_away)
+  check("a class source that does not match the data",
+        test_a_class_source_that_does_not_match_the_data)
+  check("hand styling survives an unrelated change",
+        test_hand_styling_survives_an_unrelated_change)
+  check("hand styling yields when its own element changes",
+        test_hand_styling_yields_when_its_own_element_changes)
+  check("class breaks ignore nulls",
+        test_class_breaks_ignore_nulls)
+  check("null features draw as no data",
+        test_null_features_draw_as_no_data)
+  check("the preview shows the design the map draws",
+        test_the_preview_shows_the_design_the_map_draws)
+  check("the preview follows the modifier chain",
+        test_the_preview_follows_the_modifier_chain)
+  check("the outlines layer is drawn as specified",
+        test_the_outlines_layer_is_drawn_as_specified)
+  check("output layers are named and grouped as specified",
+        test_output_layers_are_named_and_grouped_as_specified)
+  check("the ramp and scheme lists are what they claim",
+        test_the_ramp_and_scheme_lists_are_what_they_claim)
+  check("every family shows its own options",
+        test_every_family_shows_its_own_options)
+  check("two notices never share one slot",
+        test_two_notices_never_share_one_slot)
+  check("numeric conversions are exact",
+        test_numeric_conversions_are_exact)
   check("region outlines are cased", test_region_outlines_are_cased)
   check("installed palettes span their declared colours",
         test_installed_palettes_span_their_declared_colours)

@@ -105,6 +105,81 @@ def classification_method(scheme: str):
   return cls() if cls is not None else None
 
 
+def layer_data_is_available(layer) -> bool:
+  """Whether a layer's data source can still be safely questioned.
+
+  Args:
+    layer: any map layer, or None.
+
+  Returns:
+    True when the layer exists and its provider still has data behind
+    it. False for a layer whose file has been deleted, whose database
+    connection has dropped, or whose source has otherwise gone --
+    including the case where the layer itself still claims to be
+    valid.
+
+  Ask this BEFORE reading a layer's extent, and the reason is not
+  tidiness. A GeoPackage layer whose file is deleted and then reloaded
+  answers isValid() with True, featureCount() with -2, and extent()
+  by segfaulting the whole application: no exception, no traceback,
+  no message in the log, QGIS simply gone. The provider's own
+  isValid() is the honest answer and the only one that helps.
+
+  It lives in compat because it reaches through to the data provider,
+  and the relationship between a layer's validity and its provider's
+  is exactly the sort of thing a QGIS release adjusts.
+  """
+  if layer is None:
+    return False
+  try:
+    if not layer.isValid():
+      return False
+    provider = layer.dataProvider()
+    return provider is not None and provider.isValid()
+  except RuntimeError:
+    # the C++ object has been deleted out from under the wrapper,
+    # which is its own kind of unavailable
+    return False
+
+
+def layer_auto_refreshes(layer) -> bool:
+  """Whether a layer refreshes itself on a timer.
+
+  Args:
+    layer: any map layer.
+
+  Returns:
+    True when QGIS is set to reload this layer periodically. Switching
+    that on is a user saying "this data moves", which is the one case
+    where the plugin follows a layer's repaint signal — normally it
+    must not, because repaints also fire on style changes and
+    re-tiling on those is precisely the cost the restyle fast path
+    exists to avoid.
+
+  This lives in compat because the spelling is exactly the sort of
+  thing a QGIS release moves: QGIS 4 asks ``autoRefreshMode()``, which
+  returns a Qgis.AutoRefreshMode whose Disabled member means off. The
+  QGIS 3 spelling is deliberately NOT carried. This plugin targets
+  QGIS 4+, so a branch for 3 could never run, and compat exists to
+  absorb the NEXT break rather than to remember the last one.
+
+  Anything this build cannot answer comes back False, which is the
+  safe direction and not merely the cautious one: a wrong False costs
+  one missed refresh on a layer the user set to reload itself, while a
+  wrong True re-tiles the whole map on every repaint — style changes
+  included, which is the entire cost the restyle fast path exists to
+  avoid.
+  """
+  mode = getattr(layer, "autoRefreshMode", None)
+  if mode is None:
+    return False
+  try:
+    from qgis.core import Qgis
+    return mode() != Qgis.AutoRefreshMode.Disabled
+  except Exception:
+    return False
+
+
 def map_unit_label(layer) -> str:
   """The abbreviation for a layer's distance units, e.g. "m".
 

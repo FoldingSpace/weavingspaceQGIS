@@ -305,6 +305,17 @@ def gdf_to_layer(gdf, name: str) -> QgsVectorLayer:
     crs_str = f"?crs={authid[0]}:{authid[1]}" if authid \
       else f"?crs=wkt:{gdf.crs.to_wkt()}"
   layer = QgsVectorLayer(f"MultiPolygon{crs_str}", name, "memory")
+  if gdf.crs is None:
+    # A memory layer whose URI names no CRS does not arrive WITHOUT
+    # one: QGIS gives it EPSG:4326. That matters here because a region
+    # layer with no CRS set is tiled in its own coordinates, whatever
+    # those are, so the output would claim to be degrees while holding
+    # numbers in the thousands -- a map placed at longitude 3197, and
+    # one QGIS would happily reproject as though the degrees meant
+    # something. The input said it did not know; the output says the
+    # same.
+    from qgis.core import QgsCoordinateReferenceSystem
+    layer.setCrs(QgsCoordinateReferenceSystem())
   provider = layer.dataProvider()
 
   columns = [c for c in gdf.columns if c != gdf.geometry.name]
@@ -640,6 +651,62 @@ def _fill_symbol(colour: str, outline: bool) -> QgsFillSymbol:
   return QgsFillSymbol.createSimple(opts)
 
 
+def numeric_values_are_constant(values) -> bool:
+  """Whether a column holds exactly one distinct number.
+
+  Args:
+    values: any iterable of attribute values — a QGIS layer's
+      ``uniqueValues`` set, or a pandas column. Nulls, text that is
+      not a number, and non-finite values are all skipped, because
+      none of them is something a class break can fall between.
+
+  Returns:
+    True when what remains is a single distinct number, False when
+    there are two or more AND when there are none at all. An empty
+    column is deliberately not "constant": it has no value to show,
+    which is a different situation with its own handling, and calling
+    it constant would put a class break on nothing.
+
+  One rule, two callers: ``make_graduated_renderer`` asks it of the
+  element layer to decide how many classes to cut, and the dialog
+  asks it of the frame that was just mapped to decide whether to say
+  anything. Deriving the rule twice is how the map and the message
+  come to disagree.
+  """
+  seen = set()
+  for value in values:
+    if value is None or value == NULL:
+      continue
+    try:
+      number = float(value)
+    except (TypeError, ValueError):
+      continue
+    if not math.isfinite(number):
+      continue
+    seen.add(number)
+    if len(seen) > 1:
+      return False
+  return len(seen) == 1
+
+
+def constant_field_message(field: str) -> str:
+  """The notice for a column that turned out to hold one value.
+
+  Args:
+    field: the attribute name, as the user chose it in the table.
+
+  Returns:
+    One sentence for the message bar. There is no None case: the
+    caller has already established that the column is constant, and
+    the whole point is that this is worth saying. A map drawn from a
+    constant column looks like a map of nothing in particular, and a
+    user who does not know the column is constant will look for the
+    fault in the pattern instead of in the data.
+  """
+  return (f"Every area has the same value for '{field}', so it is "
+          f"drawn as one class rather than a range of colours.")
+
+
 def make_graduated_renderer(layer: QgsVectorLayer, field: str,
                             ramp_name: str, scheme: str, k: int,
                             outline: bool,
@@ -687,6 +754,18 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   from . import compat
   if scheme == "Unclassed":
     scheme, k = "Equal intervals", 50
+  # A column with one distinct value has nothing to divide. Asked for
+  # five classes QGIS returns five, every one of them reading "7 - 7"
+  # and each in a different colour: a legend showing variation the
+  # data does not have. Every feature still falls in the first class,
+  # so the MAP was never wrong -- only the legend beside it, which is
+  # the part a reader trusts to say what the colours mean. One class
+  # is the honest picture, and the dialog says so in words as well
+  # (see constant_field_message). Placed after the Unclassed line so
+  # it overrides that scheme's fixed 50 too.
+  index = layer.fields().indexOf(field)
+  if index >= 0 and numeric_values_are_constant(layer.uniqueValues(index)):
+    k = 1
   renderer = QgsGraduatedSymbolRenderer(field)
   renderer.setSourceSymbol(_fill_symbol("#c0c0c0", outline))
   renderer.setSourceColorRamp(get_ramp(ramp_name, reverse))

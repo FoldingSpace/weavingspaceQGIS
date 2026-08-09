@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-36 defect(s) with a regression test.
+44 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -56,8 +56,14 @@ there is no separate list to remember.
 
 ## Found by unrecorded
 
+- **a constant column produced five identical classes in five colours; the user's own instruction was that it should revert to a single class with a warning.**  
+  guarded by `test_a_constant_column_draws_one_class_and_says_so`
 - **only _finish_run restored the determinate progress range, and the zombie recovery does not go through it.**  
   guarded by `test_a_new_run_always_shows_real_progress`
+- **choosing a Quant: style on a text field produced a graduated renderer with no ranges, so 0 of 112 features painted and four empty layers were reported as a successful run.**  
+  guarded by `test_a_quantitative_style_never_stands_on_text`
+- **a column added in QGIS — with the Field Calculator, the usual way — never appeared in the variable choosers, because their item lists are built during a table rebuild and a rebuild happens when the LAYER changes, not when its columns do; the column stayed invisible until the user switched layers and back.**  
+  guarded by `test_a_sequence_of_edits_under_the_plugin`
 - **the inset percentage conversion was defended only by comparisons whose tolerance is wider than the error.**  
   guarded by `test_an_inset_percentage_is_a_percentage_of_the_spacing`
 - **none of these shapes had ever been put through the plugin; the suite's fixtures are all well-formed.**  
@@ -66,6 +72,8 @@ there is no separate list to remember.
   guarded by `test_cancelling_frees_the_dialog_at_once`
 - **the colour-separability warning fired unconditionally, on every map, whether or not anyone wanted that opinion.**  
   guarded by `test_colour_legibility_warnings_are_opt_in`
+- **the geometry signature held the layer's ID and nothing about its contents, so deleting half the features left every term identical and the run was answered by repainting tiles built from data that no longer existed — pressing Generate did not help, which is what made it serious.**  
+  guarded by `test_data_changed_in_qgis_while_the_plugin_is_open`
 - **control ranges and steps were unasserted as a class; a mutation batch moved one and the suite was silent.**  
   guarded by `test_every_control_accepts_the_range_it_should`
 - **no test asserted any control's tooltip, so all thirty-one could be removed unnoticed.**  
@@ -78,16 +86,24 @@ there is no separate list to remember.
   guarded by `test_every_design_control_is_reachable`
 - **a vanished element count was invisible, because the catalogue tests all iterate the catalogue's own keys.**  
   guarded by `test_every_element_count_still_has_its_designs`
+- **a layer with no CRS produced output layers stamped EPSG:4326, because a memory layer whose URI names no CRS is given 4326 by QGIS rather than left blank.**  
+  guarded by `test_hostile_numbers_are_handled_or_declined`
 - **only the existence of installed palettes was checked, never the colours they run between.**  
   guarded by `test_installed_palettes_span_their_declared_colours`
 - **the live-update default was unasserted, so turning it off shipped silently past 100 tests.**  
   guarded by `test_live_update_is_on_by_default`
+- **the live-update signature described the settings but not the data, so an in-place geometry edit or a deletion left the map showing what had been deleted.**  
+  guarded by `test_live_update_notices_the_data_changing`
+- **deleting the file behind a layer and reloading it made layer.extent() segfault QGIS outright — no exception, no traceback, nothing in the log — and isValid() returned True while the provider was gone; the live-update gate read that extent on every debounce, so the crash was reachable without pressing anything.**  
+  guarded by `test_qgis_changes_around_the_plugin`
 - **swatch direction was untested, so drawing every ramp backwards was invisible.**  
   guarded by `test_ramp_swatches_run_the_right_way_round`
 - **the outline casing had no test, so losing the black line entirely was invisible to the suite.**  
   guarded by `test_region_outlines_are_cased`
 - **family-list repopulation had no test, so unblocking its signals was invisible.**  
   guarded by `test_repopulating_the_family_list_fires_no_handlers`
+- **a colour picked while a run was in flight was overwritten when the run finished, because the output builder trusted the assignments the run was launched with.**  
+  guarded by `test_the_colour_editor_opened_partway_through_a_run`
 - **the design view drew a dark outline around every tile, which fights the colour comparison the view is for.**  
   guarded by `test_the_design_view_draws_no_tile_outlines`
 - **the preview's painting had almost no coverage, and removing its brush, pen, render hint or fitting arithmetic changed a picture no test looked at.**  
@@ -99,7 +115,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 20
+- unrecorded: 28
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5
 - reading the code: 3

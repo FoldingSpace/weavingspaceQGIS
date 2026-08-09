@@ -34,3 +34,7 @@ anti-ai-writing-style.md
 *_rsa
 *_ed25519
 .netrc
+
+# Claude Code writes local permission state here, with absolute paths
+# from this machine. Local to a checkout, never project content.
+.claude/settings.local.json

@@ -54,6 +54,96 @@ MUTATIONS = [
   # passing, and most then failed to kill the very mutants they were
   # written for. These entries are how that cannot happen quietly
   # again.
+  # ---- this round's defects, each undone here so its test is proved
+  dict(name="output-crs-invented", file=BRIDGE,
+       old="""  if gdf.crs is None:""",
+       new="""  if False:  # mutation: let QGIS default the output to EPSG:4326""",
+       test="test_hostile_numbers_are_handled_or_declined",
+       why="a region layer with no CRS must not have one invented for "
+           "its output; a memory layer whose URI names no CRS is given "
+           "EPSG:4326 by QGIS, which ships coordinates in the "
+           "thousands labelled as degrees"),
+  dict(name="quant-style-on-text", file=DIALOG,
+       old="""      if mode == "Graduated" and var and not self._field_is_numeric(var):""",
+       new="""      if False:  # mutation: let a graduated style stand on text""",
+       test="test_a_quantitative_style_never_stands_on_text",
+       why="a graduated renderer over words has no ranges at all, so "
+           "every tile falls outside every class and four full layers "
+           "paint an empty map while the run reports success"),
+  dict(name="constant-column-classes", file=BRIDGE,
+       old="""  if index >= 0 and numeric_values_are_constant(layer.uniqueValues(index)):
+    k = 1""",
+       new="""  if False:  # mutation: cut k classes over one distinct value
+    k = 1""",
+       test="test_a_constant_column_draws_one_class_and_says_so",
+       why="a column that is 7 everywhere gets five classes all "
+           "reading 7 - 7 in five colours, a legend showing variation "
+           "the data does not have"),
+  # TWO entries, because there are two signatures and they gate
+  # different paths: _geometry_signature decides whether pressing
+  # Generate re-tiles or merely repaints, and _run_signature decides
+  # whether a live update runs at all. One entry pointed at the wrong
+  # one survived, which is the failure this file is for.
+  dict(name="fingerprint-in-geometry-signature", file=DIALOG,
+       old="""      self._layer_fingerprint(), self._data_version,
+    )
+
+  def _restyle_only(self) -> bool:""",
+       new="""    )
+
+  def _restyle_only(self) -> bool:""",
+       test="test_data_changed_in_qgis_while_the_plugin_is_open",
+       why="without the layer's CONTENTS here, deleting half the "
+           "features leaves every term identical, so pressing Generate "
+           "is answered by repainting tiles built from data that no "
+           "longer exists"),
+  dict(name="fingerprint-in-run-signature", file=DIALOG,
+       old="""      self._layer_fingerprint(), self._data_version,
+    )
+
+  @staticmethod""",
+       new="""    )
+
+  @staticmethod""",
+       test="test_live_update_notices_the_data_changing",
+       why="without it, live update compares two identical signatures "
+           "after an edit and skips the run as a no-op, so a user "
+           "watching the map sees it stop following their work"),
+  dict(name="dead-layer-guard", file=DIALOG,
+       old="""    if not compat.layer_data_is_available(layer):
+      # The source is gone -- a deleted file, a dropped connection.""",
+       new="""    if False:  # mutation: question a layer whose source has gone
+      # The source is gone -- a deleted file, a dropped connection.""",
+       test="test_qgis_changes_around_the_plugin",
+       why="extent() on a layer whose file has been deleted segfaults "
+           "QGIS outright: no exception, no traceback, nothing in the "
+           "log. isValid() returns True and lies"),
+  dict(name="unobservable-layer-retiles", file=DIALOG,
+       old="""    if self._data_is_unobservable():
+      # A layer that will not say how many features it has may have""",
+       new="""    if False:  # mutation: repaint a source we cannot inspect
+      # A layer that will not say how many features it has may have""",
+       test="test_a_layer_that_will_not_say_how_big_it_is",
+       why="a WFS or database layer can be rewritten on a server with "
+           "nothing locally to show for it, so the fast path would "
+           "repaint tiles built from data that is gone"),
+  dict(name="lost-column-redefaults", file=DIALOG,
+       old="""      moved.append((was, now))""",
+       new="""      moved.append((was, now))
+      combo.setCurrentText("---")  # mutation: unassign instead""",
+       test="test_the_user_changes_the_data_underneath",
+       why="losing a column must cost an element its variable, not its "
+           "place on the map: unassigned draws as flat fill, so a "
+           "deletion in QGIS would quietly cost the map two of its "
+           "four variables"),
+  dict(name="added-column-offered", file=DIALOG,
+       old="""      combo.clear()
+      combo.addItems(wanted)""",
+       new="""      pass  # mutation: leave the chooser's list as it was""",
+       test="test_a_sequence_of_edits_under_the_plugin",
+       why="a column added in QGIS with the Field Calculator stays "
+           "invisible until the user switches layers and back, with "
+           "nothing on screen to suggest that is the remedy"),
   dict(name="region-chooser-exclusions", file=DIALOG,
        old="""    self._build_ui()
     self._update_layer_exclusions()""",

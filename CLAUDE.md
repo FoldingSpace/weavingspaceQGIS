@@ -551,6 +551,67 @@ Confirmed with the user via an explicit design review:
   with, or a colour chosen during a run is destroyed when it lands.
   They persist as a layer custom property so a saved project survives
   a QGIS restart.
+- **A region layer with no CRS is tiled as it is, and its output says
+  so.** QGIS permits a layer with no CRS and users sometimes want one
+  (a floor plan, a scanned map, a diagram), so the plugin gets on with
+  it: no reprojection, no warning, tiles in the layer's own
+  coordinates. What it must NOT do is invent a CRS on the way out. A
+  memory layer whose URI names no CRS is given EPSG:4326 by QGIS, so
+  `gdf_to_layer` clears it explicitly when the frame has none;
+  otherwise coordinates in the thousands ship labelled as degrees,
+  placing the map off the edge of the world and inviting QGIS to
+  reproject it. (User instruction, 2026-08-09: "if there's no CRS
+  that's fine just proceed" and "no CRS shouldn't have a warning".)
+- **A quantitative style never stands on a text field.** A graduated
+  renderer over words comes back with no ranges at all, so every tile
+  falls outside every class and the layer paints NOTHING — a group of
+  full-looking layers drawing an empty map, reported as success. The
+  correction is made in `_assignments`, which every consumer reads,
+  and again in `_on_mode_chosen` so the chooser never goes on
+  describing a map the plugin will not draw. The user is told.
+- **A constant numeric column gets ONE class, and a notice.** Asked
+  for five classes over a column that is 7 everywhere, QGIS returns
+  five, all reading "7 - 7" in five different colours. The map was
+  never wrong; the legend was, and the legend is what a reader trusts.
+  `make_graduated_renderer` collapses to k=1 and the dialog reports
+  it. (User instruction, 2026-08-09.)
+- **The plugin follows the layer, and adapts where the answer is
+  unambiguous.** QGIS is live and the dialog is not modal to it, so a
+  user can delete features, simplify geometry in place, rename or
+  retype a field, reassign a CRS or filter the layer while the plugin
+  is pointed at it. Both signatures therefore carry a fingerprint of
+  what the layer CONTAINS, and the dialog connects to the layer's own
+  signals for edits a fingerprint cannot see (a value retyped, a
+  vertex moved inside the bounding box). Where an edit makes a setting
+  untrue AND there is exactly one sensible response, the dialog makes
+  it and says so: an element whose column has gone RE-DEFAULTS to a
+  surviving field (losing a column costs an element its variable, not
+  its place on the map — unassigned draws as flat fill, so a deletion
+  in QGIS would quietly cost the map two of its four variables), a
+  column added in QGIS is offered straight away, the spacing is
+  re-derived when the CRS changes, and the region layer being removed
+  is reported rather than silently emptying the chooser. What it does
+  NOT do is treat a vanished column and a new one as a rename: that is
+  a coin flip that would map data nobody asked for. `repaintRequested` is
+  deliberately not listened to in general, because it fires on style
+  changes and re-tiling on those is the cost the restyle fast path
+  exists to avoid.
+- **Raster sources are not a case here.** A COG, a WMS or any other
+  raster cannot be a region layer: the region chooser filters to
+  polygon layers, and the tiling joins data to POLYGONS. Raster-backed
+  data reaches this plugin only after somebody has vectorised it,
+  which produces an ordinary vector layer covered by everything above.
+  Worth writing down because "what about cloud raster data" is a
+  reasonable question with a short answer.
+- **A layer the plugin cannot count is a snapshot, and says so.** WFS,
+  OGC API - Features, an ArcGIS service and PostGIS can all change
+  server-side with no local event, and may report `featureCount()` as
+  -1 or an estimate. An explicit Generate always re-tiles such a
+  layer; live update does not chase it, because polling somebody's
+  WFS endpoint unattended is not a thing to do behind their back, and
+  the user is told once that live update cannot track this source. A
+  layer with QGIS's own auto-refresh enabled IS followed, since
+  turning that on is the user declaring the data dynamic.
 - The repository is public at `FoldingSpace/weavingspaceQGIS`, with
   the project page served by GitHub Pages from `docs/` on the main
   branch (so a single push updates code, documentation and page
