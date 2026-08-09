@@ -547,6 +547,13 @@ def main():
   # the citation version, the changelog entry, the images, the links,
   # the vendored library version, the repository URLs. Mechanical
   # corrections are applied; anything needing words stops the release.
+  # The suite's own index, regenerated from the suite. Placed with
+  # the published-content audit because it is the same kind of claim:
+  # a document that describes something else and rots silently unless
+  # it is rebuilt from the thing it describes.
+  run("test map", [sys.executable, os.path.join("tools", "test_map.py")],
+      dict(os.environ))
+
   run("published content audit",
       [sys.executable, os.path.join("tools", "sync_release_content.py"),
        "--fix", "--since", str(started)], dict(os.environ))
