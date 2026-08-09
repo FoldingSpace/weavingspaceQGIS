@@ -266,6 +266,69 @@ reached often enough to notice.
 expensive stratum would be a rise. The tool prints the scope inside
 the rate line for exactly this reason.
 
+## Census or sample: which question you are asking
+
+They answer different questions and are not interchangeable.
+
+**Sample when you want to know how good the suite is.** A uniform
+random draw over the whole reachable pool estimates the POPULATION
+rate, and the Clopper-Pearson bound on it is the number fit to quote.
+Certification is always a sample; a census of any one stratum cannot
+certify anything, because the strata differ enormously (55% cheap
+against roughly 87% expensive, measured 2026-08-09).
+
+**Census when you want to know what to fix.** `--max-cost N` runs
+every mutant in a cost stratum, so the rate is exact and — more
+usefully — the survivor list is COMPLETE for that stratum. A sample
+gives you a hint about where the weakness is; a census gives you the
+work list.
+
+**A re-census is a controlled experiment, but only under one
+condition: the plugin source must not have changed.** Mutants are
+generated from the source, so identical source means the identical
+population, and re-running the same `--max-cost` measures the same
+mutants before and after. That is a true before/after delta, which no
+sample can give: a second sample confounds "the suite improved" with
+"we happened to draw easier mutants". If source changed, the
+comparison is void — say so and take a fresh baseline rather than
+quoting a delta that does not exist.
+
+## The rule that goes WITH a census, and it is firm
+
+A census hands you a complete, named list of survivors. That is its
+value and its danger: it is far easier to write a test aimed at a
+named mutant than at a behaviour, and a hundred named mutants is a
+hundred invitations to do so. The discipline therefore has to be
+tighter here than when sampling, not looser.
+
+**Every test added in response to a survivor must pass both of these,
+stated out loud before it is written:**
+
+1. **Name the harm.** Say what a user loses if this mutation ships. If
+   that sentence cannot be written, it is not a gap. Resolve it as
+   equivalent (with evidence) or ACCEPT it and record why.
+2. **Would we have wanted this test anyway?** If the honest answer is
+   "only because a mutant survived", it is mutation bookkeeping and
+   must not be written. Asserting `columnWidth(3) == 55` raises a
+   number and improves nothing.
+
+**Prefer the family to the member.** A census makes families visible
+because the whole stratum is listed at once: work the pattern, not the
+entries. One invariant test over the preview's painting killed five
+catalogued mutants and covers the rest of that family, where five
+example tests would have covered five.
+
+**Accepting a survivor is a legitimate, recorded outcome.** Pixel
+constants, cosmetic stylesheets and defaults with no observable
+consequence stay as survivors and lower the rate honestly. A campaign
+that never accepts anything is not being rigorous, it is chasing a
+number.
+
+**And when the pressure shows, stop.** If a round starts producing
+tests that cannot pass the two questions above, the correct move is to
+accept the remaining survivors and report the rate as it stands. The
+score is the instrument, not the product.
+
 ## Measuring cheaply, and the traps in doing so
 
 A mutant's cost is the size of its covering set, and that cost is

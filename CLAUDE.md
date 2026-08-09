@@ -228,6 +228,21 @@ obligations: they exist so nobody pays twice for the same discovery.
   periodic full campaign — changed lines are where new gaps arrive,
   but a refactor elsewhere can quietly stop an old test reaching what
   it names, and only full sampling finds that.
+- **Census and sample answer different questions, and a census
+  carries a firmer rule.** Sample to learn how good the suite is (the
+  population estimate, and the only thing fit to certify); census a
+  cost stratum with `--max-cost` to learn what to fix (exact rate,
+  complete survivor list). A RE-census is a controlled before/after
+  only while the plugin source is unchanged, since mutants are
+  generated from that source — if it changed, the delta does not
+  exist and a fresh baseline is required. Because a census hands over
+  a named list of survivors, it is unusually easy to write tests
+  aimed at mutants rather than behaviours: every test added in
+  response to a survivor must name the harm a user would suffer AND
+  be a test we would have wanted anyway. If neither holds, ACCEPT the
+  survivor and record why — accepting is a legitimate outcome, and a
+  campaign that never accepts anything is chasing a number rather
+  than testing. Full reasoning in docs/MUTATION-TESTING.md.
 - **Mutation testing has commitments, and they bind.** The full
   reasoning is in `docs/MUTATION-TESTING.md`; what must not be
   forgotten while working: close a survivor with the test the
