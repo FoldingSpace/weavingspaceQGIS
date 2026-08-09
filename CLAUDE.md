@@ -258,6 +258,56 @@ obligations: they exist so nobody pays twice for the same discovery.
   that only counts features is not finished. (Standing user
   instruction, 2026-08-06.)
 
+## Working economically in a long session
+
+A long session ends when the context window fills, and it fills faster
+than it looks. None of the rules below trade away rigour; they are
+about not paying twice for the same information. Measured on the
+2026-08-09 session, which filled the window in about four hours.
+
+- **Batch edits per file.** Every edit causes the harness to re-inject
+  a large slice of that file. Six small edits to dialog.py cost six
+  re-injections; one pass costs one. Plan the whole change to a file,
+  then make it.
+- **Write scripts to the scratchpad and run them; do not paste long
+  heredocs.** An inline script is echoed back in full. The same script
+  written to a file and run costs a line. (It also survives the
+  quoting traps: nested triple quotes break a heredoc.)
+- **Grep for the answer, do not read for it.** Targeted `grep -n` with
+  a little context beats reading a wide region, and beats re-reading
+  something already seen. Trust your own notes.
+- **Give one file one owner.** Two agents, or an agent and you,
+  editing the same file collide AND double the re-injections. Assign
+  whole files.
+- **Ask subagents for short reports.** "Under 150 words unless
+  something is wrong, then say what" keeps the findings and drops the
+  narration. Four verbose agent reports cost several thousand words in
+  one session. Agents are cheap in context (only the report returns)
+  and expensive in tokens; they cannot be steered once started, so
+  they suit well-bounded work on files nobody else is touching. The
+  documentation pass was exactly that shape, and turned up five real
+  defects nobody had gone looking for.
+- **Background the long computations, keep the editing in front of
+  you.** A suite, a coverage record or a mutation batch consumes no
+  context while it runs, so start it early and do something else. But
+  the preference is not unconditional, and the costs are real:
+  a failure is discovered late (gate every chain so it stops at the
+  first red stage rather than wasting hours); polling is not free, so
+  a heartbeat should be stopped when nothing is running; and above
+  all, background work LOCKS THE TREE — source cannot be edited while
+  coverage records, which serialises everything else. Contention also
+  degrades the measurement: four workers plus a suite is how a batch
+  loses mutants to timeouts. Background what is long and
+  self-contained; foreground what you need to react to.
+- **Do not read binaries.** Summarise a zip with `zipfile`, an image
+  with `sips`. Read an image only when a visual judgement IS the task
+  (choosing an icon, checking a rendered page) — then it earns its
+  cost.
+- **Write the handover before the window is tight, not after.**
+  `dev/state-of-play.md` is the durable record; the rules themselves
+  belong in this file and in docs/, which survive compaction on their
+  own.
+
 ## How we decide things
 
 - **Reach for `/grill-me` when a decision carries weight.** Anything

@@ -235,6 +235,37 @@ incremental gate answers "is this week's work defended". They are
 different questions and the cheap one does not subsume the expensive
 one.
 
+## What the census showed: the average was hiding two populations
+
+The first cost-stratum census (2026-08-09) put the thinly-covered
+stratum at **55%**, against 80% from a uniform sample of the whole
+reachable pool three hours earlier. Both numbers are sound. They
+describe different code.
+
+Reachable mutants: 1,047. Of those, 235 sit on lines that ten tests or
+fewer touch, and 812 on lines touched by more. If the population runs
+near the 80% the uniform sample measured, and the cheap stratum runs
+at the 55% now measured exactly, the heavily-covered stratum must be
+running around 87%.
+
+That is worth knowing, and it is not a surprise once said aloud: lines
+that only a handful of tests reach are precisely the lines the suite
+barely exercises. A uniform sample is dominated by the well-covered
+two thirds and reports their strength as though it were everyone's.
+
+Two consequences for how the campaign should be run.
+
+**Quote the population bound, but work the cheap stratum.** The
+certification number stays the uniform batch's Clopper-Pearson bound.
+The improvement work belongs where the census says the weakness is:
+106 survivors, named exactly, in code no sampling round would have
+reached often enough to notice.
+
+**A stratum rate is never the plugin's rate, in either direction.**
+55% here is not a fall from 80%, any more than a census of the
+expensive stratum would be a rise. The tool prints the scope inside
+the rate line for exactly this reason.
+
 ## Measuring cheaply, and the traps in doing so
 
 A mutant's cost is the size of its covering set, and that cost is
@@ -313,6 +344,7 @@ up. When a number here looks good, check how it is counted.
 | auto 7 | 30 | 20 | 67% | lower limit 47.2% |
 | auto 8 | 60 | 41/56 | 73% | lower limit 60%, n=56. Four runs discarded to a machine that slept mid-batch (fixed: the watchdog now uses a monotonic clock). Every survivor was a DEFAULT, an INITIALISATION or a mark set once and read elsewhere; not one was in the tiling logic or the colour mathematics |
 | auto 9 | 60 | 48/60 | 80% | CERTIFICATION: lower limit 68%, n=60, against a suite of 120. No code changed while it ran. All sixty judged — no timeouts, the first batch to lose nothing to the machine |
+| census 1 | 235 | 129/235 | 55% | **EXACT, and only for mutants covered by 10 tests or fewer** (22% of the 1,047 reachable). No sampling error and no timeouts. Decomposes the uniform batches rather than contradicting them: see below |
 | auto 10 | 100 | 73/96 | 76% | **lower limit 66%, n=96**, against a suite of 123. Run to push the bound past 70% by sample size alone; it did not, because the rate fell from 80% to 76% and a lower rate eats the gain. A larger sample tightens an interval around WHATEVER rate turns up — it is not a ratchet, and this is the batch that proved it here |
 
 The decline from 53% to 35% was not a regression. Batch two happened
