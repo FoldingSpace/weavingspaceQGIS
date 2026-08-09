@@ -27,11 +27,11 @@ interior fills — a pixel counts when its four neighbours agree with
 it — so antialiased edge blends never enter the measurement and the
 thresholds can sit near zero (mean < 1.5, p95 < 4): the measurement
 is made on the stuff that matters, and any excursion is real colour
-drift rather than platform rendering noise. Each numeric case also saves a second render
-using the plugin's "Quant: Unclassed" style (50 linear intervals) as
-*_unclassed.png; the reference-comparison step
-(tools/visual_reference_report.py) uses those when quantile classing
-alone explains a mismatch with the unclassed reference.
+drift rather than platform rendering noise. Each numeric case also
+saves a second render using the plugin's "Quant: Unclassed" style
+(50 linear intervals) as *_unclassed.png; the reference-comparison
+step (tools/visual_reference_report.py) uses those when quantile
+classing alone explains a mismatch with the unclassed reference.
 
 QGIS pieces used here, for weavingspace-minded readers:
 QgsMapSettings describes a map view (layers, extent, size, background);
@@ -97,7 +97,26 @@ def sample_pixels(image, sample=140):
   edges are rendering artifacts, not symbology, and admitting them
   forces loose thresholds that could hide real colour drift. With
   edges excluded, every sampled colour should be one the assigned
-  ramps actually produce, so gamut_delta_e can demand near-zero."""
+  ramps actually produce, so gamut_delta_e can demand near-zero.
+
+  Args:
+    image: a QImage as render_layers returns it — drawn on the
+      magenta chroma key, since a pixel counts as background by
+      being that colour and not by being pale.
+    sample: how many sample points to aim for along each edge, which
+      sets the stride (width // sample). 140 over the usual 700-pixel
+      render takes every fifth pixel: dense enough that one
+      mis-symbolized element cannot hide between the samples, cheap
+      enough to run on every case. Raising it costs pixel reads, not
+      accuracy, since five neighbouring reads happen per sample.
+
+  Returns:
+    An (n, 3) float array of RGB triples, one row per surviving
+    interior pixel, unordered — every caller reduces it to distances
+    over the whole set. An empty (0, 3) array when the render is all
+    background or all edge blend, which callers treat as a failure
+    rather than as a clean result. The image is only read.
+  """
   import numpy as np
   out = []
   w, h = image.width(), image.height()
@@ -120,7 +139,30 @@ def ramp_gamut(ramp_names, steps=64):
   """Every colour the given ramps can produce (interpolated stops from
   palettes.json). No blend forgiveness: sample_pixels now keeps only
   interior fills, so every sampled colour must sit ON a ramp — a
-  colour that needs a white blend to be explained is a real defect."""
+  colour that needs a white blend to be explained is a real defect.
+
+  Args:
+    ramp_names: ramp names as an assignment dict carries them
+      ("Reds", "RdBu", "tab10"), looked up in bridge.PALETTES under
+      sequential, then diverging, then categorical. A name in none of
+      them contributes nothing rather than raising: a case may
+      legitimately name a ramp QGIS supplies but the plugin does not
+      install.
+    steps: how finely a continuous ramp is sampled between its stops.
+      64 is well above the class counts the gallery uses (5, or 50 in
+      the unclassed variants), so any class colour has a near
+      neighbour here and the Delta-E left over from sampling alone
+      stays far under the 1.5 threshold the cases assert. Categorical
+      palettes ignore it: their stops ARE the whole gamut, and
+      interpolating between them would invent colours no renderer can
+      draw and so forgive a wrong-entry bug.
+
+  Returns:
+    An (n, 3) float RGB array: the union over every named ramp, plus
+    one row for bridge.NO_DATA_FILL (#dddddd), the grey drawn for
+    features a class scheme does not match — legitimate map colour
+    that belongs to no ramp. bridge.PALETTES is only read.
+  """
   import numpy as np
   from weavingspace_qgis import bridge
   colours = []
@@ -143,16 +185,41 @@ def ramp_gamut(ramp_names, steps=64):
   return np.vstack(colours)
 
 
-def gamut_delta_e(image, ramp_names):
+def gamut_delta_e(image, ramp_names, extra_colours=()):
   """(mean, p95) Delta-E from sampled map pixels to the nearest colour
-  the assigned ramps can produce; small values mean every pixel is
-  explained by the intended symbology."""
+  the assigned symbology can produce; small values mean every pixel is
+  explained by the intended symbology.
+
+  Args:
+    image: the rendered QImage to measure.
+    ramp_names: the ramps in force on the layers that were drawn —
+      every one of them, since the picture contains every layer.
+      Naming only some reports the others' correct colours as strays.
+    extra_colours: "#rrggbb" strings that belong to the gamut for
+      reasons a ramp name cannot express; see below.
+
+  Returns:
+    (mean, p95) Delta-E over the sampled interior pixels, or
+    (999.0, 999.0) when nothing could be sampled, which is itself a
+    failure worth reporting rather than an average over no data.
+
+  `extra_colours` are "#rrggbb" strings belonging to the gamut for
+  reasons a ramp name cannot express -- at present, colours chosen by
+  hand in the Categorical colour editor. Those are deliberately NOT on
+  any ramp, which is the whole reason someone picks one, so a check
+  that only knew about ramps would report a correct map as broken.
+  "The colours in force" always meant the colours the map is entitled
+  to use; until hand-picking existed, the ramps were the whole of it.
+  """
   import numpy as np
   pixels = sample_pixels(image)
   if len(pixels) == 0:
     return 999.0, 999.0
   lab_pix = srgb_to_lab(pixels)
-  lab_gamut = srgb_to_lab(ramp_gamut(ramp_names))
+  gamut = list(ramp_gamut(ramp_names)) + [
+    tuple(int(c.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4))
+    for c in extra_colours]
+  lab_gamut = srgb_to_lab(gamut)
   d = np.sqrt(((lab_pix[:, None, :] - lab_gamut[None, :, :]) ** 2)
               .sum(axis=2)).min(axis=1)
   return float(d.mean()), float(np.percentile(d, 95))
@@ -163,7 +230,28 @@ def synthetic_region(n=6, cell=1000):
   squares carrying smooth numeric fields (two gradients, a radial
   bump, a diagonal) plus a categorical land-cover-ish field. Smooth
   fields make classed symbology produce visibly banded maps, which the
-  colour-count checks depend on."""
+  colour-count checks depend on.
+
+  Args:
+    n: the grid is n x n squares, so n * n region polygons. Six gives
+      36, enough that a five-class scheme fills every class from
+      every field, few enough that tiling it stays quick even at the
+      finer spacings the weave cases use.
+    cell: the side of one square in CRS units, here EPSG:3857 metres.
+      1000 against the 300-700 spacings the cases pass to the units
+      puts several tile units inside every polygon, so an element's
+      colour comes from many polygons and a banding fault shows as a
+      pattern rather than as one odd tile.
+
+  Returns:
+    A fresh GeoDataFrame in EPSG:3857 (a metric CRS, so spacings read
+    as metres) with square geometries and five attribute columns: va
+    = column index, vb = row index, vc = squared distance from the
+    centre (the radial bump), vd = i + j (the diagonal), and
+    landcover, one of five class names cycled over the cells. Every
+    call builds a new frame; nothing is cached, so a case that
+    mutates its region cannot affect another.
+  """
   import geopandas as gpd
   import shapely.geometry as geom
   polys, va, vb, vc, vd, cat = [], [], [], [], [], []
@@ -231,7 +319,31 @@ def render_layers(layers, path, size=700):
 
 def image_stats(image, sample=120):
   """Coarse image facts on a sample grid: how many distinct colours,
-  and what fraction of pixels is the magenta key background."""
+  and what fraction of pixels is the magenta key background.
+
+  These are the blunt checks that catch a blank, monochrome or
+  gap-less render; the colourspace criteria in gamut_delta_e are what
+  catch a wrong-but-plausible one.
+
+  Args:
+    image: a QImage from render_layers, on the chroma-key canvas.
+    sample: points to aim for along each edge, giving a stride of
+      width // sample. 120 is coarser than sample_pixels uses, which
+      is the right trade here: these two numbers are thresholded
+      loosely (more than a dozen colours, so much background), so
+      paying for a denser grid would buy no extra certainty.
+
+  Returns:
+    (colours, background_fraction). ``colours`` counts distinct
+    non-background colours after each channel is bucketed in eights
+    (32 levels per channel): unlike sample_pixels this grid keeps
+    edge blends, and at full precision every antialiased pixel would
+    count as its own colour and the number would say nothing. Ramp
+    classes differ by far more than one bucket, so real classes still
+    count separately. ``background_fraction`` is chroma-key pixels
+    over all sampled pixels, which is how the weave and inset cases
+    assert that gaps are visible. The image is only read.
+  """
   colours, background = set(), 0
   w, h = image.width(), image.height()
   step_x, step_y = max(1, w // sample), max(1, h // sample)
@@ -255,7 +367,42 @@ def _is_background(c):
 
 def tiled_layers(unit, region, assignments, out_dir, name, **tiling_kw):
   """The plugin's own pipeline, minus the dialog: tile the region with
-  the unit, split by tile_id, seed renderers, return the layers."""
+  the unit, split by tile_id, seed renderers, return the layers.
+
+  Going through bridge rather than through TiledMap.render is the
+  point of the gallery: what is on trial is the plugin's conversion
+  and symbology, with the library's own geometry taken as given.
+
+  Args:
+    unit: a weavingspace TileUnit or WeaveUnit, already built with
+      its spacing and crs, exactly as the dialog's _build_unit would
+      hand one over.
+    region: the GeoDataFrame to tile, synthetic_region() in every
+      case here.
+    assignments: one plugin assignment dict per tile element, in draw
+      order; ``grad`` builds the graduated ones. Only the keys
+      bridge.seed_renderer reads matter, and ``id`` must match a
+      tile_id the unit produces. An element with no tiles in the
+      result is skipped rather than becoming an empty layer.
+    out_dir: unused. Every call site passes one (None throughout the
+      gallery, since these layers are never written to disk); the
+      cases keep the argument only because they all spell the call
+      the same way.
+    name: unused, likewise — a label for the case, not read here.
+    tiling_kw: forwarded verbatim to Tiling, so the cases drive the
+      same constructor the dialog does; as_icons=True is the only one
+      the gallery passes.
+
+  Returns:
+    (layers, tiled_gdf). ``layers`` are QGIS memory layers with
+    renderers already seeded, in assignment order — which is
+    top-to-bottom on the map, since render_layers draws the first
+    layer on top. ``tiled_gdf`` is TiledMap.map, the whole tiling
+    with its tile_id column, returned so a case can re-split it for
+    the unclassed variant without tiling a second time. The layers
+    are created only; nothing is added to the QgsProject, so no case
+    can leave state behind for the next one.
+  """
   from weavingspace import Tiling
   from weavingspace_qgis import bridge
   tm = Tiling(unit, region, **tiling_kw).get_tiled_map()
@@ -272,7 +419,29 @@ def tiled_layers(unit, region, assignments, out_dir, name, **tiling_kw):
 
 def grad(aid, var, ramp, scheme="Quantiles", k=5):
   """Shorthand for a graduated assignment dict (see dialog._assignments
-  for the full key inventory; only seeding-relevant keys needed here)."""
+  for the full key inventory; only seeding-relevant keys needed here).
+
+  Args:
+    aid: the tile element's id ("a", "b", ...), matching a value in
+      the tiling's tile_id column.
+    var: the region column mapped onto that element ("va".."vd").
+    ramp: the colour ramp name, spelled as the plugin installs it in
+      QgsStyle and as ramp_gamut looks it up, so a case's assertion
+      and its symbology cannot disagree about which ramp is meant.
+    scheme: the classification, spelled as the dialog spells it —
+      "Quantiles", "Equal intervals", "Natural breaks (Jenks)" or
+      "Unclassed". The gallery spreads these across cases on purpose;
+      case_twill_gaps and case_grid_punctured say why they cannot use
+      the quantile default.
+    k: how many classes the scheme cuts.
+
+  Returns:
+    A new dict, safe for a case to copy and edit (the unclassed
+    variants do exactly that). ``outline`` is always False: an
+    outline stroke draws a colour belonging to no ramp through the
+    middle of every fill, which would put edge pixels where
+    interior-only sampling expects fills and defeat the gamut check.
+  """
   return {"id": aid, "var": var, "mode": "Graduated", "ramp": ramp,
           "scheme": scheme, "k": k, "outline": False}
 
@@ -280,7 +449,21 @@ def grad(aid, var, ramp, scheme="Quantiles", k=5):
 def layers_from_gdf(gdf, assignments):
   """Split an already-tiled GeoDataFrame into per-element layers with
   seeded renderers (the tail of the plugin pipeline, reusable for the
-  unclassed variant without re-tiling)."""
+  unclassed variant without re-tiling).
+
+  Args:
+    gdf: an already-tiled frame, the second half of what tiled_layers
+      returned, still carrying its tile_id column.
+    assignments: the per-element assignment dicts to seed from; an
+      element whose id matches no row is skipped, exactly as in
+      tiled_layers.
+
+  Returns:
+    A list of fresh memory layers in assignment order. Fresh matters:
+    the caller keeps its original layers untouched, so a restyled
+    variant can be rendered without disturbing the render the case
+    already measured. Nothing is added to the QgsProject.
+  """
   from weavingspace_qgis import bridge
   layers = []
   for a in assignments:
@@ -303,14 +486,59 @@ def render_unclassed_variant(gdf, assignments, png):
   reference render keeps those elements categorical too (the
   comparison passes each case's `categoricals` through). So in a
   mixed case the "_unclassed" file means "continuous where continuous
-  makes sense", not "everything ramped"."""
+  makes sense", not "everything ramped".
+
+  Args:
+    gdf: the tiled frame the case already measured, re-split here
+      rather than re-tiled, so the two renders differ in symbology
+      alone and any difference the comparison finds is a difference
+      in classing.
+    assignments: the case's own assignments; the Graduated ones are
+      copied with scheme "Unclassed" and k 50, and everything else is
+      passed through as it stands.
+    png: where to write the variant, by convention the case's own
+      path with "_unclassed" before the extension, since
+      tools/visual_reference_report.py finds these by that name.
+
+  Returns:
+    None. The side effect is the PNG; the assignments handed in are
+    not modified (the variant is built from copies), and no layer
+    outlives the call.
+  """
   variant = [dict(a, scheme="Unclassed", k=50)
              if a.get("mode") == "Graduated" else a for a in assignments]
   render_layers(layers_from_gdf(gdf, variant), png)
 
 
 def check(name, fn, out_dir):
-  """Run one visual case; record pass/fail, timing, and its PNG."""
+  """Run one visual case; record pass/fail, timing, and its PNG.
+
+  Args:
+    name: the case's title as the report and the console show it;
+      spaces become underscores in the PNG's filename, so two cases
+      must not differ by spacing alone.
+    fn: the case function. It takes the PNG path, draws and measures
+      the map, and returns a short detail string for the report;
+      failure reaches here as an exception, since the cases assert
+      their criteria rather than returning a verdict.
+    out_dir: the release's report directory (reports/v<version>),
+      where the PNG is written beside index.html.
+
+  Returns:
+    None. Appends one dict to the module-level RESULTS, which
+    write_report and main both read afterwards. Every case is
+    recorded whether it passed or not: a failure here is a result to
+    publish, not a reason to stop, so one broken case still leaves a
+    gallery showing the other twelve. A case that raised before
+    saving anything records png=None, and the report simply shows no
+    image for it.
+
+  The exception is caught broadly on purpose. A case can fail through
+  an assertion, through the library, or through QGIS refusing an
+  operation, and all three are the same news to a reader of the
+  report; the traceback is kept (limit=3, enough to name the failing
+  assertion and its caller) as the detail so nothing is swallowed.
+  """
   png = os.path.join(out_dir, name.replace(" ", "_") + ".png")
   t0 = time.perf_counter()
   try:
@@ -730,6 +958,21 @@ def case_size_guard(png):
 # ------------------------------------------------------------------ report
 
 def plugin_version():
+  """The version this run belongs to, read from metadata.txt.
+
+  Returns:
+    The version string ("1.4.0"), or "unknown" when the file carries
+    no version= line. Nothing is written.
+
+  metadata.txt is the single place the version lives — QGIS's plugin
+  manager reads that same file — so it is parsed here rather than
+  duplicated. The parse is deliberately a line scan instead of a
+  ConfigParser: this runs under QGIS's Python before anything else is
+  known to be importable, and the file is a flat list of key=value.
+  A missing version yields "unknown" rather than raising, so a
+  metadata fault costs a badly named report directory and not the
+  whole gallery.
+  """
   meta = os.path.join(ROOT, "weavingspace_qgis", "metadata.txt")
   with open(meta, encoding="utf-8") as f:
     for line in f:
@@ -741,7 +984,27 @@ def plugin_version():
 def write_report(out_dir, functional_summary=""):
   """One self-contained HTML page per release: environment, functional
   summary (passed in by release.py), and the visual gallery with PNGs
-  embedded as data URIs so the file has no side-car dependencies."""
+  embedded as data URIs so the file has no side-car dependencies.
+
+  Args:
+    out_dir: the release's report directory, where index.html is
+      written and where the PNGs already sit.
+    functional_summary: the PASS/FAIL tail of the functional suite,
+      which release.py captured and left in functional.txt; main
+      reads it back and passes it here. Empty when the gallery is run
+      by hand, in which case the page simply shows an empty
+      functional section rather than pretending the suite passed.
+
+  Returns:
+    The path of the page written. The RESULTS list is read, not
+    changed, so calling this twice writes the same page twice.
+
+  The PNGs are inlined as base64 data URIs rather than referenced, so
+  the page survives being copied or attached to a GitHub Release on
+  its own — a report whose pictures depend on neighbouring files
+  loses them the first time someone moves it. The cost is roughly a
+  third more bytes per image, which is why reports/ is not committed.
+  """
   version = plugin_version()
   rows = []
   for r in RESULTS:
@@ -782,6 +1045,31 @@ pre {{ white-space: pre-wrap; }}
 
 
 def main():
+  """Run every case under a headless QGIS and write the release report.
+
+  Returns:
+    Nothing; exits the process, 0 when every case passed and 1 when
+    any failed, which is the signal release.py gates on. Writes one
+    PNG per case (two for the numeric ones, counting the unclassed
+    variant) plus index.html into reports/v<version>/, and installs
+    the plugin's ramps into this process's QgsStyle.
+
+  QGIS has to be started by hand here because this is a plain script,
+  not a plugin running inside the application: setPrefixPath tells
+  the libraries where their resources live (QGIS_PREFIX_PATH is set
+  by the launcher script, since it differs per platform and per
+  install), and initQgis loads the providers a memory layer needs.
+  The QgsApplication is constructed with GUI enabled — the second
+  argument — because the renderer wants a QPainter and Qt's font
+  machinery; QT_QPA_PLATFORM=offscreen keeps it from needing a
+  display. exitQgis at the end releases those providers cleanly.
+
+  Ramps are installed before any case runs: seed_renderer looks its
+  ramp up by name in QgsStyle, so without this every graduated
+  element would fall back and every colourspace check would fail for
+  one shared reason, hiding whatever the cases were actually meant to
+  find.
+  """
   QgsApplication.setPrefixPath(
     os.environ.get("QGIS_PREFIX_PATH", "/usr"), True)
   app = QgsApplication([], True)

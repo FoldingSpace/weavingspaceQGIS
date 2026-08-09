@@ -71,6 +71,12 @@ ID_COLOURS = PALETTES["categorical"]["tab20"]
 # light grey used wherever an element has no variable or a feature has
 # no value
 NO_DATA_FILL = "#dddddd"
+
+# The key standing for the catch-all category in a per-value colour
+# override map. A real field value could in principle be the string
+# "no data", so this is deliberately something no attribute value can
+# collide with rather than a readable word.
+NO_DATA_KEY = "\x00no-data"
 # tag attached to ramps we install, so they are identifiable/removable
 RAMP_TAG = "mapweaver"
 
@@ -732,14 +738,14 @@ def template_from_layer(source_layer) -> dict:
   in the same {str(value): (symbol clone, label)} form as a QML file."""
   renderer = source_layer.renderer() if source_layer is not None else None
   if not isinstance(renderer, QgsCategorizedSymbolRenderer):
-    raise ValueError("that layer has no categorized symbology")
+    raise ValueError("That layer has no categorized symbology")
   mapping = {}
   for cat in renderer.categories():
     if cat.value() is None or cat.value() == "":
       continue
     mapping[str(cat.value())] = (cat.symbol().clone(), cat.label())
   if not mapping:
-    raise ValueError("that layer's symbology defines no classes")
+    raise ValueError("That layer's symbology defines no classes")
   return mapping
 
 
@@ -747,6 +753,7 @@ def make_categorized_renderer(layer: QgsVectorLayer, field: str,
                               ramp_name: str, outline: bool,
                               template: dict | None = None,
                               reverse: bool = False,
+                              overrides: dict | None = None,
                               ) -> QgsCategorizedSymbolRenderer:
   """One class per distinct field value, plus a "no data" catch-all.
 
@@ -762,6 +769,10 @@ def make_categorized_renderer(layer: QgsVectorLayer, field: str,
       values it names keep its exact colour and label, and anything
       it omits falls back to an automatic colour.
     reverse: run the ramp the other way.
+    overrides: {str(value): "#rrggbb"} chosen by hand in the
+      Categorical colour editor, plus optionally NO_DATA_KEY for the
+      catch-all. These outrank the template and the ramp alike.
+      Values not named here are coloured exactly as before.
 
   Returns:
     A QgsCategorizedSymbolRenderer, including the None-valued
@@ -782,8 +793,18 @@ def make_categorized_renderer(layer: QgsVectorLayer, field: str,
   preset = ramp.colors() if isinstance(ramp, QgsPresetSchemeColorRamp) \
     else None
   categories = []
+  overrides = overrides or {}
   n = max(len(values), 1)
   for i, v in enumerate(values):
+    # A colour chosen by hand in the Categorical colour editor outranks
+    # everything below it, including an imported scheme: it is the most
+    # specific statement anyone has made about this value. The label is
+    # left as the value's own text, because the user picked a colour,
+    # not a name.
+    if str(v) in overrides:
+      categories.append(QgsRendererCategory(
+        v, _fill_symbol(overrides[str(v)], outline), str(v)))
+      continue
     if template is not None and str(v) in template:
       symbol, label = template[str(v)]
       categories.append(QgsRendererCategory(v, symbol.clone(), label))
@@ -808,8 +829,12 @@ def make_categorized_renderer(layer: QgsVectorLayer, field: str,
       colour = ramp.color(i / (n - 1) if n > 1 else 0.5).name()
     categories.append(QgsRendererCategory(
       v, _fill_symbol(colour, outline), str(v)))
+  # The catch-all for values no class matched. It is a colour a reader
+  # sees -- often over a large area, where a join left gaps -- so the
+  # editor offers it too, under the key below.
   categories.append(QgsRendererCategory(
-    None, _fill_symbol(NO_DATA_FILL, outline), "no data"))
+    None, _fill_symbol(overrides.get(NO_DATA_KEY, NO_DATA_FILL), outline),
+    "no data"))
   return QgsCategorizedSymbolRenderer(field, categories)
 
 
@@ -847,7 +872,8 @@ def seed_renderer(layer: QgsVectorLayer, assignment: dict,
       ``single_colour`` for Single colour rows.
     template: a class scheme from load_categorized_template or
       template_from_layer. Applied only to categorized elements;
-      ignored otherwise.
+      ignored otherwise. The assignment's ``category_colours``, if
+      present, outrank it value by value.
 
   Returns:
     None. The renderer is attached to the layer and a repaint is
@@ -862,7 +888,8 @@ def seed_renderer(layer: QgsVectorLayer, assignment: dict,
   elif assignment["mode"] == "Categorized":
     layer.setRenderer(make_categorized_renderer(
       layer, var, assignment["ramp"], outline, template,
-      assignment.get("reverse", False)))
+      assignment.get("reverse", False),
+      assignment.get("category_colours")))
   elif assignment["mode"] == "Single colour":
     colour = assignment.get("single_colour") or \
       ramp_swatch_colour(assignment["ramp"])

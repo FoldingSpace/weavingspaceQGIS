@@ -106,7 +106,39 @@ def image_colours(path, max_pixels=20000):
   polygon and strand edges creates hundreds of rare blend colours, and
   an unweighted unique-colour comparison lets that sliver of pixels
   dominate the score (a lesson from a visually identical twill pair
-  scoring dE 11)."""
+  scoring dE 11).
+
+  Args:
+    path: a PNG to measure, either the gallery's QGIS render of a
+      case or the matplotlib render written by reference_render.
+      Both sides must have been drawn on the magenta chroma-key
+      canvas, because that is what tells map from background here.
+    max_pixels: ceiling on how many interior pixels are kept. It
+      bounds the nearest-neighbour search in palette_distance, whose
+      cost is pixels x palette entries. Over the ceiling the sample
+      is thinned by a constant stride rather than at random, so two
+      runs over the same PNG give the same number; the 5-bit palette
+      is derived from the thinned sample too, which is why the
+      ceiling is set well above what the search needs.
+
+  Returns:
+    A tuple (pixels, palette, background_fraction). ``pixels`` is an
+    n x 3 array of interior pixel colours in Lab — the side that
+    gets weighted. ``palette`` is the same sample deduplicated into
+    5-bit-per-channel bins and converted to Lab — the side that gets
+    matched against. ``background_fraction`` is the share of the
+    content-cropped image that is canvas, 0 to 1. Nothing is
+    mutated; the file is only read.
+
+  Raises:
+    AssertionError: fewer than 100 pixels survived the
+      uniform-neighbour filter, meaning the render is too small or
+      too finely detailed for an interior-only metric to say
+      anything. The fix is a larger dpi for that case (as the twill
+      case already does), not a looser filter, since loosening it
+      would let antialiased edge blends back into the sample and
+      raise the noise floor for every case.
+  """
   rgb = mpimg.imread(path)[:, :, :3]
 
   def is_canvas(a):
@@ -155,7 +187,26 @@ def palette_distance(path_a, path_b):
   background-fraction difference. Direction matters: a 5-class map's
   colours all lie on the continuous reference ramp (small a->b) while
   the reference's in-between colours are missing from it (large
-  b->a) — exactly the signature the unclassed fallback exists for."""
+  b->a) — exactly the signature the unclassed fallback exists for.
+
+  Args:
+    path_a: the PNG that supplies the "a" side of the returned
+      numbers. compare() passes the PLUGIN render here, so a_to_b
+      reads plugin-to-reference in the printed lines and the PDF.
+    path_b: the PNG that supplies the "b" side; compare() passes the
+      reference render written by reference_render.
+
+  Returns:
+    A dict of five floats, all measurements over the two files with
+    nothing mutated: ``a_to_b`` and ``b_to_a``, the mean Delta-E
+    from each image's sampled pixels to the nearest colour the other
+    image contains; ``p90_a`` and ``p90_b``, the 90th percentile of
+    those same two distance sets, which catches a small area of
+    badly wrong colour that a mean would absorb; and ``bg_diff``,
+    the absolute difference in content background fraction, which is
+    how a lost or an extra gap between tiles shows up even when
+    every colour present is correct.
+  """
   pix_a, pal_a, bg_a = image_colours(path_a)
   pix_b, pal_b, bg_b = image_colours(path_b)
 
@@ -176,7 +227,31 @@ def palette_distance(path_a, path_b):
 
 
 def compare(reference_png, plugin_png):
-  """(ok, metrics) for one reference/plugin pair."""
+  """Score one reference/plugin pair against the release thresholds.
+
+  Args:
+    reference_png: the render written here by reference_render, i.e.
+      the original library's own matplotlib output for these inputs.
+    plugin_png: the gallery's QGIS render of the same case — either
+      the primary classed render or its *_unclassed.png sibling,
+      depending on which comparison the caller is making.
+
+  Returns:
+    (ok, metrics). ``ok`` is True only when all five numbers sit
+    inside MAX_MEAN_DE, MAX_P90_DE and MAX_BG_DIFF; a single number
+    over its limit fails the case, and a failed case fails the whole
+    step so release.py refuses to build. ``metrics`` is the dict
+    from palette_distance, returned whether or not the case passed
+    because the printed line and the PDF caption both show the
+    measured values beside the limits. Nothing is mutated.
+
+  The arguments are handed to palette_distance the other way round,
+  plugin first, so that in the returned dict a_to_b means
+  plugin-to-reference and b_to_a means reference-to-plugin. That is
+  the direction every caption and printed line names, and getting it
+  backwards would silently invert the classing signature the
+  unclassed fallback is looking for.
+  """
   m = palette_distance(plugin_png, reference_png)
   ok = (m["a_to_b"] <= MAX_MEAN_DE and m["b_to_a"] <= MAX_MEAN_DE
         and m["p90_a"] <= MAX_P90_DE and m["p90_b"] <= MAX_P90_DE
@@ -188,7 +263,31 @@ def synthetic_region(n=6, cell=1000):
   """Identical to tests/visual_tests.synthetic_region (duplicated here
   because that module imports qgis at load time and this script must
   run without QGIS): an n x n grid of squares with smooth numeric
-  fields and a categorical one."""
+  fields and a categorical one.
+
+  Args:
+    n: cells per side, so the region is n x n polygons. Six is
+      enough for a tiling to repeat several times across the region
+      while keeping every case quick to render.
+    cell: the side of one cell in the CRS's units (EPSG:3857
+      metres). It sits well above the tile spacings used in CASES,
+      which is what makes each region polygon carry many tiles
+      rather than one — except in the icon case, where that ratio is
+      the point.
+
+  Returns:
+    A freshly built GeoDataFrame in EPSG:3857 with one row per cell:
+    ``va`` and ``vb`` rise along the two axes, ``vc`` is a radial
+    bowl about the centre, ``vd`` is their sum, and ``landcover``
+    cycles five class names so the categorical case always has every
+    class present. Nothing is cached between calls, so one case
+    cannot disturb another's region.
+
+  Keeping this in step with tests/visual_tests.synthetic_region is a
+  correctness requirement, not tidiness: the two sides of every
+  comparison must be drawn from identical data, so a change there
+  has to be repeated here.
+  """
   import geopandas as gpd
   import shapely.geometry as geom
   polys, va, vb, vc, vd, cat = [], [], [], [], [], []
@@ -219,7 +318,50 @@ def reference_render(unit, png, ids, variables, cmaps,
   TiledMap's own classed path (schemes_to_use/n_classes), so the
   plugin's classed renders can be judged against a reference classed
   the same way rather than always leaning on the Quant: Unclassed
-  reproduction."""
+  reproduction.
+
+  Args:
+    unit: the tile unit (TileUnit or WeaveUnit) returned by the
+      case's ``build`` entry — the same object the gallery tiles, so
+      that only the renderer differs between the two sides.
+    png: where to write the reference image. Overwritten if present.
+    ids: the tile ids to symbolize, in order. A string works,
+      "abcd" meaning elements a, b, c and d.
+    variables: the region column each id is mapped to, matched to
+      ``ids`` by position.
+    cmaps: the colourmap for each id, again by position. These are
+      matplotlib names ("Reds", "tab10", "RdBu") because this is the
+      library's own renderer; the gallery's QGIS side uses the
+      equivalently named QgsStyle ramps.
+    categoricals: per-id flags marking a variable as qualitative.
+      Left None, TiledMap infers it from the column's dtype, which
+      is right for every case here except the land-cover one, where
+      the flags are given explicitly.
+    scheme: a mapclassify scheme name — "Quantiles",
+      "EqualInterval" or "NaturalBreaks". Left None the render is
+      continuous, which is the unclassed look. A bare string is
+      broadcast across every id by TiledMap itself, so there is no
+      need to repeat it per element.
+    k: the class count to use with ``scheme``; None means 5, which
+      matches the gallery's default. Ignored when scheme is None.
+    dpi: output resolution. 110 is ample for solid fills, but a case
+      whose geometry is thin (the twill's diagonal strands) must
+      raise it or image_colours finds too few interior pixels and
+      refuses to measure.
+    **tiling_kw: passed straight through to Tiling. This is how
+      ``as_icons=True`` reaches the icon case, where one unit is
+      drawn per region polygon instead of tiled across the region.
+
+  Returns:
+    None. The effect is the PNG at ``png``. ``unit`` is not touched,
+    but the TiledMap built here is configured in place and then
+    discarded with its figure, so nothing leaks into the next case.
+
+  Note the figure is closed explicitly rather than left to garbage
+  collection: with a dozen cases and two renders each, matplotlib's
+  global figure registry would otherwise hold every one of them open
+  and warn about it partway through the run.
+  """
   from weavingspace import Tiling
   tm = Tiling(unit, synthetic_region(), **tiling_kw).get_tiled_map()
   tm.ids_to_map = list(ids)
@@ -246,29 +388,54 @@ def reference_render(unit, png, ids, variables, cmaps,
 # ``build`` returns the tile unit; the remaining fields drive the
 # reference render and the caption.
 def _laves_unit():
+  """Laves 3.3.4.3.4, the Cairo-adjacent tiling the paper leans on:
+  four tiles per unit for the four mapped variables, and near
+  space-filling, so the comparison sees mostly data colour rather
+  than background.
+  """
   from weavingspace import TileUnit
   return TileUnit(tiling_type="laves", code="3.3.4.3.4",
                   spacing=500, crs=3857)
 
 
 def _twill_unit():
+  """A 1-over-2 twill whose strand specification skips one strand in
+  each direction ("ab-|cd-"); with aspect 0.75 narrowing the strands
+  as well, the weave deliberately leaves gaps, which is what makes
+  this case a test of background as much as of colour.
+  """
   from weavingspace import WeaveUnit
   return WeaveUnit(weave_type="twill", n=(1, 2), strands="ab-|cd-",
                    aspect=0.75, spacing=300, crs=3857)
 
 
 def _hexcol_unit():
+  """Hex-colouring with 7 tiles: the paper's out-of-step detector.
+  Seven elements share one ramp here, so whether the variables agree
+  or disagree reads as a single hue family across the map.
+  """
   from weavingspace import TileUnit
   return TileUnit(tiling_type="hex-col", n=7, spacing=600, crs=3857)
 
 
 def _slice_unit():
+  """A square cut into four slices from its corners (offset=0). Its
+  large flat slices give the interior-only metric plenty of pixels,
+  which is why this is the carrier for the categorized land-cover
+  case rather than a finer geometry.
+  """
   from weavingspace import TileUnit
   return TileUnit(tiling_type="square-slice", n=4, offset=0,
                   spacing=700, crs=3857)
 
 
 def _modified_unit():
+  """The modifier chain from the library's notebooks, applied to the
+  Laves case: rotate 30 degrees, then inset the prototile and the
+  tiles. The insets open gaps between and within units, so this unit
+  is expected to score a distinctly higher background fraction than
+  the plain Laves one.
+  """
   from weavingspace import TileUnit
   return TileUnit(tiling_type="laves", code="3.3.4.3.4",
                   spacing=500, crs=3857) \
@@ -276,6 +443,11 @@ def _modified_unit():
 
 
 def _icon_unit():
+  """Hex-colouring with 4 tiles at a small spacing, used with
+  ``as_icons=True``: one unit is drawn per region polygon instead of
+  tiled across it, so the 400 m spacing against the region's 1000 m
+  cells is what leaves visible background between the icons.
+  """
   from weavingspace import TileUnit
   return TileUnit(tiling_type="hex-col", n=4, spacing=400, crs=3857)
 
@@ -285,29 +457,54 @@ FOUR = dict(ids="abcd", variables=["va", "vb", "vc", "vd"],
 
 
 def _hex_slice_unit():
+  """A hexagon cut into six pie slices from the edge midpoints rather
+  than the corners (offset=1). The offset is the whole point of the
+  case: it is the one control here that changes the geometry without
+  changing the family or the count.
+  """
   from weavingspace import TileUnit
   return TileUnit(tiling_type="hex-slice", n=6, offset=1,
                   spacing=600, crs=3857)
 
 
 def _basket_unit():
+  """A 2x2 basket weave, the other biaxial weave the catalogue leans
+  on. Aspect 0.85 leaves slight gaps between strands, so the case
+  exercises the same gap-and-ramp behaviour as the twill through a
+  different weave matrix.
+  """
   from weavingspace import WeaveUnit
   return WeaveUnit(weave_type="basket", n=2, strands="ab|cd",
                    aspect=0.85, spacing=350, crs=3857)
 
 
 def _diverging_unit():
+  """Laves 4.8.8, octagons with small squares between them, carrying
+  the diverging-ramp case. The large octagon tiles give each
+  diverging palette enough area to show both arms and its pale
+  centre, which is where a mistaken background test would go wrong.
+  """
   from weavingspace import TileUnit
   return TileUnit(tiling_type="laves", code="4.8.8",
                   spacing=550, crs=3857)
 
 def _grid_unit():
+  """A 2 x 3 grid asked for only 5 elements, so one cell per unit
+  stays open. The puncture is deliberate library behaviour (the
+  first n cells are filled), and the openings must show up as
+  background in the comparison.
+  """
   from weavingspace import TileUnit
   return TileUnit(tiling_type="grid", n=5, nrows=2, ncols=3,
                   spacing=600, crs=3857)
 
 
 def _stripes_unit():
+  """Four parallel bands per unit. Stripes is the second of the two
+  library extras beyond the catalogue the web app carries, and the
+  simplest geometry in the set, which makes it the cleanest colour
+  comparison of the lot.
+  """
   from weavingspace import TileUnit
   return TileUnit(tiling_type="stripes", n=4, spacing=600, crs=3857)
 
@@ -387,12 +584,53 @@ def gallery_details(report_dir):
 
 
 def main():
+  """Build the comparison PDF for one report directory, and gate on it.
+
+  Takes the report directory from argv[1], or falls back to the last
+  entry under reports/. For every case in CASES it renders the
+  reference through the original library, scores the gallery's PNGs
+  against it, and lays out one PDF page per case; then it appends the
+  UI-against-library pages that tests/run_tests.py recorded in
+  ui-vs-library/scenarios.json. Those pages ask a different question
+  (did the DIALOG produce the map its settings mean?) and are already
+  scored by the time this script sees them — here they are only drawn
+  and their verdicts folded into the exit status.
+
+  Returns:
+    Never returns normally: exits 1 if any comparison or recorded
+    scenario failed, which is what makes release.py refuse to build,
+    and 0 otherwise. On the way it writes visual-comparison.pdf plus
+    the *_reference.png and *_reference_continuous.png files into the
+    report directory, and prints one PASS/FAIL line per comparison so
+    a failure is legible in the release log without opening the PDF.
+  """
   report_dir = sys.argv[1] if len(sys.argv) > 1 else None
   if report_dir is None:
-    versions = sorted(os.listdir(os.path.join(ROOT, "reports")))
-    if not versions:
+    reports = os.path.join(ROOT, "reports")
+    if not os.path.isdir(reports):
+      # checked BEFORE listing: os.listdir raises FileNotFoundError
+      # first, so the helpful message below used to be unreachable
       sys.exit("no reports/ directory; run release.py first")
-    report_dir = os.path.join(ROOT, "reports", versions[-1])
+    versions = os.listdir(reports)
+    if not versions:
+      sys.exit("reports/ is empty; run release.py first")
+
+    def as_version(name):
+      """Sort key: the numeric parts of a vN.N.N directory name.
+
+      Sorted as TEXT, "v0.9.0" comes after "v0.24.0" — nine beats two
+      on the first differing character — so the newest release stops
+      being the newest the moment a segment gains a digit, and the
+      comparison is then made against the wrong release without
+      saying so. Non-numeric names sort first and are effectively
+      ignored.
+      """
+      parts = []
+      for piece in name.lstrip("v").split("."):
+        parts.append(int(piece) if piece.isdigit() else -1)
+      return parts
+
+    report_dir = os.path.join(reports, max(versions, key=as_version))
   details = gallery_details(report_dir)
   pdf_path = os.path.join(report_dir, "visual-comparison.pdf")
 
@@ -454,6 +692,17 @@ def main():
       ok = bool(results) and all(r[3] for r in results)
       if not ok:
         failures.append(name)
+
+      if not results:
+        # No gallery PNG for this case, under either name. Say which
+        # file is missing and carry on with the rest: plt.subplots(0,
+        # 2) raises "Number of rows must be a positive integer, not
+        # 0", which tells whoever is reading the release log nothing
+        # at all about a missing render.
+        print(f"      no gallery image for {name}: expected "
+              f"{name}.png or {name}_unclassed.png in "
+              f"{os.path.relpath(report_dir, ROOT)}")
+        continue
 
       fig, axes = plt.subplots(len(results), 2,
                                figsize=(11, 6.2 * len(results)))

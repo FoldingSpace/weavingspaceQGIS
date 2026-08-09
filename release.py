@@ -51,6 +51,19 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 
 
 def plugin_version():
+  """The version this release will carry, read from metadata.txt.
+
+  Returns:
+    The value of the ``version=`` line in the plugin's metadata.txt,
+    e.g. "1.4.2", or "unknown" when the field is missing. Nothing is
+    written.
+
+  metadata.txt is the single place a version is declared -- it is what
+  QGIS's plugin manager reads out of the installed package -- so
+  everything downstream is named from here: the report directory, the
+  zip, the git tag, the changelog entry used as the commit message,
+  and the version the citation file is mended to.
+  """
   with open(os.path.join(ROOT, "weavingspace_qgis", "metadata.txt"),
             encoding="utf-8") as f:
     for line in f:
@@ -81,8 +94,30 @@ def qgis_environment():
 
 
 def run(step, cmd, env, capture=False):
-  """Run one step, streaming (or capturing) output; exit on failure so
-  no zip can be produced from a failing state."""
+  """Run one release step, and abandon the release if it fails.
+
+  Args:
+    step: the human name of this stage ("visual gallery", "secrets
+      audit"), printed as a banner and quoted in the abort message so
+      a failure says which gate stopped the release.
+    cmd: the command as a list of words, run with the repository root
+      as its working directory.
+    env: the environment to run it in. The stages that need QGIS get
+      the interpreter environment from qgis_environment(); the plain
+      ones (standards, secrets, the zip) get a copy of os.environ,
+      because loading QGIS's Python into them buys nothing.
+    capture: collect stdout and stderr and hand them back instead of
+      letting them stream. Set for the stages whose output the
+      testing report quotes test by test; the tail is still printed,
+      so a long capture is not a silent one.
+
+  Returns:
+    The combined output when capture is set, otherwise the empty
+    string. Nothing else is mutated -- but a non-zero exit status
+    calls sys.exit here rather than returning, so no later step, and
+    above all no zip, can be produced from a state that has already
+    failed a gate.
+  """
   print(f"\n=== {step} ===")
   result = subprocess.run(cmd, env=env, cwd=ROOT,
                           capture_output=capture, text=True)
@@ -123,11 +158,33 @@ def test_docstrings():
 
 def write_testing_report(report_dir, version, functional, visual,
                          comparison, coverage=""):
-  """One markdown file per release listing every test individually:
-  each functional test with its result and what it verifies, each
-  visual case with its measured values, each reference comparison
-  with its colourspace scores. This is the record the release notes
-  point at; a release without it is incomplete."""
+  """Write this release's per-test record to testing-report.md.
+
+  Args:
+    report_dir: reports/v<version>/, this release's evidence
+      directory; the markdown file is written into it.
+    version: the version being released, used in the heading.
+    functional: captured output of tests/run_tests.py, read for its
+      PASS/FAIL lines and annotated from each test's docstring.
+    visual: captured output of tests/visual_tests.py, whose PASS/FAIL
+      lines carry the measured values after " :: ".
+    comparison: captured output of tools/visual_reference_report.py,
+      the colourspace scores against the original renderer.
+    coverage: captured output of tools/coverage_report.py. Only its
+      "coverage:" summary line is used, and it defaults to empty so
+      the report can still be written when coverage was not run --
+      coverage is reported, never gating.
+
+  Returns:
+    None. Writes report_dir/testing-report.md, replacing any earlier
+    one, and prints its path.
+
+  Every test is listed individually rather than totalled, because
+  this file is both the record the release notes point at (--push
+  attaches it to the GitHub Release as the notes) and what the user
+  is shown per test whenever something is published. A count of
+  passes says nothing about which behaviours were actually checked.
+  """
   lines = [f"# Testing report — v{version}", ""]
   lines += ["## Functional suite (tests/run_tests.py)", ""]
   annotations = test_docstrings()
@@ -341,6 +398,34 @@ def commit_and_tag(version, report_dir, push):
 
 
 def main():
+  """Cut a release from the command line, gate by gate.
+
+  Returns:
+    0 once a release candidate has been built (--rc), otherwise None
+    when the full release has finished. Every failure leaves through
+    run()'s sys.exit, so returning at all means the gates passed.
+
+  What it leaves behind: reports/v<version>/ (functional output,
+  gallery, coverage, comparison PDF, testing report), refreshed
+  images in docs/img/, possibly a mended CITATION.cff,
+  dist/weavingspace_qgis.zip, and a commit and tag. With --push, also
+  a pushed branch and tag and a GitHub Release with the zip, report
+  and PDF attached; --push is the single point at which anything
+  leaves this machine.
+
+  The ORDER is the substance of this function. The two cheap refusals
+  come first, so a release that breaks the project's own rules or
+  carries a secret fails in seconds rather than after the gallery.
+  The test stages follow, then the report they feed, then the
+  mutation guard over only what changed since the last tag, then the
+  published images and the audit of the claims those images support.
+  The zip is built last, from a tree every gate has already passed;
+  committing and tagging are local and reversible, so they are
+  unconditional. --rc stops before all of that, leaving a numbered
+  candidate in dist/ and the tree untouched, because the gates can
+  say whether the plugin is correct and only a person making a map
+  can say whether it is any good to use.
+  """
   parser = argparse.ArgumentParser(
     description="Build, test, document and publish a release.")
   parser.add_argument(
@@ -348,6 +433,11 @@ def main():
     help="after the gates pass, push the branch and tag and create the "
          "GitHub release. Without this the commit and tag stay local "
          "and the commands to publish them are printed.")
+  parser.add_argument(
+    "--rc", action="store_true",
+    help="build a numbered release candidate for hands-on testing and "
+         "stop. Runs the same correctness gates, skips the publication "
+         "steps, and commits nothing.")
   args = parser.parse_args()
 
   started = time.time()
@@ -462,6 +552,26 @@ def main():
        "--fix", "--since", str(started)], dict(os.environ))
 
   # 4. build the zip only now that everything has passed
+  if args.rc:
+    # A candidate is the same code, packaged for people rather than
+    # for publication: it goes no further than dist/, nothing is
+    # committed, no tag is cut and no image or document is rewritten.
+    # It exists because the checks above answer "is this correct?" and
+    # cannot answer "is this any good to use?", which only comes back
+    # from somebody making a map with it. Stopping here is the point:
+    # a candidate that quietly did the publication steps would leave
+    # the tree looking released when it is not.
+    run("build release candidate",
+        [sys.executable, "build.py", "--rc"], dict(os.environ))
+    print(f"\nRelease candidate built from a passing tree. Nothing was "
+          f"committed, tagged or published.\n"
+          f"  candidates: dist/\n"
+          f"  report:     {os.path.relpath(report_dir, ROOT)}\n\n"
+          f"Install it in QGIS with Plugins > Manage and Install "
+          f"Plugins... > Install from ZIP.\nWhen the feedback is in, "
+          f"run release.py (or release.py --push) for the real thing.")
+    return 0
+
   run("build zip", [sys.executable, "build.py"], dict(os.environ))
 
   prune_old_reports(keep=3)

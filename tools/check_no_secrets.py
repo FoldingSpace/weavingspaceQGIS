@@ -181,6 +181,21 @@ def scan(path):
 
 
 def main():
+  """Audit everything a commit would carry, and report it redacted.
+
+  Returns:
+    0 when nothing was found, 1 when anything was, and 2 when the
+    file list came back empty. Nothing is ever written: findings are
+    printed with the matched text redacted, since a check that echoes
+    a live credential into a terminal and its scrollback has helped
+    nobody.
+
+  The empty list is a separate status on purpose. No files means the
+  tree could not be read, not that it is clean, and an audit that
+  examined nothing must not be allowed to report success -- this is
+  the one failure a later release cannot undo, so release.py stops on
+  anything other than 0.
+  """
   paths = files_to_check()
   if not paths:
     print("no files to check, which cannot be right")

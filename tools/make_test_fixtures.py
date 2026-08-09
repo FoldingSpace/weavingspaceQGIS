@@ -78,7 +78,30 @@ def build_layer(n=12, cell=500, x0=1_750_000.0, y0=5_910_000.0):
   placed over Auckland so the fixture sits somewhere real. Classes are
   assigned in blocks rather than by cycling, so neighbouring parcels
   usually agree and a tiled map of them has visible regions rather
-  than noise; every column gets a few nulls."""
+  than noise; every column gets a few nulls.
+
+  Args:
+    n: parcels along each side, so the layer holds n * n features.
+      Keep it a multiple of 3: classes are assigned in 3 x 3 blocks
+      and a remainder would leave a ragged strip of odd classes along
+      two edges.
+    cell: parcel size in metres. EPSG:2193 is a metric projection, so
+      this is literal ground distance, and it sets the scale the
+      tiling's spacing has to be chosen against.
+    x0: easting of the grid's lower-left corner, in EPSG:2193 metres.
+    y0: northing of that same corner. The defaults put the fixture
+      over Auckland rather than at the projection origin, so anything
+      rendered from it looks like somewhere.
+
+  Returns:
+    A new QgsVectorLayer on QGIS's "memory" provider — a layer that
+    lives in this process only, with no file behind it — named
+    "parcels", carrying n * n square features and the four fields
+    landcover, zoning, period and value. Nothing is written to disk;
+    the caller does that. Roughly one feature in 23 has all four
+    fields left NULL, which is what gives the categorical tests a
+    no-data class to symbolise.
+  """
   from weavingspace_qgis import compat
   layer = QgsVectorLayer("MultiPolygon?crs=EPSG:2193", "parcels", "memory")
   prov = layer.dataProvider()
@@ -109,6 +132,28 @@ def build_layer(n=12, cell=500, x0=1_750_000.0, y0=5_910_000.0):
 
 
 def write_gpkg(layer, path):
+  """Save a layer as the single-table GeoPackage the suite loads.
+
+  Args:
+    layer: the in-memory layer to persist, normally build_layer()'s.
+    path: absolute destination for the .gpkg. main() removes any
+      existing file first rather than relying on the writer's
+      overwrite behaviour, since what a GeoPackage write does to a
+      file that is already there (replace it, or add a table beside
+      the old one) depends on the options and the GDAL version.
+
+  Returns:
+    Nothing; writes the file. The table inside is always called
+    "parcels", regardless of the file name, because the tests open it
+    by layer name.
+
+  Raises:
+    AssertionError: when the writer reports anything but NoError. The
+    call returns either a status code or a (code, message) tuple
+    depending on QGIS build, hence the unpacking; failing loudly
+    matters because a half-written fixture would be committed and
+    then puzzle someone months later.
+  """
   options = QgsVectorFileWriter.SaveVectorOptions()
   options.driverName = "GPKG"
   options.layerName = "parcels"
@@ -122,7 +167,31 @@ def write_qml(layer, path, classes):
   """Save a categorized renderer as a QML the plugin can read as a
   'Categ colourmap src'. Saving through QGIS itself (rather than
   hand-writing XML) keeps the fixture in whatever format this QGIS
-  version reads back."""
+  version reads back.
+
+  Args:
+    layer: the parcel layer, used only as the thing QGIS will
+      serialise a style from. Its renderer IS replaced, so callers
+      writing several mappings from one layer get the last one left
+      in place; that is harmless here because the GeoPackage is
+      written before any of this.
+    path: absolute destination for the .qml.
+    classes: the mapping this file encodes, {value: (colour, label)},
+      where value is a landcover value as it appears in the data and
+      colour is a hex string. Values absent from the mapping are
+      absent from the file, which is deliberate: the plugin must then
+      fall back to an automatic colour for them, and the two fixtures
+      omit different values so a test can tell which mapping is in
+      force.
+
+  Returns:
+    Nothing; writes the QML and leaves the layer carrying a
+    categorized renderer on the "landcover" field.
+
+  Raises:
+    AssertionError: with QGIS's own message when the style will not
+      save.
+  """
   categories = [
     QgsRendererCategory(value,
                         QgsFillSymbol.createSimple({"color": colour}),
@@ -134,6 +203,23 @@ def write_qml(layer, path, classes):
 
 
 def main():
+  """Build the fixtures and write all three files into tests/data/.
+
+  Starts a headless QGIS application first, because everything here
+  goes through QGIS's own object model: a plain Python process can
+  import qgis.core but the providers, the vector writer and the style
+  machinery only exist once QgsApplication has been initialised.
+  QGIS_PREFIX_PATH says where that installation lives and falls back
+  to /usr, which is right on Linux; on macOS the launcher script sets
+  it to the app bundle.
+
+  Returns:
+    Nothing; overwrites tests/data/landcover-categorical.gpkg,
+    landcover.qml and landcover-alt.qml, printing each. The
+    GeoPackage is written BEFORE any renderer is attached, so the
+    committed fixture carries geometry and attributes only and the
+    two QML files remain the sole source of imported colours.
+  """
   QgsApplication.setPrefixPath(
     os.environ.get("QGIS_PREFIX_PATH", "/usr"), True)
   app = QgsApplication([], False)

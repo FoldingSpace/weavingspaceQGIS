@@ -49,6 +49,27 @@ OK, FAILED = [], []
 
 
 def report(name, applied, detail=""):
+  """Record and announce the outcome of one patch.
+
+  Args:
+    name: the patch's label, the same one used in the numbered PATCH
+      comments in main(), e.g. "1c tile_map matplotlib". It is what a
+      maintainer reads in the summary line and then goes looking for
+      in this file.
+    applied: True when the vendored file now carries the patch,
+      including the case where it was already present; False when the
+      upstream anchor no longer matches and a person has to adapt the
+      patch by hand.
+    detail: optional clause printed after the name, used to say why
+      nothing was written ("anchor not found in tileable.py") or that
+      there was nothing to do ("already present"). Omitted when the
+      patch simply applied.
+
+  Returns:
+    Nothing. Appends name to the module-level OK or FAILED list, which
+    is what the closing summary counts and what decides the exit
+    status; the immediate feedback goes to stdout.
+  """
   (OK if applied else FAILED).append(name)
   mark = "applied" if applied else "NEEDS ATTENTION"
   print(f"  [{mark}] {name}" + (f" — {detail}" if detail else ""))
@@ -56,7 +77,28 @@ def report(name, applied, detail=""):
 
 def targeted(path, name, old, new):
   """Apply one exact-anchor patch; report instead of raising when the
-  anchor no longer exists in the new upstream."""
+  anchor no longer exists in the new upstream.
+
+  Args:
+    path: the file to rewrite, always one already copied into
+      VENDOR_DIR. The upstream checkout is never touched.
+    name: the patch's label, passed straight to report().
+    old: the upstream text to find, character for character. The
+      exactness is the point: a fuzzy match would let a changed
+      upstream be patched in a way nobody had read.
+    new: the text that replaces it. It doubles as the "already
+      patched" marker, so it must be the complete patched form and
+      must not appear in unpatched upstream, or a re-vendor would
+      either skip a needed patch or apply it twice.
+
+  Returns:
+    Nothing. Rewrites path in place when the anchor is present and the
+    patch is not, replacing only the FIRST occurrence so that a patch
+    written against one site cannot silently spread to a second one
+    that happens to match. Any other outcome leaves the file exactly
+    as copied. Every path reports, so the patch lands in OK or FAILED
+    and never passes unnoticed.
+  """
   text = path.read_text()
   if new in text:
     report(name, True, "already present")
@@ -108,7 +150,30 @@ except ImportError:
 
 
 def wrap_optional(path, name, import_lines, fallback_lines):
-  """PATCH 1 for one file: wrap the given import statement(s)."""
+  """PATCH 1 for one file: wrap the given import statement(s).
+
+  Args:
+    path: the vendored module whose plotting imports must become
+      optional.
+    name: the patch's label for the report, e.g. "1e topology scipy".
+    import_lines: upstream's import statement(s) exactly as written,
+      unindented and in upstream's own order. They are joined with
+      newlines to form the anchor, so they must be CONSECUTIVE lines
+      upstream; a blank line or a reordering between them makes the
+      patch report as needing attention, which is the intended
+      failure.
+    fallback_lines: the assignments to run when the import raises
+      ImportError, one per name the import would have bound, each
+      binding a MissingModule proxy (see OPTIONAL_PY). Every name the
+      module later uses must appear here, or the fallback path fails
+      with NameError at import time instead of the proxy's much more
+      informative ImportError at call time.
+
+  Returns:
+    Nothing. Builds the try/except form and hands it to targeted(), so
+    the file is rewritten in place and the outcome recorded in OK or
+    FAILED.
+  """
   anchor = "\n".join(import_lines)
   replacement = OPTIONAL_TEMPLATE.format(
     imports="\n".join("  " + ln for ln in import_lines),
@@ -156,6 +221,26 @@ def record_upstream_version(upstream):
 
 
 def main():
+  """Replace the vendored library from an upstream tree, then patch it.
+
+  The upstream package directory comes from the single command-line
+  argument. VENDOR_DIR is deleted and copied afresh, which is exactly
+  why a hand edit to a vendored file cannot survive and why every
+  plugin change to upstream code lives here as a patch instead.
+  _optional.py (the proxy the patches fall back to) is written after
+  the copy, since it is ours rather than upstream's, and the version
+  stamp is recorded before any patching so that even an aborted run
+  leaves a truthful record of what was copied.
+
+  Returns:
+    Nothing; the process exits instead. Exit 2 with the usage text
+    when the argument is missing, exit 1 with a message when the
+    directory carries no tileable.py (the cheapest test that this is
+    the PACKAGE directory and not the repository root above it),
+    exit 1 when any patch needs attention, and exit 0 only when every
+    patch applied. Non-zero is what stops release.py from building a
+    zip around a vendor tree whose report nobody has read.
+  """
   if len(sys.argv) != 2:
     print(__doc__)
     sys.exit(2)

@@ -80,6 +80,24 @@ def sources_of(text):
 
 
 def main():
+  """Compare each skill against its source documents, then stamp or report.
+
+  Returns:
+    0 when every skill's recorded hashes match the documents it was
+    drawn from, 1 when --check finds drift or when any mode finds a
+    named source that no longer exists. Without --check, the drifted
+    ``sha256:`` values in .claude/skills/*/SKILL.md are rewritten to
+    the current ones; with it, nothing is written at all.
+
+  Re-stamping is an assertion, not a repair: it says a person read
+  what changed in the source document and decided whether the
+  abstraction needed it. That is why --check reports drift instead of
+  fixing it, and why the fixing mode is a separate deliberate run.
+
+  A missing source document fails in BOTH modes. Re-stamping cannot
+  invent a hash for a file that is gone, and leaving it silent would
+  let a skill go on naming a document no reader can open.
+  """
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument("--check", action="store_true",
                       help="report drift and fail, changing nothing")

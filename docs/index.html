@@ -140,14 +140,16 @@ limits are set out in the article listed below.</p>
   Figure 2 from the same article.</figcaption>
 </figure>
 
-<p>What the plugin adds to a QGIS project is not a picture but a group
-of ordinary layers, one per pattern element, each seeded with a
-standard graduated or categorized renderer. Everything after that is
+<p>What the plugin adds to a QGIS project is not an image file but a group
+of ordinary GIS layers, one per pattern element, each provided with a
+standard graduated or categorized symbolization. Everything after that is
 normal QGIS work: the Layer Styling panel, GeoPackage export with
-styles embedded, print layouts. Tilings and weaves are both available,
+styles embedded, print layouts, etc. Tilings and weaves are both available,
 along with grids and stripes, geometric modifiers, per-element colour
 ramps and opacity, and the option to draw the pattern as glyphs
-instead.</p>
+instead. Categorical elements can also be given a colour per value,
+for the many cases where a ramp will not do and forest ought to be
+green.</p>
 
 <div class="plates">
   <div>
@@ -175,16 +177,12 @@ instead.</p>
   the plugin</a> (a file named <code>weavingspace_qgis.zip</code>, under
   <em>Assets</em>), then in QGIS choose <strong>Plugins &#9654; Manage
   and Install Plugins&hellip; &#9654; Install from ZIP</strong> and pick
-  the file. No account, no git, and no command line are needed.</p>
+  the file.</p>
   <p>Source, issues, and documentation:
   <a href="https://github.com/FoldingSpace/weavingspaceQGIS">github.com/FoldingSpace/weavingspaceQGIS</a>.</p>
 </div>
 
-<p>QGIS 4 or later is required. The plugin needs geopandas, pandas,
-shapely, pyproj, and networkx, which the QGIS 4 packages for Windows
-and macOS already include; where they are missing, most often on Linux,
-the plugin offers a one-time download of the right wheels into its own
-folder and does nothing else to your installation.</p>
+<p>QGIS 4 or later is required.</p>
 
 <figure>
   <img src="img/dialog.png" alt="The plugin dialog, showing the design tab and a preview of the tile unit">
@@ -194,23 +192,18 @@ folder and does nothing else to your installation.</p>
 
 <h2>A prototype, and how it was made</h2>
 
-<p>This is research software. It was mostly co-written by Luke Bergmann
-and large language models (Claude Fable and Opus, working through
-Claude Code), which seems worth saying plainly rather than leaving to
-be inferred: the design decisions, the cartographic judgements, and the
-review are Bergmann&rsquo;s, while much of the code, the tests, and the
-documentation were drafted by machine and then read, corrected, and
-argued with. The obvious hazards of such an arrangement are met, as far
-as they can be, with a heavy test suite in which every map-producing
-test compares its output against the library called directly, pixel by
-pixel in a perceptual colourspace. Rough edges should nonetheless be
-expected, and we would rather hear about them than not.</p>
+<p>This is experimental research software and should be treated as such.</p>
 
-<p>This applies to the prose as much as to the code. The text on this
-page, in the repository&rsquo;s documentation, and in the plugin&rsquo;s
-own help and tooltips contains LLM-generated writing, drafted to our
-voice and then edited by us. The publications listed below do not, and
-are our own writing throughout.</p>
+<p>This QGIS plugin is an interface to the
+<a href="https://github.com/DOSull/weavingspace">weavingspace</a> library by David
+O&rsquo;Sullivan and Luke Bergmann. By contrast, the QGIS interface here was mostly
+co-written by Luke Bergmann and large language models (Claude Fable and
+Opus, working through Claude Code). The plugin echoes and extends our earlier (also handwritten)
+<a href="https://geospatialstuff.com/mapweaver/app/">web-based interface</a>.
+You should expect rough edges, and we would rather hear about them than
+not.</p>
+
+<br>
 
 <h2>Further reading</h2>
 

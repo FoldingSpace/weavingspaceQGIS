@@ -136,6 +136,20 @@ def render(found):
 
 
 def main():
+  """Regenerate docs/BUG-REGISTER.md, or report that it has gone stale.
+
+  Returns:
+    0 when the register was written, or when --check finds the file
+    on disk already identical to what the suites say it should be; 1
+    when --check finds it stale. Without --check, docs/BUG-REGISTER.md
+    is overwritten -- the only thing this tool mutates.
+
+  --check exists because the register is generated rather than
+  maintained. A Regression: line added without regenerating leaves a
+  file that reads as the list of defects this suite guards while
+  being short by one, and a register that lags the tests is worse
+  than no register, since nothing about it looks wrong.
+  """
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument("--check", action="store_true",
                       help="do not write; fail if the register on disk "

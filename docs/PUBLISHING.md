@@ -6,6 +6,47 @@ page, and (eventually) people who find the plugin from inside QGIS
 itself. What follows is the procedure and the state of preparation for
 the third.
 
+## A release candidate, first
+
+    python3 release.py --rc       # gates, then a numbered candidate
+
+Every check in this project answers whether the plugin is CORRECT.
+None of them answers whether it is any good to use, and that answer
+only comes back from somebody making a map with it. So a substantial
+release goes out as a candidate first, to whoever will try it, and
+waits for what they say.
+
+`--rc` runs the same correctness gates as a release and then stops,
+writing `dist/weavingspace_qgis-<version>rc<n>.zip`. Nothing is
+committed, nothing is tagged, no image or document is rewritten, and
+`git status` is as clean afterwards as before. The number counts up
+from the candidates already in `dist/`, so a new one can never
+overwrite the one somebody is testing.
+
+The candidate declares itself as `<version>rc<n>` in QGIS's plugin
+manager, though the version in `metadata.txt` on disk is untouched:
+the substitution happens inside the archive only. A tester can
+therefore see at a glance which build they are looking at, which
+matters when the feedback arrives days later.
+
+A candidate also installs itself, into every QGIS profile on this
+machine that ALREADY has the plugin, so it can be tried without going
+through the plugin manager. Profiles that do not have it are left
+alone: putting a plugin into a profile nobody asked about leaves a
+user something to discover and remove, and a testing profile exists
+precisely so that what is in it is deliberate. A `libs/` folder is
+preserved, since those wheels belong to that machine and are not in
+the zip; everything else is replaced, so a file dropped from the
+plugin cannot linger in an installed copy and go on being imported.
+Restart QGIS or use Plugin Reloader afterwards — modules already
+imported stay imported. `--no-install` skips this.
+
+To send the candidate to somebody else, attach the zip; they install
+it the same way as a release, through Plugins > Manage and Install
+Plugins... > Install from ZIP.
+
+When the feedback is in and acted on, cut the release proper.
+
 ## A release
 
     python3 release.py            # everything, staying local

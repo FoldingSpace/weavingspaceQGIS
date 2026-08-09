@@ -30,9 +30,50 @@ agrees with the bug.
 
 **Visual, wherever a map is produced.** Two forms: `visual_pair` when
 the settings can be restated independently, and `visual_gamut` when
-they cannot, which asserts every interior pixel is a colour the ramps
-in force can make. A map-producing test that only counts features is
-not finished.
+they cannot, which asserts every interior pixel is a colour the
+symbology in force can make. A map-producing test that only counts
+features is not finished.
+
+The gamut is the colours the map is ENTITLED to use, which is not the
+same as the colours on its ramps. That distinction did not matter
+until the Categorical colour editor arrived, since the ramps were the
+whole of it; a hand-picked colour is deliberately off every ramp,
+which is the reason someone picks one. So `visual_gamut` takes
+`extra_colours`, and a test covering hand-picked colours passes them.
+Widening the gamut this way is not a loosening: the check still fails
+on a blank map, a wrong ramp or corrupted symbology, and the pairwise
+test does the positive work of proving the right colour reached the
+right element. Recorded here because the alternative — quietly
+exempting these tests from the visual rule — is how a rule decays
+into a habit.
+
+**Test the FAMILY, not the member.** When a mutation batch turns up
+the same kind of survivor repeatedly — a default nobody asserted, a
+range nobody pinned, a tooltip nobody read — the answer is one
+table-driven test over the whole family, not one example test per
+survivor. `CONTROL_DEFAULTS` and `CONTROL_CHECKBOXES` in
+tests/run_tests.py pin twenty-four controls' defaults, ranges, steps
+and labels in two tests; `test_every_control_explains_itself` covers
+thirty-six tooltips; `test_every_declared_offset_is_pinned` states
+the rule ("every offset is 0") rather than listing twenty-six names.
+A new control or entry is covered the moment somebody adds a row, and
+a whole class of mutant dies at once.
+
+Evidence for the shape: across three batches, 37 of 50 survivors came
+from just two operators, "call removed" and "number changed", and
+almost every one was a default, a constant, a catalogue value or a
+configuration call. Fixing those individually took most of a day and
+covered only what had been sampled; the tables cover what has not
+been sampled yet.
+
+Two cautions learnt while writing them. Read the values from a LIVE
+object rather than transcribing them from the source — a table
+written from the code it checks agrees with that code's bugs. And
+watch what the environment supplies: the declared spacing default is
+1000, but a dialog built with a layer present shows 500, because
+auto-spacing legitimately sized it to that layer. The table asserts
+what a user meets on a fresh dialog with an empty project, and the
+auto-spacing behaviour is a separate test.
 
 **Integration sessions over single behaviours.** The failures in this
 plugin live in state carried across generations, so a session that

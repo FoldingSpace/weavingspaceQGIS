@@ -1,10 +1,6 @@
 # WeavingSpace QGIS plugin
 
-Mapping several attributes of the same areas in a single map remains an
-awkward problem, and this plugin takes one particular approach to it:
-tiled and woven maps, in which a small repeating pattern of shapes is
-laid across the study area and each kind of shape is coloured by a
-different attribute. Project page:
+Mapping several attributes of the same areas in a single map remains a challenge. Tiled and woven maps can help. Small repeating patterns of shapes are laid across the study area and each kind of shape is coloured by a different attribute. Project page:
 [foldingspace.github.io/weavingspaceQGIS](https://foldingspace.github.io/weavingspaceQGIS/).
 
 ![Four deprivation indices in a basket weave, and seven in a hexagon 7-colouring, both over central Auckland](docs/img/paper-fig1-auckland-deprivation.png)
@@ -12,46 +8,34 @@ different attribute. Project page:
 *Four indices of deprivation in a basket weave, and seven in a
 7-colouring of hexagons, both over the centre of Auckland. Each legend
 names which element carries which variable. Figure 1 from O'Sullivan
-and Bergmann (2026), reproduced by the authors.*
+and Bergmann (2026).*
 
 ## An experimental prototype
 
-This is research software and should be treated as such. It was mostly
+This is experimental research software and should be treated as such.
+
+This QGIS plugin is an interface to the [weavingspace](https://github.com/DOSull/weavingspace) library by David
+O'Sullivan and Luke Bergmann. By contrast, the QGIS interface here was mostly
 co-written by Luke Bergmann and large language models (Claude Fable and
-Opus, working through Claude Code), which is unusual enough to say
-plainly rather than bury: the design decisions, the cartographic
-judgements, and the review are Bergmann's, while a great deal of the
-code, the tests, and the documentation were drafted by machine and then
-read, corrected, and argued with. We have tried to compensate for the
-obvious hazards of that arrangement with an unusually heavy test suite
-(every map-producing test compares its output against the library
-called directly, pixel by pixel in a perceptual colourspace), but you
-should expect rough edges, and we would rather hear about them than
-not. This applies to the prose as much as to the code: the text you are
-reading, the project page, the user guide, and the plugin's own help
-and tooltips all contain LLM-generated writing, drafted to our voice
-and then edited by us. The publications cited below do not, and are
-our own writing throughout. The mathematics and cartography are not
-ours to get wrong in any case: they belong to the
-[weavingspace](https://github.com/DOSull/weavingspace) library by David
-O'Sullivan and Luke Bergmann, which the plugin bundles and calls.
+Opus, working through Claude Code). The plugin echoes and extends our earlier (also handwritten)
+[web-based interface](https://geospatialstuff.com/mapweaver/app/).
+You should expect rough edges, and we would rather hear about them than
+not.
+
 
 ## What it makes
 
-Where a finished image would be the end of the story elsewhere, the
+The
 plugin produces ordinary QGIS layers: one per pattern element,
-gathered in a layer group, each seeded with a standard graduated or
-categorized renderer. Everything after generation is normal QGIS work,
-which is the point. You can refine symbology in the Layer Styling
+gathered in a layer group, each with their own symbolization developed by you. Results are then editable in QGIS. You can refine symbology in the Layer Styling
 panel, export to GeoPackage with the styles embedded, and place the
-result in a print layout, and the plugin will not fight you for
-control of any of it.
+result in a print layout.
 
 ![Anthropogenic biomes at six moments in time across northeastern North America](docs/img/paper-fig2-anthropogenic-biomes.png)
 
 *Six moments in time in one map: anthropogenic biomes across the
 northeast of North America, after Ellis et al. (2021). Figure 2 from
-O'Sullivan and Bergmann (2026), reproduced by the authors.*
+O'Sullivan and Bergmann (2026).*
 
 The plugin draws the same kinds of map from your own layers:
 
@@ -86,13 +70,7 @@ this.
 To update later, download the new zip and install it the same way over
 the top.
 
-QGIS 4 or later is required. The plugin needs geopandas, pandas,
-shapely, pyproj, and networkx, all of which the QGIS 4 packages for
-Windows and macOS already include. Where they are missing or too old
-(notably on Linux, where QGIS uses the distribution's Python), the
-plugin will offer you a one-time download of the right wheels from
-PyPI into its own folder, touching nothing else in the QGIS
-installation. Decline it and the plugin will simply not run.
+QGIS 4 or later is required.
 
 ![The plugin dialog](docs/img/dialog.png)
 
@@ -102,9 +80,11 @@ Load a polygon layer in a projected CRS, rough in a design with coarse
 spacing, assign variables and colours, refine, and only then tighten
 the spacing. Large tiles compute quickly, the preview and the live map
 follow your changes, and nothing about an early spacing choice is
-binding. The dialog's Help tab carries condensed guidance and every
-control has a tooltip; [docs/USER-GUIDE.md](docs/USER-GUIDE.md) is the
-fuller treatment, and the article below is fuller still.
+binding. Categorical elements get an "Edit colours" button, which sets
+a colour per value when a ramp will not do. The dialog's Help tab
+carries condensed guidance and every control has a tooltip;
+[docs/USER-GUIDE.md](docs/USER-GUIDE.md) is the fuller treatment, and
+the article below is fuller still.
 
 ## Further reading
 
@@ -123,22 +103,20 @@ browser-based tool built on the same library:
 
 ## Licence and citation
 
-MIT, for both the plugin and the bundled library; see
+MIT, for both the plugin and the bundled library where we have the rights to license as such; see
 [LICENSE.md](LICENSE.md) for both notices. The two figures above are
 reproduced from the *Cartographic Perspectives* article by its authors,
 who retain copyright in them; they are not covered by this
 repository's MIT licence and are not offered for reuse here. If the plugin contributes to
-work you publish, please cite the article above; `CITATION.cff` carries
-the machine-readable form.
+work you publish, please cite the articles above and we'd love to hear from you. Thanks!
 
 ## For maintainers
 
 [MAINTAINING.md](MAINTAINING.md) holds the architecture map, the
-invariants (one of which, concerning threads and PROJ, is load-bearing
-in the plainest sense), and the playbook for when a new QGIS release
+invariants, and the playbook for when a new QGIS release
 breaks something; the version-sensitive API calls are gathered in
 `weavingspace_qgis/compat.py` for exactly that occasion. AI assistants
-should read [CLAUDE.md](CLAUDE.md) first, which is also the honest
+should read [CLAUDE.md](CLAUDE.md) first, which is also a
 record of how this project is actually worked on. The test suite in
 [tests/](tests/) is self-contained and runs under QGIS's own Python:
 

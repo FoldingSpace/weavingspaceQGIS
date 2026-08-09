@@ -167,6 +167,22 @@ def grab_dialog():
 
 
 def main():
+  """Draw every published image, then say whether all of them landed.
+
+  Returns:
+    0 when every map in MAPS was written, 1 otherwise -- release.py
+    treats that as a failed step rather than publishing a page with
+    holes in it. Leaves behind docs/img/*.png, overwritten in place
+    (the six maps plus dialog.png), with the cases' "_unclassed"
+    companions removed, and shuts the headless QGIS down again.
+
+  One QGIS is started for the whole script because initialising it is
+  the expensive part and the maps and the dialog grab both need it.
+  --gallery is accepted and ignored: release.py still passes the
+  report directory from when these maps were copied out of the
+  gallery rather than rendered here, and quietly accepting it is
+  cheaper than a flag day between the two scripts.
+  """
   parser = argparse.ArgumentParser(description=__doc__)
   # accepted and ignored: release.py used to pass a gallery directory,
   # before the maps were rendered here rather than copied

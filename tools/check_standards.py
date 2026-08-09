@@ -39,15 +39,32 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PLUGIN = os.path.join(ROOT, "weavingspace_qgis")
 SKIP_DIRS = ("vendor", "libs", "__pycache__")
+# Everything a user reads. This list was once help_content.py and the
+# user guide alone, which left every tooltip in dialog.py and every
+# warning in bridge.py unchecked -- and an American spelling duly
+# reached a shipped tooltip, past a gate whose whole job was to catch
+# exactly that. The rule was never "check the two files we happened to
+# think of"; it was "check what users read". Keep this list matching
+# text_review.py's SOURCES and DOCUMENTS, for the same reason.
 USER_FACING = [
   os.path.join(PLUGIN, "help_content.py"),
+  os.path.join(PLUGIN, "dialog.py"),
+  os.path.join(PLUGIN, "bridge.py"),
+  os.path.join(PLUGIN, "perception.py"),
+  os.path.join(PLUGIN, "category_editor.py"),
+  os.path.join(PLUGIN, "compat.py"),
+  os.path.join(PLUGIN, "deps.py"),
+  os.path.join(PLUGIN, "plugin.py"),
   os.path.join(ROOT, "docs", "USER-GUIDE.md"),
+  os.path.join(ROOT, "README.md"),
+  os.path.join(ROOT, "docs", "index.html"),
 ]
 
 problems = []
 
 
 def plugin_sources():
+  """Every Python file the plugin itself ships."""
   for dirpath, dirnames, filenames in os.walk(PLUGIN):
     dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
     for name in sorted(filenames):
@@ -55,9 +72,55 @@ def plugin_sources():
         yield os.path.join(dirpath, name)
 
 
-def check_documentation():
-  """Docstrings on public definitions, with arguments documented."""
+def our_sources():
+  """Every Python file WE wrote, wherever it lives.
+
+  Yields:
+    Absolute paths, plugin package first, then the tooling and the
+    tests, then the two scripts at the root.
+
+  The documentation standard applies to code this project writes, not
+  to the subset of it that happens to be inside the plugin folder.
+  That distinction had gone unnoticed because the checker only ever
+  walked the package, which left the tools ungoverned — and by now
+  the tools rewrite shipped source (text_review), decide the mutation
+  score (mutate_auto), and write into a user's QGIS profiles (build).
+  Those deserve the same explanation as the dialog.
+
+  vendor/ is excluded because it is not ours: it is upstream's code,
+  vendored verbatim, and holding it to our conventions would mean
+  either editing it (which the next re-vendor discards) or failing
+  forever.
+  """
+  seen = set()
   for path in plugin_sources():
+    seen.add(path)
+    yield path
+  for folder in ("tools", "tests"):
+    root = os.path.join(ROOT, folder)
+    if not os.path.isdir(root):
+      continue
+    for dirpath, dirnames, filenames in os.walk(root):
+      dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+      for name in sorted(filenames):
+        if name.endswith(".py"):
+          path = os.path.join(dirpath, name)
+          if path not in seen:
+            yield path
+  for name in ("build.py", "release.py"):
+    path = os.path.join(ROOT, name)
+    if os.path.exists(path):
+      yield path
+
+
+def check_documentation():
+  """Docstrings on public definitions, with arguments documented.
+
+  Applied to everything WE write -- the plugin, the tools and the
+  tests alike -- because the standard is about code this project is
+  responsible for, not about which folder it sits in.
+  """
+  for path in our_sources():
     with open(path, encoding="utf-8") as f:
       source = f.read()
     tree = ast.parse(source, path)
@@ -101,7 +164,7 @@ def check_documentation():
 
 def check_no_mutation_markers():
   """Nothing from the mutation tool left behind in shipped code."""
-  for path in plugin_sources():
+  for path in plugin_sources():  # only the package is ever shipped
     with open(path, encoding="utf-8") as f:
       for i, line in enumerate(f, 1):
         if "# mutation" in line or "TEMP probe" in line:
@@ -117,6 +180,31 @@ def check_user_facing_text():
     rel = os.path.relpath(path, ROOT)
     with open(path, encoding="utf-8") as f:
       text = f.read()
+    if path.endswith(".py"):
+      # For a module, "user-facing text" is the prose STRINGS, not the
+      # file. Comments and docstrings are written for maintainers, and
+      # the web app is deliberately a maintainer-facing fact here --
+      # catalogue parity, the reference renderer. Checking whole files
+      # reported fifteen docstrings explaining where the catalogue
+      # comes from, which is exactly what those docstrings are for.
+      # The same collector text_review.py uses, so the two agree on
+      # what counts as something a user reads.
+      sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+      from text_review import strings_in
+      text = "\n\n".join(t for _l, t, _c, _s in strings_in(path))
+    # Likewise a page is its prose, not its style sheet: every "color"
+    # on the project page is a CSS property, and reporting those as
+    # American spelling would train everyone to ignore this check,
+    # which is worse than not having it. Only the SPELLING pass gets
+    # the stripped version, though. The web-app rule allows a mention
+    # whose paragraph carries a link, and stripping tags takes the
+    # hrefs away -- which turned the sanctioned paper citation and
+    # further-reading link into two false alarms.
+    spell_text = text
+    if path.endswith(".html"):
+      spell_text = re.sub(r"<style.*?</style>|<script.*?</script>", " ",
+                          text, flags=re.DOTALL | re.IGNORECASE)
+      spell_text = re.sub(r"<[^>]+>", " ", spell_text)
     # Work in PARAGRAPHS, not sentences: a URL contains full stops, so
     # sentence-splitting tears the sanctioned further-reading links
     # apart and reports them as prose. A mention is allowed when its
@@ -136,9 +224,9 @@ def check_user_facing_text():
     for wrong, right in (("color", "colour"), ("colors", "colours"),
                          ("symbolize", "symbolise-or-symbolize?")):
       if wrong == "color":
-        for m in re.finditer(r"\bcolor(s|ed|ing)?\b", text):
+        for m in re.finditer(r"\bcolor(s|ed|ing)?\b", spell_text):
           # QGIS API names are allowed; prose is not
-          context = text[max(0, m.start() - 30):m.end() + 30]
+          context = spell_text[max(0, m.start() - 30):m.end() + 30]
           if "Qgs" in context or "setColor" in context or \
               "color_part" in context or "_r" in context:
             continue
@@ -244,6 +332,19 @@ def check_equivalence_claims():
 
 
 def main():
+  """Run every standards check and report everything that breaches one.
+
+  Returns:
+    None. Prints each problem and exits 1 when there are any, which
+    is what stops release.py before any of the expensive stages;
+    prints a one-line all-clear otherwise. Nothing is written.
+
+  The checks append to the module-level ``problems`` list rather than
+  returning their own findings, so one run reports every breach at
+  once. Stopping at the first would turn a tidy-up into a series of
+  runs, and a checker that has to be run five times is a checker that
+  gets run once.
+  """
   check_documentation()
   check_no_mutation_markers()
   check_user_facing_text()

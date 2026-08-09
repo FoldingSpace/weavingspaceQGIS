@@ -39,7 +39,7 @@ class WeavingSpacePlugin:
       QIcon(icon_path), "WeavingSpace tiled maps...",
       self.iface.mainWindow())
     self.action.setToolTip(
-      "Create tiled and woven multivariate maps (mapweaver)")
+      "Create tiled and woven multivariate maps")
     self.action.triggered.connect(self.open_dialog)
     self.iface.addPluginToMenu("&WeavingSpace", self.action)
     self.iface.addToolBarIcon(self.action)

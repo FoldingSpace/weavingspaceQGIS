@@ -61,6 +61,7 @@ compat.py, so a future QGIS transition lands in one file.
 
 from __future__ import annotations
 
+import json
 import math
 import os
 import traceback
@@ -96,7 +97,8 @@ from qgis.core import (
 )
 from qgis.gui import QgsColorButton, QgsFileWidget, QgsMapLayerComboBox
 
-from . import bridge, catalog
+from . import bridge, catalog, perception
+from .category_editor import CategoryColourDialog
 from .worker import TilingTask
 
 GROUP_BASE_NAME = "WeavingSpace tiles"
@@ -135,6 +137,27 @@ def _nice_number(x: float) -> float:
   return 10 ** (exp + 1)
 
 
+# How large a ramp swatch is drawn in the Colour ramp dropdown. This
+# has to be applied in TWO places to have any effect: the pixmap is
+# drawn at this size, and each combo is told to display icons at this
+# size. A QComboBox left alone uses the platform style's icon size,
+# which on a desktop theme is around 16 pixels, so a swatch drawn
+# larger than that was simply scaled back down and the ramp was almost
+# unreadable -- which is what it looked like, and why enlarging the
+# pixmap on its own would have changed nothing.
+RAMP_SWATCH = QSize(64, 18)
+
+# What separates two notices sharing the dialog's single note line
+# when there is no QGIS message bar to stack them in. See
+# WeavingSpaceDialog._report_quietly.
+NOTE_SEPARATOR = "  |  "
+
+# The "Edit colours" column. Appended after the columns that were
+# already there and moved into place visually, so no existing column
+# number changes. See _build_ui, where the move happens.
+COL_EDIT_COLOURS = 8
+
+
 def _ramp_icon(name: str, reverse: bool = False):
   """Small preview swatch (a QIcon) for a named colour ramp.
 
@@ -156,7 +179,7 @@ def _ramp_icon(name: str, reverse: bool = False):
     # therefore shows the direction the map will actually use
     ramp = bridge.get_ramp(name, reverse)
     if ramp is not None:
-      return QgsSymbolLayerUtils.colorRampPreviewIcon(ramp, QSize(48, 14))
+      return QgsSymbolLayerUtils.colorRampPreviewIcon(ramp, RAMP_SWATCH)
   except Exception:
     pass
   return None
@@ -271,8 +294,10 @@ class TilePreview(QWidget):
       unit: the Tileable to draw.
       id_colours: {tile_id: colour} for the elements, carrying alpha
         so an element's opacity shows.
-      shells: 0 draws the unit alone, which is the design view; 1 or
-        more adds that many rings of translated copies for context.
+      shells: 0 draws the unit alone; 1 or more adds that many rings
+        of translated copies around it. The dialog defaults to 1,
+        because insetting and the way tiles meet across a join are
+        invisible in a unit shown by itself.
 
     Returns:
       None; the widget repaints itself.
@@ -371,7 +396,16 @@ class TilePreview(QWidget):
         tid, bridge.ID_COLOURS[
           self._ids.index(tid) % len(bridge.ID_COLOURS)])
       painter.setBrush(QBrush(QColor(colour)))
-      painter.setPen(QPen(QColor("#333333"), 0.7))
+      # No outline. The design view shows a unit and its neighbours as
+      # areas of colour, and a dark line around every tile competes
+      # with the thing being judged: whether the shapes read as
+      # distinct elements by their COLOUR and form. A hairline also
+      # thickens relative to the tiles as the pattern gets finer, so
+      # at small spacings the preview turned into a mesh. Tile
+      # boundaries on the MAP are a separate, deliberate control
+      # ("Draw tile boundaries" on the Data & colours tab) and are
+      # unaffected by this.
+      painter.setPen(Qt.PenStyle.NoPen)
       painter.drawPath(path)
 
     # subtle tile-id labels on the central unit, as in the web app's
@@ -485,6 +519,13 @@ class WeavingSpaceDialog(QDialog):
     self._ramp_choices = {}
     self._reverse_choices = {}
     self._opacity_choices = {}
+    # Colours chosen by hand in the Categorical colour editor:
+    # {tile_id: {field: {str(value): "#rrggbb"}}}. Keyed by FIELD as
+    # well as element so that moving an element to another variable
+    # and back restores the work rather than discarding it, and so
+    # that two fields sharing a value name ("other", "none", "1")
+    # cannot silently colour each other.
+    self._category_colours = {}
     # which layer auto-spacing last ran for (it must run once per
     # newly chosen layer, never on the combo's spurious re-emissions)
     self._auto_spacing_layer = None
@@ -545,10 +586,15 @@ class WeavingSpaceDialog(QDialog):
     shells_row.addWidget(QLabel("Context shells"))
     self.shells_spin = QSpinBox()
     self.shells_spin.setRange(0, 4)
-    self.shells_spin.setValue(0)
+    # One ring of neighbours is the default because a great deal of
+    # what a unit does only becomes visible once it is repeated:
+    # insetting, how tiles meet across the join, and whether the
+    # pattern reads the way it looks in isolation. The unit alone is
+    # still one click away for anyone who wants the bare design.
+    self.shells_spin.setValue(1)
     self.shells_spin.setToolTip(
-      "0 shows the tile unit on its own; higher values add rings of "
-      "neighbouring copies for context")
+      "Rings of neighbouring copies around the unit; "
+      "0 shows the unit alone.")
     self.shells_spin.valueChanged.connect(
       self._refresh_preview_colours)
     shells_row.addWidget(self.shells_spin)
@@ -569,9 +615,8 @@ class WeavingSpaceDialog(QDialog):
     self.layer_combo = QgsMapLayerComboBox()
     self.layer_combo.setFilters(_polygon_filter())
     self.layer_combo.setToolTip(
-      "The polygon layer whose attributes will be mapped. A projected "
-      "CRS is best; geographic layers are reprojected to Web Mercator "
-      "(fine for exploring, rarely for publishing).")
+      "The polygon layer whose attributes will be mapped. Best not to use "
+      "lat-long datasets.")
     self.layer_combo.layerChanged.connect(self._on_layer_changed)
     form.addRow("Region layer", self.layer_combo)
 
@@ -580,18 +625,15 @@ class WeavingSpaceDialog(QDialog):
       self.n_combo.addItem(str(n), n)
     self.n_combo.setCurrentText("4")
     self.n_combo.setToolTip(
-      "How many variables the pattern can carry. Two to four supports "
-      "value-by-value reading; with more, the map reads as a texture "
-      "in which exceptions stand out.")
+      "How many variables the pattern can carry.")
     self.n_combo.currentIndexChanged.connect(self._on_n_changed)
     form.addRow("Number of elements", self.n_combo)
 
     self.kind_combo = QComboBox()
     self.kind_combo.addItems(["tiling", "weave"])
     self.kind_combo.setToolTip(
-      "Tilings give compact side-by-side patches (and support the icon "
-      "and glyph options); weaves interlace strands the eye can follow "
-      "between distant places. Both carry the same information.")
+      "Tilings give side-by-side patches; weaves give strands "
+      "the eye can follow.")
     self.kind_combo.currentIndexChanged.connect(self._on_kind_changed)
     form.addRow("Tiling or weave", self.kind_combo)
 
@@ -606,16 +648,13 @@ class WeavingSpaceDialog(QDialog):
     self.spacing_spin.setDecimals(6)
     self.spacing_spin.setValue(1000)
     self.spacing_spin.setToolTip(
-      "The pattern's grain, in map units: unit size for tilings, "
-      "strand-to-strand distance for weaves. Aim near the typical "
-      "polygon width (for weaves, divided by strands per direction); "
-      "keep it coarse while iterating.")
+      "The pattern's grain in map units. Try aiming near the typical polygon "
+      "width.")
     self.spacing_spin.valueChanged.connect(self._queue_preview)
     spacing_row = QHBoxLayout()
     spacing_row.addWidget(self.spacing_spin)
     auto = QPushButton("Auto")
-    auto.setToolTip("A coarse value from the layer extent, meant for "
-                    "iterating rather than publication")
+    auto.setToolTip("A coarse value from the layer extent, good for iterating")
     auto.clicked.connect(self._auto_spacing)
     spacing_row.addWidget(auto)
     form.addRow("Spacing (map units)", spacing_row)
@@ -626,9 +665,8 @@ class WeavingSpaceDialog(QDialog):
     self.opt_offset.setSingleStep(0.01)
     self.opt_offset.setDecimals(2)
     self.opt_offset.setToolTip(
-      "Where the slices/dissection cuts start on the base shape: 0 "
-      "cuts from the corners, 1 from the edge midpoints (fractions "
-      "blend between).")
+      "Where the cuts start: 0 at the corners, 1 at the edge "
+      "midpoints.")
     self.opt_offset.valueChanged.connect(self._queue_preview)
     self.opt_offset_row = self._form_row(form, "Offset", self.opt_offset)
 
@@ -656,9 +694,7 @@ class WeavingSpaceDialog(QDialog):
     self.opt_aspect.setDecimals(3)
     self.opt_aspect.setValue(0.75)
     self.opt_aspect.setToolTip(
-      "Strand width as a fraction of spacing: 1.0 fills all space; "
-      "smaller values open gaps between strands and strengthen the "
-      "woven look.")
+      "Strand width as a fraction of spacing; 1.0 leaves no gaps.")
     self.opt_aspect.valueChanged.connect(self._queue_preview)
     self.opt_aspect_row = self._form_row(
       form, "Strand width", self.opt_aspect)
@@ -666,9 +702,7 @@ class WeavingSpaceDialog(QDialog):
     self.opt_over_under = QLineEdit()
     self.opt_over_under.setPlaceholderText("e.g. 2 or 1,2 or 1,2,2,1")
     self.opt_over_under.setToolTip(
-      "The passing pattern: how many crossing strands each strand goes "
-      "over, then under (2, or 1,2, or 1,2,2,1). Long patterns produce "
-      "very large repeating units, usually too coarse to map well.")
+      "How many crossing strands each strand passes over, then under.")
     self.opt_over_under.textChanged.connect(self._queue_preview)
     self.opt_over_under_row = self._form_row(
       form, "Over-under", self.opt_over_under)
@@ -686,9 +720,8 @@ class WeavingSpaceDialog(QDialog):
     self.opt_grid_cols.setRange(1, 26)
     for sp, tip in ((self.opt_grid_rows, "Rows of squares in the unit"),
                     (self.opt_grid_cols,
-                     "Columns of squares in the unit. Rows x columns "
-                     "beyond the element count leaves regular "
-                     "openings in the grid.")):
+                     "Columns of squares in the unit. Surplus cells "
+                     "become regular openings.")):
       sp.setToolTip(tip)
       sp.valueChanged.connect(self._queue_preview)
       grid_lay.addWidget(sp)
@@ -717,27 +750,29 @@ class WeavingSpaceDialog(QDialog):
 
     self.mod_rotate = spin(-90, 90, 0, 1)
     self.mod_rotate.setToolTip(
-      "Rotating the pattern usually helps: roughly 15–75° suits "
-      "two-direction weaves; hexagon-based patterns repeat their own "
-      "symmetry every 30°, so those angles change little.")
+      "Turn the whole pattern; 15–75° usually suits two-direction "
+      "weaves.")
     mform.addRow("Rotate (°)", self.mod_rotate)
     self.mod_scale_x = spin(0.5, 4.0, 1.0, 0.02)
+    self.mod_scale_x.setToolTip("Stretch the pattern right-left.")
     self.mod_scale_y = spin(0.5, 4.0, 1.0, 0.02)
+    self.mod_scale_y.setToolTip("Stretch the pattern up-down.")
     pair("Scale EW / NS", self.mod_scale_x, self.mod_scale_y)
     self.mod_skew_x = spin(-45, 45, 0, 1)
+    self.mod_skew_x.setToolTip("Slant the pattern right-left.")
     self.mod_skew_y = spin(-45, 45, 0, 1)
+    self.mod_skew_y.setToolTip("Slant the pattern up-down.")
     pair("Skew EW / NS (°)", self.mod_skew_x, self.mod_skew_y)
     self.mod_p_inset = spin(0, 10, 0, 0.1)
     self.mod_p_inset.setToolTip(
-      "Pulls each repeating unit apart from its neighbours, showing "
-      "which elements belong together (tilings only: a weave's strands "
-      "would be severed).")
+      "Opens a gap around each whole unit (tilings only).")
     self.mod_t_inset = spin(0, 5, 0, 0.1)
     self.mod_t_inset.setToolTip(
-      "Opens a thin gap around every tile or strand, a legibility "
-      "device that also strengthens the woven appearance.")
+      "Opens a thin gap around every tile or strand.")
     pair("Inset group / tiles (%)", self.mod_p_inset, self.mod_t_inset)
     self.mod_glyph = QCheckBox("Scale as glyph (independent of tiling)")
+    self.mod_glyph.setToolTip(
+      "Shrink each unit in place, into separate glyphs.")
     self.mod_glyph.toggled.connect(self._queue_preview)
     mform.addRow(self.mod_glyph)
 
@@ -761,24 +796,37 @@ class WeavingSpaceDialog(QDialog):
       "type and follows the variable until you choose one yourself.")
     hint.setWordWrap(True)
     dlayout.addWidget(hint)
-    self.table = QTableWidget(0, 8)
+    self.table = QTableWidget(0, 9)
     self.table.setHorizontalHeaderLabels(
       ["Tile id", "Variable", "Style", "Classes", "Colour ramp",
-       "Reverse", "Opacity %", "Categ colourmap src"])
+       "Reverse", "Opacity %", "Categ colourmap src", "Edit colours"])
     self.table.setColumnWidth(0, 55)
     self.table.setColumnWidth(1, 160)
     self.table.setColumnWidth(2, 165)
     self.table.setColumnWidth(3, 55)
-    self.table.setColumnWidth(4, 150)
+    self.table.setColumnWidth(4, 172)   # a 64px swatch plus the name
     self.table.setColumnWidth(5, 62)
     self.table.setColumnWidth(6, 72)
     self.table.setColumnWidth(7, 150)
+    self.table.setColumnWidth(COL_EDIT_COLOURS, 92)
     self.table.setColumnHidden(3, True)
     self.table.setColumnHidden(7, True)
+    self.table.setColumnHidden(COL_EDIT_COLOURS, True)
+    # "Edit colours" belongs beside the ramp, since it does the same
+    # job by hand. It is nevertheless the LAST column logically, and
+    # only moved into place visually. Inserting it at position 5 would
+    # have renumbered Reverse, Opacity and the class source, and those
+    # numbers are written out in dozens of places here and in the
+    # tests -- a renumbering that silently repoints a test at the
+    # wrong widget is exactly how a test comes to pass for the wrong
+    # reason, which has happened here before.
+    self.table.horizontalHeader().moveSection(COL_EDIT_COLOURS, 5)
     dlayout.addWidget(self.table, 1)
 
     cls_row = QFormLayout()
     self.opt_tile_outlines = QCheckBox("Draw tile boundaries")
+    self.opt_tile_outlines.setToolTip(
+      "Outline every tile on the map.")
     cls_row.addRow(self.opt_tile_outlines)
     dlayout.addLayout(cls_row)
     tabs.addTab(data_tab, "Data && colours")
@@ -788,35 +836,33 @@ class WeavingSpaceDialog(QDialog):
     olayout = QVBoxLayout(opts_tab)
     self.opt_join_prototiles = QCheckBox("Join data using whole tileable")
     self.opt_join_prototiles.setToolTip(
-      "Every element in a unit takes its data from the same area, so "
-      "units read as coherent local summaries. Off, each tile follows "
-      "the area it overlaps most (usually better for weaves).")
+      "Every element in a unit takes its data from the same area.")
     self.opt_retain = QCheckBox("Retain complete tileables at edges")
     self.opt_retain.setToolTip(
       "Keeps whole units that touch the region, letting the pattern "
-      "spill outward. Mostly of interest alongside the whole-tileable "
-      "join.")
+      "spill outward.")
     self.opt_clip = QCheckBox("Clip by map units (no ragged edges)")
     self.opt_clip.setToolTip(
-      "Trims the pattern to the region outline. The slowest step, and "
-      "it fragments edge tiles: leave it off while iterating.")
+      "Trims the pattern to the region outline. The sloleft step.")
     self.opt_icons = QCheckBox("Use tileable as icon (one per map unit)")
     self.opt_icons.setToolTip(
-      "One unit per polygon, at its centre, instead of a continuous "
-      "pattern: a gentler multivariate symbol. It pairs well with the "
-      "outlines layer.")
+      "One unit at the centre of each polygon, instead of a "
+      "continuous pattern.")
     self.opt_outlines = QCheckBox("Add map unit outlines layer")
     self.opt_outlines.setToolTip(
-      "Adds a copy of the region layer, drawn as outlines on top, so "
-      "the geography stays readable under the pattern.")
+      "Adds the region boundaries as outlines on top of the pattern.")
     self.opt_new_group = QCheckBox(
       "Create as new group (keep the previous result)")
     self.opt_new_group.setToolTip(
-      "Keep the previous result and add this run as a separate group "
-      "for side-by-side comparison. When saving to GeoPackage, use a "
-      "different file for each kept run.")
+      "Keeps the previous result and adds this run as a separate "
+      "group.")
+    self.opt_colour_warnings = QCheckBox(
+      "Warn about lack of legibility in colour choices")
+    self.opt_colour_warnings.setToolTip(
+      "Warns when two elements use colours a reader may confuse.")
     for cb in (self.opt_join_prototiles, self.opt_retain, self.opt_clip,
-               self.opt_icons, self.opt_outlines, self.opt_new_group):
+               self.opt_icons, self.opt_outlines, self.opt_new_group,
+               self.opt_colour_warnings):
       olayout.addWidget(cb)
 
     out_form = QFormLayout()
@@ -825,6 +871,8 @@ class WeavingSpaceDialog(QDialog):
     compat.set_save_file_mode(self.gpkg_widget)
     self.gpkg_widget.setFilter("GeoPackage (*.gpkg)")
     self.gpkg_widget.setDialogTitle("Save tiled map to GeoPackage")
+    self.gpkg_widget.setToolTip(
+      "Save all element layers, with styling, to one file.")
     out_form.addRow("Save to GeoPackage\n(empty = temporary layers)",
                     self.gpkg_widget)
     olayout.addLayout(out_form)
@@ -838,8 +886,8 @@ class WeavingSpaceDialog(QDialog):
     help_tab = QTextBrowser()
     help_tab.setOpenExternalLinks(True)
     help_tab.setHtml(
-      HELP_HTML + f"<p><small>WeavingSpace plugin version "
-      f"{_plugin_version()}</small></p>")
+      HELP_HTML + f"<p><small>WeavingSpace QGIS plugin version "
+                  f"{_plugin_version()}</small></p>")
     tabs.addTab(help_tab, "Help")
 
     # ---- bottom bar
@@ -847,10 +895,8 @@ class WeavingSpaceDialog(QDialog):
     self.live_check = QCheckBox("Live update")
     self.live_check.setChecked(True)
     self.live_check.setToolTip(
-      "Renders a first map as soon as a layer and variables are in "
-      "place, then regenerates as you change settings (temporary-layer "
-      "output only, and only while the estimated tile count stays "
-      "manageable)")
+      "Draws and redraws the map as you change settings, without "
+      "pressing Generate.")
     bottom.addWidget(self.live_check)
     self.live_note = QLabel("")
     self.live_note.setStyleSheet("color: #888888;")
@@ -1383,9 +1429,7 @@ class WeavingSpaceDialog(QDialog):
     combo = QComboBox()
     combo.setProperty("tile_id", tile_id)
     combo.setToolTip(
-      "Where this element's class colours come from: automatic, "
-      "another layer's categorized symbology, or a QML style file "
-      "(a browsed file is offered to every categorized element).")
+      "Where this element's class colours come from.")
     self._populate_class_source_combo(
       combo, prev_choice if prev_choice is not None else "")
 
@@ -1406,7 +1450,12 @@ class WeavingSpaceDialog(QDialog):
       combo.setProperty("last_idx", combo.currentIndex())
       tid = combo.property("tile_id")
       if tid:
+        was = self._class_choices.get(tid)
         self._class_choices[tid] = combo.currentData()
+        # importing a scheme is the same kind of act as choosing a
+        # ramp: it names where this element's colours come from
+        if combo.currentData() and combo.currentData() != was:
+          self._clear_category_colours(tid, "an imported class source")
       self._queue_live()
 
     combo.activated.connect(activated)
@@ -1479,11 +1528,8 @@ class WeavingSpaceDialog(QDialog):
     spin.setProperty("tile_id", tile_id)
     spin.setValue(int(value))
     spin.setToolTip(
-      "How solid this element draws, as QGIS layer opacity: 100 is "
-      "opaque, lower values let whatever lies beneath show through. "
-      "Stored separately from the colours, so changing the ramp keeps "
-      "it, and it travels into a GeoPackage with the rest of the "
-      "styling.")
+      "How solid this element draws, as QGIS layer opacity; "
+      "100 is opaque.")
 
     def changed(_v, sp=spin):
       tid = sp.property("tile_id")
@@ -1538,6 +1584,9 @@ class WeavingSpaceDialog(QDialog):
       a preview swatch drawn in its current direction.
     """
     ramp_combo = QComboBox()
+    # without this the swatch drawn above is scaled down to the
+    # platform's default icon size, and the ramp cannot be read
+    ramp_combo.setIconSize(RAMP_SWATCH)
     ramp_combo.setProperty("tile_id", tile_id)
     for name in self._ramp_names:
       icon = _ramp_icon(name)
@@ -1553,6 +1602,9 @@ class WeavingSpaceDialog(QDialog):
       tid = c.property("tile_id")
       if tid:
         self._ramp_choices[tid] = c.currentText()
+        # a new ramp is a new source of truth for this element's
+        # colours, so anything picked by hand goes with it
+        self._clear_category_colours(tid, "a new colour ramp")
       self._refresh_preview_colours()
 
     ramp_combo.currentIndexChanged.connect(changed)
@@ -1735,6 +1787,30 @@ class WeavingSpaceDialog(QDialog):
         self._class_choices[tid] = file_combo.currentData()
       self.table.removeCellWidget(row, 7)
 
+    # The "Edit colours" button. Unlike the class source it is not
+    # removed on non-categorical rows: a hole in the column would read
+    # as a control that failed to appear, where a greyed button says
+    # plainly that this element has no categories to colour.
+    if not self.table.isColumnHidden(COL_EDIT_COLOURS):
+      button = self.table.cellWidget(row, COL_EDIT_COLOURS)
+      if button is None:
+        # "Custom" rather than an ellipsis: the column heading says
+        # what the button is for, but the button itself has to say
+        # what it DOES, since a disabled ellipsis reads as a control
+        # that is broken rather than one that does not apply here.
+        button = QPushButton("Custom")
+        button.clicked.connect(self._edit_category_colours)
+        self.table.setCellWidget(row, COL_EDIT_COLOURS, button)
+      button.setProperty("tile_id", tid)
+      usable = mode == "Categorized" and bool(var)
+      button.setEnabled(usable)
+      button.setToolTip(
+        "Choose a colour for each value this element takes"
+        if usable else
+        "Only elements with a categorized style have values to colour")
+    elif self.table.cellWidget(row, COL_EDIT_COLOURS) is not None:
+      self.table.removeCellWidget(row, COL_EDIT_COLOURS)
+
   def _update_dynamic_columns(self):
     """The Classes and Categ-colourmap-src columns exist only while
     they mean something, and every row's widgets are kept coherent."""
@@ -1761,6 +1837,12 @@ class WeavingSpaceDialog(QDialog):
     has_categorical = any(m == "Categorized" and has_var
                           for m, has_var in modes.values())
     self.table.setColumnHidden(7, not has_categorical)
+    # "Edit colours" only means anything where there are categories to
+    # colour, so it appears on exactly the same condition as the class
+    # source beside it. On rows that are not categorical the button
+    # stays but is disabled (see _sync_row): a gap in the column would
+    # read as a missing control rather than an inapplicable one.
+    self.table.setColumnHidden(COL_EDIT_COLOURS, not has_categorical)
     for row in rows:
       self._sync_row(row)
 
@@ -1812,13 +1894,8 @@ class WeavingSpaceDialog(QDialog):
       mode_combo = QComboBox()
       mode_combo.addItems(self.MODES)
       mode_combo.setToolTip(
-        "How this element is symbolized; a plausible style follows "
-        "the field's type until you choose one yourself. Quantiles "
-        "equalize feature counts, equal intervals equalize value "
-        "ranges, natural breaks find clusters; Quant: Unclassed "
-        "gives the look of a continuous ramp (50 linear steps); "
-        "Single colour flattens the element to one colour. All "
-        "adjustable later in the Layer Styling panel.")
+        "How this element is symbolized; adjustable later in the "
+        "Layer Styling panel.")
       mode_combo.setCurrentText(self._plausible_mode(
         var_combo.currentText()))
       if prev and prev.get("mode_raw") in self.MODES \
@@ -1835,13 +1912,20 @@ class WeavingSpaceDialog(QDialog):
         lambda _i, v=var_combo, m=mode_combo: self._follow_variable(v, m))
 
       k_spin = QSpinBox()
-      k_spin.setRange(2, 12)
+      # 2 to 20, the settled range, and the SAME range _sync_row sets.
+      # This said (2, 12) while _sync_row said (2, 20): a restored
+      # count above twelve was clamped by the setValue below, before
+      # the wider range arrived. Nothing showed, because the real
+      # value also rides on the user_k property and _sync_row restores
+      # it from there — so the bug was invisible and waiting for
+      # whoever reordered these two lines.
+      k_spin.setRange(2, 20)
       k_spin.setValue(prev["k"] if prev and prev.get("k") else 5)
       k_spin.setProperty("user_k",
                          prev["k"] if prev and prev.get("k") else 5)
       k_spin.setToolTip(
-        "Number of classes for this element's Quant symbology; "
-        "categorized rows show the number of detected categories.")
+        "Number of classes; categorized rows show how many "
+        "categories were found.")
 
       def on_k(v, sp=k_spin):
         if sp.isEnabled():
@@ -1869,6 +1953,246 @@ class WeavingSpaceDialog(QDialog):
     self._update_dynamic_columns()
 
   # ------------------------------------------------------------ assignments
+
+  def _stamp_category_colours(self, layer, assignment):
+    """Record an element's hand-picked colours on its output layer.
+
+    Args:
+      layer: the output layer for this element.
+      assignment: its dict from ``_assignments()``.
+
+    Returns:
+      None. Writes a custom property QGIS saves inside the project
+      file, or clears it when there is nothing to record, so a layer
+      never carries stale choices from a previous assignment.
+
+    JSON rather than a Python repr: a custom property is written into
+    the .qgz as text, and this has to survive being read back by a
+    future version without eval'ing whatever the file contains.
+    """
+    picked = assignment.get("category_colours")
+    if picked:
+      layer.setCustomProperty(
+        "weavingspace_category_colours",
+        json.dumps({"field": assignment["var"], "colours": picked},
+                   sort_keys=True))
+    else:
+      layer.removeCustomProperty("weavingspace_category_colours")
+
+  def _adopt_category_colours(self, layer, tile_id):
+    """Read hand-picked colours back off an adopted output layer.
+
+    Args:
+      layer: an existing output layer found in the project.
+      tile_id: the element it carries.
+
+    Returns:
+      None. Fills in this element's colours only where the dialog has
+      none of its own, so a reopened project restores the user's work
+      without overwriting anything chosen since.
+
+    Anything unreadable is ignored rather than raised: a project file
+    edited by hand, or written by a later version of the plugin, must
+    not stop the dialog from opening.
+    """
+    raw = layer.customProperty("weavingspace_category_colours")
+    if not raw:
+      return
+    try:
+      stored = json.loads(raw)
+      field = stored["field"]
+      colours = {str(k): str(v) for k, v in stored["colours"].items()}
+    except (ValueError, KeyError, TypeError, AttributeError):
+      return
+    if not field or not colours:
+      return
+    self._category_colours.setdefault(tile_id, {}).setdefault(
+      field, dict(colours))
+
+  def _clear_category_colours(self, tile_id, because):
+    """Forget an element's hand-picked colours for its current field.
+
+    Args:
+      tile_id: the element.
+      because: what the user just did, named in the notice ("a new
+        colour ramp", "an imported class source").
+
+    Returns:
+      None. Says so when anything was actually discarded, and stays
+      quiet otherwise.
+
+    Choosing a ramp or importing a QML names a new source of truth for
+    this element's colours, so the hand-picked ones go. That is the
+    settled rule and it makes the ramp control mean what it says, but
+    it does throw away deliberate work -- so it is not done silently.
+    Only the CURRENT field is cleared: another variable's colours are
+    still there if the element is switched back to it.
+    """
+    for_element = self._category_colours.get(tile_id)
+    if not for_element:
+      return
+    var_combo = None
+    for row in range(self.table.rowCount()):
+      item = self.table.item(row, 0)
+      if item is not None and item.text() == tile_id:
+        var_combo = self.table.cellWidget(row, 1)
+        break
+    field = var_combo.currentText() if var_combo else None
+    if not field or field == "---":
+      return
+    discarded = for_element.pop(field, None)
+    if not discarded:
+      return
+    self._report_quietly(
+      f"Choosing {because} for element '{tile_id}' discarded "
+      f"{len(discarded)} colour(s) you had picked by hand for "
+      f"'{field}'.")
+
+  def _current_category_colours(self, assignment):
+    """What each value of a categorical element draws in right now.
+
+    Args:
+      assignment: one dict from ``_assignments()``, already known to
+        be Categorized with a variable.
+
+    Returns:
+      ({value: "#rrggbb"}, [values in class order]) with
+      bridge.NO_DATA_KEY last for the catch-all, or (None, None) when
+      the region layer or its field has gone.
+
+    Built by asking bridge for the SAME renderer the map would get,
+    against the region layer, and reading the colours back out of it.
+    Re-deriving the sampling here instead would mean a second copy of
+    a rule this project has already got wrong once -- an earlier
+    hand-derivation used round() where matplotlib uses int(), and
+    painted the middle category the wrong colour. One implementation
+    means the editor cannot disagree with the map.
+    """
+    layer = self.layer_combo.currentLayer()
+    if layer is None or assignment["var"] not in \
+        [f.name() for f in layer.fields()]:
+      return None, None
+    template = self._template_for(assignment.get("class_source"))
+    renderer = bridge.make_categorized_renderer(
+      layer, assignment["var"], assignment["ramp"],
+      assignment.get("outline", False), template,
+      assignment.get("reverse", False),
+      assignment.get("category_colours"))
+    colours, order = {}, []
+    for category in renderer.categories():
+      value = category.value()
+      key = bridge.NO_DATA_KEY if value is None else str(value)
+      colours[key] = category.symbol().color().name()
+      order.append(key)
+    return colours, order
+
+  def _template_for(self, token):
+    """The imported class scheme for one class-source token, or None.
+
+    Args:
+      token: what the class-source combo holds ("file:…", "layer:…"
+        or empty).
+
+    Returns:
+      {value: (symbol, label)} or None. A broken file yields None
+      rather than raising: a class source that cannot be read should
+      leave the element on automatic colours, not stop the user.
+    """
+    if not token:
+      return None
+    try:
+      if token.startswith("layer:"):
+        return bridge.template_from_layer(
+          QgsProject.instance().mapLayer(token[6:]))
+      return bridge.load_categorized_template(token[5:])
+    except Exception:
+      return None
+
+  def _edit_category_colours(self):
+    """Open the Categorical colour editor for the row that asked.
+
+    Returns:
+      None. Colours picked are recorded against the element AND the
+      field, applied through the ordinary restyle path, and checked
+      for separability once when the window closes.
+
+    Nothing here touches a layer. A run finishing while the window is
+    open replaces every element layer, so the editor works entirely
+    on the dialog's own record and lets the restyle path find whatever
+    layers currently exist -- which also means a colour picked during
+    a run is simply applied when that run lands.
+    """
+    button = self.sender()
+    if button is None:
+      return
+    tile_id = button.property("tile_id")
+    assignment = next((a for a in self._assignments()
+                       if a["id"] == tile_id), None)
+    if assignment is None or assignment["mode"] != "Categorized" \
+        or not assignment["var"]:
+      return
+    field = assignment["var"]
+    colours, order = self._current_category_colours(assignment)
+    if not order:
+      self._report_quietly(
+        f"'{field}' has no values to colour in this layer.")
+      return
+
+    def picked(value, colour):
+      self._category_colours.setdefault(tile_id, {}) \
+          .setdefault(field, {})[str(value)] = colour
+      self._apply_style_change()
+
+    editor = CategoryColourDialog(tile_id, field, order, colours,
+                                  picked, self)
+    editor.exec()
+    self._warn_about_close_colours()
+
+  def _apply_style_change(self):
+    """Repaint after a symbology change, without re-tiling.
+
+    Returns:
+      None. Falls through quietly when there is nothing on the map
+      yet, or a run is in flight -- in the latter case the change is
+      already recorded and the finishing run will seed it.
+    """
+    self._refresh_preview_colours()
+    self._restyle_only()
+
+  def _warn_about_close_colours(self):
+    """Say so if hand-picked colours left two elements inseparable.
+
+    Returns:
+      None. Reports at most one notice, on closing the editor rather
+      than on each pick: a warning that fires while someone is still
+      choosing is noise, and the question only has an answer once
+      they have finished.
+    """
+    if not self.opt_colour_warnings.isChecked():
+      # the same opt-in as the check after a run: a reader asked for
+      # this opinion or they did not, and the editor is not a special
+      # case
+      return
+    project = QgsProject.instance()
+    fills = {}
+    for tid, layer_id in self._element_layer_ids.items():
+      layer = project.mapLayer(layer_id)
+      if layer is None:
+        continue                # deleted output: nothing to judge
+      colours = bridge.renderer_fill_colours(layer)
+      if colours:
+        fills[tid] = colours
+    if len(fills) < 2:
+      return
+    assignments = {a["id"]: a for a in self._assignments()}
+    note = perception.clash_message(perception.clashes(
+      fills,
+      shared={tid: (assignments[tid].get("ramp"),
+                    assignments[tid].get("reverse"),
+                    assignments[tid].get("class_source"))
+              for tid in fills if tid in assignments}))
+    if note is not None:
+      self._report_quietly(note)
 
   def _assignments(self) -> list[dict]:
     """Read the Data & colours table into plain dicts.
@@ -1967,6 +2291,12 @@ class WeavingSpaceDialog(QDialog):
         # the class source matters (and re-seeds) only when categorized
         "class_source": source if mode == "Categorized" else None,
         "class_choice": choice,
+        # Colours chosen by hand for this element AND this field. A
+        # different variable in the same element has its own set, so
+        # switching away and back restores rather than discards.
+        "category_colours": (
+          self._category_colours.get(tid_text, {}).get(var)
+          if mode == "Categorized" and var else None),
         "style_touched": bool(mode_combo is not None
                               and mode_combo.property("touched")),
       })
@@ -2131,6 +2461,10 @@ class WeavingSpaceDialog(QDialog):
       # set; an element whose signature matched is skipped entirely
       # above, which is what leaves a hand-set opacity alone
       layer.setOpacity(max(0, min(100, a.get("opacity", 100))) / 100.0)
+      # the fast path re-seeds without going through _add_output_layers,
+      # so it has to record the hand-picked colours itself or a colour
+      # chosen here would be missing from a project saved afterwards
+      self._stamp_category_colours(layer, a)
       if self._last_path:
         # a GeoPackage carries its own cartography, so the file has to
         # learn about the change too
@@ -2191,9 +2525,17 @@ class WeavingSpaceDialog(QDialog):
     GEOMETRY, not what the colours mean, so a design change should
     not throw away the user's styling work.
     """
+    # Hand-picked category colours belong here for the same reason
+    # the ramp does: they decide what this element looks like, and
+    # _restyle_only re-seeds exactly the elements whose signature
+    # moved. Sorted into a tuple because a dict is unhashable and
+    # because two identical sets of choices must compare equal
+    # whatever order they were picked in.
+    picked = a.get("category_colours") or {}
     return (a["var"], a["mode"], a["ramp"], a["scheme"], a["k"],
             a["outline"], a.get("class_source"), a.get("single_colour"),
-            a.get("reverse", False), a.get("opacity", 100))
+            a.get("reverse", False), a.get("opacity", 100),
+            tuple(sorted(picked.items())))
 
   # ---------------------------------------------------------------- generate
 
@@ -2274,10 +2616,9 @@ class WeavingSpaceDialog(QDialog):
           self._unit, region, self.spacing_spin.value())
         QMessageBox.critical(
           self, "WeavingSpace",
-          f"A spacing this small asks for roughly {est:,} tiles, more "
-          "than QGIS can survive.\n\n"
-          f"For this layer a spacing of about {suggestion:,.0f} map "
-          "units or more will work.")
+          f"A spacing this small asks for roughly {est:,} tiles. For this "
+          f"layer a spacing of about {suggestion:,.0f} map units or more will "
+          f"work.")
       return
     if not live and est > bridge.MAX_TILES_CONFIRM:
       answer = QMessageBox.question(
@@ -2483,6 +2824,8 @@ class WeavingSpaceDialog(QDialog):
       tid = layer.customProperty("weavingspace_tile_id")
       if tid:
         self._element_layer_ids[str(tid)] = layer.id()
+        # a project saved with hand-picked colours brings them back
+        self._adopt_category_colours(layer, str(tid))
       elif layer.customProperty("weavingspace_outline"):
         self._outline_layer_id = layer.id()
     if self._element_layer_ids or self._outline_layer_id:
@@ -2577,7 +2920,7 @@ class WeavingSpaceDialog(QDialog):
     # (busy) form, and say what is happening. This is the part that
     # used to look like a hang
     self.progress.setRange(0, 0)
-    self.live_note.setText(f"adding {len(gdf):,} tiles to the map...")
+    self.live_note.setText(f"Adding {len(gdf):,} tiles to the map...")
     QApplication.processEvents()  # let that text actually paint
     try:
       self._add_output_layers(gdf, family, source_layer, assignments,
@@ -2636,11 +2979,26 @@ class WeavingSpaceDialog(QDialog):
       None. Falls back to the dialog's own note line when there is no
       iface (which is how the tests run), so nothing is ever lost
       just because there is no QGIS window.
+
+    One run can produce three notices at once -- areas left out at
+    this spacing, categories whose colours moved, and element colours
+    a reader cannot separate. QGIS's message bar stacks them, so a
+    user sees all three; a QLabel holds one string, so the fallback
+    used to keep only the last and silently drop the rest. That made
+    the promise above false exactly when several things were wrong at
+    once, which is when a reader most needs to be told. Notices are
+    therefore JOINED rather than replaced.
     """
     if self.iface is not None:
       self.iface.messageBar().pushWarning("WeavingSpace", message)
-    else:
-      self.live_note.setText(message)
+      return
+    existing = self.live_note.text()
+    # a repeat within one run says nothing new, and stacking it would
+    # push the earlier notices out of sight
+    if message in existing.split(NOTE_SEPARATOR):
+      return
+    self.live_note.setText(
+      f"{existing}{NOTE_SEPARATOR}{message}" if existing else message)
 
   def _finish_run(self):
     """End of a run, however it ended: re-enable Generate, hide the
@@ -2731,6 +3089,20 @@ class WeavingSpaceDialog(QDialog):
       except Exception as e:
         template_errors.append(f"{token.split(':', 1)[1][-40:]}: {e}")
 
+    # A run carries the settings it was launched with, which is right
+    # for everything that decides the GEOMETRY: a spacing typed while
+    # the tiles are being laid out belongs to the next run, not this
+    # one. Hand-picked category colours are the exception. The editor
+    # is usable while a run is in flight, and the restyle path
+    # declines during one, so a colour chosen in that window would be
+    # seeded from the stale snapshot and silently lost the moment the
+    # run landed. The dialog's record is the authority for those, so
+    # it is re-read here rather than trusted from the snapshot.
+    for a in assignments:
+      if a.get("mode") == "Categorized" and a.get("var"):
+        a["category_colours"] = self._category_colours.get(
+          a["id"], {}).get(a["var"])
+
     # keep the previous run's renderers (possibly hand-refined in the
     # styling dock) before touching any layers
     old_renderers = {}
@@ -2792,6 +3164,11 @@ class WeavingSpaceDialog(QDialog):
         bridge.embed_style(out)
       element_fills[tid] = bridge.renderer_fill_colours(out)
       out.setCustomProperty("weavingspace_output", True)
+      # Hand-picked category colours travel with the layer, so a saved
+      # project reopened after QGIS restarts still knows them and the
+      # next Generate keeps them. The dialog's own dict lives only as
+      # long as the session; the .qgz outlives it.
+      self._stamp_category_colours(out, a)
       # the element this layer carries, so a dialog opened later in
       # the session can adopt the group instead of starting a rival
       # one (see _adopt_existing_group)
@@ -2836,13 +3213,23 @@ class WeavingSpaceDialog(QDialog):
     # anyone's ramps on the strength of it; which colours to use is
     # the cartographer's decision, and this only makes the cost of a
     # choice visible while it can still be changed.
-    from weavingspace_qgis import perception
-    colour_clash = perception.clash_message(
-      perception.clashes(
-        {tid: fills for tid, fills in element_fills.items() if fills},
-        shared={a["id"]: (a.get("ramp"), a.get("reverse"),
-                          a.get("class_source"))
-                for a in assignments}))
+    #
+    # Off unless asked for. It is a second opinion on a cartographic
+    # choice rather than a fault, and while somebody is still trying
+    # ramps it has nothing useful to say -- it would fire on almost
+    # every intermediate state, which is how a warning becomes
+    # something people learn to ignore. The whole check is skipped
+    # rather than computed and withheld, so an unchecked box costs
+    # nothing at all.
+    colour_clash = None
+    if self.opt_colour_warnings.isChecked():
+      from weavingspace_qgis import perception
+      colour_clash = perception.clash_message(
+        perception.clashes(
+          {tid: fills for tid, fills in element_fills.items() if fills},
+          shared={a["id"]: (a.get("ramp"), a.get("reverse"),
+                            a.get("class_source"))
+                  for a in assignments}))
     # Stashed rather than reported here. This runs inside
     # _on_generated, whose finally clears live_note -- so a notice
     # pushed now is wiped a moment later, which is exactly what

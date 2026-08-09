@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-14 defect(s) with a regression test.
+34 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -43,17 +43,61 @@ there is no separate list to remember.
 
 ## Found by driving the UI and rebuilding the same map from the library directly
 
+- **every other check on this feature stopped at the renderer, one step short of the map.**  
+  guarded by `test_a_picked_colour_changes_the_rendered_map`
 - **a rebuilt table cycled a default variable back into an element the user had deliberately unassigned.**  
   guarded by `test_choice_persistence_and_recovery`
+- **none yet; this pins the feature's central claim.**  
+  guarded by `test_editing_a_category_colour_reaches_the_map`
 - **Generate pressed inside the 350 ms preview debounce tiled the PREVIOUS design, so the map did not match the dialog.**  
   guarded by `test_generate_uses_the_design_on_screen`
 - **identity modifier transforms (rotate 0, scale 1) rebuilt geometry with enough floating-point rounding to flip tie-prone joins, changing which element a boundary tile belonged to.**  
   guarded by `test_ui_library_modifier_chain`
 
+## Found by unrecorded
+
+- **only _finish_run restored the determinate progress range, and the zombie recovery does not go through it.**  
+  guarded by `test_a_new_run_always_shows_real_progress`
+- **the inset percentage conversion was defended only by comparisons whose tolerance is wider than the error.**  
+  guarded by `test_an_inset_percentage_is_a_percentage_of_the_spacing`
+- **cancel's immediate report to the dialog was untested; removing it left the window disabled until the abandoned work finished.**  
+  guarded by `test_cancelling_frees_the_dialog_at_once`
+- **the colour-separability warning fired unconditionally, on every map, whether or not anyone wanted that opinion.**  
+  guarded by `test_colour_legibility_warnings_are_opt_in`
+- **control ranges and steps were unasserted as a class; a mutation batch moved one and the suite was silent.**  
+  guarded by `test_every_control_accepts_the_range_it_should`
+- **no test asserted any control's tooltip, so all thirty-one could be removed unnoticed.**  
+  guarded by `test_every_control_explains_itself`
+- **control defaults were unasserted as a class, so any one of them could change unnoticed.**  
+  guarded by `test_every_control_starts_where_it_should`
+- **only hand-listed offsets were pinned, so entries nobody had listed could be changed freely.**  
+  guarded by `test_every_declared_offset_is_pinned`
+- **controls added via a shared row helper were never checked for reachability, so removing the helper call hid two of them.**  
+  guarded by `test_every_design_control_is_reachable`
+- **a vanished element count was invisible, because the catalogue tests all iterate the catalogue's own keys.**  
+  guarded by `test_every_element_count_still_has_its_designs`
+- **only the existence of installed palettes was checked, never the colours they run between.**  
+  guarded by `test_installed_palettes_span_their_declared_colours`
+- **the live-update default was unasserted, so turning it off shipped silently past 100 tests.**  
+  guarded by `test_live_update_is_on_by_default`
+- **swatch direction was untested, so drawing every ramp backwards was invisible.**  
+  guarded by `test_ramp_swatches_run_the_right_way_round`
+- **the outline casing had no test, so losing the black line entirely was invisible to the suite.**  
+  guarded by `test_region_outlines_are_cased`
+- **family-list repopulation had no test, so unblocking its signals was invisible.**  
+  guarded by `test_repopulating_the_family_list_fires_no_handlers`
+- **the design view drew a dark outline around every tile, which fights the colour comparison the view is for.**  
+  guarded by `test_the_design_view_draws_no_tile_outlines`
+- **the deferred fit-to-design after showEvent had no test, so the window could open too small to show its own controls.**  
+  guarded by `test_the_window_fits_its_design_tab_when_shown`
+- **two warnings from one run shared a single label and the last one silently erased the first.**  
+  guarded by `test_two_notices_from_one_run_both_survive`
+
 ## Which shape of test found them
 
+- unrecorded: 18
 - a multi-step session test: 5
+- driving the UI and rebuilding the same map from the library directly: 5
 - reading the code: 3
-- driving the UI and rebuilding the same map from the library directly: 3
 - race and stress testing: 2
 - comparing rendered output against the reference in Lab space: 1

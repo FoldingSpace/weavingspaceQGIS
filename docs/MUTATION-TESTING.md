@@ -235,6 +235,70 @@ incremental gate answers "is this week's work defended". They are
 different questions and the cheap one does not subsume the expensive
 one.
 
+## Measuring cheaply, and the traps in doing so
+
+A mutant's cost is the size of its covering set, and that cost is
+wildly uneven: of 2,579 covered lines, 30% are touched by one to three
+tests and 33% by seventy-one or more. Three consequences shape how the
+tool runs.
+
+**Order each mutant's tests, likeliest killer first.** The cheap first
+pass takes only the first `--max-tests` of the covering set, so the
+ORDER decides whether a kill is found cheaply or the mutant survives
+to a full confirming run. `rank_covering_tests` sorts by word overlap
+between the mutated line and the test's name, then by how few lines
+the test covers (a focused test is likelier to assert about this line
+than a long integration session that passes through it). This cannot
+change a verdict — a mutant is judged by exactly the tests that reach
+it either way — only how soon the verdict arrives.
+
+**Census a cost stratum rather than sampling everything.**
+`--max-cost N` keeps only mutants covered by N tests or fewer and runs
+EVERY one, so that stratum's rate is exact and carries no sampling
+error. The output says so in the rate line itself, and says how many
+reachable mutants were NOT measured. A stratum rate quoted as the
+plugin's rate would be the most flattering mistake this tool could
+make, which is why the scope travels inside the number.
+
+**Re-run timeouts alone before discarding them.** A timeout is not a
+verdict, so it is excluded — and every excluded run is work paid for
+and nothing learnt. Batches 8 and 10 lost four each, almost all
+mutants on heavily covered lines competing with three other workers.
+The retry runs them one at a time with the ceiling tripled; whatever
+finishes becomes a real verdict. It cannot flatter the score, since a
+retry is as free to return "survived" as "killed".
+
+## The measurement keeps flattering itself, and that is the pattern
+
+Four separate defects, all the same shape: a number quietly favouring
+the suite. Worth listing together, because the lesson is not any one
+of them but that this KEEPS HAPPENING and should be actively hunted.
+
+1. **Timeouts counted as kills** (batch 5). Four runs at 313-314s
+   against a 300s ceiling were scored as caught, taking the batch from
+   an honest 63% to 73%. Fixed by separating exit 124 from 125.
+2. **A wall-clock watchdog through a sleeping machine** (batch 8).
+   `time.time()` advances while a laptop sleeps, so a closed lid looked
+   exactly like a hang and four verdicts were discarded. Fixed by
+   moving every clock reading to `time.monotonic()`, which on macOS
+   stops with the machine.
+3. **Branch coverage keyed on colliding offsets.** Instruction offsets
+   restart at zero in every code object, so a quarter of `bridge.py`'s
+   decisions shared a key with an unrelated function; merged
+   destinations made decisions look taken both ways when they were
+   not, inflating the branch figure in every release report. Fixed by
+   keying on the code object as well.
+4. **Per-module rates counting timeouts as kills.** The headline
+   excluded them; the by-module breakdown did not, so batch 10's
+   modules summed to 77/100 against a headline of 73/96 — the
+   discarded runs reappearing as successes in the one place a reader
+   looks to find the weakest module. Fixed, and the per-module figures
+   reported for batches 8 and 10 were wrong by that amount.
+
+Three of the four were found by reading the code with fresh attention
+rather than by any test, and the fourth by arithmetic that did not add
+up. When a number here looks good, check how it is counted.
+
 ## Campaign history
 
 | batch | mutants | caught | rate | what it taught |
@@ -243,9 +307,61 @@ one.
 | auto 1 | 15 | 8 | 53% | catalogue option VALUES were unasserted; typed input reached the unit only because tests rebuilt it themselves |
 | auto 2 | 20 | 7 | 35% | whole controls worked only because tests called the rebuild; the Help tab could be deleted unnoticed; a layer's first field was a boundary case |
 | auto 3 | 30 | 15 | 50% | the region chooser could offer the plugin's own output; the spacing default and the Auto button could vanish; a catalogue offset could move. Understated: run against a stale coverage record, so the campaign's own new tests were never selected |
+| auto 4 | 30 | 19 | 63% | lower limit 43.9% |
+| auto 5 | 30 | 19 | 63% | first reported as 73%: four runs at 313–314s against a 300s ceiling had been counted as kills. Re-judged once timeouts were separated from verdicts. The batch that taught us machine load can raise a score |
+| auto 6 | 30 | 23 | 77% | lower limit 57.7%, the best bound in the campaign until batch 8 |
+| auto 7 | 30 | 20 | 67% | lower limit 47.2% |
+| auto 8 | 60 | 41/56 | 73% | lower limit 60%, n=56. Four runs discarded to a machine that slept mid-batch (fixed: the watchdog now uses a monotonic clock). Every survivor was a DEFAULT, an INITIALISATION or a mark set once and read elsewhere; not one was in the tiling logic or the colour mathematics |
+| auto 9 | 60 | 48/60 | 80% | CERTIFICATION: lower limit 68%, n=60, against a suite of 120. No code changed while it ran. All sixty judged — no timeouts, the first batch to lose nothing to the machine |
+| auto 10 | 100 | 73/96 | 76% | **lower limit 66%, n=96**, against a suite of 123. Run to push the bound past 70% by sample size alone; it did not, because the rate fell from 80% to 76% and a lower rate eats the gain. A larger sample tightens an interval around WHATEVER rate turns up — it is not a ratchet, and this is the batch that proved it here |
 
 The decline from 53% to 35% was not a regression. Batch two happened
 to sample the dialog's wiring, where the suite was weakest, and that
 is what a random sample is for. Both batches produced tests worth
 having on their own terms, which is the actual return on the exercise
 — the score is the instrument, not the product.
+
+Rates from different batches are NOT pooled. Each measures a different
+suite, because the campaign changes the suite between batches; adding
+them together would produce a number that describes nothing that ever
+existed. The claim to quote is a single batch's lower limit, and the
+one to quote now is **68%, from batch 9** — the certification batch,
+run with the suite frozen and nothing changed underneath it.
+
+Where that leaves the 70% goal, stated precisely, because the two
+readings of it differ. The measured kill rate sits in the high
+seventies — 80% over batch 9's sixty mutants, 76% over batch 10's
+ninety-six. The 95% lower limit is 68% and 66% respectively. Both
+kinds of number are true and they answer different questions: the
+suite very probably does catch about three or four mutants in five,
+and the evidence is not yet enough to promise 70% with 95%
+confidence.
+
+Batch 10 was run on the theory that this was a sampling problem
+rather than a testing one: at 80%, a hundred mutants would put the
+lower limit above 70%. It did not, because the rate came in at 76%
+instead, and a lower rate eats the gain from the larger sample. The
+lesson is worth keeping, because it is easy to get backwards: a
+bigger sample tightens the interval around WHATEVER rate turns up. It
+is not a ratchet, and no amount of sampling turns a 76% suite into a
+defensible 70% floor with room to spare — that takes killing more
+mutants.
+
+Two batches at 80% and 76% are also a useful reminder that a single
+batch's rate carries real noise: with n=60, a suite whose true rate is
+78% will report anywhere from about 67% to 88% one time in twenty.
+Neither batch is evidence that the suite got worse.
+
+Batch 8 also shows why sample size matters more than kill rate. Its
+raw 73% is barely above batch 6's 77%, yet its lower limit is 60%
+against batch 6's 57.7% — because 56 judged mutants pin the interval
+far better than 30. Doubling the sample bought more confidence than
+four batches of test-writing bought rate.
+
+One caveat belongs with that number. Each worker runs from a sandbox
+copy taken when the batch STARTS, so tests written while a batch runs
+are not in it. Eight tests were added during batch 8, several closing
+its own survivors, and none of them could affect its rate. The 60% is
+therefore a floor under a suite that has since improved, which is the
+honest direction for a bound to be wrong in — and the reason the
+campaign certifies out of sample rather than mid-flight.

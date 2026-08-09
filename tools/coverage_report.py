@@ -93,16 +93,26 @@ def executable_lines(path):
 
 
 def branch_points(path):
-  """Every decision in a file, as (line, bytecode offset) pairs.
+  """Every decision in a file, as (line, code, offset) triples.
 
   Args:
     path: a source file.
 
   Returns:
-    A set of (source line, instruction offset) for each conditional
-    jump the interpreter will execute — ``if``/``while`` tests,
-    boolean short-circuits, comprehension filters, and loop exits
-    (``FOR_ITER``, whose "branch" is loop-again versus loop-done).
+    A set of (source line, code-object first line, instruction offset)
+    for each conditional jump the interpreter will execute —
+    ``if``/``while`` tests, boolean short-circuits, comprehension
+    filters, and loop exits (``FOR_ITER``, whose "branch" is
+    loop-again versus loop-done).
+
+  The code object's first line is part of the key because INSTRUCTION
+  OFFSETS RESTART AT ZERO IN EVERY CODE OBJECT. Keyed by offset alone,
+  a decision in one function collides with a decision at the same
+  offset in another: measured on bridge.py, 130 branch instructions
+  occupy only 95 distinct offsets, so a quarter of them shared a key.
+  Merged destinations then made decisions look taken both ways when
+  one of the two had only ever gone one way, and the "taken both ways"
+  figure this tool publishes was inflated accordingly.
 
   Why bytecode and not the syntax tree: what matters is what the
   interpreter actually decides. One ``if a and b:`` is two decisions,
@@ -137,7 +147,7 @@ def branch_points(path):
       name = instruction.opname
       if line and (name.startswith(("POP_JUMP_IF", "JUMP_IF"))
                    or name == "FOR_ITER"):
-        out.add((line, instruction.offset))
+        out.add((line, code.co_firstlineno, instruction.offset))
     stack += [c for c in code.co_consts if hasattr(c, "co_lines")]
   return out
 
@@ -146,7 +156,23 @@ def gaps(missing, minimum=3):
   """Consecutive runs of unexecuted lines, longest first: the useful
   form for "where should the next test go", since scattered single
   lines are usually error branches while a run of twenty is a feature
-  nothing exercises."""
+  nothing exercises.
+
+  Args:
+    missing: the line numbers of one file that the suite never
+      executed, in any order (they are sorted here). Line numbers
+      only: the caller has already narrowed this to a single module.
+    minimum: the shortest run worth reporting. Three is the default
+      because one or two adjacent unexecuted lines are almost always
+      a guard's body, and listing every one of those would bury the
+      runs that mean a whole feature is untested.
+
+  Returns:
+    A list of (first line, last line) pairs, longest run first, each
+    spanning at least minimum consecutive lines. Runs shorter than
+    minimum are dropped rather than merged, so the pairs do not
+    account for every line in missing. The argument is not modified.
+  """
   runs, current = [], []
   for line in sorted(missing):
     if current and line == current[-1] + 1:
@@ -166,6 +192,31 @@ def run_suite_with_monitoring(seen, branches=None):
   The suite calls sys.exit() when it finishes, which is caught here so
   the report can still be written; its exit status is returned so a
   caller can tell whether the tests themselves passed.
+
+  Args:
+    seen: the set this call FILLS with (absolute filename, line) for
+      every plugin line that executed. Passed in rather than returned
+      so that a run which dies part-way still leaves the caller
+      holding whatever was recorded before the crash.
+    branches: when given, the dict this call fills with
+      {(filename, instruction offset): set of destination offsets},
+      recording which way each decision went. Leave it None to skip
+      BRANCH monitoring entirely, which is the cheaper of the two
+      measurements.
+
+  Returns:
+    The suite's exit status: 0 when every test passed, non-zero
+    otherwise, so a caller can propagate a real test failure instead
+    of reporting coverage of a broken run as though it were news.
+    Both seen and branches are mutated in place. Monitoring is torn
+    down in a finally block, because the tool id is a global resource
+    of the interpreter and leaving it claimed would break any later
+    profiler in the same process.
+
+  The suite runs in THIS process (runpy, not a subprocess) because
+  sys.monitoring only sees the interpreter it is registered in, and
+  sys.argv is set to the suite's own path first so anything the suite
+  reads from argv sees what it would see when run directly.
   """
   mon = sys.monitoring
   tool = mon.COVERAGE_ID
@@ -181,16 +232,21 @@ def run_suite_with_monitoring(seen, branches=None):
   def on_branch(code, offset, destination):
     """A decision was resolved: record WHERE it jumped to.
 
-    Keyed by (file, instruction offset) with the set of destinations
-    seen, because a decision is only properly tested once it has gone
-    both ways — one destination means the suite has only ever seen
-    that ``if`` succeed (or only ever fail). Unlike lines, these are
-    never DISABLEd: the second way through the same decision is
-    exactly what we are waiting for."""
+    Keyed by (file, code-object first line, instruction offset) with
+    the set of destinations seen, because a decision is only properly
+    tested once it has gone both ways — one destination means the
+    suite has only ever seen that ``if`` succeed (or only ever fail).
+    Unlike lines, these are never DISABLEd: the second way through the
+    same decision is exactly what we are waiting for.
+
+    The code object is part of the key because offsets restart at zero
+    in each one; see branch_points, which must key identically or the
+    two inventories do not line up at all."""
     filename = code.co_filename
     if not filename.startswith(SRC) or filename.startswith(EXCLUDED):
       return mon.DISABLE
-    branches.setdefault((filename, offset), set()).add(destination)
+    branches.setdefault(
+      (filename, code.co_firstlineno, offset), set()).add(destination)
     return None
 
   mon.register_callback(tool, mon.events.LINE, on_line)
@@ -214,7 +270,30 @@ def run_suite_with_monitoring(seen, branches=None):
 
 def write_report(seen, path, branches=None):
   """Write coverage.md and return (lines hit, lines total, decisions
-  both ways, decisions total)."""
+  both ways, decisions total).
+
+  Args:
+    seen: the (filename, line) pairs recorded during the run. It is
+      intersected with each module's executable lines, so lines
+      recorded for code that has since changed cannot inflate the
+      total.
+    path: absolute destination for the Markdown report, overwritten
+      if it exists. Release runs point this at
+      reports/v<version>/coverage.md.
+    branches: the decision record from the run, keyed by (filename,
+      instruction offset). None means branch monitoring was not
+      enabled; the report is still written, with every decision
+      shown as never reached.
+
+  Returns:
+    (lines executed, lines executable, decisions taken both ways,
+    decisions total) summed over every module, for the caller to
+    print. Nothing in memory is mutated; the one side effect is the
+    file at path.
+
+  Modules are listed worst-covered first, since the table exists to
+  be read from the top and stopped at.
+  """
   branches = branches if branches is not None else {}
   rows, total_ex, total_hit = [], 0, 0
   total_dec = total_both = 0
@@ -232,8 +311,8 @@ def write_report(seen, path, branches=None):
     decisions = branch_points(filename)
     both = one_way = 0
     half_lines = []
-    for line, offset in decisions:
-      seen_dests = branches.get((filename, offset), set())
+    for line, first, offset in decisions:
+      seen_dests = branches.get((filename, first, offset), set())
       if len(seen_dests) >= 2:
         both += 1
       elif len(seen_dests) == 1:
@@ -282,6 +361,20 @@ def write_report(seen, path, branches=None):
 
 
 def main():
+  """Run the suite under monitoring and write coverage.md beside it.
+
+  The optional command-line argument is the output DIRECTORY (default
+  the repository root); it is read before the suite starts, because
+  running the suite rewrites sys.argv. The repository root goes on
+  sys.path so that ``import weavingspace_qgis`` resolves to the
+  working tree rather than to any copy installed in a QGIS profile.
+
+  Returns:
+    Nothing; exits with the SUITE's status, not with its own. A
+    coverage report is a description, never a gate: it must not turn
+    a passing release into a failing one, and equally must not hide a
+    test failure behind a successfully written report.
+  """
   sys.path.insert(0, ROOT)
   out_dir = sys.argv[1] if len(sys.argv) > 1 else ROOT
   os.makedirs(out_dir, exist_ok=True)

@@ -152,6 +152,19 @@ MODALS = []
 def check(name, fn):
   """Run one test in an isolated project.
 
+  Args:
+    name: the display name, printed with the result and used as the
+      key in the release's testing report. It is matched against the
+      mutation catalogue too, so renaming one here means renaming it
+      there.
+    fn: the test function, called with no arguments. It may raise
+      anything; the traceback is caught and reported rather than
+      stopping the run, so one failure does not hide the rest.
+
+  Returns:
+    True when the test passed. The project is emptied afterwards
+    either way.
+
   Every dialog test works through the ONE QgsProject singleton, so
   layers (and generated output groups) left behind by one test are
   visible to the next: the region combo may select a different layer
@@ -235,6 +248,14 @@ def make_region_gdf():
 
 
 def test_deps():
+  """Every package the plugin needs is present in this QGIS.
+
+  The first thing to check and the cheapest: geopandas and shapely
+  arrive with some QGIS builds and not others, and a missing one
+  turns every later failure in this file into a confusing symptom of
+  the same cause. deps.missing_packages() reports what the
+  provisioner would have to fetch.
+  """
   from weavingspace_qgis import deps
   missing = deps.missing_packages()
   assert missing == [], f"deps missing/outdated in this QGIS: {missing}"
@@ -248,6 +269,14 @@ def test_deps():
 
 
 def test_library_units():
+  """The vendored weavingspace builds the units we rely on.
+
+  A guard on the boundary between us and upstream: before any plugin
+  behaviour is worth testing, the library itself must produce the
+  tile units and weave units the catalogue names, with the element
+  ids it promises. A re-vendor that broke one of these would
+  otherwise surface as a dozen unrelated plugin failures.
+  """
   from weavingspace import TileUnit, WeaveUnit
   for spec in (dict(cls=TileUnit, kw=dict(tiling_type="cairo"),
                     ids="abcd"),
@@ -290,6 +319,15 @@ def test_catalogue_sweep():
 
 
 def test_bridge_roundtrip():
+  """A QGIS layer becomes a GeoDataFrame and comes back intact.
+
+  The conversion at the heart of the plugin: geometry, attribute
+  values and CRS have to survive the trip in both directions, since
+  everything downstream is computed on the GeoDataFrame and drawn
+  from the layer. Values are checked as well as counts — a round trip
+  that keeps every row and loses what they say is the failure worth
+  catching.
+  """
   from weavingspace_qgis import bridge
   layer = make_region_layer()
   gdf = bridge.layer_to_gdf(layer, ["v1", "landcover"])
@@ -477,6 +515,15 @@ def test_awkward_geometry():
 
 
 def test_renderer_seeding():
+  """Each style produces the QGIS renderer it should.
+
+  The dialog never draws anything itself: it seeds a standard
+  graduated, categorized or single-symbol renderer and hands the
+  layer to QGIS. This checks that seeding, including that the
+  plugin's palettes reach the style library first — a ramp named but
+  not installed yields a renderer with the wrong colours and no
+  error.
+  """
   from weavingspace_qgis import bridge, compat
   bridge.ensure_ramps_installed()
   assert "tab10" in QgsStyle.defaultStyle().colorRampNames()
@@ -570,6 +617,14 @@ def test_qml_class_template():
 
 
 def test_size_guard():
+  """A spacing that would produce an unreasonable tiling is refused.
+
+  Tile count grows as the inverse square of spacing, so a slip of a
+  decimal point asks for millions of tiles and QGIS stops responding
+  while the library works. The guard estimates the count before any
+  tiling starts and declines, which is the difference between a
+  message and a hung application.
+  """
   from weavingspace_qgis import bridge
   from weavingspace import TileUnit, Tiling
   unit = TileUnit(tiling_type="cairo", spacing=10, crs=3857)
@@ -614,18 +669,37 @@ def test_support_logic():
 
 
 class _Bar:
+  """A stand-in for QGIS's message bar, for tests that run headless.
+
+  The real bar belongs to the QGIS main window, which does not exist
+  here. Collecting nothing is deliberate: tests that care what was
+  said read the dialog's own note line instead, and a stub that
+  merely absorbs the call keeps the code path identical to a real
+  session's.
+  """
   def pushSuccess(self, *a):
+    """Absorb a success notice, as the real bar would display one."""
     pass
 
   def pushWarning(self, *a):
+    """Absorb a warning, as the real bar would display one."""
     pass
 
 
 class _Iface:
+  """The slice of QGIS's iface the plugin actually uses.
+
+  Passing iface=None puts the dialog in its headless mode, where
+  notices go to its own note line; passing this instead exercises the
+  branch a real QGIS session takes, without a QGIS window existing.
+  Both paths matter, so both are used across this file.
+  """
   def mainWindow(self):
+    """The parent a real dialog would be given; None is accepted."""
     return None
 
   def messageBar(self):
+    """The stub bar, so pushWarning and pushSuccess have somewhere to go."""
     return _Bar()
 
 
@@ -848,6 +922,14 @@ def test_palette_pick_survives_debounce():
 
 
 def test_dialog_end_to_end():
+  """One ordinary session: layer in, variables assigned, map out.
+
+  The broadest functional test in the file, and the one that fails
+  first when something fundamental breaks. It asserts the shape of a
+  finished run — a layer group, one output layer per element, each
+  carrying tiles and a renderer — rather than any particular
+  cartography, which the visual tests judge instead.
+  """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   layer = make_region_layer()
   QgsProject.instance().addMapLayer(layer)
@@ -1167,6 +1249,1506 @@ def test_style_follow_and_memory():
   dlg.close()
 
 
+def test_the_window_fits_its_design_tab_when_shown():
+  """Showing the dialog sizes it to the controls it contains.
+
+  Qt cannot report a truthful sizeHint before a real layout pass, so
+  the fit is deferred to a zero-delay timer after showEvent. Drop
+  that and the window keeps its constructed height, which is smaller
+  than the Design tab needs: the controls are all there, in the
+  layout, and the bottom of the panel is simply off the window.
+
+  Regression: the deferred fit-to-design after showEvent had no test, so the window could open too small to show its own controls.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.layer_combo.setLayer(layer)
+  dlg.show()
+  _tick(300)                        # let the deferred fit happen
+  needed = dlg._design_wrapper.sizeHint().height()
+  assert dlg.height() >= needed, \
+    f"the window is {dlg.height()}px tall but its Design tab needs "\
+    f"{needed}px, so the lower controls are off the bottom"
+  dlg.close()
+
+
+def test_cancelling_frees_the_dialog_at_once():
+  """Cancel gives the dialog back immediately, not eventually.
+
+  Cancellation is a request. Work already inside the library cannot
+  be interrupted, so the task may run on for some seconds; QGIS will
+  call finished() when it truly stops, and that would eventually
+  re-enable everything. TilingTask.cancel therefore reports to the
+  dialog itself, straight away, which is what makes the window usable
+  again while the doomed work winds down.
+
+  The existing cancel test settles first and so cannot see this: by
+  the time it looks, QGIS has caught up either way. This one asserts
+  WITHOUT waiting, which is the only way the difference shows.
+
+  Regression: cancel's immediate report to the dialog was untested; removing it left the window disabled until the abandoned work finished.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.spacing_spin.setValue(300)      # slow enough to still be running
+  dlg._generate()
+  assert dlg._task is not None, "a task should be in flight"
+  assert not dlg.generate_btn.isEnabled(), \
+    "Generate should be disabled while a run is going"
+
+  dlg._task.cancel()
+  _tick(0)                            # one pass, no settling
+  assert dlg._task is None, \
+    "the dialog still holds the cancelled task, so it will refuse "\
+    "the next Generate until the abandoned work finishes"
+  assert dlg.generate_btn.isEnabled(), \
+    "Generate is still disabled straight after a cancel; the user "\
+    "has to wait for work they asked to stop"
+  _settle(dlg)
+  dlg.close()
+
+
+def test_every_design_control_is_reachable():
+  """Each control the Design tab offers is really in the window.
+
+  A widget that is built, configured and connected but never added to
+  a layout works perfectly from a test — which sets it directly — and
+  is invisible to the user, who cannot reach it at all. That is not
+  hypothetical: dropping the row that adds Scale EW/NS survived a
+  whole mutation batch, because every test that uses those spin boxes
+  assigns to them rather than looking for them.
+
+  So this asks the question tests otherwise never ask: is the control
+  part of the dialog's widget tree, and would it show?
+
+  Regression: controls added via a shared row helper were never checked for reachability, so removing the helper call hid two of them.
+  """
+  from qgis.PyQt.QtWidgets import QTabWidget
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.layer_combo.setLayer(layer)
+  dlg.show()
+  _tick(200)
+
+  wanted = ["mod_rotate", "mod_scale_x", "mod_scale_y",
+            "mod_skew_x", "mod_skew_y", "mod_p_inset", "mod_t_inset",
+            "spacing_spin", "shells_spin", "n_combo", "kind_combo",
+            "family_combo", "generate_btn", "live_check", "table",
+            "preview", "layer_combo", "opt_tile_outlines"]
+  # Controls live on different tabs, so a control is reachable if it
+  # shows on ANY tab, not on whichever happens to be in front. Walking
+  # the tabs is also the honest question: can the user get to it at
+  # all, by any route the window offers.
+  tabs = dlg.findChild(QTabWidget)
+  assert tabs is not None, "the dialog has no tab widget"
+  seen = set()
+  for index in range(tabs.count()):
+    tabs.setCurrentIndex(index)
+    _tick(60)
+    for name in wanted:
+      widget = getattr(dlg, name, None)
+      if widget is not None and widget.isVisibleTo(dlg):
+        seen.add(name)
+
+  missing = []
+  for name in wanted:
+    widget = getattr(dlg, name, None)
+    if widget is None:
+      missing.append(f"{name}: the dialog has no such attribute")
+    elif not dlg.isAncestorOf(widget):
+      missing.append(
+        f"{name}: built but never added to any layout, so no user "
+        f"can reach it")
+    elif name not in seen:
+      missing.append(
+        f"{name}: in the widget tree but shows on no tab")
+  assert not missing, "unreachable control(s):\n  " + "\n  ".join(missing)
+  dlg.close()
+
+
+# Every control's declared default, range and step, in one place.
+# This table is the POINT of the two tests below it. Mutation batches
+# kept turning up the same kind of survivor — a default nobody
+# asserted, a ceiling nobody pinned — one at a time, each needing its
+# own test. A table covers the whole family at once, including the
+# controls no batch has happened to sample yet, and a new control is
+# covered the moment somebody adds a row.
+#
+# Values were read from a live dialog rather than transcribed from
+# dialog.py, so this states what a user MEETS rather than restating
+# the construction call; a test written from the source it checks
+# agrees with the source's bugs.
+CONTROL_DEFAULTS = {
+  # spin boxes: (default, minimum, maximum, step)
+  "spacing_spin": (1000.0, 1e-06, 1e12, 1.0),
+  "shells_spin": (1, 0, 4, 1),
+  "mod_rotate": (0.0, -90.0, 90.0, 1.0),
+  "mod_scale_x": (1.0, 0.5, 4.0, 0.02),
+  "mod_scale_y": (1.0, 0.5, 4.0, 0.02),
+  "mod_skew_x": (0.0, -45.0, 45.0, 1.0),
+  "mod_skew_y": (0.0, -45.0, 45.0, 1.0),
+  "mod_p_inset": (0.0, 0.0, 10.0, 0.1),
+  "mod_t_inset": (0.0, 0.0, 5.0, 0.1),
+  "opt_offset": (0.0, -1.0, 1.0, 0.01),
+  "opt_offset_angle": (0.0, -50.0, 85.0, 1.0),
+  "opt_point_angle": (30.0, 10.0, 120.0, 1.0),
+  "opt_aspect": (0.75, 0.083, 1.0, 0.083),
+  "opt_grid_rows": (1, 1, 26, 1),
+  "opt_grid_cols": (1, 1, 26, 1),
+}
+
+CONTROL_CHECKBOXES = {
+  # every switch starts OFF except where noted, because a plugin that
+  # arrives with options already applied is making decisions for a
+  # user who has not met it yet
+  "mod_glyph": (False, "Scale as glyph (independent of tiling)"),
+  "opt_tile_outlines": (False, "Draw tile boundaries"),
+  "opt_join_prototiles": (False, "Join data using whole tileable"),
+  "opt_retain": (False, "Retain complete tileables at edges"),
+  "opt_clip": (False, "Clip by map units (no ragged edges)"),
+  "opt_icons": (False, "Use tileable as icon (one per map unit)"),
+  "opt_outlines": (False, "Add map unit outlines layer"),
+  "opt_new_group": (False, "Create as new group (keep the previous result)"),
+  "opt_colour_warnings":
+    (False, "Warn about lack of legibility in colour choices"),
+}
+
+
+def test_every_control_starts_where_it_should():
+  """The value a user meets in each control, before touching anything.
+
+  A default is a decision: it is what most maps will be made with,
+  and it is the one setting most users never revisit. Yet defaults
+  are invisible to ordinary tests, which set the value they want
+  before asserting anything — so a changed default sails through a
+  suite that exercises the control thoroughly.
+
+  Live update is the case that proves it: every test in this file
+  turns it off in its opening lines, so the suite was unanimous about
+  a setting none of it asserted.
+
+  Regression: control defaults were unasserted as a class, so any one of them could change unnoticed.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  # No layer in the project. With one, auto-spacing legitimately
+  # replaces the declared spacing with a value sized to that layer's
+  # extent -- correct behaviour, tested elsewhere, and not what
+  # "before touching anything" means. The DECLARED defaults are what
+  # a user meets on a fresh install with nothing loaded.
+  project = QgsProject.instance()
+  for existing in list(project.mapLayers().values()):
+    project.removeMapLayer(existing.id())
+  dlg = WeavingSpaceDialog(iface=None)
+  _tick(150)
+
+  wrong = []
+  for name, (default, _lo, _hi, _step) in CONTROL_DEFAULTS.items():
+    widget = getattr(dlg, name, None)
+    if widget is None:
+      wrong.append(f"{name}: the dialog has no such control")
+      continue
+    if abs(widget.value() - default) > 1e-9:
+      wrong.append(f"{name} starts at {widget.value()}, not {default}")
+  for name, (checked, label) in CONTROL_CHECKBOXES.items():
+    widget = getattr(dlg, name, None)
+    if widget is None:
+      wrong.append(f"{name}: the dialog has no such control")
+      continue
+    if widget.isChecked() != checked:
+      wrong.append(
+        f"{name} starts {'on' if widget.isChecked() else 'off'}, "
+        f"should start {'on' if checked else 'off'}")
+    if widget.text() != label:
+      wrong.append(f"{name} reads {widget.text()!r}, not {label!r}")
+
+  # live update is the exception: it is ON, so a first map appears
+  if not dlg.live_check.isChecked():
+    wrong.append("live_check starts off; a new user would see no map")
+
+  assert not wrong, "controls do not start where they should:\n  " + \
+    "\n  ".join(wrong)
+  dlg.close()
+
+
+def test_every_control_accepts_the_range_it_should():
+  """What each control will let a user ask for.
+
+  A range is as much a design decision as a default: the class count
+  runs 2 to 20 because a ramp stops reading as classes beyond that,
+  the tile inset stops at 5% because more swallows thin strands, and
+  the aspect step is 1/12 because strand widths are twelfths. Widen
+  or narrow one and the plugin quietly permits, or refuses, something
+  it was designed not to.
+
+  Steps matter for the same reason and are easier to lose: a step is
+  what a user gets by nudging, and a control that lurches in whole
+  units is a control nobody uses for fine work.
+
+  Regression: control ranges and steps were unasserted as a class; a mutation batch moved one and the suite was silent.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  # ranges do not depend on a layer, but an empty project keeps this
+  # test independent of whatever the previous one left behind
+  project = QgsProject.instance()
+  for existing in list(project.mapLayers().values()):
+    project.removeMapLayer(existing.id())
+  dlg = WeavingSpaceDialog(iface=None)
+  _tick(150)
+
+  wrong = []
+  for name, (_default, low, high, step) in CONTROL_DEFAULTS.items():
+    widget = getattr(dlg, name, None)
+    if widget is None:
+      wrong.append(f"{name}: the dialog has no such control")
+      continue
+    if abs(widget.minimum() - low) > 1e-9:
+      wrong.append(f"{name} accepts from {widget.minimum()}, not {low}")
+    if abs(widget.maximum() - high) > 1e-9:
+      wrong.append(f"{name} accepts up to {widget.maximum()}, not {high}")
+    if abs(widget.singleStep() - step) > 1e-9:
+      wrong.append(f"{name} steps by {widget.singleStep()}, not {step}")
+  assert not wrong, "control ranges have moved:\n  " + "\n  ".join(wrong)
+  dlg.close()
+
+
+def test_every_control_explains_itself():
+  """Each control carries a tooltip, and the tooltip says something.
+
+  Guidance in this plugin is deliberately in the interface rather than
+  only in a manual: the README promises that every control has a
+  tooltip, and the design decision to put explanation at the point of
+  use is why the Help tab is short. Thirty-one tooltips are set in
+  dialog.py and, until this test, not one of them was asserted — so
+  any of them could vanish and the suite would be silent, which is
+  how a plugin becomes quietly unexplained.
+
+  A whole CLASS of mutant lives here. Removing a `setToolTip(...)`
+  call is invisible to every functional test, because a tooltip
+  changes no behaviour; it changes whether anyone can work out what
+  the control does. Asserting the family at once is the only
+  proportionate answer to thirty-one of them.
+
+  Length is checked at BOTH ends. A one-word tooltip repeating the
+  label ("Spacing") explains nothing and would satisfy a bare
+  non-empty test. A forty-word one is not a tooltip either: it is a
+  paragraph in a yellow box, and this project's rule is that a
+  tooltip is a nudge at the point of use while the user guide and the
+  Help tab carry the explanation. Fifteen words is the ceiling; the
+  shortest useful ones here run to four.
+
+  Regression: no test asserted any control's tooltip, so all thirty-one could be removed unnoticed.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  _tick(200)
+
+  # every control a user can reach on the Design and Map options
+  # tabs, plus the two that decide what a run produces
+  wanted = sorted(set(CONTROL_DEFAULTS) | set(CONTROL_CHECKBOXES) |
+                  {"live_check", "layer_combo", "n_combo", "kind_combo",
+                   "family_combo", "gpkg_widget"})
+  bare, terse, windy = [], [], []
+  for name in wanted:
+    widget = getattr(dlg, name, None)
+    if widget is None or not hasattr(widget, "toolTip"):
+      continue
+    tip = (widget.toolTip() or "").strip()
+    words = len(tip.split())
+    if not tip:
+      bare.append(name)
+    elif words < 3:
+      terse.append(f"{name}: {tip!r} ({words} words)")
+    elif words > 15:
+      windy.append(f"{name}: {words} words — {tip[:60]}...")
+
+  assert not bare, \
+    "control(s) with no tooltip at all, in a plugin whose guidance "\
+    "lives in the interface:\n  " + "\n  ".join(bare)
+  assert not terse, \
+    "tooltip(s) that only repeat their label:\n  " + "\n  ".join(terse)
+  assert not windy, \
+    "tooltip(s) longer than a nudge; the guide and Help tab carry "\
+    "the fuller explanation:\n  " + "\n  ".join(windy)
+  dlg.close()
+
+
+def test_the_design_view_draws_no_tile_outlines():
+  """The preview shows areas of colour, not a mesh.
+
+  A dark hairline around every tile competes with the thing the
+  design view exists to judge: whether the shapes read as distinct
+  elements. It also thickens relative to the tiles as the spacing
+  gets finer, so a detailed pattern turned into a grid of lines.
+
+  Checked by rendering the preview and looking for the outline
+  colour, rather than by inspecting the paint calls: what matters is
+  what reaches the pixels. The old outline was #333333 at 0.7px, so
+  its exact shade may never appear in a rendering; the test therefore
+  asks the broader question — are there DARK pixels tracing the tile
+  edges — by counting how many sampled pixels are darker than any
+  fill the preview uses.
+
+  Regression: the design view drew a dark outline around every tile, which fights the colour comparison the view is for.
+  """
+  from qgis.PyQt.QtGui import QColor, QImage, QPainter
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg._rebuild_unit()
+  _tick(200)
+  assert dlg.preview._polys, "nothing was drawn in the preview"
+
+  image = QImage(420, 420, QImage.Format.Format_RGB32)
+  image.fill(QColor("#ffffff"))
+  painter = QPainter(image)
+  dlg.preview.render(painter)
+  painter.end()
+
+  fills = [QColor(c) for c in dlg.preview._id_colours.values()]
+  darkest_fill = min((c.lightness() for c in fills), default=255)
+  # anything appreciably darker than every fill can only be ink: the
+  # outline, or the tile-id labels
+  ink = 0
+  for x in range(0, image.width(), 3):
+    for y in range(0, image.height(), 3):
+      if QColor(image.pixel(x, y)).lightness() < darkest_fill - 40:
+        ink += 1
+  sampled = (image.width() // 3) * (image.height() // 3)
+  assert ink < sampled * 0.02, \
+    f"{ink} of {sampled} sampled pixels are darker than any fill "\
+    f"({ink / sampled:.1%}); the design view is drawing outlines "\
+    f"around its tiles"
+  dlg.close()
+
+
+def test_colour_legibility_warnings_are_opt_in():
+  """The colour-legibility check runs only when it is asked for.
+
+  It is a second opinion on a cartographic choice, not a fault, and
+  while someone is still trying ramps it would fire on nearly every
+  intermediate state — which is how a warning becomes something
+  people learn to ignore. So it lives behind a box on Map options,
+  unchecked by default.
+
+  Both places the check can fire are covered: after a run, and on
+  closing the Categorical colour editor. The map itself must be
+  identical either way — the box changes what is SAID, never what is
+  drawn.
+
+  Regression: the colour-separability warning fired unconditionally, on every map, whether or not anyone wanted that opinion.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+
+  assert not dlg.opt_colour_warnings.isChecked(), \
+    "the legibility check is on by default; it is meant to be asked for"
+  assert dlg.opt_colour_warnings.text() == \
+    "Warn about lack of legibility in colour choices", \
+    f"the box reads {dlg.opt_colour_warnings.text()!r}"
+
+  _generate_and_wait(dlg)
+  _tick(300)
+  quiet_tiles = sum(
+    QgsProject.instance().mapLayer(i).featureCount()
+    for i in dlg._element_layer_ids.values()
+    if QgsProject.instance().mapLayer(i) is not None)
+  assert not getattr(dlg, "_pending_colour_note", None), \
+    "a colour-legibility notice was raised with the box unchecked"
+  assert "tell apart" not in dlg.live_note.text(), \
+    f"the note mentions legibility anyway: {dlg.live_note.text()!r}"
+
+  # and with the box ticked, the same map does produce the opinion.
+  # The synthetic layer's default ramps are known to collide, which
+  # is why this can assert a notice rather than merely its absence.
+  dlg.opt_colour_warnings.setChecked(True)
+  dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.15)
+  _generate_and_wait(dlg)
+  _tick(300)
+  loud_tiles = sum(
+    QgsProject.instance().mapLayer(i).featureCount()
+    for i in dlg._element_layer_ids.values()
+    if QgsProject.instance().mapLayer(i) is not None)
+  assert getattr(dlg, "_pending_colour_note", None) or \
+      "tell apart" in dlg.live_note.text(), \
+    "the box is ticked but no legibility opinion was offered"
+  assert loud_tiles > 0 and quiet_tiles > 0, \
+    "both runs must actually have produced a map"
+  dlg.close()
+
+
+def test_region_outlines_are_cased():
+  """The outline is a black line over a wider white one.
+
+  A single-colour boundary disappears wherever the pattern beneath it
+  matches: a black line over dark tiles, a white one over pale. Casing
+  solves that, and it is a settled cartographic decision here rather
+  than decoration. Nothing tested it, so removing the second symbol
+  layer left the map with white-only outlines and every test passed.
+
+  Asserted on the SYMBOL rather than on pixels: the two lines are a
+  fraction of a millimetre apart at map scale, so a render comparison
+  would be measuring the rasteriser, not the decision.
+
+  Regression: the outline casing had no test, so losing the black line entirely was invisible to the suite.
+  """
+  from weavingspace_qgis import bridge
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  outlines = bridge.region_outline_layer(layer)
+  symbol = outlines.renderer().symbol()
+  assert symbol.symbolLayerCount() == 2, \
+    f"the outline has {symbol.symbolLayerCount()} symbol layer(s); "\
+    f"casing needs a wide light line and a narrow dark one over it"
+
+  # these are fill layers with no fill, so the line IS the stroke
+  under, over = symbol.symbolLayer(0), symbol.symbolLayer(1)
+  wide, narrow = under.strokeWidth(), over.strokeWidth()
+  assert wide > narrow, \
+    f"the upper line ({narrow}) is not narrower than the lower "\
+    f"({wide}), so no casing shows"
+  light = under.strokeColor().lightness()
+  dark = over.strokeColor().lightness()
+  assert light > dark, \
+    "the casing is meant to be a DARK line over a LIGHT one; this is "\
+    "the other way round, which vanishes over pale tiles"
+  assert under.strokeColor().alpha() == 255 \
+      and over.strokeColor().alpha() == 255, \
+    "a translucent casing lets the pattern show through the boundary"
+
+
+def _categorical_dialog(field="landcover", row=1):
+  """A dialog with one categorical element, ready to have colours
+  edited.
+
+  Args:
+    field: the categorical attribute to assign, which must exist in
+      make_region_layer's synthetic data.
+    row: which table row to assign it to. Row 1 rather than 0 by
+      default, so the tests also exercise an element that is NOT the
+      first — first-field and first-row cases have been special once
+      already in this plugin.
+
+  Returns:
+    (dialog, layer, tile_id). The dialog has live update OFF and has
+    generated nothing yet, so a caller can test the editor before any
+    map exists, which is one of the things it promises.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(row, 1).setCurrentText(field)
+  dlg._update_dynamic_columns()
+  _tick(100)
+  tid = dlg.table.item(row, 0).text()
+  return dlg, layer, tid
+
+
+def test_installed_palettes_span_their_declared_colours():
+  """An installed ramp runs between the colours the palette declares.
+
+  The plugin installs its palettes into QGIS's style library as
+  gradient ramps: first stop, last stop, and the intermediate stops
+  between them. Take the last stop from the wrong end of the list and
+  every sequential ramp stops short of its darkest colour — which is
+  the end carrying the highest values, so the top class of every map
+  made with it is wrong. Nothing caught that: the existing check
+  confirmed the ramps EXIST.
+
+  Endpoints are compared rather than whole ramps, because those are
+  what the mutation can move and what a reader sees at the extremes
+  of a legend.
+
+  Regression: only the existence of installed palettes was checked, never the colours they run between.
+  """
+  from qgis.PyQt.QtGui import QColor
+  from weavingspace_qgis import bridge
+  bridge.ensure_ramps_installed()
+  checked = 0
+  for group in ("sequential", "diverging"):
+    for name, stops in bridge.PALETTES[group].items():
+      ramp = bridge.get_ramp(name, False)
+      if ramp is None:
+        continue                    # not installed in this profile
+      first = QColor(ramp.color(0.0)).name().lower()
+      last = QColor(ramp.color(1.0)).name().lower()
+      assert first == stops[0].lower(), \
+        f"{name} starts at {first}, but the palette declares "\
+        f"{stops[0].lower()}"
+      assert last == stops[-1].lower(), \
+        f"{name} ends at {last}, but the palette declares "\
+        f"{stops[-1].lower()}; a ramp that stops short loses the "\
+        f"colour carrying its highest values"
+      checked += 1
+  assert checked >= 4, \
+    f"only {checked} palette(s) were checked; this test is not "\
+    f"exercising the installation it claims to"
+
+  # ... and the colours BETWEEN the ends, at the positions they are
+  # declared at. Checking endpoints alone leaves the whole middle of
+  # every ramp free: the stop positions are computed as i/(len-1), and
+  # an error there slides every interior colour along the ramp while
+  # both ends stay exactly right. A map made with such a ramp is wrong
+  # in its classes and correct in its legend's extremes, which is the
+  # hardest kind of wrong to notice.
+  drift = []
+  for group in ("sequential", "diverging"):
+    for name, stops in bridge.PALETTES[group].items():
+      ramp = bridge.get_ramp(name, False)
+      if ramp is None:
+        continue
+      for i, declared in enumerate(stops):
+        at = i / (len(stops) - 1)
+        got = QColor(ramp.color(at))
+        want = QColor(declared)
+        apart = max(abs(got.red() - want.red()),
+                    abs(got.green() - want.green()),
+                    abs(got.blue() - want.blue()))
+        if apart > 2:                 # 2/255 for rounding in the ramp
+          drift.append(
+            f"{name} stop {i} of {len(stops) - 1} (at {at:.3f}): "
+            f"{got.name()} where the palette declares {want.name()}")
+  assert not drift, \
+    "installed ramps put their colours in the wrong places:\n  " + \
+    "\n  ".join(drift[:8])
+
+
+def test_ramp_swatches_run_the_right_way_round():
+  """A swatch shows the ramp in the direction the map will use it.
+
+  The dropdown's swatches are drawn by _ramp_icon, whose `reverse`
+  argument defaults to off; the Reverse switch passes it explicitly.
+  Flip that default and every swatch in the list is drawn backwards
+  while the map stays right, so a user picking "the one that goes
+  pale to dark" gets the opposite. Nothing caught that, because the
+  suite checked that swatches EXIST and never what they showed.
+
+  Reds is used because its direction is unambiguous: light at the low
+  end, dark at the high end. The check is on lightness rather than on
+  exact colours, so it survives QGIS shipping a slightly different
+  Reds.
+
+  Regression: swatch direction was untested, so drawing every ramp backwards was invisible.
+  """
+  from qgis.PyQt.QtGui import QColor
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import _ramp_icon, RAMP_SWATCH
+  ramp = bridge.get_ramp("Reds", False)
+  if ramp is None:
+    return                          # no QGIS style library here
+  icon = _ramp_icon("Reds")
+  assert icon is not None, "no swatch was drawn for a ramp that exists"
+  image = icon.pixmap(RAMP_SWATCH).toImage()
+  assert not image.isNull(), "the swatch is an empty image"
+
+  middle = image.height() // 2
+  left = QColor(image.pixel(1, middle))
+  right = QColor(image.pixel(image.width() - 2, middle))
+  assert left.lightness() > right.lightness(), \
+    f"the Reds swatch runs dark-to-light (left {left.lightness()}, "\
+    f"right {right.lightness()}); it is drawn reversed, so the list "\
+    f"disagrees with the map"
+
+  # and the Reverse switch really does turn it round
+  flipped = _ramp_icon("Reds", True)
+  fimage = flipped.pixmap(RAMP_SWATCH).toImage()
+  fleft = QColor(fimage.pixel(1, middle))
+  assert fleft.lightness() < left.lightness(), \
+    "asking for a reversed swatch produced the same picture, so the "\
+    "Reverse switch shows the user nothing"
+
+
+def test_a_new_run_always_shows_real_progress():
+  """A run reports a percentage, even after one that died mid-output.
+
+  During the output phase the bar is deliberately switched to its
+  indefinite "busy" form, because adding layers reports no percentage
+  and a frozen bar there once looked exactly like a hang. _finish_run
+  puts it back — but the zombie recovery in showEvent does not: it
+  clears the task and hides the bar directly. So a run that ended
+  through the recovery path leaves the bar indefinite, and the next
+  run inherits it unless it sets its own range.
+
+  The consequence is the failure the busy form was introduced to
+  prevent, wearing the opposite face: a tiling that IS progressing,
+  reported by a bar that says only "something is happening".
+
+  Regression: only _finish_run restored the determinate progress range, and the zombie recovery does not go through it.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+
+  # leave the bar as a run that died during the output phase would
+  dlg.progress.setRange(0, 0)
+  assert dlg.progress.maximum() == 0, "the setup did not take"
+
+  _generate_and_wait(dlg)
+  _tick(200)
+  assert dlg.progress.maximum() == 100, \
+    "a new run inherited the indefinite progress bar from a previous "\
+    "one, so a tiling that is progressing reports no percentage"
+  dlg.close()
+
+
+def test_live_update_is_on_by_default():
+  """A first map appears without anyone pressing Generate.
+
+  This is a settled design decision: the plugin renders as soon as a
+  layer and variables are in place, so someone who has never used it
+  sees a map rather than an empty canvas and a button. Every other
+  test in this suite turns live update OFF in its first two lines,
+  which is exactly why nothing noticed when the default was flipped —
+  the suite was unanimous about a setting no test asserted.
+
+  Regression: the live-update default was unasserted, so turning it off shipped silently past 100 tests.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  assert dlg.live_check.isChecked(), \
+    "live update is off by default, so a new user sees no map until "\
+    "they find the Generate button"
+
+  # and it is not merely checked: it acts
+  dlg.layer_combo.setLayer(layer)
+  _tick(400)
+  _settle(dlg)
+  _tick(400)
+  assert dlg._element_layer_ids, \
+    "live update is on but no map was drawn from choosing a layer"
+  dlg.close()
+
+
+def test_repopulating_the_family_list_fires_no_handlers():
+  """Switching tiling/weave must not fire family-changed midway.
+
+  The family combo is cleared and refilled when the kind changes.
+  Without blockSignals, every addItems() step emits
+  currentIndexChanged, so handlers run against a half-built list and
+  the unit is rebuilt several times from states the user never chose.
+  That is the same shape as the chooser race this project already
+  paid for once.
+
+  Counting rebuilds rather than inspecting signals: what matters is
+  that the work happens once, whatever Qt emits on the way.
+
+  Regression: family-list repopulation had no test, so unblocking its signals was invisible.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+
+  rebuilds = []
+  original = dlg._rebuild_unit
+
+  def counted(*a, **k):
+    rebuilds.append(dlg.family_combo.currentText())
+    return original(*a, **k)
+
+  dlg._rebuild_unit = counted
+  before = dlg.kind_combo.currentText()
+  other = next(dlg.kind_combo.itemText(i)
+               for i in range(dlg.kind_combo.count())
+               if dlg.kind_combo.itemText(i) != before)
+  dlg.kind_combo.setCurrentText(other)
+  _tick(800)
+
+  assert len(rebuilds) <= 1, \
+    f"changing the pattern kind rebuilt the unit {len(rebuilds)} "\
+    f"times, once per item added to the family list: {rebuilds}"
+  dlg.close()
+
+
+def test_the_edit_colours_column_appears_with_categories():
+  """The column exists only where there is something to edit.
+
+  It follows the same rule as the class-source column beside it:
+  present when any element is categorized, absent otherwise. Within
+  it, rows that are not categorical keep a DISABLED button rather
+  than an empty cell, because a hole in a column reads as a control
+  that failed to appear rather than one that does not apply.
+
+  Also pins where the column sits. It is the last column logically
+  and moved next to the ramp visually; if a later change inserts it
+  properly instead, this test says so rather than letting the
+  neighbouring columns quietly renumber.
+  """
+  from weavingspace_qgis.dialog import COL_EDIT_COLOURS
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  assert dlg.table.isColumnHidden(COL_EDIT_COLOURS), \
+    "the Edit colours column is showing with nothing categorical"
+
+  dlg.table.cellWidget(1, 1).setCurrentText("landcover")
+  dlg._update_dynamic_columns()
+  _tick(100)
+  assert not dlg.table.isColumnHidden(COL_EDIT_COLOURS), \
+    "a categorical element did not bring out the Edit colours column"
+  header = dlg.table.horizontalHeader()
+  assert header.visualIndex(COL_EDIT_COLOURS) == 5, \
+    "Edit colours is meant to sit immediately after the ramp column"
+  assert dlg.table.horizontalHeaderItem(
+    COL_EDIT_COLOURS).text() == "Edit colours"
+
+  enabled = dlg.table.cellWidget(1, COL_EDIT_COLOURS)
+  assert enabled is not None and enabled.isEnabled(), \
+    "the categorical row's button is not usable"
+  # The button says what it does. An ellipsis on a disabled control
+  # reads as something broken; a greyed "Custom" reads as something
+  # that does not apply to this row, which is the truth.
+  assert enabled.text() == "Custom", \
+    f"the button reads {enabled.text()!r}, not 'Custom'"
+  for row in range(dlg.table.rowCount()):
+    if row == 1:
+      continue
+    button = dlg.table.cellWidget(row, COL_EDIT_COLOURS)
+    assert button is not None, \
+      f"row {row} has an empty cell where a greyed button belongs"
+    assert not button.isEnabled(), \
+      f"row {row} is not categorical but its button is live"
+    assert button.text() == "Custom", \
+      f"the greyed button on row {row} reads {button.text()!r}; it "\
+      f"should say the same thing as the live ones"
+
+  # and it goes away again
+  dlg.table.cellWidget(1, 1).setCurrentText("---")
+  dlg._update_dynamic_columns()
+  _tick(100)
+  assert dlg.table.isColumnHidden(COL_EDIT_COLOURS), \
+    "the column outstayed the categories that justified it"
+  dlg.close()
+
+
+def test_the_editor_lists_every_value_and_the_no_data_row():
+  """What the little window contains.
+
+  Values come from the REGION layer, so this works before anything is
+  generated -- which is the point, since choosing colours is part of
+  designing the map rather than a reaction to one. The catch-all
+  category comes last: it is a colour a reader sees, often over a
+  large area where a join left gaps, so it is editable, but it is not
+  one of the data's own values and is not presented as one.
+
+  The value column is capped so one very long category cannot push
+  the colour column off the window.
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.category_editor import (CategoryColourDialog,
+                                                 VALUE_WIDTH)
+  dlg, layer, tid = _categorical_dialog()
+  assert not dlg._element_layer_ids, \
+    "this test is meant to run before anything is generated"
+
+  assignment = next(a for a in dlg._assignments() if a["id"] == tid)
+  colours, order = dlg._current_category_colours(assignment)
+  expected = {str(v) for v in layer.uniqueValues(
+    layer.fields().indexOf("landcover")) if v is not None}
+  assert set(order) - {bridge.NO_DATA_KEY} == expected, \
+    f"the editor would list {order}, the data has {sorted(expected)}"
+  assert order[-1] == bridge.NO_DATA_KEY, \
+    "the no-data catch-all must come last, not among the real values"
+
+  editor = CategoryColourDialog(tid, "landcover", order, colours,
+                                None, dlg)
+  assert editor.windowTitle() == "Categorical colour editor"
+  assert editor.table.rowCount() == len(order)
+  assert editor.table.item(len(order) - 1, 0).text() == "(no data)"
+  assert editor.table.columnWidth(0) == VALUE_WIDTH, \
+    f"the value column is {editor.table.columnWidth(0)}px, not the "\
+    f"settled {VALUE_WIDTH}px"
+  # every row offers a colour, and it is the colour the map would use
+  for row, value in enumerate(order):
+    button = editor.table.cellWidget(row, 1)
+    assert button is not None, f"no colour control for {value!r}"
+    assert button.text().startswith("#"), \
+      f"{value!r} shows {button.text()!r} rather than a colour"
+    assert button.text() == colours[value]
+  editor.close()
+  dlg.close()
+
+
+def test_the_editor_is_laid_out_as_specified():
+  """The window's shape: alignment, fixed pitch, and no dead space.
+
+  Each of these is small on its own and together they decide whether
+  the thing reads as a table of values or as a form. Values are set
+  right and colours left so the two columns meet in the middle, and
+  the eye runs down one gap rather than across a ragged one. Hex codes
+  are compared digit by digit down the column, so they are set in a
+  fixed-pitch face. The header keeps Qt's own alignment, which is part
+  of what marks it as a header.
+
+  The window is fitted to the TABLE rather than the other way round.
+  Sizing the window by guess and letting the table fill it leaves
+  either a strip of dead space beside the table or a scroll bar over
+  rows that would have fitted, and both look like carelessness.
+  """
+  from qgis.PyQt.QtCore import Qt
+  from weavingspace_qgis.category_editor import (
+    CategoryColourDialog, VALUE_WIDTH, COLOUR_WIDTH)
+  values = ["forest", "water", "urban"]
+  colours = {"forest": "#1b7837", "water": "#2166ac", "urban": "#b2182b"}
+  editor = CategoryColourDialog("a", "landcover", values, colours,
+                                None, None)
+
+  for row in range(len(values)):
+    item = editor.table.item(row, 0)
+    assert item.textAlignment() & Qt.AlignmentFlag.AlignRight, \
+      f"value row {row} is not right-aligned"
+    button = editor.table.cellWidget(row, 1)
+    style = button.styleSheet()
+    assert "text-align: left" in style, \
+      f"the colour on row {row} is not left-aligned: {style!r}"
+    assert "monospace" in style or "Menlo" in style, \
+      f"the hex code on row {row} is not in a fixed-pitch face"
+
+  assert editor.table.columnWidth(0) == VALUE_WIDTH
+  assert editor.table.columnWidth(1) == COLOUR_WIDTH
+
+  # the window is only a little wider than the table it contains
+  slack = editor.width() - editor.table.width()
+  assert 0 <= slack <= 60, \
+    f"the window is {slack}px wider than its table; it should be "\
+    f"only a little larger, not padded"
+  tall = editor.height() - editor.table.height()
+  assert tall <= 160, \
+    f"the window is {tall}px taller than its table, which is more "\
+    f"than a two-line heading and a Close button need"
+  editor.close()
+
+
+def test_the_editor_hides_nothing_at_any_size():
+  """Sweep the sizes a real field can produce, and check nothing is
+  cut off.
+
+  The window sizes itself from its contents, and self-sizing is
+  exactly where things get quietly clipped: a Close button pushed
+  below the bottom edge, a colour column hidden behind the scroll bar
+  that arrived with the sixteenth row, a heading cropped by a long
+  field name. None of those raise; they just leave a control the user
+  cannot reach, and only a sweep across sizes finds them, because
+  every one appears at a particular row count or name length and not
+  at the one a single example happens to use.
+
+  Checked at each size: every child widget lies inside the window,
+  both columns are fully visible in the table's viewport, and nothing
+  needs horizontal scrolling.
+  """
+  from qgis.PyQt.QtWidgets import QDialogButtonBox, QWidget
+  from weavingspace_qgis.category_editor import (CategoryColourDialog,
+                                                 VISIBLE_ROWS)
+  names = {
+    "one character": "x",
+    "ordinary": "wetland",
+    "long": "High-density residential and commercial mixed use",
+    "very long": "A category name of quite unreasonable length " * 2,
+  }
+  counts = [1, 2, 3, VISIBLE_ROWS - 1, VISIBLE_ROWS,
+            VISIBLE_ROWS + 1, 40]
+  # A window is allowed its layout margins. More than about a line of
+  # empty space past the last thing in it is not a margin, it is the
+  # window having been sized by guess -- which is the same fault as
+  # clipping, seen from the other end. One row of this table is the
+  # natural unit for "a line or so".
+  SLACK = 26
+  problems = []
+  for label, stem in names.items():
+    for count in counts:
+      values = [f"{stem} {i}" for i in range(count)]
+      editor = CategoryColourDialog(
+        "a", "landcover", values,
+        {v: "#4477aa" for v in values}, None, None)
+      editor.show()
+      _tick(30)
+      where = f"{label} names, {count} value(s)"
+
+      window = editor.rect()
+      for child in (editor.table,) + tuple(
+          editor.findChildren(QDialogButtonBox)):
+        box = child.geometry()
+        if not window.contains(box):
+          problems.append(
+            f"{where}: {type(child).__name__} at {box.x()},{box.y()} "
+            f"{box.width()}x{box.height()} sticks out of a window "
+            f"{window.width()}x{window.height()}")
+
+      # ... and nothing much beyond them either. Measured from the
+      # furthest extent of any child, so it catches dead space
+      # wherever the layout put it.
+      children = [c.geometry() for c in editor.findChildren(QWidget)
+                  if c.isVisible() and c.parent() is editor]
+      if children:
+        right = max(g.right() for g in children)
+        bottom = max(g.bottom() for g in children)
+        if window.right() - right > SLACK:
+          problems.append(
+            f"{where}: {window.right() - right}px of empty space to "
+            f"the right of everything in the window")
+        if window.bottom() - bottom > SLACK:
+          problems.append(
+            f"{where}: {window.bottom() - bottom}px of empty space "
+            f"below everything in the window")
+
+      viewport = editor.table.viewport().width()
+      columns = sum(editor.table.columnWidth(c) for c in (0, 1))
+      if viewport < columns:
+        problems.append(
+          f"{where}: the viewport is {viewport}px for {columns}px of "
+          f"columns, so the colour column is clipped")
+      if editor.table.horizontalScrollBar().maximum() > 0:
+        problems.append(
+          f"{where}: the table needs horizontal scrolling")
+      if editor.table.rowCount() != count:
+        problems.append(
+          f"{where}: {editor.table.rowCount()} rows for {count} values")
+      editor.close()
+
+  assert not problems, "the editor hides things at some sizes:\n  " + \
+    "\n  ".join(problems)
+
+
+def test_the_editor_scrolls_only_past_fifteen_values():
+  """Fifteen rows show; a sixteenth brings a scroll bar, not a taller
+  window.
+
+  A field with forty categories would otherwise open a window taller
+  than the screen, over the very map whose colours are being chosen.
+  The table stops growing at VISIBLE_ROWS and scrolls instead, and the
+  window stops with it.
+
+  The scroll bar's width is added to the table when it appears, since
+  a vertical scroll bar takes its width from the viewport rather than
+  adding to it -- without that the colour column is clipped by exactly
+  the bar that arrived to accommodate the rows.
+  """
+  from weavingspace_qgis.category_editor import (CategoryColourDialog,
+                                                 VISIBLE_ROWS)
+  def editor_for(n):
+    values = [f"class {i:02d}" for i in range(n)]
+    return CategoryColourDialog(
+      "a", "many", values, {v: "#336699" for v in values}, None, None)
+
+  small = editor_for(VISIBLE_ROWS)
+  big = editor_for(VISIBLE_ROWS + 12)
+  assert small.table.rowCount() == VISIBLE_ROWS
+  assert big.table.rowCount() == VISIBLE_ROWS + 12, \
+    "every value must be present, scrolled or not"
+  assert big.table.height() == small.table.height(), \
+    f"the table grew from {small.table.height()} to "\
+    f"{big.table.height()}px instead of scrolling"
+  assert big.height() == small.height(), \
+    "the window grew with the extra values instead of scrolling"
+  assert big.table.width() > small.table.width(), \
+    "a scroll bar appeared without room being made for it, so the "\
+    "colour column is clipped by exactly that scroll bar"
+  # and the rows really are reachable
+  assert big.table.item(VISIBLE_ROWS + 5, 0).text() == "class 20"
+  small.close()
+  big.close()
+
+
+def test_a_long_value_is_truncated_but_recoverable():
+  """A long category name elides, and hovering shows it whole.
+
+  The value column is a settled width rather than one fitted to the
+  contents, so that every element's editor is the same size and the
+  window does not jump about as a user moves between elements. The
+  cost is that a long name will not fit, so the full text has to stay
+  reachable: it is on the cell as a tooltip.
+
+  A window that widened itself to fit one 48-character category would
+  also defeat the sizing rule above it, since the window is fitted to
+  the table.
+  """
+  from weavingspace_qgis.category_editor import (CategoryColourDialog,
+                                                 VALUE_WIDTH)
+  long_value = "High-density residential and commercial mixed use"
+  editor = CategoryColourDialog(
+    "a", "zoning", [long_value, "park"],
+    {long_value: "#ff0000", "park": "#00ff00"}, None, None)
+  assert editor.table.columnWidth(0) == VALUE_WIDTH, \
+    f"one long value moved the column to " \
+    f"{editor.table.columnWidth(0)}px; it is meant to be fixed"
+  short = CategoryColourDialog(
+    "a", "zoning", ["park"], {"park": "#00ff00"}, None, None)
+  assert editor.width() == short.width(), \
+    "a long category name widened the window, so the editor is a "\
+    "different size for every element"
+  assert editor.table.item(0, 0).toolTip() == long_value, \
+    "the full value is not recoverable by hovering"
+  short.close()
+  editor.close()
+
+
+def test_editing_a_category_colour_reaches_the_map():
+  """The whole point: a colour picked here is the colour drawn.
+
+  Checks the three things the user asked for at once -- the plugin
+  records it, the renderer carries it, and the map is repainted
+  through the fast path rather than by tiling again. The last is
+  visible as the task never being started: re-tiling is the expensive
+  step and a colour has nothing to do with it.
+
+  Regression: none yet; this pins the feature's central claim.
+  [ui-vs-library]
+  """
+  from weavingspace_qgis import bridge
+  dlg, layer, tid = _categorical_dialog()
+  _generate_and_wait(dlg)
+  _tick(200)
+  layer_id = dlg._element_layer_ids[tid]
+  element = QgsProject.instance().mapLayer(layer_id)
+  before = bridge.renderer_fill_colours(element)
+  tiles_before = element.featureCount()
+
+  assignment = next(a for a in dlg._assignments() if a["id"] == tid)
+  _colours, order = dlg._current_category_colours(assignment)
+  value = order[0]
+  dlg._category_colours.setdefault(tid, {}).setdefault(
+    "landcover", {})[value] = "#ff00ff"
+  dlg._apply_style_change()
+  _tick(200)
+
+  assert dlg._task is None, \
+    "a colour change started a tiling run; it must take the fast path"
+  element = QgsProject.instance().mapLayer(layer_id)
+  assert element is not None and element.id() == layer_id, \
+    "the element layer was replaced, so this was not a restyle"
+  assert element.featureCount() == tiles_before, \
+    "the tiles were rebuilt for what is only a colour change"
+  after = bridge.renderer_fill_colours(element)
+  assert (255, 0, 255) in after, \
+    f"the picked colour never reached the renderer: {after}"
+  assert (255, 0, 255) not in before, \
+    "the test is vacuous: that colour was already there"
+  assert len(after) == len(before), \
+    "the number of classes changed when only a colour was picked"
+
+  # and the map really looks like that
+  visual_gamut("categorical colour editor: a hand-picked colour",
+               [element], [assignment["ramp"]],
+               extra_colours=["#ff00ff"])
+  dlg.close()
+
+
+def test_a_picked_colour_changes_the_rendered_map():
+  """End to end: pick a colour, and the PIXELS change.
+
+  Everything else about this feature is checked against the renderer,
+  which is one step short of the claim. A renderer carrying the right
+  colour still proves nothing if the layer it is attached to is not
+  the one being drawn, or if the change never reaches the canvas. So
+  this one renders the map before and after and compares what a
+  reader would actually see.
+
+  The colour is deliberately one no ramp in force can produce, so its
+  arrival cannot be a coincidence of classification, and its absence
+  beforehand is checked rather than assumed.
+
+  Regression: every other check on this feature stopped at the renderer, one step short of the map.
+  [ui-vs-library]
+  """
+  from weavingspace_qgis import bridge
+  sys.path.insert(0, HERE)
+  from visual_tests import render_layers
+
+  def count_colour(image, rgb, stride=2):
+    """How many pixels of the rendered map carry exactly this colour.
+
+    Args:
+      image: the rendered QImage.
+      rgb: an (r, g, b) tuple to count, compared exactly.
+      stride: sample every nth pixel in each direction; 2 is fine for
+        deciding whether a class is present at all, and four times
+        cheaper than every pixel.
+
+    Returns:
+      The count of matching sampled pixels.
+
+    The whole image on a fine stride, rather than visual_tests'
+    sample_pixels: that walks a coarse grid AND discards any pixel
+    whose neighbours disagree, which is right for measuring fills
+    against a gamut but can miss a class of small tiles completely —
+    it did here, reporting no magenta on a map that had it.
+    """
+    seen = 0
+    for x in range(0, image.width(), stride):
+      for y in range(0, image.height(), stride):
+        c = image.pixelColor(x, y)
+        if (c.red(), c.green(), c.blue()) == rgb:
+          seen += 1
+    return seen
+
+  dlg, layer, tid = _categorical_dialog()
+  _generate_and_wait(dlg)
+  _tick(200)
+  element = QgsProject.instance().mapLayer(dlg._element_layer_ids[tid])
+  others = [QgsProject.instance().mapLayer(i)
+            for t, i in dlg._element_layer_ids.items() if t != tid]
+  layers = [element] + [o for o in others if o is not None]
+
+  out = report_dir()
+  before_png = os.path.join(out, "picked_colour_before.png")
+  after_png = os.path.join(out, "picked_colour_after.png")
+  # Pick a colour the map does NOT already show, rather than assuming
+  # one. The first attempt used magenta, which turned out to be on the
+  # map already from another element's own ramp -- so the test would
+  # have "passed" on a pixel the feature never touched.
+  before_image = render_layers(list(layers), before_png)
+  candidates = [(255, 0, 255), (0, 255, 255), (255, 128, 0),
+                (128, 0, 255), (0, 128, 255), (255, 0, 128)]
+  target = next((c for c in candidates
+                 if count_colour(before_image, c) == 0), None)
+  assert target is not None, \
+    "every candidate colour is already on the map; this test cannot "\
+    "tell its own change from the existing symbology"
+  target_hex = "#%02x%02x%02x" % target
+
+  assignment = next(a for a in dlg._assignments() if a["id"] == tid)
+  _colours, order = dlg._current_category_colours(assignment)
+  # The value carrying the MOST tiles, not the first alphabetically.
+  # A rare class can cover so few interior pixels that the sampling
+  # misses it entirely, and the test would then be measuring the
+  # sampler rather than the plugin.
+  tally = {}
+  index = element.fields().indexOf("landcover")
+  for feature in element.getFeatures():
+    tally[str(feature[index])] = tally.get(str(feature[index]), 0) + 1
+  commonest = max(tally, key=tally.get)
+  assert tally[commonest] > 1, "no value covers enough tiles to see"
+  dlg._category_colours.setdefault(tid, {}).setdefault(
+    "landcover", {})[commonest] = target_hex
+  dlg._apply_style_change()
+  _tick(300)
+
+  element = QgsProject.instance().mapLayer(dlg._element_layer_ids[tid])
+  layers = [element] + [o for o in others if o is not None]
+  after_image = render_layers(list(layers), after_png)
+  hits = count_colour(after_image, target)
+  assert hits > 0, \
+    "the picked colour reached the renderer but never the map: not "\
+    "one pixel of the render carries it"
+  assert hits > 50, \
+    f"only {hits} pixels carry the picked colour; that is too few to "\
+    f"be the class it was applied to"
+
+  # the map is otherwise undisturbed: the tiles that changed are the
+  # ones that were the old colour, and nothing else moved
+  assert after_image.size() == before_image.size(), "the map resized"
+  differing = 0
+  for x in range(0, after_image.width(), 4):
+    for y in range(0, after_image.height(), 4):
+      if after_image.pixelColor(x, y) != before_image.pixelColor(x, y):
+        differing += 1
+  assert differing > 0, "nothing changed on the map at all"
+  total = (after_image.width() // 4) * (after_image.height() // 4)
+  assert differing < total * 0.5, \
+    f"{differing} of {total} sampled pixels changed; recolouring one "\
+    f"value should not repaint half the map"
+
+  # every ramp in the render, not just the edited element's: the
+  # picture contains all the element layers, so declaring one ramp
+  # would report the others' perfectly correct colours as strays
+  ramps = sorted({a["ramp"] for a in dlg._assignments() if a.get("ramp")})
+  visual_gamut("categorical editor: picked colour on the map",
+               layers, ramps, extra_colours=[target_hex])
+  dlg.close()
+
+
+def test_hand_picked_colours_survive_a_regenerate():
+  """Pressing Generate again keeps them.
+
+  A user picks colours, then changes the spacing and regenerates.
+  Nothing about the colours was said, so nothing about them should
+  change -- including through the full tiling path, which builds
+  fresh layers rather than restyling the old ones.
+  """
+  from weavingspace_qgis import bridge
+  dlg, layer, tid = _categorical_dialog()
+  _generate_and_wait(dlg)
+  _tick(200)
+  assignment = next(a for a in dlg._assignments() if a["id"] == tid)
+  _colours, order = dlg._current_category_colours(assignment)
+  dlg._category_colours.setdefault(tid, {}).setdefault(
+    "landcover", {})[order[0]] = "#123456"
+  dlg._apply_style_change()
+  _tick(150)
+
+  dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.3)
+  _generate_and_wait(dlg)
+  _tick(200)
+  element = QgsProject.instance().mapLayer(dlg._element_layer_ids[tid])
+  assert (0x12, 0x34, 0x56) in bridge.renderer_fill_colours(element), \
+    "a regenerate discarded a colour the user had chosen by hand"
+  dlg.close()
+
+
+def test_a_new_ramp_discards_hand_picks_and_says_so():
+  """Choosing a ramp means starting that element's colours over.
+
+  That is the settled rule, and it makes the ramp control mean what
+  it says. It also throws away deliberate work, so it is not done
+  silently: the user is told how many colours went and for which
+  element. Only the current field is cleared.
+  """
+  dlg, layer, tid = _categorical_dialog()
+  dlg._category_colours.setdefault(tid, {}).setdefault(
+    "landcover", {})["forest"] = "#ff0000"
+  dlg.live_note.setText("")
+
+  ramp = dlg.table.cellWidget(1, 4)
+  ramp.setCurrentIndex((ramp.currentIndex() + 1) % ramp.count())
+  _tick(150)
+
+  assert not dlg._category_colours.get(tid, {}).get("landcover"), \
+    "a new ramp left the old hand-picked colours in place"
+  note = dlg.live_note.text()
+  assert "discarded" in note and tid in note, \
+    f"the user was not told their colours were dropped: {note!r}"
+  assert "landcover" in note, \
+    "the notice does not say which variable lost its colours"
+  dlg.close()
+
+
+def test_hand_picks_are_kept_per_variable():
+  """Switching an element's variable away and back restores its work.
+
+  Colours are keyed by element AND field. Two consequences are tested
+  here: work on one variable is not destroyed by looking at another,
+  and two fields that happen to share a value name do not colour each
+  other -- "other", "none" and "1" are common enough that this would
+  bite.
+  """
+  dlg, layer, tid = _categorical_dialog()
+  dlg._category_colours.setdefault(tid, {}).setdefault(
+    "landcover", {})["forest"] = "#ff0000"
+
+  dlg.table.cellWidget(1, 1).setCurrentText("v1")
+  dlg._update_dynamic_columns()
+  _tick(100)
+  assignment = next(a for a in dlg._assignments() if a["id"] == tid)
+  assert not assignment.get("category_colours"), \
+    "another variable inherited colours picked for 'landcover'"
+
+  dlg.table.cellWidget(1, 1).setCurrentText("landcover")
+  dlg._update_dynamic_columns()
+  _tick(100)
+  assignment = next(a for a in dlg._assignments() if a["id"] == tid)
+  assert (assignment.get("category_colours") or {}).get(
+    "forest") == "#ff0000", \
+    "switching a variable away and back destroyed the user's colours"
+  dlg.close()
+
+
+def test_hand_picked_colours_are_written_into_the_project():
+  """They outlive the session, because the dialog does not.
+
+  The dialog's own record lasts as long as QGIS is open; a project
+  file outlives it. So the colours are stamped on the element layer
+  as a custom property, which QGIS saves inside the .qgz, and read
+  back when a dialog adopts an existing group. Without that, a user
+  who reopened yesterday's project and pressed Generate would watch
+  their colours revert with no warning.
+  """
+  import json
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  dlg, layer, tid = _categorical_dialog()
+  _generate_and_wait(dlg)
+  _tick(200)
+  dlg._category_colours.setdefault(tid, {}).setdefault(
+    "landcover", {})["forest"] = "#0a0b0c"
+  dlg._apply_style_change()
+  _tick(150)
+
+  element = QgsProject.instance().mapLayer(dlg._element_layer_ids[tid])
+  raw = element.customProperty("weavingspace_category_colours")
+  assert raw, "nothing was recorded on the layer for the project file"
+  stored = json.loads(raw)
+  assert stored["field"] == "landcover"
+  assert stored["colours"]["forest"] == "#0a0b0c"
+  dlg.close()
+
+  # a new dialog in the same project adopts the group and the colours
+  revived = WeavingSpaceDialog(iface=None)
+  _tick(200)
+  assert revived._category_colours.get(tid, {}).get(
+    "landcover", {}).get("forest") == "#0a0b0c", \
+    "a dialog reopened on a saved project forgot the hand-picked colours"
+  revived.close()
+
+
+def test_a_colour_picked_during_a_run_is_not_lost():
+  """A race: the editor is open, and the run underneath finishes.
+
+  Finishing a run REPLACES every element layer. An editor holding a
+  layer would be writing into a corpse, so it holds none: it records
+  the colour against the element and lets whatever layers exist at
+  the time be seeded from that record. The restyle path also declines
+  while a task is in flight, which means the change has to be applied
+  by the run that lands rather than dropped.
+  """
+  from weavingspace_qgis import bridge
+  dlg, layer, tid = _categorical_dialog()
+  _generate_and_wait(dlg)
+  _tick(200)
+
+  dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.2)
+  dlg._generate()
+  assert dlg._task is not None, "a run should be in flight for this test"
+  # the user picks a colour while the tiling is still going
+  dlg._category_colours.setdefault(tid, {}).setdefault(
+    "landcover", {})["forest"] = "#00ffff"
+  dlg._apply_style_change()
+  _settle(dlg)
+  _tick(300)
+
+  element = QgsProject.instance().mapLayer(dlg._element_layer_ids[tid])
+  assert (0, 255, 255) in bridge.renderer_fill_colours(element), \
+    "a colour picked while a run was finishing was thrown away by it"
+  dlg.close()
+
+
+def test_editing_colours_never_rebuilds_the_table():
+  """The chooser-race rule, applied to the new control.
+
+  Data-tab handlers must never trigger a table rebuild: a rebuild
+  replaces every cell widget, so one landing mid-interaction kills
+  open dropdowns and commits picks to dead widgets. This is the rule
+  that cost this project a real bug, so every new handler on that tab
+  is held to it -- widget IDENTITY has to survive.
+  """
+  dlg, layer, tid = _categorical_dialog()
+  # let the setup's own debounced rebuild land FIRST. Without this the
+  # test measures a rebuild queued by assigning the variable and blames
+  # it on the colour pick -- which is the failure mode this suite calls
+  # a test passing (or failing) for the wrong reason.
+  _tick(600)
+  before = [id(dlg.table.cellWidget(r, 1))
+            for r in range(dlg.table.rowCount())]
+  dlg._category_colours.setdefault(tid, {}).setdefault(
+    "landcover", {})["forest"] = "#abcdef"
+  dlg._apply_style_change()
+  _tick(300)
+  after = [id(dlg.table.cellWidget(r, 1))
+           for r in range(dlg.table.rowCount())]
+  assert before == after, \
+    "picking a colour rebuilt the table, which kills any open dropdown"
+  dlg.close()
+
+
+def test_the_editor_copes_with_the_data_going_away():
+  """Opening the editor for a field that no longer exists.
+
+  A user can delete a field, or swap the region layer for one shaped
+  differently, between assigning a variable and pressing the button.
+  Nothing here may raise into the UI: the plugin says what is wrong
+  and carries on.
+  """
+  dlg, layer, tid = _categorical_dialog()
+  assignment = next(a for a in dlg._assignments() if a["id"] == tid)
+  gone = dict(assignment)
+  gone["var"] = "a_field_that_was_never_there"
+  colours, order = dlg._current_category_colours(gone)
+  assert colours is None and order is None, \
+    "a missing field produced something rather than an honest nothing"
+
+  layer.dataProvider().deleteAttributes(
+    [layer.fields().indexOf("landcover")])
+  layer.updateFields()
+  _tick(100)
+  dlg._edit_category_colours()      # no sender: must simply do nothing
+  dlg.close()
+
+
+def test_two_notices_from_one_run_both_survive():
+  """A single run can have several things worth saying about it.
+
+  One generate can produce three notices at once: areas that received
+  no tiles at this spacing, categories whose colours moved, and
+  element colours a reader cannot separate. QGIS's message bar stacks
+  them. Without a message bar they share one label, and the earlier
+  ones used to be overwritten by the later, so the map's coverage
+  problem disappeared behind its colour problem.
+
+  This drives _report_quietly directly rather than through a run,
+  because provoking all three conditions at once takes a contrived
+  layer, and the behaviour under test belongs to the reporting, not
+  to the conditions that trigger it.
+
+  Regression: two warnings from one run shared a single label and the last one silently erased the first.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog, NOTE_SEPARATOR
+  dlg = WeavingSpaceDialog(iface=None)      # headless: the fallback path
+  dlg.live_note.setText("")
+
+  dlg._report_quietly("15 of 155 areas received no tiles")
+  first = dlg.live_note.text()
+  assert "received no tiles" in first, "the first notice was not shown"
+
+  dlg._report_quietly("colours are hard to tell apart")
+  both = dlg.live_note.text()
+  assert "received no tiles" in both, \
+    "the second notice erased the first, so a user told about unreadable "\
+    "colours is never told that part of their map is missing"
+  assert "hard to tell apart" in both, "the second notice was lost"
+  assert NOTE_SEPARATOR in both, \
+    "two notices ran together with nothing between them"
+
+  # a repeat says nothing new and must not push the others out of view
+  dlg._report_quietly("colours are hard to tell apart")
+  assert dlg.live_note.text() == both, \
+    "the same notice was appended twice"
+
+  # with a message bar present the label is not used at all: the bar
+  # stacks notices itself, and writing to both would double them up
+  bar = _Iface()
+  loud = WeavingSpaceDialog(iface=bar)
+  loud.live_note.setText("")
+  loud._report_quietly("15 of 155 areas received no tiles")
+  assert loud.live_note.text() == "", \
+    "the note line was written even though QGIS's message bar exists"
+  dlg.close()
+  loud.close()
+
+
 def test_choice_persistence_and_recovery():
   """Two more state-keeping behaviours: a row's class-source choice
   survives a Design-tab rebuild (choices live in dicts keyed by tile
@@ -1178,6 +2760,7 @@ def test_choice_persistence_and_recovery():
   [ui-vs-library]
   """
   import tempfile as tf
+  from weavingspace_qgis import compat
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   from weavingspace_qgis.worker import TilingTask
   from qgis.core import QgsRendererCategory, QgsCategorizedSymbolRenderer
@@ -1243,7 +2826,16 @@ def test_choice_persistence_and_recovery():
   running._reported = True      # the run ends and nobody is told
   for _ in range(240):          # poll: _settle waits for _task to clear,
     _tick(50)                   # which is exactly what cannot happen here
-    if running.status() not in compat.task_active_statuses():
+    try:
+      if running.status() not in compat.task_active_statuses():
+        break
+    except RuntimeError:
+      # QGIS's task manager owns a QgsTask and deletes the C++ object
+      # once it finishes, leaving the Python wrapper pointing at
+      # nothing. That is not an accident to work around here -- it is
+      # the very state this test is about, since dlg._task is still
+      # holding that wrapper. A deleted task is emphatically not
+      # running, so stop polling and go on to the recovery.
       break
   dlg.hide()
   dlg.show()                    # showEvent runs the recovery
@@ -1893,9 +3485,21 @@ def _record_scenario(entry):
 
 
 def _interior_diff(ui_png, lib_png):
-  """(differing, total) interior pixels between two renders of the
-  same size. Interior means the four neighbours agree, so antialiased
-  edges — which say nothing about symbology — never enter the count."""
+  """(differing, total) interior pixels between two renders.
+
+  Args:
+    ui_png: path to the render the dialog produced.
+    lib_png: path to the render built by calling the library
+      directly. The two must be the same size; comparing renders of
+      different sizes is meaningless and asserts here rather than
+      quietly resampling.
+
+  Returns:
+    (differing, total) counts over interior pixels only. Interior
+    means the four neighbours agree, so antialiased edges — which say
+    nothing about symbology — never enter the count. Neither file is
+    modified.
+  """
   from qgis.PyQt.QtGui import QImage
   a, b = QImage(ui_png), QImage(lib_png)
   assert a.size() == b.size(), "renders must share a size to compare"
@@ -1924,14 +3528,35 @@ def _interior_diff(ui_png, lib_png):
 
 def visual_pair(label, ui_layers, expected_gdf, assignments,
                 templates=None, tolerance=0.02):
-  """Render what the dialog produced beside the same map built from a
-  direct library call, compare interior pixels, and record the pair
-  for the PDF.
+  """Render what the dialog produced beside the same map built by
+  calling the library directly, and compare interior pixels.
 
-  Used wherever a test knows, independently of the dialog, what map
-  the settings describe. `templates` maps a class-source token to a
-  loaded QML template so categorical elements can be seeded the same
-  way the dialog seeds them."""
+  Args:
+    label: names the comparison in the PDF and on disk; the file
+      names are derived from it, so two comparisons sharing a label
+      overwrite each other.
+    ui_layers: the output layers the dialog produced, in draw order.
+    expected_gdf: the tiled frame built INDEPENDENTLY, by restating
+      what the settings mean rather than by calling the dialog's own
+      _build_unit. That independence is the whole value of this
+      check: an expected side derived from the code under test
+      agrees with its bugs.
+    assignments: the element-to-variable mapping used to seed the
+      expected side's renderers, so both maps are symbolized alike
+      and only geometry and colour choice can differ.
+    templates: {class-source token: loaded QML template}, so a
+      categorical element on the expected side is seeded from the
+      same scheme the dialog used. None when no element imports one.
+    tolerance: the share of sampled interior pixels allowed to
+      differ. 0.02 covers antialiasing and rounding between two
+      renders of the same geometry; a real symbology error moves far
+      more than two percent of the picture.
+
+  Returns:
+    None. Writes two PNGs into this release's report directory and
+    records the pair for the comparison PDF. Raises AssertionError
+    when the difference exceeds tolerance.
+  """
   sys.path.insert(0, HERE)
   from visual_tests import render_layers
   from weavingspace_qgis import bridge
@@ -1972,15 +3597,41 @@ def visual_pair(label, ui_layers, expected_gdf, assignments,
 
 
 def visual_gamut(label, ui_layers, ramps, mean_max=1.5, p95_max=4.0,
-                 max_background=0.95):
+                 max_background=0.95, extra_colours=()):
   """Render what the dialog produced and check every interior pixel
-  is a colour the assigned ramps can actually make.
+  is a colour the symbology in force can actually make.
 
-  For sessions where no independent expected map is practical (a
-  storm of fast clicks, a long interleaved session), this is still a
-  real visual measure: it catches blank maps, wrong ramps, and
-  corrupted symbology, and it puts the picture in the PDF where a
-  person can see what the session produced."""
+  Args:
+    label: names the check in the PDF and on disk.
+    ui_layers: the output layers to render, in draw order.
+    ramps: the ramps in force on those layers — ALL of them, since
+      the picture contains every layer. Naming only the element under
+      test reports the other elements' perfectly correct colours as
+      strays.
+    mean_max: the mean Delta-E allowed between a sampled pixel and
+      the nearest colour the symbology can produce. 1.5 is near zero
+      in perceptual terms and is affordable because sampling keeps
+      interior fills only.
+    p95_max: the same at the 95th percentile, which catches a small
+      region of wrong colour that a mean would absorb.
+    max_background: the share of the render allowed to be background.
+      A map that failed to draw is mostly background and would
+      otherwise pass every colour test trivially.
+    extra_colours: "#rrggbb" strings that belong to the gamut for
+      reasons a ramp name cannot express — at present, colours chosen
+      by hand in the Categorical colour editor, which are deliberately
+      off every ramp.
+
+  Returns:
+    The mean Delta-E, so a caller can report it. Raises AssertionError
+    when any limit is exceeded.
+
+  For sessions where no independent expected map is practical (a storm
+  of fast clicks, a long interleaved session), this is still a real
+  visual measure: it catches blank maps, wrong ramps and corrupted
+  symbology, and it puts the picture in the PDF where a person can see
+  what the session produced.
+  """
   sys.path.insert(0, HERE)
   from visual_tests import render_layers, gamut_delta_e, image_stats
   out_dir = report_dir()
@@ -1988,7 +3639,8 @@ def visual_gamut(label, ui_layers, ramps, mean_max=1.5, p95_max=4.0,
   png = os.path.join(out_dir, f"{slug}_ui.png")
   image = render_layers(list(ui_layers), png)
   _colours, background = image_stats(image)
-  mean_de, p95_de = gamut_delta_e(image, list(ramps))
+  mean_de, p95_de = gamut_delta_e(image, list(ramps),
+                                  tuple(extra_colours))
   ok = (mean_de <= mean_max and p95_de <= p95_max
         and background <= max_background)
   _record_scenario(dict(kind="single", label=label,
@@ -2007,14 +3659,39 @@ def _compare_ui_to_library(label, setup, expected_unit, tiling_kw,
                            ramps=("Reds", "Blues", "Greens", "Purples"),
                            opacities=None,
                            area_tolerance=0.01, pixel_tolerance=0.02):
-  """Drive the dialog with `setup`, then check its output against a
-  map built directly from `expected_unit` and `tiling_kw`.
+  """Drive the dialog, then check its output against a map built by
+  calling the library directly.
+
+  Args:
+    label: names the comparison in the report and on disk.
+    setup: a callable taking the dialog, which sets the controls this
+      case is about. It runs before Generate, and anything it does
+      not set stays at its default.
+    expected_unit: the Tileable the settings MEAN, built by the test
+      from those settings — never by calling the dialog's _build_unit,
+      which would make the expectation agree with any bug in it.
+    tiling_kw: keyword arguments for the library's Tiling, matching
+      the map options the setup chose (clipping, whole-tileable join,
+      icon mode).
+    variables: which attribute each element carries, in element
+      order.
+    ramps: the ramp assigned to each element, in the same order.
+    opacities: per-element opacity 0-100, or None to leave every
+      element opaque.
+    area_tolerance: the relative difference allowed between the two
+      maps' total tiled area. 0.01 absorbs floating-point drift
+      through two different construction paths without admitting a
+      real geometric difference.
+    pixel_tolerance: the share of sampled interior pixels allowed to
+      differ, as in visual_pair.
+
+  Returns:
+    None. Raises AssertionError naming which stage disagreed.
 
   Geometry first (same elements, same tile counts, same area within
-  tolerance), then the rendered picture (share of sampled pixels that
-  differ beyond an antialiasing threshold). Both matter: geometry
-  catches wrong parameters, pixels catch a right tiling wearing the
-  wrong symbology.
+  tolerance), then the rendered picture. Both matter: geometry catches
+  wrong parameters, pixels catch a right tiling wearing the wrong
+  symbology.
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   from weavingspace_qgis import bridge
@@ -3324,10 +5001,22 @@ def _tick(ms=0):
 
 
 def _settle(dlg, seconds=30):
-  """Run the event loop until the dialog is quiet: no task in flight,
-  no debounce pending. Returns True if it settled, False on timeout.
+  """Run the event loop until the dialog is quiet.
 
-  Race tests need a defined end state, and 'sleep a bit' is not one.
+  Args:
+    dlg: the dialog to wait on. Quiet means no task in flight and no
+      debounce pending — both, because either alone leaves work that
+      will still change the thing under test.
+    seconds: how long to wait before giving up. Thirty is generous
+      for a synthetic layer and short enough that a genuine hang is
+      reported as a failed test rather than a stalled suite.
+
+  Returns:
+    True when the dialog settled, False on timeout. Callers assert on
+    it: a test that carries on after a timeout is measuring a
+    half-finished state.
+
+  Race tests need a defined end state, and "sleep a bit" is not one.
   """
   loop = QEventLoop()
   state = {"settled": False}
@@ -3992,6 +5681,218 @@ def test_typing_updates_the_design():
   dlg.close()
 
 
+def test_an_inset_percentage_is_a_percentage_of_the_spacing():
+  """10% at a 1000-unit spacing insets by 100 units. Exactly.
+
+  Both inset controls are percentages of the spacing, converted with a
+  single division. Divide by 101 instead and every map is about one
+  percent different — tiles very slightly smaller than asked for. No
+  picture looks wrong, and the UI-against-library comparisons allow a
+  percent of area difference for antialiasing and rounding, so a one
+  percent error passes them all.
+
+  An earlier attempt compared areas against inset_tiles applied to an
+  already-built unit, and disagreed by forty percent: that is not the
+  same operation the dialog performs, and a test whose oracle is
+  wrong is worse than no test. So this watches what the dialog ASKS
+  the library for, which is precisely the conversion in question, and
+  leaves the geometry to the library.
+
+  Regression: the inset percentage conversion was defended only by comparisons whose tolerance is wider than the error.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=None)
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.spacing_spin.setValue(1000)
+  dlg._rebuild_unit()
+  _tick(150)
+  assert dlg._unit is not None, "no unit was built to work from"
+
+  # Patch the class of the unit the dialog ACTUALLY built. The library
+  # is importable only once the plugin has put its vendored copy on
+  # the path, so importing it by name here can resolve a different
+  # class object than the dialog uses -- which it did, and the spy
+  # silently never fired.
+  asked = []
+
+  def watch(percentage, spacing):
+    """Rebuild with these settings and return what the library was
+    asked to inset by.
+
+    Args:
+      percentage: the tile-inset control's value, which must be
+        within its range (0 to 5) or setValue clamps it silently.
+      spacing: the pattern's grain in map units.
+
+    Returns:
+      A list of the distances passed to inset_tiles during the
+      rebuild, newest last.
+
+    The class is re-read on every call. A tiling and a weave are
+    different classes, so a class captured once and reused patches
+    nothing after the design kind changes -- and the spy then reports
+    no calls at all, which reads as "the weave never insets" rather
+    than as a broken test.
+    """
+    asked.clear()
+    dlg.spacing_spin.setValue(spacing)
+    dlg.mod_t_inset.setValue(percentage)
+    dlg._rebuild_unit()               # settle on the current kind
+    _tick(100)
+    unit_class = type(dlg._unit)
+    original = unit_class.inset_tiles
+    owned = "inset_tiles" in unit_class.__dict__
+
+    def spy(self, distance, *args, **kwargs):
+      asked.append(distance)
+      return original(self, distance, *args, **kwargs)
+
+    unit_class.inset_tiles = spy
+    try:
+      dlg._rebuild_unit()
+      _tick(150)
+    finally:
+      # always put it back, or every later test in the process runs
+      # against the spy
+      if owned:
+        unit_class.inset_tiles = original
+      else:
+        del unit_class.inset_tiles
+    return list(asked)
+
+  # A TILING: the inset is a plain percentage of the spacing.
+  kinds = [dlg.kind_combo.itemText(i)
+           for i in range(dlg.kind_combo.count())]
+  tiling = next(k for k in kinds if "til" in k.lower())
+  weave = next(k for k in kinds if "weav" in k.lower())
+  dlg.kind_combo.setCurrentText(tiling)
+  _tick(200)
+
+  # 4%, not 10%: the tile-inset control tops out at 5, and setValue
+  # clamps silently. Asking for a value the user cannot type made an
+  # earlier version of this test read the clamp as a wrong divisor.
+  first = watch(4, 1000)
+  assert first, "the dialog never insetted the tiles at all"
+  assert abs(first[-1] - 40.0) < 1e-9, \
+    f"a 4% tile inset at 1000 map units asked the library for "\
+    f"{first[-1]}, not 40. The percentage does not mean what the "\
+    f"control says it means"
+
+  # a second pair, so the test cannot pass on a coincidence of one
+  # particular spacing
+  second = watch(2.5, 400)
+  assert second and abs(second[-1] - 10.0) < 1e-9, \
+    f"2.5% of 400 map units should be 10, not {second[-1:]}"
+
+  # A WEAVE insets by the same percentage scaled by strand width, so
+  # that thin strands are not swallowed by a value a tiling shrugs
+  # off. That is deliberate, and it is why this test states the two
+  # formulas separately rather than assuming one: the first version
+  # asserted the tiling rule against the dialog's default design,
+  # which is a weave, and read the aspect scaling as an error.
+  dlg.kind_combo.setCurrentText(weave)
+  _tick(250)
+  aspect = dlg.opt_aspect.value()
+  third = watch(4, 1000)
+  expected = 4 * aspect * 1000 / 100
+  assert third, "the weave never insetted its tiles"
+  assert abs(third[-1] - expected) < 1e-9, \
+    f"a 4% inset on a weave of aspect {aspect} at 1000 map units "\
+    f"asked for {third[-1]}, not {expected}"
+  dlg.close()
+
+
+def test_every_element_count_still_has_its_designs():
+  """The catalogue offers a design for every element count it claims.
+
+  TILINGS_BY_N is a dict literal keyed by element count. Duplicate a
+  key by mistake — 5 typed as 6 — and Python keeps only the last, so
+  an entire element count DISAPPEARS along with every design filed
+  under it. The user asks for five variables and is offered nothing.
+
+  Every other catalogue test iterates the keys that exist, and so
+  cannot see a key that stopped existing. This one states the counts
+  the plugin promises, independently of the catalogue, and checks each
+  is present and populated.
+
+  Regression: a vanished element count was invisible, because the catalogue tests all iterate the catalogue's own keys.
+  """
+  from weavingspace_qgis import catalog
+  # 2 to 16, then 18, 19, 20: the counts the element chooser offers.
+  # Written out rather than derived from the catalogue, because a test
+  # that asks the catalogue what it contains cannot notice it losing
+  # something.
+  expected = set(range(2, 17)) | {18, 19, 20}
+  actual = set(catalog.TILINGS_BY_N)
+  missing = sorted(expected - actual)
+  extra = sorted(actual - expected)
+  assert not missing, \
+    f"element count(s) {missing} have no designs at all; a user "\
+    f"choosing that many variables is offered an empty list"
+  assert not extra, \
+    f"the catalogue carries element count(s) {extra} the chooser "\
+    f"does not offer, so those designs are unreachable"
+  for n in sorted(expected):
+    families = catalog.TILINGS_BY_N[n]
+    assert families, f"element count {n} is present but empty"
+    for name, entry in families.items():
+      if entry["type"] == "tiling" and "n" in entry:
+        assert entry["n"] == n or entry["tiling_type"] == "grid", \
+          f"{name} declares n={entry['n']} but is filed under {n}"
+
+
+def test_every_declared_offset_is_pinned():
+  """Each slice or dissection entry's offset is the one intended.
+
+  An offset changes where a tiling's cuts fall: the element count is
+  identical either way, so the sweep that counts elements cannot see
+  it, and the geometry it produces is a different design. One such
+  mutant was caught before by naming a few entries explicitly, which
+  left every entry nobody thought to name unguarded — and a later
+  batch duly moved square-slice 8's offset with nothing noticing.
+
+  So this pins every entry that declares an offset, and requires the
+  table below to cover them all. A new entry with an offset fails
+  here until someone states what it should be, which is the point:
+  the value is a design decision, not an implementation detail.
+
+  Regression: only hand-listed offsets were pinned, so entries nobody had listed could be changed freely.
+  """
+  from weavingspace_qgis import catalog
+  # Every entry in the catalogue declares offset 0: slices and
+  # dissections start at the corners. Stating the RULE rather than
+  # listing twenty-six names means a new entry is covered the moment
+  # it is added, and an entry that genuinely wants a different offset
+  # has to be named below — a deliberate act, which is what a design
+  # decision deserves.
+  DEFAULT_OFFSET = 0
+  deliberate_exceptions = {}      # name -> offset, when one is wanted
+
+  seen, wrong = 0, []
+  for n, families in catalog.TILINGS_BY_N.items():
+    for name, entry in families.items():
+      if "offset" not in entry:
+        continue
+      seen += 1
+      expected = deliberate_exceptions.get(name, DEFAULT_OFFSET)
+      if entry["offset"] != expected:
+        wrong.append(
+          f"{name} (under {n}): offset {entry['offset']}, expected "
+          f"{expected}")
+  assert not wrong, \
+    "offsets changed; each one is a different design:\n  " + \
+    "\n  ".join(wrong)
+  assert seen >= 20, \
+    f"only {seen} entries declare an offset; this test is not "\
+    f"covering the catalogue it claims to"
+  stale = sorted(set(deliberate_exceptions))
+  assert not stale or seen, f"stale exceptions listed: {stale}"
+
+
 def test_catalogue_values_are_what_they_claim():
   """The catalogue's OPTION VALUES matter, not just its element counts.
 
@@ -4143,7 +6044,20 @@ def test_ui_affordances_are_deliberate():
 # can, and they keep working where no reference implementation exists.
 
 def _element_ramps(dlg, project):
-  """{element: darkest colour of its ramp} for the current map."""
+  """{element: darkest colour of its ramp} for the current map.
+
+  Args:
+    dlg: the dialog whose output layers to read.
+    project: the QgsProject holding those layers, passed rather than
+      fetched so a test can ask about a project it controls.
+
+  Returns:
+    {tile_id: "#rrggbb"} taking each element's ramp at its dark end,
+    or None for an element whose renderer has no ramp (a single
+    colour, or no variable). The dark end identifies a ramp far more
+    reliably than the pale one, where every sequential scheme is
+    nearly white.
+  """
   out = {}
   for tid, lid in dlg._element_layer_ids.items():
     renderer = project.mapLayer(lid).renderer()
@@ -4639,8 +6553,45 @@ def test_dialog_structure():
     widget = getattr(dlg, name, None)
     assert widget is not None, f"the dialog lost its {name}"
   assert dlg.generate_btn.isEnabled()
-  assert dlg.table.columnCount() == 8, \
-    f"the table has {dlg.table.columnCount()} columns, expected 8"
+  # Nine since the Categorical colour editor arrived. The count is
+  # asserted rather than ignored because the columns are addressed by
+  # NUMBER throughout this suite, so one appearing in the middle would
+  # repoint dozens of assertions at the wrong widget without failing
+  # anything -- which is why "Edit colours" is last logically and only
+  # moved next to the ramp for display.
+  from weavingspace_qgis.dialog import COL_EDIT_COLOURS
+  assert dlg.table.columnCount() == 9, \
+    f"the table has {dlg.table.columnCount()} columns, expected 9"
+  assert dlg.table.horizontalHeaderItem(0).text() == "Tile id", \
+    "the first column moved, so every numbered assertion here is suspect"
+  assert dlg.table.horizontalHeaderItem(4).text() == "Colour ramp", \
+    "the ramp column moved; a new column was inserted rather than appended"
+  assert dlg.table.horizontalHeaderItem(
+    COL_EDIT_COLOURS).text() == "Edit colours"
+
+  # The columns that depend on what is mapped are hidden until they
+  # mean something. Checked on a dialog with NO layer, which is what a
+  # first-time user meets: nothing is categorical, so the class source
+  # and Edit colours would both be dead columns. Asserted by NUMBER as
+  # well as by state, because hiding the wrong index is invisible
+  # until a user meets a column that should not be there. (Classes is
+  # excluded: this dialog has a layer and variables, so a class count
+  # is real here — it earns its column and is checked elsewhere.)
+  bare = QgsProject.instance()
+  for existing in list(bare.mapLayers().values()):
+    bare.removeMapLayer(existing.id())
+  empty = WeavingSpaceDialog(iface=None)
+  _tick(200)
+  for column in (7, COL_EDIT_COLOURS):
+    name = empty.table.horizontalHeaderItem(column).text()
+    assert empty.table.isColumnHidden(column), \
+      f"column {column} ({name}) is showing on a dialog with no "\
+      f"layer, where it can only be empty"
+  for column in (0, 1, 2, 4):
+    name = empty.table.horizontalHeaderItem(column).text()
+    assert not empty.table.isColumnHidden(column), \
+      f"column {column} ({name}) is hidden but always means something"
+  empty.close()
   dlg.close()
 
 
@@ -4752,10 +6703,18 @@ def test_plugin_never_offers_its_own_output_as_a_region():
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(False)
   dlg.spacing_spin.setValue(520)
+  # outlines ON, because that layer is made on a different path from
+  # the elements and stamped separately. It is also the one most
+  # likely to be mistaken for a region layer, being polygons of
+  # exactly the region -- so it is the worst one to offer back.
+  dlg.opt_outlines.setChecked(True)
   _generate_and_wait(dlg)
 
   produced = set(dlg._element_layer_ids.values())
   assert produced, "the run should have produced element layers"
+  assert dlg._outline_layer_id, \
+    "outlines were asked for but no outline layer was made"
+  produced.add(dlg._outline_layer_id)
   offered = {dlg.layer_combo.layer(i).id()
              for i in range(dlg.layer_combo.count())
              if dlg.layer_combo.layer(i) is not None}
@@ -6799,6 +8758,9 @@ def test_colours_a_reader_cannot_separate_are_reported():
   project.addMapLayer(layer)
   dlg = WeavingSpaceDialog(iface=None)
   dlg.live_check.setChecked(False)
+  # the legibility check is opt-in, so a test of what it SAYS has to
+  # ask for it; that it stays quiet unopted is a separate test
+  dlg.opt_colour_warnings.setChecked(True)
   dlg.spacing_spin.setValue(700)
   for row, ramp in enumerate(("Reds", "Greens", "Blues", "Purples")):
     widget = dlg.table.cellWidget(row, 4)
@@ -6889,6 +8851,17 @@ def test_integration_cancel_and_recover():
 
 
 def main():
+  """Run every registered test and report what happened.
+
+  Returns:
+    None; exits with status 1 when anything failed, which is what
+    release.py gates on. Writes reports/v<version>/scenarios.json,
+    the record the visual comparison PDF is built from.
+
+  The record is emptied first so the PDF describes THIS run. A stale
+  scenario left over from a previous version would otherwise appear
+  in the report as though it had just been measured.
+  """
   # start the UI-vs-library record empty so the PDF shows this run
   record = os.path.join(report_dir(), "scenarios.json")
   if os.path.exists(record):
@@ -7000,6 +8973,12 @@ def main():
   check("Generate uses the design on screen",
         test_generate_uses_the_design_on_screen)
   check("typing reaches the design", test_typing_updates_the_design)
+  check("an inset percentage is a percentage of the spacing",
+        test_an_inset_percentage_is_a_percentage_of_the_spacing)
+  check("every element count still has its designs",
+        test_every_element_count_still_has_its_designs)
+  check("every declared offset is pinned",
+        test_every_declared_offset_is_pinned)
   check("catalogue values are what they claim",
         test_catalogue_values_are_what_they_claim)
   check("UI affordances are deliberate",
@@ -7074,6 +9053,65 @@ def main():
         test_a_changed_category_count_warns_that_colours_moved)
   check("colours a reader cannot separate are reported",
         test_colours_a_reader_cannot_separate_are_reported)
+  check("two notices from one run both survive",
+        test_two_notices_from_one_run_both_survive)
+  check("the window fits its design tab when shown",
+        test_the_window_fits_its_design_tab_when_shown)
+  check("cancelling frees the dialog at once",
+        test_cancelling_frees_the_dialog_at_once)
+  check("every design control is reachable",
+        test_every_design_control_is_reachable)
+  check("every control starts where it should",
+        test_every_control_starts_where_it_should)
+  check("every control accepts the range it should",
+        test_every_control_accepts_the_range_it_should)
+  check("every control explains itself",
+        test_every_control_explains_itself)
+  check("the design view draws no tile outlines",
+        test_the_design_view_draws_no_tile_outlines)
+  check("colour legibility warnings are opt-in",
+        test_colour_legibility_warnings_are_opt_in)
+  check("region outlines are cased", test_region_outlines_are_cased)
+  check("installed palettes span their declared colours",
+        test_installed_palettes_span_their_declared_colours)
+  check("ramp swatches run the right way round",
+        test_ramp_swatches_run_the_right_way_round)
+  check("a new run always shows real progress",
+        test_a_new_run_always_shows_real_progress)
+  check("live update is on by default",
+        test_live_update_is_on_by_default)
+  check("repopulating the family list fires no handlers",
+        test_repopulating_the_family_list_fires_no_handlers)
+  check("Edit colours column appears with categories",
+        test_the_edit_colours_column_appears_with_categories)
+  check("the editor lists every value and the no-data row",
+        test_the_editor_lists_every_value_and_the_no_data_row)
+  check("a long category value truncates but is recoverable",
+        test_a_long_value_is_truncated_but_recoverable)
+  check("editing a category colour reaches the map",
+        test_editing_a_category_colour_reaches_the_map)
+  check("the editor is laid out as specified",
+        test_the_editor_is_laid_out_as_specified)
+  check("the editor hides nothing at any size",
+        test_the_editor_hides_nothing_at_any_size)
+  check("the editor scrolls only past fifteen values",
+        test_the_editor_scrolls_only_past_fifteen_values)
+  check("a picked colour changes the rendered map",
+        test_a_picked_colour_changes_the_rendered_map)
+  check("hand-picked colours survive a regenerate",
+        test_hand_picked_colours_survive_a_regenerate)
+  check("a new ramp discards hand-picks and says so",
+        test_a_new_ramp_discards_hand_picks_and_says_so)
+  check("hand-picks are kept per variable",
+        test_hand_picks_are_kept_per_variable)
+  check("hand-picked colours are written into the project",
+        test_hand_picked_colours_are_written_into_the_project)
+  check("race: a colour picked during a run is not lost",
+        test_a_colour_picked_during_a_run_is_not_lost)
+  check("editing colours never rebuilds the table",
+        test_editing_colours_never_rebuilds_the_table)
+  check("the editor copes with the data going away",
+        test_the_editor_copes_with_the_data_going_away)
   check("plugin lifecycle (menu, action, unload)",
         test_plugin_lifecycle)
   check("integration: cancel and recover",

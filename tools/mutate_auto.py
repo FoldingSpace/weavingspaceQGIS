@@ -20,6 +20,20 @@ seconds. Mutants on lines no test reaches are reported separately as
 UNCOVERED rather than counted as survivors: nothing failed, because
 nothing looked.
 
+That cost is spread very unevenly, and --max-cost turns the unevenness
+into an option. Measured on the current record, about a fifth of the
+mutants a test can reach are covered by eight tests or fewer while
+half are covered by seventy or more, so a uniform random sample spends
+nearly all of its wall clock at the expensive end and answers slowly.
+`--max-cost N` keeps only mutants whose covering set is N tests or
+smaller and runs EVERY one of them: a CENSUS of one cost stratum
+rather than a sample of everything. Two things follow, and both are
+stated in the output rather than left to the reader. The rate is exact
+for that stratum, so no confidence bound belongs on it. And it is not
+the plugin's kill rate -- cheaply covered lines are a particular kind
+of code, and a stratum rate quoted as if it were the population's
+would be the most flattering mistake this tool could make.
+
 Mutation operators, all chosen to change BEHAVIOUR rather than
 appearance:
 
@@ -87,6 +101,92 @@ COSMETIC = ("setColumnWidth",)
 # becomes a vanity metric. The evidence here comes from applying the
 # mutation in a sandbox and comparing everything a test could see.
 EQUIVALENT = [
+  {
+    "file": "weavingspace_qgis/dialog.py",
+    "snippet": 'k_spin.setValue(min(int(k_spin.property("user_k") or 5), 20))',
+    "mutation": "20 -> 21",
+    "reason":
+      "The line above sets the spin box's range to (2, 20), and Qt "
+      "clamps setValue to the range. A ceiling of 21 therefore "
+      "produces 20, exactly as before. The 2-20 class range itself is "
+      "a settled decision and is enforced by setRange, which a "
+      "different mutant would have to reach.",
+    "evidence":
+      "Same clamp as the opacity entry, demonstrated under QGIS's own "
+      "Qt: setValue above the maximum returns the maximum.",
+  },
+  {
+    "file": "weavingspace_qgis/dialog.py",
+    "snippet": "      and not self.table.isColumnHidden(7)",
+    "mutation": "7 -> 8",
+    "reason":
+      "Column 7 is the class source and column 8 is Edit colours, and "
+      "_update_dynamic_columns shows and hides BOTH on the same "
+      "condition -- any element categorized with a variable. Asking "
+      "about 8 therefore gets the same answer as asking about 7 in "
+      "every state the dialog can be in.",
+    "evidence":
+      "By construction rather than by sampling: the two setColumnHidden "
+      "calls in _update_dynamic_columns take the identical "
+      "has_categorical flag, so no sequence of user actions can "
+      "separate them.",
+  },
+  {
+    "file": "weavingspace_qgis/dialog.py",
+    "snippet": """    if not mode_combo.property("touched"):
+      mode_combo.blockSignals(True)""",
+    "mutation": "call removed",
+    "reason":
+      "Blocking signals while the style combo is set to follow the "
+      "variable. Two slots could care, and neither does. `touched` is "
+      "marked from `activated`, which Qt emits only on user "
+      "interaction and never from setCurrentText, so the style does "
+      "not stop following the variable. The one slot on "
+      "currentIndexChanged is _refresh_preview_colours, and the "
+      "surrounding code calls exactly that on the next line either "
+      "way. Unblocked, the same refresh happens twice instead of "
+      "once.",
+    "evidence":
+      "Demonstrated by exhausting the connections rather than by "
+      "sampling: the combo has two, made at dialog.py:1912-1915, and "
+      "both are accounted for above. Same shape as the "
+      "opt_over_under entry already in this list.",
+  },
+  {
+    "file": "weavingspace_qgis/dialog.py",
+    "snippet": """    if source_layer is None:
+      return False""",
+    "mutation": "return None",
+    "reason":
+      "_source_layer_alive has exactly one caller, and it reads the "
+      "result as `if not self._source_layer_alive(...)`. False and "
+      "None are both falsy, so `not` gives True either way and the "
+      "guard behaves identically. The annotation says bool, which "
+      "None violates, but nothing at runtime consults it.",
+    "evidence":
+      "Demonstrated by exhausting the call sites rather than by "
+      "sampling: `grep` finds one caller (dialog.py:2930), in a "
+      "boolean context. That is a stronger argument than a sandbox "
+      "comparison, which could only show that the cases it happened "
+      "to exercise agreed.",
+  },
+  {
+    "file": "weavingspace_qgis/dialog.py",
+    "snippet": "self._opacity_choices.get(row_id, 100)",
+    "mutation": "100 -> 101",
+    "reason":
+      "The default opacity is handed straight to a QSpinBox whose "
+      "range is 0-100, and Qt clamps a value above the maximum. 101 "
+      "therefore becomes 100 before anything can read it. The value "
+      "is clamped a second time downstream, in both _restyle_only and "
+      "_add_output_layers, where max(0, min(100, ...)) guards the "
+      "conversion to a layer opacity -- so even a spin box that "
+      "accepted 101 could not carry it to a layer.",
+    "evidence":
+      "Run under QGIS's own Qt: a QSpinBox with setRange(0, 100) "
+      "returns 100 from value() after setValue(100) and after "
+      "setValue(101) alike. No caller can distinguish the two.",
+  },
   {
     "file": "weavingspace_qgis/dialog.py",
     "snippet": "self.opt_over_under.blockSignals(True)",
@@ -404,8 +504,79 @@ def module_level_lines(path):
   return {line for line in everything if line and line not in inside}
 
 
+def rank_covering_tests(coverage, touching, mutant):
+  """Order a mutant's covering tests, likeliest killer first.
+
+  Args:
+    coverage: the per-test record, display name -> executed lines.
+    touching: the display names of the tests that reach this mutant's
+      line, in whatever order the record held them.
+    mutant: the Mutant, read for its file and its original source
+      line.
+
+  Returns:
+    The same names, reordered. Nothing is added or dropped: a mutant
+    is still judged by exactly the tests that reach it, so the VERDICT
+    cannot change. Only the order does, and with it how much of the
+    covering set has to run before a kill is found.
+
+  Two signals, both free:
+
+  WORD OVERLAP between the mutated line and the test's name. A test
+  called "element opacity (layer opacity, authority, gpkg)" is far
+  more likely to notice a change to a line mentioning `opacity` than
+  a test called "race: two Generate presses". Test names in this
+  suite are sentences about behaviour, which makes this unusually
+  effective here.
+
+  FOCUS, as the number of lines the test executes. A test covering
+  two hundred lines is aimed at something; one covering four thousand
+  is an integration session that touches this line in passing and is
+  both likelier to be slow and less likely to assert about it.
+
+  Overlap decides first because it is the stronger signal, focus
+  breaks ties. Both are heuristics, and being wrong costs only time:
+  a mutant that survives the first pass is re-run against everything
+  before it is believed.
+  """
+  import re as _re
+  words = set(_re.findall(r"[a-z]{4,}", mutant.before.lower()))
+  words |= set(_re.findall(
+    r"[a-z]{4,}", os.path.basename(mutant.path).lower()))
+  # words too common in this codebase to discriminate between tests
+  words -= {"self", "none", "true", "false", "return", "value",
+            "weavingspace", "qgis", "test", "with", "that", "from",
+            "this", "have", "when", "then", "name", "text"}
+
+  def score(display):
+    theirs = set(_re.findall(r"[a-z]{4,}", display.lower()))
+    return (-len(words & theirs), len(coverage.get(display, ())))
+
+  return sorted(touching, key=score)
+
+
 def tests_touching_file(coverage, path):
-  """Every test that executes any line of this file."""
+  """Every test that executes any line of this file.
+
+  Args:
+    coverage: the per-test map from coverage_per_test.py -- each test's
+      DISPLAY name (the string the suite reports it under) against the
+      list of "repo/relative/file.py:line" entries that test executed.
+    path: repo-relative file, e.g. weavingspace_qgis/dialog.py, spelled
+      the way the coverage entries are.
+
+  Returns:
+    A list of display names, in whatever order the record holds them,
+    empty when no recorded test so much as imports the file.
+
+  Used INSTEAD of tests_touching for module-level lines. An import runs
+  once per process, so the record credits every module-level line to
+  whichever test imported first; asking which tests touch such a line
+  would pick that one arbitrary test, and the mutant would be judged by
+  a test that never looks at it. Every test reaching the FILE is the
+  honest covering set there. It is also an expensive one, which is why
+  module-level mutants rarely fall inside a small --max-cost stratum.
+  """
   prefix = f"{path}:"
   return [name for name, lines in coverage.items()
           if any(line.startswith(prefix) for line in lines)]
@@ -447,15 +618,25 @@ sys.exit(1 if rt.FAILED else 0)
 """
 
 
-def run_tests(names, base):
+def run_tests(names, base, alone=False):
   """Run some tests in a fresh process, under the watchdog.
 
   Args:
     names: test function names.
+    base: the sandbox to run in — a throwaway copy of the tree, so
+      the project itself is never opened for writing.
+    alone: nothing else is competing for the machine. Raises the
+      wall-clock ceiling, because the ceiling exists to catch hangs
+      and a run sharing eight cores with three other workers needs
+      far longer for the same work than one that has them to itself.
+      Set only by the retry pass.
 
   Returns:
-    "killed" when any failed, "survived" when all passed, "stalled"
-    when the watchdog had to intervene.
+    "killed" when any test failed, "survived" when all passed,
+    "stalled" when the watchdog found no CPU and no output (the
+    program really stopped, which is a test noticing something), and
+    "timeout" when the ceiling was reached — which is NOT a verdict
+    and must not be counted as either.
   """
   code = RUNNER.format(root=base, tests=list(names))
   watchdog = os.path.join(base, "tools", "watchdog.py")
@@ -466,6 +647,11 @@ def run_tests(names, base):
   # four "stalls" at 313-314 seconds, all running the same 66 tests:
   # not four hangs, one ceiling.
   limit = max(300, 15 * len(names))
+  if alone:
+    # a retry with the machine to itself: give it room, since the
+    # point is to convert a non-verdict into a verdict rather than to
+    # confirm that a crowded machine is slow
+    limit *= 3
   result = subprocess.run(
     [sys.executable, watchdog, "--stall", "40",
      "--timeout", str(limit), "--quiet", "--", sys.executable,
@@ -506,8 +692,40 @@ def apply_mutant(mutant, base):
 
 
 def main():
+  """Choose mutants, judge each in a sandbox, and report the rate.
+
+  Args:
+    None taken directly; every input arrives on the command line and
+    each option is described where it is declared below. Three of them
+    change the SHAPE of the measurement rather than its size, and are
+    the ones worth knowing before reading any number this prints.
+    ``--since`` narrows the pool to the lines a given revision changed,
+    which asks whether new code is defended rather than how good the
+    suite is. ``--max-cost`` narrows it to mutants covered by few
+    enough tests to be affordable and then runs all of them, so the
+    result describes that stratum exactly and no other. ``--only``
+    abandons sampling altogether and re-judges named mutations.
+
+  Returns:
+    None. Everything goes to standard output: the selection, one line
+    per verdict, the rate with its confidence bound or its census
+    note, the per-module breakdown, and the survivors for triage.
+    Nothing in the project is written to -- mutants are applied inside
+    throwaway sandboxes, which are discarded before this returns.
+    Two side effects reach beyond the printing. ``_exit_code[0]`` is
+    set to 1 when a ``--require`` threshold is missed, which is how
+    release.py gates on it. And a stale coverage record exits 2
+    outright, before any test runs, because a rate measured against a
+    record that has not heard of the suite's newest tests understates
+    the suite in a direction nobody would notice.
+  """
   parser = argparse.ArgumentParser(description=__doc__)
-  parser.add_argument("--sample", type=int, default=15)
+  parser.add_argument(
+    "--sample", type=int, default=None,
+    help="how many mutants to judge, default 15. With --max-cost the "
+         "sample is drawn from WITHIN that cost stratum, and passing "
+         "it turns the census back into a sample; without --max-cost "
+         "it is drawn from the whole reachable pool")
   parser.add_argument("--seed", type=int, default=1)
   parser.add_argument("--control", action="store_true",
                       help="apply NO mutation and check the tests pass "
@@ -530,6 +748,11 @@ def main():
     help="comma-separated file:line specs to re-judge instead of "
          "sampling, e.g. weavingspace_qgis/dialog.py:508")
   parser.add_argument(
+    "--no-retry", action="store_true",
+    help="do not re-run timed-out mutants alone; leave them as "
+         "non-verdicts, which is what happened before retrying "
+         "existed")
+  parser.add_argument(
     "--allow-stale-coverage", action="store_true",
     help="run even though tests exist that the coverage record does "
          "not know about. They cannot kill anything, so the rate will "
@@ -548,7 +771,29 @@ def main():
   parser.add_argument("--max-tests", type=int, default=4,
                       help="most tests to run per mutant (the cheapest "
                            "covering tests are preferred)")
+  parser.add_argument(
+    "--max-cost", type=int, default=None,
+    help="consider only mutants whose covering-test count is this or "
+         "smaller, and run ALL of them instead of sampling. A mutant "
+         "is judged solely by the tests that cover its line, so that "
+         "count IS its price, and it ranges from one to over a "
+         "hundred: a uniform sample therefore buys most of its wall "
+         "clock at the expensive end. This measures the cheap end "
+         "exhaustively instead. The rate it produces belongs to THAT "
+         "STRATUM and is not the plugin's kill rate; every line that "
+         "reports it says which stratum it measured")
   args = parser.parse_args()
+
+  # Whether a sample size was actually ASKED for, recorded before the
+  # --since and --only branches below rewrite args.sample for their own
+  # purposes. --max-cost with no --sample is a census of the stratum,
+  # and a census must not be mistaken for a sample of one afterwards:
+  # its fraction is exact rather than estimated, so the confidence
+  # bound a sample earns would be answering a question nobody asked.
+  sample_asked = args.sample is not None
+  census = args.max_cost is not None and not sample_asked
+  if args.sample is None and args.max_cost is None:
+    args.sample = 15
 
   if not os.path.exists(COVERAGE):
     sys.exit("run tools/coverage_per_test.py first (it builds the map "
@@ -638,33 +883,93 @@ def main():
             f"(the line may have changed since it was reported)")
     print(f"re-judging {len(pool)} mutation(s) at {len(found)} "
           f"named line(s)\n")
-    args.sample = max(args.sample, len(pool))
+    # `or 0` because --max-cost leaves the sample size unset; every
+    # named mutation is wanted either way, and the pool is already
+    # exactly the named ones
+    args.sample = max(args.sample or 0, len(pool))
 
   rng = random.Random(args.seed)
   rng.shuffle(pool)
 
-  chosen, uncovered = [], []
+  # Price every mutant before deciding what to run. A mutant's price is
+  # the size of its covering set, because that set is the entire bill:
+  # a cheap first pass of --max-tests of them, and, if it survives, a
+  # confirming run against all of them.
+  #
+  # Without --max-cost this stops as soon as the sample is full, which
+  # is what it has always done -- the pool is shuffled, so the first N
+  # reachable mutants ARE the sample and pricing the rest would be
+  # work for nothing. With --max-cost everything has to be priced to
+  # know what qualifies, which costs about a second of scanning.
+  reachable, uncovered = [], []
   for mutant in pool:
-    if len(chosen) >= args.sample:
-      break
     if mutant.line in MODULE_LEVEL.get(mutant.path, set()):
       touching = tests_touching_file(coverage, mutant.path)
     else:
       touching = tests_touching(coverage, mutant.path, mutant.line)
-    if not touching:
-      uncovered.append(mutant)
-      continue
+    # Likeliest killer first, so the cheap first pass has the best
+    # chance of finding the kill before the expensive confirming run
+    # is needed. Reordering cannot change a verdict; see
+    # rank_covering_tests.
+    touching = rank_covering_tests(coverage, touching, mutant)
+    # Either nothing reaches the line, or the only tests that do have
+    # been renamed out of the suite since the record was made. Both are
+    # UNCOVERED rather than survivors: nothing looked, so nothing
+    # failed to see.
     functions = [names[t] for t in touching if t in names]
     if not functions:
       uncovered.append(mutant)
       continue
-    # keep the full covering set as well: a mutant that survives the
-    # cheap sample is re-run against all of them before we believe it
-    chosen.append((mutant, functions[:args.max_tests], functions))
+    reachable.append((mutant, functions))
+    if args.max_cost is None and len(reachable) >= args.sample:
+      break
 
-  print(f"{len(pool)} possible mutations; sampling {len(chosen)} "
-        f"(seed {args.seed}); {len(uncovered)} skipped as unreached "
-        f"by any test\n")
+  if args.max_cost is None:
+    stratum, qualifying = None, reachable
+  else:
+    stratum = f"covered by {args.max_cost} test(s) or fewer"
+    qualifying = [(m, f) for m, f in reachable
+                  if len(f) <= args.max_cost]
+  dearer = len(reachable) - len(qualifying)
+
+  # args.sample is None only under a census, where the whole stratum
+  # runs; otherwise it caps the draw, and the pool was shuffled before
+  # pricing, so a capped draw is a random sample of whatever set it is
+  # drawn from.
+  limit = len(qualifying) if args.sample is None \
+      else min(args.sample, len(qualifying))
+  # keep the full covering set as well: a mutant that survives the
+  # cheap sample is re-run against all of them before we believe it
+  chosen = [(m, f[:args.max_tests], f) for m, f in qualifying[:limit]]
+
+  if args.max_cost is None:
+    print(f"{len(pool)} possible mutations; sampling {len(chosen)} "
+          f"(seed {args.seed}); {len(uncovered)} skipped as unreached "
+          f"by any test\n")
+  else:
+    share = 100 * len(qualifying) / max(len(reachable), 1)
+    print(f"{len(pool)} possible mutations; {len(uncovered)} are "
+          f"unreached by any test, leaving {len(reachable)} that a "
+          f"test could notice.")
+    print(f"COST STRATUM: {len(qualifying)} of those {len(reachable)} "
+          f"({share:.0f}%) are {stratum}. The other {dearer} cost "
+          f"more and are NOT measured by this run.")
+    if not chosen:
+      print(f"\nno mutant is {stratum}, so there is nothing to "
+            f"measure; raise --max-cost, or re-record coverage if "
+            f"that many lines being unreached looks wrong")
+      return
+    if census:
+      print(f"CENSUS of the stratum: running all {len(chosen)}, so "
+            f"the rate below is that stratum's exact rate rather than "
+            f"an estimate of it.")
+    else:
+      print(f"sampling {len(chosen)} of the {len(qualifying)} "
+            f"(seed {args.seed}); the rate below estimates THIS "
+            f"STRATUM and nothing wider.")
+    budget = sum(len(t) for _m, t, _a in chosen)
+    print(f"first pass is {budget} test run(s); survivors are then "
+          f"re-run against their full covering set\n")
 
   killed = survived = stalled = 0
   survivors = []
@@ -804,6 +1109,41 @@ def main():
           survivors.append((mutant, tests))
   wall = time.perf_counter() - wall
 
+  # Second chance for the runs that never finished. A timeout usually
+  # means contention rather than a hang: four workers on eight cores,
+  # and a mutant whose covering set is ninety tests. Re-run alone, one
+  # at a time, nothing else competing. Whatever finishes becomes a
+  # real verdict; whatever times out again is reported as before.
+  #
+  # This cannot flatter the score. A retry can only convert a
+  # non-verdict into a verdict, and it is as free to return "survived"
+  # as "killed" -- the mutant is judged by the same tests either way.
+  # Leaving them out was the safe choice when a timeout might mean a
+  # hang; measuring them is the accurate one.
+  if timeouts and not args.no_retry:
+    print(f"\n{len(timeouts)} run(s) hit the ceiling. Re-running them "
+          f"alone, where nothing competes for the machine:")
+    retried, still_out = [], []
+    for mutant, tests in timeouts:
+      verdict = run_tests(tests, bases[0], alone=True)
+      if verdict == "timeout":
+        still_out.append((mutant, tests))
+        print(f"  timeout again  {mutant} ({len(tests)} tests)")
+        continue
+      retried.append((mutant, tests, verdict))
+      print(f"  {verdict:>8}  {mutant} ({len(tests)} tests)")
+      if verdict == "killed":
+        killed += 1
+      elif verdict == "stalled":
+        stalled += 1
+      else:
+        survived += 1
+        survivors.append((mutant, tests))
+    if retried:
+      print(f"  {len(retried)} of {len(timeouts)} became real verdicts "
+            f"on a second run")
+    timeouts = still_out
+
   for sandbox in bases:
     discard(sandbox)
   total = killed + survived + stalled
@@ -816,11 +1156,34 @@ def main():
     for mutant, tests in timeouts:
       print(f"  {mutant} ({len(tests)} tests)")
 
-  print(f"\nfirst-run kill rate: {caught}/{total} = {rate:.0f}%"
+  # The rate line names its own scope. A number that silently
+  # describes a subset is the failure this whole tool exists to avoid,
+  # and "kill rate: 90%" on a cheap stratum would be exactly that.
+  scope = "" if args.max_cost is None else \
+      f"  [ONLY MUTANTS {stratum.upper()}]"
+  print(f"\nfirst-run kill rate{scope}: {caught}/{total} = {rate:.0f}%"
         f"  (killed {killed}, stalled {stalled}, survived {survived})")
-  print(f"true rate is at least {bound * 100:.0f}% with 95% "
-        f"confidence  (exact Clopper-Pearson, two-sided lower limit, "
-        f"n={total})")
+  if args.max_cost is None:
+    print(f"true rate is at least {bound * 100:.0f}% with 95% "
+          f"confidence  (exact Clopper-Pearson, two-sided lower limit, "
+          f"n={total})")
+  elif census:
+    # A census has no sampling error, so there is nothing to bound:
+    # every mutant in the stratum was run and the fraction IS the
+    # stratum's rate. What remains uncertain is the other strata, and
+    # no interval computed from these mutants can speak for those.
+    print("every qualifying mutant was run, so that fraction is the "
+          "stratum's exact rate, not an estimate of it")
+    print(f"it is NOT the plugin's kill rate: {dearer} of "
+          f"{len(reachable)} reachable mutants are covered by more "
+          f"than {args.max_cost} test(s) and were never run here")
+  else:
+    print(f"within this stratum the true rate is at least "
+          f"{bound * 100:.0f}% with 95% confidence  (exact "
+          f"Clopper-Pearson, two-sided lower limit, n={total})")
+    print(f"neither figure is the plugin's kill rate: {dearer} of "
+          f"{len(reachable)} reachable mutants are covered by more "
+          f"than {args.max_cost} test(s) and were never run here")
   print(f"measured against {suite_stamp()}; the number expires when "
         f"the suite changes")
   print(f"{wall / 60:.0f} min of wall clock with {args.workers} "
@@ -831,12 +1194,24 @@ def main():
   # computation and should sit far higher than the dialog's wiring;
   # averaging them into one number would conceal exactly the weakness
   # worth knowing about.
+  # Timeouts are excluded here exactly as they are from the headline
+  # rate. They were not: every timed-out run counted towards `tried`
+  # while never counting as a survivor, so `tried - lost` credited it
+  # as a KILL. Batch 10's modules summed to 77/100 against a headline
+  # of 73/96 -- the four discarded runs reappearing as successes, in
+  # the one place a reader looks to find which module is weakest.
+  # This is the same mistake the headline was fixed for once already:
+  # machine load flattering the suite.
+  timed_out = {id(mutant) for mutant, _ in timeouts}
   per_file = {}
   for mutant, _, _ in chosen:
+    if id(mutant) in timed_out:
+      continue
     entry = per_file.setdefault(mutant.path, [0, 0])
     entry[1] += 1
   for mutant, _ in survivors:
-    per_file[mutant.path][0] += 1
+    if mutant.path in per_file:
+      per_file[mutant.path][0] += 1
   if len(per_file) > 1:
     print("\nby module (caught / tried):")
     for path in sorted(per_file, key=lambda k: -per_file[k][1]):
@@ -845,6 +1220,14 @@ def main():
       print(f"  {path:<44} {got:>3}/{tried:<3} = "
             f"{100 * got / max(tried, 1):>3.0f}%")
   if args.require is not None:
+    if args.max_cost is not None:
+      # Worth saying out loud: --require was written to gate a release
+      # on the whole population's rate, and here it is being held
+      # against one stratum of it. Cheaply covered lines are a
+      # particular kind of code, so passing or failing says something
+      # narrower than the threshold's usual meaning.
+      print(f"\nnote: this threshold is being applied to a STRATUM "
+            f"rate (mutants {stratum}), not to the population")
     if total < 5:
       print(f"\n{total} mutation(s) is too few to hold to a "
             f"threshold; reporting only")

@@ -68,6 +68,32 @@ def cpu_seconds(pid):
 
 
 def main():
+  """Run the child command and say whether it finished, hung, or ran on.
+
+  Args:
+    None taken directly; everything arrives on the command line.
+    ``--stall`` is the seconds of no CPU AND no new output before a run
+    is called stuck (the pair matters: either one alone is normal).
+    ``--timeout`` is the hard wall-clock ceiling, which applies however
+    busy the child is. ``--log`` names a file to tee the child's output
+    into, ``--quiet`` stops it being echoed here as well, and the
+    command itself follows a bare ``--``.
+
+  Returns:
+    Nothing: this exits the process instead, and the exit code is the
+    whole point. The child's own code when it finished on its own, 124
+    on the hard timeout, 125 on a stall. mutate_auto.run_tests reads
+    those two apart and must keep doing so -- 125 means the program
+    really stopped, which is a test noticing something, while 124 means
+    only that we ran out of patience and is no verdict on the mutant at
+    all. Nothing is written except the log file, if one was asked for.
+
+  Why a stalled child is signalled before it is killed: any process
+  that called ``faulthandler.register(signal.SIGUSR1)`` answers SIGUSR1
+  by dumping every thread's stack, so the three seconds spent waiting
+  after sending it buy the one piece of evidence that says WHERE the
+  run stuck. Killing first would throw that away.
+  """
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument("--stall", type=float, default=45,
                       help="seconds of no CPU and no output before a "
@@ -88,8 +114,23 @@ def main():
   child = subprocess.Popen(command, stdout=subprocess.PIPE,
                            stderr=subprocess.STDOUT, text=True,
                            bufsize=1)
-  started = time.time()
-  last_progress = time.time()
+  # Every clock reading here is time.monotonic(), and they must stay
+  # that way together: the stall check compares a timestamp taken by
+  # the reader thread against last_progress, so one of them on a
+  # different clock would make the comparison meaningless.
+  #
+  # Monotonic rather than time.time() because this measures how long
+  # the WORK has been going, and on macOS time.monotonic() does not
+  # advance while the machine is asleep. With wall clock, closing the
+  # lid for twenty minutes looks exactly like a twenty-minute hang: a
+  # mutation batch left running overnight came back with four runs
+  # marked as timeouts that the machine had merely slept through. The
+  # verdicts were discarded rather than miscounted, so no score was
+  # corrupted, but the work was wasted -- and this is the same family
+  # of mistake as counting a timeout as a kill, which is the machine's
+  # state leaking into a measurement of the tests.
+  started = time.monotonic()
+  last_progress = time.monotonic()
   last_cpu = 0.0
   last_line = ""
   import threading
@@ -100,7 +141,7 @@ def main():
     """Read the child's output on its own thread, so a silent child
     never blocks the poller."""
     for line in child.stdout:
-      lines.append((time.time(), line))
+      lines.append((time.monotonic(), line))
       if log:
         log.write(line)
         log.flush()
@@ -115,7 +156,7 @@ def main():
   while True:
     if child.poll() is not None:
       break
-    now = time.time()
+    now = time.monotonic()
     if now - started > args.timeout:
       verdict = ("timeout", f"hard limit of {args.timeout:.0f}s reached")
       break
@@ -132,7 +173,7 @@ def main():
       verdict = ("stall",
                  f"no CPU and no output for {args.stall:.0f}s "
                  f"(used {cpu:.1f}s CPU in "
-                 f"{now - started:.0f}s wall clock)")
+                 f"{now - started:.0f}s of running time)")
       break
     time.sleep(2)
 

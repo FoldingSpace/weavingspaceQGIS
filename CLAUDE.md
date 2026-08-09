@@ -75,6 +75,22 @@ obligations: they exist so nobody pays twice for the same discovery.
   a push is neither. (Revised 2026-08-07; the earlier form of this
   rule forbade publishing anywhere at all, which held until the
   repository existed.)
+- **User-facing documentation is clear and concise.** Say what the
+  control does and what the user should know about it, then stop. The
+  guide and help tab are reference material somebody reads while
+  trying to finish a map, not an argument for the technique; the
+  reasoning belongs in the article, and the maintainer's reasoning
+  belongs in docstrings. This applies to new sections and to edits of
+  old ones. (User instruction, 2026-08-08.)
+- **Tooltips are VERY SHORT: fifteen words at most, usually under
+  twelve.** A tooltip is a nudge at the point of use, not a paragraph
+  in a yellow box; the user guide and the Help tab carry the fuller
+  explanation and both already exist. Enforced by
+  `test_every_control_explains_itself`, which also requires every
+  control to HAVE one (the README promises it) and rejects a tooltip
+  of one or two words that merely repeats the label. The rule arrived
+  after twenty of thirty-six tooltips had drifted to between nineteen
+  and sixty-one words. (User instruction, 2026-08-09.)
 - **Canadian spelling in all user-facing text**: colour, colourmap,
   behaviour, and -ize verbs (symbolize, categorize, organize). Code
   identifiers that mirror a QGIS or matplotlib API keep that API's
@@ -87,7 +103,16 @@ obligations: they exist so nobody pays twice for the same discovery.
   section comments written for a weavingspace-literate, QGIS-naive
   maintainer — explain each QGIS/Qt concept at its point of use. This
   is an explicit user requirement; match the density of the existing
-  modules. Specifically:
+  modules. It applies to **everything this project writes** — the
+  plugin package, `tools/`, `tests/`, `build.py` and `release.py`
+  alike — and not merely to code inside the plugin folder. The
+  checker enforced it on the package only until 2026-08-09, which
+  left the tooling ungoverned while that tooling grew to rewrite
+  shipped source, decide the mutation score and write into a user's
+  QGIS profiles. `vendor/` is the one exclusion, because it is
+  upstream's code held verbatim: our conventions there would either
+  be discarded at the next re-vendor or fail forever. (User
+  instruction, 2026-08-09.) Specifically:
   - document INPUTS AND OUTPUTS, not just purpose: an Args block that
     says what each argument means and what happens when it is
     omitted, a Returns block that says what the caller gets and
@@ -114,6 +139,17 @@ obligations: they exist so nobody pays twice for the same discovery.
   intentions do not survive a long session. When a rule genuinely
   should change, change it in the checker deliberately — do not
   weaken it to make a release pass.
+- **A substantial release goes out as a CANDIDATE first.**
+  `python3 release.py --rc` runs the same correctness gates and then
+  stops, writing `dist/weavingspace_qgis-<version>rc<n>.zip` and
+  committing nothing. The gates answer whether the plugin is correct;
+  only somebody making a map with it can say whether it is any good to
+  use, and that feedback has to arrive before the version is tagged
+  rather than after. The candidate announces itself as `<version>rcN`
+  in QGIS's plugin manager (substituted inside the archive; the
+  version on disk is untouched) so a tester always knows which build
+  they have. (User instruction, 2026-08-08; details in
+  docs/PUBLISHING.md.)
 - **Releases go through `python3 release.py`**; never hand the user a
   zip that did not come out of it (details under "The test suite").
   Every release writes reports/v<version>/testing-report.md listing
@@ -377,8 +413,12 @@ Confirmed with the user via an explicit design review:
   as soon as a layer and variables are in place (no button press) and
   is gated: memory-mode output only, estimated tiles ≤
   LIVE_UPDATE_MAX_TILES, and no-op runs skipped via _run_signature.
-- Preview shows the bare tile unit by default (shells=0) with subtle
-  centroid-anchored tile-id labels, like the web app's design view.
+- Preview shows the tile unit with ONE ring of neighbouring copies by
+  default (shells=1), with subtle centroid-anchored tile-id labels.
+  This changed from shells=0 on 2026-08-08 at the user's instruction:
+  the bare unit hides insetting and the joins between tiles, which are
+  exactly the properties someone is inspecting the design view to
+  judge. The unit alone remains one click away.
 - "Quant: Unclassed" (50 linear intervals) is the sanctioned
   reproduction of a continuous ramp — derived from upstream semantics
   (n_classes=0 → matplotlib linear Normalize), not invented; see
@@ -405,6 +445,47 @@ Confirmed with the user via an explicit design review:
 - The region-outlines layer is drawn cased, a wide white line under a
   narrow black one, so boundaries stay legible over pale and dark
   parts of the pattern alike.
+- The design view draws NO outline around its tiles. The preview
+  exists to judge whether the shapes read as distinct elements by
+  colour and form, and a dark hairline round every tile competes with
+  exactly that; it also thickens relative to the tiles as the spacing
+  gets finer, so a detailed pattern became a mesh. Tile boundaries on
+  the MAP are a separate control and unaffected. (User instruction,
+  2026-08-09.)
+- The colour-legibility warnings (two elements a reader may not be
+  able to separate, in ordinary vision or with a red-green
+  deficiency) are OPT-IN, behind "Warn about lack of legibility in
+  colour choices" on Map options, unchecked by default. They are a
+  second opinion on a cartographic choice rather than a fault, and
+  while somebody is still trying ramps they would fire on nearly
+  every intermediate state, which is how a warning becomes something
+  people learn to ignore. Both places the check can fire — after a
+  run, and on closing the Categorical colour editor — are gated by
+  the same box. (User instruction, 2026-08-09.)
+- **The Categorical colour editor** (`category_editor.py`, the "Edit
+  colours" column) lets a user set a colour per value. Settled by
+  `/grill-me` on 2026-08-08; the decisions are the user's and should
+  not be quietly revisited. Values come from the REGION layer, so the
+  button works before anything is generated — accepting that at a
+  coarse spacing it can list a value no tile carries. Colours are
+  keyed `{tile_id: {field: {value: colour}}}`, so switching an
+  element's variable away and back restores the work and two fields
+  sharing a value name cannot bleed into each other. Choosing a ramp
+  or importing a QML CLEARS that element's hand-picks for the current
+  field, so the ramp control means what it says; the loss is reported,
+  never silent. Overrides outrank both template and ramp in
+  `make_categorized_renderer`, and the catch-all is editable under
+  `bridge.NO_DATA_KEY`. The window is modal to the plugin dialog only,
+  leaving the QGIS canvas live so the recolour can be watched. The
+  editor NEVER holds a layer: it writes to the dialog's record and
+  lets the restyle path find whatever layers exist, which is what
+  makes it safe to use while a run is in flight. Two consequences that
+  cost a bug each: the picks must be in `_signature` or the fast path
+  skips the element as unchanged, and `_add_output_layers` must
+  RE-READ them rather than trust the snapshot the run was launched
+  with, or a colour chosen during a run is destroyed when it lands.
+  They persist as a layer custom property so a saved project survives
+  a QGIS restart.
 - The repository is public at `FoldingSpace/weavingspaceQGIS`, with
   the project page served by GitHub Pages from `docs/` on the main
   branch (so a single push updates code, documentation and page

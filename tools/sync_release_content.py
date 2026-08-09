@@ -52,6 +52,19 @@ PUBLISHED = ["README.md", os.path.join("docs", "index.html")]
 
 
 def read(path):
+  """The whole text of one file in the repository.
+
+  Args:
+    path: a path relative to the repository root, so every check here
+      reads the tree being released rather than whatever directory
+      the tool happened to be started from.
+
+  Returns:
+    The file's contents as text. Nothing is written. A missing file
+    raises OSError, so the checks that expect one may be absent
+    (CITATION.cff, the vendor stamp) test for it themselves first and
+    report its absence as a problem in its own right.
+  """
   with open(os.path.join(ROOT, path), encoding="utf-8") as handle:
     return handle.read()
 
@@ -110,7 +123,22 @@ def sync_citation(version, fix):
 
 
 def check_changelog(fields, version):
-  """The plugin manager shows a changelog; it must mention this release."""
+  """The plugin manager shows a changelog; it must mention this release.
+
+  Args:
+    fields: the parsed metadata.txt as metadata() returns it. The
+      "changelog" entry is the whole block, continuation lines
+      included, which is why a plain substring test finds an entry
+      wherever in the block it sits.
+    version: the version being released.
+
+  Returns:
+    An empty list when the changelog names this version, otherwise a
+    single problem. Nothing is written: what a user would notice
+    about a release is the one claim here that cannot be derived from
+    anything else in the tree, and a line generated to satisfy the
+    check would read like one.
+  """
   entry = fields.get("changelog", "")
   if version in entry:
     return []
@@ -213,6 +241,22 @@ def check_urls(fields):
 
 
 def main():
+  """Audit every claim the published files make, and mend the mechanical ones.
+
+  Returns:
+    0 when the published content agrees with this version (or was
+    mended), 1 when something needs a person, with each problem
+    printed. release.py stops on 1, before it commits, so a page
+    describing a version other than the one being released never
+    reaches a reader.
+
+  Only CITATION.cff is ever written, and only with --fix; the version
+  and release date there have exactly one correct value. Everything
+  else -- a missing changelog entry, a stale image, a broken link, a
+  vendored version claimed in prose, a repository URL -- is reported
+  and left alone, because rewriting published prose automatically at
+  release time is how documentation turns to mush.
+  """
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument("--fix", action="store_true")
   parser.add_argument("--since", type=float, default=0)

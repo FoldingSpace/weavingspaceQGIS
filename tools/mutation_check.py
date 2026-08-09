@@ -40,6 +40,8 @@ BRIDGE = "weavingspace_qgis/bridge.py"
 CATALOG = "weavingspace_qgis/catalog.py"
 COMPAT = "weavingspace_qgis/compat.py"
 PERCEPTION = "weavingspace_qgis/perception.py"
+EDITOR = "weavingspace_qgis/category_editor.py"
+WORKER = "weavingspace_qgis/worker.py"
 # the ONE part of the vendored library that is ours: the
 # patch making matplotlib and scipy optional
 VENDOR_TILEABLE = ("weavingspace_qgis/vendor/weavingspace/tileable.py")
@@ -235,6 +237,215 @@ MUTATIONS = [
        test="test_ramp_swatches_and_palette_installation",
        why="the categorical palettes, installed by their own loop, "
            "reaching a fresh QGIS profile"),
+  dict(name="palette-end-colour", file=BRIDGE,
+       old="        QColor(stops[0]), QColor(stops[-1]), False, gradient_stops)",
+       new="        QColor(stops[0]), QColor(stops[-2]), False, gradient_stops)",
+       test="test_installed_palettes_span_their_declared_colours",
+       why="every installed sequential and diverging ramp reaching "
+           "the colour it declares at its dark end, which is the end "
+           "carrying the highest values on the map"),
+  dict(name="conditional-column-hidden-index", file=DIALOG,
+       old="    self.table.setColumnHidden(7, True)",
+       new="    self.table.setColumnHidden(8, True)"
+           "  # mutation: hides the wrong column",
+       test="test_dialog_structure",
+       why="the conditional columns starting hidden, and hiding the "
+           "ones they name: an off-by-one here leaves a dead column "
+           "in front of a first-time user"),
+  dict(name="outline-layer-not-marked-output", file=DIALOG,
+       old='      outline_layer.setCustomProperty("weavingspace_output", True)',
+       new='      outline_layer.setCustomProperty("weavingspace_output", False)',
+       test="test_plugin_never_offers_its_own_output_as_a_region",
+       why="the outlines layer being excluded from the region chooser "
+           "like every other output. It is polygons of exactly the "
+           "region, so it is the one most likely to be picked back up "
+           "by mistake"),
+  dict(name="swatch-direction-default", file=DIALOG,
+       old="def _ramp_icon(name: str, reverse: bool = False):",
+       new="def _ramp_icon(name: str, reverse: bool = True):",
+       test="test_ramp_swatches_run_the_right_way_round",
+       why="the swatch in the dropdown showing the ramp the way the "
+           "map will draw it; reversed, the whole list disagrees with "
+           "every map made from it"),
+  dict(name="progress-range-per-run", file=DIALOG,
+       old="""    self.generate_btn.setEnabled(False)
+    self.progress.setVisible(True)
+    self.progress.setRange(0, 100)""",
+       new="""    self.generate_btn.setEnabled(False)
+    self.progress.setVisible(True)""",
+       test="test_a_new_run_always_shows_real_progress",
+       why="a run reporting a percentage even after one that ended "
+           "through the zombie recovery, which does not restore the "
+           "determinate range the way _finish_run does"),
+  dict(name="cancel-reports-immediately", file=WORKER,
+       old="""    super().cancel()
+    self._report(None, None)""",
+       new="""    super().cancel()""",
+       test="test_cancelling_frees_the_dialog_at_once",
+       why="a cancelled run handing the dialog back at once, rather "
+           "than when the abandoned work happens to finish"),
+  dict(name="scale-controls-in-a-layout", file=DIALOG,
+       old='    pair("Scale EW / NS", self.mod_scale_x, self.mod_scale_y)',
+       new="    pass  # mutation: the Scale controls reach no layout",
+       test="test_every_design_control_is_reachable",
+       why="controls being reachable by a user and not only by a test "
+           "that assigns to them directly"),
+  dict(name="fit-to-design-on-show", file=DIALOG,
+       old="    QTimer.singleShot(0, self._fit_to_design)",
+       new="    pass  # mutation: the window keeps its built size",
+       test="test_the_window_fits_its_design_tab_when_shown",
+       why="the window opening tall enough to show the Design tab it "
+           "contains; sizeHint is not truthful before a layout pass, "
+           "so the fit has to be deferred and then actually happen"),
+  dict(name="inset-percentage-divisor", file=DIALOG,
+       old="        unit = unit.inset_tiles(self.mod_t_inset.value() * spacing / 100)",
+       new="        unit = unit.inset_tiles(self.mod_t_inset.value() * spacing / 101)",
+       test="test_an_inset_percentage_is_a_percentage_of_the_spacing",
+       why="an inset percentage meaning that percentage of the "
+           "spacing; a one percent error passes every comparison in "
+           "the suite, whose tolerance is wider than the mistake"),
+  dict(name="element-count-keys", file=CATALOG,
+       old="  5: {",
+       new="  6: {",
+       test="test_every_element_count_still_has_its_designs",
+       why="every element count the chooser offers actually having "
+           "designs. A duplicated key does not misfile them, it "
+           "DELETES them, and the other catalogue tests iterate "
+           "whatever keys exist"),
+  dict(name="square-slice-8-offset", file=CATALOG,
+       old='"square-slice 8": dict(type="tiling", tiling_type="square-slice", n=8, offset=0)',
+       new='"square-slice 8": dict(type="tiling", tiling_type="square-slice", n=8, offset=1)',
+       test="test_every_declared_offset_is_pinned",
+       why="every declared offset being pinned, not only the handful "
+           "somebody thought to list; the element count is identical "
+           "either way and the design is not"),
+  dict(name="gradient-stop-positions", file=BRIDGE,
+       old="        QgsGradientStop(i / (len(stops) - 1), QColor(c))",
+       new="        QgsGradientStop(i / (len(stops) - 2), QColor(c))",
+       test="test_installed_palettes_span_their_declared_colours",
+       why="the interior colours of every installed ramp sitting "
+           "where the palette declares. Both ends stay right, so a "
+           "legend looks correct while the classes between are wrong"),
+  dict(name="shells-default-value", file=DIALOG,
+       old="    self.shells_spin.setValue(1)",
+       new="    self.shells_spin.setValue(0)",
+       test="test_every_control_starts_where_it_should",
+       why="the preview opening with a ring of neighbours, where "
+           "insetting and the joins between tiles can be seen"),
+  dict(name="tile-inset-ceiling", file=DIALOG,
+       old="    self.mod_t_inset = spin(0, 5, 0, 0.1)",
+       new="    self.mod_t_inset = spin(0, 6, 0, 0.1)",
+       test="test_every_control_accepts_the_range_it_should",
+       why="the tile inset stopping at 5%, beyond which a weave's "
+           "thin strands are swallowed"),
+  dict(name="colour-warning-default-off", file=DIALOG,
+       old='    self.opt_colour_warnings = QCheckBox(\n      "Warn about lack of legibility in colour choices")',
+       new='    self.opt_colour_warnings = QCheckBox(\n      "Warn about lack of legibility in colour choices")\n    self.opt_colour_warnings.setChecked(True)',
+       test="test_every_control_starts_where_it_should",
+       why="the legibility opinion being asked for rather than "
+           "offered unbidden on every map"),
+  dict(name="outline-casing", file=BRIDGE,
+       old="  sym.appendSymbolLayer(narrow.symbolLayer(0).clone())",
+       new="  pass  # mutation: the dark line over the casing is lost",
+       test="test_region_outlines_are_cased",
+       why="region boundaries staying legible over both pale and dark "
+           "parts of the pattern, which one line alone cannot do"),
+  dict(name="live-update-default", file=DIALOG,
+       old="    self.live_check.setChecked(True)",
+       new="    pass  # mutation: live update starts off",
+       test="test_live_update_is_on_by_default",
+       why="a first map appearing without the user having to find the "
+           "Generate button"),
+  dict(name="family-list-signals-blocked", file=DIALOG,
+       old="    self.family_combo.blockSignals(True)",
+       new="    self.family_combo.blockSignals(False)"
+           "  # mutation: handlers fire mid-refill",
+       test="test_repopulating_the_family_list_fires_no_handlers",
+       why="the unit being rebuilt once for a kind change rather than "
+           "once per family added to the list"),
+  dict(name="editor-value-column-width", file=EDITOR,
+       old="VALUE_WIDTH = 125",
+       new="VALUE_WIDTH = 200",
+       test="test_the_editor_is_laid_out_as_specified",
+       why="the settled width of the value column, which the window "
+           "is then sized to"),
+  dict(name="editor-visible-rows", file=EDITOR,
+       old="VISIBLE_ROWS = 15",
+       new="VISIBLE_ROWS = 40",
+       test="test_the_editor_scrolls_only_past_fifteen_values",
+       why="the table scrolling rather than growing past fifteen "
+           "values, so a field with forty categories cannot open a "
+           "window taller than the screen"),
+  dict(name="editor-scrollbar-room", file=EDITOR,
+       old="""    if rows > VISIBLE_ROWS:
+      width += self.table.verticalScrollBar().sizeHint().width()""",
+       new="""    pass  # mutation: no room made for the scroll bar""",
+       test="test_the_editor_scrolls_only_past_fifteen_values",
+       why="the colour column surviving the arrival of a scroll bar, "
+           "which takes its width from the viewport rather than "
+           "adding to it"),
+  dict(name="editor-value-alignment", file=EDITOR,
+       old="""      cell.setTextAlignment(Qt.AlignmentFlag.AlignRight
+                            | Qt.AlignmentFlag.AlignVCenter)""",
+       new="""      pass  # mutation: values fall back to left-aligned""",
+       test="test_the_editor_is_laid_out_as_specified",
+       why="values set right against colours set left, so the eye "
+           "runs down one gap rather than across a ragged one"),
+  dict(name="category-colour-override", file=BRIDGE,
+       old="""    if str(v) in overrides:""",
+       new="""    if False:  # mutation: hand-picked colours ignored""",
+       test="test_editing_a_category_colour_reaches_the_map",
+       why="a colour chosen in the Categorical colour editor being "
+           "the colour the map actually draws"),
+  dict(name="category-colours-in-signature", file=DIALOG,
+       old="""            a.get("reverse", False), a.get("opacity", 100),
+            tuple(sorted(picked.items())))""",
+       new="""            a.get("reverse", False), a.get("opacity", 100))"""
+           """  # mutation: picks invisible to the restyle path""",
+       test="test_editing_a_category_colour_reaches_the_map",
+       why="the fast path noticing a hand-picked colour at all; "
+           "without it the element is skipped as unchanged"),
+  dict(name="category-colours-reread-after-run", file=DIALOG,
+       old="""    for a in assignments:
+      if a.get("mode") == "Categorized" and a.get("var"):
+        a["category_colours"] = self._category_colours.get(
+          a["id"], {}).get(a["var"])""",
+       new="""    pass  # mutation: the run's stale snapshot wins""",
+       test="test_a_colour_picked_during_a_run_is_not_lost",
+       why="a colour picked while a tiling was finishing surviving "
+           "that tiling, rather than being overwritten by the "
+           "settings the run started with"),
+  dict(name="category-colours-cleared-by-ramp", file=DIALOG,
+       old="""        self._clear_category_colours(tid, "a new colour ramp")""",
+       new="""        pass  # mutation: hand-picks outlive the ramp change""",
+       test="test_a_new_ramp_discards_hand_picks_and_says_so",
+       why="choosing a ramp meaning what it says, and the user being "
+           "told which hand-picked colours it cost them"),
+  dict(name="category-colours-stamped-on-layer", file=DIALOG,
+       old="""      layer.setCustomProperty(
+        "weavingspace_category_colours",
+        json.dumps({"field": assignment["var"], "colours": picked},
+                   sort_keys=True))""",
+       new="""      pass  # mutation: nothing recorded for the project file""",
+       test="test_hand_picked_colours_are_written_into_the_project",
+       why="hand-picked colours outliving the session, so reopening a "
+           "saved project and pressing Generate does not silently "
+           "revert them"),
+  dict(name="edit-colours-column-visibility", file=DIALOG,
+       old="""    self.table.setColumnHidden(COL_EDIT_COLOURS, not has_categorical)""",
+       new="""    self.table.setColumnHidden(COL_EDIT_COLOURS, False)"""
+           """  # mutation: always on""",
+       test="test_the_edit_colours_column_appears_with_categories",
+       why="the column appearing only where there are categories to "
+           "colour, rather than as a dead control on every map"),
+  dict(name="notices-share-one-line", file=DIALOG,
+       old="""    self.live_note.setText(
+      f"{existing}{NOTE_SEPARATOR}{message}" if existing else message)""",
+       new="""    self.live_note.setText(message)"""
+           """  # mutation: last notice wins""",
+       test="test_two_notices_from_one_run_both_survive",
+       why="a run with several things wrong reporting all of them, "
+           "rather than only whichever was computed last"),
   dict(name="shells-spinner-layout", file=DIALOG,
        old="shells_row.addWidget(self.shells_spin)",
        new="pass  # mutation: the spinner is never added to a layout",
@@ -606,6 +817,28 @@ def apply_mutation(mutation, base=None):
 
 
 def main():
+  """Break each catalogued behaviour in turn and see whether its test objects.
+
+  Returns:
+    None. Exits 1 when any non-equivalent mutation SURVIVED -- its
+    test passed with the behaviour deliberately broken, which means
+    that test does not in fact defend what it claims to. Prints a
+    verdict per entry and a summary of survivors and hangs. The
+    project's own source is never written to: everything happens in a
+    throwaway copy made by tools/sandbox.py and discarded at the end.
+
+  A mutation marked equivalent is expected to survive, so it is
+  reported and not counted against the run; it stays in the catalogue
+  rather than being deleted because if a future QGIS makes its branch
+  live again, it will start being caught, and that is worth knowing.
+
+  Two details that each cost something to learn. The CRS reattach
+  mutation is resolved at run time because its anchor line moves;
+  when it cannot be found the run says so out loud rather than
+  quietly checking one behaviour fewer. And the signal handlers are
+  not decoration: a SIGTERM skips the ``finally`` that puts a file
+  back, which has already left mutated source on disk once.
+  """
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument("--only", help="run just this mutation by name")
   args = parser.parse_args()
@@ -673,10 +906,18 @@ def main():
       pass  # expected: nothing to catch
     elif passed:
       survivors.append(mutation)
-    elif passed is None:
-      hung.append(mutation)
       print("          the test passed with the behaviour broken; "
             "it needs a stronger assertion")
+    elif passed is None:
+      hung.append(mutation)
+      # A stall is not a survivor and not a kill: the run never
+      # finished, so the test said nothing either way. This line used
+      # to carry the survivor's diagnosis above, telling whoever read
+      # a hang the exact opposite of what had happened, while the
+      # branch that really did mean "passed with the behaviour
+      # broken" printed nothing at all.
+      print("          the run never finished, so this mutation has "
+            "no verdict; re-run it alone with --only")
 
   discard(BASE[0])
   print()

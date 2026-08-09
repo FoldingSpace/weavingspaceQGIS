@@ -1,0 +1,1002 @@
+{
+ "02349d052c9624a8": {
+  "approved": "2026-08-09",
+  "excerpt": "Shrink each unit in place, into separate glyphs.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "035d00420b83c143": {
+  "approved": "2026-08-08",
+  "excerpt": "## Words we use",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "037c76945b76eeef": {
+  "approved": "2026-08-08",
+  "excerpt": "Join data using whole tileable",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "03fdf9b6056d9a4a": {
+  "approved": "2026-08-08",
+  "excerpt": "The region layer was removed while the map was being made, s",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "04e40fd04661a010": {
+  "approved": "2026-08-08",
+  "excerpt": "Check your internet connection and try again, or install the",
+  "where": "weavingspace_qgis/plugin.py"
+ },
+ "0585e47f26154737": {
+  "approved": "2026-08-08",
+  "excerpt": "That layer has no categorized symbology",
+  "where": "weavingspace_qgis/bridge.py"
+ },
+ "07e649472d74794d": {
+  "approved": "2026-08-08",
+  "excerpt": "> O'Sullivan, D., & Bergmann, L. (2026). Using MapWeaver to ",
+  "where": "README.md"
+ },
+ "0adb038e39b338a0": {
+  "approved": "2026-08-09",
+  "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",
+  "where": "weavingspace_qgis/help_content.py"
+ },
+ "0c36ac7c94d9e7b8": {
+  "approved": "2026-08-09",
+  "excerpt": "text-align: left; font-family: {};",
+  "where": "weavingspace_qgis/category_editor.py"
+ },
+ "0c9b9671e454440d": {
+  "approved": "2026-08-09",
+  "excerpt": "Trims the pattern to the region outline. The sloleft step.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "0cc3b14f285334d8": {
+  "approved": "2026-08-09",
+  "excerpt": "<p>What the plugin adds to a QGIS project is not an image fi",
+  "where": "docs/index.html"
+ },
+ "0eec116b706692e6": {
+  "approved": "2026-08-08",
+  "excerpt": "WeavingSpace \u2013 tiled & woven multivariate maps (v{})",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "0f2f19c333545cd3": {
+  "approved": "2026-08-08",
+  "excerpt": "# WeavingSpace QGIS plugin",
+  "where": "README.md"
+ },
+ "102e7ccb57665571": {
+  "approved": "2026-08-08",
+  "excerpt": "Could not build tile unit: {}",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "1033e08177770e35": {
+  "approved": "2026-08-08",
+  "excerpt": "How the tests are held to account, including a mutation-test",
+  "where": "README.md"
+ },
+ "10577acaaba171e6": {
+  "approved": "2026-08-08",
+  "excerpt": "The Data & colours tab gives each element layer its initial\n",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "111ae8aaaa75e8fb": {
+  "approved": "2026-08-08",
+  "excerpt": "## Saving and sharing",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "12133f57aa3a9894": {
+  "approved": "2026-08-09",
+  "excerpt": "The pattern's grain in map units. Try aiming near the typica",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "1269baae3fb8f5cb": {
+  "approved": "2026-08-08",
+  "excerpt": "for a reader with protanopia",
+  "where": "weavingspace_qgis/perception.py"
+ },
+ "12a6ca48f90b66c5": {
+  "approved": "2026-08-09",
+  "excerpt": "Stretch the pattern right-left.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "130b8a7848a184af": {
+  "approved": "2026-08-08",
+  "excerpt": "live update paused (about {} tiles); press Generate",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "14661fe1885e377b": {
+  "approved": "2026-08-08",
+  "excerpt": "How many variables to map is a design question more than a t",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "159bf633920001de": {
+  "approved": "2026-08-09",
+  "excerpt": "Keeps whole units that touch the region, letting the pattern",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "1741d72d930583e4": {
+  "approved": "2026-08-08",
+  "excerpt": "<h2>A prototype, and how it was made</h2>",
+  "where": "docs/index.html"
+ },
+ "17dac133fb6bd9cb": {
+  "approved": "2026-08-09",
+  "excerpt": "<p>This QGIS plugin is an interface to the\n<a href=\"https://",
+  "where": "docs/index.html"
+ },
+ "18c353b62194e54e": {
+  "approved": "2026-08-08",
+  "excerpt": "Fill colour for this element",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "19501fcca9657d5a": {
+  "approved": "2026-08-08",
+  "excerpt": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8",
+  "where": "docs/index.html"
+ },
+ "1ae2efcfc2bc7fcb": {
+  "approved": "2026-08-09",
+  "excerpt": "Every element in a unit takes its data from the same area.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "1c2e89bbd04a4727": {
+  "approved": "2026-08-08",
+  "excerpt": "({} other pair(s) are close too)",
+  "where": "weavingspace_qgis/perception.py"
+ },
+ "1df17998146a26fc": {
+  "approved": "2026-08-08",
+  "excerpt": "The polygon layer whose attributes will be mapped. A project",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "1ec5cc4444f6b486": {
+  "approved": "2026-08-08",
+  "excerpt": "<div class=\"plates\">\n  <div>\n    <img src=\"img/twill-weave.p",
+  "where": "docs/index.html"
+ },
+ "2345ddf4a1d286bd": {
+  "approved": "2026-08-09",
+  "excerpt": "Save all element layers, with styling, to one file.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "238dc76ee6edc1aa": {
+  "approved": "2026-08-08",
+  "excerpt": "QGIS 4 or later is required.",
+  "where": "README.md"
+ },
+ "264c7a8910295785": {
+  "approved": "2026-08-09",
+  "excerpt": "*Warn about lack of legibility in colour choices* checks, af",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "289110568eabf7a3": {
+  "approved": "2026-08-08",
+  "excerpt": "<figure>\n  <img src=\"img/dialog.png\" alt=\"The plugin dialog,",
+  "where": "docs/index.html"
+ },
+ "31eee4ae893d3233": {
+  "approved": "2026-08-09",
+  "excerpt": "Tilings give side-by-side patches; weaves give strands the e",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "342d8f97c901d8e4": {
+  "approved": "2026-08-08",
+  "excerpt": "<figure>\n  <img src=\"img/paper-fig1-auckland-deprivation.png",
+  "where": "docs/index.html"
+ },
+ "34427f627d4b06bf": {
+  "approved": "2026-08-08",
+  "excerpt": "Tilings give compact side-by-side patches (and support the i",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "35f33dca9e7daec3": {
+  "approved": "2026-08-08",
+  "excerpt": "*Four indices of deprivation in a basket weave, and seven in",
+  "where": "README.md"
+ },
+ "36063a2ddcb64d78": {
+  "approved": "2026-08-08",
+  "excerpt": "'{}': {} tiles across {} element layers",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "364344d670831204": {
+  "approved": "2026-08-08",
+  "excerpt": "Strand width as a fraction of spacing: 1.0 fills all space; ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "382b16c6ec6a72ea": {
+  "approved": "2026-08-09",
+  "excerpt": "'{}' has no values to colour in this layer.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "3882e474ff4195b2": {
+  "approved": "2026-08-08",
+  "excerpt": "## The map option switches",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "3c06de43f48834b6": {
+  "approved": "2026-08-09",
+  "excerpt": "Stretch the pattern up-down.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "3db8aaa36d577848": {
+  "approved": "2026-08-09",
+  "excerpt": "Opens a thin gap around every tile or strand.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "3eb02c489d810773": {
+  "approved": "2026-08-08",
+  "excerpt": "You do not need a GitHub account, git, or a command line for",
+  "where": "README.md"
+ },
+ "3eb66302ac921d29": {
+  "approved": "2026-08-08",
+  "excerpt": "*Six moments in time in one map: anthropogenic biomes across",
+  "where": "README.md"
+ },
+ "3f9d74d0fa8823d8": {
+  "approved": "2026-08-08",
+  "excerpt": "No symbology found in the style file.",
+  "where": "weavingspace_qgis/bridge.py"
+ },
+ "42562fd4c77de6c3": {
+  "approved": "2026-08-08",
+  "excerpt": "The weavingspace library failed to load: {}",
+  "where": "weavingspace_qgis/plugin.py"
+ },
+ "435f0273f756cd4a": {
+  "approved": "2026-08-08",
+  "excerpt": "Class colours from a QGIS style file",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "4386757262e57cf9": {
+  "approved": "2026-08-08",
+  "excerpt": "Pulls each repeating unit apart from its neighbours, showing",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "48efd94208fb4c9b": {
+  "approved": "2026-08-09",
+  "excerpt": "Strand width as a fraction of spacing; 1.0 leaves no gaps.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "49cd57d1eb1b5e3b": {
+  "approved": "2026-08-09",
+  "excerpt": "Where this element's class colours come from: automatic, ano",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "4b231879cdb7a396": {
+  "approved": "2026-08-08",
+  "excerpt": "This guide restates the practical parts. The article is shor",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "4b4c9bcc90afa20f": {
+  "approved": "2026-08-08",
+  "excerpt": "## Licence and citation",
+  "where": "README.md"
+ },
+ "4bd3c5b8de418d67": {
+  "approved": "2026-08-08",
+  "excerpt": "The selected layer has no (non-empty) polygon features.",
+  "where": "weavingspace_qgis/bridge.py"
+ },
+ "4c59c799e27ed06e": {
+  "approved": "2026-08-08",
+  "excerpt": "laying out the tiling\u2026 %p%",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "4d3261f48a555d49": {
+  "approved": "2026-08-08",
+  "excerpt": "<p>The library that does the tiling mathematics, with its ow",
+  "where": "docs/index.html"
+ },
+ "4d540ba0bd5513e5": {
+  "approved": "2026-08-09",
+  "excerpt": "One unit at the centre of each polygon, instead of a continu",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "4dd911583e6c2b2e": {
+  "approved": "2026-08-09",
+  "excerpt": "Slant the pattern right-left.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "4e147e60885cd26e": {
+  "approved": "2026-08-08",
+  "excerpt": "'{}' now has {} categories where it had {}, so the colours o",
+  "where": "weavingspace_qgis/bridge.py"
+ },
+ "4f67d46c1c8b2316": {
+  "approved": "2026-08-08",
+  "excerpt": "This QGIS installation is missing (or has outdated versions ",
+  "where": "weavingspace_qgis/plugin.py"
+ },
+ "50af5cd426307348": {
+  "approved": "2026-08-08",
+  "excerpt": "Use tileable as icon (one per map unit)",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "53997e95bb56f55c": {
+  "approved": "2026-08-08",
+  "excerpt": "<footer>\n<p>The two figures above are reproduced from the <e",
+  "where": "docs/index.html"
+ },
+ "5483557be2e5abca": {
+  "approved": "2026-08-09",
+  "excerpt": "Categorical fields (land cover, dominant crop, period labels",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "54dca3e5daced86f": {
+  "approved": "2026-08-08",
+  "excerpt": "Some class style files could not be used (",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "55c94fd469d6f825": {
+  "approved": "2026-08-08",
+  "excerpt": "Rotating the pattern usually helps: roughly 15\u201375\u00b0 suits two",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "582906f2e55066f4": {
+  "approved": "2026-08-08",
+  "excerpt": "Renders a first map as soon as a layer and variables are in ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "58c7303af577c996": {
+  "approved": "2026-08-08",
+  "excerpt": "The library and its examples are at\n[github.com/DOSull/weavi",
+  "where": "README.md"
+ },
+ "5aa0057027e60a9c": {
+  "approved": "2026-08-08",
+  "excerpt": "This QGIS plugin is an interface to the [weavingspace](https",
+  "where": "README.md"
+ },
+ "5bcf447deef804db": {
+  "approved": "2026-08-09",
+  "excerpt": "Adds the region boundaries as outlines on top of the pattern",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "5d74e2ff2fc4c6e5": {
+  "approved": "2026-08-08",
+  "excerpt": "<p>QGIS 4 or later is required.</p>",
+  "where": "docs/index.html"
+ },
+ "5da8018f3d7211a5": {
+  "approved": "2026-08-09",
+  "excerpt": "How many crossing strands each strand passes over, then unde",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "5ff68eb9e61a3a43": {
+  "approved": "2026-08-08",
+  "excerpt": "for a reader with deuteranopia",
+  "where": "weavingspace_qgis/perception.py"
+ },
+ "60ce038cebf7e701": {
+  "approved": "2026-08-08",
+  "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",
+  "where": "weavingspace_qgis/help_content.py"
+ },
+ "648fb4189a6b6bad": {
+  "approved": "2026-08-08",
+  "excerpt": "## Limits worth knowing",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "64a557b2a65d6c56": {
+  "approved": "2026-08-08",
+  "excerpt": "You asked to keep the previous result as its own group, but ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "653f599980a22167": {
+  "approved": "2026-08-08",
+  "excerpt": "One unit per polygon, at its centre, instead of a continuous",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "663c58421e36f94e": {
+  "approved": "2026-08-09",
+  "excerpt": "Where this element's class colours come from.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "66e7bf00623a580e": {
+  "approved": "2026-08-08",
+  "excerpt": "The plugin draws the same kinds of map from your own layers:",
+  "where": "README.md"
+ },
+ "68022acfc248f883": {
+  "approved": "2026-08-08",
+  "excerpt": "Elements '{}' and '{}' use colours that are hard to tell apa",
+  "where": "weavingspace_qgis/perception.py"
+ },
+ "6852b5b0b650f641": {
+  "approved": "2026-08-08",
+  "excerpt": "Mapping several attributes of the same areas in a single map",
+  "where": "README.md"
+ },
+ "68ca271ea7bb2ac5": {
+  "approved": "2026-08-09",
+  "excerpt": "Only elements with a categorized style have values to colour",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "6b4ddcfafb108d99": {
+  "approved": "2026-08-08",
+  "excerpt": "\n## What it makes",
+  "where": "README.md"
+ },
+ "6b7ef413473a615c": {
+  "approved": "2026-08-08",
+  "excerpt": "The pattern's grain, in map units: unit size for tilings, st",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "6d018091ba667251": {
+  "approved": "2026-08-09",
+  "excerpt": "Opens a gap around each whole unit (tilings only).",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "6e1daf96115aa11a": {
+  "approved": "2026-08-09",
+  "excerpt": "How solid this element draws, as QGIS layer opacity; 100 is ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "6f8af792281b893c": {
+  "approved": "2026-08-08",
+  "excerpt": "Add map unit outlines layer",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "70d92eb8514ea8b2": {
+  "approved": "2026-08-09",
+  "excerpt": "Rings of neighbouring copies around the unit; 0 shows the un",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "75627c684c96b9d3": {
+  "approved": "2026-08-08",
+  "excerpt": "The style file defines no classes.",
+  "where": "weavingspace_qgis/bridge.py"
+ },
+ "75bc4b0ff09d2e73": {
+  "approved": "2026-08-08",
+  "excerpt": "<p><small>WeavingSpace QGIS plugin version {}</small></p>",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "75fa2b54dc5335a6": {
+  "approved": "2026-08-09",
+  "excerpt": "Choosing {} for element '{}' discarded {} colour(s) you had ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "78745481edf68bd8": {
+  "approved": "2026-08-08",
+  "excerpt": ". Is that field really categorical?",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "78a93721207ec677": {
+  "approved": "2026-08-08",
+  "excerpt": "A coarse value from the layer extent, good for iterating",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "7abf00660f3a6d78": {
+  "approved": "2026-08-08",
+  "excerpt": "How many variables the pattern can carry.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "7d290fe7c9edf875": {
+  "approved": "2026-08-08",
+  "excerpt": "Tiled or woven? The two carry the same information, and we w",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "7edcef7e57e54b87": {
+  "approved": "2026-08-08",
+  "excerpt": "That layer's symbology defines no classes",
+  "where": "weavingspace_qgis/bridge.py"
+ },
+ "807759666588f171": {
+  "approved": "2026-08-09",
+  "excerpt": "Number of classes; categorized rows show how many categories",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "8242b395903dbba5": {
+  "approved": "2026-08-08",
+  "excerpt": "Scale as glyph (independent of tiling)",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "887f012f004af6d1": {
+  "approved": "2026-08-08",
+  "excerpt": "Save to GeoPackage (empty = temporary layers)",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "8973e1a24efe0feb": {
+  "approved": "2026-08-09",
+  "excerpt": "- Values come from your region layer, so you can set colours",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "8a426e7dd6a4dc4a": {
+  "approved": "2026-08-08",
+  "excerpt": "Adds a copy of the region layer, drawn as outlines on top, s",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "8ad335e8aa4ad916": {
+  "approved": "2026-08-08",
+  "excerpt": "Ran out of memory while tiling; a larger spacing will work f",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "8b6091318259c7f8": {
+  "approved": "2026-08-08",
+  "excerpt": "A spacing this small asks for roughly {} tiles. For this lay",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "8bb74433559723bc": {
+  "approved": "2026-08-08",
+  "excerpt": "Set *Save to GeoPackage* and every element layer is written ",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "8d16ec833c7fb02a": {
+  "approved": "2026-08-09",
+  "excerpt": "Element '{}' coloured by '{}'",
+  "where": "weavingspace_qgis/category_editor.py"
+ },
+ "8e2f332ac65b86ba": {
+  "approved": "2026-08-09",
+  "excerpt": "Warn about lack of legibility in colour choices",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "8ec709f57b71da05": {
+  "approved": "2026-08-09",
+  "excerpt": "Outline every tile on the map.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "8fb3a089d2909dac": {
+  "approved": "2026-08-08",
+  "excerpt": "Categorical fields (land cover, dominant crop, period labels",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "901185a596013ce5": {
+  "approved": "2026-08-08",
+  "excerpt": "MIT, for both the plugin and the bundled library where we ha",
+  "where": "README.md"
+ },
+ "9023b2bc4daa9f2c": {
+  "approved": "2026-08-09",
+  "excerpt": "1 surrounds the unit with a ring of neighbouring copies, whi",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "90da9e347ba4b045": {
+  "approved": "2026-08-08",
+  "excerpt": "How solid this element draws, as QGIS layer opacity: 100 is ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "9124689adc58e115": {
+  "approved": "2026-08-08",
+  "excerpt": "Create tiled and woven multivariate maps (mapweaver)",
+  "where": "weavingspace_qgis/plugin.py"
+ },
+ "918c0cee0b3afcb8": {
+  "approved": "2026-08-09",
+  "excerpt": "Columns of squares in the unit. Surplus cells become regular",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "9429cfb4275d4bef": {
+  "approved": "2026-08-08",
+  "excerpt": "); automatic colours were applied instead.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "947e0e981b5a7f8d": {
+  "approved": "2026-08-08",
+  "excerpt": "![The plugin dialog](docs/img/dialog.png)",
+  "where": "README.md"
+ },
+ "98e7c7ce4e0397db": {
+  "approved": "2026-08-08",
+  "excerpt": "This will generate roughly {} tiles and may take a while. Co",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "9931606e3a8f1075": {
+  "approved": "2026-08-08",
+  "excerpt": "*Join data using whole tileable* asks every element in a uni",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "9a46c8497b5ce2cd": {
+  "approved": "2026-08-08",
+  "excerpt": "Create as new group (keep the previous result)",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "9e471b0afdf7f1d1": {
+  "approved": "2026-08-08",
+  "excerpt": "<p>This is experimental research software and should be trea",
+  "where": "docs/index.html"
+ },
+ "9e52fb1eab60510f": {
+  "approved": "2026-08-08",
+  "excerpt": "## A way of working",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "a16f58fca2f3e39f": {
+  "approved": "2026-08-08",
+  "excerpt": "Tilings and weaves are both available, from the same catalog",
+  "where": "README.md"
+ },
+ "a3c68fab740e7a54": {
+  "approved": "2026-08-08",
+  "excerpt": "Every element in a unit takes its data from the same area, s",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "a4498f670117f800": {
+  "approved": "2026-08-08",
+  "excerpt": "Writing {} to {} failed: {}",
+  "where": "weavingspace_qgis/bridge.py"
+ },
+ "a5376f69b0f55f66": {
+  "approved": "2026-08-08",
+  "excerpt": "# WeavingSpace user guide",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "a5400413a8c9c2d8": {
+  "approved": "2026-08-08",
+  "excerpt": "The technique, and the vocabulary used here, come from the w",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "a559943a1519e0cb": {
+  "approved": "2026-08-08",
+  "excerpt": "Number of classes for this element's Quant symbology; catego",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "a7b69f13a9349cdd": {
+  "approved": "2026-08-08",
+  "excerpt": "Retain complete tileables at edges",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "a7f794db338ed380": {
+  "approved": "2026-08-08",
+  "excerpt": "A first map appears of its own accord once a layer and varia",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "aa2a80e206a7838e": {
+  "approved": "2026-08-08",
+  "excerpt": "The tile unit could not be built.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "ad2e9b0a6b25716b": {
+  "approved": "2026-08-08",
+  "excerpt": "Pick a design to preview it.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "ae218570e34ec102": {
+  "approved": "2026-08-08",
+  "excerpt": "<p>Mapping several attributes of the same areas in a single ",
+  "where": "docs/index.html"
+ },
+ "ae2dbfa74d7268a2": {
+  "approved": "2026-08-09",
+  "excerpt": "Draws and redraws the map as you change settings, without pr",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "af8378b340dbf545": {
+  "approved": "2026-08-08",
+  "excerpt": "We welcome your examples, questions, and reports of anything",
+  "where": "README.md"
+ },
+ "aff444ddcd275b9d": {
+  "approved": "2026-08-08",
+  "excerpt": "<p>This QGIS plugin is an interface to the [weavingspace](ht",
+  "where": "docs/index.html"
+ },
+ "b07bfd9571c545d4": {
+  "approved": "2026-08-08",
+  "excerpt": "The *tileable unit* is the small repeating group of shapes s",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "b1b77731c4877a51": {
+  "approved": "2026-08-09",
+  "excerpt": "Warns when two elements use colours a reader may confuse.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "b82031d17558e246": {
+  "approved": "2026-08-08",
+  "excerpt": "Each element/row below becomes its own QGIS layer, initially",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "b845030305876608": {
+  "approved": "2026-08-09",
+  "excerpt": "Turn the whole pattern; 15\u201375\u00b0 usually suits two-direction w",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "bd18900a1d6065ab": {
+  "approved": "2026-08-08",
+  "excerpt": "![Anthropogenic biomes at six moments in time across northea",
+  "where": "README.md"
+ },
+ "bf717698d324fd5c": {
+  "approved": "2026-08-08",
+  "excerpt": "Tile counts grow with the square of the inverse spacing, so ",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "c0cbfcfe8f73d116": {
+  "approved": "2026-08-09",
+  "excerpt": "Menlo, Consolas, 'DejaVu Sans Mono', monospace",
+  "where": "weavingspace_qgis/category_editor.py"
+ },
+ "c71310d5039cf304": {
+  "approved": "2026-08-08",
+  "excerpt": "Rotation usually helps. A square pattern aligned with the fr",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "c98d24d841b53582": {
+  "approved": "2026-08-09",
+  "excerpt": "Slant the pattern up-down.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "ca3799a9b6ffcb1c": {
+  "approved": "2026-08-08",
+  "excerpt": "![Four deprivation indices in a basket weave, and seven in a",
+  "where": "README.md"
+ },
+ "cdd9c3fccc1946fa": {
+  "approved": "2026-08-08",
+  "excerpt": "Clip by map units (no ragged edges)",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "ce05335606708960": {
+  "approved": "2026-08-08",
+  "excerpt": "Could not add the result layers:",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "ce40db40c48d2b72": {
+  "approved": "2026-08-09",
+  "excerpt": "Three things worth knowing:",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "cf75a40b898a78c4": {
+  "approved": "2026-08-08",
+  "excerpt": "Adding {} tiles to the map...",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "cf85f8aff1fada94": {
+  "approved": "2026-08-09",
+  "excerpt": "Choose a colour for each value this element takes",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "d1b8be31b0c12eef": {
+  "approved": "2026-08-08",
+  "excerpt": "The pattern catalogue for the chosen element count.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "d244536d33a684dc": {
+  "approved": "2026-08-08",
+  "excerpt": "joining data to tiles\u2026 %p%",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "d38d4a72a832af94": {
+  "approved": "2026-08-08",
+  "excerpt": "To update later, download the new zip and install it the sam",
+  "where": "README.md"
+ },
+ "d40b77decc7e557c": {
+  "approved": "2026-08-08",
+  "excerpt": "<figure>\n  <img src=\"img/paper-fig2-anthropogenic-biomes.png",
+  "where": "docs/index.html"
+ },
+ "d4651cbc03e95c23": {
+  "approved": "2026-08-08",
+  "excerpt": "Begin with the data: one polygon layer, in the projected CRS",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "d4a7524d0d47a768": {
+  "approved": "2026-08-08",
+  "excerpt": "Run this element's ramp the other way round",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "d84cfc40a917feb6": {
+  "approved": "2026-08-09",
+  "excerpt": "Keeps the previous result and adds this run as a separate gr",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "d8dd17888ea57759": {
+  "approved": "2026-08-08",
+  "excerpt": "Keeps whole units that touch the region, letting the pattern",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "da5ad31e5390269e": {
+  "approved": "2026-08-08",
+  "excerpt": "An element you leave on `---` carries no variable and draws ",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "da6374d364493868": {
+  "approved": "2026-08-09",
+  "excerpt": "Where the cuts start: 0 at the corners, 1 at the edge midpoi",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "da719a669d5e84da": {
+  "approved": "2026-08-09",
+  "excerpt": "### Setting a colour per value",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "da78c8551b2e5967": {
+  "approved": "2026-08-08",
+  "excerpt": "Assign at least one variable in the Data & colours tab.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "db669f6c7c16d29b": {
+  "approved": "2026-08-08",
+  "excerpt": "Save tiled map to GeoPackage",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "dd3edb0d6a4bbc1b": {
+  "approved": "2026-08-08",
+  "excerpt": "WeavingSpace \u2013 one-time setup",
+  "where": "weavingspace_qgis/plugin.py"
+ },
+ "df2a7a25f1967e82": {
+  "approved": "2026-08-08",
+  "excerpt": "Mapping several attributes of the same areas at once is a lo",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "e28d4124937d4ab7": {
+  "approved": "2026-08-08",
+  "excerpt": "restyled {} (no re-tiling needed)",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "e384d6874060ed59": {
+  "approved": "2026-08-09",
+  "excerpt": "Create tiled and woven multivariate maps",
+  "where": "weavingspace_qgis/plugin.py"
+ },
+ "e3cabc63df704f83": {
+  "approved": "2026-08-09",
+  "excerpt": "The polygon layer whose attributes will be mapped. Best not ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "e49dc3d28b11fa28": {
+  "approved": "2026-08-08",
+  "excerpt": "Where this element's class colors come from: automatic, anot",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "e559dea73a61744f": {
+  "approved": "2026-08-08",
+  "excerpt": "## An experimental prototype",
+  "where": "README.md"
+ },
+ "e5ed5e823bb51183": {
+  "approved": "2026-08-08",
+  "excerpt": "This is experimental research software and should be treated",
+  "where": "README.md"
+ },
+ "e612ee32ffd0d82a": {
+  "approved": "2026-08-08",
+  "excerpt": "The\nplugin produces ordinary QGIS layers: one per pattern el",
+  "where": "README.md"
+ },
+ "e63253361c79b332": {
+  "approved": "2026-08-08",
+  "excerpt": "Sharpness of the star points, in degrees.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "e67d2889ce43175d": {
+  "approved": "2026-08-09",
+  "excerpt": "How this element is symbolized; adjustable later in the Laye",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "e788b00d381f6796": {
+  "approved": "2026-08-08",
+  "excerpt": "The style file does not contain categorised symbology.",
+  "where": "weavingspace_qgis/bridge.py"
+ },
+ "e881bc2ee8cdbe09": {
+  "approved": "2026-08-08",
+  "excerpt": "<h1>WeavingSpace: tiled and woven maps in QGIS</h1>\n<p class",
+  "where": "docs/index.html"
+ },
+ "e992f02b6b48802a": {
+  "approved": "2026-08-08",
+  "excerpt": "At {} {} spacing, {} of {} areas received no tiles and appea",
+  "where": "weavingspace_qgis/bridge.py"
+ },
+ "eb089e22d053f4cc": {
+  "approved": "2026-08-08",
+  "excerpt": "Rotates the dissection's internal cuts within each tile.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "eb7d28c0460c4903": {
+  "approved": "2026-08-08",
+  "excerpt": "Keep the previous result and add this run as a separate grou",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "ebd1b4358df2f4b7": {
+  "approved": "2026-08-08",
+  "excerpt": "Could not re-open {} from {}",
+  "where": "weavingspace_qgis/bridge.py"
+ },
+ "ee0f50e2d3bb79f6": {
+  "approved": "2026-08-08",
+  "excerpt": "Trims the pattern to the region outline. The slowest step, a",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "ee4e54ecbcf3e695": {
+  "approved": "2026-08-08",
+  "excerpt": "WeavingSpace: tiling with {}",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "ef46c42e84d4d5a9": {
+  "approved": "2026-08-08",
+  "excerpt": "Rows of squares in the unit",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "ef543bf652cc64f7": {
+  "approved": "2026-08-09",
+  "excerpt": "Load a polygon layer in a projected CRS, rough in a design w",
+  "where": "README.md"
+ },
+ "f297bd31c128e7bf": {
+  "approved": "2026-08-08",
+  "excerpt": "Where the slices/dissection cuts start on the base shape: 0 ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "f2e461246b9ddd4d": {
+  "approved": "2026-08-08",
+  "excerpt": "Opens a thin gap around every tile or strand, a legibility d",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "f37a3f07bdaf8d55": {
+  "approved": "2026-08-08",
+  "excerpt": "<div class=\"obtain\">\n  <p><a href=\"https://github.com/Foldin",
+  "where": "docs/index.html"
+ },
+ "f3e4a054373977c1": {
+  "approved": "2026-08-08",
+  "excerpt": "[MAINTAINING.md](MAINTAINING.md) holds the architecture map,",
+  "where": "README.md"
+ },
+ "f6627eb64fc59ba3": {
+  "approved": "2026-08-08",
+  "excerpt": "The tiling produced no tiles.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "f7b13276066c57aa": {
+  "approved": "2026-08-08",
+  "excerpt": "Load a polygon layer in a projected CRS, rough in a design w",
+  "where": "README.md"
+ },
+ "f7f089a2b5a45237": {
+  "approved": "2026-08-08",
+  "excerpt": "Columns of squares in the unit. Rows x columns beyond the el",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "f8ee97119e4408ec": {
+  "approved": "2026-08-08",
+  "excerpt": "<p>What the plugin adds to a QGIS project is not a picture b",
+  "where": "docs/index.html"
+ },
+ "fba5da4be2d831fa": {
+  "approved": "2026-08-08",
+  "excerpt": "The passing pattern: how many crossing strands each strand g",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "fbfec607876e49fe": {
+  "approved": "2026-08-08",
+  "excerpt": "How this element is symbolized; a plausible style follows th",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "fcc4ca55571af320": {
+  "approved": "2026-08-08",
+  "excerpt": "1. Go to the\n   [latest release](https://github.com/FoldingS",
+  "where": "README.md"
+ },
+ "fed2c7f13003104b": {
+  "approved": "2026-08-08",
+  "excerpt": "If the final spacing is near the typical width of your polyg",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "fef807ccec8b9be2": {
+  "approved": "2026-08-08",
+  "excerpt": "Categorized styling produced a very large number of classes ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "ff09b221d307b3b7": {
+  "approved": "2026-08-09",
+  "excerpt": "No ramp knows that forest should be green. An \"Edit colours\"",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "ffdcb22632c18fdd": {
+  "approved": "2026-08-09",
+  "excerpt": "Checks whether any two elements use colours a reader may not",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "fff27e7af643c092": {
+  "approved": "2026-08-08",
+  "excerpt": "<blockquote>\n  <p>O&rsquo;Sullivan, D., &amp; Bergmann, L. (",
+  "where": "docs/index.html"
+ }
+}

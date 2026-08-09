@@ -18,7 +18,7 @@ about=Creates tiled and woven map layers that carry several attributes
     they are missing (notably on Linux), the plugin asks first and then
     downloads the wheels from PyPI into its own folder, changing
     nothing else in your QGIS installation.
-version=0.23.0
+version=0.24.0
 author=Luke Bergmann
 email=luke.bergmann@gmail.com
 tracker=https://github.com/FoldingSpace/weavingspaceQGIS/issues
@@ -33,6 +33,12 @@ server=False
 
 ; Shown in the QGIS plugin manager. Keep the newest version first, and
 ; describe what a USER would notice rather than what changed in the code.
-changelog=0.23.0 Reverse-ramp switches and per-element opacity in the
+changelog=0.24.0 An Edit colours button sets a colour per value for
+    categorical elements. Warnings when a spacing leaves areas off the
+    map, when a changed category count moves existing colours, and
+    when two elements' colours are hard to tell apart. The preview now
+    shows one ring of neighbouring tiles by default, and colour-ramp
+    swatches are larger.
+    0.23.0 Reverse-ramp switches and per-element opacity in the
     data table; grid and stripe families with row and column controls;
     published as a public repository with a project page.

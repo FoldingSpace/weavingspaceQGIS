@@ -15,18 +15,65 @@ Prefer cutting releases via release.py, which runs the test suite and
 refuses to build on failure.
 """
 
+import argparse
 import os
+import re
+import shutil
 import zipfile
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(ROOT, "weavingspace_qgis")
 DIST = os.path.join(ROOT, "dist")
 EXCLUDE_DIRS = {"__pycache__", "libs", ".DS_Store"}
+METADATA = os.path.join(SRC, "metadata.txt")
 
 
-def main():
+def declared_version():
+    """The version in metadata.txt, which is the one QGIS believes."""
+    with open(METADATA, encoding="utf-8") as handle:
+        match = re.search(r"^version=(.+)$", handle.read(), re.MULTILINE)
+    return match.group(1).strip() if match else "0.0.0"
+
+
+def next_candidate(version):
+    """The next unused release-candidate number for this version.
+
+    Args:
+      version: the declared version, e.g. "0.24.0".
+
+    Returns:
+      An integer, 1 the first time and one more than the highest
+      already sitting in dist/ afterwards. Counting from what exists
+      rather than from a stored number means a candidate can never
+      silently overwrite the one somebody is already testing, which
+      is the whole point of numbering them.
+    """
+    if not os.path.isdir(DIST):
+        return 1
+    pattern = re.compile(
+        rf"weavingspace_qgis-{re.escape(version)}rc(\d+)\.zip$")
+    used = [int(m.group(1)) for m in
+            (pattern.search(n) for n in os.listdir(DIST)) if m]
+    return max(used, default=0) + 1
+
+
+def write_zip(out, version_override=None):
+    """Archive the plugin folder into `out`.
+
+    Args:
+      out: path of the zip to write.
+      version_override: when given, the version written into
+        metadata.txt INSIDE the archive. The file on disk is not
+        touched: a candidate should announce itself as a candidate in
+        QGIS's plugin manager, but the repository's declared version
+        is a separate fact and editing it here would leave the working
+        tree dirty in a way the release audit would rightly complain
+        about.
+
+    Returns:
+      The path written.
+    """
     os.makedirs(DIST, exist_ok=True)
-    out = os.path.join(DIST, "weavingspace_qgis.zip")
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
         for dirpath, dirnames, filenames in os.walk(SRC):
             dirnames[:] = [d for d in dirnames if d not in EXCLUDE_DIRS]
@@ -35,7 +82,131 @@ def main():
                     continue
                 full = os.path.join(dirpath, fn)
                 rel = os.path.relpath(full, ROOT)
+                if version_override and full == METADATA:
+                    with open(full, encoding="utf-8") as handle:
+                        text = handle.read()
+                    text = re.sub(r"^version=.+$",
+                                  f"version={version_override}",
+                                  text, count=1, flags=re.MULTILINE)
+                    zf.writestr(rel, text)
+                    continue
                 zf.write(full, rel)
+    return out
+
+
+def installed_copies():
+    """Every QGIS profile that already has this plugin installed.
+
+    Returns:
+      A list of paths to weavingspace_qgis folders inside QGIS profile
+      plugin directories, on this machine.
+
+    Profiles that already carry the plugin are UPDATED; profiles that
+    do not are left alone. Installing into a profile nobody asked
+    about would put a plugin somewhere a user has to discover and
+    remove, and a testing profile exists precisely so that what is in
+    it is deliberate.
+    """
+    home = os.path.expanduser("~")
+    roots = [
+        os.path.join(home, "Library", "Application Support", "QGIS"),
+        os.path.join(home, ".local", "share", "QGIS"),            # Linux
+        os.path.join(os.environ.get("APPDATA", ""), "QGIS"),      # Windows
+    ]
+    found = []
+    for root in roots:
+        if not os.path.isdir(root):
+            continue
+        for dirpath, dirnames, _files in os.walk(root):
+            if os.path.basename(dirpath) == "plugins":
+                target = os.path.join(dirpath, "weavingspace_qgis")
+                if os.path.isdir(target):
+                    found.append(target)
+                dirnames[:] = []          # no need to descend further
+    return sorted(found)
+
+
+def install_into(target, source_zip):
+    """Replace one installed copy with the contents of a built zip.
+
+    Args:
+      target: an existing weavingspace_qgis folder in a QGIS profile.
+      source_zip: the zip to install from.
+
+    Returns:
+      None.
+
+    ``libs/`` is preserved. That folder holds wheels the dependency
+    provisioner downloaded for THIS machine; it is deliberately absent
+    from the zip, and deleting it would make the plugin re-download
+    everything on next launch for no reason. Everything else is
+    removed first, so a file dropped from the plugin does not linger
+    in an installed copy and go on being imported.
+    """
+    for name in os.listdir(target):
+        if name == "libs":
+            continue
+        path = os.path.join(target, name)
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        else:
+            os.remove(path)
+    with zipfile.ZipFile(source_zip) as zf:
+        for member in zf.namelist():
+            rel = os.path.relpath(member, "weavingspace_qgis")
+            if rel.startswith(".."):
+                continue
+            destination = os.path.join(target, rel)
+            os.makedirs(os.path.dirname(destination), exist_ok=True)
+            with zf.open(member) as src, open(destination, "wb") as dst:
+                shutil.copyfileobj(src, dst)
+
+
+def main():
+    """Build the release zip, or a numbered release candidate.
+
+    Returns:
+      None. Writes into dist/ and, for a candidate, updates the
+      copies already installed in QGIS profiles on this machine
+      unless --no-install says otherwise.
+    """
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--rc", action="store_true",
+        help="build a numbered release candidate instead of the "
+             "release zip, for hands-on testing before publishing")
+    parser.add_argument(
+        "--no-install", action="store_true",
+        help="with --rc, do not update the copies already installed "
+             "in QGIS profiles on this machine")
+    args = parser.parse_args()
+
+    if args.rc:
+        version = declared_version()
+        label = f"{version}rc{next_candidate(version)}"
+        out = write_zip(
+            os.path.join(DIST, f"weavingspace_qgis-{label}.zip"), label)
+        size = os.path.getsize(out) / 1e6
+        print(f"wrote {out} ({size:.1f} MB)")
+        print(f"installs in QGIS as version {label}, so a tester can "
+              f"tell it from the release")
+        if not args.no_install:
+            targets = installed_copies()
+            for target in targets:
+                install_into(target, out)
+                print(f"  updated {target}")
+            if targets:
+                print("\nRestart QGIS, or use Plugin Reloader, before "
+                      "trying it: Python modules already imported stay "
+                      "imported.")
+            else:
+                print("\nNo existing installation found, so nothing was "
+                      "updated. Install the zip once through Plugins > "
+                      "Manage and Install Plugins... and later "
+                      "candidates will land in place automatically.")
+        return
+
+    out = write_zip(os.path.join(DIST, "weavingspace_qgis.zip"))
     size = os.path.getsize(out) / 1e6
     print(f"wrote {out} ({size:.1f} MB)")
 

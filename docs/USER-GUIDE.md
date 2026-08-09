@@ -8,21 +8,14 @@ legends must be learned and their ceiling arrives quickly. This plugin
 takes a different route. It lays a small repeating pattern of shapes
 across your study area and colours each kind of shape by its own
 attribute, with its own ordinary symbology, so that each variable stays
-individually legible while sharing a single map. With two or three
-variables the result can be read value by value, much as a choropleth
-is. With many, it reads instead as a texture, in which broad agreement
-forms smooth tone and local exception announces itself. Nor are those
-the only readings such maps repay (a shared ramp, for one, turns the
-pattern into an instrument for noticing local disagreement; we take up
-others in a paper presently under review). It is worth deciding early
-which reading you are designing for.
+individually legible while sharing a single map.
 
 The technique, and the vocabulary used here, come from the weavingspace
 library, which can also be driven from a browser: MapWeaver
 (https://dosull.github.io/mapweaver/app/) makes the same kinds of maps
 outside QGIS, and is worth a look if you would rather not start here.
 The thinking behind the technique, with worked examples, is set out in
-an open-access article:
+two articles:
 
 > O'Sullivan, D., & Bergmann, L. (2026). Using MapWeaver to make tiled
 > and woven maps of multivariate thematic data. *Cartographic
@@ -32,7 +25,7 @@ an open-access article:
 > mapping. Manuscript under review.
 
 This guide restates the practical parts. The article is short and
-generously illustrated, and we would sooner you read it than this.
+illustrated, and we would sooner you read it than this.
 
 ## Words we use
 
@@ -64,38 +57,29 @@ the live map follow your changes, and nothing about an early spacing
 choice is binding. Assign variables and colours on the Data & colours
 tab. Refine with rotation, insets, and the scale and skew controls, and
 only then tighten the spacing. What the plugin adds to your project is
-a group of ordinary layers, one per element, so the finishing moves are
-ones you already know: restyle in QGIS's built-in Layer Styling
-panel, save to GeoPackage, compose a print layout.
+a group of ordinary layers. You can finish them in QGIS as you wish.
 
 ## Choosing a design
 
 Tiled or woven? The two carry the same information, and we would not
 argue you toward either in general. Tilings give compact side-by-side
-patches, and they are the form to choose if you want the icon option or
-glyph-like scaling. Weaves let the eye follow a strand from one side of
+patches; weaves let the eye follow a strand from one side of
 the map to the other, which can make comparisons between distant places
 easier to sustain. Try both; live update makes changing your mind
-cheap. Two plainer families round out the catalogue: stripes runs the
-elements as parallel bands, and grid arrays them as squares, with rows
-and columns you can adjust (asking for fewer elements than the array
-has cells leaves regular openings in the pattern, which can read as a
-built-in breathing space).
+cheap.
 
 How many variables to map is a design question more than a technical
 one. Two to four supports genuine value-by-value reading. The catalogue
-runs to twenty and nothing stops you using them all, but somewhere past
-six or seven the map stops being a table you look things up in and
+runs to twenty and nothing stops you using them all, but at some point, the map stops being a table you look things up in and
 becomes a texture you scan for pattern and exception. That may be
 exactly what you want; it is better decided than discovered.
 
-A sensible final spacing is near the typical width of your polygons,
-divided, for a weave, by the number of strands per direction. Areas
+If the final spacing is near the typical width of your polygons, areas
 much smaller than the repeating unit will not show every element at any
 spacing; where polygon sizes vary widely this is unavoidable, and it is
 the same compromise that any choropleth of mixed-size units strikes.
 The Auto button proposes a coarse value from the layer extent, meant
-for iteration rather than publication.
+for iteration more than publication.
 
 Rotation usually helps. A square pattern aligned with the frame can
 look mechanical; for two-direction weaves we find angles between about
@@ -136,19 +120,39 @@ neighbours shows up as speckle.
 Categorical fields (land cover, dominant crop, period labels) are
 initially symbolized with a categorized renderer, one colour per class.
 Whenever an element is
-categorized, a Categ colourmap src column appears in the table (and
-withdraws when it has nothing to govern). There each element chooses
+categorized, a "Categ colourmap src" column appears in the table. There each element chooses
 where its class codes, names, and colours come from: automatic
 assignment, any loaded layer that already carries categorized
 symbology, or a QGIS style file (a QML saved from any layer, holding
 your usual scheme). A file chosen once is offered to every categorized
 element, and values a scheme does not mention fall back to automatic
-colours. The same QML can of course be loaded onto an element layer
+colours. The same QML can be loaded onto an element layer
 through QGIS's own Load Style command; choosing it in the dialog
 instead makes the scheme part of the design, so it is reapplied
 whenever symbology is rebuilt and travels into the GeoPackage export. For numeric data, sequential ramps suit ordered
 magnitudes, diverging ramps suit values with a meaningful midpoint, and
 the qualitative sets (tab10 and its relatives) are for categories only.
+
+### Setting a colour per value
+
+No ramp knows that forest should be green. An "Edit colours" column
+appears beside the ramp whenever any element is categorized; its "Custom"
+button opens a small window listing every value that element's field
+takes, with the colour each one currently draws in. Click a colour to
+change it. The map repaints at once, without re-tiling, and the rest
+of the dialog waits until you close the window.
+
+Three things worth knowing:
+
+- Values come from your region layer, so you can set colours before
+  generating anything.
+- The last row, "(no data)", is the colour for areas the field leaves
+  blank.
+- Choosing a different ramp, or importing a class source, starts that
+  element's colours over and discards what you picked. The plugin says
+  how many colours it dropped. Colours are remembered per variable, so
+  switching an element to another field and back restores them, and
+  they are saved with your project.
 
 ## The map option switches
 
@@ -166,6 +170,13 @@ end. The unclipped, ragged edge sits more comfortably with the pattern
 as a design, in our view. *Use tileable as icon* places one unit at the
 centre of each polygon instead of tiling continuously, a gentler
 multivariate symbol that pairs well with the outlines layer.
+
+*Warn about lack of legibility in colour choices* checks, after each
+map is drawn, whether any two elements use colours a reader may not be
+able to tell apart — in ordinary vision and for the red-green colour
+deficiencies — and says so. It is off by default. Turn it on when the
+design is close to settled: while you are still trying ramps it has
+little useful to say, and nothing about it changes the map.
 
 A first map appears of its own accord once a layer and variables are
 in place, and live update then regenerates it as you adjust settings,
