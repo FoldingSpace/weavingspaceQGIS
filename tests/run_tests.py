@@ -1824,6 +1824,120 @@ def test_colour_legibility_warnings_are_opt_in():
   dlg.close()
 
 
+def test_awkward_layers_are_handled_or_declined():
+  """Data a stranger might hand the plugin: five awkward shapes.
+
+  The suite's own fixtures are tidy. Real layers are not, and this
+  area of the test map is the thinnest in the suite while being the
+  one whose inputs come from outside. Each case here is something a
+  user genuinely has on disk:
+
+    no CRS set at all, which QGIS permits;
+    a single feature, so every "several polygons" assumption fails;
+    a self-intersecting polygon, which shapely will object to;
+    a field name outside ASCII, which round-trips through pandas;
+    a field that is entirely null, so classification has no range.
+
+  The bar is deliberately not "produces a map". For several of these
+  the right behaviour is to decline. The bar is that the plugin must
+  not CRASH and must not HANG: it either produces output or says
+  something and stays usable. A plugin that raises into the QGIS
+  message log leaves a user with no idea what they did wrong.
+
+  Each case runs against a fresh dialog, and the assertion is made on
+  the dialog's own state afterwards, so a case that declines is as
+  much a pass as one that succeeds.
+
+  Regression: none of these shapes had ever been put through the plugin; the suite's fixtures are all well-formed.
+  """
+  from qgis.core import QgsField, QgsFeature, QgsGeometry, QgsPointXY
+  from qgis.PyQt.QtCore import QVariant
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def build(name, crs="EPSG:3857", field="v1", squares=4,
+            invalid=False, nulls=False):
+    """One awkward layer, described by what is wrong with it."""
+    uri = f"Polygon?crs={crs}" if crs else "Polygon"
+    layer = QgsVectorLayer(uri, name, "memory")
+    provider = layer.dataProvider()
+    provider.addAttributes([QgsField(field, QVariant.Double)])
+    layer.updateFields()
+    features = []
+    for i in range(squares):
+      if invalid:
+        # a bow-tie: the classic self-intersection
+        points = [QgsPointXY(0, 0), QgsPointXY(1000, 1000),
+                  QgsPointXY(1000, 0), QgsPointXY(0, 1000)]
+      else:
+        x = i * 1000
+        points = [QgsPointXY(x, 0), QgsPointXY(x + 1000, 0),
+                  QgsPointXY(x + 1000, 1000), QgsPointXY(x, 1000)]
+      feature = QgsFeature(layer.fields())
+      feature.setGeometry(QgsGeometry.fromPolygonXY([points]))
+      feature.setAttributes([None if nulls else float(i + 1)])
+      features.append(feature)
+    provider.addFeatures(features)
+    layer.updateExtents()
+    return layer
+
+  cases = [
+    ("no CRS", dict(crs="", name="no crs")),
+    ("one feature only", dict(squares=1, name="single")),
+    ("self-intersecting geometry", dict(invalid=True, name="bowtie")),
+    ("non-ASCII field name", dict(field="densit\u00e9", name="accented")),
+    ("a field that is entirely null", dict(nulls=True, name="allnull")),
+  ]
+
+  trouble = []
+  for label, kwargs in cases:
+    name = kwargs.pop("name")
+    project = QgsProject.instance()
+    for existing in list(project.mapLayers().values()):
+      project.removeMapLayer(existing.id())
+    MODALS.clear()
+    layer = build(name, **kwargs)
+    if not layer.isValid():
+      trouble.append(f"{label}: the fixture itself is invalid")
+      continue
+    project.addMapLayer(layer)
+    dlg = None
+    try:
+      dlg = WeavingSpaceDialog(iface=None)
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(300)
+      dlg.spacing_spin.setValue(400)
+      dlg._generate()
+      settled = _settle(dlg, seconds=45)
+      _tick(200)
+      if not settled:
+        trouble.append(f"{label}: never settled — the plugin hung")
+        continue
+      # Either it made something, or it said something. Silence with
+      # no output is the failure worth catching: the user pressed
+      # Generate and nothing whatever happened.
+      made = bool(dlg._element_layer_ids)
+      # "Said something" includes a message BOX, not just the note
+      # line. A refusal goes to a modal, which this harness stubs into
+      # MODALS — reading live_note alone reports a perfectly polite
+      # decline as a silent failure, which it did here first time.
+      said = bool(dlg.live_note.text().strip()) or bool(MODALS)
+      if not made and not said:
+        trouble.append(
+          f"{label}: no output and no message; the user is left "
+          f"wondering whether it worked")
+      if not dlg.generate_btn.isEnabled():
+        trouble.append(f"{label}: Generate left disabled afterwards")
+    except Exception as exc:
+      trouble.append(f"{label}: raised {type(exc).__name__}: {exc}")
+    finally:
+      if dlg is not None:
+        dlg.close()
+
+  assert not trouble, "awkward layers mishandled:\n  " + \
+    "\n  ".join(trouble)
+
+
 def test_region_outlines_are_cased():
   """The outline is a black line over a wider white one.
 
@@ -9201,6 +9315,8 @@ def main():
         test_the_design_view_draws_no_tile_outlines)
   check("colour legibility warnings are opt-in",
         test_colour_legibility_warnings_are_opt_in)
+  check("awkward layers are handled or declined",
+        test_awkward_layers_are_handled_or_declined)
   check("region outlines are cased", test_region_outlines_are_cased)
   check("installed palettes span their declared colours",
         test_installed_palettes_span_their_declared_colours)

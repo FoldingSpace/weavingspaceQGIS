@@ -127,7 +127,11 @@ def _polygon_filter():
 def _nice_number(x: float) -> float:
   """Round x up to a 'clean' value (1/2/2.5/5 times a power of ten),
   used so the derived default spacing reads as a sensible number."""
-  if x <= 0:
+  # A layer with no CRS set can report an infinite extent, and
+  # math.floor(math.log10(inf)) raises OverflowError rather than
+  # returning anything. That reached a user as an unhandled exception
+  # from pressing Generate, with nothing said about the layer.
+  if not math.isfinite(x) or x <= 0:
     return 1.0
   exp = math.floor(math.log10(x))
   mant = x / 10 ** exp
@@ -1103,8 +1107,16 @@ class WeavingSpaceDialog(QDialog):
     dim = max(ext.width(), ext.height())
     if layer.crs().isGeographic():
       dim = dim * 111_000  # approximate metres, layer will be reprojected
-    if dim > 0:
+    if math.isfinite(dim) and dim > 0:
       self.spacing_spin.setValue(_nice_number(dim / 15))
+    else:
+      # No usable extent: a layer with no CRS, or an empty one. Leave
+      # the spacing alone rather than guessing from a bad number, and
+      # say so, because the user pressed a button and is owed an
+      # answer either way.
+      self._report_quietly(
+        "That layer has no usable extent, so a spacing cannot be "
+        "suggested. Set its CRS, or type a spacing.")
 
   def _layer_fields(self) -> list[str]:
     """Attribute (column) names of the region layer; ``fields()`` is

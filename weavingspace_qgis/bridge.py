@@ -402,7 +402,16 @@ def estimate_tile_count_bounds(unit, b) -> int:
   if det <= 0:
     return MAX_TILES_HARD + 1
   n_prototiles = math.pi * radius * radius / det
-  return int(n_prototiles * max(len(unit.tiles), 1))
+  estimate = n_prototiles * max(len(unit.tiles), 1)
+  # A layer with no CRS gives infinite bounds once reprojection is
+  # attempted, and int(inf) raises OverflowError -- which reached the
+  # user as an unhandled exception from pressing Generate, before any
+  # guard could decline politely. Treat "cannot be counted" as "too
+  # many", which is exactly what the caller already knows how to
+  # refuse.
+  if not math.isfinite(estimate):
+    return MAX_TILES_HARD + 1
+  return int(estimate)
 
 
 def min_reasonable_spacing(unit, region_gdf, spacing: float) -> float:
