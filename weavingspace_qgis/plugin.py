@@ -22,6 +22,75 @@ from . import deps
 PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
+def dependency_consent_box(parent, missing):
+  """Build the dialogue that asks to download the missing packages.
+
+  Args:
+    parent: the window to centre on; None is accepted, which is what
+      a test passes.
+    missing: import names of the packages that are absent or too old,
+      in the order deps.py found them.
+
+  Returns:
+    (box, approve_button). The caller shows the box and compares
+    ``box.clickedButton()`` with the button returned; anything else,
+    including closing the window, means no.
+
+  Built here rather than inline in the caller so it can be read
+  without owning a QGIS that happens to be missing a package: a test
+  asserts what it says, and the release screenshots it.
+
+  On the wording. This asks permission to download and unpack code,
+  which is the most intrusive thing this plugin ever does and the one
+  a reviewer of the QGIS plugin repository will look at hardest. So
+  it states what can be checked rather than asking to be trusted:
+  what arrives, from where, exactly where it lands, what is left
+  alone, how to undo it, and what declining costs. The shape serves
+  two readers at once -- a plain first paragraph for somebody who
+  wants the gist and a button, then short specific lines for somebody
+  who wants to verify. Neither has to read the other's half.
+
+  The buttons say what they do. "Yes" and "No" do not tell a reader
+  that No closes the plugin, and the safe answer is the default so
+  that a stray Return cannot start a download nobody read about.
+  """
+  from qgis.PyQt.QtWidgets import QMessageBox as _Box
+  names = ", ".join(missing)
+  box = _Box(parent)
+  box.setWindowTitle("WeavingSpace needs a few Python components")
+  box.setIcon(_Box.Icon.Question)
+  box.setText(
+    "WeavingSpace draws its maps with three well-known Python "
+    "libraries. This QGIS either does not have them or has versions "
+    "too old to use, so they have to be fetched before the plugin "
+    "can open.")
+  box.setInformativeText(
+    f"Missing or too old:  {names}\n"
+    "\n"
+    "If you approve, WeavingSpace will:\n"
+    "  \u2022 download those packages from PyPI, the standard Python "
+    "package archive at pypi.org, about 20 to 60 MB;\n"
+    "  \u2022 unpack them into a folder belonging to this plugin:\n"
+    f"      {deps.LIBS_DIR}\n"
+    "  \u2022 use them from there, and only when QGIS's own copy is "
+    "missing or too old.\n"
+    "\n"
+    "It will NOT: install anything into QGIS or your operating "
+    "system, run an installer or package manager, change any other "
+    "plugin, or send anything about you anywhere.\n"
+    "\n"
+    "This happens once. To undo it later, delete that folder, or "
+    "uninstall the plugin in the usual way.\n"
+    "\n"
+    "If you cancel, nothing is downloaded and WeavingSpace closes: "
+    "it cannot draw maps without these packages.")
+  approve = box.addButton("Download and open WeavingSpace",
+                          _Box.ButtonRole.AcceptRole)
+  box.addButton("Cancel and close", _Box.ButtonRole.RejectRole)
+  box.setDefaultButton(box.buttons()[-1])
+  return box, approve
+
+
 class WeavingSpacePlugin:
   """The object QGIS holds for the plugin's lifetime; owns the toolbar
   action and the (single, reused) dialog."""
@@ -80,17 +149,10 @@ class WeavingSpacePlugin:
       deps.ensure_pyproj_data()
       return True
 
-    names = ", ".join(missing)
-    answer = QMessageBox.question(
-      self.iface.mainWindow(), "WeavingSpace – one-time setup",
-      "This QGIS installation is missing (or has outdated versions of) "
-      f"Python components the plugin needs:\n\n    {names}\n\n"
-      "WeavingSpace can download them from PyPI (python.org's package "
-      "archive) into the plugin's own folder; nothing else in your QGIS "
-      "installation is touched, and this happens only once.\n\n"
-      "Download them now (about 20 to 60 MB)?",
-      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-    if answer != QMessageBox.StandardButton.Yes:
+    box, approve = dependency_consent_box(
+      self.iface.mainWindow(), missing)
+    box.exec()
+    if box.clickedButton() is not approve:
       return False
 
     progress = QProgressDialog(

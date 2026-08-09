@@ -6596,6 +6596,266 @@ def test_a_constant_column_with_gaps():
   assert layer.subsetString() == "", "a filter was left behind"
 
 
+def test_the_dependency_consent_says_what_it_will_do():
+  """The one dialogue that asks to download and unpack code.
+
+  This is the most intrusive thing the plugin ever does, the thing a
+  QGIS plugin repository reviewer will look at hardest, and the only
+  dialogue most users will never see -- which is exactly why it needs
+  a test. It appears only where QGIS lacks the scientific stack or
+  carries a version too old, most often Linux, so it cannot be
+  checked by running the plugin on a machine where it works.
+
+  Each assertion is a promise the wording makes, and every one of
+  them is something a reader would want to verify rather than take on
+  trust: which packages, from where, exactly where they land, what is
+  left untouched, how to undo it, and what saying no costs. A
+  consent dialogue that omits any of those is asking for permission
+  without saying what for.
+
+  The real path is asserted, not a mention of "a folder": a promise
+  that files go somewhere specific is checkable only if the somewhere
+  is named.
+  """
+  from weavingspace_qgis.plugin import dependency_consent_box
+  from weavingspace_qgis import deps
+
+  box, approve = dependency_consent_box(None, ["geopandas", "shapely"])
+  said = f"{box.text()}\n{box.informativeText()}"
+  lowered = said.lower()
+
+  for missing in ("geopandas", "shapely"):
+    assert missing in said, \
+      f"the dialogue does not name {missing!r}, which is one of the " \
+      f"packages it is asking to download"
+  assert "pypi" in lowered, \
+    "the dialogue does not say where the packages come from"
+  assert deps.LIBS_DIR in said, \
+    f"the dialogue does not name the folder the packages land in " \
+    f"({deps.LIBS_DIR}); 'a folder belonging to this plugin' is a " \
+    f"promise a reader cannot check"
+  # ...and that folder must be DERIVED from where the plugin actually
+  # lives, so every reader sees their own QGIS profile rather than
+  # whichever machine the string was written on. Verified by copying
+  # the package elsewhere and watching LIBS_DIR follow it; this pins
+  # the property so nobody later replaces it with a literal.
+  assert deps.LIBS_DIR.startswith(os.path.dirname(deps.__file__)), \
+    f"the folder named in the dialogue ({deps.LIBS_DIR}) is not " \
+    f"inside the plugin's own directory " \
+    f"({os.path.dirname(deps.__file__)}); it has stopped following " \
+    f"where the plugin is installed and now shows somebody else's path"
+  assert "will not" in lowered, \
+    "the dialogue does not say what it leaves alone, which is the " \
+    "half a cautious reader most wants"
+  for untouched in ("installer", "plugin"):
+    assert untouched in lowered, \
+      f"the dialogue does not mention {untouched!r} among the things " \
+      f"it does not touch"
+  assert "undo" in lowered or "delete that folder" in lowered, \
+    "the dialogue does not say how to undo the download"
+  assert "closes" in lowered, \
+    "the dialogue does not say that declining closes the plugin, so " \
+    "a user cannot tell what the other button costs them"
+
+  # the buttons must say what they do
+  labels = [b.text() for b in box.buttons()]
+  assert not any(t.strip().lower() in ("yes", "no", "&yes", "&no")
+                 for t in labels), \
+    f"the buttons are {labels}; Yes and No do not tell a reader that " \
+    f"one of them closes the plugin"
+  assert any("download" in t.lower() for t in labels), \
+    f"no button says it downloads: {labels}"
+  assert any("cancel" in t.lower() for t in labels), \
+    f"no button says it cancels: {labels}"
+
+  # and the SAFE answer is the default, so a stray Return cannot
+  # start a download nobody read about
+  assert box.defaultButton() is not approve, \
+    "the download button is the default; pressing Return on a " \
+    "dialogue you have not read would begin fetching code"
+  box.deleteLater()
+
+
+def _release_module(name):
+  """Import release.py or build.py without running them.
+
+  Args:
+    name: "release" or "build".
+
+  Returns:
+    The module. Imported by path because neither sits in a package,
+    and both are ordinarily run as scripts.
+  """
+  import importlib.util
+  spec = importlib.util.spec_from_file_location(
+    f"{name}_under_test", os.path.join(ROOT, f"{name}.py"))
+  module = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(module)
+  return module
+
+
+def test_a_candidate_number_is_never_reused():
+  """A number belongs to a candidate for good, deleted zip or not.
+
+  Numbering counted the zips in dist/, so removing one handed its
+  number back and the next build would take the label of a candidate
+  somebody had already been told about. That is not hypothetical: a
+  dossier for 0.24.0rc3 sat in dist/ beside no zip, and the next
+  build would have been a second, different rc3 — the same name for
+  two different trees, which is exactly what numbering exists to
+  prevent.
+
+  Every artefact that BEARS a number now spends it: the zip, the
+  dossier and the receipt alike. A gap in the sequence confuses
+  nobody; two candidates sharing a name confuse everybody.
+  """
+  import shutil
+  import tempfile
+  build = _release_module("build")
+  folder = tempfile.mkdtemp(prefix="weavingspace_dist_")
+  original = build.DIST
+  try:
+    build.DIST = folder
+    assert build.next_candidate("9.9.9") == 1, \
+      "an empty dist should start at rc1"
+
+    open(os.path.join(folder, "weavingspace_qgis-9.9.9rc1.zip"),
+         "w").close()
+    assert build.next_candidate("9.9.9") == 2, "a zip did not count"
+
+    # the zip is deleted and only its DOSSIER remains -- the case
+    # that actually happened
+    os.remove(os.path.join(folder, "weavingspace_qgis-9.9.9rc1.zip"))
+    open(os.path.join(folder, "CANDIDATE-9.9.9rc1.md"), "w").close()
+    assert build.next_candidate("9.9.9") == 2, \
+      "a number was handed back when its zip was deleted; the next " \
+      "candidate would reuse the name of one already written about"
+
+    # and a receipt alone holds its number too
+    os.remove(os.path.join(folder, "CANDIDATE-9.9.9rc1.md"))
+    open(os.path.join(folder, "CANDIDATE-9.9.9rc1.receipt.json"),
+         "w").close()
+    assert build.next_candidate("9.9.9") == 2, \
+      "a receipt did not hold its number"
+
+    # another version's candidates are none of this version's business
+    open(os.path.join(folder, "weavingspace_qgis-8.8.8rc7.zip"),
+         "w").close()
+    assert build.next_candidate("9.9.9") == 2, \
+      "a different version's candidate moved this version's numbering"
+  finally:
+    build.DIST = original
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_the_release_digest_watches_what_ships():
+  """The fingerprint covers the artefact, and only the artefact.
+
+  A release is allowed to proceed only when a candidate was built
+  from an identical tree, and "identical" has to mean something
+  precise: identical in what gets INSTALLED. Editing a test, a tool
+  or a document cannot change what a reviewer ran, and blocking a
+  release over a comment in the suite would make the gate something
+  people work around.
+
+  Both directions are asserted, because either alone is useless. A
+  digest that ignored a shipped file would let a changed plugin be
+  released under a reviewed candidate's name; one that noticed
+  everything would make the gate unusable.
+  """
+  import shutil
+  release = _release_module("release")
+  before = release.tree_digest()
+  assert before == release.tree_digest(), \
+    "the digest is not stable across two readings of the same tree"
+
+  # something that ships
+  shipped = os.path.join(ROOT, "weavingspace_qgis", "palettes.json")
+  backup = shipped + ".digesttest"
+  shutil.copy2(shipped, backup)
+  try:
+    with open(shipped, "a", encoding="utf-8") as handle:
+      handle.write("\n")
+    assert release.tree_digest() != before, \
+      "a change to a file INSIDE the plugin left the digest alone; a " \
+      "modified plugin could be released under a reviewed " \
+      "candidate's name"
+  finally:
+    shutil.move(backup, shipped)
+  assert release.tree_digest() == before, \
+    "the digest did not come back after the file was restored"
+
+  # something that does not ship
+  doc = os.path.join(ROOT, "docs", "TESTING.md")
+  backup = doc + ".digesttest"
+  shutil.copy2(doc, backup)
+  try:
+    with open(doc, "a", encoding="utf-8") as handle:
+      handle.write("\n")
+    assert release.tree_digest() == before, \
+      "editing a document that never reaches a user invalidated the " \
+      "candidate; a gate that fires on things which cannot affect " \
+      "the artefact is a gate people learn to route around"
+  finally:
+    shutil.move(backup, doc)
+
+
+def test_a_release_needs_a_matching_candidate():
+  """Promotion happens on proof, not on hope.
+
+  ``matching_receipt`` is what stands between "somebody installed and
+  reviewed this" and "it built on my machine". It must accept only a
+  receipt for this version whose recorded tree is the tree in front
+  of it, and reject everything else — no receipt, a receipt for
+  another version, a receipt from a tree that has since changed.
+  """
+  import json
+  import shutil
+  import tempfile
+  release = _release_module("release")
+  folder = tempfile.mkdtemp(prefix="weavingspace_receipts_")
+  original_root = release.ROOT
+  try:
+    os.makedirs(os.path.join(folder, "dist"))
+    release.ROOT = folder
+
+    assert release.matching_receipt("0.24.0", "abc") is None, \
+      "a release was allowed with no candidate at all"
+
+    def put(label, tree):
+      path = os.path.join(folder, "dist",
+                          f"CANDIDATE-{label}.receipt.json")
+      with open(path, "w", encoding="utf-8") as handle:
+        json.dump({"version": label.split("rc")[0], "label": label,
+                   "tree": tree, "built": "2026-08-09"}, handle)
+
+    put("0.24.0rc1", "aaa")
+    assert release.matching_receipt("0.24.0", "bbb") is None, \
+      "a candidate built from a DIFFERENT tree was accepted; the " \
+      "artefact reviewed is not the artefact being published"
+    found = release.matching_receipt("0.24.0", "aaa")
+    assert found is not None and found["label"] == "0.24.0rc1", \
+      "the matching candidate was not found"
+
+    put("0.25.0rc1", "bbb")
+    assert release.matching_receipt("0.24.0", "bbb") is None, \
+      "a candidate for another VERSION was accepted as this one's"
+
+    # a corrupt receipt must not be mistaken for proof
+    broken = os.path.join(folder, "dist",
+                          "CANDIDATE-0.24.0rc9.receipt.json")
+    with open(broken, "w", encoding="utf-8") as handle:
+      handle.write("{not json")
+    assert release.matching_receipt("0.24.0", "aaa")["label"] == \
+        "0.24.0rc1", \
+      "an unreadable receipt stopped a genuine one being found"
+    assert release.matching_receipt("0.24.0", "zzz") is None, \
+      "an unreadable receipt was treated as a match"
+  finally:
+    release.ROOT = original_root
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_region_outlines_are_cased():
   """The outline is a black line over a wider white one.
 
@@ -14158,6 +14418,14 @@ def main():
         test_every_scheme_excludes_nulls)
   check("a constant column with gaps",
         test_a_constant_column_with_gaps)
+  check("the dependency consent says what it will do",
+        test_the_dependency_consent_says_what_it_will_do)
+  check("a candidate number is never reused",
+        test_a_candidate_number_is_never_reused)
+  check("the release digest watches what ships",
+        test_the_release_digest_watches_what_ships)
+  check("a release needs a matching candidate",
+        test_a_release_needs_a_matching_candidate)
   check("region outlines are cased", test_region_outlines_are_cased)
   check("installed palettes span their declared colours",
         test_installed_palettes_span_their_declared_colours)

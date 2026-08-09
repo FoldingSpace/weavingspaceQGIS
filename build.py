@@ -42,19 +42,71 @@ def next_candidate(version):
       version: the declared version, e.g. "0.24.0".
 
     Returns:
-      An integer, 1 the first time and one more than the highest
-      already sitting in dist/ afterwards. Counting from what exists
-      rather than from a stored number means a candidate can never
-      silently overwrite the one somebody is already testing, which
-      is the whole point of numbering them.
+      An integer, 1 the first time and one more than the highest any
+      artefact in dist/ has already claimed.
+
+    Every artefact that BEARS a number counts, not just the zip: the
+    dossier and the receipt claim it too. Counting only zips meant a
+    deleted zip released its number for reuse, and the next candidate
+    would take the label of one somebody had already read about --
+    which happened here, with a dossier for rc3 sitting beside no zip
+    at all, so the next build would have been a second, different rc3.
+
+    A number is spent the moment anything bearing it exists, and it
+    stays spent. Reusing one is worse than skipping one: nobody is
+    confused by a gap in the sequence, and everybody is confused by
+    two candidates with the same name.
     """
     if not os.path.isdir(DIST):
         return 1
-    pattern = re.compile(
-        rf"weavingspace_qgis-{re.escape(version)}rc(\d+)\.zip$")
-    used = [int(m.group(1)) for m in
-            (pattern.search(n) for n in os.listdir(DIST)) if m]
+    version_pattern = re.escape(version)
+    patterns = (
+        rf"weavingspace_qgis-{version_pattern}rc(\d+)\.zip$",
+        rf"CANDIDATE-{version_pattern}rc(\d+)\.md$",
+        rf"CANDIDATE-{version_pattern}rc(\d+)\.receipt\.json$",
+    )
+    used = []
+    for name in os.listdir(DIST):
+        for pattern in patterns:
+            found = re.search(pattern, name)
+            if found:
+                used.append(int(found.group(1)))
+                break
     return max(used, default=0) + 1
+
+
+def shipped_files():
+    """Every file that goes into the plugin zip.
+
+    Returns:
+      A sorted list of (absolute path, name inside the archive). Sorted
+      so the order is the same on every machine, which matters because
+      release.py digests this list to prove a release is being cut
+      from the same tree a candidate was reviewed on.
+
+    One rule with two callers: write_zip packs exactly these, and the
+    release's promotion check hashes exactly these. Two lists would
+    drift, and a proof built on a drifting list proves nothing.
+
+    LICENSE.md is included from the repository root and written INSIDE
+    the plugin folder, because QGIS unpacks only that folder into a
+    profile: without it the installed plugin carries MIT-licensed
+    vendored code with no notice anywhere in it, and the MIT terms
+    require the notice to travel with the software.
+    """
+    found = []
+    for dirpath, dirnames, filenames in os.walk(SRC):
+        dirnames[:] = [d for d in dirnames if d not in EXCLUDE_DIRS]
+        for fn in filenames:
+            if fn == ".DS_Store" or fn.endswith(".pyc"):
+                continue
+            full = os.path.join(dirpath, fn)
+            found.append((full, os.path.relpath(full, ROOT)))
+    licence = os.path.join(ROOT, "LICENSE.md")
+    if os.path.exists(licence):
+        found.append(
+            (licence, os.path.join(os.path.basename(SRC), "LICENSE.md")))
+    return sorted(found, key=lambda pair: pair[1])
 
 
 def write_zip(out, version_override=None):
@@ -75,13 +127,7 @@ def write_zip(out, version_override=None):
     """
     os.makedirs(DIST, exist_ok=True)
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
-        for dirpath, dirnames, filenames in os.walk(SRC):
-            dirnames[:] = [d for d in dirnames if d not in EXCLUDE_DIRS]
-            for fn in filenames:
-                if fn == ".DS_Store" or fn.endswith(".pyc"):
-                    continue
-                full = os.path.join(dirpath, fn)
-                rel = os.path.relpath(full, ROOT)
+        for full, rel in shipped_files():
                 if version_override and full == METADATA:
                     with open(full, encoding="utf-8") as handle:
                         text = handle.read()

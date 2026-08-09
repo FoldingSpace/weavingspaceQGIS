@@ -145,3 +145,35 @@ repository, and "WeavingSpace" appears to be free. And a submitted
 plugin acquires users who upgrade through the plugin manager, so the
 changelog stops being a formality: from that point on, every release
 needs an entry a user can act on.
+
+## From candidate to release
+
+A release is a promotion, not a rebuild. The sequence is:
+
+    python3 release.py --rc        # gates, packages, writes a receipt
+    # install the zip, make a map with it, collect feedback
+    python3 release.py             # promotes that exact artefact
+    python3 release.py --push      # ...and publishes it
+
+**What the candidate leaves behind.** A zip, a dossier (the page a
+reviewer reads) and a receipt recording a digest of exactly the files
+that ship. The receipt is written last, after every gate, so its
+existence is the proof that this tree passed.
+
+**What the release does with it.** It recomputes the digest and looks
+for a receipt of this version that matches. Without one it refuses,
+and says whether no candidate was ever built or whether one was built
+from a different tree. With one it skips the suite, gallery, coverage
+record and reference comparison — they measured this artefact
+already — and goes straight to the zip, the commit, the tag and, with
+`--push`, the GitHub release.
+
+**What invalidates a candidate.** Any change to a file that ships:
+the plugin package, the vendored library, `LICENSE.md`. Changes to
+tests, tooling or documentation do not, because they cannot alter
+what a reviewer installed.
+
+**Numbering.** Candidate numbers are never reused. Every artefact
+bearing a number spends it — zip, dossier, receipt — so deleting one
+does not hand its number back.
+

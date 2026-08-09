@@ -39,6 +39,7 @@ commands.
 """
 
 import argparse
+import datetime
 import glob
 import os
 import shutil
@@ -397,6 +398,84 @@ def commit_and_tag(version, report_dir, push):
         "GitHub Pages build, usually within a minute")
 
 
+def tree_digest():
+  """A fingerprint of exactly the files that would be shipped.
+
+  Returns:
+    A hex digest over every shipped file's archive name and contents,
+    taken with build.py's own file list so the two cannot disagree.
+
+  This is what makes "the same tree" checkable. It deliberately
+  ignores everything NOT shipped -- tests, tooling, documentation,
+  the reports -- because those cannot change the artefact a reviewer
+  installed, and a release should not be blocked by an edit to a
+  comment in the test suite.
+  """
+  import hashlib
+  import importlib.util
+  spec = importlib.util.spec_from_file_location(
+    "build_rules", os.path.join(ROOT, "build.py"))
+  build_rules = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(build_rules)
+  digest = hashlib.sha256()
+  for full, rel in build_rules.shipped_files():
+    digest.update(rel.encode("utf-8"))
+    with open(full, "rb") as handle:
+      digest.update(hashlib.sha256(handle.read()).digest())
+  return digest.hexdigest()
+
+
+def write_receipt(version, label, digest):
+  """Record that this exact tree passed every gate and was packaged.
+
+  Args:
+    version: the version being built.
+    label: the candidate's label, e.g. "0.24.0rc2".
+    digest: tree_digest() for the tree it was built from.
+
+  Returns:
+    The path written.
+
+  Written only after every gate has passed, because run() aborts the
+  release on the first failure. Its existence is therefore the proof
+  that this tree was measured and packaged, and the digest is what
+  ties that proof to a tree rather than to a moment.
+  """
+  import json
+  path = os.path.join(ROOT, "dist", f"CANDIDATE-{label}.receipt.json")
+  with open(path, "w", encoding="utf-8") as handle:
+    json.dump({"version": version, "label": label, "tree": digest,
+               "built": datetime.date.today().isoformat()}, handle,
+              indent=2, sort_keys=True)
+  return path
+
+
+def matching_receipt(version, digest):
+  """The candidate this tree was reviewed as, if there is one.
+
+  Args:
+    version: the version being released.
+    digest: tree_digest() for the tree as it stands now.
+
+  Returns:
+    The receipt dict for a candidate of this version built from an
+    identical tree, or None. None is the refusal case, and refusing is
+    the point: a release that has not been through a candidate is a
+    release nobody has installed.
+  """
+  import json
+  for path in sorted(glob.glob(os.path.join(
+      ROOT, "dist", f"CANDIDATE-{version}rc*.receipt.json"))):
+    try:
+      with open(path, encoding="utf-8") as handle:
+        receipt = json.load(handle)
+    except (OSError, ValueError):
+      continue
+    if receipt.get("tree") == digest:
+      return receipt
+  return None
+
+
 def main():
   """Cut a release from the command line, gate by gate.
 
@@ -474,6 +553,54 @@ def main():
   run("secrets audit",
       [sys.executable, os.path.join("tools", "check_no_secrets.py")],
       dict(os.environ))
+
+  # ---- a real release PROMOTES a candidate. It does not re-derive one.
+  #
+  # The stages below cost the better part of an hour, and re-running
+  # them at release time answers a question already answered -- worse,
+  # it answers it about whatever the tree looks like NOW, which need
+  # not be the tree somebody installed and reviewed. So a release
+  # requires a receipt written by a candidate built from a byte-identical
+  # tree, and having found one it skips straight to packaging and
+  # version control.
+  #
+  # Refusing without one is the point of the whole candidate phase: it
+  # makes "has a human actually run this?" a gate rather than a habit.
+  if not args.rc:
+    digest = tree_digest()
+    receipt = matching_receipt(version, digest)
+    if receipt is None:
+      built = sorted(glob.glob(os.path.join(
+        ROOT, "dist", f"CANDIDATE-{version}rc*.receipt.json")))
+      if built:
+        detail = (f"{len(built)} candidate(s) of v{version} were built, "
+                  f"but from a different tree than this one. Something "
+                  f"that ships has changed since the last candidate.")
+      else:
+        detail = f"No candidate of v{version} has been built at all."
+      sys.exit(
+        f"\nRefusing to release v{version}.\n\n  {detail}\n\n"
+        f"  A release publishes an artefact somebody has installed and\n"
+        f"  reviewed. Build a candidate, try it in QGIS, and release\n"
+        f"  that:\n\n"
+        f"      python3 release.py --rc\n\n"
+        f"  then re-run this command without changing anything that\n"
+        f"  ships.")
+    print(f"\n=== promoting candidate {receipt['label']} ===\n"
+          f"  built {receipt.get('built', 'earlier')} from this exact "
+          f"tree, and it passed every gate then.\n"
+          f"  The suite, gallery, coverage and reference comparison are "
+          f"NOT re-run:\n"
+          f"  the artefact is identical, file for file, to the one "
+          f"already measured.")
+    run("build zip", [sys.executable, "build.py"], dict(os.environ))
+    prune_old_reports(keep=3)
+    commit_and_tag(version, report_dir, push=args.push)
+    print(f"\nRelease v{version} complete (promoted from "
+          f"{receipt['label']})."
+          f"\n  zip:        dist/weavingspace_qgis.zip"
+          f"\n  report:     reports/v{version}/index.html")
+    return 0
 
   # 1. functional suite; captured so the report can include it
   functional = run("functional suite",
@@ -575,6 +702,15 @@ def main():
   run("test map", [sys.executable, os.path.join("tools", "test_map.py")],
       dict(os.environ))
 
+  # The register is generated from the suite's own Regression: lines,
+  # exactly as the map is generated from its registrations. It used to
+  # be left out of this list, so it drifted between releases until a
+  # reader noticed -- which is the failure the standards check now
+  # catches and this line prevents.
+  run("bug register",
+      [sys.executable, os.path.join("tools", "bug_register.py")],
+      dict(os.environ))
+
   run("published content audit",
       [sys.executable, os.path.join("tools", "sync_release_content.py"),
        "--fix", "--since", str(started)], dict(os.environ))
@@ -601,6 +737,11 @@ def main():
       run("candidate dossier",
           [sys.executable, os.path.join("tools", "candidate_dossier.py"),
            label], dict(os.environ))
+      # The receipt: proof that THIS tree passed every gate and was
+      # packaged for review. Written last, because everything above it
+      # aborts on failure, so reaching this line is the proof.
+      receipt = write_receipt(version, label, tree_digest())
+      print(f"  receipt: {os.path.relpath(receipt, ROOT)}")
     print(f"\nRelease candidate built from a passing tree. Nothing was "
           f"committed, tagged or published.\n"
           f"  candidates: dist/\n"

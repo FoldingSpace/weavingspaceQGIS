@@ -37,6 +37,7 @@ ROOT = os.path.dirname(HERE)
 BASE = [None]
 DIALOG = "weavingspace_qgis/dialog.py"
 BRIDGE = "weavingspace_qgis/bridge.py"
+PLUGIN = "weavingspace_qgis/plugin.py"
 CATALOG = "weavingspace_qgis/catalog.py"
 COMPAT = "weavingspace_qgis/compat.py"
 PERCEPTION = "weavingspace_qgis/perception.py"
@@ -55,6 +56,21 @@ MUTATIONS = [
   # written for. These entries are how that cannot happen quietly
   # again.
   # ---- this round's defects, each undone here so its test is proved
+  dict(name="consent-names-the-destination", file=PLUGIN,
+       old='    f"      {deps.LIBS_DIR}\\n"',
+       new='    "      a folder belonging to this plugin\\n"',
+       test="test_the_dependency_consent_says_what_it_will_do",
+       why="the consent dialogue must name the exact folder the "
+           "downloaded packages land in, derived from where the "
+           "plugin is installed; 'a folder belonging to this plugin' "
+           "is a promise the reader cannot check"),
+  dict(name="consent-safe-default", file=PLUGIN,
+       old="  box.setDefaultButton(box.buttons()[-1])",
+       new="  box.setDefaultButton(approve)",
+       test="test_the_dependency_consent_says_what_it_will_do",
+       why="the SAFE button is the default, so that Return on a "
+           "dialogue nobody has read cannot start downloading and "
+           "unpacking code"),
   dict(name="nulls-excluded-from-breaks", file=BRIDGE,
        old="""    if layer.setSubsetString(combined):
       restore = previous""",

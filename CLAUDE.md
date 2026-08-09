@@ -126,6 +126,26 @@ obligations: they exist so nobody pays twice for the same discovery.
   - when a choice has a reason that is not obvious from the code
     (thread safety, an upstream semantic, a Qt quirk, a bug this
     prevents), the reason belongs at that line.
+- **Generated documents are regenerated, never remembered.**
+  `docs/TEST-MAP.md` and `docs/BUG-REGISTER.md` are produced from the
+  suite — the map from the `check()` registrations, the register from
+  the `Regression:` lines — so neither is ever hand-edited and both
+  are regenerated whenever the suite gains, loses or renames a test:
+
+      python3 tools/test_map.py
+      python3 tools/bug_register.py
+
+  A generated document nobody regenerates is worse than none, because
+  it keeps its authority while losing its accuracy, and the map is
+  consulted precisely when deciding where to write tests next. This
+  used to rely on somebody noticing — the register drifted for a
+  whole session and was corrected only when the user asked — so it no
+  longer relies on anyone: `tools/check_standards.py` recounts both
+  with the GENERATORS' OWN rules and fails when either document
+  disagrees with the suite, and `release.py` regenerates both. If you
+  add a test and the standards check complains, it is telling you to
+  run the two commands above, not to edit a number. (Made enforced
+  2026-08-09, after the user pointed out they kept having to ask.)
 - **The standards are ENFORCED at release, not merely intended.**
   `release.py` runs `tools/check_standards.py` before anything else,
   and refuses to build a zip when it fails. It checks what this file
@@ -150,6 +170,31 @@ obligations: they exist so nobody pays twice for the same discovery.
   version on disk is untouched) so a tester always knows which build
   they have. (User instruction, 2026-08-08; details in
   docs/PUBLISHING.md.)
+- **A release PROMOTES a candidate; it never re-derives one.** A
+  candidate that passes every gate writes a receipt
+  (`dist/CANDIDATE-<label>.receipt.json`) holding a digest of exactly
+  the files that ship, taken with `build.py`'s own `shipped_files()`
+  so the two rules cannot drift. `release.py` then REFUSES unless a
+  receipt matches the tree in front of it, and having found one it
+  skips the suite, gallery, coverage and reference comparison — those
+  measured this artefact already, and re-running them would measure
+  whatever the tree looks like now rather than what somebody
+  installed. Change one shipped byte after the candidate and the
+  release stops and says which case it is. The digest deliberately
+  ignores tests, tooling and documentation: those cannot change what
+  a reviewer ran, and a gate that fires on a comment in the suite is
+  a gate people learn to route around. Guarded by
+  `test_a_release_needs_a_matching_candidate` and
+  `test_the_release_digest_watches_what_ships`. (User instruction,
+  2026-08-09: a release must not be triggerable except on a clean
+  candidate, and must not redo work the candidate already did.)
+- **A candidate number is spent by anything bearing it.**
+  `next_candidate` counts zips, dossiers AND receipts, so deleting an
+  artefact cannot hand its number back. It used to count zips alone,
+  and a dossier for `0.24.0rc3` sitting beside no zip would have made
+  the next build a second, different rc3 — one name, two trees. A gap
+  in the sequence confuses nobody; a reused name confuses everybody.
+  Guarded by `test_a_candidate_number_is_never_reused`.
 - **Releases go through `python3 release.py`**; never hand the user a
   zip that did not come out of it (details under "The test suite").
   Every release writes reports/v<version>/testing-report.md listing
@@ -622,6 +667,23 @@ Confirmed with the user via an explicit design review:
   news: delete the marked block in `make_graduated_renderer` and the
   canary, keep `missing_values_message`, and do NOT relax the
   assertion to make the suite green. (User instruction, 2026-08-09.)
+- **The dependency consent dialogue states what can be checked.**
+  `deps.py` downloads wheels from PyPI where QGIS lacks the scientific
+  stack or carries a version below the floor — most often Linux, where
+  QGIS uses the system Python, but the trigger is "missing OR too old"
+  and can fire anywhere. That is the most intrusive thing this plugin
+  does and the thing a QGIS plugin repository reviewer will examine
+  hardest, so the dialogue (`plugin.dependency_consent_box`) names the
+  packages, the source (PyPI), the exact destination folder, what is
+  NOT touched, how to undo it, and what declining costs — and the
+  buttons say what they do, with the SAFE one as the default so a
+  stray Return cannot start a download. It is built as its own
+  function rather than inline so it can be tested and photographed
+  without owning a machine that happens to be missing a package;
+  `test_the_dependency_consent_says_what_it_will_do` asserts each
+  promise. If you change the wording, keep every one of those
+  elements: they are what make it consent rather than a prompt.
+  (User instruction, 2026-08-09.)
 - **Raster sources are not a case here.** A COG, a WMS or any other
   raster cannot be a region layer: the region chooser filters to
   polygon layers, and the tiling joins data to POLYGONS. Raster-backed

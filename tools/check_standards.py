@@ -285,6 +285,75 @@ def check_binding_documents():
                         f"nothing will send a reader to it")
 
 
+def check_derived_documents():
+  """Are the generated documents current with the suite they describe?
+
+  Returns:
+    None. Appends to the module-level ``problems``, as every other
+    check here does, so one run reports every breach at once.
+
+  docs/TEST-MAP.md and docs/BUG-REGISTER.md are generated, and a
+  generated document that nobody regenerates is worse than none: it
+  keeps its authority while losing its accuracy, and it is consulted
+  precisely when deciding where to write tests next.
+
+  The recount uses each GENERATOR'S OWN rule, imported rather than
+  restated, so this check cannot drift from the thing it checks. It
+  compares counts rather than regenerating and diffing, because a
+  checker with side effects surprises whoever runs it -- and because
+  a count is the part a reader trusts.
+  """
+  import importlib.util
+
+  def load(name):
+    spec = importlib.util.spec_from_file_location(
+      name, os.path.join(ROOT, "tools", f"{name}.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+  # the bug register: one entry per Regression: line in the suite
+  register = os.path.join(ROOT, "docs", "BUG-REGISTER.md")
+  if not os.path.exists(register):
+    problems.append("docs/BUG-REGISTER.md is missing; run "
+                    "tools/bug_register.py")
+  else:
+    try:
+      module = load("bug_register")
+      found = module.entries()
+    except Exception as exc:                                # noqa: BLE001
+      found = None
+      problems.append(f"could not recount the bug register: {exc}")
+    text = open(register, encoding="utf-8").read()
+    claimed = re.search(r"(\d+) defect\(s\) with a regression test", text)
+    if found is not None and claimed:
+      if len(found) != int(claimed.group(1)):
+        problems.append(
+          f"docs/BUG-REGISTER.md says {claimed.group(1)} defects and "
+          f"the suite now carries {len(found)}; run "
+          f"tools/bug_register.py and commit the result")
+
+  # the test map: one row per registered test
+  test_map = os.path.join(ROOT, "docs", "TEST-MAP.md")
+  if not os.path.exists(test_map):
+    problems.append("docs/TEST-MAP.md is missing; run tools/test_map.py")
+  else:
+    text = open(test_map, encoding="utf-8").read()
+    claimed = re.search(r"(\d+) tests across (\d+) areas", text)
+    try:
+      module = load("test_map")
+      counted = len(module.collect())
+    except Exception as exc:                                # noqa: BLE001
+      counted = None
+      problems.append(f"could not recount the test map: {exc}")
+    if counted is not None and claimed:
+      if counted != int(claimed.group(1)):
+        problems.append(
+          f"docs/TEST-MAP.md says {claimed.group(1)} tests and the "
+          f"suite now registers {counted}; run tools/test_map.py and "
+          f"commit the result")
+
+
 def check_equivalence_claims():
   """Every mutant excused as "equivalent" carries evidence, and still
   refers to code that exists.
@@ -349,6 +418,7 @@ def main():
   check_no_mutation_markers()
   check_user_facing_text()
   check_audit_tools()
+  check_derived_documents()
   if problems:
     print(f"{len(problems)} standards problem(s):\n")
     for problem in problems:
@@ -357,7 +427,8 @@ def main():
           "or change the rule deliberately.")
     sys.exit(1)
   print("standards: documentation, markers, user-facing text, audit "
-        "tools and equivalence claims all in order")
+        "tools, equivalence claims and the generated documents all in "
+        "order")
 
 
 if __name__ == "__main__":
