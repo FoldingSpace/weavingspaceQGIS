@@ -47,6 +47,7 @@ import shutil
 import re
 import subprocess
 import sys
+import threading
 import time
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -260,17 +261,22 @@ def tree_cpu_seconds(pid):
   return total
 
 
-def stage_chart(started):
+def stage_chart(started, final=False):
   """The progress chart, as a block of text.
 
   Args:
     started: time.time() when the release began.
+    final: the run is OVER. Expected stages that never ran are then
+      dropped instead of listed as pending -- a finished chart
+      showing ".." rows (a cached venv, a skipped guard) reads as an
+      unfinished run, which is exactly what it is not. (User
+      instruction, 2026-08-09.)
 
   Returns:
     A multi-line string listing every stage with its state and, for
-    those that have finished, how long they took. Stages not yet
-    reached are listed too, because "what is left" is most of what
-    somebody watching wants to know.
+    those that have finished, how long they took. Mid-run, stages not
+    yet reached are listed too, because "what is left" is most of
+    what somebody watching wants to know.
   """
   now = time.time()
   expected = load_timings()
@@ -278,9 +284,10 @@ def stage_chart(started):
   lines = [f"\n=== progress at {time.strftime('%H:%M')} "
            f"(running {int((now - started) // 60)}m) ==="]
   seen = list(STAGE_ORDER)
-  for name in EXPECTED_STAGES:
-    if name not in seen:
-      seen.append(name)
+  if not final:
+    for name in EXPECTED_STAGES:
+      if name not in seen:
+        seen.append(name)
   for name in seen:
     state = STAGE_STATE.get(name)
     if state is None:
@@ -344,6 +351,27 @@ def start_progress(started):
 
   threading.Thread(target=tick, daemon=True).start()
   return stop
+
+
+def mutation_sample_size(changed_lines):
+  """How many mutants the changed-lines guard samples.
+
+  Args:
+    changed_lines: lines added to shipped plugin code since the last
+      release tag, as ``git diff --numstat`` counts them.
+
+  Returns:
+    max(12, min(80, changed_lines // 20)). A FIXED sample was sized
+    for routine releases and became decorative the night a round
+    changed seventeen hundred lines -- twelve mutants over a diff
+    that size certifies nearly nothing, while over a ten-line fix
+    they are dense coverage. One mutant per twenty changed lines
+    keeps the density roughly constant; the floor keeps small
+    releases honestly sampled and the cap keeps the stage's cost
+    proportionate (about two hours at worst) rather than open-ended.
+    (User instruction, 2026-08-09.)
+  """
+  return max(12, min(80, changed_lines // 20))
 
 
 def run(step, cmd, env, capture=False):
@@ -439,12 +467,25 @@ def run(step, cmd, env, capture=False):
 
   result = _Finished(returncode, output_text)
   output = (result.stdout or "") + (result.stderr or "") if capture else ""
+  stage_log = None
   if capture:
+    # the WHOLE output, kept on disk: the console shows only the tail
+    # below, and a failure whose casualties sat above the tail once
+    # cost a full re-run just to learn their names. reports/ is
+    # local-only, so a big log costs nobody a clone.
+    log_dir = os.path.join(ROOT, "reports", "stage-logs")
+    os.makedirs(log_dir, exist_ok=True)
+    stage_log = os.path.join(
+      log_dir, "".join(c if c.isalnum() else "-" for c in step) + ".log")
+    with open(stage_log, "w", encoding="utf-8") as handle:
+      handle.write(output)
     print(output[-2000:])
   if result.returncode != 0:
     print(stage_chart(RELEASE_STARTED), flush=True)
+    where = (f"\n  Full stage output: {stage_log}" if stage_log
+             else "\n  The stage streamed; its full output is above.")
     sys.exit(f"RELEASE ABORTED: {step} failed "
-             f"(exit {result.returncode}); no zip was built.")
+             f"(exit {result.returncode}); no zip was built.{where}")
   return output
 
 
@@ -1000,13 +1041,35 @@ def main():
   previous = subprocess.run(["git", "describe", "--tags", "--abbrev=0"],
                             cwd=ROOT, capture_output=True, text=True)
   if previous.returncode == 0 and previous.stdout.strip():
-    run(f"new-code mutation guard (since {previous.stdout.strip()})",
+    tag = previous.stdout.strip()
+    # the sample SCALES with the diff (see mutation_sample_size):
+    # count the lines added to shipped plugin code since the tag,
+    # vendor excluded because upstream's code is not this suite's to
+    # defend
+    numstat = subprocess.run(
+      ["git", "diff", "--numstat", tag, "--",
+       "weavingspace_qgis", ":!weavingspace_qgis/vendor"],
+      cwd=ROOT, capture_output=True, text=True)
+    changed = sum(
+      int(line.split()[0])
+      for line in numstat.stdout.splitlines()
+      if line.split() and line.split()[0].isdigit())
+    sample = mutation_sample_size(changed)
+    run(f"new-code mutation guard (since {tag}: {changed} changed "
+        f"lines, {sample} mutants)",
         [python, "-u", os.path.join("tools", "mutate_auto.py"),
-         "--since", previous.stdout.strip(), "--sample", "12",
+         "--since", tag, "--sample", str(sample),
          "--workers", "2", "--require", "70"], env)
   else:
-    print("\n=== new-code mutation guard ===\n  no previous release "
-          "tag to compare against; skipped this once")
+    # LOUD, because a skip that whispers becomes permanent: this
+    # exact message printed on every candidate for two days before
+    # anyone noticed the repository had never been tagged at all
+    print("\n=== new-code mutation guard: SKIPPED ===\n"
+          "  NO RELEASE TAG EXISTS to diff against, so the new-code\n"
+          "  guard has nothing to measure and DID NOT RUN. If this\n"
+          "  keeps appearing, the guard has never run: create a\n"
+          "  baseline tag (git tag -a <name> <commit>) and it fires\n"
+          "  from the next release onward.", flush=True)
 
   # 3b. re-photograph what we publish. The README and the project page
   # show the dialog and a set of maps, and both are claims about how
@@ -1069,7 +1132,7 @@ def main():
       receipt = write_receipt(version, label, tree_digest())
       print(f"  receipt: {os.path.relpath(receipt, ROOT)}")
     progress.set()
-    print(stage_chart(RELEASE_STARTED))
+    print(stage_chart(RELEASE_STARTED, final=True))
     print(f"\nRelease candidate built from a passing tree. Nothing was "
           f"committed, tagged or published.\n"
           f"  candidates: dist/\n"
@@ -1089,7 +1152,7 @@ def main():
   commit_and_tag(version, report_dir, push=args.push)
 
   progress.set()
-  print(stage_chart(RELEASE_STARTED))
+  print(stage_chart(RELEASE_STARTED, final=True))
   print(f"\nRelease v{version} complete."
         f"\n  zip:        dist/weavingspace_qgis.zip"
         f"\n  report:     reports/v{version}/index.html"

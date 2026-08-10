@@ -49,6 +49,7 @@ HOW = {
   "integration": "a multi-step session test",
   "mutation": "the mutation campaign",
   "hostile-data": "the hostile data corpus",
+  "family-audit": "a family audit of the claims the software makes",
   "user": "reported by a user",
   "review": "reading the code",
 }

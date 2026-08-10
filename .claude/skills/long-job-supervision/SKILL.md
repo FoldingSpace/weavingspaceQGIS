@@ -3,7 +3,7 @@ name: long-job-supervision
 description: Supervise work that outlasts a single turn — test suites, builds, training runs, migrations, batch jobs — so the machine stays busy, finished work gets picked up immediately, and a stuck job is caught in minutes rather than hours. Use this whenever you start something long in the background, whenever a user asks for periodic status updates or says "keep going without me", whenever you are about to write a watcher or poll loop, and whenever a job seems to be taking longer than it should. Also use it before reporting that something is "still running" — that claim is worth exactly as much as the reading behind it.
 derived_from:
   - path: docs/MUTATION-LOOP.md
-    sha256: 749db6709ad3b561bbe25f6b7e38b5e0be1d077498d7528765d8f33e20c78235
+    sha256: 7a230dcf1019dc2c6820402813041391c69a74041eddd0a3ef1b0fa333d179f4
 ---
 
 # Supervising work that outlasts a turn
@@ -76,19 +76,37 @@ anything is still running.
 
 ## Heartbeats
 
-When someone asks for periodic updates, set a heartbeat that emits a
-compact status on a fixed interval: what is running, progress against
-the total, the latest result, whether any watcher has stuck, and
-whatever resource is scarce.
+**Run one whenever work outlasts a turn, not only when asked.** A
+thirty-minute beat is the default for anything measured in hours. This
+is not reporting etiquette; it is a defect-finding instrument, and it
+earns its place by what it catches rather than by what it announces.
+In one night of long jobs, four faults were found by beats and none by
+waiting for completion: a sweep reporting "4/4 shards done" from logs
+left by a run killed hours earlier; a catalogue sweep announcing
+"CLEAN" after judging one entry of 156, because its listing crashed
+under an environment variable and nothing checked the count; a census
+started against a tree that had since changed, beside a SECOND census
+launched by a chain; and a worker from an abandoned run still grinding
+and writing into the log the new run was appending to. Every one of
+those would have produced a number somebody believed. None was
+visible in the final "done" line.
+
+So the beat asks: what is running, with CPU against elapsed; progress
+against the total; the newest result; and -- the part that does the
+catching -- **is what I am reading actually from THIS run?** Check the
+age of any file you summarise against the start of the work it claims
+to describe.
+
+Set the interval by how fast the state changes, then leave it alone:
+half an hour suits stage-shaped work (a suite, a census, a batch),
+because it is long enough that each beat carries news and short enough
+that a stall is caught while it still costs minutes.
 
 **Take a fresh reading each time.** Reporting a cached number with an
 honest timestamp still presents stale state as current: a status
 labelled 10:21 and posted at 10:31 reads as live, and the label
 documents the staleness rather than curing it. If the reading is more
 than a minute old, take another.
-
-Keep the interval long enough that each beat carries news. One event
-per ten minutes is generally right for work measured in hours.
 
 ## Keeping the machine busy
 
@@ -117,7 +135,13 @@ identical results — but per-unit times inflated 15–50% under
 contention. Give each worker its own scratch directory and its own
 process so nothing is shared, and watch memory rather than cores: a
 campaign killed at unit nineteen of twenty costs more than the
-parallelism saved.
+parallelism saved. The asymmetry to respect: independent short
+judgements shard well, but two timing-sensitive jobs (two full test
+suites, a suite beside a mutation batch, anything beside a census)
+degrade each other into false hangs and flattered scores — schedule
+those serially, event-driven on each other's completion rather than
+on a clock, so a quiet evening is used and a busy one is not
+double-booked.
 
 ## Resource pressure
 

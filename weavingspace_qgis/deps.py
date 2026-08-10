@@ -329,7 +329,18 @@ def provision_from_bundled(missing: list[str]) -> list[str]:
             if re.sub(r"[-_.]+", "_", w.split("-")[0]).lower() == norm]
     chosen = _best_wheel(mine)
     if chosen:
-      _extract_wheel(os.path.join(WHEELS_DIR, chosen))
+      try:
+        _extract_wheel(os.path.join(WHEELS_DIR, chosen))
+      except Exception:
+        # A wheel that is not a readable zip -- truncated by a copy,
+        # or not a wheel at all -- used to let zipfile.BadZipFile out
+        # of here, through _ensure_dependencies and out of
+        # open_dialog, so pressing the toolbar button produced a
+        # traceback instead of a sentence. A bundled file we cannot
+        # read means the dependency is still missing, which is a
+        # state this function already knows how to report; the PyPI
+        # path below declines the same way.
+        still_missing.append(import_name)
     else:
       still_missing.append(import_name)
   _forget_modules([m for m in missing if m not in still_missing])

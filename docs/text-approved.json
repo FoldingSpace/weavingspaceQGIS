@@ -64,6 +64,11 @@
   "excerpt": "<p>What the plugin adds to a QGIS project is not an image fi",
   "where": "docs/index.html"
  },
+ "0e5bfb68c843615f": {
+  "approved": "2026-08-09",
+  "excerpt": "Only elements drawn in classes have colours to edit",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "0ea2af6e5e184614": {
   "approved": "2026-08-09",
   "excerpt": "Missing or too old: {} If you approve, WeavingSpace will: \u2022 ",
@@ -174,6 +179,11 @@
   "excerpt": "<div class=\"plates\">\n  <div>\n    <img src=\"img/twill-weave.p",
   "where": "docs/index.html"
  },
+ "214448db90218df5": {
+  "approved": "2026-08-09",
+  "excerpt": "Choosing {} for element '{}' restored the ramp's full displa",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "2345ddf4a1d286bd": {
   "approved": "2026-08-09",
   "excerpt": "Save all element layers, with styling, to one file.",
@@ -279,10 +289,25 @@
   "excerpt": "Pulls each repeating unit apart from its neighbours, showing",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "4733e8e38b1380f9": {
+  "approved": "2026-08-09",
+  "excerpt": "While hand-picked colours or an imported class file decide a",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "4848080883436173": {
+  "approved": "2026-08-09",
+  "excerpt": "Element '{}' keeps the {} colour(s) set in QGIS; its ramp ce",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "48efd94208fb4c9b": {
   "approved": "2026-08-09",
   "excerpt": "Strand width as a fraction of spacing; 1.0 leaves no gaps.",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "492cadf80cb37690": {
+  "approved": "2026-08-09",
+  "excerpt": "Upper end of the ramp stretch, as a percentage.",
+  "where": "weavingspace_qgis/category_editor.py"
  },
  "49cd57d1eb1b5e3b": {
   "approved": "2026-08-09",
@@ -329,6 +354,11 @@
   "excerpt": "'{}' now has {} categories where it had {}, so the colours o",
   "where": "weavingspace_qgis/bridge.py"
  },
+ "4f0e79bbbb40a8f1": {
+  "approved": "2026-08-09",
+  "excerpt": "Choosing {} for element '{}' discarded {} class colour(s) yo",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "4f67d46c1c8b2316": {
   "approved": "2026-08-08",
   "excerpt": "This QGIS installation is missing (or has outdated versions ",
@@ -373,6 +403,11 @@
   "approved": "2026-08-08",
   "excerpt": "The library and its examples are at\n[github.com/DOSull/weavi",
   "where": "README.md"
+ },
+ "5a3dd1bfb175c646": {
+  "approved": "2026-08-09",
+  "excerpt": "Above the list sits the Ramp Display Range: the ramp with tw",
+  "where": "docs/USER-GUIDE.md"
  },
  "5aa0057027e60a9c": {
   "approved": "2026-08-08",
@@ -433,6 +468,11 @@
   "approved": "2026-08-08",
   "excerpt": "The plugin draws the same kinds of map from your own layers:",
   "where": "README.md"
+ },
+ "678b01145f151372": {
+  "approved": "2026-08-10",
+  "excerpt": "The filter you had set on element '{}' could not be applied ",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "68022acfc248f883": {
   "approved": "2026-08-08",
@@ -559,6 +599,11 @@
   "excerpt": "Adds a copy of the region layer, drawn as outlines on top, s",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "8a624c52ad8ce1bd": {
+  "approved": "2026-08-09",
+  "excerpt": "Choose class colours, or narrow the ramp's display range",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "8ad335e8aa4ad916": {
   "approved": "2026-08-08",
   "excerpt": "Ran out of memory while tiling; a larger spacing will work f",
@@ -629,6 +674,11 @@
   "excerpt": "![The plugin dialog](docs/img/dialog.png)",
   "where": "README.md"
  },
+ "965bdd176b70bb1a": {
+  "approved": "2026-08-09",
+  "excerpt": "Lower end of the ramp stretch, as a percentage.",
+  "where": "weavingspace_qgis/category_editor.py"
+ },
  "98e7c7ce4e0397db": {
   "approved": "2026-08-08",
   "excerpt": "This will generate roughly {} tiles and may take a while. Co",
@@ -664,6 +714,11 @@
   "excerpt": "Tilings and weaves are both available, from the same catalog",
   "where": "README.md"
  },
+ "a3b0e2da1585b84c": {
+  "approved": "2026-08-09",
+  "excerpt": "'{}' has no classes to colour in this layer.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "a3c68fab740e7a54": {
   "approved": "2026-08-08",
   "excerpt": "Every element in a unit takes its data from the same area, s",
@@ -697,6 +752,11 @@
  "a7f794db338ed380": {
   "approved": "2026-08-08",
   "excerpt": "A first map appears of its own accord once a layer and varia",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "a840b73cbf4b01dc": {
+  "approved": "2026-08-09",
+  "excerpt": "### Class colours and the display range",
   "where": "docs/USER-GUIDE.md"
  },
  "a84c0a92551890cb": {
@@ -777,6 +837,11 @@
  "c0cbfcfe8f73d116": {
   "approved": "2026-08-09",
   "excerpt": "Menlo, Consolas, 'DejaVu Sans Mono', monospace",
+  "where": "weavingspace_qgis/category_editor.py"
+ },
+ "c50be55b73035ed7": {
+  "approved": "2026-08-09",
+  "excerpt": "Drag the handles to choose the stretch of ramp the classes u",
   "where": "weavingspace_qgis/category_editor.py"
  },
  "c71310d5039cf304": {
@@ -889,6 +954,11 @@
   "excerpt": "Save tiled map to GeoPackage",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "dba2b982a807c767": {
+  "approved": "2026-08-09",
+  "excerpt": "Quantitative elements open the same window. Each class is li",
+  "where": "docs/USER-GUIDE.md"
+ },
  "dd3edb0d6a4bbc1b": {
   "approved": "2026-08-08",
   "excerpt": "WeavingSpace \u2013 one-time setup",
@@ -954,6 +1024,11 @@
   "excerpt": "The style file does not contain categorised symbology.",
   "where": "weavingspace_qgis/bridge.py"
  },
+ "e8416dddf2f463a4": {
+  "approved": "2026-08-09",
+  "excerpt": "No ramp knows that forest should be green. An \"Edit colours\"",
+  "where": "docs/USER-GUIDE.md"
+ },
  "e881bc2ee8cdbe09": {
   "approved": "2026-08-08",
   "excerpt": "<h1>WeavingSpace: tiled and woven maps in QGIS</h1>\n<p class",
@@ -999,6 +1074,11 @@
   "excerpt": "Load a polygon layer in a projected CRS, rough in a design w",
   "where": "README.md"
  },
+ "f0bc4d1f2555332a": {
+  "approved": "2026-08-09",
+  "excerpt": "Colours set by hand or by a class file. Choose a ramp to rep",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "f297bd31c128e7bf": {
   "approved": "2026-08-08",
   "excerpt": "Where the slices/dissection cuts start on the base shape: 0 ",
@@ -1038,6 +1118,11 @@
   "approved": "2026-08-08",
   "excerpt": "<p>What the plugin adds to a QGIS project is not a picture b",
   "where": "docs/index.html"
+ },
+ "fba454af033d04ad": {
+  "approved": "2026-08-09",
+  "excerpt": "Element '{}' now follows the '{}' ramp chosen in QGIS.",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "fba5da4be2d831fa": {
   "approved": "2026-08-08",

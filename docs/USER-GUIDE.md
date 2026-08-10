@@ -136,7 +136,7 @@ the qualitative sets (tab10 and its relatives) are for categories only.
 ### Setting a colour per value
 
 No ramp knows that forest should be green. An "Edit colours" column
-appears beside the ramp whenever any element is categorized; its "Custom"
+appears beside the ramp whenever any element is categorized; its "Customize"
 button opens a small window listing every value that element's field
 takes, with the colour each one currently draws in. Click a colour to
 change it. The map repaints at once, without re-tiling, and the rest
@@ -153,6 +153,38 @@ Three things worth knowing:
   how many colours it dropped. Colours are remembered per variable, so
   switching an element to another field and back restores them, and
   they are saved with your project.
+
+While hand-picked colours or an imported class file decide any part of
+an element's appearance, its ramp cell reads Custom and shows a swatch
+of the colours actually in use; the ramp you last chose still colours
+whatever the picks and the file leave unmentioned, and choosing any
+ramp puts it back in charge. Recolouring an element's layer in QGIS's
+own styling panel works too. Colours set there are kept, exactly as if
+you had picked them here, and a clean classify from one of the
+standard categorical ramps simply moves the ramp cell to that ramp.
+
+### Class colours and the display range
+
+Quantitative elements open the same window. Each class is listed with
+its lower and upper bounds and the colour it draws in; the bounds
+belong to the data, so only the colours are yours to change, and a
+class keeps its colour even as the breaks move underneath it. Changing
+the break method or the number of classes starts the colours over,
+since the classes they were picked for no longer exist, and the plugin
+says how many it dropped.
+
+Above the list sits the Ramp Display Range: the ramp with two handles
+and two percentage boxes beneath it, choosing where along the ramp the
+first and last classes take their colours, with the classes between
+spread evenly. The handles may meet but never cross. Narrowing the
+range is how you keep a sequential ramp out of its near-white end, or
+hold two elements to different stretches of the same ramp. For
+'Quant: Unclassed' the class list is a preview, faded and locked, and
+the range is the control. Reverse carries all of this along -- the
+range mirrors and picked classes swap ends -- so flipping it twice
+costs nothing. The ramp cell reads Custom while any of it is in
+force, and choosing a ramp starts the element over, range and class
+colours alike.
 
 ## The map option switches
 

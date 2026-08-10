@@ -66,8 +66,9 @@ import math
 import os
 import traceback
 
-from qgis.PyQt.QtCore import QSize, Qt, QTimer
-from qgis.PyQt.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen
+from qgis.PyQt.QtCore import QRectF, QSize, Qt, QTimer
+from qgis.PyQt.QtGui import (
+  QBrush, QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap)
 from qgis.PyQt.QtWidgets import (
   QAbstractButton,
   QApplication,
@@ -84,6 +85,9 @@ from qgis.PyQt.QtWidgets import (
   QProgressBar,
   QPushButton,
   QSpinBox,
+  QStyle,
+  QStyleOptionComboBox,
+  QStylePainter,
   QTableWidget,
   QTableWidgetItem,
   QTabWidget,
@@ -170,6 +174,12 @@ def _nice_number(x: float) -> float:
 # pixmap on its own would have changed nothing.
 RAMP_SWATCH = QSize(64, 18)
 
+# How many stripes a swatch shows. The swatch is 64px wide, and below
+# about 8px a stripe stops reading as a colour of its own; eight also
+# samples a ramp closely enough that neighbouring ramps stay
+# distinguishable in the dropdown.
+SWATCH_STRIPES = 8
+
 # What separates two notices sharing the dialog's single note line
 # when there is no QGIS message bar to stack them in. See
 # WeavingSpaceDialog._report_quietly.
@@ -197,15 +207,172 @@ def _ramp_icon(name: str, reverse: bool = False):
   looked up in it by name.
   """
   try:
-    from qgis.core import QgsSymbolLayerUtils
     # bridge.get_ramp clones and, when asked, reverses; the swatch
     # therefore shows the direction the map will actually use
     ramp = bridge.get_ramp(name, reverse)
-    if ramp is not None:
-      return QgsSymbolLayerUtils.colorRampPreviewIcon(ramp, RAMP_SWATCH)
+    if ramp is None:
+      return None
+    # Drawn through the SAME construction as a Custom swatch (user
+    # instruction, 2026-08-09): equal vertical stripes of sampled
+    # colours, not QGIS's continuous gradient preview. Two cells side
+    # by side in one column should differ in what they SHOW, never in
+    # how they are drawn -- a gradient beside a striped swatch reads
+    # as two kinds of thing, and the Custom swatch is the honest one
+    # because a classed map paints steps rather than a gradient.
+    # Sampled at the ends inclusive (i/(n-1)), which is where the
+    # first and last classes of a graduated map take their colours,
+    # so the swatch's extremes are the map's extremes.
+    stripes = SWATCH_STRIPES
+    colours = [ramp.color(i / (stripes - 1)).name()
+               for i in range(stripes)]
+    # deliberately NOT narrowed by any row's Ramp Display Range:
+    # choosing a ramp resets that window (the settled "until
+    # reselected anew"), so a windowed preview would promise colours
+    # the click itself would discard
+    return _striped_icon(colours)
   except Exception:
     pass
   return None
+
+
+# The layout rule, settled 2026-08-09 and ordered deliberately: the
+# window never exceeds 1280 logical pixels, the narrowest screen still
+# in use, because a wider window is one nobody can see whole. Within
+# that, the TABLE comes first -- it never scrolls horizontally, since
+# a horizontal scrollbar on a table is invisible in practice and the
+# columns to its right go unfound -- and the preview then gives up
+# width, down to a floor below which it stops being able to show
+# whether shapes read as distinct elements. If those ever conflict,
+# narrow COLUMNS, not the preview past its floor.
+MAX_WINDOW_WIDTH = 1280
+PREVIEW_FLOOR = 260
+
+
+# The tooltip for a ramp cell reading "Custom". The wording is the
+# user's own (settled 2026-08-09), and sits inside the fifteen-word
+# tooltip cap: fourteen words.
+CUSTOM_RAMP_TOOLTIP = ("Colours set by hand or by a class file. "
+                       "Choose a ramp to replace them.")
+
+
+def _striped_icon(colours):
+  """The one way this dialog draws a colour swatch.
+
+  Args:
+    colours: "#rrggbb" strings in the order they should appear, left
+      to right. At most SWATCH_STRIPES are drawn; an empty list gets
+      one neutral grey stripe, so a cell never shows an empty icon
+      that would read as a failure to draw.
+
+  Returns:
+    A QIcon of equal vertical stripes at RAMP_SWATCH size.
+
+  EVERY swatch in the ramp column goes through here -- the named
+  ramps in the dropdown and the Custom swatch alike (user
+  instruction, 2026-08-09). Sharing the construction is the point:
+  cells in one column should differ in what they show and never in
+  how they are drawn, and stripes are the honest shape for both,
+  because a classed map paints steps rather than a gradient.
+  """
+  shown = list(colours)[:SWATCH_STRIPES] or ["#c0c0c0"]
+  pixmap = QPixmap(RAMP_SWATCH)
+  pixmap.fill(Qt.GlobalColor.transparent)
+  painter = QPainter(pixmap)
+  width = RAMP_SWATCH.width() / len(shown)
+  for i, name in enumerate(shown):
+    painter.fillRect(
+      QRectF(i * width, 0, width, RAMP_SWATCH.height()), QColor(name))
+  painter.end()
+  return QIcon(pixmap)
+
+
+def _custom_swatch_icon(colours):
+  """The swatch drawn while a ramp cell reads "Custom".
+
+  Args:
+    colours: the element's actual colours as "#rrggbb" strings, in
+      class order, exactly as the renderer would paint them --
+      unsorted and unfiltered, so the swatch samples the map rather
+      than presenting a tidied summary of it.
+
+  Returns:
+    A QIcon of the first colours as equal vertical stripes, drawn by
+    _striped_icon, which is also what every named ramp's swatch goes
+    through.
+  """
+  return _striped_icon(colours)
+
+
+class RampCombo(QComboBox):
+  """The colour-ramp dropdown, able to DISPLAY "Custom" without
+  listing it.
+
+  An element whose colours are partly decided by something other than
+  its ramp shows "Custom" in this cell -- hand-picked values or an
+  imported class source on a categorized row, positional class picks
+  or a narrowed display range on a graduated one -- because a ramp
+  name alone would be a control lying about the map. But "Custom"
+  must never be an ITEM: every standard ramp
+  stays selectable at all times (an explicit user requirement), and an
+  item the user could choose would need a meaning to give it. So only
+  the CLOSED combo's painting is overridden; the popup list, the
+  model, the current index and every signal are untouched.
+
+  The underlying index deliberately stays on the last-picked ramp. A
+  class source or a hand-pick governs only the values it names, and
+  the ramp still colours the leftovers (pinned by
+  test_a_class_source_that_does_not_match_the_data), so there is
+  always a real ramp underneath the Custom display and the dropdown
+  still reaches it.
+
+  Args:
+    parent: the owning widget, as usual in Qt.
+  """
+
+  def __init__(self, parent=None):
+    super().__init__(parent)
+    # None means "paint normally"; a QIcon means "paint the Custom
+    # display, with this swatch of the element's actual colours"
+    self._custom_icon = None
+
+  def set_custom_display(self, icon):
+    """Show or clear the Custom display.
+
+    Args:
+      icon: a QIcon of the element's actual colours to draw as the
+        swatch, or None to return to painting the current ramp.
+
+    Returns:
+      None. Only the closed combo's painting changes; items, index
+      and signals are untouched, so a dropdown the user has open
+      cannot be disturbed (the chooser-race rule).
+    """
+    self._custom_icon = icon
+    # repaint unconditionally: a fresh swatch for an unchanged state
+    # (one more colour picked) must also reach the screen
+    self.update()
+
+  def showing_custom(self) -> bool:
+    """Whether the closed combo currently reads Custom."""
+    return self._custom_icon is not None
+
+  def paintEvent(self, event):  # noqa: N802 (Qt API)
+    """Qt calls this to draw the CLOSED combo; the popup draws its own
+    items and is never affected. When the Custom display is on, the
+    text and icon are swapped inside the style option Qt was about to
+    draw anyway, so platform styling, the focus ring and the drop-down
+    arrow all stay native."""
+    if self._custom_icon is None:
+      super().paintEvent(event)
+      return
+    painter = QStylePainter(self)
+    option = QStyleOptionComboBox()
+    self.initStyleOption(option)
+    option.currentText = "Custom"
+    option.currentIcon = self._custom_icon
+    option.iconSize = RAMP_SWATCH
+    painter.drawComplexControl(QStyle.ComplexControl.CC_ComboBox, option)
+    painter.drawControl(QStyle.ControlElement.CE_ComboBoxLabel, option)
 
 
 # The one live dialog in this QGIS session, if any. The plugin reuses
@@ -216,6 +383,57 @@ def _ramp_icon(name: str, reverse: bool = False):
 # the existing output group, two instances would write to the same
 # layers, each unaware of the other. One at a time, enforced.
 _LIVE_DIALOG = None
+
+# Where the one-at-a-time rule REALLY keeps its record. A module
+# global is not enough: QGIS's Plugin Reloader re-executes this
+# module, which resets `_LIVE_DIALOG = None` above, and the dialog
+# built from the reloaded class then retires nothing -- the
+# predecessor keeps its timers running against the group the newcomer
+# has just adopted. So the reference is parked on the QApplication
+# instance, which outlives every plugin reload, under this key; the
+# module global stays as the fallback for the rare case where there
+# is no application object (some headless uses).
+_LIVE_KEY = "weavingspace_live_dialog"
+
+
+def _live_dialog():
+  """The dialog currently in charge, across module reloads.
+
+  Returns:
+    The live WeavingSpaceDialog, or None. Read from the QApplication
+    instance first (it survives a plugin reload, and this module does
+    not), falling back to the module global.
+  """
+  try:
+    from qgis.PyQt.QtWidgets import QApplication
+    app = QApplication.instance()
+    if app is not None:
+      return app.property(_LIVE_KEY)
+  except Exception:
+    pass
+  return _LIVE_DIALOG
+
+
+def _set_live_dialog(dialog):
+  """Record which dialog is in charge, where a reload cannot forget.
+
+  Args:
+    dialog: the dialog taking over, or None to clear the record.
+
+  Returns:
+    None. Written to BOTH the application property and the module
+    global, so either route answers correctly whichever module object
+    a caller happens to be running in.
+  """
+  global _LIVE_DIALOG
+  _LIVE_DIALOG = dialog
+  try:
+    from qgis.PyQt.QtWidgets import QApplication
+    app = QApplication.instance()
+    if app is not None:
+      app.setProperty(_LIVE_KEY, dialog)
+  except Exception:
+    pass
 
 
 class ToggleSwitch(QAbstractButton):
@@ -549,6 +767,30 @@ class WeavingSpaceDialog(QDialog):
     # that two fields sharing a value name ("other", "none", "1")
     # cannot silently colour each other.
     self._category_colours = {}
+    # Graduated (quant) customization, settled 2026-08-09. Class
+    # colours picked by hand are keyed POSITIONALLY -- {tile_id:
+    # {field: {str(class index): "#rrggbb"}}} -- because a class has
+    # no name to follow when its breaks move; per-field so switching
+    # a variable away and back restores the work, exactly as the
+    # categorical picks do.
+    self._quant_colours = {}
+    # {tile_id: (lo, hi)}: the percent window of the ramp the classes
+    # sample from (the Ramp Display Range). Absent means the whole
+    # ramp. Data-blind, so it survives a field switch; only choosing
+    # a ramp resets it.
+    self._ramp_ranges = {}
+    # True while the dialog itself is writing renderers, so the
+    # styleChanged watcher (see _on_layer_style_edited) can tell a
+    # QGIS-side edit from our own seeding and react only to the first
+    self._applying_style = False
+    # elements whose renderer the LAST run carried over unchanged;
+    # _finish_run re-examines them for dock edits made mid-run
+    self._preserved_this_run = []
+    # {tile_id: (key, QIcon)} -- the Custom-display swatch, cached
+    # against everything that decides an element's colours, because
+    # building one means constructing the real renderer against the
+    # region layer (see _custom_swatch_for)
+    self._custom_swatch_cache = {}
     # which layer auto-spacing last ran for (it must run once per
     # newly chosen layer, never on the combo's spurious re-emissions)
     self._auto_spacing_layer = None
@@ -623,7 +865,12 @@ class WeavingSpaceDialog(QDialog):
     right = QVBoxLayout()
     right.addWidget(QLabel("Tile unit preview"))
     self.preview = TilePreview()
-    self.preview.setMinimumSize(230, 230)
+    # 260 is the settled width floor (2026-08-09): below it the
+    # preview cannot do its job -- judging whether shapes read as
+    # distinct elements by colour and form -- and merely occupies
+    # space. The layout rule gives the table its columns first, then
+    # lets the preview give up width down to exactly here.
+    self.preview.setMinimumSize(PREVIEW_FLOOR, 230)
     right.addWidget(self.preview, 1)
     shells_row = QHBoxLayout()
     shells_row.addWidget(QLabel("Context shells"))
@@ -842,7 +1089,7 @@ class WeavingSpaceDialog(QDialog):
     self.table = QTableWidget(0, 9)
     self.table.setHorizontalHeaderLabels(
       ["Tile id", "Variable", "Style", "Classes", "Colour ramp",
-       "Reverse", "Opacity %", "Categ colourmap src", "Edit colours"])
+       "Reverse", "Opacity", "Categ colourmap src", "Edit colours"])
     # Qt draws a row-number gutter unless told not to, so the table
     # showed 1, 2, 3, 4 immediately beside the Tile id column showing
     # a, b, c, d: two columns of identifiers, one of them meaningless,
@@ -853,15 +1100,25 @@ class WeavingSpaceDialog(QDialog):
     # returns width the table needs to show every column without
     # scrolling sideways, which nobody notices it doing.
     self.table.verticalHeader().setVisible(False)
-    self.table.setColumnWidth(0, 55)
+    self.table.setColumnWidth(0, 50)
     self.table.setColumnWidth(1, 160)
-    self.table.setColumnWidth(2, 165)
+    self.table.setColumnWidth(2, 152)
     self.table.setColumnWidth(3, 55)
     self.table.setColumnWidth(4, 172)   # a 64px swatch plus the name
-    self.table.setColumnWidth(5, 62)
-    self.table.setColumnWidth(6, 72)
+    self.table.setColumnWidth(5, 58)
+    self.table.setColumnWidth(6, 68)
     self.table.setColumnWidth(7, 150)
-    self.table.setColumnWidth(COL_EDIT_COLOURS, 92)
+    self.table.setColumnWidth(COL_EDIT_COLOURS, 82)
+    # The conditional columns start hidden. These three lines are the
+    # FIRST state the table has; _refresh_table then calls
+    # _update_dynamic_columns, which decides the same three from the
+    # assignments, so for a dialog that reaches a layer they are
+    # redundant. They are kept for the moment BEFORE that -- a table
+    # built and shown with no layer chosen -- because a dead column
+    # in front of a first-time user is exactly the fault the hiding
+    # exists to prevent. Guarded by test_dialog_structure, which
+    # names the columns by header rather than by index so a
+    # renumbering cannot quietly hide the wrong one.
     self.table.setColumnHidden(3, True)
     self.table.setColumnHidden(7, True)
     self.table.setColumnHidden(COL_EDIT_COLOURS, True)
@@ -1570,14 +1827,35 @@ class WeavingSpaceDialog(QDialog):
     self._live_timer.start()
 
   def closeEvent(self, event):  # noqa: N802 (Qt API)
-    """Qt calls this when the window closes; cancelling the task keeps
-    a closed dialog from computing invisibly (the task's cancel path
-    still reports once, resetting our state; see worker.py)."""
+    """Qt calls this when the window closes.
+
+    Args:
+      event: the close event, passed through untouched.
+
+    Returns:
+      None. A tiling in flight is cancelled, so a closed dialog does
+      not go on computing invisibly (the task's cancel path still
+      reports once, resetting our state; see worker.py), and the
+      DEBOUNCE TIMERS ARE STOPPED. Cancelling the task alone was not
+      enough: a live-update timer armed a moment before the close
+      fires ~900ms later, and _maybe_live_generate then starts a
+      fresh tiling that writes layers into the project on behalf of a
+      window nobody can see -- which is exactly what a user unloading
+      the plugin has asked not to happen.
+    """
     if self._task is not None:
       try:
         self._task.cancel()
       except Exception:
         pass
+    for timer in (getattr(self, "_live_timer", None),
+                  getattr(self, "_preview_timer", None)):
+      if timer is not None:
+        try:
+          timer.stop()
+        except RuntimeError:
+          pass                  # the Qt object is already gone
+    self._live_pending = False
     super().closeEvent(event)
 
   def showEvent(self, event):  # noqa: N802 (Qt API)
@@ -1931,6 +2209,10 @@ class WeavingSpaceDialog(QDialog):
       tid = b.property("tile_id")
       if tid:
         self._reverse_choices[tid] = b.isChecked()
+        # a graduated row's customization travels with the flip: the
+        # display window mirrors and the positional picks swap ends,
+        # so reversing twice restores everything (settled 2026-08-09)
+        self._mirror_quant_customization(tid)
       # the swatch should show what the map will do
       self._refresh_ramp_icons()
       self._refresh_preview_colours()
@@ -2014,10 +2296,12 @@ class WeavingSpaceDialog(QDialog):
       wanted: the ramp to preselect, if it still exists.
 
     Returns:
-      A combo listing every ramp in the QGIS style library, each with
-      a preview swatch drawn in its current direction.
+      A RampCombo listing every ramp in the QGIS style library, each
+      with a preview swatch drawn in its current direction. On
+      categorized and graduated rows alike it can additionally
+      DISPLAY "Custom" (see RampCombo); _sync_row decides when.
     """
-    ramp_combo = QComboBox()
+    ramp_combo = RampCombo()
     # without this the swatch drawn above is scaled down to the
     # platform's default icon size, and the ramp cannot be read
     ramp_combo.setIconSize(RAMP_SWATCH)
@@ -2037,11 +2321,34 @@ class WeavingSpaceDialog(QDialog):
       if tid:
         self._ramp_choices[tid] = c.currentText()
         # a new ramp is a new source of truth for this element's
-        # colours, so anything picked by hand goes with it
+        # colours, so anything picked by hand goes with it -- and on
+        # a graduated row the display range resets too ("until
+        # reselected anew", settled 2026-08-09)
         self._clear_category_colours(tid, "a new colour ramp")
+        self._clear_quant_customization(tid, "a new colour ramp")
       self._refresh_preview_colours()
 
     ramp_combo.currentIndexChanged.connect(changed)
+
+    def picked(_index, c=ramp_combo):
+      # ``changed`` above runs only when the INDEX changes. While the
+      # cell reads Custom the index still sits on the ramp colouring
+      # the leftover values, so re-choosing that same ramp fires only
+      # this signal -- and it is still the deliberate act of choosing
+      # a ramp, which destroys the hand-picks (the settled rule; the
+      # notice comes from _clear_category_colours as ever). On an
+      # ordinary index change both signals fire, but ``changed`` has
+      # already cleared the picks and refreshed the display by the
+      # time this runs, so the guard makes it a no-op.
+      if not c.showing_custom():
+        return
+      tid = c.property("tile_id")
+      if tid:
+        self._clear_category_colours(tid, "a new colour ramp")
+        self._clear_quant_customization(tid, "a new colour ramp")
+      self._refresh_preview_colours()
+
+    ramp_combo.activated.connect(picked)
     return ramp_combo
 
   def _make_colour_button(self, tile_id, colour_hex):
@@ -2158,13 +2465,21 @@ class WeavingSpaceDialog(QDialog):
       ramp_combo = self._make_ramp_combo(row_tid, wanted)
       self.table.setCellWidget(row, 4, ramp_combo)
     # the Reverse cell: present on every row so the column reads
-    # evenly, but enabled only where there is a ramp to reverse. On a
+    # evenly, but enabled only where reversing means something. On a
     # Single colour row it greys out AND clears, because a reversed
-    # single colour means nothing and a stale tick would mislead
+    # single colour means nothing and a stale tick would mislead. A
+    # Categorized row is disabled the same way even though it carries
+    # a ramp: category colours are assignments to named values, not a
+    # scale with a direction, so "the other way round" only shuffles
+    # which value gets which colour. The control re-enables the moment
+    # a quantitative style is chosen (user decision, 2026-08-09). The
+    # recorded choice survives underneath, exactly as for Single
+    # colour, so switching a row away and back costs no tick.
     tid_for_row = self.table.item(row, 0)
     row_id = tid_for_row.text() if tid_for_row else None
     has_ramp = ramp_combo is not None and not isinstance(
       ramp_combo, QgsColorButton)
+    can_reverse = has_ramp and mode != "Categorized"
     box = self._row_reverse(row)
     if box is None and row_id:
       self.table.setCellWidget(row, 5, self._make_reverse_box(
@@ -2172,8 +2487,8 @@ class WeavingSpaceDialog(QDialog):
       box = self._row_reverse(row)
     if box is not None:
       box.blockSignals(True)
-      box.setEnabled(has_ramp)
-      box.setChecked(bool(has_ramp and row_id
+      box.setEnabled(can_reverse)
+      box.setChecked(bool(can_reverse and row_id
                           and self._reverse_choices.get(row_id, False)))
       box.blockSignals(False)
 
@@ -2228,22 +2543,73 @@ class WeavingSpaceDialog(QDialog):
     if not self.table.isColumnHidden(COL_EDIT_COLOURS):
       button = self.table.cellWidget(row, COL_EDIT_COLOURS)
       if button is None:
-        # "Custom" rather than an ellipsis: the column heading says
+        # "Customize" rather than an ellipsis: the column heading says
         # what the button is for, but the button itself has to say
         # what it DOES, since a disabled ellipsis reads as a control
-        # that is broken rather than one that does not apply here.
-        button = QPushButton("Custom")
+        # that is broken rather than one that does not apply here. And
+        # a verb rather than "Custom": that word is the ramp cell's
+        # display for colours already customized, and one word naming
+        # a STATE in one column and an ACTION in the next would read
+        # as the same thing twice. The -ize spelling is the project's
+        # Canadian-spelling rule, no exception needed.
+        button = QPushButton("Customize")
         button.clicked.connect(self._edit_category_colours)
         self.table.setCellWidget(row, COL_EDIT_COLOURS, button)
       button.setProperty("tile_id", tid)
-      usable = mode == "Categorized" and bool(var)
+      usable = mode in ("Categorized", "Graduated") and bool(var)
       button.setEnabled(usable)
-      button.setToolTip(
-        "Choose a colour for each value this element takes"
-        if usable else
-        "Only elements with a categorized style have values to colour")
+      if mode == "Graduated" and var:
+        # graduated rows edit class colours and the display range;
+        # Unclassed rows open the same window with the range alone
+        # live, so the button stays enabled there too
+        tip = "Choose class colours, or narrow the ramp's display range"
+      elif usable:
+        tip = "Choose a colour for each value this element takes"
+      else:
+        tip = "Only elements drawn in classes have colours to edit"
+      button.setToolTip(tip)
     elif self.table.cellWidget(row, COL_EDIT_COLOURS) is not None:
       self.table.removeCellWidget(row, COL_EDIT_COLOURS)
+
+    # The ramp cell of a categorized row reads "Custom" while the ramp
+    # alone no longer decides the element's colours: any hand-picked
+    # colour recorded for the CURRENT field, or an imported class
+    # source. "Any pick" deliberately, not "a pick that differs from
+    # the ramp" -- under the latter the cell would read a ramp name
+    # while an override was still recorded and outranking it in
+    # make_categorized_renderer, which is a control lying about the
+    # map. Two consequences fall out rather than being separate rules:
+    # switching the variable to a field with no picks leaves Custom by
+    # itself (and switching back re-enters it), and a reopened project
+    # that adopted saved colours shows Custom. (Settled 2026-08-09.)
+    ramp_cell = self.table.cellWidget(row, 4)
+    if isinstance(ramp_cell, RampCombo):
+      show_custom = False
+      if mode == "Categorized" and var and row_tid:
+        picks = self._category_colours.get(row_tid, {}).get(var)
+        # read the live combo where the row has one; _class_choices
+        # only catches up when the widget is removed or used
+        file_widget = self.table.cellWidget(row, 7)
+        choice = (file_widget.currentData() if file_widget is not None
+                  else self._class_choices.get(row_tid, ""))
+        has_source = bool(choice) and choice not in (self.BROWSE,
+                                                     self.SHARED)
+        show_custom = bool(picks) or has_source
+      elif mode == "Graduated" and var and row_tid:
+        # a graduated row is Custom while positional picks exist or
+        # the Ramp Display Range is narrower than the whole ramp
+        quant_picks = self._quant_colours.get(row_tid, {}).get(var)
+        window = tuple(self._ramp_ranges.get(row_tid, (0, 100)))
+        show_custom = bool(quant_picks) or window != (0, 100)
+      if show_custom:
+        ramp_cell.set_custom_display(
+          self._custom_swatch_for(row_tid, var))
+        ramp_cell.setToolTip(CUSTOM_RAMP_TOOLTIP)
+      else:
+        ramp_cell.set_custom_display(None)
+        # only undo our own tooltip; never blank one set elsewhere
+        if ramp_cell.toolTip() == CUSTOM_RAMP_TOOLTIP:
+          ramp_cell.setToolTip("")
 
   def _update_dynamic_columns(self):
     """The Classes and Categ-colourmap-src columns exist only while
@@ -2271,14 +2637,46 @@ class WeavingSpaceDialog(QDialog):
     has_categorical = any(m == "Categorized" and has_var
                           for m, has_var in modes.values())
     self.table.setColumnHidden(7, not has_categorical)
-    # "Edit colours" only means anything where there are categories to
-    # colour, so it appears on exactly the same condition as the class
-    # source beside it. On rows that are not categorical the button
+    # "Edit colours" appears whenever any element draws in CLASSES --
+    # categorized or graduated alike, since the editor now serves both
+    # (settled 2026-08-09). On rows with nothing to edit the button
     # stays but is disabled (see _sync_row): a gap in the column would
     # read as a missing control rather than an inapplicable one.
-    self.table.setColumnHidden(COL_EDIT_COLOURS, not has_categorical)
+    has_editable = any(m in ("Categorized", "Graduated") and has_var
+                       for m, has_var in modes.values())
+    self.table.setColumnHidden(COL_EDIT_COLOURS, not has_editable)
     for row in rows:
       self._sync_row(row)
+    # every place a column can appear or disappear funnels through
+    # here, so this is where the layout rule is enforced
+    self._fit_table_width()
+
+  def _fit_table_width(self):
+    """Give the table room for every visible column, within the cap.
+
+    Returns:
+      None. Sets the table's minimum width to the sum of its visible
+      columns (plus frame and a vertical scrollbar's worth of slack,
+      since a scrollbar that appears steals viewport width), and
+      grows the WINDOW by any shortfall, capped at MAX_WINDOW_WIDTH.
+      Qt then honours the minimum through every layout pass, which is
+      what makes "the table never scrolls horizontally" a property of
+      the dialog rather than an aspiration. The window is never
+      shrunk here: columns disappearing hands the space to the
+      preview, which is the layout rule's own priority order.
+    """
+    needed = sum(
+      self.table.columnWidth(column)
+      for column in range(self.table.columnCount())
+      if not self.table.isColumnHidden(column))
+    needed += 2 * self.table.frameWidth() \
+        + self.table.style().pixelMetric(
+          QStyle.PixelMetric.PM_ScrollBarExtent)
+    self.table.setMinimumWidth(needed)
+    shortfall = needed - self.table.width()
+    if shortfall > 0 and self.width() < MAX_WINDOW_WIDTH:
+      self.resize(min(MAX_WINDOW_WIDTH, self.width() + shortfall),
+                  self.height())
 
   def _refresh_table(self):
     """Rebuild the assignment table for the current unit and layer.
@@ -2337,8 +2735,19 @@ class WeavingSpaceDialog(QDialog):
         mode_combo.setCurrentText(prev["mode_raw"])
       mode_combo.setProperty(
         "touched", bool(prev and prev.get("style_touched")))
+      mode_combo.setProperty("tile_id", tid)
+      # the baseline the scheme-change destruction compares against;
+      # kept current in _on_mode_chosen
+      mode_combo.setProperty("last_style", mode_combo.currentText())
       mode_combo.activated.connect(
         lambda _i, c=mode_combo, v=var_combo: self._on_mode_chosen(c, v))
+      # currentIndexChanged rather than activated, so the destruction
+      # fires however the style really changes -- a click emits both,
+      # and the dialog's own programmatic style writes all block
+      # signals, so nothing here reacts to the dialog talking to
+      # itself
+      mode_combo.currentIndexChanged.connect(
+        lambda _i, c=mode_combo: self._on_style_changed(c))
       mode_combo.currentIndexChanged.connect(
         self._refresh_preview_colours)
       self.table.setCellWidget(row, 2, mode_combo)
@@ -2361,9 +2770,19 @@ class WeavingSpaceDialog(QDialog):
         "Number of classes; categorized rows show how many "
         "categories were found.")
 
+      k_spin.setProperty("tile_id", tid)
+
       def on_k(v, sp=k_spin):
         if sp.isEnabled():
           sp.setProperty("user_k", v)
+          # a new class count reclassifies the column, and positional
+          # picks name classes that no longer exist: destroy, and say
+          # so (settled 2026-08-09). Only enabled spins reach here,
+          # which is exactly the editable graduated rows.
+          tid_here = sp.property("tile_id")
+          if tid_here:
+            self._clear_quant_customization(
+              tid_here, "a new class count", reset_range=False)
           self._queue_live()
 
       k_spin.valueChanged.connect(on_k)
@@ -2389,16 +2808,19 @@ class WeavingSpaceDialog(QDialog):
   # ------------------------------------------------------------ assignments
 
   def _stamp_category_colours(self, layer, assignment):
-    """Record an element's hand-picked colours on its output layer.
+    """Record an element's customization on its output layer.
 
     Args:
       layer: the output layer for this element.
       assignment: its dict from ``_assignments()``.
 
     Returns:
-      None. Writes a custom property QGIS saves inside the project
-      file, or clears it when there is nothing to record, so a layer
-      never carries stale choices from a previous assignment.
+      None. Writes TWO custom properties QGIS saves inside the
+      project file -- weavingspace_category_colours for categorical
+      hand-picks, weavingspace_quant_style for a graduated element's
+      positional picks and display range -- each cleared when there
+      is nothing to record, so a layer never carries stale choices
+      from a previous assignment.
 
     JSON rather than a Python repr: a custom property is written into
     the .qgz as text, and this has to survive being read back by a
@@ -2412,36 +2834,71 @@ class WeavingSpaceDialog(QDialog):
                    sort_keys=True))
     else:
       layer.removeCustomProperty("weavingspace_category_colours")
+    # the graduated customization travels the same way: positional
+    # picks plus the display window, under their own property so the
+    # two records cannot corrupt one another
+    quant = assignment.get("quant_colours")
+    window = tuple(assignment.get("range_bounds", (0, 100)))
+    if assignment.get("mode") == "Graduated" and (quant
+                                                  or window != (0, 100)):
+      layer.setCustomProperty(
+        "weavingspace_quant_style",
+        json.dumps({"field": assignment["var"],
+                    "colours": quant or {},
+                    "range": list(window)}, sort_keys=True))
+    else:
+      layer.removeCustomProperty("weavingspace_quant_style")
 
   def _adopt_category_colours(self, layer, tile_id):
-    """Read hand-picked colours back off an adopted output layer.
+    """Read stamped customization back off an adopted output layer.
 
     Args:
       layer: an existing output layer found in the project.
       tile_id: the element it carries.
 
     Returns:
-      None. Fills in this element's colours only where the dialog has
-      none of its own, so a reopened project restores the user's work
-      without overwriting anything chosen since.
+      None. Reads BOTH stamped records -- categorical hand-picks, and
+      a graduated element's positional picks with its display range
+      -- filling in only where the dialog has nothing of its own, so
+      a reopened project restores the user's work without overwriting
+      anything chosen since.
 
     Anything unreadable is ignored rather than raised: a project file
     edited by hand, or written by a later version of the plugin, must
     not stop the dialog from opening.
     """
     raw = layer.customProperty("weavingspace_category_colours")
+    if raw:
+      try:
+        stored = json.loads(raw)
+        field = stored["field"]
+        colours = {str(k): str(v) for k, v in stored["colours"].items()}
+      except (ValueError, KeyError, TypeError, AttributeError):
+        field, colours = None, None
+      if field and colours:
+        self._category_colours.setdefault(tile_id, {}).setdefault(
+          field, dict(colours))
+    # and the graduated record, guarded the same way: an unreadable
+    # property must never stop the dialog from opening
+    raw = layer.customProperty("weavingspace_quant_style")
     if not raw:
       return
     try:
       stored = json.loads(raw)
       field = stored["field"]
-      colours = {str(k): str(v) for k, v in stored["colours"].items()}
+      colours = {str(k): str(v)
+                 for k, v in stored.get("colours", {}).items()}
+      lo, hi = (int(x) for x in stored.get("range", [0, 100]))
     except (ValueError, KeyError, TypeError, AttributeError):
       return
-    if not field or not colours:
+    if not field:
       return
-    self._category_colours.setdefault(tile_id, {}).setdefault(
-      field, dict(colours))
+    if colours:
+      self._quant_colours.setdefault(tile_id, {}).setdefault(
+        field, dict(colours))
+    if (lo, hi) != (0, 100) and 0 <= lo <= hi <= 100 \
+        and tile_id not in self._ramp_ranges:
+      self._ramp_ranges[tile_id] = (lo, hi)
 
   def _clear_category_colours(self, tile_id, because):
     """Forget an element's hand-picked colours for its current field.
@@ -2482,6 +2939,99 @@ class WeavingSpaceDialog(QDialog):
       f"{len(discarded)} colour(s) you had picked by hand for "
       f"'{field}'.")
 
+  def _row_for_element(self, tile_id):
+    """The table row currently carrying one element, or None.
+
+    Args:
+      tile_id: the element to find.
+
+    Returns:
+      The row index, or None mid-rebuild. Rows are looked up fresh
+      every time because rebuilds recreate them; nothing may cache a
+      row number against an element.
+    """
+    for row in range(self.table.rowCount()):
+      item = self.table.item(row, 0)
+      if item is not None and item.text() == tile_id:
+        return row
+    return None
+
+  def _clear_quant_customization(self, tile_id, because,
+                                 reset_range=True):
+    """Forget an element's positional class colours, and perhaps its
+    display range.
+
+    Args:
+      tile_id: the element.
+      because: what the user just did, named in the notice ("a new
+        colour ramp", "a new class count", "a new display range").
+      reset_range: also restore the Ramp Display Range to the whole
+        ramp. True only for a ramp choice -- "until reselected anew"
+        is the settled rule -- since a scheme or class-count change
+        reclassifies the data without saying anything about the ramp.
+
+    Returns:
+      None. Says so when anything was actually discarded, quiet
+      otherwise. The picks die whenever the ramp is asked anew to
+      decide the colours (settled 2026-08-09); only the CURRENT
+      field's picks go, since another variable's are still keyed
+      under their own name.
+    """
+    row = self._row_for_element(tile_id)
+    var_combo = self.table.cellWidget(row, 1) if row is not None else None
+    field = var_combo.currentText() if var_combo else None
+    discarded = None
+    if field and field != "---":
+      discarded = self._quant_colours.get(tile_id, {}).pop(field, None)
+    had_window = tuple(
+      self._ramp_ranges.get(tile_id, (0, 100))) != (0, 100)
+    if reset_range:
+      self._ramp_ranges.pop(tile_id, None)
+    self._custom_swatch_cache.pop(tile_id, None)
+    if discarded:
+      self._report_quietly(
+        f"Choosing {because} for element '{tile_id}' discarded "
+        f"{len(discarded)} class colour(s) you had picked by hand.")
+    elif reset_range and had_window:
+      self._report_quietly(
+        f"Choosing {because} for element '{tile_id}' restored the "
+        f"ramp's full display range.")
+
+  def _mirror_quant_customization(self, tile_id):
+    """Carry an element's quant customization through a Reverse flip.
+
+    Args:
+      tile_id: the element whose Reverse switch was just toggled.
+
+    Returns:
+      None. The display window mirrors (lo, hi -> 100-hi, 100-lo), so
+      it keeps showing the same segment of colour run the other way,
+      and the positional picks swap ends (class i -> k-1-i on k
+      classes): a colour picked for the old class 2 of 7 lands on the
+      new class 5. Reversing twice therefore restores everything
+      exactly -- the involution the tests pin. (Settled 2026-08-09:
+      Reverse carries the customization along rather than destroying
+      it.)
+    """
+    row = self._row_for_element(tile_id)
+    if row is None or self._row_mode(row) != "Graduated":
+      return
+    lo, hi = self._ramp_ranges.get(tile_id, (0, 100))
+    if (lo, hi) != (0, 100):
+      self._ramp_ranges[tile_id] = (100 - hi, 100 - lo)
+    var_combo = self.table.cellWidget(row, 1)
+    field = var_combo.currentText() if var_combo else None
+    picks = self._quant_colours.get(tile_id, {}).get(field or "")
+    if picks:
+      k_spin = self.table.cellWidget(row, 3)
+      count = int(k_spin.value()) if k_spin is not None else 0
+      if count > 0:
+        self._quant_colours[tile_id][field] = {
+          str(count - 1 - int(index)): colour
+          for index, colour in picks.items()
+          if index.isdigit() and int(index) < count}
+    self._custom_swatch_cache.pop(tile_id, None)
+
   def _current_category_colours(self, assignment):
     """What each value of a categorical element draws in right now.
 
@@ -2520,6 +3070,407 @@ class WeavingSpaceDialog(QDialog):
       order.append(key)
     return colours, order
 
+  def _current_graduated_classes(self, assignment):
+    """The classes a graduated element draws right now.
+
+    Args:
+      assignment: one dict from ``_assignments()``, already known to
+        be Graduated with a variable.
+
+    Returns:
+      [(lower, upper, "#rrggbb"), ...] in class order, or [] when no
+      layer can answer. Built by asking bridge for the SAME renderer
+      the map would get -- range window and positional picks included
+      -- so the editor and the swatch cannot disagree with the map.
+      Classified against the element's own output layer when one
+      exists (its breaks are the map's breaks); against the region
+      layer otherwise, which is what lets the editor open before
+      anything is generated, at the price the categorical editor
+      already accepted: the pre-generation preview may differ
+      slightly from the tiled result.
+    """
+    from qgis.core import QgsGraduatedSymbolRenderer
+    project = QgsProject.instance()
+    layer = None
+    lid = self._element_layer_ids.get(assignment["id"])
+    if lid:
+      candidate = project.mapLayer(lid)
+      if candidate is not None and assignment["var"] in \
+          [f.name() for f in candidate.fields()]:
+        layer = candidate
+    if layer is None:
+      layer = self.layer_combo.currentLayer()
+    if layer is None or assignment["var"] not in \
+        [f.name() for f in layer.fields()]:
+      return []
+    renderer = bridge.make_graduated_renderer(
+      layer, assignment["var"], assignment["ramp"],
+      assignment.get("scheme", "Quantiles"), assignment.get("k", 5),
+      assignment.get("outline", False),
+      assignment.get("reverse", False),
+      assignment.get("range_bounds", (0, 100)),
+      assignment.get("quant_colours"))
+    # iterate the list while it is bound to the loop: range objects
+    # from ranges() are temporaries, and a symbol pointer read off a
+    # dead one segfaults (the lesson the constant-column fix paid for)
+    return [(r.lowerValue(), r.upperValue(), r.symbol().color().name())
+            for r in renderer.ranges()]
+
+  def _custom_swatch_for(self, tile_id, field):
+    """The swatch for one element's Custom display.
+
+    Args:
+      tile_id: the element whose ramp cell is reading Custom.
+      field: its current variable, named in the cache key so a field
+        switch cannot serve another field's colours.
+
+    Returns:
+      A QIcon of the first few colours the element actually draws in,
+      taken from the SAME renderer the map gets (via
+      _current_category_colours or _current_graduated_classes, so the
+      swatch cannot disagree with the map). Rebuilt whenever anything
+      deciding those colours changes -- the cache key is the pick
+      set, the ramp, its direction, and the field, plus the class
+      source on a categorized row or the scheme, class count and
+      display window on a graduated one -- and reused otherwise,
+      because building it constructs a real renderer and _sync_row
+      runs on every control change.
+    """
+    assignment = next((a for a in self._assignments()
+                       if a["id"] == tile_id), None)
+    if assignment is None:
+      return _custom_swatch_icon([])
+    if assignment["mode"] == "Graduated":
+      # positional picks and the display window are what decide a
+      # graduated row's colours, so they are the cache key here
+      picks = assignment.get("quant_colours") or {}
+      key = (field, assignment.get("ramp"), assignment.get("reverse"),
+             assignment.get("scheme"), assignment.get("k"),
+             tuple(assignment.get("range_bounds", (0, 100))),
+             tuple(sorted(picks.items())))
+      cached = self._custom_swatch_cache.get(tile_id)
+      if cached is not None and cached[0] == key:
+        return cached[1]
+      shades = [colour for _lo, _hi, colour
+                in self._current_graduated_classes(assignment)]
+      if assignment.get("scheme") == "Unclassed" and len(shades) > 8:
+        # fifty slivers would all land in the first eight stripes;
+        # sample the window evenly instead, so the swatch shows the
+        # whole of what the range selected
+        step = (len(shades) - 1) / 7
+        shades = [shades[round(j * step)] for j in range(8)]
+      icon = _custom_swatch_icon(shades)
+      self._custom_swatch_cache[tile_id] = (key, icon)
+      return icon
+    picks = assignment.get("category_colours") or {}
+    key = (field, assignment.get("ramp"), assignment.get("reverse"),
+           assignment.get("class_source"),
+           tuple(sorted(picks.items())))
+    cached = self._custom_swatch_cache.get(tile_id)
+    if cached is not None and cached[0] == key:
+      return cached[1]
+    colours, order = self._current_category_colours(assignment)
+    icon = _custom_swatch_icon(
+      [colours[value] for value in order] if order else [])
+    self._custom_swatch_cache[tile_id] = (key, icon)
+    return icon
+
+  def _watch_element_layer(self, layer, tile_id):
+    """Follow QGIS-side symbology edits on one element output layer.
+
+    Args:
+      layer: the freshly created or adopted output layer.
+      tile_id: the element it carries.
+
+    Returns:
+      None. Connects the layer's ``styleChanged`` signal -- which
+      QGIS emits both when the styling dock installs a new renderer
+      (setRenderer) and when a symbol is edited in place -- to
+      _on_layer_style_edited. The connection dies with the layer, and
+      element layers are recreated every run, so there is nothing to
+      disconnect by hand. The layer is looked up again by id when the
+      signal fires, because reacting through a captured wrapper whose
+      C++ object died is a crash.
+    """
+    layer.styleChanged.connect(
+      lambda lid=layer.id(), tid=str(tile_id):
+        self._on_layer_style_edited(lid, tid))
+
+  def _ramp_name_matching(self, ramp):
+    """The QgsStyle name of a colour ramp, or None.
+
+    Args:
+      ramp: a QgsColorRamp taken from a renderer someone built in
+        QGIS's styling dock, or None.
+
+    Returns:
+      The name under which an identical ramp appears in the ramp
+      dropdown, or None when nothing matches. Compared by the ramp's
+      own serialized properties rather than by object identity,
+      because the dock hands out clones.
+    """
+    if ramp is None:
+      return None
+    try:
+      wanted = (type(ramp).__name__, ramp.properties())
+    except Exception:
+      return None
+    for name in self._ramp_names:
+      candidate = bridge.get_ramp(name)
+      if candidate is not None and \
+          (type(candidate).__name__, candidate.properties()) == wanted:
+        return name
+    return None
+
+  def _on_layer_style_edited(self, layer_id, tile_id):
+    """React when someone restyles an element layer in QGIS itself.
+
+    Args:
+      layer_id: the output layer whose style changed.
+      tile_id: the element it carries.
+
+    Returns:
+      None. The dialog is not modal to QGIS, so a user can open an
+      element layer in the styling dock and recolour it while the
+      dialog sits there naming a ramp that no longer decides the map
+      -- the exact lie the Custom display exists to prevent. Two
+      reactions, chosen by what the dock now holds (user decision,
+      2026-08-09):
+
+      * the renderer is a clean classify from a STANDARD ramp (its
+        source ramp matches a named ramp, its colours are exactly
+        what seeding from that ramp alone would give, and no imported
+        class source is in force): the dialog follows -- the row's
+        ramp combo moves to that name, which destroys any hand-picks
+        through the ordinary handler, notice included;
+      * anything else: the changed colours are ADOPTED as hand-picked
+        choices for the current field, exactly as reopening a saved
+        project adopts stamped colours. The cell reads Custom, the
+        colours survive regeneration and travel into the project
+        file, and choosing a ramp later destroys them with the
+        existing notice rather than silently.
+
+      Our own seeding is ignored twice over: while a run is landing
+      its layers ``_task`` is still set (the run is not over until
+      its layers exist), and the restyle fast path raises
+      ``_applying_style``. Graduated renderers take the same two
+      reactions through _graduated_layer_edited (positional picks,
+      quantitative-family follows). Only single-symbol and unknown
+      renderers are left alone: they survive through the signature
+      rule, and the ramp cell makes no claim a recolour could turn
+      into a lie.
+    """
+    from qgis.core import (QgsCategorizedSymbolRenderer,
+                           QgsGraduatedSymbolRenderer)
+    live = _live_dialog()
+    if live is not None and live is not self:
+      # a RETIRED instance's connections outlive its retirement,
+      # because the layers do; without this gate both dialogs would
+      # adopt the same dock edit and the user would be told twice
+      return
+    if self._applying_style or self._task is not None:
+      return
+    if self._element_layer_ids.get(tile_id) != layer_id:
+      return  # a stale connection from a layer since replaced
+    layer = QgsProject.instance().mapLayer(layer_id)
+    if layer is None:
+      return
+    renderer = layer.renderer()
+    if isinstance(renderer, QgsGraduatedSymbolRenderer):
+      # the graduated mirror of everything below (settled 2026-08-09)
+      self._graduated_layer_edited(layer, tile_id, renderer)
+      return
+    if not isinstance(renderer, QgsCategorizedSymbolRenderer):
+      return
+    assignment = next((a for a in self._assignments()
+                       if a["id"] == tile_id), None)
+    if assignment is None or assignment["mode"] != "Categorized" \
+        or not assignment["var"]:
+      return
+    if renderer.classAttribute() != assignment["var"]:
+      # reclassified on a different field in the dock: the dialog has
+      # no record to reconcile that against, so it leaves the work
+      # alone (the signature rule already preserves it)
+      return
+    # what the layer actually draws now, keyed like the dialog's own
+    # records (NO_DATA_KEY for the catch-all)
+    actual = {}
+    for category in renderer.categories():
+      value = category.value()
+      key = bridge.NO_DATA_KEY if value is None else str(value)
+      actual[key] = category.symbol().color().name()
+    expected, _order = self._current_category_colours(assignment)
+    if expected is None:
+      return  # the region layer or its field has gone; nothing to judge
+    if all(expected.get(key) == colour for key, colour in actual.items()):
+      return  # our own seeding, or an edit that changed nothing
+
+    # a clean classify from a standard ramp? Only without an imported
+    # class source -- while a file governs the classes, a dock
+    # recolour is a divergence from the file, which is Custom by
+    # definition -- and only for a ramp of the CATEGORICAL family.
+    # A categorized row auto-swaps quantitative ramps away (_sync_row),
+    # so following one would snap the combo to a different ramp while
+    # the layer wears the dock's colours: the very lie this handler
+    # exists to prevent. Such an edit is adopted as Custom instead.
+    name = self._ramp_name_matching(renderer.sourceColorRamp())
+    if name is not None and name in bridge.CATEGORICAL_RAMPS \
+        and not assignment.get("class_source"):
+      trial = bridge.make_categorized_renderer(
+        layer, assignment["var"], name, assignment["outline"])
+      trial_colours = {
+        str(c.value()): c.symbol().color().name()
+        for c in trial.categories() if c.value() is not None}
+      dock_colours = {key: colour for key, colour in actual.items()
+                      if key != bridge.NO_DATA_KEY}
+      if dock_colours == trial_colours:
+        # cleared here as well as in the combo handler, because when
+        # the dock re-applied the ramp the dialog already names,
+        # setCurrentText below fires no signal and the picks would
+        # outlive the clean ramp the layer now wears
+        self._clear_category_colours(tile_id, "a new colour ramp")
+        for row in range(self.table.rowCount()):
+          item = self.table.item(row, 0)
+          combo = self.table.cellWidget(row, 4)
+          if item is not None and item.text() == tile_id \
+              and combo is not None and hasattr(combo, "findText") \
+              and combo.findText(name) >= 0:
+            # the ordinary handler runs: it records the choice and
+            # destroys any hand-picks, with the standing notice
+            combo.setCurrentText(name)
+            break
+        self._report_quietly(
+          f"Element '{tile_id}' now follows the '{name}' ramp chosen "
+          f"in QGIS.")
+        # refresh explicitly: when the dock re-applied the ramp the
+        # combo already named, no combo signal ran to do it
+        self._refresh_preview_colours()
+        # the layer already wears this exact style, so the element is
+        # marked as seeded and the next restyle leaves it in peace
+        refreshed = next((a for a in self._assignments()
+                          if a["id"] == tile_id), None)
+        if refreshed is not None:
+          self._last_signatures[tile_id] = self._signature(refreshed)
+        return
+
+    # adopt the divergent colours as hand-picks for the current field
+    field = assignment["var"]
+    record = self._category_colours.setdefault(tile_id, {}) \
+        .setdefault(field, {})
+    adopted = 0
+    for key, colour in actual.items():
+      if expected.get(key) != colour and record.get(key) != colour:
+        record[key] = colour
+        adopted += 1
+    if not adopted:
+      return
+    self._custom_swatch_cache.pop(tile_id, None)
+    # the layer already wears these colours; recording the new
+    # signature stops the restyle path re-seeding it, which would
+    # discard any OTHER refinement the dock applied alongside them
+    refreshed = next((a for a in self._assignments()
+                      if a["id"] == tile_id), None)
+    if refreshed is not None:
+      self._last_signatures[tile_id] = self._signature(refreshed)
+      self._stamp_category_colours(layer, refreshed)
+    self._report_quietly(
+      f"Element '{tile_id}' keeps the {adopted} colour(s) set in "
+      f"QGIS; its ramp cell now reads Custom.")
+    self._refresh_preview_colours()
+
+  def _graduated_layer_edited(self, layer, tile_id, renderer):
+    """React to a styling-dock edit of a GRADUATED element layer.
+
+    Args:
+      layer: the element output layer whose style changed.
+      tile_id: the element it carries.
+      renderer: its QgsGraduatedSymbolRenderer, already checked.
+
+    Returns:
+      None. The graduated mirror of the categorized watcher, settled
+      2026-08-09: a clean classify from a named QUANTITATIVE ramp --
+      source ramp recognisable, colours exactly the plugin's own
+      full-window seeding -- is FOLLOWED (combo moves, range resets,
+      picks destroyed with the notice); any other divergence is
+      ADOPTED as positional picks, so the cell reads Custom and the
+      colours survive regeneration. Categorical-family ramps never
+      follow, because a graduated row auto-swaps them away and the
+      combo would land elsewhere than the layer. A dock edit that
+      changed the CLASS COUNT or the field is a reclassification the
+      dialog has no record to reconcile against, so it is left alone
+      -- the signature rule preserves it, as it always has.
+    """
+    assignment = next((a for a in self._assignments()
+                       if a["id"] == tile_id), None)
+    if assignment is None or assignment["mode"] != "Graduated" \
+        or not assignment["var"]:
+      return
+    if renderer.classAttribute() != assignment["var"]:
+      return
+    ranges = renderer.ranges()
+    actual = [r.symbol().color().name() for r in ranges]
+    if not actual or len(actual) != assignment.get("k", 5):
+      return  # reclassified to a different count in the dock
+    expected = [colour for _lo, _hi, colour
+                in self._current_graduated_classes(assignment)]
+    if actual == expected:
+      return  # our own seeding, or an edit that changed nothing
+
+    name = self._ramp_name_matching(renderer.sourceColorRamp())
+    if name is not None and name not in bridge.CATEGORICAL_RAMPS:
+      trial = bridge.make_graduated_renderer(
+        layer, assignment["var"], name, assignment.get("scheme",
+                                                       "Quantiles"),
+        assignment.get("k", 5), assignment.get("outline", False))
+      # hold the list; range temporaries dangle (the settled lesson)
+      trial_colours = [r.symbol().color().name()
+                       for r in trial.ranges()]
+      if actual == trial_colours:
+        # cleared here as well as in the combo handler, for the same
+        # reason as the categorized branch: re-applying the ramp the
+        # dialog already names fires no combo signal
+        self._clear_quant_customization(tile_id, "a new colour ramp")
+        row = self._row_for_element(tile_id)
+        combo = (self.table.cellWidget(row, 4)
+                 if row is not None else None)
+        if combo is not None and hasattr(combo, "findText") \
+            and combo.findText(name) >= 0:
+          combo.setCurrentText(name)
+        self._report_quietly(
+          f"Element '{tile_id}' now follows the '{name}' ramp chosen "
+          f"in QGIS.")
+        self._refresh_preview_colours()
+        refreshed = next((a for a in self._assignments()
+                          if a["id"] == tile_id), None)
+        if refreshed is not None:
+          self._last_signatures[tile_id] = self._signature(refreshed)
+        return
+
+    # adopt the divergent classes as positional picks
+    field = assignment["var"]
+    record = self._quant_colours.setdefault(tile_id, {}) \
+        .setdefault(field, {})
+    adopted = 0
+    for index, colour in enumerate(actual):
+      if expected[index] != colour and record.get(str(index)) != colour:
+        record[str(index)] = colour
+        adopted += 1
+    if not adopted:
+      return
+    self._custom_swatch_cache.pop(tile_id, None)
+    # the layer already wears these colours; recording the signature
+    # stops the restyle path re-seeding it and discarding whatever
+    # else the dock changed alongside them
+    refreshed = next((a for a in self._assignments()
+                      if a["id"] == tile_id), None)
+    if refreshed is not None:
+      self._last_signatures[tile_id] = self._signature(refreshed)
+      self._stamp_category_colours(layer, refreshed)
+    self._report_quietly(
+      f"Element '{tile_id}' keeps the {adopted} colour(s) set in "
+      f"QGIS; its ramp cell now reads Custom.")
+    self._refresh_preview_colours()
+
   def _template_for(self, token):
     """The imported class scheme for one class-source token, or None.
 
@@ -2543,12 +3494,15 @@ class WeavingSpaceDialog(QDialog):
       return None
 
   def _edit_category_colours(self):
-    """Open the Categorical colour editor for the row that asked.
+    """Open the colour editor for the row that asked.
 
     Returns:
-      None. Colours picked are recorded against the element AND the
-      field, applied through the ordinary restyle path, and checked
-      for separability once when the window closes.
+      None. One button, two destinations: a categorized row opens the
+      editor's categorical mode here, and a graduated row is handed
+      to _edit_quant_colours, which opens the SAME window in its
+      graduated dress. Either way colours picked are recorded against
+      the element AND the field, applied through the ordinary restyle
+      path, and checked for separability once when the window closes.
 
     Nothing here touches a layer. A run finishing while the window is
     open replaces every element layer, so the editor works entirely
@@ -2562,10 +3516,15 @@ class WeavingSpaceDialog(QDialog):
     tile_id = button.property("tile_id")
     assignment = next((a for a in self._assignments()
                        if a["id"] == tile_id), None)
-    if assignment is None or assignment["mode"] != "Categorized" \
-        or not assignment["var"]:
+    if assignment is None or not assignment["var"] \
+        or assignment["mode"] not in ("Categorized", "Graduated"):
       return
     field = assignment["var"]
+
+    if assignment["mode"] == "Graduated":
+      self._edit_quant_colours(tile_id, field, assignment)
+      return
+
     colours, order = self._current_category_colours(assignment)
     if not order:
       self._report_quietly(
@@ -2579,6 +3538,68 @@ class WeavingSpaceDialog(QDialog):
 
     editor = CategoryColourDialog(tile_id, field, order, colours,
                                   picked, self)
+    editor.exec()
+    self._warn_about_close_colours()
+
+  def _edit_quant_colours(self, tile_id, field, assignment):
+    """Open the colour editor in its graduated mode.
+
+    Args:
+      tile_id: the element being edited.
+      field: its numeric variable.
+      assignment: its dict from ``_assignments()``.
+
+    Returns:
+      None. The same window as the categorical editor, in its
+      graduated dress: two read-only bound columns, editable class
+      colours keyed by POSITION, and the Ramp Display Range section
+      live at the top. For Quant: Unclassed the class list is shown
+      locked and translucent -- fifty slivers are a preview, not an
+      editing surface -- and the range alone is live (settled
+      2026-08-09). Everything flows through the dialog's records and
+      the ordinary restyle path, exactly as the categorical mode
+      does, so it is equally safe while a run is in flight.
+    """
+    classes = self._current_graduated_classes(assignment)
+    if not classes:
+      self._report_quietly(
+        f"'{field}' has no classes to colour in this layer.")
+      return
+    unclassed = assignment.get("scheme") == "Unclassed"
+    order = [str(index) for index in range(len(classes))]
+    colours = {str(index): colour
+               for index, (_lo, _hi, colour) in enumerate(classes)}
+    bounds = [(lower, upper) for (lower, upper, _c) in classes]
+
+    def picked(index, colour):
+      # positional: "class 3 is this colour", surviving break moves
+      self._quant_colours.setdefault(tile_id, {}) \
+          .setdefault(field, {})[str(index)] = colour
+      self._apply_style_change()
+
+    def range_changed(lo, hi):
+      # moving the range reinterpolates every class, so the picks go
+      # (settled; the notice fires only when there were any). The
+      # fresh colours are handed back for the editor to repaint with.
+      self._clear_quant_customization(
+        tile_id, "a new display range", reset_range=False)
+      self._ramp_ranges[tile_id] = (int(lo), int(hi))
+      self._custom_swatch_cache.pop(tile_id, None)
+      self._apply_style_change()
+      refreshed = next((a for a in self._assignments()
+                        if a["id"] == tile_id), None)
+      if refreshed is None:
+        return []
+      return [colour for _lo, _hi, colour
+              in self._current_graduated_classes(refreshed)]
+
+    editor = CategoryColourDialog(
+      tile_id, field, order, colours, picked, self,
+      bounds=bounds, locked=unclassed,
+      range_bounds=tuple(self._ramp_ranges.get(tile_id, (0, 100))),
+      ramp_name=assignment["ramp"],
+      reverse=assignment.get("reverse", False),
+      range_changed=range_changed)
     editor.exec()
     self._warn_about_close_colours()
 
@@ -2618,13 +3639,9 @@ class WeavingSpaceDialog(QDialog):
         fills[tid] = colours
     if len(fills) < 2:
       return
-    assignments = {a["id"]: a for a in self._assignments()}
-    note = perception.clash_message(perception.clashes(
-      fills,
-      shared={tid: (assignments[tid].get("ramp"),
-                    assignments[tid].get("reverse"),
-                    assignments[tid].get("class_source"))
-              for tid in fills if tid in assignments}))
+    # through the gated helper, like every consumer of this opinion:
+    # the box check above only saves building the fills
+    note = self._legibility_note(fills, self._assignments())
     if note is not None:
       self._report_quietly(note)
 
@@ -2661,6 +3678,12 @@ class WeavingSpaceDialog(QDialog):
       * ``class_source`` — where a categorized row's colours come
         from: None for automatic, else a "file:<path>" or
         "layer:<id>" token
+      * ``quant_colours`` — a graduated row's positional class
+        picks, {class index as str: "#rrggbb"}; None off graduated
+        rows or when the current field has none
+      * ``range_bounds`` — the Ramp Display Range as (lo, hi)
+        percent; (0, 100) means the whole ramp, and is what
+        non-graduated rows always carry
       * ``class_choice`` — the raw combo value, kept so the choice
         survives a table rebuild
       * ``style_touched`` — the user picked the style by hand, so it
@@ -2741,6 +3764,15 @@ class WeavingSpaceDialog(QDialog):
         "category_colours": (
           self._category_colours.get(tid_text, {}).get(var)
           if mode == "Categorized" and var else None),
+        # Positional class colours and the ramp's display window,
+        # both graduated-only. The range rides every graduated row so
+        # seeding never has to guess a default.
+        "quant_colours": (
+          self._quant_colours.get(tid_text, {}).get(var)
+          if mode == "Graduated" and var else None),
+        "range_bounds": (
+          tuple(self._ramp_ranges.get(tid_text, (0, 100)))
+          if mode == "Graduated" else (0, 100)),
         "style_touched": bool(mode_combo is not None
                               and mode_combo.property("touched")),
       })
@@ -2753,6 +3785,31 @@ class WeavingSpaceDialog(QDialog):
       return "Single colour"
     return "Quant: Quantiles" if self._field_is_numeric(var_text) \
       else "Categorized"
+
+  def _on_style_changed(self, mode_combo):
+    """Destroy positional picks when a row's break method changes.
+
+    Args:
+      mode_combo: the style chooser whose index just moved.
+
+    Returns:
+      None. A changed scheme reclassifies the column, so positional
+      picks name classes that no longer exist: they are destroyed,
+      with the standing notice (settled 2026-08-09). Compared against
+      the last style seen so nothing fires when the index merely
+      resettles on the same entry; the display range survives,
+      because it says nothing about the classification, only about
+      the ramp. Crossing to or from a non-quant style counts too --
+      Categorized and back is two reclassifications, not none.
+    """
+    was = mode_combo.property("last_style")
+    now_style = mode_combo.currentText()
+    mode_combo.setProperty("last_style", now_style)
+    tid_here = mode_combo.property("tile_id")
+    if tid_here and was is not None and now_style != was and \
+        (now_style in self.GRAD_SCHEMES or was in self.GRAD_SCHEMES):
+      self._clear_quant_customization(
+        tid_here, "a new style", reset_range=False)
 
   def _on_mode_chosen(self, mode_combo, var_combo):
     """React to the user picking an element's style by hand.
@@ -2949,28 +4006,34 @@ class WeavingSpaceDialog(QDialog):
         templates[token] = None
 
     changed = []
-    for tid, layer in layers.items():
-      a = assignments[tid]
-      signature = self._signature(a)
-      if self._last_signatures.get(tid) == signature:
-        continue  # this element is already wearing what it should
-      bridge.seed_renderer(layer, a, templates.get(a.get("class_source")))
-      # this element changed in the dialog, so its opacity is ours to
-      # set; an element whose signature matched is skipped entirely
-      # above, which is what leaves a hand-set opacity alone
-      layer.setOpacity(max(0, min(100, a.get("opacity", 100))) / 100.0)
-      # the fast path re-seeds without going through _add_output_layers,
-      # so it has to record the hand-picked colours itself or a colour
-      # chosen here would be missing from a project saved afterwards
-      self._stamp_category_colours(layer, a)
-      if self._last_path:
-        # a GeoPackage carries its own cartography, so the file has to
-        # learn about the change too
-        bridge.embed_style(layer)
-      layer.setName(f"{tid} – {a['var']}" if a["var"]
-                    else f"{tid} (no data)")
-      self._last_signatures[tid] = signature
-      changed.append(tid)
+    # the flag keeps _on_layer_style_edited from mistaking this very
+    # seeding for a styling-dock edit and adopting our own colours
+    self._applying_style = True
+    try:
+      for tid, layer in layers.items():
+        a = assignments[tid]
+        signature = self._signature(a)
+        if self._last_signatures.get(tid) == signature:
+          continue  # this element is already wearing what it should
+        bridge.seed_renderer(layer, a, templates.get(a.get("class_source")))
+        # this element changed in the dialog, so its opacity is ours to
+        # set; an element whose signature matched is skipped entirely
+        # above, which is what leaves a hand-set opacity alone
+        layer.setOpacity(max(0, min(100, a.get("opacity", 100))) / 100.0)
+        # the fast path re-seeds without going through _add_output_layers,
+        # so it has to record the hand-picked colours itself or a colour
+        # chosen here would be missing from a project saved afterwards
+        self._stamp_category_colours(layer, a)
+        if self._last_path:
+          # a GeoPackage carries its own cartography, so the file has to
+          # learn about the change too
+          bridge.embed_style(layer)
+        layer.setName(f"{tid} – {a['var']}" if a["var"]
+                      else f"{tid} (no data)")
+        self._last_signatures[tid] = signature
+        changed.append(tid)
+    finally:
+      self._applying_style = False
 
     if changed and self.iface is not None:
       self.iface.messageBar().pushSuccess(
@@ -3034,10 +4097,16 @@ class WeavingSpaceDialog(QDialog):
     # because two identical sets of choices must compare equal
     # whatever order they were picked in.
     picked = a.get("category_colours") or {}
+    quant = a.get("quant_colours") or {}
     return (a["var"], a["mode"], a["ramp"], a["scheme"], a["k"],
             a["outline"], a.get("class_source"), a.get("single_colour"),
             a.get("reverse", False), a.get("opacity", 100),
-            tuple(sorted(picked.items())))
+            tuple(sorted(picked.items())),
+            # graduated customization is symbology like everything
+            # else here: positional picks and the display window both
+            # re-seed exactly the elements they changed
+            tuple(sorted(quant.items())),
+            tuple(a.get("range_bounds", (0, 100))))
 
   # ---------------------------------------------------------------- generate
 
@@ -3263,15 +4332,24 @@ class WeavingSpaceDialog(QDialog):
           if bridge.numeric_values_are_constant(gdf[field]):
             said_constant.add(field)
             self._report_quietly(bridge.constant_field_message(field))
-          # Gaps in the column, counted from the frame just mapped.
-          # The breaks already exclude them (see
-          # bridge.make_graduated_renderer); this is the half the
-          # user can read, and it is what gives them a chance of
-          # understanding if QGIS's own Classify button later moves
-          # every break by counting the nulls as zero.
-          missing = int(gdf[field].isna().sum())
+          # Gaps in the column, counted from the REGION LAYER, because
+          # the sentence says "areas" and must mean the user's areas:
+          # counting the tiled frame here once produced "31 of 96
+          # areas" for a layer of twenty-four, and the reader went
+          # looking for areas they do not have. The breaks already
+          # exclude the nulls (see bridge.make_graduated_renderer);
+          # this is the half the user can read, and what gives them a
+          # chance of understanding if QGIS's own Classify button
+          # later moves every break by counting nulls as zero.
+          index = layer.fields().indexOf(field) \
+            if self._source_layer_alive(layer) else -1
+          if index < 0:
+            continue
+          missing = sum(
+            1 for feature in layer.getFeatures()
+            if feature[field] is None or str(feature[field]) == "NULL")
           note = bridge.missing_values_message(
-            field, missing, int(len(gdf)))
+            field, missing, int(layer.featureCount()))
           if note is not None:
             said_constant.add(field)
             self._report_quietly(note)
@@ -3317,10 +4395,15 @@ class WeavingSpaceDialog(QDialog):
     down with it.
 
     Returns:
-      None. ``_LIVE_DIALOG`` is left pointing at this dialog.
+      None. The live-dialog record (see _set_live_dialog, which keeps
+      it on the QApplication so a plugin RELOAD cannot forget it) is
+      left pointing at this dialog. The predecessor is recognised by
+      identity, never by isinstance: after a reload it is an instance
+      of a different class object with the same name, and an
+      isinstance test would quietly decide there was nothing to
+      retire.
     """
-    global _LIVE_DIALOG
-    previous = _LIVE_DIALOG
+    previous = _live_dialog()
     if previous is not None and previous is not self:
       try:
         previous._live_timer.stop()
@@ -3333,7 +4416,7 @@ class WeavingSpaceDialog(QDialog):
       except RuntimeError:
         # the Qt object is already gone; nothing to retire
         pass
-    _LIVE_DIALOG = self
+    _set_live_dialog(self)
 
   def _adopt_existing_group(self):
     """Take over the output group this project already has, if any.
@@ -3368,6 +4451,9 @@ class WeavingSpaceDialog(QDialog):
         self._element_layer_ids[str(tid)] = layer.id()
         # a project saved with hand-picked colours brings them back
         self._adopt_category_colours(layer, str(tid))
+        # adopted layers are watched like freshly made ones, so a
+        # styling-dock edit reaches the dialog here too
+        self._watch_element_layer(layer, str(tid))
       elif layer.customProperty("weavingspace_outline"):
         self._outline_layer_id = layer.id()
     if self._element_layer_ids or self._outline_layer_id:
@@ -3511,6 +4597,34 @@ class WeavingSpaceDialog(QDialog):
     except RuntimeError:
       return False
 
+  def _legibility_note(self, fills, assignments):
+    """The colour-legibility opinion, or None -- gated HERE.
+
+    Args:
+      fills: {tile_id: [(r, g, b), ...]} of what each element paints.
+      assignments: the run's assignment dicts, for the shared-ramp
+        exemption (elements deliberately sharing one ramp are not a
+        clash, they are the shared-ramp technique).
+
+    Returns:
+      perception.clash_message's sentence, or None -- always None
+      while "Warn about lack of legibility in colour choices" is
+      unchecked. The gate lives INSIDE this helper so every caller,
+      present and future, inherits it: the opt-in is a property of
+      the opinion itself, not a courtesy each call site remembers.
+      The user has reported ungated sightings; whatever path fires
+      next fires through here, gated. (User instruction, 2026-08-09,
+      twice.)
+    """
+    if not self.opt_colour_warnings.isChecked():
+      return None
+    from weavingspace_qgis import perception
+    return perception.clash_message(perception.clashes(
+      fills,
+      shared={a["id"]: (a.get("ramp"), a.get("reverse"),
+                        a.get("class_source"))
+              for a in assignments}))
+
   def _report_quietly(self, message: str) -> None:
     """Tell the user something without stopping them.
 
@@ -3551,6 +4665,29 @@ class WeavingSpaceDialog(QDialog):
     self.progress.setVisible(False)
     self.progress.setRange(0, 100)
     self._task = None
+    # A dock edit made WHILE the run was in flight was ignored by the
+    # styleChanged watcher (a run in progress must not be mistaken for
+    # a user restyle) and then carried across by the preserved-
+    # renderer path -- on the map but in no record, so the ramp cell
+    # went on naming a ramp the layer no longer wears. Re-examine
+    # exactly the preserved layers now the run is over -- but ONLY
+    # those whose table state has not moved since the run landed. An
+    # element the user changed mid-run also reads as "preserved" (the
+    # landing used the launch snapshot), and re-examining it would
+    # adopt the OLD colours as hand-picks that then outrank the very
+    # change the user made: three race tests failed exactly that way
+    # the first time this loop ran unguarded. A moved element belongs
+    # to the queued rerun, which re-seeds it; a real dock edit made
+    # after that rerun reaches the watcher normally.
+    if self._preserved_this_run:
+      current_by_id = {a["id"]: a for a in self._assignments()}
+      for tid in self._preserved_this_run:
+        lid = self._element_layer_ids.get(tid)
+        assignment = current_by_id.get(tid)
+        if lid and assignment is not None and \
+            self._last_signatures.get(tid) == self._signature(assignment):
+          self._on_layer_style_edited(lid, tid)
+    self._preserved_this_run = []
     if self._live_pending:
       self._live_pending = False
       self._live_timer.start()
@@ -3649,6 +4786,7 @@ class WeavingSpaceDialog(QDialog):
     # styling dock) before touching any layers
     old_renderers = {}
     old_layer_opacity = {}
+    old_subsets = {}
     for tid, lid in old_ids.items():
       old_layer = project.mapLayer(lid)
       if old_layer is not None and old_layer.renderer() is not None:
@@ -3656,6 +4794,16 @@ class WeavingSpaceDialog(QDialog):
         # opacity lives on the layer, not the renderer, so it has to
         # be carried across separately when an element is kept as-is
         old_layer_opacity[tid] = old_layer.opacity()
+      # A subset string is the user's own filter, set in Layer
+      # Properties or the layer panel's Filter dialogue, and it used
+      # to die with the layer at every regeneration -- deliberate
+      # work silently discarded, unlike the hand styling beside it,
+      # which survives. Carried across on the same promise (user
+      # decision, 2026-08-09). Every element that HAD one gets it
+      # back, whether or not its assignment changed: a filter says
+      # which features to draw, not how to colour them.
+      if old_layer is not None and old_layer.subsetString():
+        old_subsets[tid] = old_layer.subsetString()
     if path:
       # release file handles before overwriting GeoPackage layers,
       # otherwise the write can hit sqlite locks (notably on Windows)
@@ -3665,6 +4813,10 @@ class WeavingSpaceDialog(QDialog):
       old_ids = {}
 
     first_gpkg_layer = True
+    # elements whose renderer is carried over rather than re-seeded;
+    # _finish_run re-examines exactly these, because a dock edit made
+    # mid-run rides across in that renderer with no record behind it
+    self._preserved_this_run = []
     for tid in tile_ids:
       a = by_id.get(tid, {"id": tid, "var": None, "mode": "Single colour",
                           "ramp": "Greys", "scheme": "Quantiles", "k": 5,
@@ -3686,6 +4838,7 @@ class WeavingSpaceDialog(QDialog):
                    and self._last_signatures.get(tid) == signature)
       if unchanged:
         out.setRenderer(old_renderers[tid])
+        self._preserved_this_run.append(tid)
         # opacity travels with the renderer: an element the dialog has
         # not changed keeps whatever opacity its layer had, which may
         # be one the user set by hand in Layer Properties. Same promise
@@ -3717,8 +4870,33 @@ class WeavingSpaceDialog(QDialog):
       out.setCustomProperty("weavingspace_tile_id", tid)
       project.addMapLayer(out, False)
       group.addLayer(out)
+      # the user's own filter, back on the fresh layer. Applied AFTER
+      # the renderer, because a subset changes what a classifier
+      # would see and the styling above belongs to the whole element;
+      # a provider that refuses the clause (a GeoPackage column the
+      # memory layer had, say) leaves the element unfiltered rather
+      # than unpainted.
+      if tid in old_subsets:
+        if not out.setSubsetString(old_subsets[tid]):
+          self._report_quietly(
+            f"The filter you had set on element '{tid}' could not be "
+            f"applied to the new layer, so it now draws everything.")
       new_ids[tid] = out.id()
       self._last_signatures[tid] = signature
+      self._watch_element_layer(out, tid)
+
+    if path:
+      # Each GeoPackage handle above was opened while its SIBLINGS
+      # were still being appended to the same file, and the earliest
+      # handles cache "no spatial index" from that moment: the R-tree
+      # is in the file (verified against sqlite directly) while the
+      # provider believes otherwise, so QGIS quietly skips
+      # index-assisted paths for exactly those elements. One reload
+      # per layer, after all writing is over, refreshes the answer.
+      for lid in new_ids.values():
+        written = project.mapLayer(lid)
+        if written is not None:
+          written.dataProvider().reloadData()
 
     # map unit outlines (kept on top of the group, project-only)
     if old_outline and project.mapLayer(old_outline) is not None:
@@ -3763,15 +4941,9 @@ class WeavingSpaceDialog(QDialog):
     # something people learn to ignore. The whole check is skipped
     # rather than computed and withheld, so an unchecked box costs
     # nothing at all.
-    colour_clash = None
-    if self.opt_colour_warnings.isChecked():
-      from weavingspace_qgis import perception
-      colour_clash = perception.clash_message(
-        perception.clashes(
-          {tid: fills for tid, fills in element_fills.items() if fills},
-          shared={a["id"]: (a.get("ramp"), a.get("reverse"),
-                            a.get("class_source"))
-                  for a in assignments}))
+    colour_clash = self._legibility_note(
+      {tid: fills for tid, fills in element_fills.items() if fills},
+      assignments)
     # Stashed rather than reported here. This runs inside
     # _on_generated, whose finally clears live_note -- so a notice
     # pushed now is wiped a moment later, which is exactly what
@@ -3785,9 +4957,11 @@ class WeavingSpaceDialog(QDialog):
       if path:
         note += f", saved to {path}"
       self.iface.messageBar().pushSuccess("WeavingSpace", note)
-      if colour_clash is not None:
-        self.iface.messageBar().pushWarning("WeavingSpace", colour_clash)
-
+      # colour_clash is NOT pushed here: it rides _pending_colour_note
+      # and the done callback sends it once the dust settles. Pushing
+      # it here as well delivered every legibility warning twice to a
+      # real message bar -- the stash was added for the note-line wipe
+      # and the immediate push was never taken out.
       if warned_cardinality:
         self.iface.messageBar().pushWarning(
           "WeavingSpace",

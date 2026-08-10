@@ -3,7 +3,7 @@ name: mutation-campaign
 description: Run a mutation-testing campaign to measure and genuinely improve how good a test suite is — sampling mutants, triaging survivors, verifying that new tests actually fail, and deciding when a score can be defended. Use this whenever the user wants to know whether their tests are any good, asks about mutation testing or mutation score, says coverage looks high but they don't trust it, wants to raise a mutation score toward a target, or is writing tests to close gaps that a mutation tool found. Also use it when someone proposes to accept a surviving mutant as "equivalent", or asks how many mutants they need to sample — both are places where a campaign quietly turns into a vanity metric.
 derived_from:
   - path: docs/MUTATION-LOOP.md
-    sha256: 749db6709ad3b561bbe25f6b7e38b5e0be1d077498d7528765d8f33e20c78235
+    sha256: 7a230dcf1019dc2c6820402813041391c69a74041eddd0a3ef1b0fa333d179f4
   - path: docs/MUTATION-TESTING.md
     sha256: 16bee3264621078d6d0f5b1da7b0b5c170f2b15dac708b8dd2cba50ce1dc1b03
 ---
@@ -43,7 +43,18 @@ the behaviour it names is broken, and the only way to know is to break
 it.
 
 Keep a catalogue of hand-picked mutations, each naming the test that
-must fail under it, and run it as part of the release. In one campaign
+must fail under it, and run it as part of the release. When the
+catalogue outgrows a serial sweep — well over a hundred entries here
+— shard it across concurrent clones: mutation JUDGING parallelises
+safely (measured: three workers, identical verdicts), which full test
+suites do not, and that asymmetry is what makes a sharded sweep sound
+while two suites at once stay forbidden. The price is per-entry times
+inflating under contention, so a sweep is a SCREEN: anything flagged,
+and anything suspiciously slow, is re-run alone before its verdict is
+believed, and the sweep never runs beside a release's gates or a
+census — one measurement at a time is how each stays a measurement.
+(This project: tools/mutation_catalogue_sweep.py, and the sweep
+section of docs/MUTATION-LOOP.md.) In one campaign
 six tests were written to close gaps, verified to pass, and then
 failed to kill the very mutants they were written for. Three separate
 tests turned out to pass for the wrong reason:

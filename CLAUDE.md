@@ -146,6 +146,15 @@ obligations: they exist so nobody pays twice for the same discovery.
   add a test and the standards check complains, it is telling you to
   run the two commands above, not to edit a number. (Made enforced
   2026-08-09, after the user pointed out they kept having to ask.)
+- **Text review is the USER'S act, never the assistant's.** The
+  `tools/text_review.py` queue exists so a person reads every sentence
+  a user will meet before it ships; an assistant approving its own
+  prose defeats the tool's entire purpose, however carefully that
+  prose was written. Generate the delta, present it, and wait.
+  `--apply` and `--approve` run only on the user's say-so, and an
+  approval made in error is undone with
+  `git checkout -- docs/text-approved.json`. (User correction,
+  2026-08-09, after the assistant approved its own five strings.)
 - **The standards are ENFORCED at release, not merely intended.**
   `release.py` runs `tools/check_standards.py` before anything else,
   and refuses to build a zip when it fails. It checks what this file
@@ -243,6 +252,21 @@ obligations: they exist so nobody pays twice for the same discovery.
   upstream adopting our own convex-hull optimisation, which let us
   retire a patch instead of carrying a duplicate of it forever.
   (Standing user instruction, 2026-08-07.)
+- **Anything that outlasts a turn gets a thirty-minute heartbeat.**
+  Not when asked: by default. A beat reports what is running with CPU
+  against elapsed, progress against the total, the newest result, and
+  whether the files it is reading actually belong to THIS run. It is
+  a defect-finding instrument rather than a courtesy: on 2026-08-10
+  four faults were found by beats and none by waiting for a job to
+  finish -- a sweep reporting shards done from logs left by a run
+  killed hours earlier, a catalogue sweep announcing CLEAN after
+  judging one entry of 156 because its listing had crashed, a census
+  measuring a tree that had since changed beside a second census, and
+  a worker from an abandoned run still writing into the log a new run
+  was appending to. Each would have produced a number somebody
+  believed, and none showed up in a final "done" line. Full procedure
+  in `.claude/skills/long-job-supervision`. (User instruction,
+  2026-08-10, after watching the beats catch them.)
 - **Two procedures live as SKILLS, and the rules here name them so
   they get invoked.** `.claude/skills/tests-that-can-fail` is read
   before writing or reviewing a test, and whenever a new test passes
@@ -284,12 +308,18 @@ obligations: they exist so nobody pays twice for the same discovery.
   `tools/mutate_auto.py --since <previous tag> --require 70`, which
   mutates ONLY the lines that changed and stops the release if the
   tests written alongside them fail to catch 70% of those mutants.
-  Cost is proportional to the change, so it runs every time, which is
-  the point: a mutation score decays not through decisions but
-  through changes that nobody measured. This does not replace the
-  periodic full campaign — changed lines are where new gaps arrive,
-  but a refactor elsewhere can quietly stop an old test reaching what
-  it names, and only full sampling finds that.
+  The sample SCALES with the diff — floor 12, one mutant per twenty
+  changed lines, cap 80 (`release.mutation_sample_size`, pinned by
+  its own test) — because a fixed dozen was sized for routine
+  releases and became decorative against a 1,700-line round. With no
+  release tag to diff against the guard cannot run and now says so
+  LOUDLY; the baseline tag `pre-0.24.0` exists precisely so that
+  state never recurs. Cost stays proportional to the change, so it
+  runs every time, which is the point: a mutation score decays not
+  through decisions but through changes that nobody measured. This
+  does not replace the periodic full campaign — changed lines are
+  where new gaps arrive, but a refactor elsewhere can quietly stop an
+  old test reaching what it names, and only full sampling finds that.
 - **Census and sample answer different questions, and a census
   carries a firmer rule.** Sample to learn how good the suite is (the
   population estimate, and the only thing fit to certify); census a
@@ -811,7 +841,11 @@ tests themselves; the rest ask how good those tests are:
    release, never gating.
 4. `tools/mutation_check.py` — breaks each guarded behaviour in turn
    and requires its test to fail. Not part of the release gate (it
-   rewrites source files); run it before substantial releases.
+   rewrites source files); run it IN FULL before substantial
+   releases, via `tools/mutation_catalogue_sweep.py`, which shards
+   the catalogue across concurrent clones (judging parallelises
+   safely; suites do not) and names anything needing a solo re-run.
+   Details and the honesty caveats in docs/MUTATION-LOOP.md.
 5. `tools/mutate_auto.py` — the same question asked without a human
    choosing the targets: mutants generated from the syntax tree,
    sampled at random, each run against only the tests that cover its
@@ -843,12 +877,17 @@ reference column IS both of the first two at once, because MapWeaver
 pins this same library version and draws through this same
 TiledMap.render call inside pyodide — a browser screenshot would
 re-photograph the identical code path with UI chrome added, so no
-separate column exists. CONDITION TO WATCH, now triggered but harmless: as of 2026-08-07 the
-vendor is 0.0.7.61 while the app still pins 0.0.7.59. The two were
-compared structurally (AST with docstrings stripped) before the
-bump: 0.0.7.61 adds MIT licence headers and NOTHING else, so the
-rendering path is byte-for-byte the same behaviour and the single
-reference column still speaks for both. Re-check with the same AST
-comparison at the next upstream bump; if a release ever changes
+separate column exists. CONDITION TO WATCH, re-checked 2026-08-09 (twice):
+the vendor is now 0.0.7.61 at upstream commit c0f109c while the app
+still pins 0.0.7.59. Relative to .59 the vendored code differs by
+MIT licence headers, comment blocks, the STRtree tileable filter
+(the optimisation this project offered upstream, output-identical
+over twenty configurations when offered), and a one-word bugfix in
+get_regularised_prototiles_background (prototile ids on the
+regularised-prototile frame — a path the plugin does not draw
+through). None of that changes what TiledMap.render paints for the
+gallery's cases, and the release gates re-measure the claim every
+run, so the single reference column still speaks for both. Repeat
+this comparison at the next bump; if a release ever changes rendered
 behaviour while the app lags, a live browser capture becomes a
 genuinely independent third column and should be added then.

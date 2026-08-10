@@ -37,6 +37,7 @@ ROOT = os.path.dirname(HERE)
 BASE = [None]
 DIALOG = "weavingspace_qgis/dialog.py"
 BRIDGE = "weavingspace_qgis/bridge.py"
+DEPS = os.path.join("weavingspace_qgis", "deps.py")
 PLUGIN = "weavingspace_qgis/plugin.py"
 CATALOG = "weavingspace_qgis/catalog.py"
 COMPAT = "weavingspace_qgis/compat.py"
@@ -96,8 +97,14 @@ MUTATIONS = [
        why="a graduated renderer over words has no ranges at all, so "
            "every tile falls outside every class and four full layers "
            "paint an empty map while the run reports success"),
+  # Re-anchored 2026-08-10: the one pass over the column now answers
+  # two questions at once, so the constancy test has moved up into a
+  # `constant` local and this gate merely reads it. Mutating the GATE
+  # rather than the local keeps this entry aimed at the class count
+  # alone; the ramp-midpoint behaviour that shares the local has its
+  # own entry (constant-class-takes-ramp-start).
   dict(name="constant-column-classes", file=BRIDGE,
-       old="""  if index >= 0 and numeric_values_are_constant(layer.uniqueValues(index)):
+       old="""  if constant:
     k = 1""",
        new="""  if False:  # mutation: cut k classes over one distinct value
     k = 1""",
@@ -361,10 +368,26 @@ MUTATIONS = [
            "the colour it declares at its dark end, which is the end "
            "carrying the highest values on the map"),
   dict(name="conditional-column-hidden-index", file=DIALOG,
-       old="    self.table.setColumnHidden(7, True)",
-       new="    self.table.setColumnHidden(8, True)"
+       # Re-diagnosed 2026-08-10 after this survived a sweep: the
+       # construction-time hide is REDUNDANT for any dialog that
+       # reaches a layer, because _update_dynamic_columns decides the
+       # same columns moments later. Mutating the construction line
+       # therefore tests nothing a user could see. What IS testable,
+       # and what the why below names, is the decision itself, so the
+       # entry now mutates that.
+       old="    self.table.setColumnHidden(COL_EDIT_COLOURS, "
+           "not has_editable)",
+       new="    self.table.setColumnHidden(7, not has_editable)"
+           "  # mutation: hides the wrong column"
            "  # mutation: hides the wrong column",
-       test="test_dialog_structure",
+       # The entry named test_dialog_structure, which asserts the
+       # table's SHAPE (nine columns, their headers) and never drives
+       # the conditional hiding; the decision itself is exercised by
+       # the column test below, which is where the strengthened
+       # assertions went. Re-pointed 2026-08-10 after this survived a
+       # sweep: an entry naming a test that cannot reach it is a
+       # guard in name only.
+       test="test_the_edit_colours_column_appears_with_categories",
        why="the conditional columns starting hidden, and hiding the "
            "ones they name: an off-by-one here leaves a dead column "
            "in front of a first-time user"),
@@ -527,10 +550,16 @@ MUTATIONS = [
        why="the colour column surviving the arrival of a scroll bar, "
            "which takes its width from the viewport rather than "
            "adding to it"),
+  # Re-anchored 2026-08-10: the editor now serves graduated elements
+  # too, so the table is built in two branches and BOTH right-align.
+  # The trailing NO_DATA_KEY line pins this at the categorical branch,
+  # which is the one the test builds (it passes no bounds).
   dict(name="editor-value-alignment", file=EDITOR,
-       old="""      cell.setTextAlignment(Qt.AlignmentFlag.AlignRight
-                            | Qt.AlignmentFlag.AlignVCenter)""",
-       new="""      pass  # mutation: values fall back to left-aligned""",
+       old="""        cell.setTextAlignment(Qt.AlignmentFlag.AlignRight
+                              | Qt.AlignmentFlag.AlignVCenter)
+        if value == bridge.NO_DATA_KEY:""",
+       new="""        pass  # mutation: values fall back to left-aligned
+        if value == bridge.NO_DATA_KEY:""",
        test="test_the_editor_is_laid_out_as_specified",
        why="values set right against colours set left, so the eye "
            "runs down one gap rather than across a ragged one"),
@@ -540,11 +569,14 @@ MUTATIONS = [
        test="test_editing_a_category_colour_reaches_the_map",
        why="a colour chosen in the Categorical colour editor being "
            "the colour the map actually draws"),
+  # Re-anchored 2026-08-10: the signature tuple has grown the
+  # graduated customization terms, so the picks are no longer its last
+  # element. Deleting the line still removes them from the tuple.
   dict(name="category-colours-in-signature", file=DIALOG,
        old="""            a.get("reverse", False), a.get("opacity", 100),
-            tuple(sorted(picked.items())))""",
-       new="""            a.get("reverse", False), a.get("opacity", 100))"""
-           """  # mutation: picks invisible to the restyle path""",
+            tuple(sorted(picked.items())),""",
+       new="""            a.get("reverse", False), a.get("opacity", 100),
+            # mutation: picks invisible to the restyle path""",
        test="test_editing_a_category_colour_reaches_the_map",
        why="the fast path noticing a hand-picked colour at all; "
            "without it the element is skipped as unchanged"),
@@ -574,13 +606,19 @@ MUTATIONS = [
        why="hand-picked colours outliving the session, so reopening a "
            "saved project and pressing Generate does not silently "
            "revert them"),
+  # Re-anchored 2026-08-10, and the WHY with it: since the quant round
+  # the editor serves graduated elements too, so the column's
+  # condition widened from "any categorical element" to "any element
+  # drawn in classes". The behaviour guarded is unchanged -- a column
+  # that withdraws when nothing in the map has classes to edit.
   dict(name="edit-colours-column-visibility", file=DIALOG,
-       old="""    self.table.setColumnHidden(COL_EDIT_COLOURS, not has_categorical)""",
+       old="""    self.table.setColumnHidden(COL_EDIT_COLOURS, not has_editable)""",
        new="""    self.table.setColumnHidden(COL_EDIT_COLOURS, False)"""
            """  # mutation: always on""",
        test="test_the_edit_colours_column_appears_with_categories",
-       why="the column appearing only where there are categories to "
-           "colour, rather than as a dead control on every map"),
+       why="the column appearing only where some element draws in "
+           "classes -- categorized or graduated -- rather than as a "
+           "dead control on a map of flat fills"),
   dict(name="notices-share-one-line", file=DIALOG,
        old="""    self.live_note.setText(
       f"{existing}{NOTE_SEPARATOR}{message}" if existing else message)""",
@@ -634,11 +672,18 @@ MUTATIONS = [
        test="test_switching_region_layer_counts_as_a_change",
        why="a different region layer counting as a change, rather "
            "than leaving the previous layer's map on screen"),
+  # Re-anchored 2026-08-10: the mark used to be set by a lambda on the
+  # combo's ``activated`` signal. That lambda now calls
+  # _on_mode_chosen, which sets the mark on its first line, so the
+  # behaviour lives one call deeper and the anchor follows it there.
   dict(name="chooser-race", file=DIALOG,
-       old='lambda _i, c=mode_combo: c.setProperty("touched", True))',
-       new="lambda _i, c=mode_combo: None)",
+       old='    mode_combo.setProperty("touched", True)',
+       new="    pass  # mutation: a hand-picked style is never remembered",
        test="test_style_follow_and_memory",
-       why="the hook that remembers a hand-picked style"),
+       why="the hook that remembers a hand-picked style (now the first "
+           "line of _on_mode_chosen); without it every style goes on "
+           "following the field's type and the user's own pick is "
+           "overwritten the next time the variable changes"),
   dict(name="class-source-memory", file=DIALOG,
        old='default = self._class_choices.get(tid, "")',
        new='default = ""',
@@ -739,8 +784,14 @@ MUTATIONS = [
            'None (verified for numeric and string fields, memory and '
            'GeoPackage providers), so normalising it is a no-op and '
            'no test can tell the two apart'),
+  # Re-anchored 2026-08-10: the catch-all's fill is now taken from the
+  # editor's overrides (under NO_DATA_KEY) before falling back to
+  # NO_DATA_FILL, so the call spans three lines. Same class, same loss
+  # if it goes.
   dict(name='no-data-class', file=BRIDGE,
-       old='  categories.append(QgsRendererCategory(\n    None, _fill_symbol(NO_DATA_FILL, outline), "no data"))',
+       old='  categories.append(QgsRendererCategory(\n'
+           '    None, _fill_symbol(overrides.get(NO_DATA_KEY, NO_DATA_FILL), outline),\n'
+           '    "no data"))',
        new='  pass  # mutation: no catch-all class for unmatched values',
        test='test_renderer_seeding',
        why='the no-data class that catches unmatched values'),
@@ -843,9 +894,15 @@ MUTATIONS = [
        new='    pass  # mutation: two live dialogs allowed',
        test='test_single_dialog_instance',
        why='only one dialog live per QGIS session'),
+  # Re-anchored 2026-08-10: the same line now also names
+  # SPATIAL_INDEX. The mutation drops ONLY the FID rename, so this
+  # entry still asks about the fid collision alone rather than
+  # doubling as a spatial-index test (which has its own entry,
+  # memory-layers-lose-their-index).
   dict(name='gpkg-fid-collision', file=BRIDGE,
-       old='  options.layerOptions = ["FID=weavingspace_fid"]',
-       new='  pass  # mutation: let an fid attribute collide with the key',
+       old='  options.layerOptions = ["FID=weavingspace_fid", "SPATIAL_INDEX=YES"]',
+       new='  options.layerOptions = ["SPATIAL_INDEX=YES"]'
+           '  # mutation: let an fid attribute collide with the key',
        test='test_gpkg_fid_attribute',
        why='exporting data that carries an attribute called fid'),
   dict(name="crs-reattach", file=DIALOG,
@@ -853,6 +910,335 @@ MUTATIONS = [
        new="    self._adopt_existing_group()",
        test="test_real_world_data",
        why="the output CRS surviving the worker round trip"),
+  # ---- the 2026-08-09 interface round (nine settled changes plus the
+  # QGIS-side restyle watcher), each proved able to fail
+  dict(name="reverse-allowed-on-categorized", file=DIALOG,
+       old='    can_reverse = has_ramp and mode != "Categorized"',
+       new='    can_reverse = has_ramp'
+           '  # mutation: categorized rows reverse again',
+       test="test_reverse_ramp_column",
+       why="Reverse is greyed on Categorized rows entirely and "
+           "re-enables when a quantitative style is chosen; category "
+           "colours are named assignments, not a scale with a "
+           "direction (user decision, 2026-08-09)"),
+  # Re-anchored 2026-08-10: `renderer.ranges()` is now read once into
+  # `count` (the list hands back temporaries, so calling it twice is
+  # its own hazard), and the Ramp Display Range arrived as an `elif`
+  # beside it. The mutation still sends the constant case past the
+  # midpoint recolour and back to whatever QGIS coloured it.
+  dict(name="constant-class-takes-ramp-start", file=BRIDGE,
+       old="  if constant and count:",
+       new="  if False and count:"
+           "  # mutation: keep QGIS's endpoint colour",
+       test="test_a_constant_column_draws_one_class_and_says_so",
+       why="a constant column's single class draws the MIDDLE of its "
+           "ramp (of the display window, where one has been narrowed); "
+           "the ramp's start is near-white on sequential ramps and "
+           "reads as no data (user decision, 2026-08-09)"),
+  dict(name="custom-display-never-shows", file=DIALOG,
+       old="        show_custom = bool(picks) or has_source",
+       new="        show_custom = False"
+           "  # mutation: the cell always names a ramp",
+       test="test_a_customized_element_reads_custom",
+       why="a categorized row with hand-picks or an imported class "
+           "source must read Custom, or the cell names a ramp an "
+           "override is outranking -- a control lying about the map"),
+  dict(name="same-ramp-pick-keeps-picks", file=DIALOG,
+       old="    ramp_combo.activated.connect(picked)",
+       new="    pass  # mutation: re-choosing the same ramp is ignored",
+       test="test_a_customized_element_reads_custom",
+       why="re-choosing the ramp already underneath the Custom display "
+           "fires only ``activated`` (the index is unchanged) and must "
+           "still destroy the picks; without the connection the cell "
+           "exits Custom while the overrides quietly survive"),
+  dict(name="custom-swatch-goes-stale", file=DIALOG,
+       old="    if cached is not None and cached[0] == key:",
+       new="    if cached is not None:"
+           "  # mutation: serve any cached swatch",
+       test="test_a_customized_element_reads_custom",
+       why="the Custom swatch is rebuilt whenever anything deciding "
+           "the element's colours changes; a stale cache shows the "
+           "previous pick, not the map"),
+  dict(name="row-gutter-returns", file=DIALOG,
+       old="    self.table.verticalHeader().setVisible(False)",
+       new="    pass  # mutation: Qt's row-number gutter returns",
+       test="test_the_table_headers_read_as_designed",
+       why="Qt's row-number gutter drew 1, 2, 3, 4 beside tile ids "
+           "a, b, c, d: two columns of identifiers, one meaningless "
+           "(user report, 2026-08-09)"),
+  dict(name="table-may-scroll-sideways", file=DIALOG,
+       old="    self.table.setMinimumWidth(needed)",
+       new="    pass  # mutation: the table takes whatever width falls out",
+       test="test_the_window_fits_the_narrowest_screen",
+       why="the table never scrolls horizontally: a horizontal "
+           "scrollbar on a table is invisible in practice and the "
+           "columns to its right go unfound (the settled layout rule)"),
+  dict(name="dock-edits-never-arrive", file=DIALOG,
+       old="""    layer.styleChanged.connect(
+      lambda lid=layer.id(), tid=str(tile_id):
+        self._on_layer_style_edited(lid, tid))""",
+       new="    pass  # mutation: QGIS-side restyles go unnoticed",
+       test="test_qgis_side_restyles_reach_the_dialog",
+       why="recolouring an element layer in QGIS's styling dock must "
+           "reach the dialog -- adopted as hand-picks or followed as "
+           "a standard ramp -- or the ramp cell goes on naming a ramp "
+           "that no longer decides the map (user decision, 2026-08-09)"),
+  dict(name="custom-tooltip-reworded", file=DIALOG,
+       old='CUSTOM_RAMP_TOOLTIP = ("Colours set by hand or by a class '
+           'file. "\n                       '
+           '"Choose a ramp to replace them.")',
+       new='CUSTOM_RAMP_TOOLTIP = "Colours chosen by hand."'
+           '  # mutation: reworded',
+       test="test_a_customized_element_reads_custom",
+       why="the Custom tooltip is the user's own fourteen words, "
+           "settled verbatim on 2026-08-09"),
+  dict(name="opacity-header-grows-a-sign", file=DIALOG,
+       old='       "Reverse", "Opacity", "Categ colourmap src", '
+           '"Edit colours"])',
+       new='       "Reverse", "Opacity %", "Categ colourmap src", '
+           '"Edit colours"])',
+       test="test_the_table_headers_read_as_designed",
+       why="the header says Opacity without the % sign the spin "
+           "boxes already carry (user decision, 2026-08-09)"),
+  # ---- the quant-customization round (settled by grilling,
+  # 2026-08-09 evening): the range arithmetic, the involution, the
+  # destruction list, the graduated watcher, persistence, the column
+  dict(name="quant-range-formula", file=BRIDGE,
+       old="      along = i / (count - 1) if count > 1 else 0.5",
+       new="      along = i / count if count > 1 else 0.5"
+           "  # mutation: top class never reaches hi",
+       test="test_the_ramp_display_range_reinterpolates",
+       why="the window arithmetic is the whole feature: divide by k "
+           "instead of k-1 and the last class never reaches the upper "
+           "handle, so every narrowed ramp is quietly wrong at the end "
+           "a reader trusts most"),
+  dict(name="quant-reverse-permutation", file=DIALOG,
+       old="          str(count - 1 - int(index)): colour",
+       new="          str(int(index)): colour"
+           "  # mutation: picks stay put while the ramp turns",
+       test="test_reverse_permutes_quant_customization",
+       why="Reverse turns the ramp around underneath positional picks; "
+           "without the permutation a pick made on the dark end "
+           "reappears on the light end and reversing twice no longer "
+           "restores the user's work"),
+  dict(name="quant-scheme-change-keeps-picks", file=DIALOG,
+       old="""      self._clear_quant_customization(
+        tid_here, "a new style", reset_range=False)""",
+       new="      pass  # mutation: reclassification keeps stale picks",
+       test="test_quant_picks_die_when_the_ramp_is_asked_anew",
+       why="a new scheme cuts new classes, so an old positional pick "
+           "lands on a class it was never chosen for; keeping it "
+           "silently paints the wrong data in the user's colour"),
+  dict(name="quant-ramp-pick-keeps-window", file=DIALOG,
+       old="""  def _clear_quant_customization(self, tile_id, because,
+                                 reset_range=True):""",
+       new="""  def _clear_quant_customization(self, tile_id, because,
+                                 reset_range=False):""",
+       test="test_quant_picks_die_when_the_ramp_is_asked_anew",
+       why="choosing a ramp anew must also restore the full display "
+           "window -- 'until reselected anew' is the settled rule -- "
+           "or a narrowed window quietly survives into a ramp nobody "
+           "narrowed"),
+  dict(name="quant-dock-edits-go-unnoticed", file=DIALOG,
+       old="    if isinstance(renderer, QgsGraduatedSymbolRenderer):",
+       new="    if False:  # mutation: graduated dock edits ignored",
+       test="test_qgis_side_graduated_restyles_reach_the_dialog",
+       why="without the graduated branch a dock recolour is neither "
+           "adopted nor followed, so the dialog names a ramp the map "
+           "no longer wears and the next Generate destroys the user's "
+           "dock work without a word"),
+  dict(name="quant-style-not-stamped", file=DIALOG,
+       old="""      layer.setCustomProperty(
+        "weavingspace_quant_style",""",
+       new="""      (lambda *_a: None)(
+        "weavingspace_quant_style",""",
+       test="test_quant_customization_survives_the_project",
+       why="the dialog's record dies with the session; only the "
+           "custom property reaches the project file, and without it "
+           "a reopened project silently repaints yesterday's choices"),
+  dict(name="quant-column-narrows-to-categorical", file=DIALOG,
+       old='    has_editable = any(m in ("Categorized", "Graduated") '
+           'and has_var',
+       new='    has_editable = any(m == "Categorized" and has_var',
+       test="test_the_editor_column_appears_for_quant_rows",
+       why="narrowing the condition back to categorical-only removes "
+           "the Customize button from every graduated row, deleting "
+           "the whole quant editor from the UI while every test of "
+           "the editor itself still passes"),
+  dict(name="editor-close-swallows-pending-range", file=EDITOR,
+       old="    if timer is not None and timer.isActive():",
+       new="    if False:  # mutation: a pending movement dies with "
+           "the window",
+       test="test_unclassed_opens_locked_with_live_range",
+       why="a range movement still in the debounce when the window "
+           "closes is the user's last deliberate act; it must land "
+           "synchronously at close, not vanish, and not fire later "
+           "from a timer into a dialog that believes the editor gone"),
+  dict(name="spacing-suggestion-refuses-itself", file=BRIDGE,
+       old="""  for _ in range(60):
+    if estimate_tile_count_bounds(unit, bounds, scale) <= MAX_TILES_HARD:
+      break
+    scale *= 1.02""",
+       new="""  pass  # mutation: the inverse-square law has the last word""",
+       test="test_the_tile_estimate_is_honest_where_shapes_are_awkward",
+       why="the refusal names a spacing that WOULD work; the "
+           "inverse-square law alone ignores the estimate's border "
+           "term and named spacings estimating up to 3.9% over the "
+           "hard cap, so following the plugin's own advice was "
+           "refused again and the plugin read as contradicting itself"),
+  dict(name="corrupt-wheel-raises-at-the-user", file=DEPS,
+       old="""      try:
+        _extract_wheel(os.path.join(WHEELS_DIR, chosen))
+      except Exception:""",
+       new="""      if True:
+        _extract_wheel(os.path.join(WHEELS_DIR, chosen))
+      if False:""",
+       test="test_the_deps_installer_declines_a_corrupt_wheel",
+       why="a bundled wheel truncated by a copy let BadZipFile out "
+           "through open_dialog, so pressing the toolbar button gave "
+           "a traceback rather than a sentence -- on the Linux "
+           "installs that are the only ones to meet this path"),
+  dict(name="non-finite-values-reach-the-classifier", file=BRIDGE,
+       old="""  awkward = any(
+    v is None or v == NULL or (isinstance(v, float)
+                               and (v != v or abs(v) > FINITE))
+    for v in values)""",
+       new="""  awkward = any(v is None or v == NULL for v in values)""",
+       test="test_classification_survives_inf_nan_and_huge",
+       why="QGIS 4.0.3 SEGFAULTS -- the application gone with the "
+           "user's unsaved project -- when Natural breaks meets an "
+           "infinity or a near-limit magnitude, and returns NaN class "
+           "bounds for quantiles and equal intervals over NaN, so the "
+           "layer paints nothing while the run reports success"),
+  dict(name="legend-labels-ignore-tiny-spreads", file=BRIDGE,
+       old="          method.setLabelPrecision(precision)",
+       new="          pass  # mutation: five classes all read 0 - 0",
+       test="test_extreme_magnitudes_render_readable_legends",
+       why="QGIS labels to four decimals by default, so a column "
+           "around 1e-9 gets distinct colours whose legend entries "
+           "all read '0 - 0': a legend claiming one meaning for five "
+           "different classes of the map"),
+  dict(name="closed-dialog-keeps-tiling", file=DIALOG,
+       old="""    for timer in (getattr(self, "_live_timer", None),
+                  getattr(self, "_preview_timer", None)):""",
+       new="""    for timer in ():  # mutation: debounces outlive the window""",
+       test="test_unload_with_windows_open_and_work_in_flight",
+       why="cancelling the task is not enough: a live-update timer "
+           "armed just before the window closed fires ~900ms later "
+           "and starts a fresh tiling that writes layers into the "
+           "project for a window nobody can see -- which is exactly "
+           "what unloading the plugin asks not to happen"),
+  dict(name="reload-forgets-the-live-dialog", file=DIALOG,
+       old="      return app.property(_LIVE_KEY)",
+       new="      pass  # mutation: the record dies with a reload",
+       test="test_a_reloaded_module_retires_the_old_dialog_cleanly",
+       why="QGIS's Plugin Reloader re-executes this module, resetting "
+           "the module global; without the record parked on the "
+           "application the new dialog retires nothing and the "
+           "predecessor keeps its timers running against the group "
+           "the newcomer just adopted"),
+  dict(name="user-filter-dies-at-regeneration", file=DIALOG,
+       old="      if tid in old_subsets:",
+       new="      if False:  # mutation: the user's filter is dropped",
+       test="test_a_user_subset_survives_regeneration",
+       why="a subset string is the user's own work, set in Layer "
+           "Properties; discarding it at every regeneration throws "
+           "away a deliberate choice silently, while the hand styling "
+           "beside it survives"),
+  dict(name="swatches-built-two-ways", file=DIALOG,
+       old="    stripes = SWATCH_STRIPES",
+       new="    from qgis.core import QgsSymbolLayerUtils\n"
+           "    return QgsSymbolLayerUtils.colorRampPreviewIcon("
+           "ramp, RAMP_SWATCH)\n"
+           "    stripes = SWATCH_STRIPES",
+       test="test_every_swatch_in_the_ramp_column_is_built_the_same_way",
+       why="named ramps drawn as QGIS gradients beside hand-striped "
+           "Custom swatches make one column read as two kinds of "
+           "control; the striped form is also the honest one, since a "
+           "classed map paints steps rather than a gradient"),
+  dict(name="swatch-ignores-extra-colours", file=DIALOG,
+       old="  shown = list(colours)[:SWATCH_STRIPES] or [\"#c0c0c0\"]",
+       new="  shown = list(colours) or [\"#c0c0c0\"]"
+           "  # mutation: stripes squeezed below legibility",
+       test="test_every_swatch_in_the_ramp_column_is_built_the_same_way",
+       why="a swatch is 64px wide; past eight stripes each is under "
+           "8px and stops reading as a colour, so a twenty-class "
+           "element would show a smear instead of its palette"),
+  dict(name="memory-layers-lose-their-index", file=BRIDGE,
+       old="  provider.createSpatialIndex()",
+       new="  pass  # mutation: every repaint scans every tile",
+       test="test_output_layers_carry_spatial_indexes",
+       why="a memory layer has no spatial index unless one is built; "
+           "without it each canvas repaint, identify click and snap "
+           "linearly scans every tile of every element layer -- "
+           "measured fifteen times slower on twenty thousand tiles"),
+  dict(name="legibility-check-ignores-the-box", file=DIALOG,
+       old="    if not self.opt_colour_warnings.isChecked():\n"
+           "      return None",
+       new="    if False:  # mutation: the opinion arrives unasked\n"
+           "      return None",
+       test="test_colour_legibility_warnings_are_opt_in",
+       why="the legibility warnings are opt-in (user decision, "
+           "2026-08-09, REPEATED after an ungated sighting): the gate "
+           "now lives inside _legibility_note so every caller "
+           "inherits it, and this mutation removes it at that single "
+           "choke point"),
+  dict(name="legibility-warning-arrives-twice", file=DIALOG,
+       old='      self.iface.messageBar().pushSuccess("WeavingSpace", '
+           'note)\n'
+           "      # colour_clash is NOT pushed here: it rides "
+           "_pending_colour_note",
+       new='      self.iface.messageBar().pushSuccess("WeavingSpace", '
+           'note)\n'
+           "      if colour_clash is not None:  # mutation: doubled\n"
+           '        self.iface.messageBar().pushWarning("WeavingSpace",'
+           ' colour_clash)\n'
+           "      # colour_clash is NOT pushed here: it rides "
+           "_pending_colour_note",
+       test="test_colour_legibility_warnings_are_opt_in",
+       why="a checked box earns ONE warning per run; the immediate "
+           "push beside the settled-dust send delivered every "
+           "legibility warning twice to a real message bar, which is "
+           "how a bar becomes noise"),
+  dict(name="mid-run-dock-edit-forgotten", file=DIALOG,
+       old="    for tid in self._preserved_this_run:",
+       new="    for tid in ():"
+           "  # mutation: preserved layers never re-examined",
+       test="test_a_dock_edit_during_a_run_is_not_lost",
+       why="a dock recolour made mid-run rides across on the "
+           "preserved renderer with no record behind it; without the "
+           "re-examination the cell lies and the next re-seed "
+           "silently destroys the user's work"),
+  # Re-anchored 2026-08-10: the one-at-a-time record moved off the
+  # module global (a plugin reload re-executes the module and resets
+  # it) onto the QApplication, read through _live_dialog(). The gate
+  # is the same gate, now comparing self against that reading.
+  dict(name="retired-dialog-keeps-watching", file=DIALOG,
+       old="    if live is not None and live is not self:",
+       new="    if False:"
+           "  # mutation: every past dialog reacts to dock edits",
+       test="test_a_retired_dialog_stops_watching",
+       why="a retired instance's styleChanged connections outlive its "
+           "retirement because the layers do; ungated, one dock edit "
+           "is adopted twice and announced twice"),
+  dict(name="missing-count-counts-tiles", file=DIALOG,
+       old="            field, missing, int(layer.featureCount()))",
+       new="            field, missing, int(len(gdf)))"
+           "  # mutation: tiles counted as areas again",
+       test="test_every_notice_describes_the_map_it_came_from",
+       why="the missing-values notice says 'X of Y areas' and must "
+           "count the user's areas; counting the tiled frame told a "
+           "24-area layer it had 96, and the reader went looking for "
+           "areas that do not exist"),
+  dict(name="customize-button-says-custom", file=DIALOG,
+       old='        button = QPushButton("Customize")',
+       new='        button = QPushButton("Custom")'
+           '  # mutation: state and action share a word',
+       test="test_the_edit_colours_column_appears_with_categories",
+       why="the Edit-colours button is a verb, Customize, because "
+           "Custom is the ramp cell's display for colours already "
+           "customized; one word cannot name a state in one column "
+           "and an action in the next"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a

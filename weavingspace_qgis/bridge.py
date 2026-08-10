@@ -361,6 +361,12 @@ def gdf_to_layer(gdf, name: str) -> QgsVectorLayer:
     feats.append(feat)
   provider.addFeatures(feats)
   layer.updateExtents()
+  # A memory layer arrives with NO spatial index, and every canvas
+  # repaint, identify click and snap filters by rectangle -- a linear
+  # scan per layer per paint. Measured (QGIS 4.0.3, 20k tiles):
+  # viewport queries run fifteen times faster indexed, and the build
+  # is one cheap pass here against a scan on every interaction after.
+  provider.createSpatialIndex()
   return layer
 
 
@@ -381,7 +387,7 @@ def estimate_tile_count(unit, region_gdf) -> int:
   return estimate_tile_count_bounds(unit, tuple(region_gdf.total_bounds))
 
 
-def estimate_tile_count_bounds(unit, b) -> int:
+def estimate_tile_count_bounds(unit, b, scale: float = 1.0) -> int:
   """Estimate the tile count from a bounds tuple rather than a frame.
 
   Mirrors _TileGrid's geometry: the library covers a circle enclosing
@@ -397,6 +403,13 @@ def estimate_tile_count_bounds(unit, b) -> int:
       bounds rather than a GeoDataFrame lets the live-update gate ask
       this question straight from a QGIS layer extent, without
       building a frame it may not need.
+    scale: answer as though the unit had been built at ``scale``
+      times its spacing, without building it. Both the tile diagonal
+      and the translation vectors scale linearly with spacing, so the
+      whole estimate follows from multiplying them -- which is what
+      lets min_reasonable_spacing check a suggestion against this
+      same estimator instead of trusting an inverse-square law that
+      ignores the border term.
 
   Returns:
     An estimated tile count; MAX_TILES_HARD + 1 when the vectors are
@@ -404,12 +417,12 @@ def estimate_tile_count_bounds(unit, b) -> int:
     design is refused rather than attempted.
   """
   tb = unit.tiles.total_bounds
-  tile_diag = math.hypot(tb[2] - tb[0], tb[3] - tb[1])
+  tile_diag = math.hypot(tb[2] - tb[0], tb[3] - tb[1]) * scale
   w = (b[2] - b[0]) + 2 * tile_diag
   h = (b[3] - b[1]) + 2 * tile_diag
   radius = math.hypot(w, h) / 2
   v = unit.get_vectors()
-  det = abs(v[0][0] * v[1][1] - v[0][1] * v[1][0])
+  det = abs(v[0][0] * v[1][1] - v[0][1] * v[1][0]) * scale * scale
   if det <= 0:
     return MAX_TILES_HARD + 1
   n_prototiles = math.pi * radius * radius / det
@@ -446,7 +459,22 @@ def min_reasonable_spacing(unit, region_gdf, spacing: float) -> float:
   est = estimate_tile_count(unit, region_gdf)
   if est <= MAX_TILES_HARD:
     return spacing
-  return spacing * math.sqrt(est / MAX_TILES_HARD)
+  # The inverse-square law alone is not enough. Tile count grows as
+  # 1/spacing^2 in the interior, but the estimate also buffers the
+  # region by a tile diagonal, and that border term does not shrink
+  # at the same rate -- so the spacing this arithmetic names came
+  # back estimating 0.5-3.9% OVER the hard limit and was refused the
+  # moment the user tried it. A suggestion that is itself refused is
+  # worse than no suggestion: it reads as the plugin contradicting
+  # itself. So the law gives the starting point and the ESTIMATOR
+  # itself has the last word, widening until it agrees.
+  scale = math.sqrt(est / MAX_TILES_HARD)
+  bounds = tuple(region_gdf.total_bounds)
+  for _ in range(60):
+    if estimate_tile_count_bounds(unit, bounds, scale) <= MAX_TILES_HARD:
+      break
+    scale *= 1.02
+  return spacing * scale
 
 
 # ----------------------------------------------------------- tile coverage
@@ -733,7 +761,9 @@ def constant_field_message(field: str) -> str:
 def make_graduated_renderer(layer: QgsVectorLayer, field: str,
                             ramp_name: str, scheme: str, k: int,
                             outline: bool,
-                            reverse: bool = False
+                            reverse: bool = False,
+                            range_bounds: tuple = (0, 100),
+                            overrides: dict | None = None
                             ) -> QgsGraduatedSymbolRenderer:
   """Classed-numeric symbology for one element layer.
 
@@ -748,6 +778,19 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
       "Pretty breaks"), or "Unclassed" (see below).
     k: how many classes; ignored for "Unclassed", which fixes 50.
     outline: draw a thin dark boundary on each tile.
+    reverse: run the ramp the other way; get_ramp applies it, so every
+      position below is a position on the ramp as the user sees it.
+    range_bounds: (lo, hi) percentages, 0 <= lo <= hi <= 100, choosing
+      where in the ramp the FIRST and LAST classes take their colours;
+      classes between interpolate linearly (settled 2026-08-09). The
+      default (0, 100) is deliberately a no-op: QGIS's own classifier
+      colours class i at ramp.color(i/(k-1)) (measured, QGIS 4.0.3),
+      which is exactly what the formula gives over the full window, so
+      untouched rows keep byte-identical colours.
+    overrides: {str(class_index): "#rrggbb"} chosen by hand in the
+      colour editor's graduated mode. Keyed by POSITION, not by value,
+      because a class has no name to follow when the breaks move; they
+      outrank the range and the ramp alike, and are applied last.
 
   Returns:
     A QgsGraduatedSymbolRenderer, not yet attached to the layer
@@ -790,13 +833,38 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   # One pass over the column answers both questions below: is it
   # constant, and does it contain nulls.
   values = layer.uniqueValues(index) if index >= 0 else set()
-  if index >= 0 and numeric_values_are_constant(values):
+  constant = index >= 0 and numeric_values_are_constant(values)
+  if constant:
     k = 1
   renderer = QgsGraduatedSymbolRenderer(field)
   renderer.setSourceSymbol(_fill_symbol("#c0c0c0", outline))
   renderer.setSourceColorRamp(get_ramp(ramp_name, reverse))
   method = compat.classification_method(scheme)
   if method is not None:
+    # How many decimals the LABELS carry. QGIS defaults to four, so a
+    # column of values around 1e-9 gets five classes every one of
+    # which prints "0 - 0": distinct colours on the map, one printed
+    # meaning in the legend, which is a legend lying about its own
+    # map (measured QGIS 4.0.3, 2026-08-09). Asking QGIS itself for
+    # more decimals is configuration rather than reimplementation --
+    # its own formatter still writes the labels. Raised only when the
+    # data needs it, so ordinary magnitudes keep QGIS's normal look,
+    # and capped where its formatter stops helping.
+    finite = [float(v) for v in values
+              if v is not None and v != NULL and isinstance(v, (int, float))
+              and float(v) == float(v) and abs(float(v)) <= 1e307]
+    if finite and hasattr(method, "setLabelPrecision"):
+      span = max(finite) - min(finite)
+      if span > 0:
+        step = span / max(int(k), 1)
+        # decimals needed for one step to survive rounding, plus two
+        # so neighbouring breaks differ in more than the last digit
+        needed = int(math.ceil(-math.log10(step))) + 2 if step < 1 else 0
+        precision = max(method.labelPrecision(), min(15, needed))
+        if precision != method.labelPrecision():
+          method.setLabelPrecision(precision)
+          if hasattr(method, "setLabelTrimTrailingZeroes"):
+            method.setLabelTrimTrailingZeroes(True)
     renderer.setClassificationMethod(method)
 
   # ---- NULLs, and why this layer is filtered before being classified
@@ -830,10 +898,40 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   # behaviour is still broken and fails on the day it stops being.
   # That test exists to be a canary, so treat its failure as good news
   # and delete this block rather than "fixing" the test.
+  # ...AND the same treatment for values that are not NUMBERS. QGIS
+  # 4.0.3, measured 2026-08-09 with the plugin out of the way (a
+  # child process calling QgsGraduatedSymbolRenderer.updateClasses
+  # directly): Natural breaks (Jenks) SEGFAULTS -- exit 139, the
+  # application gone with the user's unsaved project -- on a column
+  # holding an infinity or a magnitude near the double limit
+  # (+/-1e308); quantiles and equal intervals survive NaN but return
+  # NaN class bounds, so every tile falls outside every class, the
+  # layer paints nothing and the run reports success. Identical on
+  # the memory provider and through OGR on a GeoPackage.
+  #
+  # The fix hands the classifier different INPUT rather than
+  # replacing its arithmetic: one clause more on the subset string
+  # this function already sets and restores. NaN fails every
+  # comparison and the infinities fall outside the bounds, so the
+  # classifier sees only finite numbers and its own four algorithms
+  # go on deciding the breaks.
+  #
+  # DELETE THIS when test_qgis_still_crashes_on_infinite_class_breaks
+  # fails: that canary asserts the crash directly, so its failure
+  # means QGIS has been fixed and this clause is redundant. The NULL
+  # half above has its own canary (test_qgis_still_counts_nulls_as_
+  # zero) and they may well not be fixed together, so check both
+  # before removing either.
+  FINITE = 1e307
   restore = None
-  if index >= 0 and any(v is None or v == NULL for v in values):
+  awkward = any(
+    v is None or v == NULL or (isinstance(v, float)
+                               and (v != v or abs(v) > FINITE))
+    for v in values)
+  if index >= 0 and awkward:
     previous = layer.subsetString()
-    clause = f'"{field}" IS NOT NULL'
+    clause = (f'"{field}" IS NOT NULL AND "{field}" > {-FINITE:g} '
+              f'AND "{field}" < {FINITE:g}')
     combined = f"({previous}) AND {clause}" if previous else clause
     # A provider may refuse a subset string. Wrong breaks beat no map,
     # so a refusal falls through to classifying everything, exactly as
@@ -845,6 +943,49 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   finally:
     if restore is not None:
       layer.setSubsetString(restore)
+  # A single class spans the whole ramp and QGIS colours it from the
+  # ramp's START (measured, QGIS 4.0.3: one class on Reds comes back
+  # #fff5f0, the ramp's 0.0 endpoint) -- for a sequential ramp that is
+  # near-white, which on the map reads as "no data" rather than "one
+  # value". The ramp's MIDDLE is the honest colour for a constant
+  # column: unmistakably a member of the chosen ramp without claiming
+  # either extreme. get_ramp has already applied any reversal, so 0.5
+  # is the middle of the ramp as the user sees it. (User decision,
+  # 2026-08-09.)
+  # Every symbol below is built FRESH rather than cloned off a range:
+  # ``renderer.ranges()`` hands back temporaries, and a symbol
+  # pointer read off one dangles as soon as the temporary dies --
+  # cloning through it segfaulted QGIS outright when this block was
+  # first written.
+  lo, hi = range_bounds
+  count = len(renderer.ranges())
+  if constant and count:
+    # One class ranges over the whole window, and QGIS colours it
+    # from the ramp's START (measured: near-white on Reds), which on
+    # the map reads as "no data" rather than "one value". The
+    # window's MIDDLE is the honest colour -- the plain ramp middle
+    # when the window is the whole ramp. (User decision, 2026-08-09.)
+    mid = get_ramp(ramp_name, reverse).color((lo + hi) / 200.0).name()
+    renderer.updateRangeSymbol(0, _fill_symbol(mid, outline))
+  elif (lo, hi) != (0, 100) and count:
+    # the Ramp Display Range: first class at lo, last at hi, linear
+    # between. Skipped entirely at (0, 100) because QGIS's own
+    # colours already ARE this formula there, and recolouring would
+    # only add a place for the two to disagree.
+    ramp = get_ramp(ramp_name, reverse)
+    for i in range(count):
+      along = i / (count - 1) if count > 1 else 0.5
+      fraction = (lo + (hi - lo) * along) / 100.0
+      renderer.updateRangeSymbol(
+        i, _fill_symbol(ramp.color(fraction).name(), outline))
+  # hand-picked class colours outrank the range and the ramp alike
+  for key, colour in (overrides or {}).items():
+    try:
+      index = int(key)
+    except (TypeError, ValueError):
+      continue
+    if 0 <= index < count:
+      renderer.updateRangeSymbol(index, _fill_symbol(colour, outline))
   return renderer
 
 
@@ -1028,8 +1169,11 @@ def seed_renderer(layer: QgsVectorLayer, assignment: dict,
       gets a plain no-data fill), ``mode`` ("Graduated",
       "Categorized" or "Single colour", already resolved from the
       style dropdown and the field's type), ``ramp``, ``scheme``
-      (including "Unclassed"), ``k``, ``outline``, and
-      ``single_colour`` for Single colour rows.
+      (including "Unclassed"), ``k``, ``outline``,
+      ``single_colour`` for Single colour rows, and for graduated
+      rows ``range_bounds`` (where in the ramp the classes sample)
+      and ``quant_colours`` (positional hand-picks, which outrank
+      the range and the ramp).
     template: a class scheme from load_categorized_template or
       template_from_layer. Applied only to categorized elements;
       ignored otherwise. The assignment's ``category_colours``, if
@@ -1057,7 +1201,9 @@ def seed_renderer(layer: QgsVectorLayer, assignment: dict,
   else:
     layer.setRenderer(make_graduated_renderer(
       layer, var, assignment["ramp"], assignment.get("scheme", "Quantiles"),
-      assignment.get("k", 5), outline, assignment.get("reverse", False)))
+      assignment.get("k", 5), outline, assignment.get("reverse", False),
+      assignment.get("range_bounds", (0, 100)),
+      assignment.get("quant_colours")))
   layer.triggerRepaint()
 
 
@@ -1107,7 +1253,10 @@ def write_gpkg_layer(layer: QgsVectorLayer, path: str, layer_name: str,
   # simply by mapping a field called fid, as GeoPackage-sourced layers
   # routinely have. Naming the key column something else leaves the
   # attribute to be written as an ordinary column, under its own name.
-  options.layerOptions = ["FID=weavingspace_fid"]
+  # SPATIAL_INDEX is GDAL's GeoPackage default already; named here so
+  # the R-tree the interactive map depends on cannot vanish behind a
+  # changed default, and so the intent is visible beside the FID fix
+  options.layerOptions = ["FID=weavingspace_fid", "SPATIAL_INDEX=YES"]
   options.actionOnExistingFile = (
     compat.writer_overwrite_file() if first
     else compat.writer_overwrite_layer())

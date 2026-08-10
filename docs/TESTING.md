@@ -14,6 +14,18 @@ The suite lives in `tests/run_tests.py` (behaviour), `tests/visual_tests.py`
 `tools/` (coverage, mutation, standards, secrets). Everything runs
 under QGIS's own Python; `release.py` gates on all of it.
 
+## The modal recorder keeps the sentence, not only the title
+
+`_no_modal_dialogs` replaces every QMessageBox with a recorder, and
+what it records is `(kind, "title text")` -- both strings joined. It
+kept only the FIRST string until 2026-08-09, which is the window
+TITLE, so every entry read "WeavingSpace" and no test could ask the
+question that matters: was the user told, in words, what went wrong?
+A campaign-3 test had to widen the shim itself before it could
+assert that, which is the signal that a harness limit has become a
+test's problem. If you find yourself patching QMessageBox inside a
+test, fix the recorder instead.
+
 ## The test shapes that earn their keep
 
 **UI against library.** The highest-value shape here: drive the

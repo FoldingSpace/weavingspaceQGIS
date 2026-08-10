@@ -160,6 +160,30 @@ def distance(first, second, vision="normal"):
   return sum((a - b) ** 2 for a, b in zip(one, two)) ** 0.5
 
 
+# The grey every element uses where a feature has no value. Kept as
+# a literal rather than imported from bridge, which pulls in QGIS:
+# this module is deliberately importable without it. Guarded by
+# test_the_no_data_grey_is_never_a_clash, which fails if bridge's
+# own NO_DATA_FILL moves away from this value.
+NO_DATA_FILL = "#dddddd"
+
+
+def _hex_of(colour):
+  """One fill as a lowercase "#rrggbb" string.
+
+  Args:
+    colour: an (r, g, b) triple on 0..255, as the renderers hand
+      them over.
+
+  Returns:
+    The hex form, for comparing against named constants. Written out
+    rather than using QColor so this module stays free of Qt: it is
+    arithmetic about human vision, and is tested as such.
+  """
+  r, g, b = (int(round(v)) for v in colour[:3])
+  return f"#{r:02x}{g:02x}{b:02x}"
+
+
 def clashes(element_colours, shared=None, threshold=CLASH_THRESHOLD):
   """Pairs of ELEMENTS whose colours a reader may not separate.
 
@@ -185,6 +209,22 @@ def clashes(element_colours, shared=None, threshold=CLASH_THRESHOLD):
   """
   found = []
   shared = shared or {}
+  # The no-data fill is the SAME grey in every element by
+  # construction, so it can never distinguish one element from
+  # another: comparing it against itself scored every categorical
+  # pair at Delta-E 0.00 and made this warning useless for
+  # categorical designs whatever ramps were chosen (measured
+  # 2026-08-09). It is not a colour anyone picked, it is the absence
+  # of one, and a reader meeting two grey tiles learns the same true
+  # thing from both -- that no value was mapped there. Dropped from
+  # the comparison entirely (user decision, 2026-08-09); an element
+  # left with NOTHING else keeps it, so a design of two unmapped
+  # elements is still described rather than silently skipped.
+  compared = {}
+  for tile_id, colours in element_colours.items():
+    kept = [c for c in colours if _hex_of(c) != NO_DATA_FILL.lower()]
+    compared[tile_id] = kept or list(colours)
+  element_colours = compared
   ids = sorted(element_colours)
   for index, first in enumerate(ids):
     for second in ids[index + 1:]:

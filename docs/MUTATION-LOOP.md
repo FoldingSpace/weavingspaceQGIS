@@ -81,6 +81,30 @@ informative 350-byte log ("STALE COVERAGE: ... re-record first") look
 empty, and a job that had refused to start look like one that was
 never launched.
 
+## Sweeping the hand-picked catalogue before a substantial release
+
+The campaign above samples automatic mutants; the CATALOGUE
+(`tools/mutation_check.py`) is the other instrument, and before a
+substantial release the whole of it is re-run, because a refactor
+elsewhere can quietly stop an old test from reaching the behaviour it
+names and only re-breaking everything finds that. At well over a
+hundred entries a serial sweep costs hours, so it is sharded:
+
+    python3 tools/mutation_catalogue_sweep.py            # 4 shards
+    python3 tools/mutation_catalogue_sweep.py --shards 2
+
+Mutation judging parallelises safely — measured here: three workers,
+identical verdicts — which full suites do not; that asymmetry is the
+whole reason the sweep can be sharded while two suites at once remain
+forbidden. The price is per-entry times inflating 15–50% under
+contention, so the sweep prints its slowest entries and anything
+marked ATTENTION is re-run ALONE before being believed: a mutant
+slowed past a timeout can read as caught while it merely stalled.
+Never run the sweep beside a release's gates or beside the census;
+one measurement at a time is how each stays a measurement. (Added
+2026-08-09, the first night the catalogue was too large to sweep
+serially in the time available.)
+
 ## Reading a batch honestly
 
 Four outcomes, and they are not interchangeable:

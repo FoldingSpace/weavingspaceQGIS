@@ -5,12 +5,26 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-45 defect(s) with a regression test.
+62 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
 - **categorical colours were sampled with round() where matplotlib's ListedColormap uses int(), so a five-class field took entries 0,2,4,7,9 instead of 0,2,5,7,9 and the middle category was painted purple where the original renders brown.**  
   guarded by `test_ui_library_categorical_template`
+
+## Found by a family audit of the claims the software makes
+
+- **the missing-values notice said "X of Y areas" while counting tiles; both numbers came from the tiled frame, so a 24-area layer could read "31 of 96 areas".**  
+  guarded by `test_every_notice_describes_the_map_it_came_from`
+- **memory element layers shipped with no spatial index at all, and the first GeoPackage layer's provider cached "no index" from being opened while its siblings were still being written, so QGIS skipped index-assisted paths for exactly that element.**  
+  guarded by `test_output_layers_carry_spatial_indexes`
+- **the shared no-data grey was compared against itself, scoring every categorical pair at Delta-E 0.00 and making the legibility warning useless for categorical designs.**  
+  guarded by `test_the_no_data_grey_is_never_a_clash`
+
+## Found by the hostile data corpus
+
+- **a corrupt bundled wheel raised BadZipFile out of provision_from_bundled, reaching the user as an unhandled traceback from the toolbar button rather than a plain report that the packages are still missing.**  
+  guarded by `test_the_deps_installer_declines_a_corrupt_wheel`
 
 ## Found by a multi-step session test
 
@@ -31,15 +45,25 @@ there is no separate list to remember.
   guarded by `test_palette_pick_survives_debounce`
 - **settings changed mid-run were swallowed, because the run's signature was captured when it finished rather than when it launched.**  
   guarded by `test_race_settings_change_during_run`
+- **a range movement still in the debounce when the editor closed fired 150 ms later into the dialog and destroyed a pick made just after; close now flushes it synchronously.**  
+  guarded by `test_unclassed_opens_locked_with_live_range`
 
 ## Found by reading the code
 
+- **a dock recolour made while a run was in flight was preserved on the map but never adopted into the record, so the ramp cell did not read Custom and a later re-seed would have destroyed it silently.**  
+  guarded by `test_a_dock_edit_during_a_run_is_not_lost`
+- **release.py's watchdog used threading without importing it, so the first release stage would have died on a NameError; committed untested and caught the moment these held-back tests were applied.**  
+  guarded by `test_a_failed_stage_is_not_remembered`
+- **a retired dialog's styleChanged connections kept firing after retirement, double-adopting dock edits alongside the live dialog.**  
+  guarded by `test_a_retired_dialog_stops_watching`
 - **choosing a layer produced nothing until Generate was pressed, leaving a first-time user with an empty canvas and no indication that anything was meant to happen.**  
   guarded by `test_auto_first_render`
 - **CRS work on the QgsTask worker thread segfaulted QGIS, because PROJ is not safe to use concurrently with the main thread; the CRS is now stripped before the task and reattached in the done callback.**  
   guarded by `test_real_world_data`
 - **a design whose spacing implied millions of tiles was attempted rather than refused, and QGIS became unresponsive while it ran.**  
   guarded by `test_support_logic`
+- **the spacing offered in the size-guard refusal was computed from a pure inverse-square law and came out slightly too fine, so a user who typed the number the plugin had just suggested was refused a second time.**  
+  guarded by `test_the_tile_estimate_is_honest_where_shapes_are_awkward`
 
 ## Found by driving the UI and rebuilding the same map from the library directly
 
@@ -62,6 +86,8 @@ there is no separate list to remember.
   guarded by `test_a_new_run_always_shows_real_progress`
 - **choosing a Quant: style on a text field produced a graduated renderer with no ranges, so 0 of 112 features painted and four empty layers were reported as a successful run.**  
   guarded by `test_a_quantitative_style_never_stands_on_text`
+- **reloading the dialog module reset the module-level _LIVE_DIALOG to None, so the dialog built from the reloaded class retired nothing and the predecessor went on running its debounces against the newcomer's layers.**  
+  guarded by `test_a_reloaded_module_retires_the_old_dialog_cleanly`
 - **a column added in QGIS — with the Field Calculator, the usual way — never appeared in the variable choosers, because their item lists are built during a table rebuild and a rebuild happens when the LAYER changes, not when its columns do; the column stayed invisible until the user switched layers and back.**  
   guarded by `test_a_sequence_of_edits_under_the_plugin`
 - **the inset percentage conversion was defended only by comparisons whose tolerance is wider than the error.**  
@@ -72,8 +98,8 @@ there is no separate list to remember.
   guarded by `test_cancelling_frees_the_dialog_at_once`
 - **QGIS's classifier counts a NULL as zero (its own minimumValue does not, so QGIS disagrees with itself), so nine values of 1..9 beside five nulls classified as 0-0, 0-2.5, 2.5-5.75, 5.75-9 instead of 1-3, 3-5, 5-7, 7-9 — every break in the wrong place, a legend class meaning "missing" that reads as a number, and nothing on screen to say so; measured identically on the memory provider and on a GeoPackage through OGR.**  
   guarded by `test_class_breaks_ignore_nulls`
-- **the colour-separability warning fired unconditionally, on every map, whether or not anyone wanted that opinion.**  
-  guarded by `test_colour_legibility_warnings_are_opt_in`
+- **measured 2026-08-10 on QGIS 4.0.3. Natural breaks (Jenks) SEGFAULTS on a column holding NaN, and on one holding 1e308 beside -1e308, taking QGIS down with the user's project; Quantiles, Equal intervals and Unclassed return NaN class bounds over a column containing NaN, so the layer paints nothing while the run reports success; and Pretty breaks returns no classes at all over those columns, including the constant column that is supposed to collapse to one.**  
+  guarded by `test_classification_survives_inf_nan_and_huge`
 - **the geometry signature held the layer's ID and nothing about its contents, so deleting half the features left every term identical and the run was answered by repainting tiles built from data that no longer existed — pressing Generate did not help, which is what made it serious.**  
   guarded by `test_data_changed_in_qgis_while_the_plugin_is_open`
 - **control ranges and steps were unasserted as a class; a mutation batch moved one and the suite was silent.**  
@@ -88,6 +114,10 @@ there is no separate list to remember.
   guarded by `test_every_design_control_is_reachable`
 - **a vanished element count was invisible, because the catalogue tests all iterate the catalogue's own keys.**  
   guarded by `test_every_element_count_still_has_its_designs`
+- **named ramps used QgsSymbolLayerUtils' gradient preview while Custom swatches were hand-drawn stripes, so one column drew its cells two different ways.**  
+  guarded by `test_every_swatch_in_the_ramp_column_is_built_the_same_way`
+- **measured 2026-08-10 on QGIS 4.0.3. Five classes over values from 1e-9 to 1.6e-8 all carry the label "0 - 0", so the legend shows five colours claiming one meaning; the same five over values from 1e12 to 1.6e13 carry labels of 37 to 39 characters, and a column reaching 1e308 is written out in full to over four hundred.**  
+  guarded by `test_extreme_magnitudes_render_readable_legends`
 - **a layer with no CRS produced output layers stamped EPSG:4326, because a memory layer whose URI names no CRS is given 4326 by QGIS rather than left blank.**  
   guarded by `test_hostile_numbers_are_handled_or_declined`
 - **only the existence of installed palettes was checked, never the colours they run between.**  
@@ -114,12 +144,28 @@ there is no separate list to remember.
   guarded by `test_the_window_fits_its_design_tab_when_shown`
 - **two warnings from one run shared a single label and the last one silently erased the first.**  
   guarded by `test_two_notices_from_one_run_both_survive`
+- **unload closed the dialog and cancelled its run but left both debounce timers armed, so a plugin removed or reloaded with live update on started one more tiling a second later and wrote its layers into the project.**  
+  guarded by `test_unload_with_windows_open_and_work_in_flight`
+
+## Found by reported by a user
+
+- **a subset string set by the user on an element layer was discarded at every regeneration, silently, while the hand styling beside it survived.**  
+  guarded by `test_a_user_subset_survives_regeneration`
+- **the colour-separability warning fired unconditionally, on every map, whether or not anyone wanted that opinion; and later, with the box checked, every warning reached a real message bar TWICE, pushed immediately and again by the settled-dust send whose stash had been added for the note-line wipe without removing the push.**  
+  guarded by `test_colour_legibility_warnings_are_opt_in`
+- **the guard sampled a fixed 12 mutants whatever the diff; over a 1,700-line round that certified nearly nothing while reading as a passed gate.**  
+  guarded by `test_the_mutation_guard_scales_with_the_diff`
+- **the table drew Qt's row-number gutter beside the tile ids, which the user reported as a messy second numbering.**  
+  guarded by `test_the_table_headers_read_as_designed`
 
 ## Which shape of test found them
 
-- unrecorded: 29
+- unrecorded: 33
+- reading the code: 7
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5
-- reading the code: 3
-- race and stress testing: 2
+- reported by a user: 4
+- a family audit of the claims the software makes: 3
+- race and stress testing: 3
 - comparing rendered output against the reference in Lab space: 1
+- the hostile data corpus: 1
