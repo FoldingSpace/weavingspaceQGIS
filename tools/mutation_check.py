@@ -464,7 +464,14 @@ MUTATIONS = [
        test="test_every_design_control_is_reachable",
        why="controls being reachable by a user and not only by a test "
            "that assigns to them directly"),
-  # ACCEPTED, not closed (2026-08-10). Two attempts to give this an
+  # ACCEPTED PERMANENTLY, by the user's decision (2026-08-10): the
+  # show-time fit STAYS, untested, because a defence against the
+  # window opening too small is worth keeping even where no test can
+  # reach it. Do not re-triage this as an open survivor, and do not
+  # delete the third call site on the grounds that nothing catches
+  # its removal. What follows is the evidence behind that decision.
+  #
+  # Two attempts to give this an
   # occasion of its own both failed on CLEAN code -- the window will
   # not grow past what the design needs (no element count makes the
   # Design tab taller) and will not shrink below it (layout minimums
