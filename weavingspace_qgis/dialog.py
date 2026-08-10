@@ -843,6 +843,16 @@ class WeavingSpaceDialog(QDialog):
     self.table.setHorizontalHeaderLabels(
       ["Tile id", "Variable", "Style", "Classes", "Colour ramp",
        "Reverse", "Opacity %", "Categ colourmap src", "Edit colours"])
+    # Qt draws a row-number gutter unless told not to, so the table
+    # showed 1, 2, 3, 4 immediately beside the Tile id column showing
+    # a, b, c, d: two columns of identifiers, one of them meaningless,
+    # and the meaningless one read as authoritative. The LETTERS are
+    # the element ids everything in this plugin is keyed on -- the
+    # preview labels them, the output layers are named for them, the
+    # colour records are dictionaries of them. Hiding the gutter also
+    # returns width the table needs to show every column without
+    # scrolling sideways, which nobody notices it doing.
+    self.table.verticalHeader().setVisible(False)
     self.table.setColumnWidth(0, 55)
     self.table.setColumnWidth(1, 160)
     self.table.setColumnWidth(2, 165)
