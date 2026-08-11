@@ -77,6 +77,27 @@ jobs:
       - name: User-facing text has been reviewed
         run: python3 tools/text_review.py --check
 
+      # A release stage that needs NO QGIS and takes seconds, so it
+      # costs this twenty-second job nothing and moves a packaging
+      # failure from "eighty minutes into a release" to "the push that
+      # caused it".
+      #
+      # NOT here, deliberately: tools/sync_release_content.py, the
+      # published-content audit. It reports the citation version as
+      # wrong until a release mends it with --fix, so on any ordinary
+      # push it would be RED for something the release fixes by
+      # itself. A gate that is red by design is one people stop
+      # reading, which is the fault this file already avoids for the
+      # visual gallery. It could come here if the tool grew a mode
+      # reporting only the problems that need WORDS -- the ones that
+      # genuinely stop a release -- rather than everything it mends.
+      - name: The plugin still packages
+        # proves shipped_files() resolves and the zip keeps the shape
+        # the QGIS plugin repository requires -- one top-level folder
+        # carrying __init__.py and metadata.txt. build.py is stdlib
+        # only, so this needs no container.
+        run: python3 build.py
+
   # The suite, inside QGIS's own image. The matrix is the entire point
   # of this job: two QGIS versions, so a change that only works on the
   # one installed at home fails here rather than in somebody's issue
@@ -129,6 +150,9 @@ jobs:
       options: --user root
     env:
       QT_QPA_PLATFORM: offscreen
+      # where the step above puts the pristine upstream checkout, so
+      # the vendor comparison runs instead of skipping
+      WEAVINGSPACE_UPSTREAM: ${{ github.workspace }}/../weavingspace
       # The plugin's own dependency provisioner may fetch wheels on a
       # machine whose QGIS lacks them, which is exactly the Linux path
       # worth exercising. Left on deliberately.
@@ -143,6 +167,29 @@ jobs:
           python3 -c "import qgis.core; print('QGIS', qgis.core.Qgis.QGIS_VERSION)"
           python3 --version
           python3 -c "import geopandas, shapely, pandas; print('geopandas', geopandas.__version__, '| shapely', shapely.__version__, '| pandas', pandas.__version__)" || echo "scientific stack incomplete -- deps.py's provisioning path is what this platform exercises"
+
+      - name: The upstream library, at the commit we vendor
+        # test_the_vendoring_tool_reproduces_the_current_vendor rebuilds
+        # vendor/ from a pristine upstream and compares. Without a
+        # checkout it SKIPS -- loudly, but it skips, so the guard
+        # against a hand-edited vendor has been running on one machine
+        # only. The test itself deliberately never downloads ("a test
+        # that reaches the network is a test that fails when somebody
+        # is on a train"), so the checkout is the workflow's job.
+        #
+        # Pinned to the commit in vendor/VENDOR-VERSION.txt, NOT to
+        # upstream's HEAD: comparing against HEAD would fail every time
+        # upstream moved, which is news about them rather than about
+        # us, and is exactly the noisy gate people learn to ignore.
+        # A failure to clone leaves the test skipping as before.
+        continue-on-error: true
+        run: |
+          pin=$(sed -n 's/.*(\(.*\))/\1/p' weavingspace_qgis/vendor/VENDOR-VERSION.txt)
+          echo "vendor stamp names commit ${pin}"
+          git clone --quiet https://github.com/DOSull/weavingspace.git \
+            "${GITHUB_WORKSPACE}/../weavingspace"
+          git -C "${GITHUB_WORKSPACE}/../weavingspace" checkout --quiet "${pin}"
+          git -C "${GITHUB_WORKSPACE}/../weavingspace" log -1 --oneline
 
       - name: Provision what this QGIS lacks, the way the plugin does
         # The qgis/qgis images ship QGIS and nothing else, so the first
