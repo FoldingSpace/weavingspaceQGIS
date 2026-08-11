@@ -20019,9 +20019,22 @@ def test_a_read_only_and_a_full_disk_output_path():
   trouble = []
   try:
     os.chmod(locked, 0o500)
+    # A path whose PARENT IS A FILE. This is the case that survives
+    # being root: permission bits can be ignored by a privileged
+    # process, but no user of any kind can create a directory entry
+    # underneath a regular file -- the kernel answers ENOTDIR to
+    # everybody. It was added because CI runs its container as root,
+    # where the chmod case below drops out and announced itself as
+    # skipped: an unwritable output path was then untested on the only
+    # platform running it automatically (2026-08-11).
+    blocker = os.path.join(parent, "a-file-not-a-directory")
+    with open(blocker, "w", encoding="utf-8") as handle:
+      handle.write("not a directory")
     cases = [("a read-only directory", os.path.join(locked, "map.gpkg")),
              ("a directory that is not there",
-              os.path.join(parent, "gone", "map.gpkg"))]
+              os.path.join(parent, "gone", "map.gpkg")),
+             ("a path whose parent is a file",
+              os.path.join(blocker, "map.gpkg"))]
     # A process running as root ignores the permission bits entirely,
     # so the first case would silently become "a writable directory"
     # and pass while testing nothing. Ask the filesystem rather than
@@ -20034,8 +20047,11 @@ def test_a_read_only_and_a_full_disk_output_path():
       _skip_loudly("test_a_read_only_and_a_full_disk_output_path",
                    "this process can write into a directory chmod'ed "
                    "0o500 (running as root?), so the read-only case "
-                   "was dropped; the missing-directory case still ran")
-      cases = cases[1:]
+                   "was dropped. The other two still ran, and one of "
+                   "them -- a path whose parent is a FILE -- is "
+                   "unwritable for root as well, so an unwritable "
+                   "output path is still genuinely covered here")
+      cases = [c for c in cases if c[0] != "a read-only directory"]
     except OSError:
       pass                      # good: the directory really is locked
 
