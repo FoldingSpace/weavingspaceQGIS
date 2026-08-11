@@ -8222,6 +8222,14 @@ def test_installed_palettes_span_their_declared_colours():
   drift = []
   for group in ("sequential", "diverging"):
     for name, stops in bridge.PALETTES[group].items():
+      # the same restriction as the endpoint check above, and it has
+      # to be repeated because this is a separate loop: only ramps
+      # THIS PLUGIN installed are ours to have opinions about. The
+      # endpoint check was narrowed on 2026-08-11 and this one was
+      # not, so the next CI round failed here instead -- one fix,
+      # two places, and the half-done version looked like progress.
+      if name.lower() not in tagged:
+        continue
       ramp = bridge.get_ramp(name, False)
       if ramp is None:
         continue
@@ -17415,10 +17423,20 @@ def test_the_release_refuses_a_tree_it_did_not_measure():
 # child comes up as a second QGIS with no recipe of its own. It never
 # imports the plugin -- that is the point of the exercise.
 _FRESH_PROCESS_READER = """
+import faulthandler
 import json
 import os
 import sys
 from qgis.core import QgsApplication, QgsVectorLayer
+
+# A crash in C leaves no traceback and no output at all: on QGIS
+# 4.2.1 this child died with exit -11 and both streams empty, which
+# says a segfault happened and nothing whatever about where (CI,
+# 2026-08-11). faulthandler turns that into the C and Python stack at
+# the moment of death, and the STEP lines below narrow it further --
+# between them a crash names the layer and the call it died in
+# rather than only the process it died in.
+faulthandler.enable()
 
 QgsApplication.setPrefixPath(os.environ.get("QGIS_PREFIX_PATH", "/usr"), True)
 app = QgsApplication([], False)
@@ -17426,9 +17444,14 @@ app.initQgis()
 spec = json.loads(open(sys.argv[1], encoding="utf-8").read())
 seen = {}
 for name in spec["layers"]:
+  print("STEP opening " + name, flush=True)
   layer = QgsVectorLayer(spec["path"] + "|layername=" + name, name, "ogr")
   entry = {"valid": bool(layer.isValid())}
   if layer.isValid():
+    # loadDefaultStyle reads the style embedded in the GeoPackage,
+    # which is the most likely place for a crash: it parses QML out
+    # of a table this plugin wrote
+    print("STEP style " + name, flush=True)
     layer.loadDefaultStyle()
     renderer = layer.renderer()
     entry["count"] = layer.featureCount()
@@ -17498,8 +17521,13 @@ def _read_gpkg_in_a_fresh_process(path, layer_names, folder):
       f"a second QGIS process could not be started with "
       f"{sys.executable!r}: {e}") from e
   assert finished.returncode == 0, \
-    f"the fresh QGIS process exited {finished.returncode}; " \
-    f"stdout={finished.stdout[-2000:]!r} stderr={finished.stderr[-2000:]!r}"
+    f"the fresh QGIS process exited {finished.returncode}" \
+    + (" (SIGSEGV: it crashed in C rather than raising; the last "
+       "STEP line below names how far it got, and faulthandler's "
+       "stack should follow it on stderr)"
+       if finished.returncode == -11 else "") \
+    + f"\nstdout={finished.stdout[-2000:]!r}" \
+    + f"\nstderr={finished.stderr[-2000:]!r}"
   line = next((ln for ln in finished.stdout.splitlines()
                if ln.startswith("RESULT ")), None)
   assert line is not None, \
