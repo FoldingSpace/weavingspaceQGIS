@@ -1239,6 +1239,46 @@ MUTATIONS = [
            "Custom is the ramp cell's display for colours already "
            "customized; one word cannot name a state in one column "
            "and an action in the next"),
+  # ---- the element-count range, carried past the web app's
+  # dictionary on 2026-08-10. Each anchor is narrowed with enough of
+  # its surroundings to match exactly once, since a replacement takes
+  # the first occurrence and an anchor that matches twice mutates
+  # something nobody chose.
+  dict(name="element-ceiling-back-to-the-old-limit", file=CATALOG,
+       old="MAX_ELEMENTS = 52",
+       new="MAX_ELEMENTS = 20  # mutation: the old hand-written limit",
+       test="test_every_element_count_up_to_the_ceiling_is_offered",
+       why="the chooser must offer every count the library can build, "
+           "up to the 52 its element-id alphabet allows; capping it "
+           "lower takes designs away from users with no sign that "
+           "anything is missing"),
+  dict(name="seventeen-elements-left-out-again", file=CATALOG,
+       old="for _n in range(2, MAX_ELEMENTS + 1):",
+       new="for _n in [_c for _c in range(2, MAX_ELEMENTS + 1)"
+           " if _c != 17]:  # mutation: skip 17 as the web app did",
+       test="test_every_element_count_up_to_the_ceiling_is_offered",
+       why="17 elements was the count the user noticed missing; a gap "
+           "in the middle of the range reads as a design the library "
+           "cannot do, when in fact four families build it"),
+  dict(name="colouring-offered-where-it-cannot-build", file=CATALOG,
+       old="HEX_COLOURING_COUNTS = tuple(range(2, 17)) + (19, 37)",
+       new="HEX_COLOURING_COUNTS = tuple(range(2, 53))"
+           "  # mutation: offer every count",
+       test="test_the_catalogue_offers_only_designs_that_build",
+       why="hex-colouring is a hand-built arrangement per count, and "
+           "an unsupported count does not raise -- the library prints "
+           "a complaint and substitutes a default unit, so the user "
+           "gets a map quietly carrying the wrong number of variables"),
+  dict(name="new-counts-offer-nothing", file=CATALOG,
+       old="""  for _family, _spec_for in GENERAL_TILINGS.items():
+    _families.setdefault(f"{_family} {_n}", _spec_for(_n))""",
+       new="""  for _family, _spec_for in list(GENERAL_TILINGS.items())[:1]:
+    _families.setdefault(f"{_family} {_n}", _spec_for(_n))""",
+       test="test_every_element_count_up_to_the_ceiling_is_offered",
+       why="all four of stripes, grid, hex-slice and square-slice "
+           "build at every count; dropping three of them leaves the "
+           "new counts on the chooser with almost nothing to pick, "
+           "which is worse than not offering them"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a

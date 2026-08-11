@@ -3,9 +3,11 @@
 The TILINGS_BY_N literal is ported verbatim from the mapweaver web app
 (https://dosull.github.io/mapweaver/app/, app.py
 setup_tilings_dictionary cell); the loop after it adds the two
-sanctioned library extras (stripes, grid) that the app does not carry.
-When syncing against a new app release, update the literal only and
-leave the loop alone.
+sanctioned library extras (stripes, grid) that the app does not carry,
+and the block after THAT carries every family on to the element counts
+the app's hand-written dictionary happened to stop at. When syncing
+against a new app release, update the literal only and leave both
+extension blocks alone.
 
 Each entry maps a display name to the constructor spec for a
 weavingspace TileUnit or WeaveUnit. Keys of TILINGS_BY_N are the number
@@ -223,6 +225,87 @@ for _n in TILINGS_BY_N:
     type="tiling", tiling_type="stripes", n=_n)
   TILINGS_BY_N[_n][f"grid {_n}"] = dict(
     type="tiling", tiling_type="grid", n=_n)
+
+
+# ---------------------------------------------------------------------
+# Element counts past the web app's dictionary (user instruction,
+# 2026-08-10).
+#
+# The literal above offers 2 to 16, then 18, 19 and 20. Seventeen is
+# missing and the range stops at twenty because that is how far
+# somebody typed a dictionary out by hand, not because the library
+# refuses: measured at every count from 2 to 60, four families build a
+# correct unit at EVERY count in between. So the block below carries
+# them on, in the same manner as the stripes/grid loop above.
+#
+# Everything here was measured rather than reasoned about, and it had
+# to be. An element count a family does not support is not refused:
+# Tileable.__init__ prints the setup function's complaint and
+# substitutes a default tileable, so a wrongly offered design would
+# reach the user as a plausible unit carrying the wrong number of
+# elements -- a map quietly missing variables. Nothing may be offered
+# here that has not been built and counted;
+# ``test_the_catalogue_offers_only_designs_that_build`` re-measures
+# every entry at every count on every run.
+
+# The ceiling on every family alike. The library names its elements
+# from ``string.ascii_letters``, so 52 distinct ids is all any unit can
+# carry. Above that the id list runs out while the geometry does not,
+# pandas aligns the two, and the unit comes back with 52 elements
+# covering part of the prototile: asked for 60 stripes, upstream
+# 0.0.7.61 returns 52, silently and without complaint (measured
+# 2026-08-10). Counts above this are therefore not offered at all.
+# Raising the ceiling means widening upstream's id alphabet, which is
+# upstream's decision and not something to patch in the vendor.
+MAX_ELEMENTS = 52
+
+# Families whose construction is a formula in n, so they hold at every
+# count up to the ceiling: stripes cuts the unit into n parallel bands,
+# grid arrays n cells over the tightest near-square array, and the two
+# slice families cut a hexagon or a square into n radial pieces.
+# Measured at 2..60: exactly n distinct ids for every n up to 52.
+GENERAL_TILINGS = {
+  "stripes": lambda n: dict(type="tiling", tiling_type="stripes", n=n),
+  "grid": lambda n: dict(type="tiling", tiling_type="grid", n=n),
+  "hex-slice": lambda n: dict(
+    type="tiling", tiling_type="hex-slice", n=n, offset=0),
+  "square-slice": lambda n: dict(
+    type="tiling", tiling_type="square-slice", n=n, offset=0),
+}
+
+# The two colouring families are NOT formulas: each count is a
+# hand-built arrangement of hexagons or squares in the library's own
+# match statement, so what they support is a list rather than a range.
+# Measured at 2..60; every other count prints "n-colouring of hexes is
+# not supported" and falls back to a default unit. Both lists reach
+# past 20, which is how counts with no other interesting design (37 for
+# hexagons, 25 for squares) come to have one.
+HEX_COLOURING_COUNTS = tuple(range(2, 17)) + (19, 37)
+SQUARE_COLOURING_COUNTS = tuple(range(2, 10)) + (16, 25)
+
+# Families deliberately NOT extended, so nobody re-measures them:
+# chavey is a set of eleven hand-built tilings chosen by letter (A to
+# K, carrying 11, 13, 14, 15, 18, 19 or 20 elements), and crosses,
+# hex-dissection and square-dissection support only a short list of
+# counts each (2-7, {3,4,7,9} and {3,5,9} respectively), all of which
+# the literal above already offers where they exist.
+
+for _n in range(2, MAX_ELEMENTS + 1):
+  # setdefault throughout: a count the web app already covers keeps the
+  # app's own entries untouched, and this block only fills the gaps
+  _families = TILINGS_BY_N.setdefault(_n, {})
+  for _family, _spec_for in GENERAL_TILINGS.items():
+    _families.setdefault(f"{_family} {_n}", _spec_for(_n))
+  if _n in HEX_COLOURING_COUNTS:
+    _families.setdefault(f"hex-colouring {_n}", dict(
+      type="tiling", tiling_type="hex-col", n=_n))
+  if _n in SQUARE_COLOURING_COUNTS:
+    _families.setdefault(f"square-colouring {_n}", dict(
+      type="tiling", tiling_type="square-col", n=_n))
+
+# the chooser lists counts in order, and a dict that gained 17 after 20
+# would otherwise offer them in the order they were added
+TILINGS_BY_N = {_n: TILINGS_BY_N[_n] for _n in sorted(TILINGS_BY_N)}
 
 
 def tightest_grid(n: int):

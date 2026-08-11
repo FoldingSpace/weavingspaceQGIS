@@ -311,7 +311,12 @@ def test_catalogue_sweep():
   constructor argument or changes a family's output breaks here, with
   the family named, before anything subtler fails. It also covers the
   two library extras (stripes, grid) including grid's punctured form
-  (n below rows x cols leaves openings, not fewer distinct ids)."""
+  (n below rows x cols leaves openings, not fewer distinct ids).
+
+  Since the catalogue was carried past the web app dictionary's 20,
+  this sweep spans every count from 2 to the library's 52-element
+  ceiling, which makes it the check that no extended entry offers a
+  design the library cannot build."""
   from weavingspace_qgis import catalog
   for n, families in catalog.TILINGS_BY_N.items():
     for name, spec in families.items():
@@ -328,6 +333,258 @@ def test_catalogue_sweep():
     "2 elements on a 2x2 grid must leave half the cell open"
   rows, cols = catalog.tightest_grid(5)
   assert rows * cols >= 5 and abs(rows - cols) <= 1
+
+
+def test_every_element_count_up_to_the_ceiling_is_offered():
+  """Every element count from 2 to 52 is on offer, 17 included.
+
+  The catalogue began as the web app's hand-written dictionary, which
+  skipped 17 and stopped at 20. Neither was a limit of the library:
+  four families are formulas in n and build correctly at every count
+  up to 52, which is where upstream's own element-id alphabet runs
+  out. The counts are therefore asserted as a contiguous range with a
+  literal ceiling rather than against catalog.MAX_ELEMENTS -- reading
+  the bound from the module under test would let a change to that
+  bound move both sides of the comparison together, and the test
+  would pass while the chooser quietly shrank.
+
+  Seventeen is named on its own line because it is the count the user
+  actually noticed missing, and a range assertion that failed there
+  would not say so.
+  """
+  import string
+  from weavingspace_qgis import catalog
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  # read in the catalogue's own order, not sorted: a dictionary that
+  # gained 17 after 20 would answer "every count is there" while
+  # listing them out of order to anything that does not sort for itself
+  offered = list(catalog.TILINGS_BY_N)
+  assert offered == list(range(2, 53)), \
+    f"the counts on offer are {offered}, not every count from 2 to 52 " \
+    f"in order"
+  assert 17 in catalog.TILINGS_BY_N, \
+    "17 elements is missing again; it was the web app dictionary's " \
+    "omission, not a limit of the library"
+  # the ceiling is upstream's alphabet, so state the connection rather
+  # than the number: 52 letters, 52 possible element ids
+  assert catalog.MAX_ELEMENTS == len(string.ascii_letters) == 52, \
+    f"MAX_ELEMENTS is {catalog.MAX_ELEMENTS}; it is the size of the " \
+    f"library's element-id alphabet and nothing else"
+  # the chooser is built from the catalogue, so what the catalogue
+  # holds is what a user meets
+  assert WeavingSpaceDialog.N_CHOICES == list(range(2, 53)), \
+    f"the chooser offers {WeavingSpaceDialog.N_CHOICES}"
+  # every count carries the four families that generalise, named as
+  # the family list shows them
+  for n in range(2, 53):
+    families = catalog.TILINGS_BY_N[n]
+    for family in ("stripes", "grid", "hex-slice", "square-slice"):
+      assert f"{family} {n}" in families, \
+        f"{n} elements does not offer {family}, which builds at every count"
+
+
+def test_the_catalogue_offers_only_designs_that_build():
+  """A family appears at a count exactly where the library can build it.
+
+  This is the rule that makes the extension safe, and it needs
+  asserting in BOTH directions because an unsupported count does not
+  raise: Tileable.__init__ prints the setup function's complaint and
+  substitutes a default tileable, so a wrongly offered design would
+  reach the user as a plausible unit carrying the wrong number of
+  elements -- a map silently missing variables, reported as a success.
+
+  The two colouring families are where the property has content. Each
+  of their counts is a hand-built arrangement in the library's own
+  match statement rather than a formula, so what they support is a
+  list with holes in it (hexagons: 2 to 16, 19 and 37; squares: 2 to
+  9, 16 and 25). Every count is tried, and the offering must agree
+  with what was built -- an omission has to be earned, not assumed.
+  """
+  import contextlib
+  import io
+  from weavingspace_qgis import catalog
+  builds = {"hex-colouring": 0, "square-colouring": 0}
+  for name, tiling_type in (("hex-colouring", "hex-col"),
+                            ("square-colouring", "square-col")):
+    for n in range(2, catalog.MAX_ELEMENTS + 1):
+      spec = dict(type="tiling", tiling_type=tiling_type, n=n)
+      # the library COMPLAINS on stdout for a count it cannot do;
+      # swallowed here so a passing run stays readable, and the
+      # verdict is taken from the unit rather than from the noise
+      with contextlib.redirect_stdout(io.StringIO()):
+        unit = catalog.make_unit(spec, spacing=500, crs=3857)
+      really_builds = len(set(unit.tiles.tile_id)) == n
+      builds[name] += 1
+      offered = f"{name} {n}" in catalog.TILINGS_BY_N[n]
+      if offered and not really_builds:
+        raise AssertionError(
+          f"{name} is offered at {n} elements but the library builds "
+          f"{len(set(unit.tiles.tile_id))} of them: a design nobody can "
+          f"make is on the menu")
+      if really_builds and not offered:
+        raise AssertionError(
+          f"{name} builds {n} elements correctly but is not offered "
+          f"there; the count lists in catalog.py are out of date")
+  # nothing above was skipped by a guard: the counts really were tried
+  assert builds == {"hex-colouring": 51, "square-colouring": 51}, \
+    f"only {builds} counts were built, so the comparisons above prove less"
+
+
+def test_the_element_id_alphabet_still_limits_the_ceiling():
+  """The library's 52-letter element ids are why the range stops at 52.
+
+  A canary on upstream, not on us. Element ids come from
+  string.ascii_letters, so a unit can carry at most 52 of them. Asking
+  for more is not refused and does not raise: the id list runs out
+  while the geometry does not, pandas aligns the two, and a request
+  for 60 stripes comes back as 52 stripes covering part of the
+  prototile. That is the whole reason counts above 52 are not offered.
+
+  WHEN THIS TEST FAILS, upstream has widened its element ids and the
+  ceiling can rise: raise catalog.MAX_ELEMENTS to whatever the new
+  alphabet allows, re-measure the families, and update this test. Do
+  NOT relax the assertion to make the suite green -- it is reporting
+  good news, and relaxing it would hide exactly the change it exists
+  to announce.
+  """
+  import contextlib
+  import io
+  from weavingspace_qgis import catalog
+  over = catalog.MAX_ELEMENTS + 8      # the 60 the range was asked for
+  with contextlib.redirect_stdout(io.StringIO()):
+    unit = catalog.make_unit(
+      dict(type="tiling", tiling_type="stripes", n=over),
+      spacing=500, crs=3857)
+  ids = set(unit.tiles.tile_id)
+  assert len(ids) == catalog.MAX_ELEMENTS, \
+    f"asked for {over} elements, the library returned {len(ids)}: if " \
+    f"that is MORE than {catalog.MAX_ELEMENTS} the element-id alphabet " \
+    f"has been widened upstream and the catalogue's ceiling can rise. " \
+    f"Do not relax this assertion."
+  # and it really is silent about it -- no exception to catch, which
+  # is why the catalogue has to know the limit rather than discover it
+  assert len(unit.tiles) == catalog.MAX_ELEMENTS, \
+    f"the over-long request produced {len(unit.tiles)} tiles; the " \
+    f"failure mode has changed and the catalogue's reasoning with it"
+
+
+def test_the_table_copes_with_the_largest_element_count():
+  """The dialog at 52 elements: 52 rows, and the layout rule holds.
+
+  The chooser is built from the catalogue and the table gets one row
+  per element, so extending the catalogue past 20 puts two and a half
+  times as many rows into a window that has a width rule
+  (settled 2026-08-09, asserted end to end in
+  test_the_window_fits_the_narrowest_screen at the default count).
+  Repeated here at the top of the range, because a table that grows
+  downwards is fine and a table that grows sideways is not.
+
+  Vertical scrolling is expected and is asserted POSITIVELY: 52 rows
+  must not fit, and a test that found them all showing would be
+  measuring a table that had quietly been given fewer rows.
+
+  THIS TEST IS CURRENTLY RED, on purpose, and the failing assertion
+  says why: once the vertical scrollbar appears the table scrolls
+  sideways by one pixel, because _fit_table_width reserves the style's
+  scrollbar metric (14px) where the scrollbar drawn is 18px wide. It
+  is a defect of the table's sizing, not of the element range -- the
+  same pixel shows at 16 and 20 elements, counts the catalogue has
+  always offered -- and it went unnoticed because the existing
+  test_the_window_fits_the_narrowest_screen measures at the default
+  four rows, where no vertical scrollbar appears. Everything else here
+  passes at 52: the rows, the ids, the unit, the window width, the
+  preview floor, one output layer per element and the rendered map.
+  
+  Regression: _fit_table_width reserved the style's nominal scrollbar metric (14px) where Qt draws 18, so once the rows overflowed the table scrolled HORIZONTALLY and columns past the edge went unfound -- the one thing the layout rule forbids. Reachable at sixteen and twenty elements on the shipped catalogue; hidden because the layout test only ever measured a four-row table. [family-audit]
+  """
+  from weavingspace_qgis import catalog
+  from weavingspace_qgis.dialog import (
+    MAX_WINDOW_WIDTH, PREVIEW_FLOOR, WeavingSpaceDialog)
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  # through the chooser's own signal, as a click does: setting the
+  # count some other way would exercise a path no user is on
+  top = catalog.MAX_ELEMENTS
+  index = dlg.n_combo.findData(top)
+  assert index >= 0, f"{top} elements is not in the chooser at all"
+  dlg.n_combo.setCurrentIndex(index)
+  _settle(dlg)
+  try:
+    assert dlg.table.rowCount() == top, \
+      f"the table has {dlg.table.rowCount()} rows for {top} elements"
+    ids = [dlg.table.item(r, 0).text() for r in range(dlg.table.rowCount())]
+    assert len(set(ids)) == top, \
+      f"the table shows {len(set(ids))} distinct tile ids for {top} elements"
+    # the design itself builds at this count, which is what the rows
+    # are describing
+    unit = dlg._build_unit()
+    assert unit is not None and len(set(unit.tiles.tile_id)) == top, \
+      "the dialog cannot build a unit at the largest count it offers"
+
+    # the widest the table gets: a categorized element brings Classes,
+    # Reverse, the class source and Edit colours all into view at once
+    dlg.table.cellWidget(1, 1).setCurrentText("landcover")
+    dlg._update_dynamic_columns()
+    dlg.show()
+    _tick(300)
+    shown = [c for c in range(dlg.table.columnCount())
+             if not dlg.table.isColumnHidden(c)]
+    assert len(shown) == dlg.table.columnCount(), \
+      f"only columns {shown} are out; this test must measure the table " \
+      f"at its widest or the width assertions below prove nothing"
+    assert dlg.width() <= MAX_WINDOW_WIDTH, \
+      f"at {top} elements the window is {dlg.width()}px wide; past " \
+      f"{MAX_WINDOW_WIDTH} it no longer fits the narrowest screen in use"
+    # KNOWN RED, and deliberately not softened. Measured 2026-08-10:
+    # _fit_table_width reserves PM_ScrollBarExtent (14px on this
+    # build) for the vertical scrollbar, but the scrollbar that
+    # actually appears is 18px, so the viewport lands 4px short of the
+    # columns and the table scrolls sideways by 1. It is NOT the
+    # extended count range that does this: the same 1px shows at 16
+    # and at 20 elements, both of which the web app's own dictionary
+    # offered. The fix belongs in dialog._fit_table_width (reserve the
+    # scrollbar's real width, not the style metric).
+    assert dlg.table.horizontalScrollBar().maximum() == 0, \
+      f"the table scrolls horizontally at {top} elements (scroll range " \
+      f"{dlg.table.horizontalScrollBar().maximum()}px); columns past " \
+      f"the scrollbar go unfound. Reproduced at 16 and 20 elements too, " \
+      f"so this predates the extended range: _fit_table_width reserves " \
+      f"the style's scrollbar metric where the real scrollbar is wider"
+    assert dlg.table.verticalScrollBar().maximum() > 0, \
+      f"all {top} rows fit without scrolling, which cannot be true at " \
+      f"this count: the table is not holding the rows it reports"
+    assert dlg.preview.width() >= PREVIEW_FLOOR, \
+      f"the preview is down to {dlg.preview.width()}px, below the " \
+      f"{PREVIEW_FLOOR}px floor where it stops doing its job"
+
+    # and the map itself: one output layer per element, all 52 of them.
+    # The design is switched to grid and the spacing coarsened first,
+    # because the default family at this count is 52 stripes and at the
+    # auto spacing each of those is a fraction of a pixel wide: every
+    # sampled pixel would be an edge blend, visual_gamut would find
+    # nothing to measure, and the check would report a sentinel rather
+    # than a colour. Grid gives 52 blocks big enough to see.
+    dlg.family_combo.setCurrentText(f"grid {top}")
+    dlg.spacing_spin.setValue(2000)
+    _settle(dlg)
+    _generate_and_wait(dlg)
+    _tick(200)
+    assert len(dlg._element_layer_ids) == top, \
+      f"{len(dlg._element_layer_ids)} element layers were made for " \
+      f"{top} elements"
+    project = QgsProject.instance()
+    layers = [project.mapLayer(lid)
+              for lid in dlg._element_layer_ids.values()]
+    assert all(lyr is not None and lyr.featureCount() > 0 for lyr in layers), \
+      "an element layer arrived empty or missing at the largest count"
+    ramps = sorted({a["ramp"] for a in dlg._assignments() if a.get("ramp")})
+    visual_gamut("fifty-two elements", layers, ramps)
+  finally:
+    dlg.close()
 
 
 def test_bridge_roundtrip():
@@ -23890,6 +24147,14 @@ def main():
   check("weavingspace unit construction", test_library_units)
   check("catalogue sweep (every family, every count)",
         test_catalogue_sweep)
+  check("every element count 2..52 is offered, 17 included",
+        test_every_element_count_up_to_the_ceiling_is_offered)
+  check("the catalogue offers only designs that build",
+        test_the_catalogue_offers_only_designs_that_build)
+  check("element-id alphabet caps the count (upstream canary)",
+        test_the_element_id_alphabet_still_limits_the_ceiling)
+  check("table and layout at the largest element count",
+        test_the_table_copes_with_the_largest_element_count)
   check("layer <-> GeoDataFrame roundtrip", test_bridge_roundtrip)
   check("awkward geometry (invalid, holed, multipart, null)",
         test_awkward_geometry)
