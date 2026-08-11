@@ -86,10 +86,20 @@ jobs:
     needs: standards
     # A backstop under the suite's own per-test watchdog, which names
     # the stuck test and exits. If BOTH fail, this stops a silent job
-    # at forty minutes rather than at GitHub's six-hour ceiling: the
-    # first run here hung for one hour and forty-eight minutes and was
-    # cancelled by hand. Raise it only when a legitimate run needs it.
-    timeout-minutes: 40
+    # well short of GitHub's six-hour ceiling: the first run here hung
+    # for one hour and forty-eight minutes and was cancelled by hand.
+    #
+    # Ninety, not forty. Forty was the first guess and it was sized
+    # against the 24-minute macOS suite, forgetting that these runners
+    # are slower and that the provisioning step downloads a scientific
+    # stack before the suite starts: the first healthy run measured
+    # about halfway through the tests at twenty-one minutes, which
+    # projects past forty. A ceiling a legitimate run can reach is
+    # worse than none, because a red job that means nothing is how
+    # people learn to ignore red jobs. The per-test watchdog is the
+    # instrument that catches a real hang, and it names the test; this
+    # only has to be lower than six hours.
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
