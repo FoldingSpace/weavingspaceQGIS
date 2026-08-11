@@ -245,9 +245,18 @@ table name, a style library -- ask what happens when case stops
 distinguishing two of them.
 
 **Documentation naming something no clone contains.** Three documents
-told a maintainer to iterate with `dev/run_some.py`, which is
-gitignored. Only somebody who was not us could ever find out, and CI
-was the first checkout that was not this machine.
+told a maintainer to iterate with a subset runner that lived in the
+gitignored working-notes directory, so the command they recommended
+named a file no clone contained. It is `tools/run_some.py` now. Only
+somebody who was not us could ever have found out, and CI was the
+first checkout that was not this machine.
+
+That paragraph broke the same test twice, which is the part worth
+keeping: writing the HISTORY of a moved file quoted the old path
+again, and `test_every_documented_command_still_exists` refuses any
+quoted path that does not exist -- rightly, since it cannot tell a
+recommendation from a reminiscence. Describe a path that has gone;
+do not quote it.
 
 **A crash with nothing to say.** QGIS 4.2.1 segfaulted reading one of
 our GeoPackages: exit -11, both streams empty. `faulthandler.enable()`

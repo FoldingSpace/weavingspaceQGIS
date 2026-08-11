@@ -323,6 +323,36 @@ def _watchdog_probe():
   WATCHDOG_PROBE["armed"] = _watchdog_timers()
 
 
+def report_slug(label):
+  """A label turned into a filename every filesystem will accept.
+
+  Args:
+    label: the human name of a visual case, e.g. "categorical colour
+      editor: a hand-picked colour".
+
+  Returns:
+    Lowercase, spaces as underscores, and every character Windows
+    forbids removed. NTFS refuses : " < > | * ? and control
+    characters, and macOS and Linux do not, so a name written happily
+    here is unopenable there. That is not hypothetical twice over:
+    GitHub Actions REFUSED to upload a failing run's reports because
+    one contained a colon (2026-08-11), losing the evidence from the
+    leg that needed it most -- and these same reports are attached to
+    every GitHub Release, where a Windows user downloads them.
+
+  Repeated separators are collapsed so that "editor: a colour" does
+  not become "editor__a_colour", and a trailing separator is dropped,
+  because a name ending in _ reads as truncated.
+  """
+  cleaned = "".join(
+    "_" if character in ' :"<>|*?\\/\t\r\n' else character
+    for character in label.lower()
+    if character not in ",'")
+  while "__" in cleaned:
+    cleaned = cleaned.replace("__", "_")
+  return cleaned.strip("_")
+
+
 def check(name, fn):
   """Run one test in an isolated project.
 
@@ -10201,7 +10231,7 @@ def visual_pair(label, ui_layers, expected_gdf, assignments,
   from visual_tests import render_layers
   from weavingspace_qgis import bridge
   out_dir = report_dir()
-  slug = label.lower().replace(" ", "_").replace(",", "")
+  slug = report_slug(label)
   ui_png = os.path.join(out_dir, f"{slug}_ui.png")
   lib_png = os.path.join(out_dir, f"{slug}_library.png")
   render_layers(list(ui_layers), ui_png)
@@ -10275,7 +10305,7 @@ def visual_gamut(label, ui_layers, ramps, mean_max=1.5, p95_max=4.0,
   sys.path.insert(0, HERE)
   from visual_tests import render_layers, gamut_delta_e, image_stats
   out_dir = report_dir()
-  slug = label.lower().replace(" ", "_").replace(",", "")
+  slug = report_slug(label)
   png = os.path.join(out_dir, f"{slug}_ui.png")
   image = render_layers(list(ui_layers), png)
   _colours, background = image_stats(image)
@@ -10446,7 +10476,7 @@ def _compare_ui_to_library(label, setup, expected_unit, tiling_kw,
   # pair so a reader can see what the dialog drew beside what the
   # library drew, rather than taking a pixel statistic on trust
   out_dir = report_dir()
-  slug = label.lower().replace(" ", "_").replace(",", "")
+  slug = report_slug(label)
   if True:
     ui_png = os.path.join(out_dir, f"{slug}_ui.png")
     lib_png = os.path.join(out_dir, f"{slug}_library.png")
