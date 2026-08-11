@@ -116,6 +116,40 @@ def _enable_stack_dumps():
     pass  # not available on this platform; the watchdog still works
 
 
+def _quieten_the_offscreen_platform():
+  """Tally Qt's one repeated offscreen complaint instead of printing it.
+
+  Returns:
+    None; a Qt message handler is installed for the rest of the
+    process, and QT_NOISE counts what it swallowed.
+
+  `propagateSizeHints()` is a QPlatformWindow method the OFFSCREEN
+  platform plugin does not implement, so Qt warns every time a
+  window's size constraints change. This plugin changes them
+  constantly -- fitting the window to its design tab, fitting the
+  table to its columns, sizing the colour editor to its rows -- and
+  every test runs offscreen. On macOS the real platform implements
+  the call and it appears three times in a whole run; on Linux CI it
+  appears throughout, which is how a log stops being read.
+
+  Swallowed by exact text and COUNTED, not silenced: the count is
+  printed with the results, so the noise stays measurable and a
+  sudden change in it is still visible. Every other Qt message goes
+  to stderr untouched, because a handler that ate real warnings
+  would be a far worse trade than the noise it cured.
+  """
+  from qgis.PyQt import QtCore
+
+  def handler(mode, context, message):
+    if "propagateSizeHints" in message:
+      QT_NOISE["propagateSizeHints"] = \
+        QT_NOISE.get("propagateSizeHints", 0) + 1
+      return
+    print(message, file=sys.stderr, flush=True)
+
+  QtCore.qInstallMessageHandler(handler)
+
+
 def _no_modal_dialogs():
   """Make every message box answer itself.
 
@@ -159,6 +193,11 @@ def _no_modal_dialogs():
 
 
 MODALS = []
+
+# Qt messages the harness swallowed, by kind, so that quietening
+# the log never becomes hiding something. Printed with the
+# results. See _quieten_the_offscreen_platform.
+QT_NOISE = {}
 
 # How long ONE test may go without returning before the suite decides
 # it is stuck, names it, prints every thread's stack and stops.
@@ -504,6 +543,54 @@ def test_a_hanging_test_is_named_rather_than_silent():
       os.environ.pop("WEAVINGSPACE_SWEEP_CASES", None)
     else:
       os.environ["WEAVINGSPACE_SWEEP_CASES"] = previous
+
+
+def test_quietening_the_log_does_not_hide_anything():
+  """The swallowed Qt message is the one named, and only that one.
+
+  Offscreen Qt warns about propagateSizeHints() every time a window's
+  size constraints change, which this plugin does constantly, so on
+  Linux CI the warning arrives throughout the run and a log nobody
+  can read is a log nobody reads. The harness swallows it.
+
+  That is a dangerous kind of fix, and this is the test that keeps it
+  honest: the handler must pass EVERY other Qt message through, and
+  must count what it swallowed rather than discarding it. A filter
+  that quietly widened -- to all warnings, say, or to anything
+  mentioning size -- would hide the next real defect QGIS reports,
+  and would look exactly like this one working.
+
+  Regression: none yet -- written with the filter, because a log filter that widens is invisible until it costs something.
+  """
+  from qgis.PyQt import QtCore
+  before = dict(QT_NOISE)
+  _quieten_the_offscreen_platform()
+  try:
+    QtCore.qWarning(b"This plugin does not support propagateSizeHints()")
+    assert QT_NOISE.get("propagateSizeHints", 0) == \
+        before.get("propagateSizeHints", 0) + 1, \
+      "the named message was not counted; it is being discarded " \
+      "rather than tallied, so nobody can tell how loud it got"
+
+    # anything else must still reach stderr, so capture stderr and
+    # require the message to be in it
+    import io
+    import contextlib
+    caught = io.StringIO()
+    with contextlib.redirect_stderr(caught):
+      QtCore.qWarning(b"a layer said something a maintainer needs")
+    assert "a maintainer needs" in caught.getvalue(), \
+      f"a Qt message that is NOT the known noise was swallowed too: " \
+      f"stderr held {caught.getvalue()!r}. The filter has widened, " \
+      f"and the next real QGIS warning will vanish the same way"
+    assert QT_NOISE.get("propagateSizeHints", 0) == \
+        before.get("propagateSizeHints", 0) + 1, \
+      "an unrelated message was counted as the known noise"
+  finally:
+    QtCore.qInstallMessageHandler(None)
+    _quieten_the_offscreen_platform()   # leave the run as it was
+    QT_NOISE.clear()
+    QT_NOISE.update(before)
 
 
 def test_library_units():
@@ -24774,6 +24861,7 @@ def main():
   app = QgsApplication([], True)
   app.initQgis()
   _enable_stack_dumps()
+  _quieten_the_offscreen_platform()
   _no_modal_dialogs()
   print(f"QGIS Python {sys.version.split()[0]}")
 
@@ -24782,6 +24870,8 @@ def main():
         test_pypi_provisioning_is_reached_only_through_consent)
   check("a hanging test is named, not silent",
         test_a_hanging_test_is_named_rather_than_silent)
+  check("quietening the log hides nothing",
+        test_quietening_the_log_does_not_hide_anything)
   check("weavingspace unit construction", test_library_units)
   check("catalogue sweep (every family, every count)",
         test_catalogue_sweep)
@@ -25315,6 +25405,11 @@ def main():
         test_integration_cancel_and_recover)
 
   print(f"\n{len(PASSED)} passed, {len(FAILED)} failed")
+  for kind, count in sorted(QT_NOISE.items()):
+    # said once rather than <count> times; see
+    # _quieten_the_offscreen_platform for why it is harmless
+    print(f"({count} Qt {kind} warnings from the offscreen "
+          f"platform, swallowed)")
   app.exitQgis()
   sys.exit(1 if FAILED else 0)
 

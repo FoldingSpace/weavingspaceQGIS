@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-65 defect(s) with a regression test.
+66 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -134,6 +134,8 @@ there is no separate list to remember.
   guarded by `test_pypi_provisioning_is_reached_only_through_consent`
 - **deleting the file behind a layer and reloading it made layer.extent() segfault QGIS outright — no exception, no traceback, nothing in the log — and isValid() returned True while the provider was gone; the live-update gate read that extent on every debounce, so the crash was reachable without pressing anything.**  
   guarded by `test_qgis_changes_around_the_plugin`
+- **none yet -- written with the filter, because a log filter that widens is invisible until it costs something.**  
+  guarded by `test_quietening_the_log_does_not_hide_anything`
 - **swatch direction was untested, so drawing every ramp backwards was invisible.**  
   guarded by `test_ramp_swatches_run_the_right_way_round`
 - **the outline casing had no test, so losing the black line entirely was invisible to the suite.**  
@@ -166,7 +168,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 35
+- unrecorded: 36
 - reading the code: 7
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5
