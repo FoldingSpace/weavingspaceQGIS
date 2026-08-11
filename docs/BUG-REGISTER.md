@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-63 defect(s) with a regression test.
+65 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -84,6 +84,8 @@ there is no separate list to remember.
 
 - **a constant column produced five identical classes in five colours; the user's own instruction was that it should revert to a single class with a warning.**  
   guarded by `test_a_constant_column_draws_one_class_and_says_so`
+- **none yet -- the hang it answers was in CI, and this asserts the answer stays wired in.**  
+  guarded by `test_a_hanging_test_is_named_rather_than_silent`
 - **only _finish_run restored the determinate progress range, and the zombie recovery does not go through it.**  
   guarded by `test_a_new_run_always_shows_real_progress`
 - **choosing a Quant: style on a text field produced a graduated renderer with no ranges, so 0 of 112 features painted and four empty layers were reported as a successful run.**  
@@ -128,6 +130,8 @@ there is no separate list to remember.
   guarded by `test_live_update_is_on_by_default`
 - **the live-update signature described the settings but not the data, so an in-place geometry edit or a deletion left the map showing what had been deleted.**  
   guarded by `test_live_update_notices_the_data_changing`
+- **none yet -- written the day CI needed the packages, to keep the fix from becoming a consent bypass.**  
+  guarded by `test_pypi_provisioning_is_reached_only_through_consent`
 - **deleting the file behind a layer and reloading it made layer.extent() segfault QGIS outright — no exception, no traceback, nothing in the log — and isValid() returned True while the provider was gone; the live-update gate read that extent on every debounce, so the crash was reachable without pressing anything.**  
   guarded by `test_qgis_changes_around_the_plugin`
 - **swatch direction was untested, so drawing every ramp backwards was invisible.**  
@@ -162,7 +166,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 33
+- unrecorded: 35
 - reading the code: 7
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5

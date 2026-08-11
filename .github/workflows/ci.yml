@@ -75,6 +75,12 @@ jobs:
   suite:
     runs-on: ubuntu-latest
     needs: standards
+    # A backstop under the suite's own per-test watchdog, which names
+    # the stuck test and exits. If BOTH fail, this stops a silent job
+    # at forty minutes rather than at GitHub's six-hour ceiling: the
+    # first run here hung for one hour and forty-eight minutes and was
+    # cancelled by hand. Raise it only when a legitimate run needs it.
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -118,6 +124,19 @@ jobs:
           python3 -c "import qgis.core; print('QGIS', qgis.core.Qgis.QGIS_VERSION)"
           python3 --version
           python3 -c "import geopandas, shapely, pandas; print('geopandas', geopandas.__version__, '| shapely', shapely.__version__, '| pandas', pandas.__version__)" || echo "scientific stack incomplete -- deps.py's provisioning path is what this platform exercises"
+
+      - name: Provision what this QGIS lacks, the way the plugin does
+        # The qgis/qgis images ship QGIS and nothing else, so the first
+        # run here produced seventy failures of which sixty-nine were
+        # one missing geopandas wearing different costumes. This runs
+        # the plugin's OWN deps module -- wheel-tag matching, the numpy
+        # 1.x floor, the pyproj data redirection -- which is code a Mac
+        # whose QGIS already carries every package can never exercise.
+        # It is a maintainer tool in tools/, outside the shipped zip:
+        # the plugin itself still asks before it downloads anything,
+        # and test_pypi_provisioning_is_reached_only_through_consent
+        # keeps it that way.
+        run: python3 -u tools/ci_provision.py
 
       - name: Functional suite
         run: python3 -u tests/run_tests.py

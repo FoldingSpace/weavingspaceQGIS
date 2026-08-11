@@ -53,6 +53,7 @@ import re
 import signal
 import sys
 import tempfile
+import threading
 import time
 import traceback
 
@@ -159,6 +160,72 @@ def _no_modal_dialogs():
 
 MODALS = []
 
+# How long ONE test may go without returning before the suite decides
+# it is stuck, names it, prints every thread's stack and stops.
+#
+# Written after the first Linux CI run (2026-08-11): a test hung
+# seventy seconds into the suite and the job sat in perfect silence
+# for one hour and forty-eight minutes until somebody cancelled it by
+# hand. The log named the last test that FINISHED, which is the one
+# question nobody needed answered. GitHub's ceiling for that job is
+# six hours, so the same hang unattended would have burned all six and
+# still named nothing.
+#
+# The existing SIGUSR1 dump (see _enable_stack_dumps) needs an outside
+# watcher and there is none in a container, so the suite watches
+# itself. Raise it with WEAVINGSPACE_TEST_STALL on a genuinely slow
+# machine; the number is a ceiling on a HANG, not a performance
+# target, so it is set far above any honest test.
+STALL_SECONDS = float(os.environ.get("WEAVINGSPACE_TEST_STALL", "600"))
+
+
+def _stall_ceiling(name):
+  """How long this particular test may run before it is called stuck.
+
+  Args:
+    name: the registered display name, as passed to check().
+
+  Returns:
+    Seconds, as a float. STALL_SECONDS for everything except the
+    differential sweep, whose length is set by the ENVIRONMENT rather
+    than by the code: it draws WEAVINGSPACE_SWEEP_CASES designs and
+    tiles and renders each one twice, so a campaign asking for 1,700
+    legitimately runs for hours. Ninety seconds a case is far above
+    the observed cost and still bounds a real hang.
+  """
+  if name == "random designs match the library":
+    cases = int(os.environ.get("WEAVINGSPACE_SWEEP_CASES", "6"))
+    return max(STALL_SECONDS, 90.0 * cases)
+  return STALL_SECONDS
+
+
+def _stalled(name, seconds):
+  """Announce a test that never returned, then stop the process.
+
+  Args:
+    name: the test that was running.
+    seconds: the ceiling it passed, for the message.
+
+  Returns:
+    Never returns; the process exits 2.
+
+  Runs on the watchdog's own thread, so the stuck frames belong to
+  somebody else and dump_traceback(all_threads=True) is what shows
+  them. os._exit rather than an exception or sys.exit: the blocked
+  thread is the MAIN one, and anything raised here would unwind this
+  thread only and leave the suite hanging exactly as before.
+  """
+  print(f"\nSTALL  {name}  [no result after {seconds:.0f}s]", flush=True)
+  print("The suite gave up on it. Every thread's stack follows; the "
+        "frames in weavingspace_qgis or tests name the line it "
+        "stopped on. A modal dialog offscreen and a wait for a task "
+        "that never starts are the two that have happened here.",
+        flush=True)
+  sys.stdout.flush()
+  faulthandler.dump_traceback(all_threads=True)
+  sys.stderr.flush()
+  os._exit(2)
+
 
 def check(name, fn):
   """Run one test in an isolated project.
@@ -188,6 +255,13 @@ def check(name, fn):
   MODALS.clear()
   BAR_MESSAGES.clear()
   started = time.perf_counter()
+  # A daemon timer, armed per test and cancelled the moment the test
+  # returns: a hang otherwise produces no output at all, and silence
+  # is the one failure mode a log cannot describe. See _stalled.
+  ceiling = _stall_ceiling(name)
+  watchdog = threading.Timer(ceiling, _stalled, (name, ceiling))
+  watchdog.daemon = True
+  watchdog.start()
   try:
     fn()
     PASSED.append(name)
@@ -197,6 +271,7 @@ def check(name, fn):
     print(f"FAIL  {name}  [{time.perf_counter() - started:.1f}s]")
     traceback.print_exc()
   finally:
+    watchdog.cancel()
     project.clear()
 
 
@@ -278,6 +353,157 @@ def test_deps():
   assert best == f"x-1.0-{top}.whl", "specific wheel must outrank universal"
   assert deps._best_wheel(["x-1.0-cp27-cp27m-win32.whl"]) is None, \
     "an incompatible wheel must never be chosen"
+
+
+def test_pypi_provisioning_is_reached_only_through_consent():
+  """Shipped code reaches PyPI only after the user has said yes.
+
+  Downloading and unpacking code onto somebody's machine is the most
+  intrusive thing this plugin does, and it is the thing a QGIS plugin
+  repository reviewer examines hardest. The arrangement is that
+  `plugin.dependency_consent_box` names the packages, the source and
+  the exact destination, and `deps.provision_from_pypi` runs only if
+  the user clicks the approving button.
+
+  What makes this test necessary rather than obvious: CI needs the
+  same packages, on a container whose QGIS ships none of them, and
+  the convenient way to get them would be a flag or an environment
+  variable that skips the dialogue -- which would put a
+  consent-free download path into the shipped plugin, where a
+  reviewer would rightly refuse it. The provisioning CI does lives in
+  `tools/ci_provision.py`, outside `build.shipped_files()`, so it
+  never reaches a user at all.
+
+  So this asserts the property that matters and not the mechanism:
+  across every file that SHIPS, exactly one call to
+  provision_from_pypi exists, it is in the function that puts the
+  consent box up, and it stands after that function has refused to
+  continue on any answer but approval.
+
+  Regression: none yet -- written the day CI needed the packages, to keep the fix from becoming a consent bypass.
+  """
+  import ast
+  import build
+  from weavingspace_qgis import plugin
+
+  # ---- across everything that ships, count the ways to reach PyPI
+  callers = []
+  for full, arcname in build.shipped_files():
+    if not full.endswith(".py") or "/vendor/" in full.replace(os.sep, "/"):
+      continue      # vendor is upstream's code, held verbatim
+    tree = ast.parse(open(full, encoding="utf-8").read())
+    for node in ast.walk(tree):
+      if isinstance(node, ast.Call) and \
+          getattr(node.func, "attr", None) == "provision_from_pypi":
+        callers.append((arcname, node.lineno))
+  assert len(callers) == 1, \
+    f"shipped code reaches PyPI from {len(callers)} places: " \
+    f"{callers}. One consented route is the whole arrangement; a " \
+    f"second is how a bypass arrives without anyone deciding to add one"
+  arcname, _line = callers[0]
+  assert arcname.endswith("plugin.py"), \
+    f"the download is called from {arcname}, not from plugin.py where " \
+    f"the consent box lives"
+
+  # ---- and in that one place, consent gates it
+  source = ast.parse(open(os.path.join(ROOT, "weavingspace_qgis",
+                                       "plugin.py"),
+                          encoding="utf-8").read())
+  owner = None
+  for node in ast.walk(source):
+    if isinstance(node, ast.FunctionDef):
+      names = {getattr(c.func, "id", None) or getattr(c.func, "attr", None)
+               for c in ast.walk(node) if isinstance(c, ast.Call)}
+      if "provision_from_pypi" in names:
+        owner = node
+        assert "dependency_consent_box" in names, \
+          f"{node.name} downloads from PyPI without ever building the " \
+          f"consent dialogue"
+  assert owner is not None, "no function calls provision_from_pypi"
+  # the early return on any answer but approval, textually, because
+  # the shape of the guard is the guarantee
+  body = "\n".join(open(os.path.join(ROOT, "weavingspace_qgis",
+                                     "plugin.py"),
+                        encoding="utf-8").read().splitlines()
+                   [owner.lineno - 1:])
+  for marker, missing_means in (
+      ("dependency_consent_box", "the dialogue is never built"),
+      ("clickedButton() is not approve",
+       "nothing reads which button was clicked, so declining does "
+       "not stop the download"),
+      ("provision_from_pypi", "the download call has moved")):
+    assert marker in body, \
+      f"{owner.name} no longer contains {marker!r}: {missing_means}"
+  consent = body.index("dependency_consent_box")
+  download = body.index("provision_from_pypi")
+  refusal = body.index("clickedButton() is not approve")
+  assert consent < refusal < download, \
+    "the consent box, the refusal and the download are out of order; " \
+    "the download must come after the click has been read and " \
+    "declining must return before it"
+
+  # ---- the dialogue is a real gate: declining must stop the plugin
+  assert hasattr(plugin, "dependency_consent_box"), \
+    "the consent dialogue has been renamed or removed"
+
+
+def test_a_hanging_test_is_named_rather_than_silent():
+  """Every test runs under a watchdog that would name it if it stuck.
+
+  A hang is the one failure a log cannot describe: the suite stops
+  printing and nothing says which test stopped it. On 2026-08-11 a
+  Linux CI job sat silent for one hour and forty-eight minutes that
+  way, against a six-hour ceiling, and the last line in the log named
+  the previous test -- the only one that was certainly fine.
+
+  The watchdog cannot be tested by letting it fire, since firing means
+  killing the process. What is testable is the wiring, and the wiring
+  is where it would be lost: that a timer is ARMED while a test runs,
+  that it is CANCELLED when the test returns (a timer left behind
+  would eventually kill a later, healthy test), and that the ceiling
+  follows the sweep's case count rather than sitting at a constant
+  that a campaign run would trip over.
+
+  Regression: none yet -- the hang it answers was in CI, and this asserts the answer stays wired in.
+  """
+  def timers():
+    return [t for t in threading.enumerate()
+            if isinstance(t, threading.Timer) and t.is_alive()
+            and getattr(t, "function", None) is _stalled]
+
+  seen = {}
+
+  def a_test_that_looks_around():
+    seen["armed"] = timers()
+
+  before = timers()
+  check("(watchdog wiring, not a real test)", a_test_that_looks_around)
+  assert len(seen.get("armed", [])) == len(before) + 1, \
+    "no watchdog was armed while the test ran, so a hang in it would " \
+    "produce silence rather than a named line"
+  # PASSED gained an entry from that inner check; take it back out so
+  # the harness's own scaffolding does not appear in the report
+  if PASSED and PASSED[-1].startswith("(watchdog wiring"):
+    PASSED.pop()
+  assert len(timers()) == len(before), \
+    "the watchdog outlived the test it was armed for; left running, " \
+    "it would kill whatever test happens to be in progress when its " \
+    "ceiling arrives"
+
+  # the sweep's length is set by the environment, so its ceiling must
+  # be too -- a fixed 600s would kill a legitimate campaign run
+  previous = os.environ.get("WEAVINGSPACE_SWEEP_CASES")
+  os.environ["WEAVINGSPACE_SWEEP_CASES"] = "1700"
+  try:
+    assert _stall_ceiling("random designs match the library") > \
+        _stall_ceiling("dependencies present / wheel logic"), \
+      "the differential sweep gets the same ceiling as an ordinary " \
+      "test; a campaign run would be killed as though it had hung"
+  finally:
+    if previous is None:
+      os.environ.pop("WEAVINGSPACE_SWEEP_CASES", None)
+    else:
+      os.environ["WEAVINGSPACE_SWEEP_CASES"] = previous
 
 
 def test_library_units():
@@ -21198,14 +21424,25 @@ def test_every_element_count_still_has_its_designs():
   the plugin promises, independently of the catalogue, and checks each
   is present and populated.
 
+  The extension to 52 counts (2026-08-10) quietly WEAKENED the
+  original guard and the test had to be strengthened to keep it. The
+  backfill loop calls setdefault for every count from 2 to
+  MAX_ELEMENTS, so a duplicated key in the literal no longer makes a
+  count vanish: the count survives carrying the four families that are
+  formulas in n, and only the hand-written designs -- the weaves, the
+  chaveys, the archimedeans -- disappear. That is the same defect
+  wearing a disguise, so the second half now asserts that every count
+  the literal furnishes still carries at least one design the loop
+  could not have produced.
+
   Regression: a vanished element count was invisible, because the catalogue tests all iterate the catalogue's own keys.
   """
   from weavingspace_qgis import catalog
-  # 2 to 16, then 18, 19, 20: the counts the element chooser offers.
-  # Written out rather than derived from the catalogue, because a test
-  # that asks the catalogue what it contains cannot notice it losing
-  # something.
-  expected = set(range(2, 17)) | {18, 19, 20}
+  # Every count from 2 to 52, written out rather than read from
+  # catalog.MAX_ELEMENTS: taking the bound from the module under test
+  # would move both sides of the comparison together, and a chooser
+  # that quietly shrank would still pass.
+  expected = set(range(2, 53))
   actual = set(catalog.TILINGS_BY_N)
   missing = sorted(expected - actual)
   extra = sorted(actual - expected)
@@ -21215,6 +21452,20 @@ def test_every_element_count_still_has_its_designs():
   assert not extra, \
     f"the catalogue carries element count(s) {extra} the chooser "\
     f"does not offer, so those designs are unreachable"
+  # The counts the web app's literal names, each with a design the
+  # backfill loop cannot make. 16 and 17 are absent deliberately:
+  # every design at those counts comes from the loop.
+  hand_written = set(range(2, 16)) | {18, 19, 20}
+  for n in sorted(hand_written):
+    generated = {f"stripes {n}", f"grid {n}", f"hex-slice {n}",
+                 f"square-slice {n}", f"hex-colouring {n}",
+                 f"square-colouring {n}"}
+    named = sorted(set(catalog.TILINGS_BY_N[n]) - generated)
+    assert named, \
+      f"element count {n} has lost every hand-written design and now " \
+      f"offers only the families generated for every count; the usual " \
+      f"cause is a duplicated key in the TILINGS_BY_N literal, which " \
+      f"Python resolves silently by keeping the last"
   for n in sorted(expected):
     families = catalog.TILINGS_BY_N[n]
     assert families, f"element count {n} is present but empty"
@@ -24527,6 +24778,10 @@ def main():
   print(f"QGIS Python {sys.version.split()[0]}")
 
   check("dependencies present / wheel logic", test_deps)
+  check("PyPI downloads happen only with consent",
+        test_pypi_provisioning_is_reached_only_through_consent)
+  check("a hanging test is named, not silent",
+        test_a_hanging_test_is_named_rather_than_silent)
   check("weavingspace unit construction", test_library_units)
   check("catalogue sweep (every family, every count)",
         test_catalogue_sweep)

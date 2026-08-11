@@ -1390,6 +1390,27 @@ MUTATIONS = [
            "build at every count; dropping three of them leaves the "
            "new counts on the chooser with almost nothing to pick, "
            "which is worse than not offering them"),
+  dict(name="consent-gates-the-download", file=PLUGIN,
+       old="""    if box.clickedButton() is not approve:
+      return False""",
+       new="""    if False:  # mutation: download whatever the user clicked
+      return False""",
+       test="test_pypi_provisioning_is_reached_only_through_consent",
+       why="the consent dialogue is the ONLY thing standing between "
+           "a user and code being downloaded onto their machine, and "
+           "a dialogue whose answer is not read is not consent. A "
+           "QGIS plugin repository reviewer looks straight at this; "
+           "so does the test"),
+  dict(name="duplicated-catalogue-key", file=CATALOG,
+       old="  5: {",
+       new="  6: {",
+       test="test_every_element_count_still_has_its_designs",
+       why="two entries under one key is silently resolved by Python "
+           "keeping the last, and the count loses every hand-written "
+           "design filed under it. The backfill loop hides the older "
+           "form of this defect by refilling the count with the four "
+           "families that build everywhere, so the test looks past "
+           "the count's existence to what is actually in it"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a
