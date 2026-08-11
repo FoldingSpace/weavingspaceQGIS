@@ -17782,6 +17782,61 @@ def test_the_geopackage_opens_cleanly_in_a_fresh_process():
   dlg.close()
 
 
+def test_the_style_is_saved_through_the_current_api():
+  """Styles are written with the call QGIS has not deprecated.
+
+  QGIS 4.0.3 prints "QgsMapLayer.saveStyleToDatabase() is deprecated"
+  and offers saveStyleToDatabaseV2 in its place. A deprecated call is
+  exactly what a later release changes or withdraws, and this plugin
+  writes a style into every GeoPackage it produces -- so the old
+  spelling would go on working right up until the version where it
+  did not, on somebody else's machine.
+
+  What is asserted is which call is REACHED, because that is the
+  thing that would silently regress: a revert to the direct call in
+  bridge.embed_style still passes every test about the style's
+  contents, since both spellings write the same style today. The
+  layer here records what it was asked rather than doing it, so the
+  test needs no GeoPackage and says nothing about whether saving
+  works -- test_an_embedded_style_name_fits_the_column_it_is_written_to
+  does that, end to end.
+
+  Regression: the plugin wrote embedded styles through an API QGIS had already deprecated, discovered while probing a segfault on QGIS 4.2.1.
+  """
+  from weavingspace_qgis import compat
+
+  class _Recorder:
+    """A layer that records which style API it was asked for."""
+
+    def __init__(self, modern):
+      """Args: modern, whether this QGIS offers the V2 spelling."""
+      self.called = []
+      if modern:
+        self.saveStyleToDatabaseV2 = self._v2
+
+    def _v2(self, *args):
+      self.called.append(("V2", args))
+
+    def saveStyleToDatabase(self, *args):
+      self.called.append(("deprecated", args))
+
+  modern = _Recorder(modern=True)
+  compat.save_style_to_database(modern, "a name", "a description")
+  assert [call[0] for call in modern.called] == ["V2"],     f"a QGIS offering saveStyleToDatabaseV2 was asked for "     f"{modern.called!r}; the deprecated call is the one that will "     f"disappear from under this plugin"
+
+  # ...and where V2 does not exist, the old spelling still works
+  # rather than the save failing: an older QGIS must keep its styles
+  old = _Recorder(modern=False)
+  compat.save_style_to_database(old, "a name", "a description")
+  assert [call[0] for call in old.called] == ["deprecated"],     f"a QGIS without V2 recorded {old.called!r}; falling through is "     f"what keeps older versions working"
+
+  # both are asked the same question, useAsDefault included, since
+  # QGIS matches a default style by table rather than by name
+  for recorder in (modern, old):
+    _kind, args = recorder.called[0]
+    assert args[0] == "a name" and args[2] is True,       f"the call was made as {args!r}; useAsDefault must stay True or "       f"the embedded style is stored and never loaded"
+
+
 def test_an_embedded_style_name_fits_the_column_it_is_written_to():
   """The style saved into a GeoPackage keeps a name GDAL can hold.
 
@@ -25441,6 +25496,8 @@ def main():
         test_integration_gpkg_style_round_trip)
   check("the GeoPackage opens cleanly in a fresh process",
         test_the_geopackage_opens_cleanly_in_a_fresh_process)
+  check("the style is saved through the current API",
+        test_the_style_is_saved_through_the_current_api)
   check("an embedded style name fits its column",
         test_an_embedded_style_name_fits_the_column_it_is_written_to)
   check("attribute names survive the round trip",

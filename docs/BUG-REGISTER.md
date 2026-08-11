@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-71 defect(s) with a regression test.
+72 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -158,6 +158,8 @@ there is no separate list to remember.
   guarded by `test_the_preview_actually_draws_what_it_is_given`
 - **release.py's watchdog measured wall clock, so a laptop asleep mid-release would have aborted a healthy run as hung. The same defect cost four verdicts in mutation batch 8 and was fixed there; release.py was written afterwards and repeated it.**  
   guarded by `test_the_release_watchdog_ignores_a_sleeping_machine`
+- **the plugin wrote embedded styles through an API QGIS had already deprecated, discovered while probing a segfault on QGIS 4.2.1.**  
+  guarded by `test_the_style_is_saved_through_the_current_api`
 - **the deferred fit-to-design after showEvent had no test, so the window could open too small to show its own controls.**  
   guarded by `test_the_window_fits_its_design_tab_when_shown`
 - **two warnings from one run shared a single label and the last one silently erased the first.**  
@@ -178,7 +180,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 41
+- unrecorded: 42
 - reading the code: 7
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5

@@ -1446,6 +1446,15 @@ MUTATIONS = [
            "variable, so a long column name overruns it and is "
            "truncated with a warning on every write -- storing a "
            "value that does not say what this code thinks it says"),
+  dict(name="style-saved-with-the-deprecated-call", file=COMPAT,
+       old='  saver = getattr(layer, "saveStyleToDatabaseV2", None)',
+       new="  saver = None  # mutation: always the deprecated spelling",
+       test="test_the_style_is_saved_through_the_current_api",
+       why="QGIS 4.0.3 already deprecates saveStyleToDatabase, and a "
+           "deprecated call is what a later release withdraws. Both "
+           "spellings write the same style today, so every test about "
+           "the style's CONTENTS passes either way and only a test "
+           "about which call is reached can notice the regression"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a
