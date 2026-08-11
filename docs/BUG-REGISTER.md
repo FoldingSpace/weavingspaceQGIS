@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-70 defect(s) with a regression test.
+71 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -98,6 +98,8 @@ there is no separate list to remember.
   guarded by `test_a_sequence_of_edits_under_the_plugin`
 - **a stage log kept the previous run's verdict for the whole time the stage ran, and read as current.**  
   guarded by `test_a_stage_log_never_shows_the_previous_run`
+- **the embedded style name was the layer's own, so a long column name overran GDAL's thirty-character styleName column and was truncated with a warning on every write.**  
+  guarded by `test_an_embedded_style_name_fits_the_column_it_is_written_to`
 - **the inset percentage conversion was defended only by comparisons whose tolerance is wider than the error.**  
   guarded by `test_an_inset_percentage_is_a_percentage_of_the_spacing`
 - **none of these shapes had ever been put through the plugin; the suite's fixtures are all well-formed.**  
@@ -176,7 +178,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 40
+- unrecorded: 41
 - reading the code: 7
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5

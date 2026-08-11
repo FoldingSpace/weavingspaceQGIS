@@ -1305,9 +1305,24 @@ def embed_style(layer: QgsVectorLayer) -> None:
   lets a colleague open the .gpkg and see the map already symbolized.
   Best-effort because the API signature has drifted across versions
   and a failed style save should never fail the run.
+
+  The style NAME is trimmed to thirty characters because that is the
+  width GDAL gives layer_styles.styleName, and a longer one is
+  truncated with a warning on every write -- which a user with a long
+  column name meets routinely, since output layers are named after
+  the element and its variable (a 73-character field produced a
+  77-character style name, GDAL, 2026-08-11). Nothing depended on the
+  full name: QGIS loads the default style by matching the TABLE, not
+  the style's name, so the only cost of the old behaviour was a
+  warning nobody could act on and a stored value that did not say
+  what it claimed. Trimming here rather than leaving GDAL to do it
+  means the value in the file is one this code chose.
   """
+  # 30 is GDAL's column width, not a preference; if a future GDAL
+  # widens it this can simply go.
+  name = layer.name()[:30]
   try:
-    layer.saveStyleToDatabase(layer.name(), "seeded by WeavingSpace",
+    layer.saveStyleToDatabase(name, "seeded by WeavingSpace",
                               True, "")
   except Exception:
     pass

@@ -17693,6 +17693,72 @@ def test_the_geopackage_opens_cleanly_in_a_fresh_process():
   dlg.close()
 
 
+def test_an_embedded_style_name_fits_the_column_it_is_written_to():
+  """The style saved into a GeoPackage keeps a name GDAL can hold.
+
+  QGIS stores a layer's style inside the .gpkg, in a layer_styles
+  table whose styleName column GDAL makes thirty characters wide.
+  The plugin passed the LAYER's name, and output layers are named
+  after the element and its variable, so a user with a long column
+  name produced a longer style name than the column can hold: GDAL
+  truncated it and warned on every write. A 73-character field
+  produced a 77-character style name (measured 2026-08-11).
+
+  Nothing broke, which is why it went unnoticed for so long -- QGIS
+  loads the default style by matching the TABLE rather than the style
+  name. What was wrong is subtler and worth fixing anyway: the value
+  stored did not say what the code thought it said, and the warning
+  was noise a reader had to learn to skip, in a log where the next
+  line might matter.
+
+  The name is read back out of the file with sqlite3 rather than
+  through QGIS, so the assertion is about what was actually written
+  rather than about what QGIS reports having written.
+
+  Regression: the embedded style name was the layer's own, so a long column name overran GDAL's thirty-character styleName column and was truncated with a warning on every write.
+  """
+  import shutil
+  import sqlite3
+  import tempfile
+  from weavingspace_qgis import bridge
+  folder = tempfile.mkdtemp(prefix="ws-style-name-")
+  try:
+    layer = make_region_layer()
+    # the shape of a real output layer name when the user's column is
+    # long: element, variable and enough words to pass thirty
+    long_name = "WeavingSpace tiles - element a - " + "deprivation_index" * 3
+    assert len(long_name) > 30, "the fixture is not long enough to bite"
+    layer.setName(long_name)
+    path = os.path.join(folder, "styles.gpkg")
+    written = bridge.write_gpkg_layer(layer, path, "element_a", True)
+    assert written is not None and written.isValid(), \
+      "the layer was not written, so there is no style to look at"
+    written.setName(long_name)
+    bridge.embed_style(written)
+
+    connection = sqlite3.connect(path)
+    try:
+      tables = [r[0] for r in connection.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'")]
+      assert "layer_styles" in tables, \
+        f"no layer_styles table was written, so no style was embedded " \
+        f"at all; tables are {tables}"
+      names = [r[0] for r in connection.execute(
+        "SELECT styleName FROM layer_styles")]
+    finally:
+      connection.close()
+    assert names, "layer_styles exists but holds no style"
+    for name in names:
+      assert len(name) <= 30, \
+        f"the embedded style is named {name!r}, {len(name)} " \
+        f"characters, and GDAL's styleName column holds thirty: it " \
+        f"is truncated on write, with a warning, every time"
+      assert name, "the style name is empty, which names nothing at all"
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_attribute_names_survive_the_round_trip():
   """Awkward column names reach the output, or the user is told.
 
@@ -23443,10 +23509,17 @@ def test_ramp_swatches_and_palette_installation():
   style = QgsStyle.defaultStyle()
   wanted = set(bridge.PALETTES["sequential"]) | \
       set(bridge.PALETTES["diverging"])
-  missing = wanted - set(style.colorRampNames())
+  # USABLE, not installed-by-us. A palette whose name QGIS already
+  # carries in another casing is deliberately not installed -- Linux
+  # QGIS ships Cividis, Inferno, Magma and Plasma against this
+  # table's lowercase -- and get_ramp resolves it. Comparing names
+  # exactly reported four palettes as missing that a user can choose
+  # perfectly well (CI, 2026-08-11). The old message also said "5"
+  # while listing four, having truncated its own evidence.
+  missing = {w for w in wanted if bridge.get_ramp(w, False) is None}
   assert not missing, \
-    f"{len(missing)} of the plugin's palettes never reached the QGIS "\
-    f"style, so a user cannot choose them: {sorted(missing)[:4]}"
+    f"{len(missing)} of the plugin's palettes cannot be produced by "\
+    f"the style library, so a user cannot use them: {sorted(missing)}"
 
   # The style persists in the user's profile, so on a machine that has
   # run this plugin before, everything is already installed and the
@@ -23457,10 +23530,11 @@ def test_ramp_swatches_and_palette_installation():
   # and a mutant in either leaves a user without half the choices. Take
   # one from each.
   categorical = set(bridge.PALETTES["categorical"])
-  missing_cat = categorical - set(style.colorRampNames())
+  missing_cat = {c for c in categorical
+                 if bridge.get_ramp(c, False) is None}
   assert not missing_cat, \
-    f"categorical palettes missing from the style: "\
-    f"{sorted(missing_cat)[:4]}"
+    f"categorical palettes the style cannot produce: "\
+    f"{sorted(missing_cat)}"
   cat_victim = sorted(categorical)[0]
   assert style.removeColorRamp(cat_victim)
   bridge.ensure_ramps_installed()
@@ -24456,6 +24530,24 @@ rt._generate_and_wait(dlg)
 ids = list(dlg._element_layer_ids.values())
 counts = [QgsProject.instance().mapLayer(i).featureCount() for i in ids]
 print("TILES %d" % sum(counts))
+# What the C library thinks, and whether the unit builds when called
+# directly. "The tile unit could not be built" names the symptom and
+# not the cause, and a CI round costs forty minutes, so the child
+# reproduces the build itself and prints the exception verbatim.
+import locale as _locale, traceback as _tb
+print("CLOCALE %r" % (_locale.getlocale(_locale.LC_NUMERIC),))
+print("FLOATFMT %s" % ("%f" % 1234.5))
+try:
+    from weavingspace_qgis import catalog as _cat
+    _spec = _cat.TILINGS_BY_N[2]["hex-slice 2"]
+    _unit = _cat.make_unit(_spec, spacing=1234.5, crs=3857)
+    print("DIRECT %d" % len(_unit.tiles))
+except Exception:
+    # chr(10) rather than an escape: this program is itself a string
+    # literal in this file, so a backslash-n here is resolved when
+    # THIS file is parsed and lands as a real newline in the child's
+    # source, which then fails to compile
+    print("DIRECTFAIL %s" % _tb.format_exc().replace(chr(10), " | "))
 # Diagnostics that only matter when TILES is zero, printed always so
 # a failure explains itself the first time. This test failed on Linux
 # CI (2026-08-11) with nothing but "no tiles were produced", which
@@ -24486,8 +24578,9 @@ os._exit(0)
   out = dict(line.split(" ", 1) for line in result.stdout.splitlines()
              if line.split(" ")[0].isupper() and " " in line)
   assert "SPACING" in out, \
-    f"the plugin did not survive a comma-decimal locale:\n" \
-    f"{result.stderr[-1500:]}"
+    f"the plugin did not survive a comma-decimal locale.\n" \
+    f"stdout: {result.stdout[-1200:]!r}\n" \
+    f"stderr: {result.stderr[-1200:]!r}"
   assert abs(float(out["SPACING"]) - 1234.5) < 1e-9, \
     f"a spacing of 1234.5 came back as {out['SPACING']} under a "\
     f"comma-decimal locale"
@@ -24500,7 +24593,9 @@ os._exit(0)
     f"no tiles were produced under a comma-decimal locale. " \
     f"layers={out.get('LAYERS')} each={out.get('EACH')!r} " \
     f"spacing={out.get('SPACING')} shown={out.get('SHOWN')!r} " \
-    f"told={out.get('TOLD')!r} estimate={out.get('ESTIMATE')}\n" \
+    f"told={out.get('TOLD')!r} estimate={out.get('ESTIMATE')} " \
+    f"clocale={out.get('CLOCALE')} floatfmt={out.get('FLOATFMT')!r} " \
+    f"direct={out.get('DIRECT') or out.get('DIRECTFAIL')}\n" \
     f"stderr: {result.stderr[-800:]}"
   assert out.get("WROTE") == "1", \
     "the GeoPackage was not written under a comma-decimal locale"
@@ -25219,6 +25314,8 @@ def main():
         test_integration_gpkg_style_round_trip)
   check("the GeoPackage opens cleanly in a fresh process",
         test_the_geopackage_opens_cleanly_in_a_fresh_process)
+  check("an embedded style name fits its column",
+        test_an_embedded_style_name_fits_the_column_it_is_written_to)
   check("attribute names survive the round trip",
         test_attribute_names_survive_the_round_trip)
   check("the output carries no working state",
