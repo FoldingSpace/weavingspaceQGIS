@@ -266,6 +266,33 @@ def _stalled(name, seconds):
   os._exit(2)
 
 
+WATCHDOG_PROBE = {}
+
+
+def _watchdog_timers():
+  """Live watchdog timers armed by check(), as a list.
+
+  Returns:
+    Every alive threading.Timer whose callback is _stalled. Used to
+    prove a watchdog is armed while a test runs and cancelled after.
+  """
+  return [t for t in threading.enumerate()
+          if isinstance(t, threading.Timer) and t.is_alive()
+          and getattr(t, "function", None) is _stalled]
+
+
+def _watchdog_probe():
+  """A test body that records what was armed while it ran.
+
+  Returns:
+    None; WATCHDOG_PROBE["armed"] holds the timers seen. Module-level
+    rather than nested inside the test that uses it, because check()
+    registrations are what docs/TEST-MAP.md is built from and the
+    generator indexes only module-level defs.
+  """
+  WATCHDOG_PROBE["armed"] = _watchdog_timers()
+
+
 def check(name, fn):
   """Run one test in an isolated project.
 
@@ -505,26 +532,22 @@ def test_a_hanging_test_is_named_rather_than_silent():
 
   Regression: none yet -- the hang it answers was in CI, and this asserts the answer stays wired in.
   """
-  def timers():
-    return [t for t in threading.enumerate()
-            if isinstance(t, threading.Timer) and t.is_alive()
-            and getattr(t, "function", None) is _stalled]
-
-  seen = {}
-
-  def a_test_that_looks_around():
-    seen["armed"] = timers()
-
-  before = timers()
-  check("(watchdog wiring, not a real test)", a_test_that_looks_around)
-  assert len(seen.get("armed", [])) == len(before) + 1, \
+  before = _watchdog_timers()
+  # the probe is a MODULE-LEVEL function, not a closure: check() is
+  # what the test map reads to build its index, and it indexes only
+  # module-level defs, so registering a nested function here made the
+  # suite claim a test the map could not list. Linux CI found that
+  # within the hour (2026-08-11); it would have failed anywhere.
+  WATCHDOG_PROBE.clear()
+  check("(watchdog wiring, not a real test)", _watchdog_probe)
+  assert len(WATCHDOG_PROBE.get("armed", [])) == len(before) + 1, \
     "no watchdog was armed while the test ran, so a hang in it would " \
     "produce silence rather than a named line"
   # PASSED gained an entry from that inner check; take it back out so
   # the harness's own scaffolding does not appear in the report
   if PASSED and PASSED[-1].startswith("(watchdog wiring"):
     PASSED.pop()
-  assert len(timers()) == len(before), \
+  assert len(_watchdog_timers()) == len(before), \
     "the watchdog outlived the test it was armed for; left running, " \
     "it would kill whatever test happens to be in progress when its " \
     "ceiling arrives"
