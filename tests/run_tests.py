@@ -1315,6 +1315,7 @@ def test_the_window_fits_its_design_tab_when_shown():
   assert dlg.height() >= needed, \
     f"the window is {dlg.height()}px tall but its Design tab needs "\
     f"{needed}px, so the lower controls are off the bottom"
+
   dlg.close()
 
 
@@ -1743,15 +1744,33 @@ def test_the_preview_actually_draws_what_it_is_given():
     f"the drawing centres at y={cy:.0f} in a {high}px widget; the "\
     f"vertical offset is wrong"
 
-  # antialiasing: colours that are neither a fill nor the background
-  fills = {(QColor(c).red(), QColor(c).green(), QColor(c).blue())
-           for c in dlg.preview._id_colours.values()}
+  # Smoothed edges, read the way a user sees them: a tile's sloping
+  # or curved boundary is drawn as a run of shades between the two
+  # colours meeting there, so a real share of the picture is a colour
+  # that is neither of them. Jagged, every pixel belongs to one fill
+  # or the other and the pattern reads as stairs.
+  #
+  # The comparison is against the fills AS PAINTED, not against
+  # _id_colours: those carry alpha and the widget blends each with its
+  # background, so no painted pixel ever matches one of them. The
+  # earlier version of this check compared against them and therefore
+  # counted the whole drawing as "between the fills", which is why it
+  # held with the render hint deleted. Measured on this fixture: 2.8%
+  # of the picture sits between the fills with the hint set and 0.14%
+  # without it -- that residue being the tile-id lettering, which Qt
+  # smooths under a different hint -- so one per cent separates them
+  # with room on either side.
+  def is_a_fill(key):
+    return any(all(abs(key[i] - fill[i]) <= 6 for i in range(3))
+               for fill in substantial)
+
   blended = sum(count for key, count in seen.items()
-                if all(abs(key[0] - f[0]) > 6 or abs(key[1] - f[1]) > 6
-                       or abs(key[2] - f[2]) > 6 for f in fills))
-  assert blended > 0, \
-    "no colour between the fills anywhere: edges are not being "\
-    "smoothed, so the render hint is not set"
+                if not is_a_fill(key))
+  assert blended > sampled * 0.01, \
+    f"only {blended / sampled:.2%} of the preview is a shade between "\
+    f"the fills, so the edges are stepping from one colour straight "\
+    f"to the next: the design view reads as stairs rather than as "\
+    f"shapes"
   dlg.close()
 
 
@@ -7287,7 +7306,39 @@ def test_installed_palettes_span_their_declared_colours():
   Regression: only the existence of installed palettes was checked, never the colours they run between.
   """
   from qgis.PyQt.QtGui import QColor
+  from qgis.core import QgsStyle
   from weavingspace_qgis import bridge
+
+  # Install them for real, on THIS run's code. The style library lives
+  # in the user's QGIS profile and outlives the suite, so on a machine
+  # that has ever run this plugin every palette is already there and
+  # the installer's own loop -- which is where the stops are built --
+  # skips every name it is given. Checking the ramps as found would
+  # then be checking ramps some earlier session installed, and would
+  # hold whatever this version of the code does with the stops.
+  # Removing them first is what test_ramp_swatches_and_palette_
+  # installation does for the same reason, and it is also what makes
+  # the check self-healing: a run that installs bad ramps cannot
+  # poison the next one, because the next one takes them out again
+  # before it looks.
+  # Only ramps carrying the plugin's own tag are taken out: a name the
+  # user already had belongs to them, the installer leaves it alone,
+  # and this test must not delete it either.
+  bridge.ensure_ramps_installed()
+  style = QgsStyle.defaultStyle()
+  entity = QgsStyle.StyleEntity.ColorrampEntity
+  present = set(style.colorRampNames())
+  reinstalled = 0
+  for group in ("sequential", "diverging"):
+    for name in bridge.PALETTES[group]:
+      tags = [t.lower() for t in style.tagsOfSymbol(entity, name)]
+      if name in present and bridge.RAMP_TAG in tags:
+        style.removeColorRamp(name)
+        reinstalled += 1
+  assert reinstalled >= 4, \
+    f"only {reinstalled} of the plugin's own ramps could be taken out "\
+    f"and rebuilt, so this test would be reading ramps installed by "\
+    f"some earlier session"
   bridge.ensure_ramps_installed()
   checked = 0
   for group in ("sequential", "diverging"):
@@ -7532,11 +7583,38 @@ def test_a_new_run_always_shows_real_progress():
   dlg.progress.setRange(0, 0)
   assert dlg.progress.maximum() == 0, "the setup did not take"
 
-  _generate_and_wait(dlg)
+  # Read the bar WHILE the tiling is running, which is the only moment
+  # it is the thing the user is watching. Reading it afterwards proves
+  # nothing: _finish_run restores the determinate range on its way
+  # out, so the bar is right by the time the run has landed however
+  # wrong it was throughout -- which is exactly how this test used to
+  # pass with the range never being set at all.
+  loop = QEventLoop()
+  original = dlg._on_generated
+  during = {}
+
+  def watch(*args, **kwargs):
+    original(*args, **kwargs)
+    loop.quit()
+
+  dlg._on_generated = watch
+  dlg._generate()
+  assert dlg._task is not None, \
+    "no run was launched, so there is no run to watch the bar during"
+  during["maximum"] = dlg.progress.maximum()
+  during["visible"] = dlg.progress.isVisibleTo(dlg)
+  QTimer.singleShot(120_000, loop.quit)
+  loop.exec()
+  dlg._on_generated = original
   _tick(200)
-  assert dlg.progress.maximum() == 100, \
+
+  assert during["visible"], \
+    "the progress bar was not shown while the tiling ran"
+  assert during["maximum"] == 100, \
     "a new run inherited the indefinite progress bar from a previous "\
-    "one, so a tiling that is progressing reports no percentage"
+    "one, so a tiling that IS progressing reports only that something "\
+    "is happening -- the failure the busy bar was introduced to "\
+    "prevent, wearing the opposite face"
   dlg.close()
 
 
@@ -22011,7 +22089,17 @@ def test_switching_region_layer_counts_as_a_change():
   map. An automatic mutant inverted exactly that test and survived,
   because every existing test pressed Generate, which does the work
   regardless.
+
+  Three things have to happen when the region layer changes, and the
+  test walks them in that order: the signatures must move, the
+  elements must re-point at the new layer's COLUMNS (a name the new
+  layer does not have leaves an element with no variable, drawing as
+  flat fill), and live update must redraw even when the new layer is
+  one the cheap fingerprint cannot tell from the old one -- the same
+  areas and columns carrying different numbers, which is what two
+  years of the same wards look like.
   """
+  from weavingspace_qgis import compat
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
   first = make_region_layer()
@@ -22051,6 +22139,84 @@ def test_switching_region_layer_counts_as_a_change():
   out = project.mapLayer(dlg._element_layer_ids["a"])
   assert out.extent().intersects(second.extent()), \
     "the tiled output does not overlap the region that was chosen"
+
+  # The elements must follow the new layer's COLUMNS as well as its
+  # areas. Pointing the plugin at another dataset -- last year's wards
+  # at this year's, one authority's areas at another's -- usually
+  # means different column names, and an element still holding a name
+  # the new layer does not have is an element with no variable: it
+  # draws as flat fill, so a map of four attributes silently becomes a
+  # map of none.
+  other = QgsVectorLayer("MultiPolygon?crs=EPSG:3857", "wards", "memory")
+  other.dataProvider().addAttributes([compat.make_field("people", float),
+                                      compat.make_field("income", float)])
+  other.updateFields()
+  feats = []
+  for i in range(4):
+    for j in range(4):
+      f = QgsFeature(other.fields())
+      f.setGeometry(QgsGeometry.fromWkt(
+        f"POLYGON(({i * 1000} {j * 1000}, {i * 1000 + 1000} {j * 1000}, "
+        f"{i * 1000 + 1000} {j * 1000 + 1000}, "
+        f"{i * 1000} {j * 1000 + 1000}, {i * 1000} {j * 1000}))"))
+      f["people"], f["income"] = float(i * 10 + j), float(j)
+      feats.append(f)
+  other.dataProvider().addFeatures(feats)
+  other.updateExtents()
+  project.addMapLayer(other)
+
+  mapped_before = {a["id"] for a in dlg._assignments() if a["var"]}
+  assert mapped_before, "no element was mapped before the switch, so "\
+    "the check below would prove nothing"
+  dlg.layer_combo.setLayer(other)
+  _tick(600)
+  columns = {f.name() for f in other.fields()}
+  now = {a["id"]: a["var"] for a in dlg._assignments()}
+  for tid in mapped_before:
+    assert now.get(tid) in columns, \
+      f"element {tid} shows {now.get(tid)!r} after the region layer "\
+      f"changed, which is not a column of the layer now chosen "\
+      f"({sorted(columns)}); it will draw as flat fill"
+
+  # A layer the fingerprint cannot tell apart from the one before it.
+  # Two years of the same wards -- same areas, same columns, same CRS,
+  # different numbers -- agree on feature count, extent and field
+  # names, so the ONLY term that can notice the switch is the layer's
+  # own identity. Without it, live update decides nothing has changed
+  # and the first year's map stays on screen.
+  twin = make_region_layer(origin=(500000, 500000))
+  twin.setName("second region, another year")
+  index = twin.fields().indexOf("v1")
+  changes = {f.id(): {index: float(f["v1"]) * 100 + 7}
+             for f in twin.getFeatures()}
+  assert twin.dataProvider().changeAttributeValues(changes), \
+    "could not give the twin layer different numbers to show"
+  project.addMapLayer(twin)
+
+  dlg.layer_combo.setLayer(second)
+  _tick(500)
+  fingerprint = dlg._layer_fingerprint()
+  dlg.layer_combo.setLayer(twin)
+  _tick(500)
+  assert dlg._layer_fingerprint() == fingerprint, \
+    "the two layers were built to be indistinguishable by their "\
+    "contents, and are not, so this check would pass on the "\
+    "fingerprint and say nothing about layer identity"
+
+  dlg.live_check.setChecked(True)
+  dlg.layer_combo.setLayer(second)
+  _tick(500)
+  assert _settle(dlg, 90), "the live run on the second region hung"
+  out = project.mapLayer(dlg._element_layer_ids["a"])
+  drawn_before = sorted({f["v1"] for f in out.getFeatures()})
+  dlg.layer_combo.setLayer(twin)
+  _tick(500)
+  assert _settle(dlg, 90), "the live run on the twin layer hung"
+  out = project.mapLayer(dlg._element_layer_ids["a"])
+  assert sorted({f["v1"] for f in out.getFeatures()}) != drawn_before, \
+    "switching to a region layer with the same areas and different "\
+    "numbers left the previous layer's map on screen: live update "\
+    "compared the two runs and decided nothing had changed"
   dlg.close()
 
 
@@ -23615,7 +23781,66 @@ def test_the_map_says_which_areas_it_left_out():
   assert "1500" in note or "1,500" in note, \
     f"the note must name the spacing that caused it: {note!r}"
 
-  # the tracing column must not reach the user's layers
+  # And the units in that sentence must be the units the number is
+  # in. A geographic layer is reprojected to Web Mercator before
+  # anything is tiled, so its spacing is metres however the layer
+  # measures itself; naming the layer's own unit gives "At 1,500 °
+  # spacing", a label contradicting the quantity beside it and a
+  # figure a user cannot act on -- 1,500 degrees is nothing anybody
+  # can type into the box. The same fixture in degrees, near the
+  # equator where a degree is about 111 km.
+  degree = 111_319.49
+  wgs = QgsVectorLayer("MultiPolygon?crs=EPSG:4326", "uneven degrees",
+                       "memory")
+  wgs.dataProvider().addAttributes([compat.make_field("v", float)])
+  wgs.updateFields()
+  feats = []
+  for i in range(3):
+    f = QgsFeature(wgs.fields())
+    x0, x1 = i * 3000 / degree, (i * 3000 + 3000) / degree
+    y1 = 3000 / degree
+    f.setGeometry(QgsGeometry.fromWkt(
+      f"POLYGON(({x0} 0, {x1} 0, {x1} {y1}, {x0} {y1}, {x0} 0))"))
+    f["v"] = float(i)
+    feats.append(f)
+  small = QgsFeature(wgs.fields())          # again, far smaller than a tile
+  x0, x1, y1 = 9000 / degree, 9040 / degree, 40 / degree
+  small.setGeometry(QgsGeometry.fromWkt(
+    f"POLYGON(({x0} 0, {x1} 0, {x1} {y1}, {x0} {y1}, {x0} 0))"))
+  small["v"] = 9.0
+  feats.append(small)
+  wgs.dataProvider().addFeatures(feats)
+  wgs.updateExtents()
+  project.addMapLayer(wgs)
+
+  BAR_MESSAGES.clear()
+  dlg.layer_combo.setLayer(wgs)
+  _tick(400)                    # let the layer's own auto-spacing land
+  dlg.spacing_spin.setValue(1500)
+  dlg.table.cellWidget(0, 1).setCurrentText("v")
+  _tick(300)
+  assert dlg.spacing_spin.value() == 1500, \
+    f"the spacing was re-derived to {dlg.spacing_spin.value()} after "\
+    f"it was set, so the notice below would name a number this test "\
+    f"did not choose"
+  _generate_and_wait(dlg)
+  _tick(300)
+  degrees_note = " ".join(text for _kind, text in BAR_MESSAGES)
+  assert "received no tiles" in degrees_note, \
+    f"the same coverage loss on a layer in degrees said nothing: "\
+    f"{degrees_note!r}"
+  assert "1500 m" in degrees_note or "1,500 m" in degrees_note, \
+    f"the spacing is metres, because the layer is reprojected before "\
+    f"it is tiled, and the notice must say so: {degrees_note!r}"
+  assert "°" not in degrees_note, \
+    f"the notice reports the spacing in degrees, which is not what "\
+    f"the number means and not a spacing anyone could type: "\
+    f"{degrees_note!r}"
+
+  # the tracing column must not reach the user's layers (asked of the
+  # run just made, rather than paying for another tiling to ask it of
+  # the first: the column is added and stripped the same way whatever
+  # the region's CRS)
   out = project.mapLayer(dlg._element_layer_ids["a"])
   names = [f.name() for f in out.fields()]
   assert not any(n.startswith("ws_unit_id") for n in names), \

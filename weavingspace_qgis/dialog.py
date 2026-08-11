@@ -1859,7 +1859,17 @@ class WeavingSpaceDialog(QDialog):
     super().closeEvent(event)
 
   def showEvent(self, event):  # noqa: N802 (Qt API)
-    """Qt calls this when the window (re)appears. Two duties: re-fit
+    """Qt calls this when the window (re)appears.
+
+    The fit below is a THIRD call site -- construction and family
+    changes fit the window too -- and no test can tell its removal
+    from the others, because the window will not grow past what the
+    design needs nor shrink below its layout minimums. It is kept
+    deliberately (user decision, 2026-08-10): the occasion it guards
+    lives in real QGIS, a re-show after a screen or DPI change, and
+    a window opening too small to show its own controls is the fault
+    this line exists to prevent. Its catalogue entry is accepted
+    rather than closed, with the evidence recorded there. Two duties: re-fit
     the height once real layout geometry exists, and recover from any
     zombie task (we believe a run is active but the task manager shows
     it dead), which otherwise blocks all future generations."""

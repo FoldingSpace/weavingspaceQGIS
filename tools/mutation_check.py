@@ -282,6 +282,10 @@ MUTATIONS = [
        test="test_a_changed_category_count_warns_that_colours_moved",
        why="telling the user that a changed class count has moved the "
            "colours of the classes that were already there"),
+  # Diagnosed 2026-08-10: the named test tiled an EPSG:3857 layer, so
+  # the geographic branch never ran and the mutation could not show.
+  # The test now repeats its coverage case on the same fixture in
+  # degrees and reads the sentence the message bar gets.
   dict(name="coverage-unit-label", file=COMPAT,
        old='  if layer.crs().isGeographic():\n    return "m"',
        new='  if False:\n    return "m"',
@@ -295,13 +299,23 @@ MUTATIONS = [
        test="test_the_map_says_which_areas_it_left_out",
        why="the coverage notice naming the SPACING that produced the "
            "drops, without which a stack of them is unreadable"),
+  # Re-pointed 2026-08-10 after this survived a sweep. The entry named
+  # the deleted-column test, and a column deleted from the CURRENT
+  # layer is answered elsewhere: the updatedFields handler re-defaults
+  # the elements and says so, before the table is ever rebuilt.
+  # Measured both ways, that scenario comes out identical with the
+  # guard and without it. What the guard alone answers is the region
+  # layer being SWITCHED to one whose columns are named differently;
+  # mutated, every element there lands on "---" and the map goes to
+  # flat fill.
   dict(name="stale-field-assignment", file=DIALOG,
        old='      if prev and prev["var"] in fields:',
        new='      if prev and prev["var"] is not None:',
-       test="test_the_user_changes_the_data_underneath",
-       why="an element stops being mapped to a field the user has "
-           "deleted from the layer, rather than carrying a name that "
-           "no longer exists into the next run"),
+       test="test_switching_region_layer_counts_as_a_change",
+       why="an element re-pointing at a column the layer now chosen "
+           "actually has; carrying the old layer's column name means "
+           "setCurrentText finds nothing, the element goes unassigned, "
+           "and a map of four attributes becomes a map of none"),
   dict(name="single-category-first-colour", file=BRIDGE,
        old="          if n > 1 else 0",
        new="          if n > 1 else 1",
@@ -341,8 +355,18 @@ MUTATIONS = [
        why="the default variable being a measurement rather than a "
            "row id, which maps storage order and looks like data"),
   dict(name="chooser-clear", file=DIALOG,
-       old="      combo.clear()",
-       new="      pass  # mutation: entries appended, never replaced",
+       # Narrowed 2026-08-10. Three combos call clear(), so the bare
+       # anchor mutated whichever came first -- and the first attempt
+       # at narrowing aimed at the VARIABLE chooser, which the named
+       # test never drives. This is the CLASS-SOURCE combo, column 7,
+       # which is the one that test repopulates: read what a test
+       # executes before anchoring to it.
+       old="""      combo.blockSignals(True)
+      combo.clear()
+      for text, data in wanted:""",
+       new="""      combo.blockSignals(True)
+      pass  # mutation: entries appended, never replaced
+      for text, data in wanted:""",
        test="test_repopulating_a_chooser_does_not_duplicate_it",
        why="a dropdown rebuilt without duplicating everything in it"),
   dict(name="size-guard-degenerate", file=BRIDGE,
@@ -360,6 +384,12 @@ MUTATIONS = [
        test="test_ramp_swatches_and_palette_installation",
        why="the categorical palettes, installed by their own loop, "
            "reaching a fresh QGIS profile"),
+  # Diagnosed 2026-08-10, with gradient-stop-positions below: the
+  # style library lives in the user's QGIS profile, so on any machine
+  # that has run the plugin before, ensure_ramps_installed() skips
+  # every name and the test read ramps an earlier session had built
+  # correctly. The test now removes the plugin's own tagged ramps and
+  # has THIS code install them again before looking.
   dict(name="palette-end-colour", file=BRIDGE,
        old="        QColor(stops[0]), QColor(stops[-1]), False, gradient_stops)",
        new="        QColor(stops[0]), QColor(stops[-2]), False, gradient_stops)",
@@ -406,6 +436,11 @@ MUTATIONS = [
        why="the swatch in the dropdown showing the ramp the way the "
            "map will draw it; reversed, the whole list disagrees with "
            "every map made from it"),
+  # Diagnosed 2026-08-10: the named test read the bar AFTER the run,
+  # by which time _finish_run has restored the determinate range
+  # whatever happened during the tiling. It now reads it while the
+  # task is in flight, which is the only moment the bar is what the
+  # user is watching.
   dict(name="progress-range-per-run", file=DIALOG,
        old="""    self.generate_btn.setEnabled(False)
     self.progress.setVisible(True)
@@ -429,9 +464,36 @@ MUTATIONS = [
        test="test_every_design_control_is_reachable",
        why="controls being reachable by a user and not only by a test "
            "that assigns to them directly"),
+  # ACCEPTED PERMANENTLY, by the user's decision (2026-08-10): the
+  # show-time fit STAYS, untested, because a defence against the
+  # window opening too small is worth keeping even where no test can
+  # reach it. Do not re-triage this as an open survivor, and do not
+  # delete the third call site on the grounds that nothing catches
+  # its removal. What follows is the evidence behind that decision.
+  #
+  # Two attempts to give this an
+  # occasion of its own both failed on CLEAN code -- the window will
+  # not grow past what the design needs (no element count makes the
+  # Design tab taller) and will not shrink below it (layout minimums
+  # hold it), so no state a test can produce distinguishes a dialog
+  # that fits on show from one that does not. The construction fit
+  # covers every path the suite can reach; the show-time fit is a
+  # third call site whose occasion, if it has one, lives in real QGIS
+  # (a re-show after a screen or DPI change). Kept rather than
+  # deleted because deleting a defence nobody can test is how the
+  # window opened too small in the first place -- but the honest next
+  # step is a human decision about whether it earns its place, NOT a
+  # test contorted into passing. One attempt briefly reported
+  # "caught" because the test failed on clean code as well: a test
+  # that always fails kills every mutant and proves nothing.
   dict(name="fit-to-design-on-show", file=DIALOG,
-       old="    QTimer.singleShot(0, self._fit_to_design)",
-       new="    pass  # mutation: the window keeps its built size",
+       # Narrowed 2026-08-10 (three call sites): anchored inside
+       # showEvent, the deferred fit the named test drives; the others
+       # fire on construction and on a family change.
+       old="""    super().showEvent(event)
+    QTimer.singleShot(0, self._fit_to_design)""",
+       new="""    super().showEvent(event)
+    pass  # mutation: the window keeps its built size""",
        test="test_the_window_fits_its_design_tab_when_shown",
        why="the window opening tall enough to show the Design tab it "
            "contains; sizeHint is not truthful before a layout pass, "
@@ -489,8 +551,20 @@ MUTATIONS = [
        test="test_the_preview_actually_draws_what_it_is_given",
        why="the preview filling its tiles at all; without a brush the design view is an empty box"),
   dict(name="preview-antialiasing", file=DIALOG,
-       old="    painter.setRenderHint(QPainter.RenderHint.Antialiasing)",
-       new="    pass  # mutation: hard edges",
+       # Narrowed 2026-08-10 (the toggle switch paints too): anchored
+       # to the PREVIEW's painter by the fill that follows it, which
+       # is the surface the named test inspects.
+       old="""    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.fillRect(self.rect(), QColor("#fafafa"))""",
+       new="""    pass  # mutation: hard edges
+    painter.fillRect(self.rect(), QColor("#fafafa"))""",
+       # Still survived once the anchor was unique: the test's
+       # smoothing check compared painted pixels against _id_colours,
+       # which carry alpha and so match nothing that reaches the
+       # picture, making "a colour between the fills" true of the
+       # whole drawing. It now compares against the fills as painted
+       # and requires a real share of the picture to sit between them
+       # (measured 2.8% smoothed against 0.14% jagged).
        test="test_the_preview_actually_draws_what_it_is_given",
        why="edges being smoothed, which is most of why the preview reads as shapes rather than as stairs"),
   dict(name="preview-margin", file=DIALOG,
@@ -667,8 +741,30 @@ MUTATIONS = [
        why="the centre of the pattern being drawn at all, with "
            "context shells on"),
   dict(name="signature-layer-identity", file=DIALOG,
-       old="      layer.id() if layer is not None else None,",
-       new="      layer.id() if layer is None else None,",
+       # Narrowed 2026-08-10: the geometry signature and the run
+       # signature open with the same line, so the bare anchor
+       # mutated whichever came first while the other went on
+       # noticing the change. Anchored to _run_signature by its
+       # docstring, which is the one the named test drives.
+       old="""    (reopening the dialog, for instance, changes nothing)."\"\"
+    layer = self.layer_combo.currentLayer()
+    kwargs = self._unit_kwargs()
+    kwargs.pop("spec", None)
+    return (
+      layer.id() if layer is not None else None,""",
+       new="""    (reopening the dialog, for instance, changes nothing)."\"\"
+    layer = self.layer_combo.currentLayer()
+    kwargs = self._unit_kwargs()
+    kwargs.pop("spec", None)
+    return (
+      layer.id() if layer is None else None,""",
+       # And it went on surviving with the anchor narrowed, because
+       # the two layers the test switched between differ in extent:
+       # the layer FINGERPRINT, which is in the same tuple, noticed
+       # the change and the identity term was never needed. The test
+       # now also switches to a layer the fingerprint cannot tell
+       # apart -- same areas, same columns, same CRS, different
+       # numbers -- and requires live update to redraw.
        test="test_switching_region_layer_counts_as_a_change",
        why="a different region layer counting as a change, rather "
            "than leaving the previous layer's map on screen"),
@@ -952,9 +1048,24 @@ MUTATIONS = [
            "still destroy the picks; without the connection the cell "
            "exits Custom while the overrides quietly survive"),
   dict(name="custom-swatch-goes-stale", file=DIALOG,
-       old="    if cached is not None and cached[0] == key:",
-       new="    if cached is not None:"
-           "  # mutation: serve any cached swatch",
+       # Narrowed 2026-08-10: the graduated branch added a second,
+       # identical guard, so this anchor matched twice, only the first
+       # was mutated, and the categorical branch went on invalidating
+       # correctly -- the entry reported SURVIVED whatever the tests
+       # did. Anchored now to the CATEGORICAL site by the line above
+       # it, which is the branch the named test drives.
+       old="""    picks = assignment.get("category_colours") or {}
+    key = (field, assignment.get("ramp"), assignment.get("reverse"),
+           assignment.get("class_source"),
+           tuple(sorted(picks.items())))
+    cached = self._custom_swatch_cache.get(tile_id)
+    if cached is not None and cached[0] == key:""",
+       new="""    picks = assignment.get("category_colours") or {}
+    key = (field, assignment.get("ramp"), assignment.get("reverse"),
+           assignment.get("class_source"),
+           tuple(sorted(picks.items())))
+    cached = self._custom_swatch_cache.get(tile_id)
+    if cached is not None:  # mutation: serve any cached swatch""",
        test="test_a_customized_element_reads_custom",
        why="the Custom swatch is rebuilt whenever anything deciding "
            "the element's colours changes; a stale cache shows the "
