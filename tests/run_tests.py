@@ -6845,13 +6845,30 @@ def test_the_ramp_and_scheme_lists_are_what_they_claim():
   if ramp is not None and hasattr(ramp, "count"):
     offered = {ramp.itemText(i) for i in range(ramp.count())}
     assert offered, "no ramps are offered at all"
+    # Every offered ramp must RESOLVE, which is the property a user
+    # depends on; being in the plugin's own table is not it. The
+    # chooser lists the whole style library on purpose, so it shows
+    # ramps QGIS ships and ramps the user made themselves, and a
+    # QGIS that carries more than ours is not a fault. The earlier
+    # form of this assertion failed on Linux, where QGIS ships eight
+    # ramps the plugin does not install -- and would have failed for
+    # any user who had ever added one of their own (CI, 2026-08-11).
+    unusable = {r for r in offered if bridge.get_ramp(r, False) is None}
+    assert not unusable, \
+      f"the ramp chooser offers {sorted(unusable)}, which the style " \
+      f"library cannot produce: choosing one would give a row no " \
+      f"colours at all"
+    # and every palette the plugin declares must be reachable through
+    # the chooser, whoever installed it -- this is the half that
+    # catches a palette silently missing
     known = set(bridge.CATEGORICAL_RAMPS)
     for group in bridge.PALETTES.values():
       known |= set(group)
-    unknown = {r for r in offered if r not in known}
-    assert not unknown, \
-      f"the ramp chooser offers {sorted(unknown)}, which are not in " \
-      f"the palettes this plugin installs or knows about"
+    lowered = {r.lower() for r in offered}
+    missing = {k for k in known if k.lower() not in lowered}
+    assert not missing, \
+      f"palettes {sorted(missing)} are declared by the plugin but not " \
+      f"offered to a row, so a user cannot choose them at all"
   dlg.close()
 
 
@@ -8059,6 +8076,57 @@ def _categorical_dialog(field="landcover", row=1):
   return dlg, layer, tid
 
 
+def test_a_palette_is_usable_whatever_case_qgis_spells_it():
+  """A ramp the installer skipped must still be findable.
+
+  Two rules have to agree and did not. ensure_ramps_installed skips a
+  palette whose name already exists IGNORING CASE, so that a ramp
+  QGIS ships is never duplicated under a second spelling. get_ramp
+  then looked the name up EXACTLY. Where the two spellings differ the
+  plugin therefore declined to install its own ramp because QGIS had
+  one, and then could not find the one QGIS had.
+
+  That is not hypothetical and it is not cosmetic. QGIS on Linux
+  ships Cividis, Inferno, Magma and Plasma; this plugin's table says
+  cividis, inferno, magma, plasma. Four palettes were unavailable to
+  every Linux user while the chooser went on offering them, and an
+  element assigned one got no ramp at all. macOS cannot show it,
+  because its QGIS ships neither spelling -- so the suite was green
+  on the only machine that ran it, for as long as that was the only
+  machine. Found by CI on 2026-08-11, the first checkout of this
+  repository that was not this one.
+
+  The condition is manufactured rather than waited for: a ramp is
+  saved under a deliberately odd casing, and the plugin is required
+  to find it under its own.
+
+  Regression: the installer skipped names case-insensitively while the lookup matched exactly, so four palettes were silently unavailable on any QGIS that spells them differently.
+  """
+  from qgis.PyQt.QtGui import QColor
+  from qgis.core import QgsGradientColorRamp, QgsStyle
+  from weavingspace_qgis import bridge
+  style = QgsStyle.defaultStyle()
+  odd = "ZzTestRamp"
+  style.removeColorRamp(odd)
+  style.removeColorRamp(odd.lower())
+  ramp = QgsGradientColorRamp(QColor("#000000"), QColor("#ffffff"))
+  assert style.addColorRamp(odd, ramp), "could not stage the fixture"
+  try:
+    assert bridge.get_ramp(odd, False) is not None, \
+      "the exact name does not resolve, so this test proves nothing " \
+      "about the case-insensitive path below"
+    found = bridge.get_ramp(odd.lower(), False)
+    assert found is not None, \
+      f"{odd.lower()!r} did not resolve to the style's {odd!r}. The " \
+      f"installer skips a palette whose name matches ignoring case, " \
+      f"so a lookup that matches exactly leaves the plugin unable to " \
+      f"use a ramp it deliberately did not install"
+    assert QColor(found.color(0.0)).name().lower() == "#000000", \
+      "the case-insensitive match found some other ramp"
+  finally:
+    style.removeColorRamp(odd)
+
+
 def test_installed_palettes_span_their_declared_colours():
   """An installed ramp runs between the colours the palette declares.
 
@@ -8112,8 +8180,21 @@ def test_installed_palettes_span_their_declared_colours():
     f"some earlier session"
   bridge.ensure_ramps_installed()
   checked = 0
+  tagged = set()
+  for name in style.colorRampNames():
+    if bridge.RAMP_TAG in [t.lower() for t in style.tagsOfSymbol(entity, name)]:
+      tagged.add(name.lower())
   for group in ("sequential", "diverging"):
     for name, stops in bridge.PALETTES[group].items():
+      # only ramps THIS PLUGIN put there. A name QGIS already carries
+      # is deliberately not installed -- additive only -- so the ramp
+      # under that name is QGIS's and is entitled to its own colours.
+      # Linux QGIS ships Greys starting #fafafa where this table says
+      # #ffffff, and asserting our stops against their ramp reported a
+      # defect where the installer had done exactly as designed
+      # (CI, 2026-08-11).
+      if name.lower() not in tagged:
+        continue
       ramp = bridge.get_ramp(name, False)
       if ramp is None:
         continue                    # not installed in this profile
@@ -23539,8 +23620,15 @@ for name in list(sys.modules):
   if name.split(".")[0] in ("matplotlib", "scipy"):
     del sys.modules[name]
 
-# the same path the plugin and this suite use: vendor/ on sys.path,
-# so "weavingspace" resolves to the vendored copy
+# the same paths the plugin sets up for itself. vendor/ so
+# "weavingspace" resolves to the vendored copy, and deps.add_paths()
+# for libs/, where a QGIS that lacks the scientific stack keeps the
+# wheels it was given -- which is every Linux QGIS, so without this
+# the child cannot import geopandas and the test reports the
+# library as broken (CI, 2026-08-11).
+sys.path.insert(0, "__ROOT__")
+from weavingspace_qgis import deps
+deps.add_paths()
 sys.path.insert(0, "__ROOT__/weavingspace_qgis/vendor")
 from weavingspace.tile_unit import TileUnit
 
@@ -24368,6 +24456,19 @@ rt._generate_and_wait(dlg)
 ids = list(dlg._element_layer_ids.values())
 counts = [QgsProject.instance().mapLayer(i).featureCount() for i in ids]
 print("TILES %d" % sum(counts))
+# Diagnostics that only matter when TILES is zero, printed always so
+# a failure explains itself the first time. This test failed on Linux
+# CI (2026-08-11) with nothing but "no tiles were produced", which
+# says which assertion broke and nothing about why -- and the run
+# costs forty minutes, so guessing twice is an hour. LAYERS
+# distinguishes "no layers at all" (the run was refused, and MODALS
+# says what the user was told) from "layers with no features" (it
+# tiled and produced nothing, which is a geometry or spacing fault).
+print("LAYERS %d" % len(ids))
+print("EACH %s" % ",".join(str(c) for c in counts))
+print("TOLD %s" % " | ".join(text for _kind, text in rt.MODALS))
+print("ESTIMATE %r" % (dlg._last_estimate
+                       if hasattr(dlg, "_last_estimate") else "n/a"))
 
 # and the same design through a GeoPackage, where the numbers are
 # written and read back by a driver that has its own opinions
@@ -24396,7 +24497,11 @@ os._exit(0)
   assert "," in out["SHOWN"] or "." in out["SHOWN"], \
     f"the spin box showed {out['SHOWN']!r}"
   assert int(out["TILES"]) > 0, \
-    "no tiles were produced under a comma-decimal locale"
+    f"no tiles were produced under a comma-decimal locale. " \
+    f"layers={out.get('LAYERS')} each={out.get('EACH')!r} " \
+    f"spacing={out.get('SPACING')} shown={out.get('SHOWN')!r} " \
+    f"told={out.get('TOLD')!r} estimate={out.get('ESTIMATE')}\n" \
+    f"stderr: {result.stderr[-800:]}"
   assert out.get("WROTE") == "1", \
     "the GeoPackage was not written under a comma-decimal locale"
 
@@ -25564,6 +25669,8 @@ def main():
   check("the mutation guard scales with the diff",
         test_the_mutation_guard_scales_with_the_diff)
   check("region outlines are cased", test_region_outlines_are_cased)
+  check("a palette is usable whatever case QGIS spells it",
+        test_a_palette_is_usable_whatever_case_qgis_spells_it)
   check("installed palettes span their declared colours",
         test_installed_palettes_span_their_declared_colours)
   check("ramp swatches run the right way round",

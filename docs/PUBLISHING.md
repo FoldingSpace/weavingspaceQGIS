@@ -79,7 +79,7 @@ The sequence:
 
        git worktree add ../ws-ci-fixes -b ci-fixes
 
-   Edit, run single tests there (`dev/run_some.py` derives its own
+   Edit, run single tests there (`tools/run_some.py` derives its own
    checkout, so it exercises the worktree), prove any mutation entry
    there, and commit on that branch.
 5. **Merge when both have answered.** A candidate is promoted only
@@ -158,7 +158,7 @@ cheapest-first -- standards, secrets, then the functional suite --
 so a broken suite stops a candidate about twenty-four minutes in.
 Running the suite (or coverage, or the gallery) standalone first
 gives no earlier warning and doubles the wait. Iterate with
-`dev/run_some.py` on the tests you are actually changing, then go to
+`tools/run_some.py` on the tests you are actually changing, then go to
 `python3 release.py --rc`.
 
 Two things DO belong first, because the gates check them rather than

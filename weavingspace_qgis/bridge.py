@@ -158,7 +158,32 @@ def get_ramp(name: str, reverse: bool = False):
   """
   from qgis.core import (QgsGradientColorRamp, QgsPresetSchemeColorRamp,
                          QgsStyle)
-  ramp = QgsStyle.defaultStyle().colorRamp(name)
+  style = QgsStyle.defaultStyle()
+  ramp = style.colorRamp(name)
+  if ramp is None:
+    # Resolve case-insensitively, because that is how installation
+    # decides. ensure_ramps_installed skips a palette whose name
+    # matches an existing ramp IGNORING CASE, so that QGIS's own
+    # ramps are never duplicated -- and QGIS on Linux ships Cividis,
+    # Inferno, Magma and Plasma where this plugin's table says
+    # cividis, inferno, magma, plasma. An exact lookup then found
+    # nothing: the plugin declined to install its own ramp because
+    # QGIS had one, and then could not find the one QGIS had. Four
+    # palettes were simply unavailable to every Linux user, with the
+    # chooser still offering them. Found by CI on 2026-08-11; it
+    # cannot happen on macOS, whose QGIS ships neither casing.
+    #
+    # The two rules must agree, and this is the direction that
+    # agrees WITHOUT putting both Cividis and cividis in the user's
+    # style library. It also makes a case-mismatched name behave
+    # exactly like an exactly-matching one (Greys, which QGIS ships
+    # too): the user's existing ramp wins, which is what "additive
+    # only" has always meant here.
+    wanted = name.lower()
+    for candidate in style.colorRampNames():
+      if candidate.lower() == wanted:
+        ramp = style.colorRamp(candidate)
+        break
   if ramp is None:
     return None
   ramp = ramp.clone()

@@ -167,6 +167,24 @@ def ramp_gamut(ramp_names, steps=64):
   from weavingspace_qgis import bridge
   colours = []
   for name in ramp_names:
+    # The ramp IN FORCE, read from the style library, before the
+    # plugin's declared table. The two can differ legitimately: a
+    # palette whose name QGIS already carries is deliberately not
+    # installed, so the map is painted with QGIS's version while
+    # bridge.PALETTES still describes ours. Measuring the map against
+    # the table then reports a defect where the plugin did exactly
+    # what it was designed to do -- which is what happened on Linux,
+    # where QGIS ships Greys starting #fafafa against our #ffffff
+    # (CI, 2026-08-11). The question this function answers is whether
+    # every pixel is a colour the symbology CAN make, so the
+    # symbology is the thing to ask.
+    live = bridge.get_ramp(name, False)
+    if live is not None:
+      colours.append(np.array(
+        [[c.red(), c.green(), c.blue()]
+         for c in (live.color(i / (steps - 1)) for i in range(steps))],
+        dtype=float))
+      continue
     stops = (bridge.PALETTES["sequential"].get(name)
              or bridge.PALETTES["diverging"].get(name)
              or bridge.PALETTES["categorical"].get(name) or [])

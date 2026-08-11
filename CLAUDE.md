@@ -228,7 +228,7 @@ obligations: they exist so nobody pays twice for the same discovery.
   standalone "to be safe" beforehand therefore buys no earlier
   warning and doubles the wait; the same goes for the coverage
   record, the gallery and the reference comparison. Run a subset
-  while iterating (`dev/run_some.py`), then go straight to
+  while iterating (`tools/run_some.py`), then go straight to
   `release.py --rc` and let the gates do the whole-tree work once.
   The habit this replaces cost roughly forty minutes per candidate
   and was justified by a belief about the gate order that was simply

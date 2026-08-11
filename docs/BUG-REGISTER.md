@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-69 defect(s) with a regression test.
+70 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -88,6 +88,8 @@ there is no separate list to remember.
   guarded by `test_a_hanging_test_is_named_rather_than_silent`
 - **only _finish_run restored the determinate progress range, and the zombie recovery does not go through it.**  
   guarded by `test_a_new_run_always_shows_real_progress`
+- **the installer skipped names case-insensitively while the lookup matched exactly, so four palettes were silently unavailable on any QGIS that spells them differently.**  
+  guarded by `test_a_palette_is_usable_whatever_case_qgis_spells_it`
 - **choosing a Quant: style on a text field produced a graduated renderer with no ranges, so 0 of 112 features painted and four empty layers were reported as a successful run.**  
   guarded by `test_a_quantitative_style_never_stands_on_text`
 - **reloading the dialog module reset the module-level _LIVE_DIALOG to None, so the dialog built from the reloaded class retired nothing and the predecessor went on running its debounces against the newcomer's layers.**  
@@ -174,7 +176,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 39
+- unrecorded: 40
 - reading the code: 7
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5
