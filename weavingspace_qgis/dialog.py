@@ -705,8 +705,9 @@ class WeavingSpaceDialog(QDialog):
   manages the layer-tree group across regenerations.
   """
 
-  # element counts offered (the catalogue's keys: every count from
-  # 2 to 52, the most elements upstream can name from its alphabet)
+  # element counts offered (the catalogue's keys: every count from 2
+  # to 26, where single-character element ids stop being distinct
+  # without case -- see catalog.MAX_ELEMENTS for why that matters)
   N_CHOICES = sorted(catalog.TILINGS_BY_N)
   # entries of the per-row Style dropdown; "Quant: X" rows all mean a
   # graduated (classed numeric) renderer, differing in break method

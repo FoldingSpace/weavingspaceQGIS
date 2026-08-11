@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-66 defect(s) with a regression test.
+67 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -106,6 +106,8 @@ there is no separate list to remember.
   guarded by `test_classification_survives_inf_nan_and_huge`
 - **the geometry signature held the layer's ID and nothing about its contents, so deleting half the features left every term identical and the run was answered by repainting tiles built from data that no longer existed — pressing Generate did not help, which is what made it serious.**  
   guarded by `test_data_changed_in_qgis_while_the_plugin_is_open`
+- **none yet -- the cap was set at 52 for two days, during which any map with 27 or more elements could have collided on export.**  
+  guarded by `test_element_ids_survive_a_case_insensitive_path`
 - **control ranges and steps were unasserted as a class; a mutation batch moved one and the suite was silent.**  
   guarded by `test_every_control_accepts_the_range_it_should`
 - **no test asserted any control's tooltip, so all thirty-one could be removed unnoticed.**  
@@ -168,7 +170,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 36
+- unrecorded: 37
 - reading the code: 7
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5

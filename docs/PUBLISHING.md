@@ -96,6 +96,55 @@ editing under them produced two spoiled measurements in one night
 existed, and a census baselining source that had changed underneath
 it.
 
+### CI needs geopandas; the plugin must never take it unasked
+
+These two pull in opposite directions and the resolution is worth
+stating, because getting it wrong would cost the plugin its place in
+the QGIS plugin repository.
+
+**The problem.** The official `qgis/qgis` images ship QGIS and its own
+Python and nothing else -- no geopandas, shapely, pandas or networkx.
+The suite imports them directly, so the first Linux run reported
+seventy failures of which sixty-nine were one missing package wearing
+different costumes (2026-08-11). CI cannot test anything until they
+are there.
+
+**Why the obvious fix is forbidden.** The plugin can already fetch
+those packages: `deps.py` downloads wheels from PyPI. But it does so
+only after `plugin.dependency_consent_box` has named the packages,
+the source and the exact destination and waited for a click. Fetching
+code at runtime is the single thing a plugin repository reviewer
+examines hardest, and rightly. So the tempting shortcut -- a flag, or
+an environment variable, that lets CI skip the dialogue -- is
+precisely what must not exist: it would put a consent-free download
+path into the SHIPPED plugin, where a reviewer would find it and be
+right to refuse it. What CI needs cannot be paid for out of what a
+user is promised.
+
+**How it is squared.** `tools/ci_provision.py` calls
+`deps.provision_from_pypi` directly, and `tools/` is not in
+`build.shipped_files()`. Nothing in it reaches a user's machine, and
+the plugin gains no new path at all. The distinction is not a
+technicality: a maintainer running a program that installs packages
+is consent, and software installing them unasked is not. The consent
+gate remains the only route from shipped code to PyPI, and
+`test_pypi_provisioning_is_reached_only_through_consent` asserts that
+across every file that ships -- exactly one such call, inside the
+function that raises the dialogue, after the refusal returns. It is
+in the mutation catalogue as `consent-gates-the-download`, so the day
+somebody weakens the gate a test fails rather than a reviewer
+noticing.
+
+**And it is a gain, not a tax.** Running the plugin's own provisioner
+is the Linux path this CI exists for. Wheel-tag matching, the numpy
+1.x floor that must never become 2.x, the support-package fetch and
+the pyproj data redirection are all plugin code that a Mac whose QGIS
+already carries every package can never execute. `pip install
+geopandas` in the workflow would make the suite run and would
+exercise none of it. So the provisioning step is a test in its own
+right: when it fails, `deps.py` is broken for every Linux user, and
+we learn it here rather than from an issue.
+
 The one thing that cannot be parallelised is a MEASUREMENT beside
 another measurement: the sweep, the census and the suite each want
 the machine to themselves, and contention inflates per-unit times by

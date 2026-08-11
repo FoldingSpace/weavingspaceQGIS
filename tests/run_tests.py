@@ -627,9 +627,9 @@ def test_catalogue_sweep():
   (n below rows x cols leaves openings, not fewer distinct ids).
 
   Since the catalogue was carried past the web app dictionary's 20,
-  this sweep spans every count from 2 to the library's 52-element
-  ceiling, which makes it the check that no extended entry offers a
-  design the library cannot build."""
+  this sweep spans every count from 2 to the 26-element ceiling,
+  which makes it the check that no extended entry offers a design
+  the library cannot build."""
   from weavingspace_qgis import catalog
   for n, families in catalog.TILINGS_BY_N.items():
     for name, spec in families.items():
@@ -649,13 +649,15 @@ def test_catalogue_sweep():
 
 
 def test_every_element_count_up_to_the_ceiling_is_offered():
-  """Every element count from 2 to 52 is on offer, 17 included.
+  """Every element count from 2 to 26 is on offer, 17 included.
 
   The catalogue began as the web app's hand-written dictionary, which
   skipped 17 and stopped at 20. Neither was a limit of the library:
-  four families are formulas in n and build correctly at every count
-  up to 52, which is where upstream's own element-id alphabet runs
-  out. The counts are therefore asserted as a contiguous range with a
+  four families are formulas in n and build correctly well past it.
+  The ceiling is 26 because element ids are single characters and the
+  lowercase alphabet is where they stay distinct without case; see
+  test_element_ids_survive_a_case_insensitive_path for what breaks
+  above it. The counts are asserted as a contiguous range with a
   literal ceiling rather than against catalog.MAX_ELEMENTS -- reading
   the bound from the module under test would let a change to that
   bound move both sides of the comparison together, and the test
@@ -672,24 +674,26 @@ def test_every_element_count_up_to_the_ceiling_is_offered():
   # gained 17 after 20 would answer "every count is there" while
   # listing them out of order to anything that does not sort for itself
   offered = list(catalog.TILINGS_BY_N)
-  assert offered == list(range(2, 53)), \
-    f"the counts on offer are {offered}, not every count from 2 to 52 " \
+  assert offered == list(range(2, 27)), \
+    f"the counts on offer are {offered}, not every count from 2 to 26 " \
     f"in order"
   assert 17 in catalog.TILINGS_BY_N, \
     "17 elements is missing again; it was the web app dictionary's " \
     "omission, not a limit of the library"
-  # the ceiling is upstream's alphabet, so state the connection rather
-  # than the number: 52 letters, 52 possible element ids
-  assert catalog.MAX_ELEMENTS == len(string.ascii_letters) == 52, \
+  # the ceiling is the LOWERCASE alphabet, so state the connection
+  # rather than the number: 26 letters, 26 ids that stay distinct when
+  # something downstream folds their case
+  assert catalog.MAX_ELEMENTS == len(string.ascii_lowercase) == 26, \
     f"MAX_ELEMENTS is {catalog.MAX_ELEMENTS}; it is the size of the " \
-    f"library's element-id alphabet and nothing else"
+    f"lowercase alphabet, because element 27 is 'A' and collides with " \
+    f"element 1's 'a' on any case-insensitive path"
   # the chooser is built from the catalogue, so what the catalogue
   # holds is what a user meets
-  assert WeavingSpaceDialog.N_CHOICES == list(range(2, 53)), \
+  assert WeavingSpaceDialog.N_CHOICES == list(range(2, 27)), \
     f"the chooser offers {WeavingSpaceDialog.N_CHOICES}"
   # every count carries the four families that generalise, named as
   # the family list shows them
-  for n in range(2, 53):
+  for n in range(2, 27):
     families = catalog.TILINGS_BY_N[n]
     for family in ("stripes", "grid", "hex-slice", "square-slice"):
       assert f"{family} {n}" in families, \
@@ -738,51 +742,126 @@ def test_the_catalogue_offers_only_designs_that_build():
         raise AssertionError(
           f"{name} builds {n} elements correctly but is not offered "
           f"there; the count lists in catalog.py are out of date")
-  # nothing above was skipped by a guard: the counts really were tried
-  assert builds == {"hex-colouring": 51, "square-colouring": 51}, \
+  # nothing above was skipped by a guard: the counts really were
+  # tried, one per offered count from 2 to the ceiling. Written as a
+  # number rather than derived from MAX_ELEMENTS on purpose -- a
+  # count read from the module under test would move with it, and a
+  # loop that had quietly stopped early would still pass.
+  assert builds == {"hex-colouring": 25, "square-colouring": 25}, \
     f"only {builds} counts were built, so the comparisons above prove less"
 
 
 def test_the_element_id_alphabet_still_limits_the_ceiling():
-  """The library's 52-letter element ids are why the range stops at 52.
+  """Upstream still runs out of element ids at 52, silently.
 
-  A canary on upstream, not on us. Element ids come from
-  string.ascii_letters, so a unit can carry at most 52 of them. Asking
-  for more is not refused and does not raise: the id list runs out
-  while the geometry does not, pandas aligns the two, and a request
-  for 60 stripes comes back as 52 stripes covering part of the
-  prototile. That is the whole reason counts above 52 are not offered.
+  A canary on upstream, not on us, and the number here is UPSTREAM's
+  52 rather than our own ceiling of 26 -- the two are different
+  limits for different reasons and this test owns the first. Element
+  ids come from string.ascii_letters, so a unit can carry at most 52
+  of them. Asking for more is not refused and does not raise: the id
+  list runs out while the geometry does not, pandas aligns the two,
+  and a request for 60 stripes comes back as 52 stripes covering part
+  of the prototile.
 
-  WHEN THIS TEST FAILS, upstream has widened its element ids and the
-  ceiling can rise: raise catalog.MAX_ELEMENTS to whatever the new
-  alphabet allows, re-measure the families, and update this test. Do
-  NOT relax the assertion to make the suite green -- it is reporting
-  good news, and relaxing it would hide exactly the change it exists
-  to announce.
+  Our ceiling stops lower, at 26, because ids above that differ only
+  in case; that is a separate matter, guarded by
+  test_element_ids_survive_a_case_insensitive_path.
+
+  WHEN THIS TEST FAILS, upstream has changed how it names elements.
+  That is worth reading rather than patching: if the ids became
+  multi-character the weave string format changed with them, since a
+  weave names one element per character. Do NOT relax the assertion
+  to make the suite green -- it is reporting news, and relaxing it
+  would hide exactly the change it exists to announce.
   """
   import contextlib
   import io
+  import string
   from weavingspace_qgis import catalog
-  over = catalog.MAX_ELEMENTS + 8      # the 60 the range was asked for
+  upstream_ceiling = len(string.ascii_letters)      # 52, not ours
+  over = upstream_ceiling + 8
   with contextlib.redirect_stdout(io.StringIO()):
     unit = catalog.make_unit(
       dict(type="tiling", tiling_type="stripes", n=over),
       spacing=500, crs=3857)
   ids = set(unit.tiles.tile_id)
-  assert len(ids) == catalog.MAX_ELEMENTS, \
-    f"asked for {over} elements, the library returned {len(ids)}: if " \
-    f"that is MORE than {catalog.MAX_ELEMENTS} the element-id alphabet " \
-    f"has been widened upstream and the catalogue's ceiling can rise. " \
-    f"Do not relax this assertion."
+  assert len(ids) == upstream_ceiling, \
+    f"asked for {over} elements, the library returned {len(ids)} " \
+    f"rather than {upstream_ceiling}: upstream has changed how it " \
+    f"names elements. Read what it does now before touching either " \
+    f"ceiling. Do not relax this assertion."
   # and it really is silent about it -- no exception to catch, which
   # is why the catalogue has to know the limit rather than discover it
-  assert len(unit.tiles) == catalog.MAX_ELEMENTS, \
+  assert len(unit.tiles) == upstream_ceiling, \
     f"the over-long request produced {len(unit.tiles)} tiles; the " \
     f"failure mode has changed and the catalogue's reasoning with it"
 
 
+def test_element_ids_survive_a_case_insensitive_path():
+  """No two elements share a name once case stops distinguishing them.
+
+  This is the reason the catalogue stops at 26 rather than at
+  upstream's 52. Element ids are single characters from
+  string.ascii_letters, so element 27 is `A` while element 1 is `a`,
+  and those ids do not stay inside Python: they become GeoPackage
+  table names, they land on filesystems that are case-insensitive by
+  default on both macOS and Windows, and they are matched against
+  saved layer properties when a project is reopened. Two elements
+  whose ids differ only in case collide on every one of those paths,
+  and the damage arrives as one element's styling landing on
+  another's layer -- which reads as a mystery rather than as a bug.
+
+  So the property asserted is the one that matters downstream: fold
+  the case, and the ids must still be distinct, at every count the
+  catalogue offers. Raising MAX_ELEMENTS past 26 fails this test,
+  which is the point -- the cap defends itself rather than sitting in
+  a comment somebody may not read.
+
+  The obvious way to lift it does not work, and is written down here
+  because it will be proposed again: doubled letters (aa, ab) would
+  stay distinct without case, but a weave is specified as a string
+  with ONE CHARACTER PER ELEMENT ("abcdef-|ghijk-"), which users type
+  and this catalogue stores verbatim. A two-character id has nowhere
+  to go in that format.
+
+  Regression: none yet -- the cap was set at 52 for two days, during which any map with 27 or more elements could have collided on export.
+  """
+  import contextlib
+  import io
+  from weavingspace_qgis import catalog
+  checked = 0
+  for n in sorted(catalog.TILINGS_BY_N):
+    with contextlib.redirect_stdout(io.StringIO()):
+      unit = catalog.make_unit(
+        dict(type="tiling", tiling_type="stripes", n=n),
+        spacing=500, crs=3857)
+    ids = list(unit.tiles.tile_id)
+    folded = [str(i).lower() for i in ids]
+    assert len(set(folded)) == len(set(ids)), \
+      f"at {n} elements the ids {sorted(set(ids))} collapse to " \
+      f"{sorted(set(folded))} once case is folded: two elements would " \
+      f"share a GeoPackage table name and a filename on any " \
+      f"case-insensitive filesystem"
+    checked += 1
+  assert checked == len(catalog.TILINGS_BY_N), \
+    f"only {checked} counts were examined; the loop skipped some and " \
+    f"the assertion above proves nothing about them"
+  # and prove the check BITES: one step past the ceiling must collide,
+  # or this test would pass on any cap at all
+  with contextlib.redirect_stdout(io.StringIO()):
+    too_many = catalog.make_unit(
+      dict(type="tiling", tiling_type="stripes",
+           n=catalog.MAX_ELEMENTS + 1), spacing=500, crs=3857)
+  beyond = [str(i) for i in too_many.tiles.tile_id]
+  assert len({i.lower() for i in beyond}) < len(set(beyond)), \
+    f"one element past the ceiling, the ids {sorted(set(beyond))} are " \
+    f"still distinct without case. The cap is no longer where the " \
+    f"collision starts, so it is costing counts for nothing -- " \
+    f"re-measure before either raising or keeping it"
+
+
 def test_the_table_copes_with_the_largest_element_count():
-  """The dialog at 52 elements: 52 rows, and the layout rule holds.
+  """The dialog at 26 elements: 26 rows, and the layout rule holds.
 
   The chooser is built from the catalogue and the table gets one row
   per element, so extending the catalogue past 20 puts two and a half
@@ -792,21 +871,9 @@ def test_the_table_copes_with_the_largest_element_count():
   Repeated here at the top of the range, because a table that grows
   downwards is fine and a table that grows sideways is not.
 
-  Vertical scrolling is expected and is asserted POSITIVELY: 52 rows
+  Vertical scrolling is expected and is asserted POSITIVELY: 26 rows
   must not fit, and a test that found them all showing would be
   measuring a table that had quietly been given fewer rows.
-
-  THIS TEST IS CURRENTLY RED, on purpose, and the failing assertion
-  says why: once the vertical scrollbar appears the table scrolls
-  sideways by one pixel, because _fit_table_width reserves the style's
-  scrollbar metric (14px) where the scrollbar drawn is 18px wide. It
-  is a defect of the table's sizing, not of the element range -- the
-  same pixel shows at 16 and 20 elements, counts the catalogue has
-  always offered -- and it went unnoticed because the existing
-  test_the_window_fits_the_narrowest_screen measures at the default
-  four rows, where no vertical scrollbar appears. Everything else here
-  passes at 52: the rows, the ids, the unit, the window width, the
-  preview floor, one output layer per element and the rendered map.
   
   Regression: _fit_table_width reserved the style's nominal scrollbar metric (14px) where Qt draws 18, so once the rows overflowed the table scrolled HORIZONTALLY and columns past the edge went unfound -- the one thing the layout rule forbids. Reachable at sixteen and twenty elements on the shipped catalogue; hidden because the layout test only ever measured a four-row table. [family-audit]
   """
@@ -21525,11 +21592,11 @@ def test_every_element_count_still_has_its_designs():
   Regression: a vanished element count was invisible, because the catalogue tests all iterate the catalogue's own keys.
   """
   from weavingspace_qgis import catalog
-  # Every count from 2 to 52, written out rather than read from
+  # Every count from 2 to 26, written out rather than read from
   # catalog.MAX_ELEMENTS: taking the bound from the module under test
   # would move both sides of the comparison together, and a chooser
   # that quietly shrank would still pass.
-  expected = set(range(2, 53))
+  expected = set(range(2, 27))
   actual = set(catalog.TILINGS_BY_N)
   missing = sorted(expected - actual)
   extra = sorted(actual - expected)
@@ -24881,6 +24948,8 @@ def main():
         test_the_catalogue_offers_only_designs_that_build)
   check("element-id alphabet caps the count (upstream canary)",
         test_the_element_id_alphabet_still_limits_the_ceiling)
+  check("element ids survive a case-insensitive path",
+        test_element_ids_survive_a_case_insensitive_path)
   check("table and layout at the largest element count",
         test_the_table_copes_with_the_largest_element_count)
   check("layer <-> GeoDataFrame roundtrip", test_bridge_roundtrip)

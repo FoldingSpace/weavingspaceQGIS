@@ -248,16 +248,40 @@ for _n in TILINGS_BY_N:
 # ``test_the_catalogue_offers_only_designs_that_build`` re-measures
 # every entry at every count on every run.
 
-# The ceiling on every family alike. The library names its elements
-# from ``string.ascii_letters``, so 52 distinct ids is all any unit can
-# carry. Above that the id list runs out while the geometry does not,
-# pandas aligns the two, and the unit comes back with 52 elements
-# covering part of the prototile: asked for 60 stripes, upstream
-# 0.0.7.61 returns 52, silently and without complaint (measured
-# 2026-08-10). Counts above this are therefore not offered at all.
-# Raising the ceiling means widening upstream's id alphabet, which is
-# upstream's decision and not something to patch in the vendor.
-MAX_ELEMENTS = 52
+# The ceiling on every family alike, and it is OURS rather than the
+# library's. Two limits sit here and only the tighter one is enforced.
+#
+# Upstream's limit is 52: it names elements from
+# ``string.ascii_letters``, so above 52 the id list runs out while the
+# geometry does not, pandas aligns the two, and the unit comes back
+# with 52 elements covering part of the prototile -- asked for 60
+# stripes, upstream 0.0.7.61 returns 52, silently and without
+# complaint (measured 2026-08-10).
+#
+# OUR limit is 26, the lowercase alphabet, and it is the one that
+# applies. Element 27 is ``A``, sharing a name with element 1's ``a``
+# everywhere that does not distinguish case -- and these ids do not
+# stay inside Python. They become GeoPackage table names, they reach
+# filesystems that are case-insensitive by default on both macOS and
+# Windows, and they are matched against saved layer properties when a
+# project is reopened. A pair of elements whose ids differ only in
+# case is a collision waiting for the first user who exports a map,
+# and the failure would arrive as one element's styling landing on
+# another's layer rather than as anything that looks like a bug.
+# Twenty-six variables on one map is already far past what anybody
+# can read, so the cap costs nothing real.
+#
+# Lifting it is NOT a small change, and the obvious idea does not
+# work. Doubled letters (a..z then aa, ab...) would keep the ids
+# distinct without case, but a weave is specified as a STRING with one
+# character per element -- "abcdef-|ghijk-" -- which the library reads
+# character by character and which users type and this catalogue
+# stores verbatim. A two-character id has nowhere to go in that
+# format. So going past 26 means either changing the weave string
+# format itself, upstream and in every stored design, or accepting ids
+# that collide on any case-insensitive path. Twenty-six stands until
+# somebody wants it enough to do the first.
+MAX_ELEMENTS = 26
 
 # Families whose construction is a formula in n, so they hold at every
 # count up to the ceiling: stripes cuts the unit into n parallel bands,

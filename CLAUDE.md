@@ -202,6 +202,24 @@ obligations: they exist so nobody pays twice for the same discovery.
   gate or a sweep is reading produced two spoiled measurements in one
   night. Procedure in docs/PUBLISHING.md. (User instruction,
   2026-08-10.)
+- **What CI needs is never paid for out of what a user is promised.**
+  The QGIS containers ship no scientific stack, so CI must provision
+  geopandas and the rest before the suite can run -- and the plugin
+  can already do that, behind the consent dialogue. The forbidden
+  shortcut is a flag or environment variable letting CI skip the
+  dialogue, because it would put a consent-free download path into
+  the SHIPPED plugin, which is the one thing a plugin repository
+  reviewer looks hardest at. The provisioning therefore lives in
+  `tools/ci_provision.py`, outside `build.shipped_files()`: a
+  maintainer running a program that installs packages is consent,
+  software installing them unasked is not.
+  `test_pypi_provisioning_is_reached_only_through_consent` holds the
+  line across every shipped file and is in the mutation catalogue.
+  Calling the plugin's OWN provisioner rather than pip is deliberate
+  and is the point of the Linux leg: wheel-tag matching, the numpy
+  1.x floor, the support-package fetch and the pyproj data
+  redirection only ever execute there. Full reasoning in
+  docs/PUBLISHING.md. (2026-08-11, after the first Linux run.)
 - **Do not re-run a gate the release is about to run.** The gates
   are ordered cheapest-first for exactly this reason: standards and
   secrets take seconds, and the FUNCTIONAL SUITE IS THE THIRD STAGE,

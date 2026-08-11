@@ -44,6 +44,9 @@ COMPAT = "weavingspace_qgis/compat.py"
 PERCEPTION = "weavingspace_qgis/perception.py"
 EDITOR = "weavingspace_qgis/category_editor.py"
 WORKER = "weavingspace_qgis/worker.py"
+# the release driver: not shipped, but it decides whether a candidate
+# exists at all, so its guards earn the same proof as the plugin's
+RELEASE = "release.py"
 # the ONE part of the vendored library that is ours: the
 # patch making matplotlib and scipy optional
 VENDOR_TILEABLE = ("weavingspace_qgis/vendor/weavingspace/tileable.py")
@@ -1356,13 +1359,13 @@ MUTATIONS = [
   # the first occurrence and an anchor that matches twice mutates
   # something nobody chose.
   dict(name="element-ceiling-back-to-the-old-limit", file=CATALOG,
-       old="MAX_ELEMENTS = 52",
+       old="MAX_ELEMENTS = 26",
        new="MAX_ELEMENTS = 20  # mutation: the old hand-written limit",
        test="test_every_element_count_up_to_the_ceiling_is_offered",
-       why="the chooser must offer every count the library can build, "
-           "up to the 52 its element-id alphabet allows; capping it "
-           "lower takes designs away from users with no sign that "
-           "anything is missing"),
+       why="the chooser must offer every count the catalogue can "
+           "build, up to the 26 where single-character element ids "
+           "stay distinct without case; capping it lower takes "
+           "designs away from users with no sign anything is missing"),
   dict(name="seventeen-elements-left-out-again", file=CATALOG,
        old="for _n in range(2, MAX_ELEMENTS + 1):",
        new="for _n in [_c for _c in range(2, MAX_ELEMENTS + 1)"
