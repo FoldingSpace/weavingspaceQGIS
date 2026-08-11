@@ -50,6 +50,15 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Action versions: the majors pinned below are the ones whose action.yml
+# declares `using: node24`, checked against each repository on
+# 2026-08-11. GitHub is retiring the Node 20 runtime, and until a major
+# is bumped every run prints a deprecation warning for each action still
+# on it -- harmless today, a failure whenever the forced upgrade ends.
+# Pin the MAJOR only (@v7, never @v7.0.1): patches carry the security
+# fixes, and a pin so tight that nothing can move is a pin nobody
+# maintains. Re-check at the next deprecation notice; the warning names
+# the actions, which is all the audit anybody needs.
 jobs:
   # Fast checks first, on a plain runner with no QGIS at all. A typo
   # in a docstring should fail in twenty seconds rather than after a
@@ -57,8 +66,8 @@ jobs:
   standards:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Documentation and rule standards
@@ -115,7 +124,7 @@ jobs:
       # worth exercising. Left on deliberately.
       PYTHONUNBUFFERED: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: What QGIS is this, actually
         # Recorded every run: when a failure appears months from now,
@@ -143,7 +152,7 @@ jobs:
 
       - name: Keep the report when it fails
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reports-${{ matrix.qgis }}
           path: reports/
