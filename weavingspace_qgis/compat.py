@@ -210,3 +210,37 @@ def map_unit_label(layer) -> str:
   return QgsUnitTypes.toAbbreviatedString(layer.crs().mapUnits()) \
       or "map units"
 
+
+
+def save_style_to_database(layer, name: str, description: str) -> None:
+  """Save a layer's style into its own GeoPackage, on whichever API exists.
+
+  Args:
+    layer: the file-backed output layer whose current symbology is to
+      travel inside the .gpkg, so that opening the file elsewhere
+      shows the map already symbolized.
+    name: the style's name in the file's layer_styles table. Trimmed
+      by the caller to the thirty characters GDAL gives that column.
+    description: the free-text description stored beside it.
+
+  Returns:
+    None. Failures are swallowed by the caller, deliberately: a style
+    that will not save must never fail a run that produced a map.
+
+  WHY THIS IS HERE. ``saveStyleToDatabase`` is DEPRECATED as of QGIS
+  4.0.3 in favour of ``saveStyleToDatabaseV2``, which differs in what
+  it returns rather than in what it is asked. A deprecated call is
+  precisely the kind of thing a later QGIS changes or withdraws, and
+  this project's rule is that every version-sensitive QGIS call lives
+  in this module -- so when it goes, this is the one line to fix
+  rather than a hunt through bridge.py.
+
+  It is written the useAsDefault way round on purpose: QGIS matches a
+  default style by TABLE rather than by style name, which is why the
+  name can be trimmed without anything losing track of it.
+  """
+  saver = getattr(layer, "saveStyleToDatabaseV2", None)
+  if saver is None:
+    # older QGIS: the deprecated spelling is all there is
+    saver = layer.saveStyleToDatabase
+  saver(name, description, True, "")

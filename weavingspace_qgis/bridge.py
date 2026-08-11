@@ -1341,10 +1341,12 @@ def embed_style(layer: QgsVectorLayer) -> None:
   """
   # 30 is GDAL's column width, not a preference; if a future GDAL
   # widens it this can simply go.
+  from . import compat
   name = layer.name()[:30]
   try:
-    layer.saveStyleToDatabase(name, "seeded by WeavingSpace",
-                              True, "")
+    # through compat: the call this used to make directly is
+    # deprecated, and a deprecated call is what a later QGIS breaks
+    compat.save_style_to_database(layer, name, "seeded by WeavingSpace")
   except Exception:
     pass
 
