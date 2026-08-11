@@ -7879,7 +7879,12 @@ def test_the_release_chart_estimates_from_previous_runs():
     release.STAGE_ORDER[:] = ["standards check", "functional suite"]
     release.STAGE_STATE.clear()
     release.STAGE_STATE["standards check"] = ("done", 8)
-    release.STAGE_STATE["functional suite"] = ["running", time.time() - 300]
+    # monotonic, matching what run() records: a running stage's start
+    # is a monotonic reading so that a sleeping machine cannot look
+    # like a stage that has run for hours, and a wall-clock fixture
+    # here would be the same clock mix in the test instead of the code
+    release.STAGE_STATE["functional suite"] = [
+      "running", time.monotonic() - 300]
     chart = release.stage_chart(time.time() - 400)
     assert "left" in chart, \
       f"a running stage does not say how much of its usual time is "\
@@ -7892,7 +7897,8 @@ def test_the_release_chart_estimates_from_previous_runs():
 
     # a stage running past its usual time says so rather than
     # promising a finish that has already passed
-    release.STAGE_STATE["functional suite"] = ["running", time.time() - 4000]
+    release.STAGE_STATE["functional suite"] = [
+      "running", time.monotonic() - 4000]
     late = release.stage_chart(time.time() - 4100)
     assert "over its usual" in late, \
       f"a stage past its usual duration still claims time left:\n{late}"

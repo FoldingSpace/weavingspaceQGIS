@@ -265,7 +265,10 @@ def stage_chart(started, final=False):
   """The progress chart, as a block of text.
 
   Args:
-    started: time.time() when the release began.
+    started: time.time() when the release began. Kept for the wall
+      clock a reader compares against their watch; every DURATION in
+      the chart is monotonic, so a machine that slept does not report
+      hours of work it did not do.
     final: the run is OVER. Expected stages that never ran are then
       dropped instead of listed as pending -- a finished chart
       showing ".." rows (a cached venv, a skipped guard) reads as an
@@ -281,8 +284,21 @@ def stage_chart(started, final=False):
   now = time.time()
   expected = load_timings()
   remaining = 0.0
+  # WORKING time, not wall clock. A laptop closed for two hours
+  # reported "running 148m" beside stages summing to thirty, because
+  # the header read time.time() while the durations are monotonic
+  # (2026-08-11, a real run carried to a meeting). The two are not
+  # comparable and printing them side by side invites exactly the
+  # wrong conclusion -- that something has hung. Sleep is excluded
+  # here, so the header and the stage list finally agree.
+  working = sum(state[1] for state in STAGE_STATE.values()
+                if state[0] in ("done", "failed"))
+  working += sum(time.monotonic() - state[1]
+                 for state in STAGE_STATE.values()
+                 if state[0] == "running")
+  working = int(working)
   lines = [f"\n=== progress at {time.strftime('%H:%M')} "
-           f"(running {int((now - started) // 60)}m) ==="]
+           f"(working {working // 60}m) ==="]
   seen = list(STAGE_ORDER)
   if not final:
     for name in EXPECTED_STAGES:
@@ -297,7 +313,7 @@ def stage_chart(started, final=False):
       if guess:
         remaining += guess
     elif state[0] == "running":
-      ran = now - state[1]
+      ran = time.monotonic() - state[1]
       idle = STAGE_IDLE.get(name, 0)
       allowance = (NETWORK_STALL_SECONDS if name in NETWORK_STAGES
                    else STALL_SECONDS)
@@ -446,7 +462,10 @@ def run(step, cmd, env, capture=False):
   print(f"\n=== {step} ===", flush=True)
   if step not in STAGE_ORDER:
     STAGE_ORDER.append(step)
-  STAGE_STATE[step] = ["running", time.time()]
+  # monotonic, like every other duration here: the chart
+  # subtracts from it, and a wall-clock start would make a
+  # sleeping machine look like a stage that had run for hours
+  STAGE_STATE[step] = ["running", time.monotonic()]
   began = time.time()            # for stamping: a human reads it
   # for every DURATION below. Kept apart from `began` deliberately:
   # mixing the two clocks in one subtraction is how a sleep turns
