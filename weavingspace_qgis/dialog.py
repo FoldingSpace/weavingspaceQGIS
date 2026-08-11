@@ -245,6 +245,14 @@ def _ramp_icon(name: str, reverse: bool = False):
 # whether shapes read as distinct elements. If those ever conflict,
 # narrow COLUMNS, not the preview past its floor.
 MAX_WINDOW_WIDTH = 1280
+
+# Extra pixels reserved beside the scrollbar. Qt's own metric and the
+# bar it draws disagree by four pixels on this platform, and a table
+# short by even one grows a horizontal scrollbar -- the one thing the
+# layout rule forbids, because columns past it go unfound. Cheap
+# insurance: the window is capped anyway and the preview gives up the
+# difference. (2026-08-10.)
+SCROLLBAR_SLACK = 6
 PREVIEW_FLOOR = 260
 
 
@@ -697,7 +705,8 @@ class WeavingSpaceDialog(QDialog):
   manages the layer-tree group across regenerations.
   """
 
-  # element counts offered (the catalogue's keys: 2..16, 18, 19, 20)
+  # element counts offered (the catalogue's keys: every count from
+  # 2 to 52, the most elements upstream can name from its alphabet)
   N_CHOICES = sorted(catalog.TILINGS_BY_N)
   # entries of the per-row Style dropdown; "Quant: X" rows all mean a
   # graduated (classed numeric) renderer, differing in break method
@@ -2679,9 +2688,29 @@ class WeavingSpaceDialog(QDialog):
       self.table.columnWidth(column)
       for column in range(self.table.columnCount())
       if not self.table.isColumnHidden(column))
-    needed += 2 * self.table.frameWidth() \
-        + self.table.style().pixelMetric(
-          QStyle.PixelMetric.PM_ScrollBarExtent)
+    # Room for the table's own CHROME -- its frame and the vertical
+    # scrollbar that appears as soon as the rows overflow. Measure it
+    # rather than predict it: the difference between the widget and
+    # its viewport IS the chrome Qt has actually drawn, whereas
+    # PM_ScrollBarExtent reports the style's nominal 14px while the
+    # bar drawn here is 18px. A table sized from the metric therefore
+    # scrolled horizontally by those few pixels -- the exact fault
+    # the layout rule forbids, reachable at sixteen elements on the
+    # shipped catalogue, and invisible because the old layout test
+    # only ever measured four rows. The metric stays as the fallback
+    # for the first pass, before a viewport exists to measure.
+    # (2026-08-10.)
+    chrome = self.table.width() - self.table.viewport().width()
+    fallback = 2 * self.table.frameWidth() + self.table.style().pixelMetric(
+      QStyle.PixelMetric.PM_ScrollBarExtent)
+    # Whichever is LARGER. The measured chrome is the truth once a
+    # viewport exists, but this runs before layout too, and a first
+    # pass that under-reserves leaves the table one or two pixels
+    # short -- enough for a horizontal scrollbar, which is the whole
+    # fault. Reserving a few pixels too many costs nothing: the
+    # window is capped at MAX_WINDOW_WIDTH and the preview absorbs
+    # the difference down to its floor.
+    needed += max(chrome, fallback) + SCROLLBAR_SLACK
     self.table.setMinimumWidth(needed)
     shortfall = needed - self.table.width()
     if shortfall > 0 and self.width() < MAX_WINDOW_WIDTH:
