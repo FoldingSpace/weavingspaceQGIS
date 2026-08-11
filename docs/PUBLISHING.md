@@ -96,6 +96,39 @@ editing under them produced two spoiled measurements in one night
 existed, and a census baselining source that had changed underneath
 it.
 
+### What CI checks about the ARTEFACT, not the source
+
+Three of the jobs ask about the thing a user receives rather than the
+tree it came from, and they are cheap enough to run on every push:
+
+**The zip is built** in the standards job. `build.py` is stdlib only,
+so it needs no container, and it proves `shipped_files()` still
+resolves and the archive keeps the shape the plugin repository
+requires -- one top-level folder carrying `__init__.py` and
+`metadata.txt`.
+
+**The zip is installed and loaded**, in its own job over all three
+QGIS versions. `tools/install_and_load.py` unpacks it into a profile
+the way the plugin manager does, imports the package BY NAME from
+there, calls `classFactory`, `initGui` and `unload`, and requires
+unload to have taken back the menu entry and the toolbar icon. It is
+a separate job because GitHub runs jobs concurrently: four minutes
+beside the suite's fifty-four costs nothing, where a step inside the
+suite legs would add to every one of them. The matrix is deliberate --
+`metadata.txt` PROMISES QGIS 4.0, and a plugin that will not load on
+the floor it declares is a promise broken at install time.
+
+**The published claims are audited**, with `--check`, which asks only
+the questions whose answer is somebody's words: a missing changelog
+entry, a stale image, a broken relative link, a vendored version
+claimed in prose, a repository URL. The citation's version is skipped
+because a release mends it itself, and gating a push on something the
+release fixes would be red by design.
+
+None of this replaces the local gates. It moves the failures that
+have nothing to do with rendering -- packaging, metadata, links --
+from eighty minutes into a release to the push that caused them.
+
 ### CI needs geopandas; the plugin must never take it unasked
 
 These two pull in opposite directions and the resolution is worth

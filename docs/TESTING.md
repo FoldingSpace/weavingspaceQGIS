@@ -269,6 +269,33 @@ measuring that place as much as the software.** The value of the
 second machine is not redundancy, it is that the assumptions become
 visible.
 
+## The artefact nobody opened
+
+Every test here imported the plugin from the CHECKOUT. The release
+built a zip and never opened it. So the first thing a user does --
+unpack the archive into a QGIS profile and let QGIS call
+classFactory -- was the one thing neither machine tested, on either
+platform, at any point in this project's life.
+
+That gap is invisible from inside the suite, because everything the
+suite needs is already on sys.path. The failures it hides are
+specific: an archive whose shape the plugin manager refuses, a file
+the packing rule forgot, an import that only ever worked because the
+repository happened to be importable, an `unload` that leaves a menu
+entry pointing at code QGIS has dropped. None of those can fail a
+test that never leaves the working tree.
+
+`tools/install_and_load.py` does what QGIS does, in QGIS's order, and
+runs on every push in its own CI job. It found a fault on its first
+run -- in its own stub, which had guessed at the interface methods
+the plugin calls rather than reading them. That is worth keeping as
+the lesson: **a stub written from memory tests your memory.** The
+methods were four greps away.
+
+The general form, and it is worth asking of any project: what does
+the user receive, and has anything ever opened THAT? Not the source
+it was built from -- the thing in their hands.
+
 ## A test's name is a hypothesis about its own failure
 
 `test_a_comma_decimal_locale_does_not_corrupt_numbers` failed for two

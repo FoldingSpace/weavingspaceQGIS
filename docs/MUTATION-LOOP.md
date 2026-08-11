@@ -171,9 +171,26 @@ internally. The listing floor is applied to the WHOLE catalogue
 rather than to a slice, or sharding would trip the very check that
 exists to catch a broken listing.
 
-What has NOT moved to CI, and why, since both look tempting: the
-visual gallery and the Lab reference comparison, whose thresholds
-were tuned to one machine's fonts and antialiasing; and the
+The same workflow carries an EXPERIMENT, dispatched the same way:
+
+    bash tools/watch_remote_mutation.sh <branch> gallery
+
+The visual gallery is kept out of the push workflow because its
+Delta-E thresholds were tuned to one machine's fonts and
+antialiasing. That is a reasonable belief which nobody has tested,
+and there is a specific reason to doubt it: the gallery's SIBLING
+checks already run on Linux and pass. `visual_pair` and
+`visual_gamut` live inside the functional suite, so every push
+already compares rendered interiors against the ramps in force on
+three QGIS versions, and they have never complained about a font.
+The job records the container's font list before rendering and keeps
+the numbers, so the result is either "the rendered report now works
+on three QGIS versions" or "it differs by this much" -- the
+difference between deciding not to and finding out. It stays an
+experiment until the numbers settle it.
+
+What has NOT moved, and why: the Lab reference comparison, for the
+same font reason and with no sibling evidence to doubt it; and the
 incremental guard as a per-push GATE, because the coverage record it
 needs costs a whole suite run under monitoring and would lengthen
 every push. A gate that is red for reasons nobody can act on is one
