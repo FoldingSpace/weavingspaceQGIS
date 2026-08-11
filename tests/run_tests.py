@@ -17479,6 +17479,7 @@ app = QgsApplication([], False)
 app.initQgis()
 spec = json.loads(open(sys.argv[1], encoding="utf-8").read())
 seen = {}
+alive = []       # see the clone note below: nothing here may be collected
 for name in spec["layers"]:
   print("STEP opening " + name, flush=True)
   layer = QgsVectorLayer(spec["path"] + "|layername=" + name, name, "ogr")
@@ -17489,14 +17490,28 @@ for name in spec["layers"]:
     # of a table this plugin wrote
     print("STEP style " + name, flush=True)
     layer.loadDefaultStyle()
+    # CLONE, and keep the layer alive. layer.renderer() hands back a
+    # pointer the LAYER owns; reading its ranges and their symbols
+    # through that pointer is the classic PyQGIS ownership trap, and
+    # QGIS 4.2.1 segfaulted here on the second layer, at
+    # list(renderer.ranges()), having printed both STEP lines (CI,
+    # 2026-08-11). A clone is ours, outlives whatever the layer does
+    # next, and is what the rest of this suite already does when it
+    # reads a renderer. `alive` holds every layer for the same
+    # reason: rebinding `layer` each pass makes the previous one
+    # collectable while its objects may still be referenced.
+    alive.append(layer)
     renderer = layer.renderer()
+    renderer = renderer.clone() if renderer is not None else None
     entry["count"] = layer.featureCount()
     entry["fields"] = [f.name() for f in layer.fields()]
     entry["renderer"] = type(renderer).__name__
     entry["properties"] = sorted(layer.customPropertyKeys())
     colours = []
     if hasattr(renderer, "ranges"):
+      print("STEP ranges " + name, flush=True)
       held = list(renderer.ranges())
+      print("STEP colours " + name + " " + str(len(held)), flush=True)
       colours = [item.symbol().color().name() for item in held]
     elif hasattr(renderer, "categories"):
       held = list(renderer.categories())
