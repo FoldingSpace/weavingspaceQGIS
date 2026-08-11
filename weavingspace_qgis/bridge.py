@@ -80,6 +80,18 @@ NO_DATA_KEY = "\x00no-data"
 # tag attached to ramps we install, so they are identifiable/removable
 RAMP_TAG = "mapweaver"
 
+# lowercase ramp name -> the name the style library actually uses.
+# Filled lazily by get_ramp and cleared by ensure_ramps_installed.
+# It exists for speed, and the speed is not a nicety: resolving a name
+# case-insensitively means listing every ramp in the style, which is a
+# query against the style database, and the ramp COMBO asks for an
+# icon per ramp per row. Without this, one table rebuild on a QGIS
+# whose ramp names differ in case from ours ran the query hundreds of
+# times and took a test from 248 seconds to over 600 (Linux CI,
+# 2026-08-11). A user would have felt it as a dialog that stopped
+# responding when they changed layer.
+_RAMP_NAME_BY_LOWER = {}
+
 # tile-count guard rails (tile count grows as 1/spacing^2, so a small
 # spacing can innocently request millions of polygons): above HARD the
 # run is refused outright (it would exhaust memory inside GEOS and kill
@@ -101,6 +113,8 @@ def ensure_ramps_installed() -> None:
   palettes become preset-scheme ramps. All are tagged 'mapweaver'.
   """
   style = QgsStyle.defaultStyle()
+  # whatever this adds changes what get_ramp should resolve to
+  _RAMP_NAME_BY_LOWER.clear()
   existing = {n.lower() for n in style.colorRampNames()}
 
   def save(name, ramp):
@@ -180,10 +194,17 @@ def get_ramp(name: str, reverse: bool = False):
     # too): the user's existing ramp wins, which is what "additive
     # only" has always meant here.
     wanted = name.lower()
-    for candidate in style.colorRampNames():
-      if candidate.lower() == wanted:
-        ramp = style.colorRamp(candidate)
-        break
+    actual = _RAMP_NAME_BY_LOWER.get(wanted)
+    if actual is None:
+      # one listing, then remembered. A miss refreshes the map once
+      # rather than per lookup, so a name that is genuinely absent
+      # costs one query and not one per caller.
+      _RAMP_NAME_BY_LOWER.clear()
+      _RAMP_NAME_BY_LOWER.update(
+        {n.lower(): n for n in style.colorRampNames()})
+      actual = _RAMP_NAME_BY_LOWER.get(wanted)
+    if actual is not None:
+      ramp = style.colorRamp(actual)
   if ramp is None:
     return None
   ramp = ramp.clone()

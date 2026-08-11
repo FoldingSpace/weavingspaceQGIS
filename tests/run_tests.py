@@ -251,6 +251,20 @@ def _stall_ceiling(name):
   if name == "random designs match the library":
     cases = int(os.environ.get("WEAVINGSPACE_SWEEP_CASES", "6"))
     return max(STALL_SECONDS, 90.0 * cases)
+  # Tests that are legitimately long, with the reason and a measured
+  # figure, because a ceiling a healthy test can reach is worse than
+  # none: it produces a red run that means nothing, which is how
+  # people learn to ignore red runs. Both of these sweep an action
+  # across several debounce boundaries, so their cost is mostly
+  # WAITING and grows with any machine that schedules unkindly.
+  # Measured 2026-08-11: staggered actions took 162s on this Mac,
+  # 248s on a Linux runner, and 550s on a slower one, where it passed
+  # inside a 600s ceiling by ten per cent and stalled on the next
+  # round. Thirty minutes is far above any of that and still bounds a
+  # genuine hang.
+  if name in ("staggered actions during a run",
+              "staggered dock edits during a run"):
+    return max(STALL_SECONDS, 1800.0)
   return STALL_SECONDS
 
 
