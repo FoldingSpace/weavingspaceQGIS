@@ -1424,6 +1424,28 @@ MUTATIONS = [
            "twenty-five minutes the suite takes, and whoever checks "
            "on progress reads it as current -- which nearly happened "
            "with a stale '275 passed, 1 failed' on 2026-08-11"),
+  dict(name="ramp-lookup-is-case-blind", file=BRIDGE,
+       old="""    wanted = name.lower()
+    for candidate in style.colorRampNames():""",
+       new="""    wanted = name.lower()
+    for candidate in []:  # mutation: exact lookup only""",
+       test="test_a_palette_is_usable_whatever_case_qgis_spells_it",
+       why="installation skips a palette whose name matches an "
+           "existing ramp IGNORING CASE, so the lookup must match the "
+           "same way or the plugin declines to install its own ramp "
+           "and then cannot find the one it deferred to. Linux QGIS "
+           "ships Cividis against our cividis, and four palettes were "
+           "unavailable to every Linux user while the chooser went on "
+           "offering them"),
+  dict(name="style-name-overruns-its-column", file=BRIDGE,
+       old="  name = layer.name()[:30]",
+       new="  name = layer.name()  # mutation: let GDAL truncate it",
+       test="test_an_embedded_style_name_fits_the_column_it_is_written_to",
+       why="GDAL gives layer_styles.styleName thirty characters, and "
+           "output layers are named after the element and its "
+           "variable, so a long column name overruns it and is "
+           "truncated with a warning on every write -- storing a "
+           "value that does not say what this code thinks it says"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a
