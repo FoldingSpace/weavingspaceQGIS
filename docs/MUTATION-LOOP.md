@@ -124,6 +124,21 @@ on. So both can run on GitHub instead:
     bash tools/watch_remote_mutation.sh <branch> catalogue
     bash tools/watch_remote_mutation.sh <branch> incremental v0.24.0
     bash tools/watch_remote_mutation.sh <branch> both v0.24.0
+    bash tools/watch_remote_mutation.sh <branch> catalogue v0.24.0 stable
+
+ONE QGIS, and the CONTROL version by default rather than the current
+one. These runs ask whether the TESTS still catch what they claim,
+which is a property of the suite rather than of QGIS, so a version
+matrix pays several times over for one answer. The control is the
+default for two reasons: triage happens on the maintainer's machine,
+and a survivor that will not reproduce on the QGIS you have is
+painful for no reason; and `stable` is a MOVING tag, so pinning to it
+would make two sweeps incomparable, a changed rate ambiguous between
+the suite drifting and the tag moving -- the same reason a re-census
+is a controlled before/after only while the source is unchanged. The
+fourth argument asks a different version deliberately, which is worth
+doing when the question really is whether a newer QGIS has stopped an
+entry reaching its behaviour.
 
 The script dispatches `.github/workflows/mutation.yml` and watches it
 to the end, reporting CHANGE rather than state, reporting every

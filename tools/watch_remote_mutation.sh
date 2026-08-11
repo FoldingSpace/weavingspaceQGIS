@@ -1,7 +1,18 @@
 #!/bin/bash
 # Dispatch a mutation run on GitHub and report it until it finishes.
 #
-#   bash tools/watch_remote_mutation.sh <branch> catalogue|incremental|both [since-tag]
+#   bash tools/watch_remote_mutation.sh <branch> catalogue|incremental|both [since-tag] [qgis]
+#
+# ONE QGIS, and by default the CONTROL version rather than the current
+# one. These runs ask whether the TESTS still catch what they claim,
+# which is a property of the suite and not of QGIS, so a version
+# matrix would pay several times over for one answer. The control is
+# the default because triage happens on the maintainer's machine, and
+# because `stable` is a moving tag -- pinning to it would make two
+# sweeps incomparable, a changed rate ambiguous between the suite
+# drifting and the tag moving. Pass `stable` deliberately when the
+# question really is whether a newer QGIS has stopped an entry
+# reaching its behaviour.
 #
 # WHY REMOTE. Both instruments want a machine to themselves for a long
 # time: the catalogue sweep is hours, and the incremental guard has to
@@ -31,11 +42,12 @@ set -u
 BRANCH="${1:?usage: watch_remote_mutation.sh <branch> <what> [since-tag]}"
 WHAT="${2:?catalogue, incremental or both}"
 SINCE="${3:-v0.24.0}"
+QGIS="${4:-4.0.3}"
 cd "$(dirname "$0")/.."
 
-echo "dispatching mutation/${WHAT} on ${BRANCH} (since ${SINCE})"
+echo "dispatching mutation/${WHAT} on ${BRANCH} (since ${SINCE}, QGIS ${QGIS})"
 gh workflow run mutation.yml --ref "$BRANCH" \
-  -f what="$WHAT" -f since="$SINCE" || exit 1
+  -f what="$WHAT" -f since="$SINCE" -f qgis="$QGIS" || exit 1
 
 # The dispatch API returns nothing useful, so the run has to be found.
 # Match on the workflow AND the branch: another workflow starting at

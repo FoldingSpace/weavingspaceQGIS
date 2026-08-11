@@ -39,6 +39,14 @@ on:
         required: false
         default: v0.24.0
         type: string
+      qgis:
+        description: "which QGIS to ask (one is enough; see below)"
+        required: false
+        default: "4.0.3"
+        type: choice
+        options:
+          - "4.0.3"     # the control: what the maintainer's machine runs
+          - "stable"    # the current release, when that is the question
 
 jobs:
   # The hand-picked catalogue: break each guarded behaviour in turn
@@ -54,8 +62,25 @@ jobs:
       matrix:
         slice: [0, 1, 2, 3]
     container:
-      image: qgis/qgis:4.0.3    # the control version; this asks about
-      options: --user root      # the tests, not about QGIS versions
+      # ONE version is enough, and 4.0.3 by default. This asks whether
+      # the TESTS still catch what they claim, which is a property of
+      # the suite rather than of QGIS, so sweeping three versions
+      # would pay three times for one answer.
+      #
+      # The default is the CONTROL version -- what the maintainer's
+      # machine runs -- for two reasons. Triage happens there: a
+      # survivor is investigated and fixed locally, and one that will
+      # not reproduce on the QGIS you have is painful for no reason.
+      # And `stable` is a MOVING tag, so pinning to it would make two
+      # sweeps incomparable, with a changed rate ambiguous between the
+      # suite drifting and the tag moving -- the same reason a
+      # re-census is only a before/after while the source is
+      # unchanged.
+      #
+      # Ask `stable` deliberately when the question really is whether
+      # a newer QGIS has stopped an entry reaching its behaviour.
+      image: qgis/qgis:${{ inputs.qgis }}
+      options: --user root
     env:
       QT_QPA_PLATFORM: offscreen
       PYTHONUNBUFFERED: "1"
@@ -92,7 +117,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     container:
-      image: qgis/qgis:4.0.3
+      image: qgis/qgis:${{ inputs.qgis }}
       options: --user root
     env:
       QT_QPA_PLATFORM: offscreen
