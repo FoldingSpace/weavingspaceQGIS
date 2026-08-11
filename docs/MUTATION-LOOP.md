@@ -111,6 +111,67 @@ one measurement at a time is how each stays a measurement. (Added
 2026-08-09, the first night the catalogue was too large to sweep
 serially in the time available.)
 
+## Running either instrument on somebody else's machine
+
+Both instruments want a machine to themselves for a long time: the
+catalogue sweep is hours even in four shards, and the incremental
+guard must record per-test coverage before it can mutate anything.
+Run either here and the development machine is gone for the
+afternoon, which in practice means they are run rarely -- and an
+instrument used rarely is one whose findings arrive too late to act
+on. So both can run on GitHub instead:
+
+    bash tools/watch_remote_mutation.sh <branch> catalogue
+    bash tools/watch_remote_mutation.sh <branch> incremental v0.24.0
+    bash tools/watch_remote_mutation.sh <branch> both v0.24.0
+
+The script dispatches `.github/workflows/mutation.yml` and watches it
+to the end, reporting CHANGE rather than state, reporting every
+terminal outcome rather than only success, and treating its own
+silence as a signal: no run appearing within two minutes means the
+run was never created, usually because the workflow file is not on
+that branch -- `workflow_dispatch` only offers workflows present on
+the ref.
+
+Three properties of that workflow are deliberate and should not be
+tidied away.
+
+**It is a separate workflow, and it never runs on push.** These runs
+answer "how good is the suite" and "has a refactor stopped an old
+test reaching what it names". Neither should colour a candidate's
+status, and neither should make anybody wait.
+
+**It REPORTS rather than gates.** The steps carry
+`continue-on-error`, and the incremental guard is asked WITHOUT
+`--require`, unlike the copy release.py runs. A number that stops a
+run belongs beside the gates; a number that informs the next round
+belongs here. The findings are in the artifacts, not in the exit
+status.
+
+**The sweep is split across MACHINES as well as processes.**
+`--slice i/n` takes a share of the catalogue round-robin, so each of
+four runners gets a mixture of cheap and expensive entries rather
+than one drawing the whole slow tail, and each still shards four ways
+internally. The listing floor is applied to the WHOLE catalogue
+rather than to a slice, or sharding would trip the very check that
+exists to catch a broken listing.
+
+What has NOT moved to CI, and why, since both look tempting: the
+visual gallery and the Lab reference comparison, whose thresholds
+were tuned to one machine's fonts and antialiasing; and the
+incremental guard as a per-push GATE, because the coverage record it
+needs costs a whole suite run under monitoring and would lengthen
+every push. A gate that is red for reasons nobody can act on is one
+people learn to route around, which is the same argument in every
+case.
+
+**Read the results as work for the NEXT release.** A survivor is a
+claim about the tests, and the claim is false often enough to check
+first -- count the call sites and read the named test before
+concluding the suite is weak. The natural home for what these runs
+find is the following candidate, not the one already through its
+gates.
+
 ## Reading a batch honestly
 
 Four outcomes, and they are not interchangeable:

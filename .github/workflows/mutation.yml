@@ -1,0 +1,125 @@
+# How good are the tests? Asked on Linux, on demand, and REPORTED
+# rather than enforced.
+#
+# This is deliberately a SEPARATE workflow from tests.yml, for two
+# reasons. It must never colour a push's status: these runs answer
+# "how good is the suite" and "has a refactor stopped an old test
+# reaching what it names", and neither question should block a
+# candidate that the gates have already passed. And it is slow --
+# the catalogue sweep is hours even sharded -- so it cannot share a
+# job with anything anybody waits for.
+#
+# Nothing here runs on push. It runs when somebody asks, which in
+# practice means a watcher on the maintainer's machine dispatching it
+# and reporting back (docs/MUTATION-LOOP.md).
+#
+# Read the results as findings for the NEXT release, not as a verdict
+# on this one. A survivor is a claim about the tests that is false
+# often enough to check first: count the call sites and read the
+# named test before believing the suite is weak
+# (docs/MUTATION-TESTING.md, "Before triaging, suspect the
+# catalogue").
+
+name: mutation
+
+on:
+  workflow_dispatch:
+    inputs:
+      what:
+        description: "which instrument to run"
+        required: true
+        default: catalogue
+        type: choice
+        options:
+          - catalogue      # the hand-picked entries, sharded
+          - incremental    # only the lines changed since a tag
+          - both
+      since:
+        description: "incremental only: the tag to diff against"
+        required: false
+        default: v0.24.0
+        type: string
+
+jobs:
+  # The hand-picked catalogue: break each guarded behaviour in turn
+  # and require its named test to fail. Split FOUR WAYS across
+  # machines, each of which shards four ways again internally, so a
+  # sweep that takes hours serially finishes in well under one.
+  catalogue:
+    if: inputs.what == 'catalogue' || inputs.what == 'both'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false          # every slice's findings, not the first
+      matrix:
+        slice: [0, 1, 2, 3]
+    container:
+      image: qgis/qgis:4.0.3    # the control version; this asks about
+      options: --user root      # the tests, not about QGIS versions
+    env:
+      QT_QPA_PLATFORM: offscreen
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - name: Provision what this QGIS lacks
+        run: python3 -u tools/ci_provision.py
+      - name: Sweep this slice of the catalogue
+        # Reporting, not gating: the step is allowed to fail so that
+        # the summary below is always written and every slice is
+        # always read. An entry needing attention is a finding for the
+        # next release, and a red X here must not read as a broken
+        # build.
+        continue-on-error: true
+        run: |
+          python3 -u tools/mutation_catalogue_sweep.py \
+            --slice ${{ matrix.slice }}/4 --shards 4 \
+            2>&1 | tee slice-${{ matrix.slice }}.log
+      - name: Keep the slice's log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: catalogue-slice-${{ matrix.slice }}
+          path: slice-${{ matrix.slice }}.log
+          if-no-files-found: warn
+
+  # The measurement proper, on the lines that actually changed. This
+  # is what release.py runs with --require 70; here it is asked
+  # WITHOUT a threshold, because a number that stops a run belongs
+  # beside the gates and a number that informs the next round belongs
+  # here.
+  incremental:
+    if: inputs.what == 'incremental' || inputs.what == 'both'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    container:
+      image: qgis/qgis:4.0.3
+      options: --user root
+    env:
+      QT_QPA_PLATFORM: offscreen
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0        # --since needs the tag and its history
+      - name: Provision what this QGIS lacks
+        run: python3 -u tools/ci_provision.py
+      - name: Record which tests touch which lines
+        # NOT housekeeping: this record decides which tests are even
+        # offered the chance to notice a mutant, and a stale one
+        # overstates survivors while ignoring the newest work.
+        # mutate_auto refuses to sample against a stale record.
+        run: python3 -u tools/coverage_per_test.py
+      - name: Mutate the lines changed since ${{ inputs.since }}
+        continue-on-error: true
+        run: |
+          python3 -u tools/mutate_auto.py --since ${{ inputs.since }} \
+            2>&1 | tee incremental.log
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation-incremental
+          path: |
+            incremental.log
+            reports/
+          if-no-files-found: warn

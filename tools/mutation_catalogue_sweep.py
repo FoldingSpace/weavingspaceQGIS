@@ -99,17 +99,39 @@ def main():
   parser.add_argument("--shards", type=int, default=4,
                       help="concurrent clones (default 4; judging "
                            "parallelises safely, suites do not)")
+  parser.add_argument("--slice", default="",
+                      help="i/n: take only this share of the "
+                           "catalogue, for splitting across MACHINES "
+                           "rather than across processes on one")
   args = parser.parse_args()
   names = catalogue_names()
+  whole = len(names)
+  if args.slice:
+    # Splitting across machines as well as across processes. Four
+    # shards on one machine turn ninety minutes into twenty-five;
+    # four MACHINES each running four shards turn it into seven, and
+    # a CI matrix hands out machines for nothing. The slice is taken
+    # round-robin, like the shards, so each machine gets a mixture of
+    # cheap and expensive entries rather than one machine drawing the
+    # whole slow tail.
+    index, _, count = args.slice.partition("/")
+    index, count = int(index), int(count)
+    if not 0 <= index < count:
+      sys.exit(f"--slice {args.slice} is not i/n with 0 <= i < n")
+    names = names[index::count]
+    print(f"slice {index} of {count}: {len(names)} of {whole} entries")
   # A listing this small means the LISTING failed, not that the
   # catalogue shrank. A shell version of this sweep listed the
   # catalogue with the wrong interpreter, got one name back, judged
   # that single entry and announced a clean sweep (2026-08-10). Refuse
   # rather than report success nothing earned; a real shrinkage is a
   # deliberate act and whoever performs it can lower this floor.
-  if len(names) < MINIMUM_CATALOGUE:
+  # the floor is about the LISTING, so it is applied to the whole
+  # catalogue rather than to a slice: a quarter of 156 is legitimately
+  # under a hundred, and refusing that would make sharding impossible
+  if whole < MINIMUM_CATALOGUE:
     sys.exit(
-      f"LISTING FAILED: {len(names)} entries found, fewer than the "
+      f"LISTING FAILED: {whole} entries found, fewer than the "
       f"{MINIMUM_CATALOGUE} this catalogue is known to hold. Not "
       f"sweeping: a sweep of a broken listing reports success it "
       f"never earned. Check that the catalogue imports under THIS "

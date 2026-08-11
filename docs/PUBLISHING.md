@@ -181,6 +181,37 @@ the machine to themselves, and contention inflates per-unit times by
 15-50%. CI is on somebody else's hardware, which is exactly why it
 composes.
 
+## After a candidate ships: the instruments that run remotely
+
+A candidate's gates answer whether the plugin is correct. Two other
+questions -- how good the suite is, and whether a refactor has
+quietly stopped an old test reaching the behaviour it names -- are
+answered by the mutation instruments, and both want a machine to
+themselves for hours. Running them here blocks the development
+machine; running them on GitHub costs nothing anybody is waiting for:
+
+    bash tools/watch_remote_mutation.sh <branch> both v0.24.0
+
+They REPORT rather than gate, and their findings belong to the NEXT
+candidate. The sequence that follows from that:
+
+1. a candidate passes its gates locally and the Linux matrix, and is
+   promoted to a release;
+2. the mutation runs are dispatched against the release's branch and
+   watched from here;
+3. what they find is triaged into the next pre-candidate branch --
+   `pre-0.24.1rc1` after 0.24.0 -- because a survivor is a finding
+   about the tests rather than a fault in the artefact already
+   through its gates.
+
+Do not hold a release for them. That is the whole reason they are
+not gates: a mutation survivor is an argument for the next round of
+test-writing, and treating it as a blocker would either delay every
+release or teach everybody to wave it through.
+
+Full reasoning, including what deliberately did NOT move to CI, in
+docs/MUTATION-LOOP.md.
+
 ## What to do BEFORE a candidate, and what not to
 
 Not much, and less than instinct suggests. The gates run

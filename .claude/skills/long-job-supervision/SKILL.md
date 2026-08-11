@@ -3,7 +3,7 @@ name: long-job-supervision
 description: Supervise work that outlasts a single turn — test suites, builds, training runs, migrations, batch jobs — so the machine stays busy, finished work gets picked up immediately, and a stuck job is caught in minutes rather than hours. Use this whenever you start something long in the background, whenever a user asks for periodic status updates or says "keep going without me", whenever you are about to write a watcher or poll loop, and whenever a job seems to be taking longer than it should. Also use it before reporting that something is "still running" — that claim is worth exactly as much as the reading behind it.
 derived_from:
   - path: docs/MUTATION-LOOP.md
-    sha256: b4f0a48e0483327563ba5b291a11a1e7904c598a5ce5920a333d630871269fa5
+    sha256: 0e1228dc8e2304ac9905e1498454224e7b3e073bb453adc7c250cc83880dcb46
 ---
 
 # Supervising work that outlasts a turn
