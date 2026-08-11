@@ -380,7 +380,7 @@ def report_slug(label):
   return cleaned.strip("_")
 
 
-def check(name, fn):
+def check(name, fn, sharded=True):
   """Run one test in an isolated project.
 
   Args:
@@ -408,9 +408,19 @@ def check(name, fn):
   # of cheap and expensive tests rather than one drawing the slow tail.
   # Counting here rather than filtering in main() keeps every shard's
   # numbering identical, which is what lets their reports be added up.
-  OFFERED.append(name)
-  if SHARD_COUNT > 1 and (len(OFFERED) - 1) % SHARD_COUNT != SHARD_INDEX:
-    return None
+  #
+  # sharded=False for a check() called from INSIDE a test. One test
+  # exercises this function's own wiring by registering a probe, and
+  # counting that nested call did two things wrong at once: it shifted
+  # every later test's position, so the three shards stopped
+  # partitioning the suite (they reported 285, 285 and 286 offered),
+  # and the probe itself was skipped in two shards out of three, which
+  # failed the test that was checking the watchdog. Caught by the gate
+  # eleven minutes into the first sharded candidate, 2026-08-11.
+  if sharded:
+    OFFERED.append(name)
+    if SHARD_COUNT > 1 and (len(OFFERED) - 1) % SHARD_COUNT != SHARD_INDEX:
+      return None
   project = QgsProject.instance()
   project.clear()
   MODALS.clear()
@@ -627,6 +637,14 @@ def test_a_hanging_test_is_named_rather_than_silent():
 
   Regression: none yet -- the hang it answers was in CI, and this asserts the answer stays wired in.
   """
+  # A nested registration must not consume a shard slot. Sharding
+  # deals tests by POSITION, so a check() called from inside a test
+  # would shift every later test's shard and stop the three slices
+  # partitioning the suite -- they reported 285, 285 and 286 offered
+  # before this was fixed, which means a test was run twice or not at
+  # all. Asserted here because this is the only test that registers
+  # anything, so this is the only place the fault can arise.
+  offered_before = len(OFFERED)
   before = _watchdog_timers()
   # the probe is a MODULE-LEVEL function, not a closure: check() is
   # what the test map reads to build its index, and it indexes only
@@ -634,7 +652,8 @@ def test_a_hanging_test_is_named_rather_than_silent():
   # suite claim a test the map could not list. Linux CI found that
   # within the hour (2026-08-11); it would have failed anywhere.
   WATCHDOG_PROBE.clear()
-  check("(watchdog wiring, not a real test)", _watchdog_probe)
+  check("(watchdog wiring, not a real test)", _watchdog_probe,
+        sharded=False)
   assert len(WATCHDOG_PROBE.get("armed", [])) == len(before) + 1, \
     "no watchdog was armed while the test ran, so a hang in it would " \
     "produce silence rather than a named line"
@@ -642,6 +661,11 @@ def test_a_hanging_test_is_named_rather_than_silent():
   # the harness's own scaffolding does not appear in the report
   if PASSED and PASSED[-1].startswith("(watchdog wiring"):
     PASSED.pop()
+  assert len(OFFERED) == offered_before, \
+    f"the probe's registration was counted for sharding: OFFERED " \
+    f"went from {offered_before} to {len(OFFERED)}. Every test after " \
+    f"this one would move to a different shard, and the slices would " \
+    f"no longer add up to the suite"
   assert len(_watchdog_timers()) == len(before), \
     "the watchdog outlived the test it was armed for; left running, " \
     "it would kill whatever test happens to be in progress when its " \
