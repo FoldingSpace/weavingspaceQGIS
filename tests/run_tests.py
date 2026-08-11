@@ -9499,8 +9499,23 @@ def _compare_ui_to_library(label, setup, expected_unit, tiling_kw,
     #
     # The element ORDER is the unit's own sorted ids, which is what
     # the table rows follow; the surviving ids are a subset of it.
+    # The order the settings were APPLIED IN, which is the dialog's
+    # table row order -- one row per element the UNIT has, including
+    # any element the region starves of tiles. Keying off the ids that
+    # SURVIVED tiling is what shifted everything after the missing
+    # element onto its neighbour's variable and ramp: element 'd' wins
+    # no tiles at this spacing, so the ten surviving ids were zipped
+    # against eleven settings and e, f, g... each took d, e, f...'s.
+    # That is the whole divergence of 2026-08-10, and it is why only
+    # the eleven- and twelve-element weaves showed it: they are the
+    # only designs in the catalogue where the region starves an
+    # element entirely.
+    element_order = [a["id"] for a in dlg._assignments()]
+    assert len(element_order) == len(variables), \
+      f"{label}: the table has {len(element_order)} rows but " \
+      f"{len(variables)} settings were given"
     by_id = dict(zip(
-      sorted(set(dlg._element_layer_ids) | set(expected["tile_id"])),
+      element_order,
       zip(variables, ramps, opacities or [100] * len(variables))))
     assignments = []
     for tid in sorted(set(expected["tile_id"])):
@@ -9510,6 +9525,24 @@ def _compare_ui_to_library(label, setup, expected_unit, tiling_kw,
          "scheme": "Quantiles", "k": 5, "outline": False,
          "opacity": opacity})
     lib_layers = layers_from_gdf(expected, assignments)
+    if os.environ.get("WEAVINGSPACE_SWEEP_DUMP"):
+      ui_by_id = {a["id"]: a for a in dlg._assignments()}
+      for a, lib_layer in zip(assignments, lib_layers):
+        ui_layer = QgsProject.instance().mapLayer(
+          dlg._element_layer_ids[a["id"]])
+        def shape(layer):
+          r = layer.renderer()
+          held = list(r.ranges()) if hasattr(r, "ranges") else []
+          return [(round(x.lowerValue(), 2), round(x.upperValue(), 2),
+                   x.symbol().color().name()) for x in held]
+        u, l = shape(ui_layer), shape(lib_layer)
+        if u != l:
+          print(f"DUMP {a['id']}: ui_assign="
+                f"{ui_by_id[a['id']].get('ramp')}/"
+                f"{ui_by_id[a['id']].get('var')} "
+                f"lib_assign={a['ramp']}/{a['var']}")
+          print(f"  ui : {u}")
+          print(f"  lib: {l}")
     for lib_layer, a in zip(lib_layers, assignments):
       lib_layer.setOpacity(a.get("opacity", 100) / 100.0)
     render_layers(lib_layers, lib_png)
@@ -23064,6 +23097,12 @@ def test_random_designs_match_the_library():
   # reported failure can be reproduced in seconds against the seed it
   # was found with. Case numbers mean nothing across seeds -- see
   # docs/TESTING.md -- so pin both together or neither.
+  shard = os.environ.get("WEAVINGSPACE_SWEEP_SHARD", "")
+  shard_index, shard_of = 0, 0
+  if shard:
+    shard_index, shard_of = (int(x) for x in shard.split("/"))
+    assert 0 <= shard_index < shard_of, \
+      f"WEAVINGSPACE_SWEEP_SHARD={shard!r}: index must be below the count"
   only_cases = {int(part) for part in
                 os.environ.get("WEAVINGSPACE_SWEEP_ONLY", "").replace(
                   ",", " ").split() if part.strip()}
@@ -23205,6 +23244,16 @@ def test_random_designs_match_the_library():
     # minutes. Re-running case 589 of a 5,000-case sweep used to mean
     # waiting for the 588 in front of it (2026-08-10).
     if only_cases and case not in only_cases:
+      continue
+    # WEAVINGSPACE_SWEEP_SHARD="0/4" examines every fourth case,
+    # starting at the first. Four processes covering 0/4..3/4 sweep
+    # the whole run about four times faster, and each still DRAWS
+    # every case, so every design is identical to the unsharded run --
+    # which is what makes the shards' results comparable with it and
+    # with each other. Rendering is independent per case, so this
+    # parallelises the way mutation judging does and not the way a
+    # test suite does. (2026-08-10.)
+    if shard_of and case % shard_of != shard_index:
       continue
 
     label = f"sweep {case} {name} at {spacing}"

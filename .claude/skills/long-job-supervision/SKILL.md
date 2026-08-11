@@ -3,7 +3,7 @@ name: long-job-supervision
 description: Supervise work that outlasts a single turn — test suites, builds, training runs, migrations, batch jobs — so the machine stays busy, finished work gets picked up immediately, and a stuck job is caught in minutes rather than hours. Use this whenever you start something long in the background, whenever a user asks for periodic status updates or says "keep going without me", whenever you are about to write a watcher or poll loop, and whenever a job seems to be taking longer than it should. Also use it before reporting that something is "still running" — that claim is worth exactly as much as the reading behind it.
 derived_from:
   - path: docs/MUTATION-LOOP.md
-    sha256: 7a230dcf1019dc2c6820402813041391c69a74041eddd0a3ef1b0fa333d179f4
+    sha256: b4f0a48e0483327563ba5b291a11a1e7904c598a5ce5920a333d630871269fa5
 ---
 
 # Supervising work that outlasts a turn
@@ -75,6 +75,25 @@ Run it whenever things feel quiet, and specifically before saying
 anything is still running.
 
 ## Heartbeats
+
+**Arm the watcher AS YOU START THE JOB, in the same breath.** Not
+afterwards, not when someone asks. The rule below was written on
+2026-08-10 and broken the same evening: a ninety-minute sweep was
+launched with no watcher, and the user had to ask for one. Writing a
+rule and applying it are different acts, and the gap between them is
+where the idle hours live. So make it mechanical -- launching a long
+job has exactly three steps, in this order:
+
+1. can it be SHARDED? FOUR is the default here when the answer is
+   yes. Independent units (mutation judgements, sweep
+   cases, per-file work) parallelise; timing-sensitive whole-suite
+   runs do not. Four shards turn ninety minutes into twenty-five;
+2. arm the watcher, with a filter covering failure as well as
+   progress;
+3. only then go and do something else.
+
+Skipping step 1 costs hours of wall clock; skipping step 2 costs the
+hours between finishing and being noticed.
 
 **Run one whenever work outlasts a turn, not only when asked.** A
 thirty-minute beat is the default for anything measured in hours. This

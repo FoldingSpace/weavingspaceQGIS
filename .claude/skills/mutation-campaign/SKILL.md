@@ -3,7 +3,7 @@ name: mutation-campaign
 description: Run a mutation-testing campaign to measure and genuinely improve how good a test suite is — sampling mutants, triaging survivors, verifying that new tests actually fail, and deciding when a score can be defended. Use this whenever the user wants to know whether their tests are any good, asks about mutation testing or mutation score, says coverage looks high but they don't trust it, wants to raise a mutation score toward a target, or is writing tests to close gaps that a mutation tool found. Also use it when someone proposes to accept a surviving mutant as "equivalent", or asks how many mutants they need to sample — both are places where a campaign quietly turns into a vanity metric.
 derived_from:
   - path: docs/MUTATION-LOOP.md
-    sha256: 7a230dcf1019dc2c6820402813041391c69a74041eddd0a3ef1b0fa333d179f4
+    sha256: b4f0a48e0483327563ba5b291a11a1e7904c598a5ce5920a333d630871269fa5
   - path: docs/MUTATION-TESTING.md
     sha256: 3afab0494ec033d810a461b55a22854db699effcb6394b2c8e9c6e1e27505b0a
 ---
@@ -43,7 +43,10 @@ the behaviour it names is broken, and the only way to know is to break
 it.
 
 Keep a catalogue of hand-picked mutations, each naming the test that
-must fail under it, and run it as part of the release. When the
+must fail under it, and run it as part of the release. Sweep it in
+FOUR SHARDS by default, not serially -- judgements are independent,
+so four processes finish in about a quarter of the time, and the
+same default applies to any long job made of independent units. When the
 catalogue outgrows a serial sweep — well over a hundred entries here
 — shard it across concurrent clones: mutation JUDGING parallelises
 safely (measured: three workers, identical verdicts), which full test

@@ -40,15 +40,41 @@ for the run that will build `0.24.0rc5` -- so the name says which
 artefact the CI result belongs to. A bare `pre-release` tells nobody
 which release, and two of them at once tell nobody anything.
 
+The sequence runs WITHOUT stopping to ask. It is one process, not
+a series of decisions: the pre-candidate push is a step in it,
+like the secrets check or the gates. Stop for the user only when
+something INTERRUPTS it -- a red gate, a CI failure needing a
+judgement, or a tree that is not in the state assumed here.
+(User instruction, 2026-08-10.)
+
 The sequence:
 
 1. **Push the branch first** (never `main`): `git push -u origin
    pre-<version>rc<n>`. CI starts immediately. `gh run watch` follows it, or
    `gh run list --branch <branch>` for the URL.
-2. **Start the local candidate**: `python3 release.py --rc`. It reads
+2. **Arm the CI watcher in the same breath as the push** -- not after,
+   and not by checking back by hand. It polls the branch and reports
+   exactly twice: when a run APPEARS (with its URL) and when it
+   COMPLETES (with the overall conclusion AND each job's verdict, so
+   you learn which QGIS version failed rather than merely that
+   something did). It then exits rather than polling on.
+
+       gh run list --branch pre-<version>rc<n> --limit 1 \
+         --json databaseId,status,conclusion,url
+
+   Two properties matter and both are deliberate. It reports every
+   terminal state, not just success -- a watcher that matches only
+   good news is indistinguishable from one that has died. And its
+   SILENCE is itself a signal: if nothing appears within a minute of
+   the push, the run is not merely slow, it was never created, and
+   the usual cause is the organisation's Actions policy (Settings ->
+   Actions -> General), which no token here can read. Do not wait
+   twenty minutes to discover that.
+
+3. **Start the local candidate**: `python3 release.py --rc`. It reads
    the working tree for an hour and a half, so from this moment the
    working tree is FROZEN.
-3. **Fix what CI reports WHILE that runs -- in a worktree, never in
+4. **Fix what CI reports WHILE that runs -- in a worktree, never in
    the frozen tree**:
 
        git worktree add ../ws-ci-fixes -b ci-fixes
@@ -56,7 +82,7 @@ The sequence:
    Edit, run single tests there (`dev/run_some.py` derives its own
    checkout, so it exercises the worktree), prove any mutation entry
    there, and commit on that branch.
-4. **Merge when both have answered.** A candidate is promoted only
+5. **Merge when both have answered.** A candidate is promoted only
    when the local gates are green AND the Linux matrix is green; if
    either turned something up, merge the worktree's fixes into the
    branch and start the pair again.

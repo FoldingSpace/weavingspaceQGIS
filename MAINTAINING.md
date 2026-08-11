@@ -4,6 +4,27 @@ A guide for whoever keeps this working, whether cartographer,
 student, or AI assistant; it assumes no particular software
 engineering background.
 
+## Long jobs are sharded by default
+
+Anything that takes more than a few minutes and is made of
+INDEPENDENT units is run four ways at once, not one:
+
+    python3 tools/mutation_catalogue_sweep.py --shards 4      # catalogue
+    WEAVINGSPACE_SWEEP_SHARD=0/4 ... tests/run_tests.py       # differential sweep
+    (one process per shard, 0/4 through 3/4)
+
+Independent means each unit's result does not depend on the others:
+mutation judgements, differential-sweep cases, per-file audits. Those
+shard cleanly and finish in about a quarter of the time. What does
+NOT shard is a timing-sensitive whole run -- a full test suite, a
+coverage record, a census -- where two at once inflate each other's
+times by 15-50% and a slowed unit can be recorded as passing when it
+merely stalled.
+
+The other half of the rule: arm a watcher in the same breath as you
+launch, with a filter that matches failure as well as progress. Both
+halves are in CLAUDE.md and in .claude/skills/long-job-supervision.
+
 ## The one-page mental model
 
 ```

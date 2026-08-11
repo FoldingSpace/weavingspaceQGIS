@@ -14,6 +14,48 @@ The suite lives in `tests/run_tests.py` (behaviour), `tests/visual_tests.py`
 `tools/` (coverage, mutation, standards, secrets). Everything runs
 under QGIS's own Python; `release.py` gates on all of it.
 
+## The differential sweep: reproducing and sharding
+
+Three environment variables, all added 2026-08-10 while chasing a
+divergence that took a day:
+
+    WEAVINGSPACE_SWEEP_SEED=20260808     the run's random seed
+    WEAVINGSPACE_SWEEP_CASES=1700        how many designs it drew
+    WEAVINGSPACE_SWEEP_ONLY=589          examine only these cases
+    WEAVINGSPACE_SWEEP_SHARD=0/4         examine every fourth case
+    WEAVINGSPACE_SWEEP_DUMP=1            dump both sides' renderers
+
+Every case is DRAWN whichever of these is set -- drawing is
+microseconds, tiling and rendering are the minutes -- so a selected
+or sharded run produces designs identical to the full one. That is
+what makes the results comparable, and it is why ONLY refuses a case
+beyond CASES rather than widening silently: a reproduction that
+changes its own context is worthless.
+
+Four shards cover 1,700 cases in about a quarter of the time. Sweep
+cases are independent renders, so they parallelise the way mutation
+judgements do and not the way a whole suite does.
+
+## Instrument the code under test, never replace it
+
+Two of the four false diagnoses in one day's bug hunt came from
+probes that monkey-patched the very function being studied. A spy
+that stands in for the comparison helper does not assign the ramps
+the helper assigns, so it "discovered" that the dialog was using its
+default ramps -- which was true of the spy's run and false of every
+real one. The reading looked like evidence and was an artefact.
+
+If you must observe a function's innards, add a dump INSIDE it behind
+an environment flag and run the real thing. It costs three lines,
+it cannot drift from what actually runs, and it can be left in place
+for the next investigation. The dump that finally named the bug
+(`WEAVINGSPACE_SWEEP_DUMP`) took two minutes to write after a day of
+reconstructions that each had to be argued about.
+
+The same applies to reproductions: a selector that quietly widens a
+run's case count changes the run it claims to reproduce. Make such
+tools REFUSE rather than adapt.
+
 ## A seeded sweep's case numbers mean nothing across seeds
 
 The differential sweep draws its designs from a seed that varies per

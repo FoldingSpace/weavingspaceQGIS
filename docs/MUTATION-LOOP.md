@@ -91,7 +91,13 @@ names and only re-breaking everything finds that. At well over a
 hundred entries a serial sweep costs hours, so it is sharded:
 
     python3 tools/mutation_catalogue_sweep.py            # 4 shards
+
     python3 tools/mutation_catalogue_sweep.py --shards 2
+
+Four shards is the DEFAULT for every long job here made of
+INDEPENDENT units, not a tuning choice: the differential sweep takes
+WEAVINGSPACE_SWEEP_SHARD=i/4 the same way, and both finish in about a
+quarter of the time. See MAINTAINING.md.
 
 Mutation judging parallelises safely — measured here: three workers,
 identical verdicts — which full suites do not; that asymmetry is the

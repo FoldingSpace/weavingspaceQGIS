@@ -168,6 +168,15 @@ obligations: they exist so nobody pays twice for the same discovery.
   intentions do not survive a long session. When a rule genuinely
   should change, change it in the checker deliberately — do not
   weaken it to make a release pass.
+- **The pre-candidate push is PART of the release process, not a
+  separate permission.** Once the tree is ready, the sequence runs
+  without asking: merge, regenerate the derived documents, secrets
+  check, push `pre-<version>rc<n>`, arm the CI watcher, start
+  `release.py --rc`. Ask only if the process is INTERRUPTED --
+  a gate goes red, CI reports something needing a decision, or the
+  tree is not in the state the procedure assumes. Pushing to
+  `main`, tagging, and publishing a release remain the user's
+  explicit call. (User instruction, 2026-08-10.)
 - **A branch is not created until the secrets check has passed, and
   carries only what CI needs.** The check runs BEFORE the branch
   exists, not after: a secret that reaches a public branch is public
@@ -178,7 +187,12 @@ obligations: they exist so nobody pays twice for the same discovery.
   `reports/` are gitignored precisely so working notes, dossiers and
   candidates cannot travel. (User instruction, 2026-08-10.)
 - **Linux CI runs BESIDE the local gates, not after them, and its
-  fixes are made in a WORKTREE.** Push the branch first so GitHub's
+  fixes are made in a WORKTREE, and the push is watched.** A CI
+  watcher is armed in the same breath as the push and reports
+  twice -- run appeared, run finished with each job's verdict --
+  because its SILENCE after a push means the run was never
+  created (usually org Actions policy), which is worth knowing in
+  a minute rather than twenty. Push the branch first so GitHub's
   runners (about twenty minutes) are already answering while
   `release.py --rc` reads the working tree for ninety; then fix
   whatever CI reports in `git worktree add ../ws-ci-fixes`, never in
@@ -291,6 +305,14 @@ obligations: they exist so nobody pays twice for the same discovery.
   upstream adopting our own convex-hull optimisation, which let us
   retire a patch instead of carrying a duplicate of it forever.
   (Standing user instruction, 2026-08-07.)
+- **Launching a long job has three steps and they happen together:
+  shard it, watch it, then leave it.** Ask first whether the work
+  parallelises -- sweep cases, mutation judgements and per-file work
+  all do, whole test suites do not -- because four shards turn ninety
+  minutes into twenty-five; then arm the watcher; then go and do
+  something else. Both halves were written down on 2026-08-10 and
+  both were skipped the same evening on a ninety-minute sweep, until
+  the user asked why. A rule that is only written is not a practice.
 - **Anything that outlasts a turn gets a thirty-minute heartbeat.**
   Not when asked: by default. A beat reports what is running with CPU
   against elapsed, progress against the total, the newest result, and
