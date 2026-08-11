@@ -37,6 +37,23 @@ def main():
     None; writes reports/per-test-coverage.json and prints a summary.
   """
   import importlib.util
+  # Raise the suite's per-test stall ceiling BEFORE the suite is
+  # loaded, because it reads the variable once at import.
+  #
+  # Recording coverage runs every test under sys.monitoring, which
+  # costs about SIX TIMES the plain duration -- measured 2026-08-11:
+  # "free-text inputs survive nonsense" 82s on CI and 513s here,
+  # "staggered actions during a run" 161s plain and 855s here. The
+  # ceilings in run_tests are sized for a plain run, so under
+  # monitoring an ordinary healthy test can pass 600 seconds and be
+  # killed as hung. That is a FALSE stall: it costs a whole candidate
+  # (two hours, here) and reports a defect that does not exist.
+  #
+  # An hour, so that even the slowest test has a wide margin at six
+  # times its cost, while a genuine hang is still bounded. Set rather
+  # than defaulted, and only for this stage: a plain run keeps the
+  # tighter ceiling, where it is right.
+  os.environ.setdefault("WEAVINGSPACE_TEST_STALL", "3600")
   spec = importlib.util.spec_from_file_location(
     "rt", os.path.join(ROOT, "tests", "run_tests.py"))
   rt = importlib.util.module_from_spec(spec)
