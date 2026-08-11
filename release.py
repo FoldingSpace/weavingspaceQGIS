@@ -374,6 +374,50 @@ def mutation_sample_size(changed_lines):
   return max(12, min(80, changed_lines // 20))
 
 
+def stage_log_path(step):
+  """Where this stage's full output is kept.
+
+  Args:
+    step: the human stage name, e.g. "functional suite".
+
+  Returns:
+    An absolute path under reports/stage-logs/, with everything but
+    letters and digits turned into hyphens. ONE rule with two
+    callers -- the in-progress stamp and the finished output -- so
+    the two can never write to different files and leave a reader
+    holding whichever is older.
+  """
+  log_dir = os.path.join(ROOT, "reports", "stage-logs")
+  os.makedirs(log_dir, exist_ok=True)
+  return os.path.join(
+    log_dir, "".join(c if c.isalnum() else "-" for c in step) + ".log")
+
+
+def stamp_stage_log(step, began):
+  """Replace a stage's log with a note saying this stage is running.
+
+  Args:
+    step: the human stage name.
+    began: the time.time() at which the stage started.
+
+  Returns:
+    None; the file is overwritten. The old contents are deliberately
+    DISCARDED rather than kept above the note: a reader who scrolls
+    finds the previous run's results and no longer knows which run
+    they belong to, which is the whole failure this prevents.
+  """
+  with open(stage_log_path(step), "w", encoding="utf-8") as handle:
+    handle.write(
+      f"IN PROGRESS: {step}\n"
+      f"started {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(began))}"
+      f", part of the release begun "
+      f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(RELEASE_STARTED))}"
+      f"\n\nThis stage has not finished, so it has no result yet. The "
+      f"previous run's output was cleared when this one started, "
+      f"because an old log with nothing to say it is old reads "
+      f"exactly like a current one.\n")
+
+
 def run(step, cmd, env, capture=False):
   """Run one release step, and abandon the release if it fails.
 
@@ -403,7 +447,21 @@ def run(step, cmd, env, capture=False):
   if step not in STAGE_ORDER:
     STAGE_ORDER.append(step)
   STAGE_STATE[step] = ["running", time.time()]
-  began = time.time()
+  began = time.time()            # for stamping: a human reads it
+  # for every DURATION below. Kept apart from `began` deliberately:
+  # mixing the two clocks in one subtraction is how a sleep turns
+  # into a stall, and the mix would look perfectly ordinary.
+  began_monotonic = time.monotonic()
+  if capture:
+    # Stamp the stage log as IN PROGRESS before the work starts.
+    # Without this the file on disk keeps the PREVIOUS run's output
+    # for as long as this stage takes, and anybody checking on
+    # progress reads last night's verdict as though it were tonight's
+    # -- which happened on 2026-08-11, when a stale "275 passed, 1
+    # failed" from the aborted rc5 was nearly reported as the result
+    # of the run then twenty minutes into its suite. A log that is
+    # merely OLD is a log that lies, because nothing about it says so.
+    stamp_stage_log(step, began)
   stalled = []
   process = subprocess.Popen(
     cmd, env=env, cwd=ROOT, text=True,
@@ -411,14 +469,31 @@ def run(step, cmd, env, capture=False):
     stderr=subprocess.STDOUT if capture else None)
 
   def watch():
-    """Stop the stage if it goes long enough without using any cpu."""
+    """Stop the stage if it goes long enough without using any cpu.
+
+    Every clock reading here is time.monotonic(), NEVER time.time(),
+    and the difference is a closed laptop. Wall clock advances while
+    a machine sleeps; the process accumulates no cpu, because it is
+    not running. Read together on wake, those two say "hours idle,
+    no work done" -- which is this watchdog's definition of a hang,
+    so a healthy release would be killed for having been carried to
+    a meeting. On macOS time.monotonic() stops with the machine, so
+    a sleep simply does not count.
+
+    This is the same defect the mutation campaign fixed in
+    mutate_auto.py after a sleeping laptop cost four verdicts in
+    batch 8 (docs/MUTATION-TESTING.md, "the measurement keeps
+    flattering itself"). release.py was written afterwards and
+    repeated it, which is worth knowing: a lesson recorded in one
+    tool does not travel to the next by itself.
+    """
     allowance = (NETWORK_STALL_SECONDS if step in NETWORK_STAGES
                  else STALL_SECONDS)
-    last_cpu, idle_since = None, time.time()
+    last_cpu, idle_since = None, time.monotonic()
     while process.poll() is None:
       time.sleep(SAMPLE_SECONDS)
       used = tree_cpu_seconds(process.pid)
-      now = time.time()
+      now = time.monotonic()
       # a hundredth of a second of movement is enough to call it
       # alive; ps reports to that resolution and a working tree
       # moves far more
@@ -426,9 +501,11 @@ def run(step, cmd, env, capture=False):
         idle_since = now
       last_cpu = used if used is not None else last_cpu
       STAGE_IDLE[step] = now - idle_since
-      if now - idle_since > allowance or now - began > ABSOLUTE_CEILING:
+      if now - idle_since > allowance or \
+          now - began_monotonic > ABSOLUTE_CEILING:
         stalled.append(
-          "used no cpu at all" if now - began <= ABSOLUTE_CEILING
+          "used no cpu at all"
+          if now - began_monotonic <= ABSOLUTE_CEILING
           else "ran past the absolute ceiling while still busy")
         process.kill()
         return
@@ -438,7 +515,10 @@ def run(step, cmd, env, capture=False):
   output_text = process.communicate()[0] if capture else None
   returncode = process.wait()
   STAGE_IDLE.pop(step, None)
-  spent = time.time() - began
+  # monotonic: a stage carried through a sleep would otherwise be
+  # remembered as having taken hours, and remember_timing feeds the
+  # estimates printed in the progress chart
+  spent = time.monotonic() - began_monotonic
   STAGE_STATE[step] = ("failed" if (returncode or stalled) else "done",
                        spent)
   if not returncode and not stalled:
@@ -473,10 +553,7 @@ def run(step, cmd, env, capture=False):
     # below, and a failure whose casualties sat above the tail once
     # cost a full re-run just to learn their names. reports/ is
     # local-only, so a big log costs nobody a clone.
-    log_dir = os.path.join(ROOT, "reports", "stage-logs")
-    os.makedirs(log_dir, exist_ok=True)
-    stage_log = os.path.join(
-      log_dir, "".join(c if c.isalnum() else "-" for c in step) + ".log")
+    stage_log = stage_log_path(step)
     with open(stage_log, "w", encoding="utf-8") as handle:
       handle.write(output)
     print(output[-2000:])

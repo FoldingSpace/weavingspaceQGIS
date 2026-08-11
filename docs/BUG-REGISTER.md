@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-67 defect(s) with a regression test.
+69 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -94,6 +94,8 @@ there is no separate list to remember.
   guarded by `test_a_reloaded_module_retires_the_old_dialog_cleanly`
 - **a column added in QGIS — with the Field Calculator, the usual way — never appeared in the variable choosers, because their item lists are built during a table rebuild and a rebuild happens when the LAYER changes, not when its columns do; the column stayed invisible until the user switched layers and back.**  
   guarded by `test_a_sequence_of_edits_under_the_plugin`
+- **a stage log kept the previous run's verdict for the whole time the stage ran, and read as current.**  
+  guarded by `test_a_stage_log_never_shows_the_previous_run`
 - **the inset percentage conversion was defended only by comparisons whose tolerance is wider than the error.**  
   guarded by `test_an_inset_percentage_is_a_percentage_of_the_spacing`
 - **none of these shapes had ever been put through the plugin; the suite's fixtures are all well-formed.**  
@@ -150,6 +152,8 @@ there is no separate list to remember.
   guarded by `test_the_design_view_draws_no_tile_outlines`
 - **the preview's painting had almost no coverage, and removing its brush, pen, render hint or fitting arithmetic changed a picture no test looked at.**  
   guarded by `test_the_preview_actually_draws_what_it_is_given`
+- **release.py's watchdog measured wall clock, so a laptop asleep mid-release would have aborted a healthy run as hung. The same defect cost four verdicts in mutation batch 8 and was fixed there; release.py was written afterwards and repeated it.**  
+  guarded by `test_the_release_watchdog_ignores_a_sleeping_machine`
 - **the deferred fit-to-design after showEvent had no test, so the window could open too small to show its own controls.**  
   guarded by `test_the_window_fits_its_design_tab_when_shown`
 - **two warnings from one run shared a single label and the last one silently erased the first.**  
@@ -170,7 +174,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 37
+- unrecorded: 39
 - reading the code: 7
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5

@@ -7399,6 +7399,65 @@ def _release_module(name):
   return module
 
 
+def test_a_stage_log_never_shows_the_previous_run():
+  """A stage's log says it is running, not what it said last time.
+
+  release.py writes a stage's full output when the stage FINISHES,
+  which left the file on disk holding the previous run's result for
+  as long as the stage took -- twenty-five minutes for the functional
+  suite. Anyone checking on progress read an old verdict as a current
+  one, with nothing in the file to say which run it belonged to. That
+  happened on 2026-08-11: a stale "275 passed, 1 failed" from an
+  aborted candidate was nearly reported as the result of a run that
+  was at the time twenty minutes into its suite.
+
+  So a stage stamps its log before it starts work. What is asserted
+  here is the property a reader depends on -- that at no moment does
+  the file hold output belonging to an earlier run -- and that both
+  writers agree on WHICH file, since two paths would leave a reader
+  holding whichever was older.
+
+  Regression: a stage log kept the previous run's verdict for the whole time the stage ran, and read as current.
+  """
+  import shutil
+  import tempfile
+  release = _release_module("release")
+  folder = tempfile.mkdtemp(prefix="ws-stage-log-")
+  previous_root = release.ROOT
+  try:
+    release.ROOT = folder
+    path = release.stage_log_path("functional suite")
+    assert path == release.stage_log_path("functional suite"), \
+      "the path rule is not stable"
+    # last night's result, sitting where a reader will find it
+    with open(path, "w", encoding="utf-8") as handle:
+      handle.write("275 passed, 1 failed\n")
+
+    # Run a real stage whose whole job is to READ ITS OWN LOG while it
+    # is running, and require the stamping to have happened by then.
+    # Calling stamp_stage_log directly would pass whether or not run()
+    # ever calls it -- which it did, when this test was first written.
+    reader = ("import sys;"
+              "print(open(sys.argv[1], encoding='utf-8').read())")
+    output = release.run("functional suite",
+                         [sys.executable, "-c", reader, path],
+                         dict(os.environ), capture=True)
+    assert "275 passed" not in output, \
+      "while the stage was running its log still held the PREVIOUS " \
+      "run's result; anyone checking on progress is shown an old " \
+      "verdict with nothing in the file to say it is old"
+    assert "IN PROGRESS" in output and "has not finished" in output, \
+      f"the log did not say the stage was still running: {output!r}"
+
+    # and when the stage finishes, the log holds THIS stage's output
+    finished = open(path, encoding="utf-8").read()
+    assert "IN PROGRESS" in finished and "275 passed" not in finished, \
+      "the finished log does not hold what this stage printed"
+  finally:
+    release.ROOT = previous_root
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_a_candidate_number_is_never_reused():
   """A number belongs to a candidate for good, deleted zip or not.
 
@@ -7615,6 +7674,58 @@ def test_the_release_watchdog_measures_the_whole_tree():
   # listing and measuring is ordinary
   assert release.tree_cpu_seconds(child.pid) in (None, 0.0) or True, \
     "reading a finished process must not raise"
+
+
+def test_the_release_watchdog_ignores_a_sleeping_machine():
+  """The stall watchdog reads a clock that stops when the machine does.
+
+  A closed laptop and a hung stage look identical to a wall clock:
+  hours pass, no cpu is used. The difference is that during a sleep
+  nothing is wrong, and killing a healthy release for having been
+  carried to a meeting is a failure people learn to route around.
+  time.monotonic() stops with the machine on macOS, so a sleep simply
+  does not count toward the idle allowance.
+
+  This is a STRUCTURAL check and says so rather than pretending
+  otherwise: the behaviour cannot be reproduced without actually
+  suspending the machine, because a test that merely stops a process
+  is describing a real stall, which the watchdog is right to kill.
+  What can be asserted is that the watchdog reads no wall clock at
+  all -- and since the whole defect is one function quietly reading
+  the wrong one, that is the thing worth guarding.
+
+  Regression: release.py's watchdog measured wall clock, so a laptop asleep mid-release would have aborted a healthy run as hung. The same defect cost four verdicts in mutation batch 8 and was fixed there; release.py was written afterwards and repeated it.
+  """
+  import ast
+  source = open(os.path.join(ROOT, "release.py"), encoding="utf-8").read()
+  tree = ast.parse(source)
+  watchers = [n for n in ast.walk(tree)
+              if isinstance(n, ast.FunctionDef) and n.name == "watch"]
+  assert len(watchers) == 1, \
+    f"expected one watch() in release.py, found {len(watchers)}; " \
+    f"this test no longer knows which function it is checking"
+  reads = [n for n in ast.walk(watchers[0])
+           if isinstance(n, ast.Call)
+           and isinstance(n.func, ast.Attribute)
+           and isinstance(n.func.value, ast.Name)
+           and n.func.value.id == "time"]
+  kinds = sorted({n.func.attr for n in reads})
+  assert "time" not in kinds, \
+    f"the release watchdog calls time.time(); a sleeping machine " \
+    f"then looks exactly like a hang, because wall clock advances " \
+    f"while the process uses no cpu. Read time.monotonic(), which " \
+    f"stops with the machine. Calls found: {kinds}"
+  assert "monotonic" in kinds, \
+    f"the watchdog reads no monotonic clock at all: {kinds}"
+
+  # and the ceiling it compares against must come from the same clock;
+  # one monotonic and one wall-clock reading in a subtraction is the
+  # same bug wearing a subtler face
+  names = {n.id for n in ast.walk(watchers[0]) if isinstance(n, ast.Name)}
+  assert "began_monotonic" in names and "began" not in names, \
+    f"the watchdog mixes clocks: it uses {sorted(names & {'began', 'began_monotonic'})}. " \
+    f"`began` is wall clock, kept for stamping; durations must come " \
+    f"from began_monotonic or a sleep re-enters through the ceiling"
 
 
 def test_the_release_watchdog_stops_a_stuck_stage():
@@ -25399,6 +25510,8 @@ def main():
         test_default_ramp_pairs_pass_our_own_legibility_bar)
   check("the report generators survive hostile docstrings",
         test_the_report_generators_survive_hostile_docstrings)
+  check("a stage log never shows the previous run",
+        test_a_stage_log_never_shows_the_previous_run)
   check("a candidate number is never reused",
         test_a_candidate_number_is_never_reused)
   check("the release digest watches what ships",
@@ -25413,6 +25526,8 @@ def main():
         test_the_release_refuses_a_tree_it_did_not_measure)
   check("the release watchdog measures the whole tree",
         test_the_release_watchdog_measures_the_whole_tree)
+  check("the release watchdog ignores a sleeping machine",
+        test_the_release_watchdog_ignores_a_sleeping_machine)
   check("the release watchdog stops a stuck stage",
         test_the_release_watchdog_stops_a_stuck_stage)
   check("the release watchdog leaves a busy stage alone",

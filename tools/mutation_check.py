@@ -1414,6 +1414,16 @@ MUTATIONS = [
            "form of this defect by refilling the count with the four "
            "families that build everywhere, so the test looks past "
            "the count's existence to what is actually in it"),
+  dict(name="stage-log-says-it-is-running", file=RELEASE,
+       old="  if capture:\n    # Stamp the stage log as IN PROGRESS",
+       new="  if False:  # mutation: leave the old log in place\n"
+           "    # Stamp the stage log as IN PROGRESS",
+       test="test_a_stage_log_never_shows_the_previous_run",
+       why="a stage writes its log when it FINISHES, so without the "
+           "stamp the file holds the PREVIOUS run's verdict for the "
+           "twenty-five minutes the suite takes, and whoever checks "
+           "on progress reads it as current -- which nearly happened "
+           "with a stale '275 passed, 1 failed' on 2026-08-11"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a
