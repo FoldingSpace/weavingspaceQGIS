@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-62 defect(s) with a regression test.
+63 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -20,6 +20,8 @@ there is no separate list to remember.
   guarded by `test_output_layers_carry_spatial_indexes`
 - **the shared no-data grey was compared against itself, scoring every categorical pair at Delta-E 0.00 and making the legibility warning useless for categorical designs.**  
   guarded by `test_the_no_data_grey_is_never_a_clash`
+- **_fit_table_width reserved the style's nominal scrollbar metric (14px) where Qt draws 18, so once the rows overflowed the table scrolled HORIZONTALLY and columns past the edge went unfound -- the one thing the layout rule forbids. Reachable at sixteen and twenty elements on the shipped catalogue; hidden because the layout test only ever measured a four-row table.**  
+  guarded by `test_the_table_copes_with_the_largest_element_count`
 
 ## Found by the hostile data corpus
 
@@ -164,8 +166,8 @@ there is no separate list to remember.
 - reading the code: 7
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5
+- a family audit of the claims the software makes: 4
 - reported by a user: 4
-- a family audit of the claims the software makes: 3
 - race and stress testing: 3
 - comparing rendered output against the reference in Lab space: 1
 - the hostile data corpus: 1
