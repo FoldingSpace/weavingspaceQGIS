@@ -331,6 +331,43 @@ obligations: they exist so nobody pays twice for the same discovery.
   something else. Both halves were written down on 2026-08-10 and
   both were skipped the same evening on a ninety-minute sweep, until
   the user asked why. A rule that is only written is not a practice.
+- **A ceiling a healthy run can reach is worse than no ceiling, and
+  is sized from the SLOWEST machine ever measured.** Made twice on
+  2026-08-11, hours apart: a forty-minute CI job limit sized against
+  a twenty-four-minute macOS suite (the Linux legs take 52-54, and
+  one leg was cancelled mid-run), and a six-hundred-second per-test
+  watchdog against a test that had already been measured at 550 on a
+  Linux runner. Both produced a red result that meant nothing, which
+  is precisely how people learn to ignore red results -- the same
+  argument this project already makes for keeping the visual gallery
+  out of CI. Before setting any limit, find the slowest MEASURED
+  figure and multiply, rather than reasoning from the machine in
+  front of you; and when the same code takes 392s, 486s and 550s on
+  three legs of one run, the spread is the runner and the limit has
+  to clear all of it. A stall watchdog is for catching a HANG, not
+  for enforcing a performance budget.
+- **Durations are monotonic; only timestamps are wall clock.** A
+  laptop closed for two hours makes wall clock advance while a
+  process accumulates no cpu, and those two readings together are
+  indistinguishable from a hang -- so `release.py` would have aborted
+  a healthy candidate carried to a meeting. `time.monotonic()` stops
+  with the machine on macOS, which is why it is the only clock any
+  watchdog, stage duration or progress figure may read; a wall-clock
+  reading is kept only where a human compares it with their watch.
+  Never subtract one from the other. The mutation campaign learned
+  this in batch 8, `release.py` was written afterwards and repeated
+  it, and two test fixtures then staged wall-clock starts against
+  monotonic code -- so the rule travels badly and is written here for
+  that reason. (2026-08-11.)
+- **Instrument a child process BEFORE it crashes.** A subprocess that
+  dies in C leaves exit -11 and two empty streams, which says nothing
+  whatever; `faulthandler.enable()` and a printed line per phase turn
+  that into a named call. Adding them costs three lines up front and
+  a full CI round -- fifty minutes here -- after the fact. The same
+  applies to any failure message that will be read remotely: say what
+  was FOUND (the values, the environment, the exception), never only
+  which assertion was reached. (2026-08-11, after a missing geopandas
+  spent two rounds disguised as a locale defect.)
 - **Anything that outlasts a turn gets a thirty-minute heartbeat.**
   Not when asked: by default. A beat reports what is running with CPU
   against elapsed, progress against the total, the newest result, and

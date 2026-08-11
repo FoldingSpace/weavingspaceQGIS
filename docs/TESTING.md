@@ -287,6 +287,50 @@ catalogue carries counts the chooser does not offer" when the chooser
 offered them perfectly well, and the handover recorded a real
 user-facing gap that never existed.
 
+## A stack pointing at your newest change is a hypothesis
+
+The per-test watchdog fired on a stalled test and printed the main
+thread's stack, which ran straight through a function changed an hour
+earlier -- the case-insensitive ramp lookup, which really did query
+the style database once per ramp icon per row. Everything fit, and it
+was wrong: measured, that lookup costs 0.024 ms, so even thousands of
+them are milliseconds against a ten-minute stall.
+
+What actually explained it was in the timings nobody had looked at:
+the same test took 392s, 486s and 550s on three legs of ONE round, on
+identical code. The spread is the runner.
+
+A stack tells you where a process WAS, which is not why it was slow.
+Before accepting the obvious culprit, measure it -- and prefer
+evidence that varies independently of the suspect, like the same code
+timed on three machines. The cache was kept because it is right on
+its own terms, and labelled in its commit as not the cause, because
+the next person will otherwise read the fix as the diagnosis.
+
+## Ceilings, and the two ways to get them wrong
+
+A watchdog exists to catch a HANG. It is not a performance budget,
+and every time it is used as one it produces a red result that means
+nothing -- which is how people learn to ignore red results.
+
+Both mistakes were made on 2026-08-11, hours apart:
+
+- a forty-minute CI job limit, sized against the twenty-four-minute
+  macOS suite, forgetting that the Linux legs are slower and that a
+  provisioning step downloads a scientific stack first. All three
+  legs took 52-54 minutes; one was cancelled at forty, mid-run;
+- a six-hundred-second per-test watchdog against a test already
+  measured at 550 on a Linux runner. It passed inside the ceiling by
+  ten per cent, then stalled on the next round.
+
+The rule: size a ceiling from the SLOWEST figure ever measured, not
+from the machine in front of you, and multiply. Where a test is
+legitimately long -- these two sweep an action across several debounce
+boundaries, so their cost is mostly waiting -- give it a named
+allowance with the measurement written beside it, as `_stall_ceiling`
+does. A ceiling with a reason can be raised by whoever meets it; a
+bare number gets doubled by whoever is annoyed by it.
+
 ## One fix, two loops
 
 The palette test was narrowed to ramps this plugin installed, and

@@ -145,6 +145,36 @@ exercise none of it. So the provisioning step is a test in its own
 right: when it fails, `deps.py` is broken for every Linux user, and
 we learn it here rather than from an issue.
 
+### What the first three CI rounds cost, so the next one is cheaper
+
+Seventy failures, then nine, then three, over three rounds of about
+fifty minutes each. Worth recording because most of the cost was
+avoidable and the avoidable parts have a pattern.
+
+**Read the whole log before diagnosing.** The first round's write-up
+named two failing tests as "two real platform failures" and sent the
+next session after a QApplication property that was never involved.
+The log said 3 passed, 70 failed, and sixty-nine of the seventy were
+one missing package. A summary of a log is not the log.
+
+**Expect the first rounds to find the ENVIRONMENT, not the code.**
+One real plugin defect came out of three rounds -- ramp names
+colliding by case -- against a dozen faults in tests and tooling that
+had quietly encoded one machine. That ratio is normal for a first CI
+and is not an argument against it: those assumptions were invisible
+until something else ran them.
+
+**Fix in the worktree, and push only when a round can answer
+something new.** Each push starts a fifty-minute round, so a fix
+landed while a round is in flight buys nothing and throws away the
+answer the round was about to give. Batch the certain fixes, and let
+an open question keep its round.
+
+**Instrument rather than guess when a round costs fifty minutes.** A
+failure that says only which assertion it reached will be guessed at
+twice. One here spent two rounds looking like a locale defect before
+its message was made to report what it had actually found.
+
 The one thing that cannot be parallelised is a MEASUREMENT beside
 another measurement: the sweep, the census and the suite each want
 the machine to themselves, and contention inflates per-unit times by

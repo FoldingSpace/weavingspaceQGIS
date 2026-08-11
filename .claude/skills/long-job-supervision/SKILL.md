@@ -162,6 +162,67 @@ those serially, event-driven on each other's completion rather than
 on a clock, so a quiet evening is used and a busy one is not
 double-booked.
 
+## Ceilings catch hangs, and nothing else
+
+Every timeout is a claim about how long healthy work takes, and the
+claim is usually made from the machine in front of you. That machine
+is the fastest one the job will ever run on.
+
+Two ceilings were set and both were wrong within hours (2026-08-11):
+a forty-minute CI job limit sized against a twenty-four-minute local
+suite, where the remote legs took 52-54 and one was cancelled
+mid-run; and a ten-minute per-test watchdog against a test already
+measured at 550 seconds elsewhere, which passed by ten per cent and
+stalled on the next round. Each produced a red result that meant
+nothing, and a red result that means nothing is how a gate gets
+ignored.
+
+- **Size from the slowest MEASURED figure, then multiply.** Not from
+  a guess, and not from your own machine.
+- **Treat spread as data.** The same code took 392s, 486s and 550s on
+  three legs of one run: that spread is the environment, and the
+  ceiling has to clear all of it.
+- **Give a legitimately long unit a named allowance with its
+  measurement written beside it.** A bare number gets doubled by
+  whoever is annoyed by it; a number with a reason gets raised by
+  whoever meets it, deliberately.
+- **A watchdog is not a performance budget.** If you want to know
+  that something got slower, measure it and report; do not enforce it
+  with a killer whose only vocabulary is "hung".
+
+## Clocks: durations monotonic, timestamps wall
+
+A sleeping machine advances the wall clock while accumulating no cpu.
+Those two readings together are exactly the signature of a hang, so a
+wall-clock watchdog kills healthy work that was carried to a meeting
+-- which is what would have happened to a release here, had the clock
+not been changed an hour earlier. `time.monotonic()` stops with the
+machine on macOS.
+
+So: every duration, allowance and progress figure reads the monotonic
+clock; wall clock is kept only where a human compares it with their
+watch. Never subtract one from the other, and watch for the mix
+appearing in TEST FIXTURES after the code is fixed -- two here staged
+wall-clock starts against monotonic code and only failed once the
+code started caring.
+
+The wider lesson: this exact defect was found and fixed in one tool,
+and a tool written afterwards repeated it. A lesson recorded in one
+place does not travel to the next by itself.
+
+## Instrument before you need it
+
+A child process that dies in C leaves an exit code and two empty
+streams. `faulthandler.enable()` plus a printed line per phase turns
+that into a named call, and both are three lines added in advance --
+against a full remote round, here fifty minutes, added afterwards.
+
+The same holds for any message that will be read from somewhere else:
+report what was FOUND, not which assertion you reached. A child that
+could not import its dependencies once failed an assertion about
+tiles, and was diagnosed for two rounds as a locale defect because
+the message named only the assertion.
+
 ## Resource pressure
 
 Check the resource that is actually scarce, not the one that is easy
