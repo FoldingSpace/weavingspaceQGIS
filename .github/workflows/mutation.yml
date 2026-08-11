@@ -34,6 +34,7 @@ on:
           - catalogue      # the hand-picked entries, sharded
           - incremental    # only the lines changed since a tag
           - both
+          - gallery        # an EXPERIMENT: see the gallery job below
       since:
         description: "incremental only: the tag to diff against"
         required: false
@@ -146,5 +147,62 @@ jobs:
           name: mutation-incremental
           path: |
             incremental.log
+            reports/
+          if-no-files-found: warn
+
+  # AN EXPERIMENT, and labelled one so nobody mistakes it for a gate.
+  #
+  # The visual gallery is kept out of tests.yml because its thresholds
+  # were tuned to one machine's fonts and antialiasing. That reasoning
+  # deserves testing rather than repeating, for a specific reason: the
+  # gallery's SIBLING checks already run on Linux and pass. visual_pair
+  # and visual_gamut live inside the functional suite, so every push
+  # already compares rendered interiors against the ramps in force on
+  # three QGIS versions, and they have not once complained about fonts.
+  #
+  # If the gallery's Delta-E limits survive a different font stack, the
+  # rendered report becomes available on three QGIS versions instead of
+  # one, which is worth knowing. If they do not, the numbers here say
+  # BY HOW MUCH, which is the difference between "we decided not to"
+  # and "we found out".
+  #
+  # Either way it stays here rather than moving to tests.yml unless the
+  # experiment settles it, and it never runs on push.
+  gallery:
+    if: inputs.what == 'gallery'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        qgis: ["4.0.0", "4.0.3", "stable"]
+    container:
+      image: qgis/qgis:${{ matrix.qgis }}
+      options: --user root
+    env:
+      QT_QPA_PLATFORM: offscreen
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - name: Provision what this QGIS lacks
+        run: python3 -u tools/ci_provision.py
+      - name: What fonts does this container actually have
+        # The whole question. Recorded before the gallery runs, so a
+        # difference in the numbers can be read against a difference in
+        # the font stack rather than guessed at.
+        continue-on-error: true
+        run: fc-list 2>/dev/null | head -20 || echo "fontconfig absent"
+      - name: Render the gallery
+        # Allowed to fail: that IS the experiment's result, and a
+        # failure here must not read as a broken build.
+        continue-on-error: true
+        run: python3 -u tests/visual_tests.py 2>&1 | tee gallery.log
+      - name: Keep the renders and the numbers
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: gallery-${{ matrix.qgis }}
+          path: |
+            gallery.log
             reports/
           if-no-files-found: warn

@@ -77,20 +77,18 @@ jobs:
       - name: User-facing text has been reviewed
         run: python3 tools/text_review.py --check
 
-      # A release stage that needs NO QGIS and takes seconds, so it
-      # costs this twenty-second job nothing and moves a packaging
+      # Two release stages that need NO QGIS and take seconds, so they
+      # cost this twenty-second job nothing and move two classes of
       # failure from "eighty minutes into a release" to "the push that
       # caused it".
-      #
-      # NOT here, deliberately: tools/sync_release_content.py, the
-      # published-content audit. It reports the citation version as
-      # wrong until a release mends it with --fix, so on any ordinary
-      # push it would be RED for something the release fixes by
-      # itself. A gate that is red by design is one people stop
-      # reading, which is the fault this file already avoids for the
-      # visual gallery. It could come here if the tool grew a mode
-      # reporting only the problems that need WORDS -- the ones that
-      # genuinely stop a release -- rather than everything it mends.
+      - name: The claims the published files make
+        # --check asks only the questions whose answer is somebody's
+        # WORDS -- a missing changelog entry, a stale image, a broken
+        # link, a vendored version claimed in prose, a repository URL.
+        # The citation's version is skipped because a release mends it
+        # itself, so gating a push on it would be red by design. All
+        # file and text checking, no QGIS, under a second.
+        run: python3 tools/sync_release_content.py --check
       - name: The plugin still packages
         # proves shipped_files() resolves and the zip keeps the shape
         # the QGIS plugin repository requires -- one top-level folder
@@ -214,3 +212,41 @@ jobs:
           name: reports-${{ matrix.qgis }}
           path: reports/
           if-no-files-found: ignore
+
+  # The first thing a user does, and the one thing neither machine
+  # tested: unpack the zip into a QGIS profile and let QGIS load it.
+  # The suite imports the plugin from the CHECKOUT; the release builds
+  # an archive and never opens it. An archive of the wrong shape, a
+  # file the packing rule forgot, or an import that only worked
+  # because the repository was on sys.path would all reach a user
+  # before they reached us -- and this is the path a plugin repository
+  # reviewer looks at hardest.
+  #
+  # A SEPARATE job, deliberately. GitHub runs jobs concurrently, so
+  # four minutes beside the suite's fifty-four costs nothing on the
+  # clock; folding it into the suite legs would add to every one of
+  # them. It is a matrix over the same versions because the metadata
+  # PROMISES QGIS 4.0, and a plugin that will not load on the floor it
+  # declares is a promise broken at install time.
+  install:
+    runs-on: ubuntu-latest
+    needs: standards
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        qgis: ["4.0.0", "4.0.3", "stable"]
+    container:
+      image: qgis/qgis:${{ matrix.qgis }}
+      options: --user root
+    env:
+      QT_QPA_PLATFORM: offscreen
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - name: Provision what this QGIS lacks, the way the plugin does
+        run: python3 -u tools/ci_provision.py
+      - name: Build the zip a user would install
+        run: python3 build.py
+      - name: Install it into a profile and load it
+        run: python3 -u tools/install_and_load.py dist/weavingspace_qgis.zip

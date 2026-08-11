@@ -260,12 +260,28 @@ def main():
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument("--fix", action="store_true")
   parser.add_argument("--since", type=float, default=0)
+  parser.add_argument(
+    "--check", action="store_true",
+    help="report only what needs a PERSON, skipping the one thing a "
+         "release mends by itself. This is the form CI can run.")
   args = parser.parse_args()
 
   fields = metadata()
   version = fields.get("version", "").strip()
   problems = []
-  problems += sync_citation(version, args.fix)
+  # The citation's version has exactly one correct value and --fix
+  # writes it, so between releases it legitimately names the LAST
+  # released version and this check is legitimately unhappy. Gating a
+  # push on that would be red by design, and a gate that is red by
+  # design is one people stop reading -- the same reason the visual
+  # gallery stays out of CI. --check therefore asks only the
+  # questions whose answer is somebody's WORDS: a missing changelog
+  # entry, a stale image, a broken link, a vendored version claimed
+  # in prose, a repository URL. Those are wrong the moment they are
+  # written, and worth learning on the push that wrote them rather
+  # than eighty minutes into a release. (2026-08-11.)
+  if not args.check:
+    problems += sync_citation(version, args.fix)
   problems += check_changelog(fields, version)
   problems += check_images(args.since)
   problems += check_links()
@@ -279,8 +295,11 @@ def main():
     print("\nThese are claims made to readers. Fix the words, or the "
           "thing they describe.")
     return 1
-  print(f"published content agrees with v{version}: citation, changelog, "
-        f"images, links, vendored version and URLs")
+  print(f"published content agrees with v{version}: "
+        + ("changelog, images, links, vendored version and URLs "
+           "(citation not checked: --check)" if args.check else
+           "citation, changelog, images, links, vendored version "
+           "and URLs"))
   return 0
 
 
