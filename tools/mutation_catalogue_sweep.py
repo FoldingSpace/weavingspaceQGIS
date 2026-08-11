@@ -36,6 +36,11 @@ import sys
 import threading
 import time
 
+# The floor below which a listing is assumed broken rather than
+# shrunken. Well under the catalogue's real size, so ordinary pruning
+# never trips it.
+MINIMUM_CATALOGUE = 100
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 
@@ -96,6 +101,19 @@ def main():
                            "parallelises safely, suites do not)")
   args = parser.parse_args()
   names = catalogue_names()
+  # A listing this small means the LISTING failed, not that the
+  # catalogue shrank. A shell version of this sweep listed the
+  # catalogue with the wrong interpreter, got one name back, judged
+  # that single entry and announced a clean sweep (2026-08-10). Refuse
+  # rather than report success nothing earned; a real shrinkage is a
+  # deliberate act and whoever performs it can lower this floor.
+  if len(names) < MINIMUM_CATALOGUE:
+    sys.exit(
+      f"LISTING FAILED: {len(names)} entries found, fewer than the "
+      f"{MINIMUM_CATALOGUE} this catalogue is known to hold. Not "
+      f"sweeping: a sweep of a broken listing reports success it "
+      f"never earned. Check that the catalogue imports under THIS "
+      f"interpreter.")
   print(f"sweeping {len(names)} catalogue entries "
         f"across {args.shards} shard(s)")
   shards = [names[i::args.shards] for i in range(args.shards)]

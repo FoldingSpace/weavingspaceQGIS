@@ -1328,18 +1328,41 @@ def apply_mutation(mutation, base=None):
     next inside the sandbox.
 
   Raises:
-    SystemExit: the anchor is missing, meaning the catalogue has
-      drifted from the code and needs a human decision rather than a
-      silent skip.
+    SystemExit: the anchor is missing (the catalogue has drifted from
+      the code) or AMBIGUOUS (it matches several places, so mutating
+      the first would leave the rest doing the work). Both need a
+      human decision rather than a silent skip, and the ambiguous
+      case is the more dangerous because it reports SURVIVED rather
+      than erroring.
   """
   path = os.path.join(base or ROOT, mutation["file"])
   with open(path, encoding="utf-8") as f:
     original = f.read()
-  if mutation["old"] not in original:
+  found = original.count(mutation["old"])
+  if found == 0:
     raise SystemExit(
       f"ANCHOR MISSING for mutation '{mutation['name']}' in "
       f"{mutation['file']}:\n  {mutation['old'][:100]}\n"
       "The code moved; update tools/mutation_check.py.")
+  if found > 1:
+    # An AMBIGUOUS anchor is worse than a missing one, because it
+    # fails quietly: only the first occurrence is mutated and the
+    # identical siblings go on doing the work, so the behaviour never
+    # actually breaks and the entry reports SURVIVED. Five entries sat
+    # in that state until a full sweep exposed them (2026-08-10), each
+    # reading as a gap in the tests when the fault was in the
+    # catalogue. Refuse, and say which choice the author has to make:
+    # narrow the anchor to the site the `why` describes, or -- if the
+    # sites really are interchangeable -- delete the redundant code
+    # rather than write a test defending it.
+    raise SystemExit(
+      f"AMBIGUOUS ANCHOR for mutation '{mutation['name']}': it "
+      f"matches {found} places in {mutation['file']}, so only the "
+      f"first would be mutated and the others would keep the "
+      f"behaviour alive -- the entry would report SURVIVED whatever "
+      f"the tests do.\n  {mutation['old'][:100]}\n"
+      "Narrow the anchor with surrounding context, or delete the "
+      "redundant call site.")
   with open(path, "w", encoding="utf-8") as f:
     f.write(original.replace(mutation["old"], mutation["new"], 1))
   return path, original

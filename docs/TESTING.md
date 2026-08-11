@@ -14,6 +14,27 @@ The suite lives in `tests/run_tests.py` (behaviour), `tests/visual_tests.py`
 `tools/` (coverage, mutation, standards, secrets). Everything runs
 under QGIS's own Python; `release.py` gates on all of it.
 
+## A seeded sweep's case numbers mean nothing across seeds
+
+The differential sweep draws its designs from a seed that varies per
+run, and numbers the cases within that run. So "case 259 failed" and
+"case 259 now passes" are statements about two DIFFERENT designs
+unless the seed matched, and treating one as evidence about the other
+is comparing two things that merely look comparable. That error cost
+a wrong conclusion sent to an upstream maintainer on 2026-08-10.
+
+Rules that follow, and they are cheap:
+
+- **read the seed out of the log before comparing runs.** It is
+  printed beside every case;
+- to re-test a specific failure, pin the SAME seed
+  (`WEAVINGSPACE_SWEEP_SEED=<n>`) rather than trusting case numbers;
+- when reporting a sweep result to anyone, quote the seed with it.
+
+The same caution applies to any sampled instrument here: a census is
+exact for its stratum, a sample is not, and neither is comparable
+with a differently-drawn one.
+
 ## The modal recorder keeps the sentence, not only the title
 
 `_no_modal_dialogs` replaces every QMessageBox with a recorder, and

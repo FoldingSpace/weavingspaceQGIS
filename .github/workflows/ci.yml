@@ -41,7 +41,12 @@ name: tests
 
 on:
   push:
-    branches: [main]
+    # main, and the pre-candidate branches the release process pushes
+    # BEFORE building a candidate locally (docs/PUBLISHING.md). Without
+    # the pattern a pre-candidate push started nothing at all, and the
+    # parallel-CI process described there would have waited on a run
+    # that was never going to happen. (2026-08-10.)
+    branches: [main, "pre-**"]
   pull_request:
   workflow_dispatch:
 

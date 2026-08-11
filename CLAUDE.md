@@ -168,6 +168,45 @@ obligations: they exist so nobody pays twice for the same discovery.
   intentions do not survive a long session. When a rule genuinely
   should change, change it in the checker deliberately — do not
   weaken it to make a release pass.
+- **A branch is not created until the secrets check has passed, and
+  carries only what CI needs.** The check runs BEFORE the branch
+  exists, not after: a secret that reaches a public branch is public
+  whatever happens next, and deleting the branch does not undo it.
+  The pre-candidate branch is named for the candidate it precedes
+  (`pre-0.24.0rc5`), and nothing rides along that a Linux test run
+  has no use for -- in this repository `dev/`, `dist/` and
+  `reports/` are gitignored precisely so working notes, dossiers and
+  candidates cannot travel. (User instruction, 2026-08-10.)
+- **Linux CI runs BESIDE the local gates, not after them, and its
+  fixes are made in a WORKTREE.** Push the branch first so GitHub's
+  runners (about twenty minutes) are already answering while
+  `release.py --rc` reads the working tree for ninety; then fix
+  whatever CI reports in `git worktree add ../ws-ci-fixes`, never in
+  the frozen tree, and merge when both have answered. A candidate is
+  promoted only when local gates and the Linux matrix are both
+  green. The worktree part is not fussiness: editing a tree that a
+  gate or a sweep is reading produced two spoiled measurements in one
+  night. Procedure in docs/PUBLISHING.md. (User instruction,
+  2026-08-10.)
+- **Do not re-run a gate the release is about to run.** The gates
+  are ordered cheapest-first for exactly this reason: standards and
+  secrets take seconds, and the FUNCTIONAL SUITE IS THE THIRD STAGE,
+  so a failing suite aborts a candidate about twenty-four minutes in
+  having cost little more than the suite itself. Running that suite
+  standalone "to be safe" beforehand therefore buys no earlier
+  warning and doubles the wait; the same goes for the coverage
+  record, the gallery and the reference comparison. Run a subset
+  while iterating (`dev/run_some.py`), then go straight to
+  `release.py --rc` and let the gates do the whole-tree work once.
+  The habit this replaces cost roughly forty minutes per candidate
+  and was justified by a belief about the gate order that was simply
+  wrong. What DOES belong before a candidate is the cheap work the
+  gates only CHECK rather than perform: regenerate `docs/TEST-MAP.md`
+  and `docs/BUG-REGISTER.md` (the standards check compares them
+  against the suite and stops the build on a stale count), and settle
+  the text-review queue, which is the user's act and cannot be done
+  by a gate at all. (User instruction, 2026-08-10, after noticing the
+  duplication.)
 - **A substantial release goes out as a CANDIDATE first.**
   `python3 release.py --rc` runs the same correctness gates and then
   stops, writing `dist/weavingspace_qgis-<version>rc<n>.zip` and

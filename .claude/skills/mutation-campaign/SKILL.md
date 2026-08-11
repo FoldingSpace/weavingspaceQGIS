@@ -5,7 +5,7 @@ derived_from:
   - path: docs/MUTATION-LOOP.md
     sha256: 7a230dcf1019dc2c6820402813041391c69a74041eddd0a3ef1b0fa333d179f4
   - path: docs/MUTATION-TESTING.md
-    sha256: 16bee3264621078d6d0f5b1da7b0b5c170f2b15dac708b8dd2cba50ce1dc1b03
+    sha256: 3afab0494ec033d810a461b55a22854db699effcb6394b2c8e9c6e1e27505b0a
 ---
 
 # Running a mutation campaign
@@ -69,6 +69,28 @@ tests turned out to pass for the wrong reason:
 
 None of these is exotic. All three would have shipped as protection
 that did not exist.
+
+## Before triaging, suspect the catalogue
+
+A survivor is a claim about the TESTS, and the claim is false often
+enough to check first. Three ways a hand-picked entry lies while
+looking healthy, all found in one sweep:
+
+- **an ambiguous anchor** — the tool replaces the first occurrence,
+  so an anchor matching several places mutates one site while its
+  siblings keep the behaviour alive; the entry reports SURVIVED
+  whatever the tests do. Make the tool REFUSE an anchor that matches
+  more than once; it is a silent failure otherwise, and the loud
+  version costs one line;
+- **an entry naming a test that cannot reach it** — a guard in name
+  only. Ask what the named test actually executes;
+- **a redundant call site** — the same duty done twice means deleting
+  one leaves the other to cover it. The answer is a scenario only the
+  mutated site can serve, or, if there is none, deleting the code.
+
+Count the call sites and read the named test before concluding the
+suite is weak. Five of thirteen survivors in that sweep were the
+first kind alone.
 
 ## Triaging a survivor
 

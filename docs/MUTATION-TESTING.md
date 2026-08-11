@@ -14,6 +14,43 @@ call awkward survivors "equivalent", write assertions that pin the
 mutated token — and a score inflated that way is worse than no score,
 because it is used as evidence.
 
+## Three ways a catalogue entry lies, all found on 2026-08-10
+
+A hand-picked entry is a claim: *break this, and that test fails.*
+A full sweep found three ways the claim can be false while the entry
+looks perfectly healthy, and all three read as gaps in the TESTS when
+the fault was in the CATALOGUE. Each now has a guard, because each
+had gone unnoticed for weeks.
+
+**An AMBIGUOUS anchor.** `mutation_check` replaces the first
+occurrence only, so an `old` string matching two or three places
+mutates one site while its identical siblings go on doing the work.
+The behaviour never breaks and the entry reports SURVIVED whatever
+the tests do. Five of thirteen survivors were this. The tool now
+REFUSES an anchor that matches more than once, and says which choice
+the author has: narrow it with surrounding context to the site the
+`why` describes, or -- if the sites really are interchangeable --
+delete the redundant call site rather than write a test defending it.
+
+**An entry naming a test that cannot reach it.** One entry named the
+test that asserts the table's SHAPE while describing a decision that
+test never drives; it could not have failed. Before adding an entry,
+ask what the named test actually executes, and prefer the test whose
+docstring already claims the behaviour.
+
+**A redundant call site masking the mutation.** The same duty
+performed twice -- fitting the window at construction AND on show --
+means deleting one leaves the other to cover it, and no test can
+discriminate until one is given an occasion the other cannot serve.
+The fix is not a cleverer assertion; it is a scenario where only the
+mutated site can act (hide the window, change the design, show it
+again). If no such scenario exists, the code is genuinely redundant
+and should go.
+
+The general rule these share: when a survivor appears, count the call
+sites and read the named test BEFORE concluding the suite is weak.
+The catalogue is as capable of lying as the code it guards.
+
 ## The two harnesses
 
 `tools/mutation_check.py` holds hand-picked mutations, one per

@@ -6,6 +6,97 @@ page, and (eventually) people who find the plugin from inside QGIS
 itself. What follows is the procedure and the state of preparation for
 the third.
 
+## Two machines at once: Linux CI beside the local gates
+
+The candidate's gates take about ninety minutes on this Mac; GitHub's
+amd64 runners finish the Linux matrix in about twenty. Run them in
+SERIES and you learn about a Linux fault ninety minutes after you
+could have. Run them in PARALLEL and both sets of problems arrive
+together.
+
+Before any of it, TWO GATES that come before the branch exists,
+because a push is the one step this project cannot take back:
+
+- **`python3 tools/check_no_secrets.py` must pass FIRST, and pass on
+  exactly the files a commit would carry.** Not after branching, not
+  after pushing: a secret that reaches a public branch is public
+  even if the branch is deleted a minute later, and history is
+  recoverable long after. It is the same reason `release.py` runs the
+  check twice. (User instruction, 2026-08-10.)
+- **Nothing goes up that CI does not need.** The Linux matrix
+  consumes the plugin package, `tests/`, the four `tools/` checkers
+  it runs, `.github/`, and the generated documents the standards
+  check compares against. It has no use for candidates, reports or
+  working notes -- and in this repository those are already outside
+  git (`dev/`, `dist/` and `reports/` are gitignored, so none of the
+  campaign notes or dossiers can travel). Before pushing, look at
+  `git ls-files` and ask what each top-level entry is doing for a
+  Linux test run; anything that is only for a human reading the
+  repository is fine to keep, anything that is neither is a mistake
+  to fix before it is public rather than after.
+
+The branch is named for the candidate it precedes -- `pre-0.24.0rc5`
+for the run that will build `0.24.0rc5` -- so the name says which
+artefact the CI result belongs to. A bare `pre-release` tells nobody
+which release, and two of them at once tell nobody anything.
+
+The sequence:
+
+1. **Push the branch first** (never `main`): `git push -u origin
+   pre-<version>rc<n>`. CI starts immediately. `gh run watch` follows it, or
+   `gh run list --branch <branch>` for the URL.
+2. **Start the local candidate**: `python3 release.py --rc`. It reads
+   the working tree for an hour and a half, so from this moment the
+   working tree is FROZEN.
+3. **Fix what CI reports WHILE that runs -- in a worktree, never in
+   the frozen tree**:
+
+       git worktree add ../ws-ci-fixes -b ci-fixes
+
+   Edit, run single tests there (`dev/run_some.py` derives its own
+   checkout, so it exercises the worktree), prove any mutation entry
+   there, and commit on that branch.
+4. **Merge when both have answered.** A candidate is promoted only
+   when the local gates are green AND the Linux matrix is green; if
+   either turned something up, merge the worktree's fixes into the
+   branch and start the pair again.
+
+Why a worktree rather than a second clone: it shares the object
+store, so branches and history are the same repository, and the fix
+merges as an ordinary commit. Why not the same tree: a release's
+gates and a differential sweep both read the working tree, and
+editing under them produced two spoiled measurements in one night
+(2026-08-10) -- a suite whose result described a tree that no longer
+existed, and a census baselining source that had changed underneath
+it.
+
+The one thing that cannot be parallelised is a MEASUREMENT beside
+another measurement: the sweep, the census and the suite each want
+the machine to themselves, and contention inflates per-unit times by
+15-50%. CI is on somebody else's hardware, which is exactly why it
+composes.
+
+## What to do BEFORE a candidate, and what not to
+
+Not much, and less than instinct suggests. The gates run
+cheapest-first -- standards, secrets, then the functional suite --
+so a broken suite stops a candidate about twenty-four minutes in.
+Running the suite (or coverage, or the gallery) standalone first
+gives no earlier warning and doubles the wait. Iterate with
+`dev/run_some.py` on the tests you are actually changing, then go to
+`python3 release.py --rc`.
+
+Two things DO belong first, because the gates check them rather than
+produce them:
+
+    python3 tools/test_map.py
+    python3 tools/bug_register.py
+
+and a settled text-review queue (`python3 tools/text_review.py`,
+reviewed and applied by the USER). A stale generated document stops
+the build on a count mismatch, and no gate can approve prose on
+somebody's behalf.
+
 ## A release candidate, first
 
     python3 release.py --rc       # gates, then a numbered candidate

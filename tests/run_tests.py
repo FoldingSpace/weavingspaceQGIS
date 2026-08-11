@@ -9386,10 +9386,43 @@ def _compare_ui_to_library(label, setup, expected_unit, tiling_kw,
   assert dlg.table.rowCount() == len(variables), \
     f"{label}: {dlg.table.rowCount()} rows but {len(variables)} " \
     "variables were given"
+  # Let any queued rebuild land BEFORE assigning. _rebuild_unit above
+  # flushes the design side, but choosing a variable or a ramp starts
+  # the debounced preview refresh, and on a long design that refresh
+  # rebuilds the table and restores the dialog's DEFAULT ramps over
+  # everything set so far. Assign after it settles, and the rebuild
+  # has nothing left to undo.
+  _settle(dlg, seconds=30)
+  _tick(400)
   for row, var in enumerate(variables):
     dlg.table.cellWidget(row, 1).setCurrentText(var)
   for row, ramp in enumerate(ramps):
     dlg.table.cellWidget(row, 4).setCurrentText(ramp)
+  # A combo can REFUSE a choice -- a graduated row swaps a categorical
+  # ramp straight back -- and a refusal that goes unnoticed makes the
+  # oracle render something the dialog never agreed to, which reads as
+  # a plugin defect. Check that what was asked for is what the table
+  # holds, and say which row lied.
+  # Settle BEFORE checking. Setting a row's ramp queues the debounced
+  # preview refresh, and on a design with many elements that rebuild
+  # lands AFTER the loop above and restores every combo to the
+  # dialog's own DEFAULT_RAMPS -- so the map is generated with
+  # defaults while this comparison expects what it asked for. The
+  # check used to read the combos immediately, before the rebuild, and
+  # passed while the assignment was about to be thrown away. Only the
+  # largest designs lost that race, which is exactly the family the
+  # 2026-08-10 sweep reported as divergent: eleven- and twelve-element
+  # weaves, sixteen cases across two seeds, every one of them this.
+  _settle(dlg, seconds=30)
+  _tick(400)
+  for row, ramp in enumerate(ramps):
+    actual = dlg.table.cellWidget(row, 4).currentText()
+    assert actual == ramp, \
+      f"{label}: row {row} was asked for the {ramp!r} ramp and holds " \
+      f"{actual!r} once the table settled; either the dialog refused " \
+      f"the choice or a rebuild restored its default, and comparing " \
+      f"against a map built with {ramp!r} would blame the plugin for " \
+      f"the test's own wrong assumption"
   if opacities:
     for row, value in enumerate(opacities):
       dlg._row_opacity(row).setValue(value)
@@ -9412,6 +9445,26 @@ def _compare_ui_to_library(label, setup, expected_unit, tiling_kw,
     want_area = float(want.geometry.area.sum())
     assert abs(got_area - want_area) <= want_area * area_tolerance, \
       f"element {tid}: area {got_area:.0f} vs library {want_area:.0f}"
+    # WHERE, not only how much. Counts and total area both match when
+    # a weave is offset by one strand -- the tiles are the same size
+    # and there are the same number of them, they are simply in the
+    # wrong places -- so the comparison used to pass geometry and
+    # fail on pixels, which reads as a colour fault and is not one.
+    # The centroid of an element's tiles is the cheapest statement of
+    # position that survives a different tile ORDER. (2026-08-10.)
+    got_x = sum(f.geometry().centroid().asPoint().x()
+                for f in out.getFeatures()) / max(out.featureCount(), 1)
+    got_y = sum(f.geometry().centroid().asPoint().y()
+                for f in out.getFeatures()) / max(out.featureCount(), 1)
+    want_x = float(want.geometry.centroid.x.mean())
+    want_y = float(want.geometry.centroid.y.mean())
+    span = max(float(want.geometry.total_bounds[2]
+                     - want.geometry.total_bounds[0]), 1.0)
+    drift = max(abs(got_x - want_x), abs(got_y - want_y))
+    assert drift <= span * 0.02, \
+      f"element {tid}: its tiles sit {drift:.0f} map units away from " \
+      f"where the library puts them ({got_x:.0f},{got_y:.0f} against " \
+      f"{want_x:.0f},{want_y:.0f}); same tiles, different places"
 
   sys.path.insert(0, HERE)
   from visual_tests import render_layers, layers_from_gdf
@@ -9425,13 +9478,37 @@ def _compare_ui_to_library(label, setup, expected_unit, tiling_kw,
     lib_png = os.path.join(out_dir, f"{slug}_library.png")
     render_layers([project.mapLayer(dlg._element_layer_ids[t])
                    for t in sorted(dlg._element_layer_ids)], ui_png)
-    assignments = [
-      {"id": tid, "var": var, "mode": "Graduated", "ramp": ramp,
-       "scheme": "Quantiles", "k": 5, "outline": False,
-       "opacity": opacity}
-      for tid, var, ramp, opacity in zip(
-        sorted(set(expected["tile_id"])), variables, ramps,
-        opacities or [100] * len(variables))]
+    # Map each element's settings BY ITS ID, never by position.
+    #
+    # `variables` and `ramps` are given in element order, the same
+    # order the dialog's table rows are in -- one entry per element
+    # the UNIT has. But an element can win no tiles at all (a coarse
+    # spacing over a small region drops one), and then the tiled
+    # frame carries fewer ids than the unit does. Zipping the lists
+    # against `sorted(set(expected["tile_id"]))` therefore shifted
+    # every element after the missing one onto its neighbour's
+    # variable and ramp, while the dialog kept assigning by row --
+    # so the two maps had IDENTICAL geometry and different colours,
+    # differing across half their pixels.
+    #
+    # That is what the sixteen "divergences" of 2026-08-10 were, all
+    # of them 11- and 12-element plain weaves: the only designs in
+    # the catalogue long enough for the region to starve an element
+    # entirely. The seventh oracle fact, and the third of them to be
+    # a wrong belief about how elements line up.
+    #
+    # The element ORDER is the unit's own sorted ids, which is what
+    # the table rows follow; the surviving ids are a subset of it.
+    by_id = dict(zip(
+      sorted(set(dlg._element_layer_ids) | set(expected["tile_id"])),
+      zip(variables, ramps, opacities or [100] * len(variables))))
+    assignments = []
+    for tid in sorted(set(expected["tile_id"])):
+      var, ramp, opacity = by_id[tid]
+      assignments.append(
+        {"id": tid, "var": var, "mode": "Graduated", "ramp": ramp,
+         "scheme": "Quantiles", "k": 5, "outline": False,
+         "opacity": opacity})
     lib_layers = layers_from_gdf(expected, assignments)
     for lib_layer, a in zip(lib_layers, assignments):
       lib_layer.setOpacity(a.get("opacity", 100) / 100.0)
@@ -22982,6 +23059,29 @@ def test_random_designs_match_the_library():
 
   cases = int(os.environ.get("WEAVINGSPACE_SWEEP_CASES", "6"))
   seed = int(os.environ.get("WEAVINGSPACE_SWEEP_SEED", "20260808"))
+  # WEAVINGSPACE_SWEEP_ONLY="589,1171" examines just those case
+  # numbers, drawing (but not rendering) everything before them, so a
+  # reported failure can be reproduced in seconds against the seed it
+  # was found with. Case numbers mean nothing across seeds -- see
+  # docs/TESTING.md -- so pin both together or neither.
+  only_cases = {int(part) for part in
+                os.environ.get("WEAVINGSPACE_SWEEP_ONLY", "").replace(
+                  ",", " ").split() if part.strip()}
+  if only_cases and max(only_cases) > cases:
+    # Deliberately a REFUSAL rather than a quiet widening. Raising the
+    # count silently changes nothing about how case N is drawn -- the
+    # draws are sequential -- but it does change how many cases the
+    # run believes it has, and anything reading that (a share, a
+    # progress figure, a future stratification) would then describe a
+    # different run. Reproducing a failure means reproducing its
+    # CONTEXT: pass the same WEAVINGSPACE_SWEEP_CASES the failing run
+    # used, alongside its seed. (2026-08-10, after a selector that
+    # widened silently made case 589 pass alone and fail in company.)
+    raise AssertionError(
+      f"WEAVINGSPACE_SWEEP_ONLY names case {max(only_cases)} but "
+      f"WEAVINGSPACE_SWEEP_CASES is {cases}. Set CASES to what the "
+      f"failing run used (and the same SEED), so the case is drawn "
+      f"in the context it failed in.")
   rng = random.Random(seed)
   print(f"      sweep: {cases} case(s), seed {seed}", flush=True)
 
@@ -23097,6 +23197,15 @@ def test_random_designs_match_the_library():
         # inset weaves against a deliberately stated expectation.
         mods["tile_inset"] = rng.choice([0.0, 0.0, 2.0])
         mods["prototile_inset"] = rng.choice([0.0, 0.0, 3.0])
+
+    # Every draw above has now happened, so the random sequence is
+    # identical whether or not this case is examined -- which is what
+    # lets a single failing case be re-run on its own. Drawing is
+    # microseconds; the tiling and the two renders below are the
+    # minutes. Re-running case 589 of a 5,000-case sweep used to mean
+    # waiting for the 588 in front of it (2026-08-10).
+    if only_cases and case not in only_cases:
+      continue
 
     label = f"sweep {case} {name} at {spacing}"
     if shape:
