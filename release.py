@@ -297,8 +297,19 @@ def stage_chart(started, final=False):
                  for state in STAGE_STATE.values()
                  if state[0] == "running")
   working = int(working)
-  lines = [f"\n=== progress at {time.strftime('%H:%M')} "
-           f"(working {working // 60}m) ==="]
+  # BOTH, labelled, whenever they differ by more than a minute. Only
+  # the working figure is comparable with the stage list below it, and
+  # only the elapsed figure is comparable with the reader's watch;
+  # printing one alone invites the wrong question in one direction or
+  # the other. They diverge when the machine sleeps -- two hours of a
+  # closed laptop against thirty minutes of work, 2026-08-11 -- and
+  # that gap is worth seeing rather than hiding, because it explains
+  # an estimate that would otherwise look wrong.
+  elapsed = int(now - started)
+  spell = f"working {working // 60}m"
+  if abs(elapsed - working) > 60:
+    spell += f", {elapsed // 60}m elapsed including time asleep"
+  lines = [f"\n=== progress at {time.strftime('%H:%M')} ({spell}) ==="]
   seen = list(STAGE_ORDER)
   if not final:
     for name in EXPECTED_STAGES:

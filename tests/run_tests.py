@@ -17506,7 +17506,17 @@ for name in spec["layers"]:
     entry["colours"] = colours
   seen[name] = entry
 print("RESULT " + json.dumps(seen))
+# Flush BEFORE anything else can crash, then leave without running
+# interpreter teardown. QGIS and Qt tear down C++ objects at exit and
+# that teardown segfaults in some containers -- which loses whatever
+# is still sitting in a buffer, so the parent sees an empty stdout and
+# a signal, and reads "it crashed before saying anything" when in
+# fact it had said everything and lost it. os._exit is what the other
+# children here already do. (2026-08-11.)
+sys.stdout.flush()
+sys.stderr.flush()
 app.exitQgis()
+os._exit(0)
 """
 
 
@@ -25924,7 +25934,17 @@ def main():
     print(f"({count} Qt {kind} warnings from the offscreen "
           f"platform, swallowed)")
   app.exitQgis()
-  sys.exit(1 if FAILED else 0)
+  # os._exit, not sys.exit: on 2026-08-11 a Linux run printed "283
+  # passed, 1 failed" and THEN segfaulted in interpreter teardown
+  # with no Python frame, so the job reported exit 139 and read as a
+  # catastrophe when the suite had finished and given its verdict.
+  # Teardown of Qt and QGIS objects at exit is not something this
+  # suite needs to survive: the result is already printed, and an
+  # exit code that carries it is worth more than a tidy shutdown.
+  # Flush first, since os._exit does not.
+  sys.stdout.flush()
+  sys.stderr.flush()
+  os._exit(1 if FAILED else 0)
 
 
 if __name__ == "__main__":
