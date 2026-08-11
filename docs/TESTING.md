@@ -216,6 +216,86 @@ dropping one from the safety net that guards everything else. If the
 file is ever split, verify it by comparing the registered-name list
 and the pass/fail set before and after; they must match exactly.
 
+## What a second machine finds, and why it could not be found here
+
+The first Linux CI run (2026-08-11) failed seventy tests. Every one
+was real, none was a plugin bug in the ordinary sense, and not one
+could have been found on the development machine at any effort. They
+are worth listing by KIND, because the kinds recur:
+
+**The environment supplies something you never noticed depending
+on.** Sixty-nine of the seventy were one missing geopandas: the
+`qgis/qgis` images ship QGIS and nothing else. A later round found
+the same thing wearing a better disguise -- a child process reporting
+"no tiles were produced under a comma-decimal locale" when what had
+actually happened was `ModuleNotFoundError`. The suite put ROOT and
+`vendor/` on `sys.path` but never `libs/`; that path arrived only
+when something imported `weavingspace_qgis` early enough, which
+happened by luck in the parent and never in a child. On a machine
+whose QGIS already carries geopandas the omission cannot show.
+
+**Identifiers that differ only in case.** Three separate instances in
+one day. QGIS on Linux ships `Cividis` where this plugin's table says
+`cividis`, and the installer skipped it case-insensitively while the
+lookup matched exactly -- so four palettes were unavailable to every
+Linux user with the chooser still offering them. Element ids past 26
+run into `A` beside `a`. GeoPackage column names collide the same
+way. Whenever an identifier leaves Python -- into a filename, a
+table name, a style library -- ask what happens when case stops
+distinguishing two of them.
+
+**Documentation naming something no clone contains.** Three documents
+told a maintainer to iterate with `dev/run_some.py`, which is
+gitignored. Only somebody who was not us could ever find out, and CI
+was the first checkout that was not this machine.
+
+**A crash with nothing to say.** QGIS 4.2.1 segfaulted reading one of
+our GeoPackages: exit -11, both streams empty. `faulthandler.enable()`
+in the child turns that into a stack, and a `STEP` line before each
+phase narrows it further. Add both to any child process before you
+need them; after a crash it is a fifty-minute round to add them.
+
+The general rule: **a suite that has only ever run in one place is
+measuring that place as much as the software.** The value of the
+second machine is not redundancy, it is that the assumptions become
+visible.
+
+## A test's name is a hypothesis about its own failure
+
+`test_a_comma_decimal_locale_does_not_corrupt_numbers` failed for two
+CI rounds. It was not a locale fault; the child could not import
+geopandas and fell over at the first assertion it reached, which
+happened to be about tiles. The name and the message together told a
+confident, wrong story, and it was believed twice.
+
+Two habits follow, both cheap:
+
+- **Say what you found, not which assertion you reached.** The
+  message now carries the layer count, the per-layer features, the
+  spacing as stored and as shown, what the user was told, the C
+  numeric locale and the exception from building the unit directly.
+  It diagnosed itself on the next run. Where a round of feedback
+  costs forty minutes, a message that only names the assertion is a
+  guarantee of guessing twice.
+- **A failing assertion is evidence about ONE line.** Everything
+  else in the docstring is a hypothesis that has not been tested,
+  including the part that names the test.
+
+The same shape appears in a subtler form: an assertion message that
+CONTRADICTS its own subject. The stale element-count test said "the
+catalogue carries counts the chooser does not offer" when the chooser
+offered them perfectly well, and the handover recorded a real
+user-facing gap that never existed.
+
+## One fix, two loops
+
+The palette test was narrowed to ramps this plugin installed, and
+failed on the next round at a different assertion in the same test --
+the interior-stops check, a separate loop that had not been narrowed.
+A half-applied fix reads as progress, because the failure MOVES. When
+a fix is a filter or a guard, grep for every place the same
+comparison is made before believing one edit finished it.
+
 ## Lessons, each paid for once
 
 **A workaround for someone else's bug needs a canary.** When this
