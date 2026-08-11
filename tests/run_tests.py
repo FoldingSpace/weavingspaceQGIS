@@ -61,6 +61,22 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "weavingspace_qgis", "vendor"))
+# ...and libs/, where a QGIS that lacks the scientific stack keeps the
+# wheels it was given. This line used to be missing, and the omission
+# was invisible on a machine whose QGIS already carries geopandas: the
+# path only ever reached sys.path when something imported
+# weavingspace_qgis and its __init__ called deps.add_paths(), which
+# happened early enough by luck. Anything touching the vendored
+# library FIRST -- a child process, a test that goes straight to
+# weavingspace -- got ModuleNotFoundError instead, and reported it as
+# whatever that test was about. It cost two CI rounds disguised as a
+# locale defect (2026-08-11). Doing it here makes the suite set up the
+# same environment the plugin does, once, before anything runs.
+try:
+  from weavingspace_qgis import deps as _deps
+  _deps.add_paths()
+except Exception:      # a tree without the package is a different fault
+  pass                 # and the imports below will say so far better
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -24529,6 +24545,27 @@ def test_a_comma_decimal_locale_does_not_corrupt_numbers():
 
   program = """
 import importlib.util, os, sys
+# The plugin's own path setup, FIRST and explicitly. run_tests.py puts
+# ROOT and vendor/ on sys.path but never libs/, which only reaches the
+# path when something imports weavingspace_qgis and its __init__ calls
+# deps.add_paths(). On any QGIS lacking the scientific stack -- every
+# Linux one -- libs/ is where geopandas lives, so a child that touches
+# the library before importing the plugin package gets
+# ModuleNotFoundError and reports it as whatever the test was about.
+# This one reported it as a locale defect for two CI rounds
+# (2026-08-11).
+sys.path.insert(0, "__ROOT__")
+from weavingspace_qgis import deps as _deps
+_deps.add_paths()
+try:
+    import geopandas as _gpd
+    print("GEOPANDAS %s" % _gpd.__version__)
+except Exception as _exc:
+    import os as _os
+    _libs = _deps.LIBS_DIR
+    print("GEOPANDAS missing: %s | libs=%s exists=%s holds=%s" % (
+        _exc, _libs, _os.path.isdir(_libs),
+        sorted(_os.listdir(_libs))[:12] if _os.path.isdir(_libs) else "-"))
 from qgis.PyQt.QtCore import QLocale
 # German: comma decimal separator, full stop as the group separator.
 QLocale.setDefault(QLocale(QLocale.Language.German, QLocale.Country.Germany))
@@ -24629,7 +24666,8 @@ os._exit(0)
     f"spacing={out.get('SPACING')} shown={out.get('SHOWN')!r} " \
     f"told={out.get('TOLD')!r} estimate={out.get('ESTIMATE')} " \
     f"clocale={out.get('CLOCALE')} floatfmt={out.get('FLOATFMT')!r} " \
-    f"direct={out.get('DIRECT') or out.get('DIRECTFAIL')}\n" \
+    f"direct={out.get('DIRECT') or out.get('DIRECTFAIL')} " \
+    f"geopandas={out.get('GEOPANDAS')}\n" \
     f"stderr: {result.stderr[-800:]}"
   assert out.get("WROTE") == "1", \
     "the GeoPackage was not written under a comma-decimal locale"
