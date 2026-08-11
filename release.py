@@ -105,7 +105,8 @@ EXPECTED_STAGES = [
   "standards check", "secrets audit", "functional suite",
   "coverage report", "visual gallery", "create reference venv",
   "install reference packages", "reference comparison",
-  "testing report", "per-test coverage record", "refresh published images",
+  "testing report", "per-test coverage record", "merge the coverage shards",
+  "refresh published images",
   "test map", "bug register", "published content audit",
   "build release candidate", "candidate dossier", "build zip",
 ]
@@ -596,6 +597,75 @@ def run(step, cmd, env, capture=False):
   return output
 
 
+SHARDS = int(os.environ.get("WEAVINGSPACE_RELEASE_SHARDS", "3"))
+
+
+def run_sharded(step, argv, env, capture=False):
+  """Run one stage as SHARDS concurrent processes over slices of the suite.
+
+  Args:
+    step: the human stage name, used for the banner and the log.
+    argv: the command, WITHOUT any shard argument; each process gets
+      WEAVINGSPACE_TEST_SHARD=i/n in its environment instead, which
+      the suite reads at import.
+    env: the base environment; each shard receives a copy.
+    capture: collect and return the combined output, as run() does.
+
+  Returns:
+    The concatenated output when capture is set, otherwise "". Exits
+    the release if any shard fails, naming which -- a slice that fails
+    is the suite failing, and three green shards beside one red one is
+    not a passing suite.
+
+  Why this is safe here and would not be everywhere: the tests are
+  order-independent by construction, since every one runs with an
+  EMPTY project. A slice is therefore a legitimate subset rather than
+  a different suite. What it costs is time PER TEST -- concurrent QGIS
+  processes inflate per-unit times by 15-50% on this machine -- which
+  is why the suite widens its stall ceilings whenever a shard is in
+  force, by two and a half times against a measured worst case of
+  1.5. Without that headroom sharding would turn slow tests into
+  false stalls, which is the fault this project committed twice on
+  2026-08-11 and does not intend to commit a third time.
+  """
+  print(f"\n=== {step} ({SHARDS} shards) ===", flush=True)
+  if step not in STAGE_ORDER:
+    STAGE_ORDER.append(step)
+  STAGE_STATE[step] = ["running", time.monotonic()]
+  began = time.monotonic()
+  processes = []
+  for index in range(SHARDS):
+    shard_env = dict(env)
+    shard_env["WEAVINGSPACE_TEST_SHARD"] = f"{index}/{SHARDS}"
+    processes.append(subprocess.Popen(
+      argv, env=shard_env, cwd=ROOT, text=True,
+      stdout=subprocess.PIPE if capture else None,
+      stderr=subprocess.STDOUT if capture else None))
+  output, failed = "", []
+  for index, process in enumerate(processes):
+    text = process.communicate()[0] if capture else None
+    if capture:
+      output += f"\n--- shard {index} of {SHARDS} ---\n" + (text or "")
+    if process.wait() != 0:
+      failed.append(index)
+  spent = time.monotonic() - began
+  STAGE_STATE[step] = ("failed" if failed else "done", spent)
+  if not failed:
+    remember_timing(step, spent)
+  if capture:
+    stage_log = stage_log_path(step)
+    with open(stage_log, "w", encoding="utf-8") as handle:
+      handle.write(output)
+    print(output[-2000:])
+  if failed:
+    print(stage_chart(RELEASE_STARTED), flush=True)
+    sys.exit(f"RELEASE ABORTED: {step} failed in shard(s) "
+             f"{failed}; no zip was built.\n"
+             f"  A slice failing IS the suite failing. Its output is "
+             f"above and in {stage_log_path(step)}.")
+  return output
+
+
 def test_docstrings():
   """{display name: first docstring sentence} for every functional
   test, read from tests/run_tests.py itself (the AST, so nothing needs
@@ -1077,9 +1147,10 @@ def main():
     return 0
 
   # 1. functional suite; captured so the report can include it
-  functional = run("functional suite",
-                   [python, "-u", os.path.join("tests", "run_tests.py")],
-                   env, capture=True)
+  functional = run_sharded(
+    "functional suite",
+    [python, "-u", os.path.join("tests", "run_tests.py")],
+    env, capture=True)
   with open(os.path.join(report_dir, "functional.txt"), "w",
             encoding="utf-8") as f:
     # keep the readable tail (PASS/FAIL lines), not Qt's noise
@@ -1143,8 +1214,15 @@ def main():
   # work is defended, costs minutes, and is the one that runs every
   # time. Skipped on the first release, when there is no previous tag
   # to compare against.
-  run("per-test coverage record",
-      [python, "-u", os.path.join("tools", "coverage_per_test.py")], env)
+  run_sharded("per-test coverage record",
+              [python, "-u", os.path.join("tools", "coverage_per_test.py")],
+              env)
+  # the shards wrote one file each; the mutation tools want one map,
+  # and the merge REFUSES a partial set rather than quietly producing
+  # a record that overstates survivors
+  run("merge the coverage shards",
+      [python, "-u", os.path.join("tools", "merge_coverage_shards.py")],
+      env)
   previous = subprocess.run(["git", "describe", "--tags", "--abbrev=0"],
                             cwd=ROOT, capture_output=True, text=True)
   if previous.returncode == 0 and previous.stdout.strip():
@@ -1166,7 +1244,7 @@ def main():
         f"lines, {sample} mutants)",
         [python, "-u", os.path.join("tools", "mutate_auto.py"),
          "--since", tag, "--sample", str(sample),
-         "--workers", "2", "--require", "70"], env)
+         "--workers", "3", "--require", "70"], env)
   else:
     # LOUD, because a skip that whispers becomes permanent: this
     # exact message printed on every candidate for two days before

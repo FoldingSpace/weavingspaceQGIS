@@ -233,6 +233,33 @@ QT_NOISE = {}
 # target, so it is set far above any honest test.
 STALL_SECONDS = float(os.environ.get("WEAVINGSPACE_TEST_STALL", "600"))
 
+# WEAVINGSPACE_TEST_SHARD="i/n" runs only every nth registered test,
+# so n processes cover the suite between them. Tests here are already
+# order-independent -- every one runs with an EMPTY project, which is
+# the rule that makes a FAIL name the test that is actually broken --
+# so a slice is a legitimate subset rather than a different suite.
+#
+# What sharding costs is TIME PER TEST, not correctness: measured on
+# this project, concurrent QGIS processes inflate per-unit times by
+# 15-50%. A ceiling sized for a quiet machine therefore becomes a
+# false stall on a busy one, which is a fault this project has now
+# committed twice in one day. So the ceilings are widened whenever a
+# shard is in force, by more than the measured worst case: two and a
+# half times, against a measured 1.5.
+_SHARD = os.environ.get("WEAVINGSPACE_TEST_SHARD", "")
+SHARD_INDEX, SHARD_COUNT = 0, 1
+if _SHARD:
+  _index, _, _count = _SHARD.partition("/")
+  SHARD_INDEX, SHARD_COUNT = int(_index), int(_count)
+  if not 0 <= SHARD_INDEX < SHARD_COUNT:
+    sys.exit(f"WEAVINGSPACE_TEST_SHARD={_SHARD} is not i/n with "
+             f"0 <= i < n")
+CONTENTION = 2.5 if SHARD_COUNT > 1 else 1.0
+
+# how many tests this process has been offered, so a shard can say
+# what it covered rather than leaving a reader to infer it
+OFFERED = []
+
 
 def _stall_ceiling(name):
   """How long this particular test may run before it is called stuck.
@@ -250,7 +277,7 @@ def _stall_ceiling(name):
   """
   if name == "random designs match the library":
     cases = int(os.environ.get("WEAVINGSPACE_SWEEP_CASES", "6"))
-    return max(STALL_SECONDS, 90.0 * cases)
+    return max(STALL_SECONDS, 90.0 * cases) * CONTENTION
   # Tests that are legitimately long, with the reason and a measured
   # figure, because a ceiling a healthy test can reach is worse than
   # none: it produces a red run that means nothing, which is how
@@ -264,8 +291,8 @@ def _stall_ceiling(name):
   # genuine hang.
   if name in ("staggered actions during a run",
               "staggered dock edits during a run"):
-    return max(STALL_SECONDS, 1800.0)
-  return STALL_SECONDS
+    return max(STALL_SECONDS, 1800.0) * CONTENTION
+  return STALL_SECONDS * CONTENTION
 
 
 def _stalled(name, seconds):
@@ -376,6 +403,14 @@ def check(name, fn):
   cascade into unrelated failures below it. Clearing before each test
   makes results order-independent, so a FAIL names the test that is
   actually broken."""
+  # Which slice this test belongs to is decided by its POSITION in the
+  # registration order, dealt round-robin, so each shard gets a mixture
+  # of cheap and expensive tests rather than one drawing the slow tail.
+  # Counting here rather than filtering in main() keeps every shard's
+  # numbering identical, which is what lets their reports be added up.
+  OFFERED.append(name)
+  if SHARD_COUNT > 1 and (len(OFFERED) - 1) % SHARD_COUNT != SHARD_INDEX:
+    return None
   project = QgsProject.instance()
   project.clear()
   MODALS.clear()
@@ -26029,6 +26064,9 @@ def main():
   check("integration: cancel and recover",
         test_integration_cancel_and_recover)
 
+  if SHARD_COUNT > 1:
+    print(f"\nshard {SHARD_INDEX} of {SHARD_COUNT}: "
+          f"{len(PASSED) + len(FAILED)} of {len(OFFERED)} tests run")
   print(f"\n{len(PASSED)} passed, {len(FAILED)} failed")
   for kind, count in sorted(QT_NOISE.items()):
     # said once rather than <count> times; see

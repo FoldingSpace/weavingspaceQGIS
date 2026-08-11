@@ -101,7 +101,14 @@ def main():
   finally:
     mon.free_tool_id(tool)
 
-  out = os.path.join(ROOT, "reports", "per-test-coverage.json")
+  # One file per shard when sharded, merged by the caller. Named for
+  # the shard rather than written concurrently to one path: three
+  # processes writing the same JSON is a corrupt record, and a corrupt
+  # coverage record is the one failure that silently understates
+  # survivors while looking healthy.
+  shard = os.environ.get("WEAVINGSPACE_TEST_SHARD", "")
+  suffix = "." + shard.replace("/", "of") if shard else ""
+  out = os.path.join(ROOT, "reports", f"per-test-coverage{suffix}.json")
   os.makedirs(os.path.dirname(out), exist_ok=True)
   with open(out, "w", encoding="utf-8") as f:
     json.dump(per_test, f, indent=1, sort_keys=True)
