@@ -126,7 +126,28 @@ broken until each anchor is narrowed to the site its `why` describes
 — exactly as `fit-to-design-on-show` was narrowed on 2026-08-10, and
 the comment there is the model to copy.
 
-TWO GENUINE SURVIVORS, and both are claims about TESTS rather than
+`fit-to-design-on-show` IS RESOLVED as far as it can be, and the
+answer is not a better test. `_fit_to_design` only calls `resize`,
+and Qt refuses to shrink a window below its layout's minimum size —
+so the window is already at least as tall as the Design tab needs
+whether or not the deferred fit runs. HEIGHT CANNOT DISCRIMINATE
+THIS MUTATION, which also means the original test was passing for a
+reason unrelated to what it names. An attempt to add "shrink it while
+hidden, show it again" failed on healthy code for exactly that reason
+and was reverted; it would have been a test that fails either way,
+which counts as a kill while proving nothing.
+
+What the deferred fit actually adds beyond the layout minimum is the
+WIDTH floor (`max(self.width(), 1180)`) and growing the height to
+`sizeHint + 96` rather than merely to the minimum. So either the
+entry is re-aimed at one of those observable properties, or it is
+accepted as a redundant call site with the reason recorded — which
+docs/MUTATION-TESTING.md says is a legitimate outcome, and is
+probably the honest one here. Do not write a test that pins the
+window's exact pixel height; that is the mutation bookkeeping the
+same document forbids.
+
+ONE GENUINE SURVIVOR LEFT, and it is a claim about a TEST rather than
 about the plugin. `fit-to-design-on-show`: the named test
 `test_the_window_fits_its_design_tab_when_shown` does not fail when
 the deferred fit in `showEvent` is removed — almost certainly because
