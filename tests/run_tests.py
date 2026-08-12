@@ -12160,6 +12160,127 @@ def test_custom_follows_the_field_and_the_source():
   dlg.close()
 
 
+def test_a_dock_refinement_survives_the_next_restyle():
+  """What you changed in QGIS alongside a recolour is not thrown away.
+
+  Adopting a dock recolour is only half the job. The restyle fast path
+  re-seeds any element whose signature has moved, and adopting the
+  colours moves it -- so unless the dialog records the new signature
+  then and there, the very next style change anywhere in the table
+  re-seeds this element and destroys everything ELSE the user did in
+  the dock alongside the colours. A stroke width, an outline style: a
+  recolour is rarely the only thing somebody does in that panel.
+
+  The stamping is done by looking the element's assignment up again by
+  id, an idiom that appears nine times in dialog.py, and two automatic
+  mutants flipped that comparison with nothing failing. Under the
+  flip the lookup finds a DIFFERENT element, or none at all when the
+  map has one, and the signature is recorded against the wrong id or
+  not at all.
+
+  So this drives the whole sequence a user would: recolour and widen
+  the stroke in QGIS, then change a different element's ramp in the
+  dialog, then look at whether the stroke is still there.
+
+  Regression: the signature stamped after adopting a dock recolour was never checked, so the lookup that finds the element could be broken without any test failing.
+  """
+  from qgis.core import QgsCategorizedSymbolRenderer
+  from qgis.PyQt.QtGui import QColor
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  # two mapped elements: the restyle below has to be provoked by a
+  # change to a DIFFERENT element, or the one under test would be
+  # re-seeded legitimately and the test would prove nothing
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  dlg.table.cellWidget(1, 1).setCurrentText("landcover")
+  dlg._update_dynamic_columns()
+  _tick(100)
+  other_id = dlg.table.item(0, 0).text()
+  tid = dlg.table.item(1, 0).text()
+  assert other_id != tid, "both rows carry the same element"
+  dlg.spacing_spin.setValue(500)
+  _generate_and_wait(dlg)
+  out = project.mapLayer(dlg._element_layer_ids[tid])
+  other_layer = project.mapLayer(dlg._element_layer_ids[other_id])
+  renderer = out.renderer()
+  assert isinstance(renderer, QgsCategorizedSymbolRenderer), \
+    "the fixture did not produce a categorized element, so the " \
+    "adoption path below never runs"
+
+  # ---- in QGIS's dock: recolour one value AND widen every stroke,
+  # which is the ordinary case -- a recolour is rarely done alone.
+  WIDE = 1.7
+  edited = renderer.clone()
+  target = next(i for i, c in enumerate(edited.categories())
+                if c.value() not in (None, ""))
+  for index, category in enumerate(edited.categories()):
+    symbol = category.symbol().clone()
+    if index == target:
+      symbol.setColor(QColor("#abcdef"))
+    fill = symbol.symbolLayer(0)
+    assert hasattr(fill, "setStrokeWidth"), \
+      "the fixture's symbol has no stroke, so the refinement this " \
+      "test follows cannot be made"
+    fill.setStrokeWidth(WIDE)
+    assert edited.updateCategorySymbol(index, symbol), \
+      f"the fixture edit failed on category {index}"
+  out.setRenderer(edited)
+  _tick(200)
+  assert dlg._category_colours.get(tid, {}).get(
+    "landcover", {}).get(str(edited.categories()[target].value())) \
+      == "#abcdef", \
+    "the dock recolour was not adopted, so the signature this test " \
+    "is about was never going to be stamped and nothing below tests it"
+
+  # ---- now an ordinary style change on the OTHER element, and then
+  # Generate, which is what actually sends the restyle fast path over
+  # every element. The ramp cell's own handlers refresh the PREVIEW
+  # and nothing else while live update is off, so a test that changed
+  # the combo and waited would repaint nothing and prove nothing --
+  # which is how the first version of this test passed against the
+  # broken behaviour.
+  other_ramp = dlg.table.cellWidget(0, 4)
+  # a quantitative ramp, because row 0 is graduated and _sync_row
+  # swaps a categorical choice straight back off a graduated row
+  choices = [other_ramp.itemText(i) for i in range(other_ramp.count())
+             if other_ramp.itemText(i) != other_ramp.currentText()
+             and other_ramp.itemText(i) not in bridge.CATEGORICAL_RAMPS]
+  assert choices, "the other element's ramp cell offers no " \
+    "quantitative alternative, so nothing below would change"
+  before_other = [r.symbol().color().name()
+                  for r in other_layer.renderer().ranges()]
+  index = other_ramp.findText(choices[0])
+  other_ramp.setCurrentIndex(index)
+  other_ramp.activated.emit(index)
+  _tick(200)
+  _generate_and_wait(dlg)
+
+  after_other = [r.symbol().color().name()
+                 for r in other_layer.renderer().ranges()]
+  assert after_other != before_other, \
+    f"element '{other_id}' was moved to the '{choices[0]}' ramp and " \
+    f"its colours did not change, so the restyle pass never ran and " \
+    f"the assertion below would hold no matter what: {before_other}"
+
+  widths = [c.symbol().symbolLayer(0).strokeWidth()
+            for c in out.renderer().categories()]
+  assert all(abs(w - WIDE) < 1e-6 for w in widths), \
+    f"a style change to element '{other_id}' re-seeded element " \
+    f"'{tid}' and destroyed the stroke width set in QGIS's own " \
+    f"styling dock: widths are now {widths}, and every one of them " \
+    f"should still be {WIDE}. The dialog adopted the colours and " \
+    f"then failed to record the signature that goes with them, so " \
+    f"the fast path saw an element wearing the wrong style"
+  dlg.close()
+
+
 def test_an_unclassed_swatch_reaches_both_ends_of_its_ramp():
   """The Custom swatch for Unclassed shows the whole selected range.
 
@@ -26440,6 +26561,8 @@ def main():
         test_a_dock_edit_that_changes_no_colour_is_announced_as_nothing)
   check("an Unclassed swatch reaches both ends of its ramp",
         test_an_unclassed_swatch_reaches_both_ends_of_its_ramp)
+  check("a dock refinement survives the next restyle",
+        test_a_dock_refinement_survives_the_next_restyle)
   check("the quant editor edits class colours",
         test_the_quant_editor_edits_class_colours)
   check("the ramp display range reinterpolates",

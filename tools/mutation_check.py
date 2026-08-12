@@ -1408,6 +1408,25 @@ MUTATIONS = [
            "an unsupported count does not raise -- the library prints "
            "a complaint and substitutes a default unit, so the user "
            "gets a map quietly carrying the wrong number of variables"),
+  dict(name="adopted-signature-stamped-on-the-wrong-element",
+       file=DIALOG,
+       # narrowed to the CATEGORIZED adoption by its own comment: the
+       # graduated sibling at _graduated_layer_edited is the same five
+       # lines, and an anchor without this context mutates whichever
+       # comes first while the other goes on doing the work
+       old="""    # discard any OTHER refinement the dock applied alongside them
+    refreshed = next((a for a in self._assignments()
+                      if a["id"] == tile_id), None)""",
+       new="""    # discard any OTHER refinement the dock applied alongside them
+    refreshed = next((a for a in self._assignments()
+                      if a["id"] != tile_id), None)""",
+       test="test_a_dock_refinement_survives_the_next_restyle",
+       why="after adopting a dock recolour the element's signature has "
+           "moved, so unless it is recorded against the RIGHT element "
+           "the restyle fast path re-seeds this layer at the next "
+           "style change anywhere in the table -- destroying the "
+           "stroke width, outline style or anything else the user set "
+           "in QGIS's own dock alongside the colours"),
   dict(name="colouring-count-above-the-ceiling-moved", file=CATALOG,
        old="HEX_COLOURING_COUNTS = tuple(range(2, 17)) + (19, 37)",
        new="HEX_COLOURING_COUNTS = tuple(range(2, 17)) + (19, 38)"
