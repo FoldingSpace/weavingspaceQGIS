@@ -242,6 +242,25 @@ obligations: they exist so nobody pays twice for the same discovery.
   would duplicate them in a less reliable form. The test is not "is
   this tidy" but "who reads this, other than us tomorrow".
   (User instruction, 2026-08-11.)
+- **EVERY push to a branch CI watches is a push that gets watched,
+  not only the pre-candidate one.** The rule below was written for
+  the pre-candidate push and read as though ordinary commit pushes
+  were a different kind of act. They are not: `ci.yml` runs on all of
+  them. On 2026-08-12 the branch went red at 07:52 on the text-review
+  gate and stayed red for EIGHTEEN pushes across six hours, while
+  work continued on top of it, and it surfaced only because the
+  maintainer forwarded a GitHub notification. Nothing in the process
+  was looking. So: after a run of commits, ask what the last push
+  did -- `gh run list --branch <branch> --limit 1` is one second --
+  and never let a session end without knowing the branch's colour.
+  The specific trap here is worth naming, because it will recur: the
+  local checks all passed the whole time. `check_standards` and
+  `check_no_secrets` are green on a tree whose text-review queue is
+  full, because approving prose is the USER'S act and no local gate
+  may do it. A gate only a person can satisfy is exactly the one that
+  goes unsatisfied for six hours. Run `tools/text_review.py --check`
+  alongside the other two when checking a tree by hand.
+  (2026-08-12.)
 - **Linux CI runs BESIDE the local gates, not after them, and its
   fixes are made in a WORKTREE, and the push is watched.** A CI
   watcher is armed in the same breath as the push and reports
