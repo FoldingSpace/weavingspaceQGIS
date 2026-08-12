@@ -270,6 +270,15 @@ obligations: they exist so nobody pays twice for the same discovery.
   version on disk is untouched) so a tester always knows which build
   they have. (User instruction, 2026-08-08; details in
   docs/PUBLISHING.md.)
+- **`--quick` is the USER'S call, never the assistant's, and never
+  the default.** It skips the coverage report -- 31 minutes that gate
+  nothing -- and keeps the visual gallery and colourspace comparison,
+  which cost 7 and 16 seconds and are the two stages that catch a map
+  drawn wrongly. Ask before using it, every time: a quicker candidate
+  carries less evidence, and weighing that trade belongs to whoever
+  hands the build to somebody. A shortcut taken by default stops
+  being a shortcut and becomes the process. A candidate meant for
+  PROMOTION is built without it. (User instruction, 2026-08-11.)
 - **A release PROMOTES a candidate; it never re-derives one.** A
   candidate that passes every gate writes a receipt
   (`dist/CANDIDATE-<label>.receipt.json`) holding a digest of exactly

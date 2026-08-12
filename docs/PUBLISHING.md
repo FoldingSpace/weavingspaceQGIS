@@ -293,6 +293,35 @@ reviewed and applied by the USER). A stale generated document stops
 the build on a count mismatch, and no gate can approve prose on
 somebody's behalf.
 
+## --quick, and why it needs asking for
+
+    python3 release.py --rc --quick    # only with the maintainer's say-so
+
+`--quick` skips the coverage report: 31 minutes, and it gates
+nothing, being informational by its own docstring. It does NOT skip
+the visual gallery or the colourspace comparison. Those cost 7 and 16
+seconds (measured 2026-08-11) and are the two stages that catch a map
+drawn WRONGLY, which is this software's characteristic failure -- a
+wrong map looks exactly like a right one.
+
+The flag used to mean the opposite, dropping the gallery and the
+comparison while keeping the report. That was not wrong when it was
+written: the gallery was then the slow stage. Nobody re-measured
+after it became fast, so a flag meaning "skip the expensive stuff"
+had come to mean "skip the cheap valuable stuff and keep the
+expensive useless stuff". Re-measure a grouping like this whenever
+the costs move.
+
+**It is never the default, and the assistant does not choose it.**
+Using it is the maintainer's call, asked for each time. Two reasons.
+A candidate carries less evidence with it, and the person who has to
+weigh "less evidence, sooner" against "more evidence, later" is the
+one who will hand the build to somebody. And a shortcut that becomes
+habitual stops being a shortcut and becomes the process, which is how
+a gate quietly leaves a project without anyone deciding to remove it.
+
+A candidate you intend to PROMOTE is built without it.
+
 ## A release candidate, first
 
     python3 release.py --rc       # gates, then a numbered candidate
