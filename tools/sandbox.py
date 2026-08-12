@@ -30,7 +30,21 @@ import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # what a test run actually needs
-INCLUDE = ["weavingspace_qgis", "tests", "tools"]
+INCLUDE = ["weavingspace_qgis", "tests", "tools", "docs"]
+# ...and the top-level FILES it needs, which the loop below used to
+# skip silently because it only copied directories. A catalogue entry
+# that mutates release.py therefore died with FileNotFoundError
+# instead of returning a verdict, and the remote sweep reported it as
+# needing attention rather than as caught or survived -- an entry
+# that cannot run is worse than one that fails, because it is counted
+# as neither (found 2026-08-12).
+#
+# docs/ joins the list for the same reason: the suite reads CLAUDE.md,
+# MAINTAINING.md and three files under docs/ to check that every
+# command they quote exists, so a sandbox without them fails a test
+# that has nothing to do with the mutation under judgement.
+INCLUDE_FILES = ["release.py", "build.py", "LICENSE.md", "CLAUDE.md",
+                 "MAINTAINING.md"]
 # what it does not, and what would make the copy slow
 EXCLUDE = {"reports", "dist", ".venv-reference", "__pycache__", ".git",
            "libs", "wheels"}
@@ -70,6 +84,10 @@ def make_sandbox(label="mutation"):
       stray = os.path.join(target, unwanted)
       if os.path.isdir(stray):
         shutil.rmtree(stray, ignore_errors=True)
+  for name in INCLUDE_FILES:
+    source = os.path.join(ROOT, name)
+    if os.path.isfile(source):
+      shutil.copy2(source, os.path.join(base, name))
   os.makedirs(os.path.join(base, "reports"), exist_ok=True)
   return base
 
