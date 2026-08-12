@@ -177,6 +177,26 @@ obligations: they exist so nobody pays twice for the same discovery.
   tree is not in the state the procedure assumes. Pushing to
   `main`, tagging, and publishing a release remain the user's
   explicit call. (User instruction, 2026-08-10.)
+- **Work for a LATER version lives on a branch named for that
+  version, and everything owed by a version is written in
+  ROADMAP.md.** Two ways work goes missing, both closed by the same
+  gate. A branch written for a release and never merged: branches are
+  named `for-<version>/<slug>`, so work parked for 0.24.1 cannot
+  reach 0.24.0 by accident and work meant for 0.24.0 cannot be left
+  out of it. And an idea nobody wrote down: ROADMAP.md holds
+  branch-backed entries AND things wanted with no code yet, because
+  an idea that lived only in a conversation is gone when the
+  conversation is.
+  `tools/check_roadmap.py --merge` is the FIRST stage of every
+  release -- before standards, before the suite -- and it merges
+  branches due for this version, refuses when the version's roadmap
+  section still lists outstanding work, and stops rather than
+  resolving a merge conflict, because a conflict is a question about
+  intent. DEFERRING an entry to a later version is legitimate and is
+  the USER'S decision: it is made by moving the entry to a later
+  section, an edit no tool may make on their behalf. Delete an entry
+  when it lands; a roadmap nobody prunes becomes a diary.
+  (User instruction, 2026-08-11.)
 - **A branch is not created until the secrets check has passed, and
   carries only what CI needs.** The check runs BEFORE the branch
   exists, not after: a secret that reaches a public branch is public

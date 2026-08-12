@@ -102,7 +102,8 @@ def qgis_environment():
 # is not here is appended when it starts, so the chart stays honest if
 # a stage is added and this list is forgotten.
 EXPECTED_STAGES = [
-  "standards check", "secrets audit", "functional suite",
+  "roadmap and branches", "standards check", "secrets audit",
+  "functional suite",
   "coverage report", "visual gallery", "create reference venv",
   "install reference packages", "reference comparison",
   "testing report", "per-test coverage record", "merge the coverage shards",
@@ -1084,6 +1085,18 @@ def main():
   # somebody watching a silent log.
   progress = start_progress(RELEASE_STARTED)
 
+  # FIRST, before anything expensive. Work written for this version
+  # and left on a branch, or an entry in ROADMAP.md nobody did, are
+  # the two ways a release quietly ships without something it was
+  # supposed to carry. Both cost a second to check and ninety minutes
+  # to discover afterwards. --merge brings in branches named for THIS
+  # version; a conflict stops the release instead, because a conflict
+  # is a question about intent and a release script is the worst thing
+  # to answer it. Deferring an entry is the maintainer's decision and
+  # this never makes it.
+  run("roadmap and branches",
+      [sys.executable, "-u", os.path.join("tools", "check_roadmap.py"),
+       "--merge"], dict(os.environ))
   run("standards check",
       [sys.executable, os.path.join("tools", "check_standards.py")],
       dict(os.environ))

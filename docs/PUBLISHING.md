@@ -245,6 +245,33 @@ release or teach everybody to wave it through.
 Full reasoning, including what deliberately did NOT move to CI, in
 docs/MUTATION-LOOP.md.
 
+## Work for later versions, and the roadmap
+
+Anything written now for a LATER release lives on a branch named
+`for-<version>/<slug>`, and everything a version owes is listed in
+`ROADMAP.md`, including what has no code yet.
+
+`tools/check_roadmap.py --merge` runs as the first stage of every
+release, before the standards check and long before the suite,
+because both failures it catches cost a second to find and ninety
+minutes to discover afterwards:
+
+- a branch written for THIS version and never merged. It is merged
+  here. A conflict aborts the release instead of being resolved,
+  since a conflict is a question about intent;
+- an entry in this version's roadmap section that nobody did. The
+  release stops and names it.
+
+Closing an entry means doing it or DEFERRING it, and deferring is the
+maintainer's call, made by moving the entry to a later section. No
+tool moves one. When a section is genuinely clear it says so, in the
+words the checker quotes back.
+
+Two habits keep it honest. Delete an entry when it lands, or the file
+turns from a statement of what is owed into a diary of what once was.
+And put the thing with no code in it anyway: the ideas this project
+has lost were the ones mentioned only in conversation.
+
 ## What to do BEFORE a candidate, and what not to
 
 Not much, and less than instinct suggests. The gates run
