@@ -619,13 +619,16 @@ MUTATIONS = [
        test="test_live_update_is_on_by_default",
        why="a first map appearing without the user having to find the "
            "Generate button"),
-  dict(name="family-list-signals-blocked", file=DIALOG,
-       old="    self.family_combo.blockSignals(True)",
-       new="    self.family_combo.blockSignals(False)"
-           "  # mutation: handlers fire mid-refill",
-       test="test_repopulating_the_family_list_fires_no_handlers",
-       why="the unit being rebuilt once for a kind change rather than "
-           "once per family added to the list"),
+  # family-list-signals-blocked was removed 2026-08-12: DEMONSTRATED
+  # EQUIVALENT, and the demonstration disproved this entry's own
+  # reason. Unblocking the family list makes _on_family_changed run
+  # three times instead of once, and the handler is idempotent -- the
+  # unit is rebuilt exactly as often, because the extra calls fall
+  # inside the same debounce. A catalogue entry is a claim that
+  # breaking something makes a named test fail; no test can fail on a
+  # mutation with no observable difference, so the claim was false
+  # and the entry was reporting a gap that did not exist. The
+  # evidence is in EQUIVALENT in tools/mutate_auto.py.
   dict(name="editor-value-column-width", file=EDITOR,
        old="VALUE_WIDTH = 125",
        new="VALUE_WIDTH = 200",

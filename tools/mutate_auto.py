@@ -103,6 +103,38 @@ COSMETIC = ("setColumnWidth",)
 EQUIVALENT = [
   {
     "file": "weavingspace_qgis/dialog.py",
+    "snippet": "    self.family_combo.blockSignals(True)",
+    "mutation": "call removed (True -> False)",
+    "reason":
+      "Blocking the family list's signals while it is refilled. "
+      "Unblocked, _on_family_changed runs once per family added "
+      "instead of once at the end -- but the handler is idempotent: "
+      "it sets six option rows' visibility and the offset and angle "
+      "RANGES from the current spec, and the last call settles them "
+      "from the same spec the single call would have used. The unit "
+      "is not rebuilt any more often, because the rebuild is "
+      "debounced and the extra calls fall inside the same window. "
+      "This is the same shape as the over-under entry below and was "
+      "held open until it had the same class of evidence.",
+    "evidence":
+      "Measured 2026-08-12 by running the mutation in a copy of the "
+      "tree beside the unmutated one and comparing everything a test "
+      "could see across six element counts and both kinds: the family "
+      "list, the selected family, the offset range and value, the "
+      "offset-angle range, the over-under text, all six option-row "
+      "visibilities, every element assignment, and the unit's element "
+      "count. EVERY one identical. The only field that moved was the "
+      "count of handler calls (8 against 23), and the count of unit "
+      "REBUILDS was identical -- which also disproves the catalogue "
+      "entry this replaces, whose reason was 'the unit being rebuilt "
+      "once per family added to the list'. Two instrumentation faults "
+      "were corrected before believing it: rewiring the signal to "
+      "count it changed what was under study, and a *args wrapper "
+      "made PyQt pass a combo index the real slot never receives, "
+      "raising a TypeError that read as a finding.",
+  },
+  {
+    "file": "weavingspace_qgis/dialog.py",
     "snippet": "            if self._source_layer_alive(layer) else -1",
     "mutation": "1 -> 2",
     "reason":

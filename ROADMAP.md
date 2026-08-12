@@ -138,7 +138,23 @@ probably the honest one here. Do not write a test that pins the
 window's exact pixel height; that is the mutation bookkeeping the
 same document forbids.
 
-`family-list-signals-blocked` — DIAGNOSIS, not yet a verdict. The
+`family-list-signals-blocked` — SETTLED 2026-08-12: demonstrated
+EQUIVALENT, recorded in `EQUIVALENT` in `tools/mutate_auto.py`, and
+the catalogue entry retired. The mutation was run in a copy of the
+tree beside the unmutated one and everything a test could see was
+compared across six element counts and both kinds — the family list,
+the selected family, the offset range and value, the angle range, the
+over-under text, all six option-row visibilities, every element
+assignment and the unit's element count. All identical. The only
+field that moved was the number of handler calls, and the number of
+unit REBUILDS did not — which also disproves the entry's own stated
+reason. Two instrumentation faults were corrected before believing
+it: rewiring the signal to count it changed what was under study, and
+a `*args` wrapper made PyQt pass a combo index the real slot never
+receives, raising a TypeError that read as a finding.
+
+The diagnosis that led here, kept because the reasoning is the model
+for the next one of these. The
 test counts rebuilds and requires at most one; unblocking the signals
 makes the handler run during the refill, but `_on_family_changed`
 restarts a debounce timer, so the extra calls collapse into the same
