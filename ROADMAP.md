@@ -214,19 +214,30 @@ which docs/TESTING.md requires and which turned ten entries into five
 pieces of work. Each line below was read in its source with the
 covering tests beside it; no test has been written yet.
 
-ONE IDIOM, THREE SITES — dialog.py:3391, 3630 and the block at 3504
-that 3508 belongs to. All three are
-`next((a for a in self._assignments() if a["id"] == tile_id), None)`,
-and 3508 is the `_stamp_category_colours` call that follows one of
-them. Flipping `==` to `!=` finds a DIFFERENT element, or None when
-the map has one element, and the signature is then stamped against
-the wrong id or not at all. The harm is already written in the
-comment above 3504: the restyle path re-seeds the element and
-discards whatever the user changed in QGIS's own styling dock. So the
-test is one we would want anyway — style an element in the dock,
-restyle, require the dock's work to survive — and it should cover all
-three sites. Consider extracting `_assignment_for(tile_id)` first:
-three copies of one lookup is why nothing was guarding any of them.
+ONE IDIOM, NINE SITES — dialog.py:3391, 3630 and the block at 3504
+that 3508 belongs to are three of them; a grep finds nine copies of
+`next((a for a in self._assignments() if a["id"] == tile_id), None)`.
+Flipping `==` to `!=` finds a DIFFERENT element, or None when the map
+has one element, and the signature is then stamped against the wrong
+id or not at all — so the restyle path re-seeds and discards whatever
+the user changed in QGIS's own styling dock alongside the colours.
+
+DONE for the CATEGORIZED path 2026-08-12:
+`test_a_dock_refinement_survives_the_next_restyle` drives the whole
+sequence a user would and requires a stroke width set in the dock to
+survive the next style change. Verified as
+`adopted-signature-stamped-on-the-wrong-element`.
+
+STILL OPEN: the GRADUATED sibling in `_graduated_layer_edited`
+(dialog.py:3504-3508) is the identical five lines and remains
+unguarded — the catalogue refused the first anchor for exactly that
+ambiguity. The same test shape works: positional picks adopted from
+the dock, then a style change elsewhere, then require the dock's
+other refinement to survive. And `_edit_quant_colours` (3630) is a
+third. Extracting `_assignment_for(tile_id)` would collapse all nine
+to one site; worth doing when somebody is in that file anyway, but it
+adds no detection on its own, so it is not a substitute for the two
+tests still owed.
 
 A TABLE THAT STOPS ONE DICTIONARY SHORT — catalog.py:295. DONE
 2026-08-12. `test_every_declared_offset_is_pinned` states the rule
@@ -239,54 +250,59 @@ family lands, because the lesson generalises: a table test that
 covers one container of two fails in exactly the way the shape is
 supposed to prevent.
 
-A CONSTANT GUARDED ONLY AGAINST LARGE CHANGES — catalog.py:307.
-`HEX_COLOURING_COUNTS` is in the hand-picked catalogue, but that
-entry replaces the whole tuple with `range(2, 53)`; moving 37 to 38
-survives it. The counts past 20 are measured facts about what the
-library supports (the comment says so), so a table over both count
-tuples asserting each named count actually builds is a test we would
-want — and it would catch a re-measurement nobody re-ran.
+A CONSTANT GUARDED ONLY AGAINST LARGE CHANGES — catalog.py:307. DONE
+2026-08-12. `HEX_COLOURING_COUNTS` names 37, which sits above
+MAX_ELEMENTS = 26, so the loop over the MENU never reached it. The
+lists are measured facts about which arrangements the library
+hand-builds and they go on the menu the day the ceiling rises, so
+the rule is now applied to the declared lists as well as the offered
+ones. Verified as `colouring-count-above-the-ceiling-moved`.
 
-A SWATCH THAT MUST SHOW THE WHOLE RAMP — dialog.py:3200.
-`step = (len(shades) - 1) / 7` samples eight shades across the fifty
-an Unclassed range produces. With 8 as the divisor the last sample
-falls short of the end, so the swatch omits the top of the ramp and
-the user picks by a picture that misrepresents it. The comment above
-the line already claims the swatch "shows the whole of what the range
-selected"; the test asserts that claim — first and last sampled
-shades are the first and last of the full list.
+A SWATCH THAT MUST SHOW THE WHOLE RAMP — dialog.py:3200. DONE
+2026-08-12, as `test_an_unclassed_swatch_reaches_both_ends_of_its_
+ramp`, reading the icon rather than the intermediate list and
+asserting both ends. Verified as `unclassed-swatch-stops-short`.
 
-A NOTICE THE PLUGIN MUST NOT MAKE UP — dialog.py:3345. `all(expected
-.get(key) == colour ...)` is how the dialog decides the user changed
-categorical colours in QGIS rather than the plugin having seeded
-them. Flipped to `!=`, the early return happens only when EVERY
-colour differs, so an ordinary run tells the user "Element 'x' keeps
-the N colour(s) set in QGIS" and marks the ramp cell Custom when they
-changed nothing. Twenty tests cover the line and none of them look at
-what was said. Assert on `BAR_MESSAGES`, which is what that recorder
-exists for.
+A NOTICE THE PLUGIN MUST NOT MAKE UP — dialog.py:3345. DONE
+2026-08-12. Read in place the harm was sharper than this entry
+guessed: the adoption path below counts colours that actually differ
+and returns when there are none, so what the mutant reaches is the
+RAMP-FOLLOWING branch. Widen a stroke in the dock and the plugin
+announces "now follows the 'X' ramp chosen in QGIS", clears that
+element's picks and restamps its signature. Verified as
+`unchanged-colours-read-as-a-dock-recolour`.
 
-TWO THAT ARE PROBABLY NOT GAPS, and saying so is a legitimate
-outcome. `dialog.py:4385` mutates the `-1` sentinel to `-2`, and the
-next line is `if index < 0: continue` — both values take the same
-branch and `index` is not read again. That is equivalent, and needs
-the sandbox demonstration `EQUIVALENT` requires before it may leave
-the denominator. `bridge.py:520` is NOT the alarming one this entry
-used to bill it as, and the correction is worth keeping: it widens
-the SUGGESTED spacing, not the map, and the refusal it must agree
-with is `est > bridge.MAX_TILES_HARD` at dialog.py:4236 — so exactly
-MAX_TILES_HARD tiles is permitted by both, and `<` merely widens one
-further 2% step at exact equality. Still a legal map, still under the
-guard. Name the harm and none can be named; accept it with this
-reason, or find the discriminating case first.
+TWO ACCEPTED, WITH THE REASONS, which docs/MUTATION-TESTING.md says
+is a legitimate outcome and a campaign that never does it is chasing
+a number.
 
-ONE STILL UNREAD — dialog.py:3068, `if count > 0` becoming
-`count > 1`. The two differ only at a class count of exactly 1, which
-is the constant-column case the plugin deliberately produces, and at
-count 1 the reversal `str(count - 1 - index)` is the identity for
-index 0. Whether stale picks with higher indices can survive a drop
-to one class decides whether this is equivalent or a real gap.
-Determine that before writing or accepting anything.
+`dialog.py:4385` is EQUIVALENT and is recorded in `EQUIVALENT` with a
+mechanical demonstration: the enclosing `done` holds exactly two
+references to `index`, the store and the `< 0` test, and -2 is as
+negative as -1.
+
+`bridge.py:520` is ACCEPTED. It widens the SUGGESTED spacing, not the
+map, and the refusal it must agree with is `est >
+bridge.MAX_TILES_HARD` at dialog.py:4236 — so exactly MAX_TILES_HARD
+tiles is permitted by both, and `<` merely widens one further 2% step
+at exact equality. Still a legal map, still under the guard. No harm
+can be named, and this entry previously billed it as a boundary
+comparison deciding what a map draws, which reading it in place
+disproved.
+
+`dialog.py:3068` is ACCEPTED, and the reason is that the honest
+answer is "cannot say cheaply". `if count > 0` becoming `count > 1`
+differs only at a class count of exactly 1. The class spinner's range
+is set to (2, 20) in both places it is set, so for a Graduated row —
+the only kind that reaches this line — count is 0 (no spinner) or 2
+to 20, and 1 is unreachable. That is very probably an equivalence,
+but demonstrating it means ruling out every ordering in which a row
+arrives here carrying another mode's (0, 9999) range, and
+docs/MUTATION-TESTING.md is explicit that a mutant which merely
+LOOKS equivalent must not be declared one. At count 1 no user harm
+can be stated either way: the healthy path drops picks whose class no
+longer exists, the mutant leaves them, and the renderer has one class
+regardless. Accepted rather than claimed.
 
 **Resume does not understand a stage whose product is a FILE.**
 `skip_if_already_done` reads back a stage's captured text, so it can
