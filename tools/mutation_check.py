@@ -1427,6 +1427,18 @@ MUTATIONS = [
            "style change anywhere in the table -- destroying the "
            "stroke width, outline style or anything else the user set "
            "in QGIS's own dock alongside the colours"),
+  dict(name="category-shift-cries-wolf-on-first-sight", file=BRIDGE,
+       old="  if previous is None or previous == current or current < 2:",
+       new="  if previous == current or current < 2:"
+           "  # mutation: warn the first time a field is seen",
+       test="test_a_changed_category_count_warns_that_colours_moved",
+       why="the first sight of a field is not a change, so warning "
+           "then would fire on every ordinary first run. A warning "
+           "that cries wolf is one people learn to ignore, which "
+           "costs the real ones too. This entry exists mainly to "
+           "prove the NEGATIVE half of its test can fail: it read "
+           "the note line once, and the line is cleared shortly "
+           "after a run, so it was satisfied by silence"),
   dict(name="range-editor-repaints-from-another-element",
        file=DIALOG,
        old="""      self._apply_style_change()

@@ -21980,6 +21980,44 @@ def _note_after_a_run(dlg, phrase, seconds=5):
   return seen
 
 
+def _notes_during_a_run(dlg, seconds=2):
+  """Every distinct note the dialog showed across a window of time.
+
+  Args:
+    dlg: the dialog whose live_note is being watched.
+    seconds: how long to watch. Two is enough to cover the clear that
+      follows a run; a negative assertion does not need the five
+      _note_after_a_run allows, since it is not waiting for anything
+      to arrive.
+
+  Returns:
+    The distinct non-empty notes seen, in the order they appeared.
+    Empty when the plugin said nothing at all, which is exactly what
+    a negative assertion wants to be able to tell apart from "it said
+    something and the line was cleared before anybody looked".
+
+  This is the counterpart _note_after_a_run needed and did not have.
+  That helper answers "did it eventually say X", and asserting NOT-X
+  on its result is weaker than it looks: it returns the last non-empty
+  note, so a notice that appeared and was replaced a moment later
+  reads as though it never happened. A single `_tick` is weaker
+  still -- adding output layers makes the layer combo re-emit, which
+  queues work whose first act is to clear the line, so "the note does
+  not mention categories" is satisfied just as well by a note the
+  plugin cleared a moment earlier. That is the vacuous shape this
+  project produces at about one in five, and it was sitting in a
+  negative assertion about a warning nobody wants to see fire
+  spuriously. (2026-08-12.)
+  """
+  seen = []
+  for _ in range(max(1, int(seconds * 20))):
+    _tick(50)
+    text = dlg.live_note.text().strip()
+    if text and (not seen or seen[-1] != text):
+      seen.append(text)
+  return seen
+
+
 def _settle(dlg, seconds=30):
   """Run the event loop until the dialog is quiet.
 
@@ -26026,9 +26064,17 @@ def test_a_changed_category_count_warns_that_colours_moved():
   dlg.table.cellWidget(0, 2).setCurrentText("Categorized")
   dlg._update_dynamic_columns()
   _generate_and_wait(dlg)
-  _tick(200)
-  assert "categories" not in dlg.live_note.text(), \
-    "the first sight of a field is not a change and must say nothing"
+  # Watch the whole window rather than reading once. The note line is
+  # cleared shortly after a run, so a single read here passes just as
+  # well against a spurious warning that came and went -- and this is
+  # a negative assertion about a warning whose whole value is that it
+  # does not cry wolf.
+  first_run_notes = _notes_during_a_run(dlg)
+  assert not any("categories" in note.lower()
+                 for note in first_run_notes), \
+    f"the first sight of a field is not a change and must say " \
+    f"nothing about categories; across the run the plugin said " \
+    f"{first_run_notes!r}"
 
   # remove every feature of one class, so the count drops
   doomed = [f.id() for f in layer.getFeatures()
