@@ -358,14 +358,28 @@ Related and now done: `tools/check_before_push.py`, which is the
 cheaper half of the same problem. A watcher tells you twenty minutes
 late what a check tells you a second early.
 
-**Ceilings sized from measurement rather than belief.** Three were
-set wrong in one day, each producing a red result that meant nothing:
-a forty-minute CI job limit against 52-54 minute legs, a
-600-second per-test watchdog against a test that legitimately takes
-855 under coverage, and the same watchdog against a suite whose costs
-multiply by six when monitored. There is a general fix available:
-have the suite record each test's duration and size the ceiling from
-the slowest observed run rather than from a constant somebody chose.
+**Ceilings sized from measurement rather than belief.** DONE
+2026-08-12, though not the way this entry proposed. It asked for the
+suite to record durations and size each ceiling from the slowest run
+seen. That fails on the machine it matters most for: durations
+recorded here are a Mac's, `reports/` is gitignored so nothing
+persists to CI, and a ceiling derived from the fast machine is
+exactly the fault we keep committing.
+
+What was missing was not a better number, it was a WARNING. Every
+ceiling in the suite already carries its measured figure and the
+reason beside it; what nobody had was notice that a test was getting
+close. "Staggered actions" ran 550 seconds against a 600-second
+ceiling, passed, and stalled on the next round -- the run before the
+failure was already the warning and passing at 92% looks exactly like
+passing.
+
+So `check` records any test that spends half its allowance and the
+suite lists them at the end, on EVERY machine, which is the half that
+matters because the slow machine is never the one you are sitting at.
+Guarded by `test_a_test_creeping_toward_its_ceiling_is_reported`,
+which asserts both directions -- a warning that fires for everything
+is one nobody reads.
 
 **Antivirus cost on the macOS suite, measured rather than assumed.**
 Cisco Secure Endpoint was using ~26% of a core across two processes

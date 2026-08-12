@@ -260,6 +260,18 @@ CONTENTION = 2.5 if SHARD_COUNT > 1 else 1.0
 # what it covered rather than leaving a reader to infer it
 OFFERED = []
 
+# (name, seconds, ceiling) for every test that came within
+# CLOSE_ENOUGH of its stall ceiling. A ceiling is only useful while a
+# healthy test stays well under it, and the way this project has
+# discovered otherwise is by a test crossing one: "staggered actions"
+# ran 550s against a 600s ceiling, PASSED, and stalled on the next
+# round -- the run before the failure was already the warning and
+# nobody could see it. Reported at the end of every run, on every
+# machine, which is the half that matters: the slow machine is never
+# the one you are sitting at.
+NEAR_THE_CEILING = []
+CLOSE_ENOUGH = 0.5
+
 
 def _stall_ceiling(name):
   """How long this particular test may run before it is called stuck.
@@ -451,6 +463,9 @@ def check(name, fn, sharded=True):
     traceback.print_exc()
   finally:
     watchdog.cancel()
+    spent = time.perf_counter() - started
+    if spent >= ceiling * CLOSE_ENOUGH:
+      NEAR_THE_CEILING.append((name, spent, ceiling))
     project.clear()
 
 
@@ -26357,6 +26372,77 @@ def test_colours_a_reader_cannot_separate_are_reported():
   dlg.close()
 
 
+def test_a_test_creeping_toward_its_ceiling_is_reported():
+  """A healthy test close to its stall ceiling has to say so.
+
+  A ceiling is only useful while healthy runs stay well under it, and
+  the way this project has found out otherwise is by a test crossing
+  one. "Staggered actions during a run" took 550 seconds against a
+  600-second ceiling, PASSED, and stalled on the next round: the run
+  before the failure was already the warning, and nobody could see it
+  because passing at 92% of the allowance looks exactly like passing.
+
+  So `check` records any test that spends CLOSE_ENOUGH of its ceiling
+  and the suite lists them at the end, on every machine. That last
+  part is the half that matters, because the slow machine is never
+  the one you are sitting at.
+
+  Driven through `check` itself rather than by calling the recording
+  logic directly: what is being tested is that the real path notices,
+  and a test of the comparison alone would pass with the recording
+  wired to nothing.
+
+  Regression: a test at 92% of its stall ceiling passed silently and stalled on the next round.
+  """
+  before = list(NEAR_THE_CEILING)
+  passed_before, offered_before = list(PASSED), list(OFFERED)
+  original = globals()["_stall_ceiling"]
+  probe = "probe: a test that sits close to its allowance"
+  try:
+    # a ceiling this test is bound to approach, since it sleeps for
+    # most of it. sharded=False because a registration made from
+    # inside a test consumes a slot in one shard and not the others.
+    globals()["_stall_ceiling"] = lambda name: 0.4
+    check(probe, lambda: time.sleep(0.3), sharded=False)
+  finally:
+    globals()["_stall_ceiling"] = original
+    # leave the suite's own tallies exactly as they were: this probe
+    # is not one of the suite's tests and must not be counted as one
+    PASSED[:] = passed_before
+    OFFERED[:] = offered_before
+
+  recorded = [row for row in NEAR_THE_CEILING if row not in before]
+  NEAR_THE_CEILING[:] = before
+  assert recorded, \
+    "a test that spent three quarters of its stall ceiling was not " \
+    "recorded, so a run approaching its limits will pass in silence " \
+    "exactly as the 550-against-600 case did"
+  name, spent, ceiling = recorded[0]
+  assert name == probe, f"the wrong test was recorded: {name!r}"
+  assert spent >= ceiling * CLOSE_ENOUGH, \
+    f"recorded {spent:.2f}s against a ceiling of {ceiling:.2f}s, " \
+    f"which is under the {CLOSE_ENOUGH:.0%} threshold and should " \
+    f"not have been recorded at all"
+
+  # ...and the other direction: a quick test must NOT be recorded, or
+  # the report would name every test in the suite and mean nothing.
+  before = list(NEAR_THE_CEILING)
+  try:
+    globals()["_stall_ceiling"] = lambda name: 600.0
+    check("probe: a test nowhere near its allowance",
+          lambda: None, sharded=False)
+  finally:
+    globals()["_stall_ceiling"] = original
+    PASSED[:] = passed_before
+    OFFERED[:] = offered_before
+  quiet = [row for row in NEAR_THE_CEILING if row not in before]
+  NEAR_THE_CEILING[:] = before
+  assert not quiet, \
+    f"a test that finished instantly was reported as close to its " \
+    f"ceiling: {quiet}. A warning that fires for everything is one " \
+    f"nobody reads"
+
+
 def test_every_expected_stage_is_actually_run():
   """A stage the release lists must be a stage the release runs.
 
@@ -27424,6 +27510,8 @@ def main():
         test_the_release_watchdog_ignores_a_sleeping_machine)
   check("the coverage record survives the suite exiting",
         test_the_coverage_record_survives_the_suite_exiting)
+  check("a test creeping toward its ceiling is reported",
+        test_a_test_creeping_toward_its_ceiling_is_reported)
   check("every expected stage is actually run",
         test_every_expected_stage_is_actually_run)
   check("resuming skips only what still holds",
@@ -27508,6 +27596,20 @@ def main():
     print(f"\nshard {SHARD_INDEX} of {SHARD_COUNT}: "
           f"{len(PASSED) + len(FAILED)} of {len(OFFERED)} tests run")
   print(f"\n{len(PASSED)} passed, {len(FAILED)} failed")
+  if NEAR_THE_CEILING:
+    # Not a failure. A test at half its allowance is fine today and is
+    # the only warning anybody gets before it is not, and on a slower
+    # machine than this one it may already be over.
+    print(f"\n{len(NEAR_THE_CEILING)} test(s) ran past "
+          f"{int(CLOSE_ENOUGH * 100)}% of the stall ceiling. Not a "
+          f"failure; a ceiling is only useful while healthy runs stay "
+          f"well under it, and this is the run BEFORE the red one:")
+    for name, spent, ceiling in sorted(
+        NEAR_THE_CEILING, key=lambda row: -row[1] / row[2]):
+      print(f"  {spent / ceiling:.0%} of {ceiling:.0f}s  "
+            f"{spent:6.1f}s  {name}")
+    print("  Raise the allowance in _stall_ceiling with the measured "
+          "figure beside it, or find out why the test got slower.")
   for kind, count in sorted(QT_NOISE.items()):
     # said once rather than <count> times; see
     # _quieten_the_offscreen_platform for why it is harmless

@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-86 defect(s) with a regression test.
+87 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -106,6 +106,8 @@ there is no separate list to remember.
   guarded by `test_a_sequence_of_edits_under_the_plugin`
 - **a stage log kept the previous run's verdict for the whole time the stage ran, and read as current.**  
   guarded by `test_a_stage_log_never_shows_the_previous_run`
+- **a test at 92% of its stall ceiling passed silently and stalled on the next round.**  
+  guarded by `test_a_test_creeping_toward_its_ceiling_is_reported`
 - **an equivalence whose evidence a later change falsified went on removing its mutant from the denominator.**  
   guarded by `test_a_withdrawn_equivalence_stops_excluding_its_mutant`
 - **the embedded style name was the layer's own, so a long column name overran GDAL's thirty-character styleName column and was truncated with a warning on every write.**  
@@ -208,7 +210,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 56
+- unrecorded: 57
 - reading the code: 7
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5
