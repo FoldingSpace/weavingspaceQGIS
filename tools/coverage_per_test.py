@@ -107,7 +107,23 @@ def main():
       original_check(name, fn, sharded=sharded)
     finally:
       mon.set_events(tool, 0)
-      per_test[name] = sorted(current)
+      # Record ONLY the tests this process actually ran. check()
+      # returns None whether it skipped a test (not dealt to this
+      # shard) or ran it, so the return value cannot tell the two
+      # apart; the suite's own PASSED and FAILED lists can, because
+      # both are appended inside the body after the deal.
+      #
+      # Recording unconditionally gave every shard an entry for all
+      # 286 names, roughly 190 of them empty, and the merge stage
+      # refused: a name in more than one shard means the deal was not
+      # disjoint. It was right to refuse for a second reason too --
+      # an empty entry claims the test covers no line at all, which
+      # would tell mutate_auto never to offer that test the chance to
+      # notice a mutant, quietly overstating survivors in the one
+      # direction a coverage record is dangerous to be wrong in.
+      # (2026-08-11, the second defect this stage caught in a night.)
+      if name in rt.PASSED or name in rt.FAILED:
+        per_test[name] = sorted(current)
 
   rt.check = timed_check
   written = []

@@ -7928,14 +7928,24 @@ def _record_coverage_against_a_stub_suite(exit_code, shard=None):
             encoding="utf-8") as handle:
     handle.write(
       "import os, sys\n"
+      "PASSED = []\n"
+      "FAILED = []\n"
       "def _enable_stack_dumps():\n"
       "  pass\n"
       "def _no_modal_dialogs():\n"
       "  pass\n"
+      # Stands in for the real check(): a test not dealt to this shard
+      # returns before running, and returns None just as a test that
+      # ran does. Only PASSED/FAILED distinguish them, which is the
+      # contract the recorder has to rely on.
       "def check(name, fn, sharded=True):\n"
+      "  if name.startswith('skipped'):\n"
+      "    return None\n"
       "  fn()\n"
+      "  PASSED.append(name)\n"
       "def main():\n"
       "  check('a stub test', lambda: None)\n"
+      "  check('skipped, another shard owns it', lambda: None)\n"
       "  sys.stdout.flush()\n"
       f"  os._exit({int(exit_code)})\n")
   env = dict(os.environ)
@@ -7980,9 +7990,13 @@ def test_the_coverage_record_survives_the_suite_exiting():
     f"the call, so a record written after rt.main() returns is " \
     f"never written at all. Child said: {text.strip()[-600:]!r}"
   assert "recorded 1 tests" in text, \
-    f"the record was written but the recorder did not report what " \
-    f"it held; the summary line is how a sharded run is checked " \
-    f"against the others. Child said: {text.strip()[-600:]!r}"
+    f"the recorder should hold ONE test: the stub offered two and " \
+    f"ran one, as a shard does. Holding two means it recorded a " \
+    f"registration it never executed, which gives every shard an " \
+    f"entry for every test in the suite -- the merge stage then " \
+    f"refuses (a name in two shards means the deal was not " \
+    f"disjoint), and an empty entry would tell the mutation harness " \
+    f"that test covers nothing. Child said: {text.strip()[-600:]!r}"
 
   # The sharded naming is the one a release actually depends on: the
   # record runs in three processes and the merge stage finds them by
