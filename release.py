@@ -1038,6 +1038,61 @@ def changelog_entry(version):
   return ""
 
 
+# The branch a release is published FROM, and the reason it has to be
+# a gate rather than a habit.
+#
+# GitHub Pages serves the project page from docs/ on this branch, and
+# the repository's front page is its README. `git push origin HEAD`
+# pushes whatever branch you are standing on, and a tag does not care
+# what branch it is on -- so releasing from a pre-candidate branch
+# produces a perfectly real GitHub Release sitting beside a page and a
+# README that still describe the PREVIOUS version. Nothing in git
+# objects, no gate here noticed, and the fault is visible only to
+# somebody who visits the page.
+#
+# Found on 2026-08-11 while writing out the 0.24.0 sequence, before it
+# had been done wrongly rather than after.
+PUBLICATION_BRANCH = "main"
+
+
+def refuse_unless_publishing_from_the_right_branch():
+  """Stop a release that would tag one branch and publish another.
+
+  Returns:
+    None when the working tree is on PUBLICATION_BRANCH, or when
+    there is no branch to read (a bare checkout, or git absent).
+    Otherwise exits, naming the branch it found and the exact
+    fast-forward that puts the measured tree where it belongs.
+
+  It refuses rather than merging on anyone's behalf. Merging is a
+  decision -- and if the fast-forward is not available, something
+  landed on the publication branch that this candidate never saw,
+  which is a question about intent rather than a step to automate.
+  """
+  found = git("rev-parse", "--abbrev-ref", "HEAD",
+              check=False, quiet=True)
+  branch = found.stdout.strip() if found.returncode == 0 else ""
+  if not branch or branch == PUBLICATION_BRANCH:
+    return
+  sys.exit(
+    f"RELEASE STOPPED: this is branch {branch!r}, and a release is "
+    f"published from {PUBLICATION_BRANCH!r}.\n"
+    f"  Tagging here would give you a real GitHub Release beside a "
+    f"project page and a README\n"
+    f"  still describing the previous version, because Pages serves "
+    f"docs/ from {PUBLICATION_BRANCH}.\n"
+    f"  The tree you measured is the tree that should land, so "
+    f"fast-forward rather than re-derive:\n\n"
+    f"      git checkout {PUBLICATION_BRANCH}\n"
+    f"      git merge --ff-only {branch}\n"
+    f"      python3 release.py\n\n"
+    f"  The candidate receipt still matches after a fast-forward, so "
+    f"nothing is re-measured.\n"
+    f"  --ff-only is the guard: if it refuses, something reached "
+    f"{PUBLICATION_BRANCH} that this candidate\n"
+    f"  never saw, and that is a question rather than a merge.")
+
+
 def commit_and_tag(version, report_dir, push):
   """Record the release in version control, and optionally publish it.
 
@@ -1057,6 +1112,10 @@ def commit_and_tag(version, report_dir, push):
   cannot be undone once anyone has fetched, so they need the flag.
   """
   print("\n=== version control ===")
+  # Before anything is written: a release tagged on the wrong branch
+  # cannot be undone by deleting the tag, because the GitHub Release
+  # and the page have already disagreed in public.
+  refuse_unless_publishing_from_the_right_branch()
   inside = git("rev-parse", "--git-dir", check=False, quiet=True)
   if inside.returncode != 0:
     print("  not a git repository yet; skipping.\n"

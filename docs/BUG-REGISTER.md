@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-74 defect(s) with a regression test.
+75 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -92,6 +92,8 @@ there is no separate list to remember.
   guarded by `test_a_palette_is_usable_whatever_case_qgis_spells_it`
 - **choosing a Quant: style on a text field produced a graduated renderer with no ranges, so 0 of 112 features painted and four empty layers were reported as a successful run.**  
   guarded by `test_a_quantitative_style_never_stands_on_text`
+- **the 0.24.0 sequence was written out on 2026-08-11 and the release would have been tagged on pre-0.24.0rc5, leaving main 51 commits behind with the page and README describing 0.23.**  
+  guarded by `test_a_release_publishes_from_the_branch_the_page_is_served_from`
 - **reloading the dialog module reset the module-level _LIVE_DIALOG to None, so the dialog built from the reloaded class retired nothing and the predecessor went on running its debounces against the newcomer's layers.**  
   guarded by `test_a_reloaded_module_retires_the_old_dialog_cleanly`
 - **a column added in QGIS — with the Field Calculator, the usual way — never appeared in the variable choosers, because their item lists are built during a table rebuild and a rebuild happens when the LAYER changes, not when its columns do; the column stayed invisible until the user switched layers and back.**  
@@ -184,7 +186,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 44
+- unrecorded: 45
 - reading the code: 7
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5

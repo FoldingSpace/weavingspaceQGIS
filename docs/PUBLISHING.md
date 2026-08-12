@@ -542,12 +542,43 @@ needs an entry a user can act on.
 
 ## From candidate to release
 
-A release is a promotion, not a rebuild. The sequence is:
+A release is a promotion, not a rebuild. The whole sequence, from a
+green candidate to a published release, is:
 
     python3 release.py --rc        # gates, packages, writes a receipt
     # install the zip, make a map with it, collect feedback
+
+    git checkout main              # a release is published FROM main
+    git merge --ff-only pre-<version>rc<n>
+
     python3 release.py             # promotes that exact artefact
     python3 release.py --push      # ...and publishes it
+
+**Why the checkout is in the middle of that, and is not optional.**
+`release.py --push` runs `git push origin HEAD`, which pushes
+whatever branch you are standing on, and a tag does not care what
+branch it is on. Promote from the pre-candidate branch and you get a
+perfectly real GitHub Release sitting beside a project page and a
+README that still describe the PREVIOUS version -- because Pages
+serves `docs/` from `main` and the repository's front page is
+`main`'s README. Nothing in git objects to this; the only person who
+finds out is somebody who visits the page.
+
+So `release.py` refuses to commit or tag anywhere but `main`, and
+says which fast-forward to run. It refuses rather than merging on
+your behalf, because merging is a decision. `--ff-only` is the guard
+in that command: if it will not fast-forward, something reached
+`main` that this candidate never saw, and that is a question rather
+than a merge.
+
+The fast-forward leaves the tree byte-identical, so the candidate
+receipt still matches and nothing is re-measured. Guarded by
+`test_a_release_publishes_from_the_branch_the_page_is_served_from`.
+
+**And the page needs switching on, once, by a person.** Settings ->
+Pages -> Deploy from a branch -> `main`, folder `/docs`. Until that
+is done the project page 404s and every README link to it points at
+nothing, which no gate here can detect.
 
 **What the candidate leaves behind.** A zip, a dossier (the page a
 reviewer reads) and a receipt recording a digest of exactly the files
