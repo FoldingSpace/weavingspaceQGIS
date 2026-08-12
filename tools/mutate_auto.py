@@ -103,6 +103,24 @@ COSMETIC = ("setColumnWidth",)
 EQUIVALENT = [
   {
     "file": "weavingspace_qgis/dialog.py",
+    "snippet": "            if self._source_layer_alive(layer) else -1",
+    "mutation": "1 -> 2",
+    "reason":
+      "A sentinel standing for 'this layer is gone, so it has no such "
+      "field'. The next line is `if index < 0: continue`, and -2 is "
+      "as negative as -1, so both values take the same branch. The "
+      "sentinel is never compared with anything else, never printed "
+      "and never returned, so no test can distinguish the two.",
+    "evidence":
+      "By construction, checked mechanically rather than argued: "
+      "walking the syntax tree of the enclosing function `done` "
+      "(dialog.py 4333-4407) finds exactly two references to `index` "
+      "-- the Store at 4384 and one Load at 4386, which is the `< 0` "
+      "test. A value read once, by a comparison both candidates "
+      "satisfy, cannot reach anything observable.",
+  },
+  {
+    "file": "weavingspace_qgis/dialog.py",
     "snippet": 'k_spin.setValue(min(int(k_spin.property("user_k") or 5), 20))',
     "mutation": "20 -> 21",
     "reason":
