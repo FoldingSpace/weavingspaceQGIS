@@ -173,9 +173,22 @@ ROTATION_CHOICES = [-45, -30, -15, 0, 15, 30, 45]
 # warning exists for, and a grid arguing for multivariate colour that
 # some readers cannot read would be arguing against itself.
 # (User instruction, 2026-08-12.)
+# Oranges was here and had to go: it is the highest-chroma hue in the
+# set and it advanced against the blues, purples and greys hard enough
+# that every cell read as an orange map with other things in it. That
+# is a failure of the grid's whole purpose -- five variables shown as
+# equals -- so the fix is a calmer warm ramp rather than a tweak to
+# the floor, which would only have made the orange darker.
+# YlOrBr was tried next and was no better: its middle is bright gold,
+# which advances just as hard. What works is a genuinely low-chroma
+# warm -- copper, muted brown -- and REVERSED, so that high values are
+# dark as they are on every other ramp here. Unreversed it runs dark
+# to light, which would have made this the one variable where a big
+# number looked pale.
+# (User instruction, 2026-08-12: the oranges are too overdominant.)
 VARIABLE_RAMPS = {
   "imd": "Blues",
-  "employment": "Oranges",
+  "employment": "copper_r",
   "income": "Purples",
   "crime": "Greys",
   "housing": "Greens",
