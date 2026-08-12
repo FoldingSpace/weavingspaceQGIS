@@ -12281,6 +12281,102 @@ def test_a_dock_refinement_survives_the_next_restyle():
   dlg.close()
 
 
+def test_a_graduated_dock_refinement_survives_the_next_restyle():
+  """The graduated half of the same promise, at the sibling site.
+
+  `_graduated_layer_edited` adopts a dock recolour as positional class
+  picks and stamps the signature exactly as the categorized path does
+  -- the same five lines, thirty lines apart. The catalogue REFUSED a
+  single anchor covering both, because mutating one would leave the
+  other doing the work and the entry would report SURVIVED whatever
+  the tests did. That refusal is also the reason this test exists
+  separately: two identical pieces of code are two pieces of code, and
+  the covering test for one says nothing about the other.
+
+  Same user story, graduated: recolour a class in QGIS's dock and
+  widen the strokes while you are there, then change another
+  element's ramp and press Generate, and the stroke should still be
+  there.
+
+  Regression: the categorized adoption path got a test and its graduated twin, five identical lines away, still had none.
+  """
+  from qgis.core import QgsGraduatedSymbolRenderer
+  from qgis.PyQt.QtGui import QColor
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  dlg.table.cellWidget(1, 1).setCurrentText("landcover")
+  dlg._update_dynamic_columns()
+  _tick(100)
+  tid = dlg.table.item(0, 0).text()            # the graduated one
+  other_id = dlg.table.item(1, 0).text()       # provokes the restyle
+  dlg.spacing_spin.setValue(500)
+  _generate_and_wait(dlg)
+  out = project.mapLayer(dlg._element_layer_ids[tid])
+  other_layer = project.mapLayer(dlg._element_layer_ids[other_id])
+  renderer = out.renderer()
+  assert isinstance(renderer, QgsGraduatedSymbolRenderer), \
+    f"row 0 was mapped to a numeric field and did not come back " \
+    f"graduated ({renderer!r}), so the path under test never runs"
+
+  WIDE = 1.9
+  edited = renderer.clone()
+  for index, band in enumerate(edited.ranges()):
+    symbol = band.symbol().clone()
+    if index == 0:
+      symbol.setColor(QColor("#204060"))
+    fill = symbol.symbolLayer(0)
+    assert hasattr(fill, "setStrokeWidth"), \
+      "the fixture's symbol has no stroke to widen"
+    fill.setStrokeWidth(WIDE)
+    edited.updateRangeSymbol(index, symbol)
+  out.setRenderer(edited)
+  _tick(200)
+  assert dlg._quant_colours.get(tid, {}).get("v1", {}).get("0") \
+      == "#204060", \
+    f"the dock recolour was not adopted as a positional pick, so the " \
+    f"signature this test is about was never stamped: " \
+    f"{dlg._quant_colours.get(tid, {})!r}"
+
+  # a style change on the OTHER (categorized) element, then Generate,
+  # which is what sends the restyle over every element
+  other_ramp = dlg.table.cellWidget(1, 4)
+  choices = [other_ramp.itemText(i) for i in range(other_ramp.count())
+             if other_ramp.itemText(i) != other_ramp.currentText()
+             and other_ramp.itemText(i) in bridge.CATEGORICAL_RAMPS]
+  assert choices, "the categorized element's ramp cell offers no " \
+    "categorical alternative, so nothing below would change"
+  before_other = [c.symbol().color().name()
+                  for c in other_layer.renderer().categories()]
+  index = other_ramp.findText(choices[0])
+  other_ramp.setCurrentIndex(index)
+  other_ramp.activated.emit(index)
+  _tick(200)
+  _generate_and_wait(dlg)
+  after_other = [c.symbol().color().name()
+                 for c in other_layer.renderer().categories()]
+  assert after_other != before_other, \
+    f"element '{other_id}' was moved to the '{choices[0]}' ramp and " \
+    f"its colours did not change, so the restyle pass never ran and " \
+    f"the assertion below would hold no matter what"
+
+  widths = [r.symbol().symbolLayer(0).strokeWidth()
+            for r in out.renderer().ranges()]
+  assert all(abs(w - WIDE) < 1e-6 for w in widths), \
+    f"a style change to element '{other_id}' re-seeded the graduated " \
+    f"element '{tid}' and destroyed the stroke width set in QGIS's " \
+    f"own styling dock: widths are now {widths}, and every one " \
+    f"should still be {WIDE}"
+  dlg.close()
+
+
 def test_an_unclassed_swatch_reaches_both_ends_of_its_ramp():
   """The Custom swatch for Unclassed shows the whole selected range.
 
@@ -26563,6 +26659,8 @@ def main():
         test_an_unclassed_swatch_reaches_both_ends_of_its_ramp)
   check("a dock refinement survives the next restyle",
         test_a_dock_refinement_survives_the_next_restyle)
+  check("a graduated dock refinement survives the next restyle",
+        test_a_graduated_dock_refinement_survives_the_next_restyle)
   check("the quant editor edits class colours",
         test_the_quant_editor_edits_class_colours)
   check("the ramp display range reinterpolates",

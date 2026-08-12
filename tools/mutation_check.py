@@ -1427,6 +1427,22 @@ MUTATIONS = [
            "style change anywhere in the table -- destroying the "
            "stroke width, outline style or anything else the user set "
            "in QGIS's own dock alongside the colours"),
+  dict(name="graduated-signature-stamped-on-the-wrong-element",
+       file=DIALOG,
+       # the GRADUATED twin, narrowed by its own comment for the same
+       # reason as the categorized entry above
+       old="""    # else the dock changed alongside them
+    refreshed = next((a for a in self._assignments()
+                      if a["id"] == tile_id), None)""",
+       new="""    # else the dock changed alongside them
+    refreshed = next((a for a in self._assignments()
+                      if a["id"] != tile_id), None)""",
+       test="test_a_graduated_dock_refinement_survives_the_next_restyle",
+       why="the graduated mirror of the categorized adoption: without "
+           "the signature recorded against the right element, the "
+           "next style change re-seeds this layer and throws away the "
+           "stroke width or outline the user set in QGIS's dock "
+           "alongside the class colours"),
   dict(name="colouring-count-above-the-ceiling-moved", file=CATALOG,
        old="HEX_COLOURING_COUNTS = tuple(range(2, 17)) + (19, 37)",
        new="HEX_COLOURING_COUNTS = tuple(range(2, 17)) + (19, 38)"
