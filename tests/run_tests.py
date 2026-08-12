@@ -25595,15 +25595,52 @@ def test_colours_a_reader_cannot_separate_are_reported():
   # ask for it; that it stays quiet unopted is a separate test
   dlg.opt_colour_warnings.setChecked(True)
   dlg.spacing_spin.setValue(700)
+  # COUNT what was set. The guard below is the commonest way a test
+  # here passes without exercising anything: if the widgets are not
+  # what this expects, every assignment is skipped and the map has no
+  # clashing ramps to warn about, so "no warning" would be the
+  # correct answer to a question nobody asked.
+  set_ramps = 0
   for row, ramp in enumerate(("Reds", "Greens", "Blues", "Purples")):
     widget = dlg.table.cellWidget(row, 4)
     if hasattr(widget, "setCurrentText"):
       widget.setCurrentText(ramp)
+      set_ramps += 1
+  assert set_ramps == 4, \
+    f"only {set_ramps} of 4 ramp choosers could be set, so the map " \
+    f"under test does not have the colours this test is about and " \
+    f"any verdict below would be meaningless"
   _tick(300)
   _generate_and_wait(dlg)
-  note = _note_after_a_run(dlg, "tell apart")
+  # Fifteen seconds, not five. Under the coverage recorder every step
+  # costs about six times as much, so a window sized on a plain run is
+  # a sixth of the window it looks like.
+  note = _note_after_a_run(dlg, "tell apart", seconds=15)
+  # This test has failed twice inside the coverage recorder and passed
+  # everywhere else, including under monitoring in isolation, so the
+  # cause is state left by something else in the same shard. Rather
+  # than guess a fourth time, the failure REPORTS: which ramps were
+  # actually set, whether the run produced layers, and what the
+  # plugin said anywhere at all. A message naming only the assertion
+  # has already cost three hours here.
+  from qgis.core import QgsProject as _P
+  assigned = {}
+  for row, name in enumerate(("a", "b", "c", "d")):
+    widget = dlg.table.cellWidget(row, 4)
+    assigned[name] = (widget.currentText()
+                      if hasattr(widget, "currentText") else None)
   assert "tell apart" in note, \
-    f"four ramps on the red-green axis produced no warning: {note!r}"
+    f"four ramps on the red-green axis produced no warning.\n" \
+    f"    note line:      {note!r}\n" \
+    f"    ramps set:      {set_ramps} of 4 attempted\n" \
+    f"    ramps now:      {assigned}\n" \
+    f"    output layers:  {len(_P.instance().mapLayers())}\n" \
+    f"    message bar:    {BAR_MESSAGES[-3:]}\n" \
+    f"    modal dialogs:  {MODALS[-3:]}\n" \
+    f"    warnings on:    {dlg.opt_colour_warnings.isChecked()}\n" \
+    f"  An empty note with layers present means the notice was " \
+    f"raised and cleared, or never computed; an empty note with NO " \
+    f"layers means the run did not produce a map at all."
   dlg.close()
 
 
