@@ -22,6 +22,29 @@ Opus, working through Claude Code). The plugin echoes and extends our earlier (a
 You should expect rough edges, and we would rather hear about them than
 not.
 
+## Installing
+
+You do not need a GitHub account, git, or a command line for any of
+this.
+
+1. Go to the
+   [latest release](https://github.com/FoldingSpace/weavingspaceQGIS/releases/latest)
+   and download the file named `weavingspace_qgis.zip`. It will be
+   under a heading called *Assets*; save it somewhere you can find it
+   again, such as your Downloads folder.
+2. In QGIS, choose **Plugins ▸ Manage and Install Plugins… ▸ Install
+   from ZIP**, click the **…** button to pick the file you just
+   downloaded, and click **Install Plugin**. QGIS may warn you that the
+   plugin is experimental, which it is.
+3. Open the dialog from the toolbar button, or from **Plugins ▸
+   WeavingSpace**.
+
+To update later, download the new zip and install it the same way over
+the top.
+
+QGIS 4 or later is required.
+
+![The plugin dialog](docs/img/dialog.png)
 
 ## What it makes
 
@@ -49,30 +72,6 @@ technique's authors work with, along with grids and stripes, geometric
 modifiers (rotation, insets, scaling, skew), per-element colour ramps
 and opacity, and the option to draw the pattern as glyphs rather than
 as a tiling.
-
-## Installing
-
-You do not need a GitHub account, git, or a command line for any of
-this.
-
-1. Go to the
-   [latest release](https://github.com/FoldingSpace/weavingspaceQGIS/releases/latest)
-   and download the file named `weavingspace_qgis.zip`. It will be
-   under a heading called *Assets*; save it somewhere you can find it
-   again, such as your Downloads folder.
-2. In QGIS, choose **Plugins ▸ Manage and Install Plugins… ▸ Install
-   from ZIP**, click the **…** button to pick the file you just
-   downloaded, and click **Install Plugin**. QGIS may warn you that the
-   plugin is experimental, which it is.
-3. Open the dialog from the toolbar button, or from **Plugins ▸
-   WeavingSpace**.
-
-To update later, download the new zip and install it the same way over
-the top.
-
-QGIS 4 or later is required.
-
-![The plugin dialog](docs/img/dialog.png)
 
 ## Using it
 

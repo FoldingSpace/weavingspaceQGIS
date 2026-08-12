@@ -254,6 +254,11 @@
   "excerpt": "## The map option switches",
   "where": "docs/USER-GUIDE.md"
  },
+ "39e2d7a81a350cae": {
+  "approved": "2026-08-12",
+  "excerpt": "## What it makes",
+  "where": "README.md"
+ },
  "3c06de43f48834b6": {
   "approved": "2026-08-09",
   "excerpt": "Stretch the pattern up-down.",
