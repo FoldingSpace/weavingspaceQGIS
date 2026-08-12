@@ -509,6 +509,11 @@
   "excerpt": "Only elements with a categorized style have values to colour",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "69e787fa9d00960b": {
+  "approved": "2026-08-12",
+  "excerpt": "<div class=\"plates\">\n  <div>\n    <img src=\"img/twill-weave.p",
+  "where": "docs/index.html"
+ },
  "6b4ddcfafb108d99": {
   "approved": "2026-08-08",
   "excerpt": "\n## What it makes",
@@ -874,6 +879,11 @@
   "excerpt": "Drag the handles to choose the stretch of ramp the classes u",
   "where": "weavingspace_qgis/category_editor.py"
  },
+ "c6f34a267c95cfb7": {
+  "approved": "2026-08-12",
+  "excerpt": "Sixteen designs, one place. Every cell below is the same Auc",
+  "where": "README.md"
+ },
  "c71310d5039cf304": {
   "approved": "2026-08-08",
   "excerpt": "Rotation usually helps. A square pattern aligned with the fr",
@@ -983,6 +993,11 @@
   "approved": "2026-08-12",
   "excerpt": "{} {}: could not reach PyPI ({})",
   "where": "weavingspace_qgis/deps.py"
+ },
+ "db5a44ca4dc08deb": {
+  "approved": "2026-08-12",
+  "excerpt": "<p>Sixteen designs, one place. Every cell below is the same ",
+  "where": "docs/index.html"
  },
  "db669f6c7c16d29b": {
   "approved": "2026-08-08",
@@ -1153,6 +1168,11 @@
   "approved": "2026-08-08",
   "excerpt": "<p>What the plugin adds to a QGIS project is not a picture b",
   "where": "docs/index.html"
+ },
+ "fab95578f7f3e984": {
+  "approved": "2026-08-12",
+  "excerpt": "![Sixteen tiling and weave families, each mapping the same f",
+  "where": "README.md"
  },
  "fba454af033d04ad": {
   "approved": "2026-08-09",

@@ -62,6 +62,14 @@ result in a print layout.
 northeast of North America, after Ellis et al. (2021). Figure 2 from
 O'Sullivan and Bergmann (2026).*
 
+Sixteen designs, one place. Every cell below is the same Auckland
+deprivation data with the same variable in the same colour —
+deprivation blue, employment brown, income purple — and only the pattern
+changing, so the families can be compared with each other rather than
+admired one at a time.
+
+![Sixteen tiling and weave families, each mapping the same five Auckland deprivation indices over the same areas](docs/img/patterns.png)
+
 The plugin draws the same kinds of map from your own layers:
 
 <p align="center">
