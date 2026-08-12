@@ -21,7 +21,6 @@ Outputs:
 """
 import argparse
 import os
-import subprocess
 import sys
 import time
 
@@ -40,13 +39,17 @@ OUT = os.path.join(ROOT, "docs", "img")
 # second code path is the point: a separate "pretty" renderer would
 # be free to drift from the one under test, and the first anyone
 # would know of it is a page showing maps the plugin no longer makes.
+# Only what the published pages actually SHOW. Four more were rendered
+# here until 2026-08-12 -- four-variables, hex-slice, icons and
+# rotate-insets -- and were referenced by nothing: two had never been
+# used, and two came loose when the pattern grid replaced the plates
+# they sat in. Each cost a gallery render at every release to produce
+# a file no reader ever met. If one is wanted again, add the case back
+# here and reference it in the same commit, so a picture and its
+# reader arrive together.
 MAPS = [
-  ("case_laves", "four-variables.png"),
   ("case_twill_gaps", "twill-weave.png"),
   ("case_categorized", "categorical.png"),
-  ("case_hex_slice_offset", "hex-slice.png"),
-  ("case_icons", "icons.png"),
-  ("case_modifiers", "rotate-insets.png"),
 ]
 
 # White, not the suite's magenta and not transparency. Magenta is a
@@ -197,27 +200,19 @@ def main():
   grab_dialog()
   app.exitQgis()
 
-  # The pattern grid at the top of both pages. It runs in
-  # .venv-reference rather than here, because it needs matplotlib and
-  # geopandas together and macOS code-signing refuses PyPI C
-  # extensions inside the signed QGIS process -- the same reason the
-  # colourspace comparison lives there. Called from here anyway so
-  # that "retake the published pictures" remains ONE command: a
-  # picture that has to be remembered separately is one that goes
-  # stale while the page keeps its authority.
-  grid = os.path.join(ROOT, ".venv-reference", "bin", "python3")
-  if os.path.exists(grid):
-    outcome = subprocess.run(
-      [grid, os.path.join(ROOT, "tools", "make_pattern_grid.py")],
-      cwd=ROOT)
-    if outcome.returncode != 0:
-      print("the pattern grid did not draw every family; see above")
-      written = -1                     # fail the step, loudly
-  else:
-    print(f"no reference environment at {grid}; the pattern grid was "
-          f"NOT retaken and docs/img/patterns.png still shows "
-          f"whatever it showed before")
-    written = -1
+  # The pattern grid is NOT retaken here. It was, briefly, on the
+  # reasoning that a published picture nobody regenerates goes stale.
+  # That reasoning does not apply to this one: it shows the CATALOGUE
+  # of families rather than the current renderer's output, so it
+  # changes when somebody adds a family or rethinks the palette, and
+  # not when the plugin does. Regenerating it every release would put
+  # a rebuilt PNG in every release commit -- a diff nobody can review,
+  # which is how people learn to wave diffs through -- and would make
+  # each release depend on the reference environment being present.
+  # Run tools/make_pattern_grid.py deliberately when the catalogue or
+  # the design changes; sync_release_content.py knows not to expect it
+  # fresh. (User instruction, 2026-08-12: the grid is done for now,
+  # document it but do not regenerate each time.)
 
   print(f"wrote {written} map(s) and the dialog grab to docs/img/")
   return 0 if written == len(MAPS) else 1

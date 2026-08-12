@@ -178,6 +178,18 @@ def check_images(since):
     # are expected to be retaken each release.
     if os.path.basename(name).startswith("paper-"):
       continue
+    # The pattern grid is exempt for a different reason, and it is
+    # worth keeping the two apart. A paper figure is fixed because
+    # regenerating it would alter somebody's published work. The grid
+    # is fixed because it shows the CATALOGUE of families rather than
+    # the current renderer's output: it changes when a family is added
+    # or the palette is rethought, not when the plugin changes. Redraw
+    # it deliberately with tools/make_pattern_grid.py, which documents
+    # every knob. Regenerating it per release would put a rebuilt PNG
+    # in every release commit and make each release need the reference
+    # environment present. (User instruction, 2026-08-12.)
+    if os.path.basename(name) in NOT_RETAKEN_EACH_RELEASE:
+      continue
     if since and os.path.getmtime(full) < since:
       age = (time.time() - os.path.getmtime(full)) / 86400
       problems.append(
@@ -185,6 +197,11 @@ def check_images(since):
         f"{age:.0f} day(s) ago); run tools/make_site_images.py so the "
         f"published pictures show the current plugin")
   return problems
+
+
+# Published images that are NOT expected to be retaken by a release,
+# each for a reason written at the check that reads this.
+NOT_RETAKEN_EACH_RELEASE = {"patterns.png"}
 
 
 def check_links():

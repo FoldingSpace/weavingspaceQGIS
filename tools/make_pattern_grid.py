@@ -71,18 +71,100 @@ That is the same failure `test_the_catalogue_offers_only_designs_that
 _build` exists to catch, reproduced here by going around the catalogue
 instead of through it.
 
-## Running it
-
-Needs geopandas AND matplotlib, so it runs in the reference
-environment rather than under QGIS's Python (macOS code-signing
-refuses PyPI C extensions inside the signed QGIS process):
+## Running it, and when
 
     ./.venv-reference/bin/python3 tools/make_pattern_grid.py
 
-`tools/make_site_images.py` calls it while retaking the published
-pictures, so the grid is regenerated with everything else at each
-release. A published picture nobody regenerates keeps its authority
-while losing its accuracy.
+Needs geopandas AND matplotlib together, so it runs in the reference
+environment rather than under QGIS's Python: macOS code-signing
+refuses PyPI C extensions inside the signed QGIS process, which is
+the same reason the colourspace comparison lives there.
+
+Run it DELIBERATELY, not on a schedule. It is not called by
+`make_site_images.py` and should not be. That script retakes pictures
+of what the plugin currently draws, and those go stale when the
+renderer changes; this one shows the CATALOGUE, which changes when
+somebody adds a family or rethinks the palette. Regenerating it every
+release would put a rebuilt PNG in every release commit -- a diff
+nobody can review is a diff everybody waves through -- and would make
+each release depend on the reference environment existing.
+`sync_release_content.py` therefore exempts docs/img/patterns.png
+from its "was this retaken?" check, with the reason recorded there.
+(User instruction, 2026-08-12: the grid is done for now, document it
+but do not regenerate each time.)
+
+## Changing it: every knob, and what each one costs
+
+Everything worth adjusting is a module constant at the top. In rough
+order of how often you might reach for one:
+
+`WANTED` -- which sixteen families, as (catalogue name prefix,
+element count). The prefix is matched against the keys of
+`catalog.TILINGS_BY_N[count]`, so it must be the start of a real
+entry, e.g. "hex-slice" or "plain weave". Getting a count wrong is
+SAFE: the family is reported and skipped, the exit status turns
+non-zero, and you get a short grid rather than a wrong one. Keep the
+list ordered so neighbours resemble each other -- the reader is meant
+to see one thing change at a time -- and keep every count at or below
+the number of variables (see below). Its length must equal COLS*ROWS
+or the script refuses.
+
+`COLS`, `ROWS` -- the shape. Change both and `WANTED` together; the
+refusal above will catch you if you forget.
+
+`VARIABLE_RAMPS` -- which column is drawn in which colourmap. The
+binding is the point of the grid: the same variable wears the same
+colour in every cell, so a reader can carry what they learned from
+one pattern into the next. Names must come from the library's own
+CMAPS_SEQUENTIAL or CMAPS_DIVERGING lists, because TiledMap SILENTLY
+substitutes a positional default for any name it does not recognise
+-- an unknown name gives you greys with no warning. Add a variable
+here and it becomes available to designs with more elements; the
+number of entries is the ceiling on element count.
+
+`RAMP_FLOOR` -- how far below the data's minimum the colour scale
+starts, as a fraction of the data's range. Raise it toward 1 and the
+maps darken and flatten; drop it to 0 and the pale end of every ramp
+returns, which at this size reads as holes in the pattern rather than
+as low values. The floor is computed from the WHOLE region, so a
+coarse design and a fine one put the same value at the same colour.
+
+`ZOOM` -- how much of the region each cell shows, as a fraction of
+its longer side. Smaller means closer in: the pattern is legible but
+every tile tends to one colour. Larger shows the regional clumping
+that makes these maps worth drawing, at the cost of fine detail.
+
+`spacing` in `main` -- currently the region's extent divided by 15.
+Bigger divisor, finer tiles. Coarser tiles average more ground, so
+neighbouring tiles agree where the underlying pattern is regional,
+which is the effect ZOOM is balanced against.
+
+`ROTATION_CHOICES` -- the angles tilings may be drawn at. Weaves are
+never rotated, because a strand's direction is part of what the
+design means. The angle per family is HASHED FROM ITS NAME, not
+drawn randomly, so regenerating gives the identical picture; change
+this list and every angle changes.
+
+`SIDE`, `GAP`, `GUTTER` in `main` -- cell size, the width of the grey
+space between cells, and its colour. The gutter is filled space
+rather than a drawn outline, so the maps end against it without
+carrying a frame each; the outside margin is one GAP as well, or the
+edge columns look trimmed.
+
+`REGION` and `VARIABLES` -- the dataset and its columns. Swap the
+file and the script will refuse unless the columns named in
+`VARIABLE_RAMPS` are present, which is deliberate: the grid's claim
+is that every cell is the same place saying the same things.
+
+## What it prints, and what the exit status means
+
+One line per family it could not draw, saying why -- absent from the
+catalogue at that count, refused by the library, a substituted
+default caught by the element-count check, or a tiling that produced
+no tiles. Then a summary. Exit 0 means all sixteen were drawn; exit 1
+means the picture and the catalogue have diverged and the grid is
+short. It writes the file either way, because a page with fourteen
+patterns beats a page with none.
 """
 import os
 import sys
