@@ -12281,6 +12281,101 @@ def test_a_dock_refinement_survives_the_next_restyle():
   dlg.close()
 
 
+def test_the_range_editor_repaints_with_its_own_elements_colours():
+  """Moving the display range repaints with THIS element's colours.
+
+  The colour editor never computes colours; it asks the dialog and
+  paints what comes back, which is the rule that keeps the window and
+  the map from disagreeing. The dialog answers by looking the element
+  up again by id -- the ninth and last copy of that idiom -- and under
+  the flipped comparison it hands back a DIFFERENT element's class
+  colours, or an empty list when the map has one element, in which
+  case the window simply keeps the colours it had and quietly stops
+  tracking the range.
+
+  Either way the user drags the range and watches a list that is not
+  about the element they are editing. Nothing raises, and the map
+  itself is right, so the only symptom is a window telling a small
+  lie -- which is the same category of fault as the ramp cell reading
+  a ramp that no longer decides the map, and this project already
+  treats that as worth a control of its own.
+
+  The editor is modal, so its event loop is stopped for the test. Only
+  ``exec`` is replaced: the window is built by the real code path with
+  the real callbacks, because the callback is the thing under test.
+
+  Regression: the last of nine copies of the assignment lookup, and the only one whose result a user reads directly.
+  """
+  from weavingspace_qgis import category_editor
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  # two graduated elements on DIFFERENT ramps, so "this element's
+  # colours" and "some other element's colours" are distinguishable
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  dlg.table.cellWidget(1, 1).setCurrentText("v2")
+  dlg._update_dynamic_columns()
+  _tick(100)
+  for row, wanted in ((0, "Reds"), (1, "Greens")):
+    combo = dlg.table.cellWidget(row, 4)
+    index = combo.findText(wanted)
+    assert index >= 0, f"the ramp '{wanted}' is not on offer in row {row}"
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+  _tick(200)
+  tid = dlg.table.item(0, 0).text()
+  dlg.spacing_spin.setValue(500)
+  _generate_and_wait(dlg)
+
+  assignment = next(a for a in dlg._assignments() if a["id"] == tid)
+  mine = [c for _lo, _hi, c in dlg._current_graduated_classes(assignment)]
+  other = next(a for a in dlg._assignments() if a["id"] != tid)
+  theirs = [c for _lo, _hi, c in dlg._current_graduated_classes(other)]
+  assert mine and theirs and mine != theirs, \
+    f"the two elements draw the same colours ({mine} against " \
+    f"{theirs}), so handing back the wrong element's list would be " \
+    f"indistinguishable and this test could not fail"
+
+  opened = []
+  real_exec = category_editor.CategoryColourDialog.exec
+  category_editor.CategoryColourDialog.exec = \
+      lambda self, _opened=opened: (_opened.append(self), 0)[1]
+  try:
+    dlg._edit_quant_colours(tid, assignment["var"], assignment)
+  finally:
+    category_editor.CategoryColourDialog.exec = real_exec
+  assert opened, "no editor was constructed, so nothing was driven"
+  editor = opened[0]
+
+  before = [editor._colours[v] for v in editor._values]
+  editor.lower_spin.setValue(10)
+  editor.upper_spin.setValue(60)
+  editor._send_range()
+  _tick(100)
+
+  fresh_assignment = next(a for a in dlg._assignments() if a["id"] == tid)
+  fresh = [c for _lo, _hi, c
+           in dlg._current_graduated_classes(fresh_assignment)]
+  assert fresh != before, \
+    f"narrowing the display range did not change the element's " \
+    f"colours ({before}), so the repaint below has nothing to be " \
+    f"right or wrong about"
+  painted = [editor._colours[v] for v in editor._values]
+  assert painted == fresh, \
+    f"the editor repainted with {painted} while element '{tid}' now " \
+    f"draws {fresh}. The window is showing a list that is not about " \
+    f"the element being edited -- the other element on the map draws " \
+    f"{theirs} -- so the user is dragging the range against colours " \
+    f"the map does not have"
+  editor.close()
+  dlg.close()
+
+
 def test_a_graduated_dock_refinement_survives_the_next_restyle():
   """The graduated half of the same promise, at the sibling site.
 
@@ -26661,6 +26756,8 @@ def main():
         test_a_dock_refinement_survives_the_next_restyle)
   check("a graduated dock refinement survives the next restyle",
         test_a_graduated_dock_refinement_survives_the_next_restyle)
+  check("the range editor repaints with its own element's colours",
+        test_the_range_editor_repaints_with_its_own_elements_colours)
   check("the quant editor edits class colours",
         test_the_quant_editor_edits_class_colours)
   check("the ramp display range reinterpolates",

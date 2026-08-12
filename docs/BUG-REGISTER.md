@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-83 defect(s) with a regression test.
+84 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -178,6 +178,8 @@ there is no separate list to remember.
   guarded by `test_the_new_code_mutation_guard_reports_rather_than_gates`
 - **the preview's painting had almost no coverage, and removing its brush, pen, render hint or fitting arithmetic changed a picture no test looked at.**  
   guarded by `test_the_preview_actually_draws_what_it_is_given`
+- **the last of nine copies of the assignment lookup, and the only one whose result a user reads directly.**  
+  guarded by `test_the_range_editor_repaints_with_its_own_elements_colours`
 - **release.py's watchdog measured wall clock, so a laptop asleep mid-release would have aborted a healthy run as hung. The same defect cost four verdicts in mutation batch 8 and was fixed there; release.py was written afterwards and repeated it.**  
   guarded by `test_the_release_watchdog_ignores_a_sleeping_machine`
 - **the plugin wrote embedded styles through an API QGIS had already deprecated, discovered while probing a segfault on QGIS 4.2.1.**  
@@ -202,7 +204,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 53
+- unrecorded: 54
 - reading the code: 7
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5

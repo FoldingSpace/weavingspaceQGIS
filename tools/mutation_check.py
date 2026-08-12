@@ -1427,6 +1427,22 @@ MUTATIONS = [
            "style change anywhere in the table -- destroying the "
            "stroke width, outline style or anything else the user set "
            "in QGIS's own dock alongside the colours"),
+  dict(name="range-editor-repaints-from-another-element",
+       file=DIALOG,
+       old="""      self._apply_style_change()
+      refreshed = next((a for a in self._assignments()
+                        if a["id"] == tile_id), None)""",
+       new="""      self._apply_style_change()
+      refreshed = next((a for a in self._assignments()
+                        if a["id"] != tile_id), None)""",
+       test="test_the_range_editor_repaints_with_its_own_elements_colours",
+       why="the editor never computes colours, it paints what the "
+           "dialog hands back. Looking up the wrong element hands "
+           "back another element's class colours -- or an empty list "
+           "on a one-element map, which leaves the window showing "
+           "colours the map has left. Nothing raises and the map is "
+           "right; the window is simply telling a small lie, which is "
+           "the same fault the Custom ramp cell exists to prevent"),
   dict(name="graduated-signature-stamped-on-the-wrong-element",
        file=DIALOG,
        # the GRADUATED twin, narrowed by its own comment for the same
