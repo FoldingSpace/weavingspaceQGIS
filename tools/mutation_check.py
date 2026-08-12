@@ -1558,10 +1558,14 @@ MUTATIONS = [
            "on progress reads it as current -- which nearly happened "
            "with a stale '275 passed, 1 failed' on 2026-08-11"),
   dict(name="ramp-lookup-is-case-blind", file=BRIDGE,
-       old="""    wanted = name.lower()
-    for candidate in style.colorRampNames():""",
-       new="""    wanted = name.lower()
-    for candidate in []:  # mutation: exact lookup only""",
+       # re-anchored 2026-08-12: the lookup was rewritten around
+       # _RAMP_NAME_BY_LOWER, whose keys are lowered, so folding the
+       # case off the REQUEST is now the whole of the behaviour and
+       # the old loop no longer exists. The entry had been
+       # unjudgeable since -- reported neither caught nor survived,
+       # which is worse than either.
+       old="    wanted = name.lower()",
+       new="    wanted = name  # mutation: exact lookup only",
        test="test_a_palette_is_usable_whatever_case_qgis_spells_it",
        why="installation skips a palette whose name matches an "
            "existing ramp IGNORING CASE, so the lookup must match the "
@@ -1569,7 +1573,12 @@ MUTATIONS = [
            "and then cannot find the one it deferred to. Linux QGIS "
            "ships Cividis against our cividis, and four palettes were "
            "unavailable to every Linux user while the chooser went on "
-           "offering them"),
+           "offering them. The direction this line decides is the "
+           "MIXED-CASE REQUEST -- the stored names are remembered "
+           "already lowered, so a lowercase request resolves without "
+           "it. A ramp name travels in saved projects, so a request "
+           "can arrive spelled the way another machine's QGIS spells "
+           "it"),
   dict(name="style-name-overruns-its-column", file=BRIDGE,
        old="  name = layer.name()[:30]",
        new="  name = layer.name()  # mutation: let GDAL truncate it",

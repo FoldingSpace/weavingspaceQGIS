@@ -8411,6 +8411,37 @@ def test_a_palette_is_usable_whatever_case_qgis_spells_it():
   finally:
     style.removeColorRamp(odd)
 
+  # ...and the OTHER direction, which is the one that actually needs
+  # the request folded. The lookup remembers the style's names keyed
+  # by their lowered form, so a lowercase request like "cividis"
+  # resolves whether or not anything lowers it -- the half above
+  # cannot fail on that account, which is how a mutation removing the
+  # fold survived this test. What needs it is a MIXED-CASE request
+  # against a lowercase ramp, and that is not hypothetical either: a
+  # project saved where QGIS spells it Cividis, reopened where the
+  # style holds cividis, asks for exactly that.
+  plain = "zztestramp2"
+  mixed = "ZzTestRamp2"
+  style.removeColorRamp(plain)
+  style.removeColorRamp(mixed)
+  ramp = QgsGradientColorRamp(QColor("#010203"), QColor("#ffffff"))
+  assert style.addColorRamp(plain, ramp), "could not stage the fixture"
+  try:
+    assert mixed not in style.colorRampNames(), \
+      f"the style already holds {mixed!r}, so the request below " \
+      f"could resolve exactly and would prove nothing about case"
+    found = bridge.get_ramp(mixed, False)
+    assert found is not None, \
+      f"{mixed!r} did not resolve to the style's {plain!r}. A ramp " \
+      f"name travels in saved projects and in element assignments, " \
+      f"so a request can arrive spelled the way ANOTHER machine's " \
+      f"QGIS spells it; folding only the stored names leaves that " \
+      f"request unresolved and the element draws with no ramp"
+    assert QColor(found.color(0.0)).name().lower() == "#010203", \
+      "the case-insensitive match found some other ramp"
+  finally:
+    style.removeColorRamp(plain)
+
 
 def test_installed_palettes_span_their_declared_colours():
   """An installed ramp runs between the colours the palette declares.
