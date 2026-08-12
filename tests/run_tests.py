@@ -25594,6 +25594,35 @@ def test_colours_a_reader_cannot_separate_are_reported():
   # the legibility check is opt-in, so a test of what it SAYS has to
   # ask for it; that it stays quiet unopted is a separate test
   dlg.opt_colour_warnings.setChecked(True)
+  # CREATE the condition rather than assuming it. This test's subject
+  # is that clashing colours produce a warning; that four named ramps
+  # still hold their palette's colours is a property of QGIS's shared
+  # style library, which every other test in the shard is free to
+  # disturb -- and something does. The failure looked like "no
+  # warning", which is the correct answer to a map whose ramps are
+  # not what this test believes.
+  #
+  # So: install, then RESOLVE, then say what was found if the colours
+  # are not there. A test that cannot see its own inputs should say
+  # so rather than report a verdict about the software.
+  from qgis.PyQt.QtGui import QColor as _QColor
+  from weavingspace_qgis import bridge as _bridge
+  _bridge.ensure_ramps_installed()
+  resolved = {}
+  for wanted_ramp in ("Reds", "Greens", "Blues", "Purples"):
+    found_ramp = _bridge.get_ramp(wanted_ramp, False)
+    resolved[wanted_ramp] = (None if found_ramp is None
+                             else _QColor(found_ramp.color(1.0)).name())
+  assert all(resolved.values()), \
+    f"the style library cannot produce the ramps this test is about, " \
+    f"so a map made with them says nothing: {resolved}"
+  # The four darkest stops must actually differ, or there is nothing
+  # for a legibility check to complain about and "no warning" would
+  # be right.
+  assert len(set(resolved.values())) == 4, \
+    f"two of the four ramps end on the SAME colour, so the map under " \
+    f"test is not the one this test describes: {resolved}"
+
   dlg.spacing_spin.setValue(700)
   # COUNT what was set. The guard below is the commonest way a test
   # here passes without exercising anything: if the widgets are not
@@ -25638,6 +25667,7 @@ def test_colours_a_reader_cannot_separate_are_reported():
     f"    message bar:    {BAR_MESSAGES[-3:]}\n" \
     f"    modal dialogs:  {MODALS[-3:]}\n" \
     f"    warnings on:    {dlg.opt_colour_warnings.isChecked()}\n" \
+    f"    ramps resolve:  {resolved}\n" \
     f"  An empty note with layers present means the notice was " \
     f"raised and cleared, or never computed; an empty note with NO " \
     f"layers means the run did not produce a map at all."
