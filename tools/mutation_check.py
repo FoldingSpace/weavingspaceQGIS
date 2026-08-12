@@ -1408,6 +1408,18 @@ MUTATIONS = [
            "an unsupported count does not raise -- the library prints "
            "a complaint and substitutes a default unit, so the user "
            "gets a map quietly carrying the wrong number of variables"),
+  dict(name="colouring-count-above-the-ceiling-moved", file=CATALOG,
+       old="HEX_COLOURING_COUNTS = tuple(range(2, 17)) + (19, 37)",
+       new="HEX_COLOURING_COUNTS = tuple(range(2, 17)) + (19, 38)"
+           "  # mutation: a count the library cannot hand-build",
+       test="test_the_catalogue_offers_only_designs_that_build",
+       why="37 sits above MAX_ELEMENTS, so the loop over the MENU "
+           "never reached it and an automatic mutant moved it freely. "
+           "The list is a measured fact about which arrangements the "
+           "library hand-builds, and it goes on the menu the day the "
+           "element ceiling rises -- at which point a wrong count "
+           "reaches a user as a plausible map carrying the wrong "
+           "number of variables"),
   dict(name="unclassed-swatch-stops-short", file=DIALOG,
        old="        step = (len(shades) - 1) / 7",
        new="        step = (len(shades) - 1) / 8"

@@ -892,6 +892,36 @@ def test_the_catalogue_offers_only_designs_that_build():
   assert builds == {"hex-colouring": 25, "square-colouring": 25}, \
     f"only {builds} counts were built, so the comparisons above prove less"
 
+  # ...and the DECLARED lists, including the counts above the ceiling.
+  # The loop over the menu stops at MAX_ELEMENTS, so hex-colouring 37
+  # is named in catalog.py and never reached by anything: an automatic
+  # mutant moved it to 38 and nothing noticed. It is not dead, it is
+  # early -- the lists are measured facts about which arrangements the
+  # library hand-builds, and they go on the menu the day the element
+  # ceiling rises. A fact nobody re-measures is exactly the kind that
+  # rots quietly, so each declared count is built here whether or not
+  # it is currently offered.
+  declared = 0
+  for tiling_type, counts in (
+      ("hex-col", catalog.HEX_COLOURING_COUNTS),
+      ("square-col", catalog.SQUARE_COLOURING_COUNTS)):
+    for n in counts:
+      spec = dict(type="tiling", tiling_type=tiling_type, n=n)
+      with contextlib.redirect_stdout(io.StringIO()):
+        unit = catalog.make_unit(spec, spacing=500, crs=3857)
+      made = len(set(unit.tiles.tile_id))
+      assert made == n, \
+        f"{tiling_type} is declared to support {n} elements and the " \
+        f"library builds {made}. An unsupported count does not raise " \
+        f"-- it substitutes a default unit -- so this would reach a " \
+        f"user as a plausible map carrying the wrong number of " \
+        f"variables the moment the element ceiling passes {n}"
+      declared += 1
+  assert declared == len(catalog.HEX_COLOURING_COUNTS) \
+      + len(catalog.SQUARE_COLOURING_COUNTS), \
+    f"only {declared} declared counts were built; the loop above did " \
+    f"not cover the lists it claims to"
+
 
 def test_the_element_id_alphabet_still_limits_the_ceiling():
   """Upstream still runs out of element ids at 52, silently.
