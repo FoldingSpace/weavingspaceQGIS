@@ -22,7 +22,7 @@ about=Creates tiled and woven map layers that carry several attributes
     installation, and declining simply closes the plugin. Released
     under the MIT licence; the bundled weavingspace library is MIT
     too, and both notices are in LICENSE.md.
-version=0.24.1
+version=0.24.2
 license=MIT
 author=Luke Bergmann
 email=luke.bergmann@gmail.com
@@ -38,7 +38,15 @@ server=False
 
 ; Shown in the QGIS plugin manager. Keep the newest version first, and
 ; describe what a USER would notice rather than what changed in the code.
-changelog=0.24.1 Setting the plugin up is more forgiving where QGIS
+changelog=0.24.2 A live update that cannot finish now says so on the
+    dialog's own note line instead of interrupting you with a message
+    box. Live updates run while you are still adjusting a design, so
+    a spacing that produces nothing, or a layer that cannot be read,
+    is part of working rather than something to be stopped for; an
+    explicit Generate still reports failures the loud way. This
+    reached you in 0.24.1, whose notes said nothing else had changed
+    and were wrong about that.
+    0.24.1 Setting the plugin up is more forgiving where QGIS
     does not already carry the packages it needs, which mostly means
     Linux. When one of them cannot be downloaded the plugin now says
     which package and what went wrong, rather than only that

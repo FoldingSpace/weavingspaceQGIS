@@ -512,6 +512,25 @@ The project page needs no separate step. It is served by GitHub Pages
 from `docs/` on the main branch, so the same push that publishes the
 code publishes the page, usually within a minute.
 
+## Before promoting: re-read the changelog against the diff
+
+The changelog is approved once and then goes stale under you. On
+2026-08-12 it was approved in the morning, said "Nothing else about
+the plugin has changed", and shipped after an afternoon that changed
+something else about the plugin -- a modal dialog on the live-update
+path, removed by the documentation audit hours after the sentence was
+signed off.
+
+So the last thing before `release.py` is not a gate, it is a reading:
+put `git diff <previous tag>..HEAD -- weavingspace_qgis/` beside the
+changelog entry and check the entry still describes it. Two minutes,
+and it is the only step that catches prose falsified by later work.
+
+`metadata.txt` is in the text-review queue as of that day, so a
+CHANGED entry re-enters review. What the queue cannot do is notice
+that an unchanged entry has stopped being true, which is exactly the
+case that shipped.
+
 ## Release notes: two halves, one written and one measured
 
 A release page has two readers and one document usually serves

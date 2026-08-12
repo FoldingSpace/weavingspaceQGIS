@@ -429,6 +429,28 @@ obligations: they exist so nobody pays twice for the same discovery.
   each test individually with its result and measured values; report
   those per-test results to the user whenever something is published
   (an explicit user requirement, 2026-08).
+- **Approved prose goes STALE, and the changelog is where it costs
+  most.** 0.24.1's changelog was approved in the morning and ended
+  "Nothing else about the plugin has changed". Four hours later the
+  documentation audit found and fixed a modal dialog on the live path
+  -- a user-visible behaviour change -- and the sentence shipped
+  anyway, into the zip, the plugin manager and the release page. No
+  gate could see it: `metadata.txt` was not in the text-review queue
+  at all, though its changelog and `about` are the most-read prose
+  this project ships. It is in the queue now (2026-08-12), so a
+  changed entry re-enters review. The habit that goes with it: when a
+  release changes behaviour AFTER its changelog was approved, the
+  changelog is stale by definition -- re-read it against the diff
+  before promoting, not against memory of what the release was for.
+- **A rule that asserts its own enforcement must BE enforced.**
+  `check_standards.py` claimed to require every harness under
+  `tests/` to be run by CI or exempt, and CLAUDE.md and
+  docs/PUBLISHING.md both repeated the claim. The check did not
+  exist. A rule nobody implements is worse than a rule nobody wrote,
+  because it is believed and therefore not checked by hand either.
+  Implemented 2026-08-12 and proved to fail by adding a harness the
+  workflow does not name. When you write that something is enforced,
+  open the checker in the same commit.
 - **Release notes are COMPOSED, never generated, and the half a
   person writes is the `changelog=` entry in metadata.txt.** A
   release page has two readers: somebody deciding whether to
@@ -838,6 +860,19 @@ first, kept here so they are unmissable:
   still running. Wait on the pid, and if a log must be matched,
   include a case-insensitive alternation broad enough to catch the
   failure modes as well as the success line.
+- **SEED a watcher with what is already true before it reports
+  anything.** Ten watcher faults on this project by 2026-08-12 and
+  the last three were all this one: a poller started with an empty
+  "seen" set announces its first sighting as news, so historical CI
+  failures and a stage log from the previous night arrive as though
+  they had just happened. Each was written within an hour of somebody
+  reading the entry describing it, which is the actual finding: a
+  watcher is written while attention is on the thing being watched,
+  and that is exactly when nobody reviews it. Two other members of
+  the family, for completeness -- key on the THING and not a snapshot
+  of it (a watcher pinned to one commit sha sat silent while two more
+  pushes superseded it), and report every terminal state rather than
+  only success.
 - A watcher that REPEATS itself misleads as badly as one that goes
   silent: a monitor grepping a whole log each pass re-reported the
   same historical failure every 45 seconds as though it were news,

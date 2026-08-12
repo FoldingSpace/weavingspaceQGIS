@@ -65,8 +65,18 @@ REVIEW = os.path.join(ROOT, "docs", "TEXT-REVIEW.md")
 # survive a comma is one nobody reads twice. Paragraphs are the
 # compromise, and this comment described the other side of it until
 # 2026-08-12, long after document_blocks made the choice.
+# metadata.txt is here for the changelog and the `about` text, which
+# are the MOST read user-facing prose this project ships: QGIS's
+# plugin manager shows them to everybody who installs or updates,
+# and tools/release_notes.py puts the changelog paragraph at the top
+# of the GitHub release page. It was outside this queue until
+# 2026-08-12, which is how 0.24.1 shipped a changelog ending "Nothing
+# else about the plugin has changed" four hours after something else
+# about the plugin changed. Approved once, then quietly falsified by
+# later work, with nothing to notice.
 DOCUMENTS = ["README.md", os.path.join("docs", "index.html"),
-             os.path.join("docs", "USER-GUIDE.md")]
+             os.path.join("docs", "USER-GUIDE.md"),
+             os.path.join("weavingspace_qgis", "metadata.txt")]
 
 # Files whose strings are read by users. Deliberately not tools/ or
 # tests/, whose messages are read by us.

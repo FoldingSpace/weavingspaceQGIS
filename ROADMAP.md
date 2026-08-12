@@ -103,6 +103,30 @@ checks, and found a gap in its first run. The other three kinds --
 behaviour that changed, a measurement since re-measured, a why naming
 a bug now fixed -- need reading, and were read.
 
+## 0.24.2 — next
+
+### Branch-backed
+
+### Wanted, no code yet
+
+**The changelog entry for 0.24.2 is DRAFTED and awaits review.** It
+describes the live-update change that actually shipped in 0.24.1
+whose notes said nothing else had changed, and says so plainly rather
+than quietly. `metadata.txt` is in the text-review queue now, so it
+is the maintainer's to approve.
+
+**Triage whatever the incremental mutation run returns.** Dispatched
+against `pre-0.24.1rc1` on 2026-08-12 after the candidate was built;
+it had failed three times that day for three unrelated reasons, all
+since fixed. Its findings belong here rather than to anything
+shipped.
+
+**Six of the nine assignment-lookup copies were never sampled**, and
+the three that were each hid a real fault until a mutant happened to
+land on that copy. `_assignment_for` now holds the lookup, so a
+future mutant has one place to land -- but nothing has re-sampled
+those sites since the refactor.
+
 ## 0.24.2 — waiting on somebody else
 
 Everything here is blocked on the upstream weavingspace project
