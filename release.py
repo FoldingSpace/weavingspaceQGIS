@@ -427,6 +427,12 @@ STAGE_DEPENDS = {
 }
 STAGE_STATE_PATH = os.path.join(ROOT, "reports", "stage-state.json")
 
+# Set from --resume in main(). A module global rather than an argument
+# threaded through run() and run_sharded() because every caller would
+# pass the same value, and a parameter that is never varied is one
+# more thing to get wrong at one of twenty call sites.
+RESUMING = False
+
 
 def stage_fingerprint(step):
   """A hash of everything that could change this stage's answer.
@@ -524,6 +530,47 @@ def may_skip(step, resuming):
   return True
 
 
+def skip_if_already_done(step, capture):
+  """Whether to skip this stage, and what it said when it last ran.
+
+  Args:
+    step: the stage about to run.
+    capture: whether the caller USES this stage's output. Four do --
+      the testing report quotes the suite test by test, and the
+      gallery and comparison summaries are read for their numbers.
+
+  Returns:
+    (True, output) when the stage may be skipped, where output is the
+    text the caller would have received; (False, "") otherwise.
+
+  The output comes from reports/stage-logs/, which run() and
+  run_sharded() already write in full for exactly this kind of
+  reason. That file is what makes a skip HONEST rather than merely
+  fast: a skip that returned "" would hand the testing report an
+  empty string and produce a report describing nothing, which is
+  worse than the hour it saved. So a captured stage whose log is
+  missing is NOT skipped, however well its fingerprint matches.
+
+  Written after three aborts in one night, all in machinery rather
+  than in the plugin, each costing a full re-run of gates that had
+  already passed. may_skip and remember_stage were written weeks
+  earlier and remember_stage was already recording; only the flag and
+  this call site were missing, so the evidence to skip was on disk
+  and unread. (2026-08-11.)
+  """
+  if not RESUMING:
+    return False, ""
+  saved = stage_log_path(step)
+  if capture and not os.path.exists(saved):
+    return False, ""
+  if not may_skip(step, RESUMING):
+    return False, ""
+  if not capture:
+    return True, ""
+  with open(saved, encoding="utf-8") as handle:
+    return True, handle.read()
+
+
 def stage_log_path(step):
   """Where this stage's full output is kept.
 
@@ -593,6 +640,9 @@ def run(step, cmd, env, capture=False):
     above all no zip, can be produced from a state that has already
     failed a gate.
   """
+  skipped, remembered = skip_if_already_done(step, capture)
+  if skipped:
+    return remembered
   print(f"\n=== {step} ===", flush=True)
   if step not in STAGE_ORDER:
     STAGE_ORDER.append(step)
@@ -751,6 +801,9 @@ def run_sharded(step, argv, env, capture=False):
   false stalls, which is the fault this project committed twice on
   2026-08-11 and does not intend to commit a third time.
   """
+  skipped, remembered = skip_if_already_done(step, capture)
+  if skipped:
+    return remembered
   print(f"\n=== {step} ({SHARDS} shards) ===", flush=True)
   if step not in STAGE_ORDER:
     STAGE_ORDER.append(step)
@@ -1185,6 +1238,20 @@ def main():
          "GitHub release. Without this the commit and tag stay local "
          "and the commands to publish them are printed.")
   parser.add_argument(
+    "--resume", action="store_true",
+    help="skip any stage that passed before against exactly the "
+         "inputs it has now, reusing the output kept in "
+         "reports/stage-logs/. Nothing is skipped without this flag, "
+         "because a full run is what a release means and the saving "
+         "is only ever worth asking for deliberately. What counts as "
+         "'exactly the inputs' is STAGE_DEPENDS, which is narrower "
+         "than the whole tree and wider than the files that ship: "
+         "editing tests/run_tests.py invalidates the suite even "
+         "though no shipped byte moved. Each skip is announced with "
+         "the time it originally passed, since a gate that did not "
+         "run is a thing a reader must be told rather than left to "
+         "infer from a short log.")
+  parser.add_argument(
     "--quick", action="store_true",
     help="with --rc, skip the coverage report: 31 minutes and it "
          "gates nothing, being informational by design. The visual "
@@ -1199,6 +1266,8 @@ def main():
          "stop. Runs the same correctness gates, skips the publication "
          "steps, and commits nothing.")
   args = parser.parse_args()
+  global RESUMING
+  RESUMING = args.resume
 
   started = time.time()
   version = plugin_version()

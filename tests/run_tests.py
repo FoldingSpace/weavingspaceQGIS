@@ -25607,6 +25607,71 @@ def test_colours_a_reader_cannot_separate_are_reported():
   dlg.close()
 
 
+def test_resuming_skips_only_what_still_holds():
+  """--resume reuses a stage's answer, and refuses to invent one.
+
+  Three aborts in one night, all in machinery rather than in the
+  plugin, each costing a full re-run of gates that had already
+  passed. The parts that decide whether an answer still holds were
+  written weeks earlier and remember_stage was already recording; the
+  flag and the call site were missing, so the evidence sat on disk
+  unread.
+
+  What this pins is the honesty of the skip rather than the saving.
+  A stage whose output the caller USES may only be skipped when that
+  output is on disk: the testing report quotes the suite test by
+  test, so a skip returning an empty string would produce a report
+  describing nothing at all, which is worse than the hour it saved.
+  And a changed dependency must re-run, or --resume becomes a way of
+  publishing yesterday's verdict about today's code.
+
+  Regression: release.py could not resume at all, so a defect in the release machinery cost a full re-run of every gate; on 2026-08-11 that happened three times in one evening while the plugin itself passed every gate it was given.
+  """
+  root, release = _release_gate_copy()
+  step = "a stage under test"
+  watched = os.path.join(root, "watched.txt")
+  with open(watched, "w", encoding="utf-8") as handle:
+    handle.write("first")
+  release.STAGE_DEPENDS = {step: ["watched.txt"]}
+  release.STAGE_STATE_PATH = os.path.join(root, "reports",
+                                          "stage-state.json")
+  os.makedirs(os.path.join(root, "reports"), exist_ok=True)
+  release.remember_stage(step)
+
+  release.RESUMING = False
+  assert release.skip_if_already_done(step, False) == (False, ""), \
+    "without --resume nothing may be skipped, whatever was recorded"
+
+  release.RESUMING = True
+  assert release.skip_if_already_done(step, False)[0], \
+    "a stage that passed against exactly these inputs should be " \
+    "skipped when resuming; the recorded fingerprint matched"
+
+  # a captured stage may only be skipped if its output survives
+  assert release.skip_if_already_done(step, True) == (False, ""), \
+    "a stage whose output the caller USES was skipped with no log " \
+    "on disk, so the caller would have received an empty string. " \
+    "The testing report quotes the suite test by test; an empty " \
+    "capture makes a report that describes nothing"
+  log = release.stage_log_path(step)
+  os.makedirs(os.path.dirname(log), exist_ok=True)
+  with open(log, "w", encoding="utf-8") as handle:
+    handle.write("PASS  something  [1.0s]\n")
+  skipped, output = release.skip_if_already_done(step, True)
+  assert skipped and "PASS  something" in output, \
+    f"with the log present the skip must hand back what the stage " \
+    f"said last time, not an empty string: {skipped!r}, {output!r}"
+
+  # and a changed dependency retires the answer
+  with open(watched, "w", encoding="utf-8") as handle:
+    handle.write("second")
+  assert release.skip_if_already_done(step, False) == (False, ""), \
+    "a dependency changed and the stage was still skipped, which " \
+    "would publish yesterday's verdict about today's code"
+  import shutil
+  shutil.rmtree(root, ignore_errors=True)
+
+
 def test_plugin_lifecycle():
   """The QGIS entry points themselves: classFactory, initGui, the
   toolbar action opening the dialog, and unload. Nothing else in the
@@ -26199,6 +26264,8 @@ def main():
         test_the_release_watchdog_ignores_a_sleeping_machine)
   check("the coverage record survives the suite exiting",
         test_the_coverage_record_survives_the_suite_exiting)
+  check("resuming skips only what still holds",
+        test_resuming_skips_only_what_still_holds)
   check("the release watchdog stops a stuck stage",
         test_the_release_watchdog_stops_a_stuck_stage)
   check("the release watchdog leaves a busy stage alone",

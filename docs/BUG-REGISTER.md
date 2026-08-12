@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-73 defect(s) with a regression test.
+74 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -150,6 +150,8 @@ there is no separate list to remember.
   guarded by `test_region_outlines_are_cased`
 - **family-list repopulation had no test, so unblocking its signals was invisible.**  
   guarded by `test_repopulating_the_family_list_fires_no_handlers`
+- **release.py could not resume at all, so a defect in the release machinery cost a full re-run of every gate; on 2026-08-11 that happened three times in one evening while the plugin itself passed every gate it was given.**  
+  guarded by `test_resuming_skips_only_what_still_holds`
 - **a colour picked while a run was in flight was overwritten when the run finished, because the output builder trusted the assignments the run was launched with.**  
   guarded by `test_the_colour_editor_opened_partway_through_a_run`
 - **tests/run_tests.py gained os._exit at the end of main() on 2026-08-11, which skipped the write in tools/coverage_per_test.py; three sharded recorders ran the whole suite, wrote no file, and the rc5 candidate aborted 35 minutes in at the merge stage with "nothing to merge". The last good record was a day old, and the release would otherwise have measured mutants against it.**  
@@ -182,7 +184,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 43
+- unrecorded: 44
 - reading the code: 7
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5
