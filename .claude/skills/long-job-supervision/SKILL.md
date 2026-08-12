@@ -41,6 +41,23 @@ whole log each pass re-reports the same historical failure every
 cycle, as though it were news, which makes the current situation
 unreadable. Track an offset per file and emit only what is new.
 
+**And expect to get watchers wrong, because of WHEN they are
+written.** Five distinct watcher faults occurred in a single day on
+one project, every one in a script written while attention was on
+the thing being watched rather than on the watching: one repeated a
+finished result every thirty minutes; one read the previous run's log
+after a restart, reporting a dead job's stage beside a live job's
+uptime; two matched the wrong process for their CPU field and
+reported a busy job as idle; one reported a CI result from a run that
+had been superseded. Each was individually trivial; the pattern is
+not, and it is the same pattern each time — a throwaway script,
+written in a hurry, for something more interesting than itself.
+
+The remedy is to stop writing them fresh. One watcher that resolves
+its log at each pass, names the process it measures, reports change,
+and stops when its subject ends, beats five bespoke ones. If you
+catch yourself writing the sixth, that is the signal.
+
 The two failures are mirror images — one goes silent forever, the
 other repeats itself endlessly — and both leave you unable to tell
 what is happening now.
@@ -161,6 +178,64 @@ degrade each other into false hangs and flattered scores — schedule
 those serially, event-driven on each other's completion rather than
 on a clock, so a quiet evening is used and a busy one is not
 double-booked.
+
+## Sharding: the partition must be exact, and you must check
+
+Sharding is the cheapest speedup available for work made of
+independent units — a suite of order-independent tests went from 32
+minutes to 11 on three processes, on a machine that had seven idle
+cores while one worked.
+
+It is also easy to get subtly wrong in a way that produces a WRONG
+ANSWER rather than a slow one, so three rules:
+
+**Deal round-robin, not in blocks.** Contiguous slices give one
+worker the slow tail. Every nth unit gives each a mixture.
+
+**Verify the partition, by construction and at runtime.** Each shard
+should report how many units it was offered, and those numbers must
+agree. On the first sharded run of one suite they read 285, 285 and
+286 — and slices that disagree about the size of the whole are not a
+partition, so something ran twice or not at all. The cause was a
+nested registration: one test registered a probe of its own, which
+consumed a slot, shifted every later unit into a different shard and
+was itself skipped in two shards out of three. Anything that
+registers work from INSIDE a unit needs exempting from the count.
+
+**A merge step must refuse a partial or overlapping result.** Missing
+shard, duplicate keys, disagreeing totals: all of them produce output
+that looks healthy. Where the merged artefact feeds a later
+measurement, a silent gap is worse than a crash — an incomplete
+coverage record, for instance, never offers the missing tests the
+chance to notice anything, and overstates the result in one
+direction only.
+
+**Widen every ceiling while sharding.** Concurrent processes inflate
+per-unit times by 15-50%; a ceiling sized on a quiet machine becomes
+a false stall on a busy one.
+
+## What must NOT be sharded
+
+A MEASUREMENT beside another measurement. Two timing-sensitive runs
+degrade each other, and where the thing being measured is time — a
+suite with debounces, a benchmark, anything with races — contention
+does not merely slow it, it changes the answer. Failing tests touch
+fewer lines; slow ones trip watchdogs; a mutation batch loses mutants
+to timeouts and reports a better score than the tests earned.
+
+The asymmetry to hold onto: independent short JUDGEMENTS shard well,
+whole timing-sensitive runs do not.
+
+## Before sharding, ask whether the work should exist
+
+The largest saving is usually not parallelism. Two stages of one
+release ran the same suite under the same instrumentation, differing
+only in whether they attributed results per-test or in aggregate:
+ninety minutes for two views of one measurement. Sharding would have
+cut that to thirty. Deriving one from the other cut it to nothing.
+
+Parallelising duplicated work makes the duplication cheaper and
+permanent. Look for it first.
 
 ## Ceilings catch hangs, and nothing else
 

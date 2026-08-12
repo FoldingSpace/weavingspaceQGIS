@@ -403,8 +403,16 @@ obligations: they exist so nobody pays twice for the same discovery.
   believed, and none showed up in a final "done" line. Full procedure
   in `.claude/skills/long-job-supervision`. (User instruction,
   2026-08-10, after watching the beats catch them.)
-- **Two procedures live as SKILLS, and the rules here name them so
-  they get invoked.** `.claude/skills/tests-that-can-fail` is read
+- **Five procedures live as SKILLS, and the rules here name them so
+  they get invoked.** `.claude/skills/second-machine` is read before
+  adding CI to anything, when a suite that passes locally fails
+  elsewhere, and before concluding that a second machine's failure
+  is a defect in the code -- most are assumptions, and today's first
+  Linux run was seventy failures of which sixty-nine were one
+  missing package and exactly one was a real product defect.
+  `.claude/skills/long-job-supervision` now also covers HOW to shard
+  rather than only that one should, because the first sharded run
+  here produced slices that disagreed about the size of the suite. `.claude/skills/tests-that-can-fail` is read
   before writing or reviewing a test, and whenever a new test passes
   first time — it catalogues the ways a test passes without
   exercising anything, which this project has produced at a rate of
