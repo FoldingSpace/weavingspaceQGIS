@@ -12130,6 +12130,127 @@ def test_custom_follows_the_field_and_the_source():
   dlg.close()
 
 
+def test_a_dock_edit_that_changes_no_colour_is_announced_as_nothing():
+  """Changing a stroke width in QGIS must not be reported as a recolour.
+
+  `_on_layer_style_edited` fires on every styleChanged, and a user
+  restyling in QGIS's own dock does plenty that leaves the fill
+  colours alone -- stroke width, outline style, opacity. The handler
+  compares what the layer now draws against what the dialog expects
+  and returns when they agree, which is the line that keeps the
+  plugin quiet about its own seeding.
+
+  Break that comparison and the handler falls through to the
+  ramp-following branch, so an edit that touched no colour at all is
+  announced as "now follows the ... ramp chosen in QGIS" and the
+  element's signature is restamped. The user is told they did
+  something they did not do, by a dialog whose whole purpose in this
+  path is to stop making claims that are no longer true.
+
+  Both directions are here on purpose. Asserting only that nothing
+  was said would pass just as well against a handler that never ran,
+  which is the vacuous shape docs/TESTING.md warns about at one in
+  five; so the same fixture then makes a REAL recolour and requires
+  the notice to appear.
+
+  Regression: an automatic mutant flipped the colours-agree comparison at dialog.py:3345 and twenty covering tests noticed nothing, because not one of them looked at what the user was told.
+  """
+  from qgis.core import QgsCategorizedSymbolRenderer, QgsFillSymbol
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(1, 1).setCurrentText("landcover")
+  dlg._update_dynamic_columns()
+  _tick(100)
+  tid = dlg.table.item(1, 0).text()
+  dlg.spacing_spin.setValue(500)
+  _generate_and_wait(dlg)
+  out = project.mapLayer(dlg._element_layer_ids[tid])
+  renderer = out.renderer()
+  assert isinstance(renderer, QgsCategorizedSymbolRenderer), \
+    "this path only exists for categorized elements; the fixture " \
+    "did not produce one and nothing below would test anything"
+  before = {str(c.value()): c.symbol().color().name()
+            for c in renderer.categories()}
+
+  # ---- a dock edit that leaves every fill colour exactly as it was.
+  # Widening the stroke is an ordinary thing to do in the styling
+  # dock and is applied the way the dock applies anything: clone,
+  # edit, setRenderer, which emits styleChanged.
+  edited = renderer.clone()
+  widened = 0
+  for index, category in enumerate(edited.categories()):
+    symbol = category.symbol().clone()
+    fill = symbol.symbolLayer(0)
+    assert hasattr(fill, "setStrokeWidth"), \
+      f"the fixture's symbol layer {fill!r} has no stroke to widen, " \
+      f"so this edit would change nothing and the test would prove " \
+      f"nothing"
+    fill.setStrokeWidth(fill.strokeWidth() + 0.4)
+    assert edited.updateCategorySymbol(index, symbol), \
+      f"the fixture edit failed on category {index}"
+    widened += 1
+  assert widened, \
+    "no category was edited, so setRenderer below carries no change " \
+    "and the assertions after it are vacuous"
+  after = {str(c.value()): c.symbol().color().name()
+           for c in edited.categories()}
+  assert after == before, \
+    f"the fixture was supposed to change the STROKE and leave every " \
+    f"colour alone; it changed colours too, so this no longer tests " \
+    f"the quiet case: {before} -> {after}"
+
+  BAR_MESSAGES.clear()
+  # {field: {value: colour}}, copied a level down so the comparison
+  # below is against a snapshot rather than against the live dict
+  picks_before = {field: dict(values) for field, values
+                  in dlg._category_colours.get(tid, {}).items()}
+  out.setRenderer(edited)
+  _tick(200)
+  said = " ".join(text for _kind, text in BAR_MESSAGES)
+  assert not any(word in said for word in ("ramp", "colour", "Custom")), \
+    f"a dock edit that changed no colour was announced as one. The " \
+    f"bar received {BAR_MESSAGES!r}. The user widened a stroke and " \
+    f"was told the plugin had followed or adopted a colour choice, " \
+    f"which is the very kind of untrue claim this handler exists to " \
+    f"prevent"
+  assert dlg._category_colours.get(tid, {}) == picks_before, \
+    f"the element's hand-picked colours changed on an edit that " \
+    f"touched no colour: {picks_before} -> " \
+    f"{dlg._category_colours.get(tid, {})}"
+  assert not dlg.table.cellWidget(1, 4).showing_custom(), \
+    "the ramp cell went Custom on an edit that changed no colour, " \
+    "so the dialog now claims a ramp no longer decides the map when " \
+    "it still does"
+
+  # ---- and the other direction, so the silence above means the
+  # handler stayed quiet rather than never having run at all.
+  # re-read from the layer: setRenderer above took ownership of the
+  # renderer this test started with and QGIS has since deleted it, so
+  # cloning the old handle raises rather than returning a stale copy
+  recoloured = out.renderer().clone()
+  target = next(i for i, c in enumerate(recoloured.categories())
+                if c.value() not in (None, ""))
+  assert recoloured.updateCategorySymbol(
+    target, QgsFillSymbol.createSimple(
+      {"color": "#654321", "outline_style": "no"})), \
+    "the fixture edit failed, so the control half proves nothing"
+  BAR_MESSAGES.clear()
+  out.setRenderer(recoloured)
+  _tick(200)
+  said = " ".join(text for _kind, text in BAR_MESSAGES)
+  assert said.strip(), \
+    "a genuine dock recolour said nothing at all, so the handler is " \
+    "not reaching this layer and the quiet half above was quiet for " \
+    "the wrong reason"
+  dlg.close()
+
+
 def test_qgis_side_restyles_reach_the_dialog():
   """Recolouring an element layer in QGIS itself reaches the dialog.
 
@@ -26230,6 +26351,8 @@ def main():
         test_custom_follows_the_field_and_the_source)
   check("a QGIS-side restyle reaches the dialog",
         test_qgis_side_restyles_reach_the_dialog)
+  check("a dock edit that changes no colour is announced as nothing",
+        test_a_dock_edit_that_changes_no_colour_is_announced_as_nothing)
   check("the quant editor edits class colours",
         test_the_quant_editor_edits_class_colours)
   check("the ramp display range reinterpolates",

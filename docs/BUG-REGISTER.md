@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-79 defect(s) with a regression test.
+80 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -84,6 +84,8 @@ there is no separate list to remember.
 
 - **a constant column produced five identical classes in five colours; the user's own instruction was that it should revert to a single class with a warning.**  
   guarded by `test_a_constant_column_draws_one_class_and_says_so`
+- **an automatic mutant flipped the colours-agree comparison at dialog.py:3345 and twenty covering tests noticed nothing, because not one of them looked at what the user was told.**  
+  guarded by `test_a_dock_edit_that_changes_no_colour_is_announced_as_nothing`
 - **none yet -- the hang it answers was in CI, and this asserts the answer stays wired in.**  
   guarded by `test_a_hanging_test_is_named_rather_than_silent`
 - **only _finish_run restored the determinate progress range, and the zombie recovery does not go through it.**  
@@ -194,7 +196,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 49
+- unrecorded: 50
 - reading the code: 7
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5

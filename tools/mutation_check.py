@@ -1408,6 +1408,19 @@ MUTATIONS = [
            "an unsupported count does not raise -- the library prints "
            "a complaint and substitutes a default unit, so the user "
            "gets a map quietly carrying the wrong number of variables"),
+  dict(name="unchanged-colours-read-as-a-dock-recolour", file=DIALOG,
+       old="    if all(expected.get(key) == colour "
+           "for key, colour in actual.items()):",
+       new="    if all(expected.get(key) != colour "
+           "for key, colour in actual.items()):"
+           "  # mutation: agreement no longer means quiet",
+       test="test_a_dock_edit_that_changes_no_colour_is_announced_as_nothing",
+       why="this comparison is how the dialog stays quiet about its "
+           "own seeding. Flipped, an edit that changed no colour at "
+           "all -- a stroke width, an outline style -- falls through "
+           "to the ramp-following branch, so the user is told the "
+           "plugin has followed a ramp they never chose and the "
+           "element's signature is restamped underneath them"),
   dict(name="missing-baseline-reads-as-clean", file=MUTATE_AUTO,
        old="  if probe.returncode != 0 or not probe.stdout.strip():",
        new="  if False:  # mutation: answer even when the ref is absent",
