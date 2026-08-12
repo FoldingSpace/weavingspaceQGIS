@@ -29,8 +29,9 @@ What it does, in the order QGIS does it:
     cleanly leaves a QGIS session broken.
 
 It does NOT open the dialog: that is the suite's work, and doing it
-here would duplicate 286 tests to no purpose. The question here is
-narrower and nobody else asks it -- does the ARTEFACT load?
+here would duplicate the whole functional suite to no purpose. The
+question here is narrower and nobody else asks it -- does the
+ARTEFACT load?
 
 Exit status: 0 when the plugin installed, imported, built and
 unloaded; non-zero with an explanation otherwise.

@@ -424,9 +424,16 @@ def mutation_sample_size(changed_lines):
 # tree_digest(), which covers only files that SHIP. A gate's result
 # turns on the code it exercised AND the harness that exercised it: a
 # change to tests/run_tests.py invalidates the suite even though no
-# shipped byte moved, and a change to tools/coverage_per_test.py
-# invalidates the coverage record and NOTHING ELSE -- which is the
-# case that prompted this, four full re-runs into one afternoon.
+# shipped byte moved.
+#
+# The example that used to stand here was tools/coverage_per_test.py
+# invalidating the coverage record and NOTHING ELSE -- the case that
+# prompted --resume, four full re-runs into one afternoon. That stage
+# has since left the release path and its entry left this map with
+# it, so the example now describes nothing. Kept as history rather
+# than deleted, because the SHAPE is why this map exists and the next
+# stage to need an entry will need it for the same reason.
+# (Corrected 2026-08-12 by the docstring audit.)
 #
 # The DOCUMENTS are in the suite's list because the suite reads them:
 # test_every_documented_command_still_exists opens CLAUDE.md,
@@ -940,10 +947,14 @@ def write_testing_report(report_dir, version, functional, visual,
       lines carry the measured values after " :: ".
     comparison: captured output of tools/visual_reference_report.py,
       the colourspace scores against the original renderer.
-    coverage: captured output of tools/coverage_report.py. Only its
-      "coverage:" summary line is used, and it defaults to empty so
-      the report can still be written when coverage was not run --
-      coverage is reported, never gating.
+    coverage: captured output of tools/coverage_report.py, when
+      somebody has run it. Only its "coverage:" summary line is used.
+      In a release it is ALWAYS EMPTY as of 2026-08-12, because that
+      stage left the release path; the parameter stays so a
+      maintainer who runs the report by hand can still fold its
+      summary into a report, and because coverage was always
+      reported rather than gating, which is what made removing it
+      from the critical path possible.
 
   Returns:
     None. Writes report_dir/testing-report.md, replacing any earlier
@@ -1484,11 +1495,7 @@ def main():
              if ln.startswith(("PASS", "FAIL")) or "passed" in ln]
     f.write("\n".join(lines))
 
-  # 1b. coverage of plugin code, from a second run of the same suite
-  # (cheap: sys.monitoring disables each line after its first hit).
-  # Reported, never gating: coverage is a map of untested ground, not
-  # a target to satisfy.
-  # The coverage report is NOT PART OF A RELEASE any more, decided
+  # 1b. The coverage report is NOT PART OF A RELEASE any more, decided
   # 2026-08-12 and the third stage to leave for the same reason.
   #
   # It cost 24 to 31 minutes, roughly three times the whole rest of a
@@ -1519,16 +1526,17 @@ def main():
         f"{os.path.relpath(report_dir, ROOT)}", flush=True)
 
   # 2. visual gallery + HTML report (captured for the testing report).
-  # These three stages — gallery, reference comparison, per-test
-  # coverage — are most of the wall clock and all speak to RENDERING.
-  # --quick skips them so a candidate can be rebuilt in a couple of
-  # minutes while the changes under review are elsewhere. The
-  # candidate you actually release from is built without it.
-  # ALWAYS, even under --quick. Seven seconds, and it is one of the
-  # two stages that can catch a map drawn wrongly -- which is this
-  # software's characteristic failure, since a wrong map looks
-  # exactly like a right one. It sat under --quick from when it was
-  # the slow stage; measured 2026-08-11 it is not.
+  #
+  # This comment described three rendering stages and a --quick flag
+  # that skipped them. Both are gone: the per-test coverage record
+  # left the release path with the rest of the coverage work, and
+  # --quick was retired with it, having nothing left to skip. What
+  # remains is the gallery and the reference comparison, and they
+  # stay for the reason the flag never applied to the gallery
+  # anyway -- seven seconds and sixteen, and they are the only two
+  # stages that catch a map drawn WRONGLY, which is this software's
+  # characteristic failure because a wrong map looks exactly like a
+  # right one. (Corrected 2026-08-12 by the docstring audit.)
   visual = comparison = ""
   visual = run("visual gallery",
                [python, "-u", os.path.join("tests", "visual_tests.py")],

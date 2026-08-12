@@ -26927,6 +26927,15 @@ def test_a_release_publishes_from_the_branch_the_page_is_served_from():
   import shutil
   import subprocess
   import tempfile
+  # No git, no test. qgis/qgis:stable carries none, and this one
+  # cannot be rephrased around that: what it checks is which BRANCH a
+  # release may be cut from, which is a fact only git holds. Said out
+  # loud rather than skipped quietly, because a green run on an image
+  # that could not ask the question must not read as an answer.
+  if shutil.which("git") is None:
+    print("      (no git on this machine: the publication-branch "
+          "guard cannot be exercised here and was NOT checked)")
+    return
   root, release = _release_gate_copy()
   subprocess.run(["git", "init", "-q"], cwd=root, check=True)
   # A COMMIT, not just an init. On an unborn branch git cannot name
