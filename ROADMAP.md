@@ -147,6 +147,27 @@ probably the honest one here. Do not write a test that pins the
 window's exact pixel height; that is the mutation bookkeeping the
 same document forbids.
 
+`family-list-signals-blocked` — DIAGNOSIS, not yet a verdict. The
+test counts rebuilds and requires at most one; unblocking the signals
+makes the handler run during the refill, but `_on_family_changed`
+restarts a debounce timer, so the extra calls collapse into the same
+single rebuild. That is the identical reasoning behind the one
+equivalence already recorded in `tools/mutate_auto.py` (blocking the
+over-under field during a family change), which was retired only
+after showing the unit's n, every tile's WKT, the field text, the
+table, the preview labels and all element assignments came out
+identical.
+
+So this needs the same demonstration before it may be called
+equivalent, and docs/MUTATION-TESTING.md is explicit that "this looks
+harmless" is how a score becomes a vanity metric. The thing to check
+is whether `_on_family_changed` does anything besides queue work —
+if it touches the table or element assignments while the list is
+half-built, that IS observable and the test should look there rather
+than at the rebuild count. If it genuinely only restarts a timer,
+record the equivalence with the evidence and take it out of the
+denominator.
+
 ONE GENUINE SURVIVOR LEFT, and it is a claim about a TEST rather than
 about the plugin. `fit-to-design-on-show`: the named test
 `test_the_window_fits_its_design_tab_when_shown` does not fail when
