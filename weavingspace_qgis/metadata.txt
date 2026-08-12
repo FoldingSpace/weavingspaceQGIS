@@ -38,10 +38,13 @@ server=False
 
 ; Shown in the QGIS plugin manager. Keep the newest version first, and
 ; describe what a USER would notice rather than what changed in the code.
-changelog=0.24.1 Housekeeping, with nothing a user has to do
-    anything about. The plugin itself is unchanged from 0.24.0; the
-    work went into the tests that keep it honest and into the release
-    process behind it.
+changelog=0.24.1 Setting the plugin up is more forgiving where QGIS
+    does not already carry the packages it needs, which mostly means
+    Linux. When one of them cannot be downloaded the plugin now says
+    which package and what went wrong, rather than only that
+    something is missing; it tries again once when the network was at
+    fault, and it has a second version to fall back on. Nothing else
+    about the plugin has changed.
     0.24.0 The map now follows the layer: editing, deleting or
     reprojecting features in QGIS updates it rather than leaving it
     out of date, and a column added there can be mapped straight
