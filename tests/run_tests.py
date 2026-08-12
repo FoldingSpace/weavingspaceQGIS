@@ -391,6 +391,14 @@ def check(name, fn, sharded=True):
     fn: the test function, called with no arguments. It may raise
       anything; the traceback is caught and reported rather than
       stopping the run, so one failure does not hide the rest.
+    sharded: whether this registration takes a place in the shard
+      deal. True for an ordinary test. Pass False when the call is
+      made from INSIDE another test -- a probe registering a check of
+      its own -- because such a registration consumes a slot in one
+      shard and not the others, and the shards then disagree about
+      how many tests the suite has. The first sharded run read 285,
+      285 and 286, which is not a partition, and this argument is the
+      fix. See MAINTAINING.md on why the totals must agree.
 
   Returns:
     True when the test passed. The project is emptied afterwards

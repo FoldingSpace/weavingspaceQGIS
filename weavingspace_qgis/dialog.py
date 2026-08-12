@@ -4563,6 +4563,13 @@ class WeavingSpaceDialog(QDialog):
         NOW, which may already carry a change made while the tiling
         ran -- and the dialog would then believe the map matches
         settings it never used.
+      live: whether this run came from the live-update debounce
+        rather than from the user pressing Generate. It decides how
+        loudly a failure is reported -- an explicit Generate that
+        fails owes the user a message, while a live run that fails
+        must not interrupt somebody who never asked for it -- and it
+        is what allows a queued live rerun to start once this one has
+        finished landing its layers.
 
     Returns:
       None; the project gains the layers, and the dialog returns to
@@ -4772,6 +4779,16 @@ class WeavingSpaceDialog(QDialog):
         path, each element is written into the file, the file-backed
         layer replaces the memory one, and the style is embedded so
         the file carries its own cartography.
+      run_sig, geometry_sig: what this run actually drew, captured
+        when it was LAUNCHED, and recorded here as the dialog's new
+        baseline. Both default to None, in which case the signatures
+        are read from the table as it stands now -- which is right
+        only for a synchronous path, where nothing can have changed
+        in between. For a run that went through the worker they must
+        be passed, or a setting altered during a long tiling would be
+        recorded as though the map already showed it, and the next
+        Generate would take the restyle fast path over geometry that
+        never matched.
 
     Returns:
       None; the project is what changes. Afterwards
