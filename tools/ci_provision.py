@@ -68,9 +68,21 @@ def main():
     still = deps.provision_from_pypi(missing, progress=lambda m: print(
       f"  {m}", flush=True))
     if still:
-      sys.exit(f"STILL MISSING after provisioning: {', '.join(still)}. "
-               f"The suite cannot run. This is a fault in deps.py or in "
-               f"the runner's network, not in the tests.")
+      # Say WHY, per package. Until 2026-08-12 this printed only the
+      # names, and a leg that failed here left a log in which four
+      # packages downloaded, geopandas silently did not, and nothing
+      # distinguished an unreachable PyPI from an interpreter no
+      # wheel is built for. deps.LAST_FAILURES carries the reason the
+      # fetch itself recorded.
+      why = "\n".join(
+        f"    {name}: {deps.LAST_FAILURES.get(name, 'no reason recorded')}"
+        for name in still)
+      sys.exit(f"STILL MISSING after provisioning: {', '.join(still)}.\n"
+               f"{why}\n"
+               f"  The suite cannot run. A network reason is the "
+               f"runner's; 'no wheel matches this Python' is ours, and "
+               f"means PYPI_CANDIDATES in deps.py needs a version "
+               f"built for this interpreter.")
   deps.ensure_pyproj_data()
 
   # Ask again rather than trusting the return value: the question that

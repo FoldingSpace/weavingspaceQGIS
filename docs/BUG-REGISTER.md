@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-76 defect(s) with a regression test.
+77 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -140,6 +140,8 @@ there is no separate list to remember.
   guarded by `test_live_update_is_on_by_default`
 - **the live-update signature described the settings but not the data, so an in-place geometry edit or a deletion left the map showing what had been deleted.**  
   guarded by `test_live_update_notices_the_data_changing`
+- **a Linux CI leg failed on 2026-08-12 with shapely, pandas and networkx downloaded and geopandas silently absent; the log could not say whether PyPI was unreachable or no wheel existed for QGIS stable's Python 3.13, and the same job passed an hour later untouched.**  
+  guarded by `test_provisioning_says_why_a_package_could_not_be_fetched`
 - **none yet -- written the day CI needed the packages, to keep the fix from becoming a consent bypass.**  
   guarded by `test_pypi_provisioning_is_reached_only_through_consent`
 - **deleting the file behind a layer and reloading it made layer.extent() segfault QGIS outright — no exception, no traceback, nothing in the log — and isValid() returned True while the provider was gone; the live-update gate read that extent on every debounce, so the crash was reachable without pressing anything.**  
@@ -188,7 +190,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 46
+- unrecorded: 47
 - reading the code: 7
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5

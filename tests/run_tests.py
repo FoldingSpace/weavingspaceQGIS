@@ -25853,6 +25853,61 @@ def test_a_release_publishes_from_the_branch_the_page_is_served_from():
   shutil.rmtree(root, ignore_errors=True)
 
 
+def test_provisioning_says_why_a_package_could_not_be_fetched():
+  """A failed download names its cause, not just the package.
+
+  Four quite different faults used to arrive identically. PyPI
+  unreachable, no wheel built for this interpreter, a download cut
+  short, a corrupt archive — every one was swallowed by a bare
+  `except Exception` and returned as a plain False, so the user was
+  told only "STILL MISSING after provisioning: geopandas". Those need
+  completely different responses, and the plugin could say the one
+  thing that helped with none of them.
+
+  This drives the real `_fetch_dist` with the network made to fail,
+  and requires the reason to reach `LAST_FAILURES` in words that
+  distinguish the cases.
+
+  Regression: a Linux CI leg failed on 2026-08-12 with shapely, pandas and networkx downloaded and geopandas silently absent; the log could not say whether PyPI was unreachable or no wheel existed for QGIS stable's Python 3.13, and the same job passed an hour later untouched.
+  """
+  from weavingspace_qgis import deps
+  import urllib.request
+
+  real_urlopen = urllib.request.urlopen
+  try:
+    def refuse(*args, **kwargs):
+      raise OSError("connection reset by peer")
+    urllib.request.urlopen = refuse
+    fetched, reason = deps._fetch_dist("geopandas", ["1.1.2"])
+    assert not fetched, \
+      "the fetch reported success with the network refusing every call"
+    assert "PyPI" in reason and "connection reset" in reason, \
+      f"a network failure must say so and quote what the socket " \
+      f"said, or nobody can tell it from an unsupported Python: " \
+      f"{reason!r}"
+    assert "geopandas" in reason and "1.1.2" in reason, \
+      f"the reason must name the package and version it was trying: " \
+      f"{reason!r}"
+  finally:
+    urllib.request.urlopen = real_urlopen
+
+  # and the reason has to travel to where somebody reads it
+  assert isinstance(deps.LAST_FAILURES, dict), \
+    "deps.LAST_FAILURES is what the consent dialogue and " \
+    "tools/ci_provision.py read to explain a failure; without it the " \
+    "reason is computed and thrown away"
+
+  # every required package needs a fallback version, since one bad
+  # fetch of a sole candidate is the end of the road -- which is
+  # exactly how geopandas failed
+  singles = [dist for dist, versions in deps.PYPI_CANDIDATES.items()
+             if len(versions) < 2 and dist != "numpy"]
+  assert not singles, \
+    f"{singles} have a single candidate version, so one failed or " \
+    f"unmatched wheel leaves the plugin unusable with no second try. " \
+    f"numpy is exempt: its floor is a hard rule, not a preference."
+
+
 def test_plugin_lifecycle():
   """The QGIS entry points themselves: classFactory, initGui, the
   toolbar action opening the dialog, and unload. Nothing else in the
@@ -26449,6 +26504,8 @@ def main():
         test_resuming_skips_only_what_still_holds)
   check("the new-code mutation guard reports rather than gates",
         test_the_new_code_mutation_guard_reports_rather_than_gates)
+  check("provisioning says why a package could not be fetched",
+        test_provisioning_says_why_a_package_could_not_be_fetched)
 
 
   check("a release publishes from the branch the page comes from",

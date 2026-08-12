@@ -38,7 +38,11 @@ server=False
 
 ; Shown in the QGIS plugin manager. Keep the newest version first, and
 ; describe what a USER would notice rather than what changed in the code.
-changelog=0.24.0 The map now follows the layer: editing, deleting or
+changelog=0.24.1 Housekeeping, with nothing a user has to do
+    anything about. The plugin itself is unchanged from 0.24.0; the
+    work went into the tests that keep it honest and into the release
+    process behind it.
+    0.24.0 The map now follows the layer: editing, deleting or
     reprojecting features in QGIS updates it rather than leaving it
     out of date, and a column added there can be mapped straight
     away. Areas with no value are left out of the class breaks and

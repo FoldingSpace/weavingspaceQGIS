@@ -91,9 +91,26 @@ PYPI_CANDIDATES = {
   "shapely": ["2.1.2", "2.0.7"],
   "pandas": ["2.3.3", "2.2.3"],
   "pyproj": ["3.7.2", "3.7.1"],
-  "geopandas": ["1.1.2"],
-  "networkx": ["3.4.2"],
+  # geopandas carries a FALLBACK for the same reason shapely and
+  # pandas do, and it did not until 2026-08-12: with a single
+  # candidate, one bad fetch is the end of the road, and a Linux CI
+  # leg failed exactly that way -- shapely, pandas and networkx
+  # downloaded, geopandas did not, and the run reported only that it
+  # was still missing. 1.0.1 is pure Python like 1.1.2, so it fits
+  # wherever the newer one does.
+  "geopandas": ["1.1.2", "1.0.1"],
+  # networkx had the same single-candidate weakness, found by the
+  # test written for geopandas rather than by another failed run.
+  # Both are pure Python, so the fallback fits wherever the newer one
+  # does.
+  "networkx": ["3.4.2", "3.3"],
 }
+
+# Why the LAST provisioning run failed, per import name, for a caller
+# that wants to tell somebody. provision_from_pypi returns a list of
+# NAMES because that is what callers branch on; a name alone was what
+# left a user holding "still missing" with nothing to act on.
+LAST_FAILURES: dict[str, str] = {}
 
 
 def add_paths() -> None:
@@ -358,31 +375,66 @@ def _fetch_dist(dist: str, candidates: list[str], progress=None) -> bool:
       is happening during a synchronous download.
 
   Returns:
-    True when a wheel was fetched and unpacked into libs/.
+    (True, "") when a wheel was fetched and unpacked into libs/, and
+    (False, reason) when it was not -- where reason names WHICH of
+    the four quite different faults occurred, in words a user can act
+    on.
+
+  Why the reason matters enough to change the signature for. Every
+  failure here used to be swallowed by a bare except and returned as
+  a plain False, so PyPI being unreachable, no wheel existing for
+  this interpreter, a download cut short and a corrupt archive all
+  arrived at the user as the same sentence: "STILL MISSING after
+  provisioning". Those need completely different responses -- wait
+  and retry, report an unsupported Python, check a proxy -- and the
+  one thing the plugin could say was the one thing that helped with
+  none of them. Found on 2026-08-12 when a Linux CI leg failed
+  exactly this way and the log could not say why.
+
+  A network fault is RETRIED once before being believed, because the
+  failure that prompted this turned out to be transient: the same
+  job passed an hour later with no change to any code.
   """
+  reasons = []
   for version in candidates:
     url = f"https://pypi.org/pypi/{dist}/{version}/json"
-    try:
-      with urllib.request.urlopen(url, timeout=30) as resp:
-        info = json.load(resp)
-    except Exception:
+    info = None
+    for attempt in (1, 2):
+      try:
+        with urllib.request.urlopen(url, timeout=30) as resp:
+          info = json.load(resp)
+        break
+      except Exception as exc:
+        if attempt == 2:
+          reasons.append(f"{dist} {version}: could not reach PyPI ({exc})")
+    if info is None:
       continue
     files = {f["filename"]: f["url"] for f in info.get("urls", [])
              if _python_ok(f.get("requires_python"))}
     chosen = _best_wheel(list(files))
     if not chosen:
+      # Not a network problem and no amount of retrying helps: there
+      # is no wheel for this interpreter and platform. Say so with
+      # the tags, because that is what tells somebody whether their
+      # Python is simply too new.
+      reasons.append(
+        f"{dist} {version}: no wheel matches this Python "
+        f"({len(files)} file(s) offered; this interpreter accepts "
+        f"{', '.join(_manual_tags()[:3])})")
       continue
     if progress:
       progress(f"Downloading {chosen}...")
-    try:
-      with tempfile.TemporaryDirectory() as td:
-        dest = os.path.join(td, chosen)
-        urllib.request.urlretrieve(files[chosen], dest)
-        _extract_wheel(dest)
-      return True
-    except Exception:
-      continue
-  return False
+    for attempt in (1, 2):
+      try:
+        with tempfile.TemporaryDirectory() as td:
+          dest = os.path.join(td, chosen)
+          urllib.request.urlretrieve(files[chosen], dest)
+          _extract_wheel(dest)
+        return True, ""
+      except Exception as exc:
+        if attempt == 2:
+          reasons.append(f"{chosen}: download or unpack failed ({exc})")
+  return False, "; ".join(reasons) or f"no candidate versions for {dist}"
 
 
 def provision_from_pypi(missing: list[str], progress=None) -> list[str]:
@@ -400,10 +452,21 @@ def provision_from_pypi(missing: list[str], progress=None) -> list[str]:
     since a partial install fails later and less clearly.
   """
   still_missing = []
+  LAST_FAILURES.clear()
   for import_name in missing:
     dist = REQUIRED[import_name]
-    if not _fetch_dist(dist, PYPI_CANDIDATES.get(dist, []), progress):
+    fetched, reason = _fetch_dist(dist, PYPI_CANDIDATES.get(dist, []),
+                                  progress)
+    if not fetched:
       still_missing.append(import_name)
+      # Kept where a caller can find it: the return value is a list of
+      # NAMES, which is what callers branch on, but a name alone is
+      # what left a user with nothing to act on. The dialog and
+      # tools/ci_provision.py read this to say what actually went
+      # wrong.
+      LAST_FAILURES[import_name] = reason
+      if progress:
+        progress(f"{import_name} could not be provisioned: {reason}")
   provisioned = [m for m in missing if m not in still_missing]
   if provisioned:
     for import_name, dist in SUPPORT.items():
