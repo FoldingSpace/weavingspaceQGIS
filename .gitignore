@@ -1,6 +1,10 @@
 # Working notes and investigations that are not part of the
 # published project: thinking-in-progress, findings not yet
 # decided upon, material we may or may not act on.
+# Working files only: one-shot patch scripts, scratch, and the
+# rolling session handover. The process RECORDS are published in
+# docs/process/ -- campaigns, findings, the note sent upstream. What
+# stays here is what has no reader but the next session.
 dev/
 
 # Agent worktrees live inside the repo directory. Git skips a

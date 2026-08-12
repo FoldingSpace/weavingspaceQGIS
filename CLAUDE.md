@@ -183,9 +183,25 @@ obligations: they exist so nobody pays twice for the same discovery.
   whatever happens next, and deleting the branch does not undo it.
   The pre-candidate branch is named for the candidate it precedes
   (`pre-0.24.0rc5`), and nothing rides along that a Linux test run
-  has no use for -- in this repository `dev/`, `dist/` and
-  `reports/` are gitignored precisely so working notes, dossiers and
-  candidates cannot travel. (User instruction, 2026-08-10.)
+  has no use for -- `dist/` and `reports/` are gitignored, so
+  candidates and dossiers cannot travel. (User instruction,
+  2026-08-10.)
+- **The process is PUBLIC; only working files and private material
+  are not.** Two different questions, and they were conflated: the
+  rule above is about keeping a pre-candidate PUSH small, and it had
+  leaked into .gitignore as though the repository should be quiet
+  about how the work is done. It should not. `docs/process/` carries
+  the test-campaign records, the perceptual colour findings and the
+  note sent upstream -- including its retraction of a diagnosis that
+  blamed somebody else's commit, because a project publishing only
+  its correct diagnoses is publishing a fiction.
+  What stays out is what has no reader but the next session:
+  one-shot patch scripts, scratch, and `dev/state-of-play.md`, which
+  is rewritten every session and whose durable content is promoted
+  into these binding documents as it earns its place -- publishing it
+  would duplicate them in a less reliable form. The test is not "is
+  this tidy" but "who reads this, other than us tomorrow".
+  (User instruction, 2026-08-11.)
 - **Linux CI runs BESIDE the local gates, not after them, and its
   fixes are made in a WORKTREE, and the push is watched.** A CI
   watcher is armed in the same breath as the push and reports

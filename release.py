@@ -402,6 +402,127 @@ def mutation_sample_size(changed_lines):
   return max(12, min(80, changed_lines // 20))
 
 
+# What each stage's result DEPENDS ON, so --resume can tell a stage
+# whose answer still holds from one whose answer is stale. Paths are
+# relative to the repository root; a directory means everything under
+# it. Anything not listed here is never skipped.
+#
+# This is deliberately narrower than "the whole tree" and wider than
+# tree_digest(), which covers only files that SHIP. A gate's result
+# turns on the code it exercised AND the harness that exercised it: a
+# change to tests/run_tests.py invalidates the suite even though no
+# shipped byte moved, and a change to tools/coverage_per_test.py
+# invalidates the coverage record and NOTHING ELSE -- which is the
+# case that prompted this, four full re-runs into one afternoon.
+STAGE_DEPENDS = {
+  "functional suite": ["weavingspace_qgis", "tests/run_tests.py"],
+  "coverage report": ["weavingspace_qgis", "tests/run_tests.py",
+                      "tools/coverage_report.py"],
+  "visual gallery": ["weavingspace_qgis", "tests/visual_tests.py"],
+  "reference comparison": ["weavingspace_qgis",
+                           "tools/visual_reference_report.py"],
+  "per-test coverage record": ["weavingspace_qgis", "tests/run_tests.py",
+                               "tools/coverage_per_test.py"],
+}
+STAGE_STATE_PATH = os.path.join(ROOT, "reports", "stage-state.json")
+
+
+def stage_fingerprint(step):
+  """A hash of everything that could change this stage's answer.
+
+  Args:
+    step: the stage name, as passed to run().
+
+  Returns:
+    A hex digest over the declared dependencies' contents, or None
+    when the stage has none declared -- which means it is never
+    skipped, the safe default for anything nobody has thought about.
+  """
+  import hashlib
+  paths = STAGE_DEPENDS.get(step)
+  if not paths:
+    return None
+  digest = hashlib.sha256()
+  for entry in sorted(paths):
+    full = os.path.join(ROOT, entry)
+    files = []
+    if os.path.isdir(full):
+      for base, dirs, names in os.walk(full):
+        dirs[:] = [d for d in dirs if d not in ("__pycache__", "libs")]
+        files += [os.path.join(base, n) for n in names
+                  if not n.endswith(".pyc")]
+    elif os.path.exists(full):
+      files = [full]
+    for path in sorted(files):
+      digest.update(os.path.relpath(path, ROOT).encode("utf-8"))
+      with open(path, "rb") as handle:
+        digest.update(hashlib.sha256(handle.read()).digest())
+  return digest.hexdigest()
+
+
+def load_stage_state():
+  """What previous runs recorded about each stage, or {} if nothing."""
+  try:
+    with open(STAGE_STATE_PATH, encoding="utf-8") as handle:
+      return json.load(handle)
+  except (OSError, ValueError):
+    return {}
+
+
+def remember_stage(step):
+  """Record that this stage passed, against what it depended on.
+
+  Args:
+    step: the stage that just succeeded.
+
+  Returns:
+    None. Failures to write are swallowed: this exists to save time
+    on a later run and must never be the thing that stops this one.
+  """
+  fingerprint = stage_fingerprint(step)
+  if fingerprint is None:
+    return
+  try:
+    state = load_stage_state()
+    state[step] = {"fingerprint": fingerprint, "at": time.time()}
+    os.makedirs(os.path.dirname(STAGE_STATE_PATH), exist_ok=True)
+    with open(STAGE_STATE_PATH, "w", encoding="utf-8") as handle:
+      json.dump(state, handle, indent=1, sort_keys=True)
+  except OSError:
+    pass
+
+
+def may_skip(step, resuming):
+  """Whether this stage's previous answer still holds.
+
+  Args:
+    step: the stage about to run.
+    resuming: whether --resume was asked for. Without it nothing is
+      ever skipped, because a full run is what a release means and
+      the saving is only ever worth asking for deliberately.
+
+  Returns:
+    True when the stage passed before against exactly the inputs it
+    has now. Says so out loud when it skips, because a gate that did
+    not run is a thing a reader must be told rather than left to
+    infer from a suspiciously short log.
+  """
+  if not resuming:
+    return False
+  recorded = load_stage_state().get(step)
+  if not recorded:
+    return False
+  if recorded.get("fingerprint") != stage_fingerprint(step):
+    return False
+  when = time.strftime("%H:%M", time.localtime(recorded.get("at", 0)))
+  print(f"\n=== {step} — SKIPPED, passed at {when} and nothing it "
+        f"depends on has changed since ===", flush=True)
+  STAGE_STATE[step] = ("done", 0.0)
+  if step not in STAGE_ORDER:
+    STAGE_ORDER.append(step)
+  return True
+
+
 def stage_log_path(step):
   """Where this stage's full output is kept.
 
@@ -556,6 +677,7 @@ def run(step, cmd, env, capture=False):
     # only a stage that actually finished says anything about how
     # long the work takes
     remember_timing(step, spent)
+    remember_stage(step)
   if stalled:
     print(stage_chart(RELEASE_STARTED), flush=True)
     sys.exit(
@@ -652,6 +774,7 @@ def run_sharded(step, argv, env, capture=False):
   STAGE_STATE[step] = ("failed" if failed else "done", spent)
   if not failed:
     remember_timing(step, spent)
+    remember_stage(step)
   if capture:
     stage_log = stage_log_path(step)
     with open(stage_log, "w", encoding="utf-8") as handle:
