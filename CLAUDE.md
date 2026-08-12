@@ -197,6 +197,26 @@ obligations: they exist so nobody pays twice for the same discovery.
   section, an edit no tool may make on their behalf. Delete an entry
   when it lands; a roadmap nobody prunes becomes a diary.
   (User instruction, 2026-08-11.)
+- **Linux CI stays in step with the Mac, and that is CHECKED before
+  the branch is pushed, not discovered on a runner.**
+  `tools/check_standards.py` reads `release.py`'s own stage list and
+  requires every stage to be either covered by a named CI job or
+  exempt with a written reason; it also requires every harness under
+  `tests/` to be run by the workflow or exempt, every script the
+  workflow names to exist, and the four jobs -- standards, suite,
+  install, gallery -- to be present. Nothing there is a hand-kept
+  list, so the two cannot drift apart quietly. It runs in a second,
+  before the pre-candidate push, which is the only moment early
+  enough to matter: the push precedes the local gates, so a broken
+  or hollowed-out workflow otherwise surfaces fifty minutes later or
+  not at all, since a job that was silently dropped fails nothing.
+  The EXEMPTIONS carry the weight, because each is a claim that a
+  second machine cannot answer a question -- and the visual gallery
+  was exempt for months on a belief about fonts that was simply
+  false, costing this project a rendering gate on three QGIS
+  versions until 2026-08-12. When the check complains, change the
+  workflow or write the reason; deleting the stage to silence it is
+  never the answer. (User instruction, 2026-08-12.)
 - **A branch is not created until the secrets check has passed, and
   carries only what CI needs.** The check runs BEFORE the branch
   exists, not after: a secret that reaches a public branch is public

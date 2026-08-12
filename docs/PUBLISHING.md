@@ -35,6 +35,46 @@ because a push is the one step this project cannot take back:
   repository is fine to keep, anything that is neither is a mistake
   to fix before it is public rather than after.
 
+### Before the branch exists: is Linux still running what we run?
+
+    python3 tools/check_standards.py     # a second, and it answers this
+
+The pre-candidate push happens BEFORE the local gates start, so
+anything wrong with the Linux workflow is found on a runner fifty
+minutes later -- or never, because a job that was quietly dropped
+fails nothing and reports success. So the question is asked here, in
+the second before the push, by the command that already guards the
+tree.
+
+What it asks, and none of it is a list somebody has to maintain by
+hand:
+
+**Every stage `release.py` runs is either covered on Linux or exempt
+WITH A REASON.** The stage list is read out of `release.py` itself,
+so the Mac and the workflow cannot drift apart quietly: add a stage
+and the check demands you say which CI job runs it, or why a second
+machine cannot answer that question. The exemptions are the
+interesting part -- each is a claim, and each has been wrong before.
+The visual gallery sat exempt for months on a belief about fonts
+that turned out to be false, and the day it was tested it passed on
+three QGIS versions.
+
+**Every harness under `tests/` is run by CI or exempt with a
+reason**, so a new one cannot sit outside the workflow measuring this
+machine alone, which is exactly how the gallery was lost.
+
+**Every script the workflow names exists.** A moved file only fails
+on a clean checkout, which is the one thing this machine can never
+be.
+
+**The four jobs are present**: standards, suite, install, gallery.
+They answer questions none of the others can -- the rules, the
+behaviour, what a USER receives, and whether the map is drawn right.
+
+When it complains, the fix is to change the workflow or to write the
+reason down. Silencing it by deleting the stage from `release.py` is
+the one response that is never correct.
+
 The branch is named for the candidate it precedes -- `pre-0.24.0rc5`
 for the run that will build `0.24.0rc5` -- so the name says which
 artefact the CI result belongs to. A bare `pre-release` tells nobody

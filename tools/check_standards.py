@@ -446,6 +446,114 @@ def check_equivalence_claims():
           f"that cannot happen, which shrinks the denominator for free")
 
 
+def check_linux_ci_covers_what_it_claims():
+  """The Linux workflow still runs everything we think it runs.
+
+  Returns:
+    None; appends to ``problems``. Reads .github/workflows/ci.yml as
+    text rather than as YAML, because this project has no YAML
+    dependency and the questions are all "is this named here".
+
+  Why this is a STANDARD rather than a test. The pre-candidate branch
+  is pushed BEFORE the local gates start, so anything wrong with the
+  workflow is discovered on a runner fifty minutes later, or -- worse
+  -- not discovered at all, because a job that was silently dropped
+  fails nothing. Checking here means it is answered in the second
+  before the push, by the same command that already guards it.
+
+  Three ways the workflow rots, all seen in this project:
+
+  a HARNESS exists that nothing in CI runs. tests/visual_tests.py sat
+  outside the workflow for months on an untested belief about fonts,
+  and when it was finally run it passed on every QGIS version;
+
+  a job NAMES A SCRIPT that has moved or gone, which only a clean
+  checkout finds -- the same shape as a document quoting a path no
+  clone contains;
+
+  the QGIS MATRIX drifts from what metadata.txt promises, so the
+  plugin is tested on versions it does not claim and untested on ones
+  it does.
+  """
+  path = os.path.join(ROOT, ".github", "workflows", "ci.yml")
+  if not os.path.exists(path):
+    problems.append("there is no .github/workflows/ci.yml, so nothing "
+                    "runs on Linux at all")
+    return
+  workflow = open(path, encoding="utf-8").read()
+
+  for job in ("standards", "suite", "install", "gallery"):
+    if f"\n  {job}:" not in workflow:
+      problems.append(
+        f"ci.yml has no {job!r} job. Every one of these answers a "
+        f"question the others cannot: standards checks the rules, "
+        f"suite the behaviour, install what a USER receives, and "
+        f"gallery whether the map is drawn correctly.")
+
+  # PARITY WITH THE MAC, derived from release.py rather than listed
+  # here, so the two cannot drift apart quietly. Every stage a
+  # release runs is either covered on Linux or exempt WITH A REASON.
+  # The reasons are the interesting part: each one is a claim that a
+  # second machine cannot answer this question, and each has been
+  # wrong before -- the gallery sat exempt for months on a belief
+  # about fonts that turned out to be false.
+  covered_by = {
+    "standards check": "standards",
+    "secrets audit": "standards",
+    "published content audit": "standards",
+    "build zip": "standards",
+    "functional suite": "suite",
+    "visual gallery": "gallery",
+    "build release candidate": "install",
+  }
+  mac_only = {
+    "reference comparison":
+      "needs matplotlib on a non-QGIS interpreter (.venv-reference); "
+      "macOS code-signing keeps PyPI C extensions out of QGIS's Python",
+    "create reference venv": "builds .venv-reference for the above",
+    "install reference packages": "populates .venv-reference",
+    "roadmap and branches": "reads local branches, which a runner "
+                            "checkout does not have",
+    "testing report": "written from this run's captured output",
+    "refresh published images": "rewrites files in the working tree",
+    "test map": "regenerates a document the standards job then checks",
+    "bug register": "regenerates a document the standards job then checks",
+    "candidate dossier": "describes an artefact built here",
+    "per-test coverage record": "left the release path 2026-08-12",
+    "merge the coverage shards": "left the release path 2026-08-12",
+  }
+  try:
+    release_src = open(os.path.join(ROOT, "release.py"),
+                       encoding="utf-8").read()
+    listed = re.search(r"EXPECTED_STAGES = \[(.*?)\]", release_src, re.S)
+    stages = re.findall(r'"([^"]+)"', listed.group(1)) if listed else []
+  except OSError:
+    stages = []
+  for stage in stages:
+    if stage in mac_only:
+      continue
+    job = covered_by.get(stage)
+    if job is None:
+      problems.append(
+        f"release.py runs the stage {stage!r} and nothing says "
+        f"whether Linux does. Add it to covered_by with the job that "
+        f"runs it, or to mac_only with the reason a second machine "
+        f"cannot answer it -- an unexamined gap is how the gallery "
+        f"stayed out of CI for months.")
+    elif f"\n  {job}:" not in workflow:
+      problems.append(
+        f"{stage!r} is meant to be covered by ci.yml's {job!r} job, "
+        f"which is not there any more")
+
+  for quoted in sorted(set(re.findall(r"(?:python3 -u |python3 )"
+                                      r"((?:tools|tests)/[\w./-]+\.py)",
+                                      workflow))):
+    if not os.path.exists(os.path.join(ROOT, quoted)):
+      problems.append(
+        f"ci.yml runs {quoted}, which does not exist. Only a clean "
+        f"checkout finds this, and it fails the whole job.")
+
+
 def main():
   """Run every standards check and report everything that breaches one.
 
@@ -465,6 +573,7 @@ def main():
   check_user_facing_text()
   check_audit_tools()
   check_derived_documents()
+  check_linux_ci_covers_what_it_claims()
   check_skill_provenance()
   if problems:
     print(f"{len(problems)} standards problem(s):\n")
