@@ -21405,6 +21405,49 @@ def _tick(ms=0):
   loop.exec()
 
 
+def _note_after_a_run(dlg, phrase, seconds=5):
+  """Sample the dialog's note line until it says something, or time out.
+
+  Args:
+    dlg: the dialog whose live_note is being read.
+    phrase: the words the note must eventually contain, compared
+      case-insensitively so a test states what a reader sees rather
+      than pinning capitalisation.
+    seconds: how long to keep sampling. Five is generous against a
+      note that normally appears at once, and short enough that a
+      genuine silence still fails a test quickly.
+
+  Returns:
+    The strongest note seen: the first containing `phrase` if one
+    appears, otherwise the last non-empty note, otherwise "". The
+    CALLER asserts, so a failure can quote what was actually said
+    rather than only what was missing.
+
+  Why sampling rather than a fixed tick. The note line is transient
+  by design: adding output layers makes the layer combo re-emit,
+  which queues work whose first act is to clear it -- the same
+  mechanism docs/TESTING.md records as having once hidden every
+  notice the plugin raises. A fixed _tick after a run is therefore a
+  guess about how two races land, and the guess was wrong under the
+  coverage recorder, where each step costs about six times as much:
+  test_colours_a_reader_cannot_separate_are_reported passed in the
+  plain suite and failed twenty minutes later in the recorded one,
+  on identical code, aborting a candidate. Sampling cannot hide a
+  real defect -- a warning that never appears still fails -- it only
+  stops the read landing on the wrong side of the clear.
+  (2026-08-11.)
+  """
+  seen = ""
+  for _ in range(max(1, int(seconds * 20))):
+    _tick(50)
+    text = dlg.live_note.text()
+    if text:
+      seen = text
+    if phrase.lower() in seen.lower():
+      break
+  return seen
+
+
 def _settle(dlg, seconds=30):
   """Run the event loop until the dialog is quiet.
 
@@ -25449,8 +25492,7 @@ def test_a_changed_category_count_warns_that_colours_moved():
   dlg.spacing_spin.setValue(680)
   _tick(300)
   _generate_and_wait(dlg)
-  _tick(200)
-  note = dlg.live_note.text()
+  note = _note_after_a_run(dlg, "categories")
   assert "landcover" in note and "categories" in note, \
     f"a class disappeared and the colours of the rest moved with it, "\
     f"and the plugin said {note!r}"
@@ -25545,8 +25587,7 @@ def test_colours_a_reader_cannot_separate_are_reported():
       widget.setCurrentText(ramp)
   _tick(300)
   _generate_and_wait(dlg)
-  _tick(200)
-  note = dlg.live_note.text()
+  note = _note_after_a_run(dlg, "tell apart")
   assert "tell apart" in note, \
     f"four ramps on the red-green axis produced no warning: {note!r}"
   dlg.close()

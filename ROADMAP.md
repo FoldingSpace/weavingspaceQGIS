@@ -197,6 +197,15 @@ re-measured (several dates and figures were revised today alone); a
 Args block that has drifted from the signature. Doing it per module
 with the tests open beside it is the only way it stays honest.
 
+**The note line is asserted NEGATIVELY in at least one place, and a
+cleared note passes that trivially.** `_note_after_a_run` fixed the
+two positive assertions that read the note after a run; the negative
+one near it -- "categories" must NOT appear -- is satisfied just as
+well by a note the plugin cleared a moment earlier, which is the
+vacuous-test shape this project produces at about one in five. Sweep
+every read of `live_note` and decide, per site, whether it needs the
+sampling helper, a recorded message-bar assertion, or nothing.
+
 **The progress chart draws stages the run will not execute.** Under
 `--quick` it still lists the 31-minute coverage report among the
 stages to come and adds it to the estimate, so the finishing time it

@@ -459,6 +459,24 @@ had been shipping unverified for months. `_Bar` now records into
 `BAR_MESSAGES`, which `check` clears per test. A stub exists to keep
 the code path identical, not to swallow the evidence.
 
+**A fixed wait after a run is a guess about two races.** The note
+line is transient by design -- adding output layers makes the layer
+combo re-emit, which queues work whose first act is to clear it -- so
+a test that runs the loop for a fixed 200 ms and then reads it is
+betting on which lands first. That bet held for months in the plain
+suite and lost under the COVERAGE RECORDER, where every step costs
+about six times as much: one test passed at 19:37 and the identical
+code failed at 20:01 in the recorded run, aborting a candidate forty
+minutes in. Sample instead (`_note_after_a_run`), keep the strongest
+thing seen, and let the assertion quote it. Sampling cannot hide a
+defect, since a notice that never appears still fails; it only stops
+the read landing on the wrong side of the clear.
+
+The general form: **any test whose timing was tuned in one harness
+will be re-tuned by another.** The recorder, a sharded run and a
+loaded machine are all different harnesses, and this suite runs in
+all three.
+
 **"Immediately" is one interleaving out of many.** Race tests here
 fired their second action with no delay, which only ever exercises the
 state before any debounce has fired. The dialog has two debounces (350
