@@ -2996,6 +2996,36 @@ class WeavingSpaceDialog(QDialog):
         return row
     return None
 
+  def _assignment_for(self, tile_id):
+    """One element's current assignment dict, or None.
+
+    Args:
+      tile_id: the element to find, as it appears in column 0.
+
+    Returns:
+      Its dict from ``_assignments()``, read FRESH -- the table is the
+      only record, and a rebuild replaces every row -- or None when no
+      row carries that element, which happens mid-rebuild and after
+      the design has changed under a handler that outlived it. Every
+      caller must handle None; none of them may cache the result.
+
+    Why this exists as a method rather than nine copies of one
+    generator expression. It was nine copies, and the comparison
+    inside them is exactly the kind of thing that goes wrong
+    silently: get it wrong and the lookup finds a DIFFERENT element,
+    or none at all on a one-element map, and the caller then stamps a
+    signature against the wrong id or repaints a window with another
+    element's colours. Nothing raises either way. Automatic mutants
+    landed on three of the nine copies and every one survived, and
+    the three faults were separately invisible until a mutant
+    happened to pick that particular copy -- so the copies were not
+    nine chances to catch the fault, they were nine places for it to
+    hide. Collapsed here, one mutation does the work of nine.
+    (2026-08-12.)
+    """
+    return next((a for a in self._assignments()
+                 if a["id"] == tile_id), None)
+
   def _clear_quant_customization(self, tile_id, because,
                                  reset_range=True):
     """Forget an element's positional class colours, and perhaps its
@@ -3176,8 +3206,7 @@ class WeavingSpaceDialog(QDialog):
       because building it constructs a real renderer and _sync_row
       runs on every control change.
     """
-    assignment = next((a for a in self._assignments()
-                       if a["id"] == tile_id), None)
+    assignment = self._assignment_for(tile_id)
     if assignment is None:
       return _custom_swatch_icon([])
     if assignment["mode"] == "Graduated":
@@ -3322,8 +3351,7 @@ class WeavingSpaceDialog(QDialog):
       return
     if not isinstance(renderer, QgsCategorizedSymbolRenderer):
       return
-    assignment = next((a for a in self._assignments()
-                       if a["id"] == tile_id), None)
+    assignment = self._assignment_for(tile_id)
     if assignment is None or assignment["mode"] != "Categorized" \
         or not assignment["var"]:
       return
@@ -3387,8 +3415,7 @@ class WeavingSpaceDialog(QDialog):
         self._refresh_preview_colours()
         # the layer already wears this exact style, so the element is
         # marked as seeded and the next restyle leaves it in peace
-        refreshed = next((a for a in self._assignments()
-                          if a["id"] == tile_id), None)
+        refreshed = self._assignment_for(tile_id)
         if refreshed is not None:
           self._last_signatures[tile_id] = self._signature(refreshed)
         return
@@ -3408,8 +3435,7 @@ class WeavingSpaceDialog(QDialog):
     # the layer already wears these colours; recording the new
     # signature stops the restyle path re-seeding it, which would
     # discard any OTHER refinement the dock applied alongside them
-    refreshed = next((a for a in self._assignments()
-                      if a["id"] == tile_id), None)
+    refreshed = self._assignment_for(tile_id)
     if refreshed is not None:
       self._last_signatures[tile_id] = self._signature(refreshed)
       self._stamp_category_colours(layer, refreshed)
@@ -3440,8 +3466,7 @@ class WeavingSpaceDialog(QDialog):
       dialog has no record to reconcile against, so it is left alone
       -- the signature rule preserves it, as it always has.
     """
-    assignment = next((a for a in self._assignments()
-                       if a["id"] == tile_id), None)
+    assignment = self._assignment_for(tile_id)
     if assignment is None or assignment["mode"] != "Graduated" \
         or not assignment["var"]:
       return
@@ -3480,8 +3505,7 @@ class WeavingSpaceDialog(QDialog):
           f"Element '{tile_id}' now follows the '{name}' ramp chosen "
           f"in QGIS.")
         self._refresh_preview_colours()
-        refreshed = next((a for a in self._assignments()
-                          if a["id"] == tile_id), None)
+        refreshed = self._assignment_for(tile_id)
         if refreshed is not None:
           self._last_signatures[tile_id] = self._signature(refreshed)
         return
@@ -3501,8 +3525,7 @@ class WeavingSpaceDialog(QDialog):
     # the layer already wears these colours; recording the signature
     # stops the restyle path re-seeding it and discarding whatever
     # else the dock changed alongside them
-    refreshed = next((a for a in self._assignments()
-                      if a["id"] == tile_id), None)
+    refreshed = self._assignment_for(tile_id)
     if refreshed is not None:
       self._last_signatures[tile_id] = self._signature(refreshed)
       self._stamp_category_colours(layer, refreshed)
@@ -3554,8 +3577,7 @@ class WeavingSpaceDialog(QDialog):
     if button is None:
       return
     tile_id = button.property("tile_id")
-    assignment = next((a for a in self._assignments()
-                       if a["id"] == tile_id), None)
+    assignment = self._assignment_for(tile_id)
     if assignment is None or not assignment["var"] \
         or assignment["mode"] not in ("Categorized", "Graduated"):
       return
@@ -3626,8 +3648,7 @@ class WeavingSpaceDialog(QDialog):
       self._ramp_ranges[tile_id] = (int(lo), int(hi))
       self._custom_swatch_cache.pop(tile_id, None)
       self._apply_style_change()
-      refreshed = next((a for a in self._assignments()
-                        if a["id"] == tile_id), None)
+      refreshed = self._assignment_for(tile_id)
       if refreshed is None:
         return []
       return [colour for _lo, _hi, colour

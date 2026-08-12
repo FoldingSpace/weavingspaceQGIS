@@ -1410,16 +1410,10 @@ MUTATIONS = [
            "gets a map quietly carrying the wrong number of variables"),
   dict(name="adopted-signature-stamped-on-the-wrong-element",
        file=DIALOG,
-       # narrowed to the CATEGORIZED adoption by its own comment: the
-       # graduated sibling at _graduated_layer_edited is the same five
-       # lines, and an anchor without this context mutates whichever
-       # comes first while the other goes on doing the work
-       old="""    # discard any OTHER refinement the dock applied alongside them
-    refreshed = next((a for a in self._assignments()
-                      if a["id"] == tile_id), None)""",
-       new="""    # discard any OTHER refinement the dock applied alongside them
-    refreshed = next((a for a in self._assignments()
-                      if a["id"] != tile_id), None)""",
+       old="""    return next((a for a in self._assignments()
+                 if a["id"] == tile_id), None)""",
+       new="""    return next((a for a in self._assignments()
+                 if a["id"] != tile_id), None)  # mutation""",
        test="test_a_dock_refinement_survives_the_next_restyle",
        why="after adopting a dock recolour the element's signature has "
            "moved, so unless it is recorded against the RIGHT element "
@@ -1441,12 +1435,10 @@ MUTATIONS = [
            "after a run, so it was satisfied by silence"),
   dict(name="range-editor-repaints-from-another-element",
        file=DIALOG,
-       old="""      self._apply_style_change()
-      refreshed = next((a for a in self._assignments()
-                        if a["id"] == tile_id), None)""",
-       new="""      self._apply_style_change()
-      refreshed = next((a for a in self._assignments()
-                        if a["id"] != tile_id), None)""",
+       old="""    return next((a for a in self._assignments()
+                 if a["id"] == tile_id), None)""",
+       new="""    return next((a for a in self._assignments()
+                 if a["id"] != tile_id), None)  # mutation""",
        test="test_the_range_editor_repaints_with_its_own_elements_colours",
        why="the editor never computes colours, it paints what the "
            "dialog hands back. Looking up the wrong element hands "
@@ -1457,14 +1449,10 @@ MUTATIONS = [
            "the same fault the Custom ramp cell exists to prevent"),
   dict(name="graduated-signature-stamped-on-the-wrong-element",
        file=DIALOG,
-       # the GRADUATED twin, narrowed by its own comment for the same
-       # reason as the categorized entry above
-       old="""    # else the dock changed alongside them
-    refreshed = next((a for a in self._assignments()
-                      if a["id"] == tile_id), None)""",
-       new="""    # else the dock changed alongside them
-    refreshed = next((a for a in self._assignments()
-                      if a["id"] != tile_id), None)""",
+       old="""    return next((a for a in self._assignments()
+                 if a["id"] == tile_id), None)""",
+       new="""    return next((a for a in self._assignments()
+                 if a["id"] != tile_id), None)  # mutation""",
        test="test_a_graduated_dock_refinement_survives_the_next_restyle",
        why="the graduated mirror of the categorized adoption: without "
            "the signature recorded against the right element, the "

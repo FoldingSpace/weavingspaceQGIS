@@ -222,12 +222,15 @@ ALL THREE DONE 2026-08-12, each verified to kill:
   the dialog hands back, so the wrong lookup shows a list that is not
   about the element being edited.
 
-Six of the nine copies are still unguarded, and nothing has sampled
-them. Extracting `_assignment_for(tile_id)` would collapse all nine
-to one site — worth doing when somebody is in that file anyway. It
-adds no detection by itself, but it would mean one mutant instead of
-nine, and the three faults above were each invisible until a mutant
-happened to land on that particular copy.
+AND THE NINE COPIES ARE NOW ONE. `_assignment_for(tile_id)` was
+extracted 2026-08-12 and all nine call sites collapsed onto it. The
+copies were not nine chances to catch the fault, they were nine
+places for it to hide: mutants landed on three and all three
+survived, each invisible until one happened to pick that particular
+copy. The other six were never sampled at all. All three tests above
+now catch the single site independently, which is a stronger record
+than each catching its own copy — and any future mutant on this
+lookup has exactly one place to land.
 
 A TABLE THAT STOPS ONE DICTIONARY SHORT — catalog.py:295. DONE
 2026-08-12. `test_every_declared_offset_is_pinned` states the rule
