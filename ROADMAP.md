@@ -77,23 +77,9 @@ which is process rather than work.
 What remains is the release sequence itself: rc5 builds, somebody
 makes a map with it, then promotion (`python3 release.py`), the tag,
 and `--push` for the GitHub Release with the zip, testing report and
-comparison PDF attached.
-
-**0.24.0 ships without a coverage report for its own tree, by the
-maintainer's decision on 2026-08-11.** The rule in CLAUDE.md stands as
-written -- a candidate meant for promotion is normally built without
-`--quick` -- and this is an exception with a name on it rather than a
-change to the rule. What is given up is the 31-minute line-coverage
-listing, which gates nothing and is informational; what is kept is
-everything that decides whether the plugin is correct: the 299-test
-suite, the visual gallery, and the colourspace comparison against the
-library's own renderer. The reason is that the alternative was a
-second full run of gates that had already passed, to produce a
-document nobody was waiting on.
-
-The consequence to carry forward: `reports/v0.24.0/coverage.md` will
-describe an older tree than the release. Say so where it is quoted,
-and let 0.24.1 be the release that has one again.
+comparison PDF attached. Built in full, without `--quick`, so the
+artefact that is promoted carries every measurement including the
+coverage report.
 
 ## Needs the maintainer, not the assistant
 
@@ -210,6 +196,13 @@ re-measured (several dates and figures were revised today alone); a
 "why" that names a bug now fixed, or a workaround now removed; and an
 Args block that has drifted from the signature. Doing it per module
 with the tests open beside it is the only way it stays honest.
+
+**The progress chart draws stages the run will not execute.** Under
+`--quick` it still lists the 31-minute coverage report among the
+stages to come and adds it to the estimate, so the finishing time it
+prints is about half an hour pessimistic. It misled twice on
+2026-08-11. Display only -- no measurement is affected -- which is
+why it was not fixed in the middle of a release.
 
 **Backfill discovery shapes on the 33 bug-register entries** that
 predate the convention.
