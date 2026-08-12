@@ -44,6 +44,11 @@
   "excerpt": "This layer does not report its size, so live update cannot f",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "09a9aff61c42a70e": {
+  "approved": "2026-08-12",
+  "excerpt": "![Land use around the Great Lakes at six moments in time, dr",
+  "where": "README.md"
+ },
  "0adb038e39b338a0": {
   "approved": "2026-08-09",
   "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",

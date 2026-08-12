@@ -1,3 +1,5 @@
+![Land use around the Great Lakes at six moments in time, drawn as coloured hexagons](docs/img/paper-fig2-banner.png)
+
 # WeavingSpace QGIS plugin
 
 Mapping several attributes of the same areas in a single map remains a challenge. Tiled and woven maps can help. Small repeating patterns of shapes are laid across the study area and each kind of shape is coloured by a different attribute. Project page:
