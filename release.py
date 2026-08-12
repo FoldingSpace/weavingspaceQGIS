@@ -1185,12 +1185,13 @@ def main():
          "and the commands to publish them are printed.")
   parser.add_argument(
     "--quick", action="store_true",
-    help="with --rc, skip the visual gallery, the coverage record "
-         "and the colourspace comparison. For iterating on a "
-         "candidate: those three take most of the wall clock and "
-         "only speak to RENDERING, so skip them while the changes "
-         "under review are elsewhere, and drop the flag for the "
-         "candidate you intend to release from.")
+    help="with --rc, skip the coverage report: 31 minutes and it "
+         "gates nothing, being informational by design. The visual "
+         "gallery and the colourspace comparison are NOT skipped -- "
+         "measured 2026-08-11 they cost 7 and 16 seconds and are the "
+         "two stages that catch a map drawn wrongly, which is this "
+         "software's characteristic failure. The old grouping dated "
+         "from when the gallery was the slow one.")
   parser.add_argument(
     "--rc", action="store_true",
     help="build a numbered release candidate for hands-on testing and "
@@ -1298,9 +1299,23 @@ def main():
   # (cheap: sys.monitoring disables each line after its first hit).
   # Reported, never gating: coverage is a map of untested ground, not
   # a target to satisfy.
-  coverage = run("coverage report",
-                 [python, "-u", os.path.join("tools", "coverage_report.py"),
-                  report_dir], env, capture=True)
+  # MEASURED 2026-08-11, and it inverts what --quick used to mean.
+  # The gallery costs 7 seconds and the reference comparison 16, and
+  # both catch a WRONG MAP -- the failure this software has that most
+  # software does not. This report costs 31 minutes and gates
+  # nothing: it is informational by its own docstring. So --quick now
+  # skips the expensive non-gating stages and keeps the cheap gating
+  # ones, which is what it was always for; the old grouping dated
+  # from when the gallery was the slow one.
+  coverage = ""
+  if args.quick:
+    print("\n=== coverage report — SKIPPED (--quick): 31 minutes and "
+          "it gates nothing ===", flush=True)
+  else:
+    coverage = run("coverage report",
+                   [python, "-u", os.path.join("tools",
+                                              "coverage_report.py"),
+                    report_dir], env, capture=True)
 
   # 2. visual gallery + HTML report (captured for the testing report).
   # These three stages — gallery, reference comparison, per-test
@@ -1308,21 +1323,20 @@ def main():
   # --quick skips them so a candidate can be rebuilt in a couple of
   # minutes while the changes under review are elsewhere. The
   # candidate you actually release from is built without it.
+  # ALWAYS, even under --quick. Seven seconds, and it is one of the
+  # two stages that can catch a map drawn wrongly -- which is this
+  # software's characteristic failure, since a wrong map looks
+  # exactly like a right one. It sat under --quick from when it was
+  # the slow stage; measured 2026-08-11 it is not.
   visual = comparison = ""
-  if args.quick:
-    print("\n=== visual gallery, reference comparison and coverage "
-          "SKIPPED (--quick) ===")
-    print("    This candidate carries no rendering evidence. Build "
-          "the release candidate without --quick.")
-  else:
-    visual = run("visual gallery",
-                 [python, "-u", os.path.join("tests", "visual_tests.py")],
-                 env, capture=True)
+  visual = run("visual gallery",
+               [python, "-u", os.path.join("tests", "visual_tests.py")],
+               env, capture=True)
 
   # 3. colourspace comparison against the original renderer, in a
   # plain (non-QGIS) environment that carries geopandas + matplotlib
   ref_python = os.environ.get("REFERENCE_PYTHON")
-  if not args.quick and not ref_python:
+  if not ref_python:
     venv_dir = os.path.join(ROOT, ".venv-reference")
     ref_python = os.path.join(venv_dir, "bin", "python3")
     if not os.path.exists(ref_python):
@@ -1333,11 +1347,12 @@ def main():
           [os.path.join(venv_dir, "bin", "pip"), "install", "--quiet",
            "geopandas", "matplotlib", "networkx", "mapclassify"],
           dict(os.environ))
-  if not args.quick:
-    comparison = run(
-        "reference comparison",
-        [ref_python, os.path.join("tools", "visual_reference_report.py"),
-         report_dir], dict(os.environ), capture=True)
+  # ALSO always: sixteen seconds, and it is the one check that scores
+  # what the plugin drew against what the library itself draws.
+  comparison = run(
+      "reference comparison",
+      [ref_python, os.path.join("tools", "visual_reference_report.py"),
+       report_dir], dict(os.environ), capture=True)
 
   write_testing_report(report_dir, version, functional, visual,
                        comparison, coverage)
