@@ -97,19 +97,25 @@ ours.
 
 ### Wanted, no code yet
 
-**The catalogue sweep's seven flagged entries, judged alone
-2026-08-12.** The remote sweep caught 159 of 166 and flagged seven
-for a solo re-run, which is the procedure working: every one turned
-out to be a different fault, and none of them was the suite being
-weak.
+**The catalogue sweep's seven flagged entries: JUDGED ALONE
+2026-08-12, and five were contention.** The sweep flags what it could
+not time fairly and says to re-run each alone before believing
+anything; that had never been done. `idle-progress-bar`,
+`live-pending-initial`, `stage-log-says-it-is-running` and
+`category-colours-cleared-by-ramp` are all caught on their own — the
+flags were the other three workers, which is the instruction working
+rather than a fault.
 
-THREE AMBIGUOUS ANCHORS — `idle-progress-bar` (3 matching sites),
-`live-pending-initial` (3) and `category-colours-cleared-by-ramp` (2).
-The tool refuses them rather than reporting a false SURVIVED, which
-is the guard added in August doing its job, but the entries are
-broken until each anchor is narrowed to the site its `why` describes
-— exactly as `fit-to-design-on-show` was narrowed on 2026-08-10, and
-the comment there is the model to copy.
+`ramp-lookup-is-case-blind` was the one worth the trip. It anchored
+on a loop that no longer exists, so it had been reporting NEITHER
+caught nor survived. Re-anchored it survived, because the lookup now
+remembers the style's names already lowered — so a lowercase request
+resolves whether or not the request is folded, and the test only
+asked that direction. The direction that needs the fold is a
+mixed-case request against a lowercase ramp, which a saved project
+supplies. Both directions are staged now and it is caught.
+
+The two that remain are the two already written up below.
 
 `fit-to-design-on-show` IS RESOLVED as far as it can be, and the
 answer is not a better test. `_fit_to_design` only calls `resize`,
@@ -153,27 +159,15 @@ than at the rebuild count. If it genuinely only restarts a timer,
 record the equivalence with the evidence and take it out of the
 denominator.
 
-ONE GENUINE SURVIVOR LEFT, and it is a claim about a TEST rather than
-about the plugin. `fit-to-design-on-show`: the named test
-`test_the_window_fits_its_design_tab_when_shown` does not fail when
-the deferred fit in `showEvent` is removed — almost certainly because
-construction already fitted the window, making this one of three
-redundant call sites. The recipe is in docs/MUTATION-TESTING.md:
-find the scenario only the mutated site can serve (hide the window,
-change the design, show it again), or, if there is none, delete the
-code rather than defend it. `family-list-signals-blocked`: the test
-`test_repopulating_the_family_list_fires_no_handlers` does not fail
-when `blockSignals(True)` becomes `False`, so it is not reaching what
-it names.
-
-ONE HARNESS LIMIT — `stage-log-says-it-is-running` cannot be judged
-at all: it mutates `release.py`, and the sandbox clone the sweep
-builds contains only the plugin package, so the run dies with
-FileNotFoundError. Either the sandbox copies `release.py` and
-`build.py` (it already does for the release-gate tests) or entries
-outside the package are declared unjudgeable and skipped loudly. A
-catalogue entry that cannot run is worse than one that fails,
-because it is counted as neither.
+(Two blocks were deleted from here on 2026-08-12. One restated
+`fit-to-design-on-show` with a diagnosis the work above disproved —
+"construction already fitted the window", when the real reason is
+that Qt will not shrink below the layout minimum at all. The other
+described `stage-log-says-it-is-running` as unjudgeable because the
+sandbox copied only the plugin package; the sandbox copies
+`release.py` now, and the entry is caught when run alone. A roadmap
+that keeps a superseded diagnosis is worse than one that keeps
+nothing, because the diagnosis is what the next person acts on.)
 
 
 
