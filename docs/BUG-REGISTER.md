@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-87 defect(s) with a regression test.
+88 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -107,6 +107,8 @@ there is no separate list to remember.
   guarded by `test_auto_first_render`
 - **two stages stayed in EXPECTED_STAGES after they were retired, so every progress chart counted half an hour of work that would never happen.**  
   guarded by `test_every_expected_stage_is_actually_run`
+- **the non-finite workaround named a canary that did not exist, so nothing would ever have reported QGIS fixing it.**  
+  guarded by `test_qgis_still_mishandles_non_finite_class_breaks`
 - **CRS work on the QgsTask worker thread segfaulted QGIS, because PROJ is not safe to use concurrently with the main thread; the CRS is now stripped before the task and reattached in the done callback.**  
   guarded by `test_real_world_data`
 - **a design whose spacing implied millions of tiles was attempted rather than refused, and QGIS became unresponsive while it ran.**  
@@ -218,7 +220,7 @@ there is no separate list to remember.
 
 - unrecorded: 29
 - the mutation campaign: 13
-- reading the code: 10
+- reading the code: 11
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6
 - a multi-step session test: 5

@@ -947,13 +947,20 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   # ...AND the same treatment for values that are not NUMBERS. QGIS
   # 4.0.3, measured 2026-08-09 with the plugin out of the way (a
   # child process calling QgsGraduatedSymbolRenderer.updateClasses
-  # directly): Natural breaks (Jenks) SEGFAULTS -- exit 139, the
-  # application gone with the user's unsaved project -- on a column
-  # holding an infinity or a magnitude near the double limit
-  # (+/-1e308); quantiles and equal intervals survive NaN but return
+  # directly): a column holding an infinity or a NaN comes back with
   # NaN class bounds, so every tile falls outside every class, the
-  # layer paints nothing and the run reports success. Identical on
-  # the memory provider and through OGR on a GeoPackage.
+  # layer paints nothing and the run reports success. Measured on the
+  # memory provider and through OGR on a GeoPackage.
+  #
+  # This comment used to say that Natural breaks (Jenks) SEGFAULTS on
+  # such a column -- exit 139, the application gone with the user's
+  # unsaved project. RE-MEASURED 2026-08-12 across nine combinations
+  # (infinities with NaN, +/-1e308, and both together, each through
+  # quantiles, natural breaks and equal intervals) and nothing
+  # crashed on QGIS 4.0.3. That is not proof the original measurement
+  # was wrong -- a larger column or another provider may still do it
+  # -- so it is recorded as UNREPRODUCED rather than deleted. The NaN
+  # half reproduces exactly and is what the canary now asserts.
   #
   # The fix hands the classifier different INPUT rather than
   # replacing its arithmetic: one clause more on the subset string
@@ -962,9 +969,12 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   # classifier sees only finite numbers and its own four algorithms
   # go on deciding the breaks.
   #
-  # DELETE THIS when test_qgis_still_crashes_on_infinite_class_breaks
-  # fails: that canary asserts the crash directly, so its failure
-  # means QGIS has been fixed and this clause is redundant. The NULL
+  # DELETE THIS when test_qgis_still_mishandles_non_finite_class_breaks
+  # fails: that canary drives QGIS's classifier directly, so its
+  # failure means QGIS has been fixed and this clause is redundant.
+  # It did not exist when this comment first named it, which is worse
+  # than naming nothing -- a reader was told to watch for something
+  # that could not happen. Written 2026-08-12. The NULL
   # half above has its own canary (test_qgis_still_counts_nulls_as_
   # zero) and they may well not be fixed together, so check both
   # before removing either.

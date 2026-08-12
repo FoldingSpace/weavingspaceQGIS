@@ -7253,6 +7253,143 @@ def test_numeric_conversions_are_exact():
   dlg.close()
 
 
+def test_qgis_still_mishandles_non_finite_class_breaks():
+  """A canary. Its failure is GOOD NEWS: read this before fixing it.
+
+  QGIS's own classifier, with no plugin in the way, cannot cope with a
+  double column holding an infinity or a NaN: quantiles and natural
+  breaks both hand back NaN class bounds, so every feature falls
+  outside every class, the layer paints nothing, and the run reports
+  success. `bridge.make_graduated_renderer` works around it by adding
+  a finiteness clause to the subset string it already sets and
+  restores.
+
+  RE-MEASURED 2026-08-12, and the name changed with the finding. The
+  workaround's comment said Natural breaks SEGFAULTS on such a column
+  -- exit 139, the application gone with the user's unsaved project.
+  Nine combinations were tried here (infinities with NaN, plus and
+  minus 1e308, and both together, each through quantiles, natural
+  breaks and equal intervals) and not one crashed on QGIS 4.0.3.
+  Absence of a crash in nine shapes is not proof the original
+  measurement was wrong -- it may have needed a larger column or a
+  different provider -- so the claim is not called false, it is
+  called UNREPRODUCED, and this test asserts what does reproduce.
+  Equal intervals comes back clean on every shape, which is why the
+  assertion below is over the two schemes that do not.
+
+  This test asserts THE BUG, straight at QGIS. While it passes, the
+  workaround is earning its place; when it fails, QGIS has been fixed
+  and the clause can go.
+
+  It was NAMED by that workaround's removal criteria for weeks and did
+  not exist -- found on 2026-08-12 by auditing prose for code it cites
+  that nothing defines. A workaround whose expiry test is missing has
+  no expiry: the comment tells a reader to watch for something that
+  cannot happen, which is worse than saying nothing, because it reads
+  as though somebody has it covered.
+
+  Runs in a CHILD process. A canary for a segfault cannot assert it
+  in-process without ending the suite, which is very likely why it was
+  never written; the child turns the crash into a result. The parent
+  requires that QGIS misbehaved in ONE of the two measured ways --
+  crashed, or produced a NaN bound -- because either is the defect and
+  fixing only one of them still retires the workaround's other half.
+
+  Regression: the non-finite workaround named a canary that did not exist, so nothing would ever have reported QGIS fixing it. [review]
+  """
+  import json
+  import subprocess
+  child = """import importlib.util, json, math, os, sys
+root, scheme = sys.argv[1], sys.argv[2]
+os.chdir(root); sys.path.insert(0, root)
+from qgis.core import (QgsApplication, QgsFeature, QgsField, QgsGeometry,
+                       QgsGraduatedSymbolRenderer, QgsPointXY,
+                       QgsVectorLayer)
+QgsApplication.setPrefixPath(os.environ.get("QGIS_PREFIX_PATH", "/usr"), True)
+app = QgsApplication([], False); app.initQgis()
+from weavingspace_qgis import compat
+layer = QgsVectorLayer("Polygon?crs=EPSG:3857", "canary", "memory")
+layer.dataProvider().addAttributes([compat.make_field("v", float)])
+layer.updateFields()
+feats = []
+for i, value in enumerate([1.0, 2.0, 3.0, 4.0, float("inf"), float("nan")]):
+  f = QgsFeature(layer.fields())
+  ring = [QgsPointXY(i, 0), QgsPointXY(i + 1, 0),
+          QgsPointXY(i + 1, 1), QgsPointXY(i, 1), QgsPointXY(i, 0)]
+  f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+  f["v"] = value
+  feats.append(f)
+layer.dataProvider().addFeatures(feats)
+layer.updateExtents()
+kept = [f["v"] for f in layer.getFeatures()]
+finite = [v for v in kept if isinstance(v, float) and math.isfinite(v)]
+print("KEPT " + json.dumps({"total": len(kept), "finite": len(finite)}))
+renderer = QgsGraduatedSymbolRenderer("v")
+method = compat.classification_method(scheme)
+if method is not None:
+  renderer.setClassificationMethod(method)
+print("BEGIN", flush=True)
+renderer.updateClasses(layer, 4)
+bounds = [(r.lowerValue(), r.upperValue()) for r in renderer.ranges()]
+nan = any(b != b or t != t for b, t in bounds)
+print("END " + json.dumps({"classes": len(bounds), "nan_bound": nan}),
+      flush=True)
+sys.stdout.flush()
+os._exit(0)
+"""
+  # Both schemes the workaround names, each in its OWN child, because
+  # the two misbehave differently: measured under QGIS 4.0.3, Natural
+  # breaks segfaults while Quantiles returns NaN bounds. Running them
+  # together would let the first crash hide the second's verdict.
+  seen = {}
+  for scheme in ("Quantiles", "Natural breaks"):
+    outcome = subprocess.run(
+      [sys.executable, "-c", child, ROOT, scheme],
+      capture_output=True, text=True, timeout=600)
+    seen[scheme] = (outcome, [l for l in outcome.stdout.splitlines()
+                              if l.startswith(("KEPT ", "BEGIN", "END "))])
+  outcome, lines = seen["Quantiles"]
+  kept = next((json.loads(l[5:]) for l in lines if l.startswith("KEPT ")), None)
+  assert kept is not None, \
+    f"the child never reported what the provider kept, so nothing " \
+    f"below is about the data this test intended. stdout={outcome.stdout!r} " \
+    f"stderr={outcome.stderr[-600:]!r}"
+  assert kept["finite"] < kept["total"], \
+    f"the memory provider normalised every non-finite value away " \
+    f"({kept}), so this test is now about an ordinary column of " \
+    f"numbers and proves nothing about QGIS's classifier"
+
+  # A crash means the child DIED: BEGIN reached, END never printed,
+  # and a non-zero exit. The exit status is part of it because the
+  # first version of this test left it out and read a clean exit as a
+  # crash -- os._exit discards whatever is still in stdout's buffer,
+  # so an unflushed END looked exactly like a segfault and the canary
+  # passed for the wrong reason on its first run.
+  verdicts = {}
+  for scheme, (result, rows) in seen.items():
+    crashed = (any(l == "BEGIN" for l in rows)
+               and not any(l.startswith("END ") for l in rows)
+               and result.returncode != 0)
+    done = next((json.loads(l[4:]) for l in rows if l.startswith("END ")),
+                None)
+    verdicts[scheme] = {
+      "crashed": crashed, "exit": result.returncode,
+      "nan_bound": bool(done and done["nan_bound"]),
+    }
+  finished = verdicts
+  misbehaved = any(v["crashed"] or v["nan_bound"] for v in verdicts.values())
+  assert misbehaved, \
+    f"GOOD NEWS, PROBABLY: QGIS's classifier no longer crashes or " \
+    f"returns NaN class bounds on a column holding an infinity and a " \
+    f"NaN -- it came back with {finished}. The finiteness clause in " \
+    f"bridge.make_graduated_renderer may now be redundant and can be " \
+    f"deleted along with this test, but check the NULL half too: it " \
+    f"has its own canary, test_qgis_still_counts_nulls_as_zero, and " \
+    f"the two need not be fixed together. Do NOT relax this " \
+    f"assertion to make the suite green -- that hides the very " \
+    f"change this test exists to report."
+
+
 def test_qgis_still_counts_nulls_as_zero():
   """A canary. Its failure is GOOD NEWS: read this before fixing it.
 
@@ -27481,6 +27618,8 @@ def main():
         test_two_notices_never_share_one_slot)
   check("numeric conversions are exact",
         test_numeric_conversions_are_exact)
+  check("QGIS still mishandles non-finite class breaks (canary)",
+        test_qgis_still_mishandles_non_finite_class_breaks)
   check("QGIS still counts nulls as zero (canary)",
         test_qgis_still_counts_nulls_as_zero)
   check("hostile stored properties never break adoption",
