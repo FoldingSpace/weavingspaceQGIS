@@ -157,6 +157,15 @@ jobs:
       PYTHONUNBUFFERED: "1"
     steps:
       - uses: actions/checkout@v7
+      - name: Let git work at all in this container
+        # The qgis images run as root while the checkout belongs to
+        # the runner user, so git refuses the repository outright
+        # ("detected dubious ownership") and EVERY git command fails.
+        # Tests that shell out to git then fail for a reason that has
+        # nothing to do with what they are testing -- three did on
+        # 2026-08-12, one of them newly written. The mutation workflow
+        # learned this the same day; this is the same fix, here.
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: What QGIS is this, actually
         # Recorded every run: when a failure appears months from now,
@@ -244,6 +253,15 @@ jobs:
       PYTHONUNBUFFERED: "1"
     steps:
       - uses: actions/checkout@v7
+      - name: Let git work at all in this container
+        # The qgis images run as root while the checkout belongs to
+        # the runner user, so git refuses the repository outright
+        # ("detected dubious ownership") and EVERY git command fails.
+        # Tests that shell out to git then fail for a reason that has
+        # nothing to do with what they are testing -- three did on
+        # 2026-08-12, one of them newly written. The mutation workflow
+        # learned this the same day; this is the same fix, here.
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Provision what this QGIS lacks, the way the plugin does
         run: python3 -u tools/ci_provision.py
       - name: Build the zip a user would install
@@ -284,6 +302,15 @@ jobs:
       PYTHONUNBUFFERED: "1"
     steps:
       - uses: actions/checkout@v7
+      - name: Let git work at all in this container
+        # The qgis images run as root while the checkout belongs to
+        # the runner user, so git refuses the repository outright
+        # ("detected dubious ownership") and EVERY git command fails.
+        # Tests that shell out to git then fail for a reason that has
+        # nothing to do with what they are testing -- three did on
+        # 2026-08-12, one of them newly written. The mutation workflow
+        # learned this the same day; this is the same fix, here.
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Provision what this QGIS lacks, the way the plugin does
         run: python3 -u tools/ci_provision.py
       - name: Render the gallery and score it against the library
