@@ -222,22 +222,27 @@ has one element, and the signature is then stamped against the wrong
 id or not at all — so the restyle path re-seeds and discards whatever
 the user changed in QGIS's own styling dock alongside the colours.
 
-DONE for the CATEGORIZED path 2026-08-12:
-`test_a_dock_refinement_survives_the_next_restyle` drives the whole
-sequence a user would and requires a stroke width set in the dock to
-survive the next style change. Verified as
-`adopted-signature-stamped-on-the-wrong-element`.
+ALL THREE DONE 2026-08-12, each verified to kill:
 
-STILL OPEN: the GRADUATED sibling in `_graduated_layer_edited`
-(dialog.py:3504-3508) is the identical five lines and remains
-unguarded — the catalogue refused the first anchor for exactly that
-ambiguity. The same test shape works: positional picks adopted from
-the dock, then a style change elsewhere, then require the dock's
-other refinement to survive. And `_edit_quant_colours` (3630) is a
-third. Extracting `_assignment_for(tile_id)` would collapse all nine
-to one site; worth doing when somebody is in that file anyway, but it
-adds no detection on its own, so it is not a substitute for the two
-tests still owed.
+* `test_a_dock_refinement_survives_the_next_restyle` — the
+  categorized adoption. A stroke width set in the dock survives the
+  next style change.
+* `test_a_graduated_dock_refinement_survives_the_next_restyle` — the
+  graduated twin, five identical lines away. Written separately
+  because the catalogue REFUSED an anchor spanning both, which is
+  also the argument: two identical pieces of code are two pieces of
+  code, and a covering test for one says nothing about the other.
+* `test_the_range_editor_repaints_with_its_own_elements_colours` —
+  the one whose result a user reads directly. The editor paints what
+  the dialog hands back, so the wrong lookup shows a list that is not
+  about the element being edited.
+
+Six of the nine copies are still unguarded, and nothing has sampled
+them. Extracting `_assignment_for(tile_id)` would collapse all nine
+to one site — worth doing when somebody is in that file anyway. It
+adds no detection by itself, but it would mean one mutant instead of
+nine, and the three faults above were each invisible until a mutant
+happened to land on that particular copy.
 
 A TABLE THAT STOPS ONE DICTIONARY SHORT — catalog.py:295. DONE
 2026-08-12. `test_every_declared_offset_is_pinned` states the rule
