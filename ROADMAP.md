@@ -22,6 +22,50 @@ something the release script may do on anyone's behalf.
 Delete an entry when it lands. This file describes what is still
 owed, and an entry nobody removes turns it into a diary.
 
+## How to use this file
+
+**WHEN.** The moment you notice something you are not doing now. That
+is the whole discipline, and the failure it prevents is specific:
+the ideas this project has actually lost are the ones that were
+mentioned once, in a conversation, while somebody was busy with
+something else. An entry costs thirty seconds and does not need to be
+good.
+
+**A thing you are NOT going to build yet** goes under the version you
+think it belongs to, as a bold-titled paragraph saying what it is and
+why it is not being done now. No branch, no design, no estimate.
+
+**A thing you have BUILT for a later version** gets a branch:
+
+    git branch for-0.24.1/<short-slug>          # name it for its version
+    # work on it, or cherry-pick what is already written
+
+then a paragraph naming that branch. Say what must be TRUE BEFORE IT
+MERGES if anything must -- a verification, a measurement, a decision
+somebody owes. That sentence is the reason the entry exists rather
+than the branch alone: a branch cannot tell you it is unfinished.
+
+**Deferring** is moving an entry to a later section. It is the
+maintainer's decision and no tool will make it, which is why
+`tools/check_roadmap.py` refuses rather than reschedules.
+
+**Deleting** is what you do when it lands. A roadmap nobody prunes
+turns from a statement of what is owed into a diary of what once was.
+
+**The phrase the checker reads is "nothing outstanding"**, in the
+version's own section, and it means nothing outstanding IN CODE. A
+section may still list process items underneath -- an account
+somebody must register, a setting in a web UI, a conversation with
+another project -- and those do not block a candidate, because a zip
+should not be held up by a GitHub Pages setting. Work that would
+CHANGE THE SOFTWARE does block, and belongs above that line or on a
+branch.
+
+**Every version with a branch must have a section.** The checker
+enforces it: a `for-<version>/*` branch whose version is not
+described here is work parked with nothing to say what it is, which
+is how a branch becomes archaeology.
+
 ---
 
 ## 0.24.0 — the release in progress
@@ -128,6 +172,28 @@ while the suite ran, and this suite creates and deletes thousands of
 short-lived files. One timed run with the scratch directory excluded
 against one without would settle whether that is a real tax or
 background noise.
+
+**Audit the docstrings and inline comments across the whole
+codebase.** The documentation standard says every reachable function
+carries a docstring naming its inputs, its outputs and what was
+mutated, and that comments sit at the points a reader would otherwise
+stop and wonder. `check_standards.py` enforces the PRESENCE of those
+things; nobody has read them for TRUTH since they were written.
+
+That distinction matters here more than in most projects, because
+this one's standard makes stale documentation actively harmful: a
+docstring is the only account of why a line takes the shape it does,
+and a wrong one is followed with confidence. A previous audit of a
+much smaller surface found three outright lies -- libs "appended",
+live update "after first Generate", a box that had been removed --
+and the code has moved a great deal since.
+
+What to look for, in order of harm: a docstring describing behaviour
+that changed; a comment citing a measurement that has since been
+re-measured (several dates and figures were revised today alone); a
+"why" that names a bug now fixed, or a workaround now removed; and an
+Args block that has drifted from the signature. Doing it per module
+with the tests open beside it is the only way it stays honest.
 
 **Backfill discovery shapes on the 33 bug-register entries** that
 predate the convention.

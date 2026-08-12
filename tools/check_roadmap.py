@@ -169,6 +169,27 @@ def main():
       f"{name} was written for {version} and is not merged. Merge it, "
       f"or rename it for the version it is really for.")
 
+  # Every parked branch must be DESCRIBED, whatever version it is
+  # for. A branch nobody wrote an entry for is work whose purpose
+  # survives only in whoever made it -- which is the failure this
+  # file exists to prevent, arriving by the other door.
+  # refs/heads/for-* does NOT match for-0.24.1/slug: the glob stops
+  # at the slash, so the pattern found nothing and the check passed
+  # vacuously when first written. List every branch and filter here.
+  all_parked = subprocess.run(
+    ["git", "for-each-ref", "--format=%(refname:short)", "refs/heads/"],
+    cwd=ROOT, capture_output=True, text=True)
+  for name in all_parked.stdout.split():
+    if not name.startswith("for-") or "/" not in name:
+      continue
+    parked_version = name.split("/")[0][len("for-"):]
+    if roadmap_section(parked_version) is None:
+      problems.append(
+        f"{name} is parked for {parked_version}, which ROADMAP.md "
+        f"does not describe. Add a section for it saying what the "
+        f"branch is and what must be true before it merges; a branch "
+        f"alone cannot tell you it is unfinished.")
+
   section = roadmap_section(version)
   if section is None:
     problems.append(
