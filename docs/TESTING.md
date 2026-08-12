@@ -367,6 +367,29 @@ allowance with the measurement written beside it, as `_stall_ceiling`
 does. A ceiling with a reason can be raised by whoever meets it; a
 bare number gets doubled by whoever is annoyed by it.
 
+## A child process inherits the suite's own environment
+
+A test that spawns a child gives it this process's environment, and
+this process is not the plain one you ran while writing the test. In a
+release the suite is SHARDED, so `WEAVINGSPACE_TEST_SHARD=2/3` is set;
+a child that reads that variable is told it is shard two of three and
+behaves accordingly. A new test of the coverage recorder asserted on
+the unsharded filename, passed every time it was run on its own, and
+failed inside the release -- the one place it had to work -- costing a
+candidate on 2026-08-11 after the whole suite had run.
+
+The habit that follows is cheap: when a test launches a child, pass an
+environment you CHOSE rather than the one you inherited. Remove the
+variables the suite sets, then set back exactly what the case needs,
+and write a case for each value that matters. Verifying the test under
+the conditions it will actually meet is the other half -- running it
+alone proves it works alone.
+
+The general form is the same trap as "the environment can satisfy the
+thing under test", arriving from the opposite direction: there, state
+outside the test made a check vacuous; here, state outside the test
+made a sound check fail.
+
 ## One fix, two loops
 
 The palette test was narrowed to ramps this plugin installed, and

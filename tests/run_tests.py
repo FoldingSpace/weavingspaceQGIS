@@ -7886,17 +7886,26 @@ def test_the_release_watchdog_ignores_a_sleeping_machine():
     f"from began_monotonic or a sleep re-enters through the ceiling"
 
 
-def _record_coverage_against_a_stub_suite(exit_code):
+def _record_coverage_against_a_stub_suite(exit_code, shard=None):
   """Run the real recorder over a suite that exits the way ours does.
 
   Args:
     exit_code: what the stub suite passes to os._exit. Zero stands
       for a suite that finished and reported; non-zero for one that
       failed or was killed by the stall watchdog.
+    shard: the WEAVINGSPACE_TEST_SHARD the recorder should believe it
+      is, as "i/n", or None for an unsharded run. The variable is
+      REMOVED rather than merely left unset, which matters: this test
+      runs inside a suite that is itself sharded during a release, so
+      a child inheriting the environment would be told it is shard
+      2 of 3 and would write a differently-named file. That cost a
+      candidate on 2026-08-11 -- the test passed run alone, where no
+      such variable exists, and failed only inside the release, which
+      is the one place it had to work.
 
   Returns:
-    (written, output). written is True when the recorder left a
-    per-test-coverage.json in the sandbox; output is the child's
+    (written, output). written is True when the recorder left the
+    file this shard should have written; output is the child's
     combined stdout and stderr, for a failure message that says what
     happened rather than which assertion was reached.
 
@@ -7929,10 +7938,16 @@ def _record_coverage_against_a_stub_suite(exit_code):
       "  check('a stub test', lambda: None)\n"
       "  sys.stdout.flush()\n"
       f"  os._exit({int(exit_code)})\n")
+  env = dict(os.environ)
+  env.pop("WEAVINGSPACE_TEST_SHARD", None)
+  suffix = ""
+  if shard:
+    env["WEAVINGSPACE_TEST_SHARD"] = shard
+    suffix = "." + shard.replace("/", "of")
   finished = subprocess.run(
     [sys.executable, os.path.join(root, "tools", "coverage_per_test.py")],
-    capture_output=True, text=True, timeout=600, env=dict(os.environ))
-  out = os.path.join(root, "reports", "per-test-coverage.json")
+    capture_output=True, text=True, timeout=600, env=env)
+  out = os.path.join(root, "reports", f"per-test-coverage{suffix}.json")
   written = os.path.exists(out)
   text = (finished.stdout or "") + (finished.stderr or "")
   shutil.rmtree(root, ignore_errors=True)
@@ -7968,6 +7983,16 @@ def test_the_coverage_record_survives_the_suite_exiting():
     f"the record was written but the recorder did not report what " \
     f"it held; the summary line is how a sharded run is checked " \
     f"against the others. Child said: {text.strip()[-600:]!r}"
+
+  # The sharded naming is the one a release actually depends on: the
+  # record runs in three processes and the merge stage finds them by
+  # this name. An unsharded pass alone would leave that untested.
+  written, text = _record_coverage_against_a_stub_suite(0, shard="1/3")
+  assert written, \
+    f"a sharded recorder wrote no per-test-coverage.1of3.json, so " \
+    f"the merge stage would find nothing and the candidate would " \
+    f"abort after the whole suite had run. " \
+    f"Child said: {text.strip()[-600:]!r}"
 
   written, text = _record_coverage_against_a_stub_suite(1)
   assert not written, \
