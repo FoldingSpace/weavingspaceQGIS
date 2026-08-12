@@ -1,6 +1,6 @@
-![Land use around the Great Lakes at six moments in time, drawn as coloured hexagons](docs/img/paper-fig2-banner.png)
+![Sixteen tiling and weave families, each mapping the same five Auckland deprivation indices over the same areas](docs/img/patterns.png)
 
-# WeavingSpace QGIS plugin
+# WeavingSpace QGIS
 
 Mapping several attributes of the same areas in a single map remains a challenge. Tiled and woven maps can help. Small repeating patterns of shapes are laid across the study area and each kind of shape is coloured by a different attribute. Project page:
 [foldingspace.github.io/weavingspaceQGIS](https://foldingspace.github.io/weavingspaceQGIS/).
@@ -62,13 +62,11 @@ result in a print layout.
 northeast of North America, after Ellis et al. (2021). Figure 2 from
 O'Sullivan and Bergmann (2026).*
 
-Sixteen designs, one place. Every cell below is the same Auckland
-deprivation data with the same variable in the same colour —
-deprivation blue, employment brown, income purple — and only the pattern
-changing, so the families can be compared with each other rather than
-admired one at a time.
-
-![Sixteen tiling and weave families, each mapping the same five Auckland deprivation indices over the same areas](docs/img/patterns.png)
+The grid at the top of this page is sixteen designs over one place:
+the same Auckland deprivation data with the same variable in the same
+colour throughout — deprivation blue, employment brown, income purple
+— and only the pattern changing, so the families can be compared with
+each other rather than admired one at a time.
 
 The plugin draws the same kinds of map from your own layers:
 

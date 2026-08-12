@@ -85,12 +85,6 @@ wheels from PyPI when QGIS lacks them. Plugins get rejected for
 hiding the second, not for doing it. Full detail in
 docs/PUBLISHING.md.
 
-**Two conversations with the upstream repository.** Whether the corrected
-large-plain-weave note was sent (dev/upstream-note-large-plain-weaves.md
-supersedes the first, which blamed a commit wrongly). And the
-element-id ceiling below, which is upstream's decision rather than
-ours.
-
 ## 0.24.1 — next
 
 ### Branch-backed
@@ -363,15 +357,6 @@ multiply by six when monitored. There is a general fix available:
 have the suite record each test's duration and size the ceiling from
 the slowest observed run rather than from a constant somebody chose.
 
-**Element ids past 26.** Blocked upstream rather than here. Weaves are
-specified as strings with one character per element (`abcdef-|ghijk-`),
-so doubled letters have nowhere to go, and case-distinguished ids
-collide on every path that folds case — GeoPackage table names,
-case-insensitive filesystems, saved layer properties. Going further
-means changing the weave string format upstream and in every stored
-design. Worth raising with the weavingspace project before anyone
-attempts it.
-
 **Antivirus cost on the macOS suite, measured rather than assumed.**
 Cisco Secure Endpoint was using ~26% of a core across two processes
 while the suite ran, and this suite creates and deletes thousands of
@@ -431,6 +416,30 @@ time, for stages not yet reached.
 
 **Backfill discovery shapes on the 33 bug-register entries** that
 predate the convention.
+
+## 0.24.2 — waiting on somebody else
+
+Everything here is blocked on the upstream weavingspace project
+rather than on this repository, which is why it is not 0.24.1: a
+release should not wait on a conversation we do not control. Moved
+here 2026-08-12 at the maintainer's instruction.
+
+### Wanted, no code yet
+
+**Element ids past 26.** Blocked upstream rather than here. Weaves are
+specified as strings with one character per element (`abcdef-|ghijk-`),
+so doubled letters have nowhere to go, and case-distinguished ids
+collide on every path that folds case — GeoPackage table names,
+case-insensitive filesystems, saved layer properties. Going further
+means changing the weave string format upstream and in every stored
+design. Worth raising with the weavingspace project before anyone
+attempts it.
+
+**Two conversations with the upstream repository.** Whether the corrected
+large-plain-weave note was sent (dev/upstream-note-large-plain-weaves.md
+supersedes the first, which blamed a commit wrongly). And the
+element-id ceiling below, which is upstream's decision rather than
+ours.
 
 ## Later, or never
 

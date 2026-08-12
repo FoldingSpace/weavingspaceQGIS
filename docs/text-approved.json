@@ -119,6 +119,11 @@
   "excerpt": "The pattern's grain in map units. Try aiming near the typica",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "12442ef4dcd51238": {
+  "approved": "2026-08-12",
+  "excerpt": "The grid at the top of this page is sixteen designs over one",
+  "where": "README.md"
+ },
  "1269baae3fb8f5cb": {
   "approved": "2026-08-08",
   "excerpt": "for a reader with protanopia",
@@ -403,6 +408,11 @@
   "approved": "2026-08-08",
   "excerpt": "Rotating the pattern usually helps: roughly 15\u201375\u00b0 suits two",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "565d72c47cb52b89": {
+  "approved": "2026-08-12",
+  "excerpt": "<h1>WeavingSpace QGIS</h1>\n<p class=\"byline\">An experimental",
+  "where": "docs/index.html"
  },
  "582906f2e55066f4": {
   "approved": "2026-08-08",
@@ -1019,6 +1029,11 @@
   "excerpt": "Mapping several attributes of the same areas at once is a lo",
   "where": "docs/USER-GUIDE.md"
  },
+ "e0a5f8bed87985c0": {
+  "approved": "2026-08-12",
+  "excerpt": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8",
+  "where": "docs/index.html"
+ },
  "e28d4124937d4ab7": {
   "approved": "2026-08-08",
   "excerpt": "restyled {} (no re-tiling needed)",
@@ -1193,6 +1208,11 @@
   "approved": "2026-08-08",
   "excerpt": "1. Go to the\n   [latest release](https://github.com/FoldingS",
   "where": "README.md"
+ },
+ "fe2d6a47e25287e9": {
+  "approved": "2026-08-12",
+  "excerpt": "<p>The grid at the top of this page is sixteen designs over ",
+  "where": "docs/index.html"
  },
  "fed2c7f13003104b": {
   "approved": "2026-08-08",

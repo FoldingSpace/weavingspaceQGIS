@@ -9,6 +9,7 @@
   :root {
     color-scheme: light dark;
     --ink: #1a1a1a;
+    --title: #3c3c3c;
     --paper: #fdfdfc;
     --quiet: #57534e;
     --rule: #d8d5d0;
@@ -17,6 +18,7 @@
   @media (prefers-color-scheme: dark) {
     :root {
       --ink: #e8e6e3;
+      --title: #d6d2cd;
       --paper: #16181a;
       --quiet: #a9a49d;
       --rule: #33373b;
@@ -28,20 +30,39 @@
     margin: 0;
     background: var(--paper);
     color: var(--ink);
-    font: 17px/1.62 Palatino, "Palatino Linotype", "Iowan Old Style",
-          Georgia, "Times New Roman", serif;
+    /* A generic sans for reading. Named families first for the
+       machines that have them, then the CATEGORY, so the page never
+       depends on any single font being installed. */
+    font: 17px/1.6 "Helvetica Neue", Helvetica, Arial, system-ui,
+          sans-serif;
   }
   .page {
     max-width: 40em;
     margin: 0 auto;
     padding: 4.5rem 1.5rem 6rem;
   }
+  /* Titles and section heads complement the body by CATEGORY rather
+     than by a particular face: a serif against a sans is the oldest
+     reliable pairing there is, and every stack here ends in a generic
+     family, so a machine missing Georgia gets its own serif and the
+     contrast survives. Nothing is loaded over the network, so nothing
+     can fail to arrive. */
+  h1, h2 {
+    font-family: Georgia, "Times New Roman", Times, serif;
+    color: var(--title);
+  }
   h1 {
-    font-size: 1.6rem;
+    font-size: 2.1rem;
     font-weight: 600;
-    line-height: 1.25;
-    margin: 0 0 0.15rem;
-    letter-spacing: 0.01em;
+    line-height: 1.2;
+    margin: 1.1rem 0 0.2rem;
+    letter-spacing: 0;
+  }
+  .topgrid {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 0;
   }
   .byline {
     color: var(--quiet);
@@ -49,7 +70,7 @@
     margin: 0 0 2.4rem;
   }
   h2 {
-    font-size: 1.05rem;
+    font-size: 1.22rem;
     font-weight: 600;
     margin: 3rem 0 0.7rem;
     padding-bottom: 0.3rem;
@@ -113,7 +134,9 @@
 <body>
 <main class="page">
 
-<h1>WeavingSpace: tiled and woven maps in QGIS</h1>
+<img class="topgrid" src="img/patterns.png" alt="Sixteen tiling and weave families, each mapping the same five Auckland deprivation indices over the same areas">
+
+<h1>WeavingSpace QGIS</h1>
 <p class="byline">An experimental QGIS plugin built on the weavingspace
 library of David O&rsquo;Sullivan and Luke Bergmann.</p>
 
@@ -162,13 +185,12 @@ green.</p>
   </div>
 </div>
 
-<p>Sixteen designs, one place. Every cell below is the same Auckland
-deprivation data with the same variable in the same colour &mdash;
-deprivation blue, employment brown, income purple &mdash; and only the
-pattern changing, so the families can be compared against each other
-rather than admired one at a time.</p>
-
-<img src="img/patterns.png" alt="Sixteen tiling and weave families, each mapping the same five Auckland deprivation indices over the same areas">
+<p>The grid at the top of this page is sixteen designs over one
+place: the same Auckland deprivation data with the same variable in
+the same colour throughout &mdash; deprivation blue, employment brown,
+income purple &mdash; and only the pattern changing, so the families
+can be compared against each other rather than admired one at a
+time.</p>
 
 <h2>Obtaining it</h2>
 
