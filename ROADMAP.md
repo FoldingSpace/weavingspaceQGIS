@@ -26,7 +26,51 @@ owed, and an entry nobody removes turns it into a diary.
 
 ## 0.24.0 — the release in progress
 
-Nothing outstanding. Everything written for this version is merged.
+Nothing outstanding in CODE. Everything written for this version is
+merged, and the checker reads this line rather than the list below,
+which is process rather than work.
+
+What remains is the release sequence itself: rc5 builds, somebody
+makes a map with it, then promotion (`python3 release.py`), the tag,
+and `--push` for the GitHub Release with the zip, testing report and
+comparison PDF attached.
+
+## Needs the maintainer, not the assistant
+
+**Enable GitHub Pages**, once: Settings -> Pages -> Deploy from a
+branch -> main, folder `/docs`. Until then the project page 404s and
+the README links to nothing.
+
+**An OSGeo user ID**, for submitting to plugins.qgis.org. It belongs
+to a person rather than to the software; register at id.osgeo.org and
+the plugin is owned by that account.
+
+**Two things to say out loud in that submission**, both already true
+and both better disclosed than discovered: the vendored MIT-licensed
+library under `weavingspace_qgis/vendor/`, and `deps.py` fetching
+wheels from PyPI when QGIS lacks them. Plugins get rejected for
+hiding the second, not for doing it. Full detail in
+docs/PUBLISHING.md.
+
+**Two upstream conversations with David.** Whether the corrected
+large-plain-weave note was sent (dev/upstream-note-large-plain-weaves.md
+supersedes the first, which blamed a commit wrongly). And the
+element-id ceiling below, which is his decision rather than ours.
+
+## After the release, agreed sequence
+
+**Dispatch the mutation instruments remotely** and triage what they
+find into `pre-0.24.1rc1`. They report rather than gate, so nothing
+here holds a release:
+
+    bash tools/watch_remote_mutation.sh <branch> both v0.24.0
+
+**Run the gallery experiment**, which is coded and has never been
+run. It answers whether the visual gallery's Delta-E thresholds
+survive a different font stack; if they do, the rendered report
+becomes available on three QGIS versions instead of one.
+
+    bash tools/watch_remote_mutation.sh <branch> gallery
 
 ## 0.24.1 — next
 
