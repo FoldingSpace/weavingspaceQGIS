@@ -83,12 +83,28 @@ def main():
   per_test = {}
   original_check = rt.check
 
-  def timed_check(name, fn):
-    """Run one test with its own recording set."""
+  def timed_check(name, fn, sharded=True):
+    """Run one test with its own recording set.
+
+    Args:
+      name: the test's display name.
+      fn: the test body.
+      sharded: forwarded to check(), which uses it to leave a
+        registration made from INSIDE a test out of the shard deal.
+        A wrapper that swallowed this argument would fail the moment
+        such a test ran -- and did, in the first sharded candidate,
+        because the fix for it was written on a branch parked for a
+        later version while the change that needed it went into this
+        one.
+
+    Returns:
+      Whatever check() returns; the lines touched are recorded
+      against this test's name.
+    """
     current.clear()
     mon.set_events(tool, mon.events.LINE)
     try:
-      original_check(name, fn)
+      original_check(name, fn, sharded=sharded)
     finally:
       mon.set_events(tool, 0)
       per_test[name] = sorted(current)
