@@ -26741,10 +26741,33 @@ def test_the_new_code_guard_refuses_a_baseline_it_cannot_find():
   # ...and a baseline that DOES resolve still answers. Without this
   # the test above would pass against a function that refused
   # everything, which is the vacuous shape docs/TESTING.md warns of.
-  answered = mutate_auto.changed_lines("HEAD")
-  assert isinstance(answered, dict), \
-    f"a resolvable baseline should still return a mapping of changed " \
-    f"lines, got {answered!r}"
+  #
+  # Unless there is no git. qgis/qgis:stable ships none at all, which
+  # was discovered by breaking all three of its jobs on 2026-08-12
+  # with a step that assumed the command existed. Where git is
+  # missing the control half cannot be asked, so the test asserts the
+  # REFUSAL instead -- and says which case it took, because a skip
+  # nobody is told about is how a green run on one image comes to be
+  # read as covering the same ground as another.
+  import shutil
+  if shutil.which("git") is None:
+    try:
+      mutate_auto.changed_lines("HEAD")
+    except SystemExit as exc:
+      assert "git is not installed" in str(exc), \
+        f"with no git available the refusal should say so plainly, " \
+        f"and it said: {exc}"
+      print("      (no git on this machine: asserted the refusal "
+            "rather than the answer)")
+    else:
+      raise AssertionError(
+        "there is no git on this machine and changed_lines answered "
+        "anyway, so it is reporting a diff it cannot have computed")
+  else:
+    answered = mutate_auto.changed_lines("HEAD")
+    assert isinstance(answered, dict), \
+      f"a resolvable baseline should still return a mapping of " \
+      f"changed lines, got {answered!r}"
 
 
 def test_a_release_publishes_from_the_branch_the_page_is_served_from():

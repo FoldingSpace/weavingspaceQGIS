@@ -165,7 +165,20 @@ jobs:
         # nothing to do with what they are testing -- three did on
         # 2026-08-12, one of them newly written. The mutation workflow
         # learned this the same day; this is the same fix, here.
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        # ...and qgis/qgis:stable has no git AT ALL, so this must not
+        # be an unconditional command: it exited 127 and failed all
+        # three stable jobs on 2026-08-12. Absence is reported rather
+        # than passed over, because the tests that shell out to git
+        # behave differently here and a silent skip would leave
+        # somebody reading a green stable run as if it had covered
+        # the same ground as the others.
+        run: |
+          if command -v git >/dev/null 2>&1; then
+            git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          else
+            echo "NO GIT IN THIS IMAGE: tests that shell out to git "\
+                 "will report it as unavailable rather than failing"
+          fi
 
       - name: What QGIS is this, actually
         # Recorded every run: when a failure appears months from now,
@@ -261,7 +274,20 @@ jobs:
         # nothing to do with what they are testing -- three did on
         # 2026-08-12, one of them newly written. The mutation workflow
         # learned this the same day; this is the same fix, here.
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        # ...and qgis/qgis:stable has no git AT ALL, so this must not
+        # be an unconditional command: it exited 127 and failed all
+        # three stable jobs on 2026-08-12. Absence is reported rather
+        # than passed over, because the tests that shell out to git
+        # behave differently here and a silent skip would leave
+        # somebody reading a green stable run as if it had covered
+        # the same ground as the others.
+        run: |
+          if command -v git >/dev/null 2>&1; then
+            git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          else
+            echo "NO GIT IN THIS IMAGE: tests that shell out to git "\
+                 "will report it as unavailable rather than failing"
+          fi
       - name: Provision what this QGIS lacks, the way the plugin does
         run: python3 -u tools/ci_provision.py
       - name: Build the zip a user would install
@@ -310,7 +336,20 @@ jobs:
         # nothing to do with what they are testing -- three did on
         # 2026-08-12, one of them newly written. The mutation workflow
         # learned this the same day; this is the same fix, here.
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        # ...and qgis/qgis:stable has no git AT ALL, so this must not
+        # be an unconditional command: it exited 127 and failed all
+        # three stable jobs on 2026-08-12. Absence is reported rather
+        # than passed over, because the tests that shell out to git
+        # behave differently here and a silent skip would leave
+        # somebody reading a green stable run as if it had covered
+        # the same ground as the others.
+        run: |
+          if command -v git >/dev/null 2>&1; then
+            git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          else
+            echo "NO GIT IN THIS IMAGE: tests that shell out to git "\
+                 "will report it as unavailable rather than failing"
+          fi
       - name: Provision what this QGIS lacks, the way the plugin does
         run: python3 -u tools/ci_provision.py
       - name: Render the gallery and score it against the library

@@ -533,9 +533,20 @@ def changed_lines(ref):
   # that cannot look must say so rather than report a clean zero, and
   # the probe below catches both because it asks git to do one thing
   # and requires an answer.
-  probe = subprocess.run(
-    ["git", "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"],
-    cwd=ROOT, capture_output=True, text=True)
+  try:
+    probe = subprocess.run(
+      ["git", "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"],
+      cwd=ROOT, capture_output=True, text=True)
+  except FileNotFoundError:
+    # Not every machine that runs this HAS git. qgis/qgis:stable ships
+    # none, which is worth stating plainly rather than letting a
+    # FileNotFoundError escape from a function whose contract is a
+    # dict of changed lines.
+    raise SystemExit(
+      "git is not installed here, so there is no way to tell what "
+      "changed since {}. This is NOT the same as 'nothing changed'. "
+      "Install git, or run this where git exists -- the qgis/qgis "
+      "stable image, for one, does not carry it.".format(ref))
   if probe.returncode != 0 or not probe.stdout.strip():
     raise SystemExit(
       f"cannot resolve '{ref}', so there is nothing to diff against "
