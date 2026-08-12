@@ -52,10 +52,11 @@ wheels from PyPI when QGIS lacks them. Plugins get rejected for
 hiding the second, not for doing it. Full detail in
 docs/PUBLISHING.md.
 
-**Two upstream conversations with David.** Whether the corrected
+**Two conversations with the upstream repository.** Whether the corrected
 large-plain-weave note was sent (dev/upstream-note-large-plain-weaves.md
 supersedes the first, which blamed a commit wrongly). And the
-element-id ceiling below, which is his decision rather than ours.
+element-id ceiling below, which is upstream's decision rather than
+ours.
 
 ## After the release, agreed sequence
 
@@ -118,7 +119,8 @@ so doubled letters have nowhere to go, and case-distinguished ids
 collide on every path that folds case — GeoPackage table names,
 case-insensitive filesystems, saved layer properties. Going further
 means changing the weave string format upstream and in every stored
-design. Worth raising with David before anyone attempts it.
+design. Worth raising with the weavingspace project before anyone
+attempts it.
 
 **Antivirus cost on the macOS suite, measured rather than assumed.**
 Cisco Secure Endpoint was using ~26% of a core across two processes
