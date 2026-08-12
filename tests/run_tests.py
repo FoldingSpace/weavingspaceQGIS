@@ -858,6 +858,16 @@ def test_the_catalogue_offers_only_designs_that_build():
   list with holes in it (hexagons: 2 to 16, 19 and 37; squares: 2 to
   9, 16 and 25). Every count is tried, and the offering must agree
   with what was built -- an omission has to be earned, not assumed.
+
+  Two passes, because the first one cannot see the whole list. The
+  loop over the MENU stops at MAX_ELEMENTS, and both lists reach past
+  it: hex-colouring 37 was declared with nothing reading it, and an
+  automatic mutant moved it freely. So the DECLARED counts are built
+  too, offered or not. They are measured facts about which
+  arrangements the library hand-builds, and they go on the menu the
+  day the element ceiling rises -- at which point a wrong one reaches
+  a user as a plausible map carrying the wrong number of variables.
+  (2026-08-12.)
   """
   import contextlib
   import io
@@ -8384,6 +8394,16 @@ def test_a_palette_is_usable_whatever_case_qgis_spells_it():
   The condition is manufactured rather than waited for: a ramp is
   saved under a deliberately odd casing, and the plugin is required
   to find it under its own.
+
+  BOTH directions are staged, and the second is the one that carries
+  the weight. The lookup remembers the style's names keyed by their
+  lowered form, so a lowercase request like "cividis" resolves
+  whether or not anything folds the REQUEST -- meaning the first half
+  below cannot fail on that account, and a mutation removing the fold
+  survived this test while it asked only that. What needs the fold is
+  a mixed-case request against a lowercase ramp, which a project
+  saved where QGIS spells it Cividis supplies when it is reopened
+  where the style holds cividis. (2026-08-12.)
 
   Regression: the installer skipped names case-insensitively while the lookup matched exactly, so four palettes were silently unavailable on any QGIS that spells them differently.
   """
@@ -22934,6 +22954,13 @@ def test_every_declared_offset_is_pinned():
   here until someone states what it should be, which is the point:
   the value is a design decision, not an implementation detail.
 
+  "Every entry" means BOTH dictionaries. It meant one of them until
+  2026-08-12: the loop walked TILINGS_BY_N while hex-slice and
+  square-slice declare their offsets in GENERAL_TILINGS, so those two
+  sat unread and a mutant moved one freely. A rule-stating test that
+  covers one container of two fails in exactly the way the shape is
+  meant to prevent.
+
   Regression: only hand-listed offsets were pinned, so entries nobody had listed could be changed freely.
   """
   from weavingspace_qgis import catalog
@@ -26400,6 +26427,62 @@ def test_the_new_code_mutation_guard_reports_rather_than_gates():
     "about whether its new code is defended"
 
 
+def test_a_withdrawn_equivalence_stops_excluding_its_mutant():
+  """Withdrawing an equivalence must put the mutant back, not just say so.
+
+  An entry in EQUIVALENT takes a mutant out of the denominator, which
+  is legitimate only while its demonstration holds. One stopped
+  holding: it argued that blocking a combo's signals was harmless
+  because the single slot on that signal did the same work anyway,
+  and a SECOND slot was connected later that destroys an element's
+  class picks. The entry was never revisited.
+
+  Marking such an entry `withdrawn` has to CHANGE something. A flag
+  the consumer ignores would be a comment claiming honesty over code
+  that goes on excluding the mutant, and a wrongly excluded mutant
+  flatters the score -- which docs/MUTATION-TESTING.md lists as this
+  measurement's characteristic failure, with four instances already.
+
+  Both directions are asserted: a live entry still excludes, or this
+  would pass against a function that excluded nothing at all.
+
+  Regression: an equivalence whose evidence a later change falsified went on removing its mutant from the denominator.
+  """
+  import importlib.util
+  spec = importlib.util.spec_from_file_location(
+    "_mutate_auto_equivalence",
+    os.path.join(ROOT, "tools", "mutate_auto.py"))
+  mutate_auto = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(mutate_auto)
+
+  live = [e for e in mutate_auto.EQUIVALENT if not e.get("withdrawn")]
+  gone = [e for e in mutate_auto.EQUIVALENT if e.get("withdrawn")]
+  assert live, \
+    "no live equivalences at all, so the positive half below cannot " \
+    "run and this test would prove only that everything is excluded"
+
+  class _Mutant:
+    def __init__(self, path, before):
+      self.path = path
+      self.before = before
+
+  for entry in live:
+    assert mutate_auto.is_equivalent(
+      _Mutant(entry["file"], entry["snippet"])), \
+      f"a live equivalence stopped excluding its mutant: " \
+      f"{entry['snippet']!r}. Either the snippet has drifted from " \
+      f"the source or the matching broke; both mean the recorded " \
+      f"evidence is no longer attached to anything"
+  for entry in gone:
+    assert not mutate_auto.is_equivalent(
+      _Mutant(entry["file"], entry["snippet"])), \
+      f"a WITHDRAWN equivalence is still excluding its mutant: " \
+      f"{entry['snippet']!r}. The entry says its demonstration no " \
+      f"longer holds, so the mutant belongs back in the denominator; " \
+      f"leaving it out flatters the score while the note claims " \
+      f"otherwise"
+
+
 def test_the_new_code_guard_refuses_a_baseline_it_cannot_find():
   """"Nothing changed" and "I could not look" must not read alike.
 
@@ -27220,6 +27303,8 @@ def main():
         test_resuming_skips_only_what_still_holds)
   check("the new-code mutation guard reports rather than gates",
         test_the_new_code_mutation_guard_reports_rather_than_gates)
+  check("a withdrawn equivalence stops excluding its mutant",
+        test_a_withdrawn_equivalence_stops_excluding_its_mutant)
   check("the new-code guard refuses a baseline it cannot find",
         test_the_new_code_guard_refuses_a_baseline_it_cannot_find)
   check("provisioning says why a package could not be fetched",

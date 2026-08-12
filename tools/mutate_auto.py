@@ -145,11 +145,17 @@ EQUIVALENT = [
       "and never returned, so no test can distinguish the two.",
     "evidence":
       "By construction, checked mechanically rather than argued: "
-      "walking the syntax tree of the enclosing function `done` "
-      "(dialog.py 4333-4407) finds exactly two references to `index` "
-      "-- the Store at 4384 and one Load at 4386, which is the `< 0` "
-      "test. A value read once, by a comparison both candidates "
-      "satisfy, cannot reach anything observable.",
+      "walking the syntax tree of the enclosing `done` closure finds "
+      "exactly two references to `index` -- one Store, at the line "
+      "above, and one Load, which is the `< 0` test on the line "
+      "below. A value read once, by a comparison both candidates "
+      "satisfy, cannot reach anything observable. Re-check by "
+      "parsing dialog.py and listing ast.Name nodes for `index` "
+      "inside that closure; deliberately stated without line "
+      "numbers, because the first version of this evidence cited "
+      "four of them and every one was wrong within the day, an "
+      "unrelated refactor above having moved the function twenty-one "
+      "lines down.",
   },
   {
     "file": "weavingspace_qgis/dialog.py",
@@ -187,20 +193,34 @@ EQUIVALENT = [
       mode_combo.blockSignals(True)""",
     "mutation": "call removed",
     "reason":
-      "Blocking signals while the style combo is set to follow the "
-      "variable. Two slots could care, and neither does. `touched` is "
-      "marked from `activated`, which Qt emits only on user "
-      "interaction and never from setCurrentText, so the style does "
-      "not stop following the variable. The one slot on "
-      "currentIndexChanged is _refresh_preview_colours, and the "
-      "surrounding code calls exactly that on the next line either "
-      "way. Unblocked, the same refresh happens twice instead of "
-      "once.",
+      "WITHDRAWN 2026-08-12. This claimed that blocking the style "
+      "combo's signals while it is set to follow the variable "
+      "changes nothing, because the only slot on currentIndexChanged "
+      "was _refresh_preview_colours and the surrounding code calls "
+      "that on the next line anyway. A SECOND slot was connected to "
+      "the same signal afterwards -- _on_style_changed -- and this "
+      "entry was never revisited. That slot destroys an element's "
+      "positional class picks when the scheme crosses into or out of "
+      "the graduated family, and the comment above the connection "
+      "says in as many words that the dialog's programmatic style "
+      "writes block signals so nothing reacts to the dialog talking "
+      "to itself. Blocking is therefore what makes that slot safe, "
+      "which is the opposite of harmless. It is NOT claimed here "
+      "that the mutant is observable, only that the exclusion is no "
+      "longer earned: an equivalence is a demonstration, and this "
+      "one's demonstration was falsified by a later change. The "
+      "mutant goes back into the denominator until somebody shows "
+      "otherwise, because a wrongly excluded mutant flatters the "
+      "score, which docs/MUTATION-TESTING.md lists as this "
+      "measurement's characteristic failure.",
     "evidence":
-      "Demonstrated by exhausting the connections rather than by "
-      "sampling: the combo has two, made at dialog.py:1912-1915, and "
-      "both are accounted for above. Same shape as the "
-      "opt_over_under entry already in this list.",
+      "None that still holds. The original read 'the combo has two "
+      "connections, at dialog.py:1912-1915' -- there are three now, "
+      "and those line numbers point at unrelated code. Found by "
+      "auditing the citations rather than by any test, which is the "
+      "third time on this project that reading a claim with fresh "
+      "attention has found a number quietly favouring the suite.",
+    "withdrawn": True,
   },
   {
     "file": "weavingspace_qgis/dialog.py",
@@ -208,17 +228,25 @@ EQUIVALENT = [
       return False""",
     "mutation": "return None",
     "reason":
-      "_source_layer_alive has exactly one caller, and it reads the "
-      "result as `if not self._source_layer_alive(...)`. False and "
-      "None are both falsy, so `not` gives True either way and the "
-      "guard behaves identically. The annotation says bool, which "
-      "None violates, but nothing at runtime consults it.",
+      "_source_layer_alive is only ever read as a TRUTH VALUE. False "
+      "and None are both falsy, so every caller behaves identically. "
+      "The annotation says bool, which None violates, but nothing at "
+      "runtime consults it. (This said 'exactly one caller' until "
+      "2026-08-12; there are two now, and the argument holds for "
+      "both because it never depended on the count -- only on how "
+      "the result is consumed. An argument phrased over a count "
+      "expires when the count changes, even when the reasoning does "
+      "not.)",
     "evidence":
       "Demonstrated by exhausting the call sites rather than by "
-      "sampling: `grep` finds one caller (dialog.py:2930), in a "
-      "boolean context. That is a stronger argument than a sandbox "
-      "comparison, which could only show that the cases it happened "
-      "to exercise agreed.",
+      "sampling, and RE-CHECKED 2026-08-12: `grep _source_layer_alive` "
+      "now finds TWO callers, not the one this said. Both consume it "
+      "as a truth value -- `if not self._source_layer_alive(...)` in "
+      "the run guard, and the condition of a ternary choosing between "
+      "a field index and -1 -- and None is falsy exactly where False "
+      "is, so the argument survives the second caller arriving. "
+      "Stated without line numbers deliberately: the version that "
+      "cited one had rotted.",
   },
   {
     "file": "weavingspace_qgis/dialog.py",
@@ -551,8 +579,21 @@ def is_equivalent(mutant):
     True if it matches an entry in EQUIVALENT, in which case it is
     dropped before sampling rather than counted as a survivor. Every
     entry carries its evidence; nothing is excluded on a hunch.
+
+    An entry marked ``withdrawn`` does NOT exclude anything. A
+    withdrawn entry is one whose demonstration a later change
+    falsified, and it is kept in the list rather than deleted so that
+    the argument and its collapse stay readable -- but the mutant
+    goes straight back into the denominator, because an exclusion is
+    only as good as the demonstration behind it and a wrongly
+    excluded mutant flatters the score. Kept honest by
+    ``test_a_withdrawn_equivalence_stops_excluding_its_mutant``.
+    (2026-08-12, after an audit found one whose evidence cited three
+    line numbers that had all moved and a slot count that had grown.)
   """
   for known in EQUIVALENT:
+    if known.get("withdrawn"):
+      continue
     if mutant.path.endswith(known["file"]) and known["snippet"] in mutant.before:
       return True
   return False
