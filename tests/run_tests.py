@@ -22370,6 +22370,27 @@ def test_every_declared_offset_is_pinned():
         wrong.append(
           f"{name} (under {n}): offset {entry['offset']}, expected "
           f"{expected}")
+
+  # GENERAL_TILINGS is the OTHER dictionary, and stopping at
+  # TILINGS_BY_N is how hex-slice's and square-slice's offsets came to
+  # be declared with nothing reading them: an automatic mutant moved
+  # catalog.py:295 from 0 to 1 and this test, which states the rule
+  # for the whole catalogue, never looked. Its entries are functions
+  # of the element count rather than literal dicts, so each is CALLED
+  # to get the spec it would hand the library; the offset is a
+  # constant inside the lambda, so any valid count reveals it.
+  general_n = 4
+  for name, spec_for in catalog.GENERAL_TILINGS.items():
+    entry = spec_for(general_n)
+    if "offset" not in entry:
+      continue
+    seen += 1
+    expected = deliberate_exceptions.get(name, DEFAULT_OFFSET)
+    if entry["offset"] != expected:
+      wrong.append(
+        f"{name} (GENERAL_TILINGS at n={general_n}): offset "
+        f"{entry['offset']}, expected {expected}")
+
   assert not wrong, \
     "offsets changed; each one is a different design:\n  " + \
     "\n  ".join(wrong)

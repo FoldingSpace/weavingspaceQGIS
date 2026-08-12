@@ -1404,6 +1404,17 @@ MUTATIONS = [
            "an unsupported count does not raise -- the library prints "
            "a complaint and substitutes a default unit, so the user "
            "gets a map quietly carrying the wrong number of variables"),
+  dict(name="general-tilings-offset-moved", file=CATALOG,
+       old='type="tiling", tiling_type="hex-slice", n=n, offset=0)',
+       new='type="tiling", tiling_type="hex-slice", n=n, offset=1)'
+           '  # mutation: cuts start off the corners',
+       test="test_every_declared_offset_is_pinned",
+       why="an offset moves where a slice family's cuts fall, so the "
+           "element count is identical and the design is not. The "
+           "offsets in GENERAL_TILINGS were declared with nothing "
+           "reading them: the rule-stating test looped over "
+           "TILINGS_BY_N alone, which is the one door a table test "
+           "left open"),
   dict(name="new-counts-offer-nothing", file=CATALOG,
        old="""  for _family, _spec_for in GENERAL_TILINGS.items():
     _families.setdefault(f"{_family} {_n}", _spec_for(_n))""",
