@@ -329,6 +329,31 @@ watcher — resolve the log freshly, report change rather than state,
 name the process it is measuring, stop when the thing it watches
 ends — would have prevented all five.
 
+NINE now, and both new ones were written on 2026-08-12 by somebody
+who had just finished reading this entry.
+
+The eighth waited for CI on ONE pinned commit sha; two more pushes
+landed while it polled, so the run it watched stopped being the
+branch's latest and it would have sat silent to its timeout. A
+watcher must key on the THING (this branch's runs), not on a snapshot
+of it (this sha's run), because the thing moves while you watch it.
+
+The ninth was its replacement, and it announced three runs that had
+failed HOURS earlier as though they were news — the "report change,
+not state" fault written down at the top of this entry, reproduced by
+the person writing the replacement for the one below it. The cause is
+always the same and always cheap to fix: seed the watcher with what
+is already true before it says anything, so its first report is a
+change and not an inventory.
+
+The shape that finally held: one branch-level monitor, seeded at
+launch, reporting every terminal verdict green or otherwise, and
+still covering pushes made after it started.
+
+Related and now done: `tools/check_before_push.py`, which is the
+cheaper half of the same problem. A watcher tells you twenty minutes
+late what a check tells you a second early.
+
 **Ceilings sized from measurement rather than belief.** Three were
 set wrong in one day, each producing a red result that meant nothing:
 a forty-minute CI job limit against 52-54 minute legs, a
