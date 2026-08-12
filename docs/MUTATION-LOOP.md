@@ -171,23 +171,36 @@ internally. The listing floor is applied to the WHOLE catalogue
 rather than to a slice, or sharding would trip the very check that
 exists to catch a broken listing.
 
-The same workflow carries an EXPERIMENT, dispatched the same way:
+The same workflow carried an EXPERIMENT, and on 2026-08-12 it
+answered its question, so it is now a fact rather than an experiment:
 
     bash tools/watch_remote_mutation.sh <branch> gallery
 
-The visual gallery is kept out of the push workflow because its
-Delta-E thresholds were tuned to one machine's fonts and
-antialiasing. That is a reasonable belief which nobody has tested,
-and there is a specific reason to doubt it: the gallery's SIBLING
-checks already run on Linux and pass. `visual_pair` and
-`visual_gamut` live inside the functional suite, so every push
-already compares rendered interiors against the ramps in force on
-three QGIS versions, and they have never complained about a font.
-The job records the container's font list before rendering and keeps
-the numbers, so the result is either "the rendered report now works
-on three QGIS versions" or "it differs by this much" -- the
-difference between deciding not to and finding out. It stays an
-experiment until the numbers settle it.
+**The visual gallery's thresholds are NOT tuned to one machine's
+fonts.** It had been kept out of the push workflow on that belief for
+months. Measured: 13 of 13 cases pass on QGIS 4.0.0, 4.0.3 and
+stable, and the Linux renders agree with the library's own output at
+dE mean 0.3 to 0.5 and p95 1.0 to 1.1 -- the same figures this
+project's Mac produces, and far below the ~2.3 that is a
+just-noticeable difference. The gallery now runs in ci.yml as its own
+job on every push, fifty-five seconds in parallel.
+
+Two things about how that answer arrived are worth keeping.
+
+The doubt was already written down here, and it was right: the
+gallery's SIBLINGS (`visual_pair` and `visual_gamut`) had been
+running inside the suite on three Linux versions all along and had
+never complained about a font. A belief with evidence against it,
+left untested because testing it seemed expensive, cost months of a
+gate nobody had.
+
+And the first run of the experiment measured the wrong thing
+entirely. All thirteen cases failed identically on all three
+versions with ModuleNotFoundError, because `tests/visual_tests.py`
+never put `libs/` on `sys.path` -- the same fix `tests/run_tests.py`
+had received the day before. An experiment that fails uniformly is
+usually broken rather than informative; read the failure before
+reading the result.
 
 What has NOT moved, and why: the Lab reference comparison, for the
 same font reason and with no sibling evidence to doubt it; and the

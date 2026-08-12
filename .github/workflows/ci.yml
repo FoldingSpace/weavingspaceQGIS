@@ -250,3 +250,41 @@ jobs:
         run: python3 build.py
       - name: Install it into a profile and load it
         run: python3 -u tools/install_and_load.py dist/weavingspace_qgis.zip
+
+  # The visual gallery, on Linux, on every push.
+  #
+  # It was kept out of CI for months on the belief that its Delta-E
+  # thresholds were tuned to one machine's fonts and antialiasing.
+  # That belief was never tested, and on 2026-08-12 an experiment
+  # tested it: 13 of 13 cases pass on 4.0.0, 4.0.3 and stable, and
+  # the renders agree with the library's own output at dE mean 0.3
+  # to 0.5, p95 1.0 to 1.1 -- the same figures this project's Mac
+  # produces, and far below the ~2.3 that is a just-noticeable
+  # difference.
+  #
+  # Its own JOB rather than a step in the suite legs: fifty-five
+  # seconds in parallel adds nothing to a leg that takes fifty-four
+  # minutes, where a step inside would add to every one of them.
+  # This is the gate that catches a WRONG MAP, which is this
+  # software's characteristic failure, and it now catches one on
+  # three QGIS versions instead of nobody's until release time.
+  gallery:
+    runs-on: ubuntu-latest
+    needs: standards
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        qgis: ["4.0.0", "4.0.3", "stable"]
+    container:
+      image: qgis/qgis:${{ matrix.qgis }}
+      options: --user root
+    env:
+      QT_QPA_PLATFORM: offscreen
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - name: Provision what this QGIS lacks, the way the plugin does
+        run: python3 -u tools/ci_provision.py
+      - name: Render the gallery and score it against the library
+        run: python3 -u tests/visual_tests.py

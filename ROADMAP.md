@@ -110,35 +110,6 @@ becomes available on three QGIS versions instead of one.
 
 ### Branch-backed
 
-**`for-0.24.1/coverage-dedupe`** — stop measuring coverage twice.
-`coverage_report.py` and `coverage_per_test.py` used the same
-mechanism and differed only in attribution, so the suite ran under
-monitoring twice. The per-test recorder collects branch events too,
-and `coverage_report --from-record` writes the same report from what
-is already on disk.
-
-ITS PREMISE HAS SHIFTED, re-assessed 2026-08-12. Both stages have
-left the release path, so the duplication no longer costs a
-candidate anything; it costs a CAMPAIGN, which is a smaller and less
-frequent bill. Worth having, no longer urgent.
-
-BEFORE MERGING, two things, and the first is new. It needs a REBASE
-that reconciles it with the same night's changes to all three files
-it touches: the recorder now writes only the tests a shard actually
-ran and survives the suite's `os._exit`, and the merger now salvages
-an empty-duplicate set while still refusing two shards that both ran
-a test. A naive rebase drops one of those. And it still needs its
-verification: a derived report compared against a directly measured
-one, which can no longer be done by running a candidate both ways
-because neither stage is in a candidate — record per-test coverage,
-derive with `--from-record`, run `coverage_report.py` directly, and
-compare. About fifty minutes of machine time, unattended.
-
-UNTIL IT MERGES OR IS DEFERRED, `tools/check_roadmap.py` refuses a
-0.24.1 candidate, which is correct: work written for a version may
-not be quietly left out of it. Deferring is the maintainer's
-decision and no tool here will make it.
-
 ### Wanted, no code yet
 
 **The catalogue sweep's seven flagged entries, judged alone
@@ -295,6 +266,29 @@ why it was not fixed in the middle of a release.
 predate the convention.
 
 ## Later, or never
+
+**Deriving the aggregate coverage from the per-test record** (was
+`for-0.24.1/coverage-dedupe`, commit 34dab50bd0cd, branch deleted
+2026-08-12). It made `coverage_report --from-record` write the
+aggregate from what the per-test recorder already collected, so the
+suite would not run twice under monitoring.
+
+Dropped because its premise went away the same week it would have
+landed: both coverage stages left the release path, so nothing
+automatic measures twice any more. What remains is a saving for
+somebody who deliberately wants the per-test record AND the aggregate
+report in one sitting, which is rare and chosen. Against that it
+needed a rebase across three files that were rewritten the night
+before -- the recorder now writes only what a shard ran and survives
+the suite's os._exit, the merger now salvages an empty-duplicate set
+-- and a careless rebase would have silently undone one of those. Its
+own precondition, a derived report compared against a measured one,
+was never met either.
+
+The commit is recoverable by hash if the premise returns, which it
+would if the aggregate report ever went back into an automatic
+process.
+
 
 **Badges on the README**, and the "minimalist faux 3d" button styling
 the user mentioned. Both cosmetic, neither designed.

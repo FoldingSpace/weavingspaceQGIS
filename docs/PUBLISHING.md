@@ -432,8 +432,9 @@ When the feedback is in and acted on, cut the release proper.
 The stages run in a deliberate order. The project's own standards and
 the secrets audit come first, so a release that breaks a rule fails in
 seconds rather than after the visual gallery. Then the functional
-suite, coverage, the visual gallery, and the colourspace comparison
-against the original renderer, each gating. Then the testing report,
+suite, the visual gallery and the colourspace comparison against
+the original renderer, each gating. Coverage is NOT among them
+any more (see what a release stopped doing, above). Then the testing report,
 which lists every test with its result and measured values.
 
 After that come the publication steps. The images in README.md and
