@@ -91,21 +91,6 @@ supersedes the first, which blamed a commit wrongly). And the
 element-id ceiling below, which is upstream's decision rather than
 ours.
 
-## After the release, agreed sequence
-
-**Dispatch the mutation instruments remotely** and triage what they
-find into `pre-0.24.1rc1`. They report rather than gate, so nothing
-here holds a release:
-
-    bash tools/watch_remote_mutation.sh <branch> both v0.24.0
-
-**Run the gallery experiment**, which is coded and has never been
-run. It answers whether the visual gallery's Delta-E thresholds
-survive a different font stack; if they do, the rendered report
-becomes available on three QGIS versions instead of one.
-
-    bash tools/watch_remote_mutation.sh <branch> gallery
-
 ## 0.24.1 — next
 
 ### Branch-backed
@@ -393,12 +378,18 @@ The rest of the sweep of `live_note` reads still stands. Most are
 look are any that assert an ABSENCE, since those are the shape that
 silence satisfies.
 
-**The progress chart draws stages the run will not execute.** Under
-`--quick` it still lists the 31-minute coverage report among the
-stages to come and adds it to the estimate, so the finishing time it
-prints is about half an hour pessimistic. It misled twice on
-2026-08-11. Display only -- no measurement is affected -- which is
-why it was not fixed in the middle of a release.
+**The progress chart draws stages the run will not execute.**
+Rewritten 2026-08-12: the entry named `--quick` and the coverage
+report, both retired, and deleting it on that basis would have been
+wrong -- the fault outlived its cause. `--resume` now produces the
+same pessimism. The chart lists every stage in `EXPECTED_STAGES` it
+has not yet seen and adds each one's estimate to the remaining time,
+while `skip_if_already_done` only learns a stage is skippable when
+the run reaches it. So a resumed run's finishing time is too late by
+the sum of everything it is about to skip, which on a late-stage
+resume is most of the run. Display only -- no measurement is
+affected. The fix is to ask the same question the skip asks, at chart
+time, for stages not yet reached.
 
 **Backfill discovery shapes on the 33 bug-register entries** that
 predate the convention.
