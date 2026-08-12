@@ -99,6 +99,11 @@
   "excerpt": "The Data & colours tab gives each element layer its initial\n",
   "where": "docs/USER-GUIDE.md"
  },
+ "108cf19f7ad10219": {
+  "approved": "2026-08-12",
+  "excerpt": "{}: download or unpack failed ({})",
+  "where": "weavingspace_qgis/deps.py"
+ },
  "111ae8aaaa75e8fb": {
   "approved": "2026-08-08",
   "excerpt": "## Saving and sharing",
@@ -444,6 +449,11 @@
   "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",
   "where": "weavingspace_qgis/help_content.py"
  },
+ "64028974e0430a30": {
+  "approved": "2026-08-12",
+  "excerpt": "no candidate versions for {}",
+  "where": "weavingspace_qgis/deps.py"
+ },
  "648fb4189a6b6bad": {
   "approved": "2026-08-08",
   "excerpt": "## Limits worth knowing",
@@ -518,6 +528,11 @@
   "approved": "2026-08-09",
   "excerpt": "Rings of neighbouring copies around the unit; 0 shows the un",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "7526e469aabaa352": {
+  "approved": "2026-08-12",
+  "excerpt": "{} could not be provisioned: {}",
+  "where": "weavingspace_qgis/deps.py"
  },
  "75627c684c96b9d3": {
   "approved": "2026-08-08",
@@ -749,6 +764,11 @@
   "excerpt": "Retain complete tileables at edges",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "a7e5ffb89342bff9": {
+  "approved": "2026-08-12",
+  "excerpt": "{} {}: no wheel matches this Python ({} file(s) offered; thi",
+  "where": "weavingspace_qgis/deps.py"
+ },
  "a7f794db338ed380": {
   "approved": "2026-08-08",
   "excerpt": "A first map appears of its own accord once a layer and varia",
@@ -948,6 +968,11 @@
   "approved": "2026-08-08",
   "excerpt": "Assign at least one variable in the Data & colours tab.",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "db2c5a2f58248a1b": {
+  "approved": "2026-08-12",
+  "excerpt": "{} {}: could not reach PyPI ({})",
+  "where": "weavingspace_qgis/deps.py"
  },
  "db669f6c7c16d29b": {
   "approved": "2026-08-08",
