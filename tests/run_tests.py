@@ -25784,6 +25784,75 @@ def test_the_new_code_mutation_guard_reports_rather_than_gates():
     "about whether its new code is defended"
 
 
+def test_a_release_publishes_from_the_branch_the_page_is_served_from():
+  """Tagging one branch while the page is served from another stops.
+
+  `git push origin HEAD` pushes whatever branch you are standing on,
+  and a tag does not care what branch it is on. So a release cut from
+  a pre-candidate branch produces a perfectly real GitHub Release
+  sitting beside a project page and a README that still describe the
+  previous version, because Pages serves docs/ from the publication
+  branch. Nothing in git objects, and the fault is visible only to
+  somebody who visits the page.
+
+  The refusal has to name the fast-forward, because the tree that was
+  measured is the tree that should land: re-deriving it on another
+  branch would throw away the candidate receipt for no reason.
+
+  Regression: the 0.24.0 sequence was written out on 2026-08-11 and the release would have been tagged on pre-0.24.0rc5, leaving main 51 commits behind with the page and README describing 0.23.
+  """
+  import shutil
+  import subprocess
+  import tempfile
+  root, release = _release_gate_copy()
+  subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+  # A COMMIT, not just an init. On an unborn branch git cannot name
+  # HEAD at all, the gate reads an empty string and permits -- so a
+  # repository with no history would have tested nothing while
+  # passing. (Found by this test failing on its own fixture.)
+  for setting, value in (("user.email", "test@example.invalid"),
+                         ("user.name", "test")):
+    subprocess.run(["git", "config", setting, value], cwd=root, check=True)
+  subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+  subprocess.run(["git", "commit", "-q", "-m", "sandbox"], cwd=root,
+                 check=True)
+  subprocess.run(["git", "checkout", "-q", "-B", release.PUBLICATION_BRANCH],
+                 cwd=root, check=True)
+  assert subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                        cwd=root, capture_output=True, text=True
+                        ).stdout.strip() == release.PUBLICATION_BRANCH, \
+    "the sandbox repository is not on the publication branch, so " \
+    "everything below would be measuring the fixture"
+
+  def branch_check_from(branch):
+    """Run the gate with the sandbox repository on `branch`."""
+    subprocess.run(["git", "checkout", "-q", "-B", branch], cwd=root,
+                   check=True)
+    try:
+      release.refuse_unless_publishing_from_the_right_branch()
+      return None
+    except SystemExit as stop:
+      return str(stop)
+
+  said = branch_check_from("pre-0.24.0rc5")
+  assert said, \
+    "a release was allowed to tag a pre-candidate branch, which " \
+    "publishes a GitHub Release beside a page describing the " \
+    "previous version"
+  for expected in ("pre-0.24.0rc5", release.PUBLICATION_BRANCH,
+                   "--ff-only"):
+    assert expected in said, \
+      f"the refusal must name the branch it found, the branch it " \
+      f"wants and the fast-forward that gets there; {expected!r} " \
+      f"is missing from: {said!r}"
+
+  said = branch_check_from(release.PUBLICATION_BRANCH)
+  assert said is None, \
+    f"the gate refused on {release.PUBLICATION_BRANCH} itself, so no " \
+    f"release could ever be cut: {said!r}"
+  shutil.rmtree(root, ignore_errors=True)
+
+
 def test_plugin_lifecycle():
   """The QGIS entry points themselves: classFactory, initGui, the
   toolbar action opening the dialog, and unload. Nothing else in the
@@ -26380,6 +26449,10 @@ def main():
         test_resuming_skips_only_what_still_holds)
   check("the new-code mutation guard reports rather than gates",
         test_the_new_code_mutation_guard_reports_rather_than_gates)
+
+
+  check("a release publishes from the branch the page comes from",
+        test_a_release_publishes_from_the_branch_the_page_is_served_from)
   check("the release watchdog stops a stuck stage",
         test_the_release_watchdog_stops_a_stuck_stage)
   check("the release watchdog leaves a busy stage alone",

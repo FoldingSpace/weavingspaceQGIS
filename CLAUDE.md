@@ -317,6 +317,26 @@ obligations: they exist so nobody pays twice for the same discovery.
   meant for PROMOTION is built by a run that measured this tree;
   resume is for recovering from an interruption, not for avoiding
   measurement. (2026-08-11.)
+- **A release is published FROM `main`, and release.py refuses
+  anywhere else.** `--push` runs `git push origin HEAD`, so it sends
+  whatever branch you are standing on, and a tag does not care what
+  branch it is on. Promote from a pre-candidate branch and the result
+  is a perfectly real GitHub Release sitting beside a project page
+  and a README that still describe the PREVIOUS version, because
+  Pages serves `docs/` from `main` and the repository's front page is
+  `main`'s README. Nothing in git objects; only somebody visiting the
+  page finds out. So the sequence has a checkout in the middle of it
+  -- `git checkout main && git merge --ff-only pre-<version>rc<n>` --
+  and `release.py` stops before committing or tagging if you are
+  elsewhere, naming that exact command. It refuses rather than
+  merging on anyone's behalf, because merging is a decision, and
+  `--ff-only` is the guard: if it will not fast-forward, something
+  reached `main` that this candidate never saw. The fast-forward
+  leaves the tree byte-identical, so the receipt still matches and
+  nothing is re-measured. Guarded by
+  `test_a_release_publishes_from_the_branch_the_page_is_served_from`.
+  (Found 2026-08-11 while writing the sequence out, before it had
+  been done wrongly rather than after.)
 - **A release PROMOTES a candidate; it never re-derives one.** A
   candidate that passes every gate writes a receipt
   (`dist/CANDIDATE-<label>.receipt.json`) holding a digest of exactly

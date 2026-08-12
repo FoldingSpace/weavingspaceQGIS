@@ -22,7 +22,7 @@ about=Creates tiled and woven map layers that carry several attributes
     installation, and declining simply closes the plugin. Released
     under the MIT licence; the bundled weavingspace library is MIT
     too, and both notices are in LICENSE.md.
-version=0.24.0
+version=0.24.1
 license=MIT
 author=Luke Bergmann
 email=luke.bergmann@gmail.com
