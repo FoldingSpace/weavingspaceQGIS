@@ -295,6 +295,28 @@ obligations: they exist so nobody pays twice for the same discovery.
   hands the build to somebody. A shortcut taken by default stops
   being a shortcut and becomes the process. A candidate meant for
   PROMOTION is built without it. (User instruction, 2026-08-11.)
+- **`--resume` exists so a defect in the MACHINERY does not cost a
+  re-run of the SOFTWARE's gates, and it is opt-in.** Three
+  candidates were abandoned in one evening (2026-08-11), each after
+  most gates had passed, and not one of the three faults was in the
+  plugin. `release.py --resume` skips a stage that passed before
+  against exactly the inputs it has now; without the flag nothing is
+  ever skipped, because a full run is what a release means. What
+  counts as unchanged is `STAGE_DEPENDS`, narrower than the tree and
+  wider than what ships: editing `tests/run_tests.py` retires the
+  suite's answer though no shipped byte moved, and a fix to
+  `tools/coverage_per_test.py` retires the coverage record and
+  nothing else. The documents the suite READS are in that list,
+  because `test_every_documented_command_still_exists` opens them and
+  has failed twice on prose. A skip must be honest as well as fast:
+  the four stages whose output is used may only be skipped when that
+  output survives in `reports/stage-logs/`, and the saved text is
+  handed back, since a report quoting an empty capture describes
+  nothing. Every skip announces the time the stage first passed.
+  Guarded by `test_resuming_skips_only_what_still_holds`. A candidate
+  meant for PROMOTION is built by a run that measured this tree;
+  resume is for recovering from an interruption, not for avoiding
+  measurement. (2026-08-11.)
 - **A release PROMOTES a candidate; it never re-derives one.** A
   candidate that passes every gate writes a receipt
   (`dist/CANDIDATE-<label>.receipt.json`) holding a digest of exactly

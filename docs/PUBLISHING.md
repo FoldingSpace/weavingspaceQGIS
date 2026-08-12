@@ -272,6 +272,52 @@ turns from a statement of what is owed into a diary of what once was.
 And put the thing with no code in it anyway: the ideas this project
 has lost were the ones mentioned only in conversation.
 
+## Resuming a run that was stopped by the machinery
+
+    python3 release.py --rc --resume
+
+A release is ninety minutes of gates, and not every failure is about
+the software. On 2026-08-11 three candidates were abandoned in one
+evening, each after most of the gates had passed, and none of the
+three faults was in the plugin: a coverage recorder that wrote
+nothing because the suite exits through `os._exit`, a recorder that
+logged every registration rather than every run, and a test whose
+timing had been tuned in a different harness. Each cost a full
+re-run of work that had already answered.
+
+`--resume` skips a stage that passed before against EXACTLY the
+inputs it has now. Nothing is skipped without the flag: a full run
+is what a release means, and the saving is worth asking for
+deliberately rather than inheriting by accident.
+
+**What counts as unchanged is declared, not guessed.**
+`STAGE_DEPENDS` in release.py names what each stage's answer turns
+on. It is deliberately narrower than the whole tree and wider than
+the files that ship: editing `tests/run_tests.py` retires the
+suite's answer although no shipped byte moved, and a fix to
+`tools/coverage_per_test.py` retires the coverage record AND NOTHING
+ELSE, which is the case the flag was built for. The documents the
+suite reads are in that list too, because
+`test_every_documented_command_still_exists` opens them and has
+failed twice on prose; a documentation edit really can break a test,
+and it is exactly the kind of change that feels as though it cannot.
+
+**A skip is honest or it does not happen.** Four stages' output is
+USED -- the testing report quotes the suite test by test -- so those
+may only be skipped when the output survives in
+`reports/stage-logs/`, and the saved text is handed to the caller.
+A skip that returned nothing would produce a report describing
+nothing, which is worse than the hour it saved. Every skip announces
+itself with the time the stage originally passed, because a gate
+that did not run is a thing a reader must be told rather than left
+to infer from a suspiciously short log.
+
+**When NOT to use it.** A candidate for promotion is built by a run
+that measured this tree, and `--resume` is for getting back to that
+point after an interruption, not for avoiding measurement. If you
+cannot say which stages it skipped and why each was still true, run
+it again without the flag.
+
 ## What to do BEFORE a candidate, and what not to
 
 Not much, and less than instinct suggests. The gates run

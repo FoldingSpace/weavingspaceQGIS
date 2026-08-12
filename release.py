@@ -415,15 +415,30 @@ def mutation_sample_size(changed_lines):
 # shipped byte moved, and a change to tools/coverage_per_test.py
 # invalidates the coverage record and NOTHING ELSE -- which is the
 # case that prompted this, four full re-runs into one afternoon.
+#
+# The DOCUMENTS are in the suite's list because the suite reads them:
+# test_every_documented_command_still_exists opens CLAUDE.md,
+# MAINTAINING.md and three files under docs/ and requires every
+# command they quote to exist. Leave them out and --resume will skip
+# a suite that never saw a sentence added since, which is precisely
+# "yesterday's verdict about today's code" -- and the shape is easy
+# to miss, because a documentation edit feels like it cannot break a
+# test. It can: that test has failed twice, both times on prose.
+DOCS_THE_SUITE_READS = ["CLAUDE.md", "MAINTAINING.md",
+                        "docs/TESTING.md", "docs/MUTATION-LOOP.md",
+                        "docs/PUBLISHING.md"]
 STAGE_DEPENDS = {
-  "functional suite": ["weavingspace_qgis", "tests/run_tests.py"],
+  "functional suite": ["weavingspace_qgis", "tests/run_tests.py"]
+                      + DOCS_THE_SUITE_READS,
   "coverage report": ["weavingspace_qgis", "tests/run_tests.py",
-                      "tools/coverage_report.py"],
+                      "tools/coverage_report.py"]
+                     + DOCS_THE_SUITE_READS,
   "visual gallery": ["weavingspace_qgis", "tests/visual_tests.py"],
   "reference comparison": ["weavingspace_qgis",
                            "tools/visual_reference_report.py"],
   "per-test coverage record": ["weavingspace_qgis", "tests/run_tests.py",
-                               "tools/coverage_per_test.py"],
+                               "tools/coverage_per_test.py"]
+                              + DOCS_THE_SUITE_READS,
 }
 STAGE_STATE_PATH = os.path.join(ROOT, "reports", "stage-state.json")
 
