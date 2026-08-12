@@ -28,7 +28,7 @@ keywords:
   - QGIS
   - choropleth
 license: MIT
-version: 0.24.0
+version: 0.24.1
 date-released: '2026-08-12'
 preferred-citation:
   type: article
