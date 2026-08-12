@@ -590,6 +590,118 @@ def check_linux_ci_covers_what_it_claims():
       f"one gets waved through")
 
 
+def check_args_blocks_match_signatures():
+  """Every documented argument is one the function actually takes.
+
+  The documentation audit of 2026-08-12 split into four kinds of rot,
+  and this is the one a machine can hold shut. The other three --
+  behaviour that changed, a measurement since re-measured, a why
+  naming a bug now fixed -- need somebody to read the code beside the
+  prose, and were done by hand.
+
+  What is checked, in the harmful direction first: a name DOCUMENTED
+  that the signature does not take, which sends a caller to pass an
+  argument that does not exist. Then a parameter the docstring omits,
+  and an Args block whose order disagrees with the signature.
+
+  Two things the first version of this got wrong, both worth keeping
+  because they are how a checker cries wolf. GROUPED entries --
+  "offset, offset_angle, point_angle: family-specific options" -- are
+  deliberate and readable, and reading only the first name reported
+  five perfectly good docstrings as broken. And *args sits BETWEEN
+  the positional and keyword-only parameters, which is where a
+  docstring naturally documents it; sorting it last reported
+  release.py's git() as out of order when it is exactly in order.
+
+  Returns:
+    None. Appends to ``problems``. Functions with no Args block at
+    all are ignored: whether one is REQUIRED is check_documentation's
+    question, and this one only asks whether what is there is true.
+  """
+  import ast as _ast
+  for path in our_sources():
+    try:
+      tree = _ast.parse(open(path, encoding="utf-8").read())
+    except SyntaxError:
+      continue
+    rel = os.path.relpath(path, ROOT)
+    for node in _ast.walk(tree):
+      if not isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+        continue
+      claimed = _documented_arguments(_ast.get_docstring(node))
+      if not claimed:
+        continue
+      actual = _signature_arguments(node)
+      extra = [n for n in claimed if n not in actual]
+      missing = [n for n in actual if n not in claimed]
+      if extra:
+        problems.append(
+          f"{rel}:{node.lineno} {node.name}() documents {extra}, which "
+          f"it does not take -- a reader will try to pass them")
+      elif missing:
+        problems.append(
+          f"{rel}:{node.lineno} {node.name}() takes {missing} and its "
+          f"Args block does not mention them")
+      elif claimed != actual:
+        problems.append(
+          f"{rel}:{node.lineno} {node.name}() documents its arguments "
+          f"as {claimed} but takes them as {actual}")
+
+
+def _documented_arguments(doc):
+  """The parameter names an Args block lists, in order.
+
+  Args:
+    doc: a docstring, or None.
+
+  Returns:
+    A list of names, empty when there is no Args block. Handles
+    grouped entries ("a, b, c: one explanation"), which this project
+    uses deliberately.
+  """
+  if not doc:
+    return []
+  lines = doc.splitlines()
+  start = None
+  for i, line in enumerate(lines):
+    if line.strip() in ("Args:", "Arguments:"):
+      start = i + 1
+      break
+  if start is None:
+    return []
+  names, indent = [], None
+  for line in lines[start:]:
+    if not line.strip():
+      continue
+    here = len(line) - len(line.lstrip())
+    if indent is None:
+      indent = here
+    if here < indent:
+      break
+    if line.strip().rstrip(":") in ("Returns", "Raises", "Yields",
+                                    "Attributes", "Note", "Example"):
+      break
+    if here == indent:
+      match = re.match(r"([*\w]+(?:\s*,\s*[*\w]+)*)\s*(\(.*?\))?\s*:",
+                       line.strip())
+      if match:
+        names += [part.strip().lstrip("*")
+                  for part in match.group(1).split(",")]
+  return names
+
+
+def _signature_arguments(node):
+  """The parameter names a function takes, in signature order."""
+  a = node.args
+  names = [p.arg for p in a.posonlyargs + a.args]
+  if a.vararg:
+    names.append(a.vararg.arg)
+  names += [p.arg for p in a.kwonlyargs]
+  if a.kwarg:
+    names.append(a.kwarg.arg)
+  return [n for n in names if n not in ("self", "cls")]
+
+
 def main():
   """Run every standards check and report everything that breaches one.
 
@@ -611,6 +723,7 @@ def main():
   check_derived_documents()
   check_linux_ci_covers_what_it_claims()
   check_skill_provenance()
+  check_args_blocks_match_signatures()
   if problems:
     print(f"{len(problems)} standards problem(s):\n")
     for problem in problems:

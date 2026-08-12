@@ -399,13 +399,13 @@ def draw_cell(png, unit, region, label, window):
     unit: the Tileable to lay across the region.
     region: the GeoDataFrame being mapped, carrying VARIABLES.
     label: the family's catalogue name, for the failure message.
-      window: (minx, miny, maxx, maxy) in the region's own
-        coordinates. EVERY cell is drawn to this same window, which is
-        the whole reason the grid reads as one place: the coastline
-        falls in the same spot in all sixteen, so a viewer sees
-        immediately that only the pattern changed. Letting each cell
-        frame itself put the same edge in sixteen different places and
-        the grid looked like sixteen datasets.
+    window: (minx, miny, maxx, maxy) in the region's own coordinates.
+      EVERY cell is drawn to this same window, which is the whole
+      reason the grid reads as one place: the coastline falls in the
+      same spot in all sixteen, so a viewer sees immediately that only
+      the pattern changed. Letting each cell frame itself put the same
+      edge in sixteen different places and the grid looked like
+      sixteen datasets.
 
   Returns:
     True when something was drawn, False otherwise. A tiling that

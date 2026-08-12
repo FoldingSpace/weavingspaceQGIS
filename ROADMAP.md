@@ -87,27 +87,21 @@ docs/PUBLISHING.md.
 
 ### Wanted, no code yet
 
-**Audit the docstrings and inline comments across the whole
-codebase.** The documentation standard says every reachable function
-carries a docstring naming its inputs, its outputs and what was
-mutated, and that comments sit at the points a reader would otherwise
-stop and wonder. `check_standards.py` enforces the PRESENCE of those
-things; nobody has read them for TRUTH since they were written.
+nothing outstanding.
 
-That distinction matters here more than in most projects, because
-this one's standard makes stale documentation actively harmful: a
-docstring is the only account of why a line takes the shape it does,
-and a wrong one is followed with confidence. A previous audit of a
-much smaller surface found three outright lies -- libs "appended",
-live update "after first Generate", a box that had been removed --
-and the code has moved a great deal since.
+The docstring audit was done on 2026-08-12 and is deleted rather than
+marked done, as this file says to do. What it found is worth one line
+each, because the pattern will recur: two PRODUCT defects, not just
+stale prose -- 0.24.1's only user-visible change never reached a
+user, and two modal dialogs sat on a path that forbids them -- plus a
+rule in check_standards.py that asserted its own enforcement and had
+none.
 
-What to look for, in order of harm: a docstring describing behaviour
-that changed; a comment citing a measurement that has since been
-re-measured (several dates and figures were revised today alone); a
-"why" that names a bug now fixed, or a workaround now removed; and an
-Args block that has drifted from the signature. Doing it per module
-with the tests open beside it is the only way it stays honest.
+The mechanisable quarter of it is now permanent:
+check_args_blocks_match_signatures runs with the other standards
+checks, and found a gap in its first run. The other three kinds --
+behaviour that changed, a measurement since re-measured, a why naming
+a bug now fixed -- need reading, and were read.
 
 ## 0.24.2 — waiting on somebody else
 
