@@ -119,7 +119,7 @@ WANTED = [
   ("twill weave", 4),
 ]
 
-# How much of each rendered map to keep, measured from the centre.
+# How much of the region's extent each cell shows, as a fraction.
 # Two things are traded here and neither wins outright. Too wide and
 # the pattern is a haze, so the cell shows that a design exists
 # without showing what it IS. Too tight and every tile is legible but
@@ -296,7 +296,7 @@ def unit_for(label, spec, spacing, elements):
   return unit
 
 
-def draw_cell(png, unit, region, label):
+def draw_cell(png, unit, region, label, window):
   """Tile the region with one unit and render it to its own PNG.
 
   Args:
@@ -304,6 +304,13 @@ def draw_cell(png, unit, region, label):
     unit: the Tileable to lay across the region.
     region: the GeoDataFrame being mapped, carrying VARIABLES.
     label: the family's catalogue name, for the failure message.
+      window: (minx, miny, maxx, maxy) in the region's own
+        coordinates. EVERY cell is drawn to this same window, which is
+        the whole reason the grid reads as one place: the coastline
+        falls in the same spot in all sixteen, so a viewer sees
+        immediately that only the pattern changed. Letting each cell
+        frame itself put the same edge in sixteen different places and
+        the grid looked like sixteen datasets.
 
   Returns:
     True when something was drawn, False otherwise. A tiling that
@@ -341,10 +348,17 @@ def draw_cell(png, unit, region, label):
   # figure would mean reaching into the renderer this project
   # deliberately treats as the reference.
   figure = tiled.render(legend=False, figsize=(3, 3))
+  minx, miny, maxx, maxy = window
   for cell in figure.axes:
     cell.set_axis_off()
-  figure.savefig(png, dpi=110, facecolor="white",
-                 bbox_inches="tight", pad_inches=0)
+    cell.set_xlim(minx, maxx)
+    cell.set_ylim(miny, maxy)
+    cell.set_aspect("equal")
+  # NOT bbox_inches="tight": tight re-crops to whatever each cell
+  # happens to contain, which would undo the shared window above and
+  # hand every design its own framing again.
+  figure.subplots_adjust(left=0, right=1, top=0, bottom=0)
+  figure.savefig(png, dpi=110, facecolor="white", pad_inches=0)
   # closed explicitly: sixteen figures left to the garbage collector
   # would sit in matplotlib's global registry and warn partway through
   plt.close(figure)
@@ -397,6 +411,14 @@ def main():
   # makes a tiled multivariate map worth drawing at all.
   spacing = extent / 15
 
+  # The one window every cell is drawn to. Square, centred on the
+  # region, and ZOOM of its longer side -- so the same ground, at the
+  # same scale, in the same place, sixteen times over.
+  midx = (region.total_bounds[0] + region.total_bounds[2]) / 2
+  midy = (region.total_bounds[1] + region.total_bounds[3]) / 2
+  half = extent * ZOOM / 2
+  window = (midx - half, midy - half, midx + half, midy + half)
+
   import tempfile
   from PIL import Image
 
@@ -406,7 +428,7 @@ def main():
   for index, (label, spec, elements) in enumerate(entries):
     unit = unit_for(label, spec, spacing, elements)
     png = os.path.join(scratch, f"cell{index}.png")
-    if unit is not None and draw_cell(png, unit, region, label):
+    if unit is not None and draw_cell(png, unit, region, label, window):
       cells.append(png)
       drawn += 1
 
@@ -418,8 +440,11 @@ def main():
   height = ROWS * SIDE + (ROWS - 1) * GAP
   sheet = Image.new("RGB", (width, height), "#ffffff")
   for index, png in enumerate(cells[:COLS * ROWS]):
+    # No per-cell cropping: the shared window already framed them
+    # identically, and cropping here by anything but the same amount
+    # would put the coastline back in sixteen different places.
     tile = Image.open(png).convert("RGB")
-    side = int(min(tile.size) * ZOOM)
+    side = min(tile.size)
     tile = tile.crop(((tile.width - side) // 2, (tile.height - side) // 2,
                       (tile.width + side) // 2, (tile.height + side) // 2))
     tile = tile.resize((SIDE, SIDE), Image.LANCZOS)
