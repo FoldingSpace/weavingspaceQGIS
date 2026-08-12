@@ -57,7 +57,16 @@ and anything suspiciously slow, is re-run alone before its verdict is
 believed, and the sweep never runs beside a release's gates or a
 census — one measurement at a time is how each stays a measurement.
 (This project: tools/mutation_catalogue_sweep.py, and the sweep
-section of docs/MUTATION-LOOP.md.) In one campaign
+section of docs/MUTATION-LOOP.md.) The sweep also splits across
+MACHINES with --slice i/n, dealt round-robin so each gets a mixture
+of cheap and expensive entries rather than one drawing the slow
+tail -- and where CI hands out machines for nothing, that is where
+both instruments belong: they want a machine to themselves for
+hours, and an instrument that costs somebody their afternoon is one
+that gets run rarely, which makes its findings arrive too late to
+act on. Run them REPORTING rather than gating: a number that stops a
+run belongs beside the gates, a number that informs the next round
+belongs in an artifact. In one campaign
 six tests were written to close gaps, verified to pass, and then
 failed to kill the very mutants they were written for. Three separate
 tests turned out to pass for the wrong reason:

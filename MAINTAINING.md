@@ -15,11 +15,33 @@ INDEPENDENT units is run four ways at once, not one:
 
 Independent means each unit's result does not depend on the others:
 mutation judgements, differential-sweep cases, per-file audits. Those
-shard cleanly and finish in about a quarter of the time. What does
-NOT shard is a timing-sensitive whole run -- a full test suite, a
-coverage record, a census -- where two at once inflate each other's
-times by 15-50% and a slowed unit can be recorded as passing when it
-merely stalled.
+shard cleanly and finish in about a quarter of the time.
+
+The FUNCTIONAL SUITE and the per-test coverage record shard too, as
+of 2026-08-11, three ways inside `release.py`:
+
+    WEAVINGSPACE_TEST_SHARD=i/n     every nth registered test
+
+That is safe here for a specific reason -- every test runs with an
+EMPTY project, which is the rule that makes a failure name the test
+that is actually broken -- so a slice is a legitimate subset rather
+than a different suite. It took the suite from 32 minutes to 11.
+
+Three things make it trustworthy rather than merely fast. Each shard
+prints how many tests it was OFFERED, and those totals must agree:
+the first sharded run read 285, 285 and 286, which is not a
+partition, and the cause was a test that registers a probe of its
+own consuming a slot. A registration made from inside a test now
+passes `sharded=False`. The merge of the coverage shards REFUSES a
+partial or overlapping set, because an incomplete coverage record
+never offers the missing tests the chance to notice a mutant and
+overstates survivors silently. And every stall ceiling widens by two
+and a half times whenever a shard is in force, against a measured
+contention cost of 15-50%.
+
+What still does NOT shard is a MEASUREMENT beside another
+measurement -- a census, the aggregate coverage report, anything
+where contention changes the answer rather than only the duration.
 
 The other half of the rule: arm a watcher in the same breath as you
 launch, with a filter that matches failure as well as progress. Both

@@ -177,6 +177,26 @@ obligations: they exist so nobody pays twice for the same discovery.
   tree is not in the state the procedure assumes. Pushing to
   `main`, tagging, and publishing a release remain the user's
   explicit call. (User instruction, 2026-08-10.)
+- **Work for a LATER version lives on a branch named for that
+  version, and everything owed by a version is written in
+  ROADMAP.md.** Two ways work goes missing, both closed by the same
+  gate. A branch written for a release and never merged: branches are
+  named `for-<version>/<slug>`, so work parked for 0.24.1 cannot
+  reach 0.24.0 by accident and work meant for 0.24.0 cannot be left
+  out of it. And an idea nobody wrote down: ROADMAP.md holds
+  branch-backed entries AND things wanted with no code yet, because
+  an idea that lived only in a conversation is gone when the
+  conversation is.
+  `tools/check_roadmap.py --merge` is the FIRST stage of every
+  release -- before standards, before the suite -- and it merges
+  branches due for this version, refuses when the version's roadmap
+  section still lists outstanding work, and stops rather than
+  resolving a merge conflict, because a conflict is a question about
+  intent. DEFERRING an entry to a later version is legitimate and is
+  the USER'S decision: it is made by moving the entry to a later
+  section, an edit no tool may make on their behalf. Delete an entry
+  when it lands; a roadmap nobody prunes becomes a diary.
+  (User instruction, 2026-08-11.)
 - **A branch is not created until the secrets check has passed, and
   carries only what CI needs.** The check runs BEFORE the branch
   exists, not after: a secret that reaches a public branch is public
@@ -266,6 +286,15 @@ obligations: they exist so nobody pays twice for the same discovery.
   version on disk is untouched) so a tester always knows which build
   they have. (User instruction, 2026-08-08; details in
   docs/PUBLISHING.md.)
+- **`--quick` is the USER'S call, never the assistant's, and never
+  the default.** It skips the coverage report -- 31 minutes that gate
+  nothing -- and keeps the visual gallery and colourspace comparison,
+  which cost 7 and 16 seconds and are the two stages that catch a map
+  drawn wrongly. Ask before using it, every time: a quicker candidate
+  carries less evidence, and weighing that trade belongs to whoever
+  hands the build to somebody. A shortcut taken by default stops
+  being a shortcut and becomes the process. A candidate meant for
+  PROMOTION is built without it. (User instruction, 2026-08-11.)
 - **A release PROMOTES a candidate; it never re-derives one.** A
   candidate that passes every gate writes a receipt
   (`dist/CANDIDATE-<label>.receipt.json`) holding a digest of exactly
@@ -416,8 +445,16 @@ obligations: they exist so nobody pays twice for the same discovery.
   believed, and none showed up in a final "done" line. Full procedure
   in `.claude/skills/long-job-supervision`. (User instruction,
   2026-08-10, after watching the beats catch them.)
-- **Two procedures live as SKILLS, and the rules here name them so
-  they get invoked.** `.claude/skills/tests-that-can-fail` is read
+- **Five procedures live as SKILLS, and the rules here name them so
+  they get invoked.** `.claude/skills/second-machine` is read before
+  adding CI to anything, when a suite that passes locally fails
+  elsewhere, and before concluding that a second machine's failure
+  is a defect in the code -- most are assumptions, and today's first
+  Linux run was seventy failures of which sixty-nine were one
+  missing package and exactly one was a real product defect.
+  `.claude/skills/long-job-supervision` now also covers HOW to shard
+  rather than only that one should, because the first sharded run
+  here produced slices that disagreed about the size of the suite. `.claude/skills/tests-that-can-fail` is read
   before writing or reviewing a test, and whenever a new test passes
   first time — it catalogues the ways a test passes without
   exercising anything, which this project has produced at a rate of

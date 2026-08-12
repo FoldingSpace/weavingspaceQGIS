@@ -245,6 +245,33 @@ release or teach everybody to wave it through.
 Full reasoning, including what deliberately did NOT move to CI, in
 docs/MUTATION-LOOP.md.
 
+## Work for later versions, and the roadmap
+
+Anything written now for a LATER release lives on a branch named
+`for-<version>/<slug>`, and everything a version owes is listed in
+`ROADMAP.md`, including what has no code yet.
+
+`tools/check_roadmap.py --merge` runs as the first stage of every
+release, before the standards check and long before the suite,
+because both failures it catches cost a second to find and ninety
+minutes to discover afterwards:
+
+- a branch written for THIS version and never merged. It is merged
+  here. A conflict aborts the release instead of being resolved,
+  since a conflict is a question about intent;
+- an entry in this version's roadmap section that nobody did. The
+  release stops and names it.
+
+Closing an entry means doing it or DEFERRING it, and deferring is the
+maintainer's call, made by moving the entry to a later section. No
+tool moves one. When a section is genuinely clear it says so, in the
+words the checker quotes back.
+
+Two habits keep it honest. Delete an entry when it lands, or the file
+turns from a statement of what is owed into a diary of what once was.
+And put the thing with no code in it anyway: the ideas this project
+has lost were the ones mentioned only in conversation.
+
 ## What to do BEFORE a candidate, and what not to
 
 Not much, and less than instinct suggests. The gates run
@@ -265,6 +292,35 @@ and a settled text-review queue (`python3 tools/text_review.py`,
 reviewed and applied by the USER). A stale generated document stops
 the build on a count mismatch, and no gate can approve prose on
 somebody's behalf.
+
+## --quick, and why it needs asking for
+
+    python3 release.py --rc --quick    # only with the maintainer's say-so
+
+`--quick` skips the coverage report: 31 minutes, and it gates
+nothing, being informational by its own docstring. It does NOT skip
+the visual gallery or the colourspace comparison. Those cost 7 and 16
+seconds (measured 2026-08-11) and are the two stages that catch a map
+drawn WRONGLY, which is this software's characteristic failure -- a
+wrong map looks exactly like a right one.
+
+The flag used to mean the opposite, dropping the gallery and the
+comparison while keeping the report. That was not wrong when it was
+written: the gallery was then the slow stage. Nobody re-measured
+after it became fast, so a flag meaning "skip the expensive stuff"
+had come to mean "skip the cheap valuable stuff and keep the
+expensive useless stuff". Re-measure a grouping like this whenever
+the costs move.
+
+**It is never the default, and the assistant does not choose it.**
+Using it is the maintainer's call, asked for each time. Two reasons.
+A candidate carries less evidence with it, and the person who has to
+weigh "less evidence, sooner" against "more evidence, later" is the
+one who will hand the build to somebody. And a shortcut that becomes
+habitual stops being a shortcut and becomes the process, which is how
+a gate quietly leaves a project without anyone deciding to remove it.
+
+A candidate you intend to PROMOTE is built without it.
 
 ## A release candidate, first
 
