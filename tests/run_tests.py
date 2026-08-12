@@ -8169,10 +8169,17 @@ def test_the_release_chart_estimates_from_previous_runs():
     assert "~" not in blank.replace("~/", ""), \
       f"the chart invented an estimate from nothing:\n{blank}"
 
-    # now with a previous run behind it
+    # A stage that has NOT started yet, taken from release.py's own
+    # list rather than named here. This assertion used to name the
+    # coverage report, which left the release path on 2026-08-12 --
+    # so the test asserted that a retired stage appears in the chart
+    # and could never pass again. Deriving the name means retiring a
+    # stage cannot rot this test a second time.
+    ahead = next(s for s in release.EXPECTED_STAGES
+                 if s not in ("standards check", "functional suite"))
     with open(release.TIMINGS_PATH, "w", encoding="utf-8") as handle:
       json.dump({"standards check": 8, "functional suite": 1150,
-                 "coverage report": 600}, handle)
+                 ahead: 600}, handle)
     release.STAGE_ORDER[:] = ["standards check", "functional suite"]
     release.STAGE_STATE.clear()
     release.STAGE_STATE["standards check"] = ("done", 8)
@@ -8188,9 +8195,34 @@ def test_the_release_chart_estimates_from_previous_runs():
       f"left:\n{chart}"
     assert "finishing around" in chart, \
       f"the chart gives no finishing time:\n{chart}"
-    assert "coverage report" in chart, \
-      "a stage that has not started is missing from the chart; what " \
-      "is LEFT is most of what a watcher wants"
+    assert ahead in chart, \
+      f"the stage {ahead!r} has not started and is missing from the " \
+      f"chart; what is LEFT is most of what a watcher wants:\n{chart}"
+
+    # A resumed run must not count stages it is about to skip. The
+    # chart adds an estimate for every stage it has not seen, while
+    # the skip is only decided when the run arrives there -- so a
+    # late resume promised a finish too late by most of the run.
+    # Guarded here because a display fault of exactly this shape
+    # misled twice on 2026-08-11 under --quick, and outlived --quick.
+    was_resuming = release.RESUMING
+    try:
+      release.RESUMING = True
+      resumed = release.stage_chart(time.time() - 400)
+    finally:
+      release.RESUMING = was_resuming
+    if release.will_probably_skip(ahead):
+      assert "skipping" in resumed, \
+        f"a resumed run is going to skip {ahead!r} and the chart " \
+        f"neither says so nor takes its time out of the "\
+        f"estimate:\n{resumed}"
+    else:
+      # No saved log for it, so it would NOT be skipped and the chart
+      # is right to count it. Asserted rather than passed over: the
+      # branch above is only meaningful if this one can be reached.
+      assert ahead in resumed, \
+        f"{ahead!r} would not be skipped, so it must still be listed " \
+        f"with its estimate:\n{resumed}"
 
     # a stage running past its usual time says so rather than
     # promising a finish that has already passed
