@@ -209,15 +209,82 @@ mutants judged, 16 killed:
     dialog.py:3630   compare == -> !=     (4)
     dialog.py:4385   number 1 -> 2        (153)
 
-Read them as a FAMILY before writing anything, exactly as
-docs/TESTING.md says: several are a default or a constant nobody
-pinned, and the answer to those is one table-driven test over the
-whole family rather than ten example tests. And each one still has to
-pass the two questions — name the harm a user would suffer, and would
-we have wanted this test anyway — or be accepted with the reason
-written down. `bridge.py:520` is the one to look at first: a boundary
-comparison in code that decides what a map draws is a different
-animal from a spacing default.
+THE FAMILY READING WAS DONE 2026-08-12, before any test was written,
+which docs/TESTING.md requires and which turned ten entries into five
+pieces of work. Each line below was read in its source with the
+covering tests beside it; no test has been written yet.
+
+ONE IDIOM, THREE SITES — dialog.py:3391, 3630 and the block at 3504
+that 3508 belongs to. All three are
+`next((a for a in self._assignments() if a["id"] == tile_id), None)`,
+and 3508 is the `_stamp_category_colours` call that follows one of
+them. Flipping `==` to `!=` finds a DIFFERENT element, or None when
+the map has one element, and the signature is then stamped against
+the wrong id or not at all. The harm is already written in the
+comment above 3504: the restyle path re-seeds the element and
+discards whatever the user changed in QGIS's own styling dock. So the
+test is one we would want anyway — style an element in the dock,
+restyle, require the dock's work to survive — and it should cover all
+three sites. Consider extracting `_assignment_for(tile_id)` first:
+three copies of one lookup is why nothing was guarding any of them.
+
+A TABLE THAT STOPS ONE DICTIONARY SHORT — catalog.py:295.
+`test_every_declared_offset_is_pinned` states the rule rather than
+listing names, exactly as it should, but it loops over
+`catalog.TILINGS_BY_N` alone and `GENERAL_TILINGS` is a separate
+dictionary. hex-slice and square-slice declare `offset=0` there and
+nothing reads it. Widen the existing loop; do not write a second
+test. This is the failure mode the table shape is supposed to
+prevent, arriving through the one door it left open.
+
+A CONSTANT GUARDED ONLY AGAINST LARGE CHANGES — catalog.py:307.
+`HEX_COLOURING_COUNTS` is in the hand-picked catalogue, but that
+entry replaces the whole tuple with `range(2, 53)`; moving 37 to 38
+survives it. The counts past 20 are measured facts about what the
+library supports (the comment says so), so a table over both count
+tuples asserting each named count actually builds is a test we would
+want — and it would catch a re-measurement nobody re-ran.
+
+A SWATCH THAT MUST SHOW THE WHOLE RAMP — dialog.py:3200.
+`step = (len(shades) - 1) / 7` samples eight shades across the fifty
+an Unclassed range produces. With 8 as the divisor the last sample
+falls short of the end, so the swatch omits the top of the ramp and
+the user picks by a picture that misrepresents it. The comment above
+the line already claims the swatch "shows the whole of what the range
+selected"; the test asserts that claim — first and last sampled
+shades are the first and last of the full list.
+
+A NOTICE THE PLUGIN MUST NOT MAKE UP — dialog.py:3345. `all(expected
+.get(key) == colour ...)` is how the dialog decides the user changed
+categorical colours in QGIS rather than the plugin having seeded
+them. Flipped to `!=`, the early return happens only when EVERY
+colour differs, so an ordinary run tells the user "Element 'x' keeps
+the N colour(s) set in QGIS" and marks the ramp cell Custom when they
+changed nothing. Twenty tests cover the line and none of them look at
+what was said. Assert on `BAR_MESSAGES`, which is what that recorder
+exists for.
+
+TWO THAT ARE PROBABLY NOT GAPS, and saying so is a legitimate
+outcome. `dialog.py:4385` mutates the `-1` sentinel to `-2`, and the
+next line is `if index < 0: continue` — both values take the same
+branch and `index` is not read again. That is equivalent, and needs
+the sandbox demonstration `EQUIVALENT` requires before it may leave
+the denominator. `bridge.py:520` is NOT the alarming one this entry
+used to bill it as, and the correction is worth keeping: it widens
+the SUGGESTED spacing, not the map, and the refusal it must agree
+with is `est > bridge.MAX_TILES_HARD` at dialog.py:4236 — so exactly
+MAX_TILES_HARD tiles is permitted by both, and `<` merely widens one
+further 2% step at exact equality. Still a legal map, still under the
+guard. Name the harm and none can be named; accept it with this
+reason, or find the discriminating case first.
+
+ONE STILL UNREAD — dialog.py:3068, `if count > 0` becoming
+`count > 1`. The two differ only at a class count of exactly 1, which
+is the constant-column case the plugin deliberately produces, and at
+count 1 the reversal `str(count - 1 - index)` is the identity for
+index 0. Whether stale picks with higher indices can survive a drop
+to one class decides whether this is equivalent or a real gap.
+Determine that before writing or accepting anything.
 
 **Resume does not understand a stage whose product is a FILE.**
 `skip_if_already_done` reads back a stage's captured text, so it can
