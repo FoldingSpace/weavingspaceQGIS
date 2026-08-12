@@ -158,6 +158,45 @@ pre-0.24.0rc5`, which is exactly what the gate would have told you.
 
 ### Wanted, no code yet
 
+**Write the tests for the ten survivors the guard found before it was
+stopped.** This is the work that the incremental guard moving out of
+the release path hands to 0.24.1, and it is the reason that move is
+not a weakening. Measured 2026-08-11 against `pre-0.24.0`, 28 of 80
+mutants judged, 16 killed:
+
+    bridge.py:520    compare <= -> <      (6 covering tests)
+    catalog.py:295   number 0 -> 1        (221)
+    catalog.py:307   number 37 -> 38      (221)
+    dialog.py:3068   number 0 -> 1        (3)
+    dialog.py:3200   number 7 -> 8        (1)
+    dialog.py:3345   compare == -> !=     (20)
+    dialog.py:3391   compare == -> !=     (1)
+    dialog.py:3508   call removed         (1)
+    dialog.py:3630   compare == -> !=     (4)
+    dialog.py:4385   number 1 -> 2        (153)
+
+Read them as a FAMILY before writing anything, exactly as
+docs/TESTING.md says: several are a default or a constant nobody
+pinned, and the answer to those is one table-driven test over the
+whole family rather than ten example tests. And each one still has to
+pass the two questions — name the harm a user would suffer, and would
+we have wanted this test anyway — or be accepted with the reason
+written down. `bridge.py:520` is the one to look at first: a boundary
+comparison in code that decides what a map draws is a different
+animal from a spacing default.
+
+**Resume does not understand a stage whose product is a FILE.**
+`skip_if_already_done` reads back a stage's captured text, so it can
+honestly skip the suite or the gallery. It cannot skip the per-test
+coverage record, because that stage's value is the shard files the
+merge consumes — and the merge deletes them on success. Skipping the
+record therefore leaves the merge with nothing and aborts the run,
+which is a trap rather than a saving. Give a stage an optional
+declared ARTEFACT, and let it be skipped only when the artefact is
+present; record and merge would then share
+`reports/per-test-coverage.json` and skip or run as a pair. Found the
+same night resume was built, by nearly falling into it.
+
 **One watcher, not a fresh script each time.** Five separate watcher
 faults in one day (2026-08-11), all in scripts written while
 attention was on the thing being watched: one repeated itself, one

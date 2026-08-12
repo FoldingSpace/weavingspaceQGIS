@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-74 defect(s) with a regression test.
+75 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -158,6 +158,8 @@ there is no separate list to remember.
   guarded by `test_the_coverage_record_survives_the_suite_exiting`
 - **the design view drew a dark outline around every tile, which fights the colour comparison the view is for.**  
   guarded by `test_the_design_view_draws_no_tile_outlines`
+- **a fifty-minute gate that could not be satisfied before the artefact shipped stopped four candidates' worth of work on a release whose plugin passed every test it was given.**  
+  guarded by `test_the_new_code_mutation_guard_reports_rather_than_gates`
 - **the preview's painting had almost no coverage, and removing its brush, pen, render hint or fitting arithmetic changed a picture no test looked at.**  
   guarded by `test_the_preview_actually_draws_what_it_is_given`
 - **release.py's watchdog measured wall clock, so a laptop asleep mid-release would have aborted a healthy run as hung. The same defect cost four verdicts in mutation batch 8 and was fixed there; release.py was written afterwards and repeated it.**  
@@ -184,7 +186,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 44
+- unrecorded: 45
 - reading the code: 7
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5

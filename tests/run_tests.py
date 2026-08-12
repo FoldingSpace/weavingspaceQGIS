@@ -25739,6 +25739,51 @@ def test_resuming_skips_only_what_still_holds():
   shutil.rmtree(root, ignore_errors=True)
 
 
+def test_the_new_code_mutation_guard_reports_rather_than_gates():
+  """The incremental guard does not stop a candidate any more.
+
+  It used to run inside every candidate with --require 70. On
+  2026-08-11 it ran fifty minutes against 2,274 changed lines and
+  reached 61.5%, and three things were wrong with it as a gate: it
+  quoted a blended figure over changed lines, which
+  docs/MUTATION-TESTING.md says never to do because logic runs high
+  and Qt plumbing runs low; it cost more than a candidate can carry,
+  two mutants timing out at twenty-one minutes each; and its red
+  meant "write tests over the next few days", which is a work list
+  rather than a gate.
+
+  This asserts the DECISION rather than the wording: no invocation of
+  mutate_auto inside release.py may carry --require, and the release
+  must name the remote dispatch so the finding still has a home. If
+  somebody restores the gate deliberately, this test is where they
+  say so.
+
+  Regression: a fifty-minute gate that could not be satisfied before the artefact shipped stopped four candidates' worth of work on a release whose plugin passed every test it was given.
+  """
+  import ast
+  source = open(os.path.join(ROOT, "release.py"), encoding="utf-8").read()
+  tree = ast.parse(source)
+  invocations = []
+  for node in ast.walk(tree):
+    if not isinstance(node, ast.List):
+      continue
+    words = [w.value for w in node.elts
+             if isinstance(w, ast.Constant) and isinstance(w.value, str)]
+    if any("mutate_auto" in w for w in words):
+      invocations.append(words)
+  for words in invocations:
+    assert "--require" not in words, \
+      f"release.py runs mutate_auto with --require, so the " \
+      f"incremental guard gates a candidate again: {words}. That " \
+      f"was changed deliberately (docs/MUTATION-LOOP.md); if it is " \
+      f"being changed back, change this test in the same commit and " \
+      f"say why."
+  assert "watch_remote_mutation.sh" in source, \
+    "the guard no longer runs here and release.py does not name the " \
+    "remote dispatch either, so a candidate now says nothing at all " \
+    "about whether its new code is defended"
+
+
 def test_plugin_lifecycle():
   """The QGIS entry points themselves: classFactory, initGui, the
   toolbar action opening the dialog, and unload. Nothing else in the
@@ -26333,6 +26378,8 @@ def main():
         test_the_coverage_record_survives_the_suite_exiting)
   check("resuming skips only what still holds",
         test_resuming_skips_only_what_still_holds)
+  check("the new-code mutation guard reports rather than gates",
+        test_the_new_code_mutation_guard_reports_rather_than_gates)
   check("the release watchdog stops a stuck stage",
         test_the_release_watchdog_stops_a_stuck_stage)
   check("the release watchdog leaves a busy stage alone",

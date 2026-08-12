@@ -3,7 +3,7 @@ name: long-job-supervision
 description: Supervise work that outlasts a single turn — test suites, builds, training runs, migrations, batch jobs — so the machine stays busy, finished work gets picked up immediately, and a stuck job is caught in minutes rather than hours. Use this whenever you start something long in the background, whenever a user asks for periodic status updates or says "keep going without me", whenever you are about to write a watcher or poll loop, and whenever a job seems to be taking longer than it should. Also use it before reporting that something is "still running" — that claim is worth exactly as much as the reading behind it.
 derived_from:
   - path: docs/MUTATION-LOOP.md
-    sha256: 7eb53d112c4500ce2aeb0bc89cb8ad093c7abae357e2c209a7e854fd9077d440
+    sha256: c7532454ceedc65d000178908374f4af42a6a021f4b965d43d94cd91525f2d39
 ---
 
 # Supervising work that outlasts a turn
@@ -264,6 +264,32 @@ ignored.
 - **A watchdog is not a performance budget.** If you want to know
   that something got slower, measure it and report; do not enforce it
   with a killer whose only vocabulary is "hung".
+
+## A long job that blocks, against one that reports
+
+Before putting a long measurement in front of a deadline, ask what
+happens when it comes back red. If the honest answer is "we write
+tests over the next few days", it is a work list rather than a gate,
+and putting it in the blocking path costs you the release AND, in
+time, the instrument — gates that cannot be satisfied get routed
+around.
+
+One project ran a mutation guard inside every release: fifty minutes,
+a sample that scaled with the size of the change, and a threshold it
+missed at 61.5%. It stopped a candidate whose software had passed
+everything else. Two of its units timed out at twenty-one minutes
+apiece, so it could not even finish inside the window it was gating.
+
+The fix was not a lower threshold. It was moving the measurement out
+of the blocking path onto other hardware, where it REPORTS, and
+triaging what it finds into the next release. The number stayed; what
+changed was what it is allowed to stop.
+
+Signs a long job belongs outside the critical path: its cost scales
+with the size of the change, so it is slowest exactly when the work is
+biggest; its result is a blended figure over things with genuinely
+different characteristics; nobody can act on a failure before the
+deadline it guards.
 
 ## Clocks: durations monotonic, timestamps wall
 

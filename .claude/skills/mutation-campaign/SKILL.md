@@ -3,7 +3,7 @@ name: mutation-campaign
 description: Run a mutation-testing campaign to measure and genuinely improve how good a test suite is — sampling mutants, triaging survivors, verifying that new tests actually fail, and deciding when a score can be defended. Use this whenever the user wants to know whether their tests are any good, asks about mutation testing or mutation score, says coverage looks high but they don't trust it, wants to raise a mutation score toward a target, or is writing tests to close gaps that a mutation tool found. Also use it when someone proposes to accept a surviving mutant as "equivalent", or asks how many mutants they need to sample — both are places where a campaign quietly turns into a vanity metric.
 derived_from:
   - path: docs/MUTATION-LOOP.md
-    sha256: 7eb53d112c4500ce2aeb0bc89cb8ad093c7abae357e2c209a7e854fd9077d440
+    sha256: c7532454ceedc65d000178908374f4af42a6a021f4b965d43d94cd91525f2d39
   - path: docs/MUTATION-TESTING.md
     sha256: 3afab0494ec033d810a461b55a22854db699effcb6394b2c8e9c6e1e27505b0a
 ---
@@ -205,6 +205,43 @@ Draw that sample in a single run rather than pooling several: one run
 draws distinct mutants, separate seeds can resample the same ones, and
 pooling is only legitimate if the suite did not change in between —
 exactly the discipline hardest to keep across several hours.
+
+## Gate or report: where the number is allowed to stop things
+
+A cheap incremental guard — mutate only the lines changed since the
+last release, require some percentage — is the usual way to stop a
+score decaying between campaigns. It is worth having. It is usually
+NOT worth making it block a release, and one project learned that the
+expensive way: it ran fifty minutes against 2,274 changed lines,
+reached 61.5% against its own 70% bar, and stopped a candidate whose
+software had passed every other check it was given.
+
+Three tests for whether a mutation number should gate anything.
+
+**Does the figure mean one thing?** A blended rate over changed lines
+does not, whenever the change spans layers with different testability.
+That run was 4/5 in the computational module and 10/17 in the UI
+wiring — a fair picture, and a useless single number. If you would
+refuse to quote the blended figure in a report, do not let it stop a
+build.
+
+**Can it finish inside the window it gates?** Cost per mutant is the
+size of its covering set, and that distribution has a long tail: two
+mutants there timed out at twenty-one minutes each, and three more ran
+past twenty against covering sets of 153 and 221 tests. A guard whose
+sample scales with the diff is slowest exactly when the release is
+biggest.
+
+**Can its red be acted on before the deadline?** If the honest
+response to failure is "write tests over the next few days", the red
+is a work list wearing a gate's clothes, and gates that cannot be
+satisfied get routed around — which costs you the instrument as well
+as the release.
+
+Failing any of the three, run it as a REPORTING instrument, ideally on
+somebody else's machine, and triage what it finds into the next
+release. Say so where the gate used to be, name the command, and keep
+the survivors: the point was never the number.
 
 ## Integrity hazards
 

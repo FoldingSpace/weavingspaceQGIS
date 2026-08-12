@@ -197,6 +197,41 @@ every push. A gate that is red for reasons nobody can act on is one
 people learn to route around, which is the same argument in every
 case.
 
+### The new-code guard moved out here too, and why
+
+Until 2026-08-11 the incremental guard ran inside every candidate
+with `--require 70`, and stopped the release below it. It does not
+any more: `release.py` prints what it would have sampled and names
+the dispatch command, and the run happens here, reporting.
+
+The evening it changed, it ran fifty minutes against 2,274 changed
+lines and reached 61.5%. Three separate things were wrong with it as
+a gate, and the threshold being inconvenient was not one of them.
+
+**It measured the wrong thing.** A single blended figure over changed
+lines is precisely what docs/MUTATION-TESTING.md says not to quote:
+deterministic logic runs high, Qt plumbing runs low, and a release
+that is mostly dialog wiring is dragged down by its own shape. Per
+module that run was bridge 4/5 and dialog 10/17 — a fair picture, and
+a useless single number.
+
+**It cost more than a candidate can carry.** Two mutants sat
+twenty-one minutes each and timed out; three more ran past twenty
+minutes against covering sets of 153 and 221 tests. Fifty minutes
+bought 28 verdicts of 80, and the sample scales with the diff, so a
+big release is exactly when it is slowest.
+
+**And its red meant "write tests over the next few days".** That is a
+work list, not a gate. A gate whose failure cannot be acted on before
+the artefact ships is one people learn to route around — the same
+argument this project already made for keeping the visual gallery and
+the catalogue sweep out of the release path.
+
+What is NOT claimed: that the survivors do not matter. Ten came out
+of that half-run and they are the 0.24.1 test-writing list. What
+changed is where the number is produced and what it is allowed to
+stop.
+
 **Read the results as work for the NEXT release.** A survivor is a
 claim about the tests, and the claim is false often enough to check
 first -- count the call sites and read the named test before
