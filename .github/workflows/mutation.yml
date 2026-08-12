@@ -127,6 +127,17 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0        # --since needs the tag and its history
+          fetch-tags: true      # ...and the tag itself, which depth alone did not bring
+      - name: Can this checkout actually see ${{ inputs.since }}
+        # Instrument BEFORE the thing that will otherwise answer
+        # quietly. On 2026-08-12 this leg reported "0 line(s) changed
+        # since v0.24.0" while deps.py carried 89 of them: the ref was
+        # not there and the tool diffed against nothing. mutate_auto
+        # now refuses outright, and this step says which case it is
+        # while the log is still cheap to read.
+        run: |
+          git rev-parse --verify "${{ inputs.since }}^{commit}" \
+            || { echo "NOT FOUND: ${{ inputs.since }}"; git tag | tail -20; exit 1; }
       - name: Provision what this QGIS lacks
         run: python3 -u tools/ci_provision.py
       - name: Record which tests touch which lines

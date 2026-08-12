@@ -422,7 +422,15 @@ def changed_lines(ref):
 
   Returns:
     {path: {line numbers}} for lines that are NEW or MODIFIED relative
-    to ref, taken from git's own diff rather than guessed.
+    to ref, taken from git's own diff rather than guessed. An empty
+    dict means the tree really is unchanged, never that the baseline
+    could not be found -- see Raises.
+
+  Raises:
+    SystemExit: when ``ref`` does not resolve to a commit in this
+      working directory. Returning an empty dict there would be
+      indistinguishable from an unchanged tree, and the caller would
+      print a reassuring "0 line(s) changed".
 
   This is what makes mutation testing affordable as a routine guard
   rather than a campaign. A full run samples a pool of a thousand
@@ -432,6 +440,28 @@ def changed_lines(ref):
   pool is only the lines that changed. On a normal day that is a
   handful of mutants and a few minutes.
   """
+  # Resolve the baseline ONCE, before any per-file diff, and refuse
+  # if it is not there. The per-path loop below swallows a failed
+  # `git diff` and moves on, which is right when one target file does
+  # not exist yet and catastrophic when the REF is the thing missing:
+  # every target then yields nothing and the caller prints "0 line(s)
+  # changed", which reads exactly like a tree nobody touched. That is
+  # what the remote incremental leg reported on 2026-08-12 while
+  # deps.py carried 89 changed lines -- a shallow checkout with no
+  # tags cannot see v0.24.0, and the instrument answered anyway. An
+  # instrument that cannot look must say so, not report a clean zero.
+  probe = subprocess.run(
+    ["git", "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"],
+    cwd=ROOT, capture_output=True, text=True)
+  if probe.returncode != 0 or not probe.stdout.strip():
+    raise SystemExit(
+      f"cannot resolve '{ref}', so there is nothing to diff against "
+      f"and no honest answer to give. This is NOT the same as "
+      f"'nothing changed'. On a CI runner the usual cause is a "
+      f"checkout without tags: actions/checkout needs fetch-depth: 0 "
+      f"AND the tag actually fetched. Check with "
+      f"`git rev-parse {ref}` in the same working directory.")
+
   changed = {}
   for name in TARGETS:
     path = os.path.join("weavingspace_qgis", name) \

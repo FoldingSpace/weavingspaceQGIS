@@ -25805,6 +25805,59 @@ def test_the_new_code_mutation_guard_reports_rather_than_gates():
     "about whether its new code is defended"
 
 
+def test_the_new_code_guard_refuses_a_baseline_it_cannot_find():
+  """"Nothing changed" and "I could not look" must not read alike.
+
+  `changed_lines` diffs each target file against a baseline revision
+  and swallows a failed `git diff` per path, which is right when one
+  target does not exist yet. When the REF is what is missing, every
+  target fails the same way, the dict comes back empty, and the caller
+  prints "0 line(s) changed since v0.24.0 ... nothing mutable has
+  changed; the suite is unaffected". That is a clean bill of health
+  issued by an instrument that never looked.
+
+  It happened: the remote incremental leg reported exactly that on
+  2026-08-12 while deps.py carried 89 changed lines since the tag, on
+  a checkout whose tags had not been fetched. So the resolution is
+  done once, up front, and a baseline that will not resolve is a
+  refusal rather than an answer.
+
+  Both directions are asserted, because a function that raised on
+  everything would satisfy the first half alone.
+
+  Regression: a remote mutation run reported a clean zero against a tag its checkout could not see.
+  """
+  import importlib.util
+  spec = importlib.util.spec_from_file_location(
+    "_mutate_auto_under_test",
+    os.path.join(ROOT, "tools", "mutate_auto.py"))
+  mutate_auto = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(mutate_auto)
+
+  # A revision that cannot exist. Refusing is the whole behaviour.
+  raised = None
+  try:
+    mutate_auto.changed_lines("v0.0.0-no-such-baseline")
+  except SystemExit as exc:
+    raised = str(exc)
+  assert raised is not None, \
+    "changed_lines accepted a baseline that does not resolve and " \
+    "returned quietly; the caller will print '0 line(s) changed' and " \
+    "a reader will believe the tree is clean"
+  assert "not the same as" in raised.lower() \
+      or "nothing changed" in raised.lower(), \
+    f"the refusal does not say what it is being confused with, which " \
+    f"is the entire point of it: {raised!r}"
+
+  # ...and a baseline that DOES resolve still answers. Without this
+  # the test above would pass against a function that refused
+  # everything, which is the vacuous shape docs/TESTING.md warns of.
+  answered = mutate_auto.changed_lines("HEAD")
+  assert isinstance(answered, dict), \
+    f"a resolvable baseline should still return a mapping of changed " \
+    f"lines, got {answered!r}"
+
+
 def test_a_release_publishes_from_the_branch_the_page_is_served_from():
   """Tagging one branch while the page is served from another stops.
 
@@ -26562,6 +26615,8 @@ def main():
         test_resuming_skips_only_what_still_holds)
   check("the new-code mutation guard reports rather than gates",
         test_the_new_code_mutation_guard_reports_rather_than_gates)
+  check("the new-code guard refuses a baseline it cannot find",
+        test_the_new_code_guard_refuses_a_baseline_it_cannot_find)
   check("provisioning says why a package could not be fetched",
         test_provisioning_says_why_a_package_could_not_be_fetched)
   check("every QGIS harness can reach the provisioned libs",

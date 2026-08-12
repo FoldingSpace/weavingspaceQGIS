@@ -47,6 +47,10 @@ WORKER = "weavingspace_qgis/worker.py"
 # the release driver: not shipped, but it decides whether a candidate
 # exists at all, so its guards earn the same proof as the plugin's
 RELEASE = "release.py"
+# the incremental mutation guard: it runs on somebody else's machine
+# and reports rather than gates, so its ONE safeguard against
+# answering a question it could not look at earns a proof too
+MUTATE_AUTO = "tools/mutate_auto.py"
 # the ONE part of the vendored library that is ours: the
 # patch making matplotlib and scipy optional
 VENDOR_TILEABLE = ("weavingspace_qgis/vendor/weavingspace/tileable.py")
@@ -1404,6 +1408,17 @@ MUTATIONS = [
            "an unsupported count does not raise -- the library prints "
            "a complaint and substitutes a default unit, so the user "
            "gets a map quietly carrying the wrong number of variables"),
+  dict(name="missing-baseline-reads-as-clean", file=MUTATE_AUTO,
+       old="  if probe.returncode != 0 or not probe.stdout.strip():",
+       new="  if False:  # mutation: answer even when the ref is absent",
+       test="test_the_new_code_guard_refuses_a_baseline_it_cannot_find",
+       why="without the refusal every target file's diff fails the "
+           "same way, changed_lines returns empty, and the caller "
+           "prints '0 line(s) changed ... nothing mutable has "
+           "changed; the suite is unaffected'. That is a clean bill "
+           "of health from an instrument that never looked, and it "
+           "was reported for real on 2026-08-12 against a tag the "
+           "runner's checkout could not see"),
   dict(name="general-tilings-offset-moved", file=CATALOG,
        old='type="tiling", tiling_type="hex-slice", n=n, offset=0)',
        new='type="tiling", tiling_type="hex-slice", n=n, offset=1)'
