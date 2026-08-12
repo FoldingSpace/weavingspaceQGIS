@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-85 defect(s) with a regression test.
+86 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -138,6 +138,8 @@ there is no separate list to remember.
   guarded by `test_every_design_control_is_reachable`
 - **a vanished element count was invisible, because the catalogue tests all iterate the catalogue's own keys.**  
   guarded by `test_every_element_count_still_has_its_designs`
+- **two stages stayed in EXPECTED_STAGES after they were retired, so every progress chart counted half an hour of work that would never happen.**  
+  guarded by `test_every_expected_stage_is_actually_run`
 - **tests/visual_tests.py never added libs/ to sys.path, so the visual gallery could not run on any Linux QGIS that had to provision its dependencies, and the first run of the gallery experiment measured that instead of the fonts it was written to measure.**  
   guarded by `test_every_qgis_harness_can_reach_the_provisioned_libs`
 - **named ramps used QgsSymbolLayerUtils' gradient preview while Custom swatches were hand-drawn stripes, so one column drew its cells two different ways.**  
@@ -206,7 +208,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 55
+- unrecorded: 56
 - reading the code: 7
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5

@@ -302,16 +302,26 @@ longer exists, the mutant leaves them, and the renderer has one class
 regardless. Accepted rather than claimed.
 
 **Resume does not understand a stage whose product is a FILE.**
-`skip_if_already_done` reads back a stage's captured text, so it can
-honestly skip the suite or the gallery. It cannot skip the per-test
-coverage record, because that stage's value is the shard files the
-merge consumes — and the merge deletes them on success. Skipping the
-record therefore leaves the merge with nothing and aborts the run,
-which is a trap rather than a saving. Give a stage an optional
-declared ARTEFACT, and let it be skipped only when the artefact is
-present; record and merge would then share
-`reports/per-test-coverage.json` and skip or run as a pair. Found the
-same night resume was built, by nearly falling into it.
+RESOLVED 2026-08-12, and not by building the mechanism this entry
+asked for. The trap was specific to the per-test coverage record,
+whose value is the shard files the merge consumes; both stages left
+the release path when the coverage work moved out, so no stage in the
+list now produces a file that a later stage eats.
+
+What was left behind was worse than the trap. Both names stayed in
+EXPECTED_STAGES with nothing running them, so the progress chart
+listed each as still to come and added its estimate -- the third time
+a pessimistic chart has misled here. Removed, and
+`test_every_expected_stage_is_actually_run` now compares the list
+against the run() calls in release.py so a retired stage cannot
+linger again. It found a third case immediately: "testing report",
+which is genuinely written in-process and is exempted with that
+reason.
+
+If a stage whose product is a file ever returns, the mechanism this
+entry described is still the right one: give the stage a declared
+ARTEFACT and let it be skipped only when the artefact is present.
+Building it now would be machinery for a case that does not exist.
 
 **One watcher, not a fresh script each time.** Five separate watcher
 faults in one day (2026-08-11), all in scripts written while

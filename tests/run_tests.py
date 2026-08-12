@@ -26357,6 +26357,91 @@ def test_colours_a_reader_cannot_separate_are_reported():
   dlg.close()
 
 
+def test_every_expected_stage_is_actually_run():
+  """A stage the release lists must be a stage the release runs.
+
+  EXPECTED_STAGES is what the progress chart draws: every name it has
+  not yet seen is listed as still to come, with its estimate added to
+  the time remaining. So a name left there after its stage retires is
+  not untidiness, it is a chart that promises a finish half an hour
+  later than the run will deliver -- and this project has now been
+  misled by a pessimistic chart three times, twice under --quick and
+  once under --resume.
+
+  It happened: the per-test coverage record and the shard merge stayed
+  on the list after both left the release path, and nothing noticed
+  because nothing compares the list against the calls.
+
+  So the list is compared against the calls. Every name must appear as
+  a literal in a run() or run_sharded() invocation somewhere in
+  release.py. Read from the source with ast rather than by importing
+  and inspecting, because the stages are strings passed at call sites
+  rather than anything a module exposes.
+
+  Regression: two stages stayed in EXPECTED_STAGES after they were retired, so every progress chart counted half an hour of work that would never happen.
+  """
+  import ast
+  source = open(os.path.join(ROOT, "release.py"), encoding="utf-8").read()
+  tree = ast.parse(source)
+
+  listed = []
+  for node in ast.walk(tree):
+    if not isinstance(node, ast.Assign):
+      continue
+    if not any(isinstance(t, ast.Name) and t.id == "EXPECTED_STAGES"
+               for t in node.targets):
+      continue
+    listed = [e.value for e in node.value.elts
+              if isinstance(e, ast.Constant) and isinstance(e.value, str)]
+  assert listed, \
+    "no EXPECTED_STAGES list was found in release.py, so this test " \
+    "is comparing nothing against nothing"
+
+  # every string handed to run() or run_sharded() anywhere in the file
+  called = set()
+  for node in ast.walk(tree):
+    if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name):
+      continue
+    if node.func.id not in ("run", "run_sharded"):
+      continue
+    for arg in node.args:
+      if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+        called.add(arg.value)
+  assert called, \
+    "no run() calls with a literal stage name were found, so the " \
+    "comparison below would pass by finding nothing to compare"
+
+  # Stages the driver performs inline rather than through run(). Each
+  # is a claim that the work happens without a subprocess; keep the
+  # list short and the reason attached.
+  inline = {
+    "roadmap and branches": "check_roadmap runs in-process, before "
+                            "anything else, so a conflict aborts "
+                            "before any measurement starts",
+    "build release candidate": "packaging is build.py called as a "
+                               "module, not a subprocess",
+    "testing report": "write_testing_report is called in-process; it "
+                      "assembles the per-test record from results "
+                      "already in memory and shells out to nothing",
+    "candidate dossier": "written by release.py itself",
+    "build zip": "as above -- build.py in this process",
+  }
+  missing = [s for s in listed if s not in called and s not in inline]
+  assert not missing, \
+    f"release.py lists {missing} in EXPECTED_STAGES and never runs " \
+    f"them. The progress chart will show each one as still to come " \
+    f"and add its estimate to the time remaining, so every run will " \
+    f"promise a finish later than it delivers. Delete the name, or " \
+    f"-- if the work really does happen inline -- add it to the " \
+    f"`inline` map above with the reason."
+
+  stale = [s for s in inline if s not in listed]
+  assert not stale, \
+    f"{stale} are exempted here as inline stages and are no longer " \
+    f"in EXPECTED_STAGES at all; an exemption for something that has " \
+    f"gone is how the next real one gets waved through"
+
+
 def test_resuming_skips_only_what_still_holds():
   """--resume reuses a stage's answer, and refuses to invent one.
 
@@ -27339,6 +27424,8 @@ def main():
         test_the_release_watchdog_ignores_a_sleeping_machine)
   check("the coverage record survives the suite exiting",
         test_the_coverage_record_survives_the_suite_exiting)
+  check("every expected stage is actually run",
+        test_every_expected_stage_is_actually_run)
   check("resuming skips only what still holds",
         test_resuming_skips_only_what_still_holds)
   check("the new-code mutation guard reports rather than gates",

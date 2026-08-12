@@ -106,7 +106,14 @@ EXPECTED_STAGES = [
   "functional suite",
   "visual gallery", "create reference venv",
   "install reference packages", "reference comparison",
-  "testing report", "per-test coverage record", "merge the coverage shards",
+  "testing report",
+  # The per-test coverage record and the shard merge were listed here
+  # until 2026-08-12, after the stages themselves left the release
+  # path. Nothing ran them; the chart went on listing both and adding
+  # their estimates, so every run promised a finish it would beat by
+  # half an hour. test_every_expected_stage_is_actually_run now
+  # refuses a name that no run() call uses, so a retired stage cannot
+  # linger here again.
   "refresh published images",
   "test map", "bug register", "published content audit",
   "build release candidate", "candidate dossier", "build zip",
@@ -438,9 +445,6 @@ STAGE_DEPENDS = {
   "visual gallery": ["weavingspace_qgis", "tests/visual_tests.py"],
   "reference comparison": ["weavingspace_qgis",
                            "tools/visual_reference_report.py"],
-  "per-test coverage record": ["weavingspace_qgis", "tests/run_tests.py",
-                               "tools/coverage_per_test.py"]
-                              + DOCS_THE_SUITE_READS,
 }
 STAGE_STATE_PATH = os.path.join(ROOT, "reports", "stage-state.json")
 
