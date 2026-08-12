@@ -243,6 +243,16 @@ landed while a round is in flight buys nothing and throws away the
 answer the round was about to give. Batch the certain fixes, and let
 an open question keep its round.
 
+The corollary, learned on 2026-08-12 by ignoring the rule above:
+CANCEL the rounds that can no longer answer anything. Nine pushes in
+an hour left six overlapping rounds, every one of them doomed by a
+fault already fixed in a later commit, each holding a container for
+fifty minutes and each reporting a red result that meant nothing.
+`gh run cancel <id>` on the superseded ones costs a second and gets
+the one round that matters to the front. A queue of failures nobody
+should read is worse than no queue: it trains whoever is watching to
+stop reading them.
+
 **Instrument rather than guess when a round costs fifty minutes.** A
 failure that says only which assertion it reached will be guessed at
 twice. One here spent two rounds looking like a locale defect before
