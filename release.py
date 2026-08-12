@@ -1026,13 +1026,17 @@ def commit_and_tag(version, report_dir, push):
             os.path.join(report_dir, "visual-comparison.pdf")]
   assets = [a for a in assets if os.path.exists(a)]
 
+  notes_preview = os.path.join(report_dir, "release-notes.md")
   if not push:
+    run("release notes",
+        [sys.executable, "-u", os.path.join("tools", "release_notes.py"),
+         report_dir], dict(os.environ))
     print("\n  Local only. To publish this release:")
     print(f"    git push origin HEAD && git push origin {tag}")
     print(f"    gh release create {tag} \\\n         "
           + " \\\n         ".join(assets)
           + f" \\\n         --title '{tag}' --notes-file "
-            f"{os.path.relpath(assets[1], ROOT) if len(assets) > 1 else ''}")
+            f"{os.path.relpath(notes_preview, ROOT)}")
     print("  or re-run with --push to do both.")
     return
 
@@ -1044,7 +1048,16 @@ def commit_and_tag(version, report_dir, push):
           "gh auth login) or attach the files by hand at\n"
           "  https://github.com/FoldingSpace/weavingspaceQGIS/releases/new")
     return
-  notes = os.path.join(report_dir, "testing-report.md")
+  # The release BODY is the notes, not the testing report. The report
+  # is admirable evidence and unreadable as an announcement: a reader
+  # arriving at a release page wants to know what changed, and gets
+  # it in the words a person wrote and the plugin manager already
+  # shows. The report stays ATTACHED, where somebody checking rather
+  # than reading will look for it.
+  notes = os.path.join(report_dir, "release-notes.md")
+  run("release notes",
+      [sys.executable, "-u", os.path.join("tools", "release_notes.py"),
+       report_dir], dict(os.environ))
   command = ["gh", "release", "create", tag, *assets, "--title", tag]
   if os.path.exists(notes):
     command += ["--notes-file", notes]

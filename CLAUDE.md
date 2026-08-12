@@ -297,6 +297,23 @@ obligations: they exist so nobody pays twice for the same discovery.
   each test individually with its result and measured values; report
   those per-test results to the user whenever something is published
   (an explicit user requirement, 2026-08).
+- **Release notes are COMPOSED, never generated, and the half a
+  person writes is the `changelog=` entry in metadata.txt.** A
+  release page has two readers: somebody deciding whether to
+  upgrade, who wants a paragraph, and somebody evaluating the
+  project, who wants to know what was measured. One text for both
+  serves neither. `tools/release_notes.py` puts the reviewed
+  changelog paragraph first -- the same words the plugin manager
+  shows, so the two cannot drift -- then generates what was measured,
+  what is attached, and the `**Full changelog**` compare link a
+  GitHub reader looks for. It REFUSES when the changelog entry is
+  missing, because a release whose notes were written by a script is
+  a release nobody described. Write that entry as what a user can now
+  do or no longer worry about, not as a list of commits, and put it
+  through `tools/text_review.py` like every other sentence a user
+  meets. The testing report is ATTACHED, not the body: it used to be
+  the body, which made the announcement a per-test listing.
+  (User instruction, 2026-08-11.)
 - **Published images show real data displayed as a map.** Every image
   in README.md and docs/index.html shows a named place with
   recognisable geography, region outlines and a legend where the

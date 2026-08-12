@@ -344,6 +344,38 @@ The project page needs no separate step. It is served by GitHub Pages
 from `docs/` on the main branch, so the same push that publishes the
 code publishes the page, usually within a minute.
 
+## Release notes: two halves, one written and one measured
+
+A release page has two readers and one document usually serves
+neither. Somebody deciding whether to upgrade wants a paragraph.
+Somebody evaluating the project wants to know what was measured and
+to be able to check it. So the notes are composed rather than
+written, by `tools/release_notes.py`, and `release.py` puts them in
+the release BODY:
+
+**The concise half is the `changelog=` entry in metadata.txt** for
+this version. A person writes it, it goes through
+`tools/text_review.py` like every other sentence a user meets, and it
+is already what QGIS's plugin manager shows -- so the release page
+and the plugin manager cannot drift, being the same words. Write it
+as what a user can now do, or no longer has to worry about, rather
+than as a list of commits.
+
+**The comprehensive half is generated**: how many tests ran and how
+many guard a defect that actually happened, what is attached and what
+each attachment is for, where the process documents are, and the
+`**Full changelog**` compare link a GitHub reader looks for. Every
+line is omitted rather than guessed when its source is missing, so
+notes assembled early are shorter rather than wrong.
+
+**It refuses when the changelog entry is missing.** That half is the
+part a person has to write, and a release whose notes were generated
+is a release nobody described.
+
+The testing report stays ATTACHED rather than being the body. It used
+to be the body, which meant the announcement was a per-test listing:
+excellent evidence, unreadable as news.
+
 ## What the published images must show
 
 Every image in README.md and on the project page shows REAL DATA
