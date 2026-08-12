@@ -120,6 +120,28 @@ def main():
 
   pending = branches_for(version)
   if pending and args.merge:
+    # NEVER merge into a dirty tree. A merge with uncommitted changes
+    # either refuses halfway or entangles them, and an automated step
+    # must not be the thing that decides what happens to work
+    # somebody had in progress. (Written after doing exactly that to
+    # my own uncommitted work with a reset, minutes after arguing for
+    # this guard: knowing the rule and following it are separate.)
+    dirty = subprocess.run(["git", "status", "--porcelain"], cwd=ROOT,
+                           capture_output=True, text=True).stdout.strip()
+    if dirty:
+      print(f"NOT merging: the working tree has uncommitted changes "
+            f"in {len(dirty.splitlines())} file(s). Commit or stash "
+            f"them first; a merge should not decide what happens to "
+            f"work in progress.")
+      return 1
+    # Printed BEFORE the merges, so the undo is in the log even if
+    # something later goes wrong. A release that aborts after this
+    # point leaves the merge in place, which is not damage but is a
+    # surprise, and a surprise with no undo written down is worse.
+    before = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT,
+                            capture_output=True, text=True).stdout.strip()
+    print(f"merging {len(pending)} branch(es) due for {version}. "
+          f"To undo all of it: git reset --hard {before[:12]}")
     for name in pending:
       print(f"merging {name}, which was written for {version}")
       merged = subprocess.run(["git", "merge", "--no-edit", name],
@@ -134,6 +156,14 @@ def main():
           f"    {merged.stdout.strip().splitlines()[-1] if merged.stdout.strip() else merged.stderr.strip()}\n"
           f"    Merge it by hand and decide what the conflict means.")
     pending = branches_for(version)
+    landed = subprocess.run(["git", "log", "--oneline", f"{before}..HEAD"],
+                            cwd=ROOT, capture_output=True,
+                            text=True).stdout.strip()
+    if landed:
+      # say what arrived: a merge nobody announced is one nobody
+      # knows to look for when something later behaves oddly
+      print("merged:\n" + "\n".join(f"    {line}"
+                                     for line in landed.splitlines()))
   for name in pending:
     problems.append(
       f"{name} was written for {version} and is not merged. Merge it, "
