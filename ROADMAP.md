@@ -68,19 +68,6 @@ is how a branch becomes archaeology.
 
 ---
 
-## 0.24.0 — the release in progress
-
-Nothing outstanding in CODE. Everything written for this version is
-merged, and the checker reads this line rather than the list below,
-which is process rather than work.
-
-What remains is the release sequence itself: rc5 builds, somebody
-makes a map with it, then promotion (`python3 release.py`), the tag,
-and `--push` for the GitHub Release with the zip, testing report and
-comparison PDF attached. Built in full, without `--quick`, so the
-artefact that is promoted carries every measurement including the
-coverage report.
-
 ## Needs the maintainer, not the assistant
 
 **Enable GitHub Pages**, once: Settings -> Pages -> Deploy from a
@@ -138,6 +125,21 @@ like a saving while quietly misreporting. The line half can be
 checked against any candidate that produced both artefacts; the
 branch half needs a run with the new recorder.
 
+**`for-0.24.1/coverage-dedupe`** — stop measuring coverage twice.
+`coverage_report.py` and `coverage_per_test.py` used the same
+mechanism (`sys.monitoring`) and differed only in attribution, so the
+suite ran under monitoring twice: about forty minutes and fifty, for
+two views of one measurement. The per-test recorder now collects
+branch events too, and `coverage_report --from-record` writes the
+same report from what is already on disk.
+
+BEFORE MERGING: run a candidate both ways and compare the derived
+report against the directly-measured one. A derivation that is nearly
+right is worse than the duplication it replaces, because it looks
+like a saving while quietly misreporting. The line half can be
+checked against any candidate that produced both artefacts; the
+branch half needs a run with the new recorder.
+
 **`for-0.24.1/publish-from-main`** — stop a release being published
 from the wrong branch. `release.py --push` runs `git push origin
 HEAD`, so it sends whatever branch you are standing on, and a tag
@@ -157,6 +159,44 @@ checkout by hand: `git checkout main && git merge --ff-only
 pre-0.24.0rc5`, which is exactly what the gate would have told you.
 
 ### Wanted, no code yet
+
+**The catalogue sweep's seven flagged entries, judged alone
+2026-08-12.** The remote sweep caught 159 of 166 and flagged seven
+for a solo re-run, which is the procedure working: every one turned
+out to be a different fault, and none of them was the suite being
+weak.
+
+THREE AMBIGUOUS ANCHORS — `idle-progress-bar` (3 matching sites),
+`live-pending-initial` (3) and `category-colours-cleared-by-ramp` (2).
+The tool refuses them rather than reporting a false SURVIVED, which
+is the guard added in August doing its job, but the entries are
+broken until each anchor is narrowed to the site its `why` describes
+— exactly as `fit-to-design-on-show` was narrowed on 2026-08-10, and
+the comment there is the model to copy.
+
+TWO GENUINE SURVIVORS, and both are claims about TESTS rather than
+about the plugin. `fit-to-design-on-show`: the named test
+`test_the_window_fits_its_design_tab_when_shown` does not fail when
+the deferred fit in `showEvent` is removed — almost certainly because
+construction already fitted the window, making this one of three
+redundant call sites. The recipe is in docs/MUTATION-TESTING.md:
+find the scenario only the mutated site can serve (hide the window,
+change the design, show it again), or, if there is none, delete the
+code rather than defend it. `family-list-signals-blocked`: the test
+`test_repopulating_the_family_list_fires_no_handlers` does not fail
+when `blockSignals(True)` becomes `False`, so it is not reaching what
+it names.
+
+ONE HARNESS LIMIT — `stage-log-says-it-is-running` cannot be judged
+at all: it mutates `release.py`, and the sandbox clone the sweep
+builds contains only the plugin package, so the run dies with
+FileNotFoundError. Either the sandbox copies `release.py` and
+`build.py` (it already does for the release-gate tests) or entries
+outside the package are declared unjudgeable and skipped loudly. A
+catalogue entry that cannot run is worse than one that fails,
+because it is counted as neither.
+
+
 
 **Write the tests for the ten survivors the guard found before it was
 stopped.** This is the work that the incremental guard moving out of
