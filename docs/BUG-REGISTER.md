@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-77 defect(s) with a regression test.
+78 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -128,6 +128,8 @@ there is no separate list to remember.
   guarded by `test_every_design_control_is_reachable`
 - **a vanished element count was invisible, because the catalogue tests all iterate the catalogue's own keys.**  
   guarded by `test_every_element_count_still_has_its_designs`
+- **tests/visual_tests.py never added libs/ to sys.path, so the visual gallery could not run on any Linux QGIS that had to provision its dependencies, and the first run of the gallery experiment measured that instead of the fonts it was written to measure.**  
+  guarded by `test_every_qgis_harness_can_reach_the_provisioned_libs`
 - **named ramps used QgsSymbolLayerUtils' gradient preview while Custom swatches were hand-drawn stripes, so one column drew its cells two different ways.**  
   guarded by `test_every_swatch_in_the_ramp_column_is_built_the_same_way`
 - **measured 2026-08-10 on QGIS 4.0.3. Five classes over values from 1e-9 to 1.6e-8 all carry the label "0 - 0", so the legend shows five colours claiming one meaning; the same five over values from 1e12 to 1.6e13 carry labels of 37 to 39 characters, and a column reaching 1e308 is written out in full to over four hundred.**  
@@ -190,7 +192,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 47
+- unrecorded: 48
 - reading the code: 7
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5

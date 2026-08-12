@@ -51,6 +51,24 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "weavingspace_qgis", "vendor"))
+# ...and libs/, where a QGIS lacking the scientific stack keeps the
+# wheels it was given. tests/run_tests.py gained this on 2026-08-11
+# and this file did not, which is the "one fix, two loops" shape
+# docs/TESTING.md warns about: the same defect in a second harness,
+# invisible on a machine whose QGIS already carries geopandas.
+#
+# It cost the gallery experiment its first run (2026-08-12). CI
+# provisioned successfully -- "every requirement is now met" -- and
+# then all thirteen cases failed with ModuleNotFoundError on
+# geopandas, on all three QGIS versions, because the renders never
+# looked where the wheels had been put. The experiment was supposed
+# to measure whether Delta-E thresholds survive a different font
+# stack and instead measured a path bug.
+try:
+  from weavingspace_qgis import deps as _deps
+  _deps.add_paths()
+except Exception:      # a tree without the package is a different fault
+  pass                 # and the imports below will say so far better
 
 import warnings
 warnings.filterwarnings("ignore")

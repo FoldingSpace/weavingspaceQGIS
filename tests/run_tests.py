@@ -25908,6 +25908,43 @@ def test_provisioning_says_why_a_package_could_not_be_fetched():
     f"numpy is exempt: its floor is a hard rule, not a preference."
 
 
+def test_every_qgis_harness_can_reach_the_provisioned_libs():
+  """A harness that runs under QGIS looks where the wheels were put.
+
+  On a QGIS that lacks the scientific stack, `deps` unpacks wheels
+  into `weavingspace_qgis/libs/`, and only `deps.add_paths()` puts
+  that directory on `sys.path`. A harness that inserts ROOT and
+  `vendor/` and stops will import the vendored library, which imports
+  geopandas, which is not there.
+
+  This is invisible on any machine whose QGIS already carries the
+  stack, which is why it has now happened twice: the functional suite
+  on 2026-08-11, costing two CI rounds disguised as a locale defect,
+  and the gallery on 2026-08-12, where provisioning reported "every
+  requirement is now met" and all thirteen cases then failed on
+  ModuleNotFoundError across three QGIS versions. One fix, two loops.
+
+  `.venv-reference` harnesses are deliberately NOT included: the
+  comparison runs outside QGIS on its own interpreter, and putting
+  QGIS-Python wheels on that path would be actively wrong.
+
+  Regression: tests/visual_tests.py never added libs/ to sys.path, so the visual gallery could not run on any Linux QGIS that had to provision its dependencies, and the first run of the gallery experiment measured that instead of the fonts it was written to measure.
+  """
+  harnesses = [os.path.join("tests", "run_tests.py"),
+               os.path.join("tests", "visual_tests.py")]
+  for relative in harnesses:
+    source = open(os.path.join(ROOT, relative), encoding="utf-8").read()
+    assert "add_paths()" in source, \
+      f"{relative} never calls deps.add_paths(), so on a QGIS that " \
+      f"had to download its own geopandas this harness cannot import " \
+      f"the vendored library at all. The failure appears as " \
+      f"ModuleNotFoundError inside whatever it was doing, which is " \
+      f"how it stayed hidden twice."
+    assert source.index("add_paths()") < source.index("from qgis"), \
+      f"{relative} calls add_paths() after it starts importing, so " \
+      f"anything imported above that line still cannot see libs/"
+
+
 def test_plugin_lifecycle():
   """The QGIS entry points themselves: classFactory, initGui, the
   toolbar action opening the dialog, and unload. Nothing else in the
@@ -26506,6 +26543,8 @@ def main():
         test_the_new_code_mutation_guard_reports_rather_than_gates)
   check("provisioning says why a package could not be fetched",
         test_provisioning_says_why_a_package_could_not_be_fetched)
+  check("every QGIS harness can reach the provisioned libs",
+        test_every_qgis_harness_can_reach_the_provisioned_libs)
 
 
   check("a release publishes from the branch the page comes from",
