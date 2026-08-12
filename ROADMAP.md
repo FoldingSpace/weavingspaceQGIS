@@ -138,6 +138,24 @@ like a saving while quietly misreporting. The line half can be
 checked against any candidate that produced both artefacts; the
 branch half needs a run with the new recorder.
 
+**`for-0.24.1/publish-from-main`** — stop a release being published
+from the wrong branch. `release.py --push` runs `git push origin
+HEAD`, so it sends whatever branch you are standing on, and a tag
+does not care what branch it is on. Promote from a pre-candidate
+branch and you get a perfectly real GitHub Release beside a project
+page and a README that still describe the previous version, because
+Pages serves `docs/` from `main`. Nothing in git objects. The branch
+adds a refusal naming the exact fast-forward, a test, and the
+sequence written out end to end in docs/PUBLISHING.md.
+
+BEFORE MERGING: nothing outstanding. It was written and verified
+while 0.24.0 was still building, so it is parked rather than
+unfinished — merging it into 0.24.0 would have meant editing the
+release script during its own release, which is how three candidates
+died that evening. If 0.24.0 is published before this lands, do the
+checkout by hand: `git checkout main && git merge --ff-only
+pre-0.24.0rc5`, which is exactly what the gate would have told you.
+
 ### Wanted, no code yet
 
 **One watcher, not a fresh script each time.** Five separate watcher
