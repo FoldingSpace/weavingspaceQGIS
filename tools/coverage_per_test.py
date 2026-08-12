@@ -46,8 +46,12 @@ def main():
   # "staggered actions during a run" 161s plain and 855s here. The
   # ceilings in run_tests are sized for a plain run, so under
   # monitoring an ordinary healthy test can pass 600 seconds and be
-  # killed as hung. That is a FALSE stall: it costs a whole candidate
-  # (two hours, here) and reports a defect that does not exist.
+  # killed as hung. That is a FALSE stall, and it reports a defect
+  # that does not exist. It used to cost a whole candidate -- two
+  # hours, here -- which it no longer can, this record having left the
+  # release path on 2026-08-11; the ceiling still earns its keep for
+  # anyone recording coverage deliberately, which is now the only way
+  # it runs at all.
   #
   # An hour, so that even the slowest test has a wide margin at six
   # times its cost, while a genuine hang is still bounded. Set rather

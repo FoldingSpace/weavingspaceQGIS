@@ -177,7 +177,8 @@ def main():
     0 when every map in MAPS was written, 1 otherwise -- release.py
     treats that as a failed step rather than publishing a page with
     holes in it. Leaves behind docs/img/*.png, overwritten in place
-    (the six maps plus dialog.png), with the cases' "_unclassed"
+    (the maps named in MAPS, plus dialog.png), with the cases'
+    "_unclassed"
     companions removed, and shuts the headless QGIS down again.
 
   One QGIS is started for the whole script because initialising it is

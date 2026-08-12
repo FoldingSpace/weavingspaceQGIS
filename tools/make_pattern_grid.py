@@ -182,7 +182,7 @@ COLS, ROWS = 8, 2
 # Which family fills each cell, as (catalogue name prefix, element
 # count). Chosen to span the KINDS rather than to be the prettiest
 # sixteen -- slices, colourings, crosses, stars, the Laves and
-# Archimedean tilings, the grid and stripe extras, and three weaves --
+# Archimedean tilings, the grid and stripe extras, and two weaves --
 # so somebody scanning the two rows comes away knowing the catalogue
 # holds more than one idea. Every count is five or fewer; see above.
 # ORDERED so that neighbours are neighbours: the sequence runs
@@ -235,8 +235,8 @@ ROTATION_CHOICES = [-45, -30, -15, 0, 15, 30, 45]
 # stop at five.
 #
 # The ramp is bound to the VARIABLE, not to the element position, and
-# that binding is the point of the whole grid. Deprivation is red in
-# every cell; income is green in every cell. A reader can therefore
+# that binding is the point of the whole grid. Deprivation is blue in
+# every cell; income is purple in every cell. A reader can therefore
 # carry what they learned from one pattern into the next and see the
 # same place through sixteen different arrangements of the same
 # information -- which is the argument the plugin exists to make. Bind
@@ -415,7 +415,7 @@ def draw_cell(png, unit, region, label, window):
 
   Elements take the first N variables in a fixed order, and each
   variable brings its OWN ramp, so deprivation is red in every cell of
-  the grid and income is green in every cell. That is what makes the
+  the grid and income is purple in every cell. That is what makes the
   sixteen comparable rather than merely sixteen: a reader carries what
   they learned from one pattern straight into the next.
   """

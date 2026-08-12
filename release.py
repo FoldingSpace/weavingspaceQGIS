@@ -280,7 +280,7 @@ def stage_chart(started, final=False):
       hours of work it did not do.
     final: the run is OVER. Expected stages that never ran are then
       dropped instead of listed as pending -- a finished chart
-      showing ".." rows (a cached venv, a skipped guard) reads as an
+      showing ".." rows (a cached venv, say) reads as an
       unfinished run, which is exactly what it is not. (User
       instruction, 2026-08-09.)
 
@@ -599,9 +599,11 @@ def skip_if_already_done(step, capture):
 
   Args:
     step: the stage about to run.
-    capture: whether the caller USES this stage's output. Four do --
+    capture: whether the caller USES this stage's output. Three do --
       the testing report quotes the suite test by test, and the
       gallery and comparison summaries are read for their numbers.
+      It was four until the per-test coverage record left the release
+      path; the sentence had already only ever named three.
 
   Returns:
     (True, output) when the stage may be skipped, where output is the
@@ -995,9 +997,14 @@ def write_testing_report(report_dir, version, functional, visual,
     lines += ["## Coverage of plugin code", "",
               f"- {summary[-1]} (see coverage.md for the per-module "
               "table and the untested line runs)", ""]
+  # coverage.md is NOT listed: the coverage report left the release
+  # path on 2026-08-12, so a release never writes one, and a report
+  # naming a file that is not in the directory sends a reader looking
+  # for something that was never there. The conditional section above
+  # still folds in a summary when somebody has run it by hand.
   lines += ["", "Artifacts: index.html (gallery renders), "
             "visual-comparison.pdf (side-by-side against the original "
-            "renderer), coverage.md, functional.txt (raw run).",
+            "renderer), functional.txt (raw run).",
             "",
             "Not part of the gate, run before substantial releases: "
             "`tools/mutation_check.py` breaks each guarded behaviour "
@@ -1337,7 +1344,8 @@ def main():
     run()'s sys.exit, so returning at all means the gates passed.
 
   What it leaves behind: reports/v<version>/ (functional output,
-  gallery, coverage, comparison PDF, testing report), refreshed
+  gallery, comparison PDF, testing report -- no coverage, that stage
+  having left the release path), refreshed
   images in docs/img/, possibly a mended CITATION.cff,
   dist/weavingspace_qgis.zip, and a commit and tag. With --push, also
   a pushed branch and tag and a GitHub Release with the zip, report
@@ -1348,8 +1356,10 @@ def main():
   come first, so a release that breaks the project's own rules or
   carries a secret fails in seconds rather than after the gallery.
   The test stages follow, then the report they feed, then the
-  mutation guard over only what changed since the last tag, then the
   published images and the audit of the claims those images support.
+  The new-code mutation guard used to sit between the report and the
+  images; it reports remotely now, and what remains here is a printed
+  dispatch command.
   The zip is built last, from a tree every gate has already passed;
   committing and tagging are local and reversible, so they are
   unconditional. --rc stops before all of that, leaving a numbered
@@ -1468,7 +1478,7 @@ def main():
     print(f"\n=== promoting candidate {receipt['label']} ===\n"
           f"  built {receipt.get('built', 'earlier')} from this exact "
           f"tree, and it passed every gate then.\n"
-          f"  The suite, gallery, coverage and reference comparison are "
+          f"  The suite, gallery and reference comparison are "
           f"NOT re-run:\n"
           f"  the artefact is identical, file for file, to the one "
           f"already measured.")
@@ -1566,14 +1576,16 @@ def main():
   write_testing_report(report_dir, version, functional, visual,
                        comparison, coverage)
 
-  # 3a. Record which lines each test executes, then hold the code that
-  # CHANGED since the last release to account: mutate only those lines
-  # and require the tests to catch them. This is the routine guard
-  # against a slow slide. The full campaign asks how good the suite is
-  # over the whole plugin and takes hours; this asks whether today's
-  # work is defended, costs minutes, and is the one that runs every
-  # time. Skipped on the first release, when there is no previous tag
-  # to compare against.
+  # 3a. Neither the per-test coverage record nor the new-code
+  # mutation guard runs here any more. What follows is a printed
+  # notice naming the command that runs the guard remotely.
+  #
+  # This paragraph used to describe both as though they ran, in the
+  # present tense, and said the guard "costs minutes" -- ten lines
+  # below, the correction that retired it records fifty. Two stages
+  # left the release path and the sentence that introduced them
+  # stayed, which is the whole shape of what a documentation audit
+  # finds. (Corrected 2026-08-12.)
   # The per-test coverage record and its merge USED to run here, at
   # about twenty-two minutes a candidate. They followed the guard out
   # on 2026-08-11, because the record has exactly one consumer --

@@ -188,10 +188,17 @@ def map_unit_label(layer) -> str:
       in. Read on the main thread; this touches the layer.
 
   Returns:
-    QGIS's own abbreviation for that CRS's distance unit ("m", "ft",
-    "\u00b0"), or "map units" when it has none, which is the phrase the
-    dialog's own spacing label uses so an unknown unit still reads as
-    a sentence.
+    QGIS's own abbreviation for that CRS's distance unit -- "m",
+    "ft" and so on -- or "map units" when it has none, which is the
+    phrase the dialog's own spacing label uses so an unknown unit
+    still reads as a sentence.
+
+    A GEOGRAPHIC CRS always returns "m" and never a degree sign:
+    spacing for such layers is derived and applied in metres, and
+    labelling the number with the CRS's own unit produced "At 2,000
+    deg spacing" over a quantity that was metres. The body says so;
+    this block promised the degree sign for a while after the
+    function stopped returning it. (Corrected 2026-08-12.)
 
   This lives here rather than beside its caller because the enum it
   reads is exactly the kind of thing QGIS moves: 3.30 relocated the

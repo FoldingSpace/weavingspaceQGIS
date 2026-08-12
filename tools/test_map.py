@@ -4,8 +4,11 @@
     python3 tools/test_map.py            # write docs/TEST-MAP.md
     python3 tools/test_map.py --check    # fail if it is out of date
 
-The suite is one file of nine thousand lines and a hundred and
-thirty-odd tests. That is navigable by search and not by reading, so
+The suite is one file of tens of thousands of lines and some hundreds
+of tests -- deliberately not counted here, because a count in prose is
+true until somebody adds one, and the current figures are at the top
+of the document this tool generates. That is navigable by search and
+not by reading, so
 the question a maintainer actually has — "what does this cover, and
 what does it not?" — cannot be answered by opening it. Splitting the
 file into modules would not answer it either: coverage of intent is

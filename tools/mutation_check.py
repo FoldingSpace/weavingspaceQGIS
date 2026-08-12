@@ -1132,7 +1132,7 @@ MUTATIONS = [
        new='CUSTOM_RAMP_TOOLTIP = "Colours chosen by hand."'
            '  # mutation: reworded',
        test="test_a_customized_element_reads_custom",
-       why="the Custom tooltip is the user's own fourteen words, "
+       why="the Custom tooltip is the user's own fifteen words, "
            "settled verbatim on 2026-08-09"),
   dict(name="opacity-header-grows-a-sign", file=DIALOG,
        old='       "Reverse", "Opacity", "Categ colourmap src", '

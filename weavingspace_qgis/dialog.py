@@ -257,8 +257,9 @@ PREVIEW_FLOOR = 260
 
 
 # The tooltip for a ramp cell reading "Custom". The wording is the
-# user's own (settled 2026-08-09), and sits inside the fifteen-word
-# tooltip cap: fourteen words.
+# user's own (settled 2026-08-09), and sits AT the fifteen-word
+# tooltip cap: fifteen words, which the checker allows and one more
+# would not.
 CUSTOM_RAMP_TOOLTIP = ("Colours set by hand or by a class file. "
                        "Choose a ramp to replace them.")
 
@@ -531,8 +532,12 @@ class TilePreview(QWidget):
     self._ids = []
     self._id_colours = {}
     # (tile_id, x, y, w, h) per central-unit tile: label anchor at the
-    # tile's representative point plus its bounds, so labels can be
-    # skipped on tiles that draw too small to carry one
+    # tile's label anchor plus its bounds, so labels can be skipped on
+    # tiles that draw too small to carry one. The anchor is the
+    # CENTROID, with representative_point() only as the fallback when
+    # the centroid falls outside a concave tile -- naming
+    # representative_point here was left over from before that change,
+    # which was made because it put labels visibly off-centre
     self._labels = []
     self._message = "Pick a design to preview it."
 
@@ -1121,9 +1126,11 @@ class WeavingSpaceDialog(QDialog):
     self.table.setColumnWidth(COL_EDIT_COLOURS, 82)
     # The conditional columns start hidden. These three lines are the
     # FIRST state the table has; _refresh_table then calls
-    # _update_dynamic_columns, which decides the same three from the
-    # assignments, so for a dialog that reaches a layer they are
-    # redundant. They are kept for the moment BEFORE that -- a table
+    # _update_dynamic_columns, which decides these three from the
+    # assignments (it decides FOUR columns in all -- Reverse is the
+    # fourth and is not hidden here, because a table with no layer has
+    # no ramp for it to belong to), so for a dialog that reaches a
+    # layer these three are redundant. They are kept for the moment BEFORE that -- a table
     # built and shown with no layer chosen -- because a dead column
     # in front of a first-time user is exactly the fault the hiding
     # exists to prevent. Guarded by test_dialog_structure, which
@@ -1628,9 +1635,14 @@ class WeavingSpaceDialog(QDialog):
     is busywork. Where there is NOT one sensible answer the dialog
     does not guess: a field that vanished while another appeared may
     be a rename or may be two unrelated edits, and quietly pointing an
-    element at the new column would map data the user never asked
-    for. That case unassigns the element and says so, which is the
-    honest response to an ambiguity.
+    element at the NEW column would map data the user never asked for.
+    So it does not do that: the element re-defaults to a surviving
+    field and the user is told which one it landed on, and only when
+    no field survives at all does it go unassigned. Losing a column
+    costs an element its variable, not its place on the map.
+    (This block said the element was unassigned, which the comment
+    twenty lines below and CLAUDE.md both contradict; corrected
+    2026-08-12.)
     """
     if layer is None:
       return
@@ -2281,8 +2293,13 @@ class WeavingSpaceDialog(QDialog):
     return self.table.cellWidget(row, 6)
 
   def _row_reverse(self, row):
-    """The QCheckBox inside a row's Reverse cell, or None when that
-    row has no ramp to reverse."""
+    """The ToggleSwitch inside a row's Reverse cell, or None when that
+    row has no ramp to reverse.
+
+    Not a QCheckBox: ToggleSwitch is a QAbstractButton subclass drawn
+    by hand, and its own docstring says why a styled QCheckBox was
+    rejected. Named wrongly here and in _reverse_state's comment until
+    2026-08-12."""
     holder = self.table.cellWidget(row, 5)
     if holder is None:
       return None
@@ -3733,8 +3750,13 @@ class WeavingSpaceDialog(QDialog):
         change of ramp, scheme or class count
       * ``scheme`` — break method for graduated rows, including
         "Unclassed"
-      * ``k`` — class count (50 and greyed for "Unclassed", the
-        detected category count for categorized rows)
+      * ``k`` — class count (50 and greyed for "Unclassed"). On a
+        CATEGORIZED row the cell displays the detected category count
+        but ``k`` carries the row's remembered graduated count, 5 by
+        default: the spin box is disabled there, so nothing writes
+        the displayed number into ``user_k``. Harmless downstream,
+        since seed_renderer reads ``k`` only for Graduated, but this
+        block said the count was the detected one until 2026-08-12
       * ``outline`` — draw tile boundaries
       * ``class_source`` — where a categorized row's colours come
         from: None for automatic, else a "file:<path>" or
@@ -4244,7 +4266,16 @@ class WeavingSpaceDialog(QDialog):
     try:
       region = bridge.layer_to_gdf(layer, fields)
     except Exception as e:
-      QMessageBox.critical(self, "WeavingSpace", str(e))
+      # live runs report quietly, like every other failure on this
+      # path. This one popped a modal on the debounced path until
+      # 2026-08-12: CLAUDE.md forbids unconditional modal dialogs on
+      # generation paths (one hung the suite for thirty-one minutes),
+      # and _generate's own docstring says a live run fails silently
+      # where a button press would pop a box. Two branches did not.
+      if live:
+        self._report_quietly(f"Could not read the layer: {e}")
+      else:
+        QMessageBox.critical(self, "WeavingSpace", str(e))
       return
 
     # ---- size guard: small spacing on a big extent segfaults QGIS by
@@ -4609,8 +4640,14 @@ class WeavingSpaceDialog(QDialog):
       return
     if gdf is None or len(gdf) == 0:
       self._finish_run()
-      QMessageBox.warning(self, "WeavingSpace",
-                          "The tiling produced no tiles.")
+      # ...and the same for a run that came back empty, which on a
+      # live update is a spacing the user is still adjusting rather
+      # than anything they need stopping for.
+      if live:
+        self._report_quietly("The tiling produced no tiles.")
+      else:
+        QMessageBox.warning(self, "WeavingSpace",
+                            "The tiling produced no tiles.")
       return
     # the output phase: keep the progress bar up, in its indefinite
     # (busy) form, and say what is happening. This is the part that

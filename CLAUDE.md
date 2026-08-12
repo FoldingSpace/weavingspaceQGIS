@@ -89,7 +89,8 @@ obligations: they exist so nobody pays twice for the same discovery.
   `test_every_control_explains_itself`, which also requires every
   control to HAVE one (the README promises it) and rejects a tooltip
   of one or two words that merely repeats the label. The rule arrived
-  after twenty of thirty-six tooltips had drifted to between nineteen
+  after twenty of the thirty-six tooltips there were THEN had drifted
+  to between nineteen
   and sixty-one words. (User instruction, 2026-08-09.)
 - **Canadian spelling in all user-facing text**: colour, colourmap,
   behaviour, and -ize verbs (symbolize, categorize, organize). Code

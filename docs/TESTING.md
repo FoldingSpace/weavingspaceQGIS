@@ -129,7 +129,8 @@ table-driven test over the whole family, not one example test per
 survivor. `CONTROL_DEFAULTS` and `CONTROL_CHECKBOXES` in
 tests/run_tests.py pin twenty-four controls' defaults, ranges, steps
 and labels in two tests; `test_every_control_explains_itself` covers
-thirty-six tooltips; `test_every_declared_offset_is_pinned` states
+every tooltip the dialog sets;
+`test_every_declared_offset_is_pinned` states
 the rule ("every offset is 0") rather than listing twenty-six names.
 A new control or entry is covered the moment somebody adds a row, and
 a whole class of mutant dies at once.
@@ -206,7 +207,12 @@ docstring carries a `Regression:` line, meaning that defect actually
 happened here. A test without one guards ground we imagined rather
 than ground we fell through. An area with many tests and few
 Regression lines is not necessarily well tested; it may only be well
-imagined. As of the first map: 145 tests, 35 guarding a real defect.
+imagined. As of the first map: 145 tests, 35 guarding a real
+defect. Those two numbers are the figures on the day the map
+was first generated and are left as history; the CURRENT ones
+are at the top of docs/TEST-MAP.md and docs/BUG-REGISTER.md,
+which are regenerated at every release. A count written into
+prose is true until somebody adds one.
 
 Two things the map is deliberately NOT. It is not a coverage report —
 `tools/coverage_report.py` says which lines ran. And it is not an

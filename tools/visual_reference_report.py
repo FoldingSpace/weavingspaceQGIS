@@ -22,15 +22,25 @@ colourspace (Delta-E, the perceptual colour difference; ~2 is barely
 noticeable): the two images' colour palettes are compared by mean
 nearest-neighbour Delta-E in both directions (plugin colours must
 exist in the reference and vice versa), and their content background
-fractions are compared after cropping to content. The reference is
-*unclassed* (the web app's default; classed rendering in TiledMap
-needs mapclassify, absent here) while the gallery's primary renders
-use quantile classes, so a case is scored first against the quantile
-render and, when only the classing explains a failure, against the
-gallery's Quant: Unclassed render (50 linear intervals; saved by the
-gallery as *_unclassed.png) — mirroring how a user reproduces the web
-app's continuous look in the plugin. A case failing against both
-renders fails the step, and release.py then refuses to build.
+fractions are compared after cropping to content. Each case is scored
+TWICE and both must pass. First for style fidelity, against a
+reference classed the SAME way the case is -- quantiles judged as
+quantiles, equal intervals as equal intervals, categorized as
+categorical -- so every style the gallery uses is genuinely
+exercised. Second for web-app parity, where the app's continuous
+default is compared against the gallery's Quant: Unclassed render (50
+linear intervals; saved as *_unclassed.png), because no classed map
+can match a continuous one interior-for-interior. A case failing
+EITHER comparison fails the step, and release.py then refuses to
+build.
+
+This paragraph said something else until 2026-08-12: that the
+reference was always unclassed because mapclassify was absent, and
+that the second comparison was a fallback tried only when classing
+alone explained a failure. mapclassify is present in
+.venv-reference, the reference is classed per case, and both
+comparisons are mandatory. The comment beside the code has been
+right the whole time.
 
 WHY NOT QGIS'S PYTHON: macOS code-signing (library validation) refuses
 to load PyPI wheels' C extensions into the signed QGIS process, so

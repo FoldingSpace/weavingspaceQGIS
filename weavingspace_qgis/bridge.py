@@ -1005,9 +1005,12 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   # near-white, which on the map reads as "no data" rather than "one
   # value". The ramp's MIDDLE is the honest colour for a constant
   # column: unmistakably a member of the chosen ramp without claiming
-  # either extreme. get_ramp has already applied any reversal, so 0.5
-  # is the middle of the ramp as the user sees it. (User decision,
-  # 2026-08-09.)
+  # either extreme. get_ramp has already applied any reversal, so the
+  # sample is taken in the ramp as the user sees it. The point sampled
+  # is the middle of the DISPLAY WINDOW, which is 0.5 only when the
+  # window is the whole ramp -- the comment above the sample itself
+  # says so correctly, and this paragraph contradicted it until
+  # 2026-08-12. (User decision, 2026-08-09.)
   # Every symbol below is built FRESH rather than cloned off a range:
   # ``renderer.ranges()`` hands back temporaries, and a symbol
   # pointer read off one dangles as soon as the temporary dies --

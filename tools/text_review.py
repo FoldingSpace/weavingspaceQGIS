@@ -38,7 +38,10 @@ docs/text-approved.json and a git checkout of that file undoes it.
 What counts as user-facing: string literals in the plugin package that
 read like prose — several words, not identifiers, not docstrings — and
 whole documents for the README, project page and user guide, which are
-reviewed as wholes because a hash per paragraph would just be noise.
+reviewed a PARAGRAPH at a time, hashed per block. This said they
+were reviewed as wholes because per-paragraph hashes would be noise;
+that was the original design and document_blocks replaced it, so a
+comma no longer re-opens a whole page. (Corrected 2026-08-12.)
 """
 import argparse
 import ast
@@ -56,8 +59,12 @@ PACKAGE = os.path.join(ROOT, "weavingspace_qgis")
 APPROVED = os.path.join(ROOT, "docs", "text-approved.json")
 REVIEW = os.path.join(ROOT, "docs", "TEXT-REVIEW.md")
 
-# Whole documents, reviewed as documents. Splitting them into hashed
-# paragraphs would mean re-approving a page because a comma moved.
+# Documents are split into paragraphs and hashed per block. The
+# trade-off is real and worth stating: a block small enough to review
+# is a block a moved comma re-opens, and a document whole enough to
+# survive a comma is one nobody reads twice. Paragraphs are the
+# compromise, and this comment described the other side of it until
+# 2026-08-12, long after document_blocks made the choice.
 DOCUMENTS = ["README.md", os.path.join("docs", "index.html"),
              os.path.join("docs", "USER-GUIDE.md")]
 
@@ -241,7 +248,7 @@ def document_blocks(path):
   noise.
 
   Style sheets, scripts and fenced code are skipped: they are not
-  prose, and a reviewer scrolling past 114 lines of CSS to reach the
+  prose, and a reviewer scrolling past a screenful of CSS to reach the
   next sentence stops reviewing.
   """
   with open(path, encoding="utf-8") as handle:
@@ -460,7 +467,7 @@ def apply_edit(item, new_text):
   # because implicit concatenation is only legal inside brackets: as
   # it stands (right for a call argument), wrapped in parentheses of
   # its own (right for a bare assignment), and finally one long line,
-  # which always parses but would be the only line over 79 columns in
+  # which always parses but would be an unusually long line in
   # the package, so it is the last resort rather than the default.
   column = item["span"][1]
   candidates = (_wrapped(replacement, column, " " * column),

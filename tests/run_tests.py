@@ -2413,8 +2413,9 @@ def test_every_control_explains_itself():
   Guidance in this plugin is deliberately in the interface rather than
   only in a manual: the README promises that every control has a
   tooltip, and the design decision to put explanation at the point of
-  use is why the Help tab is short. Thirty-one tooltips are set in
-  dialog.py and, until this test, not one of them was asserted — so
+  use is why the Help tab is short. Every tooltip in dialog.py is set
+  with setToolTip and, until this test, not one of them was asserted
+  — so
   any of them could vanish and the suite would be silent, which is
   how a plugin becomes quietly unexplained.
 
@@ -7341,8 +7342,26 @@ os._exit(0)
   # the two misbehave differently: measured under QGIS 4.0.3, Natural
   # breaks segfaults while Quantiles returns NaN bounds. Running them
   # together would let the first crash hide the second's verdict.
+  # ...and a fallback that swallows a typo would put us straight back
+  # there, so the names are checked against the map before they are
+  # used. compat is imported by the child, not here, so this reads
+  # the same source the child will.
+  from weavingspace_qgis import compat as _compat
+  for _name in ("Quantiles", "Natural breaks (Jenks)"):
+    assert _compat.classification_method(_name) is not None, \
+      f"{_name!r} does not resolve to a QGIS classification method, " \
+      f"so this canary would classify with whatever the fallback " \
+      f"chooses and its two legs would measure the same thing"
+
   seen = {}
-  for scheme in ("Quantiles", "Natural breaks"):
+  # The names must be the ones compat.classification_method KNOWS.
+  # It maps a handful of user-facing names and silently falls back to
+  # Quantiles for anything else, so "Natural breaks" -- which is not a
+  # key; the key is "Natural breaks (Jenks)" -- ran Quantiles twice
+  # and the second leg tested nothing. Caught within the hour by the
+  # documentation audit, in a test written to catch exactly this
+  # class of thing.
+  for scheme in ("Quantiles", "Natural breaks (Jenks)"):
     outcome = subprocess.run(
       [sys.executable, "-c", child, ROOT, scheme],
       capture_output=True, text=True, timeout=600)
@@ -27023,11 +27042,44 @@ def test_provisioning_says_why_a_package_could_not_be_fetched():
   finally:
     urllib.request.urlopen = real_urlopen
 
-  # and the reason has to travel to where somebody reads it
-  assert isinstance(deps.LAST_FAILURES, dict), \
-    "deps.LAST_FAILURES is what the consent dialogue and " \
-    "tools/ci_provision.py read to explain a failure; without it the " \
-    "reason is computed and thrown away"
+  # ...and the reason has to travel to where A USER reads it, which is
+  # the half that was missing. This asserted `isinstance(LAST_FAILURES,
+  # dict)` until 2026-08-12 -- trivially true, and it even described
+  # the consent dialogue as a reader when nothing in the plugin read
+  # it at all. The reason reached tools/ci_provision.py, a maintainer
+  # tool that never ships, and stopped there: 0.24.1's only
+  # user-visible change did not reach a user, and the release notes
+  # promised it did. Found by the documentation audit, from a comment
+  # in deps.py claiming plugin.py was a reader.
+  #
+  # So the SOURCE of the message a user sees is checked for the
+  # lookup. Reading plugin.py rather than driving the dialogue
+  # because building it needs a QGIS main window and a failed
+  # provisioning run; what must not regress is that the failure
+  # branch consults LAST_FAILURES at all.
+  import ast as _ast
+  plugin_src = open(os.path.join(ROOT, "weavingspace_qgis", "plugin.py"),
+                    encoding="utf-8").read()
+  ensure = next(
+    (n for n in _ast.walk(_ast.parse(plugin_src))
+     if isinstance(n, _ast.FunctionDef) and n.name == "_ensure_dependencies"),
+    None)
+  assert ensure is not None, \
+    "plugin._ensure_dependencies has gone; it is the only place a " \
+    "user is told that setting up failed"
+  # The SYNTAX TREE, not the source text. Checking the text passed
+  # with the lookup deleted, because the comment explaining the
+  # lookup still said the word -- a vacuous test written to close a
+  # vacuous test, caught by breaking the code and watching it pass
+  # anyway. A comment cannot satisfy an ast.Attribute.
+  reads_it = any(isinstance(node, _ast.Attribute)
+                 and node.attr == "LAST_FAILURES"
+                 for node in _ast.walk(ensure))
+  assert reads_it, \
+    "plugin._ensure_dependencies never reads deps.LAST_FAILURES, so " \
+    "the user is told WHICH packages are missing and not WHY -- " \
+    "which is the whole of what 0.24.1 claims to have changed, and " \
+    "exactly the state this test was written to prevent"
 
   # every required package needs a fallback version, since one bad
   # fetch of a sole candidate is the end of the road -- which is

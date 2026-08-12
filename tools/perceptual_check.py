@@ -6,7 +6,10 @@ asks a reader to hold several variables at once, which they can only do
 if the pattern's elements stay separable at a glance -- and separable
 not merely for the maintainer looking at the render, but for the eight
 percent or so of male readers with a red-green colour vision
-deficiency. Nothing in the functional suite asks that. The gallery
+deficiency. Nothing in the functional suite asked that when this was
+written; weavingspace_qgis/perception.py now does and three
+registered tests exercise it, so this is the standalone way to ask
+about an arbitrary pair without running the suite. The gallery
 checks that every pixel sits ON the ramp it was assigned
 (tests/visual_tests.py's gamut criterion), which is a question about
 correctness; this asks a question about legibility, and a map can pass

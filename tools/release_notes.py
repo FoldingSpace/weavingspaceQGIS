@@ -21,7 +21,9 @@ So this composes rather than writes:
 
   the COMPREHENSIVE half is generated from what the release actually
     measured: how many tests ran, how many guard a defect that
-    really happened, the mutation bound, and what is attached.
+    really happened, and what is attached. No mutation figure: a
+    score is a property of a suite at a moment and would be stale by
+    the release after the one that quoted it.
 
 Nothing here invents prose. If the changelog entry for this version
 is missing, this refuses -- a release whose notes were written by a

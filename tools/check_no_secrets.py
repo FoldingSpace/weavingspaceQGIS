@@ -143,8 +143,13 @@ def scan(path):
 
   Returns:
     A list of (rule name, line number, redacted excerpt, explanation).
-    Binary files are read but only searched for the patterns that can
-    meaningfully occur in them; unreadable files are reported rather
+    Binary files are NOT searched at all: anything that looks binary
+    in its first four kilobytes returns immediately, on the grounds
+    that images and GeoPackages do not carry credentials in a form
+    these patterns would find and scanning them produces noise. That
+    is a real limit and is stated rather than implied -- a key pasted
+    into a GeoPackage would not be caught here. Unreadable files are
+    reported rather
     than skipped, since a file the checker cannot read is a file
     nobody has checked.
   """

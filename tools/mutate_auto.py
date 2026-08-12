@@ -85,7 +85,9 @@ COVERAGE = os.path.join(ROOT, "reports", "per-test-coverage.json")
 # {file: {line numbers that run at import}}, filled in by main()
 MODULE_LEVEL = {}
 
-# set to 1 when a --require threshold is missed, so a release can gate
+# set to 1 when a --require threshold is missed. release.py no longer
+# gates on it -- the guard runs remotely and reports -- but the exit
+# code stays for anyone who does want a gate, and for the workflow
 _exit_code = [0]
 
 # The one call whose effect is invisible chrome. Kept to a single
@@ -431,7 +433,13 @@ def display_to_function():
 
 
 def clopper_pearson_lower(killed, total, alpha=0.025):
-  """The one-sided 95%% lower bound on the true kill rate.
+  """The lower limit of the TWO-SIDED 95%% interval on the kill rate.
+
+  Named exactly, because this line said "one-sided" while the Args
+  below explain at length that the default is deliberately the
+  two-sided lower limit and that the one-sided bound would read
+  several points higher. A summary contradicting its own argument is
+  the half a reader quotes.
 
   Args:
     killed: mutants the suite caught.

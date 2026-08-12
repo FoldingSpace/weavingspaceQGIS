@@ -302,8 +302,13 @@ GENERAL_TILINGS = {
 # match statement, so what they support is a list rather than a range.
 # Measured at 2..60; every other count prints "n-colouring of hexes is
 # not supported" and falls back to a default unit. Both lists reach
-# past 20, which is how counts with no other interesting design (37 for
-# hexagons, 25 for squares) come to have one.
+# past 20, which is how a count with no other interesting design (25
+# for squares) comes to have one. Hexagons' 37 does NOT: the
+# extension loop stops at MAX_ELEMENTS, which is 26, so 37 is
+# recorded as a measured fact about the library and reaches no menu
+# until that ceiling moves. (Corrected 2026-08-12: this said 37 was
+# offered too, which was true under the higher ceiling it was written
+# against.)
 HEX_COLOURING_COUNTS = tuple(range(2, 17)) + (19, 37)
 SQUARE_COLOURING_COUNTS = tuple(range(2, 10)) + (16, 25)
 

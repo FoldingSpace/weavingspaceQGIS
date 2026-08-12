@@ -278,7 +278,8 @@ def write_report(seen, path, branches=None):
       recorded for code that has since changed cannot inflate the
       total.
     path: absolute destination for the Markdown report, overwritten
-      if it exists. Release runs point this at
+      if it exists. A release no longer runs this -- the stage left
+      the release path on 2026-08-12 -- so point it by hand at
       reports/v<version>/coverage.md.
     branches: the decision record from the run, keyed by (filename,
       instruction offset). None means branch monitoring was not

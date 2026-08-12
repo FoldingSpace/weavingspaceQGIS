@@ -127,7 +127,8 @@ def main():
   # rather than report success nothing earned; a real shrinkage is a
   # deliberate act and whoever performs it can lower this floor.
   # the floor is about the LISTING, so it is applied to the whole
-  # catalogue rather than to a slice: a quarter of 156 is legitimately
+  # catalogue rather than to a slice: a quarter of the catalogue is
+  # legitimately
   # under a hundred, and refusing that would make sharding impossible
   if whole < MINIMUM_CATALOGUE:
     sys.exit(

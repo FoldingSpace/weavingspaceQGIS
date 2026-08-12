@@ -473,7 +473,12 @@ def check_linux_ci_covers_what_it_claims():
 
   the QGIS MATRIX drifts from what metadata.txt promises, so the
   plugin is tested on versions it does not claim and untested on ones
-  it does.
+  it does. THIS ONE IS NOT CHECKED HERE and is named so the gap is
+  visible: the first two are, along with the four jobs and the stage
+  list. Said plainly because this docstring claimed all three for a
+  while and the harness check did not exist -- a rule asserting its
+  own enforcement is believed, which makes it the worst kind to leave
+  unimplemented. (2026-08-12.)
   """
   path = os.path.join(ROOT, ".github", "workflows", "ci.yml")
   if not os.path.exists(path):
@@ -552,6 +557,37 @@ def check_linux_ci_covers_what_it_claims():
       problems.append(
         f"ci.yml runs {quoted}, which does not exist. Only a clean "
         f"checkout finds this, and it fails the whole job.")
+
+  # Every HARNESS under tests/ is run by the workflow, or exempt with
+  # a reason. This is the check the docstring above has promised since
+  # it was written and which did not exist until 2026-08-12, found by
+  # the documentation audit -- a rule asserting its own enforcement is
+  # the worst thing to leave unimplemented, because it is believed.
+  #
+  # It is also the check that would have caught the gallery. Adding a
+  # harness and forgetting the workflow costs nothing locally and
+  # leaves that harness measuring one machine for as long as nobody
+  # looks.
+  harness_exempt = {}          # name -> why a second machine cannot run it
+  for harness in sorted(os.listdir(os.path.join(ROOT, "tests"))):
+    if not harness.endswith(".py"):
+      continue
+    quoted = f"tests/{harness}"
+    if quoted in workflow or harness in harness_exempt:
+      continue
+    problems.append(
+      f"{quoted} is a test harness that ci.yml never runs. Add it to "
+      f"the workflow, or add it to harness_exempt here with the "
+      f"reason a second machine cannot answer what it asks -- "
+      f"tests/visual_tests.py sat outside CI for months on a belief "
+      f"about fonts that turned out to be false.")
+  stale = [h for h in harness_exempt
+           if not os.path.exists(os.path.join(ROOT, "tests", h))]
+  if stale:
+    problems.append(
+      f"harness_exempt names {stale}, which no longer exist; an "
+      f"exemption for something that has gone is how the next real "
+      f"one gets waved through")
 
 
 def main():

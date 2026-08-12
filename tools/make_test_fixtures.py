@@ -6,7 +6,7 @@ uses), from the repository root:
 
     QT_QPA_PLATFORM=offscreen ... <qgis python> tools/make_test_fixtures.py
 
-It writes two files into tests/data/, both committed so the suite
+It writes three files into tests/data/, all committed so the suite
 never has to build them at test time:
 
 * ``landcover-categorical.gpkg`` — a 12 x 12 grid of parcels in

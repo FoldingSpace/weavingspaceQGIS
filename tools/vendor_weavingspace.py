@@ -21,7 +21,9 @@ untouched. WHY PATCHES EXIST (each is a numbered PATCH below):
      matplotlib (and occasionally scipy); the plugin never plots with
      them, so their imports are wrapped to fall back to a proxy
      (_optional.MissingModule) that only errors if actually *called*.
-  2. Performance: _TileGrid buffers the region to find its tiling
+  2. Performance (RETIRED -- see below; upstream adopted the same
+   optimisation and the patch went with it): _TileGrid buffers the
+   region to find its tiling
      rectangle; buffering the *convex hull* instead of the full
      detailed union is equivalent for that purpose (hull ⊇ union, and
      the rectangle only needs to contain the region generously) and

@@ -172,11 +172,28 @@ class WeavingSpacePlugin:
       progress.close()
 
     if still_missing:
+      # The REASON, not just the names. deps.LAST_FAILURES holds one
+      # line per package saying which of the four things went wrong --
+      # PyPI unreachable, no wheel for this Python, the download or
+      # unpack failing, no candidate versions left -- and those need
+      # completely different responses from the person reading this.
+      # Without it the message could only say "something is missing",
+      # which is the state 0.24.1 was written to end.
+      #
+      # It reached tools/ci_provision.py and stopped there for a
+      # while: the maintainer's tool printed the reason and the
+      # user's dialogue did not, so the release notes promised
+      # something no user could see. Found 2026-08-12 by the
+      # documentation audit, from a comment claiming this code read
+      # LAST_FAILURES when it did not.
+      why = [f"{name}: {deps.LAST_FAILURES[name]}"
+             for name in still_missing if name in deps.LAST_FAILURES]
+      detail = ("\n\n" + "\n".join(why)) if why else ""
       QMessageBox.critical(
         self.iface.mainWindow(), "WeavingSpace",
-        "Could not set up: " + ", ".join(still_missing) +
-        "\n\nCheck your internet connection and try again, or install "
-        "these packages into QGIS's Python yourself.")
+        "Could not set up: " + ", ".join(still_missing) + detail +
+        "\n\nYou can try again, or install these packages into "
+        "QGIS's Python yourself.")
       return False
     deps.ensure_pyproj_data()
     return True
