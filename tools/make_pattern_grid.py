@@ -457,18 +457,26 @@ def main():
   # Square-cropped to a common size and butted together with a hair of
   # white between, so the grid reads as one object rather than as
   # sixteen pictures that happen to be adjacent.
-  # A light-medium grey rule around each vignette. The maps are drawn
-  # on white and several families leave white inside them -- the
-  # harbour, the gaps between icons -- so without a border a cell
-  # bleeds into its neighbours and into the page, and the eye cannot
-  # tell a gap in the data from the space between two designs.
+  # The GUTTER is grey, not a rule around each cell. The maps are
+  # drawn on white and several families leave white inside them --
+  # the harbour, the space between icons -- so a cell needs something
+  # to end against or a gap in the data reads as the space between two
+  # designs. A drawn outline did that and added a sixteen-times
+  # repeated frame the eye then has to ignore; colouring the space
+  # between separates the cells with nothing added to them. Narrow,
+  # because the grid should read as one object.
+  # (User instruction, 2026-08-12: not a light grey line, the whole
+  # space in between, and make it narrower.)
+  # The outside margin is the SAME width as the gutters, so the frame
+  # is even all the way round and the outer cells are not cropped
+  # tighter than the inner ones. Without it the first and last columns
+  # ran to the edge of the image while every other boundary had four
+  # pixels of grey, which reads as a picture that has been trimmed.
   # (User instruction, 2026-08-12.)
-  SIDE, GAP, BORDER = 300, 8, "#b4b4b4"
-  width = COLS * SIDE + (COLS - 1) * GAP
-  height = ROWS * SIDE + (ROWS - 1) * GAP
-  sheet = Image.new("RGB", (width, height), "#ffffff")
-  from PIL import ImageDraw
-  pen = ImageDraw.Draw(sheet)
+  SIDE, GAP, GUTTER = 300, 4, "#bfbfbf"
+  width = COLS * SIDE + (COLS + 1) * GAP
+  height = ROWS * SIDE + (ROWS + 1) * GAP
+  sheet = Image.new("RGB", (width, height), GUTTER)
   for index, png in enumerate(cells[:COLS * ROWS]):
     # No per-cell cropping: the shared window already framed them
     # identically, and cropping here by anything but the same amount
@@ -484,10 +492,8 @@ def main():
     # as a plain grid still works; reading it as a path works better.
     row = index // COLS
     col = index % COLS if row % 2 == 0 else COLS - 1 - (index % COLS)
-    left, top = col * (SIDE + GAP), row * (SIDE + GAP)
-    sheet.paste(tile, (left, top))
-    pen.rectangle([left, top, left + SIDE - 1, top + SIDE - 1],
-                  outline=BORDER, width=1)
+    sheet.paste(tile, (GAP + col * (SIDE + GAP),
+                       GAP + row * (SIDE + GAP)))
   sheet.save(OUT)
   print(f"wrote {OUT}: {drawn} of {len(WANTED)} families drawn")
   return 0 if drawn == len(WANTED) else 1
