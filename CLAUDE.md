@@ -286,15 +286,25 @@ obligations: they exist so nobody pays twice for the same discovery.
   version on disk is untouched) so a tester always knows which build
   they have. (User instruction, 2026-08-08; details in
   docs/PUBLISHING.md.)
-- **`--quick` is the USER'S call, never the assistant's, and never
-  the default.** It skips the coverage report -- 31 minutes that gate
-  nothing -- and keeps the visual gallery and colourspace comparison,
-  which cost 7 and 16 seconds and are the two stages that catch a map
-  drawn wrongly. Ask before using it, every time: a quicker candidate
-  carries less evidence, and weighing that trade belongs to whoever
-  hands the build to somebody. A shortcut taken by default stops
-  being a shortcut and becomes the process. A candidate meant for
-  PROMOTION is built without it. (User instruction, 2026-08-11.)
+- **A stage stays in the release path only while somebody reads its
+  output and would act on it.** Three left within a day (2026-08-11
+  and 12), about eighty minutes of every candidate between them: the
+  new-code mutation guard, which quoted a blended figure it was told
+  never to quote and could not finish inside the window it gated; the
+  per-test coverage record, whose only consumer had just left; and
+  the coverage report, half an hour that gates nothing by its own
+  docstring and that six candidates in one night never once read.
+  `--quick` was retired with the last of them, having nothing left to
+  skip. What did NOT leave is the contrast worth remembering: the
+  visual gallery at 7 seconds and the colourspace comparison at 16,
+  because both catch a WRONG MAP, which is this software's
+  characteristic failure -- a wrong map looks exactly like a right
+  one. Twenty-three seconds against eighty minutes. Before adding
+  anything to a release, and periodically for everything already in
+  it, ask who reads the output and what they would do differently; if
+  the answer is nobody, or nothing before the artefact ships, it
+  belongs on demand or on somebody else's machine, reporting.
+  Details in docs/PUBLISHING.md.
 - **`--resume` exists so a defect in the MACHINERY does not cost a
   re-run of the SOFTWARE's gates, and it is opt-in.** Three
   candidates were abandoned in one evening (2026-08-11), each after

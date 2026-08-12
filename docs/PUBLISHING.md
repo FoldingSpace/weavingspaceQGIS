@@ -339,34 +339,49 @@ reviewed and applied by the USER). A stale generated document stops
 the build on a count mismatch, and no gate can approve prose on
 somebody's behalf.
 
-## --quick, and why it needs asking for
+## What a release stopped doing, and why that is not a weakening
 
-    python3 release.py --rc --quick    # only with the maintainer's say-so
+Three stages left the release path within a day of each other, and
+together they were about eighty minutes of every candidate. The
+argument was the same each time, and it is worth keeping because it
+will apply again.
 
-`--quick` skips the coverage report: 31 minutes, and it gates
-nothing, being informational by its own docstring. It does NOT skip
-the visual gallery or the colourspace comparison. Those cost 7 and 16
-seconds (measured 2026-08-11) and are the two stages that catch a map
-drawn WRONGLY, which is this software's characteristic failure -- a
-wrong map looks exactly like a right one.
+**The new-code mutation guard** ran fifty minutes and reached 61.5%
+against its own 70% bar. It quoted a blended figure over changed
+lines, which docs/MUTATION-TESTING.md says never to do; it could not
+finish inside the window it gated, two mutants timing out at
+twenty-one minutes each; and its red meant "write tests over the next
+few days", which is a work list rather than a gate. It reports
+remotely now, and its survivors are the next release's test-writing.
 
-The flag used to mean the opposite, dropping the gallery and the
-comparison while keeping the report. That was not wrong when it was
-written: the gallery was then the slow stage. Nobody re-measured
-after it became fast, so a flag meaning "skip the expensive stuff"
-had come to mean "skip the cheap valuable stuff and keep the
-expensive useless stuff". Re-measure a grouping like this whenever
-the costs move.
+**The per-test coverage record** (22 minutes) followed it, because
+its only consumer is `tools/mutate_auto.py`, which left. A stage kept
+in the critical path to feed something that has gone is habit rather
+than evidence.
 
-**It is never the default, and the assistant does not choose it.**
-Using it is the maintainer's call, asked for each time. Two reasons.
-A candidate carries less evidence with it, and the person who has to
-weigh "less evidence, sooner" against "more evidence, later" is the
-one who will hand the build to somebody. And a shortcut that becomes
-habitual stops being a shortcut and becomes the process, which is how
-a gate quietly leaves a project without anyone deciding to remove it.
+**The coverage report** (24 to 31 minutes) followed both. It gates
+nothing by its own docstring, it is a map of untested ground, and it
+is useful when somebody is deciding where to write tests -- which is
+a question you ask deliberately, not one you ask at four in the
+morning because the release script did. Six candidates were built in
+one night and it was read zero times.
 
-A candidate you intend to PROMOTE is built without it.
+    <qgis python> tools/coverage_report.py reports/v<version>
+
+`--quick` was retired with it, having nothing left to skip.
+
+**What did NOT leave, and the contrast is the point.** The visual
+gallery costs 7 seconds and the colourspace comparison 16, and both
+catch a WRONG MAP -- this software's characteristic failure, because
+a wrong map looks exactly like a right one. Twenty-three seconds
+against eighty minutes. Those two are worth more per second than
+anything else in the process, and a release that dropped them to save
+time would be saving the wrong time.
+
+The test to apply to any stage in a release path: **who reads its
+output, and what would they do differently?** If the honest answer is
+nobody, or nothing before the artefact ships, it belongs somewhere
+else -- on demand, or on somebody else's machine, reporting.
 
 ## A release candidate, first
 

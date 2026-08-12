@@ -104,7 +104,7 @@ def qgis_environment():
 EXPECTED_STAGES = [
   "roadmap and branches", "standards check", "secrets audit",
   "functional suite",
-  "coverage report", "visual gallery", "create reference venv",
+  "visual gallery", "create reference venv",
   "install reference packages", "reference comparison",
   "testing report", "per-test coverage record", "merge the coverage shards",
   "refresh published images",
@@ -430,9 +430,6 @@ DOCS_THE_SUITE_READS = ["CLAUDE.md", "MAINTAINING.md",
 STAGE_DEPENDS = {
   "functional suite": ["weavingspace_qgis", "tests/run_tests.py"]
                       + DOCS_THE_SUITE_READS,
-  "coverage report": ["weavingspace_qgis", "tests/run_tests.py",
-                      "tools/coverage_report.py"]
-                     + DOCS_THE_SUITE_READS,
   "visual gallery": ["weavingspace_qgis", "tests/visual_tests.py"],
   "reference comparison": ["weavingspace_qgis",
                            "tools/visual_reference_report.py"],
@@ -1326,15 +1323,6 @@ def main():
          "run is a thing a reader must be told rather than left to "
          "infer from a short log.")
   parser.add_argument(
-    "--quick", action="store_true",
-    help="with --rc, skip the coverage report: 31 minutes and it "
-         "gates nothing, being informational by design. The visual "
-         "gallery and the colourspace comparison are NOT skipped -- "
-         "measured 2026-08-11 they cost 7 and 16 seconds and are the "
-         "two stages that catch a map drawn wrongly, which is this "
-         "software's characteristic failure. The old grouping dated "
-         "from when the gallery was the slow one.")
-  parser.add_argument(
     "--rc", action="store_true",
     help="build a numbered release candidate for hands-on testing and "
          "stop. Runs the same correctness gates, skips the publication "
@@ -1455,23 +1443,35 @@ def main():
   # (cheap: sys.monitoring disables each line after its first hit).
   # Reported, never gating: coverage is a map of untested ground, not
   # a target to satisfy.
-  # MEASURED 2026-08-11, and it inverts what --quick used to mean.
-  # The gallery costs 7 seconds and the reference comparison 16, and
-  # both catch a WRONG MAP -- the failure this software has that most
-  # software does not. This report costs 31 minutes and gates
-  # nothing: it is informational by its own docstring. So --quick now
-  # skips the expensive non-gating stages and keeps the cheap gating
-  # ones, which is what it was always for; the old grouping dated
-  # from when the gallery was the slow one.
+  # The coverage report is NOT PART OF A RELEASE any more, decided
+  # 2026-08-12 and the third stage to leave for the same reason.
+  #
+  # It cost 24 to 31 minutes, roughly three times the whole rest of a
+  # candidate, and it gates nothing by its own docstring: it is a map
+  # of untested ground, useful when somebody is deciding where to
+  # write tests, and useful then rather than at four in the morning
+  # when nobody will read it. Six candidates were built in one night
+  # and the report was read exactly zero times. A stage kept in the
+  # critical path because it is virtuous rather than because anyone
+  # consumes its output is ritual, and ritual in a release is paid
+  # for by every release afterwards.
+  #
+  # Run it when the question is live, which is what it was for:
+  #     <qgis python> tools/coverage_report.py reports/v<version>
+  #
+  # What did NOT leave, and the contrast is the whole point: the
+  # visual gallery (7s) and the colourspace comparison (16s) both
+  # catch a WRONG MAP, which is this software's characteristic
+  # failure because a wrong map looks exactly like a right one.
+  # Twenty-three seconds against half an hour, and they are the two
+  # stages worth the most per second in the entire process.
   coverage = ""
-  if args.quick:
-    print("\n=== coverage report — SKIPPED (--quick): 31 minutes and "
-          "it gates nothing ===", flush=True)
-  else:
-    coverage = run("coverage report",
-                   [python, "-u", os.path.join("tools",
-                                              "coverage_report.py"),
-                    report_dir], env, capture=True)
+  print("\n=== coverage report: NOT PART OF A RELEASE ===\n"
+        "  Half an hour, gating nothing, read by nobody in six\n"
+        "  candidates. Run it when you are deciding where to write\n"
+        "  tests, which is the question it answers:\n"
+        "      <qgis python> tools/coverage_report.py "
+        f"{os.path.relpath(report_dir, ROOT)}", flush=True)
 
   # 2. visual gallery + HTML report (captured for the testing report).
   # These three stages — gallery, reference comparison, per-test
