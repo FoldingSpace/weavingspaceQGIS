@@ -378,14 +378,20 @@ re-measured (several dates and figures were revised today alone); a
 Args block that has drifted from the signature. Doing it per module
 with the tests open beside it is the only way it stays honest.
 
-**The note line is asserted NEGATIVELY in at least one place, and a
-cleared note passes that trivially.** `_note_after_a_run` fixed the
-two positive assertions that read the note after a run; the negative
-one near it -- "categories" must NOT appear -- is satisfied just as
-well by a note the plugin cleared a moment earlier, which is the
-vacuous-test shape this project produces at about one in five. Sweep
-every read of `live_note` and decide, per site, whether it needs the
-sampling helper, a recorded message-bar assertion, or nothing.
+**The note line's negative assertion.** DONE 2026-08-12.
+`_notes_during_a_run` collects every distinct note across a window,
+so "categories must NOT appear" can no longer be satisfied by a line
+the plugin cleared a moment earlier. Measured honestly: the old
+single read also fails against
+`category-shift-cries-wolf-on-first-sight` on this machine, so the
+change bought robustness in a slower harness rather than detection
+today -- which is the failure that actually happened to the two
+POSITIVE reads of the same line under the coverage recorder.
+
+The rest of the sweep of `live_note` reads still stands. Most are
+`bool(text) or bool(MODALS)` and are fine; the ones worth a second
+look are any that assert an ABSENCE, since those are the shape that
+silence satisfies.
 
 **The progress chart draws stages the run will not execute.** Under
 `--quick` it still lists the 31-minute coverage report among the
