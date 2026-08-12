@@ -321,10 +321,15 @@ def stage_chart(started, final=False):
     state = STAGE_STATE.get(name)
     if state is None:
       guess = expected.get(name)
-      lines.append(f"  ..  {name}"
-                   + (f"  ~{_spell(guess)}" if guess else ""))
-      if guess:
-        remaining += guess
+      if will_probably_skip(name):
+        # named, not hidden: a reader must be able to see that a gate
+        # is not going to run, and its time must leave the estimate
+        lines.append(f"  --  {name}  (resume: skipping, passed before)")
+      else:
+        lines.append(f"  ..  {name}"
+                     + (f"  ~{_spell(guess)}" if guess else ""))
+        if guess:
+          remaining += guess
     elif state[0] == "running":
       ran = time.monotonic() - state[1]
       idle = STAGE_IDLE.get(name, 0)
@@ -540,6 +545,42 @@ def may_skip(step, resuming):
   if step not in STAGE_ORDER:
     STAGE_ORDER.append(step)
   return True
+
+
+def will_probably_skip(step):
+  """Would this stage be skipped if the run reached it right now?
+
+  Args:
+    step: a stage name from EXPECTED_STAGES that has not run yet.
+
+  Returns:
+    True when a resumed run would skip it. Used ONLY by the progress
+    chart, never to decide anything: skip_if_already_done remains the
+    single authority, and it is asked again when the stage is
+    actually reached.
+
+  Why the chart needs its own copy of the question. The chart lists
+  every expected stage it has not yet seen and adds each one's
+  estimate to the remaining time, while skip_if_already_done only
+  learns a stage is skippable at the moment the run arrives there. So
+  a resumed run's finishing time was too late by the sum of
+  everything it was about to skip -- most of the run, on a late
+  resume. That fault was recorded against `--quick` and the coverage
+  report, both since retired, and it outlived both: the cause moved
+  to --resume while the entry still named the example. (2026-08-12.)
+
+  Deliberately CONSERVATIVE: it requires the saved log to exist, as a
+  captured stage's skip does. An uncaptured stage whose log is
+  missing would in fact be skipped and is reported here as running,
+  which errs the same way the chart already erred -- too pessimistic,
+  never too optimistic. A chart that promises an earlier finish than
+  the run delivers is the one that misleads.
+  """
+  if not RESUMING:
+    return False
+  if not os.path.exists(stage_log_path(step)):
+    return False
+  return may_skip(step, RESUMING)
 
 
 def skip_if_already_done(step, capture):

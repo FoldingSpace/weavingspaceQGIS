@@ -258,9 +258,20 @@ obligations: they exist so nobody pays twice for the same discovery.
   `check_no_secrets` are green on a tree whose text-review queue is
   full, because approving prose is the USER'S act and no local gate
   may do it. A gate only a person can satisfy is exactly the one that
-  goes unsatisfied for six hours. Run `tools/text_review.py --check`
-  alongside the other two when checking a tree by hand.
-  (2026-08-12.)
+  goes unsatisfied for six hours. So the local habit is now ONE
+  command, and it reads its own contents out of `ci.yml`:
+
+      python3 tools/check_before_push.py
+
+  It runs every step of the `standards` job in order -- currently the
+  rule check, the secrets audit, the text-review check, the
+  published-content audit and the packaging check -- and says out
+  loud which steps it could not run rather than passing over them. A
+  hand-kept list of somebody else's checks drifts, silently, and the
+  drift is found by the thing the list was meant to prevent; add a
+  step to that job and it runs here from the next invocation with
+  nobody editing anything. It does NOT run the QGIS jobs, which is
+  what CI is for. (2026-08-12.)
 - **Linux CI runs BESIDE the local gates, not after them, and its
   fixes are made in a WORKTREE, and the push is watched.** A CI
   watcher is armed in the same breath as the push and reports
