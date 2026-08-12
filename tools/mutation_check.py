@@ -226,8 +226,15 @@ MUTATIONS = [
        test="test_the_dialogs_chrome_does_its_job",
        why="the region chooser offering only layers that can be tiled"),
   dict(name="idle-progress-bar", file=DIALOG,
-       old="self.progress.setVisible(False)",
-       new="self.progress.setVisible(True)",
+       # Narrowed 2026-08-12 (three sites: construction, the
+       # alive-check and _finish_run). The named test inspects a
+       # freshly built dialog's chrome, so it is construction that
+       # this entry is about; hiding it after a run is a different
+       # promise with its own tests.
+       old="""    self.progress = QProgressBar()
+    self.progress.setVisible(False)""",
+       new="""    self.progress = QProgressBar()
+    self.progress.setVisible(True)""",
        test="test_the_dialogs_chrome_does_its_job",
        why="the progress bar staying out of the way when nothing runs"),
   dict(name="close-button", file=DIALOG,
@@ -259,8 +266,17 @@ MUTATIONS = [
        why="a categorical row's Classes cell showing a dash rather "
            "than claiming one class"),
   dict(name="live-pending-initial", file=DIALOG,
-       old="self._live_pending = False",
-       new="self._live_pending = True",
+       # Narrowed 2026-08-12 (three sites: the constructor, closeEvent
+       # and _finish_run). The constructor is the one the name and the
+       # why mean: initialised full, _finish_run then starts the live
+       # timer after an ordinary Generate. docs/MUTATION-TESTING.md
+       # records this exact mutant as causing an extra tiling run
+       # after every Generate, which is how it is known not to be
+       # equivalent.
+       old="""    self._live_timer.timeout.connect(self._maybe_live_generate)
+    self._live_pending = False""",
+       new="""    self._live_timer.timeout.connect(self._maybe_live_generate)
+    self._live_pending = True""",
        test="test_a_finished_run_leaves_nothing_armed",
        why="an ordinary Generate not arming a live rebuild nobody "
            "asked for"),
@@ -668,8 +684,13 @@ MUTATIONS = [
            "that tiling, rather than being overwritten by the "
            "settings the run started with"),
   dict(name="category-colours-cleared-by-ramp", file=DIALOG,
-       old="""        self._clear_category_colours(tid, "a new colour ramp")""",
-       new="""        pass  # mutation: hand-picks outlive the ramp change""",
+       # Narrowed 2026-08-12 (two sites). This is the primary path,
+       # where choosing a ramp replaces the element's source of
+       # truth; the other sits behind a showing_custom() guard.
+       old="""        # reselected anew", settled 2026-08-09)
+        self._clear_category_colours(tid, "a new colour ramp")""",
+       new="""        # reselected anew", settled 2026-08-09)
+        pass  # mutation: hand-picks outlive the ramp change""",
        test="test_a_new_ramp_discards_hand_picks_and_says_so",
        why="choosing a ramp meaning what it says, and the user being "
            "told which hand-picked colours it cost them"),
