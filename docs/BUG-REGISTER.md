@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-72 defect(s) with a regression test.
+73 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -152,6 +152,8 @@ there is no separate list to remember.
   guarded by `test_repopulating_the_family_list_fires_no_handlers`
 - **a colour picked while a run was in flight was overwritten when the run finished, because the output builder trusted the assignments the run was launched with.**  
   guarded by `test_the_colour_editor_opened_partway_through_a_run`
+- **tests/run_tests.py gained os._exit at the end of main() on 2026-08-11, which skipped the write in tools/coverage_per_test.py; three sharded recorders ran the whole suite, wrote no file, and the rc5 candidate aborted 35 minutes in at the merge stage with "nothing to merge". The last good record was a day old, and the release would otherwise have measured mutants against it.**  
+  guarded by `test_the_coverage_record_survives_the_suite_exiting`
 - **the design view drew a dark outline around every tile, which fights the colour comparison the view is for.**  
   guarded by `test_the_design_view_draws_no_tile_outlines`
 - **the preview's painting had almost no coverage, and removing its brush, pen, render hint or fitting arithmetic changed a picture no test looked at.**  
@@ -180,7 +182,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 42
+- unrecorded: 43
 - reading the code: 7
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5

@@ -7876,7 +7876,6 @@ def test_the_release_watchdog_ignores_a_sleeping_machine():
     f"stops with the machine. Calls found: {kinds}"
   assert "monotonic" in kinds, \
     f"the watchdog reads no monotonic clock at all: {kinds}"
-
   # and the ceiling it compares against must come from the same clock;
   # one monotonic and one wall-clock reading in a subtraction is the
   # same bug wearing a subtler face
@@ -7885,6 +7884,98 @@ def test_the_release_watchdog_ignores_a_sleeping_machine():
     f"the watchdog mixes clocks: it uses {sorted(names & {'began', 'began_monotonic'})}. " \
     f"`began` is wall clock, kept for stamping; durations must come " \
     f"from began_monotonic or a sleep re-enters through the ceiling"
+
+
+def _record_coverage_against_a_stub_suite(exit_code):
+  """Run the real recorder over a suite that exits the way ours does.
+
+  Args:
+    exit_code: what the stub suite passes to os._exit. Zero stands
+      for a suite that finished and reported; non-zero for one that
+      failed or was killed by the stall watchdog.
+
+  Returns:
+    (written, output). written is True when the recorder left a
+    per-test-coverage.json in the sandbox; output is the child's
+    combined stdout and stderr, for a failure message that says what
+    happened rather than which assertion was reached.
+
+  The whole point is that this runs the REAL tools/coverage_per_test.py
+  in a child process, against a stub standing in for the suite. A test
+  that imported the recorder here could not exercise the defect at
+  all, because the defect IS process exit.
+  """
+  import shutil
+  import subprocess
+  import tempfile
+  root = tempfile.mkdtemp(prefix="weavingspace_record_")
+  os.makedirs(os.path.join(root, "tools"))
+  os.makedirs(os.path.join(root, "tests"))
+  shutil.copy2(os.path.join(ROOT, "tools", "coverage_per_test.py"),
+               os.path.join(root, "tools", "coverage_per_test.py"))
+  # The stub is deliberately minimal and ends exactly as the real
+  # suite ends: os._exit, which is what the recorder has to survive.
+  with open(os.path.join(root, "tests", "run_tests.py"), "w",
+            encoding="utf-8") as handle:
+    handle.write(
+      "import os, sys\n"
+      "def _enable_stack_dumps():\n"
+      "  pass\n"
+      "def _no_modal_dialogs():\n"
+      "  pass\n"
+      "def check(name, fn, sharded=True):\n"
+      "  fn()\n"
+      "def main():\n"
+      "  check('a stub test', lambda: None)\n"
+      "  sys.stdout.flush()\n"
+      f"  os._exit({int(exit_code)})\n")
+  finished = subprocess.run(
+    [sys.executable, os.path.join(root, "tools", "coverage_per_test.py")],
+    capture_output=True, text=True, timeout=600, env=dict(os.environ))
+  out = os.path.join(root, "reports", "per-test-coverage.json")
+  written = os.path.exists(out)
+  text = (finished.stdout or "") + (finished.stderr or "")
+  shutil.rmtree(root, ignore_errors=True)
+  return written, text
+
+
+def test_the_coverage_record_survives_the_suite_exiting():
+  """The per-test record is written even though the suite os._exits.
+
+  Two correct fixes collided. The suite ends in os._exit so that a
+  segfault in Qt/QGIS teardown cannot turn a finished, reported run
+  into exit 139. The recorder wrapped the suite's check() and wrote
+  its record after main() returned -- and main() never returns, so
+  the record was never written and nothing said so: the suite ran, it
+  printed its own passes, and the file simply was not there.
+
+  The second half matters as much as the first. A run that FAILED or
+  was killed by the stall watchdog must write NOTHING, because a
+  partial shard file names the shard it belongs to, so the merger
+  counts the set complete and every test that never ran reads as a
+  test touching no lines. That is the stale-record hazard arriving by
+  a new door: survivors overstated, newest work ignored.
+
+  Regression: tests/run_tests.py gained os._exit at the end of main() on 2026-08-11, which skipped the write in tools/coverage_per_test.py; three sharded recorders ran the whole suite, wrote no file, and the rc5 candidate aborted 35 minutes in at the merge stage with "nothing to merge". The last good record was a day old, and the release would otherwise have measured mutants against it.
+  """
+  written, text = _record_coverage_against_a_stub_suite(0)
+  assert written, \
+    f"the recorder ran a suite that exited 0 and wrote no record. " \
+    f"os._exit skips finally blocks, atexit and everything after " \
+    f"the call, so a record written after rt.main() returns is " \
+    f"never written at all. Child said: {text.strip()[-600:]!r}"
+  assert "recorded 1 tests" in text, \
+    f"the record was written but the recorder did not report what " \
+    f"it held; the summary line is how a sharded run is checked " \
+    f"against the others. Child said: {text.strip()[-600:]!r}"
+
+  written, text = _record_coverage_against_a_stub_suite(1)
+  assert not written, \
+    f"a suite that exited 1 left a coverage record behind. That " \
+    f"file is PARTIAL and says nothing about being partial: sharded, " \
+    f"it names the shard it was part of, so the merger would count " \
+    f"the set complete and treat every test that never ran as a " \
+    f"test that touches no lines. Child said: {text.strip()[-600:]!r}"
 
 
 def test_the_release_watchdog_stops_a_stuck_stage():
@@ -26026,6 +26117,8 @@ def main():
         test_the_release_watchdog_measures_the_whole_tree)
   check("the release watchdog ignores a sleeping machine",
         test_the_release_watchdog_ignores_a_sleeping_machine)
+  check("the coverage record survives the suite exiting",
+        test_the_coverage_record_survives_the_suite_exiting)
   check("the release watchdog stops a stuck stage",
         test_the_release_watchdog_stops_a_stuck_stage)
   check("the release watchdog leaves a busy stage alone",

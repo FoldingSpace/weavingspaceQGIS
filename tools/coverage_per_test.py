@@ -110,6 +110,79 @@ def main():
       per_test[name] = sorted(current)
 
   rt.check = timed_check
+  written = []
+
+  def write_the_record():
+    """Write this process's share of the record, at most once.
+
+    Returns:
+      None; writes reports/per-test-coverage.json, or
+      per-test-coverage.<i>of<n>.json when sharded, and prints how
+      many tests and lines it holds. Reached from two places -- the
+      suite's exit and the ordinary return below -- so it refuses a
+      second call rather than writing the file twice.
+
+    One file per shard when sharded, merged by the caller. Named for
+    the shard rather than written concurrently to one path: three
+    processes writing the same JSON is a corrupt record, and a
+    corrupt coverage record is the one failure that silently
+    understates survivors while looking healthy.
+    """
+    if written:
+      return
+    written.append(True)
+    shard = os.environ.get("WEAVINGSPACE_TEST_SHARD", "")
+    suffix = "." + shard.replace("/", "of") if shard else ""
+    out = os.path.join(ROOT, "reports", f"per-test-coverage{suffix}.json")
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    with open(out, "w", encoding="utf-8") as f:
+      json.dump(per_test, f, indent=1, sort_keys=True)
+    covered = len({line for lines in per_test.values() for line in lines})
+    print(f"\nrecorded {len(per_test)} tests covering {covered} lines "
+          f"-> {os.path.relpath(out, ROOT)}")
+
+  # The suite does not RETURN from main(). It ends in os._exit, added
+  # 2026-08-11 so that a segfault in Qt/QGIS teardown could not turn a
+  # finished, fully reported run into exit 139. os._exit skips
+  # everything after it -- finally blocks, atexit handlers, the rest
+  # of this function -- so on 2026-08-11 this recorder ran the entire
+  # suite three times, printed no summary, wrote no file, and the
+  # candidate aborted at the merge stage with "nothing to merge".
+  # Two correct fixes, each invisible to the other; the collision is
+  # the defect, not either fix.
+  #
+  # So the record is written on the way THROUGH that exit rather than
+  # after it. Wrapping os._exit here rather than editing the suite
+  # keeps the requirement with the tool that has it: this recorder
+  # observes a suite it does not own, and a suite that grows a second
+  # exit path later costs nothing on this side.
+  #
+  # A NON-ZERO exit deliberately writes NOTHING. A failed or
+  # watchdog-killed run holds a partial record, and a partial shard
+  # file is worse than a missing one: it names the shard it was part
+  # of, so the merger counts the set complete and every test that
+  # never ran reads as a test that touches no lines -- which is
+  # exactly how a coverage record understates survivors while looking
+  # healthy.
+  real_exit = os._exit
+
+  def exit_after_writing_the_record(code):
+    """Stand in for os._exit so the record survives the suite's exit.
+
+    Args:
+      code: the exit status the suite chose. Zero means it finished
+        and the record is complete; anything else leaves no file.
+
+    Returns:
+      Never returns; the process ends here.
+    """
+    if code == 0:
+      write_the_record()
+    sys.stdout.flush()
+    sys.stderr.flush()
+    real_exit(code)
+
+  os._exit = exit_after_writing_the_record
   try:
     rt.main()
   except SystemExit:
@@ -117,28 +190,16 @@ def main():
   finally:
     mon.free_tool_id(tool)
 
-  # One file per shard when sharded, merged by the caller. Named for
-  # the shard rather than written concurrently to one path: three
-  # processes writing the same JSON is a corrupt record, and a corrupt
-  # coverage record is the one failure that silently understates
-  # survivors while looking healthy.
-  shard = os.environ.get("WEAVINGSPACE_TEST_SHARD", "")
-  suffix = "." + shard.replace("/", "of") if shard else ""
-  out = os.path.join(ROOT, "reports", f"per-test-coverage{suffix}.json")
-  os.makedirs(os.path.dirname(out), exist_ok=True)
-  with open(out, "w", encoding="utf-8") as f:
-    json.dump(per_test, f, indent=1, sort_keys=True)
-  covered = len({line for lines in per_test.values() for line in lines})
-  print(f"\nrecorded {len(per_test)} tests covering {covered} lines "
-        f"-> {os.path.relpath(out, ROOT)}")
-  # Leave from HERE, before this function returns. QGIS, PROJ and Qt
-  # tear down in an order Python's exit sequence does not respect, and
-  # the crash lands as main()'s locals are destroyed -- after the
-  # record is safely written, so it costs nothing but a fatal signal
-  # on the way out, which would one day fail a release for no reason.
+  # Reached only if the suite ever stops exiting for itself. Leave
+  # from HERE rather than returning: QGIS, PROJ and Qt tear down in an
+  # order Python's exit sequence does not respect, and the crash lands
+  # as main()'s locals are destroyed -- after the record is safely
+  # written, so it costs nothing but a fatal signal on the way out,
+  # which would one day fail a release for no reason.
+  write_the_record()
   sys.stdout.flush()
   sys.stderr.flush()
-  os._exit(0)
+  real_exit(0)
 
 
 if __name__ == "__main__":
