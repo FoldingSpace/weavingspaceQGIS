@@ -228,14 +228,16 @@ restyle, require the dock's work to survive — and it should cover all
 three sites. Consider extracting `_assignment_for(tile_id)` first:
 three copies of one lookup is why nothing was guarding any of them.
 
-A TABLE THAT STOPS ONE DICTIONARY SHORT — catalog.py:295.
-`test_every_declared_offset_is_pinned` states the rule rather than
-listing names, exactly as it should, but it loops over
-`catalog.TILINGS_BY_N` alone and `GENERAL_TILINGS` is a separate
-dictionary. hex-slice and square-slice declare `offset=0` there and
-nothing reads it. Widen the existing loop; do not write a second
-test. This is the failure mode the table shape is supposed to
-prevent, arriving through the one door it left open.
+A TABLE THAT STOPS ONE DICTIONARY SHORT — catalog.py:295. DONE
+2026-08-12. `test_every_declared_offset_is_pinned` states the rule
+rather than listing names, exactly as it should, but it looped over
+`catalog.TILINGS_BY_N` alone while hex-slice and square-slice declare
+their offsets in `GENERAL_TILINGS`. The existing loop was widened
+rather than a second test written, and the kill verified as
+`general-tilings-offset-moved`. Kept here only until the rest of the
+family lands, because the lesson generalises: a table test that
+covers one container of two fails in exactly the way the shape is
+supposed to prevent.
 
 A CONSTANT GUARDED ONLY AGAINST LARGE CHANGES — catalog.py:307.
 `HEX_COLOURING_COUNTS` is in the hand-picked catalogue, but that
