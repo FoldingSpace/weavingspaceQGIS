@@ -1408,6 +1408,16 @@ MUTATIONS = [
            "an unsupported count does not raise -- the library prints "
            "a complaint and substitutes a default unit, so the user "
            "gets a map quietly carrying the wrong number of variables"),
+  dict(name="unclassed-swatch-stops-short", file=DIALOG,
+       old="        step = (len(shades) - 1) / 7",
+       new="        step = (len(shades) - 1) / 8"
+           "  # mutation: the last sample falls short",
+       test="test_an_unclassed_swatch_reaches_both_ends_of_its_ramp",
+       why="eight stripes span seven gaps, so dividing by eight lands "
+           "the last sample before the top class and the Custom cell "
+           "shows a shorter ramp than the map draws. A truncated ramp "
+           "does not look broken, so a user comparing two elements' "
+           "cells judges by a picture that misrepresents one of them"),
   dict(name="unchanged-colours-read-as-a-dock-recolour", file=DIALOG,
        old="    if all(expected.get(key) == colour "
            "for key, colour in actual.items()):",

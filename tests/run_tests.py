@@ -12130,6 +12130,61 @@ def test_custom_follows_the_field_and_the_source():
   dlg.close()
 
 
+def test_an_unclassed_swatch_reaches_both_ends_of_its_ramp():
+  """The Custom swatch for Unclassed shows the whole selected range.
+
+  Unclassed is fifty linear intervals, and eight stripes cannot show
+  fifty slivers -- taking the first eight would draw the bottom sixth
+  of the ramp and call it the element's colours. So the swatch samples
+  the fifty evenly, and the arithmetic that does it has to land its
+  last sample ON the last class: eight stripes spanning forty-nine
+  gaps means a step of 49/7, not 49/8.
+
+  Get that divisor wrong and the swatch stops short of the top of the
+  range while looking perfectly plausible -- a truncated ramp is not
+  an obviously broken one -- so a user comparing two elements' cells
+  judges by a picture that misrepresents one of them. The comment at
+  the sampling already promises "the whole of what the range
+  selected"; this asserts the promise.
+
+  It reads the ICON rather than the intermediate list, because the
+  icon is what the user meets, and it asserts both ends: pinning only
+  the last would pass against a swatch that had lost its bottom.
+
+  Regression: an automatic mutant moved the sampling divisor and one covering test noticed nothing, because nothing looked at where the swatch ended.
+  """
+  from qgis.PyQt.QtGui import QColor
+  from weavingspace_qgis.dialog import RAMP_SWATCH, SWATCH_STRIPES
+  dlg, _layer, tid = _quant_dialog(mode="Quant: Unclassed")
+  assignment = next((a for a in dlg._assignments() if a["id"] == tid), None)
+  assert assignment is not None, \
+    "the fixture produced no assignment for its own element; nothing " \
+    "below would be testing the swatch"
+  field = assignment["var"]
+  full = [colour for _lo, _hi, colour
+          in dlg._current_graduated_classes(assignment)]
+  assert len(full) > SWATCH_STRIPES, \
+    f"Unclassed produced {len(full)} classes, which is not more than " \
+    f"the {SWATCH_STRIPES} stripes, so the sampling branch this test " \
+    f"exists for never ran"
+
+  image = dlg._custom_swatch_for(tid, field).pixmap(RAMP_SWATCH).toImage()
+  middle = RAMP_SWATCH.height() // 2
+  step = RAMP_SWATCH.width() / SWATCH_STRIPES
+  bands = [QColor(image.pixel(int(i * step) + 2, middle)).name()
+           for i in range(SWATCH_STRIPES)]
+  assert bands[0] == full[0], \
+    f"the swatch starts at {bands[0]} while the element's lowest " \
+    f"class draws {full[0]}, so the cell shows a range the map does " \
+    f"not begin at"
+  assert bands[-1] == full[-1], \
+    f"the swatch ends at {bands[-1]} while the element's highest " \
+    f"class draws {full[-1]}: the sampling stops short of the top of " \
+    f"the range, so the cell shows a shorter ramp than the map does " \
+    f"and a user comparing elements is comparing the wrong pictures"
+  dlg.close()
+
+
 def test_a_dock_edit_that_changes_no_colour_is_announced_as_nothing():
   """Changing a stroke width in QGIS must not be reported as a recolour.
 
@@ -26353,6 +26408,8 @@ def main():
         test_qgis_side_restyles_reach_the_dialog)
   check("a dock edit that changes no colour is announced as nothing",
         test_a_dock_edit_that_changes_no_colour_is_announced_as_nothing)
+  check("an Unclassed swatch reaches both ends of its ramp",
+        test_an_unclassed_swatch_reaches_both_ends_of_its_ramp)
   check("the quant editor edits class colours",
         test_the_quant_editor_edits_class_colours)
   check("the ramp display range reinterpolates",

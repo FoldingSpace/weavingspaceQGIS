@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-80 defect(s) with a regression test.
+81 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -106,6 +106,8 @@ there is no separate list to remember.
   guarded by `test_an_embedded_style_name_fits_the_column_it_is_written_to`
 - **the inset percentage conversion was defended only by comparisons whose tolerance is wider than the error.**  
   guarded by `test_an_inset_percentage_is_a_percentage_of_the_spacing`
+- **an automatic mutant moved the sampling divisor and one covering test noticed nothing, because nothing looked at where the swatch ended.**  
+  guarded by `test_an_unclassed_swatch_reaches_both_ends_of_its_ramp`
 - **none of these shapes had ever been put through the plugin; the suite's fixtures are all well-formed.**  
   guarded by `test_awkward_layers_are_handled_or_declined`
 - **cancel's immediate report to the dialog was untested; removing it left the window disabled until the abandoned work finished.**  
@@ -196,7 +198,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 50
+- unrecorded: 51
 - reading the code: 7
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5
