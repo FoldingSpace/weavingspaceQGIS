@@ -70,10 +70,6 @@ is how a branch becomes archaeology.
 
 ## Needs the maintainer, not the assistant
 
-**Enable GitHub Pages**, once: Settings -> Pages -> Deploy from a
-branch -> main, folder `/docs`. Until then the project page 404s and
-the README links to nothing.
-
 **An OSGeo user ID**, for submitting to plugins.qgis.org. It belongs
 to a person rather than to the software; register at id.osgeo.org and
 the plugin is owned by that account.
