@@ -1462,15 +1462,26 @@ def main():
   # work is defended, costs minutes, and is the one that runs every
   # time. Skipped on the first release, when there is no previous tag
   # to compare against.
-  run_sharded("per-test coverage record",
-              [python, "-u", os.path.join("tools", "coverage_per_test.py")],
-              env)
-  # the shards wrote one file each; the mutation tools want one map,
-  # and the merge REFUSES a partial set rather than quietly producing
-  # a record that overstates survivors
-  run("merge the coverage shards",
-      [python, "-u", os.path.join("tools", "merge_coverage_shards.py")],
-      env)
+  # The per-test coverage record and its merge USED to run here, at
+  # about twenty-two minutes a candidate. They followed the guard out
+  # on 2026-08-11, because the record has exactly one consumer --
+  # tools/mutate_auto.py -- and that now runs remotely. A stage kept
+  # in the critical path to feed something that left is not evidence,
+  # it is habit, and this one cost twenty-two minutes of every
+  # candidate to produce a file nothing in the candidate opened.
+  #
+  # The record is still REQUIRED, and still recorded, where it is
+  # used: the remote run makes its own on the runner, and a local
+  # campaign records one first (docs/MUTATION-TESTING.md is explicit
+  # that a stale record overstates survivors, so it is re-recorded
+  # whenever the suite changes). Nothing about that changed. What
+  # changed is that a candidate no longer pays for it.
+  print("\n=== per-test coverage record: NOT PART OF A CANDIDATE ===\n"
+        "  Its only consumer is tools/mutate_auto.py, which now runs\n"
+        "  remotely and records its own. Record one here before any\n"
+        "  local mutation work, and re-record whenever the suite\n"
+        "  changes -- a stale record overstates survivors:\n"
+        "      <qgis python> tools/coverage_per_test.py", flush=True)
   previous = subprocess.run(["git", "describe", "--tags", "--abbrev=0"],
                             cwd=ROOT, capture_output=True, text=True)
   if previous.returncode == 0 and previous.stdout.strip():

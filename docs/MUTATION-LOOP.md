@@ -227,6 +227,17 @@ the artefact ships is one people learn to route around — the same
 argument this project already made for keeping the visual gallery and
 the catalogue sweep out of the release path.
 
+The per-test coverage record followed it out of the candidate the
+same evening, for the same reason and with less argument: its only
+consumer is `tools/mutate_auto.py`, so once the guard ran elsewhere
+the record was twenty-two minutes per candidate spent producing a
+file nothing in that candidate opened. It is still required and still
+recorded where it is USED -- the remote run makes its own, and a
+local campaign records one first, re-recording whenever the suite
+changes, because a stale record overstates survivors. A stage kept in
+the critical path to feed something that has left is habit rather
+than evidence.
+
 What is NOT claimed: that the survivors do not matter. Ten came out
 of that half-run and they are the 0.24.1 test-writing list. What
 changed is where the number is produced and what it is allowed to
