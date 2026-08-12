@@ -159,6 +159,11 @@
   "excerpt": "<p>This QGIS plugin is an interface to the\n<a href=\"https://",
   "where": "docs/index.html"
  },
+ "187d87eb4f4636b3": {
+  "approved": "2026-08-12",
+  "excerpt": "Could not read the layer: {}",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "18c353b62194e54e": {
   "approved": "2026-08-08",
   "excerpt": "Fill colour for this element",
@@ -578,6 +583,11 @@
   "approved": "2026-08-09",
   "excerpt": "{} is no longer in the layer, so the elements using it now s",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "77c108db2198ecb6": {
+  "approved": "2026-08-12",
+  "excerpt": "You can try again, or install these packages into QGIS's Pyt",
+  "where": "weavingspace_qgis/plugin.py"
  },
  "78745481edf68bd8": {
   "approved": "2026-08-08",
