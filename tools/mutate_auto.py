@@ -447,9 +447,14 @@ def changed_lines(ref):
   # every target then yields nothing and the caller prints "0 line(s)
   # changed", which reads exactly like a tree nobody touched. That is
   # what the remote incremental leg reported on 2026-08-12 while
-  # deps.py carried 89 changed lines -- a shallow checkout with no
-  # tags cannot see v0.24.0, and the instrument answered anyway. An
-  # instrument that cannot look must say so, not report a clean zero.
+  # deps.py carried 89 changed lines. The cause there was not a
+  # missing tag, which was the first guess: the qgis container runs
+  # as root against a checkout owned by the runner user, so git
+  # refused the whole repository with "detected dubious ownership"
+  # and every command failed identically. Either way an instrument
+  # that cannot look must say so rather than report a clean zero, and
+  # the probe below catches both because it asks git to do one thing
+  # and requires an answer.
   probe = subprocess.run(
     ["git", "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"],
     cwd=ROOT, capture_output=True, text=True)
@@ -457,10 +462,13 @@ def changed_lines(ref):
     raise SystemExit(
       f"cannot resolve '{ref}', so there is nothing to diff against "
       f"and no honest answer to give. This is NOT the same as "
-      f"'nothing changed'. On a CI runner the usual cause is a "
-      f"checkout without tags: actions/checkout needs fetch-depth: 0 "
-      f"AND the tag actually fetched. Check with "
-      f"`git rev-parse {ref}` in the same working directory.")
+      f"'nothing changed'. Two causes have been seen: git shut out "
+      f"of the directory entirely (a container running as root over "
+      f"somebody else's checkout -- 'detected dubious ownership', "
+      f"fixed with `git config --global --add safe.directory`), and "
+      f"a checkout without the tag (actions/checkout needs "
+      f"fetch-depth: 0 and the tag actually fetched). git said: "
+      f"{(probe.stderr or '').strip() or '(nothing)'}")
 
   changed = {}
   for name in TARGETS:

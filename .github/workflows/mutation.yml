@@ -128,13 +128,22 @@ jobs:
         with:
           fetch-depth: 0        # --since needs the tag and its history
           fetch-tags: true      # ...and the tag itself, which depth alone did not bring
+      - name: Let git work at all in this container
+        # The qgis images run as root while the checkout belongs to
+        # the runner user, so git refuses the whole repository with
+        # "detected dubious ownership" and EVERY git command in this
+        # job fails. That is what actually broke the run of
+        # 2026-08-12: not a missing tag, but nine identical `git diff`
+        # failures that changed_lines swallowed one per target file,
+        # leaving it to report "0 line(s) changed" over a deps.py that
+        # carried 89. A guard that names the wrong cause is still a
+        # guard; the cause is named here now.
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Can this checkout actually see ${{ inputs.since }}
-        # Instrument BEFORE the thing that will otherwise answer
-        # quietly. On 2026-08-12 this leg reported "0 line(s) changed
-        # since v0.24.0" while deps.py carried 89 of them: the ref was
-        # not there and the tool diffed against nothing. mutate_auto
-        # now refuses outright, and this step says which case it is
-        # while the log is still cheap to read.
+        # Instrument BEFORE the thing that would otherwise answer
+        # quietly, and keep it AFTER the step above so a failure here
+        # means the ref really is absent rather than git being shut
+        # out of the directory.
         run: |
           git rev-parse --verify "${{ inputs.since }}^{commit}" \
             || { echo "NOT FOUND: ${{ inputs.since }}"; git tag | tail -20; exit 1; }
