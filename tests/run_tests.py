@@ -574,7 +574,7 @@ def test_pypi_provisioning_is_reached_only_through_consent():
   consent box up, and it stands after that function has refused to
   continue on any answer but approval.
 
-  Regression: none yet -- written the day CI needed the packages, to keep the fix from becoming a consent bypass.
+  Regression: none yet -- written the day CI needed the packages, to keep the fix from becoming a consent bypass. [second-machine]
   """
   import ast
   import build
@@ -658,7 +658,7 @@ def test_a_hanging_test_is_named_rather_than_silent():
   follows the sweep's case count rather than sitting at a constant
   that a campaign run would trip over.
 
-  Regression: none yet -- the hang it answers was in CI, and this asserts the answer stays wired in.
+  Regression: none yet -- the hang it answers was in CI, and this asserts the answer stays wired in. [second-machine]
   """
   # A nested registration must not consume a shard slot. Sharding
   # deals tests by POSITION, so a check() called from inside a test
@@ -725,7 +725,7 @@ def test_quietening_the_log_does_not_hide_anything():
   mentioning size -- would hide the next real defect QGIS reports,
   and would look exactly like this one working.
 
-  Regression: none yet -- written with the filter, because a log filter that widens is invisible until it costs something.
+  Regression: none yet -- written with the filter, because a log filter that widens is invisible until it costs something. [second-machine]
   """
   from qgis.PyQt import QtCore
   before = dict(QT_NOISE)
@@ -2215,7 +2215,7 @@ def test_every_design_control_is_reachable():
   So this asks the question tests otherwise never ask: is the control
   part of the dialog's widget tree, and would it show?
 
-  Regression: controls added via a shared row helper were never checked for reachability, so removing the helper call hid two of them.
+  Regression: controls added via a shared row helper were never checked for reachability, so removing the helper call hid two of them. [mutation]
   """
   from qgis.PyQt.QtWidgets import QTabWidget
   from weavingspace_qgis.dialog import WeavingSpaceDialog
@@ -2380,7 +2380,7 @@ def test_every_control_accepts_the_range_it_should():
   what a user gets by nudging, and a control that lurches in whole
   units is a control nobody uses for fine work.
 
-  Regression: control ranges and steps were unasserted as a class; a mutation batch moved one and the suite was silent.
+  Regression: control ranges and steps were unasserted as a class; a mutation batch moved one and the suite was silent. [mutation]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   # ranges do not depend on a layer, but an empty project keeps this
@@ -2432,7 +2432,7 @@ def test_every_control_explains_itself():
   Help tab carry the explanation. Fifteen words is the ceiling; the
   shortest useful ones here run to four.
 
-  Regression: no test asserted any control's tooltip, so all thirty-one could be removed unnoticed.
+  Regression: no test asserted any control's tooltip, so all thirty-one could be removed unnoticed. [mutation]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   layer = make_region_layer()
@@ -2966,7 +2966,7 @@ def test_hostile_numbers_are_handled_or_declined():
   No warning is raised for it, deliberately: a layer without a CRS is
   sometimes exactly what a user has and wants.
 
-  Regression: a layer with no CRS produced output layers stamped EPSG:4326, because a memory layer whose URI names no CRS is given 4326 by QGIS rather than left blank.
+  Regression: a layer with no CRS produced output layers stamped EPSG:4326, because a memory layer whose URI names no CRS is given 4326 by QGIS rather than left blank. [hostile-data]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   trouble = []
@@ -3057,7 +3057,7 @@ def test_a_quantitative_style_never_stands_on_text():
   control that lies about the map is worse than one that corrects
   itself.
 
-  Regression: choosing a Quant: style on a text field produced a graduated renderer with no ranges, so 0 of 112 features painted and four empty layers were reported as a successful run.
+  Regression: choosing a Quant: style on a text field produced a graduated renderer with no ranges, so 0 of 112 features painted and four empty layers were reported as a successful run. [hostile-data]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   from qgis.core import QgsRenderContext
@@ -5181,7 +5181,7 @@ def test_the_colour_editor_opened_partway_through_a_run():
   than use the snapshot the run began with, or a colour chosen during
   a run is destroyed at the moment the run lands.
 
-  Regression: a colour picked while a run was in flight was overwritten when the run finished, because the output builder trusted the assignments the run was launched with.
+  Regression: a colour picked while a run was in flight was overwritten when the run finished, because the output builder trusted the assignments the run was launched with. [race]
   """
   from weavingspace_qgis.category_editor import CategoryColourDialog
   trouble = []
@@ -7916,7 +7916,7 @@ def test_the_release_watchdog_ignores_a_sleeping_machine():
   all -- and since the whole defect is one function quietly reading
   the wrong one, that is the thing worth guarding.
 
-  Regression: release.py's watchdog measured wall clock, so a laptop asleep mid-release would have aborted a healthy run as hung. The same defect cost four verdicts in mutation batch 8 and was fixed there; release.py was written afterwards and repeated it.
+  Regression: release.py's watchdog measured wall clock, so a laptop asleep mid-release would have aborted a healthy run as hung. The same defect cost four verdicts in mutation batch 8 and was fixed there; release.py was written afterwards and repeated it. [mutation]
   """
   import ast
   source = open(os.path.join(ROOT, "release.py"), encoding="utf-8").read()
@@ -8460,7 +8460,7 @@ def test_a_palette_is_usable_whatever_case_qgis_spells_it():
   saved where QGIS spells it Cividis supplies when it is reopened
   where the style holds cividis. (2026-08-12.)
 
-  Regression: the installer skipped names case-insensitively while the lookup matched exactly, so four palettes were silently unavailable on any QGIS that spells them differently.
+  Regression: the installer skipped names case-insensitively while the lookup matched exactly, so four palettes were silently unavailable on any QGIS that spells them differently. [mutation]
   """
   from qgis.PyQt.QtGui import QColor
   from qgis.core import QgsGradientColorRamp, QgsStyle
@@ -8533,7 +8533,7 @@ def test_installed_palettes_span_their_declared_colours():
   what the mutation can move and what a reader sees at the extremes
   of a legend.
 
-  Regression: only the existence of installed palettes was checked, never the colours they run between.
+  Regression: only the existence of installed palettes was checked, never the colours they run between. [mutation]
   """
   from qgis.PyQt.QtGui import QColor
   from qgis.core import QgsStyle
@@ -8912,7 +8912,7 @@ def test_repopulating_the_family_list_fires_no_handlers():
   Counting rebuilds rather than inspecting signals: what matters is
   that the work happens once, whatever Qt emits on the way.
 
-  Regression: family-list repopulation had no test, so unblocking its signals was invisible.
+  Regression: family-list repopulation had no test, so unblocking its signals was invisible. [race]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   layer = make_region_layer()
@@ -12288,7 +12288,7 @@ def test_a_dock_refinement_survives_the_next_restyle():
   the stroke in QGIS, then change a different element's ramp in the
   dialog, then look at whether the stroke is still there.
 
-  Regression: the signature stamped after adopting a dock recolour was never checked, so the lookup that finds the element could be broken without any test failing.
+  Regression: the signature stamped after adopting a dock recolour was never checked, so the lookup that finds the element could be broken without any test failing. [mutation]
   """
   from qgis.core import QgsCategorizedSymbolRenderer
   from qgis.PyQt.QtGui import QColor
@@ -12410,7 +12410,7 @@ def test_the_range_editor_repaints_with_its_own_elements_colours():
   ``exec`` is replaced: the window is built by the real code path with
   the real callbacks, because the callback is the thing under test.
 
-  Regression: the last of nine copies of the assignment lookup, and the only one whose result a user reads directly.
+  Regression: the last of nine copies of the assignment lookup, and the only one whose result a user reads directly. [mutation]
   """
   from weavingspace_qgis import category_editor
   from weavingspace_qgis.dialog import WeavingSpaceDialog
@@ -12499,7 +12499,7 @@ def test_a_graduated_dock_refinement_survives_the_next_restyle():
   element's ramp and press Generate, and the stroke should still be
   there.
 
-  Regression: the categorized adoption path got a test and its graduated twin, five identical lines away, still had none.
+  Regression: the categorized adoption path got a test and its graduated twin, five identical lines away, still had none. [mutation]
   """
   from qgis.core import QgsGraduatedSymbolRenderer
   from qgis.PyQt.QtGui import QColor
@@ -12599,7 +12599,7 @@ def test_an_unclassed_swatch_reaches_both_ends_of_its_ramp():
   icon is what the user meets, and it asserts both ends: pinning only
   the last would pass against a swatch that had lost its bottom.
 
-  Regression: an automatic mutant moved the sampling divisor and one covering test noticed nothing, because nothing looked at where the swatch ended.
+  Regression: an automatic mutant moved the sampling divisor and one covering test noticed nothing, because nothing looked at where the swatch ended. [mutation]
   """
   from qgis.PyQt.QtGui import QColor
   from weavingspace_qgis.dialog import RAMP_SWATCH, SWATCH_STRIPES
@@ -12656,7 +12656,7 @@ def test_a_dock_edit_that_changes_no_colour_is_announced_as_nothing():
   five; so the same fixture then makes a REAL recolour and requires
   the notice to appear.
 
-  Regression: an automatic mutant flipped the colours-agree comparison at dialog.py:3345 and twenty covering tests noticed nothing, because not one of them looked at what the user was told.
+  Regression: an automatic mutant flipped the colours-agree comparison at dialog.py:3345 and twenty covering tests noticed nothing, because not one of them looked at what the user was told. [mutation]
   """
   from qgis.core import QgsCategorizedSymbolRenderer, QgsFillSymbol
   from weavingspace_qgis.dialog import WeavingSpaceDialog
@@ -16366,7 +16366,7 @@ def test_unload_with_windows_open_and_work_in_flight():
   writes them, which is why _generate is replaced by a recorder
   before the unload rather than left to run.
 
-  Regression: unload closed the dialog and cancelled its run but left both debounce timers armed, so a plugin removed or reloaded with live update on started one more tiling a second later and wrote its layers into the project.
+  Regression: unload closed the dialog and cancelled its run but left both debounce timers armed, so a plugin removed or reloaded with live update on started one more tiling a second later and wrote its layers into the project. [race]
   """
   project = QgsProject.instance()
   layer = make_region_layer()
@@ -17253,7 +17253,7 @@ def test_classification_survives_inf_nan_and_huge():
   over a map that was correctly never drawn would fail the plugin for
   behaving well.
 
-  Regression: measured 2026-08-10 on QGIS 4.0.3. Natural breaks (Jenks) SEGFAULTS on a column holding NaN, and on one holding 1e308 beside -1e308, taking QGIS down with the user's project; Quantiles, Equal intervals and Unclassed return NaN class bounds over a column containing NaN, so the layer paints nothing while the run reports success; and Pretty breaks returns no classes at all over those columns, including the constant column that is supposed to collapse to one.
+  Regression: measured 2026-08-10 on QGIS 4.0.3. Natural breaks (Jenks) SEGFAULTS on a column holding NaN, and on one holding 1e308 beside -1e308, taking QGIS down with the user's project; Quantiles, Equal intervals and Unclassed return NaN class bounds over a column containing NaN, so the layer paints nothing while the run reports success; and Pretty breaks returns no classes at all over those columns, including the constant column that is supposed to collapse to one. [hostile-data]
   """
   from weavingspace_qgis import bridge
   from weavingspace_qgis.dialog import WeavingSpaceDialog
@@ -23016,7 +23016,7 @@ def test_every_declared_offset_is_pinned():
   covers one container of two fails in exactly the way the shape is
   meant to prevent.
 
-  Regression: only hand-listed offsets were pinned, so entries nobody had listed could be changed freely.
+  Regression: only hand-listed offsets were pinned, so entries nobody had listed could be changed freely. [mutation]
   """
   from weavingspace_qgis import catalog
   # Every entry in the catalogue declares offset 0: slices and
@@ -26392,7 +26392,7 @@ def test_a_test_creeping_toward_its_ceiling_is_reported():
   and a test of the comparison alone would pass with the recording
   wired to nothing.
 
-  Regression: a test at 92% of its stall ceiling passed silently and stalled on the next round.
+  Regression: a test at 92% of its stall ceiling passed silently and stalled on the next round. [review]
   """
   before = list(NEAR_THE_CEILING)
   passed_before, offered_before = list(PASSED), list(OFFERED)
@@ -26464,7 +26464,7 @@ def test_every_expected_stage_is_actually_run():
   and inspecting, because the stages are strings passed at call sites
   rather than anything a module exposes.
 
-  Regression: two stages stayed in EXPECTED_STAGES after they were retired, so every progress chart counted half an hour of work that would never happen.
+  Regression: two stages stayed in EXPECTED_STAGES after they were retired, so every progress chart counted half an hour of work that would never happen. [review]
   """
   import ast
   source = open(os.path.join(ROOT, "release.py"), encoding="utf-8").read()
@@ -26612,7 +26612,7 @@ def test_the_new_code_mutation_guard_reports_rather_than_gates():
   somebody restores the gate deliberately, this test is where they
   say so.
 
-  Regression: a fifty-minute gate that could not be satisfied before the artefact shipped stopped four candidates' worth of work on a release whose plugin passed every test it was given.
+  Regression: a fifty-minute gate that could not be satisfied before the artefact shipped stopped four candidates' worth of work on a release whose plugin passed every test it was given. [mutation]
   """
   import ast
   source = open(os.path.join(ROOT, "release.py"), encoding="utf-8").read()
@@ -26657,7 +26657,7 @@ def test_a_withdrawn_equivalence_stops_excluding_its_mutant():
   Both directions are asserted: a live entry still excludes, or this
   would pass against a function that excluded nothing at all.
 
-  Regression: an equivalence whose evidence a later change falsified went on removing its mutant from the denominator.
+  Regression: an equivalence whose evidence a later change falsified went on removing its mutant from the denominator. [review]
   """
   import importlib.util
   spec = importlib.util.spec_from_file_location(
@@ -26714,7 +26714,7 @@ def test_the_new_code_guard_refuses_a_baseline_it_cannot_find():
   Both directions are asserted, because a function that raised on
   everything would satisfy the first half alone.
 
-  Regression: a remote mutation run reported a clean zero against a tag its checkout could not see.
+  Regression: a remote mutation run reported a clean zero against a tag its checkout could not see. [second-machine]
   """
   import importlib.util
   spec = importlib.util.spec_from_file_location(
@@ -26831,7 +26831,7 @@ def test_provisioning_says_why_a_package_could_not_be_fetched():
   and requires the reason to reach `LAST_FAILURES` in words that
   distinguish the cases.
 
-  Regression: a Linux CI leg failed on 2026-08-12 with shapely, pandas and networkx downloaded and geopandas silently absent; the log could not say whether PyPI was unreachable or no wheel existed for QGIS stable's Python 3.13, and the same job passed an hour later untouched.
+  Regression: a Linux CI leg failed on 2026-08-12 with shapely, pandas and networkx downloaded and geopandas silently absent; the log could not say whether PyPI was unreachable or no wheel existed for QGIS stable's Python 3.13, and the same job passed an hour later untouched. [second-machine]
   """
   from weavingspace_qgis import deps
   import urllib.request
@@ -26891,7 +26891,7 @@ def test_every_qgis_harness_can_reach_the_provisioned_libs():
   comparison runs outside QGIS on its own interpreter, and putting
   QGIS-Python wheels on that path would be actively wrong.
 
-  Regression: tests/visual_tests.py never added libs/ to sys.path, so the visual gallery could not run on any Linux QGIS that had to provision its dependencies, and the first run of the gallery experiment measured that instead of the fonts it was written to measure.
+  Regression: tests/visual_tests.py never added libs/ to sys.path, so the visual gallery could not run on any Linux QGIS that had to provision its dependencies, and the first run of the gallery experiment measured that instead of the fonts it was written to measure. [second-machine]
   """
   harnesses = [os.path.join("tests", "run_tests.py"),
                os.path.join("tests", "visual_tests.py")]

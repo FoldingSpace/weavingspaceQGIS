@@ -25,6 +25,12 @@ there is no separate list to remember.
 
 ## Found by the hostile data corpus
 
+- **choosing a Quant: style on a text field produced a graduated renderer with no ranges, so 0 of 112 features painted and four empty layers were reported as a successful run.**  
+  guarded by `test_a_quantitative_style_never_stands_on_text`
+- **measured 2026-08-10 on QGIS 4.0.3. Natural breaks (Jenks) SEGFAULTS on a column holding NaN, and on one holding 1e308 beside -1e308, taking QGIS down with the user's project; Quantiles, Equal intervals and Unclassed return NaN class bounds over a column containing NaN, so the layer paints nothing while the run reports success; and Pretty breaks returns no classes at all over those columns, including the constant column that is supposed to collapse to one.**  
+  guarded by `test_classification_survives_inf_nan_and_huge`
+- **a layer with no CRS produced output layers stamped EPSG:4326, because a memory layer whose URI names no CRS is given 4326 by QGIS rather than left blank.**  
+  guarded by `test_hostile_numbers_are_handled_or_declined`
 - **a corrupt bundled wheel raised BadZipFile out of provision_from_bundled, reaching the user as an unhandled traceback from the toolbar button rather than a plain report that the packages are still missing.**  
   guarded by `test_the_deps_installer_declines_a_corrupt_wheel`
 
@@ -41,14 +47,49 @@ there is no separate list to remember.
 - **every element layer was given the same renderer, so the per-element variables and ramps chosen in the table did not reach the map.**  
   guarded by `test_qml_class_template`
 
+## Found by the mutation campaign
+
+- **an automatic mutant flipped the colours-agree comparison at dialog.py:3345 and twenty covering tests noticed nothing, because not one of them looked at what the user was told.**  
+  guarded by `test_a_dock_edit_that_changes_no_colour_is_announced_as_nothing`
+- **the signature stamped after adopting a dock recolour was never checked, so the lookup that finds the element could be broken without any test failing.**  
+  guarded by `test_a_dock_refinement_survives_the_next_restyle`
+- **the categorized adoption path got a test and its graduated twin, five identical lines away, still had none.**  
+  guarded by `test_a_graduated_dock_refinement_survives_the_next_restyle`
+- **the installer skipped names case-insensitively while the lookup matched exactly, so four palettes were silently unavailable on any QGIS that spells them differently.**  
+  guarded by `test_a_palette_is_usable_whatever_case_qgis_spells_it`
+- **an automatic mutant moved the sampling divisor and one covering test noticed nothing, because nothing looked at where the swatch ended.**  
+  guarded by `test_an_unclassed_swatch_reaches_both_ends_of_its_ramp`
+- **control ranges and steps were unasserted as a class; a mutation batch moved one and the suite was silent.**  
+  guarded by `test_every_control_accepts_the_range_it_should`
+- **no test asserted any control's tooltip, so all thirty-one could be removed unnoticed.**  
+  guarded by `test_every_control_explains_itself`
+- **only hand-listed offsets were pinned, so entries nobody had listed could be changed freely.**  
+  guarded by `test_every_declared_offset_is_pinned`
+- **controls added via a shared row helper were never checked for reachability, so removing the helper call hid two of them.**  
+  guarded by `test_every_design_control_is_reachable`
+- **only the existence of installed palettes was checked, never the colours they run between.**  
+  guarded by `test_installed_palettes_span_their_declared_colours`
+- **a fifty-minute gate that could not be satisfied before the artefact shipped stopped four candidates' worth of work on a release whose plugin passed every test it was given.**  
+  guarded by `test_the_new_code_mutation_guard_reports_rather_than_gates`
+- **the last of nine copies of the assignment lookup, and the only one whose result a user reads directly.**  
+  guarded by `test_the_range_editor_repaints_with_its_own_elements_colours`
+- **release.py's watchdog measured wall clock, so a laptop asleep mid-release would have aborted a healthy run as hung. The same defect cost four verdicts in mutation batch 8 and was fixed there; release.py was written afterwards and repeated it.**  
+  guarded by `test_the_release_watchdog_ignores_a_sleeping_machine`
+
 ## Found by race and stress testing
 
 - **a colour ramp picked while a rebuild was pending was lost when the table's widgets were replaced.**  
   guarded by `test_palette_pick_survives_debounce`
 - **settings changed mid-run were swallowed, because the run's signature was captured when it finished rather than when it launched.**  
   guarded by `test_race_settings_change_during_run`
+- **family-list repopulation had no test, so unblocking its signals was invisible.**  
+  guarded by `test_repopulating_the_family_list_fires_no_handlers`
+- **a colour picked while a run was in flight was overwritten when the run finished, because the output builder trusted the assignments the run was launched with.**  
+  guarded by `test_the_colour_editor_opened_partway_through_a_run`
 - **a range movement still in the debounce when the editor closed fired 150 ms later into the dialog and destroyed a pick made just after; close now flushes it synchronously.**  
   guarded by `test_unclassed_opens_locked_with_live_range`
+- **unload closed the dialog and cancelled its run but left both debounce timers armed, so a plugin removed or reloaded with live update on started one more tiling a second later and wrote its layers into the project.**  
+  guarded by `test_unload_with_windows_open_and_work_in_flight`
 
 ## Found by reading the code
 
@@ -58,14 +99,35 @@ there is no separate list to remember.
   guarded by `test_a_failed_stage_is_not_remembered`
 - **a retired dialog's styleChanged connections kept firing after retirement, double-adopting dock edits alongside the live dialog.**  
   guarded by `test_a_retired_dialog_stops_watching`
+- **a test at 92% of its stall ceiling passed silently and stalled on the next round.**  
+  guarded by `test_a_test_creeping_toward_its_ceiling_is_reported`
+- **an equivalence whose evidence a later change falsified went on removing its mutant from the denominator.**  
+  guarded by `test_a_withdrawn_equivalence_stops_excluding_its_mutant`
 - **choosing a layer produced nothing until Generate was pressed, leaving a first-time user with an empty canvas and no indication that anything was meant to happen.**  
   guarded by `test_auto_first_render`
+- **two stages stayed in EXPECTED_STAGES after they were retired, so every progress chart counted half an hour of work that would never happen.**  
+  guarded by `test_every_expected_stage_is_actually_run`
 - **CRS work on the QgsTask worker thread segfaulted QGIS, because PROJ is not safe to use concurrently with the main thread; the CRS is now stripped before the task and reattached in the done callback.**  
   guarded by `test_real_world_data`
 - **a design whose spacing implied millions of tiles was attempted rather than refused, and QGIS became unresponsive while it ran.**  
   guarded by `test_support_logic`
 - **the spacing offered in the size-guard refusal was computed from a pure inverse-square law and came out slightly too fine, so a user who typed the number the plugin had just suggested was refused a second time.**  
   guarded by `test_the_tile_estimate_is_honest_where_shapes_are_awkward`
+
+## Found by running the suite somewhere other than the machine it was written on
+
+- **none yet -- the hang it answers was in CI, and this asserts the answer stays wired in.**  
+  guarded by `test_a_hanging_test_is_named_rather_than_silent`
+- **tests/visual_tests.py never added libs/ to sys.path, so the visual gallery could not run on any Linux QGIS that had to provision its dependencies, and the first run of the gallery experiment measured that instead of the fonts it was written to measure.**  
+  guarded by `test_every_qgis_harness_can_reach_the_provisioned_libs`
+- **a Linux CI leg failed on 2026-08-12 with shapely, pandas and networkx downloaded and geopandas silently absent; the log could not say whether PyPI was unreachable or no wheel existed for QGIS stable's Python 3.13, and the same job passed an hour later untouched.**  
+  guarded by `test_provisioning_says_why_a_package_could_not_be_fetched`
+- **none yet -- written the day CI needed the packages, to keep the fix from becoming a consent bypass.**  
+  guarded by `test_pypi_provisioning_is_reached_only_through_consent`
+- **none yet -- written with the filter, because a log filter that widens is invisible until it costs something.**  
+  guarded by `test_quietening_the_log_does_not_hide_anything`
+- **a remote mutation run reported a clean zero against a tag its checkout could not see.**  
+  guarded by `test_the_new_code_guard_refuses_a_baseline_it_cannot_find`
 
 ## Found by driving the UI and rebuilding the same map from the library directly
 
@@ -84,20 +146,8 @@ there is no separate list to remember.
 
 - **a constant column produced five identical classes in five colours; the user's own instruction was that it should revert to a single class with a warning.**  
   guarded by `test_a_constant_column_draws_one_class_and_says_so`
-- **an automatic mutant flipped the colours-agree comparison at dialog.py:3345 and twenty covering tests noticed nothing, because not one of them looked at what the user was told.**  
-  guarded by `test_a_dock_edit_that_changes_no_colour_is_announced_as_nothing`
-- **the signature stamped after adopting a dock recolour was never checked, so the lookup that finds the element could be broken without any test failing.**  
-  guarded by `test_a_dock_refinement_survives_the_next_restyle`
-- **the categorized adoption path got a test and its graduated twin, five identical lines away, still had none.**  
-  guarded by `test_a_graduated_dock_refinement_survives_the_next_restyle`
-- **none yet -- the hang it answers was in CI, and this asserts the answer stays wired in.**  
-  guarded by `test_a_hanging_test_is_named_rather_than_silent`
 - **only _finish_run restored the determinate progress range, and the zombie recovery does not go through it.**  
   guarded by `test_a_new_run_always_shows_real_progress`
-- **the installer skipped names case-insensitively while the lookup matched exactly, so four palettes were silently unavailable on any QGIS that spells them differently.**  
-  guarded by `test_a_palette_is_usable_whatever_case_qgis_spells_it`
-- **choosing a Quant: style on a text field produced a graduated renderer with no ranges, so 0 of 112 features painted and four empty layers were reported as a successful run.**  
-  guarded by `test_a_quantitative_style_never_stands_on_text`
 - **the 0.24.0 sequence was written out on 2026-08-11 and the release would have been tagged on pre-0.24.0rc5, leaving main 51 commits behind with the page and README describing 0.23.**  
   guarded by `test_a_release_publishes_from_the_branch_the_page_is_served_from`
 - **reloading the dialog module reset the module-level _LIVE_DIALOG to None, so the dialog built from the reloaded class retired nothing and the predecessor went on running its debounces against the newcomer's layers.**  
@@ -106,96 +156,52 @@ there is no separate list to remember.
   guarded by `test_a_sequence_of_edits_under_the_plugin`
 - **a stage log kept the previous run's verdict for the whole time the stage ran, and read as current.**  
   guarded by `test_a_stage_log_never_shows_the_previous_run`
-- **a test at 92% of its stall ceiling passed silently and stalled on the next round.**  
-  guarded by `test_a_test_creeping_toward_its_ceiling_is_reported`
-- **an equivalence whose evidence a later change falsified went on removing its mutant from the denominator.**  
-  guarded by `test_a_withdrawn_equivalence_stops_excluding_its_mutant`
 - **the embedded style name was the layer's own, so a long column name overran GDAL's thirty-character styleName column and was truncated with a warning on every write.**  
   guarded by `test_an_embedded_style_name_fits_the_column_it_is_written_to`
 - **the inset percentage conversion was defended only by comparisons whose tolerance is wider than the error.**  
   guarded by `test_an_inset_percentage_is_a_percentage_of_the_spacing`
-- **an automatic mutant moved the sampling divisor and one covering test noticed nothing, because nothing looked at where the swatch ended.**  
-  guarded by `test_an_unclassed_swatch_reaches_both_ends_of_its_ramp`
 - **none of these shapes had ever been put through the plugin; the suite's fixtures are all well-formed.**  
   guarded by `test_awkward_layers_are_handled_or_declined`
 - **cancel's immediate report to the dialog was untested; removing it left the window disabled until the abandoned work finished.**  
   guarded by `test_cancelling_frees_the_dialog_at_once`
 - **QGIS's classifier counts a NULL as zero (its own minimumValue does not, so QGIS disagrees with itself), so nine values of 1..9 beside five nulls classified as 0-0, 0-2.5, 2.5-5.75, 5.75-9 instead of 1-3, 3-5, 5-7, 7-9 — every break in the wrong place, a legend class meaning "missing" that reads as a number, and nothing on screen to say so; measured identically on the memory provider and on a GeoPackage through OGR.**  
   guarded by `test_class_breaks_ignore_nulls`
-- **measured 2026-08-10 on QGIS 4.0.3. Natural breaks (Jenks) SEGFAULTS on a column holding NaN, and on one holding 1e308 beside -1e308, taking QGIS down with the user's project; Quantiles, Equal intervals and Unclassed return NaN class bounds over a column containing NaN, so the layer paints nothing while the run reports success; and Pretty breaks returns no classes at all over those columns, including the constant column that is supposed to collapse to one.**  
-  guarded by `test_classification_survives_inf_nan_and_huge`
 - **the geometry signature held the layer's ID and nothing about its contents, so deleting half the features left every term identical and the run was answered by repainting tiles built from data that no longer existed — pressing Generate did not help, which is what made it serious.**  
   guarded by `test_data_changed_in_qgis_while_the_plugin_is_open`
 - **none yet -- the cap was set at 52 for two days, during which any map with 27 or more elements could have collided on export.**  
   guarded by `test_element_ids_survive_a_case_insensitive_path`
-- **control ranges and steps were unasserted as a class; a mutation batch moved one and the suite was silent.**  
-  guarded by `test_every_control_accepts_the_range_it_should`
-- **no test asserted any control's tooltip, so all thirty-one could be removed unnoticed.**  
-  guarded by `test_every_control_explains_itself`
 - **control defaults were unasserted as a class, so any one of them could change unnoticed.**  
   guarded by `test_every_control_starts_where_it_should`
-- **only hand-listed offsets were pinned, so entries nobody had listed could be changed freely.**  
-  guarded by `test_every_declared_offset_is_pinned`
-- **controls added via a shared row helper were never checked for reachability, so removing the helper call hid two of them.**  
-  guarded by `test_every_design_control_is_reachable`
 - **a vanished element count was invisible, because the catalogue tests all iterate the catalogue's own keys.**  
   guarded by `test_every_element_count_still_has_its_designs`
-- **two stages stayed in EXPECTED_STAGES after they were retired, so every progress chart counted half an hour of work that would never happen.**  
-  guarded by `test_every_expected_stage_is_actually_run`
-- **tests/visual_tests.py never added libs/ to sys.path, so the visual gallery could not run on any Linux QGIS that had to provision its dependencies, and the first run of the gallery experiment measured that instead of the fonts it was written to measure.**  
-  guarded by `test_every_qgis_harness_can_reach_the_provisioned_libs`
 - **named ramps used QgsSymbolLayerUtils' gradient preview while Custom swatches were hand-drawn stripes, so one column drew its cells two different ways.**  
   guarded by `test_every_swatch_in_the_ramp_column_is_built_the_same_way`
 - **measured 2026-08-10 on QGIS 4.0.3. Five classes over values from 1e-9 to 1.6e-8 all carry the label "0 - 0", so the legend shows five colours claiming one meaning; the same five over values from 1e12 to 1.6e13 carry labels of 37 to 39 characters, and a column reaching 1e308 is written out in full to over four hundred.**  
   guarded by `test_extreme_magnitudes_render_readable_legends`
-- **a layer with no CRS produced output layers stamped EPSG:4326, because a memory layer whose URI names no CRS is given 4326 by QGIS rather than left blank.**  
-  guarded by `test_hostile_numbers_are_handled_or_declined`
-- **only the existence of installed palettes was checked, never the colours they run between.**  
-  guarded by `test_installed_palettes_span_their_declared_colours`
 - **the live-update default was unasserted, so turning it off shipped silently past 100 tests.**  
   guarded by `test_live_update_is_on_by_default`
 - **the live-update signature described the settings but not the data, so an in-place geometry edit or a deletion left the map showing what had been deleted.**  
   guarded by `test_live_update_notices_the_data_changing`
-- **a Linux CI leg failed on 2026-08-12 with shapely, pandas and networkx downloaded and geopandas silently absent; the log could not say whether PyPI was unreachable or no wheel existed for QGIS stable's Python 3.13, and the same job passed an hour later untouched.**  
-  guarded by `test_provisioning_says_why_a_package_could_not_be_fetched`
-- **none yet -- written the day CI needed the packages, to keep the fix from becoming a consent bypass.**  
-  guarded by `test_pypi_provisioning_is_reached_only_through_consent`
 - **deleting the file behind a layer and reloading it made layer.extent() segfault QGIS outright — no exception, no traceback, nothing in the log — and isValid() returned True while the provider was gone; the live-update gate read that extent on every debounce, so the crash was reachable without pressing anything.**  
   guarded by `test_qgis_changes_around_the_plugin`
-- **none yet -- written with the filter, because a log filter that widens is invisible until it costs something.**  
-  guarded by `test_quietening_the_log_does_not_hide_anything`
 - **swatch direction was untested, so drawing every ramp backwards was invisible.**  
   guarded by `test_ramp_swatches_run_the_right_way_round`
 - **the outline casing had no test, so losing the black line entirely was invisible to the suite.**  
   guarded by `test_region_outlines_are_cased`
-- **family-list repopulation had no test, so unblocking its signals was invisible.**  
-  guarded by `test_repopulating_the_family_list_fires_no_handlers`
 - **release.py could not resume at all, so a defect in the release machinery cost a full re-run of every gate; on 2026-08-11 that happened three times in one evening while the plugin itself passed every gate it was given.**  
   guarded by `test_resuming_skips_only_what_still_holds`
-- **a colour picked while a run was in flight was overwritten when the run finished, because the output builder trusted the assignments the run was launched with.**  
-  guarded by `test_the_colour_editor_opened_partway_through_a_run`
 - **tests/run_tests.py gained os._exit at the end of main() on 2026-08-11, which skipped the write in tools/coverage_per_test.py; three sharded recorders ran the whole suite, wrote no file, and the rc5 candidate aborted 35 minutes in at the merge stage with "nothing to merge". The last good record was a day old, and the release would otherwise have measured mutants against it.**  
   guarded by `test_the_coverage_record_survives_the_suite_exiting`
 - **the design view drew a dark outline around every tile, which fights the colour comparison the view is for.**  
   guarded by `test_the_design_view_draws_no_tile_outlines`
-- **a remote mutation run reported a clean zero against a tag its checkout could not see.**  
-  guarded by `test_the_new_code_guard_refuses_a_baseline_it_cannot_find`
-- **a fifty-minute gate that could not be satisfied before the artefact shipped stopped four candidates' worth of work on a release whose plugin passed every test it was given.**  
-  guarded by `test_the_new_code_mutation_guard_reports_rather_than_gates`
 - **the preview's painting had almost no coverage, and removing its brush, pen, render hint or fitting arithmetic changed a picture no test looked at.**  
   guarded by `test_the_preview_actually_draws_what_it_is_given`
-- **the last of nine copies of the assignment lookup, and the only one whose result a user reads directly.**  
-  guarded by `test_the_range_editor_repaints_with_its_own_elements_colours`
-- **release.py's watchdog measured wall clock, so a laptop asleep mid-release would have aborted a healthy run as hung. The same defect cost four verdicts in mutation batch 8 and was fixed there; release.py was written afterwards and repeated it.**  
-  guarded by `test_the_release_watchdog_ignores_a_sleeping_machine`
 - **the plugin wrote embedded styles through an API QGIS had already deprecated, discovered while probing a segfault on QGIS 4.2.1.**  
   guarded by `test_the_style_is_saved_through_the_current_api`
 - **the deferred fit-to-design after showEvent had no test, so the window could open too small to show its own controls.**  
   guarded by `test_the_window_fits_its_design_tab_when_shown`
 - **two warnings from one run shared a single label and the last one silently erased the first.**  
   guarded by `test_two_notices_from_one_run_both_survive`
-- **unload closed the dialog and cancelled its run but left both debounce timers armed, so a plugin removed or reloaded with live update on started one more tiling a second later and wrote its layers into the project.**  
-  guarded by `test_unload_with_windows_open_and_work_in_flight`
 
 ## Found by reported by a user
 
@@ -210,12 +216,14 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 57
-- reading the code: 7
+- unrecorded: 29
+- the mutation campaign: 13
+- reading the code: 10
+- race and stress testing: 6
+- running the suite somewhere other than the machine it was written on: 6
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5
 - a family audit of the claims the software makes: 4
+- the hostile data corpus: 4
 - reported by a user: 4
-- race and stress testing: 3
 - comparing rendered output against the reference in Lab space: 1
-- the hostile data corpus: 1

@@ -50,6 +50,8 @@ HOW = {
   "mutation": "the mutation campaign",
   "hostile-data": "the hostile data corpus",
   "family-audit": "a family audit of the claims the software makes",
+  "second-machine": "running the suite somewhere other than the "
+                    "machine it was written on",
   "user": "reported by a user",
   "review": "reading the code",
 }
