@@ -58,15 +58,48 @@ def main():
              f"missing from it is never offered the chance to notice "
              f"a mutant. Re-run the missing shard rather than merging.")
 
+  # An overlap is two different claims about one test, and the two
+  # cases are not equally serious.
+  #
+  # A test named by several shards where only ONE of them recorded any
+  # lines is RECOVERABLE, and the recovery is exact rather than a
+  # guess: an empty entry is a shard saying "I did not run this", so
+  # the single non-empty entry is the whole truth about that test.
+  # This is what a recorder that logged every registration rather than
+  # every RUN produced (fixed in tools/coverage_per_test.py on
+  # 2026-08-11), and it cost a candidate 56 minutes in -- the data to
+  # finish the release was sitting on disk, correct, and this refused
+  # it. Salvaging costs nothing and is said out loud.
+  #
+  # A test with lines from TWO shards is not recoverable and never
+  # will be: the deal was not disjoint, so the run measured something
+  # other than the suite, and merging would produce a record that
+  # looks healthy. That still stops the release.
   merged = {}
+  salvaged = []
   for path in shards:
     with open(path, encoding="utf-8") as handle:
       for test, lines in json.load(handle).items():
-        if test in merged:
-          sys.exit(f"{test!r} appears in more than one shard; the "
-                   f"deal is meant to be disjoint, so this record "
-                   f"cannot be trusted")
-        merged[test] = lines
+        if test not in merged:
+          merged[test] = lines
+          continue
+        if merged[test] and lines:
+          sys.exit(f"{test!r} was RUN by more than one shard: two "
+                   f"shards recorded lines for it, so the deal was "
+                   f"not disjoint and this run measured something "
+                   f"other than the suite. Re-record; do not merge.")
+        # exactly one side ran it, so take that side
+        if lines:
+          merged[test] = lines
+        salvaged.append(test)
+  if salvaged:
+    print(f"{len(salvaged)} test(s) were named by more than one shard "
+          f"with lines from only one, so the empty claims were "
+          f"discarded and the recorded one kept. That is exact, not a "
+          f"guess -- an empty entry is a shard saying it did not run "
+          f"the test -- but it means a recorder logged registrations "
+          f"rather than runs, which is worth fixing: e.g. "
+          f"{sorted(salvaged)[:3]}")
   out = os.path.join(ROOT, "reports", "per-test-coverage.json")
   with open(out, "w", encoding="utf-8") as handle:
     json.dump(merged, handle, indent=1, sort_keys=True)
