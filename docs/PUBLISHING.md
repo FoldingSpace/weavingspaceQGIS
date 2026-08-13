@@ -548,6 +548,22 @@ and the plugin manager cannot drift, being the same words. Write it
 as what a user can now do, or no longer has to worry about, rather
 than as a list of commits.
 
+**Open each version with a summary sentence, then CATEGORIZED detail.**
+The two readers of a release page are also the two readers of a
+changelog entry: one is deciding whether to upgrade and wants a
+sentence, the other has upgraded and wants to know what moved. A
+single undifferentiated paragraph serves the first badly, because
+the decision is buried in the specifics. So the first sentence
+says what the release is for, and what follows is grouped under
+short category labels drawn from what actually changed -- Colour,
+Setup, Warnings, Preview -- so a reader finds the part that
+concerns them instead of scanning a paragraph for it. The
+categories are not a fixed set: a fixed set produces empty
+headings, and empty headings are how a changelog starts looking
+like a form. (Maintainer's instruction, 2026-08-13; the entries for
+0.23.0 through 0.24.2 were rewritten to this shape at the same
+time, so the convention has examples rather than only a rule.)
+
 **The comprehensive half is generated**: how many tests ran and how
 many guard a defect that actually happened, what is attached and what
 each attachment is for, where the process documents are, and the

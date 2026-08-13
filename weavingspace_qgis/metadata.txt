@@ -38,42 +38,53 @@ server=False
 
 ; Shown in the QGIS plugin manager. Keep the newest version first, and
 ; describe what a USER would notice rather than what changed in the code.
+;
+; EVERY VERSION OPENS WITH ONE SENTENCE saying what the release is
+; FOR, and the detail that follows is GROUPED by category. Somebody deciding whether to upgrade
+; can stop after the first sentence; somebody who has upgraded and
+; wants to know what moved reads on. One text serving both is how a
+; changelog becomes a list nobody finishes.
+; (Maintainer's instruction, 2026-08-13.)
 changelog=0.24.2 Live updates keep out of your way, and QGIS's own
     styling panel now knows which ramp coloured a categorical element.
-    A live update that cannot finish says so on the dialog's note line
-    instead of interrupting you with a message box, because live
-    updates run while you are still adjusting a design: a spacing that
+    Live update: a run that cannot finish says so on the dialog's note
+    line instead of interrupting you with a message box. Live updates
+    run while you are still adjusting a design, so a spacing that
     produces nothing, or a layer that cannot be read, is part of
     working rather than something to be stopped for. An explicit
-    Generate still reports failures the loud way. Categorical element
-    layers now record which ramp coloured them, so QGIS's Categorized
-    panel shows it and Classify there starts from the right place;
-    applying that same ramp in the panel now replaces colours you had
-    set by hand, exactly as choosing it in the plugin always did,
-    rather than quietly keeping them. The live-update change reached
-    you in 0.24.1, whose notes said nothing else had changed and were
-    wrong about that.
+    Generate still reports failures the loud way.
+    Colour: categorical element layers now record which ramp coloured
+    them, so QGIS's Categorized panel shows it and Classify there
+    starts from the right place. Applying that same ramp in the panel
+    now replaces colours you had set by hand, exactly as choosing it
+    in the plugin always did, rather than quietly keeping them.
+    Correction: the live-update change reached you in 0.24.1, whose
+    notes said nothing else had changed and were wrong about that.
     0.24.1 Setting the plugin up is more forgiving where QGIS does not
     already carry the packages it needs, which mostly means Linux.
-    When one of them cannot be downloaded the plugin says which
+    Setup: when one of them cannot be downloaded the plugin says which
     package and what went wrong, rather than only that something is
     missing. It tries again once when the network was at fault, and it
     has a second version to fall back on.
     0.24.0 The map follows the layer, and data that does not suit a
-    style is drawn sensibly rather than drawn wrongly. Editing,
-    deleting or reprojecting features in QGIS updates the map rather
-    than leaving it out of date, and a column added there can be
-    mapped straight away. Areas with no value are left out of the
-    class breaks and counted in a notice; a column with one value
-    draws as one class; choosing a quantitative style for a column of
-    text draws categories rather than nothing. An Edit colours button
-    sets a colour per value for categorical elements. You are warned
-    when a spacing leaves areas off the map, when a changed category
-    count moves existing colours, and when two elements' colours are
-    hard to tell apart. The preview shows one ring of neighbouring
-    tiles by default, and colour-ramp swatches are larger.
+    style is drawn sensibly rather than drawn wrongly.
+    Following the layer: editing, deleting or reprojecting features in
+    QGIS updates the map rather than leaving it out of date, and a
+    column added there can be mapped straight away.
+    Awkward data: areas with no value are left out of the class breaks
+    and counted in a notice; a column with one value draws as one
+    class; choosing a quantitative style for a column of text draws
+    categories rather than nothing.
+    Colour: an Edit colours button sets a colour per value for
+    categorical elements.
+    Warnings: you are told when a spacing leaves areas off the map,
+    when a changed category count moves existing colours, and when two
+    elements' colours are hard to tell apart.
+    Preview: it shows one ring of neighbouring tiles by default, and
+    colour-ramp swatches are larger.
     0.23.0 Per-element control over colour, two new pattern families,
-    and a public home for the project. The data table gained
-    reverse-ramp switches and per-element opacity; grid and stripe
-    families arrived with their own row and column controls; and the
-    repository and its project page went public.
+    and a public home for the project.
+    Data table: reverse-ramp switches and per-element opacity.
+    Patterns: grid and stripe families, with their own row and column
+    controls.
+    Project: published as a public repository with a project page.

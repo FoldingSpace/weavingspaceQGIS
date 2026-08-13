@@ -699,6 +699,11 @@
   "excerpt": "1 surrounds the unit with a ring of neighbouring copies, whi",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "90c2a0c031160a49": {
+  "approved": "2026-08-13",
+  "excerpt": "[general]\nname=WeavingSpace\nqgisMinimumVersion=4.0\nqgisMaxim",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
  "90da9e347ba4b045": {
   "approved": "2026-08-08",
   "excerpt": "How solid this element draws, as QGIS layer opacity: 100 is ",
@@ -878,6 +883,11 @@
   "approved": "2026-08-09",
   "excerpt": "Turn the whole pattern; 15\u201375\u00b0 usually suits two-direction w",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "ba4f79738e5c7d43": {
+  "approved": "2026-08-13",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
  },
  "bd18900a1d6065ab": {
   "approved": "2026-08-08",

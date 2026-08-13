@@ -25341,6 +25341,199 @@ def test_a_queued_live_rerun_happens_once_and_stops():
   dlg.close()
 
 
+def _views_disagree(dlg, project):
+  """Every disagreement between the table and the map, as sentences.
+
+  Args:
+    dlg: a dialog whose run has finished, so output layers exist.
+    project: the QgsProject holding those layers.
+
+  Returns:
+    A list of strings, empty when the views agree, and a count of how
+    many elements could actually be compared. The count is returned
+    because a sweep that silently compares nothing is the most
+    comfortable way for a check like this to stop working.
+
+  The three agreements are the ones ROADMAP.md names as pairs: which
+  ramp colours an element, what field and structure the map draws it
+  with, and whether the preview stands for the map. Each is two
+  descriptions of one fact produced by different code, so any
+  disagreement is a defect whichever side is wrong.
+  """
+  from qgis.core import (QgsCategorizedSymbolRenderer,
+                         QgsGraduatedSymbolRenderer)
+  from qgis.PyQt.QtGui import QColor
+  found, compared = [], 0
+  previews = dlg._table_id_colours()
+  by_id = {a["id"]: a for a in dlg._assignments()}
+  for row in range(dlg.table.rowCount()):
+    item = dlg.table.item(row, 0)
+    if item is None:
+      continue
+    tile_id = item.text()
+    assignment = by_id.get(tile_id)
+    layer_id = dlg._element_layer_ids.get(tile_id)
+    if assignment is None or layer_id is None:
+      continue
+    out = project.mapLayer(layer_id)
+    if out is None or out.renderer() is None:
+      continue
+    renderer = out.renderer()
+    categorical = isinstance(renderer, QgsCategorizedSymbolRenderer)
+    graduated = isinstance(renderer, QgsGraduatedSymbolRenderer)
+    if not (categorical or graduated):
+      continue
+    compared += 1
+
+    field = assignment.get("var")
+    if field and field not in ("", "---"):
+      drawn = renderer.classAttribute()
+      if drawn != field:
+        found.append(f"{tile_id}: row carries {field!r}, map draws {drawn!r}")
+    if (assignment.get("mode") == "Categorized") != categorical:
+      found.append(
+        f"{tile_id}: row says {assignment.get('mode')!r}, map wears a "
+        f"{'categorized' if categorical else 'graduated'} renderer")
+
+    cell = dlg.table.cellWidget(row, 4)
+    named = cell.currentText() if cell is not None and hasattr(
+      cell, "currentText") else ""
+    custom = bool(cell is not None and hasattr(cell, "showing_custom")
+                  and cell.showing_custom())
+    ramp = renderer.sourceColorRamp()
+    if named and not custom:
+      wears = dlg._ramp_name_matching(ramp)
+      if wears is None:
+        found.append(f"{tile_id}: row names {named!r}, map records no ramp")
+      elif wears.lower() != named.lower():
+        found.append(f"{tile_id}: row names {named!r}, map wears {wears!r}")
+
+    shown = previews.get(tile_id)
+    if shown and ramp is not None:
+      want = QColor(shown)
+      near = min(
+        max(abs(want.red() - c.red()), abs(want.green() - c.green()),
+            abs(want.blue() - c.blue()))
+        for c in (QColor(ramp.color(i / 40.0)) for i in range(41)))
+      if near > 12:
+        found.append(
+          f"{tile_id}: preview shows {want.name()}, {near}/255 from "
+          f"anything the map's own ramp can make")
+  return found, compared
+
+
+def test_random_designs_keep_their_views_in_agreement():
+  """The pairs, swept across designs instead of one fixture.
+
+  Each of the three agreements has its own test against a single
+  design. This asks the same questions across many, because the
+  defects this plugin actually produces live in COMBINATIONS -- a
+  family whose option rows differ, an element count that changes what
+  a row carries, a style that suits one field and not another. A
+  single fixture exercises one point in that space.
+
+  It needs no oracle, which is what makes sweeping affordable: there
+  is no expected map to compute, no fixture of right answers to
+  maintain, and no judgement about what a good design looks like.
+  Two descriptions must agree, and they either do or they do not.
+
+  WEAVINGSPACE_VIEWS_CASES sets how many designs to draw and
+  WEAVINGSPACE_VIEWS_SEED makes any failure reproducible. Quote the
+  SEED when reporting one: case numbers mean nothing across seeds,
+  which cost this project a wrong conclusion sent upstream once.
+  """
+  import random
+  from weavingspace_qgis import catalog
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  cases = int(os.environ.get("WEAVINGSPACE_VIEWS_CASES", "6"))
+  seed = int(os.environ.get("WEAVINGSPACE_VIEWS_SEED", "20260813"))
+  rng = random.Random(seed)
+  print(f"      views sweep: {cases} design(s), seed {seed}", flush=True)
+
+  pool = [(n, name, entry)
+          for n, families in catalog.TILINGS_BY_N.items()
+          for name, entry in families.items()
+          if entry.get("weave_type") != "this" and n <= 6]
+  assert len(pool) > 10, f"only {len(pool)} families to draw from"
+
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  fields = ["v1", "v2", "landcover"]
+  styles = ["Categorized", "Quant: Quantiles", "Quant: Equal intervals"]
+  trouble, total_compared = [], 0
+
+  for case in range(cases):
+    n, family, _entry = rng.choice(pool)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(250)
+    dlg.n_combo.setCurrentText(str(n))
+    _tick(150)
+    dlg.family_combo.setCurrentText(family)
+    _tick(250)
+    dlg.spacing_spin.setValue(rng.choice([450, 500, 600]))
+    # Vary the design's SHAPE as well as its data, because this
+    # project's failures live in composition: identity modifier
+    # transforms once rebuilt geometry with enough rounding to flip
+    # tie-prone joins, and a switch that changes nothing on its own
+    # changes plenty beside another. A sweep that only ever varies
+    # which column is mapped explores one axis of a many-axis space.
+    for control, choices in (("mod_rotate", [0.0, 15.0, -30.0]),
+                             ("mod_tiles_inset", [0.0, 5.0]),
+                             ("opt_tile_outlines", [False, True]),
+                             ("opt_join_prototiles", [False, True])):
+      widget = getattr(dlg, control, None)
+      if widget is None or not widget.isEnabled():
+        continue
+      pick = rng.choice(choices)
+      if hasattr(widget, "setChecked") and isinstance(pick, bool):
+        widget.setChecked(pick)
+      elif hasattr(widget, "setValue") and not isinstance(pick, bool):
+        widget.setValue(pick)
+    for row in range(dlg.table.rowCount()):
+      combo = dlg.table.cellWidget(row, 1)
+      if combo is not None and hasattr(combo, "setCurrentText"):
+        combo.setCurrentText(rng.choice(fields))
+      mode = dlg.table.cellWidget(row, 2)
+      if mode is not None and hasattr(mode, "findText"):
+        wanted = rng.choice(styles)
+        index = mode.findText(wanted)
+        if index >= 0:
+          mode.setCurrentIndex(index)
+          mode.activated.emit(index)
+      # the Reverse switch and the opacity, which decide colour and
+      # therefore bear directly on two of the three agreements
+      reverse = dlg._row_widgets(row)[4] if hasattr(
+        dlg, "_row_widgets") else None
+      if reverse is not None and hasattr(reverse, "setChecked") \
+          and reverse.isEnabled() and rng.random() < 0.4:
+        reverse.setChecked(True)
+      opacity = dlg.table.cellWidget(row, 6)
+      if opacity is not None and hasattr(opacity, "setValue") \
+          and hasattr(opacity, "minimum"):
+        opacity.setValue(rng.choice([100, 100, 60]))
+    dlg._update_dynamic_columns()
+    _tick(250)
+    _generate_and_wait(dlg)
+
+    disagreements, compared = _views_disagree(dlg, project)
+    total_compared += compared
+    for line in disagreements:
+      trouble.append(f"case {case} ({family}, n={n}): {line}")
+    dlg.close()
+    _tick(100)
+
+  assert total_compared >= cases, \
+    f"only {total_compared} element(s) were compared across {cases} " \
+    f"design(s), so the sweep is not looking at what it claims to"
+  assert not trouble, \
+    f"the table and the map disagree on {len(trouble)} count(s) " \
+    f"(seed {seed}; quote it to reproduce):\n  " + \
+    "\n  ".join(trouble[:10])
+
+
 ROW_CONTROL_RANGES = {
   # A per-row spin box, by the label of the column it sits in:
   #   (minimum, maximum, step)
@@ -28553,6 +28746,8 @@ def main():
         test_a_finished_run_leaves_nothing_armed)
   check("a queued live rerun happens once and stops",
         test_a_queued_live_rerun_happens_once_and_stops)
+  check("random designs keep their views in agreement",
+        test_random_designs_keep_their_views_in_agreement)
   check("every per-row control keeps its declared range",
         test_every_per_row_control_keeps_its_declared_range)
   check("the preview agrees with the map it predicts",
