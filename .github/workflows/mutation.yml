@@ -299,6 +299,7 @@ jobs:
           name: mutation-census-${{ inputs.max_cost }}
           path: |
             census.log
+            cov-*.log
             reports/
           if-no-files-found: warn
 

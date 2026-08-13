@@ -2854,7 +2854,22 @@ class WeavingSpaceDialog(QDialog):
       if prev and prev.get("single_colour"):
         self._single_colours[tid] = prev["single_colour"]
       if prev is not None and "reverse" in prev:
-        self._reverse_choices[tid] = prev["reverse"]
+        # The report may only ADD a tick, never remove one, and the
+        # asymmetry is the point.
+        # `_assignments` reports the SWITCH, and reports False while
+        # it is greyed -- right for the map, since an element with no
+        # ramp must not reverse anything, but it is not a statement
+        # about what the user chose. `_sync_row` unchecks that widget
+        # and deliberately leaves the record standing so the tick
+        # returns when the element has a ramp again; restoring from
+        # the report undid exactly that, and a rebuild in the greyed
+        # state silently discarded the tick. An actual untick needs
+        # no help here: the toggle handler has already written False
+        # into the record, so a False in the report carries nothing
+        # the record does not already know. Guarded by
+        # test_a_reverse_tick_survives_a_rebuild_while_it_is_greyed.
+        self._reverse_choices[tid] = bool(prev["reverse"]) \
+            or self._reverse_choices.get(tid, False)
       if prev is not None and "opacity" in prev:
         self._opacity_choices[tid] = prev["opacity"]
 
@@ -2924,6 +2939,20 @@ class WeavingSpaceDialog(QDialog):
     edited by hand, or written by a later version of the plugin, must
     not stop the dialog from opening.
     """
+    # OPACITY comes from the layer itself rather than from a stamp,
+    # because QGIS already persists layer opacity in the project and a
+    # second copy could only disagree with it. Until 2026-08-13 the
+    # dialog read neither: a reopened project showed 100% in the table
+    # while the layer was still at the 60% the user chose, and the two
+    # disagreed silently. That is worse than losing the setting, since
+    # _add_output_layers pushes the dialog's belief back onto the
+    # layer, so the next restyle -- any restyle, for any reason --
+    # quietly undid a choice still visible in QGIS's own layer panel.
+    # Only filled in where the dialog has nothing of its own, like
+    # everything else here, so a choice made since reopening wins.
+    if tile_id not in self._opacity_choices:
+      self._opacity_choices[tile_id] = max(0, min(100, round(
+        layer.opacity() * 100)))
     raw = layer.customProperty("weavingspace_category_colours")
     if raw:
       try:
@@ -3497,6 +3526,21 @@ class WeavingSpaceDialog(QDialog):
                 in self._current_graduated_classes(assignment)]
     if actual == expected:
       return  # our own seeding, or an edit that changed nothing
+    if len(expected) != len(actual):
+      # The count guard above compares the layer against the
+      # dialog's CLASS COUNT, and these two lists can still differ:
+      # a CONSTANT column is deliberately collapsed to one class
+      # here, while QGIS's own Classify button happily returns five
+      # identical "7 - 7" ranges over the same data. Five against
+      # one, both agreeing that k is five. The positional walk below
+      # then ran off the end of the shorter list, inside a slot on
+      # rendererChanged -- so the traceback went to a console nobody
+      # had open and adoption quietly stopped for that element.
+      # A reclassification the dialog has no matching record for is
+      # left alone, exactly as a changed class count is; the
+      # signature rule preserves it. Guarded by
+      # test_a_dock_classify_on_a_constant_column_does_not_crash.
+      return
 
     name = self._ramp_name_matching(renderer.sourceColorRamp())
     if name is not None and name not in bridge.CATEGORICAL_RAMPS:
@@ -4886,16 +4930,36 @@ class WeavingSpaceDialog(QDialog):
     # A run carries the settings it was launched with, which is right
     # for everything that decides the GEOMETRY: a spacing typed while
     # the tiles are being laid out belongs to the next run, not this
-    # one. Hand-picked category colours are the exception. The editor
-    # is usable while a run is in flight, and the restyle path
-    # declines during one, so a colour chosen in that window would be
-    # seeded from the stale snapshot and silently lost the moment the
-    # run landed. The dialog's record is the authority for those, so
-    # it is re-read here rather than trusted from the snapshot.
+    # one. Hand-picked COLOURS are the exception, on both styling
+    # paths. Their editors are usable while a run is in flight, and
+    # the restyle path declines during one, so a colour chosen in
+    # that window would be seeded from the stale snapshot and
+    # silently lost the moment the run landed. The dialog's record is
+    # the authority for those, so it is re-read here rather than
+    # trusted from the snapshot.
     for a in assignments:
       if a.get("mode") == "Categorized" and a.get("var"):
         a["category_colours"] = self._category_colours.get(
           a["id"], {}).get(a["var"])
+      elif a.get("mode") == "Graduated":
+        # The graduated half of that fix, missing until 2026-08-13
+        # although the rule had been written down for the
+        # categorical half since the day it was made. The quant
+        # editor writes positional class colours and the ramp's
+        # display window into the same record through the same
+        # window, so trusting the snapshot here destroyed both the
+        # moment a run landed -- and stamped them ABSENT onto
+        # weavingspace_quant_style, so a reopened project could not
+        # bring them back either. The window rides every graduated
+        # row whether or not a variable is assigned, matching what
+        # _assignments builds, so seeding never has to guess.
+        # Guarded by
+        # test_a_class_colour_picked_during_a_run_is_not_lost.
+        if a.get("var"):
+          a["quant_colours"] = self._quant_colours.get(
+            a["id"], {}).get(a["var"])
+        a["range_bounds"] = tuple(
+          self._ramp_ranges.get(a["id"], (0, 100)))
 
     # keep the previous run's renderers (possibly hand-refined in the
     # styling dock) before touching any layers

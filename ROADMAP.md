@@ -81,6 +81,42 @@ wheels from PyPI when QGIS lacks them. Plugins get rejected for
 hiding the second, not for doing it. Full detail in
 docs/PUBLISHING.md.
 
+**What a reopened project restores of the ROW, and how far to go.**
+Measured 2026-08-13, with a canary now holding the answer in
+`test_a_project_round_trip_changes_nothing_a_user_chose`: the ramp,
+the reverse flag and the class count do NOT come back. They live in
+session dictionaries nothing persists, while the layer carries all
+three inside a renderer QGIS saves faithfully — so a reopened
+project shows a table describing a map that is not on screen, and
+since `_adopt_existing_group` leaves `_last_signatures` empty, the
+next Generate re-seeds from the table and OVERWRITES the map. That
+is the opacity defect fixed the same morning, one column to the
+left, which is why it is a decision rather than a bug report: the
+same reasoning applied to opacity says fix it, and it was found by
+making three axes of that test live for the first time.
+
+Three ways to go, and the choice is the maintainer's because it
+settles what the plugin promises a saved project means:
+
+- **Read it back off the renderer**, as opacity now is. Stores
+  nothing new and became cheap the moment categorized renderers
+  started recording their source ramp (also 2026-08-13). Recovers
+  the ramp and the class count. Reverse needs ramp matching to
+  recognise a reversed clone first, which it cannot do today; a
+  scheme cannot be recovered from breaks at all.
+- **Stamp the row** onto the layer as a custom property, like the
+  hand-picked colours. Recovers everything including the scheme, at
+  the cost of a second store of a fact the renderer already holds —
+  which is the shape that produced today's other three defects.
+- **Say it plainly instead**: the design tool starts fresh and the
+  styling lives on the layers. Defensible, and already half the
+  contract for variables, but then the table must not be allowed to
+  overwrite the map on the next Generate, so `_last_signatures`
+  needs adopting too.
+
+Whichever way it goes, remove the names from `NOT_YET_RESTORED` so
+the test starts requiring them.
+
 ## 0.24.1 — next
 
 ### Branch-backed

@@ -10339,6 +10339,43 @@ def test_a_colour_picked_during_a_run_is_not_lost():
   dlg.close()
 
 
+def test_a_class_colour_picked_during_a_run_is_not_lost():
+  """The graduated twin of the race above, which was never written.
+
+  The same window is open for a graduated element. The quant editor
+  writes a positional class colour into the dialog's record, the
+  restyle path declines while a task is in flight, and so the run
+  that lands is the only thing left that can apply it.
+  _add_output_layers re-reads the CATEGORICAL picks for exactly this
+  reason and CLAUDE.md records why; the graduated half of that fix
+  was never written. A pick made in this window is therefore
+  destroyed by the run it was made during, and stamped absent onto
+  the layer's style property as well, so it does not come back when
+  the project is reopened either.
+
+  Regression: quant picks dropped by the run they were made during.
+  """
+  from weavingspace_qgis import bridge
+  dlg, layer, tid = _quant_dialog()
+  _generate_and_wait(dlg)
+  _tick(200)
+
+  dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.2)
+  dlg._generate()
+  assert dlg._task is not None, "a run should be in flight for this test"
+  # the user picks a class colour while the tiling is still going
+  dlg._quant_colours.setdefault(tid, {})["v1"] = {"1": "#00ffff"}
+  dlg._apply_style_change()
+  _settle(dlg)
+  _tick(300)
+
+  element = QgsProject.instance().mapLayer(dlg._element_layer_ids[tid])
+  assert (0, 255, 255) in bridge.renderer_fill_colours(element), \
+    "a class colour picked while a run was finishing was thrown " \
+    "away by it"
+  dlg.close()
+
+
 def test_editing_colours_never_rebuilds_the_table():
   """The chooser-race rule, applied to the new control.
 
@@ -13198,6 +13235,111 @@ def test_the_range_editor_repaints_with_its_own_elements_colours():
   dlg.close()
 
 
+def test_a_dock_classify_on_a_constant_column_does_not_crash():
+  """QGIS's own Classify button, on the column that collapses.
+
+  A constant column is drawn as ONE class here, deliberately: five
+  classes all reading "7 - 7" in five colours is a legend that lies
+  about a map that was never wrong. QGIS's Graduated panel has no
+  such rule. Press Classify with five classes over that column and
+  it returns five identical ranges, which is the behaviour the
+  collapse exists to correct.
+
+  The dialog then compares what the layer HAS against what it
+  EXPECTS, and those two lists are different lengths -- five against
+  one -- so the positional walk over them runs off the end of the
+  shorter. The count guard above it compares the layer against the
+  dialog's CLASS COUNT, five in both, so it waves this through: the
+  thing that must match is the pair of lists actually being walked,
+  which is not what was being checked.
+
+  Where it lands is what makes it worth a test. This is a Qt slot on
+  rendererChanged, so the traceback goes to a console the user never
+  opened, adoption silently stops happening for that element, and
+  nothing on screen says why. The dialog's own rule for an edit it
+  cannot reconcile is to leave it alone, which is what it does here.
+
+  Regression: five dock classes over a collapsed column indexed past the end of the dialog's one-class expectation, inside a renderer signal handler.
+  """
+  from qgis.core import (QgsGraduatedSymbolRenderer, QgsRendererRange,
+                         QgsSymbol)
+  from qgis.PyQt.QtGui import QColor
+  from weavingspace_qgis import compat
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = QgsVectorLayer("Polygon?crs=EPSG:3857", "constant", "memory")
+  layer.dataProvider().addAttributes([compat.make_field("v", float)])
+  layer.updateFields()
+  feats = []
+  for k in range(9):
+    i, j = k % 3, k // 3
+    x, y = i * 1000.0, j * 1000.0
+    ring = [QgsPointXY(x, y), QgsPointXY(x + 1000, y),
+            QgsPointXY(x + 1000, y + 1000), QgsPointXY(x, y + 1000)]
+    f = QgsFeature(layer.fields())
+    f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+    f["v"] = 7.0
+    feats.append(f)
+  layer.dataProvider().addFeatures(feats)
+  layer.updateExtents()
+  project.addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg.table.cellWidget(1, 1).setCurrentText("v")
+  _tick(150)
+  tid = dlg.table.item(1, 0).text()
+  assert any(a["id"] == tid and a["mode"] == "Graduated"
+             and a.get("k", 5) == 5 for a in dlg._assignments()), \
+    "the element under test is not a five-class graduated one, so " \
+    "the length mismatch this test is about cannot arise"
+  dlg.spacing_spin.setValue(400)
+  dlg._generate()
+  assert _settle(dlg, seconds=60), "the run never settled"
+  _tick(250)
+
+  out = project.mapLayer(dlg._element_layer_ids[tid])
+  assert out is not None and out.featureCount() > 0, \
+    "the element under test drew nothing, so no dock edit is possible"
+  assert len(list(out.renderer().ranges())) == 1, \
+    "the collapse did not happen, so the layer and the dialog do " \
+    "not disagree and this test proves nothing"
+
+  # what QGIS's Classify returns here: five identical ranges, each in
+  # its own colour, built directly rather than through the plugin so
+  # the collapse cannot quietly apply itself to the fixture
+  shades = ["#111111", "#333333", "#555555", "#777777", "#999999"]
+  ranges = []
+  for shade in shades:
+    symbol = QgsSymbol.defaultSymbol(out.geometryType())
+    symbol.setColor(QColor(shade))
+    ranges.append(QgsRendererRange(7.0, 7.0, symbol, "7 - 7"))
+  dock_edit = QgsGraduatedSymbolRenderer("v", ranges)
+  # The crash happens inside a slot, where an ordinary assertion
+  # cannot reach it: Qt sits between this test and the handler, so
+  # the traceback goes to the excepthook and the assertions below
+  # would go on passing over the top of it. Watching for it is the
+  # whole point -- without this block the test is decorative.
+  with _QtNoiseWatch() as noise:
+    out.setRenderer(dock_edit)
+    _tick(250)
+  assert not noise.complaints(), \
+    "the dock's reclassification raised inside a renderer signal " \
+    "handler, where a user sees nothing and adoption silently " \
+    "stops for this element:\n" + "\n".join(noise.complaints())
+
+  # the dialog survived, and left the dock's edit standing rather
+  # than adopting colours it has no matching record for
+  assert len(list(out.renderer().ranges())) == 5, \
+    "the dialog overwrote a dock reclassification it was supposed " \
+    "to leave alone"
+  dlg._refresh_preview_colours()
+  _tick(100)
+  dlg.close()
+
+
 def test_a_graduated_dock_refinement_survives_the_next_restyle():
   """The graduated half of the same promise, at the sibling site.
 
@@ -14148,6 +14290,71 @@ def test_unclassed_opens_locked_with_live_range():
   assert tuple(dlg._ramp_ranges.get(tid, (0, 100))) == (20, 50), \
     f"closing the editor must flush the pending range movement; " \
     f"the dialog holds {dlg._ramp_ranges.get(tid)!r}"
+  dlg.close()
+
+
+def test_a_reverse_tick_survives_a_rebuild_while_it_is_greyed():
+  """The choice underneath a disabled switch, across a rebuild.
+
+  Reverse is greyed for an element with no ramp to run backwards --
+  a categorical style, a single colour. `_sync_row` unchecks the
+  WIDGET in that state and deliberately leaves `_reverse_choices`
+  alone, which is what lets the tick come back when the element gets
+  a ramp again. Per-element controls belong to the element, not the
+  row.
+
+  `_assignments` reports the switch, not the record, and reports
+  False while it is disabled -- correct for the map, since a greyed
+  switch must not reverse anything. But `_refresh_table` restores
+  the record FROM that report, so a rebuild happening in this state
+  wrote the report's False over a True the user had chosen. Two
+  parts of the dialog disagreeing about which of them holds the
+  truth, with the map following whichever ran last.
+
+  The session that loses it is ordinary: tick Reverse, try the
+  element as categorical, change the tile family (a rebuild), go
+  back to a quantitative style. The ramp then runs the way it came,
+  and nothing said the tick had gone.
+
+  Regression: a rebuild while Reverse was greyed silently discarded the tick underneath it.
+  """
+  dlg, layer, tid = _quant_dialog()
+  box = dlg._row_reverse(1)
+  assert box is not None and box.isEnabled(), \
+    "the graduated row offers no Reverse switch, so there is no " \
+    "tick for a rebuild to lose"
+  box.click()
+  _tick(150)
+  assert dlg._reverse_choices.get(tid) is True, \
+    "clicking the switch did not record the choice against the " \
+    "element, so this test would prove nothing about keeping it"
+
+  # take the ramp away, which greys the switch and unchecks the
+  # widget while the record underneath is meant to stand
+  dlg.table.cellWidget(1, 2).setCurrentText("Categorized")
+  _tick(200)
+  greyed = dlg._row_reverse(1)
+  assert greyed is not None and not greyed.isEnabled(), \
+    "the switch is still live for a categorical element, so the " \
+    "greyed state this test is about was never reached"
+  assert dlg._reverse_choices.get(tid) is True, \
+    "greying the switch destroyed the choice underneath it, which " \
+    "is the state _sync_row exists to preserve"
+
+  # anything that rebuilds the table: the family is the everyday one
+  dlg._rebuild_unit()
+  _tick(300)
+  assert dlg._reverse_choices.get(tid) is True, \
+    "a table rebuild while Reverse was greyed wrote the disabled " \
+    "switch's False back over the user's tick"
+
+  # and the tick is really back once the element has a ramp again
+  dlg.table.cellWidget(1, 2).setCurrentText("Quant: Quantiles")
+  _tick(250)
+  back = dlg._row_reverse(1)
+  assert back is not None and back.isEnabled() and back.isChecked(), \
+    "the element got its ramp back and the switch came up unticked, " \
+    "so the ramp runs the opposite way to what the user chose"
   dlg.close()
 
 
@@ -25341,6 +25548,3235 @@ def test_a_queued_live_rerun_happens_once_and_stops():
   dlg.close()
 
 
+def test_a_geopackage_carries_the_same_colours_it_was_given():
+  """The export boundary, compared by COLOUR rather than by kind.
+
+  test_a_geopackage_reopens_with_its_styles already checks that each
+  layer comes back wearing the right KIND of renderer. That leaves the
+  failure this export exists to prevent entirely unguarded: a
+  GeoPackage that reopens as a categorized renderer in different
+  colours passes it, and passes it invisibly, because the type
+  matches. A colleague opening the file sees the right sort of map in
+  the wrong colours and has no reason to doubt it.
+
+  So the comparison here is per class: every category's or range's
+  fill, and the layer's opacity, before the file is written and after
+  it is read back into an empty project. It is the same two-views
+  question as the other differentials, across the boundary a user
+  actually shares work over.
+
+  Idea 2 of docs/TEST-IDEAS.md, and the reason it is high on that list
+  is evidence rather than suspicion: the three same-session
+  differentials found nothing across seventy-five designs, and the
+  first one to cross a serialisation boundary found a defect on its
+  first run.
+  """
+  import shutil
+  import tempfile
+  from qgis.core import (QgsCategorizedSymbolRenderer,
+                         QgsGraduatedSymbolRenderer, QgsProviderRegistry,
+                         QgsRenderContext)
+  from qgis.PyQt.QtGui import QColor
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="weavingspace_gpkg_colours_")
+
+  def fills(layer):
+    """Each class's fill, keyed by the class's own label."""
+    renderer = layer.renderer()
+    out = {}
+    if isinstance(renderer, QgsCategorizedSymbolRenderer):
+      for category in renderer.categories():
+        out[str(category.value())] = QColor(
+          category.symbol().color()).name().lower()
+    elif isinstance(renderer, QgsGraduatedSymbolRenderer):
+      for i, rng in enumerate(renderer.ranges()):
+        out[f"range{i}"] = QColor(rng.symbol().color()).name().lower()
+    else:
+      for i, symbol in enumerate(renderer.symbols(QgsRenderContext())):
+        out[f"symbol{i}"] = QColor(symbol.color()).name().lower()
+    return out
+
+  try:
+    layer = make_region_layer()
+    project.addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    dlg.table.cellWidget(0, 1).setCurrentText("v1")
+    dlg.table.cellWidget(1, 1).setCurrentText("landcover")
+    opacity = dlg.table.cellWidget(0, 6)
+    if opacity is not None and hasattr(opacity, "setValue"):
+      opacity.setValue(70)
+    dlg._update_dynamic_columns()
+    _tick(250)
+    out_path = os.path.join(folder, "map.gpkg")
+    dlg.gpkg_widget.setFilePath(out_path)
+    dlg.spacing_spin.setValue(500)
+    dlg._generate()
+    assert _settle(dlg, seconds=90), "the run never settled"
+    _tick(250)
+
+    before = {}
+    for tile_id, layer_id in dlg._element_layer_ids.items():
+      out = project.mapLayer(layer_id)
+      if out is not None and out.renderer() is not None:
+        # keyed by ELEMENT ID, because the two sides name layers
+        # differently on purpose: the project shows "a - v1" so a
+        # reader can see which variable an element carries, while the
+        # GeoPackage table is "tiles_a", since a table name may not
+        # carry spaces or a dash and must survive a case-folding
+        # filesystem.
+        before[tile_id] = (fills(out), round(out.opacity() * 100))
+    assert len(before) >= 2, \
+      f"only {len(before)} styled layer(s) were written, so the " \
+      f"comparison has nothing to lose"
+    dlg.close()
+    project.clear()
+    _tick(200)
+
+    parts = QgsProviderRegistry.instance().querySublayers(out_path)
+    assert parts, f"the GeoPackage holds no layers: {out_path}"
+    adrift, compared = [], 0
+    for part in parts:
+      name = part.name()
+      tile_id = name[len("tiles_"):] if name.startswith("tiles_") else name
+      if tile_id not in before:
+        continue
+      lyr = QgsVectorLayer(f"{out_path}|layername={name}", name, "ogr")
+      if not lyr.isValid():
+        adrift.append(f"{tile_id}: did not load from the GeoPackage")
+        continue
+      lyr.loadDefaultStyle()
+      compared += 1
+      was_fills, was_opacity = before[tile_id]
+      now_fills = fills(lyr)
+      if now_fills != was_fills:
+        missing = {k: (v, now_fills.get(k)) for k, v in was_fills.items()
+                   if now_fills.get(k) != v}
+        adrift.append(
+          f"{tile_id}: colours changed on the way through the file "
+          f"{dict(list(missing.items())[:3])}")
+      now_opacity = round(lyr.opacity() * 100)
+      if now_opacity != was_opacity:
+        adrift.append(
+          f"{tile_id}: opacity was {was_opacity}, reopened as "
+          f"{now_opacity}")
+
+    assert compared >= 2, \
+      f"only {compared} layer(s) could be compared, so this test is " \
+      f"not exercising the export it claims to check. In the project: " \
+      f"{sorted(before)}; in the GeoPackage: " \
+      f"{sorted(p.name() for p in parts)}"
+    assert not adrift, \
+      "the GeoPackage does not carry the map it was given, so a " \
+      "colleague opening it sees something else:\n  " + \
+      "\n  ".join(adrift[:8])
+  finally:
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def _everything_the_user_was_told(dlg):
+  """Every sentence this run actually put in front of somebody.
+
+  Args:
+    dlg: the dialog whose run has finished. It is read for its note
+      line as well as the module-level records, because the plugin
+      chooses between them: _report_quietly writes to the note line
+      only when there is no iface, and the modal path is a third
+      place again.
+
+  Returns:
+    One lower-cased string holding the message bar's warnings and
+    successes (BAR_MESSAGES), every intercepted message box (MODALS)
+    and the dialog's own note line, joined with spaces. Lower-cased
+    because a caller is asking whether the user was TOLD something,
+    not how it was capitalised, and capitalisation is exactly the
+    kind of thing that differs between platforms' Qt styles.
+
+  Reading any one of the three alone reports a perfectly polite
+  notice as silence; this suite has made that mistake twice, once in
+  each direction, which is why the three are gathered in one place
+  rather than at each call site.
+  """
+  parts = [text for _kind, text in BAR_MESSAGES]
+  parts += [text for _kind, text in MODALS]
+  parts.append(dlg.live_note.text())
+  return " ".join(part for part in parts if part).lower()
+
+
+def _element_layers(dlg):
+  """The output layers this run produced, keyed by element id.
+
+  Args:
+    dlg: a dialog whose run has finished.
+
+  Returns:
+    {tile_id: layer} for every element whose layer is still in the
+    project. Elements whose layer has gone are dropped rather than
+    handed back as None, so a caller iterating this cannot silently
+    assert about nothing; callers guard on the count instead.
+  """
+  project = QgsProject.instance()
+  found = {}
+  for tid, layer_id in dlg._element_layer_ids.items():
+    layer = project.mapLayer(layer_id)
+    if layer is not None:
+      found[tid] = layer
+  return found
+
+
+def _element_showing(dlg, field):
+  """The output layer of the ONE element the table points at a field.
+
+  Args:
+    dlg: a dialog whose run has finished.
+    field: the attribute name a single row was set to.
+
+  Returns:
+    (tile_id, layer) for the element whose ASSIGNMENT carries that
+    field.
+
+  Selecting by assignment rather than by the layer's columns matters
+  more than it looks: every element layer carries every mapped
+  attribute, so a test picking layers by fields().indexOf(field) gets
+  all four of them and then makes claims about the renderer of an
+  element that is drawing something else entirely. Exactly one match
+  is required, so a fixture that assigned the field twice fails here
+  instead of quietly reporting on whichever came first.
+  """
+  matching = [a["id"] for a in dlg._assignments() if a.get("var") == field]
+  assert len(matching) == 1, \
+    f"{len(matching)} element(s) carry {field!r} ({matching}); this " \
+    f"test is written for exactly one and cannot say which it means"
+  tid = matching[0]
+  layer = QgsProject.instance().mapLayer(dlg._element_layer_ids.get(tid, ""))
+  assert layer is not None, \
+    f"element {tid!r} carries {field!r} but produced no layer"
+  return tid, layer
+
+
+def _ramps_in_force(dlg):
+  """The ramp names the dialog has assigned, for a gamut check.
+
+  Args:
+    dlg: the dialog whose table holds the assignments.
+
+  Returns:
+    A list of ramp names, one per assigned element. Read out of
+    _assignments rather than typed into the test, because a ramp name
+    typed here is a name compared exactly, and QGIS on Linux ships
+    "Cividis" where this plugin's own table says "cividis" -- the
+    defect the first Linux run found. Asking the dialog what it chose
+    cannot spell it differently from the dialog.
+  """
+  return [a["ramp"] for a in dlg._assignments() if a.get("var")]
+
+
+def test_a_region_of_one_feature_degenerates_honestly():
+  """One polygon: every per-feature statistic has nothing to divide.
+
+  A region layer with a single feature is legal, ordinary (one
+  catchment, one park, one study area) and degenerate for everything
+  downstream. Every tile draws its data from that one feature, so
+  whatever column an element carries is CONSTANT on the map however
+  much variation the user believes their data has. Quantiles have
+  nothing to divide, a categorical field has exactly one class, and
+  the legend beside the map is the part that can lie about it: asked
+  for five classes over a column that is 3 everywhere, QGIS returns
+  five, all reading "3 - 3" in five different colours.
+
+  The suite already puts a one-feature layer through the plugin twice
+  -- test_awkward_layers_are_handled_or_declined and
+  test_hostile_data_does_not_defeat_the_plugin -- but both stop at
+  the bar those tests set for themselves, which is that nothing
+  crashes, hangs, or hands back full-looking layers that paint
+  nothing. Neither looks at what the map SAYS. This one does: one
+  numeric class, one category, every tile carrying the one feature's
+  values, and the constant column said out loud, since a user who
+  does not know their column is constant will look for the fault in
+  the pattern rather than in the data.
+
+  The dialog is given an iface, so notices take the path a real QGIS
+  session takes (the message bar) rather than the headless fallback;
+  the note line is transient after a run and is not a place to read
+  them from.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=1)
+  assert layer.featureCount() == 1, \
+    f"the fixture holds {layer.featureCount()} features, not one, so " \
+    f"the degenerate case this test names is not being exercised"
+  project.addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    assert dlg.table.rowCount() >= 2, \
+      f"the design has {dlg.table.rowCount()} element(s); this test " \
+      f"needs one numeric and one categorical element"
+    # v1 is 0.0 on the single feature and landcover is one word, so
+    # after the join every tile carries the same pair. Every row is
+    # set explicitly, the remaining ones to "---": the automatic
+    # assignment CYCLES the available fields, so a four-element design
+    # gives v1 to two elements and there is then no single element the
+    # assertions below can be about.
+    for row in range(dlg.table.rowCount()):
+      combo = dlg.table.cellWidget(row, 1)
+      combo.setCurrentText({0: "v1", 1: "landcover"}.get(row, "---"))
+    dlg._update_dynamic_columns()
+    _tick(200)
+    modes = {a["var"]: a["mode"] for a in dlg._assignments() if a.get("var")}
+    assert modes.get("v1") == "Graduated", \
+      f"v1 is being drawn as {modes.get('v1')!r}, so the class-break " \
+      f"half of this test would measure nothing"
+    assert modes.get("landcover") == "Categorized", \
+      f"landcover is being drawn as {modes.get('landcover')!r}, so the " \
+      f"category half of this test would measure nothing"
+    # 200 against a 1000-unit square, so the one feature receives
+    # several dozen tiles: a single tile would make "every tile
+    # carries the same value" true by having nothing to compare.
+    dlg.spacing_spin.setValue(200)
+    _generate_and_wait(dlg)
+    _tick(200)
+
+    layers = _element_layers(dlg)
+    assert layers, "the one-feature region produced no map at all"
+    _grad_id, graduated = _element_showing(dlg, "v1")
+    _cat_id, categorical = _element_showing(dlg, "landcover")
+    grad_renderer, cat_renderer = graduated.renderer(), categorical.renderer()
+    assert hasattr(grad_renderer, "ranges"), \
+      f"the element carrying v1 came back with a " \
+      f"{type(grad_renderer).__name__}, so there are no class breaks " \
+      f"here to be degenerate"
+    assert hasattr(cat_renderer, "categories"), \
+      f"the element carrying landcover came back with a " \
+      f"{type(cat_renderer).__name__}, so there are no categories here"
+
+    tiles = graduated.featureCount()
+    assert tiles >= 4, \
+      f"only {tiles} tile(s) were drawn from the single feature, so " \
+      f"this test is not exercising a map at all -- lower the spacing"
+
+    # ---- every tile really did take the one feature's values
+    values = {f["v1"] for f in graduated.getFeatures()}
+    assert values == {0.0}, \
+      f"tiles drawn from ONE region feature carry {sorted(values)!r} " \
+      f"for v1; there is only one place the value could have come from"
+    cats = {f["landcover"] for f in categorical.getFeatures()}
+    assert cats == {"forest"}, \
+      f"tiles drawn from ONE region feature carry {sorted(cats)!r} for " \
+      f"landcover, where the feature's own value is 'forest'"
+
+    # ---- and the legend tells the truth about that
+    ranges = grad_renderer.ranges()
+    assert len(ranges) == 1, \
+      f"a column that is 0.0 on every tile was cut into " \
+      f"{len(ranges)} classes reading " \
+      f"{[(r.lowerValue(), r.upperValue()) for r in ranges]}; a legend " \
+      f"showing variation the data does not have is the half of this " \
+      f"a reader trusts"
+    named = [c for c in cat_renderer.categories()
+             if c.value() is not None and c.value() != ""]
+    assert len(named) == 1, \
+      f"one distinct value produced {len(named)} categories " \
+      f"({[c.value() for c in named]!r})"
+
+    told = _everything_the_user_was_told(dlg)
+    assert "v1" in told and "same value" in told, \
+      f"nothing said that v1 is the same value everywhere, so a user " \
+      f"meets a one-colour map with no explanation for it: {told!r}"
+
+    visual_gamut("a region of exactly one feature",
+                 [layers[tid] for tid in sorted(layers)],
+                 _ramps_in_force(dlg))
+  finally:
+    dlg.close()
+
+
+def test_a_column_with_no_values_at_all_invents_no_class():
+  """A field that is entirely NULL: nothing to put a break between.
+
+  Real columns arrive empty -- a join that matched nothing, a field
+  added in QGIS and never filled, a measurement that failed. QGIS's
+  own classifier counts a NULL as ZERO (its minimumValue does not,
+  so QGIS disagrees with itself and the classifier wins), which over
+  a column of nothing but nulls invents a class reading 0 - 0 and
+  colours every area as though it had been measured at zero. That is
+  a confident, specific and wrong statement about every place on the
+  map, and nothing on screen says so.
+
+  make_graduated_renderer hides nulls behind a subset string before
+  letting QGIS classify, which the suite already checks on a column
+  with GAPS (test_class_breaks_ignore_nulls). The all-null column is
+  the case that empties the layer entirely, and no test walks it.
+
+  Two things must hold, and either alone is still a defect. No class
+  break may be invented over a column with no numbers in it -- an
+  empty column is deliberately not "constant" either, since calling
+  it constant would put a break on nothing. And the user must be
+  TOLD, naming the column, because an element that draws as no data
+  looks exactly like an element whose ramp failed to load.
+
+  The layer is not put through visual_gamut: the element under test
+  is entitled to paint nothing, so a score over the map's remaining
+  elements would be a picture of the parts this test is not about.
+  The other elements' colours are covered wherever they are the
+  subject.
+  """
+  from qgis.core import NULL, QgsFeature, QgsGeometry, QgsPointXY
+  from weavingspace_qgis import compat
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+
+  # A grid of squares carrying a real column and an empty one, so the
+  # run is an ordinary run with one element pointed at nothing rather
+  # than a layer with no data in it at all (which is idea 15's case
+  # and a different refusal).
+  layer = QgsVectorLayer("MultiPolygon?crs=EPSG:3857", "gaps", "memory")
+  layer.dataProvider().addAttributes([compat.make_field("measured", float),
+                                      compat.make_field("unfilled", float)])
+  layer.updateFields()
+  feats = []
+  for i in range(4):
+    for j in range(4):
+      f = QgsFeature(layer.fields())
+      f.setGeometry(QgsGeometry.fromPolygonXY([[
+        QgsPointXY(i * 1000, j * 1000),
+        QgsPointXY((i + 1) * 1000, j * 1000),
+        QgsPointXY((i + 1) * 1000, (j + 1) * 1000),
+        QgsPointXY(i * 1000, (j + 1) * 1000)]]))
+      f["measured"] = float(i * 4 + j)
+      f["unfilled"] = None
+      feats.append(f)
+  layer.dataProvider().addFeatures(feats)
+  layer.updateExtents()
+  index = layer.fields().indexOf("unfilled")
+  present = {v for v in layer.uniqueValues(index)
+             if v is not None and v != NULL}
+  assert not present, \
+    f"the fixture's 'unfilled' column holds {sorted(present)!r}, so it is " \
+    f"not the all-null column this test names"
+  project.addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    assert dlg.table.rowCount() >= 2, \
+      f"the design has {dlg.table.rowCount()} element(s); this test " \
+      f"needs one to carry the empty column and one to carry data"
+    # the rest go to "---": the automatic assignment cycles the two
+    # columns, so leaving them alone gives the empty column to two
+    # elements and no single one to make an assertion about
+    for row in range(dlg.table.rowCount()):
+      combo = dlg.table.cellWidget(row, 1)
+      combo.setCurrentText({0: "measured", 1: "unfilled"}.get(row, "---"))
+    dlg._update_dynamic_columns()
+    _tick(200)
+    modes = {a["var"]: a["mode"] for a in dlg._assignments() if a.get("var")}
+    assert modes.get("unfilled") == "Graduated", \
+      f"the empty column is being drawn as {modes.get('unfilled')!r}; a " \
+      f"class-break test over something other than class breaks " \
+      f"measures nothing"
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(200)
+
+    assert _element_layers(dlg), "the run produced no map at all"
+    tid, out = _element_showing(dlg, "unfilled")
+    renderer = out.renderer()
+    assert hasattr(renderer, "ranges"), \
+      f"element {tid} came back with a {type(renderer).__name__} over " \
+      f"the empty column, so there are no class breaks here to inspect"
+    assert out.featureCount() >= 4, \
+      f"element {tid} carries {out.featureCount()} tile(s), so there " \
+      f"is nothing here for a class break to be wrong about"
+    bounds = [(r.lowerValue(), r.upperValue()) for r in renderer.ranges()]
+    # The signature of nulls having been counted: a break sitting on
+    # zero, which is not a number this column ever held. The whole
+    # class list is quoted, because a message naming only the
+    # assertion costs a round of guessing.
+    invented = [(low, high) for low, high in bounds
+                if low == 0.0 and high == 0.0]
+    assert not invented, \
+      f"element {tid} carries {len(invented)} class(es) reading 0.0 - " \
+      f"0.0 over a column with no values in it: {bounds}. Nulls have " \
+      f"been classified as zero, so every area is coloured as though " \
+      f"it had been measured at nothing"
+
+    told = _everything_the_user_was_told(dlg)
+    assert "unfilled" in told, \
+      f"nothing named the column that has no values, so an element " \
+      f"drawing as no data is indistinguishable from a ramp that " \
+      f"failed to load: {told!r}"
+  finally:
+    dlg.close()
+
+
+def test_a_region_with_no_features_is_declined_in_words():
+  """An empty polygon layer: legal, loadable, and nothing to tile.
+
+  A layer with zero features is what a user has after a filter that
+  matched nothing, a failed import, or a freshly created scratch
+  layer. QGIS loads it happily and the region chooser offers it,
+  because the chooser filters on geometry type rather than on
+  content.
+
+  Two things follow, and this test asserts both. The extent of such a
+  layer is null, so auto-spacing has no number to derive one from and
+  must SAY it cannot rather than quietly leaving a spacing that means
+  nothing -- the user pressed nothing and chose a layer, but the
+  plugin derives a spacing on every layer change and owes an answer
+  either way. And the run itself must be refused IN WORDS naming what
+  is missing: a Generate that leaves the project exactly as it was,
+  silently, is indistinguishable from one that did not run.
+
+  What the refusal says is checked on the word "features" rather than
+  on the sentence, because the sentence is user-facing prose that
+  goes through text review and may legitimately be rewritten; what
+  may not change is that the user is told what their layer lacks.
+
+  The bar the rest of this suite sets for awkward data is "produces
+  output or says something and stays usable"; here the right answer
+  is firmly the second, so the test also checks the dialog is still
+  usable afterwards and that no half-map was left in the project.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=0)
+  assert layer.isValid(), \
+    "the empty fixture is not a valid layer, so the plugin is being " \
+    "asked a different question from the one this test names"
+  assert layer.featureCount() == 0, \
+    f"the fixture holds {layer.featureCount()} features, not none"
+  project.addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    before = dlg.spacing_spin.value()
+    # Choosing the layer is what runs auto-spacing: the dialog derives
+    # a spacing once per new layer id (see _on_layer_changed), so this
+    # is the path a click takes rather than a private call.
+    dlg.layer_combo.setLayer(layer)
+    _tick(400)
+    assert dlg.layer_combo.currentLayer() is layer, \
+      "the empty layer was not offered as a region, so nothing below " \
+      "is about it"
+    said_about_spacing = _everything_the_user_was_told(dlg)
+    assert "spacing" in said_about_spacing, \
+      f"choosing a layer with no extent said nothing about the " \
+      f"spacing it could not derive, and left {dlg.spacing_spin.value()} " \
+      f"standing (it was {before}): {said_about_spacing!r}"
+
+    BAR_MESSAGES.clear()
+    MODALS.clear()
+    _generate_and_wait(dlg)
+    assert _settle(dlg, seconds=45), \
+      "the empty region never settled; there is nothing here to tile " \
+      "and a refusal should be immediate"
+    _tick(200)
+
+    assert not _element_layers(dlg), \
+      f"a region with no features produced element layers " \
+      f"{sorted(_element_layers(dlg))}, which would read as a map"
+    stray = [lay.name() for lay in project.mapLayers().values()
+             if lay.customProperty("weavingspace_tile_id")]
+    assert not stray, \
+      f"the refused run left output layers in the project: {stray}"
+    told = _everything_the_user_was_told(dlg)
+    assert "features" in told, \
+      f"Generate over an empty region said nothing about the layer " \
+      f"having no features, so it is indistinguishable from a button " \
+      f"that did nothing: {told!r}"
+    assert dlg.generate_btn.isEnabled(), \
+      "Generate was left disabled, so the user cannot try again after " \
+      "fixing their layer"
+  finally:
+    dlg.close()
+
+
+def test_two_areas_on_the_same_ground_do_not_double_the_tiles():
+  """Duplicate geometry: one place, two rows, and one tile each.
+
+  Overlapping features are ordinary -- a dataset appended to itself, a
+  boundary set carrying both the 2018 and the 2023 version of a
+  district, two administrative layers merged. The extreme case is two
+  features covering EXACTLY the same ground, where "which area does
+  this tile fall in" has no single answer.
+
+  Either answer is defensible; what is not is a tile per matching
+  feature. The tiling joins tiles to areas, and a join that matches
+  twice returns two rows, so the same tile would be drawn twice, in
+  two colours, one on top of the other. Nothing about that looks
+  wrong on screen: the map is complete, the counts are plausible, and
+  the reader sees whichever of the two values happened to be drawn
+  last. It shows up only when somebody counts.
+
+  The fixture makes the ambiguity observable by giving the two copies
+  DIFFERENT values, so a merged or averaged answer is distinguishable
+  from a chosen one, and the test guards that the duplication really
+  exists before asserting anything about it -- two features that are
+  not actually congruent would make every assertion here true for the
+  wrong reason.
+  """
+  from qgis.core import QgsFeature, QgsGeometry, QgsPointXY
+  from weavingspace_qgis import compat
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+
+  layer = QgsVectorLayer("MultiPolygon?crs=EPSG:3857", "doubled", "memory")
+  layer.dataProvider().addAttributes([compat.make_field("v", float)])
+  layer.updateFields()
+  feats = []
+  for i in range(3):
+    for j in range(3):
+      ring = [QgsPointXY(i * 1000, j * 1000),
+              QgsPointXY((i + 1) * 1000, j * 1000),
+              QgsPointXY((i + 1) * 1000, (j + 1) * 1000),
+              QgsPointXY(i * 1000, (j + 1) * 1000)]
+      # each square twice, the copy carrying a value a hundred apart
+      # so the two are never confused for rounding of one another
+      for bump in (0.0, 100.0):
+        f = QgsFeature(layer.fields())
+        f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+        f["v"] = float(i * 3 + j) + bump
+        feats.append(f)
+  layer.dataProvider().addFeatures(feats)
+  layer.updateExtents()
+
+  # The guard: the copies must really be congruent. A fixture whose
+  # halves differ by a hair is an ordinary overlap, which this suite
+  # already covers under tie-breaking, and every assertion below
+  # would then be about the wrong thing.
+  geometries = [f.geometry() for f in layer.getFeatures()]
+  assert len(geometries) == 18, \
+    f"the fixture holds {len(geometries)} features, not eighteen"
+  congruent = sum(1 for a, b in zip(geometries[0::2], geometries[1::2])
+                  if a.equals(b))
+  assert congruent == 9, \
+    f"only {congruent} of 9 pairs cover the same ground, so this test " \
+    f"is not exercising duplicate geometry at all"
+  project.addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    dlg.table.cellWidget(0, 1).setCurrentText("v")
+    dlg._update_dynamic_columns()
+    _tick(150)
+    assert any(a["var"] == "v" for a in dlg._assignments()), \
+      "no element was given v, so no tile would carry a value and the " \
+      "ambiguity would be invisible"
+    dlg.spacing_spin.setValue(300)
+    _generate_and_wait(dlg)
+    _tick(200)
+
+    layers = _element_layers(dlg)
+    assert layers, "duplicated geometry produced no map at all"
+    checked, trouble = 0, []
+    for tid, out in sorted(layers.items()):
+      if out.fields().indexOf("v") < 0:
+        continue           # a layer with no mapped column to read
+      # every element is checked, not only the one carrying the
+      # colour: all of them are cut from the same tiling, so a join
+      # that matched twice doubles all of them at once
+      assert out.featureCount() >= 4, \
+        f"element {tid} carries {out.featureCount()} tile(s); there is " \
+        f"nothing here to count twice"
+      checked += 1
+      seen = {}
+      for feature in out.getFeatures():
+        centre = feature.geometry().centroid().asPoint()
+        # keyed by rounded centroid, as the tie-break tests are: a
+        # hair of floating-point drift must not read as a second tile
+        key = (round(centre.x(), 6), round(centre.y(), 6))
+        seen.setdefault(key, []).append(feature["v"])
+      repeated = {k: v for k, v in seen.items() if len(v) > 1}
+      if repeated:
+        example = sorted(repeated.items())[0]
+        trouble.append(
+          f"element {tid}: {len(repeated)} of {len(seen)} tile positions "
+          f"were drawn more than once -- the tile at "
+          f"{example[0][0]:.1f}, {example[0][1]:.1f} carries "
+          f"{example[1]!r}. Two features on one piece of ground must "
+          f"produce one tile, whichever of them wins it")
+      # and the value must be one of the two the data actually holds,
+      # not a blend of them: the two copies of a square carry k and
+      # k+100, so a mean lands on k+50, which is nowhere in the column
+      legal = {float(x) for x in range(9)} | \
+              {float(x) + 100.0 for x in range(9)}
+      stray = sorted({float(v) for group in seen.values() for v in group
+                      if v is not None and float(v) not in legal})
+      if stray:
+        trouble.append(
+          f"element {tid}: tiles carry {stray!r}, which is in neither "
+          f"copy of the region; the two rows have been combined rather "
+          f"than one of them chosen")
+    assert checked >= 1, \
+      "no element carrying v was inspected, so this test counted nothing"
+    assert not trouble, \
+      "duplicate geometry was not resolved to one tile:\n  " + \
+      "\n  ".join(trouble)
+
+    visual_gamut("two areas on the same ground",
+                 [layers[tid] for tid in sorted(layers)],
+                 _ramps_in_force(dlg))
+  finally:
+    dlg.close()
+
+
+def _category_region_layer(n, cell=1000.0, side=8):
+  """A region whose categorical column has exactly n distinct values.
+
+  Args:
+    n: how many distinct categories to create, one per feature.
+    cell: each square's side in map units, so a caller can choose a
+      spacing fine enough that every square receives tiles.
+    side: how many squares across the grid runs; n must fit inside
+      side*side.
+
+  Returns:
+    A memory layer in EPSG:3857 of n squares, each carrying its own
+    value in a text column named "cat" and a numeric "v" so that the
+    dialog has something non-categorical to default other elements
+    to. Values are zero-padded ("cat 007") so that the count is
+    unmistakable in a failure message and so no two differ only by
+    length.
+
+  The count that matters is the one on the OUTPUT layer rather than
+  here: a square that receives no tile contributes no category to the
+  map, so a caller checking a threshold must measure what was drawn.
+  """
+  from weavingspace_qgis import compat
+  assert n <= side * side, \
+    f"{n} categories will not fit in a {side}x{side} grid"
+  layer = QgsVectorLayer("MultiPolygon?crs=EPSG:3857", "cats", "memory")
+  layer.dataProvider().addAttributes([compat.make_field("cat", str),
+                                      compat.make_field("v", float)])
+  layer.updateFields()
+  feats = []
+  for k in range(n):
+    i, j = k % side, k // side
+    ring = [QgsPointXY(i * cell, j * cell),
+            QgsPointXY((i + 1) * cell, j * cell),
+            QgsPointXY((i + 1) * cell, (j + 1) * cell),
+            QgsPointXY(i * cell, (j + 1) * cell)]
+    f = QgsFeature(layer.fields())
+    f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+    f["cat"] = f"cat {k:03d}"
+    f["v"] = float(k)
+    feats.append(f)
+  layer.dataProvider().addFeatures(feats)
+  layer.updateExtents()
+  return layer
+
+
+def test_the_cardinality_warning_fires_on_the_side_it_should():
+  """Sixty categories is fine; sixty-one is worth mentioning.
+
+  Categorized styling over a field with a great many distinct values
+  produces a legend nobody can read and is usually the sign of a
+  field that is not categorical at all -- an identifier, a name, a
+  measurement stored as text. The dialog warns above sixty distinct
+  values on the finished map (_add_output_layers), and nothing in
+  this suite has ever read that warning, so the number could move in
+  either direction unnoticed.
+
+  A threshold is only tested from BOTH sides. A test at sixty-one
+  alone passes just as well against a plugin that warns about
+  everything, which is how a warning becomes something people learn
+  to dismiss without reading; a test at sixty alone passes against
+  one that never warns at all.
+
+  The count is measured where the plugin measures it -- on the
+  element layer, after tiling -- because a region square that
+  received no tile contributes no category to the map. The fixture
+  therefore has to be CHECKED rather than assumed: if the tiling drops
+  a square, sixty-one becomes sixty and the case silently swaps sides.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  results = {}
+
+  for wanted in (60, 61):
+    project.clear()
+    BAR_MESSAGES.clear()
+    MODALS.clear()
+    layer = _category_region_layer(wanted)
+    assert len({f["cat"] for f in layer.getFeatures()}) == wanted, \
+      f"the fixture itself does not hold {wanted} distinct categories"
+    project.addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(300)
+      # one element on the categorical column, the rest unassigned:
+      # four elements each with sixty-one classes is four times the
+      # work for one question, and unassigned elements draw as plain
+      # fill without going near the categorical path
+      for row in range(dlg.table.rowCount()):
+        combo = dlg.table.cellWidget(row, 1)
+        combo.setCurrentText("cat" if row == 1 else "---")
+      dlg._update_dynamic_columns()
+      _tick(200)
+      modes = {a["var"]: a["mode"] for a in dlg._assignments() if a.get("var")}
+      assert modes.get("cat") == "Categorized", \
+        f"cat is being drawn as {modes.get('cat')!r}, so the " \
+        f"cardinality path is not reached"
+      # a quarter of the cell, so every square certainly receives
+      # several tiles and no category is lost to a coarse spacing
+      dlg.spacing_spin.setValue(250)
+      _generate_and_wait(dlg)
+      _tick(200)
+
+      layers = _element_layers(dlg)
+      assert layers, f"the {wanted}-category region produced no map"
+      # counted on the SAME layer the dialog counts (the element's own
+      # output), so the fixture check and the plugin's threshold cannot
+      # be measuring two different things
+      _cat_id, out = _element_showing(dlg, "cat")
+      drawn = len(out.uniqueValues(out.fields().indexOf("cat")))
+      assert drawn == wanted, \
+        f"the map carries {drawn} distinct categories where the fixture " \
+        f"asked for {wanted}; the case has moved to the other side of " \
+        f"the threshold and would prove the opposite of what it names. " \
+        f"Use a finer spacing rather than relaxing this"
+      # kept as separate SENTENCES rather than one joined string:
+      # the field name has to appear in the warning itself, and a
+      # joined blob is satisfied just as well by some other notice
+      # that happens to mention the column
+      results[wanted] = [text.lower() for _kind, text in BAR_MESSAGES] + \
+                        [text.lower() for _kind, text in MODALS]
+
+      if wanted == 61:
+        visual_gamut("sixty-one categories on one element",
+                     [layers[tid] for tid in sorted(layers)],
+                     _ramps_in_force(dlg))
+    finally:
+      dlg.close()
+
+  phrase = "very large number of classes"
+  below = [s for s in results[60] if phrase in s]
+  above = [s for s in results[61] if phrase in s]
+  assert not below, \
+    f"sixty categories drew a warning about too many classes: " \
+    f"{below!r}. A warning that fires on ordinary data is one people " \
+    f"learn to dismiss unread"
+  assert above, \
+    f"sixty-one categories drew no warning, so a field that is not " \
+    f"categorical at all can be styled as categories in silence. " \
+    f"Everything the user was told: {results[61]!r}"
+  assert any("cat" in sentence for sentence in above), \
+    f"the warning did not name the field it is about, so the user " \
+    f"cannot act on it: {above!r}"
+
+
+def test_a_class_count_at_either_end_of_its_range_reaches_the_map():
+  """Two classes and twenty classes must both be twenty and two.
+
+  The per-row Classes spinner runs 2 to 20, a decision recorded in
+  CLAUDE.md and pinned as a RANGE by
+  test_every_per_row_control_keeps_its_declared_range. That test
+  reads the widget; it says nothing about whether the number reaches
+  the map. A spinner that accepts 20 and a renderer that quietly cuts
+  five are perfectly consistent with each other and with every test
+  in this suite.
+
+  Both ends are exercised because they fail differently. Two is where
+  a classifier with an off-by-one collapses to one class, which reads
+  as a two-colour map that has lost its middle; twenty is where a
+  ramp is asked for more colours than it has stops and where an
+  implicit ceiling would bite.
+
+  Equal intervals rather than quantiles, deliberately: quantiles over
+  values with ties can legitimately return fewer classes than asked
+  for, so a count that came back low would be ambiguous between the
+  plugin and the data. Equal intervals cuts k intervals over the
+  observed range whatever the distribution, so a shortfall is the
+  plugin's.
+
+  The second count is set on the SAME dialog, which also puts the
+  restyle fast path through both ends: a class count is symbology, so
+  the map is re-seeded in place rather than re-tiled, and a count
+  that reaches a fresh renderer but not a re-seeded one is a defect
+  a user meets on their second try rather than their first.
+  """
+  from qgis.core import QgsFeature, QgsGeometry, QgsPointXY, QgsRenderContext
+  from weavingspace_qgis import compat
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+
+  # sixty-four distinct values, so twenty equal intervals all have
+  # something in them; a column of four values would make the
+  # twenty-class end vacuous whatever the plugin did
+  layer = QgsVectorLayer("MultiPolygon?crs=EPSG:3857", "spread", "memory")
+  layer.dataProvider().addAttributes([compat.make_field("v", float)])
+  layer.updateFields()
+  feats = []
+  for k in range(64):
+    i, j = k % 8, k // 8
+    f = QgsFeature(layer.fields())
+    f.setGeometry(QgsGeometry.fromPolygonXY([[
+      QgsPointXY(i * 1000, j * 1000),
+      QgsPointXY((i + 1) * 1000, j * 1000),
+      QgsPointXY((i + 1) * 1000, (j + 1) * 1000),
+      QgsPointXY(i * 1000, (j + 1) * 1000)]]))
+    f["v"] = float(k)
+    feats.append(f)
+  layer.dataProvider().addFeatures(feats)
+  layer.updateExtents()
+  project.addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    for row in range(dlg.table.rowCount()):
+      dlg.table.cellWidget(row, 1).setCurrentText("v" if row == 1 else "---")
+    dlg._update_dynamic_columns()
+    _tick(200)
+    mode = dlg.table.cellWidget(1, 2)
+    index = mode.findText("Quant: Equal intervals")
+    assert index >= 0, \
+      f"no equal-intervals entry in the style chooser: " \
+      f"{[mode.itemText(i) for i in range(mode.count())]}"
+    # activated as well as the index change: that is what marks the
+    # style as the user's own, and without it the next rebuild reverts
+    # the row to the field's default
+    mode.setCurrentIndex(index)
+    mode.activated.emit(index)
+    _tick(150)
+    dlg.spacing_spin.setValue(400)
+
+    trouble = []
+    last_layers = None
+    for k in (2, 20):
+      spin = dlg.table.cellWidget(1, 3)
+      assert spin is not None and spin.isEnabled(), \
+        "the Classes cell is not an editable spinner on this row, so " \
+        "the count under test cannot be set the way a user sets it"
+      spin.setValue(k)
+      _tick(200)
+      assert spin.value() == k, \
+        f"the Classes spinner refused {k} and stands at {spin.value()}, " \
+        f"so the declared 2-20 range is not what the control offers"
+      _generate_and_wait(dlg)
+      assert _settle(dlg, seconds=60), f"the k={k} run never settled"
+      _tick(200)
+
+      layers = _element_layers(dlg)
+      assert layers, f"the k={k} run produced no map"
+      last_layers = layers
+      tid, out = _element_showing(dlg, "v")
+      renderer = out.renderer()
+      assert hasattr(renderer, "ranges"), \
+        f"k={k}: element {tid} came back with a " \
+        f"{type(renderer).__name__}, which has no classes to count"
+      distinct = len(out.uniqueValues(out.fields().indexOf("v")))
+      assert distinct >= k, \
+        f"k={k}: only {distinct} distinct values reached the map, so " \
+        f"{k} classes cannot exist and this end of the range is not " \
+        f"being exercised"
+
+      ranges = renderer.ranges()
+      bounds = [(round(r.lowerValue(), 3), round(r.upperValue(), 3))
+                for r in ranges]
+      if len(ranges) != k:
+        trouble.append(
+          f"k={k}: the map carries {len(ranges)} classes {bounds}")
+        continue
+      # ascending and non-degenerate: k classes that all span the same
+      # ground would satisfy a bare count while meaning nothing
+      if any(low >= high for low, high in bounds):
+        trouble.append(f"k={k}: a class spans nothing: {bounds}")
+      if bounds != sorted(bounds):
+        trouble.append(f"k={k}: the classes are not in order: {bounds}")
+      if bounds[0][1] == bounds[-1][1]:
+        trouble.append(
+          f"k={k}: the first and last class end at the same value, so "
+          f"the classes are not dividing the column: {bounds}")
+      # every tile has to land in one of them, which is the failure
+      # this plugin has met before: a renderer whose classes do not
+      # cover the data paints nothing and reports success
+      context = QgsRenderContext()
+      renderer.startRender(context, out.fields())
+      painted = sum(1 for f in out.getFeatures()
+                    if renderer.symbolForFeature(f, context) is not None)
+      renderer.stopRender(context)
+      if painted != out.featureCount():
+        trouble.append(
+          f"k={k}: {painted} of {out.featureCount()} tiles would paint "
+          f"on element {tid}; the rest fall outside every class")
+
+    assert not trouble, \
+      "a class count did not reach the map:\n  " + "\n  ".join(trouble)
+    visual_gamut("twenty classes, the top of the declared range",
+                 [last_layers[tid] for tid in sorted(last_layers)],
+                 _ramps_in_force(dlg))
+  finally:
+    dlg.close()
+
+
+# ---------------------------------------------------------------------
+# Registration lines for main() in tests/run_tests.py. Place them
+# beside the other awkward-data checks (after the
+# "hostile data does not defeat the plugin" registration), so the
+# release report groups them where a reader looks for them.
+
+
+"""Interaction-and-timing tests for tests/run_tests.py.
+
+Ideas 19, 20, 21, 22, 25 and 26 from docs/TEST-IDEAS.md, written to be
+pasted into tests/run_tests.py beside the other race tests. Idea 23 is
+already COVERED (test_the_plugin_is_unloaded_during_a_run) and idea 24
+is covered by test_integration_region_layer_switch together with
+test_hand_picks_are_kept_per_variable; neither is reproduced here.
+
+Everything below uses the suite's own helpers -- _tick, _settle,
+_fingerprint, _families_with, _skip_loudly, CONTENTION -- and none of
+it asserts on a fixed sleep. A _tick is used only to REACH a stage of
+a run; every assertion waits on _settle, which polls for a defined
+resting state (no task, no debounce pending) rather than guessing how
+long one takes.
+
+Two conventions repeated in each test, both from docs/TESTING.md:
+
+  the delays sweep the dialog's STAGES rather than firing at 0 ms,
+  because "immediately" is one interleaving out of many -- the preview
+  debounce is 350 ms and the live debounce 900 ms, so 0, 500 and 1200
+  meet three different machines; and
+
+  every allowance is multiplied by CONTENTION, exactly as
+  _stall_ceiling and _note_after_a_run do, because a sharded or
+  coverage-recorded run costs about six times as much per step and an
+  allowance sized on an idle machine is a ceiling a healthy run can
+  reach.
+"""
+
+# ------------------------------------------------------------------
+# The delays every test below sweeps. Not round numbers for their own
+# sake: 0 lands before either debounce has fired, 500 lands between
+# the 350 ms preview debounce and the 900 ms live one, and 1200 lands
+# after both, by which time a small tiling may also have finished and
+# be adding its layers on the main thread. Three rather than five
+# because each case here runs one or two whole generations and the
+# stall ceiling for an unlisted test is STALL_SECONDS; the three
+# chosen are the three that meet DIFFERENT states, which is the point
+# of staggering at all.
+_STAGE_DELAYS = (0, 500, 1200)
+
+
+def _one_group_named(name):
+  """Every layer-tree group carrying this name, as a list.
+
+  Args:
+    name: the dialog's _group_name. Passing None or "" returns [],
+      which is what a caller wants before anything has generated.
+
+  Returns:
+    The matching group nodes. A list rather than a count so a failure
+    message can say how many there were AND name them; two groups is
+    the shape of "a second run made a rival group instead of
+    replacing the first", which is the failure several of the tests
+    below are actually watching for.
+  """
+  if not name:
+    return []
+  root = QgsProject.instance().layerTreeRoot()
+  return [child for child in root.children()
+          if hasattr(child, "name") and child.name() == name]
+
+
+
+def _paints(dlg, rgb):
+  """Element ids whose renderer would paint this exact colour.
+
+  Args:
+    dlg: the dialog, after a run.
+    rgb: an (r, g, b) triple on 0..255.
+
+  Returns:
+    The tile ids painting it, as a sorted list. Read through
+    bridge.renderer_fill_colours, which reads the RENDERER rather than
+    recomputing from the ramp, so it answers what the map will
+    actually look like. Used negatively below: a colour picked for an
+    element that has since gone must reach nothing.
+  """
+  from weavingspace_qgis import bridge
+  hits = []
+  for tid, layer in _element_layers(dlg).items():
+    if tuple(rgb) in [tuple(c) for c in bridge.renderer_fill_colours(layer)]:
+      hits.append(tid)
+  return sorted(hits)
+
+
+def test_the_element_count_changes_under_an_open_colour_editor():
+  """The design loses an element while its colour editor is open.
+
+  The Categorical colour editor is modal to the plugin dialog only, so
+  the dialog behind it stays live -- and the element count is one of
+  the controls still reachable there. The editor was constructed for
+  ONE tile id, holds it for the whole of its life, and hands it back
+  with every colour the user picks. Drop from a seven-element family
+  to a four-element one and that id names an element the design no
+  longer has.
+
+  Two things must hold and they pull in opposite directions. Nothing
+  may raise: the pick goes through _apply_style_change, which walks
+  the assignments and the layers, and a stale id there is exactly the
+  shape of a KeyError inside a Qt slot -- which does not fail a test,
+  it aborts the process. And the pick must not REACH the map: the
+  per-element dictionaries are deliberately never pruned, so the entry
+  for the vanished element is still sitting there when the next run
+  builds its output, and an element drawn in a colour chosen for a
+  different design is precisely the wrong map that looks like a right
+  one.
+
+  The pick is made at each of three stages after the count changed,
+  because the table rebuild is debounced: at 0 ms the old row widgets
+  are still standing, at 500 ms the preview has rebuilt and the live
+  debounce has not fired, and at 1200 ms both have.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+  picked_rgb = (255, 0, 153)          # "#ff0099", off every ramp here
+  trouble = []
+  vanished_somewhere = []
+
+  for delay in _STAGE_DELAYS:
+    project = QgsProject.instance()
+    for existing in list(project.mapLayers().values()):
+      project.removeMapLayer(existing.id())
+    MODALS.clear()
+    BAR_MESSAGES.clear()
+    dlg = None
+    try:
+      layer = make_region_layer(n=3)
+      project.addMapLayer(layer)
+      dlg = WeavingSpaceDialog(iface=_Iface())
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(300)
+
+      # Families are looked up in the catalogue rather than typed:
+      # docs/TESTING.md records a test that selected "star 6", which
+      # does not exist, and silently skipped its own assertions.
+      large = _families_with(dlg, 7)
+      small = _families_with(dlg, 4)
+      if not large or not small:
+        _skip_loudly(
+          "the element count changes under an open colour editor",
+          "the catalogue offers no family with 7 elements or none "
+          "with 4, so there is no count change to make. Restore one "
+          "of each in catalog.TILINGS_BY_N.")
+        return
+      dlg.n_combo.setCurrentText("7")
+      _tick(150)
+      dlg.family_combo.setCurrentText(large[0])
+      _tick(500)                      # past the 350 ms preview debounce
+      dlg.spacing_spin.setValue(500)
+
+      row = dlg.table.rowCount() - 1  # the LAST element, which a drop
+      if row < 6:                     # to four cannot possibly keep
+        trouble.append(f"{delay}ms: the 7-element family showed "
+                       f"{dlg.table.rowCount()} rows")
+        continue
+      dlg.table.cellWidget(row, 1).setCurrentText("landcover")
+      dlg._update_dynamic_columns()
+      _tick(200)
+      tid = dlg.table.item(row, 0).text()
+
+      assignment = next((a for a in dlg._assignments() if a["id"] == tid),
+                        None)
+      if assignment is None or assignment["var"] != "landcover":
+        trouble.append(f"{delay}ms: element {tid!r} did not take the "
+                       f"categorical variable, so there is no editor "
+                       f"to open")
+        continue
+      colours, order = dlg._current_category_colours(assignment)
+      if not order:
+        trouble.append(f"{delay}ms: no categories to edit")
+        continue
+
+      dlg._generate()
+      if not _settle(dlg, seconds=int(90 * CONTENTION)):
+        trouble.append(f"{delay}ms: the first run never settled")
+        continue
+      _tick(250)
+      if len(_element_layers(dlg)) != 7:
+        trouble.append(f"{delay}ms: the first run left "
+                       f"{len(_element_layers(dlg))} element layers, "
+                       f"not the seven this case needs")
+        continue
+
+      # The editor is built directly rather than through the button,
+      # because _edit_category_colours ends in editor.exec() and a
+      # modal loop offscreen never returns -- the same reason
+      # test_the_colour_editor_opened_partway_through_a_run does it
+      # this way. The callback is the dialog's own, copied verbatim
+      # from _edit_category_colours, so what is under test is the
+      # record-keeping rather than the wiring (which
+      # test_editing_a_category_colour_reaches_the_map covers).
+      def picked(value, colour, tid=tid):
+        dlg._category_colours.setdefault(tid, {}) \
+           .setdefault("landcover", {})[str(value)] = colour
+        dlg._apply_style_change()
+
+      editor = CategoryColourDialog(tid, "landcover", order, colours,
+                                    picked, dlg)
+
+      # ...and now the design loses that element, through the control's
+      # own signal: setCurrentText on the count combo runs
+      # _on_n_changed, which repopulates the families and queues the
+      # preview. Calling _rebuild_unit here would prove nothing, since
+      # the connection could be deleted and the test would still pass.
+      dlg.n_combo.setCurrentText("4")
+      _tick(150)
+      dlg.family_combo.setCurrentText(small[0])
+      _tick(delay)                    # the stage this case is about
+
+      picked(order[0], "#ff0099")     # the user, still in the editor
+      editor.close()
+
+      if not _settle(dlg, seconds=int(90 * CONTENTION)):
+        trouble.append(f"{delay}ms: the dialog never settled after the "
+                       f"count changed under the editor")
+        continue
+      _tick(250)
+
+      # The user carries on in the four-element design and puts the
+      # same categorical variable on a surviving element. Without this
+      # step there would be no categorized element for a stray colour
+      # to land on, and the negative assertion below would be
+      # satisfied by the design rather than by the code -- the vacuous
+      # shape docs/TESTING.md warns about.
+      dlg.table.cellWidget(0, 1).setCurrentText("landcover")
+      dlg._update_dynamic_columns()
+      _tick(300)
+      channel = [a for a in dlg._assignments()
+                 if a["var"] == "landcover" and a["mode"] == "Categorized"]
+      if not channel:
+        trouble.append(
+          f"{delay}ms: no surviving element ended up categorized on "
+          f"'landcover', so nothing could have inherited the colour "
+          f"and this case proves nothing")
+        continue
+
+      living = {a["id"] for a in dlg._assignments()}
+      if tid in living:
+        # Not a failure of the plugin: a failure of the CASE. Recorded
+        # per delay and asserted across all of them below, because a
+        # test that quietly stops exercising its own scenario is the
+        # vacuous shape this project produces at about one in five.
+        trouble.append(
+          f"{delay}ms: element {tid!r} still exists after dropping to "
+          f"four elements ({sorted(living)}), so this case never put "
+          f"a stale id in the editor's hands")
+        continue
+      vanished_somewhere.append(delay)
+
+      dlg._generate()
+      if not _settle(dlg, seconds=int(90 * CONTENTION)):
+        trouble.append(f"{delay}ms: the run after the count change "
+                       f"never settled")
+        continue
+      _tick(250)
+
+      produced = set(_element_layers(dlg))
+      expected = {a["id"] for a in dlg._assignments()}
+      if produced != expected:
+        trouble.append(
+          f"{delay}ms: the map holds {sorted(produced)} but the design "
+          f"asks for {sorted(expected)}")
+      if tid in produced:
+        trouble.append(
+          f"{delay}ms: element {tid!r} is on the map though the design "
+          f"has no such element")
+      wearing = _paints(dlg, picked_rgb)
+      if wearing:
+        trouble.append(
+          f"{delay}ms: {wearing} are painted in the colour picked for "
+          f"{tid!r}, an element this design does not have. A choice "
+          f"made for one design has leaked into another")
+      groups = _one_group_named(dlg._group_name)
+      if len(groups) != 1:
+        trouble.append(f"{delay}ms: {len(groups)} output groups")
+      if not dlg.generate_btn.isEnabled():
+        trouble.append(f"{delay}ms: Generate left disabled, so the user "
+                       f"cannot carry on")
+    except Exception as exc:
+      trouble.append(
+        f"{delay}ms: raised {type(exc).__name__}: {exc}")
+    finally:
+      if dlg is not None:
+        dlg.close()
+
+  assert vanished_somewhere, \
+    "no case actually removed the element the editor was holding, so " \
+    "this test asserted nothing about a stale tile id"
+  assert not trouble, \
+    "the element count changed under an open editor:\n  " + \
+    "\n  ".join(trouble)
+
+
+def test_the_field_goes_away_under_an_open_colour_editor():
+  """The variable is deleted in QGIS while its colour editor is open.
+
+  test_the_editor_copes_with_the_data_going_away already covers
+  OPENING the editor after the column has gone. This is the other
+  order, and it is the one a user actually meets: the editor is up,
+  they switch to QGIS -- the editor is deliberately modal to the
+  plugin dialog alone, so QGIS stays live -- delete the attribute, and
+  come back to a window listing values of a field that no longer
+  exists.
+
+  The dialog's documented response to a vanished column is to
+  RE-DEFAULT that element to a surviving field and say so; losing a
+  column costs an element its variable, not its place on the map. It
+  also discards the picks that belonged to the dead field. A pick made
+  from the still-open editor arrives AFTER that discarding, and files
+  itself under the dead field all over again -- so what must hold is
+  the key rather than the tidying: colours are recorded
+  {tile_id: {field: {value: colour}}}, and an entry under a field the
+  layer no longer has must never colour whatever variable the element
+  is showing now.
+
+  The layer carries TWO categorical fields for that reason, sharing
+  their value names as two dates of one variable do. The element
+  re-defaults to a numeric field, the user then puts it on the
+  surviving categorical one, and the colour picked for the deleted
+  field must not follow it there. Both halves of that fixture are
+  load-bearing: without a second categorical field the element comes
+  back graduated and nothing could inherit the pick, and without
+  shared value names the colour could not land even if the record
+  were mis-keyed. Either way the assertion would be satisfied by the
+  fixture rather than by the code.
+
+  Three stages again, because the re-default arrives on the layer's
+  own signal and through a debounce: at 0 ms the pick lands before the
+  dialog has noticed the column at all, and at 1200 ms it lands after
+  the element has already moved.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+  from weavingspace_qgis import compat
+  picked_rgb = (255, 0, 153)
+  trouble = []
+  redefaulted_somewhere = []
+
+  for delay in _STAGE_DELAYS:
+    project = QgsProject.instance()
+    for existing in list(project.mapLayers().values()):
+      project.removeMapLayer(existing.id())
+    MODALS.clear()
+    BAR_MESSAGES.clear()
+    dlg = None
+    try:
+      layer = make_region_layer(n=3)
+      # A SECOND categorical field, so the element has somewhere
+      # categorical to go once 'landcover' is deleted -- and one
+      # sharing landcover's VALUE names, because that is where a
+      # mis-keyed record would actually show: colours are filed by
+      # field and then by value, so two fields whose values are
+      # spelled differently cannot bleed into each other whatever the
+      # key is, and a fixture like that would make the check below
+      # unfalsifiable. Two dates of the same variable is the ordinary
+      # case ("landcover_2010" beside "landcover"), and it is exactly
+      # the one CLAUDE.md names.
+      layer.dataProvider().addAttributes(
+        [compat.make_field("landcover_2010", str)])
+      layer.updateFields()
+      earlier_index = layer.fields().indexOf("landcover_2010")
+      cats = ["forest", "water", "urban", "crops"]
+      layer.dataProvider().changeAttributeValues(
+        {f.id(): {earlier_index: cats[(f.id() + 1) % len(cats)]}
+         for f in layer.getFeatures()})
+      project.addMapLayer(layer)
+      dlg = WeavingSpaceDialog(iface=None)
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(300)
+      row = 1                         # not the first row: first-field
+      dlg.table.cellWidget(row, 1).setCurrentText("landcover")
+      dlg._update_dynamic_columns()   # and first-row cases have been
+      _tick(200)                      # special here once already
+      tid = dlg.table.item(row, 0).text()
+      dlg.spacing_spin.setValue(500)
+      assignment = next((a for a in dlg._assignments() if a["id"] == tid),
+                        None)
+      if assignment is None or assignment["var"] != "landcover" \
+          or assignment["mode"] != "Categorized":
+        trouble.append(f"{delay}ms: element {tid!r} did not take "
+                       f"'landcover' as a categorical variable")
+        continue
+      colours, order = dlg._current_category_colours(assignment)
+      if not order:
+        trouble.append(f"{delay}ms: no categories to edit")
+        continue
+
+      dlg._generate()
+      if not _settle(dlg, seconds=int(90 * CONTENTION)):
+        trouble.append(f"{delay}ms: the first run never settled")
+        continue
+      _tick(250)
+      if not _element_layers(dlg):
+        trouble.append(f"{delay}ms: the first run produced no map")
+        continue
+
+      def picked(value, colour, tid=tid):
+        dlg._category_colours.setdefault(tid, {}) \
+           .setdefault("landcover", {})[str(value)] = colour
+        dlg._apply_style_change()
+
+      editor = CategoryColourDialog(tid, "landcover", order, colours,
+                                    picked, dlg)
+
+      # the user switches to QGIS and drops the column, which is a
+      # provider-level edit exactly as the Fields panel makes it
+      index = layer.fields().indexOf("landcover")
+      if index < 0:
+        trouble.append(f"{delay}ms: 'landcover' was already gone")
+        continue
+      layer.dataProvider().deleteAttributes([index])
+      layer.updateFields()
+      _tick(delay)                    # the stage this case is about
+
+      picked(order[0], "#ff0099")     # ...and picks a colour anyway
+      editor.close()
+
+      if not _settle(dlg, seconds=int(90 * CONTENTION)):
+        trouble.append(f"{delay}ms: the dialog never settled after the "
+                       f"column was deleted under the editor")
+        continue
+      _tick(250)
+
+      still = [a["var"] for a in dlg._assignments() if a["var"]]
+      if "landcover" in still:
+        trouble.append(
+          f"{delay}ms: an element still points at 'landcover', which "
+          f"is no longer in the layer")
+        continue
+      redefaulted_somewhere.append(delay)
+
+      # the user, back from QGIS, puts the element on the categorical
+      # field that survived
+      dlg.table.cellWidget(row, 1).setCurrentText("landcover_2010")
+      dlg._update_dynamic_columns()
+      _tick(300)
+      moved = next((a for a in dlg._assignments() if a["id"] == tid), None)
+      if moved is None or moved["var"] != "landcover_2010" \
+          or moved["mode"] != "Categorized":
+        trouble.append(
+          f"{delay}ms: element {tid!r} would not take "
+          f"'landcover_2010' as a "
+          f"categorical variable ({moved and moved['var']!r}, "
+          f"{moved and moved['mode']!r}), so nothing could inherit "
+          f"the dead field's colour and this case proves nothing")
+        continue
+
+      dlg._generate()
+      if not _settle(dlg, seconds=int(90 * CONTENTION)):
+        trouble.append(f"{delay}ms: the run after the deletion never "
+                       f"settled")
+        continue
+      _tick(250)
+
+      produced = set(_element_layers(dlg))
+      expected = {a["id"] for a in dlg._assignments()}
+      if produced != expected:
+        trouble.append(
+          f"{delay}ms: the map holds {sorted(produced)} but the design "
+          f"asks for {sorted(expected)}")
+      wearing = _paints(dlg, picked_rgb)
+      if wearing:
+        trouble.append(
+          f"{delay}ms: {wearing} are painted in the colour picked for "
+          f"'landcover', which no longer exists; element {tid!r} now "
+          f"carries 'landcover_2010'. A hand-picked colour has "
+          f"followed an "
+          f"element onto a variable it was never chosen for")
+      if not dlg.generate_btn.isEnabled():
+        trouble.append(f"{delay}ms: Generate left disabled afterwards")
+    except Exception as exc:
+      trouble.append(
+        f"{delay}ms: raised {type(exc).__name__}: {exc}")
+    finally:
+      if dlg is not None:
+        dlg.close()
+
+  assert redefaulted_somewhere, \
+    "no case ever got the column deleted out from under the editor, " \
+    "so this test asserted nothing about a dead field's colours"
+  assert not trouble, \
+    "the field went away under an open editor:\n  " + \
+    "\n  ".join(trouble)
+
+
+def test_a_region_edit_is_undone_while_a_run_is_in_flight():
+  """Ctrl+Z in QGIS while the worker is tiling the edited data.
+
+  test_an_undone_edit_is_followed_back covers undo BETWEEN runs, where
+  the layer returns to a state the plugin has already seen and a naive
+  change-counter calls it unchanged. This is the harder arrangement:
+  the worker is already laying out tiles from the edited features when
+  the edit is rolled back underneath it, so the result that arrives is
+  a picture of data that no longer exists -- and it arrives after the
+  undo, which makes it look like the current answer.
+
+  What must be true at the end is not that the in-flight run is
+  abandoned; a run carries the settings and the data it was launched
+  with, deliberately. It is that the dialog knows the map it landed is
+  no longer current, so the next Generate re-tiles rather than taking
+  the restyle fast path, and the map comes back to exactly the
+  fingerprint it had before the edit. Answering from the tiles already
+  on screen would leave the user looking at features they deleted and
+  then un-deleted.
+
+  The undo is fired at three stages, so it lands variously before the
+  worker has started, while it is tiling, and while the completion
+  handler is building layers on the main thread.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  trouble = []
+  in_flight_at_the_undo = []
+
+  for delay in _STAGE_DELAYS:
+    project = QgsProject.instance()
+    for existing in list(project.mapLayers().values()):
+      project.removeMapLayer(existing.id())
+    MODALS.clear()
+    BAR_MESSAGES.clear()
+    dlg = None
+    layer = None
+    try:
+      layer = _editable_region(n=3)
+      project.addMapLayer(layer)
+      dlg = WeavingSpaceDialog(iface=_Iface())
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(300)
+      dlg.spacing_spin.setValue(500)
+
+      dlg._generate()
+      if not _settle(dlg, seconds=int(90 * CONTENTION)):
+        trouble.append(f"{delay}ms: the baseline run never settled")
+        continue
+      _tick(250)
+      baseline = _fingerprint(dlg)
+      if baseline[0] == 0:
+        trouble.append(f"{delay}ms: the baseline run produced no tiles")
+        continue
+
+      # An edit inside an OPEN session: QGIS's per-layer undo stack
+      # belongs to the edit buffer and is emptied on commit, so
+      # "edit, commit, undo" is not a thing a user can do and a test
+      # built on it would prove nothing.
+      before_edit = dlg._run_signature()
+      layer.startEditing()
+      ids = [f.id() for f in layer.getFeatures()]
+      layer.deleteFeatures(ids[: max(1, len(ids) // 3)])
+      layer.updateExtents()
+      _tick(400)
+      if dlg._run_signature() == before_edit:
+        trouble.append(
+          f"{delay}ms: the dialog did not notice the edit at all, so "
+          f"the run below would not be tiling edited data and this "
+          f"case has nothing to undo underneath it")
+        continue
+
+      dlg._generate()
+      if dlg._task is None:
+        trouble.append(
+          f"{delay}ms: no run was launched after the edit -- the "
+          f"restyle fast path answered a data change, so there is no "
+          f"run for the undo to land inside")
+        continue
+      _tick(delay)                    # the stage this case is about
+
+      # ...and Ctrl+Z, with the worker still holding the edited data
+      if not layer.undoStack().canUndo():
+        trouble.append(f"{delay}ms: nothing on the undo stack")
+        continue
+      running = dlg._task is not None
+      while layer.undoStack().canUndo():
+        layer.undoStack().undo()
+      layer.updateExtents()
+      if running:
+        in_flight_at_the_undo.append(delay)
+
+      if not _settle(dlg, seconds=int(120 * CONTENTION)):
+        trouble.append(f"{delay}ms: the dialog never settled after the "
+                       f"undo -- a hang")
+        continue
+      _tick(300)
+      if not dlg.generate_btn.isEnabled():
+        trouble.append(f"{delay}ms: Generate left disabled after the "
+                       f"undo, so the user is stuck")
+        continue
+
+      dlg._generate()                 # the user asks for a current map
+      if not _settle(dlg, seconds=int(120 * CONTENTION)):
+        trouble.append(f"{delay}ms: the run after the undo never settled")
+        continue
+      _tick(300)
+
+      restored = _fingerprint(dlg)
+      if restored != baseline:
+        trouble.append(
+          f"{delay}ms: after undoing the edit the map is {restored}, "
+          f"not the {baseline} it drew before. The run that landed "
+          f"during the undo is still on screen, so the user is "
+          f"looking at data they rolled back")
+      groups = _one_group_named(dlg._group_name)
+      if len(groups) != 1:
+        trouble.append(f"{delay}ms: {len(groups)} output groups")
+    except Exception as exc:
+      trouble.append(
+        f"{delay}ms: raised {type(exc).__name__}: {exc}")
+    finally:
+      if layer is not None and layer.isEditable():
+        layer.rollBack()
+      if dlg is not None:
+        dlg.close()
+
+  assert in_flight_at_the_undo, \
+    "no case had a run in flight at the moment of the undo, so this " \
+    "test never exercised the race it is named for; every undo landed " \
+    "on a finished run"
+  assert not trouble, \
+    "an edit undone during a run:\n  " + "\n  ".join(trouble)
+
+
+def test_two_generates_with_different_families_keep_their_elements_apart():
+  """A seven-element run in flight, then a four-element one on top.
+
+  test_race_double_generate presses Generate twice on the SAME design,
+  where the two runs want the same layers and the only question is
+  whether a second tiling starts. Two different families ask a
+  different question: the element ids are the keys everything in this
+  plugin hangs on -- the output layer names, the per-element colour
+  records, the group's contents, the custom property a later dialog
+  adopts the group by -- and the second run has fewer of them than the
+  first. The layers for e, f and g are real, in the project, tagged as
+  ours, and named for elements the settled design does not have.
+
+  So the invariant is not merely that the dialog survives. It is that
+  the group ends up holding exactly the elements the table finally
+  shows: no orphan from the larger family left behind for the next
+  dialog to adopt, and no rival second group.
+
+  The first run is allowed to LAND before the race starts, so the
+  seven layers genuinely exist; the racing pair is then a second
+  seven-element run and the four-element one that interrupts it.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  trouble = []
+  raced_somewhere = []
+
+  for delay in _STAGE_DELAYS:
+    project = QgsProject.instance()
+    for existing in list(project.mapLayers().values()):
+      project.removeMapLayer(existing.id())
+    MODALS.clear()
+    BAR_MESSAGES.clear()
+    dlg = None
+    try:
+      layer = make_region_layer(n=3)
+      project.addMapLayer(layer)
+      dlg = WeavingSpaceDialog(iface=_Iface())
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(300)
+
+      large = _families_with(dlg, 7)
+      small = _families_with(dlg, 4)
+      if not large or not small:
+        _skip_loudly(
+          "two generates with different families keep their elements "
+          "apart",
+          "the catalogue offers no family with 7 elements or none "
+          "with 4, so there is no family change to race. Restore one "
+          "of each in catalog.TILINGS_BY_N.")
+        return
+
+      dlg.n_combo.setCurrentText("7")
+      _tick(150)
+      dlg.family_combo.setCurrentText(large[0])
+      _tick(500)
+      dlg.spacing_spin.setValue(500)
+      dlg._generate()
+      if not _settle(dlg, seconds=int(90 * CONTENTION)):
+        trouble.append(f"{delay}ms: the seven-element run never settled")
+        continue
+      _tick(250)
+      big_ids = set(_element_layers(dlg))
+      if len(big_ids) != 7:
+        trouble.append(
+          f"{delay}ms: the seven-element run left {sorted(big_ids)}, "
+          f"so there are no surplus elements for the next run to "
+          f"inherit and this case checks nothing")
+        continue
+
+      # a second seven-element run, put in flight by a GEOMETRY change
+      # (a style change would take the fast path and finish
+      # synchronously, leaving nothing to race against -- which is
+      # what test_race_settings_change_during_run caught on its first
+      # run)
+      dlg.spacing_spin.setValue(455)
+      dlg._generate()
+      if dlg._task is None:
+        trouble.append(f"{delay}ms: no second run was launched")
+        continue
+      _tick(delay)                    # the stage this case is about
+
+      racing = dlg._task is not None
+      dlg.n_combo.setCurrentText("4")
+      _tick(150)
+      dlg.family_combo.setCurrentText(small[0])
+      dlg._generate()
+      if racing:
+        raced_somewhere.append(delay)
+
+      if not _settle(dlg, seconds=int(120 * CONTENTION)):
+        trouble.append(f"{delay}ms: the dialog never settled after the "
+                       f"family change")
+        continue
+      _tick(300)
+
+      expected = {a["id"] for a in dlg._assignments()}
+      if len(expected) != 4:
+        trouble.append(f"{delay}ms: the settled design has "
+                       f"{sorted(expected)}, not four elements")
+        continue
+      produced = set(_element_layers(dlg))
+      if produced != expected:
+        trouble.append(
+          f"{delay}ms: the map holds {sorted(produced)} but the table "
+          f"asks for {sorted(expected)}")
+      # ...and the project as a whole, not only the dialog's records:
+      # an orphan layer the dialog has forgotten is still tagged as
+      # ours and is what a later dialog adopts the group by
+      tagged = {}
+      for out in project.mapLayers().values():
+        element = out.customProperty("weavingspace_tile_id")
+        if element:
+          tagged[out.name()] = element
+      strays = {name: e for name, e in tagged.items() if e not in expected}
+      if strays:
+        trouble.append(
+          f"{delay}ms: {strays} are still in the project, tagged for "
+          f"elements the four-element design does not have. The "
+          f"second run inherited the first's elements")
+      groups = _one_group_named(dlg._group_name)
+      if len(groups) != 1:
+        trouble.append(f"{delay}ms: {len(groups)} output groups after "
+                       f"the family race")
+      if not dlg.generate_btn.isEnabled():
+        trouble.append(f"{delay}ms: Generate left disabled afterwards")
+    except Exception as exc:
+      trouble.append(
+        f"{delay}ms: raised {type(exc).__name__}: {exc}")
+    finally:
+      if dlg is not None:
+        dlg.close()
+
+  assert raced_somewhere, \
+    "no case had the seven-element run still in flight when the " \
+    "four-element family was chosen, so this test never raced two " \
+    "families at all"
+  assert not trouble, \
+    "two generates with different families:\n  " + "\n  ".join(trouble)
+
+
+def test_a_restyle_arrives_while_the_geopackage_is_written():
+  """A ramp picked while the output file is being written.
+
+  test_race_change_during_output_phase covers a change made while the
+  LAYERS are built, with temporary output. Add a GeoPackage and the
+  output phase acquires a second, worse hazard: _restyle_only writes
+  cartography into the same file, through bridge.embed_style, because
+  a GeoPackage carries its own styling. A restyle that ran while
+  _add_output_layers was part way through writing tiles_a, tiles_b,
+  tiles_c would have two writers on one sqlite file -- and the file is
+  the thing a colleague receives, so corrupting it is not a display
+  bug.
+
+  Two things in _restyle_only stand between the user and that, and it
+  is worth naming both rather than pretending one of them is the
+  subject: it declines while self._task is not None (and _finish_run
+  clears the task only after _add_output_layers has returned), and it
+  declines when any element layer its records point at has gone --
+  which they all have, because writing to a GeoPackage releases the
+  old file handles first. Either alone would do; what this test pins
+  is the OUTCOME, since a maintainer removing one of them will not
+  find a test that reads like a description of the other.
+
+  It stands INSIDE the write to do it, which is the only place the
+  timing is certain rather than hoped for -- everything else in this
+  file staggers a delay because it cannot be. And the change must not
+  be LOST, which is the other half of every race test here: declining
+  is only correct because the next Generate applies it.
+
+  Measured while this was written, and worth knowing before anyone
+  tidies either guard away: removing ONE of them leaves this test
+  green, because the other still holds. Removing both makes it fail,
+  on seed_renderer meeting a layer that has gone. So this is a test
+  of the pair, and the pair is genuinely redundant here -- which is
+  the honest reading, not a claim that each line is independently
+  defended.
+
+  The spacing is put BACK to the running design's inside the write,
+  for a reason the code there explains: otherwise the geometry
+  signature differs from the run's, _restyle_only declines on those
+  grounds, and no arrangement of the guards could change the answer.
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import bridge
+
+  project = QgsProject.instance()
+  layer = make_region_layer(n=3)
+  project.addMapLayer(layer)
+  folder = tempfile.mkdtemp(prefix="weavingspace_qgis_gpkg_race_")
+  path = os.path.join(folder, "tiles.gpkg")
+  dlg = None
+  original_write = bridge.write_gpkg_layer
+  try:
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    dlg.spacing_spin.setValue(500)
+    dlg.gpkg_widget.setFilePath(path)
+    _generate_and_wait(dlg)
+    _tick(250)
+    assert _element_layers(dlg), "the first run wrote no GeoPackage"
+
+    observed = {"calls": 0, "task_held": None, "refused": None,
+                "raised": None, "geometry_matches": None}
+
+    # INSTRUMENTED, not replaced: the real writer still does the
+    # write, and the probe rides on top of it. docs/TESTING.md records
+    # two false diagnoses in one day from probes that stood IN for the
+    # function they were studying.
+    def watched(*args, **kwargs):
+      result = original_write(*args, **kwargs)
+      if observed["calls"] == 0:
+        # exactly one element written so far, which is the moment the
+        # file is least able to survive a second writer
+        observed["task_held"] = dlg._task is not None
+        try:
+          # The spacing goes BACK to what the previous run used. Without
+          # that the geometry signature would differ from the last run's
+          # and _restyle_only would decline on those grounds alone --
+          # the fast path would be unreachable and the test would be
+          # asserting something no arrangement could violate. Putting
+          # it back is also what a user does: press Generate, think
+          # better of the new spacing, undo it, and pick a ramp while
+          # the file is still being written.
+          dlg.spacing_spin.setValue(500)
+          combo = dlg.table.cellWidget(0, 4)
+          if combo is not None and hasattr(combo, "setCurrentText"):
+            combo.setCurrentText("YlGn")
+          observed["geometry_matches"] = (
+            dlg._geometry_signature() == dlg._last_geometry_sig)
+          dlg._apply_style_change()
+          observed["refused"] = dlg._restyle_only()
+        except Exception as exc:      # noqa: BLE001 -- reported, not hidden
+          observed["raised"] = f"{type(exc).__name__}: {exc}"
+      observed["calls"] += 1
+      return result
+
+    bridge.write_gpkg_layer = watched
+    dlg.spacing_spin.setValue(455)    # geometry, so a real run starts
+    dlg._generate()
+    assert dlg._task is not None, \
+      "no run was launched, so nothing was writing the GeoPackage"
+    assert _settle(dlg, seconds=int(120 * CONTENTION)), \
+      "the dialog never settled after the restyle during the write"
+    bridge.write_gpkg_layer = original_write
+    _tick(300)
+
+    assert observed["calls"] > 0, \
+      "bridge.write_gpkg_layer was never called, so the restyle never " \
+      "arrived during a GeoPackage write and this test checked nothing"
+    assert observed["task_held"] is True, \
+      "the run was already cleared while its GeoPackage was still " \
+      "being written, so _restyle_only's guard cannot protect the file"
+    assert observed["geometry_matches"] is True, \
+      "the design on screen no longer matches the run that is being " \
+      "written, so _restyle_only would decline for that reason alone " \
+      "and this test cannot say anything about the guards it names"
+    assert observed["raised"] is None, \
+      f"the restyle raised inside the write: {observed['raised']}"
+    assert observed["refused"] is False, \
+      "_restyle_only went ahead during a GeoPackage write; it would " \
+      "embed styles into a file another writer holds open"
+
+    # the file a colleague receives must still open, layer by layer
+    for tid in sorted(_element_layers(dlg)):
+      reopened = QgsVectorLayer(f"{path}|layername=tiles_{tid}",
+                                f"check {tid}", "ogr")
+      assert reopened.isValid(), \
+        f"tiles_{tid} does not open after the restyle raced the write"
+      assert reopened.featureCount() > 0, \
+        f"tiles_{tid} opens but is empty after the restyle raced the " \
+        f"write"
+
+    # ...and the ramp the user picked mid-write is not lost
+    _generate_and_wait(dlg)
+    _tick(300)
+    seeded = _element_layers(dlg)["a"].renderer() \
+      .sourceColorRamp().color(1.0).name()
+    assert seeded == bridge.get_ramp("YlGn").color(1.0).name(), \
+      "the ramp picked while the GeoPackage was being written never " \
+      "reached the map; declining a restyle mid-write is only correct " \
+      "because the next Generate applies it"
+  finally:
+    bridge.write_gpkg_layer = original_write
+    if dlg is not None:
+      dlg.close()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_the_output_group_is_deleted_while_a_run_is_in_flight():
+  """The user tidies the layers panel with a tiling still running.
+
+  test_qgis_changes_around_the_plugin deletes the output group between
+  runs, when the dialog's records are stale but nothing is moving.
+  Deleting it mid-run is the arrangement where two things are writing
+  to the same records at once: the user's Delete takes the layers out
+  of the project, and the completion handler that arrives a moment
+  later reads _element_layer_ids to decide which renderers to carry
+  across, then calls _get_or_make_group with a group name whose node
+  no longer exists.
+
+  The bar is the plugin's usual one -- no crash, no hang, a dialog the
+  user can carry on with -- plus the thing that would otherwise be
+  discovered by a user: exactly ONE group afterwards. A completion
+  handler that recreates the group while the user's deletion is also
+  in flight is how a rival second group appears, and a rival group is
+  not cosmetic here: a later dialog adopts a group by name, and two of
+  them means the map the dialog thinks it owns is not the map on
+  screen.
+
+  Deleted at three stages, so the removal lands variously before the
+  worker starts, while it tiles, and while its layers are being built.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  trouble = []
+  in_flight_at_the_deletion = []
+
+  for delay in _STAGE_DELAYS:
+    project = QgsProject.instance()
+    for existing in list(project.mapLayers().values()):
+      project.removeMapLayer(existing.id())
+    MODALS.clear()
+    BAR_MESSAGES.clear()
+    dlg = None
+    try:
+      layer = make_region_layer(n=3)
+      project.addMapLayer(layer)
+      dlg = WeavingSpaceDialog(iface=_Iface())
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(300)
+      dlg.spacing_spin.setValue(500)
+      dlg._generate()
+      if not _settle(dlg, seconds=int(90 * CONTENTION)):
+        trouble.append(f"{delay}ms: the first run never settled")
+        continue
+      _tick(250)
+      if not _element_layers(dlg):
+        trouble.append(f"{delay}ms: the first run left no group to "
+                       f"delete")
+        continue
+
+      dlg.spacing_spin.setValue(455)  # geometry, so a real run starts
+      dlg._generate()
+      if dlg._task is None:
+        trouble.append(f"{delay}ms: no run was launched")
+        continue
+      _tick(delay)                    # the stage this case is about
+
+      groups = _one_group_named(dlg._group_name)
+      if len(groups) != 1:
+        trouble.append(
+          f"{delay}ms: {len(groups)} groups named "
+          f"{dlg._group_name!r} at the moment of deletion, so there "
+          f"was nothing unambiguous for the user to delete")
+        continue
+      running = dlg._task is not None
+      # What QGIS does when a user selects the group and presses
+      # Delete: the layers leave the project AND the node leaves the
+      # tree. Removing only the node leaves the layers registered and
+      # is not the state a user produces.
+      project.removeMapLayers(list(dlg._element_layer_ids.values()))
+      project.layerTreeRoot().removeChildNode(groups[0])
+      if running:
+        in_flight_at_the_deletion.append(delay)
+
+      if not _settle(dlg, seconds=int(120 * CONTENTION)):
+        trouble.append(f"{delay}ms: the dialog never settled after the "
+                       f"group was deleted -- a hang")
+        continue
+      _tick(300)
+      if dlg._task is not None:
+        trouble.append(f"{delay}ms: the dialog still holds a run")
+      if not dlg.generate_btn.isEnabled():
+        trouble.append(f"{delay}ms: Generate left disabled, so the user "
+                       f"is stuck after tidying the panel")
+        continue
+      after = _one_group_named(dlg._group_name)
+      if len(after) > 1:
+        trouble.append(
+          f"{delay}ms: {len(after)} groups named {dlg._group_name!r} "
+          f"once the run landed on a group the user had deleted")
+
+      dlg._generate()                 # the user asks for the map back
+      if not _settle(dlg, seconds=int(120 * CONTENTION)):
+        trouble.append(f"{delay}ms: the run after the deletion never "
+                       f"settled")
+        continue
+      _tick(300)
+      groups = _one_group_named(dlg._group_name)
+      if len(groups) != 1:
+        trouble.append(f"{delay}ms: {len(groups)} output groups after "
+                       f"regenerating")
+      produced = set(_element_layers(dlg))
+      expected = {a["id"] for a in dlg._assignments()}
+      if produced != expected:
+        trouble.append(
+          f"{delay}ms: the rebuilt map holds {sorted(produced)} but "
+          f"the table asks for {sorted(expected)}")
+    except Exception as exc:
+      trouble.append(
+        f"{delay}ms: raised {type(exc).__name__}: {exc}")
+    finally:
+      if dlg is not None:
+        dlg.close()
+
+  assert in_flight_at_the_deletion, \
+    "no case had a run in flight when the group was deleted, so this " \
+    "test never exercised the race it is named for"
+  assert not trouble, \
+    "the output group deleted during a run:\n  " + "\n  ".join(trouble)
+
+
+"""Ideas 29-32 of docs/TEST-IDEAS.md, "The map itself".
+
+Written to be pasted into tests/run_tests.py; the registration lines
+are at the foot of this file. Everything here uses the suite's own
+helpers (make_region_layer, _tick, _settle, _generate_and_wait,
+_Iface, BAR_MESSAGES, MODALS, visual_pair, visual_gamut) and follows
+its rules: an empty project, no fixed waits after a run, and a visual
+check on every map that gets drawn.
+"""
+
+
+def _ramp_offered(combo, wanted):
+  """Find a ramp in a row's ramp dropdown, IGNORING CASE.
+
+  Args:
+    combo: the row's Colour ramp combo (table column 4).
+    wanted: the ramp's name as this project usually spells it, e.g.
+      "cividis".
+
+  Returns:
+    The name exactly as this QGIS spells it, or None when no ramp
+    matches even case-insensitively.
+
+  QGIS on Linux ships "Cividis" where this plugin's own table says
+  "cividis", and that difference once made four palettes unavailable
+  to every Linux user while the chooser went on offering them. A test
+  that types a ramp name and asserts it landed is therefore asserting
+  something about the machine it was written on. Ask the combo what
+  it actually has, and let the caller fail with the offered list in
+  the message.
+  """
+  for i in range(combo.count()):
+    if combo.itemText(i).lower() == wanted.lower():
+      return combo.itemText(i)
+  return None
+
+
+def test_unclassed_over_a_constant_column():
+  """Fifty linear steps across a range of zero.
+
+  "Quant: Unclassed" is this plugin's reproduction of the web app's
+  continuous ramp: fifty equal intervals over the column's [min, max]
+  (bridge.make_graduated_renderer derives that from upstream's
+  n_classes=0). Over a column that is 7 everywhere there is no
+  interval to cut, and the two rules that meet here are written in
+  ONE function, in an order that matters -- Unclassed fixes k at 50,
+  and the constant-column collapse then overrides it to 1. Reverse
+  those two lines and QGIS is asked for fifty classes over nothing:
+  it returns fifty, every one of them reading "7 - 7" in a different
+  colour, and the map draws from the ramp's zero end, which on a
+  sequential ramp is near-white and reads as "no data".
+
+  So the failure this names is a legend that shows fifty grades of a
+  variable that has one value, beside a map that has gone pale. The
+  map is the part nobody would question, which is why the colour of
+  the single class is asserted as well as the count.
+
+  Nothing is hard-coded about which ramp: the assertion asks the
+  dialog which ramp the row carries and then asks the plugin's own
+  case-insensitive lookup for its midpoint, so a QGIS that spells its
+  ramps differently changes nothing here.
+
+  test_a_constant_column_draws_one_class_and_says_so guards the
+  collapse itself, on the ordinary quantile path. What this adds is
+  the ONE scheme that arrives at that code with a class count of its
+  own already fixed, and the map it produces.
+
+  Idea 29 of docs/TEST-IDEAS.md. Ideas 27 and 28 are covered by
+  test_design_choices_that_leave_nothing_to_colour.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import bridge, compat
+  project = QgsProject.instance()
+
+  # A region whose only numeric column is the same number everywhere.
+  # Built here rather than taken from make_region_layer, whose v1
+  # varies by design.
+  layer = QgsVectorLayer("Polygon?crs=EPSG:3857", "flat", "memory")
+  layer.dataProvider().addAttributes([compat.make_field("flat", float)])
+  layer.updateFields()
+  feats = []
+  for k in range(9):
+    i, j = k % 3, k // 3
+    x, y = i * 1000.0, j * 1000.0
+    ring = [QgsPointXY(x, y), QgsPointXY(x + 1000, y),
+            QgsPointXY(x + 1000, y + 1000), QgsPointXY(x, y + 1000)]
+    f = QgsFeature(layer.fields())
+    f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+    f["flat"] = 7.0
+    feats.append(f)
+  layer.dataProvider().addFeatures(feats)
+  layer.updateExtents()
+  project.addMapLayer(layer)
+
+  # the fixture's own guard: if the column is not constant, everything
+  # below tests the ordinary graduated path under a misleading name
+  values = layer.uniqueValues(layer.fields().indexOf("flat"))
+  assert len(values) == 1, \
+    f"the fixture column holds {sorted(values)}, not one value, so " \
+    f"nothing here is being asked about a constant column"
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg.spacing_spin.setValue(400)
+
+  # every row on the constant column and on Unclassed, so no row can
+  # be quietly doing something else when the assertions run
+  for row in range(dlg.table.rowCount()):
+    var = dlg.table.cellWidget(row, 1)          # Variable
+    var.setCurrentText("flat")
+    mode = dlg.table.cellWidget(row, 2)         # Style
+    index = mode.findText("Quant: Unclassed")
+    assert index >= 0, \
+      "the Style dropdown offers no Quant: Unclassed, so this test " \
+      "cannot ask its question"
+    mode.setCurrentIndex(index)
+    # through the combo's own signal: setCurrentIndex alone leaves the
+    # dialog's handler unrun, and the handler is what greys the
+    # Classes cell at 50
+    mode.activated.emit(index)
+  _settle(dlg, seconds=30)
+  _tick(300)
+
+  # the second guard, and the one that makes this test about Unclassed
+  # rather than about constant columns in general: the dialog must
+  # really be asking for fifty classes
+  asked = dlg._assignments()
+  assert asked, "the table has no rows, so no element was configured"
+  for a in asked:
+    assert a["var"] == "flat" and a["scheme"] == "Unclassed", \
+      f"element {a['id']} is on {a['var']!r}/{a['scheme']!r}; the " \
+      f"assignments below would not be about Unclassed over a " \
+      f"constant column"
+    assert a["k"] == 50, \
+      f"element {a['id']} asks for {a['k']} classes, not the 50 " \
+      f"Unclassed fixes; the collapse below would then be overriding " \
+      f"an ordinary class count and this test would pass for the " \
+      f"wrong reason"
+
+  BAR_MESSAGES.clear()
+  _generate_and_wait(dlg)
+
+  checked = 0
+  for tile_id, layer_id in dlg._element_layer_ids.items():
+    out = project.mapLayer(layer_id)
+    assert out is not None, f"element {tile_id} produced no layer"
+    if out.featureCount() == 0:
+      continue                    # an element the region starved
+    renderer = out.renderer()
+    assert isinstance(renderer, QgsGraduatedSymbolRenderer), \
+      f"element {tile_id} is drawn by {type(renderer).__name__}; " \
+      f"Unclassed is a graduated renderer"
+    # hold the list before reading a symbol off it: QGIS hands back
+    # temporaries here and a symbol pointer read off one segfaulted
+    # the suite when the constant-column test was written
+    ranges = list(renderer.ranges())
+    assert len(ranges) == 1, \
+      f"element {tile_id} has {len(ranges)} classes over a column " \
+      f"that is 7 everywhere: " \
+      f"{[(r.lowerValue(), r.upperValue()) for r in ranges][:4]}... " \
+      f"Unclassed cut its fifty intervals across no range at all, so " \
+      f"the legend claims fifty grades of a variable with one value"
+    assert (round(ranges[0].lowerValue(), 6),
+            round(ranges[0].upperValue(), 6)) == (7.0, 7.0), \
+      f"element {tile_id}'s single class is " \
+      f"({ranges[0].lowerValue()}, {ranges[0].upperValue()}), not " \
+      f"(7.0, 7.0)"
+    # ...and it draws the MIDDLE of the ramp. Fifty intervals over a
+    # zero range put every feature in class 0, whose colour is the
+    # ramp's 0.0 endpoint -- near-white on a sequential ramp, which a
+    # reader takes for missing data rather than for one value.
+    a = next(x for x in dlg._assignments() if x["id"] == tile_id)
+    wanted = bridge.get_ramp(a["ramp"]).color(0.5).name()
+    assert ranges[0].symbol().color().name() == wanted, \
+      f"element {tile_id} draws {ranges[0].symbol().color().name()} " \
+      f"where the {a['ramp']!r} ramp's midpoint is {wanted}; at the " \
+      f"ramp's start a constant column reads as no data"
+    checked += 1
+  assert checked >= 1, \
+    "no element drew any tiles, so no renderer was examined and the " \
+    "assertions above ran over nothing"
+
+  # the row still says 50 and the map says 1, so the reconciliation
+  # has to be in words or the user reads the flat map as a fault in
+  # the pattern
+  said = " ".join(text for _kind, text in BAR_MESSAGES)
+  assert "same value" in said, \
+    f"nothing told the user the column is constant; the bar received " \
+    f"{BAR_MESSAGES!r}"
+
+  visual_gamut("unclassed over a constant column",
+               [project.mapLayer(lid)
+                for lid in dlg._element_layer_ids.values()],
+               [a["ramp"] for a in dlg._assignments() if a["var"]])
+  dlg.close()
+
+
+def _sparse_islands(span=20000.0, cell=1500.0, side=3):
+  """A region of small islands scattered across a large bounding box.
+
+  Args:
+    span: the width and height of the bounding box, in map units.
+    cell: each island's side.
+    side: islands are laid out side x side, evenly spread.
+
+  Returns:
+    A memory layer in EPSG:3857 with one float attribute ``v1``.
+
+  The shape is chosen for what the SIZE GUARD does with it. The guard
+  estimates from the bounding BOX -- a circle enclosing it, stepped
+  across by the unit's translation vectors -- so a region occupying a
+  few per cent of its own box estimates one or two orders of magnitude
+  more tiles than it produces. That over-estimate is the guard's
+  documented, deliberately cautious behaviour (see
+  test_the_tile_estimate_is_honest_about_awkward_shapes, which pins
+  the ratio for three shapes). Here it is what makes the refusal
+  boundary reachable at all: a compact region at the boundary would
+  produce two hundred thousand real tiles, which is the very workload
+  the guard exists to refuse.
+  """
+  from weavingspace_qgis import compat
+  layer = QgsVectorLayer("Polygon?crs=EPSG:3857", "islands", "memory")
+  layer.dataProvider().addAttributes([compat.make_field("v1", float)])
+  layer.updateFields()
+  step = (span - cell) / max(side - 1, 1)
+  feats = []
+  for k in range(side * side):
+    i, j = k % side, k // side
+    x, y = i * step, j * step
+    ring = [QgsPointXY(x, y), QgsPointXY(x + cell, y),
+            QgsPointXY(x + cell, y + cell), QgsPointXY(x, y + cell)]
+    f = QgsFeature(layer.fields())
+    f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+    f["v1"] = float(k)
+    feats.append(f)
+  layer.dataProvider().addFeatures(feats)
+  layer.updateExtents()
+  return layer
+
+
+def test_the_size_guard_at_its_refusal_boundary():
+  """The finest spacing a user can type and still get a map, and the
+  next one down.
+
+  The guard refuses when the estimate exceeds MAX_TILES_HARD, and
+  every existing test of it stands a long way from that line: a
+  spacing of 1.0 estimating sixteen billion tiles proves the refusal
+  fires, and proves nothing about WHERE it fires. An off-by-one in the
+  comparison, or a truncation in the estimate, moves the boundary by
+  one tile and no test that far out can see it.
+
+  So the boundary is found rather than written down: bisect the
+  spacing to the six decimals the spacing box actually accepts, and
+  the two sides come out one representable step apart -- 200,000 tiles
+  estimated on one, 200,001 on the other. Both sides are then driven
+  through the DIALOG, because the guard's job is a decision a user
+  meets, not an arithmetic result:
+
+  * at the accepted spacing the run STARTS, which is the decision
+    under test;
+  * one micro-step finer it is refused, the previous map is left
+    alone, and the message names a spacing that would work.
+
+  That last clause is the boundary's own trap, and it is a defect this
+  project has already had once at the other end of the scale: the
+  message rounds its suggestion to whole map units, and at the
+  boundary the suggestion is a whisker above the spacing just
+  refused, so rounding can hand back the very number the user was
+  refused. The number the message PRINTS is therefore what gets
+  tested, not the float behind it.
+
+  WHY THE BOUNDARY RUN IS CANCELLED RATHER THAN FINISHED, since this
+  file's rule is that a test producing a map checks it visually. At
+  the cap the pattern is about 360 tiles across the region's bounding
+  box, whatever the family and whatever the region -- that is what a
+  fixed tile ceiling MEANS -- so in any render the gallery makes, a
+  tile is about two pixels and every sampled pixel is an edge blend.
+  Such a map has no interior pixel for either visual check to read,
+  and one was tried: visual_gamut reported its "nothing could be
+  sampled" sentinel. The honest response is not to draw it. The map
+  this test does check is the ordinary one generated first, well
+  inside the cap, which doubles as the previous map that a refusal
+  must leave alone.
+
+  The region is a scatter of small islands, for the reason given in
+  _sparse_islands: it lets the boundary be reached with a few
+  thousand real tiles instead of two hundred thousand, so a run
+  started here and cancelled costs seconds rather than the workload
+  the guard exists to prevent.
+
+  Idea 30 of docs/TEST-IDEAS.md.
+  """
+  import re
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import bridge, catalog
+  project = QgsProject.instance()
+  layer = _sparse_islands()
+  project.addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  # A family with many elements, looked up rather than typed: the grid
+  # has to enumerate one prototile position per element-worth of the
+  # estimate, so twelve elements makes the boundary cheap to reach.
+  # A family name that does not exist would leave the combo where it
+  # was and quietly test something else.
+  dlg.n_combo.setCurrentText("12")
+  dlg.kind_combo.setCurrentText("tiling")
+  families = [dlg.family_combo.itemText(i)
+              for i in range(dlg.family_combo.count())]
+  assert "hex-slice 12" in families, \
+    f"the twelve-element families are {families}; this test needs " \
+    f"hex-slice 12 and would otherwise measure whichever family the " \
+    f"combo happened to be showing"
+  dlg.family_combo.setCurrentText("hex-slice 12")
+  dlg._rebuild_unit()
+  _settle(dlg, seconds=30)
+
+  spec = catalog.TILINGS_BY_N[12]["hex-slice 12"]
+  region = bridge.layer_to_gdf(layer, ["v1"])
+
+  def estimate_at(spacing):
+    """The guard's own estimate for a unit built at this spacing."""
+    unit = catalog.make_unit(spec, spacing=spacing, crs=3857)
+    return bridge.estimate_tile_count(unit, region)
+
+  # Bisect between a spacing far too fine and one comfortably coarse.
+  # Six decimals because that is what the spacing box stores: a
+  # boundary finer than the control can express is not a boundary any
+  # user can stand on.
+  refused, accepted = 1.0, 5000.0
+  assert estimate_at(refused) > bridge.MAX_TILES_HARD >= \
+    estimate_at(accepted), \
+    f"the bracket does not straddle the cap: {estimate_at(refused):,} " \
+    f"at {refused} and {estimate_at(accepted):,} at {accepted} " \
+    f"against {bridge.MAX_TILES_HARD:,}"
+  while accepted - refused > 1e-6:
+    mid = round((refused + accepted) / 2, 6)
+    if mid <= refused or mid >= accepted:
+      break
+    if estimate_at(mid) > bridge.MAX_TILES_HARD:
+      refused = mid
+    else:
+      accepted = mid
+
+  # The guard that this test really is AT the boundary and not merely
+  # near it. One representable step apart, and the estimates either
+  # side of the cap by exactly one tile: anything looser and a
+  # comparison written with >= instead of > would sail through.
+  assert round(accepted - refused, 6) == 1e-6, \
+    f"the bisection stopped {accepted - refused:.9f} apart " \
+    f"({refused:.6f} / {accepted:.6f}), which is more than one step " \
+    f"of the spacing box, so neither side is the boundary"
+  assert estimate_at(accepted) == bridge.MAX_TILES_HARD, \
+    f"the accepting side estimates {estimate_at(accepted):,} tiles, " \
+    f"not the cap itself ({bridge.MAX_TILES_HARD:,}); this test is " \
+    f"standing near the boundary rather than on it"
+  assert estimate_at(refused) == bridge.MAX_TILES_HARD + 1, \
+    f"the refusing side estimates {estimate_at(refused):,} tiles, " \
+    f"which is more than one tile past the cap " \
+    f"({bridge.MAX_TILES_HARD:,})"
+
+  # ---- an ordinary map first, well inside the cap. It is the map
+  # this test checks visually, and it is also what the refusal at the
+  # end must leave untouched: "the previous map stays" needs a
+  # previous map to be a claim about anything.
+  ordinary = round(accepted * 8, 6)
+  assert estimate_at(ordinary) < bridge.MAX_TILES_CONFIRM, \
+    f"the ordinary spacing estimates {estimate_at(ordinary):,} tiles, " \
+    f"past the {bridge.MAX_TILES_CONFIRM:,} at which the plugin stops " \
+    f"to ask; this run is meant to be unremarkable"
+  dlg.spacing_spin.setValue(ordinary)
+  dlg._rebuild_unit()
+  _settle(dlg, seconds=30)
+  for row in range(dlg.table.rowCount()):
+    dlg.table.cellWidget(row, 1).setCurrentText("v1")
+  _settle(dlg, seconds=30)
+  MODALS.clear()
+  _generate_and_wait(dlg)
+  assert dlg._element_layer_ids, "the ordinary run produced no output"
+  drawn = {tid: project.mapLayer(lid).featureCount()
+           for tid, lid in dlg._element_layer_ids.items()
+           if project.mapLayer(lid) is not None}
+  assert drawn and sum(drawn.values()) > 0, \
+    f"the ordinary run reported success over an empty map: {drawn}"
+  survivors = dict(dlg._element_layer_ids)
+
+  # Most of this picture is background by construction -- the islands
+  # occupy a twentieth of their own bounding box, which is exactly
+  # what makes the boundary affordable -- so the blank-map trap that
+  # max_background usually guards is covered by the tile counts just
+  # above instead.
+  visual_gamut("a map from the region the size guard is measured on",
+               [project.mapLayer(lid)
+                for lid in dlg._element_layer_ids.values()],
+               [a["ramp"] for a in dlg._assignments() if a["var"]],
+               max_background=0.99)
+
+  # ---- the accepting side: the finest spacing the guard allows
+  MODALS.clear()
+  dlg.spacing_spin.setValue(accepted)
+  assert dlg.spacing_spin.value() == accepted, \
+    f"the spacing box rounded {accepted:.6f} to " \
+    f"{dlg.spacing_spin.value():.6f}, so the boundary found above is " \
+    f"not a spacing a user can enter"
+  dlg._rebuild_unit()
+  _settle(dlg, seconds=30)
+  # the dialog's own unit, not the catalogue's: the bisection above is
+  # only about the guard's decision if the dialog builds the same unit
+  assert bridge.estimate_tile_count(dlg._unit, region) == \
+    bridge.MAX_TILES_HARD, \
+    f"the dialog's own unit estimates " \
+    f"{bridge.estimate_tile_count(dlg._unit, region):,} tiles at this " \
+    f"spacing where the catalogue's estimates " \
+    f"{bridge.MAX_TILES_HARD:,}; the boundary was found on a " \
+    f"different unit from the one the guard will judge"
+  dlg._generate()
+  _tick(300)
+  assert dlg._task is not None, \
+    "the guard refused a spacing whose estimate is exactly the cap. " \
+    "MAX_TILES_HARD is the largest count ALLOWED, not the first count " \
+    "refused, and a comparison written >= instead of > moves the " \
+    "boundary by one tile"
+  refusals = [text for _kind, text in MODALS if "spacing" in text.lower()]
+  assert not refusals, \
+    f"a spacing estimating exactly the cap was refused: {refusals}"
+  # Stop it here: what was under test is the decision, and the map it
+  # would produce cannot be read (see the docstring). Cancelling is a
+  # request rather than an interruption -- worker.TilingTask says so --
+  # so the tiling may run on for the second or two this sparse region
+  # costs, exactly as it does when a user closes the dialog mid-run.
+  dlg._task.cancel()
+  assert _settle(dlg, seconds=60), \
+    "the dialog never came to rest after the cancelled run"
+  assert dict(dlg._element_layer_ids) == survivors, \
+    "the cancelled run disturbed the map already on screen"
+
+  # ---- the refusing side: one micro-step finer
+  MODALS.clear()
+  dlg.spacing_spin.setValue(refused)
+  assert dlg.spacing_spin.value() == refused, \
+    f"the spacing box rounded {refused:.6f} to " \
+    f"{dlg.spacing_spin.value():.6f}"
+  dlg._rebuild_unit()
+  _settle(dlg, seconds=30)
+  assert bridge.estimate_tile_count(dlg._unit, region) == \
+    bridge.MAX_TILES_HARD + 1, \
+    f"the dialog's unit estimates " \
+    f"{bridge.estimate_tile_count(dlg._unit, region):,} tiles one step " \
+    f"below the boundary, not one past the cap"
+  dlg._generate()
+  _tick(300)
+  assert dlg._task is None, \
+    "a spacing one tile past the cap started a tiling; the guard " \
+    "exists to stop exactly this workload before it begins"
+  assert dict(dlg._element_layer_ids) == survivors, \
+    "the refused run disturbed the map already on screen; a refusal " \
+    "must leave the previous map alone"
+
+  told = [text for kind, text in MODALS if "spacing" in text.lower()]
+  assert told, \
+    f"the run was refused in silence; the user saw {MODALS!r} and " \
+    f"is left with a Generate button that does nothing"
+  # The suggestion, AS PRINTED. The message rounds to whole map
+  # units, and at the boundary the true suggestion sits a fraction
+  # above the spacing just refused -- so rounding down would print
+  # the number the user has this moment been refused, which is the
+  # 2026-08-10 defect arriving at the other end of the scale.
+  numbers = re.findall(r"about ([\d,]+(?:\.\d+)?) map units", told[0])
+  assert numbers, \
+    f"the refusal names no spacing to try instead: {told[0]!r}"
+  printed = float(numbers[0].replace(",", ""))
+  assert estimate_at(printed) <= bridge.MAX_TILES_HARD, \
+    f"the refusal was for {refused:.6f} map units and advises " \
+    f"{printed:,.0f}, which estimates {estimate_at(printed):,} tiles " \
+    f"against a cap of {bridge.MAX_TILES_HARD:,} and would be refused " \
+    f"in turn. The whole message read: {told[0]!r}"
+  dlg.close()
+
+
+def test_an_unassigned_element_beside_elements_sharing_one_field():
+  """Three elements on the same column, and a fourth on nothing.
+
+  Two things that are individually ordinary and awkward together. An
+  element left on "---" draws as plain fill and keeps its place on the
+  map; several elements carrying the SAME field is the normal way to
+  show one variable through more than one part of the pattern. Put
+  them in one design and the failure to look for is a map whose
+  elements have been confused with one another -- the unassigned one
+  quietly given the field everybody else has, or one renderer seeded
+  for all three (a defect this project has actually shipped), which
+  from the outside is a perfectly plausible map in which three
+  elements agree because they were told to.
+
+  So the assertions are about elements being DISTINGUISHED: three
+  graduated renderers over the same column wearing three different
+  ramps, and a fourth element that is still single-symbol and still
+  says "no data" in its name. Then the picture, against a map the
+  library built from the same settings, so a right table in front of
+  a wrong map cannot pass.
+
+  The ramps are looked up case-insensitively (see _ramp_offered),
+  because a QGIS that spells them differently would otherwise leave
+  three elements sharing the dialog's default ramp and the
+  difference-between-elements assertions testing nothing.
+
+  Its neighbour is test_ui_library_categorical_template, which also
+  carries an unassigned element and does the harder work on class
+  SOURCES. Every element there has a field of its own, so nothing in
+  it can tell an element apart from its neighbour by anything but the
+  field; the case here is the one where the field cannot do that job.
+
+  Idea 31 of docs/TEST-IDEAS.md.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import bridge
+  from weavingspace import TileUnit, Tiling
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg.n_combo.setCurrentText("4")
+  dlg.kind_combo.setCurrentText("tiling")
+  families = [dlg.family_combo.itemText(i)
+              for i in range(dlg.family_combo.count())]
+  assert "laves 3.3.4.3.4" in families, \
+    f"the four-element families are {families}; this test needs " \
+    f"laves 3.3.4.3.4"
+  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  dlg.spacing_spin.setValue(600)
+  # every map switch stated, so the library side below can be built
+  # from the settings rather than from what the dialog happened to
+  # default to
+  dlg.opt_join_prototiles.setChecked(False)
+  dlg.opt_retain.setChecked(False)
+  dlg.opt_clip.setChecked(False)
+  dlg.opt_icons.setChecked(False)
+  dlg._rebuild_unit()
+  _settle(dlg, seconds=30)
+  _tick(300)
+  assert dlg.table.rowCount() == 4, \
+    f"the table has {dlg.table.rowCount()} rows; this test is written " \
+    f"for a four-element design"
+
+  # three elements on v1, the fourth deliberately on nothing
+  for row in range(3):
+    dlg.table.cellWidget(row, 1).setCurrentText("v1")
+  dlg.table.cellWidget(3, 1).setCurrentText("---")
+  # ...and three different ramps, so "these three elements agree"
+  # would be a finding rather than the arrangement
+  chosen = []
+  for row, wanted in enumerate(("Reds", "Blues", "Greens")):
+    combo = dlg.table.cellWidget(row, 4)        # Colour ramp
+    name = _ramp_offered(combo, wanted)
+    assert name is not None, \
+      f"this QGIS offers no ramp spelled like {wanted!r}; the row " \
+      f"holds {combo.currentText()!r} and the first few on offer are " \
+      f"{[combo.itemText(i) for i in range(min(combo.count(), 8))]}"
+    combo.setCurrentText(name)
+    chosen.append(name)
+  # settle BEFORE reading back: choosing a variable or a ramp starts
+  # the debounced preview refresh, which rebuilds the table and can
+  # restore the dialog's own default ramps over everything set above
+  _settle(dlg, seconds=30)
+  _tick(400)
+
+  # the fixture's guard, and it is the whole point of the case: three
+  # elements on ONE field and exactly one carrying none
+  by_id = {a["id"]: a for a in dlg._assignments()}
+  sharing = sorted(t for t, a in by_id.items() if a["var"] == "v1")
+  idle = sorted(t for t, a in by_id.items() if not a["var"])
+  assert len(sharing) == 3 and len(idle) == 1, \
+    f"the table settled with {len(sharing)} elements on v1 and " \
+    f"{len(idle)} unassigned. What each row holds: " \
+    f"{[(t, a['var']) for t, a in by_id.items()]}. Either a rebuild " \
+    f"has cycled a default variable back into the row this test needs " \
+    f"empty, or the dialog no longer reads an empty row as carrying " \
+    f"no variable; the list says which. Nothing below would be about " \
+    f"an unassigned element"
+  assert len({by_id[t]["ramp"] for t in sharing}) == 3, \
+    f"the three sharing elements hold ramps " \
+    f"{[by_id[t]['ramp'] for t in sharing]}; with fewer than three " \
+    f"distinct ones, 'each element keeps its own colours' cannot be " \
+    f"told from 'one renderer was seeded for all of them'"
+
+  _generate_and_wait(dlg)
+
+  assert set(dlg._element_layer_ids) == set(by_id), \
+    f"the map has elements {sorted(dlg._element_layer_ids)} where the " \
+    f"table lists {sorted(by_id)}"
+  colours = {}
+  for tile_id in sharing:
+    out = project.mapLayer(dlg._element_layer_ids[tile_id])
+    assert out is not None and out.featureCount() > 0, \
+      f"element {tile_id} carries v1 and drew nothing"
+    renderer = out.renderer()
+    assert isinstance(renderer, QgsGraduatedSymbolRenderer), \
+      f"element {tile_id} is on v1 but drawn by " \
+      f"{type(renderer).__name__}"
+    assert renderer.classAttribute() == "v1", \
+      f"element {tile_id} classifies {renderer.classAttribute()!r}, " \
+      f"not the v1 its row asks for"
+    colours[tile_id] = tuple(r.symbol().color().name()
+                             for r in list(renderer.ranges()))
+  for first in sharing:
+    for second in sharing:
+      if first < second:
+        assert colours[first] != colours[second], \
+          f"elements {first} and {second} classify the same column " \
+          f"and came out with identical colours {colours[first]}, " \
+          f"though their rows ask for " \
+          f"{by_id[first]['ramp']!r} and {by_id[second]['ramp']!r}. " \
+          f"One renderer has been seeded for both"
+
+  spare = idle[0]
+  out = project.mapLayer(dlg._element_layer_ids[spare])
+  assert out is not None and out.featureCount() > 0, \
+    f"the unassigned element {spare} vanished from the map; " \
+    f"unassigned means flat fill, not absent"
+  assert isinstance(out.renderer(), QgsSingleSymbolRenderer), \
+    f"the unassigned element {spare} is drawn by " \
+    f"{type(out.renderer()).__name__}; with no variable there is " \
+    f"nothing to classify, so it has been given somebody else's field"
+  assert "no data" in out.name(), \
+    f"the unassigned element's layer is called {out.name()!r}, which " \
+    f"does not say it carries no variable"
+
+  # and the picture, against the same design tiled by the library
+  expected = Tiling(
+    TileUnit(tiling_type="laves", code="3.3.4.3.4", spacing=600,
+             crs=3857),
+    bridge.layer_to_gdf(layer, ["v1"])) \
+    .get_tiled_map(join_on_prototiles=False, retain_tileables=False,
+                   ragged_edges=True).map
+  visual_pair("one field on three elements and one on none",
+              [project.mapLayer(dlg._element_layer_ids[t])
+               for t in sorted(dlg._element_layer_ids)],
+              expected, dlg._assignments())
+  for lid in list(dlg._element_layer_ids.values()):
+    project.removeMapLayer(lid)
+  dlg.close()
+
+
+def test_an_inset_that_swallows_tiles_leaves_no_half_map():
+  """Insetting the tiles until there is nothing left to draw.
+
+  "Inset group / tiles (%)" shrinks each tile inside its own place in
+  the pattern, and the control allows up to five per cent of the
+  spacing. On a striped family that is enough to consume the stripes
+  entirely: at sixteen stripes to a 500-unit repeat each is 31 units
+  wide, and a five per cent inset takes 25 units off EACH side. The
+  unit then has no tiles, the table has no rows, and there is nothing
+  to colour.
+
+  Tile boundaries are on throughout, because that is where the case
+  bites hardest: a stroke is drawn per tile, so a design whose tiles
+  have collapsed to slivers is one where the outline is most of the
+  picture, and a design whose tiles have gone entirely is one where a
+  stroke could be all that is left of a map that no longer exists.
+
+  What must be true, in three phases:
+
+  * with a survivable inset, sixteen elements, all drawing, each
+    symbol carrying its boundary stroke, and the map made of the
+    colours its rows asked for;
+  * with the swallowing inset, NO new map -- and the previous one
+    untouched, which is the plugin's settled behaviour when a run is
+    refused, said out loud rather than silently;
+  * backing the inset off brings the design back. A collapse must not
+    leave the dialog carrying a state it cannot get out of, which is
+    the failure that would turn a mistyped inset into a restart.
+
+  Each phase carries its own guard on the unit's tile count, because
+  the whole case rests on the library actually swallowing the tiles at
+  these numbers, and a version of the library that inset less would
+  otherwise leave this test passing over an ordinary design. (Proved:
+  an inset scaled by a thousandth rather than a hundredth of the
+  spacing is caught by the phase-two guard, in those words.)
+
+  WHAT THIS ADDS to test_an_over_large_inset_empties_the_design_visibly,
+  which is the same collapse seen from the other side. That test is
+  about the DESIGN: the table empties, the preview says why rather
+  than merely going blank, and the element assignments survive being
+  backed off. It never generates, so no map is ever involved. This one
+  presses Generate at each phase, which is where the questions above
+  live -- boundaries reaching the symbols, a previous map surviving a
+  refusal, a recovered design drawing the same elements again -- and
+  it looks at the two maps it makes.
+
+  Idea 32 of docs/TEST-IDEAS.md.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from qgis.core import QgsRenderContext
+  from qgis.PyQt.QtCore import Qt
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg.n_combo.setCurrentText("16")
+  dlg.kind_combo.setCurrentText("tiling")
+  families = [dlg.family_combo.itemText(i)
+              for i in range(dlg.family_combo.count())]
+  assert "stripes 16" in families, \
+    f"the sixteen-element families are {families}; this test needs " \
+    f"stripes 16, whose tiles are thin enough for the inset control " \
+    f"to reach"
+  dlg.family_combo.setCurrentText("stripes 16")
+  # The inset is a PERCENTAGE of the spacing and a stripe's width is
+  # the spacing divided by sixteen, so which insets swallow which
+  # tiles does not depend on this number at all. It is chosen for the
+  # RENDER: at a finer spacing the surviving stripes come out three or
+  # four pixels wide, every sampled pixel is an edge blend, and the
+  # visual check has nothing to read (measured -- visual_gamut
+  # returned its "nothing could be sampled" sentinel at 500).
+  dlg.spacing_spin.setValue(1000)
+  dlg.opt_tile_outlines.setChecked(True)
+
+  def settle_design():
+    """Flush the debounced rebuild and hand back the unit's tile ids."""
+    dlg._rebuild_unit()
+    _settle(dlg, seconds=30)
+    _tick(300)
+    tiles = dlg._unit.tiles
+    return sorted(set(tiles.tile_id)) if len(tiles) else []
+
+  def assign_every_row():
+    """Point every row at v1, then check the choice survived the
+    rebuild that choosing it queues."""
+    for row in range(dlg.table.rowCount()):
+      dlg.table.cellWidget(row, 1).setCurrentText("v1")
+    _settle(dlg, seconds=30)
+    _tick(300)
+    stray = [a["id"] for a in dlg._assignments() if a["var"] != "v1"]
+    assert not stray, \
+      f"elements {stray} are not on v1 after the table settled"
+
+  # ---- phase one: a severe but survivable inset
+  dlg.mod_t_inset.setValue(1.0)
+  present = settle_design()
+  assert len(present) == 16, \
+    f"the design has elements {present} at a one per cent inset; " \
+    f"sixteen were expected, so the survivable phase of this test is " \
+    f"not survivable and the phases below mean nothing"
+  assign_every_row()
+  _generate_and_wait(dlg)
+  assert sorted(dlg._element_layer_ids) == present, \
+    f"the map has elements {sorted(dlg._element_layer_ids)} where the " \
+    f"design has {present}"
+  empty = [t for t, lid in dlg._element_layer_ids.items()
+           if project.mapLayer(lid) is None
+           or project.mapLayer(lid).featureCount() == 0]
+  assert not empty, \
+    f"elements {empty} have a layer and no features: a full-looking " \
+    f"group painting nothing, reported as success"
+  # the boundary switch must reach the tile symbols themselves, and
+  # this is the geometry where it matters -- a stroke around a sliver
+  element = project.mapLayer(dlg._element_layer_ids[present[0]])
+  symbol = element.renderer().symbols(QgsRenderContext())[0]
+  assert symbol.symbolLayer(0).strokeStyle() != Qt.PenStyle.NoPen, \
+    "with Draw tile boundaries on, an inset element's symbol must " \
+    "still carry a stroke"
+  before = dict(dlg._element_layer_ids)
+  # The boundary colour is READ OFF the symbol that will be drawn
+  # rather than transcribed from bridge._fill_symbol, so a change to
+  # the outline's colour cannot leave this test rejecting the
+  # plugin's own boundaries as stray pixels.
+  boundary = symbol.symbolLayer(0).strokeColor().name()
+
+  # The map, with that boundary colour admitted to the gamut: at this
+  # inset the tiles are two thirds of their width and the stroke is a
+  # real part of the picture rather than a hairline, so leaving it out
+  # would report the plugin's own outline as a colour off the ramps.
+  # It is a colour the symbology in force can make, which is what the
+  # gamut means.
+  visual_gamut("tile boundaries on a heavily inset design",
+               [project.mapLayer(lid)
+                for lid in dlg._element_layer_ids.values()],
+               [a["ramp"] for a in dlg._assignments() if a["var"]],
+               extra_colours=(boundary,))
+
+  # ---- phase two: an inset that swallows every tile
+  MODALS.clear()
+  BAR_MESSAGES.clear()
+  dlg.mod_t_inset.setValue(5.0)
+  gone = settle_design()
+  assert gone == [], \
+    f"a five per cent inset left elements {gone}; the library is no " \
+    f"longer swallowing these stripes and this phase tests nothing"
+  assert dlg.table.rowCount() == 0, \
+    f"the unit has no tiles but the table still shows " \
+    f"{dlg.table.rowCount()} rows, so the table is describing " \
+    f"elements the design no longer has"
+  dlg._generate()
+  _tick(400)
+  assert dlg._task is None, \
+    "a design with no tiles started a tiling"
+  assert dict(dlg._element_layer_ids) == before, \
+    f"the refused run changed the map: {sorted(dlg._element_layer_ids)} " \
+    f"against {sorted(before)}. A run that cannot be done leaves the " \
+    f"previous map alone"
+  for tile_id, lid in before.items():
+    assert project.mapLayer(lid) is not None, \
+      f"element {tile_id}'s layer was destroyed by a run that never " \
+      f"produced a replacement"
+  said = bool(MODALS) or bool(BAR_MESSAGES) \
+    or bool(dlg.live_note.text().strip())
+  assert said, \
+    "a design with nothing left to draw was refused in silence, so " \
+    "the Generate button simply does nothing and the map on screen " \
+    "goes on describing settings that no longer apply"
+
+  # ---- phase three: the design comes back
+  dlg.mod_t_inset.setValue(1.0)
+  again = settle_design()
+  assert again == present, \
+    f"backing the inset off left elements {again} where the same " \
+    f"setting gave {present} before the collapse; the empty design " \
+    f"has been carried forward"
+  assign_every_row()
+  _generate_and_wait(dlg)
+  assert sorted(dlg._element_layer_ids) == present, \
+    f"the recovered map has elements {sorted(dlg._element_layer_ids)}"
+  empty = [t for t, lid in dlg._element_layer_ids.items()
+           if project.mapLayer(lid) is None
+           or project.mapLayer(lid).featureCount() == 0]
+  assert not empty, f"the recovered map has empty elements {empty}"
+  visual_gamut("a design recovered from an inset that swallowed it",
+               [project.mapLayer(lid)
+                for lid in dlg._element_layer_ids.values()],
+               [a["ramp"] for a in dlg._assignments() if a["var"]],
+               extra_colours=(boundary,))
+  dlg.close()
+
+
+def test_design_choices_that_leave_nothing_to_colour():
+  """Two legal choices that remove the thing the colour code works on.
+
+  Reverse on a SINGLE COLOUR element asks to run a ramp backwards
+  where there is no ramp; opacity zero asks the legibility check to
+  compare colours nobody can see. Both are reachable in two clicks,
+  neither is exotic, and both are the shape of thing that raises
+  rather than returns -- a swatch built from an empty stop list, a
+  distance computed against a colour with no visible presence.
+
+  Nothing here asserts a particular colour. What must be true is
+  weaker and more important: the plugin produces a map, says nothing
+  alarming, and does not raise. This project's characteristic failure
+  is a group of full-looking layers that painted nothing, so the check
+  is that features exist AND that the run was not reported as a
+  success over an empty map.
+
+  Idea 27 and 28 of docs/TEST-IDEAS.md.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg.spacing_spin.setValue(500)
+
+  # element 0 drawn in a single colour, then asked to reverse it
+  mode = dlg.table.cellWidget(0, 2)
+  index = mode.findText("Single colour")
+  assert index >= 0, "no Single colour style to choose, so this case is void"
+  mode.setCurrentIndex(index)
+  mode.activated.emit(index)
+  _tick(200)
+  reverse = dlg._row_widgets(0)[4] if hasattr(dlg, "_row_widgets") else None
+  if reverse is not None and hasattr(reverse, "setChecked"):
+    reverse.setChecked(True)
+  # element 1 made invisible, which the legibility check must survive
+  dlg.table.cellWidget(1, 1).setCurrentText("v1")
+  opacity = dlg.table.cellWidget(1, 6)
+  assert opacity is not None and hasattr(opacity, "setValue"), \
+    "no opacity control on the row, so this case is void"
+  opacity.setValue(0)
+  # and turn the legibility warning ON, since it is opt-in and this
+  # case is precisely about what it does with an invisible colour
+  if hasattr(dlg, "opt_warn_legibility"):
+    dlg.opt_warn_legibility.setChecked(True)
+  dlg._update_dynamic_columns()
+  _tick(250)
+
+  BAR_MESSAGES.clear()
+  _generate_and_wait(dlg)
+
+  assert dlg._element_layer_ids, \
+    "no output at all from a design that is unusual but legal"
+  empty = []
+  for tile_id, layer_id in dlg._element_layer_ids.items():
+    out = project.mapLayer(layer_id)
+    if out is None:
+      empty.append(f"{tile_id}: no layer")
+    elif out.featureCount() == 0:
+      empty.append(f"{tile_id}: a layer with no features")
+  assert not empty, \
+    "a run reported success over layers that would paint nothing, " \
+    "which is this plugin's characteristic failure:\n  " + \
+    "\n  ".join(empty)
+  said = " ".join(str(m) for m in BAR_MESSAGES).lower()
+  for alarm in ("traceback", "exception", "unexpected"):
+    assert alarm not in said, \
+      f"the run said something alarming about a legal design: {said}"
+  dlg.close()
+
+
+def _choices_snapshot(dlg):
+  """Everything a user CHOSE, keyed by element, as comparable text.
+
+  Args:
+    dlg: the dialog to read.
+
+  Returns:
+    {tile_id: {setting: value}}. Deliberately not everything the
+    dialog knows: layer ids are reassigned on reload and a run
+    signature is about a run that no longer exists, so including them
+    would report a difference on every round trip and teach whoever
+    reads the failure to ignore it.
+  """
+  out = {}
+  for assignment in dlg._assignments():
+    tile_id = assignment["id"]
+    out[tile_id] = {
+      "var": str(assignment.get("var")),
+      "mode": str(assignment.get("mode")),
+      "ramp": str(assignment.get("ramp")),
+      "k": str(assignment.get("k")),
+      "reverse": str(assignment.get("reverse")),
+      "opacity": str(assignment.get("opacity")),
+      "class_source": str(assignment.get("class_source")),
+      "single_colour": str(assignment.get("single_colour")),
+      "picks": json.dumps(
+        dlg._category_colours.get(tile_id, {}), sort_keys=True),
+      "quant": json.dumps(
+        getattr(dlg, "_quant_colours", {}).get(tile_id, {}),
+        sort_keys=True),
+      "range": str(tuple(dlg._ramp_ranges.get(tile_id, (0, 100)))),
+    }
+  return out
+
+
+def test_a_project_round_trip_changes_nothing_a_user_chose():
+  """The pair that crosses a SERIALISATION boundary.
+
+  The other differentials compare two descriptions of state a single
+  run produced moments earlier. This one writes the project to a real
+  .qgz, empties QGIS, reads it back cold and asks whether every choice
+  a user made came home. That is a different class of question, and it
+  is where this plugin's history says things go missing: colours keyed
+  by element and field, a display range, an imported class source, an
+  opacity -- each stored as a layer custom property and each able to
+  vanish quietly, since a project that reopens with the wrong colours
+  looks exactly like a project that reopens.
+
+  It compares every setting at once rather than the three or four a
+  test would think to name. The existing round-trip test checks a
+  categorical pick, a positional quant pick and a display range; this
+  asks the general question, so a setting added next year is covered
+  the day somebody adds it to an assignment.
+
+  WHAT IS AND IS NOT PROMISED, because the first version of this test
+  asserted the wrong contract. A reopened dialog does NOT restore
+  which variable each element carried: it cycles default variables,
+  deliberately, because the design tool starts fresh while the OUTPUT
+  LAYERS and their styling persist in the project. What is promised is
+  that the work attached to an element comes back once its row points
+  at the stored field again, since colours are keyed by element AND
+  field. So each row is pointed back at its variable first, exactly as
+  a user reopening a project would, and everything else is then
+  required to have survived.
+
+  Layer ids and run signatures are left out on purpose: ids are
+  reassigned on reload and a signature describes a run that no longer
+  exists, so including them would fail every round trip and train a
+  reader to wave the failure through.
+  """
+  import shutil
+  import tempfile
+  from qgis.core import QgsVectorFileWriter
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="weavingspace_roundtrip_")
+  try:
+    # the region has to live on DISK, or reopening the project finds
+    # nothing to tile and the comparison is between two empty states
+    source = make_region_layer()
+    region_path = os.path.join(folder, "region.gpkg")
+    options = QgsVectorFileWriter.SaveVectorOptions()
+    options.driverName = "GPKG"
+    QgsVectorFileWriter.writeAsVectorFormatV3(
+      source, region_path, project.transformContext(), options)
+    region = QgsVectorLayer(region_path, "region", "ogr")
+    assert region.isValid(), "the region did not survive being written"
+    project.addMapLayer(region)
+
+    dlg = WeavingSpaceDialog(iface=None)
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(300)
+    dlg.table.cellWidget(0, 1).setCurrentText("v1")
+    dlg.table.cellWidget(1, 1).setCurrentText("landcover")
+    dlg._update_dynamic_columns()
+    _tick(200)
+
+    # choices of several KINDS, so the comparison has something to
+    # lose: a hand-picked colour, a display range, an opacity, a
+    # reversed ramp
+    ids = [dlg.table.item(r, 0).text() for r in range(dlg.table.rowCount())
+           if dlg.table.item(r, 0) is not None]
+    assert len(ids) >= 2, "need at least two elements to be worth testing"
+    dlg._category_colours.setdefault(ids[1], {}).setdefault(
+      "landcover", {})["forest"] = "#ff00aa"
+    dlg._ramp_ranges[ids[0]] = (15, 85)
+    opacity = dlg.table.cellWidget(0, 6)
+    if opacity is not None and hasattr(opacity, "setValue"):
+      opacity.setValue(60)
+    # The snapshot compares the ramp, the class count and the reverse
+    # flag as well, and until 2026-08-13 nothing here ever MOVED them
+    # off their defaults -- so the revived dialog, which cycles the
+    # same defaults, matched on those axes whether or not they had
+    # survived anything. Three columns of a general-looking
+    # comparison that could not fail. They are set away from the
+    # defaults here, and the guard below refuses to run if any of
+    # them is still sitting on one.
+    k_spin = dlg.table.cellWidget(0, 3)
+    assert k_spin is not None and hasattr(k_spin, "setValue"), \
+      "row 0 offers no class-count spinner, so that axis is dead"
+    k_spin.setValue(7)
+    ramp_combo = dlg.table.cellWidget(0, 4)
+    assert ramp_combo is not None and hasattr(ramp_combo, "count"), \
+      "row 0 offers no ramp chooser, so that axis is dead"
+    # a CATEGORICAL ramp is refused on a graduated row, quite
+    # correctly, so picking the combo's first entry (Accent) sets
+    # nothing and the axis stays dead in a new way
+    from weavingspace_qgis import bridge as _bridge
+    chosen_ramp = next(
+      (ramp_combo.itemText(i) for i in range(ramp_combo.count())
+       if ramp_combo.itemText(i) not in ("", ramp_combo.currentText())
+       and ramp_combo.itemText(i) not in _bridge.CATEGORICAL_RAMPS
+       and "colour" not in ramp_combo.itemText(i).lower()), None)
+    assert chosen_ramp, "no second ramp to choose, so that axis is dead"
+    # the ramp is recorded from `activated`, which is a USER picking
+    # an entry: setCurrentText alone moves the display and records
+    # nothing, and a test driving it that way sets up a comparison
+    # between two defaults while appearing to choose a ramp
+    ramp_index = ramp_combo.findText(chosen_ramp)
+    assert ramp_index >= 0, f"{chosen_ramp!r} left the ramp list"
+    ramp_combo.setCurrentIndex(ramp_index)
+    ramp_combo.activated.emit(ramp_index)
+    _tick(150)
+    assert dlg._ramp_choices.get(ids[0]) == chosen_ramp, \
+      f"choosing a ramp did not reach the element's record " \
+      f"({dlg._ramp_choices.get(ids[0])!r}), so the round trip would " \
+      f"compare a default against a default"
+    reverse_box = dlg._row_reverse(0)
+    assert reverse_box is not None and reverse_box.isEnabled(), \
+      "row 0 offers no Reverse switch, so that axis is dead"
+    reverse_box.click()
+    _tick(200)
+    assert dlg._reverse_choices.get(ids[0]) is True, \
+      "ticking Reverse did not reach the element's record, so that " \
+      "column of the comparison cannot fail"
+    _tick(200)
+
+    dlg.gpkg_widget.setFilePath(os.path.join(folder, "map.gpkg"))
+    dlg.spacing_spin.setValue(500)
+    dlg._generate()
+    assert _settle(dlg, seconds=90), "the run never settled"
+    _tick(250)
+    assert dlg._element_layer_ids, "no output was produced"
+
+    before = _choices_snapshot(dlg)
+    # the guard: comparing two empty states would pass forever
+    interesting = sum(1 for v in before.values()
+                      if v["picks"] not in ("{}", "") or v["range"] != "(0, 100)"
+                      or v["opacity"] not in ("100", "None"))
+    assert interesting >= 2, \
+      f"only {interesting} element(s) carry a choice worth losing, so " \
+      f"this round trip would pass on an empty comparison"
+    # the same guard for the three axes added above: a comparison
+    # whose value equals the value a fresh dialog invents is not a
+    # comparison, and it reads exactly like one that passed
+    assert before[ids[0]]["reverse"] == "True" \
+        and before[ids[0]]["k"] == "7" \
+        and before[ids[0]]["ramp"] == chosen_ramp, \
+      f"the ramp, class count and reverse flag are not all off " \
+      f"their defaults before the round trip, so those columns of " \
+      f"the comparison cannot fail: {before[ids[0]]!r}"
+    dlg.close()
+
+    _project_round_trip(folder)
+    _tick(300)
+    revived = WeavingSpaceDialog(iface=None)
+    revived.live_check.setChecked(False)
+    _tick(400)
+
+    # point each row back at the field it carried, which is what a
+    # user reopening a project does and what the stored colours are
+    # keyed by. Without this the comparison measures the deliberate
+    # cycling of default variables rather than anything that was lost.
+    for row in range(revived.table.rowCount()):
+      item = revived.table.item(row, 0)
+      combo = revived.table.cellWidget(row, 1)
+      if item is None or combo is None or item.text() not in before:
+        continue
+      wanted = before[item.text()]["var"]
+      if wanted and wanted not in ("None", "---") \
+          and hasattr(combo, "setCurrentText"):
+        combo.setCurrentText(wanted)
+    revived._update_dynamic_columns()
+    _tick(300)
+    after = _choices_snapshot(revived)
+
+    # What the MAP says about opacity, which QGIS stores on the layer
+    # itself. If the layer kept 60 while the dialog believes 100, the
+    # setting is not lost -- the table is lying about it, and the next
+    # restyle pushes the dialog's belief onto the layer.
+    on_the_map = {}
+    for lyr in project.mapLayers().values():
+      tid = lyr.customProperty("weavingspace_tile_id")
+      if tid:
+        on_the_map[tid] = round(lyr.opacity() * 100)
+
+    # THE ROW'S SYMBOLOGY IS NOT RESTORED, and that is recorded here
+    # as a canary rather than waved through. Measured 2026-08-13 by
+    # making these three axes live for the first time: the ramp, the
+    # reverse flag and the class count live in session dictionaries
+    # that nothing persists, while the LAYER carries all three inside
+    # a renderer QGIS saves faithfully. So a reopened project shows a
+    # table describing a map that is not on screen, and because
+    # `_adopt_existing_group` leaves `_last_signatures` empty the next
+    # Generate re-seeds every element from the table -- the
+    # disagreement overwrites the map rather than staying cosmetic.
+    # That is the opacity defect fixed this morning, one column to
+    # the left.
+    #
+    # It is NOT fixed here because what a reopened project restores
+    # is the maintainer's decision, not a test's: reading it back off
+    # the renderer (as opacity now is) stores nothing new and became
+    # cheap the moment categorized renderers started recording their
+    # source ramp today, but Reverse cannot be recognised from a
+    # renderer until ramp matching can spot a reversed clone, and a
+    # scheme cannot be recovered from breaks at all.
+    #
+    # WHEN THIS LIST SHRINKS, that is good news: delete the names
+    # that now survive. Do NOT add a name to it to make the suite
+    # green -- that is how a gap becomes a promise nobody made.
+    NOT_YET_RESTORED = ("ramp", "reverse", "k")
+    still_lost = []
+    lost = []
+    for tile_id, settings in sorted(before.items()):
+      came_back = after.get(tile_id)
+      if came_back is None:
+        lost.append(f"{tile_id}: the element is gone entirely")
+        continue
+      for key, was in sorted(settings.items()):
+        # the run's own bookkeeping, not a user's choice
+        if key in ("single_colour",):
+          continue
+        if key in NOT_YET_RESTORED:
+          if came_back.get(key) != was:
+            still_lost.append(key)
+          continue
+        now = came_back.get(key)
+        if now != was:
+          extra = ""
+          if key == "opacity" and tile_id in on_the_map:
+            extra = (f" -- and the LAYER is at {on_the_map[tile_id]}, so "
+                     f"the table and the map disagree")
+          lost.append(
+            f"{tile_id}.{key}: chose {was!r}, reopened as {now!r}{extra}")
+    revived.close()
+    assert not lost, \
+      "reopening the project did not bring back what the user " \
+      "chose:\n  " + "\n  ".join(lost[:12])
+    assert set(still_lost) == set(NOT_YET_RESTORED), \
+      f"GOOD NEWS, PROBABLY: a reopened project now restores " \
+      f"{sorted(set(NOT_YET_RESTORED) - set(still_lost))!r}, which " \
+      f"it did not on 2026-08-13. Take those names out of " \
+      f"NOT_YET_RESTORED so this test starts REQUIRING them, and " \
+      f"say so in ROADMAP.md. Do not widen the list to make this " \
+      f"green: that turns a known gap into a promise nobody made."
+  finally:
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def _views_disagree(dlg, project):
   """Every disagreement between the table and the map, as sentences.
 
@@ -25402,11 +28838,39 @@ def _views_disagree(dlg, project):
                   and cell.showing_custom())
     ramp = renderer.sourceColorRamp()
     if named and not custom:
-      wears = dlg._ramp_name_matching(ramp)
-      if wears is None:
-        found.append(f"{tile_id}: row names {named!r}, map records no ramp")
-      elif wears.lower() != named.lower():
-        found.append(f"{tile_id}: row names {named!r}, map wears {wears!r}")
+      # REVERSE has to be allowed for, or this reports a contradiction
+      # where there is none. get_ramp hands back a reversed CLONE, and
+      # a reversed clone is in nobody's style library, so asking the
+      # style for its name answers None however right the map is. The
+      # views do agree: the map wears reversed Greens and the row says
+      # Greens with Reverse ticked. So a reversed element is compared
+      # by the colours the named ramp reversed would produce, which is
+      # the same claim without the false alarm.
+      from weavingspace_qgis import bridge
+      reversed_on = bool(assignment.get("reverse"))
+      if reversed_on:
+        want = bridge.get_ramp(named, True)
+        if want is None or ramp is None:
+          found.append(f"{tile_id}: row names {named!r}, map records no ramp")
+        else:
+          apart = max(
+            max(abs(QColor(want.color(i / 8.0)).red()
+                    - QColor(ramp.color(i / 8.0)).red()),
+                abs(QColor(want.color(i / 8.0)).green()
+                    - QColor(ramp.color(i / 8.0)).green()),
+                abs(QColor(want.color(i / 8.0)).blue()
+                    - QColor(ramp.color(i / 8.0)).blue()))
+            for i in range(9))
+          if apart > 8:
+            found.append(
+              f"{tile_id}: row names {named!r} reversed, map wears a "
+              f"ramp {apart}/255 away from it")
+      else:
+        wears = dlg._ramp_name_matching(ramp)
+        if wears is None:
+          found.append(f"{tile_id}: row names {named!r}, map records no ramp")
+        elif wears.lower() != named.lower():
+          found.append(f"{tile_id}: row names {named!r}, map wears {wears!r}")
 
     shown = previews.get(tile_id)
     if shown and ramp is not None:
@@ -25480,18 +28944,36 @@ def test_random_designs_keep_their_views_in_agreement():
     # tie-prone joins, and a switch that changes nothing on its own
     # changes plenty beside another. A sweep that only ever varies
     # which column is mapped explores one axis of a many-axis space.
+    # A dead axis must FAIL rather than be skipped. The first version
+    # of this named `mod_tiles_inset`, which does not exist (the
+    # attribute is mod_t_inset), and reached the Reverse cell's
+    # wrapper rather than the switch inside it -- and because both
+    # were guarded with getattr/hasattr, both were silently passed
+    # over while the sweep reported forty designs. A sweep that
+    # quietly varies two of the four things it claims is worse than a
+    # smaller sweep that varies what it says, so the count is asserted
+    # below.
+    varied = 0
     for control, choices in (("mod_rotate", [0.0, 15.0, -30.0]),
-                             ("mod_tiles_inset", [0.0, 5.0]),
+                             ("mod_t_inset", [0.0, 5.0]),
                              ("opt_tile_outlines", [False, True]),
                              ("opt_join_prototiles", [False, True])):
       widget = getattr(dlg, control, None)
-      if widget is None or not widget.isEnabled():
+      assert widget is not None, \
+        f"no control named {control!r} on the dialog; the sweep would " \
+        f"skip this axis in silence and still report a clean run"
+      if not widget.isEnabled():
         continue
       pick = rng.choice(choices)
       if hasattr(widget, "setChecked") and isinstance(pick, bool):
         widget.setChecked(pick)
+        varied += 1
       elif hasattr(widget, "setValue") and not isinstance(pick, bool):
         widget.setValue(pick)
+        varied += 1
+    assert varied >= 3, \
+      f"only {varied} design axis/axes could be varied on this family, " \
+      f"so the sweep is exploring less than it claims to"
     for row in range(dlg.table.rowCount()):
       combo = dlg.table.cellWidget(row, 1)
       if combo is not None and hasattr(combo, "setCurrentText"):
@@ -25505,10 +28987,13 @@ def test_random_designs_keep_their_views_in_agreement():
           mode.activated.emit(index)
       # the Reverse switch and the opacity, which decide colour and
       # therefore bear directly on two of the three agreements
-      reverse = dlg._row_widgets(row)[4] if hasattr(
-        dlg, "_row_widgets") else None
-      if reverse is not None and hasattr(reverse, "setChecked") \
-          and reverse.isEnabled() and rng.random() < 0.4:
+      # _row_widgets hands back the CELL, which for Reverse is a
+      # wrapper; _row_reverse unwraps it. Calling setChecked on the
+      # wrapper does nothing and raises nothing, which is how this
+      # axis sat dead behind a hasattr guard.
+      reverse = dlg._row_reverse(row)
+      if reverse is not None and reverse.isEnabled() \
+          and rng.random() < 0.4:
         reverse.setChecked(True)
       opacity = dlg.table.cellWidget(row, 6)
       if opacity is not None and hasattr(opacity, "setValue") \
@@ -28648,6 +32133,8 @@ def main():
         test_a_dock_refinement_survives_the_next_restyle)
   check("a graduated dock refinement survives the next restyle",
         test_a_graduated_dock_refinement_survives_the_next_restyle)
+  check("a dock classify on a constant column does not crash",
+        test_a_dock_classify_on_a_constant_column_does_not_crash)
   check("the range editor repaints with its own element's colours",
         test_the_range_editor_repaints_with_its_own_elements_colours)
   check("the quant editor edits class colours",
@@ -28656,6 +32143,8 @@ def main():
         test_the_ramp_display_range_reinterpolates)
   check("Unclassed opens locked with a live range",
         test_unclassed_opens_locked_with_live_range)
+  check("a Reverse tick survives a rebuild while it is greyed",
+        test_a_reverse_tick_survives_a_rebuild_while_it_is_greyed)
   check("Reverse permutes quant customization",
         test_reverse_permutes_quant_customization)
   check("quant picks die when the ramp is asked anew",
@@ -28746,6 +32235,44 @@ def main():
         test_a_finished_run_leaves_nothing_armed)
   check("a queued live rerun happens once and stops",
         test_a_queued_live_rerun_happens_once_and_stops)
+  check("a geopackage carries the same colours it was given",
+        test_a_geopackage_carries_the_same_colours_it_was_given)
+  check("a region of exactly one feature degenerates honestly",
+        test_a_region_of_one_feature_degenerates_honestly)
+  check("a column of nothing but nulls invents no class",
+        test_a_column_with_no_values_at_all_invents_no_class)
+  check("a region with no features is declined in words",
+        test_a_region_with_no_features_is_declined_in_words)
+  check("two areas on the same ground do not double the tiles",
+        test_two_areas_on_the_same_ground_do_not_double_the_tiles)
+  check("the cardinality warning fires on the side it should",
+        test_the_cardinality_warning_fires_on_the_side_it_should)
+  check("a class count at either end of 2..20 reaches the map",
+        test_a_class_count_at_either_end_of_its_range_reaches_the_map)
+  check("the element count changes under an open colour editor",
+        test_the_element_count_changes_under_an_open_colour_editor)
+  check("the field goes away under an open colour editor",
+        test_the_field_goes_away_under_an_open_colour_editor)
+  check("a region edit is undone while a run is in flight",
+        test_a_region_edit_is_undone_while_a_run_is_in_flight)
+  check("two generates with different families keep their elements apart",
+        test_two_generates_with_different_families_keep_their_elements_apart)
+  check("a restyle arrives while the geopackage is written",
+        test_a_restyle_arrives_while_the_geopackage_is_written)
+  check("the output group is deleted while a run is in flight",
+        test_the_output_group_is_deleted_while_a_run_is_in_flight)
+  check("unclassed over a constant column",
+        test_unclassed_over_a_constant_column)
+  check("the size guard at its refusal boundary",
+        test_the_size_guard_at_its_refusal_boundary)
+  check("an unassigned element beside elements sharing one field",
+        test_an_unassigned_element_beside_elements_sharing_one_field)
+  check("an inset that swallows tiles leaves no half map",
+        test_an_inset_that_swallows_tiles_leaves_no_half_map)
+  check("design choices that leave nothing to colour",
+        test_design_choices_that_leave_nothing_to_colour)
+  check("a project round trip changes nothing a user chose",
+        test_a_project_round_trip_changes_nothing_a_user_chose)
   check("random designs keep their views in agreement",
         test_random_designs_keep_their_views_in_agreement)
   check("every per-row control keeps its declared range",
@@ -29130,6 +32657,8 @@ def main():
         test_hand_picked_colours_are_written_into_the_project)
   check("race: a colour picked during a run is not lost",
         test_a_colour_picked_during_a_run_is_not_lost)
+  check("race: a class colour picked during a run is not lost",
+        test_a_class_colour_picked_during_a_run_is_not_lost)
   check("editing colours never rebuilds the table",
         test_editing_colours_never_rebuilds_the_table)
   check("the editor copes with the data going away",

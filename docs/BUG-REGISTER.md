@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-95 defect(s) with a regression test.
+98 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -143,8 +143,12 @@ there is no separate list to remember.
 
 ## Found by unrecorded
 
+- **quant picks dropped by the run they were made during.**  
+  guarded by `test_a_class_colour_picked_during_a_run_is_not_lost`
 - **a constant column produced five identical classes in five colours; the user's own instruction was that it should revert to a single class with a warning.**  
   guarded by `test_a_constant_column_draws_one_class_and_says_so`
+- **five dock classes over a collapsed column indexed past the end of the dialog's one-class expectation, inside a renderer signal handler.**  
+  guarded by `test_a_dock_classify_on_a_constant_column_does_not_crash`
 - **a dock recolour made while a run was in flight was preserved on the map but never adopted into the record, so the ramp cell did not read Custom and a later re-seed would have destroyed it silently.**  
   guarded by `test_a_dock_edit_during_a_run_is_not_lost`
 - **release.py's watchdog used threading without importing it, so the first release stage would have died on a NameError; committed untested and caught the moment these held-back tests were applied.**  
@@ -157,6 +161,8 @@ there is no separate list to remember.
   guarded by `test_a_reloaded_module_retires_the_old_dialog_cleanly`
 - **a retired dialog's styleChanged connections kept firing after retirement, double-adopting dock edits alongside the live dialog.**  
   guarded by `test_a_retired_dialog_stops_watching`
+- **a rebuild while Reverse was greyed silently discarded the tick underneath it.**  
+  guarded by `test_a_reverse_tick_survives_a_rebuild_while_it_is_greyed`
 - **a column added in QGIS — with the Field Calculator, the usual way — never appeared in the variable choosers, because their item lists are built during a table rebuild and a rebuild happens when the LAYER changes, not when its columns do; the column stayed invisible until the user switched layers and back.**  
   guarded by `test_a_sequence_of_edits_under_the_plugin`
 - **a stage log kept the previous run's verdict for the whole time the stage ran, and read as current.**  
@@ -235,7 +241,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 39
+- unrecorded: 42
 - the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6

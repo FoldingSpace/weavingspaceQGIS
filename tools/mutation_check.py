@@ -680,16 +680,54 @@ MUTATIONS = [
        test="test_editing_a_category_colour_reaches_the_map",
        why="the fast path noticing a hand-picked colour at all; "
            "without it the element is skipped as unchanged"),
+  # Narrowed 2026-08-13. This entry used to replace the whole
+  # re-read LOOP with `pass`, which was harmless while the loop had
+  # one branch and became a trap the moment it gained the graduated
+  # one below: the mutation would have left a dangling `elif` and
+  # killed the test with a SyntaxError, which is a pass for the
+  # wrong reason and exactly the kind of false positive this
+  # catalogue exists to avoid. Both entries now cut only their own
+  # assignment, so each proves its own half of the fix.
   dict(name="category-colours-reread-after-run", file=DIALOG,
-       old="""    for a in assignments:
-      if a.get("mode") == "Categorized" and a.get("var"):
-        a["category_colours"] = self._category_colours.get(
+       old="""        a["category_colours"] = self._category_colours.get(
           a["id"], {}).get(a["var"])""",
-       new="""    pass  # mutation: the run's stale snapshot wins""",
+       new="""        pass  # mutation: the run's stale snapshot wins""",
        test="test_a_colour_picked_during_a_run_is_not_lost",
        why="a colour picked while a tiling was finishing surviving "
            "that tiling, rather than being overwritten by the "
            "settings the run started with"),
+  dict(name="greyed-reverse-keeps-its-record", file=DIALOG,
+       # The mutation is the code as it stood before 2026-08-13:
+       # restore the switch's report verbatim, and a rebuild while
+       # Reverse was greyed writes its False over the user's tick.
+       old="""        self._reverse_choices[tid] = bool(prev["reverse"]) \\
+            or self._reverse_choices.get(tid, False)""",
+       new="""        self._reverse_choices[tid] = prev["reverse"]""",
+       test="test_a_reverse_tick_survives_a_rebuild_while_it_is_greyed",
+       why="a Reverse tick surviving a table rebuild that happens "
+           "while the switch is greyed, rather than the disabled "
+           "switch's report being allowed to speak for what the "
+           "user chose"),
+  dict(name="dock-classes-matched-by-length", file=DIALOG,
+       # Anchored on the CONDITION rather than the whole guard: the
+       # comment below it explains the constant-column collapse and
+       # is worth keeping in front of whoever reads a failure here.
+       old="""    if len(expected) != len(actual):""",
+       new="""    if False:  # mutation: walk two lists of different lengths""",
+       test="test_a_dock_classify_on_a_constant_column_does_not_crash",
+       why="the positional walk over dock classes staying inside "
+           "both lists; without it a Classify over a collapsed "
+           "constant column raises IndexError inside a renderer "
+           "signal handler, where the user sees nothing at all"),
+  dict(name="quant-colours-reread-after-run", file=DIALOG,
+       old="""          a["quant_colours"] = self._quant_colours.get(
+            a["id"], {}).get(a["var"])""",
+       new="""          pass  # mutation: the run's stale snapshot wins""",
+       test="test_a_class_colour_picked_during_a_run_is_not_lost",
+       why="the graduated half of the same race: a class colour "
+           "picked while a tiling was finishing surviving it, "
+           "rather than being destroyed by the run it was made "
+           "during and stamped absent onto the layer as well"),
   dict(name="category-colours-cleared-by-ramp", file=DIALOG,
        # Narrowed 2026-08-12 (two sites). This is the primary path,
        # where choosing a ramp replaces the element's source of
@@ -1843,6 +1881,179 @@ MUTATIONS = [
            "two draws both from the ends of the palette, as large a "
            "move as this message exists to report. Widened to <=, a "
            "user meets exactly that change in silence"),
+  dict(name="one-feature-constant-collapse", file=BRIDGE,
+       old="""    if len(seen) > 1:
+      return False
+  return len(seen) == 1""",
+       new="""    if len(seen) > 1:
+      return False
+  return False  # mutation: no column is ever constant""",
+       test="test_a_region_of_one_feature_degenerates_honestly",
+       why="a region of ONE feature makes every mapped column constant "
+           "on the map, whatever variation the data has elsewhere. "
+           "Without this the legend cuts five classes all reading "
+           "'0 - 0' in five different colours, and nothing says the "
+           "column has one value -- a reader trusts the legend, so "
+           "they read variation that is not there"),
+  dict(name="all-null-column-classified-as-zero", file=BRIDGE,
+       old="""  awkward = any(
+    v is None or v == NULL or (isinstance(v, float)
+                               and (v != v or abs(v) > FINITE))
+    for v in values)""",
+       new="""  awkward = False  # mutation: hand the nulls to the classifier""",
+       test="test_a_column_with_no_values_at_all_invents_no_class",
+       why="QGIS's classifier counts a NULL as zero, so a column that "
+           "is entirely empty -- a join that matched nothing, a field "
+           "never filled -- comes back with class breaks sitting on "
+           "0 - 0. Every area is then coloured as though it had been "
+           "measured at nothing, which is a confident and wrong "
+           "statement about every place on the map"),
+  dict(name="empty-region-refused-silently", file=DIALOG,
+       old='        QMessageBox.critical(self, "WeavingSpace", str(e))',
+       new="        pass  # mutation: refuse the layer without saying so",
+       test="test_a_region_with_no_features_is_declined_in_words",
+       why="a region layer with no features cannot be tiled, and the "
+           "refusal is the only thing the user gets: without it "
+           "Generate leaves the project exactly as it was and is "
+           "indistinguishable from a button that did nothing"),
+  dict(name="tiles-doubled-by-a-repeated-join", file=BRIDGE,
+       old="  provider.addFeatures(feats)",
+       new="  provider.addFeatures(feats + feats)  # mutation: joined twice",
+       test="test_two_areas_on_the_same_ground_do_not_double_the_tiles",
+       why="two features covering the same ground must give one tile, "
+           "whichever of them wins it. A join that matches twice draws "
+           "every tile twice in two colours, one over the other -- the "
+           "map looks complete, the counts look plausible, and the "
+           "reader sees whichever value happened to be drawn last"),
+  dict(name="cardinality-threshold", file=DIALOG,
+       old="          if idx >= 0 and len(mem.uniqueValues(idx)) > 60:",
+       new="          if idx >= 0 and len(mem.uniqueValues(idx)) > 61:",
+       test="test_the_cardinality_warning_fires_on_the_side_it_should",
+       why="above sixty distinct values, categorized styling is "
+           "usually the sign of a field that is not categorical at all "
+           "-- an identifier, a name, a measurement stored as text -- "
+           "and the legend is unreadable either way. The number is the "
+           "whole of the behaviour: move it and either the warning "
+           "stops arriving, or it starts firing on ordinary data, "
+           "which is how a warning becomes something people dismiss "
+           "unread"),
+  dict(name="class-count-reaches-the-renderer", file=BRIDGE,
+       old='      assignment.get("k", 5), outline, assignment.get("reverse", False),',
+       new='      5, outline, assignment.get("reverse", False),',
+       test="test_a_class_count_at_either_end_of_its_range_reaches_the_map",
+       why="the per-row Classes spinner runs 2 to 20 and the number "
+           "has to reach the map. A spinner that accepts 20 over a "
+           "renderer that quietly cuts five is consistent with every "
+           "control test in the suite, and the user gets a legend that "
+           "says nothing they asked for"),
+  dict(name="cat-colours-keyed-by-element", file=DIALOG,
+       old="""        a["category_colours"] = self._category_colours.get(
+          a["id"], {}).get(a["var"])""",
+       new="""        a["category_colours"] = next(
+          iter(self._category_colours.get(a["id"], {}).values()), None)""",
+       test="test_the_field_goes_away_under_an_open_colour_editor",
+       why="hand-picked colours are recorded per element AND per "
+           "field. Keyed by element alone, colours chosen for a "
+           "column that has since been deleted in QGIS follow the "
+           "element onto whatever variable it shows next -- so a map "
+           "of landcover_2010 comes out wearing the colours somebody "
+           "chose for landcover, with nothing on screen to say so"),
+
+  dict(name="cat-colours-keyed-by-field", file=DIALOG,
+       old="""        a["category_colours"] = self._category_colours.get(
+          a["id"], {}).get(a["var"])""",
+       new="""        a["category_colours"] = next(
+          (v.get(a["var"]) for v in self._category_colours.values()
+           if v.get(a["var"])), None)""",
+       test="test_the_element_count_changes_under_an_open_colour_editor",
+       why="keyed by field alone, a colour picked for one element "
+           "paints every other element showing the same variable -- "
+           "including, after the element count drops, an element that "
+           "inherits a choice made for a design the user has left "
+           "behind. Two elements the cartographer deliberately "
+           "distinguished come out identical"),
+
+  dict(name="geometry-signature-of-the-run", file=DIALOG,
+       old="""    self._last_geometry_sig = (geometry_sig if geometry_sig is not None
+                               else self._geometry_signature())""",
+       new="""    self._last_geometry_sig = self._geometry_signature()""",
+       test="test_a_region_edit_is_undone_while_a_run_is_in_flight",
+       why="a finished run must record the geometry it DREW, not what "
+           "the table says at the moment it lands. Recording the "
+           "latter makes an edit undone during a run look like a map "
+           "that is already current, so the next Generate takes the "
+           "restyle fast path and the user goes on looking at "
+           "features they rolled back"),
+
+  dict(name="surplus-elements-dropped", file=DIALOG,
+       old="""    # drop the previous run's element layers
+    for tid, lid in old_ids.items():
+      if project.mapLayer(lid) is not None:""",
+       new="""    # drop the previous run's element layers
+    for tid, lid in old_ids.items():
+      if tid in new_ids and project.mapLayer(lid) is not None:""",
+       test="test_two_generates_with_different_families_keep_their_elements_apart"
+            "keep_their_elements_apart",
+       why="a run must clear the whole of the previous one, not only "
+           "the elements it happens to share. Going from a "
+           "seven-element family to a four-element one otherwise "
+           "leaves e, f and g in the project, still tagged as this "
+           "plugin's output -- so the map carries elements the table "
+           "does not have, and a later dialog adopts them"),
+
+  dict(name="group-deleted-under-a-run", file=DIALOG,
+       old="""      if group is not None:
+        return group, False""",
+       new="""      return group, False""",
+       test="test_the_output_group_is_deleted_while_a_run_is_in_flight",
+       why="the dialog must notice that the user deleted its output "
+           "group and make a new one. Without the check it hands back "
+           "the group it did not find, and every run from then on "
+           "dies adding layers to nothing: Generate appears to work "
+           "and no map arrives"),
+
+  # SPANS TWO GUARDS, and that is the finding rather than a shortcut.
+  # A restyle arriving while the GeoPackage is being written is
+  # stopped twice over -- once because a task is still held (
+  # _finish_run clears it only after _add_output_layers returns) and
+  # once because writing to a GeoPackage releases the old layer
+  # handles first, so the records point at layers that have gone.
+  # Measured: breaking EITHER on its own leaves
+  # test_a_restyle_arrives_while_the_geopackage_is_written green,
+  # because the other still holds. So there is no single-line break
+  # this test can catch, and an entry pretending otherwise would
+  # report SURVIVED and be read as a hole in the test. Both are
+  # defeated here, in one contiguous span; the guards between them are
+  # left standing, including the one unobservable-layer-retiles
+  # already owns.
+  dict(name="cardinality-warning-fires-at-sixty-one", file=DIALOG,
+       old="          if idx >= 0 and len(mem.uniqueValues(idx)) > 60:",
+       new="          if idx >= 0 and len(mem.uniqueValues(idx)) > 61:",
+       test="test_the_cardinality_warning_fires_on_the_side_it_should",
+       why="a SURVIVOR of batch 11, triaged then as a threshold nobody "
+           "could state a harm for and accepted on that basis. That was "
+           "half right: the harm is thin at any one count, but the "
+           "BOUNDARY is a real claim -- a field with sixty-one "
+           "categories is warned about and one with sixty is not -- and "
+           "a test standing either side of it is a boundary test rather "
+           "than a pinned constant. Written from the idea list without "
+           "knowing it would land on a known survivor"),
+  dict(name="reopened-opacity-is-read-from-the-layer", file=DIALOG,
+       old="    if tile_id not in self._opacity_choices:\n"
+           "      self._opacity_choices[tile_id] = max(0, min(100, round(\n"
+           "        layer.opacity() * 100)))",
+       new="    pass  # mutation: the dialog forgets the layer's opacity",
+       test="test_a_project_round_trip_changes_nothing_a_user_chose",
+       why="QGIS persists layer opacity in the project, and until "
+           "2026-08-13 the dialog never read it back: a reopened "
+           "project showed 100% in the table while the layer was still "
+           "at the 60% chosen. Losing a setting would be better than "
+           "this -- _add_output_layers pushes the dialog's belief onto "
+           "the layer, so any later restyle silently undid a choice "
+           "still visible in QGIS's own layer panel. Found by a "
+           "differential written before anybody knew what it would "
+           "catch: the round trip compares every choice at once rather "
+           "than the three a test would think to name"),
   dict(name="ramp-cell-and-map-agree-differentially", file=BRIDGE,
        old="    renderer.setSourceColorRamp(ramp.clone())",
        new="    pass  # mutation: the renderer forgets which ramp made it",
@@ -1935,6 +2146,92 @@ MUTATIONS = [
            "suite runs on. Drop the universal tag and a pure-python "
            "wheel matches nothing, so provisioning fails on precisely "
            "the platform least able to repair it by hand"),
+  # Written 2026-08-13 alongside the four tests for ideas 29-32 of
+  # docs/TEST-IDEAS.md -- the map's own edges, where a wrong map
+  # looks exactly like a right one. Every anchor was re-checked
+  # against this tree before splicing, since dialog.py moved the
+  # same day.
+  # ---- ideas 29-32, "the map itself"
+  #
+  # Anchored on the COLLAPSE rather than on the Unclassed line above
+  # it, because the behaviour at stake is an ORDERING -- Unclassed
+  # fixes k at 50, and the constant-column collapse then overrides it
+  # -- and an ordering cannot be undone by editing one site. Excluding
+  # k == 50 from the collapse is that ordering lost, and nothing else:
+  # a row asking for the ordinary five classes still collapses, so
+  # test_a_constant_column_draws_one_class_and_says_so goes on passing
+  # and this entry stays aimed at the one scheme that arrives here
+  # with a class count already fixed.
+  dict(name="constant-column-beats-unclassed-fifty", file=BRIDGE,
+       old="""  constant = index >= 0 and numeric_values_are_constant(values)
+  if constant:
+    k = 1""",
+       new="""  constant = index >= 0 and numeric_values_are_constant(values)
+  if constant and k != 50:  # mutation: the collapse no longer
+    k = 1                   # overrides the fifty Unclassed fixed""",
+       test="test_unclassed_over_a_constant_column",
+       why="Quant: Unclassed cuts fifty linear intervals, so over a "
+           "column that is 7 everywhere the legend claims fifty grades "
+           "of a variable with one value, and every feature falls in "
+           "class 0 -- the ramp's near-white end, which a reader takes "
+           "for missing data rather than for one value"),
+  dict(name="size-guard-refuses-at-the-cap", file=DIALOG,
+       old="    if est > bridge.MAX_TILES_HARD:",
+       new="    if est >= bridge.MAX_TILES_HARD:  # mutation: refuse the cap",
+       test="test_the_size_guard_at_its_refusal_boundary",
+       why="MAX_TILES_HARD is the largest tile count ALLOWED, not the "
+           "first one refused; one step either way and a design the "
+           "plugin promises to draw is declined, or one it cannot "
+           "survive is attempted. Every other test of this guard "
+           "stands orders of magnitude from the line and cannot see "
+           "which side of it the comparison falls"),
+  dict(name="unassigned-row-carries-no-field", file=DIALOG,
+       old="""      var = var_combo.currentText()
+      var = None if var == "---" else var
+      mode_raw = (mode_combo.currentText() if mode_combo""",
+       new="""      var = var_combo.currentText()
+      var = var if var else None  # mutation: "---" reads as a field
+      mode_raw = (mode_combo.currentText() if mode_combo""",
+       test="test_an_unassigned_element_beside_elements_sharing_one_field",
+       why="an element the user deliberately left empty must draw as "
+           "flat fill and say 'no data' in its layer name; read as a "
+           "field called '---' it is styled like everybody else, so a "
+           "design where every other element shares one column comes "
+           "back looking exactly as though the user had assigned it"),
+  # The second half of the same test, and a defect this project has
+  # actually shipped once: one renderer seeded for every element.
+  # Aimed at _add_output_layers' loop, not at seed_renderer itself,
+  # since the fast restyle path calls the same function correctly.
+  dict(name="each-element-keeps-its-own-renderer", file=DIALOG,
+       old="""        bridge.seed_renderer(out, a, templates.get(a.get("class_source")))""",
+       new="""        a = assignments[0] if assignments else a  # mutation: one
+        bridge.seed_renderer(out, a, templates.get(a.get("class_source")))""",
+       test="test_an_unassigned_element_beside_elements_sharing_one_field",
+       why="elements that classify the SAME column can only be told "
+           "apart by their ramps, so a renderer shared between them "
+           "produces a perfectly plausible map in which several parts "
+           "of the pattern agree because they were told to, not "
+           "because the data does"),
+  dict(name="tile-inset-is-percent-of-spacing", file=DIALOG,
+       old="        unit = unit.inset_tiles(self.mod_t_inset.value() * spacing / 100)",
+       new="        unit = unit.inset_tiles(self.mod_t_inset.value() * spacing / 1000)",
+       test="test_an_inset_that_swallows_tiles_leaves_no_half_map",
+       why="the inset is a percentage of the spacing, and a tenth of "
+           "that is a control that looks alive and barely moves the "
+           "map; it also silently voids every test that reaches the "
+           "point where an inset consumes a tile, which is why the "
+           "test names this in its own guard rather than only in an "
+           "assertion at the end"),
+  dict(name="tile-boundaries-reach-the-symbol", file=BRIDGE,
+       old="""  opts.update({"outline_color": "35,35,35,255", "outline_width": "0.1"}
+              if outline else {"outline_style": "no"})""",
+       new="""  opts.update({"outline_style": "no"})  # mutation: never stroke""",
+       test="test_an_inset_that_swallows_tiles_leaves_no_half_map",
+       why="Draw tile boundaries is the only control that separates "
+           "one tile from its neighbour where the fills are close, and "
+           "losing it is invisible on any map whose tiles differ in "
+           "colour anyway -- so it is checked on the geometry where it "
+           "matters, a design inset until its tiles are slivers"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a

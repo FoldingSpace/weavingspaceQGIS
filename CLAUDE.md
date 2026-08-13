@@ -987,7 +987,17 @@ Confirmed with the user via an explicit design review:
   RE-READ them rather than trust the snapshot the run was launched
   with, or a colour chosen during a run is destroyed when it lands.
   They persist as a layer custom property so a saved project survives
-  a QGIS restart.
+  a QGIS restart. **Both consequences apply to the GRADUATED editor
+  too, and saying "category colours" here is how that went unnoticed
+  for five days.** The quant editor writes positional class colours
+  and the ramp's display window through the same window, and
+  `_add_output_layers` re-read only the categorical half until
+  2026-08-13: a class colour picked during a run was destroyed when
+  the run landed AND stamped absent onto `weavingspace_quant_style`,
+  so reopening the project could not bring it back either. The rule
+  is about HAND-PICKED COLOUR on either styling path, not about the
+  categorical editor. When a rule here names one of a pair, check the
+  other before believing it is a rule about one thing.
 - **A region layer with no CRS is tiled as it is, and its output says
   so.** QGIS permits a layer with no CRS and users sometimes want one
   (a floor plan, a scanned map, a diagram), so the plugin gets on with

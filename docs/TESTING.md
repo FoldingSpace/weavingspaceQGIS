@@ -129,6 +129,38 @@ nothing compares those views systematically.
 at random designs rather than at mutants, it becomes a defect-finder
 that does not depend on our tests at all.
 
+**The cheapest differential has no instrument at all: a path against
+its own sibling.** Three more defects came out on 2026-08-13, all
+found by reading one code path beside the twin that does the same job
+for the other styling mode, and asking what one does that the other
+does not. A class colour picked during a run was destroyed when the
+run landed, because the landing path re-read the categorical picks
+and not the graduated ones. QGIS's own Classify over a
+constant column raised IndexError inside a renderer signal handler,
+because the categorized branch guards a case its graduated twin
+walks straight into. A Reverse tick was discarded by any rebuild
+happening while the switch was greyed, because one part of the
+dialog preserved the record and another restored it from a report
+that had never been about the record.
+
+None of these needed a machine. They need the question asked
+deliberately, because the shapes are invisible while reading either
+site alone -- each looks perfectly reasonable on its own, and only
+the PAIR is wrong. Two things make this project unusually rich in
+them: the categorical and graduated paths are near-twins written
+months apart, and a dialog that shows the same state in five places
+has ten pairs to disagree.
+
+Two multipliers worth knowing. Where the pair is enforced by nothing
+but attention, the catalogue must anchor each twin SEPARATELY -- a
+single anchor covering both reports SURVIVED whatever the tests do,
+since mutating one leaves the other doing the work. And when a rule
+in CLAUDE.md names one of a pair, that phrasing is itself the
+hazard: the re-read rule was written down, correctly, five days
+before its twin was found missing, and it was written as a rule
+about CATEGORY colours. A rule that names one sibling will be read
+as a rule about one sibling.
+
 ## The test shapes that earn their keep
 
 **UI against library.** The highest-value shape here: drive the
