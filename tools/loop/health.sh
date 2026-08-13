@@ -49,6 +49,13 @@ for f in "$SP"/batch*.log "$SP"/incremental.log; do
 done
 
 echo "-- leftovers"
+# Sandboxes only. Swap used to be reported here and was dropped on
+# 2026-08-12: macOS resizes its swap file on demand, so a "nearly
+# full" reading is a statement about the file's current size rather
+# than about headroom, and reading it as pressure led to throttling a
+# campaign for no reason. What actually matters to a run is above --
+# CPU against elapsed, which separates a blocked worker from a busy
+# one -- and, for a mutation batch, the stall and timeout counts,
+# since contention changes verdicts rather than merely durations.
 n=$(ls -d /var/folders/*/*/T/weavingspace-* 2>/dev/null | wc -l | tr -d ' ')
 echo "   sandboxes: $n"
-echo "   swap: $(sysctl -n vm.swapusage | sed 's/total = //;s/  used/, used/')"

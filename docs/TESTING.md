@@ -89,6 +89,46 @@ assert that, which is the signal that a harness limit has become a
 test's problem. If you find yourself patching QMessageBox inside a
 test, fix the recorder instead.
 
+## What has actually found defects here, and what has not
+
+Worth stating before the shapes, because it decides where effort
+should go. Counted over this project's life, nearly every real defect
+came from a DIFFERENTIAL instrument -- two independent descriptions of
+the same thing, compared, so that a disagreement is a defect by
+construction and no oracle is needed.
+
+The record: the docstring audit found TWO product defects in a
+session with no machine time, by reading documentation against code.
+The first Linux run found a defect invisible on any Mac, ramp names
+colliding by case. `install_and_load` found a fault the first time
+anything opened the artefact a user actually receives.
+UI-against-library caught three bugs every "a map appeared" assertion
+had walked past. The colourspace comparison against upstream's own
+renderer caught a categorical sampling error where a plausible
+derivation used `round()` for `int()`. Each is code against code,
+machine against machine, prose against behaviour, or our render
+against somebody else's.
+
+Mutation testing is not on that list, and should not be expected on
+it. It asks "would the suite have noticed?", which is a question about
+the TESTS. It is worth running for exactly that -- a catalogue sweep
+returning 173 of 174 is real assurance that old tests still reach what
+they name -- but a campaign of 128 survivors yielded one product
+defect, and the sample did not find it; a differential probe did. Do
+not budget mutation triage as defect-hunting. Budget it as suite
+measurement, and spend the creative effort on new differentials.
+
+**Where to point the next one.** This software's characteristic
+failure is a wrong map that looks like a right one, and the plugin
+describes the same state in several places that must agree: the table,
+the design preview, the generated map, the colour editor, and the
+saved project. The defect found on 2026-08-13 was exactly a
+disagreement between the table and the map, and it survived because
+nothing compares those views systematically.
+`tools/equivalence_scenarios.py` already dumps most of them; pointed
+at random designs rather than at mutants, it becomes a defect-finder
+that does not depend on our tests at all.
+
 ## The test shapes that earn their keep
 
 **UI against library.** The highest-value shape here: drive the

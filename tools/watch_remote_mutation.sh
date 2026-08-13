@@ -40,14 +40,22 @@
 # not in the exit status, because these runs REPORT rather than gate.
 set -u
 BRANCH="${1:?usage: watch_remote_mutation.sh <branch> <what> [since-tag]}"
-WHAT="${2:?catalogue, incremental or both}"
+WHAT="${2:?catalogue, incremental, both, census or gallery}"
 SINCE="${3:-v0.24.0}"
 QGIS="${4:-4.0.3}"
+# census only: the cost stratum to run exhaustively. Forty by default
+# rather than ten, because ten was measured on 2026-08-12 and the
+# unmeasured ground is everything ABOVE it -- 1,172 of the 1,488
+# mutants a test could notice. Raising it is how that ground gets
+# covered; the run is reporting rather than gating, so a long one
+# costs only wall clock nobody is waiting on.
+MAX_COST="${5:-40}"
 cd "$(dirname "$0")/.."
 
-echo "dispatching mutation/${WHAT} on ${BRANCH} (since ${SINCE}, QGIS ${QGIS})"
+echo "dispatching mutation/${WHAT} on ${BRANCH} (since ${SINCE}, QGIS ${QGIS}, max-cost ${MAX_COST})"
 gh workflow run mutation.yml --ref "$BRANCH" \
-  -f what="$WHAT" -f since="$SINCE" -f qgis="$QGIS" || exit 1
+  -f what="$WHAT" -f since="$SINCE" -f qgis="$QGIS" \
+  -f max_cost="$MAX_COST" || exit 1
 
 # The dispatch API returns nothing useful, so the run has to be found.
 # Match on the workflow AND the branch: another workflow starting at

@@ -1195,7 +1195,34 @@ def make_categorized_renderer(layer: QgsVectorLayer, field: str,
   categories.append(QgsRendererCategory(
     None, _fill_symbol(overrides.get(NO_DATA_KEY, NO_DATA_FILL), outline),
     "no data"))
-  return QgsCategorizedSymbolRenderer(field, categories)
+  renderer = QgsCategorizedSymbolRenderer(field, categories)
+  # Record WHICH RAMP produced these classes, exactly as the graduated
+  # path does two hundred lines above. QGIS keeps this on the renderer
+  # as the ramp a fresh classify would use, and until 2026-08-13 the
+  # categorized path set it on neither its own output nor anything
+  # else, which cost two things.
+  #
+  # A user opening QGIS's Categorized panel on one of our element
+  # layers found the ramp field EMPTY, so nothing there said which
+  # ramp the colours came from and pressing Classify started from
+  # whatever the panel happened to show.
+  #
+  # And it made dialog._on_layer_style_edited's clean-ramp branch
+  # unreachable. That branch asks _ramp_name_matching what ramp a
+  # dock-side renderer carries, so that re-applying the ramp the
+  # dialog already names clears the hand-picks it replaces; against a
+  # renderer with no source ramp it always answered None, so a clean
+  # classify was adopted as Custom hand-picks instead and the ramp
+  # cell never went back to naming a ramp. The graduated twin at
+  # dialog.py:3501 worked the whole time, which is why nobody noticed:
+  # the behaviour was right for half the styles.
+  #
+  # Cloned rather than handed over, because `ramp` is still being read
+  # above for the preset colours and the renderer takes ownership of
+  # what it is given.
+  if ramp is not None:
+    renderer.setSourceColorRamp(ramp.clone())
+  return renderer
 
 
 def make_single_renderer(colour: str, outline: bool) -> QgsSingleSymbolRenderer:

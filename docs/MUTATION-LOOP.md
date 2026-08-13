@@ -39,10 +39,12 @@ announcing itself with a timestamp.
 Two or three workers. Each gets its own sandbox and its own QGIS
 process, so nothing is shared. Measured here: six mutants took
 thirteen minutes serially and seven with three workers, with identical
-verdicts. Three is affordable when the machine has memory to spare and
-two is the safer default, since a worker costs 0.6-0.9 GB and this
-machine often runs with swap nearly exhausted. A campaign killed at
-mutant nineteen of twenty costs more than the parallelism saved.
+verdicts. Choose the number from CORES and from what contention does
+to the VERDICTS, not from memory: per-mutant times inflate fifteen to
+fifty per cent under load, and a mutant slowed past the watchdog's
+patience is recorded as caught, so pushing the worker count until the
+machine groans can quietly flatter the score. Watch the stall and
+timeout counts, and back off when they rise.
 
 Rough timings: coverage record about ten minutes, a batch of thirty
 about fifteen minutes at three workers, triage and test-writing
@@ -62,8 +64,9 @@ tool never prints stays silent forever. Both have happened here, the
 second for twelve hours.
 
 **A heartbeat**, every ten minutes: what is running, batch progress,
-the latest rate, whether any watcher has stuck, free swap. Take a
-FRESH reading each time. Reporting a cached number with an honest
+the latest rate, whether any watcher has stuck, and CPU against
+elapsed for each worker, which is what distinguishes a blocked job
+from a busy one. Take a FRESH reading each time. Reporting a cached number with an honest
 timestamp still presents stale state as current.
 
 **`tools/loop/health.sh`**, run whenever something feels quiet. It
@@ -290,6 +293,63 @@ deterministic logic hide behind Qt plumbing: `bridge.py`, `catalog.py`
 and `worker.py` have run at 100% while `dialog.py` sat at 54%, and
 that difference is the whole story of where work is needed.
 
+## Triage by DEMONSTRATION, not by imagining a harm
+
+Do this before writing anything:
+
+    <qgis python> tools/prove_equivalent.py \
+        --file weavingspace_qgis/dialog.py --line 1710 \
+        --old '      combo.blockSignals(True)' \
+        --new '      combo.blockSignals(False)' \
+        --scenario a_working_session
+
+It copies the tree, applies the one line, drives the same scenario
+against both, and compares everything a test could see -- the whole
+dialog's state, every cell widget, and the counts of unit rebuilds and
+preview refreshes. Scenarios live in
+`tools/equivalence_scenarios.py`; add one when the watched line is
+not reached.
+
+**Why this comes first, with the numbers.** Triage by reading the code
+and imagining what a user would lose was measured over one campaign:
+of eight harms so imagined, SIX were false. Each cost a test written,
+run, disproved and withdrawn. The two that held were found by this
+instrument instead -- and one of them was a shipped defect that a
+narrow comparison had already declared harmless.
+
+It is also the cheap end of the tool shed. A mutant on a heavily
+covered line is confirmed against every test that reaches it: 1,410
+seconds against 164 tests, 1,763 against 220. This runs in under a
+minute. Since most of the pool sits at that expensive end, probing
+first and paying for the full confirmation only when something moved
+is what makes that ground affordable at all.
+
+**Read the verdicts exactly.**
+
+*IDENTICAL* is evidence for an EQUIVALENT entry, and it is only as
+wide as the snapshot and only for that scenario. Quote both.
+
+*DIFFERS* names the dimension that moved. Assert THAT. It is the
+difference between a test aimed at a behaviour and a test aimed at a
+mutated token, and the tool hands you the behaviour for nothing.
+
+*VACUOUS* means the mutated line never ran, so the two trees were
+never given the chance to differ. This is the guard that matters
+most: without it, a scenario that misses its line produces two
+identical snapshots and looks exactly like a proof of equivalence.
+It is the ambiguous-anchor fault in different clothes, and for the
+same reason the tool refuses an anchor matching more than once --
+two `blockSignals` sites here were textually identical for two lines,
+one equivalent and one hiding a real defect.
+
+**Not everything that differs is a gap.** Three sites came back with
+one line moving, `preview_refreshes` 8 against 9, and state otherwise
+identical: one extra repaint. That is not equivalence, so it does not
+leave the denominator -- but the only test that could catch it would
+count how often a private method ran, which is pinning an
+implementation detail. Those are ACCEPTED, and lower the rate
+honestly.
+
 ## Triaging a survivor
 
 Five kinds, needing different answers:
@@ -308,7 +368,11 @@ silently. Fix the test, not the score.
 leaves the others to do the work, so no test can discriminate and none
 should be contorted into trying. Count the call sites BEFORE believing
 a survivor is a gap: `_update_layer_exclusions()` has two and
-`_refresh_preview_colours()` has six. Sometimes the distinction is
+`_refresh_preview_colours()` had six when this was written and has
+fifteen now, which is the point rather than an aside: a number about
+the code is true until somebody adds one, and a census on 2026-08-12
+turned up five survivors on that call whose harm could not be stated
+after three attempts. Sometimes the distinction is
 real and interesting — the constructor's exclusion call matters only
 for a dialog opened on a project that already holds output — and
 sometimes the second call is genuinely redundant, in which case delete

@@ -3,7 +3,7 @@ name: long-job-supervision
 description: Supervise work that outlasts a single turn — test suites, builds, training runs, migrations, batch jobs — so the machine stays busy, finished work gets picked up immediately, and a stuck job is caught in minutes rather than hours. Use this whenever you start something long in the background, whenever a user asks for periodic status updates or says "keep going without me", whenever you are about to write a watcher or poll loop, and whenever a job seems to be taking longer than it should. Also use it before reporting that something is "still running" — that claim is worth exactly as much as the reading behind it.
 derived_from:
   - path: docs/MUTATION-LOOP.md
-    sha256: 3d63bb64ca0f90c34cba23fdc5b145ba37139b31b6847a2588709c03a41ae6c2
+    sha256: 40ae6ab8dfd7497c02fbcfd14713817d1fb8130ffd52b57b7ae1e58d6c7fcf60
 ---
 
 # Supervising work that outlasts a turn
@@ -169,9 +169,11 @@ edits are recorded inside it, after the editing is done.
 work took thirteen minutes serially and seven with three workers, with
 identical results — but per-unit times inflated 15–50% under
 contention. Give each worker its own scratch directory and its own
-process so nothing is shared, and watch memory rather than cores: a
-campaign killed at unit nineteen of twenty costs more than the
-parallelism saved. The asymmetry to respect: independent short
+process so nothing is shared, and pick the worker count from the
+level at which the RESULTS were shown to match a serial run — not
+from a memory reading, which on some systems measures the OS
+resizing a file rather than headroom running out. The asymmetry to
+respect: independent short
 judgements shard well, but two timing-sensitive jobs (two full test
 suites, a suite beside a mutation batch, anything beside a census)
 degrade each other into false hangs and flattered scores — schedule
@@ -326,18 +328,26 @@ the message named only the assertion.
 
 ## Resource pressure
 
-Check the resource that is actually scarce, not the one that is easy
-to measure. On one machine the workers were only 0.5 GB each while
-system swap sat at 22.8 GB of 23.5 GB used — the constraint was
-everything else running, not the job. Readings there are also
-volatile: free swap moved between 0.4 GB and 4.3 GB within minutes as
-the OS resized its file, so a single favourable reading is not
-headroom you can bank.
+Check the resource that is actually scarce, and first check that the
+number you are reading measures scarcity at all. Swap on macOS does
+not: the OS grows and shrinks its swap file on demand, so "4.8 GB of
+5.1 GB used" describes the size of the file it currently keeps, not
+headroom about to run out, and readings move by gigabytes within
+minutes for that reason alone. Throttling a job on that signal costs
+real time and buys nothing.
+
+What does bear on a long job is CPU against elapsed, per worker,
+which separates blocked from busy. And where the job is a
+MEASUREMENT rather than a task, the thing to watch is whether
+contention changes the ANSWER — a mutation worker slowed past a
+watchdog is recorded as caught, so an overloaded machine reports a
+better score, not merely a slower run.
 
 ## Adapting this to a project
 
 Substitute the process-matching pattern in the health check, the log
-directory, and whatever resource matters on your machine (swap, disk,
-GPU memory, API quota). The rules — wait on the process, report
+directory, and whatever resource genuinely constrains your machine
+(disk, GPU memory, API quota — and check that the reading measures
+scarcity before you throttle on it). The rules — wait on the process, report
 change not state, CPU versus elapsed, fresh readings, chain the next
 stage — carry over unchanged.

@@ -55,14 +55,16 @@ The catalogue is as capable of lying as the code it guards.
 
 `tools/mutation_check.py` holds hand-picked mutations, one per
 behaviour somebody believed was guarded. It is a regression record of
-our own guards: break the behaviour, confirm the test fails. All 41
-entries are currently caught (one is marked equivalent, with its
-reasoning). Its kill rate measures the chooser's judgement, not the
+our own guards: break the behaviour, confirm the test fails. It held
+41 entries when this was written and holds 184 now, which is the
+point rather than an aside: a number about the code is true until
+somebody adds one, so read the file rather than this sentence. Its kill rate measures the chooser's judgement, not the
 suite, so it is not the measurement.
 
 `tools/mutate_auto.py` is the measurement. It walks the syntax tree of
 the plugin source, generates every mutation its operators permit
-(currently 1,049 of them), samples with a seeded shuffle, and runs
+(1,049 when this was written; 1,567 as of
+2026-08-13, of which 79 are unreached by any test), samples with a seeded shuffle, and runs
 against each mutant only the tests whose recorded coverage touches its
 line — usually seconds rather than the minutes a full suite run costs.
 Everything happens in a throwaway APFS clone of the tree, so an
@@ -114,12 +116,22 @@ in the denominator. But "this looks harmless" is how a mutation score
 becomes a vanity metric. Every entry in `EQUIVALENT` (in
 `tools/mutate_auto.py`) carries both an argument and a demonstration:
 the mutation is applied in a sandbox and everything a test could see
-is compared. The one current entry — blocking the over-under field's
-signals during a family change — was retired only after showing that
-the unit's `n`, every tile's WKT, the field text, the table, the
-preview labels and all element assignments came out identical, because
-the unblocked path merely restarts a debounce timer that was already
-running.
+is compared. There were 14 entries as of 2026-08-13, most of them added in one
+sitting once the demonstration was made cheap to run: a harness that
+copies the tree, applies one line, runs the same scenario against
+both and diffs a wide snapshot AND the counts of unit rebuilds and
+preview refreshes. The counts matter — a duplicate rebuild leaves
+identical state, so an end-state comparison cannot see the very
+thing several of these blocks claim to prevent.
+
+Two cautions the harness earned on its first outing. It must REFUSE
+an anchor matching more than once: two `blockSignals` sites were
+textually identical for two lines, one equivalent and one hiding a
+real defect, and mutating the wrong one would have 'proved'
+equivalence for both. And width is not optional — a sibling looked
+equivalent under a narrow comparison and was not, seeding every
+element's single colour, which sits in the signature, so a column
+added in QGIS would have discarded the user's own styling.
 
 **Exclusions are declared in the source and kept narrow.** Operators
 are listed in the module docstring alongside what is deliberately not
@@ -222,11 +234,13 @@ warning about concurrent QGIS processes predicts; the wall clock
 still nearly halves, because the alternative is those same processes
 idling one at a time.
 
-Two workers is the standing default here, and the reason is memory
-rather than cores: a worker is only about half a gigabyte, but the
-development machine runs with swap nearly exhausted, and a run killed
-at mutant nineteen of twenty has cost more than it saved. Raise it if
-the machine has room.
+Two workers is the standing default here, and the reason is the
+measurement rather than the machine. Contention does not merely slow a
+batch, it can CHANGE a verdict: a mutant slowed past the watchdog's
+patience is recorded as caught, so the score rises with the load. Two
+is where the verdicts were shown to match a serial run. Raise it on
+more cores if you like, and read the stall and timeout counts as the
+signal to come back down.
 
 `--only file:line,file:line` re-judges named mutations instead of
 sampling. This is how an earlier batch's survivors get a second

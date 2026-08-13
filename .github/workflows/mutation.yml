@@ -34,11 +34,17 @@ on:
           - catalogue      # the hand-picked entries, sharded
           - incremental    # only the lines changed since a tag
           - both
+          - census         # every mutant in one cost stratum
           - gallery        # an EXPERIMENT: see the gallery job below
       since:
         description: "incremental only: the tag to diff against"
         required: false
         default: v0.24.0
+        type: string
+      max_cost:
+        description: "census only: mutants covered by at most this many tests"
+        required: false
+        default: "40"
         type: string
       qgis:
         description: "which QGIS to ask (one is enough; see below)"
@@ -154,7 +160,36 @@ jobs:
         # offered the chance to notice a mutant, and a stale one
         # overstates survivors while ignoring the newest work.
         # mutate_auto refuses to sample against a stale record.
-        run: python3 -u tools/coverage_per_test.py
+        #
+        # SHARDED, three ways, exactly as release.py does it on the
+        # maintainer's machine. In one process this step took 85 of
+        # this job's 180 available minutes on 2026-08-12, leaving the
+        # mutation step -- the only reason the job exists -- whatever
+        # was left; sharded, the same work took 33 minutes locally.
+        # Which lines a test touches is a property of that test alone
+        # and every test here runs with an EMPTY project, so a slice
+        # is a legitimate subset rather than a different suite.
+        #
+        # Each shard's exit status is checked rather than trusted to
+        # `wait`, which reports only its own success, and the merge
+        # REFUSES a partial or overlapping set -- so a shard that dies
+        # quietly cannot leave a record that looks whole and is not.
+        run: |
+          pids=""
+          for i in 0 1 2; do
+            WEAVINGSPACE_TEST_SHARD="$i/3" \
+              python3 -u tools/coverage_per_test.py > "cov-$i.log" 2>&1 &
+            pids="$pids $!"
+          done
+          failed=0
+          for pid in $pids; do
+            wait "$pid" || failed=1
+          done
+          for i in 0 1 2; do
+            echo "--- shard $i ---"; tail -3 "cov-$i.log"
+          done
+          [ "$failed" -eq 0 ] || { echo "a coverage shard failed"; exit 1; }
+          python3 -u tools/merge_coverage_shards.py
       - name: Mutate the lines changed since ${{ inputs.since }}
         continue-on-error: true
         run: |
@@ -188,6 +223,85 @@ jobs:
   #
   # Either way it stays here rather than moving to tests.yml unless the
   # experiment settles it, and it never runs on push.
+  # A CENSUS of one cost stratum, which is the piece of ground nobody
+  # has ever measured. As of 2026-08-13 the pool holds 1,488 mutants a
+  # test could notice; the census of 2026-08-12 ran the 316 covered by
+  # ten tests or fewer and returned 59%, leaving 1,172 unmeasured. The
+  # two strata are not interchangeable -- when last measured apart they
+  # ran 55% against roughly 87% -- so the cheap number says nothing
+  # whatever about the expensive one.
+  #
+  # It belongs HERE rather than on the maintainer's machine for the
+  # reason the whole file exists: it wants a machine to itself for
+  # hours, and an instrument that costs somebody their afternoon is one
+  # that gets run rarely, which makes its findings arrive too late to
+  # act on. Running it remotely also frees that afternoon for the work
+  # that cannot be delegated -- deciding which two descriptions of one
+  # truth ought to agree, and what a disagreement would mean.
+  #
+  # A census is ONE process deliberately. Sampling could not be split
+  # across runners without every runner sharing one coverage record,
+  # since separate records mean slices drawn from different pools; a
+  # census has no draw to partition, so the question does not arise.
+  census:
+    if: inputs.what == 'census'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    container:
+      image: qgis/qgis:${{ inputs.qgis }}
+      options: --user root
+    env:
+      QT_QPA_PLATFORM: offscreen
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - name: Provision what this QGIS lacks
+        run: python3 -u tools/ci_provision.py
+      - name: Record which tests touch which lines
+        # Sharded three ways, as the incremental job is and for the
+        # same reason: in one process this step took 85 of the 180
+        # minutes available, leaving the measurement itself whatever
+        # was left. Each shard's status is checked rather than trusted
+        # to `wait`, and the merge REFUSES a partial set -- a record
+        # missing a shard would overstate survivors, silently, because
+        # a test absent from it is never offered the chance to notice
+        # a mutant.
+        run: |
+          pids=""
+          for i in 0 1 2; do
+            WEAVINGSPACE_TEST_SHARD="$i/3" \
+              python3 -u tools/coverage_per_test.py > "cov-$i.log" 2>&1 &
+            pids="$pids $!"
+          done
+          failed=0
+          for pid in $pids; do
+            wait "$pid" || failed=1
+          done
+          for i in 0 1 2; do
+            echo "--- shard $i ---"; tail -3 "cov-$i.log"
+          done
+          [ "$failed" -eq 0 ] || { echo "a coverage shard failed"; exit 1; }
+          python3 -u tools/merge_coverage_shards.py
+      - name: Census every mutant covered by <= ${{ inputs.max_cost }} tests
+        # Reporting, not gating, like everything else here. The rate it
+        # prints is EXACT for that stratum and is not the plugin's kill
+        # rate; the tool says so inside the rate line itself, which is
+        # the one place a reader cannot miss it.
+        continue-on-error: true
+        run: |
+          python3 -u tools/mutate_auto.py \
+            --max-cost ${{ inputs.max_cost }} --workers 2 \
+            2>&1 | tee census.log
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation-census-${{ inputs.max_cost }}
+          path: |
+            census.log
+            reports/
+          if-no-files-found: warn
+
   gallery:
     if: inputs.what == 'gallery'
     runs-on: ubuntu-latest

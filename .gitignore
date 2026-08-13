@@ -42,3 +42,10 @@ anti-ai-writing-style.md
 # Claude Code writes local permission state here, with absolute paths
 # from this machine. Local to a checkout, never project content.
 .claude/settings.local.json
+
+# QGIS writes its style library here when a test run has no profile of
+# its own. It is a generated binary, it regenerates on demand, and git
+# keeps every blob forever, so it must never be committed by accident.
+# Noticed 2026-08-13 sitting untracked at 86 KB while a push was being
+# prepared.
+symbology-style.db

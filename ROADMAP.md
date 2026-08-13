@@ -176,6 +176,66 @@ would if the aggregate report ever went back into an automatic
 process.
 
 
+**A "two views of one truth" differential campaign.** Recorded here
+rather than started, because it is a session's work and the case for
+it is an argument about where effort pays rather than a defect
+waiting to be fixed.
+
+The plugin describes the same state in several places that must agree
+-- the table, the design preview, the generated map, the colour
+editor, and the saved project. Drive random designs, snapshot every
+view, and require them to agree. A disagreement is a defect by
+construction, so it needs no oracle and does not depend on the suite
+being any good.
+
+The case for it, in the record rather than in principle: nearly every
+real defect this project has found came from comparing two
+independent descriptions of the same thing (docs/TESTING.md, "What has
+actually found defects here"), and the defect found on 2026-08-13 was
+precisely a table-against-map disagreement that survived because
+nothing compares those views systematically. Most of the machinery
+exists already in `tools/equivalence_scenarios.py`, which was built
+for mutation triage and dumps most of those views; pointing it at
+random designs instead of at mutants is the whole change.
+
+The pairs, and what a disagreement would MEAN, which is the part that
+needs deciding rather than coding:
+
+- the ramp cell against the element layer's actual renderer. A
+  disagreement means the table is lying about the map. This is where
+  the 2026-08-13 defect lived, and the cell read Custom while the map
+  wore a clean ramp;
+- the row's assignment (variable, style, class count) against the
+  renderer's field and classes. A disagreement means the chooser
+  describes a map the plugin did not draw, which is the failure
+  "a quantitative style never stands on text" already guards at one
+  point only;
+- the design preview's colours against the element layers'. A
+  disagreement means somebody judged a design from a picture the map
+  does not honour;
+- the colour editor's listing against the renderer's categories. A
+  disagreement means the editor offers values the map lacks, or hides
+  values it has;
+- a saved project reloaded against the state before saving. A
+  disagreement means stored work was lost or altered in the round
+  trip;
+- a GeoPackage reopened against the layers in the project. A
+  disagreement means what a colleague receives is not what you see,
+  which is the whole promise of the export.
+
+Note what is NOT on that list: anything requiring an oracle. Every
+pair is two descriptions the software itself produces, so the test
+needs no expected value, no fixture of correct answers, and no
+judgement about what a good map looks like. That is what makes it
+cheap to run over random designs and what makes a failure
+unambiguous.
+
+Two cheaper differentials worth doing alongside, both nearly free now:
+re-run the claims audit mechanically over the whole tree, since stale
+prose reliably marks where behaviour drifted and that is where both of
+2026-08-12's product defects came from; and a save-reload-compare,
+because stored state is where hostile stored properties live.
+
 **Badges on the README**, and the "minimalist faux 3d" button styling
 the user mentioned. Both cosmetic, neither designed.
 

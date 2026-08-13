@@ -1600,6 +1600,341 @@ MUTATIONS = [
            "spellings write the same style today, so every test about "
            "the style's CONTENTS passes either way and only a test "
            "about which call is reached can notice the regression"),
+
+  # The five below close survivors from batch 11 (2026-08-12). Each is
+  # here for the reason this file exists: those tests were written
+  # afterwards and verified to PASS, which says nothing at all about
+  # whether they would fail when the behaviour breaks.
+  # NO entry for the five `_refresh_preview_colours` survivors the
+  # 2026-08-12 census turned up (dialog.py 3432, 3524, 3552, 3934,
+  # 3960). They are REDUNDANT CALL SITES, and it took three falsified
+  # harm claims to establish it, which is worth recording so nobody
+  # spends the afternoon again.
+  #
+  # First claim: the design preview would keep the colours of a style
+  # the chooser had abandoned. Measured -- the correction changes no
+  # colour the preview shows, so a stale preview and a fresh one are
+  # identical.
+  #
+  # Second: with live update on, a style corrected on a text field
+  # would leave the map behind. Wrong, and wrong in the software's
+  # favour: by the time the style is refused the variable change has
+  # already corrected the row, so the design is where it was and
+  # redrawing would be work for nothing.
+  #
+  # Third: the same, reached by moving the variable instead. That
+  # entry was written, and SURVIVED -- the variable combo's own
+  # handler queues the run whatever this call does.
+  #
+  # So they are accepted, and they lower the rate honestly. There are
+  # fifteen call sites of _refresh_preview_colours (the runbook said
+  # six until today), which is the whole explanation: deleting one
+  # leaves fourteen doing the work, and no test can discriminate.
+  # Deleting the redundant ones is the better fix and is a change to
+  # the plugin rather than to its tests, so it belongs to a decision
+  # somebody makes deliberately, not to a campaign chasing a number.
+  # NO entry for the blockSignals survivors either, and the reason is
+  # the same shape as the _refresh_preview_colours family above: a
+  # harm was stated and did not hold. The 2026-08-12 census returned
+  # TWENTY-ONE of them -- eleven "call removed", ten "bool" -- across
+  # _on_n_changed, _on_family_changed, _adapt_to_the_layer,
+  # _populate_class_source_combo, _on_mode_chosen and
+  # _follow_variable.
+  #
+  # The claim tested was the most plausible one available: refilling
+  # every variable chooser (when a column appears in QGIS) empties each
+  # combo before putting the choice back, and hand-picked colours are
+  # keyed by element AND FIELD, so a handler running against that empty
+  # instant could take the colours with it. An entry was written for
+  # it and SURVIVED: the field is restored before anything reads it.
+  #
+  # ACCEPTED -- dialog.py:2136, the class-source dropdown's LABEL for
+  # a chosen file: os.path.basename(current[5:]) strips "file:".
+  # Measured 2026-08-13: basename discards the leading separator, so
+  # [5:] and [6:] give the identical label for every path carrying
+  # one -- "/schemes/landcover.qml", "/tmp/a.qml" and
+  # "relative/b.qml" all agree. It would differ only for a bare
+  # filename with no directory ("file:a.qml" -> ".qml"), which a file
+  # chooser cannot produce. Named rather than glossed, because an
+  # acceptance that hides its one exception is how folklore starts.
+  #
+  # ACCEPTED -- k_spin.setRange(0, 9999), both survivors. That range
+  # belongs to the UNCLASSED branch only, where the cell reports a
+  # fixed 50 steps and is disabled: informative, not editable. The
+  # range's only job there is to admit 50, and n -> n+1 cannot stop it.
+  # The editable branch uses setRange(2, 20) -- the documented ceiling
+  # -- and that line is NOT among the survivors, so it is already
+  # guarded. Worth writing down because the first reading was that
+  # this escaped CONTROL_DEFAULTS for the same reason the Auto
+  # button escaped the tooltip test (a widget in a table cell rather
+  # than on the dialog). That blind spot is real and cost two
+  # survivors elsewhere; it is not the explanation here.
+  #
+  # ACCEPTED -- the ramp DISPLAY RANGE's upper default, in its three
+  # places (bridge.py's range_bounds signature and its
+  # assignment.get fallback, and the dialog's stored-range fallback).
+  # Measured 2026-08-13: QGIS CLAMPS a ramp lookup, so color(1.01),
+  # color(1.5) and color(1.0) all return #08306b on Blues. Raising the
+  # upper bound past 100 therefore changes no colour on any map, which
+  # is the only thing that default exists to control.
+  #
+  # The LOWER bound was then measured too, 2026-08-13, rather than
+  # being folded into the paragraph above on the strength of its
+  # neighbour. It IS observable -- 0% against 1% into Blues gives
+  # #f7fbff against #f5fafe, and Greys #ffffff against #fefefe -- so
+  # it is not equivalent. It is still accepted: two parts in 255 in a
+  # single channel is far below one dE, against the ~2.3 this project
+  # treats as just noticeable and the 0.3-0.5 its gallery actually
+  # scores. A test that could catch it would be asserting an exact
+  # constant, which raises the number and detects nothing.
+  #
+  # This corrects an earlier triage in this campaign. bridge.py:811 was
+  # reported as a REAL GAP after batch 11 on the reasoning that "a
+  # default past the end of the ramp is exactly this software's
+  # characteristic failure" -- which sounded right, was never checked,
+  # and is false. Two minutes with the ramp would have said so. The
+  # lower bound is a different matter and is NOT covered by this: 0
+  # becoming 1 moves where the first class samples, and nothing here
+  # has measured that.
+  #
+  # ACCEPTED, NOT EQUIVALENT -- the style-correction blocks in
+  # _on_mode_chosen and _follow_variable (dialog.py 3928, 3951, 3957).
+  # Demonstrated 2026-08-13 against a scenario driving both
+  # corrections: a quantitative style refused on a field of words, and
+  # a variable moved to words underneath one. All three sites give the
+  # same answer -- 149 lines of snapshot with EXACTLY ONE line
+  # differing, `preview_refreshes` 8 against 9. Every element of state
+  # is identical: assignments, class sources, category colours, ramp
+  # ranges, preview colours, note line, every cell widget, and both
+  # corrected style choosers reading "Categorized".
+  #
+  # So the mutation costs one extra repaint and changes nothing a user
+  # could see. That is NOT equivalence: something differs, and a test
+  # counting how often a private method ran could catch it. But such a
+  # test would pin an implementation detail that is legitimately true,
+  # which is the shape this project already rejected for the live
+  # timer. They therefore stay in the DENOMINATOR as survivors and
+  # lower the rate honestly, rather than being moved to EQUIVALENT,
+  # which would excuse them on a false basis. The distinction is the
+  # whole difference between a rate that means something and one that
+  # has been tidied.
+  #
+  # THAT CONCLUSION WAS PREMATURE, and the correction is the most
+  # useful thing in this file. Running the demonstration properly --
+  # comparing everything a snapshot could see rather than the one
+  # dimension that had been imagined -- showed the refill mutant is
+  # NOT equivalent: it seeds every element's remembered single colour,
+  # which sits in the signature, so the next Generate re-seeds every
+  # element and discards the user's own styling. It is now
+  # `variable-refill-blocks-its-signals` above, and it reports
+  # `caught`.
+  #
+  # So the lesson is not "blockSignals mutants are harmless". It is
+  # that a harm GUESSED AT and not found is worth nothing either way:
+  # the first claim here was wrong AND the mutant was real, and only
+  # the wide comparison could tell those apart. The remaining sites --
+  # _on_n_changed, _on_family_changed, _populate_class_source_combo,
+  # _on_mode_chosen, _follow_variable -- each want the same treatment
+  # before anything is said about them.
+  # test_hand_picks_survive_a_column_appearing_in_qgis is kept: it
+  # asserts a guarantee nothing else covered, and it is not claimed to
+  # close anything. (2026-08-13.)
+  # NO entry for dialog.py:3571, mapLayer(token[6:]) inside
+  # _template_for. The harm was stated -- break the lookup and
+  # _on_layer_style_edited can no longer tell the plugin's own seeding
+  # from a user's edit, so it adopts its own colours as hand-picks,
+  # which outrank the class source they came from -- and the entry
+  # SURVIVED. The reason is that nothing in the covering flow performs
+  # a dock edit at that point, so the broken lookup is never consulted
+  # where it would record anything.
+  #
+  # That is the SIXTH harm claim falsified in this campaign, against
+  # two that held. The lesson is now thoroughly paid for: a harm
+  # reasoned out from reading the code is a hypothesis, and in this
+  # stratum it is wrong about three times in four. Demonstrate first
+  # -- eq_probe.py/eq_run.sh in the session scratchpad -- and write
+  # the test only for what the comparison actually shows moving.
+  #
+  # The assertion added to test_integration_categorical_session is
+  # KEPT: "the plugin must not adopt its own seeding as hand-picks" is
+  # true and worth holding, and it is not claimed to close this.
+  #
+  dict(name="variable-refill-blocks-its-signals", file=DIALOG,
+       old="      chosen = chosen_by_row.get(row, combo.currentText())\n"
+           "      combo.blockSignals(True)",
+       new="      chosen = chosen_by_row.get(row, combo.currentText())\n"
+           "      combo.blockSignals(False)  # mutation: let them fire",
+       test="test_a_column_appearing_in_qgis_keeps_hand_styling",
+       why="a column added in QGIS refills every element's variable "
+           "chooser. Unblocked, the handlers run against the half-built "
+           "state and seed each element's remembered single colour, "
+           "which sits in the signature -- so every element looks "
+           "changed and the next Generate re-seeds all of them, "
+           "discarding styling the user did in QGIS's own panel. Found "
+           "by comparing a WIDE snapshot rather than the dimension "
+           "that had been imagined: an earlier entry asserting the "
+           "hand-picked CATEGORY colours would be lost survived, "
+           "because the field is restored before anything reads it"),
+  dict(name="toggle-knob-is-drawn", file=DIALOG,
+       old="    painter.drawEllipse(int(x), inset, diameter, diameter)",
+       new="    pass  # mutation: no knob at all",
+       test="test_a_toggle_switch_shows_which_way_it_is_set",
+       why="the knob is the whole message of a switch: it is what says "
+           "whether a map option is on. Without it the widget is a "
+           "coloured bar that never appears to move, while isChecked() "
+           "goes on reporting correctly and every functional test "
+           "passes -- the state right and the picture wrong, which is "
+           "the only half a user reads"),
+  dict(name="toggle-knob-stands-out-from-its-track", file=DIALOG,
+       old="    painter.setBrush(QBrush(knob))",
+       new="    pass  # mutation: knob painted in the track's colour",
+       test="test_a_toggle_switch_shows_which_way_it_is_set",
+       why="the same failure reached the other way. Left with the "
+           "track's brush the knob is drawn in the track's own colour, "
+           "so it is invisible against it and the switch reads as a "
+           "plain bar in both states"),
+  # NO entry for bridge.py:1290, assignment.get("k", 5). It was a
+  # batch-12 survivor and was offered to the differential pair written
+  # afterwards, on the theory that a map of six classes beside a row
+  # saying five is exactly what that pair compares. It SURVIVED, and
+  # the reason is not a weakness in the pair: the default fires only
+  # when an assignment carries no k, and in any ordinary session every
+  # graduated row has one from its spin box. The mutation therefore
+  # changes nothing because the line it changes never runs.
+  #
+  # That makes it a candidate for DELETION rather than defence -- this
+  # project prefers removing a line that does not earn its keep to
+  # writing a test protecting it -- but confirming the default is
+  # genuinely unreachable is a separate piece of work from the
+  # campaign, and guessing is what today has been an argument against.
+  # Recorded, not closed. (2026-08-13.)
+  dict(name="per-row-class-ceiling-is-pinned", file=DIALOG,
+       old='      k_spin.setRange(2, 20)\n'
+           '      k_spin.setValue(min(int(k_spin.property("user_k") or 5), 20))',
+       new='      k_spin.setRange(2, 21)\n'
+           '      k_spin.setValue(min(int(k_spin.property("user_k") or 5), 20))',
+       test="test_every_per_row_control_keeps_its_declared_range",
+       why="a SURVIVOR of batch 12. The 2-20 class ceiling is a design "
+           "decision recorded in CLAUDE.md, and nothing pinned it "
+           "because CONTROL_DEFAULTS walks attributes stored on the "
+           "dialog and this spin box lives in a table cell -- the same "
+           "blind spot that hid the Auto button's tooltip. This is "
+           "REGRESSION cover rather than detection: it cannot say "
+           "twenty is right, only that the decision changed, which is "
+           "worth saying because the number was chosen for stated "
+           "reasons. The anchor carries a second line because two "
+           "sites read setRange(2, 20) -- and only ONE of them is "
+           "closed by this. The anchor was first written against "
+           "dialog.py:2822, the row-rebuild path that restores a "
+           "remembered choice, and it SURVIVED: the test drives the "
+           "mode-sync path at 2468 instead. Two sites, two "
+           "scenarios, and a test exercising one says nothing about "
+           "the other. 2822 remains an open batch-12 survivor and "
+           "wants a scenario that rebuilds a row from a stored k"),
+  dict(name="category-shift-warns-at-two", file=BRIDGE,
+       old="  if previous is None or previous == current or current < 2:",
+       new="  if previous is None or previous == current or current <= 2:",
+       test="test_a_changed_category_count_warns_that_colours_moved",
+       why="a SURVIVOR of batch 12, and a boundary the existing test "
+           "walked past: it checked 4 against 5 and an unchanged "
+           "count, never the edge the guard actually names. Two is "
+           "where the warning still matters -- colours are sampled by "
+           "position, so a field collapsing from five categories to "
+           "two draws both from the ends of the palette, as large a "
+           "move as this message exists to report. Widened to <=, a "
+           "user meets exactly that change in silence"),
+  dict(name="ramp-cell-and-map-agree-differentially", file=BRIDGE,
+       old="    renderer.setSourceColorRamp(ramp.clone())",
+       new="    pass  # mutation: the renderer forgets which ramp made it",
+       test="test_the_ramp_cell_agrees_with_the_map",
+       why="the SAME mutation as the entry below, deliberately, and "
+           "named for a different test. That one was written from the "
+           "defect, already knowing the answer. This one was written "
+           "from a SHAPE -- the table and the map are two descriptions "
+           "of which ramp colours an element, so they must agree -- "
+           "with no knowledge of any particular fault. If it catches "
+           "the same mutation, the shape finds this class of defect "
+           "rather than the author having found this one, which is the "
+           "whole argument for pointing differentials at the other "
+           "pairs (ROADMAP.md, 'two views of one truth')"),
+  dict(name="categorized-renderer-records-its-ramp", file=BRIDGE,
+       old="    renderer.setSourceColorRamp(ramp.clone())",
+       new="    pass  # mutation: the renderer forgets which ramp made it",
+       test="test_the_dock_reapplying_the_same_ramp_discards_the_hand_picks",
+       why="the graduated path has always recorded its source ramp and "
+           "the categorized path did not, which cost a real defect: "
+           "_on_layer_style_edited recognises a clean classify by "
+           "asking the renderer which ramp it carries, so against a "
+           "renderer that carried none the answer was always None, the "
+           "clean-ramp branch was unreachable, and a ramp applied in "
+           "QGIS's dock was adopted as Custom hand-picks instead of "
+           "replacing them. It also left QGIS's own Categorized panel "
+           "showing no ramp for our element layers"),
+  dict(name="size-guard-estimate-bounds-the-count", file=BRIDGE,
+       old="  radius = math.hypot(w, h) / 2",
+       new="  radius = math.hypot(w, h) / 3  # mutation: under-estimate",
+       test="test_size_guard",
+       why="the guard's whole job is to be an UPPER bound on the tile "
+           "count, and this radius sets it. A third instead of a half "
+           "takes the estimate to four ninths of the truth, so a "
+           "design that should be refused is attempted and QGIS stops "
+           "responding while the library works -- which is the defect "
+           "in this test's own Regression line. It survived the "
+           "original test because that case is extreme enough for "
+           "four ninths of it to still exceed the limit, and because "
+           "the estimate was allowed to sit anywhere up to ten times "
+           "the real count"),
+  dict(name="reverse-preset-scheme-ramp", file=BRIDGE,
+       old='    ramp.setColors([(colour, "") for colour in reversed(ramp.colors())])',
+       new="    pass  # mutation: leave the scheme in its original order",
+       test="test_reverse_runs_a_qualitative_palette_backwards",
+       why="get_ramp reverses three different ways, and this is the "
+           "branch for QGIS's named colour lists -- which is what "
+           "every categorical palette this plugin installs is. Gradient "
+           "ramps invert two lines below and were the only branch "
+           "tested, so removing this left Reverse reading as ticked "
+           "while the map did not change, for tab10 and every other "
+           "qualitative palette"),
+  # NO entry for dialog.py:4797 (_live_pending = False -> True), and
+  # the absence is deliberate. It was written as one, on the stated
+  # harm that a memory never cleared would have each finished run arm
+  # the next and the map rebuild itself for as long as the dialog was
+  # open. The entry SURVIVED, and re-reading the code says why: the
+  # re-armed timer reaches _maybe_live_generate, which returns at
+  # "nothing changed since the last run" before it can call _generate,
+  # so the second cycle costs one debounce and stops. The harm does
+  # not exist as described, so the survivor is ACCEPTED and lowers the
+  # rate honestly rather than being closed by a test contorted until
+  # it killed something. test_a_queued_live_rerun_happens_once_and_stops
+  # is kept anyway -- it pins a settled design decision, one run at a
+  # time with the rerun spent when it lands -- but it is not claimed
+  # to close this mutant. (2026-08-12.)
+  dict(name="auto-spacing-button-tooltip", file=DIALOG,
+       old='    auto.setToolTip("A coarse value from the layer extent, good for iterating")',
+       new="    pass  # mutation: the Auto button explains nothing",
+       test="test_every_control_explains_itself",
+       why="the README promises every control carries a tooltip. This "
+           "one survived because the button is a local variable, never "
+           "stored on the dialog, and the test walked a hand-kept list "
+           "of attribute names; it walks the widget tree now"),
+  dict(name="edit-colours-button-tooltip", file=DIALOG,
+       old="      button.setToolTip(tip)",
+       new="      pass  # mutation: the Edit colours button says nothing",
+       test="test_every_control_explains_itself",
+       why="the same hole, reached differently: this button lives in a "
+           "table cell rather than on the dialog. Its tooltip is the "
+           "one that explains why the button is DISABLED, which is "
+           "exactly when a user goes looking for an explanation"),
+  dict(name="manual-wheel-tags-universal-last", file=DEPS,
+       old='  tags.append("py3-none-any")',
+       new="  pass  # mutation: no universal wheel tag at all",
+       test="test_support_logic",
+       why="_manual_tags is the fallback for QGIS builds carrying "
+           "neither packaging nor pip, and it is unreachable on any "
+           "machine that has either -- which is every machine this "
+           "suite runs on. Drop the universal tag and a pure-python "
+           "wheel matches nothing, so provisioning fails on precisely "
+           "the platform least able to repair it by hand"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a

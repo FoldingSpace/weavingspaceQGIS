@@ -78,6 +78,14 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
+
+# How many mutants are being judged at once. Read by run_tests to size
+# the watchdog's stall patience, since a process sharing eight cores
+# with three others can legitimately go silent for far longer than one
+# with the machine to itself, and a stall counts as CAUGHT. Set once
+# from --workers in main(); the default of 1 is what a single-process
+# caller (the control run, a --only re-judge) should get.
+CONCURRENCY = 1
 SRC = os.path.join(ROOT, "weavingspace_qgis")
 TARGETS = ["dialog.py", "bridge.py", "catalog.py", "worker.py", "compat.py"]
 COVERAGE = os.path.join(ROOT, "reports", "per-test-coverage.json")
@@ -105,6 +113,144 @@ COSMETIC = ("setColumnWidth",)
 EQUIVALENT = [
   {
     "file": "weavingspace_qgis/dialog.py",
+    "snippet": "      combo.blockSignals(True)\n      combo.clear()\n"
+               "      for text, data in wanted:",
+    "mutation": "bool True -> False (and the call removed)",
+    "reason":
+      "Silencing the CLASS-SOURCE chooser while its items are rebuilt. "
+      "Its handler applies a class source, and importing a scheme "
+      "deliberately clears that element's hand-picked colours -- so a "
+      "handler firing during the refill is the one thing here that "
+      "could destroy a user's work without their choosing anything. "
+      "It does not: the refill happens inside a table rebuild, and "
+      "the choice is restored from `current` before anything reads "
+      "it.",
+    "evidence":
+      "Measured 2026-08-13, mutation applied in a copy of the tree "
+      "beside the unmutated one, same scenario against both: a "
+      "categorized element with a hand-picked colour "
+      "(landcover/forest = #ff0000), then the element count changed "
+      "to 5 to force a whole-table rebuild. 189 lines of snapshot "
+      "IDENTICAL, including every assignment's class_source, the "
+      "category colours for that element specifically, and every cell "
+      "widget's full item list. UNIT REBUILDS identical at 3 and "
+      "preview refreshes at 2. The anchor is three lines because two "
+      "lines match a second site -- the variable refill in "
+      "_adapt_to_the_layer, which is NOT equivalent; mutating that one "
+      "by mistake would have compared unmutated behaviour with itself "
+      "and 'proved' equivalence for both.",
+  },
+  {
+    "file": "weavingspace_qgis/dialog.py",
+    "snippet": "      combo.blockSignals(True)\n"
+               "      combo.setCurrentIndex(idx)",
+    "mutation": "bool True -> False (and the call removed)",
+    "reason":
+      "The same chooser, a few lines on: silencing it while the "
+      "remembered choice is put back after the items were rebuilt. "
+      "Unblocked, restoring a selection reads as the user picking it, "
+      "which would apply a class source nobody asked for.",
+    "evidence":
+      "Measured 2026-08-13 in the same run as the entry above and by "
+      "the same method: 189 lines IDENTICAL, rebuilds 3, preview "
+      "refreshes 2, class_source unchanged on every element and the "
+      "hand-picked colour still #ff0000.",
+  },
+  {
+    "file": "weavingspace_qgis/dialog.py",
+    "snippet": "      self.opt_over_under.blockSignals(True)",
+    "mutation": "bool True -> False (and the call removed, which leaves "
+                "the signals live across the same statement)",
+    "reason":
+      "Silencing the over-under entry while _on_family_changed fills "
+      "it from the family's own spec, on a twill or basket weave. "
+      "Unblocked, the edit reads as though the user had typed it and "
+      "restarts the preview debounce -- which was already running, "
+      "because choosing a family started it.",
+    "evidence":
+      "Measured 2026-08-13, mutation applied in a copy of the tree "
+      "beside the unmutated one, the same scenario against both: two "
+      "elements, kind weave, family 'twill weave a|b'. 91 lines of "
+      "snapshot IDENTICAL -- every assignment, the category colours, "
+      "ramp ranges, preview colours, note line, row/column counts, "
+      "hidden columns, every cell widget's type, text, item list, "
+      "checked state, value and enabled state, the n/kind/family/"
+      "spacing/shells/live controls, the unit's element count, and "
+      "the over-under field's own text, visibility and enabled state "
+      "(it reads '2' either way). The count of UNIT REBUILDS was also "
+      "identical at 3, which is the measure that matters here and the "
+      "one an end-state comparison cannot see.",
+  },
+  {
+    "file": "weavingspace_qgis/dialog.py",
+    "snippet": "        sp.blockSignals(True)",
+    "mutation": "bool True -> False (and the call removed)",
+    "reason":
+      "Silencing the grid's row and column spin boxes while "
+      "_on_family_changed resets them to the tightest fit for the "
+      "element count. The comment there says a signal would schedule "
+      "a second rebuild of the same unit -- and that turns out to "
+      "OVERSTATE the block's necessity: the rebuild is debounced, so "
+      "the extra signal falls inside the window already open and "
+      "coalesces. The block is still worth keeping, because it makes "
+      "the intent explicit and costs nothing, but it is not load "
+      "bearing.",
+    "evidence":
+      "Measured 2026-08-13 exactly as the entry above, with family "
+      "'grid 2' at two elements. 94 lines of snapshot IDENTICAL, "
+      "including both spin boxes' values, visibility and enabled "
+      "state. UNIT REBUILDS identical at 4 -- which is the claim in "
+      "the code's own comment, tested rather than taken on trust, and "
+      "found not to hold. Rebuilds were counted by patching the "
+      "method on the CLASS before the dialog existed: wrapping the "
+      "instance attribute counts direct calls and misses every "
+      "signal-driven one, since a connection holds the original bound "
+      "method, and that is the instrumentation fault this project has "
+      "already paid for twice.",
+  },
+  {
+    "file": "weavingspace_qgis/dialog.py",
+    "snippet": "      self.kind_combo.blockSignals(True)",
+    "mutation": "bool True -> False (and, identically, the call removed: "
+                "with the block gone the matching unblock is a no-op, so "
+                "both spellings leave the signals live across exactly the "
+                "same statement)",
+    "reason":
+      "Silencing the KIND chooser while _on_n_changed switches it on "
+      "the user's behalf. The branch runs only for an element count "
+      "that carries one kind alone -- thirteen and above are all "
+      "tilings -- so asking for one while the chooser reads 'weave' "
+      "makes the handler set it to 'tiling' itself. Unblocked, that "
+      "flip re-enters _on_n_changed, which the handler's own docstring "
+      "says the block exists to prevent. The re-entrant pass computes "
+      "the same family list from the same count and kind and settles "
+      "on the same family, so the second pass overwrites the first "
+      "with its own result.",
+    "evidence":
+      "Measured 2026-08-13 by applying the mutation in a copy of the "
+      "tree beside the unmutated one and running the identical "
+      "scenario against both: a dialog with a layer, the kind set to "
+      "weave, then the count set to 13. Compared EVERYTHING a test "
+      "could see rather than the dimension that had been imagined -- "
+      "every element's assignment, the category colours, the ramp "
+      "ranges, the preview colours, the note line, the row and column "
+      "counts, which columns are hidden, every cell widget's type, "
+      "current text, full item list, checked state, value and enabled "
+      "state, the n/kind/family/spacing/shells/live controls, the "
+      "unit's element count, and the kind and family the switch "
+      "settled on with the whole family list offered. 436 lines of "
+      "snapshot, IDENTICAL. That width matters: the sibling mutant in "
+      "_adapt_to_the_layer looked equivalent under a narrower "
+      "comparison and was not -- it seeds every element's single "
+      "colour, which sits in the signature, so a column added in QGIS "
+      "would have discarded the user's own styling. Harness in the "
+      "session's scratchpad as eq_probe.py and eq_run.sh; the latter "
+      "refuses an anchor matching more than once, since mutating one "
+      "of several identical sites would compare unmutated behaviour "
+      "with itself and 'prove' equivalence.",
+  },
+  {
+    "file": "weavingspace_qgis/dialog.py",
     "snippet": "    self.family_combo.blockSignals(True)",
     "mutation": "call removed (True -> False)",
     "reason":
@@ -116,7 +262,7 @@ EQUIVALENT = [
       "from the same spec the single call would have used. The unit "
       "is not rebuilt any more often, because the rebuild is "
       "debounced and the extra calls fall inside the same window. "
-      "This is the same shape as the over-under entry below and was "
+      "This is the same shape as the over-under entry above and was "
       "held open until it had the same class of evidence.",
     "evidence":
       "Measured 2026-08-12 by running the mutation in a copy of the "
@@ -795,19 +941,35 @@ def run_tests(names, base, alone=False):
   # four "stalls" at 313-314 seconds, all running the same 66 tests:
   # not four hangs, one ceiling.
   limit = max(300, 15 * len(names))
+  # The STALL patience has to scale with contention too, and for a
+  # sharper reason than the ceiling does: a stall is scored as CAUGHT,
+  # so a false one FLATTERS the rate, which is the direction this
+  # tool's defects keep failing in. Measured 2026-08-12: three mutants
+  # that "stalled" at 141-175s with three workers each ran to a real
+  # `killed` verdict in 1683-1855s when re-judged alone. Forty seconds
+  # of silence is a hang on an idle machine and unremarkable on a
+  # crowded one -- which is exactly why the suite's own ceilings widen
+  # whenever a shard is in force (MAINTAINING.md).
+  #
+  # Widening cannot hide a defect. What it converts a false stall into
+  # is either a real verdict or a timeout, and a timeout is explicitly
+  # NOT a verdict, so the honest failure mode replaces the flattering
+  # one.
+  stall = 40 if alone else 40 * max(1, CONCURRENCY)
   if alone:
     # a retry with the machine to itself: give it room, since the
     # point is to convert a non-verdict into a verdict rather than to
     # confirm that a crowded machine is slow
     limit *= 3
   result = subprocess.run(
-    [sys.executable, watchdog, "--stall", "40",
+    [sys.executable, watchdog, "--stall", str(stall),
      "--timeout", str(limit), "--quiet", "--", sys.executable,
      "-c", code],
     cwd=base, capture_output=True, text=True)
   if result.returncode == 125:
-    # no CPU and no output for 40 seconds: the program really did
-    # stop, which is a test noticing something via the watchdog
+    # no CPU and no output for the whole stall window: the program
+    # really did stop, which is a test noticing something via the
+    # watchdog
     return "stalled"
   if result.returncode == 124:
     # we ran out of patience, which says nothing about the mutant
@@ -909,13 +1071,12 @@ def main():
     "--workers", type=int, default=2,
     help="mutants to judge at once, each in its OWN sandbox and its "
          "own QGIS process. Two by default: measured 1.9x at three "
-         "workers with identical verdicts, but a worker costs about "
-         "0.6-0.9 GB and a campaign killed by memory pressure at "
-         "mutant 19 of 20 costs more than the parallelism saved. "
-         "Raise it when the machine has room, and watch the STALL "
-         "count -- a mutant slowed past the watchdog's patience is "
-         "recorded as caught, so contention can quietly flatter the "
-         "score")
+         "workers with identical verdicts, which is the level the "
+         "verdicts were actually shown to survive. Raise it on more "
+         "cores, and watch the STALL and TIMEOUT counts -- a mutant "
+         "slowed past the watchdog's patience is recorded as caught, "
+         "so contention can quietly flatter the score, which makes "
+         "this a limit on the MEASUREMENT rather than on the machine")
   parser.add_argument("--max-tests", type=int, default=4,
                       help="most tests to run per mutant (the cheapest "
                            "covering tests are preferred)")
@@ -1133,6 +1294,12 @@ def main():
   # leave a deliberately broken line behind -- which is not
   # hypothetical: a killed audit did exactly that before this.
   sys.path.insert(0, HERE)
+  # Tell run_tests how crowded the machine is about to be, so the
+  # watchdog's stall patience is sized for it rather than for an idle
+  # one. Set before any judging starts, because a stall counts as
+  # caught and a rate is not something to correct afterwards.
+  global CONCURRENCY
+  CONCURRENCY = max(1, args.workers)
   from sandbox import discard, make_sandbox
   # One sandbox per worker. Each is a separate copy of the tree and
   # each mutant runs in its own QGIS process, so two workers can never

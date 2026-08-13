@@ -5,12 +5,21 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-88 defect(s) with a regression test.
+95 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
 - **categorical colours were sampled with round() where matplotlib's ListedColormap uses int(), so a five-class field took entries 0,2,4,7,9 instead of 0,2,5,7,9 and the middle category was painted purple where the original renders brown.**  
   guarded by `test_ui_library_categorical_template`
+
+## Found by differential
+
+- **nothing compared the design view against the map it predicts, so the two could diverge without any test noticing.**  
+  guarded by `test_the_preview_agrees_with_the_map_it_predicts`
+- **the categorized renderer recorded no source ramp, so the table named a ramp the map could not confirm.**  
+  guarded by `test_the_ramp_cell_agrees_with_the_map`
+- **nothing compared a row's stated field and style against the renderer the run produced, so a map could carry a different field from the one the table named.**  
+  guarded by `test_the_row_agrees_with_the_map_about_what_it_shows`
 
 ## Found by a family audit of the claims the software makes
 
@@ -49,6 +58,8 @@ there is no separate list to remember.
 
 ## Found by the mutation campaign
 
+- **refilling the variable choosers seeded every element's remembered single colour, so an unrelated column added in QGIS changed every signature and the next Generate discarded the user's own styling.**  
+  guarded by `test_a_column_appearing_in_qgis_keeps_hand_styling`
 - **an automatic mutant flipped the colours-agree comparison at dialog.py:3345 and twenty covering tests noticed nothing, because not one of them looked at what the user was told.**  
   guarded by `test_a_dock_edit_that_changes_no_colour_is_announced_as_nothing`
 - **the signature stamped after adopting a dock recolour was never checked, so the lookup that finds the element could be broken without any test failing.**  
@@ -69,6 +80,10 @@ there is no separate list to remember.
   guarded by `test_every_design_control_is_reachable`
 - **only the existence of installed palettes was checked, never the colours they run between.**  
   guarded by `test_installed_palettes_span_their_declared_colours`
+- **reversing a qualitative palette was a no-op, with the switch still reading as ticked.**  
+  guarded by `test_reverse_runs_a_qualitative_palette_backwards`
+- **the categorized renderer recorded no source colour ramp, so a clean ramp applied in QGIS's dock was adopted as hand-picks instead of replacing them, and QGIS's own panel showed no ramp at all.**  
+  guarded by `test_the_dock_reapplying_the_same_ramp_discards_the_hand_picks`
 - **a fifty-minute gate that could not be satisfied before the artefact shipped stopped four candidates' worth of work on a release whose plugin passed every test it was given.**  
   guarded by `test_the_new_code_mutation_guard_reports_rather_than_gates`
 - **the last of nine copies of the assignment lookup, and the only one whose result a user reads directly.**  
@@ -93,28 +108,10 @@ there is no separate list to remember.
 
 ## Found by reading the code
 
-- **a dock recolour made while a run was in flight was preserved on the map but never adopted into the record, so the ramp cell did not read Custom and a later re-seed would have destroyed it silently.**  
-  guarded by `test_a_dock_edit_during_a_run_is_not_lost`
-- **release.py's watchdog used threading without importing it, so the first release stage would have died on a NameError; committed untested and caught the moment these held-back tests were applied.**  
-  guarded by `test_a_failed_stage_is_not_remembered`
-- **a retired dialog's styleChanged connections kept firing after retirement, double-adopting dock edits alongside the live dialog.**  
-  guarded by `test_a_retired_dialog_stops_watching`
-- **a test at 92% of its stall ceiling passed silently and stalled on the next round.**  
-  guarded by `test_a_test_creeping_toward_its_ceiling_is_reported`
-- **an equivalence whose evidence a later change falsified went on removing its mutant from the denominator.**  
-  guarded by `test_a_withdrawn_equivalence_stops_excluding_its_mutant`
 - **choosing a layer produced nothing until Generate was pressed, leaving a first-time user with an empty canvas and no indication that anything was meant to happen.**  
   guarded by `test_auto_first_render`
-- **two stages stayed in EXPECTED_STAGES after they were retired, so every progress chart counted half an hour of work that would never happen.**  
-  guarded by `test_every_expected_stage_is_actually_run`
-- **the non-finite workaround named a canary that did not exist, so nothing would ever have reported QGIS fixing it.**  
-  guarded by `test_qgis_still_mishandles_non_finite_class_breaks`
 - **CRS work on the QgsTask worker thread segfaulted QGIS, because PROJ is not safe to use concurrently with the main thread; the CRS is now stripped before the task and reattached in the done callback.**  
   guarded by `test_real_world_data`
-- **a design whose spacing implied millions of tiles was attempted rather than refused, and QGIS became unresponsive while it ran.**  
-  guarded by `test_support_logic`
-- **the spacing offered in the size-guard refusal was computed from a pure inverse-square law and came out slightly too fine, so a user who typed the number the plugin had just suggested was refused a second time.**  
-  guarded by `test_the_tile_estimate_is_honest_where_shapes_are_awkward`
 
 ## Found by running the suite somewhere other than the machine it was written on
 
@@ -148,16 +145,26 @@ there is no separate list to remember.
 
 - **a constant column produced five identical classes in five colours; the user's own instruction was that it should revert to a single class with a warning.**  
   guarded by `test_a_constant_column_draws_one_class_and_says_so`
+- **a dock recolour made while a run was in flight was preserved on the map but never adopted into the record, so the ramp cell did not read Custom and a later re-seed would have destroyed it silently.**  
+  guarded by `test_a_dock_edit_during_a_run_is_not_lost`
+- **release.py's watchdog used threading without importing it, so the first release stage would have died on a NameError; committed untested and caught the moment these held-back tests were applied.**  
+  guarded by `test_a_failed_stage_is_not_remembered`
 - **only _finish_run restored the determinate progress range, and the zombie recovery does not go through it.**  
   guarded by `test_a_new_run_always_shows_real_progress`
 - **the 0.24.0 sequence was written out on 2026-08-11 and the release would have been tagged on pre-0.24.0rc5, leaving main 51 commits behind with the page and README describing 0.23.**  
   guarded by `test_a_release_publishes_from_the_branch_the_page_is_served_from`
 - **reloading the dialog module reset the module-level _LIVE_DIALOG to None, so the dialog built from the reloaded class retired nothing and the predecessor went on running its debounces against the newcomer's layers.**  
   guarded by `test_a_reloaded_module_retires_the_old_dialog_cleanly`
+- **a retired dialog's styleChanged connections kept firing after retirement, double-adopting dock edits alongside the live dialog.**  
+  guarded by `test_a_retired_dialog_stops_watching`
 - **a column added in QGIS — with the Field Calculator, the usual way — never appeared in the variable choosers, because their item lists are built during a table rebuild and a rebuild happens when the LAYER changes, not when its columns do; the column stayed invisible until the user switched layers and back.**  
   guarded by `test_a_sequence_of_edits_under_the_plugin`
 - **a stage log kept the previous run's verdict for the whole time the stage ran, and read as current.**  
   guarded by `test_a_stage_log_never_shows_the_previous_run`
+- **a test at 92% of its stall ceiling passed silently and stalled on the next round.**  
+  guarded by `test_a_test_creeping_toward_its_ceiling_is_reported`
+- **an equivalence whose evidence a later change falsified went on removing its mutant from the denominator.**  
+  guarded by `test_a_withdrawn_equivalence_stops_excluding_its_mutant`
 - **the embedded style name was the layer's own, so a long column name overran GDAL's thirty-character styleName column and was truncated with a warning on every write.**  
   guarded by `test_an_embedded_style_name_fits_the_column_it_is_written_to`
 - **the inset percentage conversion was defended only by comparisons whose tolerance is wider than the error.**  
@@ -176,6 +183,8 @@ there is no separate list to remember.
   guarded by `test_every_control_starts_where_it_should`
 - **a vanished element count was invisible, because the catalogue tests all iterate the catalogue's own keys.**  
   guarded by `test_every_element_count_still_has_its_designs`
+- **two stages stayed in EXPECTED_STAGES after they were retired, so every progress chart counted half an hour of work that would never happen.**  
+  guarded by `test_every_expected_stage_is_actually_run`
 - **named ramps used QgsSymbolLayerUtils' gradient preview while Custom swatches were hand-drawn stripes, so one column drew its cells two different ways.**  
   guarded by `test_every_swatch_in_the_ramp_column_is_built_the_same_way`
 - **measured 2026-08-10 on QGIS 4.0.3. Five classes over values from 1e-9 to 1.6e-8 all carry the label "0 - 0", so the legend shows five colours claiming one meaning; the same five over values from 1e12 to 1.6e13 carry labels of 37 to 39 characters, and a column reaching 1e308 is written out in full to over four hundred.**  
@@ -186,12 +195,18 @@ there is no separate list to remember.
   guarded by `test_live_update_notices_the_data_changing`
 - **deleting the file behind a layer and reloading it made layer.extent() segfault QGIS outright — no exception, no traceback, nothing in the log — and isValid() returned True while the provider was gone; the live-update gate read that extent on every debounce, so the crash was reachable without pressing anything.**  
   guarded by `test_qgis_changes_around_the_plugin`
+- **the non-finite workaround named a canary that did not exist, so nothing would ever have reported QGIS fixing it.**  
+  guarded by `test_qgis_still_mishandles_non_finite_class_breaks`
 - **swatch direction was untested, so drawing every ramp backwards was invisible.**  
   guarded by `test_ramp_swatches_run_the_right_way_round`
 - **the outline casing had no test, so losing the black line entirely was invisible to the suite.**  
   guarded by `test_region_outlines_are_cased`
 - **release.py could not resume at all, so a defect in the release machinery cost a full re-run of every gate; on 2026-08-11 that happened three times in one evening while the plugin itself passed every gate it was given.**  
   guarded by `test_resuming_skips_only_what_still_holds`
+- **a design whose spacing implied millions of tiles was attempted rather than refused, and QGIS became unresponsive while it ran.**  
+  guarded by `test_size_guard`
+- **`` line, deliberately. This guards ground we imagined rather than ground we fell through, and it used to carry the size guard's defect line by a mispaste -- which put a claim into the generated docs/BUG-REGISTER.md that this test could not possibly have supported, since nothing here goes near a tile count. The line now sits on test_size_guard, which does guard it.**  
+  guarded by `test_support_logic`
 - **tests/run_tests.py gained os._exit at the end of main() on 2026-08-11, which skipped the write in tools/coverage_per_test.py; three sharded recorders ran the whole suite, wrote no file, and the rc5 candidate aborted 35 minutes in at the merge stage with "nothing to merge". The last good record was a day old, and the release would otherwise have measured mutants against it.**  
   guarded by `test_the_coverage_record_survives_the_suite_exiting`
 - **the design view drew a dark outline around every tile, which fights the colour comparison the view is for.**  
@@ -200,6 +215,8 @@ there is no separate list to remember.
   guarded by `test_the_preview_actually_draws_what_it_is_given`
 - **the plugin wrote embedded styles through an API QGIS had already deprecated, discovered while probing a segfault on QGIS 4.2.1.**  
   guarded by `test_the_style_is_saved_through_the_current_api`
+- **the spacing offered in the size-guard refusal was computed from a pure inverse-square law and came out slightly too fine, so a user who typed the number the plugin had just suggested was refused a second time.**  
+  guarded by `test_the_tile_estimate_is_honest_where_shapes_are_awkward`
 - **the deferred fit-to-design after showEvent had no test, so the window could open too small to show its own controls.**  
   guarded by `test_the_window_fits_its_design_tab_when_shown`
 - **two warnings from one run shared a single label and the last one silently erased the first.**  
@@ -218,9 +235,8 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 29
-- the mutation campaign: 13
-- reading the code: 11
+- unrecorded: 39
+- the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6
 - a multi-step session test: 5
@@ -228,4 +244,6 @@ there is no separate list to remember.
 - a family audit of the claims the software makes: 4
 - the hostile data corpus: 4
 - reported by a user: 4
+- differential: 3
+- reading the code: 2
 - comparing rendered output against the reference in Lab space: 1
