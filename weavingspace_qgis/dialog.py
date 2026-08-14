@@ -4250,11 +4250,23 @@ class WeavingSpaceDialog(QDialog):
     from qgis.PyQt.QtGui import QColor
     colours = {}
     for a in self._assignments():
-      if a["mode"] == "Single colour" and a.get("single_colour"):
+      # UNASSIGNED FIRST, in the same order `seed_renderer` uses, and
+      # the order is the whole of it. The map asks `if not var` before
+      # anything else and paints NO_DATA; this asked about the MODE
+      # first, and an element left on "---" defaults to Single colour
+      # and keeps a colour button -- so the preview showed that colour
+      # while the map drew grey. The preview exists to judge a design
+      # before committing to it, so a quarter of the pattern being
+      # judged in a colour the map never paints is the preview failing
+      # at its one job. Measured 2026-08-13: preview #e7342a against a
+      # map drawing (221, 221, 221). Guarded by
+      # test_an_unassigned_element_previews_as_it_draws.
+      if not a["var"]:
+        base = bridge.NO_DATA_FILL
+      elif a["mode"] == "Single colour" and a.get("single_colour"):
         base = a["single_colour"]
       else:
-        base = (bridge.ramp_swatch_colour(a["ramp"])
-                if a["var"] else bridge.NO_DATA_FILL)
+        base = bridge.ramp_swatch_colour(a["ramp"])
       opacity = max(self.PREVIEW_MIN_OPACITY, int(a.get("opacity", 100)))
       colour = QColor(base)
       colour.setAlpha(round(255 * opacity / 100))

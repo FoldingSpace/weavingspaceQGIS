@@ -163,7 +163,36 @@ of the hunt that reported it, by a different route.
   Confirming the fix needs a full coverage run (about 40 minutes), so
   it is written down rather than half-done.
 
-**REPORTED, NOT YET VERIFIED HERE.** Each carries the hunt's own
+**VERIFIED HERE 2026-08-13, fixed:** an unassigned element was
+PREVIEWED in colour and DRAWN grey. Measured at preview #e7342a
+against a map drawing (221, 221, 221). `_table_id_colours` asked
+about the MODE before the variable while `seed_renderer` asks
+`if not var` first; the preview now uses the map's order. Guarded by
+`test_an_unassigned_element_previews_as_it_draws`.
+
+**VERIFIED HERE 2026-08-13, NOT fixed, and both need a decision.**
+
+- An edit made straight through the DATA PROVIDER is invisible to
+  both of the dialog's stores. Measured: after rewriting every `v1`
+  value through `dataProvider().changeAttributeValues`, the tiles
+  still carried the old values and a full Generate changed nothing --
+  a silent no-op. The fingerprint (count, extent, field names, CRS)
+  does not move and no watched signal fires. This is a DECISION
+  rather than an obvious bug: following it means either polling the
+  data or widening the fingerprint to something that costs a scan,
+  and the docstring at dialog.py:1484 currently claims the case is
+  covered, so at minimum that claim must change. Scripts and other
+  plugins write this way routinely.
+- Losing a column destroys hand-picked CATEGORICAL colours silently,
+  while the graduated twin survives. Measured: after renaming the
+  field, `_category_colours` was empty and `_quant_colours` intact.
+  The categorical path pops the record directly instead of going
+  through `_clear_category_colours`, which is what announces every
+  other such loss -- so the fix is small, but which losses are worth
+  announcing is a judgement about how chatty the notice line should
+  be, and the same rename may be a user's undo a second later.
+
+**REPORTED, STILL NOT VERIFIED HERE.** Each carries the hunt's own
 confidence. Reproductions were left in the hunts' worktrees, which do
 not survive the session -- so anyone picking these up should expect to
 rebuild the reproduction from the description.
@@ -174,7 +203,10 @@ rebuild the reproduction from the description.
   tests var first and paints no-data. Reported with three routes
   agreeing (preview dict, sampled preview pixels, map renderer).
   High confidence, and the shape is familiar.
-- Elements silently absent from the map on dense designs: stripes 26
+- Elements silently absent from the map on dense designs. NOT yet
+  tested here: an attempt on 2026-08-13 never selected the family
+  it needed, so the run proved nothing either way. Reported as
+  stripes 26
   at spacing 3000 reported 18 element layers for 26 rows, with the
   notice mentioning areas rather than elements. If true this is more
   serious than the item above. High confidence, unverified.
@@ -198,7 +230,10 @@ rebuild the reproduction from the description.
 - Losing a column destroys hand-picked CATEGORICAL colours silently,
   while the graduated twin survives -- and the loss bypasses the
   reporting path that announces every other such loss.
-- Fewer distinct values than classes: two legend swatches paint
+- Fewer distinct values than classes. NOT yet tested here: the
+  probe used `originalSymbolForFeature` without a render context
+  and errored before measuring anything. Reported as two legend
+  swatches painting
   nothing and the highest value is not the darkest. Upstream clamps
   this case; `make_graduated_renderer` collapses only the constant
   case, by an argument that applies equally here. The suite

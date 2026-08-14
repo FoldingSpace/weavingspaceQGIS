@@ -10619,6 +10619,55 @@ def test_an_unclassed_excursion_leaves_the_count_alone():
   dlg.close()
 
 
+def test_an_unassigned_element_previews_as_it_draws():
+  """The preview's one job is to be the map, before you commit.
+
+  An element left on "---" draws as flat no-data fill. The design
+  preview said otherwise: an unassigned row defaults to the Single
+  colour mode and keeps a colour button, and the preview asked about
+  the MODE before it asked whether a variable was assigned, while
+  `seed_renderer` asks `if not var` first and paints no-data. So a
+  quarter of a four-element pattern was judged in a colour the map
+  never uses.
+
+  That is worse than an inconsistency. Somebody uses the preview to
+  decide whether the shapes read as distinct elements by colour and
+  form -- it is the whole reason the view exists -- and this made
+  that judgement against a picture the map would not produce.
+
+  Regression: an unassigned element was previewed in a colour while the map drew it as no-data fill.
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg.table.cellWidget(0, 1).setCurrentText("---")
+  _tick(200)
+  tile_id = dlg.table.item(0, 0).text()
+  assert not next(a["var"] for a in dlg._assignments()
+                  if a["id"] == tile_id), \
+    "the element under test still carries a variable"
+
+  previewed = dlg._table_id_colours().get(tile_id)
+  assert previewed, f"no preview colour at all for {tile_id!r}"
+  dlg.spacing_spin.setValue(600)
+  _generate_and_wait(dlg)
+  _tick(300)
+  drawn = bridge.renderer_fill_colours(
+    project.mapLayer(dlg._element_layer_ids[tile_id]))
+  as_hex = {"%02x%02x%02x" % rgb for rgb in drawn}
+  assert str(previewed).lower().lstrip("#")[-6:] in as_hex, \
+    f"the preview draws element {tile_id!r} as {previewed!r} while " \
+    f"the map draws it {sorted(as_hex)!r}, so the design is judged " \
+    f"in a colour the map never paints"
+  dlg.close()
+
+
 def test_a_discarded_pick_does_not_come_back():
   """What the plugin SAYS it threw away has to be thrown away.
 
@@ -36389,6 +36438,8 @@ def main():
         test_a_class_colour_picked_during_a_run_is_not_lost)
   check("an Unclassed excursion leaves the count alone",
         test_an_unclassed_excursion_leaves_the_count_alone)
+  check("an unassigned element previews as it draws",
+        test_an_unassigned_element_previews_as_it_draws)
   check("a discarded pick does not come back",
         test_a_discarded_pick_does_not_come_back)
   check("a ramp chosen during a run is not lost",
