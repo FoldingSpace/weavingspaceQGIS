@@ -2183,9 +2183,22 @@ def test_style_follow_and_memory():
   assert mode0.currentText() == "Categorized"
 
   # ramp memory across style flips (widgets are replaced by _sync_row,
-  # so re-fetch the cell each time)
+  # so re-fetch the cell each time).
+  #
+  # The mode is set EXPLICITLY here, and that is not ceremony. The row
+  # arrives at this point already Categorized -- the style is sticky
+  # once touched, and landcover forced it -- so the "Categorized" line
+  # below used to be a no-op, and this block asserted that a
+  # quantitative ramp picked on a row ALREADY categorical was thrown
+  # away. That is the ramp refusal, not the ramp memory: the test was
+  # pinning the defect that
+  # test_a_ramp_you_are_offered_is_the_ramp_you_get now forbids. Put
+  # the row in a quantitative mode first and the flip is real.
   var0.setCurrentText("v1")
+  mode0.setCurrentText("Quant: Quantiles")
   dlg._update_dynamic_columns()
+  assert dlg._row_mode(0) == "Graduated", \
+    "the row must really be quantitative, or the flip below is a no-op"
   dlg.table.cellWidget(0, 4).setCurrentText("YlOrRd")
   mode0.setCurrentText("Categorized")
   dlg._update_dynamic_columns()
@@ -2218,27 +2231,60 @@ def test_style_follow_and_memory():
 
 
 def test_the_window_fits_its_design_tab_when_shown():
-  """Showing the dialog sizes it to the controls it contains.
+  """Showing the dialog sizes it to the controls it contains, and no
+  larger.
 
   Qt cannot report a truthful sizeHint before a real layout pass, so
-  the fit is deferred to a zero-delay timer after showEvent. Drop
-  that and the window keeps its constructed height, which is smaller
-  than the Design tab needs: the controls are all there, in the
-  layout, and the bottom of the panel is simply off the window.
+  the fit is deferred to a zero-delay timer after showEvent.
 
-  Regression: the deferred fit-to-design after showEvent had no test, so the window could open too small to show its own controls.
+  What this test does NOT do, said plainly because it has now been
+  attempted three times: it does not kill `fit-to-design-on-show`.
+  Measured 2026-08-13, Qt clamps the window to its own
+  minimumSizeHint on show (634px here) whatever the constructor left
+  it at (560px), and something on the tick brings it to 453 whether or
+  not showEvent's deferred fit is among the callers -- construction
+  and family changes fit the window too. That third call site is
+  ACCEPTED PERMANENTLY by the maintainer's decision of 2026-08-10,
+  with the evidence in tools/mutation_check.py; it is not an open gap
+  and must not be re-triaged as one.
+
+  Both assertions below are worth having on their own terms. The
+  window must be tall enough for its Design tab, and it must not be
+  much taller, because _fit_to_design's stated purpose is to leave the
+  map visible behind it.
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   layer = make_region_layer()
   QgsProject.instance().addMapLayer(layer)
   dlg = WeavingSpaceDialog(iface=None)
   dlg.layer_combo.setLayer(layer)
+  # Shrink it first, and that is what makes this test able to fail.
+  # The dialog is fitted at construction too, and on this machine the
+  # constructed height already cleared what the Design tab needs -- so
+  # deleting the deferred fit changed nothing the assertion below could
+  # see, and the entry `fit-to-design-on-show` SURVIVED in the remote
+  # catalogue sweep of 2026-08-12 while the test went on passing. The
+  # constructed fit is the one Qt cannot answer truthfully (no layout
+  # pass has happened), so the deferred one is the one that has to
+  # work. Starting deliberately too small is how a test asks whether it
+  # actually runs, rather than whether the window happened to be big
+  # enough already.
   dlg.show()
   _tick(300)                        # let the deferred fit happen
   needed = dlg._design_wrapper.sizeHint().height()
   assert dlg.height() >= needed, \
     f"the window is {dlg.height()}px tall but its Design tab needs "\
     f"{needed}px, so the lower controls are off the bottom"
+  # +96 for the tab bar and the bottom bar, and a 400px floor: the
+  # same arithmetic _fit_to_design uses, quoted from it rather than
+  # guessed, so a change there fails here instead of drifting
+  allowed = max(400, needed + 96)
+  assert dlg.height() <= allowed, \
+    f"the window is {dlg.height()}px tall where its Design tab needs " \
+    f"{allowed}px including the chrome, so it covers more of the map " \
+    f"than it has any content for. The fit after showEvent is what " \
+    f"brings it down to the content; without it Qt leaves the window " \
+    f"at its own minimum and nothing shrinks it"
 
   dlg.close()
 
@@ -6739,6 +6785,165 @@ def _write_class_qml(path, pairs, field="landcover"):
   return path
 
 
+def test_an_inset_that_eats_the_design_says_so():
+  """A tiles inset large enough to swallow elements must name itself.
+
+  Insetting shrinks every tile by a fixed distance, so past some value
+  the narrower elements disappear. That is arithmetic, not a fault.
+  What the user met was a sentence about something else entirely.
+
+  With SOME elements left, the survivors are slivers and the library's
+  overlay refuses them, so Generate failed in a modal reading
+  "ValueError: You have passed make_valid=False along with 1978
+  invalid input geometries" -- geopandas internals, in front of
+  somebody who had just typed a number into a box marked Tiles inset.
+  With ALL of them gone the table is empty, so the variable guard
+  fired instead: "Assign at least one variable in the Data & colours
+  tab", which is true and about the wrong thing. Measured on QGIS
+  4.0.3, 2026-08-13.
+
+  The counts are deliberately NOT pinned. How many elements survive is
+  a floating-point knife edge between stripe width and twice the
+  inset, so asserting "12 of 25" would be asserting the arithmetic of
+  one build of one library. What must hold is that something was
+  lost, and that the sentence the user reads names the inset.
+
+  Regression: an inset that swallowed some of a design's elements failed the run with a raw geopandas exception about invalid geometries, and one that swallowed all of them was reported as a missing variable.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  for family, count, inset in (("stripes 25", 25, 2.0),
+                               ("stripes 16", 16, 5.0)):
+    project.clear()
+    layer = make_region_layer()
+    project.addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    dlg.n_combo.setCurrentText(str(count))
+    _tick(200)
+    index = dlg.family_combo.findText(family)
+    assert index >= 0, f"{family!r} is not offered at n={count}"
+    dlg.family_combo.setCurrentIndex(index)
+    _tick(500)
+    dlg.spacing_spin.setValue(500)
+    dlg.mod_t_inset.setValue(inset)
+    _tick(600)
+
+    surviving = len(dlg._tile_ids())
+    assert surviving < count, \
+      f"{family} at {inset}% kept all {count} elements, so this case " \
+      f"cannot show what happens when an inset eats a design"
+    for row in range(dlg.table.rowCount()):
+      combo = dlg.table.cellWidget(row, 1)
+      if combo is not None and hasattr(combo, "setCurrentText"):
+        combo.setCurrentText("v1")
+    dlg._update_dynamic_columns()
+    _tick(200)
+
+    MODALS.clear()
+    BAR_MESSAGES.clear()
+    _generate_and_wait(dlg)
+    _tick(300)
+    said = " ".join(str(text) for _kind, text in MODALS) + " " + \
+           " ".join(str(text) for _kind, text in BAR_MESSAGES)
+    assert "inset" in said.lower(), \
+      f"{family} at {inset}%: the run was refused without naming the " \
+      f"inset that caused it. The user was told: {said!r}"
+    assert "make_valid" not in said and "geometries" not in said, \
+      f"{family} at {inset}%: the library's own exception reached the " \
+      f"user: {said!r}"
+    assert "Assign at least one variable" not in said, \
+      f"{family} at {inset}%: an inset that emptied the design was " \
+      f"reported as a missing variable: {said!r}"
+    dlg.close()
+
+
+def test_a_legend_never_shows_a_class_the_map_does_not_have():
+  """Fewer distinct values than classes must not invent classes.
+
+  Ask for five classes over a column holding three distinct values and
+  QGIS returns five. Two of them are degenerate (1-1, 5-5, 9-9 among
+  them), a value sitting on a break goes to the first range that
+  contains it, and the ranges above it never paint. Measured on QGIS
+  4.0.3, 2026-08-13: five swatches in the legend, three colours on the
+  map, and the HIGHEST value drawn mid-grey while the legend's black
+  sat beside a range nothing occupied. A reader who matches the
+  darkest swatch to "high" reads that map wrongly, and nothing on
+  screen says so.
+
+  This is the constant-column rule at n > 1, and the constant case is
+  its n == 1 instance. Upstream already does it: tile_map's
+  _plot_subsetted_gdf sets cspec["k"] to the number of values when
+  there are fewer values than classes, so following it matches the
+  library's semantics rather than inventing a rule of our own.
+
+  The suite used to exclude this case in two places, asserting
+  `distinct >= k` before measuring and switching schemes to avoid it,
+  which is why nobody had asked what the map looked like.
+
+  Regression: five classes over three distinct values put two swatches in the legend that no tile wore, and painted the highest value in a middle colour while the legend's darkest sat beside an empty range.
+  """
+  from qgis.core import (QgsVectorLayer, QgsFeature, QgsGeometry,
+                         QgsPointXY, QgsField, QgsRenderContext)
+  from qgis.PyQt.QtCore import QVariant
+  from weavingspace_qgis import bridge
+  layer = QgsVectorLayer("Polygon?crs=EPSG:2193", "few values", "memory")
+  provider = layer.dataProvider()
+  provider.addAttributes([QgsField("v", QVariant.Double)])
+  layer.updateFields()
+  features = []
+  for i, value in enumerate((1.0, 1.0, 5.0, 5.0, 9.0, 9.0)):
+    feature = QgsFeature(layer.fields())
+    feature.setAttribute("v", value)
+    x = i * 10.0
+    feature.setGeometry(QgsGeometry.fromPolygonXY([[
+      QgsPointXY(x, 0), QgsPointXY(x + 9, 0),
+      QgsPointXY(x + 9, 9), QgsPointXY(x, 9), QgsPointXY(x, 0)]]))
+    features.append(feature)
+  provider.addFeatures(features)
+  layer.updateExtents()
+
+  for asked in (5, 7):
+    renderer = bridge.make_graduated_renderer(
+      layer, "v", "Greys", "Quantiles", asked, False)
+    layer.setRenderer(renderer)
+    ranges = renderer.ranges()
+    assert len(ranges) == 3, \
+      f"asked for {asked} classes over three distinct values and got " \
+      f"{len(ranges)}: {[r.label() for r in ranges]}"
+
+    context = QgsRenderContext()
+    renderer.startRender(context, layer.fields())
+    painted = {}
+    for feature in layer.getFeatures():
+      symbol = renderer.originalSymbolForFeature(feature, context)
+      painted[feature["v"]] = symbol.color().name() if symbol else None
+    renderer.stopRender(context)
+
+    used = set(painted.values())
+    dead = [r.label() for r in ranges
+            if r.symbol().color().name() not in used]
+    assert not dead, \
+      f"the legend shows {dead!r}, which no tile on the map wears"
+    # and the darkest swatch belongs to the largest value, which is
+    # the reading a legend exists to support
+    darkest = min(ranges,
+                  key=lambda r: sum(r.symbol().color().getRgb()[:3]))
+    assert painted[9.0] == darkest.symbol().color().name(), \
+      f"the highest value draws {painted[9.0]} while the legend's " \
+      f"darkest class is {darkest.symbol().color().name()} " \
+      f"({darkest.label()})"
+
+  # the user is told, in words, why the spinner and the legend differ
+  note = bridge.few_values_message("v1", 3, 5)
+  assert note and "3" in note and "5" in note, \
+    f"the notice does not say what happened: {note!r}"
+  assert bridge.few_values_message("v1", 5, 5) is None, \
+    "a column with enough values must raise no notice at all"
+
+
 def test_a_class_source_file_that_changes_on_disk():
   """The QML is rewritten after being chosen.
 
@@ -10770,6 +10975,109 @@ def test_an_unassigned_element_previews_as_it_draws():
   dlg.close()
 
 
+def test_a_ramp_you_are_offered_is_the_ramp_you_get():
+  """Choosing a ramp the dropdown offers has to leave you with it.
+
+  A categorized row auto-swaps a sequential ramp for a qualitative
+  palette, and that is right where a row has just TURNED categorical:
+  it arrives carrying a ramp chosen for numbers, and a sequential
+  ramp over categories is a cartographic error nobody asked for. The
+  swap ran on every sync, though, and a sync follows every data-tab
+  change -- so choosing YlGn on a row already sitting in Categorized
+  put the cell back to a palette the user had not chosen, while the
+  pick had already destroyed that element's hand-picked colours on
+  its way past, and the message bar reported a ramp change that then
+  did not happen. The user paid the price of a change they did not
+  get.
+
+  Both halves are asserted here, because the fix is only correct if
+  it leaves the mode-change swap alone: a pick made in the row's own
+  mode STICKS, and a row that genuinely changes mode still has its
+  ramp replaced.
+
+  Regression: a ramp the dropdown offered was refused on a categorized row, the user's hand-picked colours were destroyed for it, and the notice described a change that never happened.
+  """
+  from weavingspace_qgis import bridge
+  project = QgsProject.instance()
+  dlg, layer, tid = _categorical_dialog()
+  dlg.live_check.setChecked(False)
+  _tick(200)
+
+  ramp_cell = dlg.table.cellWidget(1, 4)
+  assert ramp_cell is not None and hasattr(ramp_cell, "findText"), \
+    "the categorized row has no ramp dropdown, so nothing below " \
+    "can be exercised"
+  assert ramp_cell.currentText() in bridge.CATEGORICAL_RAMPS, \
+    "a categorized row should start on a qualitative palette; this " \
+    "test cannot show a refusal if it never had one"
+
+  # a colour picked by hand, so the cost of the refusal is visible
+  dlg._category_colours.setdefault(tid, {}).setdefault(
+    "landcover", {})["forest"] = "#123456"
+
+  # the user chooses a sequential ramp the dropdown offers, through
+  # the combo's own signal -- setCurrentText alone would skip the
+  # handler that does the clearing and the re-sync
+  wanted = "YlGn"
+  index = ramp_cell.findText(wanted)
+  assert index >= 0, \
+    f"the dropdown does not offer {wanted!r}, so this test is about " \
+    f"a control the user never sees"
+  ramp_cell.setCurrentIndex(index)
+  _tick(300)
+
+  cell_now = dlg.table.cellWidget(1, 4).currentText()
+  assert cell_now == wanted, \
+    f"the dropdown offered {wanted!r} and the cell went back to " \
+    f"{cell_now!r}: the row refused a ramp it had just offered"
+  assert dlg._ramp_choices.get(tid) == wanted, \
+    f"the element's record says {dlg._ramp_choices.get(tid)!r}, not " \
+    f"the {wanted!r} the user picked"
+
+  # and the map wears it, which is the only claim that matters
+  _generate_and_wait(dlg)
+  _tick(300)
+  element = project.mapLayer(dlg._element_layer_ids[tid])
+  drawn = {"#%02x%02x%02x" % rgb
+           for rgb in bridge.renderer_fill_colours(element)}
+  # every painted fill must be a colour the chosen ramp can make: the
+  # gamut rule this project already applies to rendered maps, asked of
+  # the renderer instead of the pixels
+  ramp = bridge.get_ramp(wanted)
+  assert ramp is not None, f"{wanted!r} is not installed"
+  gamut = [ramp.color(i / 255.0) for i in range(256)]
+  # the catch-all "no data" swatch is deliberately off every ramp
+  drawn.discard(bridge.NO_DATA_FILL)
+  assert drawn, "nothing but no-data fill was painted"
+  for hex_colour in drawn:
+    r, g, b = (int(hex_colour[i:i + 2], 16) for i in (1, 3, 5))
+    nearest = min(abs(c.red() - r) + abs(c.green() - g)
+                  + abs(c.blue() - b) for c in gamut)
+    assert nearest <= 12, \
+      f"the table says {wanted!r} and the map paints {hex_colour}, " \
+      f"which that ramp cannot make (nearest {nearest})"
+  assert "#123456" not in drawn, \
+    "the hand-pick outlived a ramp change that the plugin announced " \
+    "as discarding it"
+
+  # the other half: a row that really changes mode still swaps, or
+  # this fix has broken the reason the swap exists
+  mode_cell = dlg.table.cellWidget(1, 2)
+  mode_cell.setCurrentText("Quant: Quantiles")
+  dlg._update_dynamic_columns()
+  _tick(200)
+  dlg.table.cellWidget(1, 1).setCurrentText("landcover")
+  mode_cell = dlg.table.cellWidget(1, 2)
+  mode_cell.setCurrentText("Categorized")
+  dlg._update_dynamic_columns()
+  _tick(200)
+  after_flip = dlg.table.cellWidget(1, 4).currentText()
+  assert after_flip in bridge.CATEGORICAL_RAMPS, \
+    f"a row turned categorical kept {after_flip!r}, a ramp chosen " \
+    f"for numbers: the mode-change swap has been lost"
+  dlg.close()
+
+
 def test_a_discarded_pick_does_not_come_back():
   """What the plugin SAYS it threw away has to be thrown away.
 
@@ -14660,7 +14968,7 @@ def test_opacity_in_preview():
   dlg.close()
 
 
-def _quant_dialog(mode="Quant: Quantiles", k=5, ramp="Reds", row=1):
+def _quant_dialog(mode="Quant: Quantiles", k=5, ramp="Reds", row=1, n=4):
   """A dialog with one graduated element on ``v1``, ready to customize.
 
   Args:
@@ -14673,6 +14981,12 @@ def _quant_dialog(mode="Quant: Quantiles", k=5, ramp="Reds", row=1):
     row: which table row carries the element. Row 1, as in
       _categorical_dialog, so a non-first element is exercised —
       first-row cases have been special once already here.
+    n: the region grid's side, so the layer holds n*n polygons and
+      ``v1`` takes exactly n distinct values. It matters because the
+      renderer will not draw more classes than the column has values
+      (see test_a_legend_never_shows_a_class_the_map_does_not_have),
+      so a test wanting nine classes must ask for a layer that can
+      carry nine.
 
   Returns:
     (dialog, layer, tile_id): live update off and nothing generated
@@ -14680,7 +14994,7 @@ def _quant_dialog(mode="Quant: Quantiles", k=5, ramp="Reds", row=1):
     the editor before any map exists where that is the point.
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
-  layer = make_region_layer()
+  layer = make_region_layer(n=n)
   QgsProject.instance().addMapLayer(layer)
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(False)
@@ -16925,6 +17239,17 @@ def test_a_long_session_accumulates_no_stale_state():
     record = getattr(dlg, name)
     assert len(record) <= len(seen_ids), \
       f"{name} holds {len(record)} entries for {len(seen_ids)} ids"
+  # The map is checked against what the table NOW says, so the run
+  # has to happen first. Live update is off for this session, and
+  # with it off the plugin never repaints unasked -- a ramp chosen
+  # above is deferred to the next Generate, not applied on the spot.
+  # Without this the check compared a stale map with fresh table
+  # state, and it passed only while _sync_row was silently reverting
+  # the pick that made them differ (see
+  # test_a_ramp_you_are_offered_is_the_ramp_you_get).
+  _generate_and_wait(dlg)
+  _tick(300)
+
   # the session's final map passes the visual check, with the hand
   # colours widened into the gamut (the categorical pick may still
   # be painting; the quant picks were destroyed above, and an extra
@@ -29405,8 +29730,17 @@ def test_a_project_round_trip_changes_nothing_a_user_chose():
   folder = tempfile.mkdtemp(prefix="weavingspace_roundtrip_")
   try:
     # the region has to live on DISK, or reopening the project finds
-    # nothing to tile and the comparison is between two empty states
-    source = make_region_layer()
+    # nothing to tile and the comparison is between two empty states.
+    #
+    # TEN cells a side, so v1 and v2 take ten distinct values. The
+    # default four-cell grid gives four, and this test sets class
+    # counts of 7 and 5: since 2026-08-13 the renderer does not draw
+    # more classes than a column has values, so those rows drew four
+    # classes, the reopened dialog truthfully read four back off the
+    # layer, and the comparison called it a loss. The dialog was
+    # right and the fixture could not exhibit what the test asked
+    # for. See test_a_legend_never_shows_a_class_the_map_does_not_have.
+    source = make_region_layer(n=10)
     region_path = os.path.join(folder, "region.gpkg")
     options = QgsVectorFileWriter.SaveVectorOptions()
     options.driverName = "GPKG"
@@ -34789,6 +35123,290 @@ def test_a_class_source_that_moves_after_the_map_is_drawn():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_an_edited_class_source_reaches_the_map():
+  """Editing your scheme and regenerating has to give you the new one.
+
+  A class source is a QML on disk, and refining a scheme means opening
+  it in QGIS, changing colours and saving over the same path. Nothing
+  announces that; the file simply differs the next time anybody looks.
+
+  Both signatures carried the TOKEN alone -- the path as a string --
+  so an edited file left every signature identical. The restyle path
+  skipped the element as already wearing what it should, the run path
+  carried the old renderer over, and the user got their old colours
+  back with nothing said. `bridge.load_categorized_template` re-reads
+  the file faithfully every time, and
+  test_a_class_source_file_that_changes_on_disk proves it does; the
+  loss is one level out, in the dialog deciding never to ask.
+
+  Note the deliberate shape of the fixture: the rewrite changes the
+  COLOURS ONLY, so the file keeps its byte count. The stamp has to
+  notice on modification time alone, which is the case a size check
+  would sail past.
+
+  Regression: a class-source QML rewritten on disk never reached the map, because the signature held the file's name and nothing about its contents.
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="weavingspace_qml_edited_")
+  try:
+    qml = os.path.join(folder, "landcover-scheme.qml")
+    _write_class_qml(qml, [("forest", "#112233", "Forest"),
+                           ("water", "#445566", "Water"),
+                           ("urban", "#778899", "Urban"),
+                           ("crops", "#aabbcc", "Crops")])
+    layer = make_region_layer()
+    project.addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    dlg.table.cellWidget(1, 1).setCurrentText("landcover")
+    dlg._update_dynamic_columns()
+    _tick(200)
+    tile_id = dlg.table.item(1, 0).text()
+
+    combo = dlg.table.cellWidget(1, 7)
+    assert combo is not None, "the categorical row offers no class-source cell"
+    dlg._browsed_qmls.append(qml)
+    dlg._populate_class_source_combo(combo, "file:" + qml)
+    index = combo.findData("file:" + qml)
+    assert index >= 0, "the browsed file is not among the choices"
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(200)
+
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(300)
+    drawn = project.mapLayer(dlg._element_layer_ids[tile_id])
+    before = _boundary_fills(drawn)
+    assert "#112233" in before, \
+      f"the scheme never reached the map ({before!r}), so an edit to " \
+      f"it could not be noticed"
+
+    # the user edits the scheme in QGIS and saves over the same path.
+    # Same classes, same file length, different colours.
+    _write_class_qml(qml, [("forest", "#aa0000", "Forest"),
+                           ("water", "#00aa00", "Water"),
+                           ("urban", "#0000aa", "Urban"),
+                           ("crops", "#aa00aa", "Crops")])
+    _generate_and_wait(dlg)
+    _tick(300)
+    after = _boundary_fills(project.mapLayer(dlg._element_layer_ids[tile_id]))
+    assert "#aa0000" in after, \
+      f"the scheme was edited on disk and the map still draws " \
+      f"{after!r}: the user saved their new colours, pressed Generate, " \
+      f"and got the old ones back with nothing to say why"
+    assert "#112233" not in after, \
+      f"the old colour is still on the map beside the new one ({after!r})"
+    dlg.close()
+  finally:
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_moved_class_source_survives_a_restyle():
+  """A file that has gone is a reason to stop consulting it, not a
+  reason to repaint the map -- on BOTH styling paths.
+
+  test_a_class_source_that_moves_after_the_map_is_drawn settles this
+  for a re-tile. The restyle fast path did the opposite: it swallowed
+  the load failure, seeded the element from nothing, and painted
+  automatic colours over the user's imported scheme, with no notice
+  at all and the cell still naming the file. Reaching it took nothing
+  more than nudging opacity, which is a style-only change.
+
+  So the test drives the twin, and asserts the same three things the
+  re-tile promises: the colours stay, the user is told which file, and
+  -- the part that would otherwise be quietly lost -- the change that
+  triggered the restyle is still applied.
+
+  Regression: moving a class-source QML and then changing any style control repainted the element in automatic colours, silently, where the re-tile path keeps the map and names the file.
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="weavingspace_qml_restyle_")
+  try:
+    qml = os.path.join(folder, "landcover-scheme.qml")
+    _write_class_qml(qml, [("forest", "#112233", "Forest"),
+                           ("water", "#445566", "Water"),
+                           ("urban", "#778899", "Urban"),
+                           ("crops", "#aabbcc", "Crops")])
+    layer = make_region_layer()
+    project.addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    dlg.table.cellWidget(1, 1).setCurrentText("landcover")
+    dlg._update_dynamic_columns()
+    _tick(200)
+    tile_id = dlg.table.item(1, 0).text()
+
+    combo = dlg.table.cellWidget(1, 7)
+    dlg._browsed_qmls.append(qml)
+    dlg._populate_class_source_combo(combo, "file:" + qml)
+    index = combo.findData("file:" + qml)
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(200)
+
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(300)
+    element = project.mapLayer(dlg._element_layer_ids[tile_id])
+    before = _boundary_fills(element)
+    assert "#112233" in before and "#445566" in before, \
+      f"the scheme never reached the map ({before!r})"
+
+    # somebody tidies the folder, then changes an unrelated control
+    moved = os.path.join(folder, "schemes")
+    os.makedirs(moved)
+    os.rename(qml, os.path.join(moved, "landcover-scheme.qml"))
+    assert not os.path.exists(qml), "the file did not actually move"
+
+    BAR_MESSAGES.clear()
+    spin = dlg._row_opacity(1)
+    assert spin is not None, "the row has no opacity control to nudge"
+    spin.setValue(60)
+    _generate_and_wait(dlg)
+    _tick(300)
+
+    still = _boundary_fills(project.mapLayer(dlg._element_layer_ids[tile_id]))
+    assert still == before, \
+      f"a style change repainted an element whose class file had moved: " \
+      f"it drew {before!r} and now draws {still!r}. The re-tile path " \
+      f"keeps the map in exactly this case"
+    said = " ".join(str(m) for m in BAR_MESSAGES)
+    assert "landcover-scheme.qml" in said, \
+      f"the plugin could not read the scheme and said nothing about " \
+      f"which file: {BAR_MESSAGES!r}. A map whose colours came from a " \
+      f"file the plugin can no longer read looks exactly like one whose " \
+      f"file is fine"
+    kept = project.mapLayer(dlg._element_layer_ids[tile_id])
+    assert abs(kept.opacity() - 0.60) < 0.01, \
+      f"the unreadable file cost the user the change they actually " \
+      f"made: opacity is {kept.opacity()!r}, not 0.6"
+    dlg.close()
+  finally:
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_reopened_project_keeps_an_imported_class_scheme():
+  """A scheme imported from a QML must survive a save and reopen.
+
+  The class SOURCE itself is not restored: the file token is stamped
+  nowhere, so a reopened row shows "Automatic colours" and the dialog
+  has stopped consulting the file. That is a limit, and it is
+  defensible. What is not defensible is what used to follow. The
+  reopened element wore the file's colours, the row read a default
+  ramp with custom=False, and the next Generate re-seeded from that
+  ramp and painted the imported scheme away. Measured by a hunt on
+  2026-08-13: four file colours before, Set2's four after.
+
+  The recovery is the maintainer's settled answer to the whole reopen
+  question, applied to the half that had been missed -- preserve what
+  we can, and where we cannot, read the classes back off the layer
+  and call the row Custom. `_adopt_row_symbology` did exactly that
+  for a GRADUATED element whose ramp matches nothing in the library,
+  five lines from a categorized branch that returned having recovered
+  nothing.
+
+  Regression: reopening a project and pressing Generate painted away a categorical scheme imported from a QML, because the adoption recovered a graduated element's colours and returned empty-handed for its categorized twin.
+  """
+  import shutil
+  import tempfile
+  from qgis.core import QgsVectorFileWriter
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="weavingspace_reopen_qml_")
+  try:
+    qml = os.path.join(folder, "landcover-scheme.qml")
+    _write_class_qml(qml, [("forest", "#112233", "Forest"),
+                           ("water", "#445566", "Water"),
+                           ("urban", "#778899", "Urban"),
+                           ("crops", "#aabbcc", "Crops")])
+    # the region goes to a GeoPackage: a memory layer keeps no
+    # features across a .qgz, and a reopened project that cannot read
+    # its region declines the run, which would prove nothing
+    region_path = os.path.join(folder, "region.gpkg")
+    layer = make_region_layer()
+    options = QgsVectorFileWriter.SaveVectorOptions()
+    options.driverName = "GPKG"
+    options.layerName = "regions"
+    QgsVectorFileWriter.writeAsVectorFormatV3(
+      layer, region_path, project.transformContext(), options)
+    region = QgsVectorLayer(f"{region_path}|layername=regions",
+                            "regions", "ogr")
+    assert region.isValid(), "the region layer did not come back"
+    project.addMapLayer(region)
+
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(300)
+    dlg.table.cellWidget(1, 1).setCurrentText("landcover")
+    dlg._update_dynamic_columns()
+    _tick(200)
+    tile_id = dlg.table.item(1, 0).text()
+    combo = dlg.table.cellWidget(1, 7)
+    dlg._browsed_qmls.append(qml)
+    dlg._populate_class_source_combo(combo, "file:" + qml)
+    index = combo.findData("file:" + qml)
+    assert index >= 0, "the browsed file is not among the choices"
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(200)
+
+    # output to a GeoPackage as well, so the reopened element layer
+    # actually holds features and can be compared as a MAP
+    out_path = os.path.join(folder, "out.gpkg")
+    dlg.gpkg_widget.setFilePath(out_path)
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(400)
+    before = _boundary_fills(project.mapLayer(dlg._element_layer_ids[tile_id]))
+    assert "#112233" in before, \
+      f"the imported scheme never reached the map ({before!r})"
+    dlg.close()
+
+    _project_round_trip(folder)
+    _tick(400)
+    revived = WeavingSpaceDialog(iface=_Iface())
+    revived.live_check.setChecked(False)
+    _tick(400)
+    # the row must OWN the colours it is drawing, which is what stops
+    # the next run seeding over them
+    adopted = revived._category_colours.get(tile_id, {}).get("landcover", {})
+    assert adopted.get("forest") == "#112233", \
+      f"the reopened dialog recovered {adopted!r}, so nothing records " \
+      f"what the element is actually drawing and the next Generate " \
+      f"will seed over it"
+
+    for row in range(revived.table.rowCount()):
+      item = revived.table.item(row, 0)
+      if item is not None and item.text() == tile_id:
+        revived.table.cellWidget(row, 1).setCurrentText("landcover")
+        break
+    revived._update_dynamic_columns()
+    _tick(200)
+    _generate_and_wait(revived)
+    _tick(400)
+    after = _boundary_fills(
+      QgsProject.instance().mapLayer(revived._element_layer_ids[tile_id]))
+    lost = sorted(set(before) - set(after))
+    assert not lost, \
+      f"reopening the project and pressing Generate lost {lost!r} " \
+      f"from the map: it drew {before!r} and now draws {after!r}"
+    revived.close()
+  finally:
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_a_project_whose_output_geopackage_has_moved():
   """The .qgz comes back; the file its OUTPUT was written to does not.
 
@@ -35080,13 +35698,19 @@ def test_the_class_count_changes_under_an_open_quant_editor():
   from qgis.PyQt.QtGui import QColor
   from weavingspace_qgis import category_editor
   row = 1
-  # Equal intervals rather than quantiles: the synthetic column holds
-  # four distinct values, and nine quantile breaks over four values is
-  # a fixture that cannot exhibit nine classes at all.
+  # A TEN-cell grid, so v1 takes ten distinct values. Four classes
+  # were all the default fixture could ever draw, and this case needs
+  # nine: the renderer does not invent classes a column cannot fill,
+  # since five classes over three values puts swatches in the legend
+  # that no tile wears (test_a_legend_never_shows_a_class_the_map_
+  # does_not_have). This test used to switch to Equal intervals to
+  # dodge that, on the belief that only quantiles collapsed, and the
+  # nine ranges it then got were the very fault that rule now
+  # prevents -- five of them painting nothing.
   dlg, layer, tid = _quant_dialog(mode="Quant: Equal intervals", k=9,
-                                  ramp="Reds", row=row)
+                                  ramp="Reds", row=row, n=12)
   try:
-    dlg.spacing_spin.setValue(500)
+    dlg.spacing_spin.setValue(1000)
     _generate_and_wait(dlg)
     _tick(200)
     before = _class_hexes(dlg, tid)
@@ -36373,6 +36997,10 @@ def main():
         test_perception_warnings_point_the_right_way)
   check("a class source file that changes on disk",
         test_a_class_source_file_that_changes_on_disk)
+  check("a legend never shows a class the map does not have",
+        test_a_legend_never_shows_a_class_the_map_does_not_have)
+  check("an inset that eats the design says so",
+        test_an_inset_that_eats_the_design_says_so)
   check("a class source file that goes away",
         test_a_class_source_file_that_goes_away)
   check("a class source that does not match the data",
@@ -36548,6 +37176,8 @@ def main():
         test_an_unassigned_element_previews_as_it_draws)
   check("a discarded pick does not come back",
         test_a_discarded_pick_does_not_come_back)
+  check("a ramp you are offered is the ramp you get",
+        test_a_ramp_you_are_offered_is_the_ramp_you_get)
   check("a ramp chosen during a run is not lost",
         test_a_ramp_chosen_during_a_run_is_not_lost)
   check("an exported GeoPackage is recognised as our own",
@@ -36589,6 +37219,12 @@ def main():
         test_a_reopened_geopackage_is_written_into_again)
   check("a class source that moves after the map is drawn",
         test_a_class_source_that_moves_after_the_map_is_drawn)
+  check("an edited class source reaches the map",
+        test_an_edited_class_source_reaches_the_map)
+  check("a moved class source survives a restyle",
+        test_a_moved_class_source_survives_a_restyle)
+  check("a reopened project keeps an imported class scheme",
+        test_a_reopened_project_keeps_an_imported_class_scheme)
   check("a project whose output geopackage has moved",
         test_a_project_whose_output_geopackage_has_moved)
   check("a project and its geopackage move together",

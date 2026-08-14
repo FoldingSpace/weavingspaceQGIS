@@ -513,14 +513,21 @@ MUTATIONS = [
        # Narrowed 2026-08-10 (three call sites): anchored inside
        # showEvent, the deferred fit the named test drives; the others
        # fire on construction and on a family change.
+       accepted=True,      # see the decision recorded above
        old="""    super().showEvent(event)
     QTimer.singleShot(0, self._fit_to_design)""",
        new="""    super().showEvent(event)
     pass  # mutation: the window keeps its built size""",
        test="test_the_window_fits_its_design_tab_when_shown",
        why="the window opening tall enough to show the Design tab it "
-           "contains; sizeHint is not truthful before a layout pass, "
-           "so the fit has to be deferred and then actually happen"),
+           "contains, and no taller. ACCEPTED, not a gap: measured "
+           "again 2026-08-13, Qt clamps the window to its own "
+           "minimumSizeHint on show (634px) whatever the constructor "
+           "left it at (560px), and the tick brings it to 453px with "
+           "or without this call site, because construction and family "
+           "changes fit it too. A third attempt at a discriminating "
+           "assertion failed like the two before it. Being caught here "
+           "would be news"),
   dict(name="inset-percentage-divisor", file=DIALOG,
        old="        unit = unit.inset_tiles(self.mod_t_inset.value() * spacing / 100)",
        new="        unit = unit.inset_tiles(self.mod_t_inset.value() * spacing / 101)",
@@ -2186,6 +2193,76 @@ MUTATIONS = [
            "QGIS's dock was adopted as Custom hand-picks instead of "
            "replacing them. It also left QGIS's own Categorized panel "
            "showing no ramp for our element layers"),
+  dict(name="ramp-swap-only-on-a-mode-change", file=DIALOG,
+       old="      moved = row_tid is None or "
+           "self._synced_modes.get(row_tid) != mode",
+       new="      moved = True  # mutation: swap on every sync, as before",
+       test="test_a_ramp_you_are_offered_is_the_ramp_you_get",
+       why="_sync_row substitutes a qualitative palette when a row turns "
+           "categorical carrying a sequential ramp, which is right for a "
+           "MODE CHANGE and wrong for a pick made on a row already in "
+           "that mode. Unconditional, it ran on every data-tab change, "
+           "so a ramp the dropdown had just offered was swapped straight "
+           "back out after the pick had destroyed the element's "
+           "hand-picked colours, with a message bar reporting a ramp "
+           "change that never happened. Found by the stochastic hunt "
+           "2026-08-13; present since the initial commit"),
+  dict(name="class-source-contents-are-in-the-signature", file=DIALOG,
+       old='            a.get("class_source_stamp"), a.get("single_colour"),',
+       new='            None, a.get("single_colour"),  # mutation',
+       test="test_an_edited_class_source_reaches_the_map",
+       why="both signatures carried the class source's TOKEN and nothing "
+           "about the file's contents, so a scheme rewritten on disk "
+           "left every signature equal: the restyle path skipped the "
+           "element as already correct, the run path carried the old "
+           "renderer over, and a user who edited their scheme and "
+           "pressed Generate got the old colours back with nothing said. "
+           "Measured 2026-08-13"),
+  dict(name="an-unreadable-class-source-keeps-its-colours", file=DIALOG,
+       old='        if a.get("class_source") in unreadable:',
+       new='        if False:  # mutation: seed from nothing instead',
+       test="test_a_moved_class_source_survives_a_restyle",
+       why="the restyle fast path swallowed a class source it could not "
+           "read and seeded the element from nothing, painting automatic "
+           "colours over the user's imported scheme with no notice and "
+           "the cell still naming the file. Its re-tile twin keeps the "
+           "map and names the file, which is the settled behaviour: a "
+           "file that has gone is a reason to stop consulting it, not a "
+           "reason to repaint somebody's map"),
+  dict(name="categorized-adoption-recovers-its-colours", file=DIALOG,
+       old="      if recovered:\n        self._category_colours.setdefault(tile_id, {})[field] = recovered",
+       new="      pass  # mutation: recover nothing for a categorized row",
+       test="test_a_reopened_project_keeps_an_imported_class_scheme",
+       why="a reopened project keeping a categorical scheme that came "
+           "from an imported QML. Nothing stamps the file token, so the "
+           "row comes back on a default ramp; unless the COLOURS are "
+           "recovered off the renderer the next Generate re-seeds from "
+           "that ramp and paints the imported scheme away. The "
+           "graduated twin has recovered its colours positionally all "
+           "along, five lines from a categorized branch that returned "
+           "having recovered nothing"),
+  dict(name="an-inset-that-eats-the-design-is-named", file=DIALOG,
+       old="      self.mod_t_inset.value()) if self.mod_t_inset.value() else None",
+       new="      self.mod_t_inset.value()) if False else None  # mutation",
+       test="test_an_inset_that_eats_the_design_says_so",
+       why="a tiles inset large enough to swallow elements being "
+           "reported in terms of the inset. Without the check, a "
+           "partial collapse reaches the user as the library's own "
+           "'ValueError: You have passed make_valid=False along with "
+           "1978 invalid input geometries', and a total collapse as "
+           "'Assign at least one variable' -- both true of something, "
+           "neither about the control the user just moved"),
+  dict(name="classes-never-outnumber-the-values", file=BRIDGE,
+       old="    if distinct and len(distinct) < int(k):\n      k = len(distinct)",
+       new="    pass  # mutation: ask QGIS for more classes than values",
+       test="test_a_legend_never_shows_a_class_the_map_does_not_have",
+       why="a legend showing only classes the map actually has. Five "
+           "classes over three distinct values gives five ranges, two "
+           "of them degenerate, and QGIS assigns a value on a break to "
+           "the FIRST range containing it -- so swatches appear in the "
+           "legend that no tile wears and the highest value draws in a "
+           "middle colour. Upstream reduces k the same way; the "
+           "constant-column collapse is this rule at n == 1"),
   dict(name="size-guard-estimate-bounds-the-count", file=BRIDGE,
        old="  radius = math.hypot(w, h) / 2",
        new="  radius = math.hypot(w, h) / 3  # mutation: under-estimate",
@@ -2547,13 +2624,35 @@ def main():
       # preserving: if a future QGIS makes the branch live again, this
       # entry should start being caught, and that is a signal.
       verdict = "equivalent" if passed else "caught (now live!)"
+    elif mutation.get("accepted"):
+      # ACCEPTED is not equivalent, and the difference matters. An
+      # equivalent mutant changes nothing observable; an accepted one
+      # changes something real that no test we can write is able to
+      # reach -- a defence whose occasion lives outside the harness.
+      # Both are expected to survive, so neither is a failure, but
+      # only equivalence is a claim about behaviour.
+      #
+      # This exists because an accepted entry judged as an open
+      # survivor is flagged by every sweep forever. The catalogue
+      # sweep of 2026-08-12 duly reported NEEDS ATTENTION on
+      # fit-to-design-on-show, a case the maintainer had accepted
+      # PERMANENTLY on 2026-08-10 with the evidence written down; the
+      # flag cost a re-judge on 2026-08-13 that reached the same
+      # answer for the third time. A warning that fires on a settled
+      # decision is how people learn to stop reading warnings.
+      #
+      # Being CAUGHT is the interesting outcome, and it is announced:
+      # it means a test now reaches what nothing could reach before,
+      # so the acceptance can be withdrawn and the entry becomes an
+      # ordinary guard.
+      verdict = "accepted" if passed else "caught (now testable!)"
     else:
       verdict = ("HUNG" if passed is None
                  else "SURVIVED" if passed else "caught")
     print(f"{verdict:>8}  {mutation['name']}  "
           f"[{mutation['test']}]  — {mutation['why']}")
-    if passed and mutation.get("equivalent"):
-      pass  # expected: nothing to catch
+    if passed and (mutation.get("equivalent") or mutation.get("accepted")):
+      pass  # expected: nothing to catch, for two different reasons
     elif passed:
       survivors.append(mutation)
       print("          the test passed with the behaviour broken; "
@@ -2579,7 +2678,18 @@ def main():
     print(f"{len(survivors)} mutation(s) SURVIVED: "
           + ", ".join(m["name"] for m in survivors))
     sys.exit(1)
-  print(f"all {len(catalogue)} mutations were caught")
+  # Say what actually happened rather than "all caught": an entry that
+  # is expected to survive did not fail, which is not the same thing,
+  # and a summary that calls it a kill is the kind of flattering count
+  # this project keeps finding in its own instruments.
+  expected = sum(1 for m in catalogue
+                 if m.get("equivalent") or m.get("accepted"))
+  if expected:
+    print(f"all {len(catalogue) - expected} judgeable mutation(s) were "
+          f"caught; {expected} expected to survive (equivalent or "
+          f"accepted) and did")
+  else:
+    print(f"all {len(catalogue)} mutations were caught")
 
 
 if __name__ == "__main__":
