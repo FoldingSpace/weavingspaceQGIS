@@ -812,6 +812,36 @@ class WeavingSpaceDialog(QDialog):
     # the layer's own renderer says. (Maintainer's decision the same
     # day: preserve the row across a save where we can.)
     self._class_counts = {}
+    # {tile_id: mode} -- the renderer kind each element was last SYNCED
+    # in, which is what tells a deliberate ramp pick from the automatic
+    # swap that follows a style change. _sync_row substitutes a
+    # qualitative palette when a row turns Categorized carrying a
+    # sequential ramp, and that is right: a sequential ramp over
+    # categories is a cartographic error nobody chose. It ran on EVERY
+    # sync, though, and a sync follows every data-tab change -- so a
+    # ramp deliberately picked on a row already sitting in that mode
+    # was swapped straight back out, after the pick had destroyed the
+    # element's hand-picked colours on its way past. The user paid for
+    # a change they did not get. Comparing against the mode at the last
+    # sync separates the two cases without depending on which Qt signal
+    # arrives first, which is where two earlier attempts foundered.
+    # (Found by the stochastic hunt 2026-08-13; maintainer's decision:
+    # leave the dropdown offering every ramp, cartographer beware.)
+    self._synced_modes = {}
+    # {class-source token: (mtime_ns, size)} -- the last reading taken
+    # of each QML this session, so that a file which has GONE can keep
+    # the stamp it had rather than moving the signature. See
+    # _class_source_stamp.
+    self._class_source_stamps = {}
+    # {tile_id: {"Graduated": name, "Categorized": name}} -- the ramp
+    # each element last wore in each mode, so a style excursion and
+    # back costs nothing. This lived on the combo widget as `last_quant`
+    # and `last_cat` until 2026-08-13, which survives a style flip and
+    # NOT a table rebuild: any design change rebuilds the table 350 ms
+    # later, so a ramp crossed over before that landed came back as a
+    # positional default instead. Every other per-element choice is
+    # keyed by tile id for exactly this reason (settled decision).
+    self._ramp_memory = {}
     # True while the dialog itself is writing renderers, so the
     # styleChanged watcher (see _on_layer_style_edited) can tell a
     # QGIS-side edit from our own seeding and react only to the first
@@ -2640,15 +2670,33 @@ class WeavingSpaceDialog(QDialog):
     if ramp_combo is not None:
       ramp = ramp_combo.currentText()
       is_cat_ramp = ramp in bridge.CATEGORICAL_RAMPS
+      # Remember this ramp under the family it BELONGS to, which is not
+      # necessarily the mode the row is in: a categorized row carrying
+      # YlOrRd is remembering a quantitative choice, and filing it under
+      # "Categorized" would hand it straight back on the next flip. So
+      # the ramp's own family decides the slot, and the swap below reads
+      # the slot the MODE wants. Recorded on every sync rather than only
+      # when a swap happens, so the ramp to come back to is whatever the
+      # user last had, not merely whatever was last displaced.
+      family = "Categorized" if is_cat_ramp else "Graduated"
+      memory = self._ramp_memory.setdefault(row_tid, {}) \
+        if row_tid else {}
+      memory[family] = ramp
+      # Has the row CHANGED mode since it was last synced? Only then is
+      # the ramp in the cell one nobody chose for this mode, and only
+      # then may it be swapped. On a row that has not moved, the ramp
+      # arrived by the user picking it, and substituting it here would
+      # undo the pick they just made -- while _clear_category_colours
+      # had already destroyed their hand-picked colours on the way in,
+      # for a change that then did not happen.
+      moved = row_tid is None or self._synced_modes.get(row_tid) != mode
       target = None
-      if mode == "Categorized" and not is_cat_ramp:
-        ramp_combo.setProperty("last_quant", ramp)
-        target = (ramp_combo.property("last_cat")
+      if moved and mode == "Categorized" and not is_cat_ramp:
+        target = (memory.get("Categorized")
                   or self.CAT_DEFAULT_RAMPS[
                     row % len(self.CAT_DEFAULT_RAMPS)])
-      elif mode == "Graduated" and is_cat_ramp:
-        ramp_combo.setProperty("last_cat", ramp)
-        target = (ramp_combo.property("last_quant")
+      elif moved and mode == "Graduated" and is_cat_ramp:
+        target = (memory.get("Graduated")
                   or self.DEFAULT_RAMPS[row % len(self.DEFAULT_RAMPS)])
       if target is not None and ramp_combo.findText(target) >= 0:
         ramp_combo.blockSignals(True)
@@ -2656,6 +2704,7 @@ class WeavingSpaceDialog(QDialog):
         ramp_combo.blockSignals(False)
         if row_tid:
           self._ramp_choices[row_tid] = target
+          memory[mode] = target        # the slot the mode just filled
 
     show_file = mode == "Categorized" and bool(var) \
       and not self.table.isColumnHidden(7)
@@ -2748,6 +2797,16 @@ class WeavingSpaceDialog(QDialog):
         # only undo our own tooltip; never blank one set elsewhere
         if ramp_cell.toolTip() == CUSTOM_RAMP_TOOLTIP:
           ramp_cell.setToolTip("")
+
+    # Last: the row is now in step with its style, so record the mode
+    # it was synced in. The next sync compares against this to tell a
+    # deliberate ramp pick (mode unchanged) from the automatic swap a
+    # style change earns (mode moved). It is written at the END so that
+    # an early return above -- a half-built row mid-rebuild -- leaves
+    # the previous answer standing rather than claiming a sync that did
+    # not finish.
+    if row_tid:
+      self._synced_modes[row_tid] = mode
 
   def _update_dynamic_columns(self):
     """The Classes and Categ-colourmap-src columns exist only while
@@ -3189,6 +3248,83 @@ class WeavingSpaceDialog(QDialog):
       self._ramp_choices[tile_id] = named
 
     if not hasattr(renderer, "ranges"):
+      # A CATEGORIZED renderer, and until 2026-08-13 this returned
+      # here with nothing recovered -- the twin asymmetry again, five
+      # lines from the graduated recovery that has worked all along.
+      #
+      # What it cost: an element whose colours came from an imported
+      # QML has a renderer matching no ramp in the library, so `named`
+      # is None and the colours ARE the style. Nothing restores
+      # `_class_choices` (the file token is stamped nowhere), so on
+      # reopen the row read a default ramp with custom=False, and the
+      # next Generate re-seeded the element from that ramp and painted
+      # the user's imported scheme away. Measured on the map: four
+      # file colours before, Set2's four after.
+      #
+      # The recovery is the maintainer's settled instruction for the
+      # whole reopen question -- preserve what we can, and where we
+      # cannot, read the classes back off the layer and call the row
+      # Custom. Here the classes carry their own VALUES, so the
+      # recovery is exact rather than positional: this is the easier
+      # half of a rule already applied to the harder one.
+      if not hasattr(renderer, "categories"):
+        return
+      try:
+        field = renderer.classAttribute()
+        # read values and colours in one pass while the category
+        # objects are alive, for the same reason the ranges below are
+        # held: a symbol pointer off a dead temporary segfaults
+        pairs = [(category.value(), category.symbol().color().name())
+                 for category in renderer.categories()]
+      except Exception:
+        return
+      if not field or not pairs:
+        return
+      if self._category_colours.get(tile_id, {}).get(field):
+        return          # the user has picks of their own; do not touch
+      if named:
+        # A named ramp is not proof that the ramp decides the colours.
+        # A categorized renderer built from an imported QML records a
+        # source ramp all the same (since 2026-08-13, so that QGIS's
+        # own panel can show one), while the template's colours
+        # override it -- so returning here on a name recovered nothing
+        # for exactly the case that needs it.
+        #
+        # The question is therefore not "is there a ramp" but "does
+        # that ramp explain what is drawn". Ask the real seeding code
+        # rather than reproducing its sampling rule here: a
+        # reimplementation would agree with itself and not with the
+        # map. Equal means the ramp is the style and the row should go
+        # on reading its name; different means the colours are the
+        # style and the row reads Custom.
+        try:
+          from_ramp = bridge.make_categorized_renderer(
+            layer, field, named, False)
+          expected = {str(c.value()): c.symbol().color().name()
+                      for c in from_ramp.categories()}
+        except Exception:
+          expected = None
+      else:
+        expected = None
+
+      # Recover only the colours the ramp does NOT explain. Recording
+      # all of them would be wrong in both directions: an element
+      # coloured by an ordinary ramp would come back reading Custom,
+      # and an element with ONE hand-picked colour would come back
+      # owning five, so the record would stop meaning "what the user
+      # chose" and start meaning "what is currently drawn".
+      recovered = {}
+      for value, colour in pairs:
+        # the catch-all category carries no value; it is the one the
+        # editor exposes under bridge.NO_DATA_KEY
+        blank = value is None or str(value) in ("", "NULL")
+        if blank:
+          continue
+        if expected is not None and expected.get(str(value)) == colour:
+          continue
+        recovered[str(value)] = colour
+      if recovered:
+        self._category_colours.setdefault(tile_id, {})[field] = recovered
       return
     try:
       # hold the list while it is read: a range object from ranges()
@@ -4148,6 +4284,11 @@ class WeavingSpaceDialog(QDialog):
         "outline": self.opt_tile_outlines.isChecked(),
         # the class source matters (and re-seeds) only when categorized
         "class_source": source if mode == "Categorized" else None,
+        # ...and so does what is INSIDE it, which the token alone
+        # cannot say. See _class_source_stamp.
+        "class_source_stamp": (
+          self._class_source_stamp(source) if mode == "Categorized"
+          else None),
         "class_choice": choice,
         # Colours chosen by hand for this element AND this field. A
         # different variable in the same element has its own set, so
@@ -4394,10 +4535,21 @@ class WeavingSpaceDialog(QDialog):
     if set(assignments) != set(layers):
       return False
 
-    # class sources are loaded once per distinct token, as a full run
-    # does; a broken file simply leaves that element on automatic
-    # colours rather than stopping the restyle
-    templates = {}
+    # Class sources are loaded once per distinct token, as a full run
+    # does. A file that cannot be read leaves its element ALONE and is
+    # reported, which is the settled behaviour for a class source that
+    # goes away: the map is not thrown away and the colours are not
+    # reset, because a missing file is a reason to stop consulting the
+    # file rather than a reason to repaint somebody's map
+    # (test_a_class_source_that_moves_after_the_map_is_drawn).
+    #
+    # This path used to swallow the failure into `templates[token] =
+    # None` and seed from nothing, so nudging any style control after
+    # moving a QML repainted the element in automatic colours, with no
+    # notice and the cell still naming the file. The re-tile twin five
+    # hundred lines below collected the same failure into
+    # `template_errors` and warned. Measured 2026-08-13.
+    templates, template_errors, unreadable = {}, [], set()
     for token in {a.get("class_source") for a in assignments.values()
                   if a.get("class_source")}:
       try:
@@ -4405,8 +4557,9 @@ class WeavingSpaceDialog(QDialog):
           bridge.template_from_layer(project.mapLayer(token[6:]))
           if token.startswith("layer:")
           else bridge.load_categorized_template(token[5:]))
-      except Exception:
-        templates[token] = None
+      except Exception as e:
+        unreadable.add(token)
+        template_errors.append(f"{token.split(':', 1)[1][-40:]}: {e}")
 
     changed = []
     # the flag keeps _on_layer_style_edited from mistaking this very
@@ -4418,7 +4571,17 @@ class WeavingSpaceDialog(QDialog):
         signature = self._signature(a)
         if self._last_signatures.get(tid) == signature:
           continue  # this element is already wearing what it should
-        bridge.seed_renderer(layer, a, templates.get(a.get("class_source")))
+        if a.get("class_source") in unreadable:
+          # The scheme this element draws from cannot be read, so it
+          # KEEPS THE COLOURS IT IS WEARING. Everything else about the
+          # element is still honoured -- the opacity below is usually
+          # the very change that brought us here -- because refusing
+          # that too would turn one unreadable file into a row whose
+          # controls do nothing.
+          pass
+        else:
+          bridge.seed_renderer(
+            layer, a, templates.get(a.get("class_source")))
         # this element changed in the dialog, so its opacity is ours to
         # set; an element whose signature matched is skipped entirely
         # above, which is what leaves a hand-set opacity alone
@@ -4442,6 +4605,12 @@ class WeavingSpaceDialog(QDialog):
       self.iface.messageBar().pushSuccess(
         "WeavingSpace",
         f"restyled {', '.join(changed)} (no re-tiling needed)")
+    if template_errors:
+      # the same words the re-tile path uses, so a user who meets this
+      # on either path is told the same thing about the same file
+      self._report_quietly(
+        "Could not read the class colours file, so these elements "
+        "keep their colours: " + "; ".join(template_errors))
     self._last_run_sig = self._run_signature()
     return True
 
@@ -4478,6 +4647,7 @@ class WeavingSpaceDialog(QDialog):
       # test_a_pick_is_not_swallowed_by_the_live_path.
       tuple((a["id"], a["var"], a["mode"], a["ramp"], a["scheme"],
              a["k"], a["outline"], a["class_source"],
+             a.get("class_source_stamp"),
              a.get("single_colour"), a.get("reverse", False),
              a.get("opacity", 100),
              tuple(sorted((a.get("category_colours") or {}).items())),
@@ -4489,6 +4659,51 @@ class WeavingSpaceDialog(QDialog):
       # not look like one.
       self._layer_fingerprint(), self._data_version,
     )
+
+  def _class_source_stamp(self, token):
+    """What is INSIDE a class-source file, cheaply enough to ask on
+    every debounce tick.
+
+    Args:
+      token: an element's ``class_source`` -- ``file:<path>`` for a
+        QML, ``layer:<id>`` for a donor layer, or None/"" for none.
+
+    Returns:
+      For a QML, ``(token, (mtime_ns, size))``; for anything else the
+      token unchanged. The value goes into both signatures, so editing
+      the file moves them and the element is re-seeded.
+
+    Why this exists: the signatures carried the TOKEN alone, so a
+    scheme rewritten on disk left every signature equal. Pressing
+    Generate repainted nothing and said nothing, and the user got
+    their old colours back with no indication why. Measured
+    2026-08-13.
+
+    Why a MISSING file deliberately does not move the stamp: the last
+    reading is returned instead. Losing the file is not an edit, and
+    the settled behaviour when a class source goes away is to keep the
+    map and stop consulting the file, telling the user once
+    (test_a_class_source_that_moves_after_the_map_is_drawn). Letting
+    the disappearance move the signature would re-seed the element
+    from nothing, which is exactly the repaint that behaviour exists
+    to prevent.
+
+    Why mtime and size rather than a hash: this is asked on every
+    debounce tick, and a hash means reading the whole file each time
+    to answer a question whose wrong answer costs one extra restyle.
+    A rewrite that preserves both is possible in principle and has no
+    consequence a user would notice.
+    """
+    if not token or not token.startswith("file:"):
+      return token
+    path = token[5:]
+    try:
+      info = os.stat(path)
+      stamp = (info.st_mtime_ns, info.st_size)
+      self._class_source_stamps[token] = stamp
+    except OSError:
+      stamp = self._class_source_stamps.get(token)
+    return (token, stamp)
 
   @staticmethod
   def _signature(a: dict) -> tuple:
@@ -4517,7 +4732,10 @@ class WeavingSpaceDialog(QDialog):
     picked = a.get("category_colours") or {}
     quant = a.get("quant_colours") or {}
     return (a["var"], a["mode"], a["ramp"], a["scheme"], a["k"],
-            a["outline"], a.get("class_source"), a.get("single_colour"),
+            a["outline"], a.get("class_source"),
+            # the file's CONTENTS, not merely its name: see
+            # _class_source_stamp
+            a.get("class_source_stamp"), a.get("single_colour"),
             a.get("reverse", False), a.get("opacity", 100),
             tuple(sorted(picked.items())),
             # graduated customization is symbology like everything
@@ -4567,6 +4785,31 @@ class WeavingSpaceDialog(QDialog):
         QMessageBox.warning(self, "WeavingSpace",
                             "The tile unit could not be built.")
       return
+    # An inset large enough to swallow elements is checked BEFORE the
+    # variable guard below, because when it has taken all of them the
+    # table is empty and that guard fires -- telling the user to
+    # assign a variable to a design that no longer has anywhere to put
+    # one. The inset is what they changed and the inset is what the
+    # sentence should name. Where it has taken only SOME, the
+    # survivors are slivers and the library's overlay refuses them, so
+    # this refusal replaces a modal quoting geopandas internals.
+    #
+    # Asked only when the inset is actually set, so that a design
+    # losing elements for some other reason is never blamed on a
+    # control the user left alone. With no inset the two counts agree
+    # for every design in the catalogue: 247 of 247, measured
+    # 2026-08-13, which is what makes the comparison safe to gate a
+    # refusal on.
+    collapse = bridge.inset_collapse_message(
+      int(self.n_combo.currentData() or 0), len(self._tile_ids()),
+      self.mod_t_inset.value()) if self.mod_t_inset.value() else None
+    if collapse is not None:
+      if not live:
+        QMessageBox.warning(self, "WeavingSpace", collapse)
+      else:
+        self._report_quietly(collapse)
+      return
+
     assignments = self._assignments()
     if not any(a["var"] for a in assignments):
       if not live:
@@ -4759,6 +5002,21 @@ class WeavingSpaceDialog(QDialog):
           if bridge.numeric_values_are_constant(gdf[field]):
             said_constant.add(field)
             self._report_quietly(bridge.constant_field_message(field))
+          else:
+            # The same notice at n > 1. The renderer reduces the class
+            # count to the number of distinct values, because five
+            # classes over three values puts two swatches in the
+            # legend that no tile ever wears and paints the highest
+            # value in a middle colour (measured 2026-08-13). This is
+            # the half the user can read: without it the Classes
+            # spinner says five, the legend says three, and nothing
+            # says which is right.
+            asked = int(assignment.get("k") or 0)
+            distinct = int(gdf[field].nunique(dropna=True))
+            few = bridge.few_values_message(field, distinct, asked)
+            if few is not None:
+              said_constant.add(field)
+              self._report_quietly(few)
           # Gaps in the column, counted from the REGION LAYER, because
           # the sentence says "areas" and must mean the user's areas:
           # counting the tiled frame here once produced "31 of 96
