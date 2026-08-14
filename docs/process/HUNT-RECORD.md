@@ -14,6 +14,137 @@ one earns its keep only while the numbers in it are real.
 
 Last updated 2026-08-13.
 
+## How to run one
+
+Six steps. The whole thing costs an evening of machine time and a few
+hours of yours, and the last step is the one that decides whether any
+of it was worth doing.
+
+**1. Choose a direction, not a place.** See below for what that
+means, and read "The record" first: a direction already tried and
+empty is worth knowing before you spend a night on it.
+
+**2. Generate the brief.**
+
+    python3 tools/bug_hunt_brief.py --shape asymmetry --area "worker.py and compat.py"
+
+`--shape` is one of the structural questions the tool knows; `--area`
+is what to point it at. Read the output before sending it. The brief
+carries the confirmation protocol, the traps this project has already
+paid for, and the calibration notes, and it tells the hunt to come
+back and update this file.
+
+**3. Give each hunt its own worktree.** Hunts edit product code to
+prove a break, and they will collide with each other and with you:
+
+    git worktree add /path/to/scratch/hunt-<name> HEAD
+
+Editing a tree something else is reading spoiled two measurements in
+one night here. This is not optional with more than one hunt running.
+
+**4. Require a check-in log**, at a path you choose, appended to after
+EVERY hypothesis and at least every fifteen minutes:
+
+    ## HH:MM:SS  iteration N  [logical|perturbation]
+    TRIED:  the hypothesis in one sentence, with file:line
+    RESULT: confirmed / ruled out / inconclusive, with actual values
+    NEXT:   what that makes you do, and why
+
+The entry goes in BEFORE the next hypothesis starts. The times are
+not the point — forcing a hypothesis to be written down before it is
+chased is the point, and a log reconstructed at the end has none of
+that. Tell the hunt you will check the timestamps, and check them:
+two hunts here estimated theirs and it showed.
+
+**5. Watch them.** See the next section.
+
+**6. Verify everything yourself, by a route the hunt did not use.**
+This is the step that cannot be delegated and is the real cost of the
+method. Of the claims judged here, most survived, one evaporated
+entirely, one was a right observation with a wrong severity call, and
+one led to a fix that contradicted a settled decision a test had
+guarded for months. Running more hunts does not raise throughput; it
+lengthens this queue.
+
+## Watching a running hunt
+
+A subagent cannot interrupt itself to report, so the log is the only
+window. Poll it on a fixed cadence and print one line per hunt —
+entries so far, confirmations claimed, and the newest RESULT:
+
+    S=/path/to/scratch
+    while true; do
+      sleep 900
+      echo "---- check-in $(date -u +%H:%M:%S) ----"
+      for f in <names>; do
+        L="$S/hunt_${f}_log.md"
+        if [ -f "$L" ]; then
+          n=$(grep -c "^## " "$L" 2>/dev/null || echo 0)
+          conf=$(grep -ci "^RESULT: *confirmed" "$L" 2>/dev/null || echo 0)
+          echo "$f: $n entries, $conf confirmed | $(grep '^RESULT:' "$L" | tail -1 | cut -c1-140)"
+        else
+          echo "$f: NO LOG YET"
+        fi
+      done
+    done
+
+Three things this deliberately does, each of which this project got
+wrong somewhere else first:
+
+- **It reports a summary on a cadence, not every line.** One event per
+  hypothesis across four hunts is forty notifications nobody reads.
+- **It says NO LOG YET rather than staying silent.** Silence from a
+  watcher is not evidence that anything is running; an absent log is
+  a finding about the hunt, and one of the first things worth knowing.
+- **It reads the log rather than the agent.** The agent's own
+  transcript is enormous and reading it will drown you.
+
+What to watch FOR, rather than just watching: the ratio of ruled-out
+to confirmed. A hunt logging nothing but confirmations is not being
+sceptical enough, and the number that predicted a good report here was
+how many of its own hypotheses a hunt killed.
+
+Stop the watcher when the hunts finish. A poller left running is the
+same waste as a heartbeat nobody stops.
+
+## How hunting compares with the other instruments
+
+None of these replaces another; they fail in different directions.
+
+**The regression suite** answers "is what we fixed still fixed". It
+cannot find anything nobody has thought of, and by this project's own
+record roughly one test in five, when written, cannot fail at all.
+Hunting the SUITE is therefore its own direction, and a productive one.
+
+**Mutation testing** answers "would the suite have noticed?". That is
+a question about the tests, not the software. It is worth running for
+exactly that — a catalogue sweep returning 173 of 174 is real
+assurance — but across 128 survivors here it has produced no product
+defects, and a campaign budgeted as defect-hunting will disappoint.
+Full argument in docs/MUTATION-TESTING.md.
+
+**Differential tests** (UI against library, colourspace against
+upstream's own render, project round trips) are the strongest
+standing instrument this project has, because a disagreement is a
+defect by construction and needs no oracle. Their weakness is that
+somebody has to build each pair, and a pair with a motionless axis
+silently checks nothing.
+
+**The randomised sweep** finds what nobody suspected, which is its
+whole value, and it is the only instrument here that has done so by
+accident. Its weakness is that a failure is expensive to read: one
+red sweep cost an afternoon of bisecting to establish that the
+plugin was right and the fixture was dirty.
+
+**A second machine** (the Linux CI leg) finds what is invisible where
+you develop. Its first run found a defect no Mac could show.
+
+**Hunting** is the only one of these that goes looking with a
+hypothesis and no oracle at all. It is cheap in machine time and
+expensive in judgement — every claim must be reproduced before it is
+believed — and its yield depends almost entirely on the direction
+chosen, which is why this file exists.
+
 ## What a "direction" means
 
 A direction is not a place in the code. It is the QUESTION a hunt
