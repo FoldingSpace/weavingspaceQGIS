@@ -5256,8 +5256,32 @@ class WeavingSpaceDialog(QDialog):
       sub = gdf[gdf["tile_id"] == tid]
       mem = bridge.gdf_to_layer(sub, display)
       if path:
+        # THE FILE IS RECREATED ONLY IF IT DOES NOT EXIST, and that
+        # condition used to be `created` -- meaning the layer-tree
+        # GROUP was new, which is true on the first run of any fresh
+        # dialog, on "Create as new group", and whenever the output
+        # path changes. `first=True` becomes CreateOrOverwriteFile,
+        # which recreates the WHOLE GeoPackage. So a user who chose a
+        # .gpkg they already had lost everything else in it: their
+        # own tables, and the region layer itself if it lived there,
+        # in which case the map was drawn from data the same run had
+        # just deleted. Nothing said so -- the open layer answers
+        # featureCount() from cache -- and the only warning fires on
+        # a different condition entirely and advises choosing another
+        # file, which would destroy that one instead.
+        #
+        # Destroying data the plugin did not create is the one thing
+        # it must never do, and the stale-table drop at the end of
+        # this method already says so in as many words: it removes
+        # only tables THIS dialog wrote, never a table the user's own
+        # file already contained. That is also what makes recreating
+        # the file unnecessary -- dropping our own dead tiles_*
+        # tables is the job recreation was doing, done narrowly.
+        # Measured 2026-08-13. Guarded by
+        # test_a_generate_spares_the_rest_of_the_users_geopackage.
         out = bridge.write_gpkg_layer(mem, path, f"tiles_{tid}",
-                                      first=first_gpkg_layer and created)
+                                      first=(first_gpkg_layer
+                                             and not os.path.exists(path)))
         first_gpkg_layer = False
       else:
         out = mem

@@ -6154,6 +6154,97 @@ def test_a_large_region_is_handled():
   dlg.close()
 
 
+def test_a_generate_spares_the_rest_of_the_users_geopackage():
+  """The plugin does not destroy data it did not create. Ever.
+
+  A GeoPackage is an ordinary file, and people keep things in them:
+  several layers of one survey, a project's working data, often the
+  region layer itself. Choose one of those as the output file and the
+  whole file was RECREATED on the first write of a run -- every other
+  table in it gone.
+
+  The condition that did it was "the layer-tree group is new", which
+  is true on the first run of any fresh dialog, on "Create as new
+  group", and whenever the output path changes. So this was not an
+  exotic path: it was the ordinary one.
+
+  Two things make it the worst thing this plugin could do. The user
+  is not told -- an already-open layer answers featureCount() from
+  cache, so the panel looks unchanged while the table behind it has
+  gone. And if the region layer lived in that file, the map was drawn
+  from data the same run had just deleted, which reads as a perfectly
+  ordinary map until somebody reopens the project.
+
+  Recreating the file was doing one legitimate job: clearing our own
+  tiles_* tables from a design that had since shrunk. That job now
+  belongs to the stale-table drop at the end of the run, which
+  removes only tables this dialog wrote and never one the user's own
+  file already held. So nothing is lost by never recreating.
+
+  Regression: choosing an existing GeoPackage as the output destroyed every other table in it, including the region layer being tiled.
+  """
+  import shutil
+  import tempfile
+  from osgeo import ogr
+  from qgis.core import (QgsCoordinateTransformContext,
+                         QgsVectorFileWriter)
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="weavingspace_userdata_")
+  try:
+    path = os.path.join(folder, "their_own_data.gpkg")
+    donor = make_region_layer()
+    options = QgsVectorFileWriter.SaveVectorOptions()
+    options.driverName = "GPKG"
+    options.layerName = "site_boundaries"
+    QgsVectorFileWriter.writeAsVectorFormatV3(
+      donor, path, QgsCoordinateTransformContext(), options)
+    options.layerName = "field_notes"
+    options.actionOnExistingFile = \
+      QgsVectorFileWriter.CreateOrOverwriteLayer
+    QgsVectorFileWriter.writeAsVectorFormatV3(
+      donor, path, QgsCoordinateTransformContext(), options)
+
+    def tables_in_the_file():
+      """Read the file with GDAL, never through the open layer."""
+      source = ogr.Open(path)
+      assert source is not None, f"nothing readable at {path}"
+      names = sorted(source.GetLayer(i).GetName()
+                     for i in range(source.GetLayerCount()))
+      source = None
+      return names
+
+    before = tables_in_the_file()
+    assert {"site_boundaries", "field_notes"} <= set(before), \
+      f"the fixture did not write the user's tables: {before!r}"
+
+    layer = make_region_layer()
+    project.addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    dlg.table.cellWidget(0, 1).setCurrentText("v1")
+    _tick(150)
+    dlg.gpkg_widget.setFilePath(path)
+    dlg.spacing_spin.setValue(600)
+    _generate_and_wait(dlg)
+    _tick(400)
+
+    after = tables_in_the_file()
+    missing = [t for t in ("site_boundaries", "field_notes")
+               if t not in after]
+    assert not missing, \
+      f"generating into a GeoPackage the user already had destroyed " \
+      f"{missing!r}. The file held {before!r} and now holds {after!r}"
+    assert any(t.startswith("tiles_") for t in after), \
+      f"the run wrote no element tables at all, so this test would " \
+      f"pass on a run that did nothing: {after!r}"
+    dlg.close()
+  finally:
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_a_geopackage_loses_the_elements_a_design_dropped():
   """A session that SHRINKS, and the file somebody else opens.
 
@@ -36038,6 +36129,8 @@ def main():
         test_an_undone_edit_is_followed_back)
   check("a large region is handled",
         test_a_large_region_is_handled)
+  check("a Generate spares the rest of the user's GeoPackage",
+        test_a_generate_spares_the_rest_of_the_users_geopackage)
   check("a GeoPackage loses the elements a design dropped",
         test_a_geopackage_loses_the_elements_a_design_dropped)
   check("a GeoPackage is rewritten and renamed",

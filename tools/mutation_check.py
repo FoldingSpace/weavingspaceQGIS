@@ -719,6 +719,17 @@ MUTATIONS = [
            "colour missing from this tuple can never be applied "
            "under live update at all -- the editor and the table "
            "both showing it while the map goes on without it"),
+  dict(name="existing-geopackage-is-never-recreated", file=DIALOG,
+       old="""                                      first=(first_gpkg_layer
+                                             and not os.path.exists(path)))""",
+       new="""                                      first=first_gpkg_layer)""",
+       test="test_a_generate_spares_the_rest_of_the_users_geopackage",
+       why="the plugin never destroying data it did not create. "
+           "Recreating an existing GeoPackage wipes every other "
+           "table in it -- the user's own layers, and the region "
+           "layer itself where it lives there, in which case the "
+           "map is drawn from data the same run deleted, silently, "
+           "because an open layer answers featureCount from cache"),
   dict(name="shrunk-design-tidies-its-geopackage", file=DIALOG,
        old="""      for stale in sorted(written - set(new_ids)):
         bridge.drop_gpkg_layer(path, f"tiles_{stale}")""",

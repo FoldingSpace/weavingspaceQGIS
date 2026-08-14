@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-105 defect(s) with a regression test.
+106 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -157,6 +157,8 @@ there is no separate list to remember.
   guarded by `test_a_dock_edit_during_a_run_is_not_lost`
 - **release.py's watchdog used threading without importing it, so the first release stage would have died on a NameError; committed untested and caught the moment these held-back tests were applied.**  
   guarded by `test_a_failed_stage_is_not_remembered`
+- **choosing an existing GeoPackage as the output destroyed every other table in it, including the region layer being tiled.**  
+  guarded by `test_a_generate_spares_the_rest_of_the_users_geopackage`
 - **a design that shrank left its dropped elements in the GeoPackage, so the exported file described a map that no longer existed.**  
   guarded by `test_a_geopackage_loses_the_elements_a_design_dropped`
 - **only _finish_run restored the determinate progress range, and the zombie recovery does not go through it.**  
@@ -255,7 +257,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 49
+- unrecorded: 50
 - the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6
