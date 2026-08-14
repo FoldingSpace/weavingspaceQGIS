@@ -10457,6 +10457,77 @@ def test_a_class_colour_picked_during_a_run_is_not_lost():
   dlg.close()
 
 
+def test_an_unclassed_excursion_leaves_the_count_alone():
+  """Fifty is Unclassed's number, not the user's, and must not stick.
+
+  "Quant: Unclassed" renders continuously, which this plugin
+  reproduces as fifty linear intervals -- fixed by the definition of
+  the style rather than chosen by anybody. The class-count spinner
+  runs 2..20 and is the user's own choice.
+
+  Those two numbers met in the table rebuild. Restoring a row's count
+  from the PREVIOUS ASSIGNMENT carried Unclassed's fifty into the
+  spinner's remembered value, and `_assignments` reads that value. So
+  an excursion through Unclassed and back left one setting described
+  three ways at once: the cell displayed its clamped 20, the
+  assignment claimed 50, and the map drew something else again. Only
+  the legend tells a reader what the colours mean, and a legend
+  claiming fifty grades of a variable is the failure this software is
+  most prone to -- it looks exactly like a map that is fine.
+
+  The element's own record wins here because it means something
+  different: `_class_counts` is only ever written by a user moving
+  the spinner, so it is the one of the two that records a choice. The
+  value is clamped into the property as well as into the display,
+  since a number the controls cannot express must not survive in a
+  property that something else reads.
+
+  Regression: an excursion through Quant: Unclassed left fifty classes recorded against a row whose spinner showed twenty.
+  """
+  dlg, layer, tid = _quant_dialog()
+  dlg.live_check.setChecked(False)
+  k_spin = dlg.table.cellWidget(1, 3)
+  k_spin.setValue(7)
+  _tick(200)
+  assert dlg._class_counts.get(tid) == 7, \
+    "the fixture's class count did not reach the element's record"
+
+  dlg.table.cellWidget(1, 2).setCurrentText("Quant: Unclassed")
+  _tick(300)
+  on_unclassed = next(a for a in dlg._assignments() if a["id"] == tid)
+  assert on_unclassed["k"] == 50, \
+    f"Unclassed should report its own fifty while it is selected; " \
+    f"got {on_unclassed['k']}"
+
+  # a rebuild while the row sits on Unclassed, then back again
+  dlg.spacing_spin.setValue(dlg.spacing_spin.value() + 10)
+  dlg._rebuild_unit()
+  _tick(400)
+  dlg.table.cellWidget(1, 2).setCurrentText("Quant: Quantiles")
+  _tick(400)
+
+  back = next(a for a in dlg._assignments() if a["id"] == tid)
+  cell = dlg.table.cellWidget(1, 3)
+  assert back["k"] == 7 and cell.value() == 7, \
+    f"returning from Unclassed left the count disagreeing with " \
+    f"itself: the cell shows {cell.value()}, the element claims " \
+    f"{back['k']}, and the user chose 7"
+
+  _generate_and_wait(dlg)
+  _tick(400)
+  # the spinner above is GONE: a run rebuilds the table and Qt
+  # deletes the old cell widgets, so a reference held across the
+  # generate refers to a destroyed object. Read it again.
+  after_run = dlg.table.cellWidget(1, 3)
+  assert after_run is not None, "row 1 lost its class-count spinner"
+  element = QgsProject.instance().mapLayer(dlg._element_layer_ids[tid])
+  drawn = len(list(element.renderer().ranges()))
+  assert drawn == after_run.value(), \
+    f"the map draws {drawn} classes where the table says " \
+    f"{after_run.value()}, so the legend describes a map nobody made"
+  dlg.close()
+
+
 def test_a_discarded_pick_does_not_come_back():
   """What the plugin SAYS it threw away has to be thrown away.
 
@@ -36166,6 +36237,8 @@ def main():
         test_a_colour_picked_during_a_run_is_not_lost)
   check("race: a class colour picked during a run is not lost",
         test_a_class_colour_picked_during_a_run_is_not_lost)
+  check("an Unclassed excursion leaves the count alone",
+        test_an_unclassed_excursion_leaves_the_count_alone)
   check("a discarded pick does not come back",
         test_a_discarded_pick_does_not_come_back)
   check("a ramp chosen during a run reaches the map",

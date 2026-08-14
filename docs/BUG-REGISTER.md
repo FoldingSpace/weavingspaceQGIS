@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-104 defect(s) with a regression test.
+105 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -187,6 +187,8 @@ there is no separate list to remember.
   guarded by `test_an_exported_geopackage_is_still_recognised_as_our_own`
 - **the inset percentage conversion was defended only by comparisons whose tolerance is wider than the error.**  
   guarded by `test_an_inset_percentage_is_a_percentage_of_the_spacing`
+- **an excursion through Quant: Unclassed left fifty classes recorded against a row whose spinner showed twenty.**  
+  guarded by `test_an_unclassed_excursion_leaves_the_count_alone`
 - **none of these shapes had ever been put through the plugin; the suite's fixtures are all well-formed.**  
   guarded by `test_awkward_layers_are_handled_or_declined`
 - **cancel's immediate report to the dialog was untested; removing it left the window disabled until the abandoned work finished.**  
@@ -253,7 +255,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 48
+- unrecorded: 49
 - the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6

@@ -2524,7 +2524,12 @@ class WeavingSpaceDialog(QDialog):
       # classes stop reading as classes
       k_spin.setSpecialValueText("")
       k_spin.setRange(2, 20)
-      k_spin.setValue(min(int(k_spin.property("user_k") or 5), 20))
+      # clamp the PROPERTY, not only the display: `_assignments`
+      # reads the property, so clamping one and not the other is how
+      # a cell and a map come to disagree about the same number
+      k_spin.setProperty(
+        "user_k", min(int(k_spin.property("user_k") or 5), 20))
+      k_spin.setValue(int(k_spin.property("user_k")))
       k_spin.setEnabled(True)
     elif mode == "Categorized" and var:
       n = self._category_count(var)
@@ -2881,8 +2886,23 @@ class WeavingSpaceDialog(QDialog):
       # the previous assignments first (a rebuild inside one
       # session), then the element's own record, which is the only
       # thing that exists after a REOPEN, then the default
-      restored_k = (prev["k"] if prev and prev.get("k")
-                    else self._class_counts.get(tid) or 5)
+      # The ELEMENT'S OWN RECORD FIRST, and the order matters. `prev`
+      # is the previous ASSIGNMENT, whose k is 50 for a row sitting on
+      # Quant: Unclassed -- fixed by the definition of that style
+      # rather than chosen by anybody. Restoring from it wrote 50 into
+      # `user_k`, which `_assignments` reads, so an excursion through
+      # Unclassed and back left the element claiming fifty classes
+      # while the spinner displayed its clamped 20 and the map drew
+      # something else again: three numbers for one setting.
+      # `_class_counts` is only ever written by a user moving the
+      # spinner, so it is the one of the two that means "chosen".
+      # Clamped here as well as displayed, because a value the
+      # controls cannot express must not survive in a property.
+      # Guarded by test_an_unclassed_excursion_leaves_the_count_alone.
+      restored_k = self._class_counts.get(tid)
+      if not restored_k and prev and prev.get("k"):
+        restored_k = prev["k"]
+      restored_k = max(2, min(int(restored_k or 5), 20))
       k_spin.setValue(restored_k)
       k_spin.setProperty("user_k", restored_k)
       k_spin.setToolTip(
