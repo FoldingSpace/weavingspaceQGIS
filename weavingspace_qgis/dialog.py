@@ -5002,21 +5002,6 @@ class WeavingSpaceDialog(QDialog):
           if bridge.numeric_values_are_constant(gdf[field]):
             said_constant.add(field)
             self._report_quietly(bridge.constant_field_message(field))
-          else:
-            # The same notice at n > 1. The renderer reduces the class
-            # count to the number of distinct values, because five
-            # classes over three values puts two swatches in the
-            # legend that no tile ever wears and paints the highest
-            # value in a middle colour (measured 2026-08-13). This is
-            # the half the user can read: without it the Classes
-            # spinner says five, the legend says three, and nothing
-            # says which is right.
-            asked = int(assignment.get("k") or 0)
-            distinct = int(gdf[field].nunique(dropna=True))
-            few = bridge.few_values_message(field, distinct, asked)
-            if few is not None:
-              said_constant.add(field)
-              self._report_quietly(few)
           # Gaps in the column, counted from the REGION LAYER, because
           # the sentence says "areas" and must mean the user's areas:
           # counting the tiled frame here once produced "31 of 96

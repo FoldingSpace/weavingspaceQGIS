@@ -315,7 +315,30 @@ as much a part of the record as what did.
   case was covered has been corrected.
 - Losing a column destroys hand-picked CATEGORICAL colours. CONFIRMED
   and fixed earlier the same day.
-- **Fewer distinct values than classes. CONFIRMED and FIXED.**
+- **Fewer distinct values than classes. CONFIRMED, FIXED, AND
+  REVERTED THE SAME NIGHT — this needs a decision before anyone tries
+  again.** The defect is real and the arithmetic below stands. What
+  killed the fix is a consequence nobody had considered: an element
+  LAYER holds only that element's tiles, so the distinct-value count
+  is per element, and two elements carrying the same variable can end
+  up with different class counts. `test_metamorphic_variable_
+  permutation` asserts the opposite ("b must class exactly as a did")
+  and failed at once. On a map made for comparing elements, a class
+  count that varies between them is a worse fault than a legend
+  swatch nobody wears.
+  Nineteen tests moved, which is the honest measure of how deep the
+  assumption runs, and the candidate aborted on the functional suite
+  twelve minutes in — which is where a change like this is supposed to
+  be caught.
+  WHAT A REAL FIX MUST SETTLE FIRST, and it is a maintainer's
+  question: should the class count be reduced against the REGION
+  layer's distinct values (uniform across elements, possibly still
+  showing an empty class on a sparse element) or against each
+  element's own (honest per element, inconsistent across them)?
+  Upstream reduces per subset, so matching it means accepting the
+  inconsistency. Everything needed to implement either is in commit
+  ed418dd's reverted hunks.
+  The measurement, kept because it is what makes the case:
   Measured with a render context this time, which is what the earlier
   probe lacked: k=5 over {1, 5, 9} gave five ranges, two of them
   degenerate, three colours on the map, and the highest value drawn

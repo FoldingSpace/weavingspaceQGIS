@@ -2252,17 +2252,6 @@ MUTATIONS = [
            "1978 invalid input geometries', and a total collapse as "
            "'Assign at least one variable' -- both true of something, "
            "neither about the control the user just moved"),
-  dict(name="classes-never-outnumber-the-values", file=BRIDGE,
-       old="    if distinct and len(distinct) < int(k):\n      k = len(distinct)",
-       new="    pass  # mutation: ask QGIS for more classes than values",
-       test="test_a_legend_never_shows_a_class_the_map_does_not_have",
-       why="a legend showing only classes the map actually has. Five "
-           "classes over three distinct values gives five ranges, two "
-           "of them degenerate, and QGIS assigns a value on a break to "
-           "the FIRST range containing it -- so swatches appear in the "
-           "legend that no tile wears and the highest value draws in a "
-           "middle colour. Upstream reduces k the same way; the "
-           "constant-column collapse is this rule at n == 1"),
   dict(name="size-guard-estimate-bounds-the-count", file=BRIDGE,
        old="  radius = math.hypot(w, h) / 2",
        new="  radius = math.hypot(w, h) / 3  # mutation: under-estimate",

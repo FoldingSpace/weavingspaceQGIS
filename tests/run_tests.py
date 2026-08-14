@@ -6860,90 +6860,6 @@ def test_an_inset_that_eats_the_design_says_so():
     dlg.close()
 
 
-def test_a_legend_never_shows_a_class_the_map_does_not_have():
-  """Fewer distinct values than classes must not invent classes.
-
-  Ask for five classes over a column holding three distinct values and
-  QGIS returns five. Two of them are degenerate (1-1, 5-5, 9-9 among
-  them), a value sitting on a break goes to the first range that
-  contains it, and the ranges above it never paint. Measured on QGIS
-  4.0.3, 2026-08-13: five swatches in the legend, three colours on the
-  map, and the HIGHEST value drawn mid-grey while the legend's black
-  sat beside a range nothing occupied. A reader who matches the
-  darkest swatch to "high" reads that map wrongly, and nothing on
-  screen says so.
-
-  This is the constant-column rule at n > 1, and the constant case is
-  its n == 1 instance. Upstream already does it: tile_map's
-  _plot_subsetted_gdf sets cspec["k"] to the number of values when
-  there are fewer values than classes, so following it matches the
-  library's semantics rather than inventing a rule of our own.
-
-  The suite used to exclude this case in two places, asserting
-  `distinct >= k` before measuring and switching schemes to avoid it,
-  which is why nobody had asked what the map looked like.
-
-  Regression: five classes over three distinct values put two swatches in the legend that no tile wore, and painted the highest value in a middle colour while the legend's darkest sat beside an empty range.
-  """
-  from qgis.core import (QgsVectorLayer, QgsFeature, QgsGeometry,
-                         QgsPointXY, QgsField, QgsRenderContext)
-  from qgis.PyQt.QtCore import QVariant
-  from weavingspace_qgis import bridge
-  layer = QgsVectorLayer("Polygon?crs=EPSG:2193", "few values", "memory")
-  provider = layer.dataProvider()
-  provider.addAttributes([QgsField("v", QVariant.Double)])
-  layer.updateFields()
-  features = []
-  for i, value in enumerate((1.0, 1.0, 5.0, 5.0, 9.0, 9.0)):
-    feature = QgsFeature(layer.fields())
-    feature.setAttribute("v", value)
-    x = i * 10.0
-    feature.setGeometry(QgsGeometry.fromPolygonXY([[
-      QgsPointXY(x, 0), QgsPointXY(x + 9, 0),
-      QgsPointXY(x + 9, 9), QgsPointXY(x, 9), QgsPointXY(x, 0)]]))
-    features.append(feature)
-  provider.addFeatures(features)
-  layer.updateExtents()
-
-  for asked in (5, 7):
-    renderer = bridge.make_graduated_renderer(
-      layer, "v", "Greys", "Quantiles", asked, False)
-    layer.setRenderer(renderer)
-    ranges = renderer.ranges()
-    assert len(ranges) == 3, \
-      f"asked for {asked} classes over three distinct values and got " \
-      f"{len(ranges)}: {[r.label() for r in ranges]}"
-
-    context = QgsRenderContext()
-    renderer.startRender(context, layer.fields())
-    painted = {}
-    for feature in layer.getFeatures():
-      symbol = renderer.originalSymbolForFeature(feature, context)
-      painted[feature["v"]] = symbol.color().name() if symbol else None
-    renderer.stopRender(context)
-
-    used = set(painted.values())
-    dead = [r.label() for r in ranges
-            if r.symbol().color().name() not in used]
-    assert not dead, \
-      f"the legend shows {dead!r}, which no tile on the map wears"
-    # and the darkest swatch belongs to the largest value, which is
-    # the reading a legend exists to support
-    darkest = min(ranges,
-                  key=lambda r: sum(r.symbol().color().getRgb()[:3]))
-    assert painted[9.0] == darkest.symbol().color().name(), \
-      f"the highest value draws {painted[9.0]} while the legend's " \
-      f"darkest class is {darkest.symbol().color().name()} " \
-      f"({darkest.label()})"
-
-  # the user is told, in words, why the spinner and the legend differ
-  note = bridge.few_values_message("v1", 3, 5)
-  assert note and "3" in note and "5" in note, \
-    f"the notice does not say what happened: {note!r}"
-  assert bridge.few_values_message("v1", 5, 5) is None, \
-    "a column with enough values must raise no notice at all"
-
-
 def test_a_class_source_file_that_changes_on_disk():
   """The QML is rewritten after being chosen.
 
@@ -14968,7 +14884,7 @@ def test_opacity_in_preview():
   dlg.close()
 
 
-def _quant_dialog(mode="Quant: Quantiles", k=5, ramp="Reds", row=1, n=4):
+def _quant_dialog(mode="Quant: Quantiles", k=5, ramp="Reds", row=1):
   """A dialog with one graduated element on ``v1``, ready to customize.
 
   Args:
@@ -14981,12 +14897,6 @@ def _quant_dialog(mode="Quant: Quantiles", k=5, ramp="Reds", row=1, n=4):
     row: which table row carries the element. Row 1, as in
       _categorical_dialog, so a non-first element is exercised —
       first-row cases have been special once already here.
-    n: the region grid's side, so the layer holds n*n polygons and
-      ``v1`` takes exactly n distinct values. It matters because the
-      renderer will not draw more classes than the column has values
-      (see test_a_legend_never_shows_a_class_the_map_does_not_have),
-      so a test wanting nine classes must ask for a layer that can
-      carry nine.
 
   Returns:
     (dialog, layer, tile_id): live update off and nothing generated
@@ -14994,7 +14904,7 @@ def _quant_dialog(mode="Quant: Quantiles", k=5, ramp="Reds", row=1, n=4):
     the editor before any map exists where that is the point.
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
-  layer = make_region_layer(n=n)
+  layer = make_region_layer()
   QgsProject.instance().addMapLayer(layer)
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(False)
@@ -29730,17 +29640,8 @@ def test_a_project_round_trip_changes_nothing_a_user_chose():
   folder = tempfile.mkdtemp(prefix="weavingspace_roundtrip_")
   try:
     # the region has to live on DISK, or reopening the project finds
-    # nothing to tile and the comparison is between two empty states.
-    #
-    # TEN cells a side, so v1 and v2 take ten distinct values. The
-    # default four-cell grid gives four, and this test sets class
-    # counts of 7 and 5: since 2026-08-13 the renderer does not draw
-    # more classes than a column has values, so those rows drew four
-    # classes, the reopened dialog truthfully read four back off the
-    # layer, and the comparison called it a loss. The dialog was
-    # right and the fixture could not exhibit what the test asked
-    # for. See test_a_legend_never_shows_a_class_the_map_does_not_have.
-    source = make_region_layer(n=10)
+    # nothing to tile and the comparison is between two empty states
+    source = make_region_layer()
     region_path = os.path.join(folder, "region.gpkg")
     options = QgsVectorFileWriter.SaveVectorOptions()
     options.driverName = "GPKG"
@@ -35698,19 +35599,13 @@ def test_the_class_count_changes_under_an_open_quant_editor():
   from qgis.PyQt.QtGui import QColor
   from weavingspace_qgis import category_editor
   row = 1
-  # A TEN-cell grid, so v1 takes ten distinct values. Four classes
-  # were all the default fixture could ever draw, and this case needs
-  # nine: the renderer does not invent classes a column cannot fill,
-  # since five classes over three values puts swatches in the legend
-  # that no tile wears (test_a_legend_never_shows_a_class_the_map_
-  # does_not_have). This test used to switch to Equal intervals to
-  # dodge that, on the belief that only quantiles collapsed, and the
-  # nine ranges it then got were the very fault that rule now
-  # prevents -- five of them painting nothing.
+  # Equal intervals rather than quantiles: the synthetic column holds
+  # four distinct values, and nine quantile breaks over four values is
+  # a fixture that cannot exhibit nine classes at all.
   dlg, layer, tid = _quant_dialog(mode="Quant: Equal intervals", k=9,
-                                  ramp="Reds", row=row, n=12)
+                                  ramp="Reds", row=row)
   try:
-    dlg.spacing_spin.setValue(1000)
+    dlg.spacing_spin.setValue(500)
     _generate_and_wait(dlg)
     _tick(200)
     before = _class_hexes(dlg, tid)
@@ -36997,8 +36892,6 @@ def main():
         test_perception_warnings_point_the_right_way)
   check("a class source file that changes on disk",
         test_a_class_source_file_that_changes_on_disk)
-  check("a legend never shows a class the map does not have",
-        test_a_legend_never_shows_a_class_the_map_does_not_have)
   check("an inset that eats the design says so",
         test_an_inset_that_eats_the_design_says_so)
   check("a class source file that goes away",

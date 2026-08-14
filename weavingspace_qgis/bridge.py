@@ -849,31 +849,6 @@ def inset_collapse_message(declared: int, remaining: int,
           f"choose a coarser spacing.")
 
 
-def few_values_message(field: str, distinct: int, asked: int) -> str:
-  """The notice for a column with fewer distinct values than classes.
-
-  Args:
-    field: the attribute name, as the user chose it in the table.
-    distinct: how many distinct finite values the column holds.
-    asked: how many classes the table asked for.
-
-  Returns:
-    One sentence for the message bar, or None when the count was not
-    reduced, so the caller can report unconditionally.
-
-  This is the constant-column notice at n > 1, and it exists for the
-  same reason: the class count in the table would otherwise describe
-  a legend the map does not have. Left unsaid, a user sees their
-  Classes spinner reading five and a legend of three and has nothing
-  to tell them which is the truth.
-  """
-  if distinct >= asked:
-    return None
-  return (f"'{field}' has {distinct} distinct value"
-          f"{'' if distinct == 1 else 's'}, so it draws as {distinct} "
-          f"class{'' if distinct == 1 else 'es'}, not {asked}.")
-
-
 def make_graduated_renderer(layer: QgsVectorLayer, field: str,
                             ramp_name: str, scheme: str, k: int,
                             outline: bool,
@@ -934,15 +909,6 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   while remaining an ordinary, panel-editable graduated renderer.
   """
   from . import compat
-  # Remembered before the substitution below, because the
-  # fewer-values-than-classes reduction must NOT apply to Unclassed:
-  # its fifty steps are a reproduction of a continuous ramp, not a
-  # class count anybody chose, and cutting them to the number of
-  # distinct values would turn the settled continuous look into a
-  # coarse classed one. The CONSTANT case still overrides it, as it
-  # always has -- fifty steps across no range at all is absurd on any
-  # reading.
-  unclassed = scheme == "Unclassed"
   if scheme == "Unclassed":
     scheme, k = "Equal intervals", 50
   # A column with one distinct value has nothing to divide. Asked for
@@ -961,34 +927,6 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   constant = index >= 0 and numeric_values_are_constant(values)
   if constant:
     k = 1
-  else:
-    # The same rule at n > 1, and the constant case above is really
-    # its n == 1 instance. Ask for five classes over a column holding
-    # three distinct values and QGIS returns five, of which two are
-    # DEGENERATE (1-1, 5-5, 9-9 among them): a value sits at a break,
-    # QGIS assigns it to the first range that contains it, and the
-    # ranges above never paint. Measured 2026-08-13 on QGIS 4.0.3, k=5
-    # over {1, 5, 9}: the legend shows five swatches, three colours
-    # reach the map, and the HIGHEST value draws mid-grey while the
-    # legend's black sits beside a range nothing occupies. A reader
-    # matching the darkest swatch to "high" reads the map wrongly, and
-    # nothing on screen says so.
-    #
-    # Upstream does this already -- tile_map._plot_subsetted_gdf sets
-    # cspec["k"] = n_values when there are fewer values than classes
-    # -- so following it is matching the library's semantics rather
-    # than inventing a rule, which is the standing requirement where
-    # this plugin reproduces upstream behaviour in QGIS terms.
-    #
-    # Counted over FINITE, NON-NULL values only: nulls are excluded
-    # from the breaks below by the workaround, and a NaN or an
-    # infinity is not a class anybody can read.
-    distinct = {float(v) for v in values
-                if v is not None and v != NULL
-                and isinstance(v, (int, float))
-                and float(v) == float(v) and abs(float(v)) <= 1e307}
-    if not unclassed and distinct and len(distinct) < int(k):
-      k = len(distinct)
   renderer = QgsGraduatedSymbolRenderer(field)
   renderer.setSourceSymbol(_fill_symbol("#c0c0c0", outline))
   renderer.setSourceColorRamp(get_ramp(ramp_name, reverse))

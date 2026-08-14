@@ -1016,25 +1016,27 @@ Confirmed with the user via an explicit design review:
   correction is made in `_assignments`, which every consumer reads,
   and again in `_on_mode_chosen` so the chooser never goes on
   describing a map the plugin will not draw. The user is told.
-- **A column never gets more classes than it has distinct values, and
-  the user is told.** Asked for five classes over a column that is 7
-  everywhere, QGIS returns five, all reading "7 - 7" in five different
-  colours. The map was never wrong; the legend was, and the legend is
-  what a reader trusts. `make_graduated_renderer` collapses to k=1 and
-  the dialog reports it. (User instruction, 2026-08-09.)
-  That constant case is the n=1 instance of a GENERAL rule, extended
-  2026-08-13 after measuring the case between: five classes over
-  {1, 5, 9} gives five ranges, two of them degenerate, and QGIS
-  assigns a value sitting on a break to the FIRST range containing
-  it -- so two swatches appear in the legend that no tile wears, and
-  the highest value draws mid-grey while the legend's black sits
-  beside a range nothing occupies. k is reduced to the number of
-  distinct finite values, which is what upstream's own
-  `_plot_subsetted_gdf` does, and `few_values_message` says so.
-  **Quant: Unclassed is exempt**: its fifty steps reproduce a
-  continuous ramp and are not a class count anybody chose, so only the
-  constant case collapses them. The suite had been WRITTEN AROUND this
-  defect in two places, both now fixed rather than exempted.
+- **A constant numeric column gets ONE class, and a notice.** Asked
+  for five classes over a column that is 7 everywhere, QGIS returns
+  five, all reading "7 - 7" in five different colours. The map was
+  never wrong; the legend was, and the legend is what a reader trusts.
+  `make_graduated_renderer` collapses to k=1 and the dialog reports
+  it. (User instruction, 2026-08-09.)
+  **The general form of this rule is NOT adopted, and that is a
+  decision rather than an oversight.** Five classes over three
+  distinct values really does put two swatches in the legend that no
+  tile wears, and really does draw the highest value mid-grey;
+  measured 2026-08-13, and upstream's own `_plot_subsetted_gdf`
+  reduces k in exactly that case. It was implemented, and reverted the
+  same night, because element layers hold only THEIR OWN tiles: the
+  distinct-value count is therefore per element, so two elements
+  carrying the same variable can draw different numbers of classes,
+  and `test_metamorphic_variable_permutation` failed on precisely
+  that. On a map whose purpose is comparing elements against each
+  other, a class count that varies between them is a worse fault than
+  the one being fixed. Nineteen tests moved, which is the measure of
+  how deep the assumption runs. See ROADMAP.md for what a real fix
+  would have to settle first.
 - **A tiles inset that swallows elements is refused in terms of the
   inset.** Insetting shrinks every tile by a fixed distance, so past
   some value the narrower elements disappear. Left to itself the
