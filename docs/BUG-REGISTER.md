@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-107 defect(s) with a regression test.
+108 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -171,6 +171,8 @@ there is no separate list to remember.
   guarded by `test_a_release_publishes_from_the_branch_the_page_is_served_from`
 - **reloading the dialog module reset the module-level _LIVE_DIALOG to None, so the dialog built from the reloaded class retired nothing and the predecessor went on running its debounces against the newcomer's layers.**  
   guarded by `test_a_reloaded_module_retires_the_old_dialog_cleanly`
+- **renaming a column destroyed an element's hand-picked categorical colours, while the graduated twin survived the same act.**  
+  guarded by `test_a_renamed_column_does_not_destroy_hand_picked_colours`
 - **a retired dialog's styleChanged connections kept firing after retirement, double-adopting dock edits alongside the live dialog.**  
   guarded by `test_a_retired_dialog_stops_watching`
 - **a rebuild while Reverse was greyed silently discarded the tick underneath it.**  
@@ -259,7 +261,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 51
+- unrecorded: 52
 - the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6

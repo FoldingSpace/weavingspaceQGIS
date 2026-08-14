@@ -192,6 +192,31 @@ about the MODE before the variable while `seed_renderer` asks
   announcing is a judgement about how chatty the notice line should
   be, and the same rename may be a user's undo a second later.
 
+**THE QML CLASS SOURCE, all three tested 2026-08-13.** Measured with
+a real .qml on disk, reading the colours off the renderer:
+
+- **A QML edited on disk never reaches the map.** CONFIRMED and a
+  plain defect. Rewrite the file, press Generate, and none of the new
+  colours appear -- the signature holds only the file's token, so
+  nothing notices the contents moved. A user editing their scheme and
+  regenerating gets the old scheme with no indication why. The fix is
+  to fingerprint the file's contents (mtime plus size, or a hash) in
+  the signature. Not done here for want of a session to test it in.
+- **A moved QML is repainted away on the RESTYLE path.** CONFIRMED.
+  Move the file, nudge opacity, and the element loses its scheme
+  entirely: four file colours before, none after. The RE-TILE path
+  handles the same loss properly, keeping the map and naming the
+  file. Another twin behaving differently from its sibling.
+- **A class source chosen while a run is in flight is not applied by
+  the landing run.** CONFIRMED as an observation, and DELIBERATELY
+  NOT FIXED, because it is the same shape as the ramp case that was
+  fixed and then reverted the same night: with live update off the
+  plugin never repaints unasked, so the choice is DEFERRED rather
+  than lost and the next Generate applies it. What must be checked
+  before this is called a defect is whether the CELL goes on naming
+  the QML while the map ignores it -- that is the ramp-cell fault,
+  which was real -- and that was not measured here.
+
 **REPORTED, STILL NOT VERIFIED HERE.** Each carries the hunt's own
 confidence. Reproductions were left in the hunts' worktrees, which do
 not survive the session -- so anyone picking these up should expect to
@@ -210,14 +235,6 @@ rebuild the reproduction from the description.
   at spacing 3000 reported 18 element layers for 26 rows, with the
   notice mentioning areas rather than elements. If true this is more
   serious than the item above. High confidence, unverified.
-- The class SOURCE is not re-read when a run lands, unlike the
-  colours: a QML chosen while tiling is discarded by the run. This is
-  a gap in the colour fix made the same day, one field wide.
-- A moved QML is repainted away silently on the RESTYLE path, where
-  the re-tile path keeps the map and names the file.
-- Editing a QML on disk never reaches the map, because the signature
-  holds only the token. A test names this harm but exercises it only
-  in `bridge`.
 - A reopened project loses an imported class source, and a
   categorized element's adopted ramp reverts. Medium confidence,
   adjacent to work done the same day.

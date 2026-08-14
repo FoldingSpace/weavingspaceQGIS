@@ -10619,6 +10619,59 @@ def test_an_unclassed_excursion_leaves_the_count_alone():
   dlg.close()
 
 
+def test_a_renamed_column_does_not_destroy_hand_picked_colours():
+  """A rename in QGIS is not a decision to throw work away.
+
+  Losing a column costs an element its variable -- it re-defaults to
+  a surviving field and says so. It must not also cost the user every
+  colour they picked by hand for that element, silently, which is
+  what it did: the categorical record for the vanished field was
+  popped while the graduated record was left alone. Rename a column
+  and rename it straight back, the ordinary shape of a typo, and the
+  categorical colours were gone for good while the graduated ones
+  came home.
+
+  Both records are keyed by element AND field, which is what makes
+  keeping them safe: a field that never returns costs a few bytes,
+  and a field that does return finds its colours waiting. The two
+  paths are symmetrical now, which is how they should have been
+  written -- this is the fourth defect this week that was one twin
+  behaving differently from the other.
+
+  Regression: renaming a column destroyed an element's hand-picked categorical colours, while the graduated twin survived the same act.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg.table.cellWidget(1, 1).setCurrentText("landcover")
+  _tick(200)
+  categorical = dlg.table.item(1, 0).text()
+  graduated = dlg.table.item(0, 0).text()
+  dlg._category_colours.setdefault(categorical, {}).setdefault(
+    "landcover", {})["forest"] = "#00ff00"
+  dlg._quant_colours.setdefault(graduated, {}).setdefault(
+    "v1", {})["0"] = "#123456"
+
+  index = layer.fields().indexOf("landcover")
+  assert index >= 0, "the fixture has no landcover column to rename"
+  layer.dataProvider().renameAttributes({index: "landcover_renamed"})
+  layer.updateFields()
+  _tick(1200)
+
+  kept = dlg._category_colours.get(categorical, {}).get("landcover")
+  survived = dlg._quant_colours.get(graduated, {}).get("v1")
+  assert kept and kept.get("forest") == "#00ff00", \
+    f"renaming a column destroyed the hand-picked categorical " \
+    f"colours ({kept!r}) while the graduated twin kept " \
+    f"{survived!r} through the same act"
+  dlg.close()
+
+
 def test_an_unassigned_element_previews_as_it_draws():
   """The preview's one job is to be the map, before you commit.
 
@@ -36438,6 +36491,8 @@ def main():
         test_a_class_colour_picked_during_a_run_is_not_lost)
   check("an Unclassed excursion leaves the count alone",
         test_an_unclassed_excursion_leaves_the_count_alone)
+  check("a renamed column does not destroy hand-picked colours",
+        test_a_renamed_column_does_not_destroy_hand_picked_colours)
   check("an unassigned element previews as it draws",
         test_an_unassigned_element_previews_as_it_draws)
   check("a discarded pick does not come back",

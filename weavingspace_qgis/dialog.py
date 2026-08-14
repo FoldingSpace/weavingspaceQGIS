@@ -1482,13 +1482,29 @@ class WeavingSpaceDialog(QDialog):
       with ``_data_version`` this goes into both signatures.
 
     Why both this and the signals. This part is cheap, deterministic,
-    and catches edits made straight through the data provider, which
-    is what Processing and a good deal of plugin code do and which
-    emits nothing this dialog could hear. It cannot catch an edit that
-    leaves the count and the bounding box alone — a value retyped, a
-    vertex nudged inwards — which is exactly what the signals are for.
-    Neither mechanism covers the other's blind spot, so the plugin
-    uses both.
+    and catches an edit that CHANGES WHAT IT MEASURES — the feature
+    count, the bounding box, the field names, the CRS. The signals
+    catch edits made through QGIS's own editing session. Between them
+    they cover most of what a user does.
+
+    WHAT NEITHER COVERS, stated plainly because the docstring here
+    used to claim the opposite. An edit made straight through the
+    DATA PROVIDER — which is what Processing and a good deal of
+    plugin code do — emits no signal this dialog can hear, and if it
+    rewrites values in place it moves nothing measured above. Every
+    value in a column can change with the count, the extent, the
+    names and the CRS all identical, and the plugin will not notice:
+    Generate is then a silent no-op against data that has moved
+    underneath it. Measured 2026-08-13.
+
+    That is a LIMIT rather than a bug, and it is deliberate as of the
+    same day (maintainer's decision): the alternatives are polling
+    somebody's data or fingerprinting the values themselves, which
+    costs a full scan on every check for a case the plugin cannot
+    reliably detect anyway. The rule this file used to state — that
+    "neither mechanism covers the other's blind spot" — was simply
+    untrue, and a false promise in a docstring is worse than a known
+    gap, because it stops anybody looking.
 
     The extent is rounded because it is floating-point and asking
     twice about an unchanged layer must give the same answer; a metre
@@ -1780,11 +1796,19 @@ class WeavingSpaceDialog(QDialog):
       combo.setCurrentText(now)
       combo.blockSignals(False)
       moved.append((was, now))
-      # the hand-picked category colours belonged to the OLD field and
-      # mean nothing for the new one; they are keyed by field, so the
-      # element's other fields keep theirs
-      if identifier is not None:
-        self._category_colours.get(identifier.text(), {}).pop(was, None)
+      # THE PICKS ARE KEPT, exactly as the graduated ones are. This
+      # used to pop the categorical record for the vanished field,
+      # while `_quant_colours` was left alone -- so renaming a column
+      # in QGIS destroyed every colour a user had picked by hand for
+      # that element, unannounced, and renaming it straight back did
+      # not bring them home. The graduated twin survived the same
+      # act. Both records are keyed by element AND field, which is
+      # what makes keeping them safe: a field that never returns
+      # costs a few bytes, and a field that does return -- a rename
+      # undone a second later, which is the ordinary case -- finds
+      # its colours waiting. Made symmetrical on the maintainer's
+      # instruction, 2026-08-13. Guarded by
+      # test_a_renamed_column_does_not_destroy_hand_picked_colours.
     if moved:
       gone = sorted({was for was, _ in moved})
       landed = sorted({now for _, now in moved if now != "---"})
