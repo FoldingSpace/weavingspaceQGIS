@@ -10457,6 +10457,224 @@ def test_a_class_colour_picked_during_a_run_is_not_lost():
   dlg.close()
 
 
+def test_a_ramp_chosen_during_a_run_reaches_the_map():
+  """The rest of the symbology, in the window colour already had.
+
+  A run carries the settings it was launched with, and for geometry
+  that is right: a spacing typed while the tiles are being laid out
+  belongs to the next run. Symbology is the documented exception,
+  because the styling controls stay live during a run and the restyle
+  path declines while a task is in flight -- so the landing run is
+  the only thing left that can apply any of it.
+
+  That exception was implemented for hand-picked COLOUR alone, though
+  nothing in the argument was about colour. Choose a RAMP while the
+  tiling is still going and the element ended up described three
+  ways, no two agreeing: the dialog's record held the new ramp, the
+  table cell showed the old one, and the map drew the old one. With a
+  GeoPackage path set, live update is off, so nothing came along
+  afterwards to reconcile them -- the exported file kept the ramp the
+  user had replaced.
+
+  What is asserted here is the one that matters: the MAP follows the
+  choice. (The table cell is separately stale after a run lands,
+  which is a real but smaller fault and is not what this test is
+  about.)
+
+  Regression: only hand-picked colours were re-read when a run landed, so a ramp chosen during a tiling was discarded by it.
+  """
+  from weavingspace_qgis import bridge
+  dlg, layer, tid = _quant_dialog()
+  dlg.live_check.setChecked(False)
+  _generate_and_wait(dlg)
+  _tick(300)
+  combo = dlg.table.cellWidget(1, 4)
+  was = combo.currentText()
+  wanted = next(
+    (t for t in (combo.itemText(i) for i in range(combo.count()))
+     if t and t != was and t not in bridge.CATEGORICAL_RAMPS), None)
+  assert wanted, "no second sequential ramp to choose"
+
+  dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.2)
+  dlg._generate()
+  assert dlg._task is not None, "a run should be in flight for this test"
+  # the user picks a ramp while the tiles are still being laid out
+  index = combo.findText(wanted)
+  combo.setCurrentIndex(index)
+  combo.activated.emit(index)
+  assert dlg._ramp_choices.get(tid) == wanted, \
+    "the pick did not reach the element's record, so this test " \
+    "would be asserting nothing about the run that follows"
+  _settle(dlg)
+  _tick(600)
+
+  element = QgsProject.instance().mapLayer(dlg._element_layer_ids[tid])
+  drawn = bridge.renderer_fill_colours(element)
+  wanted_first = bridge.get_ramp(wanted).color(0.0)
+  old_first = bridge.get_ramp(was).color(0.0)
+  assert (wanted_first.red(), wanted_first.green(),
+          wanted_first.blue()) in drawn, \
+    f"a ramp chosen while the run was finishing was thrown away by " \
+    f"it: the map draws {drawn[:3]!r}, which is " \
+    f"{was!r} ({old_first.name()}) rather than the chosen " \
+    f"{wanted!r} ({wanted_first.name()})"
+  dlg.close()
+
+
+def test_an_exported_geopackage_is_still_recognised_as_our_own():
+  """The stamps have to be INSIDE the style the file carries.
+
+  QGIS stores a layer's custom properties inside the style it saves,
+  so the order of two lines decides whether a GeoPackage remembers
+  what it is. The style was embedded before the element was stamped,
+  which wrote a style naming none of them.
+
+  Nothing is wrong in the session that made the file -- the live
+  layers carry their stamps in memory. It goes wrong for whoever
+  opens the file afterwards, which is the entire purpose of the
+  option. Their layers come back unstamped, so the plugin does not
+  recognise its own output and OFFERS IT AS A REGION LAYER. The
+  settled rule is that outputs are excluded from that chooser for a
+  plain reason: tile the tiles and the next map is drawn on top of
+  the last one, at which point what a user is looking at is not a map
+  of their data at all.
+
+  `_restyle_only` had this order right. The run-landing path did not,
+  which is the same twin asymmetry that produced three other defects
+  this week.
+
+  Regression: a GeoPackage was exported with a style that carried none of the plugin's own stamps, so its layers came back unrecognised and were offered as region layers.
+  """
+  import shutil
+  import tempfile
+  from qgis.core import QgsVectorLayer
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="weavingspace_stamped_")
+  try:
+    layer = make_region_layer()
+    project.addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    dlg.table.cellWidget(0, 1).setCurrentText("v1")
+    _tick(150)
+    path = os.path.join(folder, "out.gpkg")
+    dlg.gpkg_widget.setFilePath(path)
+    dlg.spacing_spin.setValue(600)
+    _generate_and_wait(dlg)
+    _tick(400)
+    tile_id = dlg.table.item(0, 0).text()
+    live = project.mapLayer(dlg._element_layer_ids[tile_id])
+    assert live.customProperty("weavingspace_output"), \
+      "the live layer is unstamped, so the export cannot be tested"
+    dlg.close()
+    project.clear()
+    _tick(200)
+
+    # a colleague -- or the same user tomorrow -- opens the file cold
+    fresh = QgsVectorLayer(f"{path}|layername=tiles_{tile_id}",
+                           "theirs", "ogr")
+    assert fresh.isValid(), "the exported layer would not reopen"
+    fresh.loadDefaultStyle()
+    project.addMapLayer(fresh)
+    assert fresh.customProperty("weavingspace_output"), \
+      "the style saved into the GeoPackage carries none of the " \
+      "plugin's stamps, so the file has forgotten what it is"
+
+    revived = WeavingSpaceDialog(iface=_Iface())
+    _tick(400)
+    offered = [revived.layer_combo.itemText(i)
+               for i in range(revived.layer_combo.count())]
+    assert "theirs" not in offered, \
+      f"the plugin offers its own exported output as a region " \
+      f"layer ({offered!r}), so the next map would be tiled on top " \
+      f"of the last one"
+    revived.close()
+  finally:
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_closed_dialog_writes_nothing_into_the_project():
+  """A window the user has shut does not go on making maps.
+
+  Closing the dialog cancelled a tiling in flight and stopped the
+  debounce timers, and that was believed to be the whole of it. It
+  was not. The region layer's OWN signals stay connected to a closed
+  window, and an edit to that layer runs `_bump_data_version`, which
+  ends in `_queue_live`, which armed the timer again. The dialog was
+  shut and the plugin was still watching.
+
+  What that costs a user is not an idle background run. Deleting the
+  output group is this project's documented undo -- the way you say
+  "not that, then". So: close the dialog, delete the group, get on
+  with editing your own data, and the group and every element layer
+  are written straight back by a window you had shut. The plugin
+  overrules the one gesture it gives you for saying no.
+
+  The twin had this right all along. `_retire_previous_instance`
+  disarms a superseded dialog by unchecking live update as it goes
+  past; `closeEvent` never learned the same lesson.
+
+  The flag is deliberately not `isVisible()`. This suite drives live
+  update on dialogs it never shows, so a visibility test would pass
+  here while quietly disabling the behaviour across the suite --
+  which is the shape of a guard that looks like a fix and is not.
+
+  Regression: a closed dialog re-armed itself from the region layer's signals and rewrote output the user had deleted.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(150)
+  dlg.spacing_spin.setValue(600)
+  dlg.live_check.setChecked(True)
+  _generate_and_wait(dlg)
+  _tick(400)
+  group_name = dlg._group_name
+  assert group_name, "nothing was generated, so nothing can come back"
+
+  # the user shuts the dialog and deletes the output, which is the
+  # only undo this plugin offers
+  dlg.close()
+  _tick(300)
+  root = project.layerTreeRoot()
+  group = root.findGroup(group_name)
+  if group is not None:
+    root.removeChildNode(group)
+  for lyr in list(project.mapLayers().values()):
+    if lyr.customProperty("weavingspace_output"):
+      project.removeMapLayer(lyr.id())
+  _tick(200)
+  assert root.findGroup(group_name) is None, \
+    "the fixture could not delete the group, so the test below " \
+    "would pass whatever the plugin did"
+
+  # and then edits their own layer, with the dialog long shut
+  layer.startEditing()
+  feature = next(layer.getFeatures())
+  layer.changeAttributeValue(
+    feature.id(), layer.fields().indexOf("v1"), 999.0)
+  layer.commitChanges()
+  _tick(3000)
+  _settle(dlg, seconds=60)
+  _tick(600)
+
+  outputs = sorted(lyr.name() for lyr in project.mapLayers().values()
+                   if lyr.customProperty("weavingspace_output"))
+  assert not outputs and root.findGroup(group_name) is None, \
+    f"a closed dialog wrote into the project when the user edited " \
+    f"their own layer: the group is " \
+    f"{'back' if root.findGroup(group_name) is not None else 'gone'} " \
+    f"and the layers are {outputs!r}"
+
+
 def test_a_pick_is_not_swallowed_by_the_live_path():
   """The live tick's no-op guard, and what it was blind to.
 
@@ -35873,6 +36091,12 @@ def main():
         test_a_colour_picked_during_a_run_is_not_lost)
   check("race: a class colour picked during a run is not lost",
         test_a_class_colour_picked_during_a_run_is_not_lost)
+  check("a ramp chosen during a run reaches the map",
+        test_a_ramp_chosen_during_a_run_reaches_the_map)
+  check("an exported GeoPackage is recognised as our own",
+        test_an_exported_geopackage_is_still_recognised_as_our_own)
+  check("a closed dialog writes nothing into the project",
+        test_a_closed_dialog_writes_nothing_into_the_project)
   check("a pick is not swallowed by the live path",
         test_a_pick_is_not_swallowed_by_the_live_path)
   check("editing colours never rebuilds the table",

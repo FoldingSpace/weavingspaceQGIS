@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-100 defect(s) with a regression test.
+103 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -145,6 +145,8 @@ there is no separate list to remember.
 
 - **quant picks dropped by the run they were made during.**  
   guarded by `test_a_class_colour_picked_during_a_run_is_not_lost`
+- **a closed dialog re-armed itself from the region layer's signals and rewrote output the user had deleted.**  
+  guarded by `test_a_closed_dialog_writes_nothing_into_the_project`
 - **a constant column produced five identical classes in five colours; the user's own instruction was that it should revert to a single class with a warning.**  
   guarded by `test_a_constant_column_draws_one_class_and_says_so`
 - **five dock classes over a collapsed column indexed past the end of the dialog's one-class expectation, inside a renderer signal handler.**  
@@ -159,6 +161,8 @@ there is no separate list to remember.
   guarded by `test_a_new_run_always_shows_real_progress`
 - **a hand-picked colour changed under live update was swallowed by the no-op guard, because the run signature did not carry the picks that the restyle signature does.**  
   guarded by `test_a_pick_is_not_swallowed_by_the_live_path`
+- **only hand-picked colours were re-read when a run landed, so a ramp chosen during a tiling was discarded by it.**  
+  guarded by `test_a_ramp_chosen_during_a_run_reaches_the_map`
 - **the 0.24.0 sequence was written out on 2026-08-11 and the release would have been tagged on pre-0.24.0rc5, leaving main 51 commits behind with the page and README describing 0.23.**  
   guarded by `test_a_release_publishes_from_the_branch_the_page_is_served_from`
 - **reloading the dialog module reset the module-level _LIVE_DIALOG to None, so the dialog built from the reloaded class retired nothing and the predecessor went on running its debounces against the newcomer's layers.**  
@@ -177,6 +181,8 @@ there is no separate list to remember.
   guarded by `test_a_withdrawn_equivalence_stops_excluding_its_mutant`
 - **the embedded style name was the layer's own, so a long column name overran GDAL's thirty-character styleName column and was truncated with a warning on every write.**  
   guarded by `test_an_embedded_style_name_fits_the_column_it_is_written_to`
+- **a GeoPackage was exported with a style that carried none of the plugin's own stamps, so its layers came back unrecognised and were offered as region layers.**  
+  guarded by `test_an_exported_geopackage_is_still_recognised_as_our_own`
 - **the inset percentage conversion was defended only by comparisons whose tolerance is wider than the error.**  
   guarded by `test_an_inset_percentage_is_a_percentage_of_the_spacing`
 - **none of these shapes had ever been put through the plugin; the suite's fixtures are all well-formed.**  
@@ -245,7 +251,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 44
+- unrecorded: 47
 - the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6

@@ -870,6 +870,14 @@ class WeavingSpaceDialog(QDialog):
     self._live_timer.setInterval(900)
     self._live_timer.timeout.connect(self._maybe_live_generate)
     self._live_pending = False
+    # True once the window has been closed. A closed dialog
+    # must not write into the project: the timers can be
+    # stopped, but the region layer's signals stay connected
+    # and re-arm them. NOT `isVisible()`, deliberately -- the
+    # test suite drives live update on dialogs it never
+    # shows, so a visibility test would quietly disable the
+    # behaviour it was meant to guard.
+    self._closed = False
     # {field: how many distinct values it had last run}, so a
     # categorical field that gains or loses a class can be
     # reported: its existing colours will have moved.
@@ -1869,8 +1877,15 @@ class WeavingSpaceDialog(QDialog):
   def _queue_live(self, *args):
     """Debounced funnel for output-affecting changes; also the choke
     point where the table's dynamic columns are kept coherent, since
-    every relevant control change passes through here."""
+    every relevant control change passes through here.
+
+    A CLOSED dialog arms nothing. Stopping the timers on the way out
+    was not enough, because the region layer's own signals are still
+    connected and re-arm them: see closeEvent for what that cost.
+    """
     self._update_dynamic_columns()
+    if self._closed:
+      return
     self._live_timer.start()
 
   def closeEvent(self, event):  # noqa: N802 (Qt API)
@@ -1903,6 +1918,21 @@ class WeavingSpaceDialog(QDialog):
         except RuntimeError:
           pass                  # the Qt object is already gone
     self._live_pending = False
+    # And the dialog is CLOSED, which the timers alone could not say.
+    # Stopping them stopped the beat already armed; it did nothing
+    # about the region layer's own signals, which stay connected to a
+    # closed window and re-arm the timer on the user's next edit. So
+    # a user who closed the dialog, DELETED the output group -- which
+    # this project documents as the whole of the undo -- and then
+    # edited their own data got the group and every element layer
+    # written straight back, by a window they had shut. Its twin
+    # `_retire_previous_instance` had this right for a superseded
+    # dialog all along, by unchecking live update on the way past;
+    # this path never learned it. Measured 2026-08-13. showEvent
+    # clears the flag, so reopening restores the user's own setting
+    # rather than silently turning live update off.
+    # Guarded by test_a_closed_dialog_writes_nothing_into_the_project.
+    self._closed = True
     super().closeEvent(event)
 
   def showEvent(self, event):  # noqa: N802 (Qt API)
@@ -1920,6 +1950,7 @@ class WeavingSpaceDialog(QDialog):
     the height once real layout geometry exists, and recover from any
     zombie task (we believe a run is active but the task manager shows
     it dead), which otherwise blocks all future generations."""
+    self._closed = False
     super().showEvent(event)
     QTimer.singleShot(0, self._fit_to_design)
     if self._task is not None:
@@ -1945,6 +1976,8 @@ class WeavingSpaceDialog(QDialog):
     settings actually different from the last completed run. The first
     render needs no button press; choosing a layer is enough.
     """
+    if self._closed:
+      return          # a shut window draws nothing
     self.live_note.setText("")
     if not self.live_check.isChecked():
       return
@@ -5108,6 +5141,32 @@ class WeavingSpaceDialog(QDialog):
         a["range_bounds"] = tuple(
           self._ramp_ranges.get(a["id"], (0, 100)))
 
+    # AND THE REST OF THE SYMBOLOGY, for the same reason and by the
+    # same argument the comment above makes. Colour was fixed first
+    # because that is where the harm was noticed, but nothing in the
+    # reasoning was about colour: the styling controls stay live
+    # during a run, the restyle path declines while a task is in
+    # flight, and so the landing run is the only thing left that can
+    # apply any of them. Choose a ramp while the tiles are being laid
+    # out and the dialog's RECORD held the new ramp while the table
+    # cell and the map both showed the old one -- three descriptions
+    # of one element, no two agreeing. Geometry is untouched here and
+    # stays as launched: a spacing typed mid-run still belongs to the
+    # next run, which is the distinction this whole block rests on.
+    # Guarded by test_a_ramp_chosen_during_a_run_reaches_the_map.
+    for a in assignments:
+      tid_here = a["id"]
+      if tid_here in self._ramp_choices:
+        a["ramp"] = self._ramp_choices[tid_here]
+      if tid_here in self._reverse_choices:
+        a["reverse"] = self._reverse_choices[tid_here]
+      if tid_here in self._opacity_choices:
+        a["opacity"] = self._opacity_choices[tid_here]
+      if tid_here in self._single_colours:
+        a["single_colour"] = self._single_colours[tid_here]
+      if tid_here in self._class_counts:
+        a["k"] = self._class_counts[tid_here]
+
     # keep the previous run's renderers (possibly hand-refined in the
     # styling dock) before touching any layers
     old_renderers = {}
@@ -5181,8 +5240,6 @@ class WeavingSpaceDialog(QDialog):
         # re-seeded, so the dialog is the authority for this element's
         # whole appearance this run, opacity included
         out.setOpacity(max(0, min(100, a.get("opacity", 100))) / 100.0)
-      if path:
-        bridge.embed_style(out)
       element_fills[tid] = bridge.renderer_fill_colours(out)
       out.setCustomProperty("weavingspace_output", True)
       # Hand-picked category colours travel with the layer, so a saved
@@ -5194,6 +5251,19 @@ class WeavingSpaceDialog(QDialog):
       # the session can adopt the group instead of starting a rival
       # one (see _adopt_existing_group)
       out.setCustomProperty("weavingspace_tile_id", tid)
+      # The style goes into the GeoPackage LAST, and the order is the
+      # whole point. QGIS stores a layer's custom properties inside
+      # the style it saves, so embedding before the stamps above wrote
+      # a style that named none of them -- and the .gpkg is the file
+      # that LEAVES. Opened cold, its layers came back unstamped, so
+      # the plugin did not recognise its own output and OFFERED IT AS
+      # A REGION LAYER, which the settled rules say must never happen:
+      # tile the tiles and the next map is drawn on the last one.
+      # `_restyle_only` had the order right; this path did not.
+      # Measured 2026-08-13. Guarded by
+      # test_an_exported_geopackage_is_still_recognised_as_our_own.
+      if path:
+        bridge.embed_style(out)
       project.addMapLayer(out, False)
       group.addLayer(out)
       # the user's own filter, back on the fresh layer. Applied AFTER
