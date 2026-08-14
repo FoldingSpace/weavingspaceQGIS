@@ -2932,8 +2932,21 @@ class WeavingSpaceDialog(QDialog):
       k_spin.setVisible(not self.table.isColumnHidden(3))
 
       default = self.DEFAULT_RAMPS[row % len(self.DEFAULT_RAMPS)]
-      wanted = prev["ramp"] if prev and prev.get("ramp") else \
-        self._ramp_choices.get(tid, default)
+      # THE ELEMENT'S RECORD FIRST, then the previous assignment.
+      # These were the other way round, and `prev` is a snapshot that
+      # can be older than the record: after a run landed, the cell
+      # came back showing the ramp the run was LAUNCHED with while
+      # `_ramp_choices` held the one the user had picked while it
+      # tiled. The map keeping the old ramp there is deliberate --
+      # with live update off nothing repaints unasked -- but the
+      # CONTROL denying a choice the dialog had kept is not: it is a
+      # control lying about the map, which is the fault the Custom
+      # display exists to prevent elsewhere. `_ramp_choices` is
+      # written by every path that changes a ramp, including the one
+      # that follows a dock edit, so it is the authority.
+      # Guarded by test_a_ramp_chosen_during_a_run_is_not_lost.
+      wanted = self._ramp_choices.get(tid) \
+        or (prev.get("ramp") if prev else None) or default
       self.table.setCellWidget(
         row, 4, self._make_ramp_combo(tid, wanted))
       if prev and prev.get("single_colour"):
@@ -3661,6 +3674,7 @@ class WeavingSpaceDialog(QDialog):
           # which is exactly this case; its two ADOPT exits called it
           # and these two FOLLOW exits did not. Measured 2026-08-13.
           # Guarded by test_a_discarded_pick_does_not_come_back.
+          # the CATEGORIZED half of this branch
           self._stamp_category_colours(layer, refreshed)
         return
 
@@ -3779,6 +3793,7 @@ class WeavingSpaceDialog(QDialog):
           # which is exactly this case; its two ADOPT exits called it
           # and these two FOLLOW exits did not. Measured 2026-08-13.
           # Guarded by test_a_discarded_pick_does_not_come_back.
+          # the GRADUATED half of this branch
           self._stamp_category_colours(layer, refreshed)
         return
 
@@ -5187,31 +5202,19 @@ class WeavingSpaceDialog(QDialog):
         a["range_bounds"] = tuple(
           self._ramp_ranges.get(a["id"], (0, 100)))
 
-    # AND THE REST OF THE SYMBOLOGY, for the same reason and by the
-    # same argument the comment above makes. Colour was fixed first
-    # because that is where the harm was noticed, but nothing in the
-    # reasoning was about colour: the styling controls stay live
-    # during a run, the restyle path declines while a task is in
-    # flight, and so the landing run is the only thing left that can
-    # apply any of them. Choose a ramp while the tiles are being laid
-    # out and the dialog's RECORD held the new ramp while the table
-    # cell and the map both showed the old one -- three descriptions
-    # of one element, no two agreeing. Geometry is untouched here and
-    # stays as launched: a spacing typed mid-run still belongs to the
-    # next run, which is the distinction this whole block rests on.
-    # Guarded by test_a_ramp_chosen_during_a_run_reaches_the_map.
-    for a in assignments:
-      tid_here = a["id"]
-      if tid_here in self._ramp_choices:
-        a["ramp"] = self._ramp_choices[tid_here]
-      if tid_here in self._reverse_choices:
-        a["reverse"] = self._reverse_choices[tid_here]
-      if tid_here in self._opacity_choices:
-        a["opacity"] = self._opacity_choices[tid_here]
-      if tid_here in self._single_colours:
-        a["single_colour"] = self._single_colours[tid_here]
-      if tid_here in self._class_counts:
-        a["k"] = self._class_counts[tid_here]
+    # NOT the rest of the symbology, and the distinction is settled
+    # rather than accidental. A ramp, class count, opacity or Reverse
+    # changed during a run is NOT lost: it stays in the element's
+    # record, the table keeps it, and the next Generate applies it.
+    # With live update off the plugin deliberately does not repaint
+    # on its own -- the table and the map may disagree until the user
+    # asks, which is what `test_race_restyle_during_run` has asserted
+    # since long before tonight. Hand-picked COLOUR is the exception
+    # because it was genuinely destroyed rather than merely deferred:
+    # the landing run stamped it ABSENT onto the layer, past the
+    # reach of a reopen. Re-reading the rest here was tried on
+    # 2026-08-13 and reverted the same night; it made the map repaint
+    # unasked and put two tests in direct contradiction.
 
     # keep the previous run's renderers (possibly hand-refined in the
     # styling dock) before touching any layers

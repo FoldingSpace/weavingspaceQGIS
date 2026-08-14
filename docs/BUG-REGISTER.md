@@ -165,8 +165,8 @@ there is no separate list to remember.
   guarded by `test_a_new_run_always_shows_real_progress`
 - **a hand-picked colour changed under live update was swallowed by the no-op guard, because the run signature did not carry the picks that the restyle signature does.**  
   guarded by `test_a_pick_is_not_swallowed_by_the_live_path`
-- **only hand-picked colours were re-read when a run landed, so a ramp chosen during a tiling was discarded by it.**  
-  guarded by `test_a_ramp_chosen_during_a_run_reaches_the_map`
+- **the ramp cell reverted to the pre-run ramp after a run landed, while the element's own record held the new one.**  
+  guarded by `test_a_ramp_chosen_during_a_run_is_not_lost`
 - **the 0.24.0 sequence was written out on 2026-08-11 and the release would have been tagged on pre-0.24.0rc5, leaving main 51 commits behind with the page and README describing 0.23.**  
   guarded by `test_a_release_publishes_from_the_branch_the_page_is_served_from`
 - **reloading the dialog module reset the module-level _LIVE_DIALOG to None, so the dialog built from the reloaded class retired nothing and the predecessor went on running its debounces against the newcomer's layers.**  

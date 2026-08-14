@@ -701,8 +701,25 @@ MUTATIONS = [
   # count them, and call it Custom). Three entries because three
   # separate things have to hold, and one anchor covering them all
   # would report SURVIVED whenever any one of them still worked.
-  dict(name="follow-branch-clears-the-stamp", file=DIALOG,
-       old="""          self._stamp_category_colours(layer, refreshed)""",
+  # SPLIT IN TWO on 2026-08-13, because one anchor matched BOTH
+  # follow branches. The catalogue's own rule: mutating one twin
+  # while the other goes on doing the work reports SURVIVED whatever
+  # the tests do -- and here it was worse, since an anchor matching
+  # twice makes the tool exit rather than judge, and nothing noticed
+  # because nothing runs the catalogue.
+  dict(name="follow-branch-clears-the-stamp-categorized", file=DIALOG,
+       old="""          # the CATEGORIZED half of this branch
+          self._stamp_category_colours(layer, refreshed)""",
+       new="""          pass  # mutation: the discarded pick stays stamped""",
+       test="test_a_discarded_pick_does_not_come_back",
+       why="a colour the plugin ANNOUNCED as discarded actually "
+           "being gone. The dicts are cleared and the user is told "
+           "the ramp governs; leave the stamp behind and the pick "
+           "returns on reopen, painted over the ramp they chose, "
+           "with the signature stamped so no restyle heals it"),
+  dict(name="follow-branch-clears-the-stamp-graduated", file=DIALOG,
+       old="""          # the GRADUATED half of this branch
+          self._stamp_category_colours(layer, refreshed)""",
        new="""          pass  # mutation: the discarded pick stays stamped""",
        test="test_a_discarded_pick_does_not_come_back",
        why="a colour the plugin ANNOUNCED as discarded actually "
@@ -1926,10 +1943,14 @@ MUTATIONS = [
   # campaign, and guessing is what today has been an argument against.
   # Recorded, not closed. (2026-08-13.)
   dict(name="per-row-class-ceiling-is-pinned", file=DIALOG,
-       old='      k_spin.setRange(2, 20)\n'
-           '      k_spin.setValue(min(int(k_spin.property("user_k") or 5), 20))',
-       new='      k_spin.setRange(2, 21)\n'
-           '      k_spin.setValue(min(int(k_spin.property("user_k") or 5), 20))',
+       # Re-anchored 2026-08-13: the setValue line this named was
+       # rewritten that night, leaving the entry matching NOTHING --
+       # and an entry whose anchor is absent is worse than no entry,
+       # because a sweep goes on printing a verdict for it.
+       old="""      k_spin.setRange(2, 20)
+      # clamp the PROPERTY, not only the display""",
+       new="""      k_spin.setRange(2, 21)
+      # clamp the PROPERTY, not only the display""",
        test="test_every_per_row_control_keeps_its_declared_range",
        why="a SURVIVOR of batch 12. The 2-20 class ceiling is a design "
            "decision recorded in CLAUDE.md, and nothing pinned it "
@@ -2071,8 +2092,13 @@ MUTATIONS = [
        new="""    # drop the previous run's element layers
     for tid, lid in old_ids.items():
       if tid in new_ids and project.mapLayer(lid) is not None:""",
-       test="test_two_generates_with_different_families_keep_their_elements_apart"
-            "keep_their_elements_apart",
+       # ONE literal. This was two adjacent strings, which Python
+       # concatenates silently into a name no test has -- and the
+       # standards checker's regex read only the first of them, so
+       # it saw a name that exists. Two counting rules, wrong
+       # together, which is the shape that makes a broken entry
+       # invisible. Repaired 2026-08-13.
+       test="test_two_generates_with_different_families_keep_their_elements_apart",
        why="a run must clear the whole of the previous one, not only "
            "the elements it happens to share. Going from a "
            "seven-element family to a four-element one otherwise "

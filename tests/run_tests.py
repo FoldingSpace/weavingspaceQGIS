@@ -10694,31 +10694,31 @@ def test_a_discarded_pick_does_not_come_back():
     shutil.rmtree(folder, ignore_errors=True)
 
 
-def test_a_ramp_chosen_during_a_run_reaches_the_map():
-  """The rest of the symbology, in the window colour already had.
+def test_a_ramp_chosen_during_a_run_is_not_lost():
+  """What a mid-run choice is owed, which is less than a repaint.
 
-  A run carries the settings it was launched with, and for geometry
-  that is right: a spacing typed while the tiles are being laid out
-  belongs to the next run. Symbology is the documented exception,
-  because the styling controls stay live during a run and the restyle
-  path declines while a task is in flight -- so the landing run is
-  the only thing left that can apply any of it.
+  A run carries the settings it was launched with. Choose a ramp
+  while the tiles are still being laid out and the map does NOT
+  change when the run lands, and that is deliberate: with live update
+  off the plugin never repaints unasked, so the table and the map may
+  disagree until the user presses Generate. `test_race_restyle_during_run`
+  has asserted exactly that for far longer than this test has existed.
 
-  That exception was implemented for hand-picked COLOUR alone, though
-  nothing in the argument was about colour. Choose a RAMP while the
-  tiling is still going and the element ended up described three
-  ways, no two agreeing: the dialog's record held the new ramp, the
-  table cell showed the old one, and the map drew the old one. With a
-  GeoPackage path set, live update is off, so nothing came along
-  afterwards to reconcile them -- the exported file kept the ramp the
-  user had replaced.
+  What is owed is that the choice is not LOST, and that no control
+  lies about it in the meantime. The element's record must hold the
+  new ramp, the cell must show it, and the next Generate must put it
+  on the map. Hand-picked colour is the one exception to the "nothing
+  repaints unasked" rule, because it was genuinely destroyed rather
+  than deferred -- the landing run stamped it absent onto the layer,
+  where a reopen could not recover it.
 
-  What is asserted here is the one that matters: the MAP follows the
-  choice. (The table cell is separately stale after a run lands,
-  which is a real but smaller fault and is not what this test is
-  about.)
+  Written after getting this wrong the other way. A first version of
+  this test asserted the map should follow the mid-run pick, the
+  product was changed to make it do so, and the two tests then
+  asserted opposite outcomes for one act -- which is how a suite ends
+  up describing a behaviour nobody chose.
 
-  Regression: only hand-picked colours were re-read when a run landed, so a ramp chosen during a tiling was discarded by it.
+  Regression: the ramp cell reverted to the pre-run ramp after a run landed, while the element's own record held the new one.
   """
   from weavingspace_qgis import bridge
   dlg, layer, tid = _quant_dialog()
@@ -10735,26 +10735,41 @@ def test_a_ramp_chosen_during_a_run_reaches_the_map():
   dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.2)
   dlg._generate()
   assert dlg._task is not None, "a run should be in flight for this test"
-  # the user picks a ramp while the tiles are still being laid out
   index = combo.findText(wanted)
   combo.setCurrentIndex(index)
   combo.activated.emit(index)
   assert dlg._ramp_choices.get(tid) == wanted, \
-    "the pick did not reach the element's record, so this test " \
-    "would be asserting nothing about the run that follows"
+    "the pick did not reach the element's record"
   _settle(dlg)
   _tick(600)
 
+  # the map is NOT repainted, on purpose
   element = QgsProject.instance().mapLayer(dlg._element_layer_ids[tid])
-  drawn = bridge.renderer_fill_colours(element)
-  wanted_first = bridge.get_ramp(wanted).color(0.0)
   old_first = bridge.get_ramp(was).color(0.0)
+  assert (old_first.red(), old_first.green(), old_first.blue()) in \
+      bridge.renderer_fill_colours(element), \
+    "the run repainted the map on its own, which live update off " \
+    "is precisely the instruction not to do"
+
+  # but nothing has lost the choice, and no control denies it
+  assert dlg._ramp_choices.get(tid) == wanted, \
+    f"the landing run discarded the ramp from the element's record: " \
+    f"{dlg._ramp_choices.get(tid)!r}"
+  cell_now = dlg.table.cellWidget(1, 4)
+  assert cell_now is not None and cell_now.currentText() == wanted, \
+    f"the ramp cell says {cell_now.currentText()!r} where the " \
+    f"element's record says {wanted!r}, so the control is denying a " \
+    f"choice the user made and the dialog kept"
+
+  # and pressing Generate applies it
+  _generate_and_wait(dlg)
+  _tick(400)
+  element = QgsProject.instance().mapLayer(dlg._element_layer_ids[tid])
+  wanted_first = bridge.get_ramp(wanted).color(0.0)
   assert (wanted_first.red(), wanted_first.green(),
-          wanted_first.blue()) in drawn, \
-    f"a ramp chosen while the run was finishing was thrown away by " \
-    f"it: the map draws {drawn[:3]!r}, which is " \
-    f"{was!r} ({old_first.name()}) rather than the chosen " \
-    f"{wanted!r} ({wanted_first.name()})"
+          wanted_first.blue()) in bridge.renderer_fill_colours(element), \
+    f"pressing Generate did not apply the ramp chosen during the " \
+    f"earlier run, so the choice was lost after all"
   dlg.close()
 
 
@@ -24997,10 +25012,12 @@ def test_metamorphic_translation_invariance():
   # pattern's phase against the polygons and the join changes. That is
   # a property of the design rather than a defect -- worth knowing,
   # because it means a map is reproducible only for a fixed region.
-  same_values = (sorted(here["v1"].dropna().round(6)) ==
-                 sorted(there["v1"].dropna().round(6)))
-  assert not same_values or True, \
-    "recorded for the reader: phase, and so the join, may differ"
+  # Deliberately NOT asserted. This used to read
+  # `assert not same_values or True`, which is true whatever happens
+  # -- an assertion that cannot fail, sitting in a suite whose whole
+  # argument is that a test must be able to. It was written as a note
+  # to the reader and should have been one: a line of prose costs the
+  # same and does not pretend to be a check. (2026-08-13.)
 
 
 def test_metamorphic_opacity_round_trip():
@@ -25030,9 +25047,25 @@ def test_metamorphic_opacity_round_trip():
     return out
 
   before = snapshot()
+  tid = dlg.table.item(0, 0).text()
+  moved = []
   for value in (40, 75, 15, 100):
     dlg._row_opacity(0).setValue(value)
     assert dlg._restyle_only()
+    # THE AXIS HAS TO MOVE, or the round trip below compares two
+    # identical states and passes on a plugin that never applies
+    # opacity at all. Severing setOpacity from every layer left this
+    # test green until 2026-08-13, because both ends read 1.0 and
+    # agreed: a metamorphic test with a motionless variable is not a
+    # test of anything. Each step is checked against the LAYER.
+    reached = round(QgsProject.instance().mapLayer(
+      dlg._element_layer_ids[tid]).opacity() * 100)
+    moved.append(reached)
+    assert reached == value, \
+      f"setting opacity to {value} left the layer at {reached}, so " \
+      f"the round trip below would compare two unchanged states"
+  assert len(set(moved)) > 1, \
+    f"opacity never actually varied across the round trip ({moved!r})"
   assert snapshot() == before, \
     "returning opacity to 100 must return the original appearance"
   dlg.close()
@@ -29080,9 +29113,24 @@ def test_design_choices_that_leave_nothing_to_colour():
   mode.setCurrentIndex(index)
   mode.activated.emit(index)
   _tick(200)
-  reverse = dlg._row_widgets(0)[4] if hasattr(dlg, "_row_widgets") else None
-  if reverse is not None and hasattr(reverse, "setChecked"):
-    reverse.setChecked(True)
+  # Reverse on a single-colour row: the switch must be GREYED, which
+  # is the real behaviour and is what this case is now about. It used
+  # to read `_row_widgets(0)[4]`, which is the WRAPPER widget rather
+  # than the switch inside it, so `hasattr(..., "setChecked")` was
+  # False and the whole case skipped in silence -- the same shape as
+  # the two dead axes found in the differential sweep on the morning
+  # of 2026-08-13, in a test written the same week to avoid them.
+  # `_row_reverse` unwraps it, and an absent switch now fails rather
+  # than passing quietly.
+  reverse = dlg._row_reverse(0)
+  assert reverse is not None, \
+    "row 0 has no Reverse switch at all, so this case checks nothing"
+  assert not reverse.isEnabled(), \
+    "Reverse is live on a single-colour element, which has no ramp " \
+    "to run backwards"
+  assert not reverse.isChecked(), \
+    "a greyed Reverse switch is showing itself as ticked, which " \
+    "tells the user their colours are reversed when they are not"
   # element 1 made invisible, which the legibility check must survive
   dlg.table.cellWidget(1, 1).setCurrentText("v1")
   opacity = dlg.table.cellWidget(1, 6)
@@ -29091,8 +29139,17 @@ def test_design_choices_that_leave_nothing_to_colour():
   opacity.setValue(0)
   # and turn the legibility warning ON, since it is opt-in and this
   # case is precisely about what it does with an invisible colour
-  if hasattr(dlg, "opt_warn_legibility"):
-    dlg.opt_warn_legibility.setChecked(True)
+  # The control is `opt_colour_warnings`. This asked for
+  # `opt_warn_legibility`, which does not exist, so the guard skipped
+  # and the warning stayed OFF -- and the gated helper returns before
+  # touching anything, which is why a RuntimeError planted inside it
+  # could not make this test fail. Named directly and asserted, so a
+  # rename breaks the test instead of hollowing it out.
+  assert hasattr(dlg, "opt_colour_warnings"), \
+    "the legibility opt-in has been renamed; this case is about " \
+    "what that warning does with an invisible colour and cannot " \
+    "run without it"
+  dlg.opt_colour_warnings.setChecked(True)
   dlg._update_dynamic_columns()
   _tick(250)
 
@@ -36334,8 +36391,8 @@ def main():
         test_an_unclassed_excursion_leaves_the_count_alone)
   check("a discarded pick does not come back",
         test_a_discarded_pick_does_not_come_back)
-  check("a ramp chosen during a run reaches the map",
-        test_a_ramp_chosen_during_a_run_reaches_the_map)
+  check("a ramp chosen during a run is not lost",
+        test_a_ramp_chosen_during_a_run_is_not_lost)
   check("an exported GeoPackage is recognised as our own",
         test_an_exported_geopackage_is_still_recognised_as_our_own)
   check("a closed dialog writes nothing into the project",
