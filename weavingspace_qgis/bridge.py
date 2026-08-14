@@ -1358,6 +1358,53 @@ def write_gpkg_layer(layer: QgsVectorLayer, path: str, layer_name: str,
   return out
 
 
+def drop_gpkg_layer(path: str, layer_name: str) -> bool:
+  """Best-effort: remove one table from a GeoPackage.
+
+  Args:
+    path: the .gpkg file to edit.
+    layer_name: the table to remove, which the CALLER must have
+      written itself. Nothing here checks that, and nothing can: a
+      GeoPackage is an ordinary file a user may keep other data in,
+      so deciding what is ours to delete belongs with whoever wrote
+      it. The dialog passes only element tables it wrote on its own
+      previous run into this same file.
+
+  Returns:
+    True when the table is gone, False when there was nothing to
+    remove or the file would not open. Never raises: this tidies up
+    after a design that shrank, and failing to tidy must not fail the
+    run that produced the map.
+
+  Why it exists: a run writes one table per element and REPLACES
+  those it writes, so a session that goes from six elements to three
+  used to leave the other three behind. The map is right and the file
+  is wrong -- and the file is the thing that gets sent to somebody
+  else, who opens it and finds layers belonging to a design that no
+  longer exists, with no way to tell which three are the map.
+  """
+  try:
+    from osgeo import ogr
+  except ImportError:
+    return False        # no GDAL bindings: leave the file untouched
+  source = None
+  try:
+    # 1 = open for update; the DELETE below is a no-op otherwise
+    source = ogr.Open(path, 1)
+    if source is None:
+      return False
+    for index in range(source.GetLayerCount()):
+      if source.GetLayer(index).GetName() == layer_name:
+        source.DeleteLayer(index)
+        return True
+    return False
+  except Exception:
+    return False
+  finally:
+    # closing the dataset is what flushes the change to disk
+    source = None
+
+
 def embed_style(layer: QgsVectorLayer) -> None:
   """Best-effort: save the layer's current style into its GeoPackage.
 

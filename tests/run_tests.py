@@ -6154,6 +6154,87 @@ def test_a_large_region_is_handled():
   dlg.close()
 
 
+def test_a_geopackage_loses_the_elements_a_design_dropped():
+  """A session that SHRINKS, and the file somebody else opens.
+
+  A run writes one table per element and replaces the tables it
+  writes, which is right for a design that keeps its elements and
+  wrong for one that loses some. Go from six elements to three and
+  the map is correct while the file holds all six, with nothing in it
+  to say which three are the map.
+
+  That asymmetry matters more than an untidy file. The .gpkg is the
+  artefact that LEAVES: the whole point of the option is one file to
+  send a colleague, who opens it, sees six layers, and draws a map
+  with three elements that were deleted before the design was
+  finished. The person who made it never sees the fault, because
+  their own QGIS is showing them the three layers the run added.
+
+  Only tables THIS dialog wrote into THIS file are removed. A
+  GeoPackage is an ordinary file somebody may keep other data in, so
+  the dialog remembers what it wrote rather than deleting on the
+  strength of a name matching its own convention.
+
+  Regression: a design that shrank left its dropped elements in the GeoPackage, so the exported file described a map that no longer existed.
+  """
+  import shutil
+  import tempfile
+  from osgeo import ogr
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="weavingspace_shrink_")
+  try:
+    layer = make_region_layer()
+    project.addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    path = os.path.join(folder, "out.gpkg")
+    dlg.gpkg_widget.setFilePath(path)
+    dlg.spacing_spin.setValue(600)
+    _generate_and_wait(dlg)
+    _tick(300)
+
+    def element_tables():
+      """The plugin's own tables in the file, by element id."""
+      source = ogr.Open(path)
+      assert source is not None, f"nothing readable at {path}"
+      names = sorted(source.GetLayer(i).GetName()
+                     for i in range(source.GetLayerCount()))
+      source = None
+      return [n for n in names if n.startswith("tiles_")]
+
+    wide = element_tables()
+    assert len(wide) >= 4, \
+      f"the first design wrote {wide!r}, too few elements to lose one"
+
+    # the user simplifies the design: fewer elements than before
+    dlg.n_combo.setCurrentText("3")
+    _tick(200)
+    dlg._rebuild_unit()
+    _tick(300)
+    _generate_and_wait(dlg)
+    _tick(400)
+
+    on_the_map = {f"tiles_{dlg.table.item(r, 0).text()}"
+                  for r in range(dlg.table.rowCount())
+                  if dlg.table.item(r, 0) is not None}
+    narrow = element_tables()
+    assert len(narrow) < len(wide), \
+      f"the design shrank from {len(wide)} elements and the file " \
+      f"still holds {len(narrow)}: {narrow!r}"
+    orphans = [t for t in narrow if t not in on_the_map]
+    assert not orphans, \
+      f"the file keeps {orphans!r}, which no element on the map " \
+      f"carries, so a colleague opening it draws a design that was " \
+      f"abandoned. The file holds {narrow!r} against a map of " \
+      f"{sorted(on_the_map)!r}"
+    dlg.close()
+  finally:
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_a_geopackage_is_rewritten_and_renamed():
   """Writing over an existing GeoPackage, and awkward names in it.
 
@@ -10373,6 +10454,58 @@ def test_a_class_colour_picked_during_a_run_is_not_lost():
   assert (0, 255, 255) in bridge.renderer_fill_colours(element), \
     "a class colour picked while a run was finishing was thrown " \
     "away by it"
+  dlg.close()
+
+
+def test_a_pick_is_not_swallowed_by_the_live_path():
+  """The live tick's no-op guard, and what it was blind to.
+
+  Live update decides a queued run would change nothing by comparing
+  `_run_signature` with the last run's, and RETURNS on a match --
+  before reaching `_restyle_only`. So the guard is not merely an
+  optimisation: anything missing from that tuple cannot be applied on
+  the live path at all.
+
+  `_signature`, which decides which elements a restyle re-seeds,
+  carries the hand-picked categorical colours, the positional
+  graduated picks and the display window, and CLAUDE.md records that
+  leaving them out cost a bug once already. `_run_signature` carried
+  none of the three. With live update on, a colour changed and
+  nothing else touched left the editor and the table both showing it
+  as applied while the map went on without it -- the exact failure
+  the colour editor exists to prevent, on the setting a user is most
+  likely to be fiddling with.
+
+  Nothing is re-tiled by the correction. The geometry signature is
+  untouched, so the run that follows the guard is a restyle in place.
+
+  Regression: a hand-picked colour changed under live update was swallowed by the no-op guard, because the run signature did not carry the picks that the restyle signature does.
+  """
+  from weavingspace_qgis import bridge
+  dlg, layer, tid = _categorical_dialog()
+  dlg.live_check.setChecked(True)
+  _generate_and_wait(dlg)
+  _tick(300)
+
+  # the pick alone must move the run signature, or the guard below
+  # can never be reached
+  before = dlg._run_signature()
+  dlg._category_colours.setdefault(tid, {}).setdefault(
+    "landcover", {})["forest"] = "#ff00ff"
+  assert dlg._run_signature() != before, \
+    "a hand-picked colour left the run signature unchanged, so the " \
+    "live tick will treat the change as nothing having happened"
+
+  # and the live path alone -- no _apply_style_change, which is the
+  # route that was already working -- must put it on the map
+  dlg._queue_live()
+  _tick(1500)
+  _settle(dlg)
+  _tick(400)
+  element = QgsProject.instance().mapLayer(dlg._element_layer_ids[tid])
+  assert (255, 0, 255) in bridge.renderer_fill_colours(element), \
+    f"a colour picked under live update never reached the map: the " \
+    f"element draws {bridge.renderer_fill_colours(element)!r}"
   dlg.close()
 
 
@@ -35541,6 +35674,8 @@ def main():
         test_an_undone_edit_is_followed_back)
   check("a large region is handled",
         test_a_large_region_is_handled)
+  check("a GeoPackage loses the elements a design dropped",
+        test_a_geopackage_loses_the_elements_a_design_dropped)
   check("a GeoPackage is rewritten and renamed",
         test_a_geopackage_is_rewritten_and_renamed)
   check("the plugin is unloaded during a run",
@@ -35738,6 +35873,8 @@ def main():
         test_a_colour_picked_during_a_run_is_not_lost)
   check("race: a class colour picked during a run is not lost",
         test_a_class_colour_picked_during_a_run_is_not_lost)
+  check("a pick is not swallowed by the live path",
+        test_a_pick_is_not_swallowed_by_the_live_path)
   check("editing colours never rebuilds the table",
         test_editing_colours_never_rebuilds_the_table)
   check("the editor copes with the data going away",

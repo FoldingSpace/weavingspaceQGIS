@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-98 defect(s) with a regression test.
+100 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -153,8 +153,12 @@ there is no separate list to remember.
   guarded by `test_a_dock_edit_during_a_run_is_not_lost`
 - **release.py's watchdog used threading without importing it, so the first release stage would have died on a NameError; committed untested and caught the moment these held-back tests were applied.**  
   guarded by `test_a_failed_stage_is_not_remembered`
+- **a design that shrank left its dropped elements in the GeoPackage, so the exported file described a map that no longer existed.**  
+  guarded by `test_a_geopackage_loses_the_elements_a_design_dropped`
 - **only _finish_run restored the determinate progress range, and the zombie recovery does not go through it.**  
   guarded by `test_a_new_run_always_shows_real_progress`
+- **a hand-picked colour changed under live update was swallowed by the no-op guard, because the run signature did not carry the picks that the restyle signature does.**  
+  guarded by `test_a_pick_is_not_swallowed_by_the_live_path`
 - **the 0.24.0 sequence was written out on 2026-08-11 and the release would have been tagged on pre-0.24.0rc5, leaving main 51 commits behind with the page and README describing 0.23.**  
   guarded by `test_a_release_publishes_from_the_branch_the_page_is_served_from`
 - **reloading the dialog module reset the module-level _LIVE_DIALOG to None, so the dialog built from the reloaded class retired nothing and the predecessor went on running its debounces against the newcomer's layers.**  
@@ -241,7 +245,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 42
+- unrecorded: 44
 - the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6

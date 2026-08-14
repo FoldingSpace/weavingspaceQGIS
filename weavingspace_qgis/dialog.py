@@ -760,6 +760,13 @@ class WeavingSpaceDialog(QDialog):
     self._outline_layer_id = None
     self._last_signatures = {}
     self._last_path = None
+    # {gpkg path: {element ids this dialog wrote into it}}. Kept so a
+    # design that SHRINKS can remove the tables its own previous run
+    # left behind, and so that it can remove ONLY those: a GeoPackage
+    # is an ordinary file somebody may keep other data in, and
+    # deleting a table on the strength of its name matching our
+    # convention would eventually delete somebody's work.
+    self._gpkg_tables_written = {}
     self._last_run_sig = None
     # the geometry of the last completed run, so a later style-only
     # change can be answered without tiling again
@@ -4313,10 +4320,25 @@ class WeavingSpaceDialog(QDialog):
       self.opt_clip.isChecked(), self.opt_icons.isChecked(),
       self.opt_outlines.isChecked(),
       self.gpkg_widget.filePath().strip() or None,
+      # The three STYLE items at the end are the ones _signature
+      # carries, and they are here for a reason measured on
+      # 2026-08-13: the live tick RETURNS on an unchanged signature
+      # WITHOUT reaching _restyle_only, so anything missing from this
+      # tuple can never be applied on the live path at all. A
+      # hand-picked colour changed with live update on, and nothing
+      # else touched, was simply swallowed -- the editor and the
+      # table both showing it as applied while the map went on
+      # without it. Including them costs nothing: the geometry
+      # signature is unchanged, so the run that follows is a restyle
+      # in place rather than a tiling. Guarded by
+      # test_a_pick_is_not_swallowed_by_the_live_path.
       tuple((a["id"], a["var"], a["mode"], a["ramp"], a["scheme"],
              a["k"], a["outline"], a["class_source"],
              a.get("single_colour"), a.get("reverse", False),
-             a.get("opacity", 100))
+             a.get("opacity", 100),
+             tuple(sorted((a.get("category_colours") or {}).items())),
+             tuple(sorted((a.get("quant_colours") or {}).items())),
+             tuple(a.get("range_bounds", (0, 100))))
             for a in self._assignments()),
       # See _geometry_signature: live update compares this tuple to
       # decide a run would be a no-op, and an edit to the layer must
@@ -5222,6 +5244,20 @@ class WeavingSpaceDialog(QDialog):
       if tid not in new_ids:
         del self._last_signatures[tid]
     self._element_layer_ids = new_ids
+    # A GeoPackage is REPLACED table by table, so a design that
+    # shrank left its old elements in the file: the map showed three
+    # and the file held six, with nothing to say which three were the
+    # map. That file is the thing a user sends to somebody else, so
+    # the wrongness travels while the map stays right. Only tables
+    # THIS dialog wrote into THIS file are removed, and only those
+    # the current design no longer has -- never a table the user's
+    # own file already contained. Guarded by
+    # test_a_geopackage_loses_the_elements_a_design_dropped.
+    if path:
+      written = self._gpkg_tables_written.get(path, set())
+      for stale in sorted(written - set(new_ids)):
+        bridge.drop_gpkg_layer(path, f"tiles_{stale}")
+      self._gpkg_tables_written[path] = set(new_ids)
     self._last_path = path
     # what this run DREW, not what the table says now (see the note
     # where these are captured, in _generate)

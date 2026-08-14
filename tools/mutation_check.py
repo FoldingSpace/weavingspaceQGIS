@@ -701,6 +701,25 @@ MUTATIONS = [
   # count them, and call it Custom). Three entries because three
   # separate things have to hold, and one anchor covering them all
   # would report SURVIVED whenever any one of them still worked.
+  dict(name="run-signature-carries-the-picks", file=DIALOG,
+       old="""             tuple(sorted((a.get("category_colours") or {}).items())),""",
+       new="""             # mutation: the live guard cannot see a pick""",
+       test="test_a_pick_is_not_swallowed_by_the_live_path",
+       why="the live tick RETURNS on an unchanged run signature "
+           "before it reaches the restyle path, so a hand-picked "
+           "colour missing from this tuple can never be applied "
+           "under live update at all -- the editor and the table "
+           "both showing it while the map goes on without it"),
+  dict(name="shrunk-design-tidies-its-geopackage", file=DIALOG,
+       old="""      for stale in sorted(written - set(new_ids)):
+        bridge.drop_gpkg_layer(path, f"tiles_{stale}")""",
+       new="""      pass  # mutation: dropped elements stay in the file""",
+       test="test_a_geopackage_loses_the_elements_a_design_dropped",
+       why="the exported file describing the design that exists. A "
+           "GeoPackage is replaced table by table, so a session that "
+           "shrinks leaves its old elements behind -- and that file "
+           "is the artefact that LEAVES, so the person who made it "
+           "never sees the fault their colleague opens"),
   dict(name="ramps-installed-before-adoption", file=DIALOG,
        # the ordering bug as it actually happened: adoption ran two
        # lines before the ramp list existed, so every lookup threw
