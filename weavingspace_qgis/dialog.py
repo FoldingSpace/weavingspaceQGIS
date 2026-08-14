@@ -3629,6 +3629,19 @@ class WeavingSpaceDialog(QDialog):
         refreshed = self._assignment_for(tile_id)
         if refreshed is not None:
           self._last_signatures[tile_id] = self._signature(refreshed)
+          # and the LAYER is told the picks are gone, which is the
+          # half this branch never did. The dicts were cleared and
+          # the user was told the ramp now governs, while the stamp
+          # went on holding the discarded colours -- and the stamp is
+          # what survives into the .qgz. So the pick came back on
+          # reopen, silently painted over the ramp the user had
+          # chosen instead, and `_last_signatures` above guaranteed
+          # no restyle would ever heal it. `_stamp_category_colours`
+          # clears each property when there is nothing to record,
+          # which is exactly this case; its two ADOPT exits called it
+          # and these two FOLLOW exits did not. Measured 2026-08-13.
+          # Guarded by test_a_discarded_pick_does_not_come_back.
+          self._stamp_category_colours(layer, refreshed)
         return
 
     # adopt the divergent colours as hand-picks for the current field
@@ -3734,6 +3747,19 @@ class WeavingSpaceDialog(QDialog):
         refreshed = self._assignment_for(tile_id)
         if refreshed is not None:
           self._last_signatures[tile_id] = self._signature(refreshed)
+          # and the LAYER is told the picks are gone, which is the
+          # half this branch never did. The dicts were cleared and
+          # the user was told the ramp now governs, while the stamp
+          # went on holding the discarded colours -- and the stamp is
+          # what survives into the .qgz. So the pick came back on
+          # reopen, silently painted over the ramp the user had
+          # chosen instead, and `_last_signatures` above guaranteed
+          # no restyle would ever heal it. `_stamp_category_colours`
+          # clears each property when there is nothing to record,
+          # which is exactly this case; its two ADOPT exits called it
+          # and these two FOLLOW exits did not. Measured 2026-08-13.
+          # Guarded by test_a_discarded_pick_does_not_come_back.
+          self._stamp_category_colours(layer, refreshed)
         return
 
     # adopt the divergent classes as positional picks

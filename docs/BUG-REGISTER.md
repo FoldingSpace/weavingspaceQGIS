@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-103 defect(s) with a regression test.
+104 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -149,6 +149,8 @@ there is no separate list to remember.
   guarded by `test_a_closed_dialog_writes_nothing_into_the_project`
 - **a constant column produced five identical classes in five colours; the user's own instruction was that it should revert to a single class with a warning.**  
   guarded by `test_a_constant_column_draws_one_class_and_says_so`
+- **a hand-picked colour the plugin reported as discarded was left on the layer, saved, and re-imposed on the map next session.**  
+  guarded by `test_a_discarded_pick_does_not_come_back`
 - **five dock classes over a collapsed column indexed past the end of the dialog's one-class expectation, inside a renderer signal handler.**  
   guarded by `test_a_dock_classify_on_a_constant_column_does_not_crash`
 - **a dock recolour made while a run was in flight was preserved on the map but never adopted into the record, so the ramp cell did not read Custom and a later re-seed would have destroyed it silently.**  
@@ -251,7 +253,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 47
+- unrecorded: 48
 - the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6

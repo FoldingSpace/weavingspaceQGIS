@@ -41,6 +41,33 @@ configuration tried. The difference was not the model. The first was
 asked for a structural property that either exists or does not; the
 second was asked, in effect, for a failure.
 
+Round two the same night, four hunts under this brief: 46 logged
+hypotheses, five confirmed and five explicitly ruled out. Three
+survived independent reproduction here and were fixed. Two findings
+arrived twice from hunts that could not see each other, which is
+some evidence they are reading the code's real fault lines rather
+than each inventing its own.
+
+TWO LESSONS FROM THAT ROUND, both about what to ask for.
+
+The OBSERVATIONS were better than the SEVERITY JUDGEMENTS. One hunt
+saw that an exported GeoPackage's saved style carried an empty
+custom-properties block, and parked it as not-a-defect costing "a
+colleague the tags, not the map". Those tags are what keep plugin
+output out of the region chooser; without them the plugin offers its
+own output as a region layer and the next map is tiled on top of the
+last one. The observation was exactly right and the triage was
+wrong. So: report what you SAW, with a confidence, and do not decide
+on the maintainer's behalf that something is too small to mention.
+
+The LOG DISCIPLINE slipped in a way worth naming, because it is
+easily fixed. One hunt admitted that seven of its timestamps were
+estimated rather than read, and another's entries were out of
+chronological order. Read the clock every time. The point of the log
+is not the times: it is that a hypothesis has to be WRITTEN DOWN
+before it is chased, which is most of the discipline, and a log
+reconstructed afterwards has none of it.
+
 Usage:
 
     python3 tools/bug_hunt_brief.py --area "the live update path"

@@ -10457,6 +10457,81 @@ def test_a_class_colour_picked_during_a_run_is_not_lost():
   dlg.close()
 
 
+def test_a_discarded_pick_does_not_come_back():
+  """What the plugin SAYS it threw away has to be thrown away.
+
+  Re-apply a clean named ramp to an element in QGIS's own styling
+  panel and the dialog follows it: the hand-picked colours for that
+  field are cleared, the ramp cell catches up, and the user is told
+  in so many words that the ramp now governs. The dicts were
+  emptied. The LAYER was not, and the layer is what goes into the
+  .qgz.
+
+  So the colours came back. Reopen the project, press Generate, and
+  a pick the plugin had announced as discarded was painted over the
+  ramp the user chose instead -- and `_last_signatures` is stamped
+  by the same branch, so the restyle path skips that element and
+  never heals it.
+
+  The two ADOPT exits of the same handler stamp the layer. These two
+  FOLLOW exits did not, which is the same twin asymmetry that
+  produced most of this week's defects. `_stamp_category_colours`
+  already clears each property when there is nothing to record, so
+  the fix is to call the thing that was written for exactly this.
+
+  Regression: a hand-picked colour the plugin reported as discarded was left on the layer, saved, and re-imposed on the map next session.
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="weavingspace_discard_")
+  try:
+    dlg, layer, tid = _categorical_dialog()
+    dlg.live_check.setChecked(False)
+    _generate_and_wait(dlg)
+    _tick(300)
+    dlg._category_colours.setdefault(tid, {}).setdefault(
+      "landcover", {})["forest"] = "#123456"
+    dlg._apply_style_change()
+    _settle(dlg)
+    _tick(400)
+    element = project.mapLayer(dlg._element_layer_ids[tid])
+    assert "#123456" in (element.customProperty(
+      "weavingspace_category_colours") or ""), \
+      "the pick was never stamped, so this test cannot show it " \
+      "coming back"
+
+    # the user re-applies a clean named ramp in QGIS's own panel
+    assignment = next(a for a in dlg._assignments() if a["id"] == tid)
+    element.setRenderer(bridge.make_categorized_renderer(
+      element, assignment["var"], "Set2",
+      assignment.get("outline", False)))
+    _tick(600)
+    assert not dlg._category_colours.get(tid, {}).get("landcover"), \
+      "the dialog did not follow the dock's ramp, so the discard " \
+      "this test is about never happened"
+    assert "#123456" not in (element.customProperty(
+      "weavingspace_category_colours") or ""), \
+      "the dialog announced the picks discarded and left them " \
+      "stamped on the layer, where a project save will keep them"
+
+    dlg.close()
+    _project_round_trip(folder)
+    _tick(400)
+    revived = WeavingSpaceDialog(iface=_Iface())
+    revived.live_check.setChecked(False)
+    _tick(400)
+    came_back = revived._category_colours.get(tid, {}).get("landcover")
+    assert not (came_back and came_back.get("forest") == "#123456"), \
+      f"a colour the plugin said it had discarded came back when " \
+      f"the project was reopened: {came_back!r}"
+    revived.close()
+  finally:
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_a_ramp_chosen_during_a_run_reaches_the_map():
   """The rest of the symbology, in the window colour already had.
 
@@ -36091,6 +36166,8 @@ def main():
         test_a_colour_picked_during_a_run_is_not_lost)
   check("race: a class colour picked during a run is not lost",
         test_a_class_colour_picked_during_a_run_is_not_lost)
+  check("a discarded pick does not come back",
+        test_a_discarded_pick_does_not_come_back)
   check("a ramp chosen during a run reaches the map",
         test_a_ramp_chosen_during_a_run_reaches_the_map)
   check("an exported GeoPackage is recognised as our own",

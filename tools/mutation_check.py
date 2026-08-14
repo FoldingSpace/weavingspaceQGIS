@@ -701,6 +701,15 @@ MUTATIONS = [
   # count them, and call it Custom). Three entries because three
   # separate things have to hold, and one anchor covering them all
   # would report SURVIVED whenever any one of them still worked.
+  dict(name="follow-branch-clears-the-stamp", file=DIALOG,
+       old="""          self._stamp_category_colours(layer, refreshed)""",
+       new="""          pass  # mutation: the discarded pick stays stamped""",
+       test="test_a_discarded_pick_does_not_come_back",
+       why="a colour the plugin ANNOUNCED as discarded actually "
+           "being gone. The dicts are cleared and the user is told "
+           "the ramp governs; leave the stamp behind and the pick "
+           "returns on reopen, painted over the ramp they chose, "
+           "with the signature stamped so no restyle heals it"),
   dict(name="run-signature-carries-the-picks", file=DIALOG,
        old="""             tuple(sorted((a.get("category_colours") or {}).items())),""",
        new="""             # mutation: the live guard cannot see a pick""",
