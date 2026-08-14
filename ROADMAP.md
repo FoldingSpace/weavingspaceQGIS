@@ -193,7 +193,40 @@ about the MODE before the variable while `seed_renderer` asks
   be, and the same rename may be a user's undo a second later.
 
 **VERIFIED HERE, from the stochastic hunt: a ramp you are OFFERED is
-refused, and your hand-picked colours are destroyed for it.** Measured
+refused, and your hand-picked colours are destroyed for it.**
+
+**DECIDED 2026-08-13, ATTEMPTED, AND REVERTED — read this before
+trying again.** The maintainer's answer: cartographer beware. Leave
+the dropdown offering every ramp (#1 is the user's choice); the real
+fault is #2, destroying hand-picks for a change that does not happen;
+and #3 needs no separate fix, because once the pick is honoured a
+ramp change really has occurred and the notice becomes true.
+
+The shape of the fix is right and is worth repeating: the swap is
+correct for a MODE CHANGE — a quantitative row turned categorical
+arrives carrying a sequential ramp nobody chose for categories — and
+wrong for a pick made while the row already sits in that mode. So the
+dialog needs to know a pick was DELIBERATE, and `_sync_row` must
+leave those alone.
+
+WHERE IT FAILED, so the next attempt does not spend the same hours.
+Recording "the user picked this" in the ramp combo's general change
+handler is wrong: that handler also fires when the dialog re-syncs a
+row itself, so a mode change looked like a deliberate pick and
+suppressed the very swap the mode change exists to perform
+(`test_style_follow_and_memory` catches this immediately). Moving the
+recording to the `activated` signal fixes that and introduces a
+SIGNAL-ORDERING dependency: `_sync_row` runs from the index-change
+handler, which can reach the swap before `activated` has recorded
+anything. Both halves cannot be satisfied by a flag written from
+either signal alone.
+
+What would probably work: track the mode each row was last SYNCED in,
+and treat a ramp change as deliberate when the mode has not moved
+since. That is state the dialog already nearly has, and it does not
+depend on which signal Qt emits first. Untried.
+
+The attempt is reverted, so the defect is live and the tree is clean. Measured
 on a clean project: a Categorized element with one hand-picked colour;
 the ramp dropdown offers YlGn; choose it and the cell reads Set2,
 `_ramp_choices` and `_assignments` say Set2, the hand-pick is gone,
