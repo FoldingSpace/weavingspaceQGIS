@@ -378,6 +378,17 @@ for a dialog opened on a project that already holds output — and
 sometimes the second call is genuinely redundant, in which case delete
 the code rather than defend it.
 
+**Accepted.** Something real changes and no test we can write can
+reach it -- a defence whose occasion lives outside the harness. Mark
+the catalogue entry `accepted=True`, which is NOT `equivalent=True`:
+equivalence claims nothing observable changed, acceptance claims
+nothing observable can be reached. Both are expected to survive, and
+both announce a CATCH as news, since a catch means the claim has
+expired. Reach for this only after a real attempt: three separate
+attempts to make `fit-to-design-on-show` testable failed before it was
+accepted, and the third was made a year's worth of sessions later by
+somebody who had not read that the first two existed.
+
 **Equivalent.** No observable difference, so no test can catch it and
 it leaves the denominator. This needs EVIDENCE — apply the mutation in
 a sandbox and compare everything a test could see — recorded in

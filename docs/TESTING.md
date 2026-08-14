@@ -112,8 +112,8 @@ against somebody else's.
 Mutation testing is not on that list, and should not be expected on
 it. It asks "would the suite have noticed?", which is a question about
 the TESTS. It is worth running for exactly that -- a catalogue sweep
-returning 173 of 174 is real assurance that old tests still reach what
-they name -- but a campaign of 128 survivors yielded one product
+returning 173 caught and 1 accepted is real assurance that old tests
+still reach what they name -- but a campaign of 128 survivors yielded one product
 defect, and the sample did not find it; a differential probe did. Do
 not budget mutation triage as defect-hunting. Budget it as suite
 measurement, and spend the creative effort on new differentials.
@@ -124,10 +124,47 @@ describes the same state in several places that must agree: the table,
 the design preview, the generated map, the colour editor, and the
 saved project. The defect found on 2026-08-13 was exactly a
 disagreement between the table and the map, and it survived because
-nothing compares those views systematically.
-`tools/equivalence_scenarios.py` already dumps most of them; pointed
-at random designs rather than at mutants, it becomes a defect-finder
-that does not depend on our tests at all.
+nothing compared those views systematically. Something does now:
+`test_random_designs_keep_their_views_in_agreement` sweeps random
+designs and compares five axes -- the row's field, its mode, its ramp
+(allowing for a reversed clone, which matches no name in the library),
+and the preview's colour against what the map's own ramp can make.
+Two of those axes were dead when it was written, silently skipped
+behind guards, which is the shape to check for FIRST in any sweep:
+count what each axis actually compared and assert the count.
+`tools/equivalence_scenarios.py` dumps the views a wider version would
+need.
+
+**A test can be WRITTEN AROUND a defect, and then it pins the defect
+as correct behaviour.** Three were found this way on 2026-08-13, all
+in one evening, and none of them looked wrong. One asserted
+`distinct >= k` before measuring, so the case where a column has fewer
+values than classes was excluded by the test that would otherwise have
+caught it. One switched from Quantiles to Equal intervals with a
+comment explaining that four values cannot exhibit nine classes -- and
+then asserted the nine ranges it got, five of which painted nothing.
+The third set the mode to Categorized on a row that was ALREADY
+Categorized, so the style flip it described never happened, and what
+it actually asserted was that a ramp picked on a categorized row gets
+thrown away: the defect, pinned as the contract.
+
+The tell in all three is a workaround inside the test, written by
+somebody who met the awkward behaviour, decided it was the fixture's
+fault, and routed around it. So when a test contains an accommodation
+-- a guard, a scheme swapped for another, a fixture narrowed to avoid
+a case -- read the accommodation as a REPORT. It is somebody's note
+that the software did something they did not expect. Ask whether they
+were right that it was the fixture.
+
+**A probe that returns is not a probe that measured.** Three attempts
+were needed on one claim the same evening. The first errored on a
+missing render context and was recorded, correctly, as proving
+nothing. The second asked a renderer which symbol each feature would
+get WITHOUT starting it, and got an answer that meant nothing while
+looking exactly like data. Only the third -- startRender, ask,
+stopRender -- measured the thing. An erroring probe announces itself;
+a probe that quietly answers the wrong question does not, and it is
+the more dangerous of the two.
 
 **The cheapest differential has no instrument at all: a path against
 its own sibling.** Three more defects came out on 2026-08-13, all
@@ -603,7 +640,17 @@ mutants had found, verified to pass, and then re-judged against those
 same mutants — and most of them did not kill. Passing was never the
 question. Every test written to close a mutation gap gets an entry in
 `tools/mutation_check.py`, which breaks the behaviour and requires
-that test to fail; the release runs it.
+that test to fail.
+
+Nothing runs the whole catalogue automatically, and this sentence used
+to say the release did. It does not, deliberately -- the tool rewrites
+source files, so it has no business inside a release -- and the claim
+survived here for weeks because a rule that asserts its own
+enforcement is believed and therefore never checked. What actually
+happens: `--only <name>` proves each new entry as it is written, and
+the whole catalogue is swept before a substantial release, sharded,
+usually on GitHub (`tools/mutation_catalogue_sweep.py`,
+docs/MUTATION-LOOP.md). Corrected 2026-08-13.
 
 **Before believing a survivor is a gap, count the call sites.**
 Deleting one of several redundant calls leaves the others to do the

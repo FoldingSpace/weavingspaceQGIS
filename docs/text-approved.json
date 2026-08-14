@@ -149,6 +149,11 @@
   "excerpt": "Keeps whole units that touch the region, letting the pattern",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "16ab86b16b0ef888": {
+  "approved": "2026-08-13",
+  "excerpt": "A tiles inset of {}% has removed {} of this design's {} elem",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "1741d72d930583e4": {
   "approved": "2026-08-08",
   "excerpt": "<h2>A prototype, and how it was made</h2>",
@@ -213,6 +218,11 @@
   "approved": "2026-08-08",
   "excerpt": "QGIS 4 or later is required.",
   "where": "README.md"
+ },
+ "25b0d47de8ba473e": {
+  "approved": "2026-08-13",
+  "excerpt": "'{}' has {} distinct value{}, so it draws as {} class{}, not",
+  "where": "weavingspace_qgis/bridge.py"
  },
  "264c7a8910295785": {
   "approved": "2026-08-09",
@@ -363,6 +373,11 @@
   "approved": "2026-08-08",
   "excerpt": "<p>The library that does the tiling mathematics, with its ow",
   "where": "docs/index.html"
+ },
+ "4d4566e5b109e116": {
+  "approved": "2026-08-13",
+  "excerpt": "A tiles inset of {}% leaves nothing of this design: every el",
+  "where": "weavingspace_qgis/bridge.py"
  },
  "4d540ba0bd5513e5": {
   "approved": "2026-08-09",
@@ -593,6 +608,11 @@
   "approved": "2026-08-08",
   "excerpt": ". Is that field really categorical?",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "78979be3fc6df47a": {
+  "approved": "2026-08-13",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
  },
  "78a93721207ec677": {
   "approved": "2026-08-08",
@@ -957,6 +977,11 @@
  "cf85f8aff1fada94": {
   "approved": "2026-08-09",
   "excerpt": "Choose a colour for each value this element takes",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "cfa54da8e2beac00": {
+  "approved": "2026-08-13",
+  "excerpt": "Could not read the class colours file, so these elements kee",
   "where": "weavingspace_qgis/dialog.py"
  },
  "d1b8be31b0c12eef": {

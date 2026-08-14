@@ -1016,12 +1016,40 @@ Confirmed with the user via an explicit design review:
   correction is made in `_assignments`, which every consumer reads,
   and again in `_on_mode_chosen` so the chooser never goes on
   describing a map the plugin will not draw. The user is told.
-- **A constant numeric column gets ONE class, and a notice.** Asked
-  for five classes over a column that is 7 everywhere, QGIS returns
-  five, all reading "7 - 7" in five different colours. The map was
-  never wrong; the legend was, and the legend is what a reader trusts.
-  `make_graduated_renderer` collapses to k=1 and the dialog reports
-  it. (User instruction, 2026-08-09.)
+- **A column never gets more classes than it has distinct values, and
+  the user is told.** Asked for five classes over a column that is 7
+  everywhere, QGIS returns five, all reading "7 - 7" in five different
+  colours. The map was never wrong; the legend was, and the legend is
+  what a reader trusts. `make_graduated_renderer` collapses to k=1 and
+  the dialog reports it. (User instruction, 2026-08-09.)
+  That constant case is the n=1 instance of a GENERAL rule, extended
+  2026-08-13 after measuring the case between: five classes over
+  {1, 5, 9} gives five ranges, two of them degenerate, and QGIS
+  assigns a value sitting on a break to the FIRST range containing
+  it -- so two swatches appear in the legend that no tile wears, and
+  the highest value draws mid-grey while the legend's black sits
+  beside a range nothing occupies. k is reduced to the number of
+  distinct finite values, which is what upstream's own
+  `_plot_subsetted_gdf` does, and `few_values_message` says so.
+  **Quant: Unclassed is exempt**: its fifty steps reproduce a
+  continuous ramp and are not a class count anybody chose, so only the
+  constant case collapses them. The suite had been WRITTEN AROUND this
+  defect in two places, both now fixed rather than exempted.
+- **A tiles inset that swallows elements is refused in terms of the
+  inset.** Insetting shrinks every tile by a fixed distance, so past
+  some value the narrower elements disappear. Left to itself the
+  library's overlay refuses the surviving slivers and the user meets
+  "ValueError: You have passed make_valid=False along with 1978
+  invalid input geometries"; when every element goes, the table
+  empties and the variable guard fires instead, telling them to assign
+  a variable to a design with nowhere to put one. Both are true of
+  something and neither is about the control they just moved.
+  `bridge.inset_collapse_message` names the inset, and `_generate`
+  checks it BEFORE the variable guard. It is asked only when the inset
+  is non-zero, so a collapse from another cause is never blamed on it;
+  the comparison is safe to refuse a run on because declared n equals
+  the distinct tile-id count for 247 of 247 catalogue designs with no
+  inset (measured 2026-08-13).
 - **The plugin follows the layer, and adapts where the answer is
   unambiguous.** QGIS is live and the dialog is not modal to it, so a
   user can delete features, simplify geometry in place, rename or

@@ -56,9 +56,10 @@ The catalogue is as capable of lying as the code it guards.
 `tools/mutation_check.py` holds hand-picked mutations, one per
 behaviour somebody believed was guarded. It is a regression record of
 our own guards: break the behaviour, confirm the test fails. It held
-41 entries when this was written and holds 184 now, which is the
-point rather than an aside: a number about the code is true until
-somebody adds one, so read the file rather than this sentence. Its kill rate measures the chooser's judgement, not the
+41 entries when this was written and holds 191 as of 2026-08-13,
+which is the point rather than an aside: a number about the code is
+true until somebody adds one, so read the file rather than this
+sentence. Its kill rate measures the chooser's judgement, not the
 suite, so it is not the measurement.
 
 `tools/mutate_auto.py` is the measurement. It walks the syntax tree of
@@ -132,6 +133,25 @@ equivalence for both. And width is not optional — a sibling looked
 equivalent under a narrow comparison and was not, seeding every
 element's single colour, which sits in the signature, so a column
 added in QGIS would have discarded the user's own styling.
+
+**ACCEPTED is not EQUIVALENT, and the catalogue distinguishes them.**
+An entry may carry `equivalent=True` or `accepted=True`, and both are
+expected to survive, but they make different claims. Equivalence says
+nothing observable changed, and needs the demonstration above.
+Acceptance says something real changed that no test we can write is
+able to reach -- a defence whose occasion lives outside the harness,
+like a re-show after a DPI change. Being CAUGHT is the interesting
+outcome for both and is announced as such: it means the claim has
+stopped being true and the entry can become an ordinary guard.
+
+The distinction was added on 2026-08-13 for a concrete reason. An
+accepted entry judged as an open survivor is flagged by every sweep,
+forever: the remote sweep of 2026-08-12 duly reported NEEDS ATTENTION
+on `fit-to-design-on-show`, a case the maintainer had accepted
+permanently two days earlier with the reasoning written directly above
+the entry, and the flag cost a re-judge that reached the same answer
+for the third time. A warning that fires on a settled decision is how
+people learn to stop reading warnings.
 
 **Exclusions are declared in the source and kept narrow.** Operators
 are listed in the module docstring alongside what is deliberately not

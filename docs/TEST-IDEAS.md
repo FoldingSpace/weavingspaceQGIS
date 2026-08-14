@@ -54,7 +54,10 @@ bottom.
 10. A field that is entirely NULL. Class breaks over nothing must
     refuse rather than produce one empty class.
 11. A field whose values are all the same STRING — one category, the
-    categorical twin of the constant-column case already guarded.
+    categorical twin of the constant-column case already guarded. The
+    QUANTITATIVE side of that family widened on 2026-08-13: fewer
+    distinct values than classes now collapses to the value count, so
+    the categorical twin is the remaining half.
 12. A field with mixed types after a join (numbers stored as text).
     The quantitative/categorical decision turns on the field's
     declared type, which a join can make a lie.
@@ -100,7 +103,12 @@ bottom.
     sides.
 31. An element left unassigned in a design where every OTHER element
     carries the same field.
-32. Tile boundaries on, with an inset large enough that tiles vanish.
+32. **DONE** — tile boundaries on, with an inset large enough that
+    tiles vanish. Found a real defect: a partial collapse reached the
+    user as the library's own "make_valid=False ... invalid input
+    geometries", and a total collapse as "Assign at least one
+    variable". Both now name the inset
+    (test_an_inset_that_eats_the_design_says_so).
 
 ## Integrative sessions, which is where state accumulates
 

@@ -16,6 +16,15 @@ vision rather than in RGB. The uncomfortable result — most gallery
 maps have element fills closer than a distance a reader can reliably
 tell apart — is why the colour editor exists.
 
+**The hunt record** (HUNT-RECORD.md) is the newest of these and the
+one to read if you are about to look for defects: which directions
+have paid, which came back empty, how to run and watch a hunt, and
+how the method compares with the suite, mutation testing and the
+sweep. The raw check-in logs from the twelve hunts of 2026-08-13 sit
+beside it in `hunt-logs-2026-08-13/`, kept for the ratio of ruled-out
+to confirmed rather than for the prose, and including the two hunts
+that recorded their own sloppiness about timestamps.
+
 **The upstream note** reports a rendering difference to the
 weavingspace project, and opens by retracting an earlier note that
 blamed one of their commits. It is kept in full, retraction first,

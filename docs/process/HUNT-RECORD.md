@@ -12,7 +12,7 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-08-13.
+Last updated 2026-08-13 (evening: every reported claim judged).
 
 ## How to run one
 
@@ -118,9 +118,9 @@ Hunting the SUITE is therefore its own direction, and a productive one.
 
 **Mutation testing** answers "would the suite have noticed?". That is
 a question about the tests, not the software. It is worth running for
-exactly that — a catalogue sweep returning 173 of 174 is real
-assurance — but across 128 survivors here it has produced no product
-defects, and a campaign budgeted as defect-hunting will disappoint.
+exactly that — a catalogue sweep returning 173 caught and 1 accepted
+is real assurance — but across 128 survivors here it has produced no
+product defects, and a campaign budgeted as defect-hunting will disappoint.
 Full argument in docs/MUTATION-TESTING.md.
 
 **Differential tests** (UI against library, colourspace against
@@ -165,15 +165,15 @@ nothing, so it is counted against the hunt, not for it.
 
 | Direction | Question it asks | Hunts | Confirmed | Notes |
 | --- | --- | ---: | ---: | --- |
-| **Backwards from harm** | "What would a user be furious to lose, and how could the software do that to them?" | 1 | 1 | Found the worst defect in the project's history on its first run. Its second claim is still untested — a probe of mine errored before measuring |
-| **Instruments audit** | "Does each tool actually enforce the rule it claims?" | 1 | 5+ | Found the catalogue certifying tests that never ran |
+| **Backwards from harm** | "What would a user be furious to lose, and how could the software do that to them?" | 1 | 2 | Found the worst defect in the project's history on its first run. Its second claim — more classes than the column has values, so swatches appear that no tile wears — was confirmed and fixed on 2026-08-13 (evening), two probes later: the first errored, the second lacked a render context |
+| **Instruments audit** | "Does each tool actually enforce the rule it claims?" | 1 | 6+ | Found the catalogue certifying tests that never ran, and (2026-08-13, evening) a documented command — the coverage report — that could never write a report at all, because the suite exits through os._exit |
 | **Asymmetry / twins** | "What does this path do that its sibling does not?" | 3 | 6 | The most reliable code-reading direction here |
 | **Suite dead axes** | "Which tests cannot fail?" | 1 | 3 | Two dead tests plus an always-true assertion |
 | **Two stores of one fact** | "Which of these two records wins when they disagree?" | 2 | 3 | Yielded well; several claims needed narrowing on verification |
 | **Unreachable branches** | "Which guard's precondition nothing produces?" | 1 | 2 | Also caught a red suite nobody had noticed |
 | **One boundary but not another** | "Which crossing was not fixed alongside the ones that were?" | 2 | 4 | Strong on export/reopen. Two QML findings confirmed later: a file edited on disk never reaches the map, and a moved file is repainted away on the restyle path |
 | **Write-only state** | "What is written and read back by nobody?" | 1 | 1 | Also misjudged a real defect as harmless — see below |
-| **Preview against map** | "Do two renderings of one design agree?" | 1 | 1 | An unassigned element previewed in colour and drawn grey, confirmed and fixed. Two further claims remain untested — one probe of mine was void |
+| **Preview against map** | "Do two renderings of one design agree?" | 1 | 1 | An unassigned element previewed in colour and drawn grey, confirmed and fixed. Its other claim — elements silently absent on dense designs — did NOT reproduce over ten configurations on 2026-08-13, and is counted against this direction |
 | **Dialog against live layer** | "Does the plugin's belief match the layer?" | 1 | 2 | A column rename destroying categorical picks (fixed), and a provider-level edit invisible to both stores — kept as a documented LIMIT, and the docstring that claimed otherwise corrected |
 | **Stochastic sessions** | No question — random actions, invariants checked after each | 1 | 2 | ~100 sessions. Most "breaks" were its own fixture; found a defect present since the first commit, and a crash it hit on three separate seeds |
 | **Mutation sampling** | "Would the suite have noticed this change?" | many | **0** | 128 survivors, no product defects. It measures the SUITE |
@@ -249,6 +249,30 @@ when triaging a stochastic run, sort by how many independent seeds
 produced the same shape before reading any of them; that ordering
 would have put both real findings at the top and every false one
 below.
+
+**A queue of unjudged claims decays, and the decay is one-directional.**
+The night of 2026-08-13 ended with seven reported findings nobody had
+reproduced. Judging all seven the following evening took a few hours
+and turned out this way: four confirmed and fixed, one confirmed and
+kept as a stated limit, one deleted as unreachable code, and ONE that
+did not reproduce at all. That last one had been recorded as "high
+confidence" and, if true, as more serious than the item above it in
+the list. Ten configurations later it is a claim that failed.
+So the ratio to expect from an unjudged queue is roughly six in seven
+real -- good enough that the queue is worth having, and far from good
+enough to act on without checking. What makes the difference is that
+the checking gets DONE: an unjudged claim keeps its stated confidence
+forever, and confidence is the one thing reproduction can move.
+
+**Two probes of mine proved nothing before the third one worked**, on
+the same claim, and the reasons are worth naming because they are
+generic. The first errored on a missing render context and was
+recorded as untested. The second asked the renderer a question
+without starting it, and got an answer that meant nothing. Only the
+third -- startRender, ask which symbol each feature actually gets,
+stopRender -- measured the thing. A probe that errors is not a
+refutation, and a probe that returns without exercising the code is
+worse, because it looks like one.
 
 **Stochastic search works, and most of what it reports is its own
 fault.** Eighty-five random sessions produced about a dozen invariant

@@ -3,9 +3,9 @@ name: mutation-campaign
 description: Run a mutation-testing campaign to measure and genuinely improve how good a test suite is — sampling mutants, triaging survivors, verifying that new tests actually fail, and deciding when a score can be defended. Use this whenever the user wants to know whether their tests are any good, asks about mutation testing or mutation score, says coverage looks high but they don't trust it, wants to raise a mutation score toward a target, or is writing tests to close gaps that a mutation tool found. Also use it when someone proposes to accept a surviving mutant as "equivalent", or asks how many mutants they need to sample — both are places where a campaign quietly turns into a vanity metric.
 derived_from:
   - path: docs/MUTATION-LOOP.md
-    sha256: 40ae6ab8dfd7497c02fbcfd14713817d1fb8130ffd52b57b7ae1e58d6c7fcf60
+    sha256: 90d1b61ec9697676473266e219a94e9a9df2a50d83c2030f807bab877e9c7bc6
   - path: docs/MUTATION-TESTING.md
-    sha256: a4e08a3f0f31a21e60a788922471080039bff35c93dc461f54c50d3081f55d8a
+    sha256: 1f019c92ced6365e90e110f5a09ad1d26c2653871dc0db541ba78da56283d913
 ---
 
 # Running a mutation campaign
@@ -128,6 +128,23 @@ look identical until you ask which one matters when the window is
 opened on an already-populated project. Sometimes the second call is
 genuinely redundant, and then the honest fix is to delete the code
 rather than defend it — the score rises and the software gets smaller.
+
+**Accepted.** Something real changes and no test you can write can
+reach it: a defence whose occasion lives outside the harness. This is
+NOT equivalence, and keeping them apart matters. Equivalence claims
+nothing observable changed; acceptance claims nothing observable can
+be reached. Both are expected to survive, so mark the entry as such
+and let the tool report it as expected rather than as a gap.
+
+The reason to mark it rather than leave it: an accepted survivor
+judged as an open one is flagged by every sweep, forever. One project
+had a sweep report NEEDS ATTENTION on a case the maintainer had
+accepted permanently two days earlier, with the reasoning written
+directly above the entry, and the flag cost a full re-judge that
+reached the same answer for the third time. A warning that fires on a
+settled decision is how people learn to stop reading warnings. Make
+being CAUGHT the news instead: it means the claim has expired and the
+entry can become an ordinary guard.
 
 **Equivalent.** No observable difference, so no test can catch it and
 it leaves the denominator. This needs *evidence*: apply the mutation,

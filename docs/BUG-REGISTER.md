@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-109 defect(s) with a regression test.
+114 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -161,18 +161,26 @@ there is no separate list to remember.
   guarded by `test_a_generate_spares_the_rest_of_the_users_geopackage`
 - **a design that shrank left its dropped elements in the GeoPackage, so the exported file described a map that no longer existed.**  
   guarded by `test_a_geopackage_loses_the_elements_a_design_dropped`
+- **five classes over three distinct values put two swatches in the legend that no tile wore, and painted the highest value in a middle colour while the legend's darkest sat beside an empty range.**  
+  guarded by `test_a_legend_never_shows_a_class_the_map_does_not_have`
+- **moving a class-source QML and then changing any style control repainted the element in automatic colours, silently, where the re-tile path keeps the map and names the file.**  
+  guarded by `test_a_moved_class_source_survives_a_restyle`
 - **only _finish_run restored the determinate progress range, and the zombie recovery does not go through it.**  
   guarded by `test_a_new_run_always_shows_real_progress`
 - **a hand-picked colour changed under live update was swallowed by the no-op guard, because the run signature did not carry the picks that the restyle signature does.**  
   guarded by `test_a_pick_is_not_swallowed_by_the_live_path`
 - **the ramp cell reverted to the pre-run ramp after a run landed, while the element's own record held the new one.**  
   guarded by `test_a_ramp_chosen_during_a_run_is_not_lost`
+- **a ramp the dropdown offered was refused on a categorized row, the user's hand-picked colours were destroyed for it, and the notice described a change that never happened.**  
+  guarded by `test_a_ramp_you_are_offered_is_the_ramp_you_get`
 - **the 0.24.0 sequence was written out on 2026-08-11 and the release would have been tagged on pre-0.24.0rc5, leaving main 51 commits behind with the page and README describing 0.23.**  
   guarded by `test_a_release_publishes_from_the_branch_the_page_is_served_from`
 - **reloading the dialog module reset the module-level _LIVE_DIALOG to None, so the dialog built from the reloaded class retired nothing and the predecessor went on running its debounces against the newcomer's layers.**  
   guarded by `test_a_reloaded_module_retires_the_old_dialog_cleanly`
 - **renaming a column destroyed an element's hand-picked categorical colours, while the graduated twin survived the same act.**  
   guarded by `test_a_renamed_column_does_not_destroy_hand_picked_colours`
+- **reopening a project and pressing Generate painted away a categorical scheme imported from a QML, because the adoption recovered a graduated element's colours and returned empty-handed for its categorized twin.**  
+  guarded by `test_a_reopened_project_keeps_an_imported_class_scheme`
 - **a retired dialog's styleChanged connections kept firing after retirement, double-adopting dock edits alongside the live dialog.**  
   guarded by `test_a_retired_dialog_stops_watching`
 - **a rebuild while Reverse was greyed silently discarded the tick underneath it.**  
@@ -185,6 +193,8 @@ there is no separate list to remember.
   guarded by `test_a_test_creeping_toward_its_ceiling_is_reported`
 - **an equivalence whose evidence a later change falsified went on removing its mutant from the denominator.**  
   guarded by `test_a_withdrawn_equivalence_stops_excluding_its_mutant`
+- **a class-source QML rewritten on disk never reached the map, because the signature held the file's name and nothing about its contents.**  
+  guarded by `test_an_edited_class_source_reaches_the_map`
 - **the embedded style name was the layer's own, so a long column name overran GDAL's thirty-character styleName column and was truncated with a warning on every write.**  
   guarded by `test_an_embedded_style_name_fits_the_column_it_is_written_to`
 - **emptying the region layer made the dialog's fingerprint raise, inside paths reached from Qt slots where nothing reports.**  
@@ -193,6 +203,8 @@ there is no separate list to remember.
   guarded by `test_an_exported_geopackage_is_still_recognised_as_our_own`
 - **the inset percentage conversion was defended only by comparisons whose tolerance is wider than the error.**  
   guarded by `test_an_inset_percentage_is_a_percentage_of_the_spacing`
+- **an inset that swallowed some of a design's elements failed the run with a raw geopandas exception about invalid geometries, and one that swallowed all of them was reported as a missing variable.**  
+  guarded by `test_an_inset_that_eats_the_design_says_so`
 - **an unassigned element was previewed in a colour while the map drew it as no-data fill.**  
   guarded by `test_an_unassigned_element_previews_as_it_draws`
 - **an excursion through Quant: Unclassed left fifty classes recorded against a row whose spinner showed twenty.**  
@@ -245,8 +257,6 @@ there is no separate list to remember.
   guarded by `test_the_style_is_saved_through_the_current_api`
 - **the spacing offered in the size-guard refusal was computed from a pure inverse-square law and came out slightly too fine, so a user who typed the number the plugin had just suggested was refused a second time.**  
   guarded by `test_the_tile_estimate_is_honest_where_shapes_are_awkward`
-- **the deferred fit-to-design after showEvent had no test, so the window could open too small to show its own controls.**  
-  guarded by `test_the_window_fits_its_design_tab_when_shown`
 - **two warnings from one run shared a single label and the last one silently erased the first.**  
   guarded by `test_two_notices_from_one_run_both_survive`
 
@@ -263,7 +273,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 53
+- unrecorded: 58
 - the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6

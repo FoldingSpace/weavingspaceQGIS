@@ -149,19 +149,18 @@ its status, so that nothing is lost between "an agent said so" and
 docs/process/HUNT-RECORD.md. Verified means reproduced independently
 of the hunt that reported it, by a different route.
 
-**VERIFIED, not yet fixed.**
-
-- `tools/coverage_report.py` can never write a report. The suite ends
-  in `os._exit`, which raises no `SystemExit`, so the handler at
-  coverage_report.py:263 and everything after it -- `write_report`,
-  the printed summary, the exit status -- is unreachable. You run the
-  documented command, wait out the whole suite, and get nothing, with
-  nothing to say why. CLAUDE.md, docs/TESTING.md, docs/PUBLISHING.md
-  and MAINTAINING.md all name that command. The fix is the one its
-  sibling already uses: `tools/coverage_per_test.py:164` wraps
-  `os._exit` for exactly this reason and says so in a comment.
-  Confirming the fix needs a full coverage run (about 40 minutes), so
-  it is written down rather than half-done.
+**VERIFIED AND FIXED 2026-08-13 (evening).** `tools/coverage_report.py`
+could never write a report. The suite ends in `os._exit`, which raises
+no `SystemExit`, so `write_report`, the printed summary and the exit
+status were all unreachable: you ran the documented command, waited out
+the whole suite, and got nothing, with nothing to say why. Four
+documents name that command. Fixed the way its sibling already does it
+-- stand in for `os._exit` and write on the way through -- and proved
+end to end by running it over one shard, which exercises the identical
+exit path in a minute rather than forty. Unlike the per-test recorder,
+a non-zero status still writes the report, with the status quoted in
+the summary line: that record feeds a measurement where a partial file
+understates survivors, this one is a description for a person.
 
 **VERIFIED HERE 2026-08-13, fixed:** an unassigned element was
 PREVIEWED in colour and DRAWN grey. Measured at preview #e7342a
@@ -195,61 +194,43 @@ about the MODE before the variable while `seed_renderer` asks
 **VERIFIED HERE, from the stochastic hunt: a ramp you are OFFERED is
 refused, and your hand-picked colours are destroyed for it.**
 
-**DECIDED 2026-08-13, ATTEMPTED, AND REVERTED — read this before
-trying again.** The maintainer's answer: cartographer beware. Leave
-the dropdown offering every ramp (#1 is the user's choice); the real
-fault is #2, destroying hand-picks for a change that does not happen;
-and #3 needs no separate fix, because once the pick is honoured a
-ramp change really has occurred and the notice becomes true.
+**DECIDED, THEN FIXED ON THE THIRD ATTEMPT (2026-08-13, evening).**
+The maintainer's answer was: cartographer beware. Leave the dropdown
+offering every ramp (#1 is the user's choice); the real fault is #2,
+destroying hand-picks for a change that does not happen; and #3 needs
+no separate fix, because once the pick is honoured a ramp change
+really has occurred and the notice becomes true.
 
-The shape of the fix is right and is worth repeating: the swap is
-correct for a MODE CHANGE — a quantitative row turned categorical
-arrives carrying a sequential ramp nobody chose for categories — and
-wrong for a pick made while the row already sits in that mode. So the
-dialog needs to know a pick was DELIBERATE, and `_sync_row` must
-leave those alone.
+The fix that worked is the one this entry had recorded as untried:
+`_synced_modes` remembers the renderer kind each element was last
+SYNCED in, and `_sync_row` swaps the ramp only when that has moved.
+A mode change still earns its substitution; a pick made on a row
+already in its mode is left alone. It does not depend on which Qt
+signal arrives first, which is where the two earlier attempts died
+(recording the pick in the combo's general change handler made a mode
+change look deliberate; moving it to `activated` created a
+signal-ordering race). Guarded by
+`test_a_ramp_you_are_offered_is_the_ramp_you_get`, whose second half
+asserts the mode-change swap SURVIVES, and by catalogue entry
+`ramp-swap-only-on-a-mode-change`.
 
-WHERE IT FAILED, so the next attempt does not spend the same hours.
-Recording "the user picked this" in the ramp combo's general change
-handler is wrong: that handler also fires when the dialog re-syncs a
-row itself, so a mode change looked like a deliberate pick and
-suppressed the very swap the mode change exists to perform
-(`test_style_follow_and_memory` catches this immediately). Moving the
-recording to the `activated` signal fixes that and introduces a
-SIGNAL-ORDERING dependency: `_sync_row` runs from the index-change
-handler, which can reach the swap before `activated` has recorded
-anything. Both halves cannot be satisfied by a flag written from
-either signal alone.
+Two things came out of it that were not the defect.
 
-What would probably work: track the mode each row was last SYNCED in,
-and treat a ramp change as deliberate when the mode has not moved
-since. That is state the dialog already nearly has, and it does not
-depend on which signal Qt emits first. Untried.
+The ramp memory moved off the combo widget (`last_quant`/`last_cat`)
+into `_ramp_memory`, keyed by tile id like every other per-element
+choice. The widget properties survive a style flip and not a table
+rebuild, and any design change rebuilds the table 350 ms later, so a
+ramp crossed over before that landed came back as a positional
+default. That was the stochastic hunt's second finding, folded in
+here because it is the same three lines.
 
-The attempt is reverted, so the defect is live and the tree is clean. Measured
-on a clean project: a Categorized element with one hand-picked colour;
-the ramp dropdown offers YlGn; choose it and the cell reads Set2,
-`_ramp_choices` and `_assignments` say Set2, the hand-pick is gone,
-the map paints Set2's colours, and the message bar says a new ramp
-"discarded 1 colour(s) you had picked by hand" -- for a ramp change
-that never happened.
-
-The substitution itself is probably deliberate and defensible: a
-sequential ramp over categories is a cartographic error, and
-`_sync_row` swaps in a qualitative palette. THREE things around it are
-not, and each is a decision rather than an obvious fix:
-
-- the dropdown OFFERS ramps the row will refuse, so the control lies
-  before the user has done anything;
-- the hand-picks are destroyed on the way to a ramp that is then
-  overridden, so the user pays the price of a change they did not get;
-- the notice describes the change that did not happen rather than the
-  substitution that did, which is the least defensible part and the
-  cheapest to fix.
-
-Site: `_sync_row`, dialog.py:2602-2620, reached from `_queue_live` ->
-`_update_dynamic_columns` on every data-tab change. Both the call and
-the swap date from the initial commit, so this has always been so.
+And `test_style_follow_and_memory` turned out to be a DEAD AXIS. Its
+"ramp memory across style flips" block set the mode to Categorized on
+a row that was already Categorized, so the flip never happened, and
+what it actually asserted was that a quantitative ramp picked on a
+categorized row gets thrown away -- the defect above, pinned as
+correct behaviour. The row is put into a quantitative mode first now,
+and the block asserts what its own comment always claimed.
 
 **VERIFIED AND FIXED:** `dialog._layer_fingerprint` raised
 `ValueError: cannot convert float NaN to integer` on an emptied
@@ -263,18 +244,28 @@ Guarded by `test_an_emptied_region_layer_does_not_raise`.
 **THE QML CLASS SOURCE, all three tested 2026-08-13.** Measured with
 a real .qml on disk, reading the colours off the renderer:
 
-- **A QML edited on disk never reaches the map.** CONFIRMED and a
-  plain defect. Rewrite the file, press Generate, and none of the new
-  colours appear -- the signature holds only the file's token, so
-  nothing notices the contents moved. A user editing their scheme and
-  regenerating gets the old scheme with no indication why. The fix is
-  to fingerprint the file's contents (mtime plus size, or a hash) in
-  the signature. Not done here for want of a session to test it in.
-- **A moved QML is repainted away on the RESTYLE path.** CONFIRMED.
-  Move the file, nudge opacity, and the element loses its scheme
-  entirely: four file colours before, none after. The RE-TILE path
-  handles the same loss properly, keeping the map and naming the
-  file. Another twin behaving differently from its sibling.
+- **A QML edited on disk never reaches the map.** FIXED 2026-08-13
+  (evening). Both signatures carried the file's TOKEN and nothing
+  about its contents, so a rewritten scheme left every signature
+  equal and Generate repainted nothing. `_class_source_stamp` now
+  carries modification time and size, which is cheap enough to ask on
+  every debounce tick where a hash is not. A file that has GONE
+  deliberately keeps its last stamp rather than moving the signature,
+  because losing a file is not an edit and the settled behaviour
+  there is to keep the map. Guarded by
+  `test_an_edited_class_source_reaches_the_map` and catalogue entry
+  `class-source-contents-are-in-the-signature`.
+- **A moved QML is repainted away on the RESTYLE path.** FIXED
+  2026-08-13 (evening). The restyle path swallowed the load failure
+  and seeded from nothing, painting automatic colours over the user's
+  scheme with no notice and the cell still naming the file; its
+  re-tile twin collected the same failure and warned. It now leaves
+  that element's colours alone and reports which file, while still
+  applying the change that triggered the restyle -- usually opacity,
+  and refusing that too would turn one unreadable file into a row
+  whose controls do nothing. Guarded by
+  `test_a_moved_class_source_survives_a_restyle` and
+  `an-unreadable-class-source-keeps-its-colours`.
 - **A class source chosen while a run is in flight is not applied by
   the landing run.** CONFIRMED as an observation, and DELIBERATELY
   NOT FIXED, because it is the same shape as the ramp case that was
@@ -285,46 +276,72 @@ a real .qml on disk, reading the colours off the renderer:
   the QML while the map ignores it -- that is the ramp-cell fault,
   which was real -- and that was not measured here.
 
-**REPORTED, STILL NOT VERIFIED HERE.** Each carries the hunt's own
-confidence. Reproductions were left in the hunts' worktrees, which do
-not survive the session -- so anyone picking these up should expect to
-rebuild the reproduction from the description.
+**EVERY REPORTED FINDING IS NOW JUDGED (2026-08-13, evening).** The
+list below was the queue of claims nobody had reproduced. It is
+emptied here rather than deleted, because what did NOT reproduce is
+as much a part of the record as what did.
 
-- An unassigned element is PREVIEWED in colour and DRAWN grey. A row
-  on "---" defaults to Single colour and gets a colour button;
-  `_table_id_colours` tests mode before var while `seed_renderer`
-  tests var first and paints no-data. Reported with three routes
-  agreeing (preview dict, sampled preview pixels, map renderer).
-  High confidence, and the shape is familiar.
-- Elements silently absent from the map on dense designs. NOT yet
-  tested here: an attempt on 2026-08-13 never selected the family
-  it needed, so the run proved nothing either way. Reported as
-  stripes 26
-  at spacing 3000 reported 18 element layers for 26 rows, with the
-  notice mentioning areas rather than elements. If true this is more
-  serious than the item above. High confidence, unverified.
-- A reopened project loses an imported class source, and a
-  categorized element's adopted ramp reverts. Medium confidence,
-  adjacent to work done the same day.
+- An unassigned element PREVIEWED in colour and DRAWN grey. CONFIRMED
+  and fixed earlier the same day; see above.
+- **Elements silently absent from the map on dense designs. NOT
+  REPRODUCED**, and this is the one claim that failed. Ten
+  configurations were driven end to end: stripes, grid, hex-slice and
+  square-slice at n=26, plus stripes at n=20, over a four-cell and a
+  six-cell region at spacings of 1500, 2000 and 3000. Every one
+  produced an element layer for every table row, and no layer was
+  empty -- feature counts ran 1 to 9 per element. The report said 18
+  layers for 26 rows. Whatever produced that reading, it was not any
+  of these. Recorded as a claim that did not survive checking, which
+  the hunt record counts against its direction rather than for it.
+- **A reopened project loses an imported class source.** CONFIRMED and
+  FIXED. `_adopt_row_symbology` recovered a graduated element's
+  colours positionally when no library ramp drew them, and returned
+  having recovered nothing for the categorized twin five lines away.
+  A named ramp is not proof the ramp decides the colours, either: a
+  categorized renderer built from a QML records a source ramp (since
+  this morning, so QGIS's own panel can show one) while the template
+  overrides it. The adoption now asks the real seeding code what that
+  ramp would draw and keeps only the colours it does not explain, so
+  an ordinary ramp still comes back as a ramp and one hand-picked
+  colour comes back as one hand-picked colour. Guarded by
+  `test_a_reopened_project_keeps_an_imported_class_scheme` and
+  `categorized-adoption-recovers-its-colours`. The class SOURCE itself
+  is still not restored, and that stays a stated limit: nothing
+  stamps the file token, so the row reads "Automatic colours" while
+  the map keeps the scheme.
 - An edit made straight through the DATA PROVIDER is invisible to
-  both of the dialog's stores, so Generate is a silent no-op. The
-  fingerprint cannot see it and no watched signal fires. The
-  docstring at dialog.py:1484 claims this case is covered. Reported
-  high confidence on mechanism; whether it is a defect or an accepted
-  limit is a maintainer's call.
-- Losing a column destroys hand-picked CATEGORICAL colours silently,
-  while the graduated twin survives -- and the loss bypasses the
-  reporting path that announces every other such loss.
-- Fewer distinct values than classes. NOT yet tested here: the
-  probe used `originalSymbolForFeature` without a render context
-  and errored before measuring anything. Reported as two legend
-  swatches painting
-  nothing and the highest value is not the darkest. Upstream clamps
-  this case; `make_graduated_renderer` collapses only the constant
-  case, by an argument that applies equally here. The suite
-  deliberately excludes the case in two places.
-- `bridge.py:223-225` is unreachable (`hasattr(ramp, "invert")` holds
-  for every ramp class). Harm unclear; recorded rather than acted on.
+  both of the dialog's stores. CONFIRMED, and kept as a documented
+  LIMIT by the maintainer's decision; the docstring that claimed the
+  case was covered has been corrected.
+- Losing a column destroys hand-picked CATEGORICAL colours. CONFIRMED
+  and fixed earlier the same day.
+- **Fewer distinct values than classes. CONFIRMED and FIXED.**
+  Measured with a render context this time, which is what the earlier
+  probe lacked: k=5 over {1, 5, 9} gave five ranges, two of them
+  degenerate, three colours on the map, and the highest value drawn
+  mid-grey while the legend's black sat beside a range nothing
+  occupied. `make_graduated_renderer` now reduces k to the number of
+  distinct finite values, which is what upstream's own
+  `_plot_subsetted_gdf` does and what the constant-column collapse
+  already did at n=1. Unclassed is exempt: its fifty steps reproduce
+  a continuous ramp and are not a class count anybody chose. The user
+  is told, as the constant case is. Guarded by
+  `test_a_legend_never_shows_a_class_the_map_does_not_have` and
+  `classes-never-outnumber-the-values`.
+  Two tests had been WRITTEN AROUND this defect, and both are now
+  fixed rather than exempted: one asserted `distinct >= k` before
+  measuring, and one switched to Equal intervals on the belief that
+  only quantiles collapsed, then asserted nine ranges that five of
+  which painted nothing.
+- **`bridge.py:223-225` is unreachable. CONFIRMED, and DELETED.**
+  `invert` is defined on `QgsColorRamp` itself rather than on the
+  subclasses, so `hasattr(ramp, "invert")` is true for every ramp
+  QGIS defines and for any subclass a plugin might register --
+  measured on all six built-in classes and on a bare subclass. The
+  fallback was also the worst of the three branches: rebuilding a
+  discrete scheme as a two-stop gradient would have thrown away every
+  colour between the ends. Deleted rather than defended, per the
+  standing rule.
 
 **INSTRUMENTS, verified and partly fixed.** The mutation catalogue
 reported CAUGHT for entries whose named test does not exist; three
@@ -337,6 +354,31 @@ only counts for the derived documents while the generators' own
 `--check` catches more; three EQUIVALENT entries exclude nothing; the
 mutate_auto watchdog ignores a child's CPU and can score a live
 mutant as stalled.
+
+**A PERMANENT FALSE ALARM IN THE CATALOGUE, fixed 2026-08-13
+(evening).** The remote catalogue sweep of 2026-08-12 returned 173 of
+174 and flagged `fit-to-design-on-show` as NEEDS ATTENTION. Nobody
+re-judged it, which is what the doctrine requires before believing a
+flagged verdict; doing so found a genuine survivor, and then found
+that the maintainer had ACCEPTED it permanently on 2026-08-10 with
+the reasoning written directly above the entry. So the sweep was
+flagging a settled decision, every time, forever -- and a warning
+that fires on a settled decision is how people learn to stop reading
+warnings. Entries now carry `accepted=True` beside the existing
+`equivalent=True`, which are not the same claim: equivalence says
+nothing observable changed, acceptance says something real changed
+that no test we can write can reach. Both are expected to survive;
+only being CAUGHT is news, and it is announced as such, because that
+means the acceptance can be withdrawn. The sweep reads the child's
+own verdict rather than inferring one from the exit code, and the
+summary line no longer calls an expected survivor a kill.
+
+A third attempt at a discriminating assertion failed like the two
+before it, and the measurement is worth keeping: Qt clamps the window
+to its own minimumSizeHint on show (634px) whatever the constructor
+left it at (560px), and the tick brings it to 453px with or without
+that call site. The test's docstring claimed the opposite and now
+records what was measured.
 
 ## 0.24.1 — next
 
@@ -366,23 +408,28 @@ a bug now fixed -- need reading, and were read.
 
 ### Wanted, no code yet
 
-**The changelog entry for 0.24.2 is DRAFTED and awaits review.** It
-describes the live-update change that actually shipped in 0.24.1
-whose notes said nothing else had changed, and says so plainly rather
-than quietly. `metadata.txt` is in the text-review queue now, so it
-is the maintainer's to approve.
+nothing outstanding.
 
-**Triage whatever the incremental mutation run returns.** Dispatched
-against `pre-0.24.1rc1` on 2026-08-12 after the candidate was built;
-it had failed three times that day for three unrelated reasons, all
-since fixed. Its findings belong here rather than to anything
-shipped.
+The changelog entry was REWRITTEN on 2026-08-13 (evening) against the
+actual diff, which is the step docs/PUBLISHING.md says never to skip:
+the approved version predated nineteen defect fixes and described
+none of them, including a GeoPackage export that destroyed the rest
+of the user's file. It sits in the text-review queue, where only the
+maintainer may approve it.
 
-**Six of the nine assignment-lookup copies were never sampled**, and
-the three that were each hid a real fault until a mutant happened to
-land on that copy. `_assignment_for` now holds the lookup, so a
-future mutant has one place to land -- but nothing has re-sampled
-those sites since the refactor.
+The incremental mutation run is TRIAGED, and there was nothing in it.
+Dispatched against `pre-0.24.1rc1` on 2026-08-12, it sampled one
+mutant of the four its 153 changed lines carried -- three were
+unreached by any test -- and killed it. Read 2026-08-13; the artifact
+had been sitting unopened. A run that answers nothing still has to be
+opened to find that out, which is the whole reason it is recorded
+here rather than assumed.
+
+Sampling the six unsampled assignment-lookup copies is DEFERRED to
+0.24.3, and deliberately: it is measurement rather than
+defect-finding, and the night of 2026-08-13 put mutation sampling at
+zero product defects across 128 survivors. `_assignment_for` now
+holds the lookup, so a future mutant has one place to land.
 
 ## 0.24.2 — waiting on somebody else
 
@@ -450,10 +497,16 @@ real defect this project has found came from comparing two
 independent descriptions of the same thing (docs/TESTING.md, "What has
 actually found defects here"), and the defect found on 2026-08-13 was
 precisely a table-against-map disagreement that survived because
-nothing compares those views systematically. Most of the machinery
-exists already in `tools/equivalence_scenarios.py`, which was built
-for mutation triage and dumps most of those views; pointing it at
-random designs instead of at mutants is the whole change.
+nothing compared those views systematically.
+
+PART OF THIS IS NOW BUILT, which narrows what is left rather than
+closing it. `test_random_designs_keep_their_views_in_agreement` covers
+three of the pairs below -- the ramp cell, the row's assignment, and
+the preview -- across random designs. What it does NOT cross is a
+BOUNDARY, and the boundary crossings are where this project's evidence
+says the value is: the saved project, the GeoPackage, and the colour
+editor's listing. Those are the three worth building next.
+`tools/equivalence_scenarios.py` dumps most of what they need.
 
 The pairs, and what a disagreement would MEAN, which is the part that
 needs deciding rather than coding:

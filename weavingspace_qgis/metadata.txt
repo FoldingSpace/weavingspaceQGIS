@@ -45,21 +45,31 @@ server=False
 ; wants to know what moved reads on. One text serving both is how a
 ; changelog becomes a list nobody finishes.
 ; (Maintainer's instruction, 2026-08-13.)
-changelog=0.24.2 Live updates keep out of your way, and QGIS's own
-    styling panel now knows which ramp coloured a categorical element.
-    Live update: a run that cannot finish says so on the dialog's note
-    line instead of interrupting you with a message box. Live updates
-    run while you are still adjusting a design, so a spacing that
-    produces nothing, or a layer that cannot be read, is part of
-    working rather than something to be stopped for. An explicit
-    Generate still reports failures the loud way.
-    Colour: categorical element layers now record which ramp coloured
-    them, so QGIS's Categorized panel shows it and Classify there
-    starts from the right place. Applying that same ramp in the panel
-    now replaces colours you had set by hand, exactly as choosing it
-    in the plugin always did, rather than quietly keeping them.
-    Correction: the live-update change reached you in 0.24.1, whose
-    notes said nothing else had changed and were wrong about that.
+changelog=0.24.2 Bugfixes, one of them about not losing data.
+    Your files: an existing .gpkg chosen as the output was rewritten
+    whole, so every other table in it was lost, including the layer
+    you were tiling if it lived there. Only the tables this plugin
+    wrote are replaced now. Nothing else is touched. True since
+    0.23.0, so upgrade before generating into a file you keep other
+    work in.
+    Colour: a ramp the dropdown offers is now the ramp you get, and a
+    colour picked by hand survives a run landing, a lost column and a
+    reopened project. What the plugin says it discarded stays
+    discarded. Categorized layers record their ramp, so QGIS's own
+    panel shows it and Classify starts from the right place.
+    Class colour files: edit a .qml and Generate draws what it says
+    today. Move one and the element keeps its colours, with the
+    missing file named.
+    Reopening a project: an element's ramp and class count come back
+    from the layer rather than from a default. Reverse does not yet.
+    Alongside QGIS: Classify no longer fails on a one-value column, a
+    closed dialog no longer writes layers into your project, and an
+    emptied region layer is reported rather than quietly stopping the
+    plugin.
+    Live update: a run that cannot finish says so on the note line
+    instead of interrupting you with a message box.
+    Correction: that live-update change reached you in 0.24.1, whose
+    notes wrongly said nothing else had changed.
     0.24.1 Setting the plugin up is more forgiving where QGIS does not
     already carry the packages it needs, which mostly means Linux.
     Setup: when one of them cannot be downloaded the plugin says which
