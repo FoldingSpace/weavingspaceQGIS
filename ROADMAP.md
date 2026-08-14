@@ -141,6 +141,83 @@ settles what the plugin promises a saved project means:
 Whichever way it goes, remove the names from `NOT_YET_RESTORED` so
 the test starts requiring them.
 
+## Open findings from the 2026-08-13 hunts
+
+Every one of these was REPORTED by a hunt and is recorded here with
+its status, so that nothing is lost between "an agent said so" and
+"somebody checked". The full method record is in
+docs/process/HUNT-RECORD.md. Verified means reproduced independently
+of the hunt that reported it, by a different route.
+
+**VERIFIED, not yet fixed.**
+
+- `tools/coverage_report.py` can never write a report. The suite ends
+  in `os._exit`, which raises no `SystemExit`, so the handler at
+  coverage_report.py:263 and everything after it -- `write_report`,
+  the printed summary, the exit status -- is unreachable. You run the
+  documented command, wait out the whole suite, and get nothing, with
+  nothing to say why. CLAUDE.md, docs/TESTING.md, docs/PUBLISHING.md
+  and MAINTAINING.md all name that command. The fix is the one its
+  sibling already uses: `tools/coverage_per_test.py:164` wraps
+  `os._exit` for exactly this reason and says so in a comment.
+  Confirming the fix needs a full coverage run (about 40 minutes), so
+  it is written down rather than half-done.
+
+**REPORTED, NOT YET VERIFIED HERE.** Each carries the hunt's own
+confidence. Reproductions were left in the hunts' worktrees, which do
+not survive the session -- so anyone picking these up should expect to
+rebuild the reproduction from the description.
+
+- An unassigned element is PREVIEWED in colour and DRAWN grey. A row
+  on "---" defaults to Single colour and gets a colour button;
+  `_table_id_colours` tests mode before var while `seed_renderer`
+  tests var first and paints no-data. Reported with three routes
+  agreeing (preview dict, sampled preview pixels, map renderer).
+  High confidence, and the shape is familiar.
+- Elements silently absent from the map on dense designs: stripes 26
+  at spacing 3000 reported 18 element layers for 26 rows, with the
+  notice mentioning areas rather than elements. If true this is more
+  serious than the item above. High confidence, unverified.
+- The class SOURCE is not re-read when a run lands, unlike the
+  colours: a QML chosen while tiling is discarded by the run. This is
+  a gap in the colour fix made the same day, one field wide.
+- A moved QML is repainted away silently on the RESTYLE path, where
+  the re-tile path keeps the map and names the file.
+- Editing a QML on disk never reaches the map, because the signature
+  holds only the token. A test names this harm but exercises it only
+  in `bridge`.
+- A reopened project loses an imported class source, and a
+  categorized element's adopted ramp reverts. Medium confidence,
+  adjacent to work done the same day.
+- An edit made straight through the DATA PROVIDER is invisible to
+  both of the dialog's stores, so Generate is a silent no-op. The
+  fingerprint cannot see it and no watched signal fires. The
+  docstring at dialog.py:1484 claims this case is covered. Reported
+  high confidence on mechanism; whether it is a defect or an accepted
+  limit is a maintainer's call.
+- Losing a column destroys hand-picked CATEGORICAL colours silently,
+  while the graduated twin survives -- and the loss bypasses the
+  reporting path that announces every other such loss.
+- Fewer distinct values than classes: two legend swatches paint
+  nothing and the highest value is not the darkest. Upstream clamps
+  this case; `make_graduated_renderer` collapses only the constant
+  case, by an argument that applies equally here. The suite
+  deliberately excludes the case in two places.
+- `bridge.py:223-225` is unreachable (`hasattr(ramp, "invert")` holds
+  for every ramp class). Harm unclear; recorded rather than acted on.
+
+**INSTRUMENTS, verified and partly fixed.** The mutation catalogue
+reported CAUGHT for entries whose named test does not exist; three
+broken entries were repaired and all 213 now validate. What is NOT
+done: the validation is a script that was run once, and belongs in
+the tool as a preflight that refuses to judge a broken entry. Also
+outstanding from that audit -- nothing actually RUNS the catalogue
+though two documents say the release does; `check_standards` compares
+only counts for the derived documents while the generators' own
+`--check` catches more; three EQUIVALENT entries exclude nothing; the
+mutate_auto watchdog ignores a child's CPU and can score a live
+mutant as stalled.
+
 ## 0.24.1 — next
 
 ### Branch-backed

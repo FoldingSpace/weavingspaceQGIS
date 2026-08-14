@@ -221,7 +221,19 @@ deciding what to promise is their call, not yours.
 Under 250 words. If you found nothing, say what you looked at, what
 you ruled out and where you would look next -- that is a good report
 and is credited as one. Do not pad it with a finding you do not
-believe."""
+believe.
+
+AND THE RECORD. docs/process/HUNT-RECORD.md holds every direction
+this project has hunted in and what each one yielded, because the
+yield turns almost entirely on the direction and that is not obvious
+in advance. End your report with the row it should gain: your
+direction, the question you asked, how many hypotheses you logged,
+how many findings you are claiming, and any lesson about HOW to hunt
+that your run taught. The maintainer writes it in after judging your
+claims -- confirmed means reproduced independently, so it is not
+yours to count. Update instructions are at the foot of that file.
+Read it before you start, too: a direction already tried and empty is
+worth knowing about before you spend a night on it."""
 
 
 def build_brief(area: str, shape: str = "asymmetry",
