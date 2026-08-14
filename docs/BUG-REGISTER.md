@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-108 defect(s) with a regression test.
+109 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -187,6 +187,8 @@ there is no separate list to remember.
   guarded by `test_a_withdrawn_equivalence_stops_excluding_its_mutant`
 - **the embedded style name was the layer's own, so a long column name overran GDAL's thirty-character styleName column and was truncated with a warning on every write.**  
   guarded by `test_an_embedded_style_name_fits_the_column_it_is_written_to`
+- **emptying the region layer made the dialog's fingerprint raise, inside paths reached from Qt slots where nothing reports.**  
+  guarded by `test_an_emptied_region_layer_does_not_raise`
 - **a GeoPackage was exported with a style that carried none of the plugin's own stamps, so its layers came back unrecognised and were offered as region layers.**  
   guarded by `test_an_exported_geopackage_is_still_recognised_as_our_own`
 - **the inset percentage conversion was defended only by comparisons whose tolerance is wider than the error.**  
@@ -261,7 +263,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 52
+- unrecorded: 53
 - the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6

@@ -1538,8 +1538,22 @@ class WeavingSpaceDialog(QDialog):
     ext = layer.extent()
     return (
       count,
-      (round(ext.xMinimum()), round(ext.yMinimum()),
-       round(ext.xMaximum()), round(ext.yMaximum())),
+      # An EMPTY layer has no extent, and QGIS says so with DBL_MAX
+      # sentinels rather than with zeros -- so `round()` on the width
+      # meets NaN and raises `cannot convert float NaN to integer`.
+      # Deleting every feature from the region layer is an ordinary
+      # thing to do mid-session, and this runs from the live path and
+      # from both signatures, where the raise goes to a console
+      # nobody has open. Found by the stochastic hunt on 2026-08-13
+      # (seeds 356, 401, 409) and reproduced directly. "empty" is a
+      # perfectly good fingerprint: it differs from every real extent
+      # and from itself never, so an emptied layer compares equal to
+      # an emptied layer and unequal to one with data, which is all
+      # this tuple is for. Guarded by
+      # test_an_emptied_region_layer_does_not_raise.
+      ("empty" if ext.isNull() or ext.isEmpty() else
+       (round(ext.xMinimum()), round(ext.yMinimum()),
+        round(ext.xMaximum()), round(ext.yMaximum()))),
       tuple(f.name() for f in layer.fields()),
       layer.crs().authid(),
     )

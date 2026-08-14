@@ -175,7 +175,7 @@ nothing, so it is counted against the hunt, not for it.
 | **Write-only state** | "What is written and read back by nobody?" | 1 | 1 | Also misjudged a real defect as harmless — see below |
 | **Preview against map** | "Do two renderings of one design agree?" | 1 | 0* | Three claims, none yet independently verified |
 | **Dialog against live layer** | "Does the plugin's belief match the layer?" | 1 | 0* | Two claims, none yet independently verified |
-| **Stochastic sessions** | No question — random actions, invariants checked after each | 1 | 1 | 85+ sessions. Most "breaks" were its own fixture; found a defect present since the first commit |
+| **Stochastic sessions** | No question — random actions, invariants checked after each | 1 | 2 | ~100 sessions. Most "breaks" were its own fixture; found a defect present since the first commit, and a crash it hit on three separate seeds |
 | **Mutation sampling** | "Would the suite have noticed this change?" | many | **0** | 128 survivors, no product defects. It measures the SUITE |
 
 \* Not zero because the hunt was weak — zero because verification is
@@ -235,6 +235,17 @@ one had to be narrowed — a hunt reported a table-versus-map
 disagreement, the fix made the map repaint unasked, and it turned out
 to contradict a settled decision that a test had guarded for months.
 Running more hunts does not raise throughput; it lengthens the queue.
+
+**Repetition is the signal that separates a defect from a fixture
+fault.** The randomised hunt's second real finding announced itself
+by firing on three separate seeds in three separate batches -- an
+emptied region layer making the dialog's fingerprint raise, from a
+Qt slot, where nothing reports. Its fixture faults, by contrast, each
+appeared once and then went away when the driver was corrected. So
+when triaging a stochastic run, sort by how many independent seeds
+produced the same shape before reading any of them; that ordering
+would have put both real findings at the top and every false one
+below.
 
 **Stochastic search works, and most of what it reports is its own
 fault.** Eighty-five random sessions produced about a dozen invariant

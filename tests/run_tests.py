@@ -10619,6 +10619,55 @@ def test_an_unclassed_excursion_leaves_the_count_alone():
   dlg.close()
 
 
+def test_an_emptied_region_layer_does_not_raise():
+  """Deleting every feature is legal, and must not throw.
+
+  QGIS reports an empty layer's extent with DBL_MAX sentinels rather
+  than with zeros, so rounding its bounds meets NaN and raises
+  `cannot convert float NaN to integer`. `_layer_fingerprint` runs
+  from the live path and from both signatures, all of them reached
+  from Qt slots -- so the raise goes to a console the user does not
+  have open, and what they see is a plugin that has quietly stopped
+  responding to their layer.
+
+  Emptying a region layer mid-session is an ordinary thing to do:
+  select all, delete, undo when you see the map go. "empty" is a
+  perfectly good fingerprint for that state, because it differs from
+  every real extent and equals itself, which is the whole job.
+
+  Found by the randomised session hunt, which hit it on three
+  separate seeds before anybody looked at it deliberately.
+
+  Regression: emptying the region layer made the dialog's fingerprint raise, inside paths reached from Qt slots where nothing reports.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  assert dlg._layer_fingerprint() is not None, \
+    "no fingerprint with data present, so the test proves nothing"
+
+  layer.dataProvider().deleteFeatures([f.id() for f in layer.getFeatures()])
+  layer.updateExtents()
+  _tick(300)
+  assert layer.featureCount() == 0, "the fixture did not empty the layer"
+
+  with _QtNoiseWatch() as noise:
+    emptied = dlg._layer_fingerprint()
+    dlg._maybe_live_generate()
+    _tick(300)
+  assert emptied is not None, \
+    "an emptied layer produced no fingerprint at all"
+  assert not noise.complaints(), \
+    "emptying the region layer raised where a user sees nothing:\n" \
+    + "\n".join(noise.complaints())
+  dlg.close()
+
+
 def test_a_renamed_column_does_not_destroy_hand_picked_colours():
   """A rename in QGIS is not a decision to throw work away.
 
@@ -36491,6 +36540,8 @@ def main():
         test_a_class_colour_picked_during_a_run_is_not_lost)
   check("an Unclassed excursion leaves the count alone",
         test_an_unclassed_excursion_leaves_the_count_alone)
+  check("an emptied region layer does not raise",
+        test_an_emptied_region_layer_does_not_raise)
   check("a renamed column does not destroy hand-picked colours",
         test_a_renamed_column_does_not_destroy_hand_picked_colours)
   check("an unassigned element previews as it draws",

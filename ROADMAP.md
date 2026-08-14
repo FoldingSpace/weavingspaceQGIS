@@ -218,12 +218,14 @@ Site: `_sync_row`, dialog.py:2602-2620, reached from `_queue_live` ->
 `_update_dynamic_columns` on every data-tab change. Both the call and
 the swap date from the initial commit, so this has always been so.
 
-**REPORTED by the stochastic hunt, not yet verified here:**
-`dialog._layer_fingerprint` raised `ValueError` from `round(NaN)` when
-the dialog was reopened after the region had been emptied earlier in
-the session (seed 356). If a layer can present a NaN extent, the
-fingerprint raises inside the live-update path, where nothing would
-report it.
+**VERIFIED AND FIXED:** `dialog._layer_fingerprint` raised
+`ValueError: cannot convert float NaN to integer` on an emptied
+region layer. QGIS reports an empty extent with DBL_MAX sentinels
+rather than zeros, so rounding the bounds meets NaN. Reached from the
+live path and both signatures, all from Qt slots, so the raise went
+to a console nobody has open. The hunt hit it on three separate
+seeds (356, 401, 409) before anybody looked at it deliberately.
+Guarded by `test_an_emptied_region_layer_does_not_raise`.
 
 **THE QML CLASS SOURCE, all three tested 2026-08-13.** Measured with
 a real .qml on disk, reading the colours off the renderer:
