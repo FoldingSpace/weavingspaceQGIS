@@ -305,20 +305,18 @@ EQUIVALENT = [
       "unrelated refactor above having moved the function twenty-one "
       "lines down.",
   },
-  {
-    "file": "weavingspace_qgis/dialog.py",
-    "snippet": 'k_spin.setValue(min(int(k_spin.property("user_k") or 5), 20))',
-    "mutation": "20 -> 21",
-    "reason":
-      "The line above sets the spin box's range to (2, 20), and Qt "
-      "clamps setValue to the range. A ceiling of 21 therefore "
-      "produces 20, exactly as before. The 2-20 class range itself is "
-      "a settled decision and is enforced by setRange, which a "
-      "different mutant would have to reach.",
-    "evidence":
-      "Same clamp as the opacity entry, demonstrated under QGIS's own "
-      "Qt: setValue above the maximum returns the maximum.",
-  },
+  # REMOVED 2026-08-13. The claim here was that mutating the 20 in
+  # `k_spin.setValue(min(int(k_spin.property("user_k") or 5), 20))`
+  # is harmless because setRange(2, 20) makes Qt clamp setValue. That
+  # was true of that line and is not true of the line that replaced
+  # it: the min now writes the clamped number into the `user_k`
+  # PROPERTY, which nothing clamps and which `_assignments` reads, so
+  # a mutant there would put 21 classes into an element and the 2..20
+  # range would be a settled decision the code no longer keeps. An
+  # equivalence claim outliving the line it was written about is the
+  # one failure this catalogue cannot tolerate, since it excuses a
+  # mutation that can no longer happen and shrinks the denominator
+  # for nothing. The checker caught it in the same session.
   {
     "file": "weavingspace_qgis/dialog.py",
     "snippet": "      and not self.table.isColumnHidden(7)",
