@@ -192,6 +192,39 @@ about the MODE before the variable while `seed_renderer` asks
   announcing is a judgement about how chatty the notice line should
   be, and the same rename may be a user's undo a second later.
 
+**VERIFIED HERE, from the stochastic hunt: a ramp you are OFFERED is
+refused, and your hand-picked colours are destroyed for it.** Measured
+on a clean project: a Categorized element with one hand-picked colour;
+the ramp dropdown offers YlGn; choose it and the cell reads Set2,
+`_ramp_choices` and `_assignments` say Set2, the hand-pick is gone,
+the map paints Set2's colours, and the message bar says a new ramp
+"discarded 1 colour(s) you had picked by hand" -- for a ramp change
+that never happened.
+
+The substitution itself is probably deliberate and defensible: a
+sequential ramp over categories is a cartographic error, and
+`_sync_row` swaps in a qualitative palette. THREE things around it are
+not, and each is a decision rather than an obvious fix:
+
+- the dropdown OFFERS ramps the row will refuse, so the control lies
+  before the user has done anything;
+- the hand-picks are destroyed on the way to a ramp that is then
+  overridden, so the user pays the price of a change they did not get;
+- the notice describes the change that did not happen rather than the
+  substitution that did, which is the least defensible part and the
+  cheapest to fix.
+
+Site: `_sync_row`, dialog.py:2602-2620, reached from `_queue_live` ->
+`_update_dynamic_columns` on every data-tab change. Both the call and
+the swap date from the initial commit, so this has always been so.
+
+**REPORTED by the stochastic hunt, not yet verified here:**
+`dialog._layer_fingerprint` raised `ValueError` from `round(NaN)` when
+the dialog was reopened after the region had been emptied earlier in
+the session (seed 356). If a layer can present a NaN extent, the
+fingerprint raises inside the live-update path, where nothing would
+report it.
+
 **THE QML CLASS SOURCE, all three tested 2026-08-13.** Measured with
 a real .qml on disk, reading the colours off the renderer:
 

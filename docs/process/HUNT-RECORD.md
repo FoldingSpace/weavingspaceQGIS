@@ -175,7 +175,7 @@ nothing, so it is counted against the hunt, not for it.
 | **Write-only state** | "What is written and read back by nobody?" | 1 | 1 | Also misjudged a real defect as harmless — see below |
 | **Preview against map** | "Do two renderings of one design agree?" | 1 | 0* | Three claims, none yet independently verified |
 | **Dialog against live layer** | "Does the plugin's belief match the layer?" | 1 | 0* | Two claims, none yet independently verified |
-| **Stochastic sessions** | No question — random actions, invariants checked after each | 1 | — | First run; result not yet in |
+| **Stochastic sessions** | No question — random actions, invariants checked after each | 1 | 1 | 85+ sessions. Most "breaks" were its own fixture; found a defect present since the first commit |
 | **Mutation sampling** | "Would the suite have noticed this change?" | many | **0** | 128 survivors, no product defects. It measures the SUITE |
 
 \* Not zero because the hunt was weak — zero because verification is
@@ -235,6 +235,29 @@ one had to be narrowed — a hunt reported a table-versus-map
 disagreement, the fix made the map repaint unasked, and it turned out
 to contradict a settled decision that a test had guarded for months.
 Running more hunts does not raise throughput; it lengthens the queue.
+
+**Stochastic search works, and most of what it reports is its own
+fault.** Eighty-five random sessions produced about a dozen invariant
+breaks, of which one was a real defect — a ramp the dropdown offers
+being refused while the user's hand-picked colours are destroyed for
+it, present since the first commit and reachable in ordinary use. The
+rest were the driver holding a reference to a layer it had deleted,
+or intent it dropped itself. That ratio is the method's signature and
+is not a criticism of it: no other direction here found something
+that had survived every deliberate reading, and the price of that is
+triage.
+
+Three things made it work, and all three should be required of the
+next one. **Seed everything and print the seed**, so a break is one
+command to reproduce. **Shrink before reporting** — a forty-step
+failure nobody can read is worth much less than a four-step one. And
+**write negative controls**: sabotage the product deliberately, once
+per invariant, and check each invariant actually fires. That last one
+paid for itself here, because it exposed a hole in the hunt rather
+than in the plugin — live update defaults to ON, and one invariant
+was only checked when no run was possible, so four batches had barely
+exercised it at all. An invariant that never fires is either sound or
+broken, and only a control tells you which.
 
 ## Directions not yet tried
 
