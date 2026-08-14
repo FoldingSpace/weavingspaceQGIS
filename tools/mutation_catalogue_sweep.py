@@ -88,7 +88,20 @@ def run_shard(names, results, index):
       cwd=ROOT, capture_output=True, text=True)
     spent = time.time() - started
     results[name] = (proc.returncode == 0, spent)
+    # Read the child's own verdict rather than inferring one from the
+    # exit code. An entry marked equivalent or accepted is EXPECTED to
+    # survive and exits 0, so an exit-code reading would print
+    # "caught" for a mutant nothing caught -- the same flattering
+    # count this project has now found four times in its own
+    # instruments. The exit code still decides pass or fail; it just
+    # does not get to name the outcome.
     verdict = "caught" if proc.returncode == 0 else "ATTENTION"
+    for line in proc.stdout.splitlines():
+      stripped = line.strip()
+      for label in ("accepted", "equivalent"):
+        if stripped.startswith(f"{label}  {name}  "):
+          verdict = label
+          break
     print(f"  shard {index}: {verdict:9s} {name} ({spent:.0f}s)",
           flush=True)
 

@@ -48,6 +48,7 @@ obvious to go.
 
 import os
 import sys
+import traceback
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -186,12 +187,12 @@ def gaps(missing, minimum=3):
   return sorted(runs, key=lambda r: r[1] - r[0], reverse=True)
 
 
-def run_suite_with_monitoring(seen, branches=None):
+def run_suite_with_monitoring(seen, branches=None, on_suite_exit=None):
   """Execute tests/run_tests.py with LINE monitoring active.
 
-  The suite calls sys.exit() when it finishes, which is caught here so
-  the report can still be written; its exit status is returned so a
-  caller can tell whether the tests themselves passed.
+  The suite ends in os._exit rather than returning or raising, so
+  anything the caller means to do with the recording has to happen on
+  the way through that exit: pass it as on_suite_exit.
 
   Args:
     seen: the set this call FILLS with (absolute filename, line) for
@@ -203,6 +204,12 @@ def run_suite_with_monitoring(seen, branches=None):
       recording which way each decision went. Leave it None to skip
       BRANCH monitoring entirely, which is the cheaper of the two
       measurements.
+    on_suite_exit: called with the suite's exit status once monitoring
+      is torn down and before the process ends, which is the ONLY
+      moment a report can be written. Omit it and this function
+      records coverage that nothing will ever read. Any exception it
+      raises is reported and swallowed, since a fault in the report
+      must not change the status the suite earned.
 
   Returns:
     The suite's exit status: 0 when every test passed, non-zero
@@ -256,6 +263,55 @@ def run_suite_with_monitoring(seen, branches=None):
     events |= mon.events.BRANCH
   mon.set_events(tool, events)
   status = 0
+
+  # The suite does not RETURN, and it does not raise SystemExit
+  # either: it ends in os._exit, added 2026-08-11 so that a segfault
+  # in Qt/QGIS teardown could not turn a finished, fully reported run
+  # into exit 139. os._exit takes the process down immediately --
+  # past finally blocks, past atexit, past the `except SystemExit`
+  # below, past every line of main() after this call. So this tool
+  # ran the whole suite, wrote no report, printed no summary, and
+  # exited with the suite's status: you ran the documented command,
+  # waited out the suite, and got nothing, with nothing to say why.
+  # Four documents recommend that command. Measured 2026-08-13.
+  #
+  # The fix is the one tools/coverage_per_test.py already uses and
+  # explains: stand in for os._exit and do the work on the way
+  # through. It is done HERE rather than by editing the suite because
+  # this tool observes a suite it does not own -- a suite that grows
+  # another exit path later costs nothing on this side.
+  #
+  # Unlike the per-test recorder, a NON-ZERO status still writes the
+  # report. That record feeds mutate_auto, where a partial file
+  # silently understates survivors; this one is a description for a
+  # person, and a coverage map of a run whose suite had one failure
+  # is still worth reading, as long as the status travels with it.
+  real_exit = os._exit
+  finished = []
+
+  def exit_after_writing_the_report(code):
+    """Stand in for os._exit so the report survives the suite's exit.
+
+    Args:
+      code: the exit status the suite chose, which becomes this
+        process's status once the report is written.
+
+    Returns:
+      Never returns; the process ends here.
+    """
+    finished.append(code)
+    mon.set_events(tool, 0)
+    mon.free_tool_id(tool)
+    if on_suite_exit is not None:
+      try:
+        on_suite_exit(code)
+      except Exception:                       # pragma: no cover
+        traceback.print_exc()
+    sys.stdout.flush()
+    sys.stderr.flush()
+    real_exit(code)
+
+  os._exit = exit_after_writing_the_report
   try:
     sys.argv = [os.path.join(ROOT, "tests", "run_tests.py")]
     import runpy
@@ -263,8 +319,11 @@ def run_suite_with_monitoring(seen, branches=None):
   except SystemExit as e:
     status = e.code or 0
   finally:
-    mon.set_events(tool, 0)
-    mon.free_tool_id(tool)
+    os._exit = real_exit
+    if not finished:
+      # only reached if the suite ever stops exiting for itself
+      mon.set_events(tool, 0)
+      mon.free_tool_id(tool)
   return status
 
 
@@ -375,18 +434,38 @@ def main():
     coverage report is a description, never a gate: it must not turn
     a passing release into a failing one, and equally must not hide a
     test failure behind a successfully written report.
+
+  The report is written from INSIDE the run, through the callback
+  below, because the suite ends the process itself and nothing after
+  the call ever runs. See run_suite_with_monitoring.
   """
   sys.path.insert(0, ROOT)
   out_dir = sys.argv[1] if len(sys.argv) > 1 else ROOT
   os.makedirs(out_dir, exist_ok=True)
   seen, branches = set(), {}
-  status = run_suite_with_monitoring(seen, branches)
   path = os.path.join(out_dir, "coverage.md")
-  hit, ex, both, dec = write_report(seen, path, branches)
-  print(f"\ncoverage: {hit}/{ex} lines "
-        f"({100 * hit / max(ex, 1):.0f}%), "
-        f"{both}/{dec} decisions taken both ways "
-        f"({100 * both / max(dec, 1):.0f}%) -> {path}")
+
+  def report(status):
+    """Write coverage.md and say where it went.
+
+    Args:
+      status: the suite's exit status, quoted in the summary so a
+        report of a run with failures cannot be mistaken for a report
+        of a clean one.
+
+    Returns:
+      None; writes the file at `path` and prints one summary line.
+    """
+    hit, ex, both, dec = write_report(seen, path, branches)
+    note = "" if status == 0 else f"  [suite exited {status}]"
+    print(f"\ncoverage: {hit}/{ex} lines "
+          f"({100 * hit / max(ex, 1):.0f}%), "
+          f"{both}/{dec} decisions taken both ways "
+          f"({100 * both / max(dec, 1):.0f}%) -> {path}{note}")
+
+  status = run_suite_with_monitoring(seen, branches, on_suite_exit=report)
+  # only reached if the suite ever stops exiting for itself
+  report(status)
   sys.exit(status)
 
 
