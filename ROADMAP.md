@@ -81,7 +81,31 @@ wheels from PyPI when QGIS lacks them. Plugins get rejected for
 hiding the second, not for doing it. Full detail in
 docs/PUBLISHING.md.
 
-**What a reopened project restores of the ROW, and how far to go.**
+**DECIDED 2026-08-13, and mostly done.** The maintainer's answer:
+preserve the row across a save where we can, and where we cannot,
+reload the classes, count them, and call the row Custom. Implemented
+the same day — the ramp and the class count are read back off the
+renderer QGIS saved, which stores nothing new and treats the layer as
+the authority exactly as opacity does; where no library ramp draws
+what the layer draws, the class colours are recovered positionally
+and the row reads Custom, which it already meant. The class count
+also gained the per-element store every other control in that table
+has had since the settled decision; it alone had been riding on a
+widget property, which survives a rebuild and not a reopen.
+
+What is LEFT is Reverse, and it is smaller than it looks. Reversing
+produces a ramp clone matching no name in the library, so the flag
+cannot be recognised from a renderer — but such an element comes back
+as Custom carrying its actual class colours, so the map is exactly
+preserved and no control claims a ramp that is not what is drawn.
+Only the knowledge that those colours came from reversing is lost.
+Closing it properly means teaching `_ramp_name_matching` to spot a
+reversed clone; worth doing, not urgent, and the canary in
+`test_a_project_round_trip_changes_nothing_a_user_chose` names it.
+The scheme (Quantiles against Natural breaks) cannot be recovered
+from breaks at all and is not attempted.
+
+**The original question, kept for the reasoning.**
 Measured 2026-08-13, with a canary now holding the answer in
 `test_a_project_round_trip_changes_nothing_a_user_chose`: the ramp,
 the reverse flag and the class count do NOT come back. They live in

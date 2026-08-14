@@ -794,6 +794,17 @@ class WeavingSpaceDialog(QDialog):
     # ramp. Data-blind, so it survives a field switch; only choosing
     # a ramp resets it.
     self._ramp_ranges = {}
+    # {tile_id: class count}. Every other per-element control has had
+    # a dict of this shape since the settled decision that these
+    # belong to the ELEMENT and not the row widget; the class count
+    # alone rode on the spinner's `user_k` property, which is enough
+    # to survive a table rebuild (the count comes back through the
+    # previous assignments) and not enough to survive a REOPEN, where
+    # there are no previous assignments and every row is built fresh
+    # on 5. Added 2026-08-13 so a reopened project can be told what
+    # the layer's own renderer says. (Maintainer's decision the same
+    # day: preserve the row across a save where we can.)
+    self._class_counts = {}
     # True while the dialog itself is writing renderers, so the
     # styleChanged watcher (see _on_layer_style_edited) can tell a
     # QGIS-side edit from our own seeding and react only to the first
@@ -830,9 +841,16 @@ class WeavingSpaceDialog(QDialog):
     # the message line.
     self._said_source_gone = False
     self._retire_previous_instance()
-    self._adopt_existing_group()
+    # The ramps come FIRST, and the order is load-bearing as of
+    # 2026-08-13. Adoption now reads an existing layer's ramp back
+    # off its renderer, which means asking which library ramp draws
+    # it -- and this ran two lines before `_ramp_names` existed, so
+    # every lookup failed and every adopted element fell through to
+    # Custom. The ramps must also be INSTALLED by then, or a project
+    # styled with a mapweaver palette reopens unable to name it.
     bridge.ensure_ramps_installed()
     self._ramp_names = bridge.ramp_names()
+    self._adopt_existing_group()
     self._preview_timer = QTimer(self)
     self._preview_timer.setSingleShot(True)
     self._preview_timer.setInterval(350)
@@ -2820,9 +2838,13 @@ class WeavingSpaceDialog(QDialog):
       # it from there — so the bug was invisible and waiting for
       # whoever reordered these two lines.
       k_spin.setRange(2, 20)
-      k_spin.setValue(prev["k"] if prev and prev.get("k") else 5)
-      k_spin.setProperty("user_k",
-                         prev["k"] if prev and prev.get("k") else 5)
+      # the previous assignments first (a rebuild inside one
+      # session), then the element's own record, which is the only
+      # thing that exists after a REOPEN, then the default
+      restored_k = (prev["k"] if prev and prev.get("k")
+                    else self._class_counts.get(tid) or 5)
+      k_spin.setValue(restored_k)
+      k_spin.setProperty("user_k", restored_k)
       k_spin.setToolTip(
         "Number of classes; categorized rows show how many "
         "categories were found.")
@@ -2832,6 +2854,9 @@ class WeavingSpaceDialog(QDialog):
       def on_k(v, sp=k_spin):
         if sp.isEnabled():
           sp.setProperty("user_k", v)
+          # and against the element, so the count outlives the widget
+          if sp.property("tile_id"):
+            self._class_counts[sp.property("tile_id")] = v
           # a new class count reclassifies the column, and positional
           # picks name classes that no longer exist: destroy, and say
           # so (settled 2026-08-09). Only enabled spins reach here,
@@ -2953,6 +2978,25 @@ class WeavingSpaceDialog(QDialog):
     if tile_id not in self._opacity_choices:
       self._opacity_choices[tile_id] = max(0, min(100, round(
         layer.opacity() * 100)))
+    # THE ROW'S SYMBOLOGY, read off the renderer QGIS saved. Same
+    # argument as opacity above and the same authority: the layer is
+    # carrying the map, so it is carrying the truth, and a table that
+    # disagrees with it does not stay cosmetic -- _add_output_layers
+    # pushes the table's belief back, so the next Generate would
+    # overwrite the map with defaults the user never chose. Until
+    # 2026-08-13 the ramp, the reverse flag and the class count were
+    # all lost this way; the round-trip test compared all three and
+    # never moved them off a default, so nothing failed.
+    #
+    # WHERE THE RAMP CANNOT BE NAMED, the classes themselves are read
+    # back and the row reads Custom -- the maintainer's instruction,
+    # and the honest answer, since Custom already means "these
+    # colours, not that ramp" and the swatch draws them. A reversed
+    # ramp is a clone matching no name in the library, so it arrives
+    # here as Custom rather than as a wrong ramp name, which is the
+    # right way round: the map is preserved exactly and the control
+    # stops claiming a ramp that is not what is drawn.
+    self._adopt_row_symbology(layer, tile_id)
     raw = layer.customProperty("weavingspace_category_colours")
     if raw:
       try:
@@ -2985,6 +3029,87 @@ class WeavingSpaceDialog(QDialog):
     if (lo, hi) != (0, 100) and 0 <= lo <= hi <= 100 \
         and tile_id not in self._ramp_ranges:
       self._ramp_ranges[tile_id] = (lo, hi)
+
+  def _adopt_row_symbology(self, layer, tile_id):
+    """Read an adopted layer's ramp, class count and colours back.
+
+    Args:
+      layer: an existing output layer found in the project, whose
+        renderer QGIS restored from the project file.
+      tile_id: the element it carries.
+
+    Returns:
+      None. Fills in `_ramp_choices`, `_class_counts`,
+      `_single_colours` and, where the ramp cannot be named, the
+      positional picks in `_quant_colours` that make the row read
+      Custom. Only ever fills a gap: anything the dialog already
+      holds for this element was chosen since reopening and wins.
+
+    Nothing here raises. A project written by another version, or
+    edited by hand, must not stop the dialog opening -- so an
+    unreadable renderer leaves the row on its defaults, which is
+    exactly the behaviour that existed before this method.
+    """
+    try:
+      renderer = layer.renderer()
+    except Exception:
+      return
+    if renderer is None:
+      return
+
+    # A SINGLE SYMBOL is the whole of an unassigned or single-colour
+    # element's styling, and the colour is right there on it.
+    if hasattr(renderer, "symbol") and not hasattr(renderer, "ranges") \
+        and not hasattr(renderer, "categories"):
+      try:
+        symbol = renderer.symbol()
+        if symbol is not None and tile_id not in self._single_colours:
+          self._single_colours[tile_id] = symbol.color().name()
+      except Exception:
+        pass
+      return
+
+    named = None
+    try:
+      named = self._ramp_name_matching(renderer.sourceColorRamp())
+    except Exception:
+      named = None
+    if named and tile_id not in self._ramp_choices:
+      self._ramp_choices[tile_id] = named
+
+    if not hasattr(renderer, "ranges"):
+      return
+    try:
+      # hold the list while it is read: a range object from ranges()
+      # is a temporary, and a symbol pointer off a dead one segfaults
+      # (the lesson the constant-column fix paid for)
+      bands = [(r.symbol().color().name()) for r in renderer.ranges()]
+    except Exception:
+      return
+    if not bands:
+      return
+
+    # The class count, but only where the spinner could hold it. Fifty
+    # bands is Quant: Unclassed, whose count is fixed by the scheme
+    # rather than chosen, and forcing 50 into a 2..20 spinner would
+    # clamp to 20 and quietly describe a different map.
+    if 2 <= len(bands) <= 20 and tile_id not in self._class_counts:
+      self._class_counts[tile_id] = len(bands)
+
+    if named:
+      return
+    # No ramp in the library draws these, so the colours ARE the
+    # style: keep them positionally and let _sync_row read Custom.
+    try:
+      field = renderer.classAttribute()
+    except Exception:
+      return
+    if not field:
+      return
+    if self._quant_colours.get(tile_id, {}).get(field):
+      return          # the user has picks of their own; do not touch
+    self._quant_colours.setdefault(tile_id, {})[field] = {
+      str(index): colour for index, colour in enumerate(bands)}
 
   def _clear_category_colours(self, tile_id, because):
     """Forget an element's hand-picked colours for its current field.

@@ -696,6 +696,46 @@ MUTATIONS = [
        why="a colour picked while a tiling was finishing surviving "
            "that tiling, rather than being overwritten by the "
            "settings the run started with"),
+  # The row's symbology across a reopen (maintainer's decision,
+  # 2026-08-13: preserve where we can, else reload the classes,
+  # count them, and call it Custom). Three entries because three
+  # separate things have to hold, and one anchor covering them all
+  # would report SURVIVED whenever any one of them still worked.
+  dict(name="ramps-installed-before-adoption", file=DIALOG,
+       # the ordering bug as it actually happened: adoption ran two
+       # lines before the ramp list existed, so every lookup threw
+       # and every adopted element fell through to Custom
+       old="""    bridge.ensure_ramps_installed()
+    self._ramp_names = bridge.ramp_names()
+    self._adopt_existing_group()""",
+       new="""    self._adopt_existing_group()
+    bridge.ensure_ramps_installed()
+    self._ramp_names = bridge.ramp_names()""",
+       test="test_a_project_round_trip_changes_nothing_a_user_chose",
+       why="adoption asking which library ramp draws a reopened "
+           "layer, at a moment when the library has been read. Run "
+           "it first and no ramp can ever be named, so every "
+           "reopened element reads Custom -- the map survives, but "
+           "every ramp name a user chose is gone"),
+  dict(name="reopened-ramp-read-off-the-layer", file=DIALOG,
+       old="""    if named and tile_id not in self._ramp_choices:
+      self._ramp_choices[tile_id] = named""",
+       new="""    pass  # mutation: the ramp is not read back""",
+       test="test_a_project_round_trip_changes_nothing_a_user_chose",
+       why="the ramp a user chose surviving a save and reopen. "
+           "Without it the table shows a default ramp beside a layer "
+           "drawing another, and the next Generate pushes the "
+           "table's belief onto the map"),
+  dict(name="reopened-classes-recovered-as-custom", file=DIALOG,
+       old="""    self._quant_colours.setdefault(tile_id, {})[field] = {
+      str(index): colour for index, colour in enumerate(bands)}""",
+       new="""    pass  # mutation: unnameable colours are not recovered""",
+       test="test_a_project_round_trip_changes_nothing_a_user_chose",
+       why="an element whose colours no library ramp draws -- a "
+           "reversed ramp is the everyday case -- coming back as "
+           "Custom carrying those exact colours. Without it the row "
+           "claims a ramp that is not what is drawn, and the next "
+           "Generate makes the map agree with the claim"),
   dict(name="greyed-reverse-keeps-its-record", file=DIALOG,
        # The mutation is the code as it stood before 2026-08-13:
        # restore the switch's report verbatim, and a rebuild while

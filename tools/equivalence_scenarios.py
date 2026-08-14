@@ -94,11 +94,53 @@ def snapshot(dlg):
     cells.append(entry)
   out["cells"] = cells
 
-  for name in ("n_combo", "kind_combo", "family_combo", "spacing_spin",
-               "shells_spin", "live_check", "opt_over_under",
-               "opt_grid_rows", "opt_grid_cols"):
+  # The design controls. Two failure modes are guarded here, and both
+  # have already happened in this project.
+  #
+  # A NAME THAT NO LONGER EXISTS was skipped silently by the
+  # `getattr(..., None)` guard this loop used to carry: a sweep on
+  # 2026-08-13 asked for `mod_tiles_inset`, whose real name is
+  # `mod_t_inset`, and measured that axis as unchanging for its whole
+  # life without a word. So the required names are checked FIRST and
+  # loudly, because this snapshot is the sole evidence behind every
+  # EQUIVALENT claim in tools/mutate_auto.py, and an observer that
+  # cannot see a difference reports the mutation as harmless.
+  #
+  # A CONTROL NOBODY LISTED is the same fault written a different
+  # way. The hand-kept list held nine names and the dialog carries
+  # thirty-odd `mod_` and `opt_` widgets, so every modifier -- the
+  # insets, the rotation, the skews, the scales -- was invisible
+  # here. They are discovered rather than listed now, so a control
+  # added next year is observed the day it appears.
+  REQUIRED = ("n_combo", "kind_combo", "family_combo", "spacing_spin",
+              "shells_spin", "live_check", "opt_over_under",
+              "opt_grid_rows", "opt_grid_cols")
+  absent = [name for name in REQUIRED if getattr(dlg, name, None) is None]
+  if absent:
+    raise AssertionError(
+      f"equivalence_scenarios.snapshot cannot see {absent!r}: the "
+      f"dialog has no such attribute, so these axes are being "
+      f"compared as permanently equal and any mutation that only "
+      f"moves them will be reported EQUIVALENT. Fix the names here "
+      f"rather than letting the comparison narrow silently.")
+  # QWidget only: several of these attributes hold a TUPLE of the
+  # widgets making up a row, and reading `.value()` off one raised
+  # rather than reporting a difference -- an observer that crashes is
+  # no better than one that cannot see
+  from qgis.PyQt.QtWidgets import QWidget
+  discovered = {name for name in dir(dlg)
+                if name.startswith(("mod_", "opt_"))
+                and isinstance(getattr(dlg, name, None), QWidget)}
+  for name in sorted(set(REQUIRED) | discovered):
     widget = getattr(dlg, name, None)
     if widget is None:
+      continue
+    # a container row carries no value of its own, but whether it is
+    # SHOWN is a difference a user would see
+    if hasattr(widget, "isVisible") and not any(
+        hasattr(widget, attr) for attr in
+        ("currentText", "isChecked", "text", "value")):
+      out[name] = f"visible={widget.isVisible()}"
       continue
     if hasattr(widget, "currentText"):
       out[name] = widget.currentText()
