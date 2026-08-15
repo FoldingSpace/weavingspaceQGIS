@@ -2467,6 +2467,18 @@ MUTATIONS = [
            "flags and their two bounds are a smaller and more durable "
            "statement and must survive, with the scheme recomputing "
            "the middle around them"),
+  dict(name="the-bound-box-is-sized-from-the-data",
+       file="weavingspace_qgis/category_editor.py",
+       old="    box.setDecimals(max(0, min(12, places)))\n"
+           "    box.setRange(-magnitude * 100.0, magnitude * 100.0)",
+       new="    box.setDecimals(6)\n"
+           "    box.setRange(-1e12, 1e12)",
+       test="test_a_pinned_bound_can_hold_the_numbers_a_column_carries",
+       why="fixed limits cannot hold the numbers ordinary geographic "
+           "columns carry: an area of 1.875e12 square metres pinned "
+           "at 1e12 and a rate of 4e-07 pinned at zero, both silently, "
+           "because pin_problem is asked about the number the control "
+           "produced and that number is inside the data"),
   dict(name="the-swatch-is-painted-after-the-restyle", file=DIALOG,
        old="    self._restyle_only()\n    self._refresh_preview_colours()",
        new="    self._refresh_preview_colours()\n    self._restyle_only()",

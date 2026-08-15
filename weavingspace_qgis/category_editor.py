@@ -32,6 +32,8 @@ a window holding a layer reference would be writing into a corpse.
 """
 from __future__ import annotations
 
+import math
+
 from qgis.PyQt.QtCore import QEvent, QPointF, QSize, Qt, QTimer
 from qgis.PyQt.QtGui import (QBrush, QColor, QIcon, QPainter, QPen,
                              QPixmap)
@@ -527,15 +529,43 @@ class CategoryColourDialog(QDialog):
       value: the bound to show, as a float.
 
     Returns:
-      A QDoubleSpinBox wide open in range, because what is legal is
-      decided by the map's own data and reported back through
-      ``pin_changed``; a range set here would refuse a number for a
-      reason this window cannot explain, which is the opposite of a
-      guardrail.
+      A QDoubleSpinBox sized to the column it must express. What is
+      LEGAL is still decided by the map's own data and reported back
+      through ``pin_changed``; a range set here refuses a number for
+      a reason this window cannot explain, which is the opposite of a
+      guardrail, so the limits below are generous rather than
+      meaningful and exist only because Qt insists on having some.
+
+    THE RANGE AND THE DECIMALS COME FROM THE DATA, and both used to be
+    constants that ordinary geographic columns walk straight past.
+    Measured 2026-08-15 with real widgets: the range was plus or minus
+    1e12, so a province area of 1.875e12 square metres appeared in the
+    box as 1e12 and pinned there; typing 3000000000000 left
+    300000000000, a factor of ten, with nothing said. At the other end
+    six decimals rounded a rate of 4e-07 to zero and 8.5e-07 to 1e-06.
+    On twenty provinces at k=4, pinning the number the control
+    produced rather than the number typed moved ELEVEN of twenty areas
+    into a different class, and ``pin_problem`` accepts both, because
+    both are inside the data.
+
+    The docstring above this used to say the range was "wide open",
+    which is what the code intended and not what it did.
     """
+    # every endpoint the ladder holds, since the box must be able to
+    # show any of them and a user may type between any two
+    edges = [float(x) for pair in (self._bounds or []) for x in pair
+             if isinstance(x, (int, float)) and math.isfinite(float(x))]
+    if isinstance(value, (int, float)) and math.isfinite(float(value)):
+      edges.append(float(value))
+    magnitude = max((abs(x) for x in edges), default=1.0) or 1.0
+    span = (max(edges) - min(edges)) if len(edges) > 1 else magnitude
     box = QDoubleSpinBox()
-    box.setDecimals(6)
-    box.setRange(-1e12, 1e12)
+    # ...enough decimal places to separate values on THIS column, and
+    # no more: nine significant places below the span, which gives 0
+    # on a column of square metres and eleven on a column of rates
+    places = 9 - int(math.floor(math.log10(span))) if span > 0 else 6
+    box.setDecimals(max(0, min(12, places)))
+    box.setRange(-magnitude * 100.0, magnitude * 100.0)
     box.setValue(float(value))
     box.setKeyboardTracking(False)   # one signal per finished edit
     box.setAlignment(Qt.AlignmentFlag.AlignRight

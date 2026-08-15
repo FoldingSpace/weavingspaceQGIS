@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-146 defect(s) with a regression test.
+147 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -205,6 +205,8 @@ there is no separate list to remember.
   guarded by `test_a_pin_survives_the_table_being_rebuilt`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_pin_that_cannot_be_drawn_is_refused`
+- **the class-bound control had a fixed range and a fixed number of decimal places, so a bound typed on a column of large or very small values was silently replaced by a different number.**  
+  guarded by `test_a_pinned_bound_can_hold_the_numbers_a_column_carries`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_pinned_class_bound_reaches_the_map`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
@@ -337,7 +339,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 90
+- unrecorded: 91
 - the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6

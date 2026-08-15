@@ -86,3 +86,26 @@ NEXT:   Drop the descriptive layer and go back to the map. H3: whatever
         in flight, and compare the FINAL map after one more explicit
         Generate. Anything that fails to converge was destroyed rather
         than deferred.
+
+## 15:41:53  iteration 4  [perturbation]
+TRIED:  H3 measured. probe_converge.py, 18 actions x {quiescent, in
+        flight} x {live update off, live update on}: pin low, pin high,
+        copy, pin-then-copy, copy-then-unpin, class colour, display
+        window, class count, ramp, opacity, copy from Unclassed, copy
+        from Equal intervals, copy-then-count (releases the ladder),
+        copy-then-style, copy-then-pin-on-top, copy both ways, variable
+        change, style to Unclassed. Compared every element's drawn
+        ranges, symbol colours, opacity, layer name and BOTH stamps,
+        plus six dialog records.
+RESULT: RULED OUT, all 36 pairs CONVERGE. With live update OFF the
+        landing differs for exactly the four the settled rule defers
+        (class count, ramp, opacity, style/variable) and the difference
+        is gone after the next Generate; with live ON even the landing
+        agrees, because the queued rerun restyles. Nothing pinned or
+        copied was destroyed by a run landing on top of it.
+NEXT:   That comparison is RELATIVE: if a loss happened on both paths it
+        would read as convergence. H4, absolute: after an in-flight pin
+        + copy, save the project, clear, reload into a fresh dialog, and
+        ask whether the ladder and the pin come back -- and the same
+        through a GeoPackage output, which is the artefact that leaves
+        the machine.

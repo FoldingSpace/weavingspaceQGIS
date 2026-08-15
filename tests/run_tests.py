@@ -9138,6 +9138,61 @@ def test_a_copy_hatches_the_classes_it_leaves_unreachable():
   dlg.close()
 
 
+def test_a_pinned_bound_can_hold_the_numbers_a_column_carries():
+  """The control must be able to REPRESENT the data's domain.
+
+  Every guard on this path checks what the arithmetic does with a
+  number. None checked whether the widget a person types into can
+  hold one. It could not: the bound box was built with a fixed range
+  of plus or minus 1e12 and six decimals, so a province area of
+  1.875e12 square metres appeared as 1e12 and pinned there, and a
+  rate of 4e-07 appeared as zero. Nothing was said either time,
+  because `pin_problem` is asked about the number the control
+  produced, and that number is inside the data.
+
+  The harm is measurable rather than theoretical: on twenty province
+  areas at four classes, pinning 1e12 where 1.875e12 was typed moves
+  eleven of the twenty into a different class.
+
+  Three ladders, spanning twelve orders of magnitude between them,
+  because a fix that simply widens one constant passes the large case
+  and fails the small one.
+
+  Regression: the class-bound control had a fixed range and a fixed number of decimal places, so a bound typed on a column of large or very small values was silently replaced by a different number.
+  """
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+
+  class _BoundsOnly(CategoryColourDialog):
+    """Enough of the editor for _bound_box, and nothing else.
+
+    Building the real window needs a layer, a run and a live dialog;
+    the control's sizing depends on `_bounds` alone, so this hands it
+    exactly that. Nothing here is patched -- the method under test is
+    the shipped one, called unbound.
+    """
+
+    def __init__(self, bounds):
+      self._bounds = bounds
+
+  ladders = {
+    "areas in square metres": [(0.0, 1.875e12), (1.875e12, 4.2e12),
+                               (4.2e12, 9.1e12)],
+    "rates": [(0.0, 4e-07), (4e-07, 8.5e-07), (8.5e-07, 2e-06)],
+    "ordinary counts": [(0.0, 12.5), (12.5, 40.0), (40.0, 121.0)],
+  }
+  for label, ladder in ladders.items():
+    holder = _BoundsOnly(ladder)
+    for _lower, upper in ladder[:-1]:
+      box = CategoryColourDialog._bound_box(holder, upper)
+      held = box.value()
+      assert held == upper or abs(held - upper) <= abs(upper) * 1e-9, \
+        f"on {label}, a bound of {upper!r} came back as {held!r} " \
+        f"(range {box.minimum()!r} to {box.maximum()!r}, " \
+        f"{box.decimals()} decimals)"
+      assert box.minimum() <= upper <= box.maximum(), \
+        f"on {label}, {upper!r} is outside the box's own range"
+
+
 def test_a_class_source_file_that_goes_away():
   """The QML is deleted, moved or renamed after being chosen.
 
@@ -39464,6 +39519,8 @@ def main():
         test_a_copied_ladder_on_one_value_still_wears_its_ramp)
   check("a copy hatches the classes it leaves unreachable",
         test_a_copy_hatches_the_classes_it_leaves_unreachable)
+  check("a pinned bound can hold the numbers a column carries",
+        test_a_pinned_bound_can_hold_the_numbers_a_column_carries)
   check("one variable gets one legend wherever it appears",
         test_one_variable_gets_one_legend_wherever_it_appears)
   check("a class source file that goes away",
