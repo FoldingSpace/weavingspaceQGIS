@@ -1129,6 +1129,42 @@ Confirmed with the user via an explicit design review:
   broadcast to every element and one set of bins cannot be right for
   all of them. Guarded by
   `test_one_variable_gets_one_legend_wherever_it_appears`.
+- **CLASS BOUNDS A PERSON SET, and the record that holds them.**
+  Added 0.24.3, settled by `/grill-me`. A user may PIN the first
+  and/or last class and type its inner bound: the samples inside a
+  pinned class leave the pool, the scheme cuts the row's count minus
+  one class per pin, and the pinned classes are put back around the
+  result with the outermost computed edge SNAPPED to the pin so the
+  ladder has no gap. Done by extending the subset string
+  `make_graduated_renderer` already sets and restores for nulls, so
+  QGIS keeps deciding every break we do not pin. A user may also COPY
+  a whole classification to another element, which is every boundary
+  pinned at once and shares the same record.
+  **That record holds two things and they are not the same claim**:
+  the boundary VALUES a person set, and a per-end PIN FLAG saying
+  which ends they pinned. For pins alone the two coincide; a copy
+  separates them, and collapsing them would make every copy look
+  fully pinned and leave "unpin" with nothing to do. A copy therefore
+  DEGRADES TO ITS PINS: a new class count or scheme retires the
+  copied values and keeps the flags and their bounds, since a pin is
+  a smaller and more durable statement than an imported ladder.
+  Keyed by tile id AND field like the hand-picked colours, stamped on
+  the layer because nothing on a renderer records that a break was
+  chosen rather than computed, and carried in both signatures.
+  What is REFUSED is only what cannot be drawn: crossed bounds, a
+  bound outside the data, nothing left for the middle, and a ladder
+  asked to carry more pinned boundaries than its k-1. What is
+  ACCEPTED and explained is a pin leaving fewer distinct values than
+  classes -- that is the reduction above, and two answers to one
+  question is what these rules exist to avoid.
+  Two things the map may then show that nothing else here would. A
+  copied ladder can leave classes the receiving column cannot reach;
+  those are KEPT rather than dropped, because a copy reproduces a
+  classification and a silently shortened one does not, and the
+  swatch HATCHES the stripes no tile wears so the emptiness is
+  visible rather than silent. And a pinned row is NOT Custom: its
+  colours are still its ramp's, so the cell goes on naming the ramp
+  and the swatch merely BOXES the pinned end.
 - **A tiles inset that swallows elements is refused in terms of the
   inset.** Insetting shrinks every tile by a fixed distance, so past
   some value the narrower elements disappear. Left to itself the

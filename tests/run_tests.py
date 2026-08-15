@@ -7233,6 +7233,23 @@ def test_a_pinned_class_bound_reaches_the_map():
   assert bounds({}) == plain, \
     "an empty pin record must be the same as no pins at all"
 
+  # EVERY quantitative scheme, not just the default. A pin filters
+  # the input and the scheme cuts what is left, so each of the four
+  # has to be seen honouring it -- Pretty breaks especially, whose
+  # round numbers can sit outside the filtered range entirely.
+  for scheme in ("Quantiles", "Equal intervals",
+                 "Natural breaks (Jenks)", "Pretty breaks"):
+    alone = bounds(None, scheme=scheme)
+    pinned = bounds({"low": 10}, scheme=scheme)
+    assert pinned[0][1] == 10, \
+      f"{scheme} ignored the pin: {pinned}"
+    assert all(pinned[i][1] == pinned[i + 1][0]
+               for i in range(len(pinned) - 1)), \
+      f"{scheme} left the ladder with gaps: {pinned}"
+    assert pinned != alone, \
+      f"{scheme} drew the same ladder pinned and unpinned, so nothing " \
+      f"about it is being tested: {pinned}"
+
   # Unclassed rides the same rule and keeps its fifty steps: the pin
   # takes one and the other forty-nine spread over what is left.
   continuous = bounds({"low": 10}, k=50, scheme="Unclassed")
@@ -7457,7 +7474,30 @@ def test_a_copied_classification_carries_the_whole_row():
     f"({record!r}); the flag must travel separately from the values, " \
     f"or every copy looks fully pinned and unpin has nothing to do"
 
+  # THE STYLE TRAVELS TOO, which is the only way "breaks and number
+  # of classes" can be honoured in both directions: fifty hand-set
+  # breaks on a row whose spinner caps at twenty is the
+  # three-numbers-for-one-setting fault the Unclassed excursion test
+  # already guards.
+  style_combo = dlg.table.cellWidget(0, 2)
+  index = style_combo.findText("Quant: Unclassed")
+  assert index >= 0, "the style chooser offers no Unclassed entry"
+  style_combo.setCurrentIndex(index)
+  style_combo.activated.emit(index)
+  _tick(200)
+  _generate_and_wait(dlg)
+  assert dlg._copy_classification(source, target) is None, \
+    "copying an Unclassed element was refused"
+  _tick(300)
+  landed = next((a for a in dlg._assignments() if a["id"] == target), None)
+  assert landed is not None and landed.get("scheme") == "Unclassed", \
+    f"an Unclassed source left its target on " \
+    f"{landed and landed.get('scheme')!r}"
+
   # ...and a pinned source sends its flag along with them.
+  dlg.table.cellWidget(0, 2).setCurrentText("Quant: Quantiles")
+  _tick(200)
+  _generate_and_wait(dlg)
   dlg._pinned_bounds.setdefault(source, {})["v3"] = {"low": 10.0}
   dlg._apply_style_change()
   _tick(300)
