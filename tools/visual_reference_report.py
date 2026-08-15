@@ -369,6 +369,114 @@ def _reference_bins(region, variables, scheme, k):
     return None
 
 
+# The colours the PLUGIN actually drew with, exported beside the
+# gallery by tests/visual_tests.py. Empty until `load_ramp_colours`
+# has been called with a report directory.
+RAMP_COLOURS = {}
+
+
+def load_ramp_colours(report_dir):
+  """Read the colours the gallery was rendered with.
+
+  Args:
+    report_dir: the release's report directory, or None.
+
+  Returns:
+    None; RAMP_COLOURS is filled in place, and left empty when the
+    file is absent -- an older report, or a gallery that could not
+    read the style. The comparison then falls back to matplotlib's
+    colormaps by name, which is what it did before this existed.
+
+  WHY THE COMPARISON STOPPED NAMING MATPLOTLIB'S COLORMAPS. Naming
+  them asserted that the plugin's colours ARE matplotlib's, and on
+  2026-08-15 that was found to be false on every fresh QGIS: 35 of the
+  plugin's palette names are also stock ColorBrewer names, and the
+  plugin's install is additive only, so QGIS's win. The comparison had
+  been passing on the development machine alone, whose style library
+  the plugin had seeded years earlier -- a gate certifying colour
+  fidelity against a profile no user has.
+
+  Since the maintainer's decision that colour belongs to QGIS,
+  matching matplotlib is not a claim this project makes, so asserting
+  it was testing the wrong thing. Handed the colours in force, the
+  comparison goes on testing everything that CAN be wrong -- where the
+  breaks fall, how categories are sampled, the reduction, insetting,
+  weaving, geometry, the background -- and it no longer depends on
+  whose profile it runs in.
+  """
+  RAMP_COLOURS.clear()
+  if not report_dir:
+    return
+  path = os.path.join(report_dir, "ramp-colours.json")
+  if not os.path.exists(path):
+    return
+  try:
+    with open(path, encoding="utf-8") as handle:
+      RAMP_COLOURS.update(json.load(handle))
+  except (OSError, ValueError):
+    RAMP_COLOURS.clear()
+    return
+  _register_recorded_colormaps()
+
+
+def _register_recorded_colormaps():
+  """Put the recorded colours into matplotlib under their own names.
+
+  Returns:
+    None. Every ramp the gallery recorded is registered over
+    matplotlib's colormap of the same name, so the library resolves
+    the name exactly as it always has and gets the colours the plugin
+    drew with. Names matplotlib does not know are registered too,
+    which is how a QGIS-only ramp can be scored at all.
+
+    A name that cannot be registered is left alone rather than raised
+    on: the comparison then scores that case against matplotlib's own,
+    which is the behaviour that predates this and is still a defensible
+    reading.
+  """
+  import matplotlib
+  from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+  for name, recorded in RAMP_COLOURS.items():
+    colours = recorded.get("colours")
+    if not colours:
+      continue
+    if recorded.get("kind") == "preset":
+      cmap = ListedColormap(colours, name=name)
+    else:
+      cmap = LinearSegmentedColormap.from_list(name, colours)
+    try:
+      matplotlib.colormaps.register(cmap, name=name, force=True)
+    except Exception:
+      continue
+
+
+def colormap_for(name):
+  """The colormap to draw the reference with, for one ramp name.
+
+  Args:
+    name: the ramp as the case names it, e.g. "RdBu" or "tab10".
+
+  Returns:
+    A matplotlib colormap built from the colours the plugin drew
+    with, or the NAME unchanged when none were recorded, so an older
+    report still scores exactly as it used to.
+
+  Preset schemes come back as a ListedColormap of their own colours
+  and gradients as a smooth one, because the categorical path's
+  sampling arithmetic -- code/(k-1) through int(x * N) -- depends on
+  that difference and would give different classes if a discrete set
+  were interpolated.
+  """
+  recorded = RAMP_COLOURS.get(name)
+  if not recorded or not recorded.get("colours"):
+    return name
+  from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+  colours = recorded["colours"]
+  if recorded.get("kind") == "preset":
+    return ListedColormap(colours, name=name)
+  return LinearSegmentedColormap.from_list(name, colours)
+
+
 def reference_render(unit, png, ids, variables, cmaps,
                      categoricals=None, scheme=None, k=None, dpi=110,
                      **tiling_kw):
@@ -430,6 +538,14 @@ def reference_render(unit, png, ids, variables, cmaps,
   tm = Tiling(unit, region, **tiling_kw).get_tiled_map()
   tm.ids_to_map = list(ids)
   tm.vars_to_map = list(variables)
+  # NAMES, unchanged. The colours are substituted by REGISTERING them
+  # under those names in matplotlib's own registry (see
+  # load_ramp_colours), rather than by handing colormap objects down
+  # here: passing objects went through a different path inside the
+  # library and scored dE 21.8 where naming the same colours scores
+  # 2.7, so the library plainly resolves these itself. Registering
+  # leaves its code path exactly as it was, which is the point -- the
+  # comparison must differ from the plugin in the COLOURS ALONE.
   tm.colors_to_use = list(cmaps)
   if categoricals is not None:
     tm.categoricals = list(categoricals)
@@ -720,6 +836,8 @@ def main():
     a failure is legible in the release log without opening the PDF.
   """
   report_dir = sys.argv[1] if len(sys.argv) > 1 else None
+  # the colours the gallery drew with, if it left them beside itself
+  load_ramp_colours(report_dir)
   if report_dir is None:
     reports = os.path.join(ROOT, "reports")
     if not os.path.isdir(reports):

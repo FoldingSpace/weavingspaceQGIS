@@ -2642,6 +2642,15 @@ MUTATIONS = [
            "is the only route by which one could arrive unexamined, "
            "and because a copy degrades to its pins that bound "
            "outlives the copy it came in on"),
+  dict(name="the-reference-uses-the-colours-in-force",
+       file="tools/visual_reference_report.py",
+       old="  _register_recorded_colormaps()",
+       new="  pass  # mutation: score against matplotlib's own colours",
+       test="test_the_ramp_a_row_names_is_the_ramp_the_map_draws",
+       why="without registering the recorded colours the comparison "
+           "asserts the plugin's palettes ARE matplotlib's, which is "
+           "false on every fresh QGIS and made the gate pass on one "
+           "seeded profile alone"),
   dict(name="categorical-colour-is-decided-map-wide", file=BRIDGE,
        old="  n = max(len(everywhere), 1)",
        new="  n = max(len(values), 1)",

@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-164 defect(s) with a regression test.
+165 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -155,6 +155,8 @@ there is no separate list to remember.
   guarded by `test_taking_an_element_back_from_qgis_restyles_at_once`
 - **the Classes cell on a categorized row reported the region's category count for every element, including elements drawing fewer.**  
   guarded by `test_the_classes_cell_reports_its_own_element`
+- **nothing yet; written to keep an assertion the colourspace comparison gave up when it stopped naming matplotlib's colormaps.**  
+  guarded by `test_the_ramp_a_row_names_is_the_ramp_the_map_draws`
 
 ## Found by running the suite somewhere other than the machine it was written on
 
@@ -381,9 +383,9 @@ there is no separate list to remember.
 - the mutation campaign: 16
 - reported by a user: 10
 - race and stress testing: 6
+- reading the code: 6
 - running the suite somewhere other than the machine it was written on: 6
 - a multi-step session test: 5
-- reading the code: 5
 - driving the UI and rebuilding the same map from the library directly: 5
 - a family audit of the claims the software makes: 4
 - the hostile data corpus: 4

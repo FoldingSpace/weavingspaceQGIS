@@ -640,10 +640,22 @@ jobs:
             exit 1
           fi
           echo "bundle: $APP"
+          # THREE PLACES, then a search. The first attempt looked only
+          # in Contents/MacOS/bin, which the cask does not have: QGIS
+          # 4.2.0 puts its interpreter at Contents/MacOS/python3.12,
+          # and the 4.0.3 build on the development machine does the
+          # same. Older layouts used bin/, and some builds keep it in
+          # a Python framework, so all three are tried before falling
+          # back to a search -- and a failure prints the tree rather
+          # than a bare "not found", which is what cost this job a
+          # whole round.
           PY=$(ls "$APP"/Contents/MacOS/bin/python3* 2>/dev/null | head -1)
+          [ -z "$PY" ] && PY=$(ls "$APP"/Contents/MacOS/python3* 2>/dev/null | head -1)
+          [ -z "$PY" ] && PY=$(ls "$APP"/Contents/Frameworks/Python.framework/Versions/*/bin/python3 2>/dev/null | head -1)
+          [ -z "$PY" ] && PY=$(find "$APP/Contents" -maxdepth 5 -name 'python3*' -type f -perm -u+x 2>/dev/null | head -1)
           if [ -z "$PY" ]; then
-            echo "no bundled python3 under $APP/Contents/MacOS/bin:"
-            ls -la "$APP/Contents/MacOS/bin" | head -40
+            echo "no bundled python3 anywhere under $APP/Contents:"
+            find "$APP/Contents" -maxdepth 3 -type d | head -40
             exit 1
           fi
           echo "python: $PY"

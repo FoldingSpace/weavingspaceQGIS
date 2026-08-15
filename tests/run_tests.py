@@ -10609,6 +10609,72 @@ def test_the_classes_cell_reports_its_own_element():
   dlg.close()
 
 
+def test_the_ramp_a_row_names_is_the_ramp_the_map_draws():
+  """The one thing the colourspace comparison no longer asserts.
+
+  That comparison used to name matplotlib's colormaps, which asserted
+  that the plugin's colours ARE matplotlib's. On 2026-08-15 that was
+  found false on every fresh QGIS -- 35 of the plugin's palette names
+  are also stock ColorBrewer names and its install is additive only,
+  so QGIS's win -- and the gate had been passing on one seeded profile
+  alone. Since colour now belongs to QGIS by decision, the comparison
+  is handed the colours in force instead, and it can no longer notice
+  the plugin resolving a name to the WRONG ramp, because it would
+  faithfully use the wrong colours on both sides.
+
+  So that is asserted here, cheaply and directly: whatever ramp a row
+  names, the map's classes wear that ramp's colours, sampled where a
+  renderer of that many classes samples them. It does not care WHOSE
+  palette answers to the name -- which is the whole point of the
+  decision -- only that the map and the cell agree.
+
+  Regression: nothing yet; written to keep an assertion the colourspace comparison gave up when it stopped naming matplotlib's colormaps. [review]
+  """
+  from weavingspace_qgis import bridge, compat
+  layer = QgsVectorLayer("Polygon?crs=EPSG:2193", "ramps", "memory")
+  provider = layer.dataProvider()
+  provider.addAttributes([compat.make_field("v", float)])
+  layer.updateFields()
+  features = []
+  for index, value in enumerate((1.0, 4.0, 9.0, 16.0, 25.0, 36.0)):
+    feature = QgsFeature(layer.fields())
+    feature.setAttribute("v", value)
+    x = index * 10.0
+    feature.setGeometry(QgsGeometry.fromPolygonXY([[
+      QgsPointXY(x, 0), QgsPointXY(x + 9, 0),
+      QgsPointXY(x + 9, 9), QgsPointXY(x, 9), QgsPointXY(x, 0)]]))
+    features.append(feature)
+  provider.addFeatures(features)
+  layer.updateExtents()
+  QgsProject.instance().addMapLayer(layer)
+
+  for name in ("Reds", "Blues", "Greys"):
+    ramp = bridge.get_ramp(name, False)
+    assert ramp is not None, \
+      f"the style has no ramp called {name!r}, so a row naming it " \
+      f"would draw something else entirely"
+    renderer = bridge.make_graduated_renderer(
+      layer, "v", name, "Equal intervals", 5, False)
+    layer.setRenderer(renderer)
+    ranges = layer.renderer().ranges()
+    assert len(ranges) == 5, \
+      f"{name}: expected five classes, got {len(ranges)}"
+    drawn = [r.symbol().color().name().lower() for r in ranges]
+    # where a five-class renderer samples a ramp: evenly, ends
+    # included, which is what seed_renderer's own recolouring does
+    wanted = [ramp.color(i / (len(ranges) - 1)).name().lower()
+              for i in range(len(ranges))]
+    assert drawn == wanted, \
+      f"a row naming {name!r} drew {drawn}, while that ramp gives " \
+      f"{wanted} -- the cell and the map name different things"
+
+  # ...and a REVERSED ramp is still that ramp, run the other way
+  forward = bridge.get_ramp("Reds", False)
+  backward = bridge.get_ramp("Reds", True)
+  assert forward.color(0.0).name() == backward.color(1.0).name(), \
+    "reversing a ramp did not reverse it"
+
+
 def test_a_class_source_file_that_goes_away():
   """The QML is deleted, moved or renamed after being chosen.
 
@@ -41085,6 +41151,8 @@ def main():
         test_one_colour_means_one_value_across_elements)
   check("the Classes cell reports its own element",
         test_the_classes_cell_reports_its_own_element)
+  check("the ramp a row names is the ramp the map draws",
+        test_the_ramp_a_row_names_is_the_ramp_the_map_draws)
   check("one variable gets one legend wherever it appears",
         test_one_variable_gets_one_legend_wherever_it_appears)
   check("a class source file that goes away",
