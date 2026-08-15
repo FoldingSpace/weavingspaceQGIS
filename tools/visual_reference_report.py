@@ -457,9 +457,16 @@ def reference_render(unit, png, ids, variables, cmaps,
   # are wrong -- they simply have to be wrong by enough to move a
   # tile into another class, which is exactly the threshold a
   # pixel comparison is fit to judge.
+  # ASKED OF PANDAS, not of the dtype's name. Testing `!= "object"`
+  # let a categorical column through -- a pandas "category" dtype is
+  # not "object" -- and the continuous branch below then called
+  # float() on the word 'crops'. It crashed the whole comparison on
+  # CI's first run of this stage, which is also where it first ran at
+  # all: this code was added on a Mac and never executed there.
+  from pandas.api.types import is_numeric_dtype
   numeric = [column for column in dict.fromkeys(variables)
              if column in region.columns
-             and str(region[column].dtype) != "object"]
+             and is_numeric_dtype(region[column])]
   if scheme is not None:
     bins = _reference_bins(region, variables, scheme, k or 5)
     if bins is not None:

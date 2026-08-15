@@ -52,6 +52,9 @@ import random
 import re
 import signal
 import sys
+import contextlib
+import shutil
+import gc
 import tempfile
 import threading
 import time
@@ -1452,7 +1455,7 @@ def test_qml_class_template():
           for v, c, lbl in [("forest", "#112233", "Forest land"),
                             ("water", "#445566", "Open water")]]
   layer.setRenderer(QgsCategorizedSymbolRenderer("landcover", cats))
-  with tempfile.TemporaryDirectory() as td:
+  with _temp_dir() as td:
     qml = os.path.join(td, "scheme.qml")
     layer.saveNamedStyle(qml)
     template = bridge.load_categorized_template(qml)
@@ -1939,7 +1942,7 @@ def test_dialog_end_to_end():
   assert isinstance(layers2[0].renderer(), QgsSingleSymbolRenderer)
 
   # GeoPackage output with embedded styles
-  with tempfile.TemporaryDirectory() as td:
+  with _temp_dir() as td:
     path = os.path.join(td, "out.gpkg")
     dlg.gpkg_widget.setFilePath(path)
     _generate_and_wait(dlg)
@@ -5625,6 +5628,94 @@ def test_every_numeric_input_at_its_limits():
 
   assert not trouble, "numeric inputs at their limits:\n  " + \
     "\n  ".join(trouble)
+
+
+def _release_layers_under(folder):
+  """Drop every project layer whose data lives in this folder.
+
+  Args:
+    folder: the directory about to be deleted.
+
+  Returns:
+    None. Layers pointing into it are removed from the project, which
+    is what closes the file handle underneath them.
+
+  A loaded GeoPackage layer HOLDS ITS FILE OPEN, which is ordinary
+  QGIS behaviour and not a defect -- but on Windows an open file
+  cannot be deleted, so a test that writes a .gpkg into a temporary
+  directory and leaves the layer loaded cannot clean up after itself.
+  POSIX allows unlinking an open file, which is why this was invisible
+  on macOS and on Linux for the whole life of this suite.
+  """
+  project = QgsProject.instance()
+  wanted = os.path.normcase(os.path.abspath(folder))
+  doomed = []
+  for layer_id, layer in list(project.mapLayers().items()):
+    try:
+      source = layer.publicSource() or layer.source() or ""
+    except Exception:
+      continue
+    # a GeoPackage source reads "path.gpkg|layername=x", so the
+    # comparison is on the prefix rather than on the whole string
+    path = os.path.normcase(os.path.abspath(source.split("|")[0]))
+    if path.startswith(wanted):
+      doomed.append(layer_id)
+  if doomed:
+    project.removeMapLayers(doomed)
+
+
+def _remove_tree(folder):
+  """Delete a directory, saying so if the platform will not.
+
+  Args:
+    folder: the directory to remove.
+
+  Returns:
+    None. Retries once after a garbage collection, because a layer
+    just removed from the project may still be awaiting collection,
+    and only then gives up -- printing the file that is still held
+    rather than failing the test, since a lingering handle in the
+    HARNESS is not a statement about the software.
+  """
+  for attempt in range(3):
+    try:
+      shutil.rmtree(folder)
+      return
+    except PermissionError as held:
+      if attempt == 2:
+        print(f"    note: {held.filename} is still open, so the "
+              f"temporary directory outlives this test")
+        shutil.rmtree(folder, ignore_errors=True)
+        return
+      gc.collect()
+
+
+@contextlib.contextmanager
+def _temp_dir(prefix="weavingspace_test_"):
+  """A temporary directory that Windows can actually delete.
+
+  Args:
+    prefix: what to call it, so a leftover is identifiable.
+
+  Yields:
+    The path, exactly as ``tempfile.TemporaryDirectory`` would.
+
+  USE THIS RATHER THAN ``tempfile.TemporaryDirectory`` in any test
+  that writes a file QGIS then opens. Nine of the eleven temporary
+  directories in this suite hold a GeoPackage, and on the first
+  Windows CI run five of them failed identically with WinError 32 --
+  the file "being used by another process" is QGIS itself, holding
+  the layer the test just made. The test had already passed; only its
+  cleanup could not run, which on Windows is a failure and elsewhere
+  is nothing at all. (Found 2026-08-15, by the Windows suite's first
+  execution.)
+  """
+  folder = tempfile.mkdtemp(prefix=prefix)
+  try:
+    yield folder
+  finally:
+    _release_layers_under(folder)
+    _remove_tree(folder)
 
 
 def _project_round_trip(folder, name="project.qgz"):
@@ -9472,28 +9563,36 @@ def test_a_retyped_column_reclassifies_the_map():
   dlg.close()
 
 
-def _rule_based_renderer(colour, expression='"v3" > 10'):
+def _rule_based_renderer(colour):
   """A renderer no plugin row can name, for the deferring tests.
 
   Args:
-    colour: the fill for the rule, as "#rrggbb".
-    expression: the rule's filter, which needs a field the fixture
-      has.
+    colour: the fill the single rule paints.
 
   Returns:
-    A QgsRuleBasedRenderer with a grey root and one coloured rule.
-    Rule-based is used throughout these tests because it is the
-    commonest thing a user actually builds in the styling panel that
-    the plugin cannot express, and because its symbols come back
-    through the base class rather than through ranges or categories.
+    A QgsRuleBasedRenderer painting `colour`. Rule-based is used
+    throughout these tests because it is the commonest thing a user
+    actually builds in the styling panel that the plugin cannot
+    express, and because its symbols come back through the base
+    class rather than through ranges or categories.
   """
-  from qgis.core import QgsRuleBasedRenderer
-  root = QgsRuleBasedRenderer.Rule(
-    QgsFillSymbol.createSimple({"color": "#888888"}))
-  rule = QgsRuleBasedRenderer.Rule(QgsFillSymbol.createSimple({"color": colour}))
-  rule.setFilterExpression(expression)
-  root.appendChild(rule)
-  return QgsRuleBasedRenderer(root)
+  from qgis.core import QgsRuleBasedRenderer, QgsSingleSymbolRenderer
+  # CONVERTED, not hand-built. `QgsRuleBasedRenderer.Rule` objects
+  # made in Python and handed to `appendChild` and the renderer's
+  # constructor are an ownership hazard: C++ takes them, Python
+  # believes it still owns them, and the second free aborts the
+  # process. That is what happened on CI -- "double free or
+  # corruption (!prev)" in `project.clear()` immediately after the
+  # interleaved session test passed, on Linux, where glibc detects it
+  # and macOS had not. `convertFromRenderer` returns a renderer that
+  # owns everything inside it, which is all these tests need: what
+  # matters is that no plugin row can NAME it.
+  base = QgsSingleSymbolRenderer(QgsFillSymbol.createSimple({"color": colour}))
+  converted = QgsRuleBasedRenderer.convertFromRenderer(base)
+  assert converted is not None, \
+    "QGIS would not convert a single-symbol renderer to rule-based, " \
+    "so these tests have no unnameable renderer to work with"
+  return converted
 
 
 def test_a_renderer_the_row_cannot_name_defers_to_qgis():
@@ -9764,7 +9863,7 @@ def test_deferral_survives_a_project_round_trip():
     "the fixture is not deferring, so the round trip proves nothing"
   dlg.close()
 
-  with tempfile.TemporaryDirectory() as folder:
+  with _temp_dir() as folder:
     _project_round_trip(folder, "deferring.qgz")
     reopened = WeavingSpaceDialog(iface=_Iface())
     reopened.live_check.setChecked(False)
@@ -14792,7 +14891,7 @@ def test_integration_gpkg_style_round_trip():
   dlg.table.cellWidget(0, 4).setCurrentText("YlOrRd")
   dlg.table.cellWidget(1, 1).setCurrentText("landcover")
   dlg._update_dynamic_columns()
-  with tempfile.TemporaryDirectory() as td:
+  with _temp_dir() as td:
     path = os.path.join(td, "session.gpkg")
     dlg.gpkg_widget.setFilePath(path)
     _generate_and_wait(dlg)
@@ -15222,15 +15321,8 @@ def test_integration_interleaved_session():
   # survive the design changes, variable changes and style flips the
   # rest of this test does around it, and no single-behaviour test
   # sees that.
-  from qgis.core import QgsRuleBasedRenderer
-  root = QgsRuleBasedRenderer.Rule(
-    QgsFillSymbol.createSimple({"color": "#404040"}))
-  branch = QgsRuleBasedRenderer.Rule(
-    QgsFillSymbol.createSimple({"color": "#d95f0e"}))
-  branch.setFilterExpression('"landcover" IS NOT NULL')
-  root.appendChild(branch)
   c_layer = project.mapLayer(dlg._element_layer_ids["c"])
-  c_layer.setRenderer(QgsRuleBasedRenderer(root))
+  c_layer.setRenderer(_rule_based_renderer("#d95f0e"))
   c_layer.styleChanged.emit()
   _tick(300)
   c_row = next(r for r in range(dlg.table.rowCount())
@@ -16527,7 +16619,7 @@ def test_ui_library_categorical_to_gpkg():
     combo.setCurrentIndex(i)
     combo.activated.emit(i)
 
-  with tempfile.TemporaryDirectory() as td:
+  with _temp_dir() as td:
     path = os.path.join(td, "categorical.gpkg")
     dlg.gpkg_widget.setFilePath(path)
     _generate_and_wait(dlg)
@@ -18235,7 +18327,7 @@ def test_element_opacity():
     "moving the cell must override a hand-set value"
 
   # GeoPackage: opacity travels with the styling, as its own value
-  with tempfile.TemporaryDirectory() as td:
+  with _temp_dir() as td:
     path = os.path.join(td, "opacity.gpkg")
     dlg.gpkg_widget.setFilePath(path)
     _generate_and_wait(dlg)
@@ -23938,7 +24030,7 @@ def test_the_geopackage_opens_cleanly_in_a_fresh_process():
   dlg._category_colours.setdefault(categorical, {})["landcover"] = {
     "forest": "#123456"}
 
-  with tempfile.TemporaryDirectory() as folder:
+  with _temp_dir() as folder:
     path = os.path.join(folder, "shared.gpkg")
     dlg.gpkg_widget.setFilePath(path)
     _generate_and_wait(dlg)
@@ -24191,7 +24283,7 @@ def test_attribute_names_survive_the_round_trip():
   _tick(300)
   _map_every_name(dlg, awkward)
   dlg.spacing_spin.setValue(700)
-  with tempfile.TemporaryDirectory() as folder:
+  with _temp_dir() as folder:
     path = os.path.join(folder, "awkward.gpkg")
     dlg.gpkg_widget.setFilePath(path)
     _generate_and_wait(dlg)
@@ -24276,7 +24368,7 @@ def test_attribute_names_survive_the_round_trip():
   dlg.spacing_spin.setValue(700)
   QtWidgets.QMessageBox.critical = remember
   try:
-    with tempfile.TemporaryDirectory() as folder:
+    with _temp_dir() as folder:
       dlg.gpkg_widget.setFilePath(os.path.join(folder, "pair.gpkg"))
       BAR_MESSAGES.clear()
       _generate_and_wait(dlg)
@@ -24456,7 +24548,7 @@ def test_the_output_carries_no_working_state():
   # ---- GeoPackage output, then the file read cold in this process
   # and again in a fresh one: a property or column that only appears
   # once the file has been reopened is still shipped state
-  with tempfile.TemporaryDirectory() as folder:
+  with _temp_dir() as folder:
     path = os.path.join(folder, "public.gpkg")
     dlg = build(path)
     seen = inspect(dlg, expect_key=True)
@@ -28082,7 +28174,7 @@ def test_gpkg_fid_attribute():
     "the point of the test is that tiles SHARE region fid values"
 
   memory = bridge.gdf_to_layer(sub, "a")
-  with tempfile.TemporaryDirectory() as td:
+  with _temp_dir() as td:
     path = os.path.join(td, "fid.gpkg")
     written = bridge.write_gpkg_layer(memory, path, "tiles_a", first=True)
     assert written.featureCount() == memory.featureCount(), \
