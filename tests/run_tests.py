@@ -7174,6 +7174,212 @@ def test_one_variable_gets_one_legend_wherever_it_appears():
   dlg.close()
 
 
+def test_a_pinned_class_bound_reaches_the_map():
+  """A bound set by hand decides that break, and unpinning gives it back.
+
+  Pinning the first class's upper bound (or the last class's lower
+  one) says "this break is mine, compute the rest around it": the
+  samples inside a pinned class leave the pool, the scheme cuts the
+  row's count minus one class per pin, and the pinned classes are put
+  back around the result. The LADDER MUST STAY CONTIGUOUS -- the
+  outermost computed edge snaps to the pin -- or a value arriving
+  between the pin and the first computed break paints as no data on a
+  map that looks perfectly fine.
+
+  Unpinning must recover exactly the breaks the scheme would have cut
+  on its own, which is the assertion that stops a pin leaving
+  something behind.
+
+  Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+  """
+  from weavingspace_qgis import bridge
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)          # v3 runs 0 to 121
+  project.addMapLayer(layer)
+
+  def bounds(pinned=None, k=5, scheme="Quantiles"):
+    renderer = bridge.make_graduated_renderer(
+      layer, "v3", "Reds", scheme, k, False, pinned=pinned)
+    return [(round(r.lowerValue(), 4), round(r.upperValue(), 4))
+            for r in renderer.ranges()]
+
+  plain = bounds()
+  assert len(plain) == 5, f"the fixture did not give five classes: {plain}"
+
+  for pinned, ends in (({"low": 10}, [("low", 10)]),
+                       ({"high": 60}, [("high", 60)]),
+                       ({"low": 10, "high": 60},
+                        [("low", 10), ("high", 60)])):
+    got = bounds(pinned)
+    assert len(got) == len(plain), \
+      f"pinning {pinned} changed the class count from {len(plain)} " \
+      f"to {len(got)}: {got}"
+    for which, value in ends:
+      here = got[0][1] if which == "low" else got[-1][0]
+      assert here == value, \
+        f"the {which} pin was set at {value} and the map drew {here} " \
+        f"({got})"
+    gaps = [(got[i][1], got[i + 1][0]) for i in range(len(got) - 1)
+            if got[i][1] != got[i + 1][0]]
+    assert not gaps, \
+      f"pinning {pinned} left the ladder with gaps at {gaps}, so a " \
+      f"value arriving there would paint as no data: {got}"
+    assert got != plain, \
+      f"pinning {pinned} changed nothing, so nothing here is tested"
+
+  assert bounds(None) == plain, \
+    "unpinning must give back exactly the breaks the scheme cuts on " \
+    "its own"
+  assert bounds({}) == plain, \
+    "an empty pin record must be the same as no pins at all"
+
+  # Unclassed rides the same rule and keeps its fifty steps: the pin
+  # takes one and the other forty-nine spread over what is left.
+  continuous = bounds({"low": 10}, k=50, scheme="Unclassed")
+  assert len(continuous) == 50, \
+    f"a pinned Unclassed element drew {len(continuous)} steps, not 50"
+  assert continuous[0][1] == 10, \
+    f"the pin did not reach the continuous ramp: {continuous[:2]}"
+
+
+def test_a_pin_that_cannot_be_drawn_is_refused():
+  """The guardrails, each of which is a bound nothing could draw.
+
+  What is REFUSED is only what cannot be drawn at all: bounds that
+  cross, a bound outside the data, a pin that leaves no sample for
+  the middle, and a ladder asked to carry more pinned boundaries than
+  it has. That last one was found by measurement rather than by
+  design: two pins on a TWO-class row name two boundaries where there
+  is one, and the result drawn was 0-10 beside 60-121 with everything
+  between them in no class at all.
+
+  What is deliberately NOT refused is a pin leaving fewer distinct
+  values than remaining classes. That draws fewer classes through the
+  ordinary reduction and says so through few_values_message, so a
+  user meets ONE answer to "the data cannot support this count"
+  rather than two.
+
+  Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+  """
+  from weavingspace_qgis import bridge
+  values = [float(v) for v in range(0, 101)]
+
+  assert bridge.pin_problem(10, 60, values, 5) is None, \
+    "an ordinary pair of bounds must be accepted"
+  assert bridge.pin_problem(None, None, values, 5) is None, \
+    "no pins at all cannot be a problem"
+
+  for low, high, asked, because in (
+      (60, 10, 5, "the bounds cross"),
+      (10, 10, 5, "the bounds are equal, so the middle is empty"),
+      (-5, None, 5, "the bound is below everything the data holds"),
+      (None, 1e9, 5, "the bound is above everything the data holds"),
+      (100.0, None, 5, "nothing is left above the pin to divide"),
+      (10, 60, 2, "a two-class ladder has one boundary, not two"),
+      (10, None, 1, "a one-class ladder has no boundary to pin")):
+    problem = bridge.pin_problem(low, high, values, asked)
+    assert problem, \
+      f"low={low} high={high} k={asked} should be refused because " \
+      f"{because}, and it was accepted"
+    assert problem.strip().endswith((".", "!")), \
+      f"the refusal must be a sentence a user can read: {problem!r}"
+
+  # ...and the case that is explained rather than refused.
+  few = [1.0, 1.0, 5.0, 9.0]
+  assert bridge.pin_problem(2, None, few, 5) is None, \
+    "a pin leaving few values must be ACCEPTED: the class count " \
+    "reduction already answers that, and two answers to one " \
+    "question is what this rule exists to avoid"
+
+
+def test_a_pin_survives_a_project_round_trip():
+  """A pinned bound comes home, and the next Generate honours it.
+
+  Nothing on a renderer records that a break was CHOSEN rather than
+  computed, so without a stamp a reopened project reads the breaks
+  back as ordinary classes, the row shows no pin, and the next
+  Generate recomputes over them. That is the shape of the opacity and
+  ramp defects of 2026-08-13; the pins are stamped for the same
+  reason the hand-picked colours are.
+
+  Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+  """
+  import shutil
+  import tempfile
+  from qgis.core import QgsVectorFileWriter
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="weavingspace_pin_trip_")
+  try:
+    source = make_region_layer(n=12)
+    region_path = os.path.join(folder, "region.gpkg")
+    options = QgsVectorFileWriter.SaveVectorOptions()
+    options.driverName = "GPKG"
+    QgsVectorFileWriter.writeAsVectorFormatV3(
+      source, region_path, project.transformContext(), options)
+    region = QgsVectorLayer(region_path, "region", "ogr")
+    assert region.isValid(), "the region did not survive being written"
+    project.addMapLayer(region)
+
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(300)
+    dlg.table.cellWidget(0, 1).setCurrentText("v3")
+    _tick(150)
+    tid = dlg.table.item(0, 0).text()
+    dlg.spacing_spin.setValue(1200)
+    _generate_and_wait(dlg)
+
+    dlg._pinned_bounds.setdefault(tid, {})["v3"] = {"low": 10.0}
+    dlg._apply_style_change()
+    _tick(300)
+
+    def drawn(dialog, element):
+      out = project.mapLayer(dialog._element_layer_ids[element])
+      return [(round(r.lowerValue(), 4), round(r.upperValue(), 4))
+              for r in out.renderer().ranges()]
+
+    before = drawn(dlg, tid)
+    assert before[0][1] == 10.0, \
+      f"the pin did not reach the map before saving: {before}"
+    stamped = project.mapLayer(
+      dlg._element_layer_ids[tid]).customProperty(
+        "weavingspace_quant_style")
+    assert stamped and "pinned" in stamped, \
+      f"the pin was not stamped on the layer, so nothing could bring " \
+      f"it home: {stamped!r}"
+    dlg.close()
+
+    _project_round_trip(folder)
+    _tick(300)
+    revived = WeavingSpaceDialog(iface=_Iface())
+    revived.live_check.setChecked(False)
+    _tick(400)
+    for row in range(revived.table.rowCount()):
+      item = revived.table.item(row, 0)
+      combo = revived.table.cellWidget(row, 1)
+      if item is not None and combo is not None and item.text() == tid:
+        combo.setCurrentText("v3")
+    revived._update_dynamic_columns()
+    _tick(300)
+
+    came_back = revived._pinned_bounds.get(tid, {}).get("v3")
+    assert came_back and came_back.get("low") == 10.0, \
+      f"the pin did not come home: {came_back!r}"
+    # ...and the ASSIGNMENT carries it, which is what makes the next
+    # Generate honour it rather than recompute over it
+    assignment = next((a for a in revived._assignments()
+                       if a["id"] == tid), None)
+    assert assignment is not None and \
+      (assignment.get("pinned") or {}).get("low") == 10.0, \
+      f"the reopened row does not carry the pin: " \
+      f"{assignment and assignment.get('pinned')!r}"
+    revived.close()
+  finally:
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_a_class_source_file_that_goes_away():
   """The QML is deleted, moved or renamed after being chosen.
 
@@ -37334,6 +37540,12 @@ def main():
         test_an_inset_that_eats_the_design_says_so)
   check("a legend never shows a class the map does not have",
         test_a_legend_never_shows_a_class_the_map_does_not_have)
+  check("a pinned class bound reaches the map",
+        test_a_pinned_class_bound_reaches_the_map)
+  check("a pin that cannot be drawn is refused",
+        test_a_pin_that_cannot_be_drawn_is_refused)
+  check("a pin survives a project round trip",
+        test_a_pin_survives_a_project_round_trip)
   check("one variable gets one legend wherever it appears",
         test_one_variable_gets_one_legend_wherever_it_appears)
   check("a class source file that goes away",

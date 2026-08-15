@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-115 defect(s) with a regression test.
+118 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -169,6 +169,12 @@ there is no separate list to remember.
   guarded by `test_a_new_run_always_shows_real_progress`
 - **a hand-picked colour changed under live update was swallowed by the no-op guard, because the run signature did not carry the picks that the restyle signature does.**  
   guarded by `test_a_pick_is_not_swallowed_by_the_live_path`
+- **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
+  guarded by `test_a_pin_survives_a_project_round_trip`
+- **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
+  guarded by `test_a_pin_that_cannot_be_drawn_is_refused`
+- **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
+  guarded by `test_a_pinned_class_bound_reaches_the_map`
 - **the ramp cell reverted to the pre-run ramp after a run landed, while the element's own record held the new one.**  
   guarded by `test_a_ramp_chosen_during_a_run_is_not_lost`
 - **a ramp the dropdown offered was refused on a categorized row, the user's hand-picked colours were destroyed for it, and the notice described a change that never happened.**  
@@ -275,7 +281,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 59
+- unrecorded: 62
 - the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6

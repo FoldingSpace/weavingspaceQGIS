@@ -3271,9 +3271,9 @@ class WeavingSpaceDialog(QDialog):
       None. Writes TWO custom properties QGIS saves inside the
       project file -- weavingspace_category_colours for categorical
       hand-picks, weavingspace_quant_style for a graduated element's
-      positional picks and display range -- each cleared when there
-      is nothing to record, so a layer never carries stale choices
-      from a previous assignment.
+      positional picks, PINNED BOUNDS and display range -- each
+      cleared when there is nothing to record, so a layer never
+      carries stale choices from a previous assignment.
 
     JSON rather than a Python repr: a custom property is written into
     the .qgz as text, and this has to survive being read back by a
@@ -3292,12 +3292,21 @@ class WeavingSpaceDialog(QDialog):
     # two records cannot corrupt one another
     quant = assignment.get("quant_colours")
     window = tuple(assignment.get("range_bounds", (0, 100)))
-    if assignment.get("mode") == "Graduated" and (quant
+    # ...and the PINNED BOUNDS with them. They have to be stamped
+    # because nothing on a renderer records that a break was CHOSEN
+    # rather than computed: a reopened project would read the breaks
+    # back as ordinary classes, the row would show no pin, and the
+    # next Generate would recompute over them. That is the shape of
+    # the opacity and ramp defects of 2026-08-13, and this is the
+    # same remedy.
+    pinned = assignment.get("pinned") or {}
+    if assignment.get("mode") == "Graduated" and (quant or pinned
                                                   or window != (0, 100)):
       layer.setCustomProperty(
         "weavingspace_quant_style",
         json.dumps({"field": assignment["var"],
                     "colours": quant or {},
+                    "pinned": {k: float(v) for k, v in pinned.items()},
                     "range": list(window)}, sort_keys=True))
     else:
       layer.removeCustomProperty("weavingspace_quant_style")
@@ -3385,6 +3394,20 @@ class WeavingSpaceDialog(QDialog):
     if (lo, hi) != (0, 100) and 0 <= lo <= hi <= 100 \
         and tile_id not in self._ramp_ranges:
       self._ramp_ranges[tile_id] = (lo, hi)
+    # The pins, under the same one-unreadable-property-must-not-stop-
+    # the-dialog-opening guard as everything above, and under the
+    # same gap rule as the colours: only ever filled in where the
+    # dialog holds nothing, since anything it holds was chosen since
+    # reopening and wins.
+    try:
+      stored_pins = {str(key): float(value)
+                     for key, value in (stored.get("pinned") or {}).items()
+                     if key in ("low", "high")}
+    except (TypeError, ValueError):
+      stored_pins = {}
+    if stored_pins:
+      self._pinned_bounds.setdefault(tile_id, {}).setdefault(
+        field, dict(stored_pins))
 
   def _adopt_row_symbology(self, layer, tile_id):
     """Read an adopted layer's ramp, class count and colours back.

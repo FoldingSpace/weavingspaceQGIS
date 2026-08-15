@@ -2424,6 +2424,37 @@ MUTATIONS = [
            "in the legend that no tile wears and draws the highest "
            "value in a middle colour, so a reader matching the darkest "
            "swatch to 'high' reads the map wrongly"),
+  dict(name="a-pin-decides-its-own-break", file=BRIDGE,
+       old="  if pins:\n    _apply_pinned_bounds(",
+       new="  if False:\n    _apply_pinned_bounds(",
+       test="test_a_pinned_class_bound_reaches_the_map",
+       why="a bound set by hand must be the bound the map draws; "
+           "without this the samples are filtered out of the "
+           "classification and the pinned classes are never put back, "
+           "so the row draws fewer classes than it asked for and none "
+           "of them where the user said"),
+  dict(name="the-ladder-snaps-to-the-pin", file=BRIDGE,
+       old="      middle[0] = (float(low), middle[0][1])",
+       new="      middle[0] = middle[0]  # mutation: leave the gap",
+       test="test_a_pinned_class_bound_reaches_the_map",
+       why="a pin at 10 over data that resumes at 14 leaves 10 to 14 "
+           "in no class at all, so a value arriving there later paints "
+           "as no data on a map that looks perfectly fine"),
+  dict(name="an-undrawable-pin-is-refused", file=BRIDGE,
+       old="  if pins and int(asked) - 1 < pins:",
+       new="  if False:  # mutation: accept what cannot be drawn",
+       test="test_a_pin_that_cannot_be_drawn_is_refused",
+       why="a k-class ladder has k-1 boundaries, so two pins on a "
+           "two-class row name two boundaries where there is one and "
+           "the pinned classes do not meet: measured, that draws 0-10 "
+           "beside 60-121 with everything between in no class"),
+  dict(name="pins-are-stamped-on-the-layer", file=DIALOG,
+       old='"pinned": {k: float(v) for k, v in pinned.items()},',
+       new='"pinned": {},  # mutation: never recorded',
+       test="test_a_pin_survives_a_project_round_trip",
+       why="nothing on a renderer records that a break was chosen "
+           "rather than computed, so an unstamped pin is lost on "
+           "reopening and the next Generate recomputes over it"),
   dict(name="a-reversed-ramp-is-recognised", file=DIALOG,
        old="""    for flipped in (False, True):""",
        new="""    for flipped in (False,):  # mutation: a reversed ramp names nothing""",
