@@ -89,6 +89,94 @@ entry as it lands.
 
 ### Wanted
 
+**PINNED CLASS BOUNDS in the colour editor. Settled by `/grill-me` on
+2026-08-14; every decision below is the maintainer's and should not be
+quietly revisited.** A user may pin the first and/or last class and
+type its inner bound by hand. Samples at or beyond a pinned bound
+leave the pool, the scheme computes `k` minus the number of pins over
+what remains, and unpinning recomputes that break as though it had
+never been set. This is a familiar cartographic move -- everything
+below X is one class, everything above Y is another, and the middle
+is classed normally -- and it is what a reader needs when outliers
+otherwise eat the ramp.
+
+*How it is computed.* By extending the subset string
+`make_graduated_renderer` already sets and restores for nulls and
+non-finite values, so QGIS's own classifier goes on deciding every
+break we do not pin. No reimplementation of quantiles, equal
+intervals, Jenks or pretty breaks, for the reason recorded at that
+function: owning four algorithms means four new ways to disagree with
+the panel the user opens next.
+
+*The ladder stays contiguous.* Pin the lower class at 10 where the
+remaining samples start at 14 and the first computed class would
+begin at 14, leaving 10 to 14 in no class at all -- so the outermost
+computed edge SNAPS to the pin. Only that edge moves; the scheme's
+internal breaks are untouched. It also settles Pretty breaks, whose
+round numbers can sit outside the filtered range entirely. Without
+the snap, a value arriving later in the gap paints as no data on a
+map that looks perfectly fine.
+
+*Ownership.* Keyed by tile id AND field, beside the hand-picked
+colours, so switching a variable away and back restores the pins.
+That makes a pin a per-element styling choice like the class count,
+which is also per element -- so two elements showing one variable can
+be pinned differently and will then class differently. That is
+accepted deliberately: it is a choice the user made rather than
+something the software did behind them, which is the distinction that
+matters after the work of 2026-08-14.
+
+*Lifetime.* Pins survive a change of scheme, class count, ramp or
+reversal, since surviving a recalculation is the whole point. They
+are STAMPED on the layer as a custom property, because nothing on a
+renderer records that a break was chosen rather than computed;
+without the stamp a reopened project would lose them and the next
+Generate would overwrite the map, which is exactly how the opacity
+and ramp defects of 2026-08-13 worked. A pin whose class is left
+holding NO samples after the data moves is released, that break
+recalculates normally, and the note line says which element and which
+bound -- the rule shipped this version applied to pins, since a
+legend must never show a class the map does not have, whoever put it
+there.
+
+*Guardrails.* REVERTED, with the cell restored and a word on the note
+line: bounds that cross, a bound outside the data's range, a pin
+leaving no samples for the middle. ACCEPTED and explained by the
+existing notice: a pin leaving fewer distinct values than remaining
+classes, which simply draws fewer classes through the reduction this
+version already ships. One answer to "the data cannot support this
+count", wherever the shortage comes from.
+
+*Where it appears.* A pin column and editable bound cells on the
+first and last rows of the editor's class table for the classed
+styles, which widens that window; a clamp pair above the table for
+Quant: Unclassed, beside the Ramp Display Range, because pinning row
+0 of fifty faded slivers is a strange way to say "the ramp starts at
+10". ONE stored record and ONE set of guardrails behind both
+presentations, or this becomes a pair that drifts. Nothing whatever
+in categorical dress, which has no bounds to pin.
+
+*In the main table*, the element's ramp swatch draws a box around its
+first and/or last stripe. The swatch already paints one stripe per
+class, so this says "this end is yours" without the ramp cell having
+to claim the ramp is no longer the ramp -- which it still is, since a
+pin moves breaks and not colours. Two consequences: a pinned row's
+swatch must come through the custom-swatch path so the stripe count
+matches the class count, and the swatch cache key must carry the pins
+or the box goes stale. On Unclassed, fifty classes are sampled down
+to eight stripes, so the boxed stripe reads as "the low end" rather
+than literally class 0.
+
+*What must be true before it merges.* The bound rules and the snap
+are tested in `bridge`, where they need no dialog. Above that: a pin
+honoured end to end through a real run on each quant scheme and on
+Unclassed; an unpin recomputing exactly the break it replaced; each
+refusal proved to revert AND to report; a project round trip bringing
+pins home, added to the differential that now covers everything else
+a user chooses; and the categorical editor asserted to offer no pin
+at all. Every new test gets a catalogue entry and must report
+`caught`.
+
 **Sampling the six unsampled assignment-lookup copies.** Deferred here
 from 0.24.2 deliberately: it is measurement rather than
 defect-finding, and the night of 2026-08-13 put mutation sampling at
