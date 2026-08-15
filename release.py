@@ -214,6 +214,76 @@ NETWORK_STALL_SECONDS = 2700
 ABSOLUTE_CEILING = 4 * 3600
 
 
+def _process_table():
+  """Every process on the machine, as parentage and cpu time.
+
+  Returns:
+    A pair ``(children, times)`` -- a dict of parent pid to its child
+    pids, and a dict of pid to cpu seconds -- or None when the
+    machine's process list could not be read at all, which the caller
+    treats as "no reading" rather than as an error.
+
+  TWO PLATFORMS, because the answer is not obtainable the same way.
+  On Unix `ps` reports cpu as [DD-]HH:MM:SS. Windows has no `ps`, so
+  until 2026-08-15 this returned None there and the watchdog measured
+  NOTHING: a release on Windows would have read every stage as idle
+  and killed the first one that ran longer than the stall ceiling.
+  That was found by the Windows CI leg, which is the first thing ever
+  to run these tests off a Mac.
+
+  Windows is asked through PowerShell's CIM interface, which reports
+  KernelModeTime and UserModeTime in 100-nanosecond units. `wmic`
+  would be shorter and is deprecated and absent on current Windows,
+  so it is deliberately not used.
+  """
+  if os.name == "nt":
+    command = [
+      "powershell", "-NoProfile", "-NonInteractive", "-Command",
+      "Get-CimInstance Win32_Process | ForEach-Object { "
+      "'{0} {1} {2}' -f $_.ProcessId, $_.ParentProcessId, "
+      "($_.KernelModeTime + $_.UserModeTime) }"]
+  else:
+    command = ["ps", "-eo", "pid=,ppid=,time="]
+  try:
+    listing = subprocess.run(
+      command, capture_output=True, text=True, timeout=60)
+  except (subprocess.SubprocessError, OSError):
+    return None
+  if listing.returncode != 0:
+    return None
+
+  children, times = {}, {}
+  for line in listing.stdout.splitlines():
+    parts = line.split()
+    if len(parts) < 3:
+      continue
+    try:
+      this, parent = int(parts[0]), int(parts[1])
+    except ValueError:
+      continue
+    children.setdefault(parent, []).append(this)
+    if os.name == "nt":
+      try:
+        # 100-nanosecond units, kernel plus user, already summed above
+        times[this] = int(parts[2]) / 1e7
+      except ValueError:
+        continue
+    else:
+      clock = parts[2]
+      days = 0
+      if "-" in clock:
+        day_part, clock = clock.split("-", 1)
+        days = int(day_part)
+      try:
+        bits = [float(b) for b in clock.split(":")]
+      except ValueError:
+        continue
+      while len(bits) < 3:
+        bits.insert(0, 0.0)
+      times[this] = days * 86400 + bits[0] * 3600 + bits[1] * 60 + bits[2]
+  return children, times
+
+
 def tree_cpu_seconds(pid):
   """Total cpu time used by a process and everything it started.
 
@@ -230,34 +300,10 @@ def tree_cpu_seconds(pid):
   hostile-data cases. Measuring only the direct child would report a
   busy release as idle.
   """
-  try:
-    listing = subprocess.run(
-      ["ps", "-eo", "pid=,ppid=,time="], capture_output=True, text=True,
-      timeout=30)
-  except (subprocess.SubprocessError, OSError):
+  table = _process_table()
+  if table is None:
     return None
-  if listing.returncode != 0:
-    return None
-  children, times = {}, {}
-  for line in listing.stdout.splitlines():
-    parts = line.split()
-    if len(parts) < 3:
-      continue
-    try:
-      this, parent = int(parts[0]), int(parts[1])
-    except ValueError:
-      continue
-    children.setdefault(parent, []).append(this)
-    # ps prints cpu time as [DD-]HH:MM:SS
-    clock = parts[2]
-    days = 0
-    if "-" in clock:
-      day_part, clock = clock.split("-", 1)
-      days = int(day_part)
-    bits = [float(b) for b in clock.split(":")]
-    while len(bits) < 3:
-      bits.insert(0, 0.0)
-    times[this] = days * 86400 + bits[0] * 3600 + bits[1] * 60 + bits[2]
+  children, times = table
   total, stack = 0.0, [pid]
   seen = set()
   while stack:
