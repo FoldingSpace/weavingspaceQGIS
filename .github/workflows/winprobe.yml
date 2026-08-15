@@ -1,0 +1,30 @@
+# A THROWAWAY. Delete this file, and tools/win_process_probe.py, once
+# release.py's cpu accounting is understood on Windows.
+#
+# The question it exists for: the PowerShell process-table path in
+# release.py runs on Windows and reports 0.0 seconds of cpu for a tree
+# whose grandchild is deliberately burning it. The functional suite
+# says so and cannot say why, and reaching those two tests through the
+# `windows` job costs about fifty minutes -- it installs QGIS and runs
+# four hundred tests first. This asks only the failing question, needs
+# no QGIS at all, and answers in the time a runner takes to boot.
+#
+# It is workflow_dispatch ONLY, so it never lengthens an ordinary push
+# and never competes with the rounds that gate a candidate.
+name: windows process probe (temporary)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: What Windows says about its own processes
+        # The RUNNER'S python, deliberately: nothing here touches QGIS
+        # or the plugin, and the code under question is stdlib plus a
+        # PowerShell call. Using the system interpreter is what makes
+        # this three minutes instead of fifty.
+        run: python tools/win_process_probe.py
