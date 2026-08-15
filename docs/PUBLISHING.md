@@ -35,6 +35,33 @@ because a push is the one step this project cannot take back:
   repository is fine to keep, anything that is neither is a mistake
   to fix before it is public rather than after.
 
+### The runners are kept CURRENT with the Mac, not merely present
+
+The standard is parity of coverage. A platform that only proves the
+plugin loads has been smoke-tested rather than tested, and `compat.py`
+exists precisely because QGIS moves its APIs -- so the functional
+suite, the visual gallery and the colourspace comparison belong on
+every platform CI can reach. Windows carried an install-and-load
+alone until 2026-08-15, which meant the module written to absorb
+QGIS's API changes had never run on the platform most of this
+plugin's users are on.
+
+Feasibility is the only ground for divergence, and it is narrow: a
+limit the platform imposes that no amount of code gets round. COST IS
+NOT ONE. The repository is public, so GitHub's standard runners are
+free -- `windows-latest` included, with the 2x multiplier billing
+only against private repositories -- and jobs run in parallel, so a
+leg that finishes inside the slowest one adds nothing to the wall
+clock. "Not done yet" is not a reason either; it is a gap.
+
+When the Mac gains a stage, the runners gain it in the SAME COMMIT.
+A parity rule that waits for somebody to remember has already
+drifted, which is the same argument this project makes for
+regenerating the derived documents in the commit that changes the
+suite. Where a divergence is genuinely right, it lives as an
+exemption with its reason in `tools/check_standards.py`, and that
+list is read at every push.
+
 ### Before the branch exists: is Linux still running what we run?
 
     python3 tools/check_standards.py     # a second, and it answers this

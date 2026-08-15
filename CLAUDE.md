@@ -207,6 +207,30 @@ obligations: they exist so nobody pays twice for the same discovery.
   section, an edit no tool may make on their behalf. Delete an entry
   when it lands; a roadmap nobody prunes becomes a diary.
   (User instruction, 2026-08-11.)
+- **LINUX AND WINDOWS CI ARE KEPT CURRENT WITH WHAT THE MAC RUNS,
+  wherever it is feasible.** The standard is PARITY OF COVERAGE, not
+  the existence of a job. A platform that only proves the plugin
+  loads has been smoke-tested rather than tested -- and `compat.py`
+  exists precisely because QGIS moves its APIs, so the functional
+  suite, the visual gallery and the colourspace comparison belong on
+  every platform CI can reach. Windows is where most of this
+  plugin's users are, and until 2026-08-15 it ran nothing but an
+  install-and-load. (Maintainer's instruction that day: Windows and
+  Linux should test as much as macOS does, within only the limits
+  GitHub imposes that we cannot code around.)
+  WHAT COUNTS AS INFEASIBLE IS NARROW, and must be written down at
+  the exemption: a limit the platform imposes that no amount of code
+  gets round. Cost is not one -- the repository is public, so
+  standard runners are free and jobs run in parallel, and a leg that
+  adds nothing to the critical path costs nothing to keep. "Not done
+  yet" is not one either.
+  WHEN THE MAC GAINS A STAGE, THE RUNNERS GAIN IT IN THE SAME COMMIT,
+  for the same reason the derived documents are regenerated in the
+  commit that changes the suite: a parity rule that waits for
+  somebody to remember has already drifted. The exemption list in
+  `tools/check_standards.py` is where a divergence lives, and it is
+  read at every push.
+
 - **CI stays in step with the Mac, and that is CHECKED before
   the branch is pushed, not discovered on a runner.**
   `tools/check_standards.py` reads `release.py`'s own stage list and
