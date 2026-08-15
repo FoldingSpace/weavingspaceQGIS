@@ -1142,9 +1142,9 @@ def classes_the_map_will_draw(values, asked, pinned=None):
   Args:
     values: every value of the column, from the REGION layer.
     asked: the class count the table asked for.
-    pinned: the element's pin record, or None. Only "low" and "high"
-      are read; a copied ladder's "breaks" decide their own count and
-      never come through here.
+    pinned: the element's pin record, or None. A copied ladder's
+      "breaks" decide their own count; "low" and "high" narrow the
+      pool the scheme cuts from.
 
   Returns:
     (count, from_a_pinned_pool). The count is what the legend will
@@ -1160,6 +1160,22 @@ def classes_the_map_will_draw(values, asked, pinned=None):
   arithmetic make_graduated_renderer performs, kept beside it so the
   two cannot drift.
   """
+  # A COPIED LADDER DECIDES ITS OWN COUNT, and the docstring above
+  # used to assert that such a record "never comes through here" --
+  # while `_legend_size_note` passed the whole record, which made the
+  # assertion false the day it was written. Measured 2026-08-15 by a
+  # hunt: a ladder of five copied onto a column holding {1, 5, 9} drew
+  # FIVE classes, exactly as the copy feature intends, while the
+  # message bar said it drew three. A copy's unreachable classes are
+  # KEPT and hatched by design, so there is no reduction to report,
+  # and saying otherwise describes a legend the map does not have --
+  # the one thing these notices exist to prevent.
+  #
+  # When a docstring asserts that a case cannot arrive, grep the
+  # callers before believing it.
+  breaks = (pinned or {}).get("breaks")
+  if breaks:
+    return len(breaks) + 1, False
   finite = [float(v) for v in values
             if v is not None and v != NULL and isinstance(v, (int, float))
             and math.isfinite(float(v))]

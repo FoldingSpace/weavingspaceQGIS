@@ -6270,7 +6270,29 @@ class WeavingSpaceDialog(QDialog):
             continue
           if field in said_constant or field not in gdf.columns:
             continue
-          if bridge.numeric_values_are_constant(gdf[field]):
+          # THE REGION LAYER, not the tiled frame -- the same source the
+          # sibling branch below already documents, and the one this
+          # branch quietly did not use. The renderer this sentence
+          # describes is seeded from the region's values, so counting
+          # the TILES made the sentence disagree with the legend
+          # beside it: a small area dropped at a coarse spacing leaves
+          # the tiled frame holding one value while the column holds a
+          # range. Measured 2026-08-15 by a hunt -- region values
+          # [10, 99], one area too small to catch a tile, the bar
+          # saying "every area has the same value" while the map drew
+          # (10, 54.5) and (54.5, 99). Worse, saying it SUPPRESSED the
+          # true notice, because this branch marks the field as
+          # already explained.
+          #
+          # The hunt's own lesson is the one to keep: where a family
+          # of sentences documents which frame it counts, the branch
+          # that does NOT say is the defect.
+          constant_source = self._classification_values(field)
+          region_values = (
+            constant_source.uniqueValues(
+              constant_source.fields().indexOf(field))
+            if constant_source is not None else gdf[field])
+          if bridge.numeric_values_are_constant(region_values):
             said_constant.add(field)
             self._report_quietly(bridge.constant_field_message(field))
           else:

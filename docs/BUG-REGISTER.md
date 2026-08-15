@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-159 defect(s) with a regression test.
+161 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -45,6 +45,8 @@ there is no separate list to remember.
 
 ## Found by a bug hunt pointed in a named direction
 
+- **under a copied ladder the class-count notice reported the column's distinct values rather than the classes the map drew, telling a user their map had fewer classes than it did.**  
+  guarded by `test_a_copied_ladder_is_not_reported_as_a_reduction`
 - **copying a classification onto an element whose column holds a single value left every class but the first on the placeholder grey, so the element drew as flat no-data colour while its ramp cell named a ramp.**  
   guarded by `test_a_copied_ladder_on_one_value_still_wears_its_ramp`
 - **copying a classification from an element drawn Quant: Unclassed wrote fifty into the receiving element's chosen class count, which the next table rebuild clamped to twenty, replacing the count the user had chosen.**  
@@ -71,6 +73,8 @@ there is no separate list to remember.
   guarded by `test_a_reopened_plugin_adopts_the_group_it_last_wrote`
 - **pinning a class bound left the colour editor showing the ladder from before the pin, and the unpinned end's control offering a bound the map no longer had.**  
   guarded by `test_pinning_redraws_the_window_it_was_typed_into`
+- **the constant-column notice counted the tiled output rather than the region layer, so a small area dropped at a coarse spacing produced "every area has the same value" beside a legend showing a range.**  
+  guarded by `test_the_constant_notice_counts_the_users_areas`
 - **a renderer changed in QGIS back to something the plugin can express left the row reading "Deferring to QGIS" with its controls disabled, and the next Generate overwrote the map.**  
   guarded by `test_the_row_follows_the_dock_back_out_of_deferring`
 
@@ -367,8 +371,8 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 82
+- a bug hunt pointed in a named direction: 16
 - the mutation campaign: 16
-- a bug hunt pointed in a named direction: 14
 - reported by a user: 9
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6

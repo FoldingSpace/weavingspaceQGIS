@@ -2642,6 +2642,23 @@ MUTATIONS = [
            "is the only route by which one could arrive unexamined, "
            "and because a copy degrades to its pins that bound "
            "outlives the copy it came in on"),
+  dict(name="the-constant-notice-counts-the-region", file=DIALOG,
+       old="          if bridge.numeric_values_are_constant(region_values):",
+       new="          if bridge.numeric_values_are_constant(gdf[field]):",
+       test="test_the_constant_notice_counts_the_users_areas",
+       why="the renderer this sentence describes is seeded from the "
+           "region's values, so counting the TILES makes it disagree "
+           "with the legend beside it -- and saying it suppresses the "
+           "true notice as well"),
+  dict(name="a-copied-ladder-counts-its-own-classes", file=BRIDGE,
+       old="  breaks = (pinned or {}).get(\"breaks\")\n"
+           "  if breaks:\n    return len(breaks) + 1, False",
+       new="  breaks = (pinned or {}).get(\"breaks\")\n"
+           "  if False:\n    return len(breaks) + 1, False",
+       test="test_a_copied_ladder_is_not_reported_as_a_reduction",
+       why="a copy's unreachable classes are kept by design, so the "
+           "column's distinct count describes nothing -- reporting it "
+           "tells a user their map has fewer classes than it draws"),
   dict(name="the-reduction-sees-the-pinned-pool", file=BRIDGE,
        old="  if pins and wants_middle and not unclassed:",
        new="  if False:",

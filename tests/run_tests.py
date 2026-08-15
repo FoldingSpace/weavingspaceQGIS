@@ -10185,6 +10185,143 @@ def test_the_row_follows_the_dock_back_out_of_deferring():
   dlg.close()
 
 
+def test_a_copied_ladder_is_not_reported_as_a_reduction():
+  """A copy's unreachable classes are kept, so nothing was reduced.
+
+  The reduction notice exists to stop the table claiming a legend the
+  map does not have. Under a COPIED ladder it did exactly that: the
+  count it reported came from the column's distinct values while the
+  map drew the ladder's own classes, because the counter read the
+  record's pins and ignored its breaks. A ladder of five copied onto a
+  column holding three values drew five and said three.
+
+  The unreachable classes of a copy are KEPT and hatched by design --
+  a copy reproduces a classification, and a silently shortened one
+  does not -- so there is no reduction to report at all.
+
+  The counter's own docstring asserted that a copied ladder "never
+  comes through here", while the caller passed the whole record. When
+  a docstring says a case cannot arrive, grep the callers before
+  believing it.
+
+  Regression: under a copied ladder the class-count notice reported the column's distinct values rather than the classes the map drew, telling a user their map had fewer classes than it did. [hunt]
+  """
+  from weavingspace_qgis import bridge
+  values = [1, 5, 9]
+  ladder = {"breaks": [2.0, 4.0, 6.0, 8.0]}
+
+  drawn, from_pins = bridge.classes_the_map_will_draw(values, 5, ladder)
+  assert drawn == len(ladder["breaks"]) + 1, \
+    f"a ladder of {len(ladder['breaks']) + 1} classes was counted as {drawn}"
+  assert bridge.few_values_message("v", drawn, 5, from_pins) is None, \
+    "a copy was reported as a reduction, which it is not"
+
+  # ...and the MAP is asked, not just the counter, since agreeing with
+  # the counter is exactly what the old code did
+  layer = QgsVectorLayer("Polygon?crs=EPSG:2193", "few", "memory")
+  provider = layer.dataProvider()
+  from weavingspace_qgis import compat
+  provider.addAttributes([compat.make_field("v", float)])
+  layer.updateFields()
+  features = []
+  for index, value in enumerate(values):
+    feature = QgsFeature(layer.fields())
+    feature.setAttribute("v", float(value))
+    x = index * 10.0
+    feature.setGeometry(QgsGeometry.fromPolygonXY([[
+      QgsPointXY(x, 0), QgsPointXY(x + 9, 0),
+      QgsPointXY(x + 9, 9), QgsPointXY(x, 9), QgsPointXY(x, 0)]]))
+    features.append(feature)
+  provider.addFeatures(features)
+  layer.updateExtents()
+  QgsProject.instance().addMapLayer(layer)
+  renderer = bridge.make_graduated_renderer(
+    layer, "v", "Reds", "Quantiles", 5, False, pinned=ladder)
+  assert len(renderer.ranges()) == drawn, \
+    f"the map draws {len(renderer.ranges())} classes where the notice " \
+    f"counted {drawn}"
+
+  # ...while the ORDINARY reduction, with no ladder, still speaks
+  plain, plain_pins = bridge.classes_the_map_will_draw(values, 5, None)
+  assert plain == len(set(values)), \
+    f"the ordinary reduction stopped counting distinct values: {plain}"
+  assert bridge.few_values_message("v", plain, 5, plain_pins), \
+    "a column with fewer values than classes went unexplained"
+
+
+def test_the_constant_notice_counts_the_users_areas():
+  """The sentence and the legend beside it must count the same thing.
+
+  Every notice in this family documents which frame it reads, and the
+  rule is the user's REGION layer rather than the tiled output --
+  because the renderer these sentences describe is seeded from the
+  region's values. One branch did not say, and did not: the constant
+  case counted the TILES.
+
+  A small area that catches no tile at a coarse spacing is enough.
+  The region holds a range, the tiled frame holds one value, and the
+  user is told every area shares it while the map beside them draws
+  two classes. Worse, saying it SUPPRESSES the true notice, because
+  that branch marks the field as already explained.
+
+  Found by a hunt pointed at every count the plugin reports about a
+  user's own data. Its lesson: where a family of sentences documents
+  which frame it counts, the branch that does NOT say is the defect.
+
+  Regression: the constant-column notice counted the tiled output rather than the region layer, so a small area dropped at a coarse spacing produced "every area has the same value" beside a legend showing a range. [hunt]
+  """
+  from weavingspace_qgis import bridge, compat
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = QgsVectorLayer("Polygon?crs=EPSG:2193", "two areas", "memory")
+  provider = layer.dataProvider()
+  provider.addAttributes([compat.make_field("v", float)])
+  layer.updateFields()
+  # TWO areas sharing one value, and a row with NO GEOMETRY carrying
+  # another. That row contributes a value to the column and no tiles
+  # whatever, so the tiled frame is CONSTANT while the column is not
+  # -- which is the disagreement, made deterministic. An area merely
+  # small does not do it: measured at 100, 40 and 20 metres against a
+  # 2000 metre spacing, every one still caught a tile.
+  features = []
+  for (x, y), size in (((0.0, 0.0), 12000.0), ((14000.0, 0.0), 6000.0)):
+    feature = QgsFeature(layer.fields())
+    feature.setAttribute("v", 10.0)
+    feature.setGeometry(QgsGeometry.fromPolygonXY([[
+      QgsPointXY(x, y), QgsPointXY(x + size, y),
+      QgsPointXY(x + size, y + size), QgsPointXY(x, y + size),
+      QgsPointXY(x, y)]]))
+    features.append(feature)
+  blank = QgsFeature(layer.fields())
+  blank.setAttribute("v", 99.0)
+  features.append(blank)
+  provider.addFeatures(features)
+  layer.updateExtents()
+  project.addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v")
+  _tick(150)
+  tile_id = dlg.table.item(0, 0).text()
+  dlg.spacing_spin.setValue(2000)
+  _generate_and_wait(dlg)
+
+  element = project.mapLayer(dlg._element_layer_ids[tile_id])
+  ranges = element.renderer().ranges()
+  assert len(ranges) > 1, \
+    f"the fixture drew one class, so the notice would be right: " \
+    f"{[(r.lowerValue(), r.upperValue()) for r in ranges]}"
+  wrong = [text for _kind, text in BAR_MESSAGES
+           if "same value" in text]
+  assert not wrong, \
+    f"the map draws {len(ranges)} classes and the user was told every " \
+    f"area holds one value: {wrong}"
+  dlg.close()
+
+
 def test_a_class_source_file_that_goes_away():
   """The QML is deleted, moved or renamed after being chosen.
 
@@ -40650,6 +40787,10 @@ def main():
         test_a_deferring_element_moved_to_words_still_draws)
   check("the row follows the dock back out of deferring",
         test_the_row_follows_the_dock_back_out_of_deferring)
+  check("a copied ladder is not reported as a reduction",
+        test_a_copied_ladder_is_not_reported_as_a_reduction)
+  check("the constant notice counts the user's areas",
+        test_the_constant_notice_counts_the_users_areas)
   check("one variable gets one legend wherever it appears",
         test_one_variable_gets_one_legend_wherever_it_appears)
   check("a class source file that goes away",
