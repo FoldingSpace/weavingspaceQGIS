@@ -376,7 +376,8 @@ RAMP_COLOURS = {}
 
 # Recorded ramp name -> the matplotlib name its colours were actually
 # registered under. Filled by _register_recorded_colormaps; see
-# cmap_name_for for why the two differ.
+# _install_name_redirect for why the two differ, and why a redirect
+# is the only mechanism that works here.
 RECORDED_ALIAS = {}
 ALIAS_PREFIX = "weavingspace_in_force_"
 
@@ -462,6 +463,79 @@ def _register_recorded_colormaps():
           "this comparison is scoring the plugin against matplotlib's "
           "own palettes -- a claim this project retired on 2026-08-15. "
           "Read every figure below in that light.")
+  _canary_the_colormap_workaround()
+
+
+def _canary_the_colormap_workaround():
+  """Say so if the reason for the redirect has gone away.
+
+  Returns:
+    None. Prints a banner and nothing else. This is the canary that
+    `.claude/skills/dependency-bug-workaround` requires of any
+    compensation for somebody else's behaviour: without one the
+    workaround outlives every memory of why it exists and nobody
+    dares remove it.
+
+  It PRINTS rather than raises, which is a deliberate departure from
+  the usual shape. The usual canary is a test whose failure is good
+  news, but this code runs inside the reference comparison, which
+  GATES A RELEASE -- and turning good news into a stopped release is
+  the failure this project has already argued about twice. The
+  comparison's output is read at every release and on every CI round,
+  so a banner is where a person will actually meet it.
+
+  WHAT WOULD HAVE TO BE TRUE to delete the redirect: matplotlib
+  allowing a builtin colormap name to be re-registered (measured
+  false on 3.11.1, 2026-08-15), OR the vendored library resolving a
+  name it does not recognise instead of silently substituting a
+  positional default (tile_map.py:1154, same date). Either one alone
+  is not enough -- the first would let the colours be registered under
+  their own names, the second would let an alias through -- so the
+  banner names whichever has moved.
+  """
+  import matplotlib
+  from matplotlib.colors import LinearSegmentedColormap
+  import matplotlib.pyplot as plt
+
+  # A builtin NOBODY HERE DRAWS WITH, and restored either way. The
+  # first version of this probed "RdBu", which would have replaced a
+  # ramp the gallery actually uses with black-to-white for the rest of
+  # the process on the very day matplotlib relaxed the rule -- a
+  # canary that breaks the thing it watches. `prism` is a builtin no
+  # case names, and it is skipped outright if the gallery recorded it.
+  name = "prism"
+  if name in RECORDED_ALIAS or name not in matplotlib.colormaps:
+    return
+  original = matplotlib.colormaps[name]
+  probe = LinearSegmentedColormap.from_list(
+    "weavingspace_canary", ["#000000", "#ffffff"])
+  try:
+    matplotlib.colormaps.register(probe, name=name, force=True)
+  except Exception:
+    return                      # still refused, so the redirect stands
+  try:
+    took = matplotlib.colors.to_hex(plt.get_cmap(name)(0.0))
+  finally:
+    try:
+      matplotlib.colormaps.register(original, name=name, force=True)
+    except Exception:
+      # It let the probe in and will not take the original back, which
+      # is worse than the thing being tested for. Say so rather than
+      # leave a ramp quietly replaced.
+      print(f"WARNING: {name} was overwritten by this file's canary "
+            f"and could not be restored; renders using it in THIS "
+            f"process are wrong. No gallery case names it.")
+  if took.lower() == "#000000":
+    print(
+      "GOOD NEWS, PROBABLY: matplotlib "
+      f"{matplotlib.__version__} now lets a builtin colormap name be "
+      "re-registered, which it refused on 3.11.1. The alias and the "
+      "lookup redirect in this file exist only because of that "
+      "refusal and can now be replaced by registering the recorded "
+      "colours under their own names. Do NOT simply delete the "
+      "redirect: check first that the library still resolves names "
+      "through matplotlib, since it silently substitutes a default "
+      "for any name it does not know.")
 
 
 def _install_name_redirect():
