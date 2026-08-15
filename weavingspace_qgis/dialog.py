@@ -3336,7 +3336,13 @@ class WeavingSpaceDialog(QDialog):
         "weavingspace_quant_style",
         json.dumps({"field": assignment["var"],
                     "colours": quant or {},
-                    "pinned": {k: float(v) for k, v in pinned.items()},
+                    # low and high are numbers; "breaks" is a whole
+                    # copied ladder, so both shapes have to travel
+                    "pinned": {
+                      key: ([float(x) for x in value]
+                            if isinstance(value, (list, tuple))
+                            else float(value))
+                      for key, value in pinned.items()},
                     "range": list(window)}, sort_keys=True))
     else:
       layer.removeCustomProperty("weavingspace_quant_style")
@@ -3429,10 +3435,13 @@ class WeavingSpaceDialog(QDialog):
     # same gap rule as the colours: only ever filled in where the
     # dialog holds nothing, since anything it holds was chosen since
     # reopening and wins.
+    stored_pins = {}
     try:
-      stored_pins = {str(key): float(value)
-                     for key, value in (stored.get("pinned") or {}).items()
-                     if key in ("low", "high")}
+      for key, value in (stored.get("pinned") or {}).items():
+        if key in ("low", "high"):
+          stored_pins[str(key)] = float(value)
+        elif key == "breaks" and isinstance(value, (list, tuple)):
+          stored_pins["breaks"] = [float(x) for x in value]
     except (TypeError, ValueError):
       stored_pins = {}
     if stored_pins:
@@ -4529,9 +4538,139 @@ class WeavingSpaceDialog(QDialog):
       reverse=assignment.get("reverse", False),
       range_changed=range_changed,
       pinned=self._pinned_bounds.get(tile_id, {}).get(field),
-      pin_changed=pin_changed)
+      pin_changed=pin_changed,
+      copy_targets=self._copy_targets(tile_id),
+      copy_to=lambda target: self._copy_classification(tile_id, target))
     editor.exec()
     self._warn_about_close_colours()
+
+  def _copy_classification(self, source_id, target_id):
+    """Send one element's whole classification to another.
+
+    Args:
+      source_id: the element whose editor is open.
+      target_id: the element to copy onto.
+
+    Returns:
+      A message when the copy was REFUSED, or None when it was made.
+      Refusals are rare: a target that has since lost its variable,
+      or a source with no classes to send.
+
+    WHAT TRAVELS: the class breaks, the colours, the class count, the
+    style (so an Unclassed source makes its target Unclassed, which
+    is the only way "breaks and number of classes" can be honoured in
+    both directions) and the PIN FLAGS. The flags travel separately
+    from the values, and that difference is what makes a copy behave:
+    copying from an element with no pins leaves the target's breaks
+    hand-set and neither end pinned, so its swatch draws no box.
+    Collapsing the two would make every copy look fully pinned and
+    leave "unpin" with nothing coherent to do (settled 2026-08-14).
+
+    The receiving element's own extremes fit the ends, in
+    bridge.fitted_breaks; classes its data cannot reach are KEPT and
+    hatched rather than dropped.
+
+    What was replaced is REPORTED rather than asked about, which is
+    how every other loss in this plugin is handled.
+    """
+    source = self._assignment_for(source_id)
+    target = self._assignment_for(target_id)
+    if source is None or target is None or not target.get("var"):
+      return "That element has no variable to classify."
+    classes = self._current_graduated_classes(source)
+    if not classes:
+      return "This element has no classes to copy."
+    # the INTERIOR boundaries: the outer edges belong to whichever
+    # column receives them, which is what fitted_breaks decides
+    interior = [upper for _lo, upper, _c in classes[:-1]]
+    if not interior:
+      return "A single class has no breaks to copy."
+
+    # ...what the target is about to lose, named before it goes
+    field = target["var"]
+    lost = []
+    if self._quant_colours.get(target_id, {}).get(field):
+      lost.append("its hand-picked colours")
+    if self._pinned_bounds.get(target_id, {}).get(field):
+      lost.append("its pinned bounds")
+    if self._class_counts.get(target_id) not in (None, source.get("k")):
+      lost.append(f"its class count of {self._class_counts[target_id]}")
+
+    record = {"breaks": [float(b) for b in interior]}
+    # the FLAGS, copied as flags: which ends the source had pinned,
+    # not merely that its breaks are now hand-set
+    source_pins = self._pinned_bounds.get(source_id, {}).get(
+      source.get("var")) or {}
+    for end in ("low", "high"):
+      if source_pins.get(end) is not None:
+        record[end] = float(source_pins[end])
+    self._pinned_bounds.setdefault(target_id, {})[field] = record
+
+    # the colours, positionally, which is what makes the row Custom
+    self._quant_colours.setdefault(target_id, {})[field] = {
+      str(index): colour for index, (_lo, _hi, colour) in enumerate(classes)}
+    self._class_counts[target_id] = len(classes)
+    self._ramp_choices[target_id] = source.get("ramp")
+    self._reverse_choices[target_id] = bool(source.get("reverse"))
+    self._copy_style_to_row(target_id, source.get("mode_raw"))
+    self._custom_swatch_cache.pop(target_id, None)
+    self._apply_style_change()
+    self._report_quietly(
+      f"Element '{target_id}' now uses element '{source_id}'s classes"
+      + (f", replacing {' and '.join(lost)}." if lost else "."))
+    return None
+
+  def _copy_style_to_row(self, tile_id, mode_raw):
+    """Put a target row's Style cell on the source's entry.
+
+    Args:
+      tile_id: the element receiving the copy.
+      mode_raw: the source row's literal Style text, e.g.
+        "Quant: Unclassed".
+
+    Returns:
+      None. The style travels with the breaks, because fifty
+      hand-set breaks on a row whose spinner caps at twenty is the
+      three-numbers-for-one-setting fault
+      test_an_unclassed_excursion_leaves_the_count_alone guards.
+      Driven through the combo's own ``activated`` signal, which is
+      what marks a style as the user's choice: a bare setCurrentText
+      leaves the next design rebuild free to revert it.
+    """
+    row = self._row_for_element(tile_id)
+    combo = self.table.cellWidget(row, 2) if row is not None else None
+    if combo is None or not hasattr(combo, "findText") or not mode_raw:
+      return
+    index = combo.findText(mode_raw)
+    if index < 0:
+      return
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+
+  def _copy_targets(self, source_id):
+    """The elements this one's classification may be copied to.
+
+    Args:
+      source_id: the element whose editor is open.
+
+    Returns:
+      [(tile_id, label)] in table order: every OTHER element carrying
+      a variable and drawn by a quantitative style, categorized rows
+      excluded because a class ladder means nothing to them. An
+      element with no variable is left out too, having no column to
+      classify. Empty when there is nobody to copy to, and the editor
+      then builds no dropdown at all rather than offering a control
+      that can do nothing.
+    """
+    targets = []
+    for assignment in self._assignments():
+      tile_id = assignment.get("id")
+      if tile_id == source_id or not assignment.get("var"):
+        continue
+      if assignment.get("mode") != "Graduated":
+        continue
+      targets.append((tile_id, f"{tile_id} \u2013 {assignment['var']}"))
+    return targets
 
   def _apply_style_change(self):
     """Repaint after a symbology change, without re-tiling.
@@ -5099,7 +5238,12 @@ class WeavingSpaceDialog(QDialog):
              a.get("opacity", 100),
              tuple(sorted((a.get("category_colours") or {}).items())),
              tuple(sorted((a.get("quant_colours") or {}).items())),
-             tuple(sorted((a.get("pinned") or {}).items())),
+             # a copied ladder puts a LIST in this record, and a
+             # tuple holding a list cannot be hashed; a signature
+             # nobody can hash is one nobody may put in a set
+             tuple(sorted(
+               (key, tuple(value) if isinstance(value, list) else value)
+               for key, value in (a.get("pinned") or {}).items())),
              tuple(a.get("range_bounds", (0, 100))))
             for a in self._assignments()),
       # See _geometry_signature: live update compares this tuple to
@@ -5193,7 +5337,12 @@ class WeavingSpaceDialog(QDialog):
             # never drawn, which is what the display range was
             # measured doing on 2026-08-13.
             tuple(sorted(quant.items())),
-            tuple(sorted((a.get("pinned") or {}).items())),
+            # a copied ladder puts a LIST in this record, and a
+            # tuple holding a list cannot be hashed; a signature
+            # nobody can hash is one nobody may put in a set
+            tuple(sorted(
+              (key, tuple(value) if isinstance(value, list) else value)
+              for key, value in (a.get("pinned") or {}).items())),
             tuple(a.get("range_bounds", (0, 100))))
 
   # ---------------------------------------------------------------- generate

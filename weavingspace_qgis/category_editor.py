@@ -36,7 +36,8 @@ from qgis.PyQt.QtCore import QEvent, QPointF, QSize, Qt, QTimer
 from qgis.PyQt.QtGui import (QBrush, QColor, QIcon, QPainter, QPen,
                              QPixmap)
 from qgis.PyQt.QtWidgets import (QAbstractButton, QAbstractItemView,
-                                 QColorDialog, QDialog, QDialogButtonBox,
+                                 QColorDialog, QComboBox, QDialog,
+                                 QDialogButtonBox,
                                  QDoubleSpinBox, QGraphicsOpacityEffect,
                                  QHBoxLayout, QHeaderView, QLabel,
                                  QPushButton, QSpinBox, QTableWidget,
@@ -248,6 +249,14 @@ class CategoryColourDialog(QDialog):
       float or None, "high": float or None}``. ``low`` is the first
       class's upper bound and ``high`` is the last class's lower
       bound. None or an empty dict means neither end is pinned.
+    copy_targets: the other elements this one's classification may be
+      copied to, as [(tile_id, label)] in table order. Empty means no
+      dropdown is built at all -- an element with no sibling to copy
+      to should not be offered a control that can do nothing.
+    copy_to: callback(tile_id) -> message or None. Called when a
+      target is chosen; a message means it refused. The dropdown
+      returns to reading "Copy to..." either way, so it never sits
+      showing a completed action as though it were a state.
     pin_changed: callback(which, value) -> message or None, where
       ``which`` is "low" or "high" and ``value`` is a float or None
       to unpin. The dialog validates, applies and repaints; a
@@ -265,7 +274,8 @@ class CategoryColourDialog(QDialog):
   def __init__(self, tile_id, field, order, colours, picked,
                parent=None, *, bounds=None, locked=False,
                range_bounds=None, ramp_name=None, reverse=False,
-               range_changed=None, pinned=None, pin_changed=None):
+               range_changed=None, pinned=None, pin_changed=None,
+               copy_targets=(), copy_to=None):
     super().__init__(parent)
     # Graduated mode is recognised by its extras, not by a flag of its
     # own: bounds columns and a range section arrive together from the
@@ -300,6 +310,12 @@ class CategoryColourDialog(QDialog):
     # reach, so it sits above everything the table's scroll bar can
     # move. Its widths are settled later, once the table has decided
     # how wide the window is.
+    # The Copy to... dropdown goes ABOVE everything, including the
+    # range section: it acts on the whole of what this window shows,
+    # so it reads as a heading rather than as one more control among
+    # the classes.
+    if bounds is not None and copy_targets and copy_to is not None:
+      self._build_copy_row(layout, copy_targets, copy_to)
     if range_bounds is not None:
       self._build_range_section(layout, range_bounds)
     # ...and, for Quant: Unclassed only, the clamp: the same two pins
@@ -419,6 +435,51 @@ class CategoryColourDialog(QDialog):
     # its height and nothing is hidden at any size.
     self.adjustSize()
     self.setFixedSize(self.sizeHint())
+
+  def _build_copy_row(self, layout, targets, copy_to):
+    """The "Copy to..." dropdown, above everything else in the window.
+
+    Args:
+      layout: the window's vertical layout.
+      targets: [(tile_id, label)] for the elements this one may be
+        copied to, in table order.
+      copy_to: callback(tile_id) -> message or None; a message means
+        the copy was refused and is already on the note line.
+
+    Returns:
+      None. The dropdown's first entry is the prompt "Copy to..." and
+      carries no data, so choosing it does nothing; picking a target
+      copies at once and the box returns to the prompt. It never sits
+      showing a target as though the element were somehow bound to
+      it: a copy is an act, not a state, and a control that remembers
+      an act reads as a setting nobody set.
+    """
+    row = QWidget()
+    line = QHBoxLayout(row)
+    line.setContentsMargins(0, 0, 0, 0)
+    box = QComboBox()
+    box.addItem("Copy to...", None)
+    for tile_id, label in targets:
+      box.addItem(label, tile_id)
+    box.setToolTip("Send this element's classes, colours, pins and "
+                   "class count to another element")
+
+    def chosen(index):
+      target = box.itemData(index)
+      if target is None:
+        return
+      copy_to(target)
+      # back to the prompt whether it was taken or refused, without
+      # re-entering this handler
+      box.blockSignals(True)
+      box.setCurrentIndex(0)
+      box.blockSignals(False)
+
+    box.activated.connect(chosen)
+    line.addWidget(box, 0, Qt.AlignmentFlag.AlignVCenter)
+    line.addStretch(1)
+    self._copy_box = box
+    layout.addWidget(row)
 
   def _build_clamp_strip(self, layout, bounds):
     """The Unclassed dress of the pins: two ends, above the table.
