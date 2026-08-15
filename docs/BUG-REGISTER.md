@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-132 defect(s) with a regression test.
+138 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -176,6 +176,10 @@ there is no separate list to remember.
 - **a hand-picked colour changed under live update was swallowed by the no-op guard, because the run signature did not carry the picks that the restyle signature does.**  
   guarded by `test_a_pick_is_not_swallowed_by_the_live_path`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
+  guarded by `test_a_pin_and_a_class_source_do_not_meet`
+- **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
+  guarded by `test_a_pin_belongs_to_an_element_and_a_field`
+- **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_pin_reaches_the_map_through_the_live_path`
 - **pinned bounds set while a run was finishing were seeded from the stale snapshot, destroyed as the run landed, and stamped absent onto the layer.**  
   guarded by `test_a_pin_set_during_a_run_is_not_lost`
@@ -187,6 +191,8 @@ there is no separate list to remember.
   guarded by `test_a_pin_that_cannot_be_drawn_is_refused`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_pinned_class_bound_reaches_the_map`
+- **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
+  guarded by `test_a_pinned_element_draws_what_the_library_draws`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_pinned_element_exports_and_reopens_from_a_geopackage`
 - **the ramp cell reverted to the pre-run ramp after a run landed, while the element's own record held the new one.**  
@@ -211,6 +217,8 @@ there is no separate list to remember.
   guarded by `test_a_row_with_no_geometry_is_named`
 - **a column added in QGIS — with the Field Calculator, the usual way — never appeared in the variable choosers, because their item lists are built during a table rebuild and a rebuild happens when the LAYER changes, not when its columns do; the column stayed invisible until the user switched layers and back.**  
   guarded by `test_a_sequence_of_edits_under_the_plugin`
+- **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
+  guarded by `test_a_session_of_pinning_and_copying_holds_together`
 - **a stage log kept the previous run's verdict for the whole time the stage ran, and read as current.**  
   guarded by `test_a_stage_log_never_shows_the_previous_run`
 - **a test at 92% of its stall ceiling passed silently and stalled on the next round.**  
@@ -262,6 +270,8 @@ there is no separate list to remember.
 - **class breaks were cut from each element's own tiles, so four elements carrying one variable drew four different legends and one colour meant four different numbers.**  
   guarded by `test_one_variable_gets_one_legend_wherever_it_appears`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
+  guarded by `test_pins_hold_across_the_whole_family_catalogue`
+- **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_pins_hold_against_awkward_columns`
 - **deleting the file behind a layer and reloading it made layer.extent() segfault QGIS outright — no exception, no traceback, nothing in the log — and isValid() returned True while the provider was gone; the live-update gate read that extent on every debounce, so the crash was reachable without pressing anything.**  
   guarded by `test_qgis_changes_around_the_plugin`
@@ -293,6 +303,8 @@ there is no separate list to remember.
   guarded by `test_the_style_is_saved_through_the_current_api`
 - **the spacing offered in the size-guard refusal was computed from a pure inverse-square law and came out slightly too fine, so a user who typed the number the plugin had just suggested was refused a second time.**  
   guarded by `test_the_tile_estimate_is_honest_where_shapes_are_awkward`
+- **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
+  guarded by `test_two_editors_in_one_session_do_not_leak`
 - **two warnings from one run shared a single label and the last one silently erased the first.**  
   guarded by `test_two_notices_from_one_run_both_survive`
 
@@ -309,7 +321,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 76
+- unrecorded: 82
 - the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6

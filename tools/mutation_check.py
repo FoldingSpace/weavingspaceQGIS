@@ -2468,6 +2468,34 @@ MUTATIONS = [
            "said nothing, so a user comparing their attribute table "
            "against the map found a row unaccounted for with nothing "
            "on screen to explain it"),
+  dict(name="a-pin-is-keyed-by-its-field", file=DIALOG,
+       old="""        "pinned": (self._pinned_bounds.get(tid_text, {}).get(var)""",
+       new="""        "pinned": (next(iter(self._pinned_bounds.get(
+                     tid_text, {}).values()), None)""",
+       test="test_a_pin_belongs_to_an_element_and_a_field",
+       why="pins are keyed by element AND field like the hand-picked "
+           "colours, so without the field a bound set for one column "
+           "is applied to whatever column the row is switched to -- "
+           "numbers from one distribution deciding another's classes"),
+  dict(name="a-copy-degrades-to-its-pins", file=DIALOG,
+       old="""      kept = {key: value for key, value in record.items()
+              if key in ("low", "high")}""",
+       new="""      kept = {}  # mutation: a count change throws the pins away too""",
+       test="test_a_session_of_pinning_and_copying_holds_together",
+       why="a copy is made for one class count and one set of breaks, "
+           "so a new count retires the copied VALUES -- but the pin "
+           "flags and their two bounds are a smaller and more durable "
+           "statement and must survive, with the scheme recomputing "
+           "the middle around them"),
+  dict(name="the-map-is-seeded-with-its-pins", file=BRIDGE,
+       old="""      assignment.get("quant_colours"), classify_from,
+      assignment.get("pinned")))""",
+       new="""      assignment.get("quant_colours"), classify_from, None))""",
+       test="test_a_pinned_element_draws_what_the_library_draws",
+       why="the pin reaches the map through seed_renderer, and without "
+           "it the element draws the scheme's own breaks while the "
+           "table, the swatch and the editor all say otherwise -- "
+           "caught in PIXELS here, against the library's own render"),
   dict(name="a-pin-decides-its-own-break", file=BRIDGE,
        old="  if pins:\n    _apply_pinned_bounds(",
        new="  if False:\n    _apply_pinned_bounds(",

@@ -179,6 +179,23 @@ count as a statement about how deep an assumption runs, and read the
 tests themselves before deciding they are all wrong. One of them
 usually knows something.
 
+**A differential cannot see a fault its EXPECTED SIDE shares.** The
+pinned-element test renders the dialog's map beside one built by
+calling the library directly, and its catalogue entry SURVIVED:
+removing the pin from `seed_renderer` removed it from both sides at
+once, so the two pictures agreed while the map was wrong. `visual_pair`
+builds its expected side through the same `seed_renderer` the UI side
+goes through, which is convenient and is exactly the independence the
+shape is supposed to have.
+
+The rule that follows is cheap and applies to every pair here: ask
+which code the two sides SHARE, and assert separately anything that
+lives in it. That test now checks the pinned bounds on the map before
+it compares pictures, and the entry reports `caught`. Four tests use
+`visual_pair`; the same question is worth asking of each, since the
+value of the shape is that a disagreement is a defect by construction
+-- and shared code is how the disagreement never arrives.
+
 **A fixture can make a whole class of defect invisible, and the tell is
 a test that passes for a reason nobody chose.** The reduction above was
 put back on 2026-08-14, and putting it back exposed something older and

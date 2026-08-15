@@ -8335,6 +8335,20 @@ def test_a_pinned_element_draws_what_the_library_draws():
              crs=3857),
     bridge.layer_to_gdf(layer, ["v3"])).get_tiled_map().map
   assignments = dlg._assignments()
+  # THE PIN ITSELF, asserted independently of the pair below. The
+  # expected side is built by seed_renderer, the same call the UI side
+  # goes through, so a fault that removes the pin removes it from BOTH
+  # and the two pictures agree while the map is wrong. Measured: the
+  # catalogue entry the-map-is-seeded-with-its-pins SURVIVED until
+  # this assertion existed. A differential cannot see a fault its
+  # expected side shares.
+  drawn = [(round(r.lowerValue(), 4), round(r.upperValue(), 4))
+           for r in project.mapLayer(
+             dlg._element_layer_ids[tid]).renderer().ranges()]
+  assert drawn[0][1] == 10.0 and drawn[-1][0] == 60.0, \
+    f"the pins did not reach the map that is about to be compared: " \
+    f"{drawn}"
+
   share = visual_pair(
     "a pinned element against the library",
     [project.mapLayer(dlg._element_layer_ids[a["id"]])
