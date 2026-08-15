@@ -2344,56 +2344,6 @@ class WeavingSpaceDialog(QDialog):
         self._cat_count_cache[key] = 0
     return self._cat_count_cache[key]
 
-  def _numeric_value_count(self, field_name: str) -> int:
-    """Distinct finite numbers a field holds, across the REGION layer.
-
-    Args:
-      field_name: the attribute a graduated row is classifying.
-
-    Returns:
-      How many distinct values there are to divide into classes, or 0
-      when there is no layer, no such field, or the provider refuses
-      the question — in which case the caller reduces nothing, since
-      an unknown count is not a small one.
-
-    Why the region layer and not the element layer, which is what
-    actually gets classified. An element layer holds only ITS OWN
-    tiles, so the distinct count is per element, and reducing against
-    it lets two elements carrying the same variable draw different
-    numbers of classes. That was measured on 2026-08-13, cost a
-    reverted release-candidate, and is the worse fault on a map whose
-    purpose is reading elements against each other
-    (test_metamorphic_variable_permutation says so in as many words).
-    The region layer gives one answer for the whole map, and it is
-    also stable under spacing: a design redrawn at a finer spacing
-    does not silently gain classes.
-
-    The price, accepted deliberately and already accepted elsewhere:
-    at a coarse spacing the region layer can hold a value no tile
-    carries, so a class can still go unworn. That is the same
-    trade-off the Categorical colour editor settled on 2026-08-08,
-    for the same reason, and the areas that received no tiles are
-    reported separately by coverage_message.
-
-    Cached like its categorical sibling, and in the same dict, since
-    ``uniqueValues`` asks the provider and may scan the table; both
-    are cleared together when the layer changes.
-    """
-    layer = self.layer_combo.currentLayer()
-    if layer is None:
-      return 0
-    idx = layer.fields().indexOf(field_name)
-    if idx < 0:
-      return 0
-    key = (layer.id(), field_name, "numeric")
-    if key not in self._cat_count_cache:
-      try:
-        self._cat_count_cache[key] = bridge.distinct_numeric_count(
-          layer.uniqueValues(idx))
-      except Exception:
-        self._cat_count_cache[key] = 0
-    return self._cat_count_cache[key]
-
   def _classification_values(self, field_name: str):
     """One column of the region, prepared for cutting breaks from.
 

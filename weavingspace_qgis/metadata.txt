@@ -57,7 +57,8 @@ changelog=0.24.3 A colour can now mean the same thing everywhere it
     to another from the same window. Where the two carry different
     columns the ends are fitted to the receiving data, and any class
     its values cannot reach is hatched in the swatch so an empty class
-    is visible.
+    is visible. A pin the receiving column cannot reach is left behind
+    rather than carried, and said.
     Colour: an element is now classed from the whole map's values
     rather than from its own tiles alone, so two elements you have set
     up alike can be read against each other. They could not before:
@@ -69,6 +70,10 @@ changelog=0.24.3 A colour can now mean the same thing everywhere it
     Reopening a project: an element whose ramp you reversed comes
     back reversed, naming the ramp you chose rather than reading as
     custom colours.
+    Another project: opening one no longer carries the last project's
+    per-element colours, class counts and bounds into it. Element
+    names repeat between projects, so those settings could land on
+    data they were never chosen for.
     0.24.2 Bugfixes, one of them about not losing data.
     Your files: an existing .gpkg chosen as the output was rewritten
     whole, so every other table in it was lost, including the layer
