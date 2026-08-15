@@ -448,7 +448,12 @@ def tiled_layers(unit, region, assignments, out_dir, name, **tiling_kw):
     if len(sub) == 0:
       continue
     layer = bridge.gdf_to_layer(sub, f"{a['id']} – {a.get('var')}")
-    bridge.seed_renderer(layer, a)
+    # The breaks come from the WHOLE region's values (2026-08-14),
+    # so the gallery's library-side layers are seeded the same way
+    # the plugin seeds its own -- otherwise every graduated case here
+    # would compare a map classified once against four subsets
+    # classified four ways and report the difference as a defect.
+    bridge.seed_renderer(layer, a, None, _region_values(region, a))
     layers.append(layer)
   return layers, tm.map
 
@@ -482,7 +487,31 @@ def grad(aid, var, ramp, scheme="Quantiles", k=5):
           "scheme": scheme, "k": k, "outline": False}
 
 
-def layers_from_gdf(gdf, assignments):
+def _region_values(region, assignment):
+  """Every value of one element's column, across the whole region.
+
+  Args:
+    region: the region GeoDataFrame the map was tiled from, or None.
+    assignment: the element's assignment dict; its ``var`` names the
+      column.
+
+  Returns:
+    A list with one entry per area, or None when there is no region
+    or the element carries no such column -- which leaves
+    seed_renderer classifying the element's own tiles.
+
+  Graduated breaks are cut once for the whole map rather than per
+  element (see bridge.make_graduated_renderer), so a library-side
+  layer seeded without this classifies a subset and differs from the
+  plugin's map for a reason that is not a defect.
+  """
+  var = assignment.get("var")
+  if region is None or not var or var not in getattr(region, "columns", ()):
+    return None
+  return list(region[var])
+
+
+def layers_from_gdf(gdf, assignments, region=None):
   """Split an already-tiled GeoDataFrame into per-element layers with
   seeded renderers (the tail of the plugin pipeline, reusable for the
   unclassed variant without re-tiling).
@@ -506,12 +535,12 @@ def layers_from_gdf(gdf, assignments):
     sub = gdf[gdf["tile_id"] == a["id"]]
     if len(sub):
       layer = bridge.gdf_to_layer(sub, f"{a['id']} – {a.get('var')}")
-      bridge.seed_renderer(layer, a)
+      bridge.seed_renderer(layer, a, None, _region_values(region, a))
       layers.append(layer)
   return layers
 
 
-def render_unclassed_variant(gdf, assignments, png):
+def render_unclassed_variant(gdf, assignments, png, region=None):
   """Render the same tiling with the GRADUATED elements switched to
   the plugin's Quant: Unclassed style (50 linear intervals), for
   comparison against the web app's continuous default.
@@ -535,6 +564,12 @@ def render_unclassed_variant(gdf, assignments, png):
     png: where to write the variant, by convention the case's own
       path with "_unclassed" before the extension, since
       tools/visual_reference_report.py finds these by that name.
+    region: the region the map was tiled from. Unclassed is fifty
+      equal intervals over the column's range, and that range is
+      taken across the WHOLE map rather than per element (2026-08-14)
+      -- so without this an element that missed the largest value
+      would spread its ramp over a shorter range and the same colour
+      would mean two things.
 
   Returns:
     None. The side effect is the PNG; the assignments handed in are
@@ -543,7 +578,14 @@ def render_unclassed_variant(gdf, assignments, png):
   """
   variant = [dict(a, scheme="Unclassed", k=50)
              if a.get("mode") == "Graduated" else a for a in assignments]
-  render_layers(layers_from_gdf(gdf, variant), png)
+  # Every gallery case tiles the SAME fixture (see tiled_layers), so
+  # defaulting to it here keeps the eleven call sites unchanged while
+  # still cutting the ramp's range across the whole map rather than
+  # per element. A caller tiling something else passes its own.
+  render_layers(
+    layers_from_gdf(gdf, variant,
+                    synthetic_region() if region is None else region),
+    png)
 
 
 def check(name, fn, out_dir):

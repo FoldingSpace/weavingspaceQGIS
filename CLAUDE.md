@@ -1062,21 +1062,50 @@ Confirmed with the user via an explicit design review:
   never wrong; the legend was, and the legend is what a reader trusts.
   `make_graduated_renderer` collapses to k=1 and the dialog reports
   it. (User instruction, 2026-08-09.)
-  **The general form of this rule is NOT adopted, and that is a
-  decision rather than an oversight.** Five classes over three
-  distinct values really does put two swatches in the legend that no
-  tile wears, and really does draw the highest value mid-grey;
-  measured 2026-08-13, and upstream's own `_plot_subsetted_gdf`
-  reduces k in exactly that case. It was implemented, and reverted the
-  same night, because element layers hold only THEIR OWN tiles: the
-  distinct-value count is therefore per element, so two elements
-  carrying the same variable can draw different numbers of classes,
-  and `test_metamorphic_variable_permutation` failed on precisely
-  that. On a map whose purpose is comparing elements against each
-  other, a class count that varies between them is a worse fault than
-  the one being fixed. Nineteen tests moved, which is the measure of
-  how deep the assumption runs. See ROADMAP.md for what a real fix
-  would have to settle first.
+  **The general form of this rule IS adopted, as of 2026-08-14, and
+  the history is worth keeping because the first attempt failed.**
+  Five classes over three distinct values puts two swatches in the
+  legend that no tile wears and draws the highest value mid-grey
+  (measured 2026-08-13 with a render context); upstream's own
+  `_plot_subsetted_gdf` reduces k in exactly that case. It was
+  implemented and reverted the same night, because it counted the
+  distinct values on the ELEMENT layer, which holds only that
+  element's tiles -- so two elements carrying the same variable could
+  draw different class counts, and
+  `test_metamorphic_variable_permutation` failed at once. What made
+  the second attempt work is the entry below: the count and the
+  breaks both come from the whole map now, so every element agrees.
+  Nineteen tests moved on the first attempt, which is the measure of
+  how deep the assumption ran.
+- **ONE VARIABLE GETS ONE LEGEND, wherever it appears.** Class breaks
+  are cut ONCE, from the region layer's values, and every element
+  carrying that column wears them. Until 2026-08-14 they were cut
+  from each ELEMENT layer, which holds only that element's tiles:
+  measured on QGIS 4.0.3 at n=12 with k=5 and no reduction involved,
+  four elements carrying one variable produced four different
+  legends (element a's second class ran 3.4-14.0 where element c's
+  ran 4.0-13.6), so one colour meant four different numbers on a map
+  whose whole purpose is reading elements against each other. It
+  survived because the standard fixture asks for more classes than it
+  has distinct values, which collapses quantile breaks onto the
+  values themselves and makes elements agree by accident.
+  This DEPARTS from upstream, which classifies each element's subset
+  separately, and the departure is deliberate under the rule that the
+  plugin may have its own ideas where they fit this kind of map.
+  Three consequences to keep straight. The user's region layer is
+  never filtered for it: the null workaround hides rows, so the
+  values are copied into a geometry-less scratch layer the plugin
+  owns (`bridge.classification_source`), built once per column rather
+  than once per element. Unclassed rides the same rule, its fifty
+  steps spanning the whole column's range rather than one element's.
+  And the reference comparison stays a real differential because
+  `TiledMap.render` accepts the same breaks through
+  `classification_kwds` -- computed there by mapclassify over the
+  region, never read off our renderers -- except where a case maps
+  DIFFERENT columns to different elements, since those kwargs are
+  broadcast to every element and one set of bins cannot be right for
+  all of them. Guarded by
+  `test_one_variable_gets_one_legend_wherever_it_appears`.
 - **A tiles inset that swallows elements is refused in terms of the
   inset.** Insetting shrinks every tile by a fixed distance, so past
   some value the narrower elements disappear. Left to itself the

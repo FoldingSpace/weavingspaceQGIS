@@ -994,14 +994,16 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
       colour editor's graduated mode. Keyed by POSITION, not by value,
       because a class has no name to follow when the breaks move; they
       outrank the range and the ramp alike, and are applied last.
-    classify_from: every value of this column across the WHOLE map --
-      one entry per region area, nulls and all, since frequencies
-      decide quantile breaks. Given it, the breaks and the class
-      count are cut from those values rather than from the element
-      layer's own tiles, so that two elements carrying one variable
-      class identically; see the long note in the body for what that
-      costs and why it is worth it. None classifies the layer passed
-      in, which is what a direct caller or a test gets.
+    classify_from: where the breaks come from. Either every value of
+      this column across the WHOLE map -- one entry per region area,
+      nulls and all, since frequencies decide quantile breaks -- or a
+      layer already holding them, which is what the dialog passes so
+      that one copy serves every element. Given either, the breaks
+      and the class count are cut from those values rather than from
+      the element layer's own tiles, so that two elements carrying
+      one variable class identically; see the long note in the body
+      for what that costs and why it is worth it. None classifies the
+      layer passed in, which is what a direct caller or a test gets.
 
   Returns:
     A QgsGraduatedSymbolRenderer, not yet attached to the layer
@@ -1070,8 +1072,16 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   #
   # Without values to hand -- a direct caller, a test -- the layer
   # given is classified, exactly as before.
-  source = classification_source(field, classify_from) \
-    if classify_from is not None else None
+  # A prepared layer is accepted as well as raw values, and the
+  # dialog passes one: building a copy of the column per ELEMENT
+  # would mean twenty-six copies of a fifty-thousand-row column for
+  # one map, where the whole map needs one.
+  if classify_from is None:
+    source = None
+  elif hasattr(classify_from, "getFeatures"):
+    source = classify_from
+  else:
+    source = classification_source(field, classify_from)
   if source is None:
     source = layer
   # A column with one distinct value has nothing to divide. Asked for

@@ -316,6 +316,59 @@ def synthetic_region(n=6, cell=1000):
     geometry=polys, crs="EPSG:3857")
 
 
+def _reference_bins(region, variables, scheme, k):
+  """The breaks a classed reference should use, or None.
+
+  Args:
+    region: the region GeoDataFrame the reference is tiled from.
+    variables: the column each element maps, by position.
+    scheme: the mapclassify scheme name the case asks for.
+    k: the class count the case asks for.
+
+  Returns:
+    A list of upper bounds for mapclassify's UserDefined scheme, or
+    None when this case cannot be given one -- in which case the
+    caller falls back to letting TiledMap classify each subset, and
+    the comparison carries a known, documented divergence.
+
+  Computed here, over the REGION's values, rather than read off the
+  plugin's renderers: a reference told the answer by the thing it is
+  checking has stopped being a reference. mapclassify is geopandas'
+  own classifier, so this is a second implementation of "quantiles
+  over the whole column" and a plugin whose breaks are wrong by
+  enough to move a tile still shows up as differing pixels.
+
+  ONE case is refused, and it is a real limit rather than caution:
+  mapclassify's bins reach TiledMap through render()'s **kwargs,
+  which are broadcast to EVERY element, while _colourspecs carries
+  the per-element scheme. So a case whose elements map DIFFERENT
+  columns cannot be given one set of bins that is right for all of
+  them, and asking for that would silently classify element b's
+  column against element a's breaks. Those cases keep the per-subset
+  reference; their divergence is bounded by how far a subset's
+  quantiles sit from the whole column's, and the PDF shows it.
+  """
+  columns = {column for column in variables
+             if column in getattr(region, "columns", ())
+             and str(region[column].dtype) != "object"}
+  if len(columns) != 1:
+    return None
+  column = columns.pop()
+  try:
+    import mapclassify
+  except Exception:
+    return None
+  method = {"Quantiles": "Quantiles", "EqualInterval": "EqualInterval",
+            "NaturalBreaks": "NaturalBreaks"}.get(scheme)
+  if method is None:
+    return None
+  try:
+    classifier = getattr(mapclassify, method)(region[column].dropna(), k=k)
+    return [float(b) for b in classifier.bins]
+  except Exception:
+    return None
+
+
 def reference_render(unit, png, ids, variables, cmaps,
                      categoricals=None, scheme=None, k=None, dpi=110,
                      **tiling_kw):
@@ -373,15 +426,60 @@ def reference_render(unit, png, ids, variables, cmaps,
   and warn about it partway through the run.
   """
   from weavingspace import Tiling
-  tm = Tiling(unit, synthetic_region(), **tiling_kw).get_tiled_map()
+  region = synthetic_region()
+  tm = Tiling(unit, region, **tiling_kw).get_tiled_map()
   tm.ids_to_map = list(ids)
   tm.vars_to_map = list(variables)
   tm.colors_to_use = list(cmaps)
   if categoricals is not None:
     tm.categoricals = list(categoricals)
+  # ---- ONE CLASSIFICATION FOR THE WHOLE MAP, on both sides
+  #
+  # TiledMap classifies each element's SUBSET separately:
+  # _plot_subsetted_gdf loops over the groups and hands each one to
+  # plot() with its own scheme and k. The plugin stopped doing that on
+  # 2026-08-14 -- four elements carrying one variable were coming out
+  # with four different legends, so the same colour meant four
+  # different numbers -- and cuts the breaks once, from the region's
+  # values.
+  #
+  # Left alone, this comparison would therefore measure that
+  # deliberate difference on every graduated case and report it as a
+  # divergence, which is the fastest way to blunt the sharpest
+  # instrument this project has. So the reference is told which
+  # breaks to use, and the axis it stops testing is picked up by
+  # test_one_variable_gets_one_legend_wherever_it_appears and by
+  # QGIS's own classifier being asked the same question directly.
+  #
+  # Note what this does NOT do: the bins are computed HERE, by
+  # mapclassify over the region's values, not read off the plugin's
+  # renderers. So the comparison still fails if the plugin's breaks
+  # are wrong -- they simply have to be wrong by enough to move a
+  # tile into another class, which is exactly the threshold a
+  # pixel comparison is fit to judge.
+  numeric = [column for column in dict.fromkeys(variables)
+             if column in region.columns
+             and str(region[column].dtype) != "object"]
   if scheme is not None:
-    tm.schemes_to_use = scheme  # broadcast to every id by TiledMap
-    tm.n_classes = k or 5
+    bins = _reference_bins(region, variables, scheme, k or 5)
+    if bins is not None:
+      tm.schemes_to_use = "UserDefined"
+      tm.n_classes = len(bins)
+      kwargs["classification_kwds"] = {"bins": bins}
+    else:
+      tm.schemes_to_use = scheme  # broadcast to every id by TiledMap
+      tm.n_classes = k or 5
+  else:
+    # The continuous render normalizes over each subset's own range.
+    # Ours spreads the ramp over the whole column's range, so the
+    # reference is given the same endpoints -- the unclassed twin of
+    # the bins above, and the reason TiledMap exposes vmins/vmaxs at
+    # all.
+    if numeric:
+      tm.vmins = [float(region[column].min())
+                  if column in numeric else None for column in variables]
+      tm.vmaxs = [float(region[column].max())
+                  if column in numeric else None for column in variables]
   fig = tm.render(legend=False, figsize=(7, 7))
   # the same magenta chroma-key canvas as the gallery renders: no map
   # ramp produces it, so background detection is exact and near-white

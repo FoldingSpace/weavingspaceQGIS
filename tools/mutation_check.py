@@ -1137,8 +1137,8 @@ MUTATIONS = [
        test='test_ui_library_categorical_to_gpkg',
        why='each element getting its own layer inside the GeoPackage'),
   dict(name='categorical-template-ignored', file=DIALOG,
-       old='        bridge.seed_renderer(out, a, templates.get(a.get("class_source")))',
-       new='        bridge.seed_renderer(out, a)  # mutation: imported mapping dropped',
+       old='          out, a, templates.get(a.get("class_source")),',
+       new='          out, a, None,  # mutation: imported mapping dropped',
        test='test_ui_library_categorical_template',
        why='an imported colour mapping reaching the map'),
   # --- controls whose EFFECT nothing asserted until the sweep
@@ -2374,9 +2374,11 @@ MUTATIONS = [
   # Aimed at _add_output_layers' loop, not at seed_renderer itself,
   # since the fast restyle path calls the same function correctly.
   dict(name="each-element-keeps-its-own-renderer", file=DIALOG,
-       old="""        bridge.seed_renderer(out, a, templates.get(a.get("class_source")))""",
+       old="""        bridge.seed_renderer(
+          out, a, templates.get(a.get("class_source")),""",
        new="""        a = assignments[0] if assignments else a  # mutation: one
-        bridge.seed_renderer(out, a, templates.get(a.get("class_source")))""",
+        bridge.seed_renderer(
+          out, a, templates.get(a.get("class_source")),""",
        test="test_an_unassigned_element_beside_elements_sharing_one_field",
        why="elements that classify the SAME column can only be told "
            "apart by their ramps, so a renderer shared between them "
@@ -2403,6 +2405,34 @@ MUTATIONS = [
            "losing it is invisible on any map whose tiles differ in "
            "colour anyway -- so it is checked on the geometry where it "
            "matters, a design inset until its tiles are slivers"),
+  # --- 0.24.3: one legend per variable, and a ramp that comes home
+  dict(name="breaks-come-from-the-whole-map", file=BRIDGE,
+       old="""  source = classification_source(field, classify_from) \\
+    if classify_from is not None else None""",
+       new="""  source = None  # mutation: classify each element's own tiles""",
+       test="test_one_variable_gets_one_legend_wherever_it_appears",
+       why="an element layer holds only its own tiles, so cutting the "
+           "breaks from it gives every element a different legend for "
+           "the same column -- one colour meaning four different "
+           "numbers on a map made for reading elements against each "
+           "other. The mutation is exactly the behaviour that shipped "
+           "until 2026-08-14"),
+  dict(name="classes-never-outnumber-the-values", file=BRIDGE,
+       old="""  elif not unclassed and 0 < distinct < int(k):""",
+       new="""  elif False:  # mutation: draw more classes than there are values""",
+       test="test_a_legend_never_shows_a_class_the_map_does_not_have",
+       why="five classes over three distinct values puts two swatches "
+           "in the legend that no tile wears and draws the highest "
+           "value in a middle colour, so a reader matching the darkest "
+           "swatch to 'high' reads the map wrongly"),
+  dict(name="a-reversed-ramp-is-recognised", file=DIALOG,
+       old="""    for flipped in (False, True):""",
+       new="""    for flipped in (False,):  # mutation: a reversed ramp names nothing""",
+       test="test_a_project_round_trip_changes_nothing_a_user_chose",
+       why="reversing produces a ramp clone matching no name in the "
+           "library, so without the reversed pass a reopened project "
+           "brings the element back as Custom picks: the map is right "
+           "and the tick the user set is gone"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a

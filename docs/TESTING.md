@@ -179,6 +179,28 @@ count as a statement about how deep an assumption runs, and read the
 tests themselves before deciding they are all wrong. One of them
 usually knows something.
 
+**A fixture can make a whole class of defect invisible, and the tell is
+a test that passes for a reason nobody chose.** The reduction above was
+put back on 2026-08-14, and putting it back exposed something older and
+worse: class breaks were cut from each ELEMENT layer, which holds only
+that element's tiles, so four elements carrying one variable drew four
+different legends and one colour meant four different numbers. That had
+been shipping. It survived every differential this project has because
+the standard fixture asks for five classes over a column with four
+distinct values -- and more classes than values collapses quantile
+breaks onto the values themselves, which makes the elements agree
+whatever the code does. `test_metamorphic_variable_permutation` was
+passing on that accident, not on the behaviour it names.
+
+Two habits follow. When a test's premise is a relation between two
+runs, ask what makes the relation hold: if the answer is a property of
+the FIXTURE rather than of the code, the test is passing for the wrong
+reason and will go on passing through the defect it was written for.
+And when a change makes a long-passing test fail, read the failure as
+evidence about the world before assuming it is evidence about the
+change -- here the change was right and the failure was a defect it had
+uncovered.
+
 **Verify a change to a CORE PATH with the whole suite, and accept that
 the candidate is where that happens.** The reduction above was checked
 against a subset and against a full suite that PREDATED it. The

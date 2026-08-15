@@ -1302,7 +1302,7 @@ def test_real_world_data():
   visual_pair("real data auckland imd",
               [project.mapLayer(dlg._element_layer_ids[a["id"]])
                for a in assignments],
-              expected, assignments)
+              expected, assignments, region=layer)
   for lid in list(dlg._element_layer_ids.values()):
     project.removeMapLayer(lid)
   project.removeMapLayer(layer.id())
@@ -6905,6 +6905,193 @@ def test_a_class_source_file_that_changes_on_disk():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_a_legend_never_shows_a_class_the_map_does_not_have():
+  """Fewer distinct values than classes must not invent classes.
+
+  Ask for five classes over a column holding three distinct values and
+  QGIS returns five. Two of them are degenerate (1-1, 5-5, 9-9 among
+  them), a value sitting on a break goes to the first range that
+  contains it, and the ranges above it never paint. Measured on QGIS
+  4.0.3, 2026-08-13: five swatches in the legend, three colours on the
+  map, and the HIGHEST value drawn mid-grey while the legend's black
+  sat beside a range nothing occupied. A reader who matches the
+  darkest swatch to "high" reads that map wrongly, and nothing on
+  screen says so.
+
+  This is the constant-column rule at n > 1, and the constant case is
+  its n == 1 instance. Upstream already does it: tile_map's
+  _plot_subsetted_gdf sets cspec["k"] to the number of values when
+  there are fewer values than classes, so following it matches the
+  library's semantics rather than inventing a rule of our own.
+
+  The suite used to exclude this case in two places, asserting
+  `distinct >= k` before measuring and switching schemes to avoid it,
+  which is why nobody had asked what the map looked like.
+
+  Regression: five classes over three distinct values put two swatches in the legend that no tile wore, and painted the highest value in a middle colour while the legend's darkest sat beside an empty range.
+  """
+  from qgis.core import QgsRenderContext
+  from weavingspace_qgis import bridge, compat
+  layer = QgsVectorLayer("Polygon?crs=EPSG:2193", "few values", "memory")
+  provider = layer.dataProvider()
+  provider.addAttributes([compat.make_field("v", float)])
+  layer.updateFields()
+  features = []
+  for i, value in enumerate((1.0, 1.0, 5.0, 5.0, 9.0, 9.0)):
+    feature = QgsFeature(layer.fields())
+    feature.setAttribute("v", value)
+    x = i * 10.0
+    feature.setGeometry(QgsGeometry.fromPolygonXY([[
+      QgsPointXY(x, 0), QgsPointXY(x + 9, 0),
+      QgsPointXY(x + 9, 9), QgsPointXY(x, 9), QgsPointXY(x, 0)]]))
+    features.append(feature)
+  provider.addFeatures(features)
+  layer.updateExtents()
+
+  for asked in (5, 7):
+    renderer = bridge.make_graduated_renderer(
+      layer, "v", "Greys", "Quantiles", asked, False)
+    layer.setRenderer(renderer)
+    ranges = renderer.ranges()
+    assert len(ranges) == 3, \
+      f"asked for {asked} classes over three distinct values and got " \
+      f"{len(ranges)}: {[r.label() for r in ranges]}"
+
+    # STARTED before it is asked, and stopped afterwards. A renderer
+    # asked which symbol a feature gets without being started returns
+    # an answer that means nothing while looking exactly like data --
+    # the second of three probes on this very claim died that way
+    # (docs/TESTING.md, "a probe that returns is not a probe that
+    # measured").
+    context = QgsRenderContext()
+    renderer.startRender(context, layer.fields())
+    painted = {}
+    for feature in layer.getFeatures():
+      symbol = renderer.originalSymbolForFeature(feature, context)
+      painted[feature["v"]] = symbol.color().name() if symbol else None
+    renderer.stopRender(context)
+
+    used = set(painted.values())
+    dead = [r.label() for r in ranges
+            if r.symbol().color().name() not in used]
+    assert not dead, \
+      f"the legend shows {dead!r}, which no tile on the map wears"
+    # and the darkest swatch belongs to the largest value, which is
+    # the reading a legend exists to support
+    darkest = min(ranges,
+                  key=lambda r: sum(r.symbol().color().getRgb()[:3]))
+    assert painted[9.0] == darkest.symbol().color().name(), \
+      f"the highest value draws {painted[9.0]} while the legend's " \
+      f"darkest class is {darkest.symbol().color().name()} " \
+      f"({darkest.label()})"
+
+  # Unclassed is exempt, and that is a decision rather than an
+  # oversight: its fifty steps reproduce a continuous ramp rather than
+  # a class count anybody chose.
+  continuous = bridge.make_graduated_renderer(
+    layer, "v", "Greys", "Unclassed", 5, False)
+  assert len(continuous.ranges()) > 3, \
+    f"Unclassed collapsed to {len(continuous.ranges())} classes; its " \
+    f"fifty steps are a continuous ramp, not a class count"
+
+  # the user is told, in words, why the spinner and the legend differ
+  note = bridge.few_values_message("v1", 3, 5)
+  assert note and "3" in note and "5" in note, \
+    f"the notice does not say what happened: {note!r}"
+  assert bridge.few_values_message("v1", 5, 5) is None, \
+    "a column with enough values must raise no notice at all"
+
+
+def test_one_variable_gets_one_legend_wherever_it_appears():
+  """Two elements carrying one variable must class identically.
+
+  These maps exist to be read element against element, so a colour
+  has to mean the same thing in every element that shows the same
+  column. It did not. Class breaks were cut from each ELEMENT layer,
+  which holds only that element's tiles, so four elements carrying
+  one variable came out with four different legends (measured QGIS
+  4.0.3, 2026-08-14, k=5 at n=12: element a's second class ran
+  3.4-14.0 where element c's ran 4.0-13.6). Every element looked
+  perfectly reasonable alone, which is why nothing noticed.
+
+  It survived this suite because the standard fixture asks for more
+  classes than the column has distinct values, and that collapses
+  quantile breaks onto the values themselves -- so the elements
+  agreed by accident, and only by accident. This test uses a region
+  rich enough for the breaks to be real.
+
+  The map is checked as well as the renderers: the same VALUE must
+  draw the same COLOUR in both elements, which is what a reader
+  actually does with two elements side by side.
+
+  Regression: class breaks were cut from each element's own tiles, so four elements carrying one variable drew four different legends and one colour meant four different numbers.
+  """
+  from qgis.core import QgsRenderContext
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  # twelve a side, so v3 (the product of the row and column indices)
+  # holds dozens of distinct values and the quantile breaks are
+  # decided by the distribution rather than by degeneracy
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.n_combo.setCurrentText("4")
+  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  dlg.spacing_spin.setValue(500)
+  for row in range(dlg.table.rowCount()):
+    combo = dlg.table.cellWidget(row, 1)
+    if combo is not None:
+      combo.setCurrentText("v3")
+  _generate_and_wait(dlg)
+
+  bounds, drawn = {}, {}
+  for a in dlg._assignments():
+    if a.get("var") != "v3" or a.get("mode") != "Graduated":
+      continue
+    out = project.mapLayer(dlg._element_layer_ids.get(a["id"], ""))
+    assert out is not None, f"element {a['id']} produced no layer"
+    renderer = out.renderer()
+    assert hasattr(renderer, "ranges"), \
+      f"element {a['id']} is not graduated, so it cannot be compared"
+    bounds[a["id"]] = [(round(r.lowerValue(), 6), round(r.upperValue(), 6))
+                       for r in renderer.ranges()]
+    context = QgsRenderContext()
+    renderer.startRender(context, out.fields())
+    seen = {}
+    for feature in out.getFeatures():
+      symbol = renderer.originalSymbolForFeature(feature, context)
+      if symbol is not None:
+        seen[float(feature["v3"])] = symbol.color().name()
+    renderer.stopRender(context)
+    drawn[a["id"]] = seen
+
+  assert len(bounds) >= 2, \
+    f"only {len(bounds)} element(s) carry v3, so nothing is compared"
+  first = sorted(bounds)[0]
+  for tile_id, theirs in sorted(bounds.items()):
+    assert theirs == bounds[first], \
+      f"element {tile_id} classes v3 as {theirs} where element " \
+      f"{first} classes it as {bounds[first]}. One variable, two " \
+      f"legends: the same colour means two different numbers"
+
+  # and the same value really does draw the same colour, which is the
+  # half a reader can see. Compared only over values BOTH elements
+  # carry -- an element that received no tile for a value cannot
+  # disagree about it.
+  shared = set(drawn[first])
+  for tile_id in drawn:
+    shared &= set(drawn[tile_id])
+  assert len(shared) >= 3, \
+    f"only {len(shared)} value(s) appear in every element, so the " \
+    f"colour comparison is nearly vacuous"
+  for value in sorted(shared):
+    colours = {tile_id: drawn[tile_id][value] for tile_id in drawn}
+    assert len(set(colours.values())) == 1, \
+      f"v3 = {value} draws {colours!r}: one value, several colours"
+  dlg.close()
+
+
 def test_a_class_source_file_that_goes_away():
   """The QML is deleted, moved or renamed after being chosen.
 
@@ -12253,7 +12440,7 @@ def _interior_diff(ui_png, lib_png):
 
 
 def visual_pair(label, ui_layers, expected_gdf, assignments,
-                templates=None, tolerance=0.02):
+                templates=None, tolerance=0.02, region=None):
   """Render what the dialog produced beside the same map built by
   calling the library directly, and compare interior pixels.
 
@@ -12277,6 +12464,15 @@ def visual_pair(label, ui_layers, expected_gdf, assignments,
       differ. 0.02 covers antialiasing and rounding between two
       renders of the same geometry; a real symbology error moves far
       more than two percent of the picture.
+    region: the region layer the map was made from. Graduated breaks
+      are cut from the WHOLE map's values rather than from each
+      element's own tiles (2026-08-14), so an expected side seeded
+      without this classifies four subsets four ways and differs from
+      a correct map by a few thousand pixels. Passing the region
+      restates that setting INDEPENDENTLY -- the values come from the
+      fixture, not from the dialog -- which is the same discipline
+      the rest of the expected side is built under. Leave it None
+      only where no element is graduated.
 
   Returns:
     None. Writes two PNGs into this release's report directory and
@@ -12297,8 +12493,16 @@ def visual_pair(label, ui_layers, expected_gdf, assignments,
     if not len(sub):
       continue
     layer = bridge.gdf_to_layer(sub, f"{a['id']} – {a.get('var')}")
+    # the whole region's values for this element's column, which is
+    # where the breaks come from; None leaves seed_renderer
+    # classifying the element's own tiles, as it did before
+    values = None
+    if region is not None and a.get("var"):
+      if region.fields().indexOf(a["var"]) >= 0:
+        values = [feature[a["var"]] for feature in region.getFeatures()]
     bridge.seed_renderer(layer, a,
-                         (templates or {}).get(a.get("class_source")))
+                         (templates or {}).get(a.get("class_source")),
+                         values)
     # the library side has to wear the element's opacity too, or the
     # comparison would be between a solid map and a soft one. Both
     # sides then composite against the same magenta key, so the
@@ -12598,7 +12802,11 @@ def _compare_ui_to_library(label, setup, expected_unit, tiling_kw,
         {"id": tid, "var": var, "mode": "Graduated", "ramp": ramp,
          "scheme": "Quantiles", "k": 5, "outline": False,
          "opacity": opacity})
-    lib_layers = layers_from_gdf(expected, assignments)
+    # the region's own values, so the library side cuts its breaks
+    # from the whole map exactly as the plugin does; without it
+    # every graduated case here compares one classification
+    # against four subsets classified four ways
+    lib_layers = layers_from_gdf(expected, assignments, region)
     if os.environ.get("WEAVINGSPACE_SWEEP_DUMP"):
       ui_by_id = {a["id"]: a for a in dlg._assignments()}
       for a, lib_layer in zip(assignments, lib_layers):
@@ -13008,7 +13216,8 @@ def test_ui_library_categorical_template():
                for t in "abcd"],
               expected, dlg._assignments(),
               templates={"file:" + qml:
-                         bridge.load_categorized_template(qml)})
+                         bridge.load_categorized_template(qml)},
+              region=layer)
   assert "no data" in d_layer.name(), \
     f"the unassigned element should say so in its name: {d_layer.name()}"
   for lid in list(dlg._element_layer_ids.values()):
@@ -13090,7 +13299,8 @@ def test_ui_library_categorical_weave_icons():
                for t in "abcd"],
               expected, dlg._assignments(),
               templates={f"layer:{styled.id()}":
-                         bridge.template_from_layer(styled)})
+                         bridge.template_from_layer(styled)},
+              region=layer)
   for lid in list(dlg._element_layer_ids.values()):
     project.removeMapLayer(lid)
   dlg.close()
@@ -13513,7 +13723,12 @@ def test_restyle_without_retiling():
   from weavingspace_qgis import bridge
   from qgis.core import QgsGraduatedSymbolRenderer
   project = QgsProject.instance()
-  layer = make_region_layer()
+  # EIGHT a side, because step 2 below asks for eight classes and a
+  # column cannot be cut into more classes than it has distinct
+  # values. On the four-cell default the map would honestly draw four
+  # and this test would be measuring that reduction instead of the
+  # fast path it names.
+  layer = make_region_layer(n=8)
   project.addMapLayer(layer)
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(False)
@@ -14884,7 +15099,8 @@ def test_opacity_in_preview():
   dlg.close()
 
 
-def _quant_dialog(mode="Quant: Quantiles", k=5, ramp="Reds", row=1):
+def _quant_dialog(mode="Quant: Quantiles", k=5, ramp="Reds", row=1,
+                  n=None):
   """A dialog with one graduated element on ``v1``, ready to customize.
 
   Args:
@@ -14897,6 +15113,14 @@ def _quant_dialog(mode="Quant: Quantiles", k=5, ramp="Reds", row=1):
     row: which table row carries the element. Row 1, as in
       _categorical_dialog, so a non-first element is exercised —
       first-row cases have been special once already here.
+    n: the region grid's side, so the layer holds n*n polygons and
+      ``v1`` takes exactly n distinct values. Defaults to whatever
+      makes the requested k honest, because a column cannot be cut
+      into more classes than it has values
+      (test_a_legend_never_shows_a_class_the_map_does_not_have) -- a
+      test asking for eight classes over a four-value column would
+      otherwise be measuring the reduction rather than the thing it
+      names. Pass it explicitly where the region's SIZE matters.
 
   Returns:
     (dialog, layer, tile_id): live update off and nothing generated
@@ -14904,7 +15128,10 @@ def _quant_dialog(mode="Quant: Quantiles", k=5, ramp="Reds", row=1):
     the editor before any map exists where that is the point.
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
-  layer = make_region_layer()
+  # four is the fixture's own default and enough for the four
+  # distinct values a k of four or fewer needs; beyond that the grid
+  # grows so that v1 can actually carry the classes being asked for.
+  layer = make_region_layer(n=max(4, int(k)) if n is None else n)
   QgsProject.instance().addMapLayer(layer)
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(False)
@@ -29262,7 +29489,7 @@ def test_an_unassigned_element_beside_elements_sharing_one_field():
   visual_pair("one field on three elements and one on none",
               [project.mapLayer(dlg._element_layer_ids[t])
                for t in sorted(dlg._element_layer_ids)],
-              expected, dlg._assignments())
+              expected, dlg._assignments(), region=layer)
   for lid in list(dlg._element_layer_ids.values()):
     project.removeMapLayer(lid)
   dlg.close()
@@ -36931,6 +37158,10 @@ def main():
         test_a_class_source_file_that_changes_on_disk)
   check("an inset that eats the design says so",
         test_an_inset_that_eats_the_design_says_so)
+  check("a legend never shows a class the map does not have",
+        test_a_legend_never_shows_a_class_the_map_does_not_have)
+  check("one variable gets one legend wherever it appears",
+        test_one_variable_gets_one_legend_wherever_it_appears)
   check("a class source file that goes away",
         test_a_class_source_file_that_goes_away)
   check("a class source that does not match the data",

@@ -2283,16 +2283,21 @@ class WeavingSpaceDialog(QDialog):
     return self._cat_count_cache[key]
 
   def _classification_values(self, field_name: str):
-    """Every value of a field across the region, for cutting breaks.
+    """One column of the region, prepared for cutting breaks from.
 
     Args:
       field_name: the column a graduated element classifies.
 
     Returns:
-      A list with one entry per area, gaps included, or None when
-      there is no layer or no such field -- which tells
-      make_graduated_renderer to classify the element layer as it
-      always did.
+      A geometry-less layer holding one entry per area, gaps
+      included, or None when there is no layer or no such field --
+      which tells make_graduated_renderer to classify the element
+      layer as it always did.
+
+    A LAYER rather than a list, and built once: every element wearing
+    this column is seeded from the same copy, where handing over the
+    values would have each element build its own -- twenty-six copies
+    of a fifty-thousand-row column for one map.
 
     One entry per AREA rather than the distinct values, because
     quantiles are decided by how many areas fall where; a set of
@@ -2326,10 +2331,11 @@ class WeavingSpaceDialog(QDialog):
       # The dict is REPLACED rather than added to, so the previous
       # fingerprint's values cannot sit there being wrong.
       try:
-        self._values_cache = {key: [feature[field_name]
-                                    for feature in layer.getFeatures()]}
+        values = [feature[field_name] for feature in layer.getFeatures()]
       except Exception:
         return None
+      self._values_cache = {
+        key: bridge.classification_source(field_name, values)}
     return self._values_cache.get(key)
 
   def _populate_class_source_combo(self, combo, current=None):
@@ -3101,19 +3107,8 @@ class WeavingSpaceDialog(QDialog):
       # controls cannot express must not survive in a property.
       # Guarded by test_an_unclassed_excursion_leaves_the_count_alone.
       restored_k = self._class_counts.get(tid)
-      if not restored_k and prev:
-        # ``k_asked`` and never ``k``: since 2026-08-14 the latter is
-        # what the MAP draws, reduced where the column has fewer
-        # distinct values than the row asked classes for. Restoring
-        # from it would make that reduction PERMANENT -- a five asked
-        # over a four-value column would come back as four, and
-        # pointing the row at a richer column afterwards would not
-        # bring the five back, because the ask itself had been
-        # overwritten. It is the same fault the paragraph above
-        # describes for Unclassed's fifty, arriving from the other
-        # direction: a number the user did not choose written into
-        # the place that remembers what they chose.
-        restored_k = prev.get("k_asked") or prev.get("k")
+      if not restored_k and prev and prev.get("k"):
+        restored_k = prev["k"]
       restored_k = max(2, min(int(restored_k or 5), 20))
       k_spin.setValue(restored_k)
       k_spin.setProperty("user_k", restored_k)
@@ -4367,20 +4362,21 @@ class WeavingSpaceDialog(QDialog):
         change of ramp, scheme or class count
       * ``scheme`` — break method for graduated rows, including
         "Unclassed"
-      * ``k`` — class count (50 and greyed for "Unclassed"), REDUCED
-        to the region layer's distinct value count when the column
-        has fewer values than the row asks classes for, since a
-        column cannot be cut into more classes than it has values.
-        On a CATEGORIZED row the cell displays the detected category
-        count but ``k`` carries the row's remembered graduated count,
-        5 by default: the spin box is disabled there, so nothing
-        writes the displayed number into ``user_k``. Harmless
-        downstream, since seed_renderer reads ``k`` only for
-        Graduated, but this block said the count was the detected one
-        until 2026-08-12
-      * ``k_asked`` — the class count as the SPINNER shows it, before
-        that reduction. Nothing seeds from it; it is what lets the
-        notice say five was asked for and three were drawn
+      * ``k`` — class count (50 and greyed for "Unclassed"), as the
+        SPINNER shows it. A column cannot be cut into more classes
+        than it has distinct values, but that reduction belongs to
+        make_graduated_renderer at the moment it classifies, not
+        here: this is the record of what the user ASKED for, and a
+        row whose record disagreed with its own cell is what
+        test_an_unclassed_excursion_leaves_the_count_alone caught
+        when the reduction was briefly made in this block
+        (2026-08-14). On a CATEGORIZED row the cell displays the
+        detected category count but ``k`` carries the row's
+        remembered graduated count, 5 by default: the spin box is
+        disabled there, so nothing writes the displayed number into
+        ``user_k``. Harmless downstream, since seed_renderer reads
+        ``k`` only for Graduated, but this block said the count was
+        the detected one until 2026-08-12
       * ``outline`` — draw tile boundaries
       * ``class_source`` — where a categorized row's colours come
         from: None for automatic, else a "file:<path>" or
@@ -4439,43 +4435,6 @@ class WeavingSpaceDialog(QDialog):
         k = int(k_spin.property("user_k") or k_spin.value() or 5)
       if scheme == "Unclassed":
         k = 50  # fixed by definition of the style
-      k_asked = k
-      # A column cannot be cut into more classes than it has values.
-      # Ask for five over a column holding three and QGIS returns
-      # five, of which two are DEGENERATE (1-1, 5-5, 9-9 among them):
-      # a value sits on a break, QGIS gives it to the first range that
-      # contains it, and the ranges above never paint. Measured on
-      # QGIS 4.0.3 with a real render context, 2026-08-13, k=5 over
-      # {1, 5, 9}: five swatches in the legend, three colours on the
-      # map, and the HIGHEST value drawn mid-grey while the legend's
-      # black sat beside a range nothing occupied. A reader matching
-      # the darkest swatch to "high" reads that map wrongly and
-      # nothing on screen says so.
-      #
-      # Upstream reduces k in exactly this case (tile_map's
-      # _plot_subsetted_gdf sets cspec["k"] to the value count), so
-      # this follows the library's semantics rather than inventing a
-      # rule, which is the standing requirement wherever the plugin
-      # reproduces upstream behaviour in QGIS terms.
-      #
-      # It is done HERE, in the one place every consumer reads -- the
-      # run, the restyle fast path, both signatures, a session
-      # restored from a saved project -- exactly as the
-      # no-quantitative-style-on-text correction above is, and for the
-      # same reason: made anywhere narrower, some path would go on
-      # describing a map the plugin will not draw. The count comes
-      # from the REGION layer so that every element agrees; see
-      # _numeric_value_count for why that matters more than matching
-      # upstream's per-subset count.
-      #
-      # Unclassed is exempt: its fifty steps reproduce a continuous
-      # ramp rather than a class count anybody chose, and cutting them
-      # to the number of distinct values would turn the settled
-      # continuous look into a coarse classed one.
-      if mode == "Graduated" and var and scheme != "Unclassed":
-        distinct = self._numeric_value_count(var)
-        if 0 < distinct < k:
-          k = distinct
       tid_text = id_item.text()
       if isinstance(ramp_combo, QgsColorButton):
         ramp_name = self._ramp_choices.get(tid_text, "Reds")
@@ -4498,11 +4457,6 @@ class WeavingSpaceDialog(QDialog):
         "single_colour": single_colour,
         "scheme": scheme,
         "k": k,
-        # What the spinner SAYS, where the line above is what the map
-        # will draw. They differ only when the column has fewer values
-        # than classes, and the difference is what the notice reports;
-        # nothing seeds from this key.
-        "k_asked": k_asked,
         "outline": self.opt_tile_outlines.isChecked(),
         # the class source matters (and re-seeds) only when categorized
         "class_source": source if mode == "Categorized" else None,
@@ -4850,7 +4804,7 @@ class WeavingSpaceDialog(QDialog):
         continue
       note = bridge.few_values_message(
         field, self._numeric_value_count(field),
-        a.get("k_asked", a.get("k", 5)))
+        a.get("k", 5))
       if note is not None:
         said.add(field)
         self._report_quietly(note)
@@ -5256,7 +5210,7 @@ class WeavingSpaceDialog(QDialog):
             # sentences about one column is one too many.
             note = bridge.few_values_message(
               field, self._numeric_value_count(field),
-              assignment.get("k_asked", assignment.get("k", 5)))
+              assignment.get("k", 5))
             if note is not None:
               said_constant.add(field)
               self._report_quietly(note)
