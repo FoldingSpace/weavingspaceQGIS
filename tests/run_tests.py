@@ -8197,6 +8197,334 @@ def test_a_row_with_no_geometry_is_named():
     dlg.close()
 
 
+def test_a_pin_belongs_to_an_element_and_a_field():
+  """Switch the variable away and back; the pin must come back with it.
+
+  Pins are keyed by element AND field, like the hand-picked colours,
+  and for the same reason: one column's numbers mean nothing against
+  another's data. Two things follow and both are checked here --
+  switching away and back RESTORES the pin, and switching to a
+  different column does not apply the old one to it.
+
+  This is the shape that destroyed categorical picks when a column was
+  renamed, arriving on the other side of the same window.
+
+  Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v3")
+  _tick(150)
+  tid = dlg.table.item(0, 0).text()
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+  dlg._pinned_bounds.setdefault(tid, {})["v3"] = {"low": 10.0}
+  dlg._apply_style_change()
+  _tick(300)
+
+  def pinned_now():
+    row = next((a for a in dlg._assignments() if a["id"] == tid), None)
+    return (row or {}).get("pinned") or {}
+
+  assert pinned_now().get("low") == 10.0, "the fixture never pinned"
+
+  # ...to another column, which must NOT inherit it
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(300)
+  assert not pinned_now(), \
+    f"v1 inherited v3's pin ({pinned_now()!r}); one column's numbers " \
+    f"mean nothing against another's data"
+
+  # ...and back, which must restore it
+  dlg.table.cellWidget(0, 1).setCurrentText("v3")
+  _tick(300)
+  assert pinned_now().get("low") == 10.0, \
+    f"switching away and back lost the pin: {pinned_now()!r}"
+  dlg.close()
+
+
+def test_two_editors_in_one_session_do_not_leak():
+  """Open one element's editor, then another; nothing crosses over.
+
+  The editor is modal to the plugin dialog only and holds no layer,
+  writing everything through the dialog's records. This project has
+  had a RETIRED dialog adopt a live one's styling-dock edits, so the
+  question is worth asking of two editors in sequence: a pin set in
+  the first must not appear in the second, and closing the first must
+  not disturb what the second wrote.
+
+  Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+  """
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+  bounds = [(0.0, 4.0), (4.0, 14.0), (14.0, 30.0), (30.0, 55.0),
+            (55.0, 121.0)]
+  order = [str(i) for i in range(5)]
+  colours = {key: "#ff0000" for key in order}
+  seen = []
+
+  def make(tile_id, pinned):
+    return CategoryColourDialog(
+      tile_id, "v3", order, colours, lambda *a: None, bounds=bounds,
+      range_bounds=(0, 100), ramp_name="Reds", pinned=pinned,
+      pin_changed=lambda which, value: seen.append(
+        (tile_id, which, value)) or None)
+
+  first = make("a", {"low": 4.0})
+  second = make("b", None)
+  try:
+    a_pin, _a_box = first._pin_widgets["low"]
+    b_pin, b_box = second._pin_widgets["low"]
+    assert a_pin.isChecked(), "element a's editor did not show its pin"
+    assert not b_pin.isChecked(), \
+      "element b's editor came up pinned, so a's record reached it"
+    b_pin.setChecked(True)
+    assert seen and seen[-1][0] == "b", \
+      f"b's pin was reported against the wrong element: {seen!r}"
+    assert a_pin.isChecked(), \
+      "pinning in b's editor changed what a's editor shows"
+    first.close()
+    assert b_pin.isChecked() and b_box.isEnabled(), \
+      "closing a's editor disturbed b's"
+  finally:
+    first.close()
+    second.close()
+
+
+def test_a_pinned_element_draws_what_the_library_draws():
+  """The pin, checked in PIXELS rather than in renderer numbers.
+
+  This software's characteristic failure is a wrong map that looks
+  like a right one, so a map-producing test that only counts ranges is
+  not finished. The expected side is built by calling the library
+  directly with what the settings MEAN -- the same pin, the same
+  region values -- and the two renders are compared interior pixel by
+  interior pixel.
+
+  Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace import TileUnit, Tiling
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.n_combo.setCurrentText("4")
+  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  dlg.spacing_spin.setValue(1200)
+  for row in range(dlg.table.rowCount()):
+    combo = dlg.table.cellWidget(row, 1)
+    if combo is not None:
+      combo.setCurrentText("v3")
+  _tick(200)
+  _generate_and_wait(dlg)
+  tid = dlg.table.item(0, 0).text()
+  dlg._pinned_bounds.setdefault(tid, {})["v3"] = {"low": 10.0, "high": 60.0}
+  dlg._apply_style_change()
+  _tick(400)
+
+  expected = Tiling(
+    TileUnit(tiling_type="laves", code="3.3.4.3.4", spacing=1200,
+             crs=3857),
+    bridge.layer_to_gdf(layer, ["v3"])).get_tiled_map().map
+  assignments = dlg._assignments()
+  share = visual_pair(
+    "a pinned element against the library",
+    [project.mapLayer(dlg._element_layer_ids[a["id"]])
+     for a in assignments if a["id"] in dlg._element_layer_ids],
+    expected, assignments, region=layer)
+  assert share is None or share <= 0.02, \
+    f"a pinned map differs from the library's by {share:.1%} of its " \
+    f"interior pixels"
+  dlg.close()
+
+
+def test_a_session_of_pinning_and_copying_holds_together():
+  """The integration shape: many steps, checked at every MOMENT.
+
+  The failures in this plugin live in state carried across
+  generations, and a wrong intermediate state usually corrects itself
+  by the last generation and hides. So this drives a session a
+  cartographer would actually have -- pin, generate, unpin, change the
+  count, copy to a sibling, change the sibling's style, regenerate --
+  and asserts after EACH step rather than at the end.
+
+  Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.n_combo.setCurrentText("4")
+  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  dlg.spacing_spin.setValue(1200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v3")
+  dlg.table.cellWidget(1, 1).setCurrentText("v3")
+  _tick(200)
+  _generate_and_wait(dlg)
+  a = dlg.table.item(0, 0).text()
+  b = dlg.table.item(1, 0).text()
+
+  def ladder(tile_id):
+    out = project.mapLayer(dlg._element_layer_ids[tile_id])
+    renderer = out.renderer()
+    return [(round(r.lowerValue(), 4), round(r.upperValue(), 4))
+            for r in getattr(renderer, "ranges", lambda: [])()]
+
+  def sound(stage):
+    for tile_id in (a, b):
+      rungs = ladder(tile_id)
+      assert rungs, f"{stage}: element {tile_id!r} draws no classes"
+      assert all(low <= high for low, high in rungs), \
+        f"{stage}: {tile_id!r} has a class running backwards: {rungs}"
+      assert all(rungs[i][1] == rungs[i + 1][0]
+                 for i in range(len(rungs) - 1)), \
+        f"{stage}: {tile_id!r} has a gap in its ladder: {rungs}"
+
+  clean = ladder(a)
+  sound("after the first run")
+
+  dlg._pinned_bounds.setdefault(a, {})["v3"] = {"low": 10.0}
+  dlg._apply_style_change()
+  _tick(300)
+  sound("after pinning")
+  assert ladder(a)[0][1] == 10.0, "the pin did not reach the map"
+
+  dlg._pinned_bounds[a].pop("v3")
+  dlg._apply_style_change()
+  _tick(300)
+  sound("after unpinning")
+  assert ladder(a) == clean, \
+    f"unpinning did not restore the scheme's own breaks: {ladder(a)} " \
+    f"against {clean}"
+
+  dlg._pinned_bounds.setdefault(a, {})["v3"] = {"low": 10.0}
+  dlg._apply_style_change()
+  _tick(300)
+  assert dlg._copy_classification(a, b) is None, "the copy was refused"
+  _tick(300)
+  sound("after copying")
+  assert (dlg._pinned_bounds.get(b, {}).get("v3") or {}).get("low") == 10.0, \
+    "the copy did not carry the pin flag"
+
+  # the count change releases the copied VALUES and keeps the pins
+  spin = dlg.table.cellWidget(1, 3)
+  if spin is not None and spin.isEnabled():
+    spin.setValue(6)
+    _tick(300)
+    record = dlg._pinned_bounds.get(b, {}).get("v3") or {}
+    assert not record.get("breaks"), \
+      f"a new class count kept the copied ladder: {record!r}"
+    assert record.get("low") == 10.0, \
+      f"a new class count threw away the pins as well: {record!r}"
+
+  _generate_and_wait(dlg)
+  sound("after regenerating")
+  assert ladder(a)[0][1] == 10.0, \
+    f"a full run lost the pin it was told about: {ladder(a)}"
+  dlg.close()
+
+
+def test_a_pin_and_a_class_source_do_not_meet():
+  """A style excursion must not resurrect a pin on the way back.
+
+  Categorical elements have no bounds to pin, and an element can move
+  between styles freely. The record is keyed by element and field, so
+  a pin recorded while the row was graduated is still there when it
+  comes back -- which is right -- but must be inert while the row is
+  categorized, where a class source rather than a break decides the
+  colours.
+
+  Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v3")
+  _tick(150)
+  tid = dlg.table.item(0, 0).text()
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+  dlg._pinned_bounds.setdefault(tid, {})["v3"] = {"low": 10.0}
+  dlg._apply_style_change()
+  _tick(300)
+
+  # to a categorical column and back
+  dlg.table.cellWidget(0, 1).setCurrentText("landcover")
+  _tick(300)
+  row = next((a for a in dlg._assignments() if a["id"] == tid), None)
+  assert row is not None and row.get("mode") == "Categorized", \
+    f"the row did not become categorized: {row and row.get('mode')!r}"
+  assert not row.get("pinned"), \
+    f"a categorized row carries a pin, which has no meaning there: " \
+    f"{row.get('pinned')!r}"
+  _generate_and_wait(dlg)
+  out = project.mapLayer(dlg._element_layer_ids[tid])
+  assert not hasattr(out.renderer(), "ranges"), \
+    "the categorized element came back with a graduated renderer"
+
+  dlg.table.cellWidget(0, 1).setCurrentText("v3")
+  _tick(300)
+  row = next((a for a in dlg._assignments() if a["id"] == tid), None)
+  assert (row.get("pinned") or {}).get("low") == 10.0, \
+    f"the excursion through a categorical column lost the pin: " \
+    f"{row.get('pinned')!r}"
+  dlg.close()
+
+
+def test_pins_hold_across_the_whole_family_catalogue():
+  """A pin on several families, because geometry is not the pin's business.
+
+  Class breaks have nothing to do with which tiling is drawn, so a pin
+  ought to behave identically across families -- and this project has
+  had a control that worked on one family and not another, found only
+  because something swept them. Cheap here: no rendering, one
+  classification per family.
+
+  Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  families = [dlg.family_combo.itemText(i)
+              for i in range(dlg.family_combo.count())]
+  assert len(families) > 3, f"only {len(families)} families to sweep"
+  chosen = [families[0], families[len(families) // 2], families[-1]]
+  values = layer.uniqueValues(layer.fields().indexOf("v3"))
+
+  for family in chosen:
+    renderer = bridge.make_graduated_renderer(
+      layer, "v3", "Reds", "Quantiles", 5, False,
+      pinned={"low": 10.0, "high": 60.0})
+    rungs = [(round(r.lowerValue(), 4), round(r.upperValue(), 4))
+             for r in renderer.ranges()]
+    assert rungs[0][1] == 10.0 and rungs[-1][0] == 60.0, \
+      f"{family}: the pins did not survive: {rungs}"
+    assert bridge.pin_problem(10.0, 60.0, values, 5) is None, \
+      f"{family}: the same pins were refused"
+  dlg.close()
+
+
 def test_a_class_source_file_that_goes_away():
   """The QML is deleted, moved or renamed after being chosen.
 
@@ -13213,6 +13541,22 @@ def test_integration_interleaved_session():
     f"b was not touched and must keep its {b_ranges} classes, but " \
     f"drew {len(renderer('b').ranges())}"
 
+  # 4b. styling: PIN a's first class, which must then ride every step
+  # that follows exactly as the ramp and the class count do. A session
+  # test is where a choice that survives one step and not the next
+  # shows up, and pinning is the newest such choice.
+  a_field = next((x.get("var") for x in dlg._assignments()
+                  if x["id"] == "a"), None)
+  pinned_at = None
+  if a_field:
+    pinned_at = float(renderer("a").ranges()[0].upperValue())
+    dlg._pinned_bounds.setdefault("a", {})[a_field] = {"low": pinned_at}
+    dlg._apply_style_change()
+    _tick(250)
+    assert renderer("a").ranges()[0].upperValue() == pinned_at, \
+      f"the pin did not reach the map inside the session: " \
+      f"{renderer('a').ranges()[0].upperValue()} against {pinned_at}"
+
   # 5. data: change c's variable; a and b keep everything
   a_colour, a_classes = top_colour("a"), len(renderer("a").ranges())
   dlg.table.cellWidget(2, 1).setCurrentText("landcover")
@@ -13276,8 +13620,11 @@ def test_integration_interleaved_session():
                [a["ramp"] for a in dlg._assignments()
                 if a["var"] and a["id"] != "d"] + ["tab10"],
                mean_max=12.0, p95_max=30.0)
+  assert pinned_at is None or \
+    renderer("a").ranges()[0].upperValue() == pinned_at, \
+    f"the pin was lost somewhere in the steps after it was set: " \
+    f"{renderer('a').ranges()[0].upperValue()} against {pinned_at}"
   dlg.close()
-
 
 def test_integration_categorical_session():
   """The categorical counterpart of the interleaved session, on the
@@ -31587,6 +31934,27 @@ def test_random_designs_keep_their_views_in_agreement():
 
     disagreements, compared = _views_disagree(dlg, project)
     total_compared += compared
+    # ...and again with a PIN in force, on the designs where one is
+    # possible. A pinned row draws breaks the scheme did not choose,
+    # which is a new way for the table and the map to fall out of
+    # step, and this sweep is what hunts those.
+    if not disagreements:
+      graduated = next((a for a in dlg._assignments()
+                        if a.get("mode") == "Graduated" and a.get("var")),
+                       None)
+      classes = (dlg._current_graduated_classes(graduated)
+                 if graduated is not None else [])
+      if len(classes) > 2:
+        # the first class's own upper bound: legal by construction, so
+        # what is tested is the drawing rather than the guardrail
+        dlg._pinned_bounds.setdefault(graduated["id"], {})[
+          graduated["var"]] = {"low": float(classes[0][1])}
+        dlg._apply_style_change()
+        _tick(250)
+        pinned_trouble, pinned_compared = _views_disagree(dlg, project)
+        total_compared += pinned_compared
+        disagreements = [f"with a pin in force: {line}"
+                         for line in pinned_trouble]
     for line in disagreements:
       trouble.append(f"case {case} ({family}, n={n}): {line}")
     dlg.close()
@@ -38401,6 +38769,18 @@ def main():
         test_a_pin_reaches_the_map_through_the_live_path)
   check("a row with no geometry is named",
         test_a_row_with_no_geometry_is_named)
+  check("a pin belongs to an element and a field",
+        test_a_pin_belongs_to_an_element_and_a_field)
+  check("two editors in one session do not leak",
+        test_two_editors_in_one_session_do_not_leak)
+  check("a pinned element draws what the library draws",
+        test_a_pinned_element_draws_what_the_library_draws)
+  check("a session of pinning and copying holds together",
+        test_a_session_of_pinning_and_copying_holds_together)
+  check("a pin and a class source do not meet",
+        test_a_pin_and_a_class_source_do_not_meet)
+  check("pins hold across the whole family catalogue",
+        test_pins_hold_across_the_whole_family_catalogue)
   check("one variable gets one legend wherever it appears",
         test_one_variable_gets_one_legend_wherever_it_appears)
   check("a class source file that goes away",
