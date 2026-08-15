@@ -48,3 +48,38 @@ NEXT:   Establish harm and reachability. Is a fieldless polygon layer
         with fields but no features. Probe both, plus several layers
         added and the chosen one removed.
 
+## 15:14:40  iteration 2  [perturbation]
+TRIED:  (G) OBEY the instruction on the fieldless polygon layer: set
+        every variable combo to every item it offers, press Generate
+        again. (H) the twin, a polygon layer WITH fields and ZERO
+        features. (I) two polygon layers loaded, remove the one that is
+        chosen. scratchpad/fm_p2.py.
+RESULT: (G) CONFIRMED unfollowable. Every one of the four rows offers
+        exactly ['---'] and nothing else; after cycling every combo
+        through every item, `_assignments()` still has var=None on all
+        four and Generate #2 repeats the identical sentence. The
+        instruction names a tab that contains no way to obey it.
+        (H) ruled out, and it is the ASYMMETRY that matters: a
+        featureless layer is refused with "The selected layer has no
+        (non-empty) polygon features." -- a sentence about the data.
+        So the shape-of-data guard exists for one emptiness and not
+        for the other.
+        (I) NEW CANDIDATE, same shape. With two polygon layers loaded
+        and 'alpha' chosen, removing 'alpha' produced NOTHING: no
+        modal, no bar message. QgsMapLayerComboBox silently moved to
+        'beta', and all four elements moved from v1 to v2 (measured in
+        `_assignments()`). The removal notice at dialog.py:1616-1631
+        is guarded by `if layer is None and self._had_a_layer`, so its
+        precondition only arrives when the removed layer was the LAST
+        polygon layer in the project. The `_adapt_to_the_layer` twin
+        cannot speak either: `_on_layer_changed` rewrites
+        `self._watched_fields` to the NEW layer's names before calling
+        it (dialog.py:1610-1613), so `names == self._watched_fields`
+        returns early and `lost` is never computed.
+NEXT:   The harm turns on live update, which is ON by default. If the
+        silent switch also triggers a live run, the user's existing
+        map is replaced in place by a map of a different layer and a
+        different column with nothing said. Probe that end to end and
+        read the variable off the OUTPUT LAYER's renderer, not off
+        the dialog.
+

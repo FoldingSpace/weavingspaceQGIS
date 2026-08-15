@@ -1069,8 +1069,33 @@ Confirmed with the user via an explicit design review:
   escape hatch.
 - Renderers are seeded standard QGIS objects (graduated/categorized/
   single); refinement belongs to QGIS's styling dock, not a plugin UI.
-- Ramps come from QgsStyle; missing mapweaver palettes are installed
-  into it once, tagged "mapweaver" (additive only).
+- **COLOUR BELONGS TO QGIS.** Ramps come from QgsStyle, and where a
+  name means something there already, QGIS's meaning wins. The plugin
+  installs only palettes QGIS LACKS -- 28 of them, tab10 and the
+  matplotlib-only families -- tagged "mapweaver", additive only.
+  Settled by `/grill-me` on 2026-08-15 after measuring that 35 of the
+  palette file's 63 entries were also stock ColorBrewer names, so they
+  had never installed on any fresh QGIS since 0.23.0: the plugin's
+  maps were already drawn with QGIS's colours and the project had
+  simply not noticed. The colourspace gate passed only because the
+  development machine's style library had been seeded by the plugin
+  years earlier -- a gate certifying fidelity against a profile no
+  user has.
+  PARITY WITH THE LIBRARY IS A DESCRIPTION, NOT A PROMISE. The plugin
+  defers to QGIS for renderers, the styling dock, the project format
+  and the ramp list; colour is the same kind of thing. A user wanting
+  matplotlib's exact palettes installs them; the plugin does not ship
+  them under alternative names. Profiles already seeded keep what they
+  have -- additive only has never meant destructive -- so a machine
+  that installed an early version draws those 35 differently from a
+  fresh one until its owner clears them.
+  The comparison in `tools/visual_reference_report.py` is therefore
+  handed THE COLOURS IN FORCE, exported beside the gallery by
+  `tests/visual_tests.py`, and no longer asserts whose palette they
+  are. It still tests where the breaks fall, how categories are
+  sampled, the reduction, insetting, weaving and geometry -- and it
+  cannot again pass because of one profile. What it gave up is covered
+  by `test_the_ramp_a_row_names_is_the_ramp_the_map_draws`.
 - Optional GPKG output embeds styles; live update renders a first map
   as soon as a layer and variables are in place (no button press) and
   is gated: memory-mode output only, estimated tiles ≤
@@ -1081,10 +1106,14 @@ Confirmed with the user via an explicit design review:
   the bare unit hides insetting and the joins between tiles, which are
   exactly the properties someone is inspecting the design view to
   judge. The unit alone remains one click away.
-- "Quant: Unclassed" (50 linear intervals) is the sanctioned
-  reproduction of a continuous ramp — derived from upstream semantics
-  (n_classes=0 → matplotlib linear Normalize), not invented; see
-  bridge.make_graduated_renderer.
+- "Quant: Unclassed" (50 linear intervals) reproduces a CONTINUOUS
+  RAMP rather than a class count anybody chose. The fifty steps come
+  from upstream's semantics (n_classes=0 → a linear Normalize), which
+  is why it is fifty and not invented; see
+  bridge.make_graduated_renderer. What it samples is whatever ramp
+  QGIS resolves the name to, which since 2026-08-15 is explicitly
+  QGIS's business rather than matplotlib's -- the derivation settles
+  the SHAPE of the reproduction, not whose colours fill it.
 - A style-only change NEVER re-tiles. `_geometry_signature()` decides:
   when it is unchanged, `_restyle_only()` re-seeds the existing layers
   in place. Ramp, scheme, class count, single colour, class source,
@@ -1551,6 +1580,16 @@ tests themselves; the rest ask how good those tests are:
    renderer, `TiledMap.render`, on identical inputs; where quantile
    classing alone explains a mismatch, the gallery's Quant: Unclassed
    render is scored instead. Writes visual-comparison.pdf.
+   IT IS GIVEN THE COLOURS IN FORCE rather than naming matplotlib's,
+   since 2026-08-15: the gallery writes `ramp-colours.json` beside its
+   renders and the comparison registers those under their own names,
+   so both sides draw with whatever ramp QGIS resolved. What it tests
+   is therefore where the breaks fall, how categories are sampled, the
+   reduction, insetting, weaving and geometry — everything that can be
+   wrong except whose palette answered to the name, which is no longer
+   a claim this project makes. It also means the gate can no longer
+   pass because of one machine's seeded style library, which is how it
+   passed before.
 
 The suite, the gallery, the coverage report and the reference
 comparison run, in order and gated, via `python3 release.py`, which
