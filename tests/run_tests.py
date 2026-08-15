@@ -10932,7 +10932,12 @@ def test_an_unclassed_excursion_leaves_the_count_alone():
 
   Regression: an excursion through Quant: Unclassed left fifty classes recorded against a row whose spinner showed twenty.
   """
-  dlg, layer, tid = _quant_dialog()
+  # sized for SEVEN, which is what the spinner is set to below: a
+  # column cannot be cut into more classes than it has distinct
+  # values, so on the four-value default the map would honestly draw
+  # four and this test would be measuring that instead of the
+  # excursion it names.
+  dlg, layer, tid = _quant_dialog(n=7)
   dlg.live_check.setChecked(False)
   k_spin = dlg.table.cellWidget(1, 3)
   k_spin.setValue(7)
@@ -30250,6 +30255,44 @@ def test_a_project_round_trip_changes_nothing_a_user_chose():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def _classes_the_data_allows(dlg, field, asked, scheme=None):
+  """How many classes a column can actually be cut into.
+
+  Args:
+    dlg: the dialog, for the region layer it is pointed at.
+    field: the column being classified, or None.
+    asked: the class count the row asks for.
+    scheme: the row's break method. "Unclassed" is EXEMPT and gets
+      its fifty back unreduced: those steps reproduce a continuous
+      ramp rather than a class count anybody chose, which is the
+      settled decision the reduction was written around. Passing
+      None treats the row as classed, which is the safe direction --
+      it can only make this stricter.
+
+  Returns:
+    ``min(asked, distinct finite values)``, or ``asked`` when the
+    scheme is exempt or the count cannot be taken -- an unknown count
+    is not a small one.
+
+  Every comparison of the table's class count against the map's goes
+  through here, because there are four of them and the rule they
+  share was added in one place first and then found missing from the
+  other three. Counted on the REGION layer, which is where the breaks
+  are cut from: an element holds only its own tiles and can be
+  missing a value the map as a whole has, so counting there would set
+  the bar too low and pass a real disagreement.
+  """
+  from weavingspace_qgis import bridge
+  source = dlg.layer_combo.currentLayer()
+  if not field or source is None or scheme == "Unclassed":
+    return asked
+  index = source.fields().indexOf(field)
+  if index < 0:
+    return asked
+  values = bridge.distinct_numeric_count(source.uniqueValues(index))
+  return min(int(asked), values) if values else int(asked)
+
+
 def _views_disagree(dlg, project):
   """Every disagreement between the table and the map, as sentences.
 
@@ -30687,7 +30730,6 @@ def test_the_row_agrees_with_the_map_about_what_it_shows():
   Regression: nothing compared a row's stated field and style against the renderer the run produced, so a map could carry a different field from the one the table named. [differential]
   """
   from qgis.core import QgsCategorizedSymbolRenderer, QgsGraduatedSymbolRenderer
-  from weavingspace_qgis import bridge
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
   layer = make_region_layer()
@@ -30737,27 +30779,15 @@ def test_the_row_agrees_with_the_map_about_what_it_shows():
       # A column cannot be cut into more classes than it has distinct
       # values, so a row asking for five over a four-value column
       # DRAWS four and the user is told so at the time. That is the
-      # one legitimate way these two numbers differ, and it is
-      # allowed only in that direction and only up to the count the
-      # data can actually support: `k` records what was asked for
-      # (see dialog._assignments), the map records what the data
-      # allows, and any other gap between them is the table lying.
-      # counted on the REGION layer, which is where the breaks are cut
-      # from: an element holds only its own tiles and can be missing a
-      # value the map as a whole has, so counting here would set the
-      # bar too low and pass a genuine disagreement
-      source = dlg.layer_combo.currentLayer()
-      values = bridge.distinct_numeric_count(
-        source.uniqueValues(source.fields().indexOf(field))) \
-        if field and source is not None \
-        and source.fields().indexOf(field) >= 0 else 0
-      allowed = min(int(assignment["k"]), values) if values else \
-        int(assignment["k"])
+      # one legitimate way these two numbers differ; any other gap
+      # between them is the table lying about the map.
+      allowed = _classes_the_data_allows(
+        dlg, field, assignment["k"], assignment.get("scheme"))
       if ranges != allowed:
         wrong.append(
-          f"{tile_id}: the row asks for {assignment['k']} classes over "
-          f"a column with {values} distinct value(s), so the map should "
-          f"have {allowed}, and it has {ranges}")
+          f"{tile_id}: the row asks for {assignment['k']} classes and "
+          f"the data allows {allowed}, so the map should have "
+          f"{allowed}, and it has {ranges}")
       if ranges == 0:
         wrong.append(
           f"{tile_id}: the map has NO ranges, so every tile falls "
@@ -33503,11 +33533,16 @@ def _table_map_disagreements(dlg, stage):
     # included rather than skipped, because _assignments reports its
     # fifty classes in k, so the comparison still means something.
     if graduated and assignment.get("k"):
-      if len(renderer.ranges()) != assignment["k"]:
+      # ...against what the DATA allows, not against the ask: a
+      # column cannot be cut into more classes than it has values
+      allowed = _classes_the_data_allows(
+        dlg, assignment.get("var"), assignment["k"],
+        assignment.get("scheme"))
+      if len(renderer.ranges()) != allowed:
         problems.append(
           f"{stage}: the table asks element {tile_id!r} for "
-          f"{assignment['k']} classes; the map has "
-          f"{len(renderer.ranges())}")
+          f"{assignment['k']} classes and the data allows {allowed}; "
+          f"the map has {len(renderer.ranges())}")
     named = assignment.get("ramp")
     if named:
       wears = dlg._ramp_name_matching(renderer.sourceColorRamp())
@@ -33910,10 +33945,13 @@ def test_a_style_state_machine_leaves_no_stale_map_behind():
         f"{type(renderer).__name__}, not a graduated renderer")
       return
     checked += 1
-    if len(renderer.ranges()) != expected_k:
+    here = next((a for a in dlg._assignments() if a["id"] == tid), {})
+    allowed = _classes_the_data_allows(
+      dlg, here.get("var"), expected_k, here.get("scheme"))
+    if len(renderer.ranges()) != allowed:
       problems.append(
-        f"{stage}: the table asks for {expected_k} classes and the "
-        f"map has {len(renderer.ranges())}")
+        f"{stage}: the table asks for {expected_k} classes, the data "
+        f"allows {allowed}, and the map has {len(renderer.ranges())}")
     assignment = next(a for a in dlg._assignments() if a["id"] == tid)
     if assignment.get("k") != expected_k:
       problems.append(
@@ -34151,7 +34189,13 @@ def test_a_family_excursion_brings_the_map_back_and_not_the_excursion():
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   from weavingspace_qgis import bridge
   project = QgsProject.instance()
-  layer = make_region_layer()
+  # SIX a side, so v1 carries six distinct values: the rows below ask
+  # for three, four, five and six classes, and a column cannot be cut
+  # into more classes than it has values. On the four-value default
+  # the last row would honestly draw four and this test would report
+  # a choice that never reached the map when the choice had arrived
+  # and the data could not hold it.
+  layer = make_region_layer(n=6)
   project.addMapLayer(layer)
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(False)
@@ -34694,7 +34738,10 @@ def test_a_design_change_and_a_ramp_pick_commute():
 
   def walk(order):
     """Drive one order through the debounce and generate once."""
-    dlg, _layer, tid = _quant_dialog(k=5, ramp="Reds")
+    # the region is sized for `classes`, not for the k this helper
+    # starts at: the walk below sets the spinner to eight, and a
+    # column cannot be cut into more classes than it has values
+    dlg, _layer, tid = _quant_dialog(k=5, ramp="Reds", n=classes)
     dlg.spacing_spin.setValue(500)
     assert _settle(dlg, seconds=30), "the dialog never settled at 500"
 
