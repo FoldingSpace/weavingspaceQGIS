@@ -237,19 +237,39 @@ def _process_table():
   so it is deliberately not used.
   """
   if os.name == "nt":
-    command = [
-      "powershell", "-NoProfile", "-NonInteractive", "-Command",
-      "Get-CimInstance Win32_Process | ForEach-Object { "
-      "'{0} {1} {2}' -f $_.ProcessId, $_.ParentProcessId, "
-      "($_.KernelModeTime + $_.UserModeTime) }"]
+    script = ("Get-CimInstance Win32_Process | ForEach-Object { "
+              "'{0} {1} {2}' -f $_.ProcessId, $_.ParentProcessId, "
+              "($_.KernelModeTime + $_.UserModeTime) }")
+    # SEVERAL WAYS TO NAME POWERSHELL, tried in turn, because the bare
+    # name depends on PATH and this runs under whatever environment
+    # QGIS's own launcher leaves behind. Measured 2026-08-15: a probe
+    # under the runner's PATH found `powershell` and read the tree
+    # perfectly (141 processes, the busy grandchild at 6.19s), while
+    # the suite under the OSGeo4W shim read 0.0 -- the signature of
+    # the executable not being found at all, since a missing command
+    # raises and this function answers None.
+    system_root = os.environ.get("SystemRoot", r"C:\Windows")
+    candidates = [
+      ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+      [os.path.join(system_root, "System32", "WindowsPowerShell",
+                    "v1.0", "powershell.exe"),
+       "-NoProfile", "-NonInteractive", "-Command", script],
+      ["pwsh", "-NoProfile", "-NonInteractive", "-Command", script],
+    ]
   else:
-    command = ["ps", "-eo", "pid=,ppid=,time="]
-  try:
-    listing = subprocess.run(
-      command, capture_output=True, text=True, timeout=60)
-  except (subprocess.SubprocessError, OSError):
-    return None
-  if listing.returncode != 0:
+    candidates = [["ps", "-eo", "pid=,ppid=,time="]]
+
+  listing = None
+  for command in candidates:
+    try:
+      attempt = subprocess.run(
+        command, capture_output=True, text=True, timeout=60)
+    except (subprocess.SubprocessError, OSError):
+      continue                  # not on PATH, or not there at all
+    if attempt.returncode == 0 and attempt.stdout.strip():
+      listing = attempt
+      break
+  if listing is None:
     return None
 
   children, times = {}, {}
