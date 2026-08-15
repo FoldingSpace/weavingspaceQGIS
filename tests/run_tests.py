@@ -9091,20 +9091,31 @@ def test_a_copied_ladder_on_one_value_still_wears_its_ramp():
   layer.updateExtents()
   QgsProject.instance().addMapLayer(layer)
 
-  # the one-class case is unchanged, and is checked first so a fix
-  # that simply disabled the branch could not pass this test
+  # READ THROUGH A LAYER, and hold the list. `ranges()` hands back
+  # TEMPORARIES, and a symbol pointer taken off a dead one segfaults
+  # -- the same trap bridge.set_class_bounds documents for building
+  # symbols, met here from the reading side. Written as
+  # `alone.ranges()[0].symbol()`, this test passed on macOS and
+  # segfaulted all three Linux legs of CI at 48 minutes in, which is
+  # the whole argument for a second machine. faulthandler named the
+  # line, which is the whole argument for instrumenting before the
+  # crash rather than after.
   alone = bridge.make_graduated_renderer(
     layer, "v", "Greens", "Quantiles", 5, False)
-  assert len(alone.ranges()) == 1, \
-    f"a constant column stopped drawing one class: {len(alone.ranges())}"
-  solo = alone.ranges()[0].symbol().color().name().lower()
+  layer.setRenderer(alone)
+  ranges = layer.renderer().ranges()
+  assert len(ranges) == 1, \
+    f"a constant column stopped drawing one class: {len(ranges)}"
+  solo = ranges[0].symbol().color().name().lower()
   assert solo != "#c0c0c0", \
     "the single class kept the colour it was built with"
 
   copied = bridge.make_graduated_renderer(
     layer, "v", "Greens", "Quantiles", 5, False,
     pinned={"breaks": [4.0, 14.2, 30.0, 55.0]})
-  colours = [r.symbol().color().name().lower() for r in copied.ranges()]
+  layer.setRenderer(copied)
+  copied_ranges = layer.renderer().ranges()
+  colours = [r.symbol().color().name().lower() for r in copied_ranges]
   assert len(colours) == 5, \
     f"the copied ladder did not arrive whole: {colours}"
   left_grey = [i for i, c in enumerate(colours) if c == "#c0c0c0"]
