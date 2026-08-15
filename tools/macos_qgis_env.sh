@@ -94,6 +94,15 @@ if [ -z "$HOMES" ]; then
 fi
 
 PROJ="$APP/Contents/Resources/qgis/proj"
+# GDAL's own data directory, which nothing here set until 2026-08-15.
+# The macOS runs printed "Cannot find tms_NZTM2000.json (GDAL_DATA is
+# not defined)" on every GeoPackage test -- harmless in the cases the
+# suite covers, since they passed, but it is the same shape as the
+# prefix fault below: a variable nobody set, hidden by everything
+# happening to work anyway. The file it names is in the bundle. A
+# warning that is always there is a warning nobody reads, and it would
+# hide the one that mattered.
+GDAL_DIR="$APP/Contents/Resources/qgis/gdal"
 
 # Two passes, because the two questions are not the same. A
 # combination that imports qgis.core is what every later step needs; a
@@ -184,5 +193,6 @@ echo "QGIS_APP=$APP"
 echo "QGIS_PY=$CHOSEN_PY"
 [ -n "$CHOSEN_HOME" ] && echo "PYTHONHOME=$CHOSEN_HOME"
 [ -d "$PROJ" ] && echo "PROJ_LIB=$PROJ"
+[ -d "$GDAL_DIR" ] && echo "GDAL_DATA=$GDAL_DIR"
 [ -d "$PREFIX" ] && echo "QGIS_PREFIX_PATH=$PREFIX"
 exit 0
