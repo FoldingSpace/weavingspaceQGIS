@@ -4607,6 +4607,17 @@ class WeavingSpaceDialog(QDialog):
     Collapsing the two would make every copy look fully pinned and
     leave "unpin" with nothing coherent to do (settled 2026-08-14).
 
+    TWO THINGS DO NOT TRAVEL, both added 2026-08-15 after a hunt.
+    A pin flag is CHECKED against the receiving column first, because
+    a pin is a claim about this element's own data and this was the
+    one route by which an unchecked bound could arrive; a bound the
+    receiving column cannot reach is left behind and said, and the
+    ladder still travels whole. And an Unclassed source's class count
+    does not travel at all: its fifty is fixed by the style rather
+    than chosen by anybody, and `_class_counts` is the record that
+    means CHOSEN -- written there, it was clamped to twenty at the
+    next rebuild and replaced a count the user had picked.
+
     The receiving element's own extremes fit the ends, in
     bridge.fitted_breaks; classes its data cannot reach are KEPT and
     hatched rather than dropped.

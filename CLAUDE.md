@@ -1215,6 +1215,36 @@ Confirmed with the user via an explicit design review:
   visible rather than silent. And a pinned row is NOT Custom: its
   colours are still its ramp's, so the cell goes on naming the ramp
   and the swatch merely BOXES the pinned end.
+- **What ELEVEN defects taught about that feature pair, 2026-08-15.**
+  Six hunts pointed at the pinned bounds and copy-to alone found
+  eleven, every one a wrong map rather than a crash, and four rules
+  come out of them that generalise past this feature.
+  A RECORD HOLDING TWO CLAIMS must be tested with both in force: the
+  pin record holds copied boundary VALUES and per-end pin FLAGS, each
+  worked alone, and together the pin did nothing while the button
+  stayed down and the number was stamped.
+  TWO DOORS INTO ONE STATE, one guarded, is where the next one lives:
+  `pin_problem` refuses every pin on a constant column, a copy is not
+  guarded that way, and the colouring branch downstream had been
+  written for the guarded door -- so a copied ladder on a one-value
+  column drew flat placeholder grey.
+  A CONTROL MUST BE ABLE TO REPRESENT ITS DOMAIN, which every guard
+  here checked past: the bound box had a fixed range of 1e12 and six
+  decimals, so a province area in square metres pinned an order of
+  magnitude out and a rate pinned at zero, both silently, because
+  `pin_problem` is asked about the number the CONTROL produced.
+  A UNIT-TESTED MECHANISM PLUS AN UNDRIVEN CALLER IS A MOTIONLESS
+  AXIS: `bridge.unworn_classes` was careful and covered, and the
+  dialog path calling it had never once produced hatching, because
+  the swatch was painted before the restyle and asked its question of
+  the previous map. When a feature's promise is visual, drive it to
+  the pixels.
+  Two consequences are now settled behaviour rather than accident.
+  A copy CHECKS each pin flag against the receiving column and leaves
+  behind what that column cannot reach, saying so; and an Unclassed
+  source's fifty never reaches `_class_counts`, which is the record
+  that means CHOSEN.
+
 - **A tiles inset that swallows elements is refused in terms of the
   inset.** Insetting shrinks every tile by a fixed distance, so past
   some value the narrower elements disappear. Left to itself the
