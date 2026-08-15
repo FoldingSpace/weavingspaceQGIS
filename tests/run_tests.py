@@ -10322,6 +10322,98 @@ def test_the_constant_notice_counts_the_users_areas():
   dlg.close()
 
 
+def test_the_coverage_notice_counts_what_the_map_is_missing():
+  """The number in the sentence is checked against the map itself.
+
+  A user reported this notice as wrong in the field -- icon mode
+  saying areas were not represented when they were -- and a hunt
+  reproduced it on their data. It has not been reproducible on
+  synthetic data: four shapes were tried (a uniform grid, rows with no
+  geometry, areas of wildly mixed size, and both tiled and icon modes)
+  and in every one the count was right.
+
+  So this test does not chase the report. It pins the INVARIANT the
+  report says was broken: whatever the sentence claims is missing must
+  equal what is actually absent from the output, counted from the
+  map's own attributes rather than from the same arithmetic that
+  produced the sentence. That is what makes it able to catch the
+  reported case on data that does provoke it, rather than agreeing
+  with the bug.
+
+  Both modes, because the report was specifically about icons, and
+  because icon mode is the one where a reader expects every area to
+  appear by construction.
+
+  Regression: the coverage notice's count is checked against the areas actually absent from the output, in tiled and icon modes, after a field report that it disagreed with the map. [user]
+  """
+  from weavingspace_qgis import compat
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+
+  for as_icons in (False, True):
+    project.clear()
+    BAR_MESSAGES.clear()
+    layer = QgsVectorLayer("Polygon?crs=EPSG:2193", "mixed", "memory")
+    provider = layer.dataProvider()
+    provider.addAttributes([compat.make_field("v", float)])
+    layer.updateFields()
+    features = []
+    x = 0.0
+    for index in range(20):
+      # deliberately mixed: some areas far below the spacing, which is
+      # what makes the count non-trivial in both modes
+      size = 200.0 if index % 3 == 0 else 4000.0
+      feature = QgsFeature(layer.fields())
+      feature.setAttribute("v", float(index))
+      feature.setGeometry(QgsGeometry.fromPolygonXY([[
+        QgsPointXY(x, 0), QgsPointXY(x + size, 0),
+        QgsPointXY(x + size, size), QgsPointXY(x, size),
+        QgsPointXY(x, 0)]]))
+      features.append(feature)
+      x += size + 500.0
+    provider.addFeatures(features)
+    layer.updateExtents()
+    project.addMapLayer(layer)
+
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(200)
+    dlg.table.cellWidget(0, 1).setCurrentText("v")
+    _tick(150)
+    dlg.opt_icons.setChecked(as_icons)
+    dlg.spacing_spin.setValue(2000)
+    _generate_and_wait(dlg)
+
+    # what the MAP holds: every source value that reached a tile. The
+    # fixture gives each area its own value, so a value present means
+    # that area is on the map.
+    present = set()
+    for layer_id in dlg._element_layer_ids.values():
+      drawn = project.mapLayer(layer_id)
+      if drawn is None:
+        continue
+      index = drawn.fields().indexOf("v")
+      if index >= 0:
+        present |= {value for value in drawn.uniqueValues(index)
+                    if value is not None}
+    missing = layer.featureCount() - len(present)
+
+    said = [text for _kind, text in BAR_MESSAGES
+            if "received no tiles" in text]
+    claimed = 0
+    if said:
+      numbers = re.findall(r"(\d[\d,]*) of ", said[-1])
+      assert numbers, f"the notice named no count: {said[-1]!r}"
+      claimed = int(numbers[0].replace(",", ""))
+    assert claimed == missing, \
+      f"as_icons={as_icons}: the notice claims {claimed} areas are " \
+      f"absent and the map is missing {missing} " \
+      f"({len(present)} of {layer.featureCount()} present); " \
+      f"said {said!r}"
+    dlg.close()
+
+
 def test_a_class_source_file_that_goes_away():
   """The QML is deleted, moved or renamed after being chosen.
 
@@ -40791,6 +40883,8 @@ def main():
         test_a_copied_ladder_is_not_reported_as_a_reduction)
   check("the constant notice counts the user's areas",
         test_the_constant_notice_counts_the_users_areas)
+  check("the coverage notice counts what the map is missing",
+        test_the_coverage_notice_counts_what_the_map_is_missing)
   check("one variable gets one legend wherever it appears",
         test_one_variable_gets_one_legend_wherever_it_appears)
   check("a class source file that goes away",

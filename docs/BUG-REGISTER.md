@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-161 defect(s) with a regression test.
+162 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -363,6 +363,8 @@ there is no separate list to remember.
   guarded by `test_colour_legibility_warnings_are_opt_in`
 - **a renderer type changed in QGIS while the colour editor was open left the window showing class bounds and colours for a renderer that had been replaced.**  
   guarded by `test_deferral_closes_the_colour_editor_under_it`
+- **the coverage notice's count is checked against the areas actually absent from the output, in tiled and icon modes, after a field report that it disagreed with the map.**  
+  guarded by `test_the_coverage_notice_counts_what_the_map_is_missing`
 - **the guard sampled a fixed 12 mutants whatever the diff; over a 1,700-line round that certified nearly nothing while reading as a passed gate.**  
   guarded by `test_the_mutation_guard_scales_with_the_diff`
 - **the table drew Qt's row-number gutter beside the tile ids, which the user reported as a messy second numbering.**  
@@ -373,7 +375,7 @@ there is no separate list to remember.
 - not written down at the time: 82
 - a bug hunt pointed in a named direction: 16
 - the mutation campaign: 16
-- reported by a user: 9
+- reported by a user: 10
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6
 - a multi-step session test: 5
