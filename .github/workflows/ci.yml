@@ -560,6 +560,152 @@ jobs:
           name: windows-reports
           path: reports/
           if-no-files-found: ignore
+  # macOS, on the package a USER installs, in a profile nobody seeded.
+  #
+  # The development machine is macOS, so this leg is not here for the
+  # platform -- it is here for the other two things CI is for: a
+  # DIFFERENT QGIS and a CLEAN CHECKOUT. Both turned out to matter
+  # more than they sound. The developer runs one particular vcpkg
+  # build of 4.0.3; Homebrew's cask is what a macOS user actually
+  # gets, and nothing tested that. And on 2026-08-15 the colourspace
+  # comparison was found to pass on the development machine only
+  # because its QGIS style library had been seeded by the plugin years
+  # earlier: RdBu, PiYG, PuOr and Spectral were the plugin's own
+  # versions, tagged mapweaver, while a fresh QGIS ships ColorBrewer
+  # ramps under those names and the plugin's install is additive only.
+  # A runner is a fresh profile. It is the only thing here that can
+  # tell "my machine" from "the software".
+  #
+  # SAME SCOPE AS WINDOWS, deliberately: install the package, load the
+  # zip with none of the scientific stack present, then provision and
+  # run the suite and the gallery.
+  #
+  # ONE CAVEAT THAT IS macOS-ONLY, and it may stop the suite here.
+  # Code signing (library validation) refuses unsigned PyPI C
+  # extensions inside the signed QGIS process, which is why this
+  # project's own reference tooling lives in .venv-reference and never
+  # in QGIS's Python. If the cask ships geopandas and friends the
+  # suite runs; if it does not, provisioning may be refused and the
+  # suite will say so loudly rather than being skipped quietly. That
+  # answer is the point of the first run.
+  macos:
+    runs-on: macos-latest
+    needs: standards
+    # Sized for a large cask download plus the suite, and to be
+    # replaced by a multiple of the first GREEN run on this runner
+    # rather than by another platform's figures.
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the zip a user would install
+        run: python3 build.py
+
+      - name: Install QGIS the way a macOS user does
+        # The cask, not a vcpkg build: the question this job answers is
+        # what happens on the package people actually download.
+        run: brew install --cask qgis --no-quarantine
+
+      - name: What actually got installed
+        # PROBED, not assumed, exactly as the Windows job learned to
+        # do: the app's name and its bundled Python's path have both
+        # moved between QGIS releases, and a guess fails with a
+        # confusing error instead of a listing.
+        run: |
+          set -e
+          APP=$(ls -d /Applications/QGIS*.app 2>/dev/null | head -1)
+          if [ -z "$APP" ]; then
+            echo "no QGIS application bundle under /Applications:"
+            ls -la /Applications | head -40
+            exit 1
+          fi
+          echo "bundle: $APP"
+          PY=$(ls "$APP"/Contents/MacOS/bin/python3* 2>/dev/null | head -1)
+          if [ -z "$PY" ]; then
+            echo "no bundled python3 under $APP/Contents/MacOS/bin:"
+            ls -la "$APP/Contents/MacOS/bin" | head -40
+            exit 1
+          fi
+          echo "python: $PY"
+          echo "QGIS_APP=$APP" >> "$GITHUB_ENV"
+          echo "QGIS_PY=$PY" >> "$GITHUB_ENV"
+
+      - name: What QGIS is this, actually, and REFUSE anything but 4.x
+        # Asserted rather than printed, for the reason the Windows job
+        # gives: metadata.txt declares qgisMinimumVersion=4.0 and the
+        # plugin is PyQt6-only, so a 3.x run would report a pass that
+        # means nothing.
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          set -e
+          "$QGIS_PY" -c "import qgis.core, sys; print('QGIS', qgis.core.Qgis.QGIS_VERSION); print(sys.version)"
+          "$QGIS_PY" -c "import sys, qgis.core as q; v=q.Qgis.QGIS_VERSION; sys.exit(0) if v.split('.')[0]=='4' else (sys.stderr.write('REFUSED: this job requires QGIS 4.x and Homebrew served '+v+'. The plugin declares qgisMinimumVersion=4.0 and is PyQt6-only, so a 3.x run would report a pass that means nothing. Fix the cask, do not relax this check.\n') or sys.exit(1))"
+
+      - name: Install it into a profile and load it
+        # BEFORE provisioning, as on Windows: this step's value is
+        # proving the plugin loads with none of the scientific stack
+        # present, which is what a user meets before consenting to
+        # anything.
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          "$QGIS_PY" -u tools/install_and_load.py dist/weavingspace_qgis.zip
+
+      - name: What the stack looks like here, before anything is added
+        # REPORTED, never fatal. Whether the cask ships geopandas is
+        # the question this job was added to answer, and the answer is
+        # useful either way.
+        continue-on-error: true
+        run: |
+          "$QGIS_PY" -c "import geopandas, shapely, pandas; print('geopandas', geopandas.__version__, '| shapely', shapely.__version__, '| pandas', pandas.__version__)" \
+            || echo "the cask does not ship the scientific stack; the next step tries to add it"
+
+      - name: Provision it, through the plugin's own code
+        # Non-fatal BECAUSE OF CODE SIGNING: library validation can
+        # refuse an unsigned C extension inside the signed QGIS
+        # process, and that refusal is a finding about macOS rather
+        # than a defect in this plugin. The suite below then fails
+        # with a plain ModuleNotFoundError, and the two steps together
+        # say exactly what happened.
+        continue-on-error: true
+        run: |
+          "$QGIS_PY" -u tools/ci_provision.py
+
+      - name: Which ramps this FRESH profile has, and whose they are
+        # The reason this job exists, made permanent. On a seeded
+        # profile these four are the plugin's, tagged mapweaver; on a
+        # fresh QGIS they are ColorBrewer's, and the plugin's additive
+        # install leaves them alone. Printed on every run so the next
+        # colour surprise is one lookup away.
+        continue-on-error: true
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          "$QGIS_PY" -c "from qgis.core import QgsApplication, QgsStyle; app=QgsApplication([], False); app.initQgis(); st=QgsStyle.defaultStyle(); names=set(st.colorRampNames()); [print(n, 'present' if n in names else 'ABSENT', st.tagsOfSymbol(QgsStyle.ColorrampEntity, n) if n in names else []) for n in ('RdBu','PiYG','PuOr','Spectral','Greys','viridis')]"
+
+      - name: Functional suite
+        timeout-minutes: 180
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          "$QGIS_PY" -u tests/run_tests.py
+
+      - name: Visual gallery
+        timeout-minutes: 60
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          "$QGIS_PY" -u tests/visual_tests.py
+
+      - name: Keep what it drew, whatever it said
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-reports
+          path: reports/
+          if-no-files-found: ignore
+
   # The visual gallery, on Linux, on every push.
   #
   # It was kept out of CI for months on the belief that its Delta-E

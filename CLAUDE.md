@@ -237,7 +237,7 @@ obligations: they exist so nobody pays twice for the same discovery.
   requires every stage to be either covered by a named CI job or
   exempt with a written reason; it also requires every harness under
   `tests/` to be run by the workflow or exempt, every script the
-  workflow names to exist, and the five jobs -- standards, suite,
+  workflow names to exist, and the six jobs -- standards, suite,
   install, gallery, windows -- to be present, each of them still
   running a command this check can SEE. That last clause was added
   2026-08-15 with the Windows job: a job whose invocation is

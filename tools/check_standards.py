@@ -649,15 +649,20 @@ def check_ci_covers_what_it_claims():
     return
   workflow = open(path, encoding="utf-8").read()
 
-  for job in ("standards", "suite", "install", "gallery", "windows"):
+  for job in ("standards", "suite", "install", "gallery", "windows",
+              "macos"):
     if f"\n  {job}:" not in workflow:
       problems.append(
         f"ci.yml has no {job!r} job. Every one of these answers a "
         f"question the others cannot: standards checks the rules, "
         f"suite the behaviour, install what a USER receives, "
-        f"gallery whether the map is drawn correctly, and windows "
+        f"gallery whether the map is drawn correctly, windows "
         f"whether the artefact survives a filesystem with the other "
-        f"separator, a long-path ceiling and different locking rules.")
+        f"separator, a long-path ceiling and different locking rules, "
+        f"and macos what happens on the package a user actually "
+        f"downloads in a profile nobody has seeded -- the only leg "
+        f"that can tell 'my machine' from 'the software', which is "
+        f"how the ramp collision of 2026-08-15 stayed invisible.")
 
   # PARITY WITH THE MAC, derived from release.py rather than listed
   # here, so the two cannot drift apart quietly. Every stage a

@@ -94,7 +94,7 @@ machine alone, which is exactly how the gallery was lost.
 on a clean checkout, which is the one thing this machine can never
 be.
 
-**The five jobs are present**: standards, suite, install, gallery,
+**The six jobs are present**: standards, suite, install, gallery,
 windows. They answer questions none of the others can -- the rules,
 the behaviour, what a USER receives, whether the map is drawn right,
 and whether the artefact survives a filesystem with the other
