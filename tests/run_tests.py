@@ -14099,6 +14099,60 @@ def test_integration_interleaved_session():
       f"the pin did not reach the map inside the session: " \
       f"{renderer('a').ranges()[0].upperValue()} against {pinned_at}"
 
+  # 4b. a COPY inside the session, which is where the interactions
+  # live: b takes a's whole classification while a carries a pin, and
+  # what must be true afterwards is that b draws a's breaks, that the
+  # pin travelled only if b's own column can carry it, and that b's
+  # controls, its record and its map all say the same number. Every
+  # one of those was a separate defect on 2026-08-15, and none of
+  # them was reachable from a test that copied and stopped.
+  b_before = next((x for x in dlg._assignments() if x["id"] == "b"), None)
+  b_field = b_before and b_before.get("var")
+  # ASSERTED, not guarded by an `if`: a conditional here would skip
+  # the whole block in silence the day b stops being graduated, and
+  # the test would go on passing while exercising nothing -- the
+  # fixture-invisibility shape docs/TESTING.md records
+  assert b_field and b_before.get("mode") == "Graduated", \
+    f"element b is not a graduated row at this point in the session, " \
+    f"so the copy below would exercise nothing: {b_before}"
+  refusal = dlg._copy_classification("a", "b")
+  assert refusal is None, f"the copy inside the session was refused: {refusal}"
+  _tick(250)
+  a_bounds = [(r.lowerValue(), r.upperValue())
+              for r in renderer("a").ranges()]
+  b_bounds = [(r.lowerValue(), r.upperValue())
+              for r in renderer("b").ranges()]
+  assert len(b_bounds) == len(a_bounds), \
+    f"the copy did not give b a's class count: " \
+    f"{len(b_bounds)} against {len(a_bounds)}"
+  # the INTERIOR boundaries travel exactly; the outer edges are
+  # fitted to b's own extremes, which is the copy's stated rule
+  assert [round(hi, 6) for _lo, hi in b_bounds[:-1]] == \
+         [round(hi, 6) for _lo, hi in a_bounds[:-1]], \
+    f"b's copied breaks are not a's: {b_bounds} against {a_bounds}"
+  b_spin = dlg.table.cellWidget(1, 3)
+  b_row = next((x for x in dlg._assignments() if x["id"] == "b"), None)
+  numbers = {"the map": len(b_bounds),
+             "the spinner": b_spin.value() if b_spin else None,
+             "the assignment": b_row and b_row.get("k"),
+             "_class_counts": dlg._class_counts.get("b")}
+  assert len(set(numbers.values())) == 1, \
+    f"after a copy inside the session, one setting reads: {numbers}"
+  carried = (dlg._pinned_bounds.get("b", {}).get(b_field) or {})
+  if carried.get("low") is not None:
+    b_values = [v for v in dlg._classification_values(b_field)
+                .uniqueValues(dlg._classification_values(b_field)
+                              .fields().indexOf(b_field))
+                if v is not None]
+    assert bridge.pin_problem(
+      float(carried["low"]), None, b_values, b_row.get("k", 5)) is None, \
+      f"the copy pinned b at {carried['low']}, which b's own data " \
+      f"cannot carry"
+  # ...and the copy must not have disturbed the element it came from
+  assert [(r.lowerValue(), r.upperValue())
+          for r in renderer("a").ranges()] == a_bounds, \
+    "copying FROM a changed a"
+
   # 5. data: change c's variable; a and b keep everything
   a_colour, a_classes = top_colour("a"), len(renderer("a").ranges())
   dlg.table.cellWidget(2, 1).setCurrentText("landcover")
