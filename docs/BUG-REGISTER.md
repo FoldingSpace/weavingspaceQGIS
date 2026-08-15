@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-123 defect(s) with a regression test.
+124 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -271,6 +271,8 @@ there is no separate list to remember.
   guarded by `test_the_pin_shows_which_way_it_is_set`
 - **the preview's painting had almost no coverage, and removing its brush, pen, render hint or fitting arithmetic changed a picture no test looked at.**  
   guarded by `test_the_preview_actually_draws_what_it_is_given`
+- **the categorized changelog shape rendered correctly in QGIS's plugin manager and reached the GitHub release page as a single undifferentiated paragraph.**  
+  guarded by `test_the_release_notes_keep_their_categories`
 - **the plugin wrote embedded styles through an API QGIS had already deprecated, discovered while probing a segfault on QGIS 4.2.1.**  
   guarded by `test_the_style_is_saved_through_the_current_api`
 - **the spacing offered in the size-guard refusal was computed from a pure inverse-square law and came out slightly too fine, so a user who typed the number the plugin had just suggested was refused a second time.**  
@@ -291,7 +293,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 67
+- unrecorded: 68
 - the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6

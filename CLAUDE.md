@@ -460,6 +460,26 @@ obligations: they exist so nobody pays twice for the same discovery.
   Implemented 2026-08-12 and proved to fail by adding a harness the
   workflow does not name. When you write that something is enforced,
   open the checker in the same commit.
+- **One changelog, TWO RENDERERS, and it must read in both.** The
+  `changelog=` entry is shown by QGIS's plugin manager, which
+  displays the metadata text as it stands, and by the GitHub release
+  page, which renders MARKDOWN -- where single newlines fold into one
+  paragraph. The categorized shape settled on 2026-08-13 therefore
+  worked in the plugin manager and arrived on the release page as a
+  wall of prose, because `release_notes.entry_for` collapsed the
+  entry with `" ".join(...)` before GitHub ever saw it. Found and
+  fixed 2026-08-14; the entry is now emitted as an opening paragraph
+  plus one bullet per category, and `test_the_release_notes_keep_
+  their_categories` holds the line.
+  The general rule, which is what the next person needs: WHEN ONE
+  TEXT IS SHOWN BY TWO RENDERERS, CHECK IT IN BOTH BEFORE BELIEVING
+  IT READS. Same words is a virtue -- it is why the plugin manager
+  and the release page cannot drift -- but it is not the same as
+  same appearance, and this project reached for the first and assumed
+  the second. That applies beyond the changelog: `about` in
+  metadata.txt, the README against the project page, and any
+  message that might one day be shown in a rich widget as well as a
+  plain one.
 - **Release notes are COMPOSED, never generated, and the half a
   person writes is the `changelog=` entry in metadata.txt.** A
   release page has two readers: somebody deciding whether to

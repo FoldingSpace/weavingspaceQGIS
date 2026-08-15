@@ -75,16 +75,50 @@ def entry_for(changelog, version):
     version: the version whose entry is wanted.
 
   Returns:
-    The text of that version's entry with the version number
-    stripped from the front, or None when there is none -- which is
-    a refusal rather than an empty section, because notes nobody
-    wrote are worse than notes nobody has.
+    The entry as MARKDOWN: the opening sentence as a paragraph, then
+    one bullet per category. None when there is none -- which is a
+    refusal rather than an empty section, because notes nobody wrote
+    are worse than notes nobody has.
+
+  WHY THIS IS NOT ONE PARAGRAPH, and it was until 2026-08-14. The
+  entry is written for two renderers at once. QGIS's plugin manager
+  shows the metadata text as it stands, so the "Colour: ..." lines
+  read as separate lines there; GitHub renders MARKDOWN, where single
+  newlines fold into a paragraph -- and this function used to collapse
+  the whole entry with " ".join(...) before GitHub ever saw it. The
+  categorized shape the maintainer settled on 2026-08-13 therefore
+  worked in the plugin manager and arrived on the release page as a
+  wall of prose. Same words, two renderers, and only one of them was
+  being thought about.
+
+  A category is a continuation line opening with a short capitalised
+  label and a colon; anything else continues the line before it.
   """
   match = re.search(rf"{re.escape(version)}\s+(.*?)(?=\n\s*\d+\.\d+\.\d+\s|\Z)",
                     changelog, re.S)
   if not match:
     return None
-  return " ".join(match.group(1).split())
+  blocks = []
+  for line in match.group(1).splitlines():
+    line = line.strip()
+    if not line:
+      continue
+    if re.match(r"^[A-Z][^:]{0,28}:\s", line) and blocks:
+      blocks.append(line)
+    elif blocks:
+      blocks[-1] = f"{blocks[-1]} {line}"
+    else:
+      blocks.append(line)
+  if not blocks:
+    return None
+  summary, categories = blocks[0], blocks[1:]
+  if not categories:
+    return summary
+  bullets = []
+  for block in categories:
+    label, _, rest = block.partition(":")
+    bullets.append(f"- **{label.strip()}:** {rest.strip()}")
+  return summary + "\n\n" + "\n".join(bullets)
 
 
 def measured(version):

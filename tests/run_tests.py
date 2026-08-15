@@ -7715,6 +7715,57 @@ def test_a_refused_pin_reverts_and_says_so():
   dlg.close()
 
 
+def test_the_release_notes_keep_their_categories():
+  """One changelog, two renderers, and it has to read in both.
+
+  QGIS's plugin manager shows the metadata text as it stands, so the
+  categorized lines read as lines there. The GitHub release page
+  renders Markdown, where single newlines fold into one paragraph --
+  and release_notes.entry_for used to collapse the whole entry with
+  " ".join(...) before GitHub ever saw it. The shape the maintainer
+  settled on therefore worked in one place and arrived in the other
+  as a wall of prose.
+
+  Same words is the point of composing the notes from the metadata.
+  Same APPEARANCE is a separate claim, and this is where it is
+  checked.
+
+  Regression: the categorized changelog shape rendered correctly in QGIS's plugin manager and reached the GitHub release page as a single undifferentiated paragraph.
+  """
+  import importlib.util
+  spec = importlib.util.spec_from_file_location(
+    "release_notes", os.path.join(HERE, "..", "tools", "release_notes.py"))
+  notes = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(notes)
+
+  changelog = notes.metadata_field("changelog")
+  assert changelog, "metadata.txt carries no changelog to check"
+  version = notes.metadata_field("version")
+  entry = notes.entry_for(changelog, version)
+  assert entry, f"no changelog entry for {version!r}"
+
+  paragraph, _, rest = entry.partition("\n\n")
+  assert paragraph and "\n" not in paragraph, \
+    f"the opening sentence is not a paragraph of its own: {paragraph!r}"
+  assert rest, \
+    f"the {version} entry reached the release page as ONE paragraph, " \
+    f"which is what Markdown does to single newlines. Its categories " \
+    f"must be bullets: {entry!r}"
+  bullets = [line for line in rest.splitlines() if line.strip()]
+  assert all(line.startswith("- **") for line in bullets), \
+    f"every category must be a Markdown bullet with its label in " \
+    f"bold, and these are not: {bullets!r}"
+  assert len(bullets) >= 2, \
+    f"the entry has {len(bullets)} categor(y/ies), so this test " \
+    f"cannot tell a categorized entry from a flattened one"
+
+  # ...and an entry with NO categories stays a plain paragraph rather
+  # than growing a bullet list with one item in it.
+  plain = notes.entry_for("9.9.9 One sentence and nothing else.", "9.9.9")
+  assert plain == "One sentence and nothing else.", \
+    f"a single-sentence entry must not be dressed up: {plain!r}"
+
+
 def test_a_class_source_file_that_goes_away():
   """The QML is deleted, moved or renamed after being chosen.
 
@@ -37901,6 +37952,8 @@ def main():
         test_the_pin_shows_which_way_it_is_set)
   check("a refused pin reverts and says so",
         test_a_refused_pin_reverts_and_says_so)
+  check("the release notes keep their categories",
+        test_the_release_notes_keep_their_categories)
   check("one variable gets one legend wherever it appears",
         test_one_variable_gets_one_legend_wherever_it_appears)
   check("a class source file that goes away",

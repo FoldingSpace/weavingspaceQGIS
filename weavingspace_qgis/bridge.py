@@ -932,10 +932,15 @@ def pin_problem(low, high, values, asked: int):
   pins = (low is not None) + (high is not None)
   if pins and int(asked) - 1 < pins:
     available = int(asked) - 1
-    return (f"A {int(asked)}-class ladder has "
-            f"{available} boundar{'y' if available == 1 else 'ies'} "
-            f"to pin, so it cannot carry {pins}. Ask for more "
-            f"classes, or unpin one end.")
+    # The whole word is interpolated, never a word split across a
+    # placeholder. "boundar{}" reads as a typo to anybody meeting it
+    # in the text-review queue, which is where every sentence a user
+    # sees is read before it ships, and a reviewer should never have
+    # to reconstruct a word from a format string.
+    boundaries = "boundary" if available == 1 else "boundaries"
+    return (f"A {int(asked)}-class scheme has {available} "
+            f"{boundaries} to pin, so it cannot carry {pins}. Ask "
+            f"for more classes, or unpin one end.")
   # Something has to be left for the classes in between. A pin takes
   # one class of its own, so the middle is what the row asked for
   # minus the pins, and it needs at least one value to cut.

@@ -4623,7 +4623,8 @@ class WeavingSpaceDialog(QDialog):
     self._custom_swatch_cache.pop(target_id, None)
     self._apply_style_change()
     self._report_quietly(
-      f"Element '{target_id}' now uses element '{source_id}'s classes"
+      f"Element '{target_id}' now uses the classes from element "
+      f"'{source_id}'"
       + (f", replacing {' and '.join(lost)}." if lost else "."))
     return None
 
