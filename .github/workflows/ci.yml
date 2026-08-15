@@ -626,41 +626,36 @@ jobs:
           # attribute gates.
           brew install --cask qgis
 
-      - name: What actually got installed
+      - name: What actually got installed, and does its Python START
         # PROBED, not assumed, exactly as the Windows job learned to
         # do: the app's name and its bundled Python's path have both
         # moved between QGIS releases, and a guess fails with a
         # confusing error instead of a listing.
+        #
+        # FINDING the interpreter is not enough, which is what the
+        # second round here discovered. The cask's
+        # Contents/MacOS/python3.12 was built on the QGIS project's own
+        # runner and carries THAT machine's paths: it reported a
+        # `sys.base_prefix` inside a vcpkg build tree that exists on no
+        # other computer, and died with "No module named 'encodings'"
+        # before running a line of Python, because the standard library
+        # was not where it was told. PYTHONHOME repairs it, and where it points
+        # has itself moved between releases. So the discovery lives in
+        # `tools/macos_qgis_env.sh`, which tries each combination and
+        # keeps the one that actually imports qgis.core -- and
+        # `tests/run_tests_macos.sh` calls the same script, so the
+        # runner and the development machine cannot drift apart about
+        # how to start this interpreter.
+        #
+        # Its output is KEY=value lines on stdout and diagnostics on
+        # stderr, so it appends straight into the step environment and
+        # every later step inherits PYTHONHOME, PROJ_LIB and
+        # QGIS_PREFIX_PATH.
         run: |
           set -e
-          APP=$(ls -d /Applications/QGIS*.app 2>/dev/null | head -1)
-          if [ -z "$APP" ]; then
-            echo "no QGIS application bundle under /Applications:"
-            ls -la /Applications | head -40
-            exit 1
-          fi
-          echo "bundle: $APP"
-          # THREE PLACES, then a search. The first attempt looked only
-          # in Contents/MacOS/bin, which the cask does not have: QGIS
-          # 4.2.0 puts its interpreter at Contents/MacOS/python3.12,
-          # and the 4.0.3 build on the development machine does the
-          # same. Older layouts used bin/, and some builds keep it in
-          # a Python framework, so all three are tried before falling
-          # back to a search -- and a failure prints the tree rather
-          # than a bare "not found", which is what cost this job a
-          # whole round.
-          PY=$(ls "$APP"/Contents/MacOS/bin/python3* 2>/dev/null | head -1)
-          [ -z "$PY" ] && PY=$(ls "$APP"/Contents/MacOS/python3* 2>/dev/null | head -1)
-          [ -z "$PY" ] && PY=$(ls "$APP"/Contents/Frameworks/Python.framework/Versions/*/bin/python3 2>/dev/null | head -1)
-          [ -z "$PY" ] && PY=$(find "$APP/Contents" -maxdepth 5 -name 'python3*' -type f -perm -u+x 2>/dev/null | head -1)
-          if [ -z "$PY" ]; then
-            echo "no bundled python3 anywhere under $APP/Contents:"
-            find "$APP/Contents" -maxdepth 3 -type d | head -40
-            exit 1
-          fi
-          echo "python: $PY"
-          echo "QGIS_APP=$APP" >> "$GITHUB_ENV"
-          echo "QGIS_PY=$PY" >> "$GITHUB_ENV"
+          bash tools/macos_qgis_env.sh >> "$GITHUB_ENV"
+          echo "--- what the rest of this job will use ---"
+          cat "$GITHUB_ENV"
 
       - name: What QGIS is this, actually, and REFUSE anything but 4.x
         # Asserted rather than printed, for the reason the Windows job
