@@ -2424,6 +2424,30 @@ MUTATIONS = [
            "in the legend that no tile wears and draws the highest "
            "value in a middle colour, so a reader matching the darkest "
            "swatch to 'high' reads the map wrongly"),
+  dict(name="a-copy-carries-the-pin-flags", file=DIALOG,
+       old="      if source_pins.get(end) is not None:",
+       new="      if False:  # mutation: the flags stay behind",
+       test="test_a_copied_classification_carries_the_whole_row",
+       why="the pin FLAG is a different statement from the boundary "
+           "VALUES, and a copy must carry both: without the flag a "
+           "pinned source arrives unpinned, its swatch draws no box "
+           "and unpinning that end does nothing"),
+  dict(name="a-copied-ladder-is-fitted", file=BRIDGE,
+       old="  bounds.append((interior[-1], max(high, interior[-1])))",
+       new="  bounds.append((interior[-1], interior[-1]))  # mutation",
+       test="test_a_copied_ladder_is_fitted_to_the_column_it_lands_on",
+       why="the receiving column's own max is the top class's upper "
+           "bound, so without it a ladder copied onto a WIDER column "
+           "stops short and everything above the copied ladder's last "
+           "break falls outside every class and paints as no data"),
+  dict(name="an-unworn-class-is-marked", file=BRIDGE,
+       old="        worn.add(index)",
+       new="        pass  # mutation: every class looks worn",
+       test="test_a_copied_ladder_is_fitted_to_the_column_it_lands_on",
+       why="a copied ladder can leave classes the receiving data "
+           "cannot reach, and those are kept rather than dropped, so "
+           "the emptiness has to be visible: unmarked, the legend "
+           "shows swatches no tile wears with nothing to say so"),
   dict(name="a-pin-decides-its-own-break", file=BRIDGE,
        old="  if pins:\n    _apply_pinned_bounds(",
        new="  if False:\n    _apply_pinned_bounds(",

@@ -7380,6 +7380,153 @@ def test_a_pin_survives_a_project_round_trip():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_a_copied_classification_carries_the_whole_row():
+  """Copying sends breaks, colours, count, style and PIN FLAGS.
+
+  The dropdown at the top of the graduated editor sends one element's
+  classification to another. What must travel is everything a person
+  would call "how this element is classed", and the case that
+  separates the flag from the values is a copy from an UNPINNED
+  source: its breaks become hand-set on the target, and neither end
+  is pinned. A test that only ever copies from a pinned element
+  cannot tell those two apart.
+
+  The elements deliberately carry DIFFERENT columns, which is what
+  the feature is for: since 0.24.3 two elements on one variable share
+  a data range, so the end-fitting rules only bite across variables.
+
+  Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.n_combo.setCurrentText("4")
+  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  dlg.spacing_spin.setValue(1200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v3")    # 0 to 121
+  dlg.table.cellWidget(1, 1).setCurrentText("v1")    # 0 to 11
+  _tick(200)
+  _generate_and_wait(dlg)
+  source = dlg.table.item(0, 0).text()
+  target = dlg.table.item(1, 0).text()
+
+  def drawn(tile_id):
+    out = project.mapLayer(dlg._element_layer_ids[tile_id])
+    renderer = out.renderer()
+    return ([(round(r.lowerValue(), 3), round(r.upperValue(), 3))
+             for r in renderer.ranges()],
+            [r.symbol().color().name() for r in renderer.ranges()])
+
+  before_source, source_colours = drawn(source)
+  before_target, _ = drawn(target)
+  assert before_source != before_target, \
+    "the two elements class alike already, so a copy proves nothing"
+
+  offered = dict(dlg._copy_targets(source))
+  assert target in offered, \
+    f"the target is not offered as somewhere to copy to: {offered!r}"
+  assert source not in offered, \
+    "an element must not be offered as a target for itself"
+
+  assert dlg._copy_classification(source, target) is None, \
+    "the copy was refused"
+  _tick(300)
+  after, colours = drawn(target)
+  assert colours == source_colours, \
+    f"the colours did not travel: {colours} against {source_colours}"
+  assert len(after) == len(before_source), \
+    f"the class count did not travel: {len(after)} against " \
+    f"{len(before_source)}"
+  assert after != before_target, "the copy changed nothing on the map"
+  # the ladder stays usable: contiguous, and never running backwards
+  assert all(after[i][1] == after[i + 1][0] for i in range(len(after) - 1)), \
+    f"the copied ladder has gaps: {after}"
+  assert all(low <= high for low, high in after), \
+    f"the copied ladder has a class running backwards: {after}"
+
+  # THE FLAG, which is the point. An unpinned source leaves the target
+  # with hand-set breaks and no pin at all.
+  record = dlg._pinned_bounds.get(target, {}).get("v1") or {}
+  assert record.get("breaks"), \
+    f"the copied breaks were not recorded: {record!r}"
+  assert record.get("low") is None and record.get("high") is None, \
+    f"copying from an UNPINNED element left the target pinned " \
+    f"({record!r}); the flag must travel separately from the values, " \
+    f"or every copy looks fully pinned and unpin has nothing to do"
+
+  # ...and a pinned source sends its flag along with them.
+  dlg._pinned_bounds.setdefault(source, {})["v3"] = {"low": 10.0}
+  dlg._apply_style_change()
+  _tick(300)
+  assert dlg._copy_classification(source, target) is None, \
+    "the second copy was refused"
+  _tick(300)
+  record = dlg._pinned_bounds.get(target, {}).get("v1") or {}
+  assert record.get("low") == 10.0, \
+    f"the pin flag did not travel with the breaks: {record!r}"
+  dlg.close()
+
+
+def test_a_copied_ladder_is_fitted_to_the_column_it_lands_on():
+  """The end rules, and the monotonicity they must not break.
+
+  A ladder copied onto a column with a different range has its outer
+  edges fitted to that column: the highest class's upper bound and
+  the lowest class's lower bound become its max and min. Where the
+  column's max sits below the upper class's lower bound the two are
+  made equal, and the bottom collapses the same way.
+
+  The collapse moves the OUTER edge and never a copied boundary. The
+  first draft did the opposite and produced (30, 3) -- a class
+  running backwards -- whenever more than one copied break sat above
+  the receiving column's max.
+
+  Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+  """
+  from weavingspace_qgis import bridge
+  ladder = [4.0, 14.2, 30.0, 55.0]
+
+  same = bridge.fitted_breaks(ladder, 0, 121)
+  assert same == [(0.0, 4.0), (4.0, 14.2), (14.2, 30.0), (30.0, 55.0),
+                  (55.0, 121.0)], \
+    f"a ladder on its own range must be unchanged: {same}"
+
+  for low, high, why in ((0, 3, "the column stops below the top breaks"),
+                         (100, 200, "the column starts above them"),
+                         (10, 40, "the column sits inside them"),
+                         (0, 121, "the column matches")):
+    got = bridge.fitted_breaks(ladder, low, high)
+    assert got, f"nothing came back for {low}-{high}"
+    assert all(a <= b for a, b in got), \
+      f"{why}: a class runs backwards in {got}"
+    assert all(got[i][1] == got[i + 1][0] for i in range(len(got) - 1)), \
+      f"{why}: the ladder has gaps in {got}"
+    assert len(got) == len(ladder) + 1, \
+      f"{why}: {len(got)} classes for a {len(ladder) + 1}-class ladder"
+  assert bridge.fitted_breaks([], 0, 10) is None, \
+    "an empty ladder has nothing to fit"
+
+  # ...and the classes the receiving data cannot reach are KEPT and
+  # MARKED, never dropped: a copy reproduces a classification, and a
+  # silently shortened one does not.
+  small = bridge.fitted_breaks(ladder, 0, 11)
+  unworn = bridge.unworn_classes(small, list(range(12)))
+  assert unworn == [2, 3, 4], \
+    f"the classes v1 cannot reach should be marked, and {unworn} were"
+  # one value per class, checked here rather than assumed: the first
+  # draft of this line sampled [0, 3, 20, 40, 90, 121] and reported
+  # class 1 unworn, which was true -- nothing in it falls between 4
+  # and 14.2. A fixture that misses a class makes this assertion say
+  # the opposite of what it means.
+  covering = [0, 10, 20, 40, 90]
+  assert bridge.unworn_classes(same, covering) == [], \
+    f"a ladder on its own column must mark nothing, and marked " \
+    f"{bridge.unworn_classes(same, covering)} over {covering}"
+
+
 def test_a_class_source_file_that_goes_away():
   """The QML is deleted, moved or renamed after being chosen.
 
@@ -37556,6 +37703,10 @@ def main():
         test_a_pin_that_cannot_be_drawn_is_refused)
   check("a pin survives a project round trip",
         test_a_pin_survives_a_project_round_trip)
+  check("a copied classification carries the whole row",
+        test_a_copied_classification_carries_the_whole_row)
+  check("a copied ladder is fitted to the column it lands on",
+        test_a_copied_ladder_is_fitted_to_the_column_it_lands_on)
   check("one variable gets one legend wherever it appears",
         test_one_variable_gets_one_legend_wherever_it_appears)
   check("a class source file that goes away",
