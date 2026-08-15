@@ -4756,10 +4756,27 @@ def test_a_reprojected_layer_is_followed():
   _tick(250)
   after = _fingerprint(dlg)
 
-  assert after != before, \
-    f"the layer was reprojected and the map is unchanged ({before}). " \
-    f"Tiles laid out in metres are in the wrong place entirely once " \
-    f"the region is in degrees"
+  # SAY WHAT WAS FOUND, not which assertion was reached. This failed
+  # on the Windows runner on 2026-08-15 and could not be reproduced on
+  # macOS, which is exactly the situation where a message naming only
+  # the assertion costs a whole remote round to guess at. Both
+  # fingerprints, the CRS at each end, what the dialog recorded, and
+  # the spacing Auto derived -- because the likeliest explanations are
+  # that the reprojection did not take, that the plugin did not notice
+  # it, or that Auto produced a spacing that happens to tile the same
+  # way, and those three want telling apart in one reading.
+  assert after != before, (
+    f"the layer was reprojected and the map is unchanged.\n"
+    f"    before={before}\n    after ={after}\n"
+    f"    layer CRS now {layer.crs().authid()!r}, "
+    f"extent {layer.extent().toString(4)!r}, "
+    f"features {layer.featureCount()}\n"
+    f"    dialog recorded CRS {getattr(dlg, '_watched_crs', 'unset')!r}, "
+    f"spacing {dlg.spacing_spin.value()}\n"
+    f"    Tiles laid out in metres are in the wrong place entirely "
+    f"once the region is in degrees, so an unchanged map means "
+    f"either the reprojection did not happen, the plugin did not "
+    f"notice it, or Auto chose a spacing that tiles identically.")
   assert after[0] > 0, "the reprojected layer produced no tiles at all"
   ratio = after[0] / before[0]
   assert 0.4 <= ratio <= 2.5, \
@@ -5061,6 +5078,27 @@ def test_qgis_changes_around_the_plugin():
       dlg._assignments()
       dlg._run_signature()
       dlg._restyle_only()
+    except PermissionError as exc:
+      # WINDOWS CANNOT STAGE THIS CASE AT ALL, and that is a fact
+      # about the platform rather than about the plugin. Deleting a
+      # file while QGIS holds it open raises WinError 32 on the
+      # DELETE, so the scenario never happens: the defect this case
+      # guards -- layer.extent() segfaulting outright once the file
+      # behind a layer has gone -- is not reachable on Windows in this
+      # form, because the operating system refuses to create the
+      # situation. Measured on the windows runner, 2026-08-15.
+      #
+      # It is SAID rather than skipped silently. A case that quietly
+      # drops out on one platform is indistinguishable from one that
+      # passed there, which is the fault this project keeps finding in
+      # its own instruments; and if a future Windows ever allows the
+      # delete, this stops printing and the case is judged normally.
+      if os.name == "nt" and "cannot access the file" in str(exc):
+        print(f"    note: {label!r} cannot be staged on Windows -- the "
+              f"OS refuses to delete a file QGIS holds open, so the "
+              f"situation this case guards cannot arise here")
+      else:
+        trouble.append(f"{label}: raised {type(exc).__name__}: {exc}")
     except Exception as exc:
       trouble.append(f"{label}: raised {type(exc).__name__}: {exc}")
     finally:
