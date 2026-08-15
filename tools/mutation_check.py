@@ -64,6 +64,15 @@ MUTATIONS = [
   # written for. These entries are how that cannot happen quietly
   # again.
   # ---- this round's defects, each undone here so its test is proved
+  dict(name="region-removal-heard-from-the-project", file=DIALOG,
+       old="    QgsProject.instance().layersRemoved.connect(self._layers_removed)",
+       new="    pass    # mutated: rely on the combo alone",
+       test="test_removing_the_region_layer_is_noticed_in_a_real_project",
+       why="QgsMapLayerComboBox does not emit layerChanged when the "
+           "chosen layer is destroyed in a project holding three or "
+           "more polygon layers, so without the project's own signal "
+           "the dialog goes on believing in a layer QGIS has deleted, "
+           "says nothing, and Generate produces no map and no refusal"),
   dict(name="consent-names-the-destination", file=PLUGIN,
        old='    f"      {deps.LIBS_DIR}\\n"',
        new='    "      a folder belonging to this plugin\\n"',

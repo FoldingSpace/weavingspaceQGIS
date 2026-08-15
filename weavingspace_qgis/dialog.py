@@ -989,6 +989,21 @@ class WeavingSpaceDialog(QDialog):
     # an empty dialog and win, which is also what makes the
     # setdefault in _adopt_row_pins correct rather than merely safe.
     QgsProject.instance().cleared.connect(self._forget_the_last_project)
+    # AND the project's own removal signal, because the layer chooser
+    # is not a reliable witness to its own layer leaving. Measured
+    # 2026-08-15 across four arrangements: with ONE polygon layer in
+    # the project QgsMapLayerComboBox emits layerChanged (and the
+    # notice below fires), with TWO it emits and silently selects the
+    # survivor, and with THREE OR MORE IT EMITS NOTHING AT ALL. The
+    # dialog then goes on holding a layer QGIS has destroyed: nothing
+    # is said, and Generate does nothing whatever -- no map, no
+    # refusal, no message. A user with a real project, which is the
+    # case with three or more layers in it, meets a plugin that has
+    # quietly stopped working.
+    # `layersRemoved` carries the ids, which is what makes this safe
+    # to ask: the layer object is already gone by then, so anything
+    # here must compare ids rather than touch the wrapper.
+    QgsProject.instance().layersRemoved.connect(self._layers_removed)
     # which layer auto-spacing last ran for (it must run once per
     # newly chosen layer, never on the combo's spurious re-emissions)
     self._auto_spacing_layer = None
@@ -1005,6 +1020,9 @@ class WeavingSpaceDialog(QDialog):
     # dialog is open cannot be mistaken for "nothing has changed".
     self._data_version = 0
     self._watched_layer = None
+    # The watched layer's id, kept beside the object because it is
+    # what survives the object being destroyed. See _layers_removed.
+    self._watched_layer_id = None
     self._watched_fields = ()
     # None until a layer is chosen, so choosing the first one is not
     # mistaken for the CRS having been changed underneath us.
@@ -1682,6 +1700,42 @@ class WeavingSpaceDialog(QDialog):
     self._table_built_for = stamp
     self._rebuild_unit()
 
+  def _layers_removed(self, layer_ids):
+    """Notice the region layer leaving when the chooser does not say so.
+
+    Args:
+      layer_ids: the ids QGIS is removing, as strings. They are ids
+        rather than layers deliberately -- by the time this arrives
+        the objects are destroyed, so nothing here may touch a layer
+        wrapper, including the one this dialog was watching.
+
+    Returns:
+      None. Does nothing at all unless the layer this dialog is
+      pointed at is among those removed, in which case it re-runs the
+      ordinary layer-changed path so that the chooser, the assignment
+      table and the notice all follow.
+
+    Why this exists, measured 2026-08-15. QgsMapLayerComboBox is not a
+    reliable witness to its own layer being destroyed: with one
+    polygon layer in the project it emits layerChanged, with two it
+    emits and quietly selects the survivor, and with THREE OR MORE it
+    emits nothing whatever. The dialog was then left holding a
+    destroyed layer with nothing said, and Generate produced no map
+    and no refusal -- silence, on a project of the size any real one
+    has. `layersRemoved` is the project's own account of the same
+    event and does not depend on a widget's bookkeeping.
+    """
+    if self._watched_layer_id is None:
+      return
+    if self._watched_layer_id not in tuple(layer_ids):
+      return
+    # Drop the reference BEFORE anything else runs: _watch_layer's
+    # disconnect loop is guarded against a destroyed wrapper, but
+    # there is no reason to hand it one when we already know.
+    self._watched_layer = None
+    self._watched_layer_id = None
+    self._on_layer_changed()
+
   def _layer_fingerprint(self):
     """What the region layer CONTAINS, cheaply enough to ask often.
 
@@ -1873,6 +1927,11 @@ class WeavingSpaceDialog(QDialog):
       except RuntimeError:
         pass                # the layer is already gone, signals with it
     self._watched_layer = layer
+    # The ID is kept BESIDE the object, because it is the only part
+    # that survives the layer's destruction: once QGIS removes a
+    # layer, asking its Python wrapper for id() raises RuntimeError,
+    # and `layersRemoved` arrives exactly then. See _layers_removed.
+    self._watched_layer_id = layer.id() if layer is not None else None
     if layer is None:
       return
     # A layer QGIS reloads on a timer is one the user has declared

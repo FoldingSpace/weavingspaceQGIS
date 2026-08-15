@@ -4829,6 +4829,98 @@ def test_the_spacing_box_at_its_extremes():
     "\n  ".join(trouble)
 
 
+def test_removing_the_region_layer_is_noticed_in_a_real_project():
+  """The plugin follows its region layer being removed, at any size.
+
+  Regression: with three or more polygon layers in the project,
+  QgsMapLayerComboBox emitted no layerChanged at all when the chosen
+  region layer was destroyed, so the dialog went on holding a
+  destroyed layer, said nothing, and Generate produced no map and no
+  refusal. Measured 2026-08-15 at one, two, three and four layers: the
+  guarded door is the ONE-layer case, which every earlier test walked
+  through because the suite's own removal case clears every other
+  layer first. [hunt]
+
+  Driven at four project sizes because the SIZE is the variable: the
+  combo's behaviour changes at one, at two and again at three, and a
+  fixture holding a single layer cannot see any of it. The surviving
+  layers carry DIFFERENT column names on purpose -- with identical
+  ones the plugin silently tiles another region and the failure hides.
+  """
+  from qgis.core import QgsProject
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def a_layer(i):
+    layer = make_region_layer(origin=(i * 20000, 0))
+    layer.setName(f"region {i}")
+    if i:
+      provider = layer.dataProvider()
+      at = {f.name(): n for n, f in enumerate(layer.fields())}
+      provider.renameAttributes({at["v1"]: "income", at["v2"]: "rainfall"})
+      layer.updateFields()
+    return layer
+
+  trouble = []
+  for size in (1, 2, 3, 4):
+    project = QgsProject.instance()
+    project.clear()
+    BAR_MESSAGES.clear()
+    layers = [a_layer(i) for i in range(size)]
+    for layer in layers:
+      project.addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    _tick(1200)
+    target = dlg.layer_combo.currentLayer()
+    assert target is not None, f"{size}: no layer was chosen to begin with"
+    # The id is read BEFORE the removal and kept: afterwards the C++
+    # object is gone and even asking the wrapper for its id raises,
+    # which is the same fact the fix itself turns on.
+    target_id = target.id()
+    survivors = [lyr.id() for lyr in layers if lyr.id() != target_id]
+    project.removeMapLayer(target_id)
+    _tick(3000)
+
+    # What must be true is that the dialog NOTICED, which is a
+    # question about its own record rather than about any message: at
+    # one layer the answer is "nothing left to map", and at two or
+    # more it is "the survivor". Asserting the message instead would
+    # pass at size one and prove nothing at the sizes that broke.
+    watched = getattr(dlg, "_watched_layer_id", "missing")
+    if watched == target_id:
+      trouble.append(
+        f"{size} layer(s): the dialog still believes in the layer QGIS "
+        f"destroyed ({watched})")
+    if survivors:
+      now = dlg.layer_combo.currentLayer()
+      if now is None or now.id() not in survivors:
+        trouble.append(
+          f"{size} layer(s): the chooser holds "
+          f"{None if now is None else now.name()} rather than a survivor")
+      # And the map must still be reachable: the defect's real cost was
+      # a Generate that did nothing whatever.
+      BAR_MESSAGES.clear()
+      dlg._generate()
+      _tick(4000)
+      built = [lyr for lyr in project.mapLayers().values()
+               if lyr.customProperty("weavingspace_output")]
+      if not built:
+        trouble.append(
+          f"{size} layer(s): Generate produced no output and said "
+          f"{list(BAR_MESSAGES) or 'nothing'}")
+    else:
+      said = " ".join(str(m) for m in BAR_MESSAGES)
+      if "removed from the project" not in said:
+        trouble.append(
+          f"1 layer: the removal was not reported; bar said {said!r}")
+    try:
+      dlg.close()
+    except Exception:
+      pass
+    project.clear()
+
+  assert not trouble, "; ".join(trouble)
+
+
 def test_qgis_changes_around_the_plugin():
   """QGIS itself moving while the dialog is open.
 
@@ -41042,6 +41134,8 @@ def main():
         test_the_spacing_box_at_its_extremes)
   check("QGIS changes around the plugin",
         test_qgis_changes_around_the_plugin)
+  check("the region layer removed from a project of any size",
+        test_removing_the_region_layer_is_noticed_in_a_real_project)
   check("a project that already has forty layers",
         test_a_project_that_already_has_forty_layers)
   check("two projects in one session",

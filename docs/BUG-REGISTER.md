@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-166 defect(s) with a regression test.
+167 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -75,6 +75,8 @@ there is no separate list to remember.
   guarded by `test_one_colour_means_one_value_across_elements`
 - **pinning a class bound left the colour editor showing the ladder from before the pin, and the unpinned end's control offering a bound the map no longer had.**  
   guarded by `test_pinning_redraws_the_window_it_was_typed_into`
+- **with three or more polygon layers in the project, QgsMapLayerComboBox emitted no layerChanged at all when the chosen region layer was destroyed, so the dialog went on holding a destroyed layer, said nothing, and Generate produced no map and no refusal. Measured 2026-08-15 at one, two, three and four layers: the guarded door is the ONE-layer case, which every earlier test walked through because the suite's own removal case clears every other layer first.**  
+  guarded by `test_removing_the_region_layer_is_noticed_in_a_real_project`
 - **the constant-column notice counted the tiled output rather than the region layer, so a small area dropped at a coarse spacing produced "every area has the same value" beside a legend showing a range.**  
   guarded by `test_the_constant_notice_counts_the_users_areas`
 - **a renderer changed in QGIS back to something the plugin can express left the row reading "Deferring to QGIS" with its controls disabled, and the next Generate overwrote the map.**  
@@ -381,7 +383,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 82
-- a bug hunt pointed in a named direction: 17
+- a bug hunt pointed in a named direction: 18
 - the mutation campaign: 16
 - reported by a user: 11
 - race and stress testing: 6
