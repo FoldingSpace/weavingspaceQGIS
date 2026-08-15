@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-120 defect(s) with a regression test.
+123 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -183,6 +183,8 @@ there is no separate list to remember.
   guarded by `test_a_ramp_chosen_during_a_run_is_not_lost`
 - **a ramp the dropdown offered was refused on a categorized row, the user's hand-picked colours were destroyed for it, and the notice described a change that never happened.**  
   guarded by `test_a_ramp_you_are_offered_is_the_ramp_you_get`
+- **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
+  guarded by `test_a_refused_pin_reverts_and_says_so`
 - **the 0.24.0 sequence was written out on 2026-08-11 and the release would have been tagged on pre-0.24.0rc5, leaving main 51 commits behind with the page and README describing 0.23.**  
   guarded by `test_a_release_publishes_from_the_branch_the_page_is_served_from`
 - **reloading the dialog module reset the module-level _LIVE_DIALOG to None, so the dialog built from the reloaded class retired nothing and the predecessor went on running its debounces against the newcomer's layers.**  
@@ -259,10 +261,14 @@ there is no separate list to remember.
   guarded by `test_size_guard`
 - **`` line, deliberately. This guards ground we imagined rather than ground we fell through, and it used to carry the size guard's defect line by a mispaste -- which put a claim into the generated docs/BUG-REGISTER.md that this test could not possibly have supported, since nothing here goes near a tile count. The line now sits on test_size_guard, which does guard it.**  
   guarded by `test_support_logic`
+- **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
+  guarded by `test_the_categorical_editor_offers_no_pin_and_no_copy`
 - **tests/run_tests.py gained os._exit at the end of main() on 2026-08-11, which skipped the write in tools/coverage_per_test.py; three sharded recorders ran the whole suite, wrote no file, and the rc5 candidate aborted 35 minutes in at the merge stage with "nothing to merge". The last good record was a day old, and the release would otherwise have measured mutants against it.**  
   guarded by `test_the_coverage_record_survives_the_suite_exiting`
 - **the design view drew a dark outline around every tile, which fights the colour comparison the view is for.**  
   guarded by `test_the_design_view_draws_no_tile_outlines`
+- **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
+  guarded by `test_the_pin_shows_which_way_it_is_set`
 - **the preview's painting had almost no coverage, and removing its brush, pen, render hint or fitting arithmetic changed a picture no test looked at.**  
   guarded by `test_the_preview_actually_draws_what_it_is_given`
 - **the plugin wrote embedded styles through an API QGIS had already deprecated, discovered while probing a segfault on QGIS 4.2.1.**  
@@ -285,7 +291,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 64
+- unrecorded: 67
 - the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6

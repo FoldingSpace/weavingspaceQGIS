@@ -3238,6 +3238,7 @@ class WeavingSpaceDialog(QDialog):
           if tid_here:
             self._clear_quant_customization(
               tid_here, "a new class count", reset_range=False)
+            self._release_copied_breaks(tid_here, "a new class count")
           self._queue_live()
 
       k_spin.valueChanged.connect(on_k)
@@ -4596,6 +4597,13 @@ class WeavingSpaceDialog(QDialog):
     if self._class_counts.get(target_id) not in (None, source.get("k")):
       lost.append(f"its class count of {self._class_counts[target_id]}")
 
+    # THE STYLE GOES FIRST, and the order is not cosmetic: putting a
+    # row on another style releases any copied ladder it carries (a
+    # copy is made for one scheme and one count), so setting the
+    # style AFTER writing the record made the copy release the very
+    # ladder it had just written. Measured, 2026-08-14: the copy
+    # reported success and changed nothing on the map.
+    self._copy_style_to_row(target_id, source.get("mode_raw"))
     record = {"breaks": [float(b) for b in interior]}
     # the FLAGS, copied as flags: which ends the source had pinned,
     # not merely that its breaks are now hand-set
@@ -4612,7 +4620,6 @@ class WeavingSpaceDialog(QDialog):
     self._class_counts[target_id] = len(classes)
     self._ramp_choices[target_id] = source.get("ramp")
     self._reverse_choices[target_id] = bool(source.get("reverse"))
-    self._copy_style_to_row(target_id, source.get("mode_raw"))
     self._custom_swatch_cache.pop(target_id, None)
     self._apply_style_change()
     self._report_quietly(
@@ -4646,6 +4653,41 @@ class WeavingSpaceDialog(QDialog):
       return
     combo.setCurrentIndex(index)
     combo.activated.emit(index)
+
+  def _release_copied_breaks(self, tile_id, because):
+    """Drop a copied ladder, keeping the pins that came with it.
+
+    Args:
+      tile_id: the element whose classification is being recomputed.
+      because: what the user just did, named in the notice.
+
+    Returns:
+      None. Says so only when something was actually released.
+
+    A COPY DEGRADES TO ITS PINS rather than to nothing. The copied
+    boundary VALUES were chosen for a particular class count and a
+    particular set of breaks, so a new count retires them; the pin
+    FLAGS and the two bounds they name are a smaller and more durable
+    statement, and they survive, with the scheme recomputing the
+    middle around them. That is the pin mechanism doing exactly its
+    job, and it is why the record holds the two separately (settled
+    2026-08-14).
+    """
+    for field, record in list(
+        self._pinned_bounds.get(tile_id, {}).items()):
+      if not record.get("breaks"):
+        continue
+      kept = {key: value for key, value in record.items()
+              if key in ("low", "high")}
+      if kept:
+        self._pinned_bounds[tile_id][field] = kept
+      else:
+        self._pinned_bounds[tile_id].pop(field, None)
+      self._custom_swatch_cache.pop(tile_id, None)
+      self._report_quietly(
+        f"Element '{tile_id}' had classes copied from another element, "
+        f"and {because} recomputes them"
+        + (". Its pinned bounds are kept." if kept else "."))
 
   def _copy_targets(self, source_id):
     """The elements this one's classification may be copied to.
@@ -4934,6 +4976,16 @@ class WeavingSpaceDialog(QDialog):
     """
     mode_combo.setProperty("touched", True)
     var = var_combo.currentText()
+    # A copied ladder was copied for a particular SCHEME as well as a
+    # particular count, so choosing another retires its values -- and
+    # keeps the pins that came with them, which is the whole reason
+    # the record holds the two apart.
+    for row in range(self.table.rowCount()):
+      if self.table.cellWidget(row, 2) is mode_combo:
+        item = self.table.item(row, 0)
+        if item is not None:
+          self._release_copied_breaks(item.text(), "a new class style")
+        break
     if mode_combo.currentText() in self.GRAD_SCHEMES and \
         var not in ("", "---") and not self._field_is_numeric(var):
       # blockSignals so the correction does not read as another user

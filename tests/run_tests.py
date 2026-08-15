@@ -7527,6 +7527,154 @@ def test_a_copied_ladder_is_fitted_to_the_column_it_lands_on():
     f"{bridge.unworn_classes(same, covering)} over {covering}"
 
 
+def test_the_categorical_editor_offers_no_pin_and_no_copy():
+  """Neither control appears where it would mean nothing.
+
+  A categorical element has values rather than class bounds, so there
+  is nothing to pin and no ladder to copy. The editor is ONE window
+  wearing three dresses, which is exactly the arrangement in which a
+  control leaks into the dress it does not belong to -- so the
+  absence is asserted rather than assumed.
+
+  Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+  """
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+  order = ["forest", "water", "urban"]
+  colours = {value: "#00ff00" for value in order}
+  editor = CategoryColourDialog(
+    "a", "landcover", order, colours, lambda *a: None,
+    pin_changed=lambda *a: None,
+    copy_targets=[("b", "b - v1")], copy_to=lambda *a: None)
+  try:
+    headers = [editor.table.horizontalHeaderItem(c).text()
+               for c in range(editor.table.columnCount())]
+    assert "Pin" not in headers, \
+      f"the categorical editor grew a Pin column: {headers}"
+    assert headers == ["Value", "Colour"], \
+      f"the categorical editor's columns changed: {headers}"
+    assert not getattr(editor, "_pin_widgets", {}), \
+      "the categorical editor built pin controls it cannot use"
+    assert getattr(editor, "_copy_box", None) is None, \
+      "the categorical editor built a Copy to... dropdown, which " \
+      "would send class breaks an element without classes cannot use"
+  finally:
+    editor.close()
+
+
+def test_the_pin_shows_which_way_it_is_set():
+  """The glyph's two states must be tellable apart, not merely differ.
+
+  A pin whose states can only be told apart by looking twice is worse
+  than the checkbox it replaced. This renders both and compares them,
+  which is the same check
+  test_a_toggle_switch_shows_which_way_it_is_set makes of the other
+  hand-painted control in this plugin -- and the reason neither is
+  asserted by reading a flag back is that a flag says what was set,
+  never what was drawn.
+
+  Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+  """
+  from qgis.PyQt.QtGui import QImage, QPainter
+  from weavingspace_qgis.category_editor import PinButton
+
+  def rendered(pinned):
+    button = PinButton()
+    button.setChecked(pinned)
+    button.resize(button.sizeHint())
+    image = QImage(button.size(), QImage.Format.Format_ARGB32)
+    image.fill(0)
+    painter = QPainter(image)
+    button.render(painter)
+    painter.end()
+    return image
+
+  out, into = rendered(False), rendered(True)
+  assert out.size() == into.size(), "the two states are different sizes"
+  differing = sum(1 for y in range(out.height())
+                  for x in range(out.width())
+                  if out.pixel(x, y) != into.pixel(x, y))
+  total = out.width() * out.height()
+  assert differing > total * 0.15, \
+    f"only {differing} of {total} pixels differ between a pin that is " \
+    f"in and one that is out, which is not a difference anybody " \
+    f"reads across a table"
+
+
+def test_a_refused_pin_reverts_and_says_so():
+  """A bound the map cannot draw puts the control back, and reports.
+
+  The editor decides nothing: it asks, and a message back means
+  refused. What matters to a user is that the refusal is VISIBLE --
+  the number they typed does not stand, and they are told why --
+  because the alternative to reverting is a control quietly showing a
+  bound the map does not have.
+
+  Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  # FIRST the editor's half: a callback that refuses must leave the
+  # control exactly where it was, or the window goes on showing a
+  # bound the map does not have.
+  bounds = [(0.0, 4.0), (4.0, 14.0), (14.0, 30.0), (30.0, 55.0),
+            (55.0, 121.0)]
+  order = [str(i) for i in range(5)]
+  asked = []
+
+  def refuse(which, value):
+    asked.append((which, value))
+    return "That bound cannot be drawn."
+
+  editor = CategoryColourDialog(
+    "a", "v3", order, {k: "#ff0000" for k in order}, lambda *a: None,
+    bounds=bounds, range_bounds=(0, 100), ramp_name="Reds",
+    pin_changed=refuse)
+  try:
+    pin, box = editor._pin_widgets["low"]
+    assert not pin.isChecked(), "the fixture starts pinned"
+    pin.setChecked(True)
+    assert asked, "the editor never asked the dialog whether it could"
+    assert not pin.isChecked(), \
+      "a refused pin stayed pressed in, so the window shows a bound " \
+      "the map does not have"
+    assert not box.isEnabled(), \
+      "a refused pin left its bound box editable"
+  finally:
+    editor.close()
+
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v3")
+  _tick(150)
+  tid = dlg.table.item(0, 0).text()
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+
+  assignment = dlg._assignment_for(tid)
+  source = dlg._classification_values("v3")
+  values = source.uniqueValues(source.fields().indexOf("v3"))
+  BAR_MESSAGES.clear()
+  problem = bridge.pin_problem(1e9, None, values, assignment.get("k", 5))
+  assert problem, "a bound far above the data should be refused"
+
+  # ...and the dialog's own handler reports it and records nothing
+  before = dict(dlg._pinned_bounds.get(tid, {}))
+  dlg._report_quietly(problem)
+  said = [text for _kind, text in BAR_MESSAGES if "must sit between" in text]
+  assert said, \
+    f"the refusal never reached the user: {BAR_MESSAGES!r}"
+  assert dlg._pinned_bounds.get(tid, {}) == before, \
+    "a refused pin must record nothing"
+  dlg.close()
+
+
 def test_a_class_source_file_that_goes_away():
   """The QML is deleted, moved or renamed after being chosen.
 
@@ -37707,6 +37855,12 @@ def main():
         test_a_copied_classification_carries_the_whole_row)
   check("a copied ladder is fitted to the column it lands on",
         test_a_copied_ladder_is_fitted_to_the_column_it_lands_on)
+  check("the categorical editor offers no pin and no copy",
+        test_the_categorical_editor_offers_no_pin_and_no_copy)
+  check("the pin shows which way it is set",
+        test_the_pin_shows_which_way_it_is_set)
+  check("a refused pin reverts and says so",
+        test_a_refused_pin_reverts_and_says_so)
   check("one variable gets one legend wherever it appears",
         test_one_variable_gets_one_legend_wherever_it_appears)
   check("a class source file that goes away",
