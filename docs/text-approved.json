@@ -54,6 +54,11 @@
   "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",
   "where": "weavingspace_qgis/help_content.py"
  },
+ "0baa365f739f3486": {
+  "approved": "2026-08-15",
+  "excerpt": "This element has no classes to copy.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "0c36ac7c94d9e7b8": {
   "approved": "2026-08-09",
   "excerpt": "text-align: left; font-family: {};",
@@ -234,6 +239,11 @@
   "excerpt": "<figure>\n  <img src=\"img/dialog.png\" alt=\"The plugin dialog,",
   "where": "docs/index.html"
  },
+ "2bf9c666f7764119": {
+  "approved": "2026-08-15",
+  "excerpt": "[general]\nname=WeavingSpace\nqgisMinimumVersion=4.0\nqgisMaxim",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
  "302693fce18f3e49": {
   "approved": "2026-08-09",
   "excerpt": "WeavingSpace draws its maps with three well-known Python lib",
@@ -328,6 +338,11 @@
   "approved": "2026-08-09",
   "excerpt": "While hand-picked colours or an imported class file decide a",
   "where": "docs/USER-GUIDE.md"
+ },
+ "479ed4ffa027cbe6": {
+  "approved": "2026-08-15",
+  "excerpt": "Pin this bound; the rest are computed around it",
+  "where": "weavingspace_qgis/category_editor.py"
  },
  "4848080883436173": {
   "approved": "2026-08-09",
@@ -434,6 +449,16 @@
   "excerpt": "<h1>WeavingSpace QGIS</h1>\n<p class=\"byline\">An experimental",
   "where": "docs/index.html"
  },
+ "571b2159090fac57": {
+  "approved": "2026-08-15",
+  "excerpt": "That element has no variable to classify.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "57f0296308c85f63": {
+  "approved": "2026-08-15",
+  "excerpt": "The {} class bound must sit between {} and {}, which is what",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "582906f2e55066f4": {
   "approved": "2026-08-08",
   "excerpt": "Renders a first map as soon as a layer and variables are in ",
@@ -463,6 +488,11 @@
   "approved": "2026-08-09",
   "excerpt": "Adds the region boundaries as outlines on top of the pattern",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "5cb6ad1fc728afbc": {
+  "approved": "2026-08-15",
+  "excerpt": "Those bounds leave nothing between them to divide into class",
+  "where": "weavingspace_qgis/bridge.py"
  },
  "5d74e2ff2fc4c6e5": {
   "approved": "2026-08-08",
@@ -504,6 +534,11 @@
   "excerpt": "You asked to keep the previous result as its own group, but ",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "6530d307835496b8": {
+  "approved": "2026-08-15",
+  "excerpt": "Pin this end; the steps between are spread over what is left",
+  "where": "weavingspace_qgis/category_editor.py"
+ },
  "653f599980a22167": {
   "approved": "2026-08-08",
   "excerpt": "One unit per polygon, at its centre, instead of a continuous",
@@ -522,6 +557,11 @@
  "678b01145f151372": {
   "approved": "2026-08-10",
   "excerpt": "The filter you had set on element '{}' could not be applied ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "67e58ce3fe99978a": {
+  "approved": "2026-08-15",
+  "excerpt": ". Its pinned bounds are kept.",
   "where": "weavingspace_qgis/dialog.py"
  },
  "68022acfc248f883": {
@@ -574,6 +614,11 @@
   "excerpt": "Rings of neighbouring copies around the unit; 0 shows the un",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "73c0239ddfcb2822": {
+  "approved": "2026-08-15",
+  "excerpt": "Element '{}' now uses the classes from element '{}'",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "7526e469aabaa352": {
   "approved": "2026-08-12",
   "excerpt": "{} could not be provisioned: {}",
@@ -598,6 +643,11 @@
   "approved": "2026-08-09",
   "excerpt": "{} is no longer in the layer, so the elements using it now s",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "76e01bce16eefd64": {
+  "approved": "2026-08-15",
+  "excerpt": "The bound this class is pinned at",
+  "where": "weavingspace_qgis/category_editor.py"
  },
  "77c108db2198ecb6": {
   "approved": "2026-08-12",
@@ -654,10 +704,20 @@
   "excerpt": "The region layer was removed from the project, so there is n",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "8591c5f1b08a3efc": {
+  "approved": "2026-08-15",
+  "excerpt": "Send this element's classes, colours, pins and class count t",
+  "where": "weavingspace_qgis/category_editor.py"
+ },
  "887f012f004af6d1": {
   "approved": "2026-08-08",
   "excerpt": "Save to GeoPackage (empty = temporary layers)",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "88ab490f39004b66": {
+  "approved": "2026-08-15",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
  },
  "8973e1a24efe0feb": {
   "approved": "2026-08-09",
@@ -688,6 +748,11 @@
   "approved": "2026-08-08",
   "excerpt": "Set *Save to GeoPackage* and every element layer is written ",
   "where": "docs/USER-GUIDE.md"
+ },
+ "8c4cdc922b6b0cea": {
+  "approved": "2026-08-15",
+  "excerpt": "Element '{}' had classes copied from another element, and {}",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "8d16ec833c7fb02a": {
   "approved": "2026-08-09",
@@ -804,6 +869,11 @@
   "excerpt": "Writing {} to {} failed: {}",
   "where": "weavingspace_qgis/bridge.py"
  },
+ "a4ab62b13bb210f5": {
+  "approved": "2026-08-15",
+  "excerpt": "The {} class bound must be a number.",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "a5376f69b0f55f66": {
   "approved": "2026-08-08",
   "excerpt": "# WeavingSpace user guide",
@@ -853,6 +923,11 @@
   "approved": "2026-08-08",
   "excerpt": "The tile unit could not be built.",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "ab1268090055f63d": {
+  "approved": "2026-08-15",
+  "excerpt": "There are no values to pin a class bound against.",
+  "where": "weavingspace_qgis/bridge.py"
  },
  "ad2e9b0a6b25716b": {
   "approved": "2026-08-08",
@@ -919,10 +994,20 @@
   "excerpt": "Tile counts grow with the square of the inverse spacing, so ",
   "where": "docs/USER-GUIDE.md"
  },
+ "bfb5aa3c22ba0775": {
+  "approved": "2026-08-15",
+  "excerpt": "A {}-class scheme has {} {} to pin, so it cannot carry {}. A",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "c0cbfcfe8f73d116": {
   "approved": "2026-08-09",
   "excerpt": "Menlo, Consolas, 'DejaVu Sans Mono', monospace",
   "where": "weavingspace_qgis/category_editor.py"
+ },
+ "c3dd2d8765fd4fe8": {
+  "approved": "2026-08-15",
+  "excerpt": "The first class must end below where the last class begins.",
+  "where": "weavingspace_qgis/bridge.py"
  },
  "c50be55b73035ed7": {
   "approved": "2026-08-09",
@@ -1208,6 +1293,11 @@
   "approved": "2026-08-08",
   "excerpt": "[MAINTAINING.md](MAINTAINING.md) holds the architecture map,",
   "where": "README.md"
+ },
+ "f483b57a36e374d8": {
+  "approved": "2026-08-15",
+  "excerpt": "A single class has no breaks to copy.",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "f6627eb64fc59ba3": {
   "approved": "2026-08-08",
