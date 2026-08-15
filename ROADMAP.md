@@ -162,6 +162,24 @@ Quant: Unclassed, beside the Ramp Display Range, because pinning row
 presentations, or this becomes a pair that drifts. Nothing whatever
 in categorical dress, which has no bounds to pin.
 
+*The control is a PIN GLYPH, and it is DRAWN here rather than
+borrowed.* Not a themed icon and not a font character: a pushpin
+codepoint is colour emoji on macOS and a tofu box or something else
+again on the `qgis/qgis` images, and this project already spent months
+of a rendering gate on a belief about fonts. The precedent is in the
+file -- `colour_swatch` says "drawn rather than themed",
+`_striped_icon` does the same, `ToggleSwitch` is a hand-painted
+`QAbstractButton`, and nothing in the plugin calls `getThemeIcon`. The
+two states must be legible apart at a glance, not merely different:
+`test_a_toggle_switch_shows_which_way_it_is_set` already holds that
+line for the other custom control here, and a pin is worse than a
+checkbox if you cannot tell pinned from unpinned across the room. It
+carries a tooltip, since a glyph says nothing about what it does, and
+it answers the keyboard, since
+`test_switches_and_the_editor_answer_the_keyboard` requires that of
+this window's controls. The same glyph appears in the Unclassed clamp
+strip, so the two presentations read as one feature rather than two.
+
 *In the main table*, the element's ramp swatch draws a box around its
 first and/or last stripe. The swatch already paints one stripe per
 class, so this says "this end is yours" without the ramp cell having
@@ -176,8 +194,11 @@ than literally class 0.
 *What must be true before it merges.* The bound rules and the snap
 are tested in `bridge`, where they need no dialog. Above that: a pin
 honoured end to end through a real run on each quant scheme and on
-Unclassed; an unpin recomputing exactly the break it replaced; each
-refusal proved to revert AND to report; a project round trip bringing
+Unclassed; an unpin recomputing exactly the break it replaced; the pin
+glyph proved to LOOK different pinned and unpinned, by comparing the
+two renders rather than by trusting that setting a flag changed
+something, which is what its sibling test does for the toggle switch;
+each refusal proved to revert AND to report; a project round trip bringing
 pins home, added to the differential that now covers everything else
 a user chooses; and the categorical editor asserted to offer no pin
 at all. Every new test gets a catalogue entry and must report
