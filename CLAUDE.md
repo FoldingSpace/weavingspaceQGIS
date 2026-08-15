@@ -207,14 +207,20 @@ obligations: they exist so nobody pays twice for the same discovery.
   section, an edit no tool may make on their behalf. Delete an entry
   when it lands; a roadmap nobody prunes becomes a diary.
   (User instruction, 2026-08-11.)
-- **Linux CI stays in step with the Mac, and that is CHECKED before
+- **CI stays in step with the Mac, and that is CHECKED before
   the branch is pushed, not discovered on a runner.**
   `tools/check_standards.py` reads `release.py`'s own stage list and
   requires every stage to be either covered by a named CI job or
   exempt with a written reason; it also requires every harness under
   `tests/` to be run by the workflow or exempt, every script the
-  workflow names to exist, and the four jobs -- standards, suite,
-  install, gallery -- to be present. Nothing there is a hand-kept
+  workflow names to exist, and the five jobs -- standards, suite,
+  install, gallery, windows -- to be present, each of them still
+  running a command this check can SEE. That last clause was added
+  2026-08-15 with the Windows job: a job whose invocation is
+  rewritten into a shape the pattern no longer matches drops out of
+  the existence check without failing anything, which is the
+  matches-nothing-reports-nothing fault the mutation catalogue had
+  found the same day. Nothing there is a hand-kept
   list, so the two cannot drift apart quietly. It runs in a second,
   before the pre-candidate push, which is the only moment early
   enough to matter: the push precedes the local gates, so a broken

@@ -524,8 +524,13 @@ def check_equivalence_claims():
           f"that cannot happen, which shrinks the denominator for free")
 
 
-def check_linux_ci_covers_what_it_claims():
-  """The Linux workflow still runs everything we think it runs.
+def check_ci_covers_what_it_claims():
+  """The workflow still runs everything we think it runs.
+
+  Was ``check_linux_ci_covers_what_it_claims`` until a Windows job
+  joined the file (2026-08-15); a name saying Linux over a check that
+  reads the whole workflow is the kind of small lie that gets believed
+  by whoever greps for it.
 
   Returns:
     None; appends to ``problems``. Reads .github/workflows/ci.yml as
@@ -549,11 +554,19 @@ def check_linux_ci_covers_what_it_claims():
   checkout finds -- the same shape as a document quoting a path no
   clone contains;
 
+  a job GOES QUIET rather than going away: its command is rewritten
+  into a form the pattern here no longer recognises, so the existence
+  check sails over an empty set and reports nothing, which reads
+  exactly like success. Asked per job below, and added 2026-08-15
+  with the windows job, whose invocation is a batch shim behind an
+  environment variable and is the first command in this file that the
+  old pattern would have missed;
+
   the QGIS MATRIX drifts from what metadata.txt promises, so the
   plugin is tested on versions it does not claim and untested on ones
   it does. THIS ONE IS NOT CHECKED HERE and is named so the gap is
-  visible: the first two are, along with the four jobs and the stage
-  list. Said plainly because this docstring claimed all three for a
+  visible: the others are, along with the five jobs and the stage
+  list. Said plainly because this docstring claimed all of them for a
   while and the harness check did not exist -- a rule asserting its
   own enforcement is believed, which makes it the worst kind to leave
   unimplemented. (2026-08-12.)
@@ -565,13 +578,15 @@ def check_linux_ci_covers_what_it_claims():
     return
   workflow = open(path, encoding="utf-8").read()
 
-  for job in ("standards", "suite", "install", "gallery"):
+  for job in ("standards", "suite", "install", "gallery", "windows"):
     if f"\n  {job}:" not in workflow:
       problems.append(
         f"ci.yml has no {job!r} job. Every one of these answers a "
         f"question the others cannot: standards checks the rules, "
-        f"suite the behaviour, install what a USER receives, and "
-        f"gallery whether the map is drawn correctly.")
+        f"suite the behaviour, install what a USER receives, "
+        f"gallery whether the map is drawn correctly, and windows "
+        f"whether the artefact survives a filesystem with the other "
+        f"separator, a long-path ceiling and different locking rules.")
 
   # PARITY WITH THE MAC, derived from release.py rather than listed
   # here, so the two cannot drift apart quietly. Every stage a
@@ -628,13 +643,47 @@ def check_linux_ci_covers_what_it_claims():
         f"{stage!r} is meant to be covered by ci.yml's {job!r} job, "
         f"which is not there any more")
 
-  for quoted in sorted(set(re.findall(r"(?:python3 -u |python3 )"
-                                      r"((?:tools|tests)/[\w./-]+\.py)",
-                                      workflow))):
-    if not os.path.exists(os.path.join(ROOT, quoted)):
+  # The interpreter is named rather than matched loosely, so a path
+  # that appears in a COMMENT is not read as a command. There are
+  # three spellings because there are three interpreters: `python3` in
+  # the Linux containers, `python` on the Windows runner where no
+  # `python3` exists, and OSGeo4W's `python-qgis*.bat` shim, which the
+  # windows job resolves at run time and carries in %QGIS_SHIM%.
+  runs = sorted(set(re.findall(
+    r"(?:python3?|python-qgis[\w-]*\.bat|%QGIS_SHIM%\")"
+    r"(?:\s+-\w+)*\s+((?:tools|tests)[\\/][\w./\\-]+\.py)", workflow)))
+  for quoted in runs:
+    if not os.path.exists(os.path.join(ROOT, quoted.replace("\\", "/"))):
       problems.append(
         f"ci.yml runs {quoted}, which does not exist. Only a clean "
         f"checkout finds this, and it fails the whole job.")
+
+  # A PATTERN THAT MATCHES NOTHING REPORTS NOTHING, which reads exactly
+  # like success -- the fault found in seven mutation-catalogue entries
+  # on 2026-08-15, and the reason this guard exists. The check above
+  # asks whether the scripts it FOUND exist; it cannot notice a job
+  # whose command it stopped recognising, and the windows job is the
+  # one written in a form it would not have recognised before today (an
+  # OSGeo4W batch shim behind %QGIS_SHIM%, reached through `call`).
+  #
+  # So the question is asked PER JOB. A global "is install_and_load.py
+  # named anywhere" would be satisfied by the Linux `install` job for
+  # ever, which is exactly the vacuous pass this is here to prevent --
+  # written that way first, and it passed when the windows job's
+  # variable was renamed, which is how it was caught.
+  for job in ("standards", "suite", "install", "gallery", "windows"):
+    block = re.search(rf"^  {job}:\n(.*?)(?=^  \S|\Z)",
+                      workflow, re.M | re.S)
+    if block and not re.search(
+        r"(?:python3?|python-qgis[\w-]*\.bat|%QGIS_SHIM%\")"
+        r"(?:\s+-\w+)*\s+(?:tools|tests)[\\/][\w./\\-]+\.py",
+        block.group(1)):
+      problems.append(
+        f"ci.yml's {job!r} job runs no script this check can see. "
+        f"Either the job stopped running one -- so it is asking "
+        f"nothing -- or its command was rewritten into a form the "
+        f"pattern here does not match, which would take it out of "
+        f"the existence check above without failing anything.")
 
   # Every HARNESS under tests/ is run by the workflow, or exempt with
   # a reason. This is the check the docstring above has promised since
@@ -799,7 +848,7 @@ def main():
   check_user_facing_text()
   check_audit_tools()
   check_derived_documents()
-  check_linux_ci_covers_what_it_claims()
+  check_ci_covers_what_it_claims()
   check_skill_provenance()
   check_args_blocks_match_signatures()
   if problems:

@@ -23,10 +23,12 @@ thing it was supposed to prevent. Add a step to the standards job and
 it runs here from the next invocation with nobody editing this file.
 
 What this deliberately does NOT do is run the QGIS jobs -- the suite,
-the install check, the gallery. Those need containers and tens of
-minutes, they are what CI is FOR, and duplicating them locally is the
-habit docs/PUBLISHING.md spent eighty minutes a candidate unlearning.
-This is the twenty-second job only.
+the install check, the gallery, and the Windows install check. Those
+need containers and tens of minutes, they are what CI is FOR, and
+duplicating them locally is the habit docs/PUBLISHING.md spent eighty
+minutes a candidate unlearning. The Windows one could not be run here
+at any price: this project has one machine and it is a Mac. This is
+the twenty-second job only.
 
     python3 tools/check_before_push.py
 """
@@ -40,7 +42,7 @@ WORKFLOW = os.path.join(ROOT, ".github", "workflows", "ci.yml")
 
 # The job whose steps are cheap enough to run on a laptop before every
 # push. Named rather than inferred: "cheap" is a judgement, and the
-# other three jobs are deliberately excluded above.
+# other four jobs are deliberately excluded above.
 FAST_JOB = "standards"
 
 

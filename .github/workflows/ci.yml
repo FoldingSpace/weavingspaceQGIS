@@ -16,6 +16,19 @@
 # repository reviewer will look at hardest, and the code this project
 # cannot exercise at home.
 #
+# WINDOWS, added later and deliberately NARROW. The argument above is
+# about which platform answers the most questions for the least
+# trouble, and Linux still wins it. What Linux cannot answer is
+# anything that turns on Windows being Windows: path separators, the
+# long-path ceiling, a file still locked by the process that wrote it,
+# and whether the archive's internal layout survives a Windows
+# unpacking. compat.py has never run on Windows at all. So there is
+# ONE Windows job and it runs ONE script -- tools/install_and_load.py
+# against the built zip, on one QGIS. Not the suite, not the gallery,
+# not the reference comparison: the mathematics is platform-blind and
+# Linux already covers it three ways, and a second full matrix would
+# double the maintenance for answers we already have.
+#
 # NOT done here, on purpose:
 #
 #   the visual gallery and the Lab-colourspace reference comparison.
@@ -295,6 +308,165 @@ jobs:
       - name: Install it into a profile and load it
         run: python3 -u tools/install_and_load.py dist/weavingspace_qgis.zip
 
+  # The same question as `install`, asked on WINDOWS. One job, one
+  # script, one QGIS -- see the WINDOWS paragraph at the top of this
+  # file for why it is this narrow and stays this narrow.
+  #
+  # HOW QGIS GETS HERE, and why it is Chocolatey. Four routes were
+  # looked at and only one of them is a route somebody is actually
+  # driving. Chocolatey's `qgis` package installs the STANDALONE
+  # installer's QGIS -- the same MSI a Windows user downloads from
+  # qgis.org, with its own Python and the `python-qgis*.bat` shims --
+  # and running plugin tests through exactly that is what
+  # GispoCoding's plugin template does and what its FVH-3T plugin
+  # runs on windows-latest today. The OSGeo4W network installer is
+  # the other credible route and is genuinely used on GitHub runners
+  # (GRASS drives it through the setup-OSGeo4W action, 89 seconds for
+  # 22 packages), but nobody was found installing QGIS ITSELF that
+  # way in a workflow, so choosing it would have meant guessing at
+  # installer flags on a job that costs a quarter of an hour to
+  # retry. conda-forge ships a win-64 QGIS and no project was found
+  # using it on a Windows runner; it is also a different build with a
+  # different Python, so a pass there would describe an environment
+  # almost nobody using this plugin is in. There is no Windows QGIS
+  # container worth the name.
+  #
+  # `qgis` and NOT `qgis-ltr`: Chocolatey's LTR is 3.44, below the
+  # 4.0 floor metadata.txt declares, so the plugin would refuse to
+  # load and the job would be red about nothing. This is the same
+  # reason the Linux matrix does not use the `latest` image.
+  #
+  # ONE version, and it is whatever Chocolatey serves that week --
+  # the package tracks the current release, so there is no pinning to
+  # be had. The version is PRINTED every run instead, which is what
+  # the Linux legs do for the reason that matters: when this fails in
+  # six months the first question is which QGIS.
+  #
+  # NOT cached. Caching the install would save most of the wall clock
+  # and introduce the one failure this job cannot afford -- a cache
+  # key that stops matching what Chocolatey now serves leaves the job
+  # green against a QGIS nobody runs, silently. The download is on
+  # somebody else's clock and this job runs beside the suite's legs,
+  # so it costs nothing anybody is waiting for.
+  windows:
+    runs-on: windows-latest
+    needs: standards
+    # NOT A BUDGET, and not measured: nothing in this project has ever
+    # timed a QGIS install on a GitHub Windows runner, so this number
+    # is a hang-catcher sized well above any plausible healthy run
+    # rather than a ceiling derived from anything. Replace it with a
+    # multiple of the first GREEN run's duration, and not before -- a
+    # ceiling a healthy run can reach is worse than none.
+    timeout-minutes: 60
+    env:
+      # Set to match the other jobs, and this is the line here with
+      # the least evidence behind it. Qt's Windows builds do carry the
+      # offscreen platform plugin, but the one plugin project found
+      # doing this sets the variable on Linux ONLY and leaves Windows
+      # alone. If a run dies with a Qt platform-plugin message, that
+      # is what this is: drop the variable (a Windows runner has a
+      # session and the default `windows` platform works) or try
+      # `minimal`. It is named here so nobody has to rediscover it.
+      QT_QPA_PLATFORM: offscreen
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Build the zip a user would install
+        # build.py is stdlib only, so the runner's own Python builds
+        # the archive and QGIS's Python opens it -- which is closer to
+        # the real division of labour than doing both in one
+        # interpreter, and gets the archive built before the long
+        # install rather than after it.
+        run: python build.py
+
+      - name: Install QGIS the way a Windows user does
+        # Chocolatey is already on the runner, so this needs no action
+        # to pin and nothing to maintain when that action moves. The
+        # package fetches and runs the standalone installer, which is
+        # 590 MB for 4.2.0 (measured off qgis.org, 2026-08-15) and
+        # unpacks to several times that with Windows Defender reading
+        # every file: the install, not the download, is where this
+        # job's minutes go. --no-progress keeps a download bar out of
+        # the log, where it would otherwise be most of it.
+        shell: pwsh
+        run: choco install qgis -y --no-progress
+
+      - name: What actually got installed
+        # BEFORE anything tries to use it, because the alternative is
+        # "the system cannot find the path specified" from a batch
+        # shim and no way to tell whether the install did nothing,
+        # landed under another name, or landed a version whose folder
+        # is spelt differently. Instrumenting a remote failure costs
+        # three lines up front and a whole round afterwards, and a
+        # round here is however long a gigabyte takes.
+        #
+        # The folder carries the VERSION in its name ("QGIS 4.2.0"),
+        # so it is globbed rather than written down: the template this
+        # recipe comes from hardcoded `QGIS 3.16` and broke on the
+        # next upgrade. The shim is likewise found rather than
+        # assumed, since `qgis` and `qgis-ltr` install
+        # python-qgis.bat and python-qgis-ltr.bat respectively.
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          # Get-Item, NOT Get-ChildItem: given a wildcard path,
+          # Get-ChildItem returns what is INSIDE each match, so it
+          # would hand back bin's contents rather than bin.
+          $bin = Get-Item "C:\Program Files\QGIS *\bin" `
+            -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $bin) {
+            Get-ChildItem "C:\Program Files" | Select-Object -ExpandProperty Name
+            throw "no 'C:\Program Files\QGIS *\bin' after the install: Chocolatey reported success but this is not a QGIS this job can drive"
+          }
+          Get-ChildItem $bin.FullName -Filter "*qgis*.bat" |
+            Select-Object -ExpandProperty Name
+          $shim = Get-ChildItem $bin.FullName -Filter "python-qgis*.bat" |
+            Select-Object -First 1
+          if (-not $shim) {
+            throw "no python-qgis*.bat under $($bin.FullName): the QGIS is there but its Python shim is not, which is the shape of a half-unpacked install"
+          }
+          "QGIS_SHIM=$($shim.FullName)" |
+            Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "using $($shim.FullName)"
+
+      - name: What QGIS is this, actually
+        # The Linux legs record this every run for the same reason:
+        # months from now the first question about a failure here is
+        # which QGIS and which Python, and the answer has to be in the
+        # log rather than in somebody's memory of what Chocolatey
+        # served that week.
+        shell: cmd
+        run: |
+          call "%QGIS_SHIM%" -c "import qgis.core, sys; print('QGIS', qgis.core.Qgis.QGIS_VERSION); print(sys.version)"
+
+      - name: Install it into a profile and load it
+        # No provisioning step, unlike the Linux legs, and that is a
+        # measurement rather than an oversight: classFactory calls
+        # deps.add_paths and imports plugin.py, which imports Qt and
+        # deps and nothing scientific, and initGui only builds a
+        # QAction. Verified by running this same script under macOS
+        # QGIS 4.0.3 against a zip, with none of the stack on the
+        # path. Adding ci_provision here would download a scientific
+        # stack to answer a question this script never asks, and would
+        # put a second, slower failure surface in front of the one
+        # thing this job exists for.
+        #
+        # The exit code reaches GitHub only because the shim ends with
+        # `python %*`. If a future QGIS ships a shim that does
+        # anything after that, this job can go GREEN on a failed load
+        # -- so if it ever starts passing suspiciously fast, check
+        # that the log still ends in the INSTALLED AND LOADED line.
+        #
+        # Forward slashes in the path deliberately: Python takes them
+        # on Windows, and tools/check_standards.py reads this line to
+        # prove the script it names still exists.
+        shell: cmd
+        run: |
+          call "%QGIS_SHIM%" -u tools/install_and_load.py dist/weavingspace_qgis.zip
   # The visual gallery, on Linux, on every push.
   #
   # It was kept out of CI for months on the belief that its Delta-E

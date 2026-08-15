@@ -67,9 +67,14 @@ machine alone, which is exactly how the gallery was lost.
 on a clean checkout, which is the one thing this machine can never
 be.
 
-**The four jobs are present**: standards, suite, install, gallery.
-They answer questions none of the others can -- the rules, the
-behaviour, what a USER receives, and whether the map is drawn right.
+**The five jobs are present**: standards, suite, install, gallery,
+windows. They answer questions none of the others can -- the rules,
+the behaviour, what a USER receives, whether the map is drawn right,
+and whether the artefact survives a filesystem with the other
+separator. And each must still be running a command the check can
+recognise: a job that goes quiet is indistinguishable from a job that
+passes, which is the same fault the mutation catalogue turned up in
+seven of its entries.
 
 When it complains, the fix is to change the workflow or to write the
 reason down. Silencing it by deleting the stage from `release.py` is
@@ -157,6 +162,43 @@ beside the suite's fifty-four costs nothing, where a step inside the
 suite legs would add to every one of them. The matrix is deliberate --
 `metadata.txt` PROMISES QGIS 4.0, and a plugin that will not load on
 the floor it declares is a promise broken at install time.
+
+**The zip is installed and loaded ON WINDOWS**, once, in the
+`windows` job, and that is the whole of the Windows leg. The
+mathematics is platform-blind and three Linux legs already cover it;
+what Linux cannot answer is anything that turns on Windows being
+Windows -- path separators, the long-path ceiling, a file still
+locked by whatever wrote it, and whether the archive's layout
+survives a Windows unpacking. `compat.py` has never run there at all.
+
+QGIS arrives through Chocolatey's `qgis` package, which installs the
+standalone installer's QGIS -- the same thing a Windows user
+downloads from qgis.org, with its own Python and the
+`python-qgis*.bat` shims. That is the one route somebody was found
+actually driving for this purpose: GispoCoding's plugin template
+runs its tests through that shim on `windows-latest`. The OSGeo4W
+network installer is the other credible route and is used on GitHub
+runners (GRASS drives it, 89 seconds for 22 packages), but no
+workflow was found installing QGIS ITSELF that way, so taking it
+would have meant guessing at installer flags on a job that costs a
+quarter of an hour to retry. conda-forge has a win-64 QGIS and no
+Windows CI using it, and is a different build with a different
+Python besides.
+
+`qgis` and not `qgis-ltr`: the LTR is 3.44, below the 4.0 floor
+`metadata.txt` declares, so the plugin would refuse to load and the
+job would be red about nothing -- the same reason the Linux matrix
+avoids the `latest` image. The version is otherwise whatever
+Chocolatey serves that week, so it is printed every run rather than
+pinned. Nothing is cached: a stale cache key would leave this green
+against a QGIS nobody runs.
+
+It does NOT run `tools/ci_provision.py`. `classFactory` calls
+`deps.add_paths` and imports Qt, `initGui` builds a QAction, and
+nothing on that path touches geopandas -- measured by running the
+same script under macOS QGIS with none of the stack present. A
+provisioning step would buy a download and a second failure surface
+in front of the one question this job asks.
 
 **The published claims are audited**, with `--check`, which asks only
 the questions whose answer is somebody's words: a missing changelog
