@@ -27842,7 +27842,30 @@ def test_a_project_whose_region_layer_has_moved():
     group = _c3e_groups()[0]
     before = [child.layer().id() for child in group.children()
               if child.layer() is not None]
-    os.rename(second_path, os.path.join(folder, "region-two-elsewhere.gpkg"))
+    try:
+      os.rename(second_path,
+                os.path.join(folder, "region-two-elsewhere.gpkg"))
+    except PermissionError:
+      # THE THIRD ACT CANNOT BE STAGED ON WINDOWS, and the reason is
+      # the premise itself: the file is moved WHILE THE LAYER IS OPEN,
+      # because what is under test is a provider whose data has gone
+      # from under a layer QGIS still calls valid. Windows will not
+      # rename a file another handle holds, so that state does not
+      # exist there -- the same fact that stops the deleted-file case
+      # and the dead-layer canary being staged.
+      #
+      # The first two acts above have already run and asserted, so
+      # this is a partial skip and says exactly which part went
+      # missing rather than reporting a whole test that did not
+      # happen. Measured on the windows runner, 2026-08-15.
+      _skip_loudly(
+        "test_a_project_whose_region_layer_has_moved (third act only)",
+        "Windows will not rename a file the OGR provider holds open, "
+        "so a layer whose data has moved out from under it cannot be "
+        "staged mid-session here. The reopen-from-a-moved-file acts "
+        "above DID run; only the mid-session move is absent, and it "
+        "still runs on macOS and Linux.")
+      return
     second.reload()
     _tick(400)
     assert second.isValid(), \

@@ -595,6 +595,31 @@ comparison is made before believing one edit finished it.
 
 ## Lessons, each paid for once
 
+**WINDOWS CANNOT STAGE "THE FILE WENT AWAY WHILE THE LAYER WAS OPEN",
+and four tests here need exactly that.** The OGR provider holds a
+GeoPackage open, and Windows refuses to delete or rename a file
+another handle has, so the state those tests are about does not exist
+there: the deleted-file case in `test_qgis_changes_around_the_plugin`,
+the `test_qgis_still_calls_a_dead_layer_valid` canary, the third act
+of `test_a_project_whose_region_layer_has_moved`, and the folder move
+in `test_a_project_and_its_geopackage_move_together` -- the last of
+which IS reachable, because clearing the project first releases the
+handles, given a retry while Windows gets round to closing them.
+
+Releasing the provider first is not a workaround: it destroys the
+layer object these tests are about. So the first three announce
+themselves through `_skip_loudly` and go on running on macOS and
+Linux, where the premise is stageable.
+
+Two things to keep straight when you meet the next one. A partial
+skip must say WHICH PART went missing -- the moved-region test asserts
+two whole acts before the one Windows cannot reach, and reporting it
+as a skipped test would understate what ran. And this is a limit of
+the PLATFORM, not of QGIS: the plugin's behaviour when a file
+disappears is still tested, twice, on the machines that can produce
+the situation. (Measured 2026-08-15, the first day the suite ran on
+Windows at all.)
+
 **A workaround for someone else's bug needs a canary.** When this
 plugin works around a defect in QGIS, the workaround outlives every
 memory of why it exists and becomes folklore nobody dares touch. So
