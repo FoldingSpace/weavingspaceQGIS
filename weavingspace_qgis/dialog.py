@@ -800,6 +800,15 @@ class WeavingSpaceDialog(QDialog):
     # a variable away and back restores the work, exactly as the
     # categorical picks do.
     self._quant_colours = {}
+    # Class bounds a person set, {tile_id: {field: {"low": float,
+    # "high": float}}}. Keyed by field as well as element, like the
+    # hand-picked colours, so switching a variable away and back
+    # restores the pins rather than applying one column's numbers to
+    # another's data. The copy feature on the roadmap extends this
+    # record with the boundary VALUES and a per-end pin FLAG; pins
+    # alone need only the bounds, and the two are the same statement
+    # until a copy separates them.
+    self._pinned_bounds = {}
     # {tile_id: (lo, hi)}: the percent window of the ramp the classes
     # sample from (the Ramp Display Range). Absent means the whole
     # ramp. Data-blind, so it survives a field switch; only choosing
@@ -3724,7 +3733,8 @@ class WeavingSpaceDialog(QDialog):
       # of the row's colours would predict a map drawn from a
       # different sample -- which is the disagreement
       # test_the_preview_agrees_with_the_map_it_predicts hunts
-      self._classification_values(assignment["var"]))
+      self._classification_values(assignment["var"]),
+      assignment.get("pinned"))
     # iterate the list while it is bound to the loop: range objects
     # from ranges() are temporaries, and a symbol pointer read off a
     # dead one segfaults (the lesson the constant-column fix paid for)
@@ -4296,13 +4306,44 @@ class WeavingSpaceDialog(QDialog):
       return [colour for _lo, _hi, colour
               in self._current_graduated_classes(refreshed)]
 
+    def pin_changed(which, value):
+      # The editor asks; the dialog decides. A message back means
+      # REFUSED and the editor puts its control where it was, so the
+      # window never shows a bound the map does not have -- reverting
+      # rather than clamping, because a typed number is either
+      # honoured or visibly rejected and never quietly changed into a
+      # different one.
+      wanted = dict(self._pinned_bounds.get(tile_id, {}).get(field) or {})
+      if value is None:
+        wanted.pop(which, None)
+      else:
+        wanted[which] = float(value)
+      source = self._classification_values(field)
+      values = (source.uniqueValues(source.fields().indexOf(field))
+                if source is not None else [])
+      problem = bridge.pin_problem(
+        wanted.get("low"), wanted.get("high"), values,
+        assignment.get("k", 5))
+      if problem:
+        self._report_quietly(problem)
+        return problem
+      if wanted:
+        self._pinned_bounds.setdefault(tile_id, {})[field] = wanted
+      else:
+        self._pinned_bounds.get(tile_id, {}).pop(field, None)
+      self._custom_swatch_cache.pop(tile_id, None)
+      self._apply_style_change()
+      return None
+
     editor = CategoryColourDialog(
       tile_id, field, order, colours, picked, self,
       bounds=bounds, locked=unclassed,
       range_bounds=tuple(self._ramp_ranges.get(tile_id, (0, 100))),
       ramp_name=assignment["ramp"],
       reverse=assignment.get("reverse", False),
-      range_changed=range_changed)
+      range_changed=range_changed,
+      pinned=self._pinned_bounds.get(tile_id, {}).get(field),
+      pin_changed=pin_changed)
     editor.exec()
     self._warn_about_close_colours()
 
@@ -4402,6 +4443,12 @@ class WeavingSpaceDialog(QDialog):
         non-graduated rows always carry
       * ``class_choice`` — the raw combo value, kept so the choice
         survives a table rebuild
+      * ``pinned`` — class bounds set by hand, as ``{"low": float,
+        "high": float}`` with either key absent, or None. ``low`` is
+        the first class's upper bound and ``high`` is the last
+        class's lower bound; the classifier cuts the row's count
+        minus one class per pin and the pinned classes are put back
+        around the result (bridge.make_graduated_renderer)
       * ``style_touched`` — the user picked the style by hand, so it
         should stop following the field's type
 
@@ -4479,6 +4526,10 @@ class WeavingSpaceDialog(QDialog):
           self._class_source_stamp(source) if mode == "Categorized"
           else None),
         "class_choice": choice,
+        # Class bounds set by hand, for this element AND this field.
+        # Graduated only: a categorical element has no bounds to pin.
+        "pinned": (self._pinned_bounds.get(tid_text, {}).get(var)
+                   if mode == "Graduated" and var else None),
         # Colours chosen by hand for this element AND this field. A
         # different variable in the same element has its own set, so
         # switching away and back restores rather than discards.
@@ -4862,6 +4913,7 @@ class WeavingSpaceDialog(QDialog):
              a.get("opacity", 100),
              tuple(sorted((a.get("category_colours") or {}).items())),
              tuple(sorted((a.get("quant_colours") or {}).items())),
+             tuple(sorted((a.get("pinned") or {}).items())),
              tuple(a.get("range_bounds", (0, 100))))
             for a in self._assignments()),
       # See _geometry_signature: live update compares this tuple to
@@ -4949,9 +5001,13 @@ class WeavingSpaceDialog(QDialog):
             a.get("reverse", False), a.get("opacity", 100),
             tuple(sorted(picked.items())),
             # graduated customization is symbology like everything
-            # else here: positional picks and the display window both
-            # re-seed exactly the elements they changed
+            # else here: positional picks, the display window and the
+            # pinned bounds all re-seed exactly the elements they
+            # changed. A pin missing from here would be recorded and
+            # never drawn, which is what the display range was
+            # measured doing on 2026-08-13.
             tuple(sorted(quant.items())),
+            tuple(sorted((a.get("pinned") or {}).items())),
             tuple(a.get("range_bounds", (0, 100))))
 
   # ---------------------------------------------------------------- generate

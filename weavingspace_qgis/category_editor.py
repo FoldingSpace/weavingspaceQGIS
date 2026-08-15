@@ -32,13 +32,15 @@ a window holding a layer reference would be writing into a corpse.
 """
 from __future__ import annotations
 
-from qgis.PyQt.QtCore import QEvent, QSize, Qt, QTimer
-from qgis.PyQt.QtGui import QColor, QIcon, QPixmap
-from qgis.PyQt.QtWidgets import (QAbstractItemView, QColorDialog, QDialog,
-                                 QDialogButtonBox, QGraphicsOpacityEffect,
+from qgis.PyQt.QtCore import QEvent, QPointF, QSize, Qt, QTimer
+from qgis.PyQt.QtGui import (QBrush, QColor, QIcon, QPainter, QPen,
+                             QPixmap)
+from qgis.PyQt.QtWidgets import (QAbstractButton, QAbstractItemView,
+                                 QColorDialog, QDialog, QDialogButtonBox,
+                                 QDoubleSpinBox, QGraphicsOpacityEffect,
                                  QHBoxLayout, QHeaderView, QLabel,
                                  QPushButton, QSpinBox, QTableWidget,
-                                 QTableWidgetItem, QVBoxLayout)
+                                 QTableWidgetItem, QVBoxLayout, QWidget)
 
 from . import bridge
 
@@ -66,6 +68,10 @@ BOUND_WIDTH = 70
 VISIBLE_ROWS = 15
 
 SWATCH = QSize(48, 16)
+
+# The pin column: a twenty-pixel glyph with room either side, so a
+# pin sits centred in its cell without the column looking like a gap.
+PIN_WIDTH = 34
 
 # The ramp preview strip in the Ramp Display Range section. Tall
 # enough that the colours read as a ramp rather than a hairline; the
@@ -106,6 +112,90 @@ def colour_swatch(colour: str) -> QIcon:
   pixmap = QPixmap(SWATCH)
   pixmap.fill(QColor(colour))
   return QIcon(pixmap)
+
+
+class PinButton(QAbstractButton):
+  """A pushpin that can be pressed in or left out.
+
+  Pinning a class bound means "this break is mine, compute the rest
+  around it", and the control for it is a pin because that is the
+  word the feature is named for. It is DRAWN rather than taken from a
+  font or an icon theme, exactly as `colour_swatch` and dialog.py's
+  `ToggleSwitch` are: a pushpin codepoint renders as colour emoji on
+  macOS and as a missing-glyph box on the QGIS container images, and
+  a themed icon depends on an icon set this plugin has never once
+  relied on. Painting it is a dozen lines and looks the same
+  everywhere.
+
+  It is an ordinary QAbstractButton, so setChecked/isChecked, the
+  toggled signal, the space bar and the disabled state all work as
+  they do for a checkbox.
+
+  Args:
+    parent: the owning widget, as usual in Qt.
+
+  The two states are legible APART rather than merely different: out
+  is a hollow outline lying at an angle, in is filled, upright and
+  drawn in the palette's highlight colour. A pin whose states can
+  only be told apart by looking twice is worse than the checkbox it
+  replaces, which is the line
+  test_a_toggle_switch_shows_which_way_it_is_set already holds for
+  the other hand-painted control here.
+  """
+
+  SIZE = QSize(20, 20)
+
+  def __init__(self, parent=None):
+    super().__init__(parent)
+    self.setCheckable(True)
+    self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+    self.setFixedSize(self.SIZE)
+    self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+  def sizeHint(self):  # noqa: N802 (Qt API)
+    """The size Qt should give this pin when it can choose.
+
+    Returns:
+      A QSize square enough to draw a pin in and small enough to sit
+      in a table row without stretching it.
+    """
+    return self.SIZE
+
+  def paintEvent(self, _event):  # noqa: N802 (Qt API)
+    """Draw the pin: head, shaft, and a point at the bottom.
+
+    Colours come from the widget's palette rather than being
+    hard-coded, so the pin follows a light or dark QGIS theme without
+    knowing anything about it.
+    """
+    painter = QPainter(self)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    palette = self.palette()
+    pinned = self.isChecked()
+    ink = palette.color(palette.ColorRole.Highlight) if pinned \
+      else palette.color(palette.ColorRole.WindowText)
+    if not self.isEnabled():
+      ink.setAlpha(70)
+    width, height = self.width(), self.height()
+    painter.save()
+    painter.translate(width / 2.0, height / 2.0)
+    # OUT is a pin lying over; IN is a pin driven straight down. The
+    # tilt is what makes the state readable at a glance, before the
+    # fill or the colour has been noticed.
+    painter.rotate(0 if pinned else -35)
+    painter.setPen(QPen(ink, 1.4))
+    painter.setBrush(QBrush(ink) if pinned else Qt.BrushStyle.NoBrush)
+    head = height * 0.30
+    painter.drawEllipse(QPointF(0.0, -head), head * 0.85, head * 0.85)
+    painter.setPen(QPen(ink, 1.6))
+    painter.drawLine(QPointF(0.0, -head * 0.1),
+                     QPointF(0.0, height * 0.42))
+    painter.restore()
+    if self.hasFocus():
+      painter.setPen(QPen(palette.color(palette.ColorRole.Highlight), 1))
+      painter.setBrush(Qt.BrushStyle.NoBrush)
+      painter.drawRoundedRect(0, 0, width - 1, height - 1, 3, 3)
+    painter.end()
 
 
 class CategoryColourDialog(QDialog):
@@ -154,6 +244,17 @@ class CategoryColourDialog(QDialog):
       edit) and repaints its rows with whatever comes back. The
       editor never computes a colour itself and never touches a
       layer: the dialog owns both.
+    pinned: the class bounds already set by hand, as ``{"low":
+      float or None, "high": float or None}``. ``low`` is the first
+      class's upper bound and ``high`` is the last class's lower
+      bound. None or an empty dict means neither end is pinned.
+    pin_changed: callback(which, value) -> message or None, where
+      ``which`` is "low" or "high" and ``value`` is a float or None
+      to unpin. The dialog validates, applies and repaints; a
+      returned message means it REFUSED, and the editor puts the
+      control back where it was. The editor decides nothing about
+      what is legal, for the same reason it computes no colours:
+      the rule lives with the map, not with the window.
 
   The values come from the REGION layer rather than from the output,
   so this works before anything has been generated. One consequence
@@ -164,7 +265,7 @@ class CategoryColourDialog(QDialog):
   def __init__(self, tile_id, field, order, colours, picked,
                parent=None, *, bounds=None, locked=False,
                range_bounds=None, ramp_name=None, reverse=False,
-               range_changed=None):
+               range_changed=None, pinned=None, pin_changed=None):
     super().__init__(parent)
     # Graduated mode is recognised by its extras, not by a flag of its
     # own: bounds columns and a range section arrive together from the
@@ -184,6 +285,14 @@ class CategoryColourDialog(QDialog):
     self._ramp_name = ramp_name
     self._reverse = reverse
     self._range_changed = range_changed
+    self._pinned = dict(pinned or {})
+    self._pin_changed = pin_changed
+    # {"low": (PinButton, QDoubleSpinBox)}, filled by whichever
+    # presentation this dress uses: the table's own column for a
+    # classed style, the clamp strip above it for Unclassed. One
+    # record, one set of handlers, two places to put the controls.
+    self._pin_widgets = {}
+    self._pins_offered = (bounds is not None and pin_changed is not None)
 
     layout = QVBoxLayout(self)
     # The range section goes in FIRST, before even the heading: it is
@@ -193,6 +302,14 @@ class CategoryColourDialog(QDialog):
     # how wide the window is.
     if range_bounds is not None:
       self._build_range_section(layout, range_bounds)
+    # ...and, for Quant: Unclassed only, the clamp: the same two pins
+    # the classed table carries in a column, put above the list
+    # instead. Fifty faded slivers are a preview rather than an
+    # editing surface, and pinning row 0 of fifty is a strange way to
+    # say "the ramp starts at 10". Same record, same handlers, same
+    # glyph -- one feature wearing the dress that fits each style.
+    if bounds is not None and locked and pin_changed is not None:
+      self._build_clamp_strip(layout, bounds)
 
     # Two lines rather than one. The window is sized to the TABLE, and
     # a field name long enough to widen it past the table would drag
@@ -202,11 +319,20 @@ class CategoryColourDialog(QDialog):
     heading.setWordWrap(True)
     layout.addWidget(heading)
 
+    # A PIN column joins the classed graduated dress, first, so the
+    # eye meets it on the way into the row. Unclassed does not get
+    # one: its fifty faded slivers are a preview, and pinning row 0
+    # of fifty is a strange way to say "the ramp starts at 10", so
+    # that dress takes the clamp strip above the table instead.
+    self._pin_column = self._pins_offered and not self._locked
     columns = 2 if self._bounds is None else 3
+    if self._pin_column:
+      columns += 1
     self.table = QTableWidget(len(self._values), columns, self)
     self.table.setHorizontalHeaderLabels(
       ["Value", "Colour"] if self._bounds is None
-      else ["Lower", "Upper", "Colour"])
+      else (["Pin", "Lower", "Upper", "Colour"] if self._pin_column
+            else ["Lower", "Upper", "Colour"]))
     self.table.verticalHeader().setVisible(False)
     # Whole rows would suggest the row is the thing being acted on;
     # the colour cell is. Selection is off entirely: every click here
@@ -240,11 +366,23 @@ class CategoryColourDialog(QDialog):
         # Graduated: the class's two bounds, read-only, one per cell.
         # Right-aligned like the categorical values, and for the same
         # reason: numbers are compared down a column by their ends.
+        offset = 1 if self._pin_column else 0
         for col, bound in enumerate(self._bounds[row]):
           cell = QTableWidgetItem(self._format_bound(bound))
           cell.setTextAlignment(Qt.AlignmentFlag.AlignRight
                                 | Qt.AlignmentFlag.AlignVCenter)
-          self.table.setItem(row, col, cell)
+          self.table.setItem(row, col + offset, cell)
+        # ...except the two a pin makes editable: the FIRST class's
+        # upper bound and the LAST class's lower bound, which are the
+        # two boundaries a pin can name. The spin box is present
+        # whether or not the end is pinned, and merely disabled when
+        # it is not: swapping a widget in and out on every toggle is
+        # how a cell comes to hold a dead reference.
+        if self._pin_column:
+          which = ("low" if row == 0 else
+                   "high" if row == len(self._values) - 1 else None)
+          if which is not None:
+            self._install_pin_row(row, which)
 
       # The colour button is the last column in either mode.
       self.table.setCellWidget(row, columns - 1,
@@ -281,6 +419,155 @@ class CategoryColourDialog(QDialog):
     # its height and nothing is hidden at any size.
     self.adjustSize()
     self.setFixedSize(self.sizeHint())
+
+  def _build_clamp_strip(self, layout, bounds):
+    """The Unclassed dress of the pins: two ends, above the table.
+
+    Args:
+      layout: the window's vertical layout, to add the strip to.
+      bounds: the class bounds, from which the first and last are
+        taken -- with fifty of them, those are the ends of the ramp
+        rather than the ends of any class anybody chose.
+
+    Returns:
+      None. Builds the same PinButton and bound box the classed table
+      builds, registered in the same `_pin_widgets` and driven by the
+      same handlers, so the two presentations cannot come to mean
+      different things. The wording is the difference: "Ramp starts
+      at" and "Ramp ends at" rather than a pin on a class, because
+      that is what fifty equal steps make of it.
+    """
+    strip = QWidget()
+    row = QHBoxLayout(strip)
+    row.setContentsMargins(0, 0, 0, 0)
+    for which, label in (("low", "Ramp starts at"),
+                         ("high", "Ramp ends at")):
+      lower, upper = bounds[0] if which == "low" else bounds[-1]
+      pin = PinButton()
+      pin.setChecked(self._pinned.get(which) is not None)
+      pin.setToolTip("Pin this end; the steps between are spread over "
+                     "what is left")
+      box = self._bound_box(upper if which == "low" else lower)
+      box.setEnabled(pin.isChecked())
+      row.addWidget(pin, 0, Qt.AlignmentFlag.AlignVCenter)
+      row.addWidget(QLabel(label), 0, Qt.AlignmentFlag.AlignVCenter)
+      row.addWidget(box, 0, Qt.AlignmentFlag.AlignVCenter)
+      row.addSpacing(12)
+      self._pin_widgets[which] = (pin, box)
+      pin.toggled.connect(lambda on, w=which: self._pin_toggled(w, on))
+      box.editingFinished.connect(lambda w=which: self._bound_edited(w))
+    row.addStretch(1)
+    layout.addWidget(strip)
+
+  def _bound_box(self, value):
+    """A spin box holding one class bound.
+
+    Args:
+      value: the bound to show, as a float.
+
+    Returns:
+      A QDoubleSpinBox wide open in range, because what is legal is
+      decided by the map's own data and reported back through
+      ``pin_changed``; a range set here would refuse a number for a
+      reason this window cannot explain, which is the opposite of a
+      guardrail.
+    """
+    box = QDoubleSpinBox()
+    box.setDecimals(6)
+    box.setRange(-1e12, 1e12)
+    box.setValue(float(value))
+    box.setKeyboardTracking(False)   # one signal per finished edit
+    box.setAlignment(Qt.AlignmentFlag.AlignRight
+                     | Qt.AlignmentFlag.AlignVCenter)
+    return box
+
+  def _install_pin_row(self, row, which):
+    """Put a pin and an editable bound on one end row of the table.
+
+    Args:
+      row: the table row -- the first or the last, nothing else.
+      which: "low" for the first class's upper bound, "high" for the
+        last class's lower bound.
+
+    Returns:
+      None. The pin goes in column 0 and the editable bound replaces
+      the read-only cell it shares a meaning with: the UPPER cell on
+      the first row, the LOWER cell on the last, which are the two
+      boundaries a pin can name. A pinned bound is the boundary
+      between the pinned class and the rest, so no other cell in
+      those rows becomes editable -- the outer edges belong to the
+      data.
+    """
+    lower, upper = self._bounds[row]
+    pin = PinButton()
+    pin.setChecked(self._pinned.get(which) is not None)
+    pin.setToolTip("Pin this bound; the rest are computed around it")
+    box = self._bound_box(upper if which == "low" else lower)
+    box.setEnabled(pin.isChecked())
+    box.setToolTip("The bound this class is pinned at")
+    column = 2 if which == "low" else 1     # Upper on top, Lower below
+    holder = QWidget()
+    layout = QHBoxLayout(holder)
+    layout.setContentsMargins(0, 0, 0, 0)
+    layout.addWidget(pin, 0, Qt.AlignmentFlag.AlignCenter)
+    self.table.setCellWidget(row, 0, holder)
+    self.table.setCellWidget(row, column, box)
+    self._pin_widgets[which] = (pin, box)
+    pin.toggled.connect(lambda on, w=which: self._pin_toggled(w, on))
+    box.editingFinished.connect(lambda w=which: self._bound_edited(w))
+
+  def _pin_toggled(self, which, on):
+    """Pin or unpin one end, and put the control back if refused.
+
+    Args:
+      which: "low" or "high".
+      on: True to pin at whatever the spin box currently shows,
+        False to unpin and let that break be computed again.
+
+    Returns:
+      None. The dialog validates and applies; a message back means it
+      refused, and the pin returns to where it was without the map
+      having moved. The signal is blocked while it is put back, or
+      the revert would fire this handler a second time and report the
+      refusal twice.
+    """
+    pin, box = self._pin_widgets[which]
+    value = float(box.value()) if on else None
+    problem = self._pin_changed(which, value) if self._pin_changed else None
+    if problem:
+      pin.blockSignals(True)
+      pin.setChecked(not on)
+      pin.blockSignals(False)
+      return
+    box.setEnabled(on)
+    self._pinned[which] = value
+
+  def _bound_edited(self, which):
+    """Move a pinned bound to the number just typed.
+
+    Args:
+      which: "low" or "high".
+
+    Returns:
+      None. Refused edits put the previous number back, so the box
+      never shows a bound the map does not have -- the whole point of
+      reverting rather than clamping is that a typed number is either
+      honoured or visibly rejected, never quietly changed into a
+      different one.
+    """
+    pin, box = self._pin_widgets[which]
+    if not pin.isChecked():
+      return
+    value = float(box.value())
+    problem = self._pin_changed(which, value) if self._pin_changed else None
+    if problem:
+      previous = self._pinned.get(which)
+      box.blockSignals(True)
+      if previous is not None:
+        box.setValue(float(previous))
+      box.blockSignals(False)
+      return
+    self._pinned[which] = value
 
   def _label_for(self, value):
     """What the left column says for one value."""
@@ -360,6 +647,12 @@ class CategoryColourDialog(QDialog):
       column_widths = [VALUE_WIDTH, COLOUR_WIDTH]
     else:
       column_widths = [BOUND_WIDTH, BOUND_WIDTH, COLOUR_WIDTH]
+      if self._pin_column:
+        # The pin column is exactly as wide as a pin plus breathing
+        # room. This is the window widening the design predicted, and
+        # it is the whole of it: the bound columns already hold a
+        # spin box comfortably at BOUND_WIDTH.
+        column_widths.insert(0, PIN_WIDTH)
     header = self.table.horizontalHeader()
     for col, col_width in enumerate(column_widths):
       self.table.setColumnWidth(col, col_width)

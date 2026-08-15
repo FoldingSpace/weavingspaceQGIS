@@ -1711,7 +1711,8 @@ def seed_renderer(layer: QgsVectorLayer, assignment: dict,
     classify_from: the whole map's values for this element's column,
       handed straight to make_graduated_renderer so that every
       element carrying one variable gets the same breaks. Ignored
-      off graduated rows, where there are no breaks to cut.
+      off graduated rows, where there are no breaks to cut. The
+      assignment's ``pinned`` bounds travel the same way.
 
   Returns:
     None. The renderer is attached to the layer and a repaint is
@@ -1737,7 +1738,8 @@ def seed_renderer(layer: QgsVectorLayer, assignment: dict,
       layer, var, assignment["ramp"], assignment.get("scheme", "Quantiles"),
       assignment.get("k", 5), outline, assignment.get("reverse", False),
       assignment.get("range_bounds", (0, 100)),
-      assignment.get("quant_colours"), classify_from))
+      assignment.get("quant_colours"), classify_from,
+      assignment.get("pinned")))
   layer.triggerRepaint()
 
 
