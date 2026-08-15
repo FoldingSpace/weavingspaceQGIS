@@ -11588,12 +11588,25 @@ def test_the_ramp_and_scheme_lists_are_what_they_claim():
       f"the style chooser offers {label!r} and compat cannot build " \
       f"it, so choosing it quietly gives QGIS's default instead"
 
-  # the style list must contain every graduated scheme plus the two
-  # non-graduated modes, and nothing else
-  expected_modes = set(dlg.GRAD_SCHEMES) | {"Categorized", "Single colour"}
+  # the style list must contain every graduated scheme, the two
+  # non-graduated modes, and DEFERRING -- and nothing else.
+  #
+  # Deferring is not a scheme and nobody can choose it: it is what the
+  # row reads once QGIS's styling dock holds a renderer the row cannot
+  # express, always present in the chooser and disabled unless that is
+  # true (settled 2026-08-15, and the reason it is shown at all is
+  # that a chooser which silently grows an item is not trusted). So it
+  # belongs in this list by name rather than by being derived from the
+  # schemes, which is exactly why the list did not follow when the
+  # feature landed and this test went stale for a day.
+  expected_modes = (set(dlg.GRAD_SCHEMES)
+                    | {"Categorized", "Single colour", dlg.DEFERRING})
   assert set(dlg.MODES) == expected_modes, \
     f"the style list is {sorted(dlg.MODES)} but the schemes and modes " \
     f"it is built from are {sorted(expected_modes)}"
+  assert dlg.DEFERRING in dlg.MODES, \
+    "the deferring mode left the chooser; a row whose renderer the " \
+    "plugin cannot express would have nothing true to read"
 
   # and the ramps offered to a row must be real ramps
   _var, _mode, _k, ramp, _rev, _op, _src = dlg._row_widgets(0)
