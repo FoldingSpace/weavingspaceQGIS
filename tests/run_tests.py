@@ -40996,6 +40996,7 @@ def main():
   # So the suite says. It is one subprocess at start-up, it is absent
   # rather than wrong where git is unavailable (the qgis:stable image
   # ships none), and it makes every later paste self-dating.
+  import subprocess          # local, as everywhere else in this file
   try:
     stamp = subprocess.run(
       ["git", "rev-parse", "--short", "HEAD"], capture_output=True,
