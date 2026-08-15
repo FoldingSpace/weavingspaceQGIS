@@ -594,6 +594,21 @@ like a form. (Maintainer's instruction, 2026-08-13; the entries for
 0.23.0 through 0.24.2 were rewritten to this shape at the same
 time, so the convention has examples rather than only a rule.)
 
+**A changelog says what a user CAN now do, not what the software now
+always does.** 0.24.3's summary was drafted as "a colour means the
+same thing everywhere it appears on the map", and the maintainer
+struck it out: the class count, the scheme and the pinned bounds are
+all per element, so two elements agree only when somebody has set them
+up to. What the release changed is that they CAN. The corrected line
+reads "a colour can now mean the same thing everywhere it appears on
+the map, if that is what you want", and the difference is not
+politeness. A capability written as a guarantee is a promise the
+settings can break, and the reader who finds it broken has been told
+something untrue by the plugin rather than by their own configuration.
+When a sentence describes a behaviour, ask what has to be true for it
+to hold; if the answer is anything at all, the sentence needs the
+condition in it. (Maintainer's correction, 2026-08-14.)
+
 **The comprehensive half is generated**: how many tests ran and how
 many guard a defect that actually happened, what is attached and what
 each attachment is for, where the process documents are, and the
