@@ -56,7 +56,7 @@ The catalogue is as capable of lying as the code it guards.
 `tools/mutation_check.py` holds hand-picked mutations, one per
 behaviour somebody believed was guarded. It is a regression record of
 our own guards: break the behaviour, confirm the test fails. It held
-41 entries when this was written and holds 191 as of 2026-08-13,
+41 entries when this was written and holds 190 as of 2026-08-14,
 which is the point rather than an aside: a number about the code is
 true until somebody adds one, so read the file rather than this
 sentence. Its kill rate measures the chooser's judgement, not the

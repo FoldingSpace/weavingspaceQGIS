@@ -22,7 +22,7 @@ about=Creates tiled and woven map layers that carry several attributes
     installation, and declining simply closes the plugin. Released
     under the MIT licence; the bundled weavingspace library is MIT
     too, and both notices are in LICENSE.md.
-version=0.24.2
+version=0.24.3
 license=MIT
 author=Luke Bergmann
 email=luke.bergmann@gmail.com
@@ -45,7 +45,11 @@ server=False
 ; wants to know what moved reads on. One text serving both is how a
 ; changelog becomes a list nobody finishes.
 ; (Maintainer's instruction, 2026-08-13.)
-changelog=0.24.2 Bugfixes, one of them about not losing data.
+changelog=0.24.3 PLACEHOLDER, and deliberately one that cannot ship
+    unnoticed: nothing a user meets has changed yet. Rewrite this
+    against `git diff v0.24.2..HEAD -- weavingspace_qgis/` before any
+    candidate, which is the step 0.24.2 nearly skipped.
+    0.24.2 Bugfixes, one of them about not losing data.
     Your files: an existing .gpkg chosen as the output was rewritten
     whole, so every other table in it was lost, including the layer
     you were tiling if it lived there. Only the tables this plugin

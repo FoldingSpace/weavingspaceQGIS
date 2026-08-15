@@ -3,7 +3,7 @@ name: long-job-supervision
 description: Supervise work that outlasts a single turn — test suites, builds, training runs, migrations, batch jobs — so the machine stays busy, finished work gets picked up immediately, and a stuck job is caught in minutes rather than hours. Use this whenever you start something long in the background, whenever a user asks for periodic status updates or says "keep going without me", whenever you are about to write a watcher or poll loop, and whenever a job seems to be taking longer than it should. Also use it before reporting that something is "still running" — that claim is worth exactly as much as the reading behind it.
 derived_from:
   - path: docs/MUTATION-LOOP.md
-    sha256: 90d1b61ec9697676473266e219a94e9a9df2a50d83c2030f807bab877e9c7bc6
+    sha256: 4bed1e0e2ba1e5b494fd1c7b15a871d0fef218ac2b4bb0025174281f6579c446
 ---
 
 # Supervising work that outlasts a turn
@@ -90,6 +90,21 @@ politely refused to start look like one that was never launched.
 
 Run it whenever things feel quiet, and specifically before saying
 anything is still running.
+
+## A finished job's exit status describes the PROCESS, not the answer
+
+A remote job once reported `success` and had measured nothing: its
+tool declined to run, wrote sixteen lines saying why, and exited zero
+because declining politely is not a crash. The run list showed a green
+tick for a week. Two sibling artifacts from the same period had never
+been opened at all.
+
+So the completion notification is the beginning of reading a result,
+not the end. Open the artifact, or the log, and look for the ANSWER
+rather than the status -- a refusal, a zero-length result set, a
+summary line quoting a suspiciously round number. The same reflex that
+makes people believe a green tick makes them skip the file that
+contradicts it.
 
 ## Heartbeats
 

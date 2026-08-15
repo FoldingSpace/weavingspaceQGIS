@@ -178,6 +178,15 @@ obligations: they exist so nobody pays twice for the same discovery.
   tree is not in the state the procedure assumes. Pushing to
   `main`, tagging, and publishing a release remain the user's
   explicit call. (User instruction, 2026-08-10.)
+- **After a release, the next version is the PATCH by default.**
+  N.X.Y is followed by work toward N.X.(Y+1): 0.24.2 leads to
+  `pre-0.24.3rc1` and a version bumped to 0.24.3, never 0.25.0 unless
+  the maintainer says so. What follows a release is mostly the triage
+  of what it did not fix, which is patch-shaped work; reaching for a
+  minor bump by default claims a release is bigger than it is, and the
+  claim gets made by whoever types the branch name at the end of a
+  long session. Details in docs/PUBLISHING.md. (User instruction,
+  2026-08-14.)
 - **Work for a LATER version lives on a branch named for that
   version, and everything owed by a version is written in
   ROADMAP.md.** Two ways work goes missing, both closed by the same
@@ -850,7 +859,26 @@ first, kept here so they are unmissable:
 - When batch-editing via heredoc Python scripts: assert every anchor
   BEFORE any write, and beware a trailing comma turning a string into
   a tuple (it aborted two patch runs here); for single replacements
-  prefer the Edit tool.
+  prefer the Edit tool. Two more ways this bit on 2026-08-13, both
+  cheap to avoid. **A slice needs its end searched FORWARD from its
+  start** -- `s.index(a)` and `s.index(b)` both search from zero, so
+  if b occurs before a the slice `s[:start] + s[end:]` DUPLICATES a
+  span instead of removing it, silently, in a file too large to
+  eyeball. It happened to two files at once and was caught only by
+  counting definitions afterwards. **And assert the postcondition, not
+  just the anchor**: `assert "the_removed_name" not in s` before
+  writing caught a bad edit that every anchor check had passed. When
+  an assertion like that fires, do not widen it to get past -- one
+  here was genuinely too broad (`n=n)` matches legitimate code) and
+  narrowing it was right, but the reflex to loosen is how a guard
+  becomes decoration.
+- **A file worth rebuilding is a file worth not editing with string
+  surgery.** `dev/state-of-play.md` was truncated to zero the same
+  night by a `.split()/.join()` expression that looked fine. It is
+  gitignored, so there was no copy to recover; it was rebuilt from the
+  session that broke it and carries a provenance note saying so.
+  Prefer Edit for prose, and where a script must rewrite a whole file,
+  write it to a temporary path and compare lengths before replacing.
 - When waiting on a long background run, key the wait on the PROCESS
   ENDING, not on log text you predicted. A watcher polling for "tests
   recorded" sat in a sleep loop for twelve hours because the tool
@@ -873,6 +901,18 @@ first, kept here so they are unmissable:
   of it (a watcher pinned to one commit sha sat silent while two more
   pushes superseded it), and report every terminal state rather than
   only success.
+- **Two watchers must never share a log file.** The eleventh watcher
+  fault here, 2026-08-14: a CI watcher was re-armed for a new commit
+  while its predecessor was still running, both wrote to the same
+  path, and the OLD one appended `FINISHED: cancelled` underneath the
+  NEW one's header. Read literally, the file said the live run had
+  been cancelled. It had not; the run it described was a different
+  one, deliberately cancelled twenty minutes earlier. Key each
+  watcher's output to WHAT IT WATCHES (the sha, the run id, the job
+  name) rather than to what it is, and when a log looks wrong, ask the
+  source directly before believing it. The file was annotated by hand
+  rather than rewritten, because a log that silently corrects itself
+  is worth less than one that says where it was unreliable.
 - A watcher that REPEATS itself misleads as badly as one that goes
   silent: a monitor grepping a whole log each pass re-reported the
   same historical failure every 45 seconds as though it were news,

@@ -3,9 +3,9 @@ name: mutation-campaign
 description: Run a mutation-testing campaign to measure and genuinely improve how good a test suite is — sampling mutants, triaging survivors, verifying that new tests actually fail, and deciding when a score can be defended. Use this whenever the user wants to know whether their tests are any good, asks about mutation testing or mutation score, says coverage looks high but they don't trust it, wants to raise a mutation score toward a target, or is writing tests to close gaps that a mutation tool found. Also use it when someone proposes to accept a surviving mutant as "equivalent", or asks how many mutants they need to sample — both are places where a campaign quietly turns into a vanity metric.
 derived_from:
   - path: docs/MUTATION-LOOP.md
-    sha256: 90d1b61ec9697676473266e219a94e9a9df2a50d83c2030f807bab877e9c7bc6
+    sha256: 4bed1e0e2ba1e5b494fd1c7b15a871d0fef218ac2b4bb0025174281f6579c446
   - path: docs/MUTATION-TESTING.md
-    sha256: 1f019c92ced6365e90e110f5a09ad1d26c2653871dc0db541ba78da56283d913
+    sha256: 8db7b4333e61191cce6cc58c331dd6e6c6019c75bc08db61d68667341a7a693e
 ---
 
 # Running a mutation campaign
@@ -270,6 +270,13 @@ after any change to the suite; make the tool refuse to sample against
 a stale record rather than trusting anyone to remember. A targeted
 re-judge of named mutants can proceed with a warning, since it
 estimates no rate.
+
+**A green run may have measured nothing.** A dispatched census once
+exited `success` having declined to sample at all: the coverage record
+was stale, so the tool refused and said so in its artifact, which
+nobody opened for a week. Read the artifact rather than the exit
+status; a tool that refuses correctly and a tool that ran are
+indistinguishable from the run list.
 
 **A failing test inflates the score.** If any test fails on unmutated
 code, every mutant it covers looks killed. Confirm the suite is green

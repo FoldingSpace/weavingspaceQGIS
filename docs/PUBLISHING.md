@@ -264,6 +264,29 @@ the machine to themselves, and contention inflates per-unit times by
 15-50%. CI is on somebody else's hardware, which is exactly why it
 composes.
 
+## After a release: which version comes next
+
+**The default is the PATCH: after N.X.Y, work toward N.X.(Y+1).** So
+0.24.2 is followed by a branch named `pre-0.24.3rc1` and a version
+bumped to 0.24.3, not 0.25.0. The maintainer says otherwise when a
+release earns a minor bump, and that is the only thing that moves it.
+
+The reason to write this down rather than leave it to judgement: what
+follows a release is usually the triage of what the release did not
+fix, plus whatever the hunts and the remote instruments turned up, and
+that is patch-shaped work by construction. Reaching for X+1 by default
+quietly claims a release is bigger than it is, and the claim is made
+by whoever happens to type the branch name at the end of a long
+session. (Maintainer's instruction, 2026-08-14.)
+
+The first act on that branch is the version bump in `metadata.txt`,
+which immediately makes `sync_release_content --check` fail for want
+of a changelog entry. That is the gate working. Write a placeholder
+that says plainly it is one and names the command that replaces it --
+`git diff v<previous>..HEAD -- weavingspace_qgis/` -- so a stub cannot
+ship unnoticed, and put it through text review like any other sentence
+a user meets.
+
 ## After a candidate ships: the instruments that run remotely
 
 A candidate's gates answer whether the plugin is correct. Two other
@@ -445,8 +468,15 @@ waits for what they say.
 
 `--rc` runs the same correctness gates as a release and then stops,
 writing `dist/weavingspace_qgis-<version>rc<n>.zip`. Nothing is
-committed, nothing is tagged, no image or document is rewritten, and
-`git status` is as clean afterwards as before. The number counts up
+committed and nothing is tagged.
+
+One exception to "and the tree is untouched", found on 2026-08-14 and
+recorded rather than tidied away: the candidate MENDS `CITATION.cff`
+to the version being built, so `git status` afterwards shows that one
+file modified. It is harmless -- CITATION.cff does not ship, so the
+receipt digest is unaffected, and the promotion would make the same
+edit -- but the sentence that used to stand here said the tree was as
+clean afterwards as before, and it was not. The number counts up
 from the candidates already in `dist/`, so a new one can never
 overwrite the one somebody is testing.
 

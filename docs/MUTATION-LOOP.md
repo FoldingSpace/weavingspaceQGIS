@@ -259,6 +259,17 @@ of that half-run and they are the 0.24.1 test-writing list. What
 changed is where the number is produced and what it is allowed to
 stop.
 
+**A remote run that exits `success` may have measured NOTHING.** On
+2026-08-13 a dispatched census showed `success` in `gh run list` and
+its artifact held sixteen lines, all of them a refusal: 13 tests were
+absent from the coverage record, so the tool declined to sample and
+said so. Nothing was measured, and the run list said it went fine.
+Two other artifacts from that week had never been opened at all; of
+the three, two turned out to say nothing and the third carried a real
+finding. So OPEN THE ARTIFACT, every time, including when the tick is
+green -- the exit status describes the workflow, not the measurement.
+A run that answers nothing still has to be opened to find that out.
+
 **Read the results as work for the NEXT release.** A survivor is a
 claim about the tests, and the claim is false often enough to check
 first -- count the call sites and read the named test before

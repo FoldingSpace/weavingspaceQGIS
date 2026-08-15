@@ -156,6 +156,38 @@ a case -- read the accommodation as a REPORT. It is somebody's note
 that the software did something they did not expect. Ask whether they
 were right that it was the fixture.
 
+**A fix can be RIGHT and still be wrong to ship, and the blast radius
+is the evidence.** On 2026-08-13 a real defect was fixed correctly --
+a graduated renderer drawing more classes than the column has distinct
+values, so swatches appear in the legend that no tile wears -- by the
+same reduction upstream applies. Nineteen tests moved. That number was
+the finding, not the inconvenience: the standard fixture gives four
+distinct values and the suite's graduated tests ask for five, so the
+whole suite sat on that boundary, and one of the nineteen said why in
+as many words. `test_metamorphic_variable_permutation` requires that
+"b must class exactly as a did", and an element LAYER holds only that
+element's tiles -- so the reduction made the class count depend on
+which tiles an element happened to receive, and two elements carrying
+the same variable could draw different numbers of classes. On a map
+whose purpose is reading elements against each other, that is a worse
+fault than the one being fixed.
+
+It was reverted the same night, with the measurement kept and the
+question a real fix must settle first written down. The habit worth
+copying: when a change moves an unexpected number of tests, read the
+count as a statement about how deep an assumption runs, and read the
+tests themselves before deciding they are all wrong. One of them
+usually knows something.
+
+**Verify a change to a CORE PATH with the whole suite, and accept that
+the candidate is where that happens.** The reduction above was checked
+against a subset and against a full suite that PREDATED it. The
+candidate caught it twelve minutes in, on the third gate, exactly as
+the cheapest-first ordering intends -- which is the argument for going
+straight to `release.py --rc` rather than an argument against it. What
+is NOT safe is believing a subset says anything about a path that most
+of the suite runs through.
+
 **A probe that returns is not a probe that measured.** Three attempts
 were needed on one claim the same evening. The first errored on a
 missing render context and was recorded, correctly, as proving
