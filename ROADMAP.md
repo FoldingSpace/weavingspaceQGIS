@@ -89,6 +89,21 @@ entry as it lands.
 
 ### Wanted
 
+Nothing outstanding. The three measurement entries that stood here
+were deferred to 0.24.4 by the maintainer on 2026-08-15: none is a
+defect, and one of them -- the certification batch -- cannot honestly
+run against this version at all, because a mutation score is a
+property of a suite and this suite changed a dozen times on the day
+the release was prepared.
+
+## 0.24.4 — after this one
+
+### Wanted
+
+Deferred from 0.24.3 on 2026-08-15. All three are MEASUREMENT: they
+say how good the suite is rather than whether the plugin is right,
+so none of them blocks an artefact.
+
 **Sampling the six unsampled assignment-lookup copies.** Deferred here
 from 0.24.2 deliberately: it is measurement rather than
 defect-finding, and the night of 2026-08-13 put mutation sampling at
