@@ -83,3 +83,86 @@ NEXT:   The harm turns on live update, which is ON by default. If the
         read the variable off the OUTPUT LAYER's renderer, not off
         the dialog.
 
+## 15:41:05  iteration 3  [perturbation]
+TRIED:  Take the removal case apart. Live update at its default, one
+        case per fresh process, tracing `layer_combo.layerChanged` and
+        reading the styled field off each OUTPUT LAYER's renderer
+        rather than off the dialog. N = 2, 3, 4 layers; the chosen
+        layer first, middle and last; a control removing a layer that
+        is NOT the chosen one; and the single-layer case.
+        scratchpad/fm_p5.py, fm_p6.py.
+RESULT: CONFIRMED, deterministic, and it splits in two by how many
+        polygon layers are left.
+        N=1 (the guarded door): "The region layer was removed from the
+        project, so there is nothing to map. Choose another layer."
+        Correct, and it is the only arrangement that reaches it.
+        N=2: layerChanged DOES fire. The dialog re-points at the
+        survivor, re-defaults every element's variable, and live
+        update re-tiles. Measured: the map went from
+        ('a - income','income') x4 to ('a - rainfall','rainfall') x4,
+        output layer ids all replaced, and the ONLY thing said was
+        "'WeavingSpace tiles': 122 tiles across 4 element layers" --
+        the same success line as the map it destroyed.
+        N>=3: layerChanged fires NOT AT ALL (0 emissions over 11.5 s,
+        4 arrangements, repeated). `layer_combo.currentLayer()` now
+        returns a DIFFERENT layer, `dlg._watched_layer` is a deleted
+        C++ object (RuntimeError on .name()), and the variable combos
+        still read the OLD layer's column. The map on screen is now of
+        a layer that no longer exists. Pressing Generate then dies at
+        bridge.layer_to_gdf's `feat[f]` (bridge.py:281) with
+        KeyError('income'), which dialog.py:6142 shows as
+        `QMessageBox.critical(self, "WeavingSpace", str(e))` -- a
+        modal whose entire text is `'income'`.
+        Control: removing a layer that is not the chosen one changes
+        nothing and says nothing. Correct.
+        ROOT: the plugin has NO connection to
+        QgsProject.layersRemoved (grep: zero hits in the package).
+        Its only channel is layerChanged, and the notice behind it is
+        guarded `if layer is None and self._had_a_layer`
+        (dialog.py:1616), whose precondition arrives only when the
+        removed layer was the LAST polygon layer. The existing suite
+        case (tests/run_tests.py:4352 "the layer removed from the
+        project") clears the project of every other layer first, so it
+        can only ever walk through the guarded door.
+NEXT:   Second independent route and a clean-project re-run, then
+        write up. Reproduce the bare `'income'` modal by calling
+        bridge.layer_to_gdf directly, with no dialog involved.
+
+## 16:03:20  iteration 4  [logical: second route, and a moving HEAD]
+TRIED:  Reach the same facts by mechanisms the first probes did not
+        use, and re-run everything against the tree as it stands now,
+        because HEAD moved under this hunt: c7b787c -> 65583e1, and
+        65583e1 (0f6f5c0 before it) is the FIX for the very 0.24.2
+        report that motivated this direction. scratchpad/fm_p7.py.
+RESULT: CONFIRMED by a second route, and NOT stale.
+        (a) The bare modal, with no dialog anywhere: calling
+        `bridge.layer_to_gdf(layer_without_income, ["income"])`
+        directly raises KeyError whose `str(e)` is exactly `'income'`
+        -- and dialog.py:6142 passes `str(e)` straight to
+        QMessageBox.critical. So the sentence the user reads after the
+        silent switch is a quoted column name and nothing else.
+        (b) Five sources of truth after removing one of three layers,
+        read from QGIS rather than from the dialog's own records:
+        layers alive = [layer_elevation, layer_rainfall]; the region
+        combo (QGIS's own widget) says layer_rainfall, whose only
+        field is 'rainfall'; `sip.isdeleted(dlg._watched_layer)` is
+        True, so the plugin is still holding the deleted layer; all
+        four table rows still claim 'income'; and all four output
+        layers are still styled on 'income'. The control names a
+        layer that has no such column: True.
+        (c) Re-ran fm_p6 and fm_p2 against a fresh `git archive
+        65583e1`: identical results. N=3 -> 0 layerChanged emissions,
+        nothing said, modal `'income'`; N=2 -> map silently replaced,
+        success bar only; fieldless layer -> ['---'] on every row and
+        the same unfollowable sentence twice.
+        Ruled out as fixture: clean project each run, one case per
+        fresh process, a control (removing a layer that is not the
+        chosen one) that changes nothing, and the guarded door (one
+        layer) that speaks correctly.
+NEXT:   Write up. Two claims, one strong (silent region switch, no
+        layersRemoved connection, guard reachable only in the
+        single-layer arrangement) and one weaker in harm (fieldless
+        polygon layer answered with an instruction that cannot be
+        obeyed). Dating: the notice arrived in ab94d4d (2026-08-09);
+        `git log -S layersRemoved` returns NO commits ever, so the
+        multi-layer silence has been there from the first commit.

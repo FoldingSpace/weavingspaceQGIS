@@ -85,6 +85,25 @@ ELSE: two of the five were a guard added to one path and not to the
 identical path beside it, and in both cases the suite's own new test
 went through the guarded door.
 
+Round five, 2026-08-15 (night), three hunts on the principle that a
+fixture must match the ORDER a user works in: four claims, ONE
+confirmed. The lowest yield yet, and the reason is the rule above
+being followed to the letter and still not being enough. Two of the
+three read a commit that a fix landed on top of WHILE THEY RAN, and
+duly reported defects that no longer existed -- one of them the very
+defect the fix was written for, filed as live with high confidence.
+So the rule now has a second half: RE-READ HEAD BEFORE YOU REPORT,
+and say in the report whether it moved under you. Naming the commit
+makes a claim reproducible; it does not make it current, and a fixed
+defect reads exactly like a live one.
+
+The confirmed one is worth the round on its own: removing the region
+layer from a project holding three or more polygon layers emits no
+layerChanged at all, so the dialog goes on holding a destroyed layer
+and Generate does nothing whatever. The suite could not have found
+it -- its own removal case clears every other layer first, so it only
+ever walked the one-layer door, which is the guarded one.
+
 TWO LESSONS FROM THAT ROUND, both about what to ask for.
 
 The OBSERVATIONS were better than the SEVERITY JUDGEMENTS. One hunt

@@ -109,3 +109,79 @@ NEXT:   read the MAP rather than the control — measure tile size off
         the output geometry — and repeat with live update at its
         DEFAULT (on), where the clobbered 500 should queue a second
         run and re-tile at a grain nobody asked for.
+
+## 00:58:10  iteration 4  [perturbation]
+TRIED:  seq_probe4.py — second, independent route: measure the tile
+        size off the OUTPUT GEOMETRY (median feature area and feature
+        count over the weavingspace_output layers) rather than off any
+        dialog control, in both orders and with live update both off
+        and at its shipped default. One configuration per process, so
+        no fixture can carry over.
+RESULT: CONFIRMED by the map itself, and the live-update default makes
+        it worse rather than better.
+          A live=False: control 250.0, map area 15625.0, 1104 tiles
+          A live=True : control 250.0, map area 15625.0, 1104 tiles
+          B live=False: control 500.0, map area 15625.0, 1104 tiles
+          B live=True : control 500.0, map area 62500.0,  312 tiles
+        So with live update off the CONTROL LIES about the map (box
+        says 500, tiles are the 250 grain); with live update on — the
+        shipped default — the clobbered 500 queues a live run and the
+        MAP IS RE-TILED at a grain the user never asked for, four
+        times coarser, 312 tiles where they asked for 1104. Nothing is
+        reported either way.
+        `git log -S"_auto_spacing_layer" -- weavingspace_qgis/dialog.py`
+        returns 3bd5f52, the initial commit of 2026-08-07: the guard
+        and the gap in its arming have both been there from the start.
+NEXT:   one more order of the same family — a project OPENED while the
+        dialog is showing, against _update_layer_exclusions, which is
+        called at construction and after a run and nowhere else.
+
+## 01:14:30  iteration 5  [perturbation]
+TRIED:  seq_probe5.py / seq_probe6.py — File > Open with the dialog
+        already showing. Order A: a tagged `weavingspace_output`
+        layer and a region layer in the project, THEN the dialog.
+        Order B: the dialog, then QgsProject.clear() (which is what
+        QGIS fires immediately before File > Open), then the two
+        layers. Read the exception list, the items the chooser
+        offers, and which layer it selected.
+RESULT: CONFIRMED, second finding.
+          A: excepted ['weavingspace a']; chooser offers ['region'];
+             selected 'region'.
+          B: excepted []; chooser offers ['region','weavingspace a'];
+             SELECTED 'weavingspace a' — the plugin's own output.
+        _update_layer_exclusions() has exactly two call sites,
+        dialog.py:1051 (construction) and dialog.py:7183 (after a
+        run). `cleared` is connected — to _forget_the_last_project,
+        dialog.py:991 — so the dialog is designed to survive a project
+        change, and that handler empties eighteen per-element records
+        and re-arms _auto_spacing_layer while leaving the exclusion
+        list untouched. One store updated, its twin not.
+        Second, independent route, off the MAP rather than the combo:
+        put the old output at x=500000...504000 and the user's regions
+        at x=0...4000, then Generate with live update off. The four
+        new element layers come out at x=499589...504411. It tiled its
+        own previous output, half a million map units from the user's
+        data, and said nothing — the exact harm the docstring at
+        dialog.py:1584 says the method exists to prevent. With live
+        update at its default the first map is drawn from the old
+        output too (98 tiles), and only the post-run exclusion refresh
+        heals the chooser and re-tiles from the right layer.
+        `git log -S"_update_layer_exclusions"` returns 3bd5f52, the
+        initial commit; the `cleared` connection is 2adb7dd, this
+        morning, which is when the dialog started outliving a project.
+NEXT:   check the other hunt running in this direction
+        (docs/process/hunt_fixture_order_2026-08-15_log.md) so the two
+        claims are not the same claim twice.
+
+## 01:22:00  iteration 6  [logical]
+TRIED:  Read hunt_fixture_order_2026-08-15_log.md, another hunt in the
+        same direction, to avoid claiming its finding again.
+RESULT: no overlap. That hunt owns the SEED defect (empty dropdown,
+        no defaults, Generate produces nothing) and its variants C, D,
+        E. Neither of my two — the hand-set spacing clobbered by the
+        late-armed auto-spacing guard, and the project-open exclusion
+        gap that tiles the plugin's own output — appears in it.
+        Hypotheses logged this run: 6. Findings claimed: 2, both
+        reproduced by a route that reads the OUTPUT GEOMETRY rather
+        than any dialog control. Ruled out / claimed-as-context: the
+        seed bug (real, but already owned).

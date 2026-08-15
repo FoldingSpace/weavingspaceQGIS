@@ -12,7 +12,7 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-08-15 (evening: every reported claim judged).
+Last updated 2026-08-15 (night: the three fixture-order hunts judged).
 
 ## How to run one
 
@@ -177,6 +177,9 @@ nothing, so it is counted against the hunt, not for it.
 | **Dialog against live layer** | "Does the plugin's belief match the layer?" | 1 | 2 | A column rename destroying categorical picks (fixed), and a provider-level edit invisible to both stores — kept as a documented LIMIT, and the docstring that claimed otherwise corrected |
 | **Stochastic sessions** | No question — random actions, invariants checked after each | 1 | 2 | ~100 sessions. Most "breaks" were its own fixture; found a defect present since the first commit, and a crash it hit on three separate seeds |
 | **Reduction beside pinning** | "Does the newer path re-ask the older path's question?" | 1 | 1 | Run 2026-08-15 as an asymmetry hunt over two paths that both change how many classes a map draws. Found the reduction counting the whole column while a pin had already removed a class and its samples |
+| **The first five minutes** | "What does a user meet before anything is configured?" | 1 | 1 | Removing the region layer from a project holding three or more polygon layers emits no layerChanged at all, so the dialog holds a destroyed layer and says nothing. Confirmed in substance, NOT in detail: the hunt reported a KeyError modal, and what a second route measured was silence -- a Generate that produced no map and no refusal. Which of the two a user meets depends on whether the surviving layer carries the same column names |
+| **Order of operations** | "What order does the suite always do this in, and what happens in the other order?" | 1 | **0** | Two claims, neither reproduced. A hand-typed spacing destroyed by the first Generate: measured at HEAD, the typed 250 survives, because the hunt read a commit PREDATING the fix for the field defect. A project opened under a showing dialog offering the plugin's own output as a region: not reproduced with live update on or off |
+| **Suite fixtures as blind spots** | "Which fixture order could no user follow, and what happens in the user's order?" | 1 | 0 | Reproduced the shipped field defect independently and found a second door into it (swapping the region layer), both already closed at HEAD. Three further shapes measured EQUIVALENT to the fixture order, which is worth as much: nobody need re-check them |
 | **Mutation sampling** | "Would the suite have noticed this change?" | many | **0** | 128 survivors, no product defects. It measures the SUITE |
 
 Rows are updated as claims are judged, which is why several moved
@@ -297,6 +300,36 @@ than in the plugin — live update defaults to ON, and one invariant
 was only checked when no run was possible, so four batches had barely
 exercised it at all. An invariant that never fires is either sound or
 broken, and only a control tells you which.
+
+## 2026-08-15, third round: what a moving HEAD does to a hunt
+
+Three hunts on the principle that a fixture must match the ORDER a
+user works in. Between them, four claims and ONE defect.
+
+**A hunt reads a commit; the tree does not stop for it.** Two of the
+three read `c7b787c` and reported defects that `0f6f5c0` had already
+fixed -- one of them the very field defect the fix was written for.
+The existing rule (probe a `git archive HEAD` copy and stamp the
+commit) was followed exactly, and it was not enough, because it makes
+a hunt reproducible without making it CURRENT. The missing half: a
+hunt re-reads HEAD before it reports, and says whether HEAD moved
+under it. The one that did this caught its own two findings turning
+into history and said so; the one that did not filed a fixed defect as
+live, with high confidence, and cost an evening's verification.
+
+**A verification's own fixture can hide the harm it is verifying.**
+The first reproduction of the surviving finding gave every layer the
+same column names, so removing the region layer silently tiled a
+different region and looked harmless. The same probe with DIFFERENT
+columns showed a Generate that did nothing at all. The rule this
+project already has for tests -- when a test mutates a fixture, check
+the mutation changed something -- applies to the probes that judge
+hunts, and they are written faster and with less scrutiny.
+
+**Equivalence is a finding worth reporting.** One hunt measured three
+shapes as equivalent to the fixture order and said so. That is not a
+null result: it is ground nobody need walk again, and it is the only
+kind of answer that shrinks the queue rather than lengthening it.
 
 ## Directions not yet tried
 
