@@ -89,6 +89,33 @@ MUTATIONS = [
            "widget. Data-tab handlers repaint, they never rebuild -- "
            "and the test had no catalogue entry until 2026-08-15, so "
            "nothing had ever proved it could fail"),
+  dict(name="a-ramp-reclick-never-rebuilds-the-table", file=DIALOG,
+       # THE TWIN, anchored separately, which is the rule: a single
+       # entry covering both handlers would report caught on the
+       # strength of whichever one the test happens to drive. This one
+       # SURVIVED when it was written on 2026-08-15, because the test
+       # reached only the currentIndexChanged handler; it is here
+       # because the test was then extended to send `activated`, which
+       # is what a real click sends.
+       old="""      if not c.showing_custom():
+        return
+      tid = c.property("tile_id")
+      if tid:
+        self._clear_category_colours(tid, "a new colour ramp")
+        self._clear_quant_customization(tid, "a new colour ramp")
+      self._refresh_preview_colours()""",
+       new="""      if not c.showing_custom():
+        return
+      tid = c.property("tile_id")
+      if tid:
+        self._clear_category_colours(tid, "a new colour ramp")
+        self._clear_quant_customization(tid, "a new colour ramp")
+      self._rebuild_unit()""",
+       test="test_palette_pick_survives_debounce",
+       why="re-choosing the ramp already showing on a Custom row fires "
+           "activated and NOT currentIndexChanged, so this handler is "
+           "the only one that runs; a rebuild here replaces every cell "
+           "widget while the user is still working the table"),
   dict(name="a-blank-a-failure-imposed-is-not-a-choice", file=DIALOG,
        old="      elif prev is not None and prev[\"var\"] is None \\\n"
            "          and not self._fieldless_build:",

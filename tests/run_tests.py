@@ -1912,6 +1912,56 @@ def test_palette_pick_survives_debounce():
   assert dlg.table.cellWidget(1, 1) is var_widget
   assert ramp_widget.currentText() == "YlOrRd", "pick must survive"
 
+  # ---- AND THE OTHER SIGNAL, which is the one a real click sends.
+  #
+  # The ramp cell has TWO handlers: `changed` on currentIndexChanged,
+  # which is what setCurrentText above reaches, and `picked` on
+  # activated, which only a user's click emits. Until 2026-08-15 this
+  # test drove the first alone, so a rebuild introduced in the second
+  # would have gone unnoticed -- found while giving this test its
+  # first catalogue entry, when anchoring the mutation on the activated
+  # twin SURVIVED.
+  #
+  # `picked` returns immediately unless the cell reads Custom, so that
+  # has to be staged or this exercises nothing. A hand-picked colour is
+  # recorded the way the editor records one; the row is then Custom,
+  # and re-choosing THE SAME ramp fires activated WITHOUT
+  # currentIndexChanged, which is exactly the case that handler exists
+  # for.
+  # A row carrying the CATEGORICAL column, because a hand-picked
+  # category colour is the cheapest way into Custom and it needs a
+  # categorized row to land on. Pointing a row at `landcover` is
+  # itself a data-tab change, so the identity of everything else must
+  # survive it too -- which the assertions below also read.
+  cat_row = 2
+  cat_var = dlg.table.cellWidget(cat_row, 1)
+  cat_var.setCurrentText("landcover")
+  _tick(500)
+  cat_widget = dlg.table.cellWidget(cat_row, 4)
+  assignment = next(a for a in dlg._assignments()
+                    if a["id"] == cat_widget.property("tile_id"))
+  colours, order = dlg._current_category_colours(assignment)
+  if order:
+    dlg._category_colours.setdefault(assignment["id"], {}).setdefault(
+      assignment["var"], {})[str(order[0])] = "#123456"
+    dlg._apply_style_change()
+    _tick(150)
+    cat_widget = dlg.table.cellWidget(cat_row, 4)
+    assert cat_widget.showing_custom(), \
+      "the hand-picked colour did not put the cell in Custom, so the " \
+      "activated handler below would return early and prove nothing"
+    index = cat_widget.currentIndex()
+    cat_widget.activated.emit(index)     # what a click sends
+    loop = QEventLoop()
+    QTimer.singleShot(1400, loop.quit)
+    loop.exec()
+    assert dlg.table.cellWidget(cat_row, 4) is cat_widget, \
+      "re-choosing the same ramp rebuilt the table's widgets. That " \
+      "signal is what a real click sends, and a rebuild debounced " \
+      "from it lands mid-interaction with whatever the user does next"
+    assert dlg.table.cellWidget(0, 4) is ramp_widget, \
+      "the activated handler rebuilt the OTHER rows' widgets"
+
   _generate_and_wait(dlg)
   from qgis.core import QgsGraduatedSymbolRenderer
   lid = dlg._element_layer_ids["a"]
