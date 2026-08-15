@@ -93,7 +93,6 @@ if [ -z "$HOMES" ]; then
   done
 fi
 
-PREFIX="$APP/Contents/MacOS"
 PROJ="$APP/Contents/Resources/qgis/proj"
 
 # Two passes, because the two questions are not the same. A
@@ -111,7 +110,7 @@ for want in qgis stdlib; do
       else
         probe='import encodings, sys; print(sys.prefix)'
       fi
-      if out=$(PYTHONHOME="$home" QGIS_PREFIX_PATH="$PREFIX" \
+      if out=$(PYTHONHOME="$home" \
                QT_QPA_PLATFORM=offscreen "$py" -c "$probe" 2>/dev/null); then
         say "starts ($want): $py  PYTHONHOME='${home:-unset}'  sys.prefix=$out"
         CHOSEN_PY="$py"
@@ -131,6 +130,55 @@ if [ -z "$CHOSEN_PY" ]; then
   find "$APP/Contents" -maxdepth 3 -type d >&2 2>/dev/null | head -40
   exit 1
 fi
+
+# QGIS_PREFIX_PATH is what QGIS derives pkgDataPath from, and
+# pkgDataPath is where it looks for the style database that every
+# stock colour ramp lives in. Get it wrong and QGIS starts perfectly
+# well, imports, tiles, renders -- and has NO RAMPS AT ALL.
+#
+# Measured 2026-08-15, and this project had it wrong for months:
+# `$APP/Contents/MacOS` (what tests/run_tests_macos.sh used to say)
+# yields a doubled pkgDataPath of `.../Contents/MacOS/Contents/
+# Resources/qgis`, which does not exist, and a fresh profile then
+# reports ZERO ramps. `$APP` itself yields the real directory and 35
+# ramps -- ColorBrewer's, viridis absent, exactly the inventory the
+# colour decision of that day describes. It never showed on the
+# development machine because that profile has carried 63 ramps since
+# the plugin seeded it years ago, which is the same way the
+# colourspace gate passed for months on one machine's style library.
+#
+# So the prefix is chosen by ASKING QGIS, against a THROWAWAY PROFILE.
+# The throwaway part is the whole trick: asked with a seeded profile,
+# every candidate answers "ramps present" and the measurement proves
+# nothing at all.
+PREFIX=""
+for cand in "$APP" "$APP/Contents/MacOS" "$APP/Contents"; do
+  [ -d "$cand" ] || continue
+  tmp_profile=$(mktemp -d)
+  count=$(PYTHONHOME="$CHOSEN_HOME" QGIS_PREFIX_PATH="$cand" \
+          QGIS_CUSTOM_CONFIG_PATH="$tmp_profile" QT_QPA_PLATFORM=offscreen \
+          "$CHOSEN_PY" -c 'from qgis.core import QgsApplication, QgsStyle
+app = QgsApplication([], False)
+app.initQgis()
+print(len(QgsStyle.defaultStyle().colorRampNames()))' 2>/dev/null | tail -1)
+  rm -rf "$tmp_profile"
+  say "prefix $cand: ${count:-no answer} ramp(s) on a fresh profile"
+  case "$count" in
+    ''|*[!0-9]*) continue ;;
+    0) continue ;;
+    *) PREFIX="$cand"; break ;;
+  esac
+done
+if [ -z "$PREFIX" ]; then
+  # Not fatal: QGIS runs without its stock ramps, and a suite that
+  # then fails on a missing ramp name says so plainly. Falling over
+  # here would hide that behind a refusal to start at all.
+  say "WARNING: no QGIS_PREFIX_PATH gave this QGIS any colour ramps."
+  say "Anything asking for a stock ramp by name will get None. The"
+  say "usual cause is a bundle layout this script has not met; the"
+  say "candidates tried were $APP, $APP/Contents/MacOS, $APP/Contents."
+fi
+
 
 echo "QGIS_APP=$APP"
 echo "QGIS_PY=$CHOSEN_PY"
