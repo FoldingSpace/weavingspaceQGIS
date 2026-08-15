@@ -140,16 +140,26 @@ asked, what a failure would mean, and where it stands.
 
 | Dimension | The question | Status |
 | --- | --- | --- |
-| Arithmetic | do pins and copies produce the ladder they promise, in every scheme? | DONE: pinned bounds, refusals, fitting, all four schemes and Unclassed |
-| Races | is a choice made WHILE A RUN IS IN FLIGHT destroyed when it lands? | found a real defect; test written |
-| Rebuilds | does a choice survive the table being rebuilt 350 ms later? | test written |
-| Round trips | do the values AND the flags come home from a .qgz? | pins done; copies written |
-| The other boundary | does a colleague opening the GeoPackage see what you see? | written |
-| Awkward data | nulls, one value, two values, NaN, infinities, under a pin | written |
-| Live path | is a pin recorded but never drawn, because the tick returns early? | written |
-| Metamorphic | copy a to b to a: does the map drift? | written |
+| Arithmetic | do pins and copies produce the ladder they promise, in every scheme? | DONE, proved |
+| Races | is a choice made WHILE A RUN IS IN FLIGHT destroyed when it lands? | DONE, proved. Found a real defect: the landing did not re-read the pins |
+| Rebuilds | does a choice survive the table being rebuilt 350 ms later? | DONE |
+| Round trips | do the values AND the flags come home from a .qgz? | DONE for pins and for copies, both proved |
+| The other boundary | does a colleague opening the GeoPackage see what you see? | DONE |
+| Awkward data | nulls, one value, two values, NaN, infinities, under a pin | DONE |
+| Live path | is a pin recorded but never drawn, because the tick returns early? | DONE |
+| Metamorphic | copy a to b to a: does the map drift? | DONE |
 | Absence | do the controls stay out of categorical dress? | DONE |
-| Appearance | can a reader tell a pinned glyph from an unpinned one? | DONE |
+| Appearance | can a reader tell a pinned glyph from an unpinned one? | DONE, by rendering both |
+| Keyed by field | does one column's pin reach another's data? | DONE, proved |
+| Two windows | does one element's editor leak into the next? | DONE |
+| Pixels | does a pinned map draw what the library draws? | DONE, proved -- and the entry SURVIVED first, because the expected side shared seed_renderer |
+| Integration | a session of pinning, unpinning, copying, releasing, checked at every moment | DONE, proved |
+| Style excursion | does a pin stay inert while the row is categorical, and come back? | DONE |
+| Families | does a pin behave the same across the catalogue? | DONE |
+| Past tests | do the sweep and the interleaved session exercise a pin? | DONE, both modified |
+
+Twenty-four tests and twelve catalogue entries as of 2026-08-15,
+against a suite of 393 with nothing failing.
 
 ### Still to write, in the order they are worth writing
 
