@@ -15598,17 +15598,27 @@ def test_the_quant_editor_edits_class_colours():
   editor = _open_quant_editor(dlg, 1)
   headers = [editor.table.horizontalHeaderItem(c).text()
              for c in range(editor.table.columnCount())]
-  assert headers[:2] == ["Lower", "Upper"], \
-    f"the quant editor's first columns read {headers[:2]}, not " \
-    f"Lower and Upper"
+  # Pin, then the two bounds, then the colour. The pin column came
+  # first in 0.24.3: the eye meets it on the way into the row, and
+  # putting it anywhere else would have widened the window past the
+  # colour button rather than before the numbers.
+  assert headers[:3] == ["Pin", "Lower", "Upper"], \
+    f"the quant editor's first columns read {headers[:3]}, not " \
+    f"Pin, Lower and Upper"
+  bound_columns = (1, 2)
   assert editor.table.rowCount() == 5, \
     f"{editor.table.rowCount()} rows for a five-class element"
   assert editor.table.editTriggers() \
       == QAbstractItemView.EditTrigger.NoEditTriggers, \
     "the break columns are read-only; the breaks belong to the data"
   for r in range(editor.table.rowCount()):
-    for c in (0, 1):
+    for c in bound_columns:
       cell = editor.table.item(r, c)
+      # The FIRST row's upper bound and the LAST row's lower bound
+      # are spin boxes rather than items, being the two a pin can
+      # name; they are checked by the pin tests, not here.
+      if cell is None and editor.table.cellWidget(r, c) is not None:
+        continue
       assert cell is not None, f"row {r} is missing its break cell {c}"
       text = cell.text()
       assert text != "(no data)", \

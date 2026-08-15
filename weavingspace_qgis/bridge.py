@@ -949,6 +949,14 @@ def pin_problem(low, high, values, asked: int):
   return None
 
 
+class _AlreadyClassified(Exception):
+  """Raised to skip the classifier when a copied ladder decided the
+  breaks. An exception rather than a branch because the subset string
+  is set and restored around that call in a try/finally, and a second
+  code path around it is how one of the two comes to forget the
+  restore."""
+
+
 def _trim(value: float) -> str:
   """A number as a person would write it, with trailing zeros gone."""
   text = f"{float(value):.6g}"
@@ -1030,11 +1038,34 @@ def _apply_pinned_bounds(renderer, low, high, smallest, largest,
     bounds.insert(0, (float(smallest), float(low)))
   if high is not None:
     bounds.append((float(high), float(largest)))
+  set_class_bounds(renderer, bounds, outline, method)
+
+
+def set_class_bounds(renderer, bounds, outline, method):
+  """Replace a renderer's classes with an exact list of bounds.
+
+  Args:
+    renderer: the graduated renderer to rewrite.
+    bounds: ``[(lower, upper), ...]`` in class order, contiguous.
+    outline: whether tiles are stroked, for the symbols built here.
+    method: the classification method, asked for its own label text
+      so these classes are labelled the way computed ones are.
+
+  Returns:
+    None; the classes are replaced in place, uncoloured. The caller
+    colours them, because who decides a class's colour depends on
+    whether a display window or a hand-pick is in force.
+
+  Two callers: the pinned classes put back around a computed middle,
+  and a whole ladder copied from another element. They share this so
+  a copied class and a pinned one cannot come to be built or
+  labelled differently.
+  """
   renderer.deleteAllClasses()
   # QGIS 4's addClass takes a SYMBOL only (measured: the
   # QgsRendererRange overload of older versions is gone), so each
   # class is added and then given its bounds and label by index.
-  for lower, upper in bounds:
+  for _lower, _upper in bounds:
     renderer.addClass(_fill_symbol("#c0c0c0", outline))
   for position, (lower, upper) in enumerate(bounds):
     renderer.updateRangeLowerValue(position, lower)
@@ -1046,6 +1077,59 @@ def _apply_pinned_bounds(renderer, low, high, smallest, largest,
       except Exception:
         pass
     renderer.updateRangeLabel(position, label)
+
+
+def fitted_breaks(breaks, smallest, largest):
+  """A copied ladder of breaks, fitted to the receiving column.
+
+  Args:
+    breaks: the INTERIOR boundaries of the ladder being copied, in
+      order -- k-1 numbers for a k-class ladder. The outer edges are
+      not carried, being the data's own extremes by definition.
+    smallest, largest: the receiving column's extremes.
+
+  Returns:
+    ``[(lower, upper), ...]``, one pair per class, contiguous, with
+    the outermost edges at the receiving column's min and max. None
+    when there is nothing to fit.
+
+  THE END RULES, which are the maintainer's own specification
+  (2026-08-14) and are what make a ladder copied from one variable
+  usable on another. The highest class's upper bound and the lowest
+  class's lower bound become the receiving column's max and min.
+  Where that column's max sits BELOW the upper class's lower bound,
+  the two are made equal and the top class collapses; where its min
+  sits above the lower class's upper bound, the lower class's lower
+  bound is set to its upper and the bottom class collapses. Since
+  breaks are cut from the region's values for a field, two elements
+  on the SAME variable share a data range and none of this bites --
+  these rules exist for copying ACROSS variables, which is the case
+  the feature is really for.
+
+  A collapse moves the OUTER edge and never a copied boundary, and
+  the first draft did the opposite: pulling the top class's lower
+  bound down to a smaller column's max produced (30, 3) -- a class
+  running backwards -- whenever more than one copied break sat above
+  that max. Measured on breaks [4, 14.2, 30, 55] fitted to a column
+  running 0 to 3. The ladder must stay monotonic whatever it is
+  fitted to, so the collapse is expressed as an outer edge meeting
+  its neighbour rather than as a boundary being dragged.
+
+  What is NOT done here is dropping interior boundaries the receiving
+  data cannot reach. They are KEPT, deliberately: a copy is supposed
+  to reproduce a classification, and a silently shortened one does
+  not. The emptiness is made visible instead, by hatching the swatch
+  stripes no tile can wear.
+  """
+  interior = [float(b) for b in (breaks or [])]
+  if not interior:
+    return None
+  low, high = float(smallest), float(largest)
+  bounds = [(min(low, interior[0]), interior[0])]
+  for index in range(1, len(interior)):
+    bounds.append((interior[index - 1], interior[index]))
+  bounds.append((interior[-1], max(high, interior[-1])))
+  return bounds
 
 
 def classification_source(field: str, values) -> QgsVectorLayer | None:
@@ -1402,13 +1486,29 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   wants_middle = int(k) - pins > 0
   if pins:
     k = max(1, int(k) - pins)
+  # ---- A COPIED LADDER short-circuits the classifier entirely
+  #
+  # `pinned["breaks"]` holds every interior boundary of a ladder
+  # copied from another element. There is nothing left for a scheme
+  # to decide, so nothing is classified: the bounds are fitted to
+  # this column's extremes (fitted_breaks) and set directly. That is
+  # also why a copy needs no reduction -- "a column cannot be cut
+  # into more classes than it has distinct values" governs breaks the
+  # software COMPUTES, and never overrules one a user imported.
+  copied = None
+  if pinned and pinned.get("breaks") and finite_values:
+    copied = fitted_breaks(pinned["breaks"], finite_values[0],
+                           finite_values[-1])
+  if copied is not None:
+    set_class_bounds(renderer, copied, outline, method)
+    pins = 1        # force the full recolour below, as a pin does
   FINITE = 1e307
   restore = None
   awkward = any(
     v is None or v == NULL or (isinstance(v, float)
                                and (v != v or abs(v) > FINITE))
     for v in values)
-  if index >= 0 and (awkward or pins):
+  if copied is None and index >= 0 and (awkward or pins):
     previous = source.subsetString()
     clause = (f'"{field}" IS NOT NULL AND "{field}" > {-FINITE:g} '
               f'AND "{field}" < {FINITE:g}')
@@ -1423,16 +1523,20 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
     if source.setSubsetString(combined):
       restore = previous
   try:
+    if copied is not None:
+      raise _AlreadyClassified
     # `source` and not `layer`: the breaks come from the whole map's
     # values (see above), and the filtering just applied belongs to
     # whichever layer is about to be scanned. When no values were
     # handed over the two are the same object and this is the
     # behaviour that shipped before.
     renderer.updateClasses(source, k)
+  except _AlreadyClassified:
+    pass
   finally:
     if restore is not None:
       source.setSubsetString(restore)
-  if pins:
+  if pins and copied is None:
     _apply_pinned_bounds(renderer, low_pin, high_pin, finite_values[0],
                          finite_values[-1], outline, method,
                          wants_middle)
