@@ -29655,7 +29655,14 @@ def test_a_project_round_trip_changes_nothing_a_user_chose():
     dlg.live_check.setChecked(False)
     dlg.layer_combo.setLayer(region)
     _tick(300)
-    dlg.table.cellWidget(0, 1).setCurrentText("v1")
+    # v3 rather than v1, and deliberately: this test asks for SEVEN
+    # classes below, v1 holds four distinct values, and a column
+    # cannot be cut into more classes than it has values -- so on v1
+    # the count would arrive at the renderer already reduced and this
+    # test would be measuring the reduction rather than the round
+    # trip. v3 holds seven over the 4x4 fixture (0,1,2,3,4,6,9), so
+    # the ask is honest and the axis stays about what it names.
+    dlg.table.cellWidget(0, 1).setCurrentText("v3")
     dlg.table.cellWidget(1, 1).setCurrentText("landcover")
     dlg._update_dynamic_columns()
     _tick(200)
@@ -29710,14 +29717,15 @@ def test_a_project_round_trip_changes_nothing_a_user_chose():
       f"choosing a ramp did not reach the element's record " \
       f"({dlg._ramp_choices.get(ids[0])!r}), so the round trip would " \
       f"compare a default against a default"
-    # Reverse goes on a DIFFERENT element from the ramp, because the
-    # two ask opposite questions of a reopen. A named ramp must come
-    # back BY NAME, and it cannot be shown to if the only element
-    # carrying one is also reversed: reversing produces a clone that
-    # matches nothing in the library, so that element is restored as
-    # Custom by design and its ramp name is gone either way. One
-    # element for "the name survives", another for "the colours
-    # survive even when the name cannot".
+    # Reverse goes on a DIFFERENT element from the ramp, so that each
+    # axis has an element of its own to be lost on: one for "a chosen
+    # ramp comes back by name", one for "a reversed ramp comes back
+    # reversed". Until 2026-08-14 the second of those was not
+    # promised at all -- reversing produces a clone matching no name
+    # in the library, so the element came back as Custom picks that
+    # drew the right map while the tick a user had set was gone.
+    # `_ramp_match` now tries each library ramp reversed as well, so
+    # the flag is recovered with the name it belongs to.
     reversed_row = next(
       (r for r in range(dlg.table.rowCount())
        if r != 0 and dlg._row_reverse(r) is not None
@@ -29741,6 +29749,17 @@ def test_a_project_round_trip_changes_nothing_a_user_chose():
     assert dlg._element_layer_ids, "no output was produced"
 
     before = _choices_snapshot(dlg)
+    # what each element actually DRAWS, kept so the recovery below can
+    # be required to leave the map alone: a reopen that fixed the
+    # table by repainting the map would pass every comparison of the
+    # table against itself.
+    colours_before = {}
+    for lyr in project.mapLayers().values():
+      tid = lyr.customProperty("weavingspace_tile_id")
+      renderer = lyr.renderer() if tid else None
+      if renderer is not None and hasattr(renderer, "ranges"):
+        colours_before[tid] = [r.symbol().color().name()
+                               for r in renderer.ranges()]
     # the guard: comparing two empty states would pass forever
     interesting = sum(1 for v in before.values()
                       if v["picks"] not in ("{}", "") or v["range"] != "(0, 100)"
@@ -29818,19 +29837,31 @@ def test_a_project_round_trip_changes_nothing_a_user_chose():
     # new and treats the layer as the authority exactly as opacity
     # does.
     #
-    # REVERSE remains, and the reason is worth keeping. Reversing
-    # produces a ramp clone that matches no name in the library, so
-    # the flag cannot be recognised from a renderer -- but the
-    # element is restored as Custom carrying the actual class
-    # colours, so THE MAP IS EXACTLY PRESERVED and the ramp cell
-    # stops claiming a ramp that is not what is drawn. What is lost
-    # is the knowledge that those colours came from reversing, not
-    # the colours. The `quant` branch below is what holds that line.
+    # REVERSE was the last name on this list and came off it on
+    # 2026-08-14. Reversing produces a ramp clone matching no NAME in
+    # the library, so the flag could not be recognised from a
+    # renderer: the element was restored as Custom carrying the
+    # actual class colours, which preserved the map exactly and lost
+    # the knowledge that those colours came from reversing.
+    # `_ramp_match` now tries each library ramp reversed as well, so
+    # the name and the direction are recovered together, and the
+    # block below REQUIRES both.
+    #
+    # The list is empty, and the assertion is kept rather than
+    # deleted with it: it is what will notice if a setting added next
+    # year stops coming home, and an empty tuple states the contract
+    # -- everything a user chose survives a round trip -- more
+    # plainly than no assertion at all.
+    #
+    # What is still not attempted, and is not a gap of this kind: the
+    # SCHEME (Quantiles against Natural breaks) cannot be recovered
+    # from a set of breaks, since several schemes can produce the
+    # same ones.
     #
     # WHEN THIS LIST SHRINKS, that is good news: delete the names
     # that now survive. Do NOT add a name to it to make the suite
     # green -- that is how a gap becomes a promise nobody made.
-    NOT_YET_RESTORED = ("reverse",)
+    NOT_YET_RESTORED = ()
     still_lost = []
     lost = []
     for tile_id, settings in sorted(before.items()):
@@ -29849,10 +29880,10 @@ def test_a_project_round_trip_changes_nothing_a_user_chose():
         if key == "quant" and was in ("{}", "") \
             and came_back.get(key) not in ("{}", "", None):
           # RE-DESCRIBED, not lost. Where no ramp in the library
-          # draws what the layer draws -- a reversed ramp is the
-          # everyday case, being a clone matching no name -- the
-          # classes are read back as positional picks and the row
-          # reads Custom. The map is preserved exactly and the
+          # draws what the layer draws -- a ramp built in QGIS's own
+          # styling dock is the everyday case now that a reversed one
+          # is recognised -- the classes are read back as positional
+          # picks and the row reads Custom. The map is preserved exactly and the
           # control stops naming a ramp that is not what is drawn.
           # So this is allowed ONLY while those picks are the
           # colours actually on the map; otherwise the table has
@@ -29877,26 +29908,32 @@ def test_a_project_round_trip_changes_nothing_a_user_chose():
                      f"the table and the map disagree")
           lost.append(
             f"{tile_id}.{key}: chose {was!r}, reopened as {now!r}{extra}")
-    # The Custom recovery, REQUIRED rather than merely permitted.
-    # The loop above tolerates picks appearing where there were none,
-    # which means it would also tolerate them NOT appearing -- {}
-    # against {} compares equal and says nothing. The reversed
-    # element is the case: no library ramp draws it, so its classes
-    # must come back as positional picks that are exactly what the
-    # layer draws, or the row is describing a map nobody made.
-    recovered = json.loads(after.get(reversed_id, {}).get("quant") or "{}")
-    by_index = next(iter(recovered.values()), {}) if recovered else {}
-    recovered_list = [by_index[str(i)] for i in range(len(by_index))
-                      if str(i) in by_index]
+    # The REVERSED element, required rather than merely permitted.
+    # The loop above compares before against after, so it would be
+    # satisfied by two elements that had both lost the same thing;
+    # this asks the question directly. What is promised since
+    # 2026-08-14 is that the row comes back naming the ramp the user
+    # picked AND with the tick still set -- not as Custom picks that
+    # happen to draw the right colours, which is what it used to do.
     drawn = colours_on_the_map.get(reversed_id)
     assert drawn, \
       f"the reversed element {reversed_id!r} drew no classes after " \
       f"the round trip, so nothing here is being checked"
-    assert recovered_list == drawn, \
-      f"a reversed ramp names nothing in the library, so reopening " \
-      f"must recover its classes as Custom picks matching the map. " \
-      f"The table came back with {recovered_list!r} where the layer " \
-      f"draws {drawn!r}"
+    assert after[reversed_id]["reverse"] == "True", \
+      f"the reversed element came back as " \
+      f"{after[reversed_id]['reverse']!r}. Reversing produces a ramp " \
+      f"clone matching no name in the library, so recovering it " \
+      f"takes _ramp_match's reversed pass; without that the row " \
+      f"describes a map drawn the other way round"
+    assert after[reversed_id]["ramp"] == before[reversed_id]["ramp"], \
+      f"the reversed element's ramp came back as " \
+      f"{after[reversed_id]['ramp']!r} where it was " \
+      f"{before[reversed_id]['ramp']!r}"
+    # ...and the MAP is untouched by any of that recovery, which is
+    # the half a user would actually see.
+    assert drawn == colours_before.get(reversed_id), \
+      f"reopening changed what the reversed element draws: " \
+      f"{colours_before.get(reversed_id)!r} became {drawn!r}"
 
     revived.close()
     assert not lost, \

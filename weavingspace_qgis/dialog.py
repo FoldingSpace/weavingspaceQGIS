@@ -776,6 +776,10 @@ class WeavingSpaceDialog(QDialog):
     # class-source choice, QML files browsed anywhere this session,
     # picked single colours, and last ramp names
     self._cat_count_cache = {}
+    # one field's values, keyed by (layer, field, fingerprint) and
+    # holding a single entry: the breaks are cut from these, and a
+    # stale set would classify the map against data that has gone
+    self._values_cache = {}
     self._class_choices = {}
     self._browsed_qmls = []
     self._single_colours = {}
@@ -2228,6 +2232,106 @@ class WeavingSpaceDialog(QDialog):
         self._cat_count_cache[key] = 0
     return self._cat_count_cache[key]
 
+  def _numeric_value_count(self, field_name: str) -> int:
+    """Distinct finite numbers a field holds, across the REGION layer.
+
+    Args:
+      field_name: the attribute a graduated row is classifying.
+
+    Returns:
+      How many distinct values there are to divide into classes, or 0
+      when there is no layer, no such field, or the provider refuses
+      the question — in which case the caller reduces nothing, since
+      an unknown count is not a small one.
+
+    Why the region layer and not the element layer, which is what
+    actually gets classified. An element layer holds only ITS OWN
+    tiles, so the distinct count is per element, and reducing against
+    it lets two elements carrying the same variable draw different
+    numbers of classes. That was measured on 2026-08-13, cost a
+    reverted release-candidate, and is the worse fault on a map whose
+    purpose is reading elements against each other
+    (test_metamorphic_variable_permutation says so in as many words).
+    The region layer gives one answer for the whole map, and it is
+    also stable under spacing: a design redrawn at a finer spacing
+    does not silently gain classes.
+
+    The price, accepted deliberately and already accepted elsewhere:
+    at a coarse spacing the region layer can hold a value no tile
+    carries, so a class can still go unworn. That is the same
+    trade-off the Categorical colour editor settled on 2026-08-08,
+    for the same reason, and the areas that received no tiles are
+    reported separately by coverage_message.
+
+    Cached like its categorical sibling, and in the same dict, since
+    ``uniqueValues`` asks the provider and may scan the table; both
+    are cleared together when the layer changes.
+    """
+    layer = self.layer_combo.currentLayer()
+    if layer is None:
+      return 0
+    idx = layer.fields().indexOf(field_name)
+    if idx < 0:
+      return 0
+    key = (layer.id(), field_name, "numeric")
+    if key not in self._cat_count_cache:
+      try:
+        self._cat_count_cache[key] = bridge.distinct_numeric_count(
+          layer.uniqueValues(idx))
+      except Exception:
+        self._cat_count_cache[key] = 0
+    return self._cat_count_cache[key]
+
+  def _classification_values(self, field_name: str):
+    """Every value of a field across the region, for cutting breaks.
+
+    Args:
+      field_name: the column a graduated element classifies.
+
+    Returns:
+      A list with one entry per area, gaps included, or None when
+      there is no layer or no such field -- which tells
+      make_graduated_renderer to classify the element layer as it
+      always did.
+
+    One entry per AREA rather than the distinct values, because
+    quantiles are decided by how many areas fall where; a set of
+    distinct values would weight a value held by one area the same as
+    one held by half the map.
+
+    Cached against the layer's own FINGERPRINT rather than merely its
+    id. The count and extent move whenever features are added or
+    removed, so an edit that changes what should be classified
+    retires the entry; what it cannot see is a value rewritten
+    straight through the data provider, which is the documented limit
+    described at _on_layer_changed and applies to every other reading
+    the dialog takes of this layer.
+    """
+    layer = self.layer_combo.currentLayer()
+    if layer is None:
+      return None
+    index = layer.fields().indexOf(field_name)
+    if index < 0:
+      return None
+    # `_layer_fingerprint` takes no argument -- it reads the chosen
+    # layer itself, which is the one being scanned two lines below.
+    # Calling it with one raised TypeError into the guard beneath,
+    # and the whole classification quietly fell back to per-element
+    # breaks: a change that appeared to do nothing, which is exactly
+    # what a silent fallback looks like from outside.
+    key = (layer.id(), field_name, self._layer_fingerprint())
+    if key not in self._values_cache:
+      # one scan, and only when the fingerprint says the last one is
+      # out of date. The same scan the missing-values notice makes.
+      # The dict is REPLACED rather than added to, so the previous
+      # fingerprint's values cannot sit there being wrong.
+      try:
+        self._values_cache = {key: [feature[field_name]
+                                    for feature in layer.getFeatures()]}
+      except Exception:
+        return None
+    return self._values_cache.get(key)
+
   def _populate_class_source_combo(self, combo, current=None):
     """(Re)build a row's class-source choices.
 
@@ -2997,8 +3101,19 @@ class WeavingSpaceDialog(QDialog):
       # controls cannot express must not survive in a property.
       # Guarded by test_an_unclassed_excursion_leaves_the_count_alone.
       restored_k = self._class_counts.get(tid)
-      if not restored_k and prev and prev.get("k"):
-        restored_k = prev["k"]
+      if not restored_k and prev:
+        # ``k_asked`` and never ``k``: since 2026-08-14 the latter is
+        # what the MAP draws, reduced where the column has fewer
+        # distinct values than the row asked classes for. Restoring
+        # from it would make that reduction PERMANENT -- a five asked
+        # over a four-value column would come back as four, and
+        # pointing the row at a richer column afterwards would not
+        # bring the five back, because the ask itself had been
+        # overwritten. It is the same fault the paragraph above
+        # describes for Unclassed's fifty, arriving from the other
+        # direction: a number the user did not choose written into
+        # the place that remembers what they chose.
+        restored_k = prev.get("k_asked") or prev.get("k")
       restored_k = max(2, min(int(restored_k or 5), 20))
       k_spin.setValue(restored_k)
       k_spin.setProperty("user_k", restored_k)
@@ -3209,11 +3324,12 @@ class WeavingSpaceDialog(QDialog):
       tile_id: the element it carries.
 
     Returns:
-      None. Fills in `_ramp_choices`, `_class_counts`,
-      `_single_colours` and, where the ramp cannot be named, the
-      positional picks in `_quant_colours` that make the row read
-      Custom. Only ever fills a gap: anything the dialog already
-      holds for this element was chosen since reopening and wins.
+      None. Fills in `_ramp_choices`, `_reverse_choices`,
+      `_class_counts`, `_single_colours` and, where the ramp cannot be
+      named, the positional picks in `_quant_colours` that make the
+      row read Custom. Only ever fills a gap: anything the dialog
+      already holds for this element was chosen since reopening and
+      wins.
 
     Nothing here raises. A project written by another version, or
     edited by hand, must not stop the dialog opening -- so an
@@ -3239,13 +3355,24 @@ class WeavingSpaceDialog(QDialog):
         pass
       return
 
-    named = None
+    named, flipped = None, False
     try:
-      named = self._ramp_name_matching(renderer.sourceColorRamp())
+      # The REVERSE-aware match here, not _ramp_name_matching: a
+      # reversed element's renderer carries a clone matching no name,
+      # so the exact question would answer None and the row would come
+      # back Custom with the tick lost. Recovering the flag is the
+      # last thing a project round trip used to drop.
+      named, flipped = self._ramp_match(renderer.sourceColorRamp())
     except Exception:
-      named = None
+      named, flipped = None, False
     if named and tile_id not in self._ramp_choices:
       self._ramp_choices[tile_id] = named
+      # Filed in the same breath and under the same gap rule as the
+      # ramp, because the two are one choice: a name recovered without
+      # its direction would put the row's combo on a ramp the map runs
+      # the other way, which is the table lying about the map.
+      if tile_id not in self._reverse_choices:
+        self._reverse_choices[tile_id] = flipped
 
     if not hasattr(renderer, "ranges"):
       # A CATEGORIZED renderer, and until 2026-08-13 this returned
@@ -3299,7 +3426,7 @@ class WeavingSpaceDialog(QDialog):
         # style and the row reads Custom.
         try:
           from_ramp = bridge.make_categorized_renderer(
-            layer, field, named, False)
+            layer, field, named, False, None, flipped)
           expected = {str(c.value()): c.symbol().color().name()
                       for c in from_ramp.categories()}
         except Exception:
@@ -3597,7 +3724,12 @@ class WeavingSpaceDialog(QDialog):
       assignment.get("outline", False),
       assignment.get("reverse", False),
       assignment.get("range_bounds", (0, 100)),
-      assignment.get("quant_colours"))
+      assignment.get("quant_colours"),
+      # the same values the MAP is classified from, or this preview
+      # of the row's colours would predict a map drawn from a
+      # different sample -- which is the disagreement
+      # test_the_preview_agrees_with_the_map_it_predicts hunts
+      self._classification_values(assignment["var"]))
     # iterate the list while it is bound to the loop: range objects
     # from ranges() are temporaries, and a symbol pointer read off a
     # dead one segfaults (the lesson the constant-column fix paid for)
@@ -3683,31 +3815,71 @@ class WeavingSpaceDialog(QDialog):
       lambda lid=layer.id(), tid=str(tile_id):
         self._on_layer_style_edited(lid, tid))
 
-  def _ramp_name_matching(self, ramp):
-    """The QgsStyle name of a colour ramp, or None.
+  def _ramp_match(self, ramp):
+    """Name a colour ramp, allowing for one that has been reversed.
 
     Args:
-      ramp: a QgsColorRamp taken from a renderer someone built in
-        QGIS's styling dock, or None.
+      ramp: a QgsColorRamp taken from a renderer -- one QGIS restored
+        from a project file, or one somebody built in the styling
+        dock -- or None.
 
     Returns:
-      The name under which an identical ramp appears in the ramp
-      dropdown, or None when nothing matches. Compared by the ramp's
-      own serialized properties rather than by object identity,
-      because the dock hands out clones.
+      ``(name, reversed)``: the name under which this ramp appears in
+      the ramp dropdown and whether it is that ramp run the other
+      way, or ``(None, False)`` when nothing in the library draws it.
+      Compared by the ramp's own serialized properties rather than by
+      object identity, because both the dock and the project reader
+      hand out clones.
+
+    Why the reversed pass exists. Reversing produces a clone that
+    matches no NAME in the library, so a project reopened with a
+    reversed element used to come back reading Custom: the colours
+    were preserved exactly, and the fact that they came from
+    reversing a named ramp was not. The tick a user had set was
+    simply gone, and `NOT_YET_RESTORED` in
+    test_a_project_round_trip_changes_nothing_a_user_chose named it
+    as the last thing a round trip lost.
+
+    The two passes are ordered, and the order is the point: an exact
+    match wins before any reversed one is tried, so a ramp that
+    happens to equal its own reverse is reported unreversed rather
+    than by whichever name the iteration reached first.
     """
     if ramp is None:
-      return None
+      return None, False
     try:
       wanted = (type(ramp).__name__, ramp.properties())
     except Exception:
-      return None
-    for name in self._ramp_names:
-      candidate = bridge.get_ramp(name)
-      if candidate is not None and \
-          (type(candidate).__name__, candidate.properties()) == wanted:
-        return name
-    return None
+      return None, False
+    for flipped in (False, True):
+      for name in self._ramp_names:
+        candidate = bridge.get_ramp(name, flipped)
+        if candidate is not None and \
+            (type(candidate).__name__, candidate.properties()) == wanted:
+          return name, flipped
+    return None, False
+
+  def _ramp_name_matching(self, ramp):
+    """The QgsStyle name of a ramp drawn exactly as the library draws it.
+
+    Args:
+      ramp: a QgsColorRamp, or None.
+
+    Returns:
+      The name under which an identical ramp appears in the ramp
+      dropdown, or None when nothing matches OR when the match is a
+      REVERSED clone.
+
+    That last exclusion keeps this the question the styling-dock
+    handlers actually ask, which is not "which ramp is this" but "is
+    the layer wearing exactly what the dialog would seed from a name
+    it can put in the combo". A reversed ramp is not, so those
+    handlers go on adopting it as hand-picked colours -- the settled
+    fallback, which preserves the map exactly and reads Custom.
+    Reopening asks the other question and calls `_ramp_match`.
+    """
+    name, flipped = self._ramp_match(ramp)
+    return None if flipped else name
 
   def _on_layer_style_edited(self, layer_id, tile_id):
     """React when someone restyles an element layer in QGIS itself.
@@ -3933,7 +4105,8 @@ class WeavingSpaceDialog(QDialog):
       trial = bridge.make_graduated_renderer(
         layer, assignment["var"], name, assignment.get("scheme",
                                                        "Quantiles"),
-        assignment.get("k", 5), assignment.get("outline", False))
+        assignment.get("k", 5), assignment.get("outline", False),
+        classify_from=self._classification_values(assignment["var"]))
       # hold the list; range temporaries dangle (the settled lesson)
       trial_colours = [r.symbol().color().name()
                        for r in trial.ranges()]
@@ -4194,13 +4367,20 @@ class WeavingSpaceDialog(QDialog):
         change of ramp, scheme or class count
       * ``scheme`` — break method for graduated rows, including
         "Unclassed"
-      * ``k`` — class count (50 and greyed for "Unclassed"). On a
-        CATEGORIZED row the cell displays the detected category count
-        but ``k`` carries the row's remembered graduated count, 5 by
-        default: the spin box is disabled there, so nothing writes
-        the displayed number into ``user_k``. Harmless downstream,
-        since seed_renderer reads ``k`` only for Graduated, but this
-        block said the count was the detected one until 2026-08-12
+      * ``k`` — class count (50 and greyed for "Unclassed"), REDUCED
+        to the region layer's distinct value count when the column
+        has fewer values than the row asks classes for, since a
+        column cannot be cut into more classes than it has values.
+        On a CATEGORIZED row the cell displays the detected category
+        count but ``k`` carries the row's remembered graduated count,
+        5 by default: the spin box is disabled there, so nothing
+        writes the displayed number into ``user_k``. Harmless
+        downstream, since seed_renderer reads ``k`` only for
+        Graduated, but this block said the count was the detected one
+        until 2026-08-12
+      * ``k_asked`` — the class count as the SPINNER shows it, before
+        that reduction. Nothing seeds from it; it is what lets the
+        notice say five was asked for and three were drawn
       * ``outline`` — draw tile boundaries
       * ``class_source`` — where a categorized row's colours come
         from: None for automatic, else a "file:<path>" or
@@ -4259,6 +4439,43 @@ class WeavingSpaceDialog(QDialog):
         k = int(k_spin.property("user_k") or k_spin.value() or 5)
       if scheme == "Unclassed":
         k = 50  # fixed by definition of the style
+      k_asked = k
+      # A column cannot be cut into more classes than it has values.
+      # Ask for five over a column holding three and QGIS returns
+      # five, of which two are DEGENERATE (1-1, 5-5, 9-9 among them):
+      # a value sits on a break, QGIS gives it to the first range that
+      # contains it, and the ranges above never paint. Measured on
+      # QGIS 4.0.3 with a real render context, 2026-08-13, k=5 over
+      # {1, 5, 9}: five swatches in the legend, three colours on the
+      # map, and the HIGHEST value drawn mid-grey while the legend's
+      # black sat beside a range nothing occupied. A reader matching
+      # the darkest swatch to "high" reads that map wrongly and
+      # nothing on screen says so.
+      #
+      # Upstream reduces k in exactly this case (tile_map's
+      # _plot_subsetted_gdf sets cspec["k"] to the value count), so
+      # this follows the library's semantics rather than inventing a
+      # rule, which is the standing requirement wherever the plugin
+      # reproduces upstream behaviour in QGIS terms.
+      #
+      # It is done HERE, in the one place every consumer reads -- the
+      # run, the restyle fast path, both signatures, a session
+      # restored from a saved project -- exactly as the
+      # no-quantitative-style-on-text correction above is, and for the
+      # same reason: made anywhere narrower, some path would go on
+      # describing a map the plugin will not draw. The count comes
+      # from the REGION layer so that every element agrees; see
+      # _numeric_value_count for why that matters more than matching
+      # upstream's per-subset count.
+      #
+      # Unclassed is exempt: its fifty steps reproduce a continuous
+      # ramp rather than a class count anybody chose, and cutting them
+      # to the number of distinct values would turn the settled
+      # continuous look into a coarse classed one.
+      if mode == "Graduated" and var and scheme != "Unclassed":
+        distinct = self._numeric_value_count(var)
+        if 0 < distinct < k:
+          k = distinct
       tid_text = id_item.text()
       if isinstance(ramp_combo, QgsColorButton):
         ramp_name = self._ramp_choices.get(tid_text, "Reds")
@@ -4281,6 +4498,11 @@ class WeavingSpaceDialog(QDialog):
         "single_colour": single_colour,
         "scheme": scheme,
         "k": k,
+        # What the spinner SAYS, where the line above is what the map
+        # will draw. They differ only when the column has fewer values
+        # than classes, and the difference is what the notice reports;
+        # nothing seeds from this key.
+        "k_asked": k_asked,
         "outline": self.opt_tile_outlines.isChecked(),
         # the class source matters (and re-seeds) only when categorized
         "class_source": source if mode == "Categorized" else None,
@@ -4581,7 +4803,9 @@ class WeavingSpaceDialog(QDialog):
           pass
         else:
           bridge.seed_renderer(
-            layer, a, templates.get(a.get("class_source")))
+            layer, a, templates.get(a.get("class_source")),
+            self._classification_values(a.get("var")) if a.get("var")
+            else None)
         # this element changed in the dialog, so its opacity is ours to
         # set; an element whose signature matched is skipped entirely
         # above, which is what leaves a hand-set opacity alone
@@ -4611,6 +4835,25 @@ class WeavingSpaceDialog(QDialog):
       self._report_quietly(
         "Could not read the class colours file, so these elements "
         "keep their colours: " + "; ".join(template_errors))
+    # A class count the column cannot support is reported HERE as well
+    # as on the run path, and this is the path that usually meets it:
+    # moving the Classes spinner is a style-only change, so it is
+    # answered by a restyle and never reaches the run's notices at
+    # all. Saying it on one path only is the twin asymmetry this
+    # project has now paid for several times over. Deduplicated by
+    # field, because several elements may carry the same column.
+    said = set()
+    for tid in changed:
+      a = assignments[tid]
+      field = a.get("var")
+      if not field or a.get("mode") != "Graduated" or field in said:
+        continue
+      note = bridge.few_values_message(
+        field, self._numeric_value_count(field),
+        a.get("k_asked", a.get("k", 5)))
+      if note is not None:
+        said.add(field)
+        self._report_quietly(note)
     self._last_run_sig = self._run_signature()
     return True
 
@@ -5002,6 +5245,21 @@ class WeavingSpaceDialog(QDialog):
           if bridge.numeric_values_are_constant(gdf[field]):
             said_constant.add(field)
             self._report_quietly(bridge.constant_field_message(field))
+          else:
+            # The same rule at n > 1: the row asked for more classes
+            # than the column has values, so the map draws fewer than
+            # the spinner shows. Counted from the REGION layer, which
+            # is what _assignments reduced against, so the sentence
+            # cannot disagree with the map it describes -- and said
+            # only where the constant notice did not already say it,
+            # since one value is this rule's n == 1 instance and two
+            # sentences about one column is one too many.
+            note = bridge.few_values_message(
+              field, self._numeric_value_count(field),
+              assignment.get("k_asked", assignment.get("k", 5)))
+            if note is not None:
+              said_constant.add(field)
+              self._report_quietly(note)
           # Gaps in the column, counted from the REGION LAYER, because
           # the sentence says "areas" and must mean the user's areas:
           # counting the tiled frame here once produced "31 of 96
@@ -5602,7 +5860,12 @@ class WeavingSpaceDialog(QDialog):
           idx = mem.fields().indexOf(a["var"])
           if idx >= 0 and len(mem.uniqueValues(idx)) > 60:
             warned_cardinality.append(f"{tid} ({a['var']})")
-        bridge.seed_renderer(out, a, templates.get(a.get("class_source")))
+        # the same values as the restyle path hands over, so an
+        # element wears the same breaks whichever path drew it
+        bridge.seed_renderer(
+          out, a, templates.get(a.get("class_source")),
+          self._classification_values(a.get("var")) if a.get("var")
+          else None)
         # re-seeded, so the dialog is the authority for this element's
         # whole appearance this run, opacity included
         out.setOpacity(max(0, min(100, a.get("opacity", 100))) / 100.0)

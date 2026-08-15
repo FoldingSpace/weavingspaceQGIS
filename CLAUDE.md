@@ -1113,6 +1113,19 @@ Confirmed with the user via an explicit design review:
   deliberately not listened to in general, because it fires on style
   changes and re-tiling on those is the cost the restyle fast path
   exists to avoid.
+  **What neither mechanism sees is an edit made straight through the
+  DATA PROVIDER, and that is a stated limit rather than a bug.**
+  Measured 2026-08-13: rewriting every value through
+  `dataProvider().changeAttributeValues` leaves the count, the extent,
+  the field names and the CRS identical and fires no watched signal,
+  so the tiles keep the old values and a full Generate changes
+  nothing. Scripts and other plugins write this way routinely.
+  Following it would mean polling the data or widening the fingerprint
+  to something that costs a scan on every debounce tick, and the
+  maintainer's decision was to document it instead; the docstring that
+  used to claim the case was covered has been corrected. Anybody
+  reversing that decision is choosing what the scan costs, not
+  discovering a gap.
 - **NULLs are kept out of class breaks, and that is a WORKAROUND with
   an expiry test.** QGIS's classifier counts a NULL as zero while its
   own `minimumValue()` excludes nulls, so QGIS disagrees with itself

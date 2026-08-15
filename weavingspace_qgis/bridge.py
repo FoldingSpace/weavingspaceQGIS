@@ -729,27 +729,31 @@ def _fill_symbol(colour: str, outline: bool) -> QgsFillSymbol:
   return QgsFillSymbol.createSimple(opts)
 
 
-def numeric_values_are_constant(values) -> bool:
-  """Whether a column holds exactly one distinct number.
+def distinct_numeric_count(values, limit: int | None = None) -> int:
+  """How many distinct finite numbers a column holds.
 
   Args:
     values: any iterable of attribute values — a QGIS layer's
       ``uniqueValues`` set, or a pandas column. Nulls, text that is
       not a number, and non-finite values are all skipped, because
-      none of them is something a class break can fall between.
+      none of them is something a class break can fall between: a
+      NULL is excluded from the breaks by the workaround below, and
+      a NaN or an infinity is not a class anybody can read.
+    limit: stop counting once this many have been seen. Purely a
+      cost control for the constant check, which needs to know
+      whether there are two and not how many there are; the count
+      returned is then that limit rather than the true total, so
+      pass it only when a ceiling is all you are asking about.
 
   Returns:
-    True when what remains is a single distinct number, False when
-    there are two or more AND when there are none at all. An empty
-    column is deliberately not "constant": it has no value to show,
-    which is a different situation with its own handling, and calling
-    it constant would put a class break on nothing.
+    The number of distinct finite numbers, or ``limit`` when one was
+    given and reached.
 
-  One rule, two callers: ``make_graduated_renderer`` asks it of the
-  element layer to decide how many classes to cut, and the dialog
-  asks it of the frame that was just mapped to decide whether to say
-  anything. Deriving the rule twice is how the map and the message
-  come to disagree.
+  One rule, three callers: the class-count reduction asks it of the
+  REGION layer, ``numeric_values_are_constant`` asks it of whatever
+  it is given, and the dialog asks it of the frame just mapped to
+  decide whether to say anything. Deriving the rule more than once is
+  how the map and the message come to disagree.
   """
   seen = set()
   for value in values:
@@ -762,9 +766,31 @@ def numeric_values_are_constant(values) -> bool:
     if not math.isfinite(number):
       continue
     seen.add(number)
-    if len(seen) > 1:
-      return False
-  return len(seen) == 1
+    if limit is not None and len(seen) >= limit:
+      break
+  return len(seen)
+
+
+def numeric_values_are_constant(values) -> bool:
+  """Whether a column holds exactly one distinct number.
+
+  Args:
+    values: any iterable of attribute values; see
+      ``distinct_numeric_count``, which does the counting so that the
+      constant case and the general fewer-values-than-classes case
+      cannot come to disagree about what counts as a value.
+
+  Returns:
+    True when what remains is a single distinct number, False when
+    there are two or more AND when there are none at all. An empty
+    column is deliberately not "constant": it has no value to show,
+    which is a different situation with its own handling, and calling
+    it constant would put a class break on nothing.
+
+  The ceiling of two is what keeps this cheap on a large column: the
+  answer is settled by the second distinct value, whatever follows.
+  """
+  return distinct_numeric_count(values, limit=2) == 1
 
 
 def missing_values_message(field: str, missing: int, total: int):
@@ -849,18 +875,104 @@ def inset_collapse_message(declared: int, remaining: int,
           f"choose a coarser spacing.")
 
 
+def few_values_message(field: str, distinct: int, asked: int):
+  """The notice for a column with fewer distinct values than classes.
+
+  Args:
+    field: the attribute name, as the user chose it in the table.
+    distinct: how many distinct finite values the REGION layer holds
+      for it — the user's own areas, not the tiles, for the same
+      reason missing_values_message counts areas.
+    asked: how many classes the table asked for.
+
+  Returns:
+    One sentence for the message bar, or None when the count was not
+    reduced, so the caller can report unconditionally.
+
+  This is the constant-column notice at n > 1, and it exists for the
+  same reason: the class count in the table would otherwise describe
+  a legend the map does not have. Left unsaid, a user sees their
+  Classes spinner reading five and a legend of three and has nothing
+  to tell them which is the truth. It also gives them a chance of
+  understanding what happens if they later press Classify in QGIS's
+  own Graduated panel, which recomputes k from the panel and puts the
+  five back.
+  """
+  if distinct >= asked or distinct <= 0:
+    return None
+  return (f"'{field}' has {distinct} distinct value"
+          f"{'' if distinct == 1 else 's'}, so it draws as {distinct} "
+          f"class{'' if distinct == 1 else 'es'}, not {asked}.")
+
+
+def classification_source(field: str, values) -> QgsVectorLayer | None:
+  """A throwaway layer holding one column, for cutting breaks from.
+
+  Args:
+    field: the attribute name to give the column. It must be the name
+      the renderer classifies on, since ``updateClasses`` looks the
+      field up BY NAME in whatever layer it is handed.
+    values: every value of that column, in feature order and WITH its
+      gaps -- nulls and non-finite numbers included. Frequencies
+      decide quantile breaks, so this is one entry per area rather
+      than a set of distinct values.
+
+  Returns:
+    A geometry-less memory layer carrying those values as doubles, or
+    None when it could not be built, which tells the caller to fall
+    back to classifying the layer it already has.
+
+  Why a copy exists at all. Breaks must be cut from the WHOLE map's
+  values or two elements carrying one variable class differently
+  (see make_graduated_renderer), and the values live on the user's
+  region layer -- which this plugin must not filter, since the null
+  workaround below works by hiding rows and the standing promise is
+  that only layers the plugin created are touched. Filtering
+  somebody's own layer would also flicker their canvas and, if
+  anything went wrong midway, leave it filtered.
+
+  The fields are built through the provider rather than through a URI
+  because a column name may carry spaces or punctuation that a
+  ``field=name:double`` URI does not survive.
+  """
+  from . import compat
+  try:
+    layer = QgsVectorLayer("None", "weavingspace classification", "memory")
+    provider = layer.dataProvider()
+    if not provider.addAttributes([compat.make_field(field, float)]):
+      return None
+    layer.updateFields()
+    features = []
+    for value in values:
+      feature = QgsFeature(layer.fields())
+      # NULL and NaN are passed through rather than dropped: the
+      # workaround in make_graduated_renderer exists to deal with
+      # them, and dropping them here would be a second, silent rule
+      # doing the same job differently.
+      feature[field] = value
+      features.append(feature)
+    if not provider.addFeatures(features):
+      return None
+    layer.updateExtents()
+    return layer
+  except Exception:
+    return None
+
+
 def make_graduated_renderer(layer: QgsVectorLayer, field: str,
                             ramp_name: str, scheme: str, k: int,
                             outline: bool,
                             reverse: bool = False,
                             range_bounds: tuple = (0, 100),
-                            overrides: dict | None = None
+                            overrides: dict | None = None,
+                            classify_from=None
                             ) -> QgsGraduatedSymbolRenderer:
   """Classed-numeric symbology for one element layer.
 
   Args:
     layer: the element's layer. It must already hold its features,
-      because the classification is computed FROM them.
+      because the renderer is built for them -- though the BREAKS
+      come from ``classify_from`` where that is given.
     field: the numeric attribute to classify.
     ramp_name: a ramp in QgsStyle (the mapweaver palettes are
       installed there by ensure_ramps_installed).
@@ -882,6 +994,14 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
       colour editor's graduated mode. Keyed by POSITION, not by value,
       because a class has no name to follow when the breaks move; they
       outrank the range and the ramp alike, and are applied last.
+    classify_from: every value of this column across the WHOLE map --
+      one entry per region area, nulls and all, since frequencies
+      decide quantile breaks. Given it, the breaks and the class
+      count are cut from those values rather than from the element
+      layer's own tiles, so that two elements carrying one variable
+      class identically; see the long note in the body for what that
+      costs and why it is worth it. None classifies the layer passed
+      in, which is what a direct caller or a test gets.
 
   Returns:
     A QgsGraduatedSymbolRenderer, not yet attached to the layer
@@ -909,8 +1029,51 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   while remaining an ordinary, panel-editable graduated renderer.
   """
   from . import compat
+  unclassed = scheme == "Unclassed"
   if scheme == "Unclassed":
     scheme, k = "Equal intervals", 50
+  # ---- WHICH VALUES THE BREAKS ARE CUT FROM
+  #
+  # Not the same question as which layer wears them, and getting the
+  # two confused is a defect this plugin shipped until 2026-08-14.
+  # An element LAYER holds only that element's tiles, so classifying
+  # it cuts the breaks from a different sample per element. Measured
+  # on QGIS 4.0.3 with four elements carrying ONE variable at n=12,
+  # k=5, no reduction involved:
+  #
+  #   a  [(0, 3.4), (3.4, 14.0), (14.0, 30.4), (30.4, 55.6), ...]
+  #   b  [(0, 4.0), (4.0, 14.0), (14.0, 30.0), (30.0, 55.0), ...]
+  #   c  [(0, 4.0), (4.0, 13.6), (13.6, 30.0), (30.0, 55.0), ...]
+  #   d  [(0, 3.4), (3.4, 12.0), (12.0, 30.0), (30.0, 54.0), ...]
+  #
+  # Four elements, four legends, one variable: the same colour means
+  # a different number depending on which element a reader is looking
+  # at. On a map whose whole purpose is reading elements against each
+  # other that is the worst kind of wrong, because every element
+  # looks perfectly reasonable alone. It is the same argument that
+  # rejected a per-element CLASS COUNT on 2026-08-13, applied to the
+  # breaks, and it went unnoticed because the standard fixture asks
+  # for more classes than it has distinct values -- which makes
+  # quantile breaks collapse onto the values themselves and agree by
+  # accident.
+  #
+  # So the caller hands over the region's values and the breaks are
+  # cut ONCE for the whole map. This departs from upstream, which
+  # classifies each element's subset separately
+  # (tile_map._plot_subsetted_gdf calls plot() per group), and the
+  # departure is deliberate under the standing rule that the plugin
+  # may have its own ideas where they fit QGIS and this kind of map.
+  # The reference comparison stays a real differential because
+  # TiledMap.render can be handed these same breaks
+  # (scheme="UserDefined", classification_kwds={"bins": ...}), which
+  # leaves it checking everything except the axis we moved on purpose.
+  #
+  # Without values to hand -- a direct caller, a test -- the layer
+  # given is classified, exactly as before.
+  source = classification_source(field, classify_from) \
+    if classify_from is not None else None
+  if source is None:
+    source = layer
   # A column with one distinct value has nothing to divide. Asked for
   # five classes QGIS returns five, every one of them reading "7 - 7"
   # and each in a different colour: a legend showing variation the
@@ -920,13 +1083,32 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   # is the honest picture, and the dialog says so in words as well
   # (see constant_field_message). Placed after the Unclassed line so
   # it overrides that scheme's fixed 50 too.
-  index = layer.fields().indexOf(field)
-  # One pass over the column answers both questions below: is it
-  # constant, and does it contain nulls.
-  values = layer.uniqueValues(index) if index >= 0 else set()
-  constant = index >= 0 and numeric_values_are_constant(values)
-  if constant:
+  index = source.fields().indexOf(field)
+  # One pass over the column answers all three questions below: how
+  # many distinct values there are, whether it is constant, and
+  # whether it contains nulls.
+  values = source.uniqueValues(index) if index >= 0 else set()
+  distinct = distinct_numeric_count(values) if index >= 0 else 0
+  if distinct == 1:
     k = 1
+  elif not unclassed and 0 < distinct < int(k):
+    # The general form of the constant case, and the constant case is
+    # its n == 1 instance. Five classes over three distinct values
+    # gives five ranges of which two are DEGENERATE: a value sits on
+    # a break, QGIS gives it to the first range containing it, and
+    # the ranges above never paint. Measured 2026-08-13 with a render
+    # context, k=5 over {1, 5, 9}: five swatches, three colours on
+    # the map, the highest value drawn mid-grey while the legend's
+    # black sat beside a range nothing occupied. Upstream reduces k
+    # in exactly this case (_plot_subsetted_gdf sets cspec["k"] to
+    # the value count), so this follows the library rather than
+    # inventing a rule.
+    #
+    # Unclassed is exempt: its fifty steps reproduce a continuous
+    # ramp rather than a class count anybody chose, and cutting them
+    # to the number of distinct values would turn a settled
+    # continuous look into a coarse classed one.
+    k = distinct
   renderer = QgsGraduatedSymbolRenderer(field)
   renderer.setSourceSymbol(_fill_symbol("#c0c0c0", outline))
   renderer.setSourceColorRamp(get_ramp(ramp_name, reverse))
@@ -1030,20 +1212,25 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
                                and (v != v or abs(v) > FINITE))
     for v in values)
   if index >= 0 and awkward:
-    previous = layer.subsetString()
+    previous = source.subsetString()
     clause = (f'"{field}" IS NOT NULL AND "{field}" > {-FINITE:g} '
               f'AND "{field}" < {FINITE:g}')
     combined = f"({previous}) AND {clause}" if previous else clause
     # A provider may refuse a subset string. Wrong breaks beat no map,
     # so a refusal falls through to classifying everything, exactly as
     # before this block existed.
-    if layer.setSubsetString(combined):
+    if source.setSubsetString(combined):
       restore = previous
   try:
-    renderer.updateClasses(layer, k)
+    # `source` and not `layer`: the breaks come from the whole map's
+    # values (see above), and the filtering just applied belongs to
+    # whichever layer is about to be scanned. When no values were
+    # handed over the two are the same object and this is the
+    # behaviour that shipped before.
+    renderer.updateClasses(source, k)
   finally:
     if restore is not None:
-      layer.setSubsetString(restore)
+      source.setSubsetString(restore)
   # A single class spans the whole ramp and QGIS colours it from the
   # ramp's START (measured, QGIS 4.0.3: one class on Reds comes back
   # #fff5f0, the ramp's 0.0 endpoint) -- for a sequential ramp that is
@@ -1063,7 +1250,7 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   # first written.
   lo, hi = range_bounds
   count = len(renderer.ranges())
-  if constant and count:
+  if distinct == 1 and count:
     # One class ranges over the whole window, and QGIS colours it
     # from the ramp's START (measured: near-white on Reds), which on
     # the map reads as "no data" rather than "one value". The
@@ -1285,7 +1472,8 @@ def make_single_renderer(colour: str, outline: bool) -> QgsSingleSymbolRenderer:
 
 
 def seed_renderer(layer: QgsVectorLayer, assignment: dict,
-                  template: dict | None = None) -> None:
+                  template: dict | None = None,
+                  classify_from=None) -> None:
   """Give one element layer its initial symbology.
 
   The single point where a row of the dialog's table becomes QGIS
@@ -1309,6 +1497,10 @@ def seed_renderer(layer: QgsVectorLayer, assignment: dict,
       template_from_layer. Applied only to categorized elements;
       ignored otherwise. The assignment's ``category_colours``, if
       present, outrank it value by value.
+    classify_from: the whole map's values for this element's column,
+      handed straight to make_graduated_renderer so that every
+      element carrying one variable gets the same breaks. Ignored
+      off graduated rows, where there are no breaks to cut.
 
   Returns:
     None. The renderer is attached to the layer and a repaint is
@@ -1334,7 +1526,7 @@ def seed_renderer(layer: QgsVectorLayer, assignment: dict,
       layer, var, assignment["ramp"], assignment.get("scheme", "Quantiles"),
       assignment.get("k", 5), outline, assignment.get("reverse", False),
       assignment.get("range_bounds", (0, 100)),
-      assignment.get("quant_colours")))
+      assignment.get("quant_colours"), classify_from))
   layer.triggerRepaint()
 
 
