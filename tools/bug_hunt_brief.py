@@ -67,6 +67,24 @@ report named a defect already fixed an hour earlier by another
 hunt's finding -- so re-check a claim against the CURRENT tree
 before reproducing it, not against the commit the hunt read.
 
+Round four the same night, four hunts on a feature FIVE HOURS OLD
+("Deferring to QGIS", designed and built that evening): five defects,
+all reaching the map, all fixed. The best yield per hunt this project
+has recorded, and the reason is simply that the code was new. Hunt a
+feature the day it is written; it costs a fraction of hunting it a
+year later.
+
+TWO RULES CAME OUT OF THAT ROUND, both about the tree you measure.
+PROBE A `git archive HEAD` COPY, NEVER THE WORKING TREE, and name the
+commit you read in every claim: on a shared tree one hunt refuted a
+real finding because its probe imported a sibling's uncommitted fix,
+and another spent three iterations chasing a defect being repaired
+underneath it. A fix landing mid-run reads exactly like a race.
+And WHEN A COMMIT ADDS A GUARD, GREP ITS TWIN BEFORE TESTING ANYTHING
+ELSE: two of the five were a guard added to one path and not to the
+identical path beside it, and in both cases the suite's own new test
+went through the guarded door.
+
 TWO LESSONS FROM THAT ROUND, both about what to ask for.
 
 The OBSERVATIONS were better than the SEVERITY JUDGEMENTS. One hunt

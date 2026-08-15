@@ -397,3 +397,47 @@ hour. One re-anchored entry then SURVIVED, which was the second half
 of the finding: since the constant-column rework either of two
 branches delivers the same result on a classed style, so mutating one
 alone changed nothing the test could see.
+
+
+## 2026-08-15, second round: four hunts on a feature five hours old
+
+"Deferring to QGIS" was designed by `/grill-me` and built the same
+evening. Four hunts were pointed at it before it had a full day's age:
+its twins, its boundaries, races and two-stores, and awkward data.
+Between them they found FIVE defects, every one of which reached the
+map, and all five were fixed the same night.
+
+The finds, because the pattern in them matters more than the count.
+The restyle fast path had no deferral arm while the run-landing path
+did -- found by TWO hunts independently, which is some evidence they
+are reading real fault lines rather than each inventing one. An
+element could never be taken back, because picking the style it had
+before deferral restored the old signature exactly and both paths
+then read "unchanged". A deferring element moved onto a text column
+drew nothing at all, because the new mode string was not "Graduated"
+and the text-field guard had never heard of it. And the row never
+came back out of deferring when somebody changed their mind in the
+dock, because reconciliation ran in one direction only.
+
+**A NEW FEATURE IS THE BEST HUNTING GROUND THERE IS, and hours old is
+not too early.** Every one of these five was introduced that evening.
+Hunting a feature the day it is written costs a fraction of hunting
+it a year later, and the hunts arrive while the person who wrote it
+still remembers why.
+
+**The strongest single lesson: when a commit adds a guard, grep its
+TWIN before testing anything else.** Two of the five were a guard
+added to one path and not to the identical path beside it, and in
+both cases the suite's own new test walked through the guarded door.
+A test written alongside a fix tends to exercise the route the fix
+was written for.
+
+**And the shape of the near-miss is worth as much as the finds.** One
+hunt spent three iterations chasing a defect that was being fixed
+underneath it in the shared working tree, and another wrongly refuted
+a real finding because its probe imported the live tree rather than
+HEAD. Both recorded it. The rule that follows: a hunt probes a `git
+archive HEAD` copy, never the working tree, and stamps the commit it
+read in every claim -- otherwise a sibling's uncommitted fix reads
+exactly like a race, and an unfixed defect reads exactly like a fixed
+one.
