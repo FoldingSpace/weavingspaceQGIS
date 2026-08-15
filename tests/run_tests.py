@@ -40980,6 +40980,32 @@ def main():
   _quieten_the_offscreen_platform()
   _no_modal_dialogs()
   print(f"QGIS Python {sys.version.split()[0]}")
+  # WHICH TREE THIS IS, in the first line of every run.
+  #
+  # Several CI rounds are deliberately left in flight at once, because
+  # a round that started earlier is FURTHER THROUGH and reaches the
+  # late tests hours before the newest one will -- so a failure deep
+  # in the suite is seen sooner even though the effort is duplicated
+  # (maintainer's practice, 2026-08-15). The price is that any excerpt
+  # from a log has to be DATED before it can be read, and on
+  # 2026-08-15 two failures were investigated twice over because a
+  # paste carried no way of telling which commit produced it. They
+  # were finally dated by the LINE NUMBER in the traceback, which
+  # works and should not be necessary.
+  #
+  # So the suite says. It is one subprocess at start-up, it is absent
+  # rather than wrong where git is unavailable (the qgis:stable image
+  # ships none), and it makes every later paste self-dating.
+  try:
+    stamp = subprocess.run(
+      ["git", "rev-parse", "--short", "HEAD"], capture_output=True,
+      text=True, timeout=20, cwd=ROOT)
+    if stamp.returncode == 0 and stamp.stdout.strip():
+      print(f"tree {stamp.stdout.strip()}")
+    else:
+      print("tree unknown (git could not name this commit)")
+  except (subprocess.SubprocessError, OSError):
+    print("tree unknown (no git here)")
 
   check("dependencies present / wheel logic", test_deps)
   check("PyPI downloads happen only with consent",

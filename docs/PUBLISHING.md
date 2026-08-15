@@ -336,6 +336,25 @@ the one round that matters to the front. A queue of failures nobody
 should read is worse than no queue: it trains whoever is watching to
 stop reading them.
 
+**"CAN NO LONGER ANSWER ANYTHING" IS THE TEST, AND IT IS NOT THE SAME
+AS "SUPERSEDED".** An older round is FURTHER THROUGH: the suite takes
+about fifty minutes, so a round begun three pushes ago is reaching the
+late tests while the newest one is still in its first hundred. Where
+the fixes since are known and narrow, that older round is the only
+thing that will report a failure deep in the suite today rather than
+tomorrow, and duplicated effort on free runners is a cheap price for
+it. Deliberate practice as of 2026-08-15, and the reason several
+rounds are often left in flight here.
+
+What that costs is that EVERY EXCERPT FROM A LOG MUST BE DATED before
+it is read, and on the day this was written two failures were
+investigated twice over because a pasted traceback carried nothing to
+say which commit produced it. They were dated in the end by the LINE
+NUMBER in the traceback, which works and should not be necessary. So
+`tests/run_tests.py` now prints `tree <sha>` as its second line, and
+the question to ask of any red result is which tree it describes
+before asking what it means.
+
 **Instrument rather than guess when a round costs fifty minutes.** A
 failure that says only which assertion it reached will be guessed at
 twice. One here spent two rounds looking like a locale defect before
