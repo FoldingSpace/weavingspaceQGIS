@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-165 defect(s) with a regression test.
+166 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -373,6 +373,8 @@ there is no separate list to remember.
   guarded by `test_the_coverage_notice_counts_what_the_map_is_missing`
 - **the guard sampled a fixed 12 mutants whatever the diff; over a 1,700-line round that certified nearly nothing while reading as a passed gate.**  
   guarded by `test_the_mutation_guard_scales_with_the_diff`
+- **opening the plugin before adding a dataset left the Variable dropdown empty and Generate blaming the user for not assigning one.**  
+  guarded by `test_the_plugin_opened_before_the_data_still_works`
 - **the table drew Qt's row-number gutter beside the tile ids, which the user reported as a messy second numbering.**  
   guarded by `test_the_table_headers_read_as_designed`
 
@@ -381,7 +383,7 @@ there is no separate list to remember.
 - not written down at the time: 82
 - a bug hunt pointed in a named direction: 17
 - the mutation campaign: 16
-- reported by a user: 10
+- reported by a user: 11
 - race and stress testing: 6
 - reading the code: 6
 - running the suite somewhere other than the machine it was written on: 6

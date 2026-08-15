@@ -992,6 +992,14 @@ class WeavingSpaceDialog(QDialog):
     # which layer auto-spacing last ran for (it must run once per
     # newly chosen layer, never on the combo's spurious re-emissions)
     self._auto_spacing_layer = None
+    # (layer id, field names) the assignment table was last built
+    # for, so a layer choice that lands after the signal can be
+    # noticed. See _settle_layer_choice.
+    self._table_built_for = None
+    # True while the assignment table was last built with no
+    # fields to offer, so its empty rows are not mistaken for
+    # a user's choice. See _refresh_table.
+    self._fieldless_build = True
     # Bumped whenever the region layer tells us it changed. The
     # signatures below include it, so an edit made in QGIS while this
     # dialog is open cannot be mistaken for "nothing has changed".
@@ -1637,6 +1645,42 @@ class WeavingSpaceDialog(QDialog):
     # automatic first render
     self._rebuild_unit()
     self._queue_live()
+    # ...AND AGAIN ONCE THE COMBO HAS SETTLED. QgsMapLayerComboBox
+    # emits layerChanged as the project's layer list churns, and it
+    # can emit BEFORE updating its own selection: on the first layer
+    # added to an empty project this handler runs with currentLayer()
+    # still None, so the rebuild above builds the assignment table
+    # from NO fields and nothing rebuilds it afterwards. The user is
+    # left with a region layer chosen, four rows, and a Variable
+    # dropdown offering only "---".
+    #
+    # Reported from the field on 2026-08-15, against 0.24.2, by
+    # somebody who opened the plugin before loading their data --
+    # loading data first has always worked, which is exactly why no
+    # test caught it: every test in this suite puts the layer in the
+    # project before the dialog exists.
+    QTimer.singleShot(0, self._settle_layer_choice)
+
+  def _settle_layer_choice(self):
+    """Rebuild the table if the chooser landed on a layer after the fact.
+
+    Returns:
+      None. Compares what the assignment table was last built for
+      against what the chooser holds now, and rebuilds only when they
+      differ -- so this is safe on every one of the combo's frequent
+      re-emissions, and cannot loop.
+
+    See _on_layer_changed for why it is needed: that signal can arrive
+    before the combo has a current layer at all, and a table built in
+    that instant has no fields in it.
+    """
+    layer = self.layer_combo.currentLayer()
+    stamp = (layer.id() if layer is not None else None,
+             tuple(self._layer_fields()))
+    if stamp == self._table_built_for:
+      return
+    self._table_built_for = stamp
+    self._rebuild_unit()
 
   def _layer_fingerprint(self):
     """What the region layer CONTAINS, cheaply enough to ask often.
@@ -3231,7 +3275,8 @@ class WeavingSpaceDialog(QDialog):
       prev = prev_by_id.get(tid)
       if prev and prev["var"] in fields:
         var_combo.setCurrentText(prev["var"])
-      elif prev is not None and prev["var"] is None:
+      elif prev is not None and prev["var"] is None \
+          and not self._fieldless_build:
         pass  # deliberately unassigned: leave it on "---". Cycling a
         # default back in here would undo the user's choice on every
         # design change, and their map would grow an element they had
@@ -3373,6 +3418,14 @@ class WeavingSpaceDialog(QDialog):
 
       if prev and prev.get("class_choice") is not None:
         self._class_choices[tid] = prev["class_choice"]
+    # WAS THIS BUILD MADE WITHOUT ANY FIELDS? If so, the "---" it left
+    # on every row is an artefact rather than a choice, and the next
+    # build must apply its defaults instead of preserving it. A user
+    # who opens the plugin before loading data got exactly that: the
+    # dropdown filled in once the chooser settled, and every row
+    # stayed empty because the fieldless build looked like somebody
+    # deliberately unassigning all four.
+    self._fieldless_build = not fields
     self._update_dynamic_columns()
     # ...and every fresh row is asked what its LAYER holds, because
     # the rows above were built from the dialog's records and a layer

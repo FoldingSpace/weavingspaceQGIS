@@ -2476,6 +2476,14 @@ MUTATIONS = [
            "without this the window prints the ladder from before it "
            "and the other end's control offers a bound the map no "
            "longer has -- which is applied if that pin is clicked"),
+  dict(name="a-late-layer-choice-is-noticed", file=DIALOG,
+       old="    QTimer.singleShot(0, self._settle_layer_choice)",
+       new="    pass  # mutation: never re-check after the combo settles",
+       test="test_the_plugin_opened_before_the_data_still_works",
+       why="the layer chooser can emit its signal before it has a "
+           "current layer, so the assignment table is built from no "
+           "fields -- a user who opens the plugin before loading data "
+           "is offered no variables at all and told to assign one"),
   dict(name="a-rebuilt-table-asks-the-layer", file=DIALOG,
        old='    # than trusted from a stamp.\n    self._refresh_deferring_rows()',
        new='    # than trusted from a stamp.\n    pass  # mutation: the rebuilt rows never ask the layer',

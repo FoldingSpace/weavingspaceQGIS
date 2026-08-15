@@ -10675,6 +10675,73 @@ def test_the_ramp_a_row_names_is_the_ramp_the_map_draws():
     "reversing a ramp did not reverse it"
 
 
+def test_the_plugin_opened_before_the_data_still_works():
+  """The order a user works in, which no other test here follows.
+
+  Reported from the field on 2026-08-15, against 0.24.2: open QGIS,
+  open the plugin, THEN add your dataset, and the Variable dropdown
+  offers nothing at all while Generate complains "Assign at least one
+  variable in the Data & colours tab." Adding the data first has
+  always worked.
+
+  QgsMapLayerComboBox emits `layerChanged` as the project's layer list
+  churns, and it can emit BEFORE updating its own selection: on the
+  first layer added to an empty project the handler runs with
+  `currentLayer()` still None, so the assignment table is built from
+  no fields and nothing rebuilds it afterwards. The user is left with
+  a region layer chosen, four rows, and a dropdown holding only "---".
+
+  WHY 434 TESTS MISSED IT, which is the part worth keeping: every one
+  of them puts the layer in the project BEFORE constructing the
+  dialog, because that is the convenient order to write. The fixture
+  encoded the developer's sequence rather than the user's. A fixture
+  has to match the ORDER a person would work in, not merely the values
+  they would use.
+
+  Regression: opening the plugin before adding a dataset left the Variable dropdown empty and Generate blaming the user for not assigning one. [user]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  assert not project.mapLayers(), \
+    "this test must start from an empty project, as a user does"
+
+  # 1. and 2. QGIS is open, and the plugin is opened -- with nothing
+  # loaded. THE DIALOG COMES FIRST. That is the whole test.
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  _tick(300)
+
+  # 3. the dataset arrives
+  layer = make_region_layer(n=8)
+  project.addMapLayer(layer)
+  _tick(1200)
+
+  chosen = dlg.layer_combo.currentLayer()
+  assert chosen is not None, \
+    "the region chooser did not pick up the only layer in the project"
+  combo = dlg.table.cellWidget(0, 1)
+  assert combo is not None, "the first row has no variable chooser"
+  offered = [combo.itemText(i) for i in range(combo.count())]
+  fields = [f.name() for f in layer.fields()]
+  missing = [f for f in fields if f not in offered]
+  assert not missing, \
+    f"the plugin holds the layer but offers none of its columns: " \
+    f"dropdown {offered}, layer has {fields}"
+
+  # ...and the map can actually be made, which is what the user was
+  # blocked from doing
+  assert any(a.get("var") for a in dlg._assignments()), \
+    "no element was given a variable, so Generate would refuse"
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+  assert dlg._element_layer_ids, \
+    "the run produced no element layers"
+  blamed = [text for _kind, text in BAR_MESSAGES
+            if "at least one variable" in text]
+  assert not blamed, \
+    f"the plugin blamed the user for not assigning a variable: {blamed}"
+  dlg.close()
+
+
 def test_a_class_source_file_that_goes_away():
   """The QML is deleted, moved or renamed after being chosen.
 
@@ -41153,6 +41220,8 @@ def main():
         test_the_classes_cell_reports_its_own_element)
   check("the ramp a row names is the ramp the map draws",
         test_the_ramp_a_row_names_is_the_ramp_the_map_draws)
+  check("the plugin opened before the data still works",
+        test_the_plugin_opened_before_the_data_still_works)
   check("one variable gets one legend wherever it appears",
         test_one_variable_gets_one_legend_wherever_it_appears)
   check("a class source file that goes away",
