@@ -2448,6 +2448,26 @@ MUTATIONS = [
            "cannot reach, and those are kept rather than dropped, so "
            "the emptiness has to be visible: unmarked, the legend "
            "shows swatches no tile uses with nothing to say so"),
+  dict(name="the-landing-re-reads-the-pins", file=DIALOG,
+       old="""          a["pinned"] = self._pinned_bounds.get(
+            a["id"], {}).get(a["var"])""",
+       new="""          pass  # mutation: trust the snapshot the run began with""",
+       test="test_a_pin_set_during_a_run_is_not_lost",
+       why="the colour editor is usable while a tiling is in flight "
+           "and the restyle path declines during one, so a pin set in "
+           "that window is seeded from the run's stale snapshot, "
+           "destroyed as it lands, and stamped ABSENT on the layer so "
+           "a reopened project cannot bring it back either. The same "
+           "defect was found for categorical colours, then for "
+           "graduated ones, and this is its third arrival"),
+  dict(name="a-blank-row-is-reported", file=DIALOG,
+       old="""        note = bridge.unmappable_areas_message(""",
+       new="""        note = None if True else bridge.unmappable_areas_message(""",
+       test="test_a_row_with_no_geometry_is_named",
+       why="layer_to_gdf drops a geometry-less row and until 2026-08-14 "
+           "said nothing, so a user comparing their attribute table "
+           "against the map found a row unaccounted for with nothing "
+           "on screen to explain it"),
   dict(name="a-pin-decides-its-own-break", file=BRIDGE,
        old="  if pins:\n    _apply_pinned_bounds(",
        new="  if False:\n    _apply_pinned_bounds(",

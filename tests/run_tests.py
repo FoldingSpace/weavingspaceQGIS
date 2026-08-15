@@ -7766,6 +7766,437 @@ def test_the_release_notes_keep_their_categories():
     f"a single-sentence entry must not be dressed up: {plain!r}"
 
 
+def test_a_pin_set_during_a_run_is_not_lost():
+  """The third thing written through the colour editor, and the race.
+
+  The editors are usable while a tiling is in flight, and the restyle
+  path declines during one, so anything chosen in that window has to
+  be re-read when the run lands or it is seeded from the snapshot the
+  run began with and destroyed. That was found for categorical
+  colours, then five days later for graduated ones, and the rule was
+  written down both times as a rule about COLOUR. Pinned bounds go
+  through the same window.
+
+  It is checked on the map AND on the stamp: the earlier form of this
+  defect destroyed the choice and then recorded its absence on the
+  layer, so a reopened project could not bring it back either.
+
+  Regression: pinned bounds set while a run was finishing were seeded from the stale snapshot, destroyed as the run landed, and stamped absent onto the layer.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v3")
+  _tick(150)
+  tid = dlg.table.item(0, 0).text()
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+  _tick(200)
+
+  dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.2)
+  dlg._generate()
+  assert dlg._task is not None, "a run should be in flight for this test"
+  # the user pins a bound while the tiling is still going
+  dlg._pinned_bounds.setdefault(tid, {})["v3"] = {"low": 10.0}
+  dlg._apply_style_change()
+  _settle(dlg)
+  _tick(300)
+
+  out = project.mapLayer(dlg._element_layer_ids[tid])
+  drawn = [(round(r.lowerValue(), 4), round(r.upperValue(), 4))
+           for r in out.renderer().ranges()]
+  assert drawn and drawn[0][1] == 10.0, \
+    f"a pin set while a run was finishing was thrown away by it: {drawn}"
+  stamped = out.customProperty("weavingspace_quant_style") or ""
+  assert "10" in stamped and "low" in stamped, \
+    f"the pin reached the map but was stamped absent, so a reopened " \
+    f"project would lose it: {stamped!r}"
+  dlg.close()
+
+
+def test_a_pin_survives_the_table_being_rebuilt():
+  """A design change rebuilds every row 350 ms later; pins must ride it.
+
+  Per-element choices live in dicts keyed by tile id precisely because
+  the table's widgets do not survive a rebuild, and a design change
+  schedules one. A ramp once rode on a combo property and came back as
+  a positional default for exactly this reason.
+
+  Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v3")
+  _tick(150)
+  tid = dlg.table.item(0, 0).text()
+  dlg._pinned_bounds.setdefault(tid, {})["v3"] = {"low": 10.0, "high": 60.0}
+
+  # a design change, which rebuilds the whole table on the debounce
+  dlg.mod_rotate.setValue(dlg.mod_rotate.value() + 15)
+  _tick(700)
+  dlg._rebuild_unit()
+  _tick(400)
+
+  record = dlg._pinned_bounds.get(tid, {}).get("v3") or {}
+  assert record.get("low") == 10.0 and record.get("high") == 60.0, \
+    f"a table rebuild lost the pins: {record!r}"
+  assignment = next((a for a in dlg._assignments() if a["id"] == tid), None)
+  assert assignment is not None and \
+    (assignment.get("pinned") or {}).get("low") == 10.0, \
+    f"the rebuilt row does not carry the pin: " \
+    f"{assignment and assignment.get('pinned')!r}"
+  dlg.close()
+
+
+def test_pins_hold_against_awkward_columns():
+  """Nulls, one value, two values, and the non-finite corpus.
+
+  The pin arithmetic filters the classifier's input, and this plugin's
+  history says the input is where awkward data bites: a NULL counted
+  as zero, a NaN making every break NaN, a constant column collapsing
+  to one class. A pin must not turn any of those into something worse
+  than they already are, and must never produce a ladder with a gap.
+
+  Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+  """
+  from qgis.core import QgsFeature, QgsGeometry, QgsPointXY
+  from weavingspace_qgis import bridge, compat
+
+  def layer_of(values):
+    layer = QgsVectorLayer("Polygon?crs=EPSG:3857", "awkward", "memory")
+    provider = layer.dataProvider()
+    provider.addAttributes([compat.make_field("v", float)])
+    layer.updateFields()
+    features = []
+    for index, value in enumerate(values):
+      feature = QgsFeature(layer.fields())
+      feature.setAttribute("v", value)
+      x = index * 10.0
+      feature.setGeometry(QgsGeometry.fromPolygonXY([[
+        QgsPointXY(x, 0), QgsPointXY(x + 9, 0),
+        QgsPointXY(x + 9, 9), QgsPointXY(x, 9), QgsPointXY(x, 0)]]))
+      features.append(feature)
+    provider.addFeatures(features)
+    layer.updateExtents()
+    return layer
+
+  NAN, INF = float("nan"), float("inf")
+  cases = (
+    ("gaps in the column", [1.0, None, 3.0, None, 5.0, 7.0, 9.0], {"low": 3}),
+    ("one value everywhere", [4.0, 4.0, 4.0, 4.0], {"low": 4}),
+    ("two values only", [1.0, 1.0, 9.0, 9.0], {"low": 1}),
+    ("a NaN among numbers", [1.0, NAN, 5.0, 9.0, 12.0], {"low": 5}),
+    ("infinities", [1.0, INF, -INF, 5.0, 9.0], {"low": 5}),
+  )
+  for label, values, pinned in cases:
+    layer = layer_of(values)
+    renderer = bridge.make_graduated_renderer(
+      layer, "v", "Reds", "Quantiles", 4, False, pinned=pinned)
+    bounds = [(r.lowerValue(), r.upperValue()) for r in renderer.ranges()]
+    assert bounds, f"{label}: a pinned element drew no classes at all"
+    assert all(low <= high for low, high in bounds), \
+      f"{label}: a class runs backwards in {bounds}"
+    assert all(bounds[i][1] == bounds[i + 1][0]
+               for i in range(len(bounds) - 1)), \
+      f"{label}: the ladder has gaps in {bounds}"
+    assert all(value == value for pair in bounds for value in pair), \
+      f"{label}: a class bound came back NaN, so every tile falls " \
+      f"outside every class: {bounds}"
+
+
+def test_a_copy_and_its_pins_survive_a_project_round_trip():
+  """A copied ladder comes home, and so do the flags that came with it.
+
+  The copy is stored in the pins' own record and stamped with them, so
+  this asks the question the pin round trip asks, of the richer shape:
+  the boundary VALUES and the per-end FLAGS are different claims and
+  both have to survive.
+
+  Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+  """
+  import shutil
+  import tempfile
+  from qgis.core import QgsVectorFileWriter
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="weavingspace_copy_trip_")
+  try:
+    source_layer = make_region_layer(n=12)
+    region_path = os.path.join(folder, "region.gpkg")
+    options = QgsVectorFileWriter.SaveVectorOptions()
+    options.driverName = "GPKG"
+    QgsVectorFileWriter.writeAsVectorFormatV3(
+      source_layer, region_path, project.transformContext(), options)
+    region = QgsVectorLayer(region_path, "region", "ogr")
+    assert region.isValid(), "the region did not survive being written"
+    project.addMapLayer(region)
+
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(300)
+    dlg.table.cellWidget(0, 1).setCurrentText("v3")
+    dlg.table.cellWidget(1, 1).setCurrentText("v1")
+    _tick(200)
+    source = dlg.table.item(0, 0).text()
+    target = dlg.table.item(1, 0).text()
+    dlg.spacing_spin.setValue(1200)
+    _generate_and_wait(dlg)
+
+    dlg._pinned_bounds.setdefault(source, {})["v3"] = {"low": 10.0}
+    dlg._apply_style_change()
+    _tick(200)
+    assert dlg._copy_classification(source, target) is None, \
+      "the copy was refused"
+    _tick(300)
+    before = dict(dlg._pinned_bounds.get(target, {}).get("v1") or {})
+    assert before.get("breaks") and before.get("low") == 10.0, \
+      f"the copy did not land as expected: {before!r}"
+    dlg.close()
+
+    _project_round_trip(folder)
+    _tick(300)
+    revived = WeavingSpaceDialog(iface=_Iface())
+    revived.live_check.setChecked(False)
+    _tick(400)
+    for row in range(revived.table.rowCount()):
+      item = revived.table.item(row, 0)
+      combo = revived.table.cellWidget(row, 1)
+      if item is not None and combo is not None and item.text() == target:
+        combo.setCurrentText("v1")
+    revived._update_dynamic_columns()
+    _tick(300)
+
+    after = dict(revived._pinned_bounds.get(target, {}).get("v1") or {})
+    assert after.get("low") == 10.0, \
+      f"the copied pin FLAG did not come home: {after!r}"
+    assert after.get("breaks") == before.get("breaks"), \
+      f"the copied breaks came home as {after.get('breaks')!r}, not " \
+      f"{before.get('breaks')!r}"
+    revived.close()
+  finally:
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_pinned_element_exports_and_reopens_from_a_geopackage():
+  """The other serialisation boundary: what a colleague receives.
+
+  A GeoPackage carries its own cartography, and the restyle path
+  embeds the style as it goes. The breaks a pin produced are ordinary
+  renderer ranges, so they must arrive in the file exactly as drawn --
+  which is the promise of the export, and a boundary this project's
+  own list of test ideas names as the richest.
+
+  Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="weavingspace_pin_gpkg_")
+  try:
+    layer = make_region_layer(n=12)
+    project.addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(200)
+    dlg.table.cellWidget(0, 1).setCurrentText("v3")
+    _tick(150)
+    tid = dlg.table.item(0, 0).text()
+    path = os.path.join(folder, "map.gpkg")
+    dlg.gpkg_widget.setFilePath(path)
+    dlg.spacing_spin.setValue(1200)
+    _generate_and_wait(dlg)
+    dlg._pinned_bounds.setdefault(tid, {})["v3"] = {"low": 10.0}
+    dlg._apply_style_change()
+    _tick(400)
+
+    drawn = [(round(r.lowerValue(), 4), round(r.upperValue(), 4))
+             for r in project.mapLayer(
+               dlg._element_layer_ids[tid]).renderer().ranges()]
+    assert drawn[0][1] == 10.0, f"the pin never reached the map: {drawn}"
+    dlg.close()
+
+    # ...opened cold, the way a colleague would
+    reopened = QgsVectorLayer(f"{path}|layername=tiles_{tid}",
+                              "theirs", "ogr")
+    assert reopened.isValid(), "the element layer is not in the GeoPackage"
+    loaded, ok = reopened.loadDefaultStyle()
+    renderer = reopened.renderer()
+    theirs = [(round(r.lowerValue(), 4), round(r.upperValue(), 4))
+              for r in getattr(renderer, "ranges", lambda: [])()]
+    assert theirs == drawn, \
+      f"what a colleague receives is not what you see: {theirs} " \
+      f"against {drawn} (style loaded: {ok})"
+  finally:
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_copying_between_two_elements_and_back_is_stable():
+  """Copy a to b, then b to a: the map must not drift.
+
+  A metamorphic relation, and the reason to have one here is that a
+  copy both READS a classification and WRITES one. If the reading and
+  the writing disagree anywhere -- an off-by-one in the interior
+  boundaries, an end rule applied twice -- a round of copying moves
+  the map a little each time, which is the kind of fault no single
+  copy would show.
+
+  Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.n_combo.setCurrentText("4")
+  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  dlg.spacing_spin.setValue(1200)
+  # BOTH on the same column, so the end rules do not change anything
+  # and any drift is the copy's own arithmetic
+  dlg.table.cellWidget(0, 1).setCurrentText("v3")
+  dlg.table.cellWidget(1, 1).setCurrentText("v3")
+  _tick(200)
+  _generate_and_wait(dlg)
+  a = dlg.table.item(0, 0).text()
+  b = dlg.table.item(1, 0).text()
+
+  def drawn(tile_id):
+    out = project.mapLayer(dlg._element_layer_ids[tile_id])
+    return [(round(r.lowerValue(), 6), round(r.upperValue(), 6))
+            for r in out.renderer().ranges()]
+
+  start = drawn(a)
+  assert dlg._copy_classification(a, b) is None, "a to b was refused"
+  _tick(300)
+  assert drawn(b) == start, \
+    f"copying onto the same column changed the ladder: {drawn(b)} " \
+    f"against {start}"
+  assert dlg._copy_classification(b, a) is None, "b to a was refused"
+  _tick(300)
+  assert drawn(a) == start, \
+    f"copying back moved the map: {drawn(a)} against {start}"
+  dlg.close()
+
+
+def test_a_pin_reaches_the_map_through_the_live_path():
+  """Live update must apply a pin, not merely record it.
+
+  The live tick RETURNS on an unchanged run signature without ever
+  reaching the restyle path, so anything missing from that signature
+  can be recorded and never drawn. A hand-picked colour was swallowed
+  exactly this way on 2026-08-13, which is why the styling items are
+  in the tuple at all.
+
+  Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(True)          # the path under test
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg.table.cellWidget(0, 1).setCurrentText("v3")
+  _tick(200)
+  tid = dlg.table.item(0, 0).text()
+  dlg.spacing_spin.setValue(1200)
+  assert _settle(dlg, seconds=60), "the live run never settled"
+  _tick(300)
+  assert dlg._element_layer_ids, "live update drew nothing to pin"
+
+  before = dlg._run_signature()
+  dlg._pinned_bounds.setdefault(tid, {})["v3"] = {"low": 10.0}
+  assert dlg._run_signature() != before, \
+    "a pin left the run signature unchanged, so the live tick will " \
+    "return without applying it and the pin is recorded but never drawn"
+  dlg._queue_live()
+  assert _settle(dlg, seconds=60), "the live run after the pin never settled"
+  _tick(400)
+  drawn = [(round(r.lowerValue(), 4), round(r.upperValue(), 4))
+           for r in project.mapLayer(
+             dlg._element_layer_ids[tid]).renderer().ranges()]
+  assert drawn and drawn[0][1] == 10.0, \
+    f"the live path recorded the pin and did not draw it: {drawn}"
+  dlg.close()
+
+
+def test_a_row_with_no_geometry_is_named():
+  """A blank row is dropped, and now the user is told which and why.
+
+  layer_to_gdf skips a feature whose geometry is missing or empty --
+  it cannot be tiled, and handing one to the library is how icon mode
+  meets a centroid that does not exist. What it did not do was SAY so:
+  the row simply was not there, the coverage count never saw it, and
+  anybody comparing their attribute table against the map found a row
+  unaccounted for.
+
+  Its own sentence, deliberately. The coverage notice names a SPACING
+  as the thing to change, and no spacing will ever draw a row that has
+  no geometry.
+
+  Regression: a region row with no geometry was dropped from the map in silence, with the coverage notice unable to account for it.
+  """
+  from qgis.core import QgsFeature, QgsGeometry, QgsPointXY
+  from weavingspace_qgis import bridge, compat
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = QgsVectorLayer("MultiPolygon?crs=EPSG:3857", "blank row", "memory")
+  provider = layer.dataProvider()
+  provider.addAttributes([compat.make_field("v1", float)])
+  layer.updateFields()
+  features = []
+  for index in range(4):
+    feature = QgsFeature(layer.fields())
+    feature["v1"] = float(index)
+    if index != 2:                       # row 2 carries no geometry
+      x = index * 2000
+      feature.setGeometry(QgsGeometry.fromPolygonXY([[
+        QgsPointXY(x, 0), QgsPointXY(x + 1800, 0),
+        QgsPointXY(x + 1800, 1800), QgsPointXY(x, 1800)]]))
+    features.append(feature)
+  provider.addFeatures(features)
+  layer.updateExtents()
+  project.addMapLayer(layer)
+
+  assert bridge.count_areas_with_no_geometry(layer) == 1, \
+    "the fixture does not carry the blank row this test is about"
+
+  for as_icons in (True, False):
+    BAR_MESSAGES.clear()
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(200)
+    dlg.opt_icons.setChecked(as_icons)
+    dlg.spacing_spin.setValue(400)
+    _generate_and_wait(dlg)
+    assert dlg._element_layer_ids, \
+      f"as_icons={as_icons}: a blank row stopped the map being drawn"
+    said = [text for _kind, text in BAR_MESSAGES if "no geometry" in text]
+    assert said, \
+      f"as_icons={as_icons}: the dropped row was never mentioned: " \
+      f"{BAR_MESSAGES!r}"
+    assert "spacing" in said[0], \
+      f"the notice must say that no spacing will draw it, since the " \
+      f"other notice blames the spacing: {said[0]!r}"
+    dlg.close()
+
+
 def test_a_class_source_file_that_goes_away():
   """The QML is deleted, moved or renamed after being chosen.
 
@@ -37954,6 +38385,22 @@ def main():
         test_a_refused_pin_reverts_and_says_so)
   check("the release notes keep their categories",
         test_the_release_notes_keep_their_categories)
+  check("a pin set during a run is not lost",
+        test_a_pin_set_during_a_run_is_not_lost)
+  check("a pin survives the table being rebuilt",
+        test_a_pin_survives_the_table_being_rebuilt)
+  check("pins hold against awkward columns",
+        test_pins_hold_against_awkward_columns)
+  check("a copy and its pins survive a project round trip",
+        test_a_copy_and_its_pins_survive_a_project_round_trip)
+  check("a pinned element exports and reopens from a geopackage",
+        test_a_pinned_element_exports_and_reopens_from_a_geopackage)
+  check("copying between two elements and back is stable",
+        test_copying_between_two_elements_and_back_is_stable)
+  check("a pin reaches the map through the live path",
+        test_a_pin_reaches_the_map_through_the_live_path)
+  check("a row with no geometry is named",
+        test_a_row_with_no_geometry_is_named)
   check("one variable gets one legend wherever it appears",
         test_one_variable_gets_one_legend_wherever_it_appears)
   check("a class source file that goes away",

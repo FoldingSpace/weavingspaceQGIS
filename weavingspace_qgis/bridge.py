@@ -563,6 +563,55 @@ def add_unit_ids(region_gdf) -> str:
   return name
 
 
+def count_areas_with_no_geometry(layer) -> int:
+  """How many of a layer's rows carry no geometry at all.
+
+  Args:
+    layer: the region layer, asked directly rather than through the
+      frame -- because the frame is where they have already gone.
+
+  Returns:
+    The number of rows whose geometry is missing or empty. 0 for any
+    dataset that came out of a working editing session, which is why
+    the cost is a single pass on the generate path and nowhere else.
+
+  ``layer_to_gdf`` skips these rows when it builds the frame, and has
+  since long before this function: a blank row cannot be tiled, and
+  handing one to the library is how icon mode meets a centroid that
+  does not exist. What it did not do was SAY so. The row simply was
+  not there, the coverage count never saw it, and a user comparing
+  their attribute table against the map found one row unaccounted
+  for with nothing on screen to explain it.
+
+  Deliberately not folded into the coverage sentence, which names a
+  spacing as the thing to change. No spacing draws a row that has no
+  geometry, and telling those two situations apart is the point.
+  """
+  blank = 0
+  for feature in layer.getFeatures():
+    geometry = feature.geometry()
+    if geometry is None or geometry.isEmpty():
+      blank += 1
+  return blank
+
+
+def unmappable_areas_message(blank: int, total: int):
+  """The notice for rows that carry no geometry.
+
+  Args:
+    blank: how many rows had no geometry to draw.
+    total: how many rows the region layer holds altogether.
+
+  Returns:
+    One sentence for the message bar, or None when every row had a
+    geometry, which is the ordinary case.
+  """
+  if blank <= 0:
+    return None
+  return (f"{blank:,} of {total:,} areas have no geometry, so they are "
+          f"left out of the map. No spacing will draw them.")
+
+
 def count_units_without_tiles(tiled_gdf, id_column: str,
                               unit_count: int) -> int:
   """How many region areas the finished tiling left empty.

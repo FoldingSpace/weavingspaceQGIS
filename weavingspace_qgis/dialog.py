@@ -5613,6 +5613,13 @@ class WeavingSpaceDialog(QDialog):
     # it also has to happen here on the main thread
     spacing_used = self.spacing_spin.value()
     unit_label = bridge.map_unit_label(layer)
+    # Asked of the LAYER, because layer_to_gdf has already dropped
+    # these rows out of the frame: a geometry-less row cannot be
+    # tiled, and until now it vanished without a word, leaving a user
+    # to compare their attribute table against the map and find one
+    # row unaccounted for.
+    blank_areas = bridge.count_areas_with_no_geometry(layer) \
+      if self._source_layer_alive(layer) else 0
 
     def done(gdf, error):
       if gdf is not None and result_crs is not None:
@@ -5628,6 +5635,14 @@ class WeavingSpaceDialog(QDialog):
       if error is None and gdf is not None and len(gdf) > 0:
         note = bridge.coverage_message(coverage["missing"], unit_count,
                                        spacing_used, unit_label)
+        if note is not None:
+          self._report_quietly(note)
+        # ...and separately, the rows that could not be drawn at all.
+        # Its own sentence because the coverage one names a spacing as
+        # the thing to change, and no spacing draws a row with no
+        # geometry.
+        note = bridge.unmappable_areas_message(
+          blank_areas, unit_count + blank_areas) if blank_areas else None
         if note is not None:
           self._report_quietly(note)
         # And whether any categorical field's class count moved since
@@ -6160,6 +6175,19 @@ class WeavingSpaceDialog(QDialog):
         # test_a_class_colour_picked_during_a_run_is_not_lost.
         if a.get("var"):
           a["quant_colours"] = self._quant_colours.get(
+            a["id"], {}).get(a["var"])
+          # THE THIRD THING WRITTEN THROUGH THAT WINDOW, and it was
+          # missing here until 2026-08-14. Pinned bounds and a copied
+          # ladder are set from the same editor, while a run can be in
+          # flight, and the restyle path declines during one -- so
+          # without this a pin made in that window was seeded from the
+          # stale snapshot, destroyed the moment the run landed, and
+          # stamped ABSENT onto weavingspace_quant_style so a reopened
+          # project could not bring it back either. Exactly the defect
+          # the paragraph above describes, arriving a third time
+          # because the rule was written as one about COLOUR. Guarded
+          # by test_a_pin_set_during_a_run_is_not_lost.
+          a["pinned"] = self._pinned_bounds.get(
             a["id"], {}).get(a["var"])
         a["range_bounds"] = tuple(
           self._ramp_ranges.get(a["id"], (0, 100)))

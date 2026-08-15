@@ -1081,6 +1081,17 @@ Confirmed with the user via an explicit design review:
   is about HAND-PICKED COLOUR on either styling path, not about the
   categorical editor. When a rule here names one of a pair, check the
   other before believing it is a rule about one thing.
+  **It happened a THIRD time on 2026-08-14**, and the third is the one
+  that should settle the phrasing. Pinned bounds and copied ladders
+  are written through that same window while a run can be in flight,
+  and the landing re-read colours and the display window and not them
+  -- so a pin made during a run was destroyed as the run landed and
+  stamped absent onto the layer. The rule is not about colour and not
+  about the editor: EVERYTHING the colour editor writes must be
+  re-read at the landing, and anything added to that window later
+  joins the list. It was found by the maintainer asking whether the
+  new features had been tested for races, which is worth more than
+  the fix.
 - **A region layer with no CRS is tiled as it is, and its output says
   so.** QGIS permits a layer with no CRS and users sometimes want one
   (a floor plan, a scanned map, a diagram), so the plugin gets on with

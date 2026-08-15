@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-124 defect(s) with a regression test.
+132 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -153,6 +153,8 @@ there is no separate list to remember.
   guarded by `test_a_copied_classification_carries_the_whole_row`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_copied_ladder_is_fitted_to_the_column_it_lands_on`
+- **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
+  guarded by `test_a_copy_and_its_pins_survive_a_project_round_trip`
 - **a hand-picked colour the plugin reported as discarded was left on the layer, saved, and re-imposed on the map next session.**  
   guarded by `test_a_discarded_pick_does_not_come_back`
 - **five dock classes over a collapsed column indexed past the end of the dialog's one-class expectation, inside a renderer signal handler.**  
@@ -174,11 +176,19 @@ there is no separate list to remember.
 - **a hand-picked colour changed under live update was swallowed by the no-op guard, because the run signature did not carry the picks that the restyle signature does.**  
   guarded by `test_a_pick_is_not_swallowed_by_the_live_path`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
+  guarded by `test_a_pin_reaches_the_map_through_the_live_path`
+- **pinned bounds set while a run was finishing were seeded from the stale snapshot, destroyed as the run landed, and stamped absent onto the layer.**  
+  guarded by `test_a_pin_set_during_a_run_is_not_lost`
+- **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_pin_survives_a_project_round_trip`
+- **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
+  guarded by `test_a_pin_survives_the_table_being_rebuilt`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_pin_that_cannot_be_drawn_is_refused`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_pinned_class_bound_reaches_the_map`
+- **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
+  guarded by `test_a_pinned_element_exports_and_reopens_from_a_geopackage`
 - **the ramp cell reverted to the pre-run ramp after a run landed, while the element's own record held the new one.**  
   guarded by `test_a_ramp_chosen_during_a_run_is_not_lost`
 - **a ramp the dropdown offered was refused on a categorized row, the user's hand-picked colours were destroyed for it, and the notice described a change that never happened.**  
@@ -197,6 +207,8 @@ there is no separate list to remember.
   guarded by `test_a_retired_dialog_stops_watching`
 - **a rebuild while Reverse was greyed silently discarded the tick underneath it.**  
   guarded by `test_a_reverse_tick_survives_a_rebuild_while_it_is_greyed`
+- **a region row with no geometry was dropped from the map in silence, with the coverage notice unable to account for it.**  
+  guarded by `test_a_row_with_no_geometry_is_named`
 - **a column added in QGIS — with the Field Calculator, the usual way — never appeared in the variable choosers, because their item lists are built during a table rebuild and a rebuild happens when the LAYER changes, not when its columns do; the column stayed invisible until the user switched layers and back.**  
   guarded by `test_a_sequence_of_edits_under_the_plugin`
 - **a stage log kept the previous run's verdict for the whole time the stage ran, and read as current.**  
@@ -227,6 +239,8 @@ there is no separate list to remember.
   guarded by `test_cancelling_frees_the_dialog_at_once`
 - **QGIS's classifier counts a NULL as zero (its own minimumValue does not, so QGIS disagrees with itself), so nine values of 1..9 beside five nulls classified as 0-0, 0-2.5, 2.5-5.75, 5.75-9 instead of 1-3, 3-5, 5-7, 7-9 — every break in the wrong place, a legend class meaning "missing" that reads as a number, and nothing on screen to say so; measured identically on the memory provider and on a GeoPackage through OGR.**  
   guarded by `test_class_breaks_ignore_nulls`
+- **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
+  guarded by `test_copying_between_two_elements_and_back_is_stable`
 - **the geometry signature held the layer's ID and nothing about its contents, so deleting half the features left every term identical and the run was answered by repainting tiles built from data that no longer existed — pressing Generate did not help, which is what made it serious.**  
   guarded by `test_data_changed_in_qgis_while_the_plugin_is_open`
 - **none yet -- the cap was set at 52 for two days, during which any map with 27 or more elements could have collided on export.**  
@@ -247,6 +261,8 @@ there is no separate list to remember.
   guarded by `test_live_update_notices_the_data_changing`
 - **class breaks were cut from each element's own tiles, so four elements carrying one variable drew four different legends and one colour meant four different numbers.**  
   guarded by `test_one_variable_gets_one_legend_wherever_it_appears`
+- **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
+  guarded by `test_pins_hold_against_awkward_columns`
 - **deleting the file behind a layer and reloading it made layer.extent() segfault QGIS outright — no exception, no traceback, nothing in the log — and isValid() returned True while the provider was gone; the live-update gate read that extent on every debounce, so the crash was reachable without pressing anything.**  
   guarded by `test_qgis_changes_around_the_plugin`
 - **the non-finite workaround named a canary that did not exist, so nothing would ever have reported QGIS fixing it.**  
@@ -293,7 +309,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 68
+- unrecorded: 76
 - the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6
