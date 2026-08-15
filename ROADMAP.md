@@ -89,6 +89,74 @@ entry as it lands.
 
 ### Wanted
 
+**A data edit in QGIS leaves the map drawing the OLD classification.**
+FOUND AND MEASURED 2026-08-15, cause NOT isolated; this is the most
+serious thing open. Retype a column through QGIS's own editing session
+(`startEditing` / `changeAttributeValue` / `commitChanges`) so its
+range moves — measured from 0..121 down to 0..3 — and then Generate.
+The element layer is rebuilt and carries the NEW values (checked: its
+own `v3` reads 0..3, 113 features), `_data_version` bumps to 146, and
+the classification source hands back 0..3. The renderer nevertheless
+goes on drawing `(0, 84.7) (84.7, 90) (90, 99) (99, 107.5) (107.5,
+121)`, which are the OLD data's quantiles. Four of five classes wear
+nothing and every tile draws in the first, which is the flat
+no-data look several other guards here exist to prevent. Nothing is
+said.
+
+Two contributing faults were found and FIXED on the way, and neither
+was sufficient, so do not assume the remaining one is nearby:
+`_classification_values`' cache was keyed on `(layer id, field,
+fingerprint)` with no `_data_version`, so it served a snapshot of the
+values as they were — the fingerprint measures what a layer IS (count,
+extent, field names, CRS) and a retyped value moves none of them; and
+a pin the data can no longer carry was applied unchecked rather than
+dropped. Both are in, both verified at their own level, and the map is
+still wrong.
+
+WHERE TO LOOK NEXT, in the order I would try: whether
+`_add_output_layers` carries the previous run's renderer across for
+this element despite `_data_version` being in both signatures; whether
+the `weavingspace_quant_style` stamp restores the old ladder; whether
+`seed_renderer` is reached at all on this path. Reproduce with
+`scratchpad/verify_pin_drift.py` from the 2026-08-15 session, which
+prints all of it. Note the probe drives the EDITING SESSION, not the
+data provider — a provider-level write is a documented limit and a
+different question.
+
+**A Windows leg of CI.** Settled with the maintainer 2026-08-15 and
+being implemented. Money is not the constraint: the repository is
+public, so GitHub's standard runners — `windows-latest` included — are
+free, and the 2x Windows multiplier bills only against private repos.
+Wall-clock is not the constraint either, since jobs run in parallel
+and the Linux legs already take 52-54 minutes.
+
+The cost is engineering. Every QGIS job today runs inside the
+`qgis/qgis` Docker image, three versions across suite, install and
+gallery; Windows runners cannot run Linux containers, so none of that
+machinery transfers and QGIS must be really installed on the runner.
+OSGeo4W is what users actually run, which is the point of going, and
+is a large slow network install; conda-forge through micromamba is
+fast and scriptable but is a different build, which weakens the
+reason for going at all.
+
+SCOPE, deliberately narrow: ONE job running `tools/install_and_load.py`
+against the built zip, on a single QGIS. Not the suite, not the
+gallery, not the colourspace comparison. The Windows-specific risk is
+path separators, long paths, file locking on the vendored libs and the
+zip's internal layout — not the mathematics, which Linux covers.
+`compat.py`, which exists precisely because QGIS moves its APIs, has
+never run on Windows at all.
+
+Two frictions to expect. `QT_QPA_PLATFORM=offscreen` renders fonts
+differently, and this project has already been burned by a belief
+about CI fonts that was simply false, so any visual gate would need
+its own tolerances rather than sharing Linux's — another reason to
+keep them out of scope. And `tools/check_standards.py` requires every
+release stage and every harness under `tests/` to be covered by a
+named CI job or exempt with a written reason, so the mapping is
+updated in the same commit as the job.
+
+
 **Sampling the six unsampled assignment-lookup copies.** Deferred here
 from 0.24.2 deliberately: it is measurement rather than
 defect-finding, and the night of 2026-08-13 put mutation sampling at

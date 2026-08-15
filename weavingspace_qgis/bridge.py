@@ -1639,6 +1639,29 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
     and math.isfinite(float(v)))
   if not finite_values:
     low_pin = high_pin = None
+  # A PIN THE DATA CAN NO LONGER CARRY IS DROPPED, because QGIS is
+  # live and the plugin is not modal to it: a user can retype the
+  # column, or reload the layer, long after pinning a bound, and a
+  # pin is a claim about values that may since have moved. Measured
+  # 2026-08-15 with a column edited from 0-121 down to 0-3 while a
+  # low bound sat at 84.7 -- the ladder went on running to 121, four
+  # of five classes wore nothing and every tile drew in the first,
+  # which is the flat no-data look this plugin's other guards exist
+  # to prevent. `pin_problem` is the same judge the typed bound faces,
+  # asked again of the values as they now are; the DIALOG reports the
+  # loss, since bridge draws maps and says nothing.
+  # ...but NOT under a copied ladder, which is deliberately allowed to
+  # run past the receiving column: a copy reproduces a classification,
+  # its unreachable classes are kept and hatched rather than dropped,
+  # and a pin on such a ladder is a claim about the LADDER rather than
+  # about this column's values. Judging it against the data would
+  # refuse the high pin in
+  # test_a_pin_still_works_on_a_copied_ladder, which is the settled
+  # behaviour and not a defect.
+  if (low_pin is not None or high_pin is not None) and finite_values \
+      and not (pinned or {}).get("breaks"):
+    if pin_problem(low_pin, high_pin, finite_values, k):
+      low_pin = high_pin = None
   pins = (low_pin is not None) + (high_pin is not None)
   # What is left for the scheme to cut. It can be NOTHING -- both ends
   # pinned on a two-class row asks for two classes and names both of

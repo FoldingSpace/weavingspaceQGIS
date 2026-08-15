@@ -2386,7 +2386,19 @@ class WeavingSpaceDialog(QDialog):
     # and the whole classification quietly fell back to per-element
     # breaks: a change that appeared to do nothing, which is exactly
     # what a silent fallback looks like from outside.
-    key = (layer.id(), field_name, self._layer_fingerprint())
+    # `_data_version` AS WELL AS the fingerprint, because the
+    # fingerprint measures what a layer IS -- count, extent, field
+    # names, CRS -- and a value retyped in QGIS's editing session
+    # moves none of them. Both SIGNATURES already carried it, so a
+    # retyped value correctly stopped a run being a no-op; this cache
+    # did not, so the run went ahead and classified from a snapshot of
+    # the values as they were. Measured 2026-08-15: a column edited
+    # from 0-121 down to 0-3 through startEditing/commitChanges went
+    # on drawing classes 84.7 to 121, with four of five wearing
+    # nothing and every tile in the first. The bump is the dialog's
+    # own counter, so this costs a tuple comparison.
+    key = (layer.id(), field_name, self._layer_fingerprint(),
+           self._data_version)
     if key not in self._values_cache:
       # one scan, and only when the fingerprint says the last one is
       # out of date. The same scan the missing-values notice makes.
