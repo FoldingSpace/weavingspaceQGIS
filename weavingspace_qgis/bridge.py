@@ -875,6 +875,86 @@ def inset_collapse_message(declared: int, remaining: int,
           f"choose a coarser spacing.")
 
 
+def pin_problem(low, high, values, asked: int):
+  """Why a pair of pinned bounds cannot be used, or None.
+
+  Args:
+    low: the upper bound of the FIRST class, set by hand, or None
+      when that end is not pinned.
+    high: the lower bound of the LAST class, or None.
+    values: the column's values, as ``distinct_numeric_count`` reads
+      them -- the region's, since that is what the breaks are cut
+      from.
+    asked: the class count the row asks for, so that a pin leaving
+      nothing for the middle can be told from one that merely leaves
+      little.
+
+  Returns:
+    A sentence for the message bar naming what is wrong, or None when
+    the pins are usable. The caller reverts the edit on a sentence
+    and applies it on None; this function decides nothing about the
+    map.
+
+  What is REFUSED here is only what cannot be drawn at all: bounds
+  that cross, a bound outside the data, or a pin that leaves no
+  sample for the middle classes. What is deliberately NOT refused is
+  a pin leaving fewer distinct values than remaining classes -- that
+  draws fewer classes through the ordinary reduction and says so
+  through few_values_message, which is one answer to "the data cannot
+  support this count" rather than two. (Settled 2026-08-14.)
+  """
+  numbers = sorted(
+    float(v) for v in values
+    if v is not None and v != NULL and isinstance(v, (int, float))
+    and math.isfinite(float(v)))
+  if not numbers:
+    return ("There are no values to pin a class bound against.")
+  smallest, largest = numbers[0], numbers[-1]
+  for name, bound in (("lower", low), ("upper", high)):
+    if bound is None:
+      continue
+    if not math.isfinite(float(bound)):
+      return f"The {name} class bound must be a number."
+    if not smallest <= float(bound) <= largest:
+      return (f"The {name} class bound must sit between "
+              f"{_trim(smallest)} and {_trim(largest)}, which is what "
+              f"the data covers.")
+  if low is not None and high is not None and float(low) >= float(high):
+    return ("The first class must end below where the last class "
+            "begins.")
+  # A ladder of k classes has k-1 boundaries, and each pin names one
+  # of them. Two pins on a two-class row therefore name two
+  # boundaries where there is one, and the pinned classes would not
+  # meet: measured, that draws 0-10 beside 60-121 with everything
+  # between them in no class at all. Refused rather than resolved,
+  # because choosing which of the two typed numbers to honour is the
+  # kind of guess this project's notices exist to avoid.
+  pins = (low is not None) + (high is not None)
+  if pins and int(asked) - 1 < pins:
+    available = int(asked) - 1
+    return (f"A {int(asked)}-class ladder has "
+            f"{available} boundar{'y' if available == 1 else 'ies'} "
+            f"to pin, so it cannot carry {pins}. Ask for more "
+            f"classes, or unpin one end.")
+  # Something has to be left for the classes in between. A pin takes
+  # one class of its own, so the middle is what the row asked for
+  # minus the pins, and it needs at least one value to cut.
+  middle = [v for v in numbers
+            if (low is None or v > float(low))
+            and (high is None or v < float(high))]
+  pins = (low is not None) + (high is not None)
+  if int(asked) - pins > 0 and not middle:
+    return ("Those bounds leave nothing between them to divide into "
+            "classes.")
+  return None
+
+
+def _trim(value: float) -> str:
+  """A number as a person would write it, with trailing zeros gone."""
+  text = f"{float(value):.6g}"
+  return text
+
+
 def few_values_message(field: str, distinct: int, asked: int):
   """The notice for a column with fewer distinct values than classes.
 
@@ -903,6 +983,69 @@ def few_values_message(field: str, distinct: int, asked: int):
   return (f"'{field}' has {distinct} distinct value"
           f"{'' if distinct == 1 else 's'}, so it draws as {distinct} "
           f"class{'' if distinct == 1 else 'es'}, not {asked}.")
+
+
+def _apply_pinned_bounds(renderer, low, high, smallest, largest,
+                         outline, method, wants_middle=True):
+  """Put the pinned classes back around the computed middle.
+
+  Args:
+    renderer: the graduated renderer, already carrying the classes
+      the scheme cut from the samples between the pins.
+    low: the first class's upper bound, or None.
+    high: the last class's lower bound, or None.
+    smallest, largest: the column's extremes, which become the outer
+      edges of the pinned classes.
+    outline: whether tiles are stroked, for the symbols built here.
+    method: the classification method, asked for its own label text
+      so a pinned class is labelled the way every other class is.
+    wants_middle: False when the pins account for every class the row
+      asked for, in which case the classes the scheme cut are dropped
+      rather than kept beside them.
+
+  Returns:
+    None; the renderer's classes are replaced in place.
+
+  The SNAP is here: the first computed class's lower bound is moved
+  to the pin, and the last computed class's upper bound likewise, so
+  the ladder has no gap. Without it a pin at 10 over data that
+  resumes at 14 leaves 10 to 14 in no class, and a value arriving
+  there later paints as no data on a map that looks perfectly fine.
+  Only the outermost edge moves; the scheme's own breaks are
+  untouched.
+
+  Symbols are built FRESH rather than cloned off a range, for the
+  reason recorded above updateRangeSymbol: ``ranges()`` hands back
+  temporaries and a symbol pointer read off a dead one segfaults.
+  """
+  middle = ([(r.lowerValue(), r.upperValue()) for r in renderer.ranges()]
+            if wants_middle else [])
+  if middle:
+    if low is not None:
+      middle[0] = (float(low), middle[0][1])
+    if high is not None:
+      middle[-1] = (middle[-1][0], float(high))
+  bounds = list(middle)
+  if low is not None:
+    bounds.insert(0, (float(smallest), float(low)))
+  if high is not None:
+    bounds.append((float(high), float(largest)))
+  renderer.deleteAllClasses()
+  # QGIS 4's addClass takes a SYMBOL only (measured: the
+  # QgsRendererRange overload of older versions is gone), so each
+  # class is added and then given its bounds and label by index.
+  for lower, upper in bounds:
+    renderer.addClass(_fill_symbol("#c0c0c0", outline))
+  for position, (lower, upper) in enumerate(bounds):
+    renderer.updateRangeLowerValue(position, lower)
+    renderer.updateRangeUpperValue(position, upper)
+    label = f"{_trim(lower)} - {_trim(upper)}"
+    if method is not None and hasattr(method, "labelForRange"):
+      try:
+        label = method.labelForRange(lower, upper)
+      except Exception:
+        pass
+    renderer.updateRangeLabel(position, label)
 
 
 def classification_source(field: str, values) -> QgsVectorLayer | None:
@@ -965,7 +1108,8 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
                             reverse: bool = False,
                             range_bounds: tuple = (0, 100),
                             overrides: dict | None = None,
-                            classify_from=None
+                            classify_from=None,
+                            pinned: dict | None = None
                             ) -> QgsGraduatedSymbolRenderer:
   """Classed-numeric symbology for one element layer.
 
@@ -1004,6 +1148,15 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
       one variable class identically; see the long note in the body
       for what that costs and why it is worth it. None classifies the
       layer passed in, which is what a direct caller or a test gets.
+    pinned: class bounds a person set, as ``{"low": float, "high":
+      float}`` with either key absent. ``low`` is the FIRST class's
+      upper bound and ``high`` is the LAST class's lower bound; the
+      samples inside a pinned class leave the pool, the scheme cuts
+      the row's count minus one class per pin, and the pinned classes
+      are put back around the result. Validate with ``pin_problem``
+      before passing: bounds that cannot be drawn are the caller's to
+      refuse, and this function assumes it has been asked something
+      possible.
 
   Returns:
     A QgsGraduatedSymbolRenderer, not yet attached to the layer
@@ -1215,16 +1368,54 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   # half above has its own canary (test_qgis_still_counts_nulls_as_
   # zero) and they may well not be fixed together, so check both
   # before removing either.
+  # ---- PINNED BOUNDS, which ride the same filtering
+  #
+  # A pin is a class bound a person set: the first class's upper
+  # bound, the last class's lower bound, or both. The samples inside
+  # a pinned class leave the pool, the scheme cuts what the row asked
+  # for MINUS one class per pin, and the pinned classes are put back
+  # around the result afterwards (_apply_pinned_bounds, which also
+  # snaps the middle to meet them).
+  #
+  # It is done by extending the subset string this function already
+  # sets and restores, for the reason the null workaround gives: hand
+  # the classifier different INPUT rather than replacing its
+  # arithmetic. Quantiles, equal intervals, Jenks and pretty breaks go
+  # on being QGIS's, so the plugin cannot drift from the panel the
+  # user opens next.
+  low_pin = high_pin = None
+  if pinned:
+    low_pin = pinned.get("low")
+    high_pin = pinned.get("high")
+  finite_values = sorted(
+    float(v) for v in values
+    if v is not None and v != NULL and isinstance(v, (int, float))
+    and math.isfinite(float(v)))
+  if not finite_values:
+    low_pin = high_pin = None
+  pins = (low_pin is not None) + (high_pin is not None)
+  # What is left for the scheme to cut. It can be NOTHING -- both ends
+  # pinned on a two-class row asks for two classes and names both of
+  # them -- and the classifier cannot be asked for zero, so it is
+  # asked for one and the answer is thrown away below. Without that,
+  # a two-class row with two pins drew three.
+  wants_middle = int(k) - pins > 0
+  if pins:
+    k = max(1, int(k) - pins)
   FINITE = 1e307
   restore = None
   awkward = any(
     v is None or v == NULL or (isinstance(v, float)
                                and (v != v or abs(v) > FINITE))
     for v in values)
-  if index >= 0 and awkward:
+  if index >= 0 and (awkward or pins):
     previous = source.subsetString()
     clause = (f'"{field}" IS NOT NULL AND "{field}" > {-FINITE:g} '
               f'AND "{field}" < {FINITE:g}')
+    if low_pin is not None:
+      clause += f' AND "{field}" > {float(low_pin):.17g}'
+    if high_pin is not None:
+      clause += f' AND "{field}" < {float(high_pin):.17g}'
     combined = f"({previous}) AND {clause}" if previous else clause
     # A provider may refuse a subset string. Wrong breaks beat no map,
     # so a refusal falls through to classifying everything, exactly as
@@ -1241,6 +1432,10 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   finally:
     if restore is not None:
       source.setSubsetString(restore)
+  if pins:
+    _apply_pinned_bounds(renderer, low_pin, high_pin, finite_values[0],
+                         finite_values[-1], outline, method,
+                         wants_middle)
   # A single class spans the whole ramp and QGIS colours it from the
   # ramp's START (measured, QGIS 4.0.3: one class on Reds comes back
   # #fff5f0, the ramp's 0.0 endpoint) -- for a sequential ramp that is
@@ -1268,11 +1463,17 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
     # when the window is the whole ramp. (User decision, 2026-08-09.)
     mid = get_ramp(ramp_name, reverse).color((lo + hi) / 200.0).name()
     renderer.updateRangeSymbol(0, _fill_symbol(mid, outline))
-  elif (lo, hi) != (0, 100) and count:
+  elif ((lo, hi) != (0, 100) or pins) and count:
     # the Ramp Display Range: first class at lo, last at hi, linear
-    # between. Skipped entirely at (0, 100) because QGIS's own
-    # colours already ARE this formula there, and recolouring would
-    # only add a place for the two to disagree.
+    # between. Skipped at (0, 100) UNLESS a bound is pinned, because
+    # QGIS's own colours already ARE this formula there and
+    # recolouring would only add a place for the two to disagree --
+    # but with a pin they are not: updateClasses coloured the MIDDLE
+    # classes across the whole ramp before the pinned ones were put
+    # back around them, so the pinned classes would have no colour at
+    # all and the middle would wear the extremes. Recolouring the
+    # full set restores exactly what QGIS would have drawn for this
+    # many classes.
     ramp = get_ramp(ramp_name, reverse)
     for i in range(count):
       along = i / (count - 1) if count > 1 else 0.5
