@@ -865,6 +865,11 @@ class WeavingSpaceDialog(QDialog):
     # holding a single entry: the breaks are cut from these, and a
     # stale set would classify the map against data that has gone
     self._values_cache = {}
+    # {(layer id, field): a hashable summary of that column's values}.
+    # Filled by the same scan that builds the classification source,
+    # and read by _signature so an element is re-seeded when the
+    # column it draws actually moves.
+    self._value_digests = {}
     self._class_choices = {}
     self._browsed_qmls = []
     self._single_colours = {}
@@ -2410,7 +2415,56 @@ class WeavingSpaceDialog(QDialog):
         return None
       self._values_cache = {
         key: bridge.classification_source(field_name, values)}
+      # ...and a DIGEST of what was scanned, taken here because the
+      # scan is already paid for. _signature reads it, so an element
+      # is re-seeded when the column it classifies moves and not
+      # merely when the layer emitted a signal: `_data_version` bumps
+      # for a column ADDED as well, and re-seeding on that destroyed
+      # hand styling that had every right to survive
+      # (test_a_column_appearing_in_qgis_keeps_hand_styling).
+      numbers = sorted(
+        float(v) for v in values
+        if isinstance(v, (int, float)) and math.isfinite(float(v)))
+      self._value_digests[(layer.id(), field_name)] = (
+        len(values), len(numbers),
+        numbers[0] if numbers else None,
+        numbers[-1] if numbers else None,
+        hash(tuple(numbers)))
     return self._values_cache.get(key)
+
+  def _value_digest(self, field_name):
+    """A cheap summary of the column an element classifies.
+
+    Args:
+      field_name: the attribute the row is drawing.
+
+    Returns:
+      A hashable tuple — row count, finite count, smallest, largest
+      and a hash of the sorted values — or None when there is no
+      layer or the column has not been scanned. Suitable for a
+      signature and for nothing else: it identifies a distribution
+      rather than describing one.
+
+    Taken from the scan `_classification_values` already makes, so
+    this costs a dictionary lookup rather than a pass over the data.
+    It answers the question `_layer_fingerprint` cannot: the
+    fingerprint measures what a layer IS, and every value in a column
+    can change while the count, the extent, the field names and the
+    CRS all stand still.
+    """
+    layer = self.layer_combo.currentLayer()
+    if layer is None or not field_name:
+      return None
+    # ALWAYS through the values cache, never short-circuited on the
+    # digest already being there: that cache knows when a rescan is
+    # due (its key carries the fingerprint and the edit counter) and
+    # this dict does not. Skipping the call when a digest existed left
+    # the first scan's summary in place forever, so the signature went
+    # on describing the data as it was and the map kept the old
+    # classification -- the very fault this digest was added to fix.
+    # The call is a dictionary hit whenever nothing has changed.
+    self._classification_values(field_name)
+    return self._value_digests.get((layer.id(), field_name))
 
   def _populate_class_source_combo(self, combo, current=None):
     """(Re)build a row's class-source choices.
@@ -5111,6 +5165,10 @@ class WeavingSpaceDialog(QDialog):
           if mode == "Graduated" else (0, 100)),
         "style_touched": bool(mode_combo is not None
                               and mode_combo.property("touched")),
+        # WHAT THE COLOURS MEAN depends on the values, so the counter
+        # that follows an edit in QGIS rides in the element's own
+        # record and therefore into _signature. See the note there.
+        "value_digest": self._value_digest(var),
       })
     return result
 
@@ -5561,6 +5619,29 @@ class WeavingSpaceDialog(QDialog):
     Note what is absent — spacing, family, modifiers. Those alter the
     GEOMETRY, not what the colours mean, so a design change should
     not throw away the user's styling work.
+
+    THE DATA IS NOT IN THAT LIST, and the distinction cost a wrong
+    map. `value_digest` summarises the column this element draws, and
+    it belongs here for the reason the geometry does not: if the
+    values move, what a colour MEANS moves with them. It is the
+    COLUMN'S own digest rather than the dialog's edit counter,
+    because that counter also bumps for a column being ADDED, and
+    re-seeding on that destroys hand styling which had every right to
+    survive. Without it
+    an element whose assignment had not changed kept the renderer it
+    already had, so a column retyped in QGIS's editing session from
+    0..121 down to 0..3 went on being drawn with the old data's
+    quantiles — classes running to 121 over data reaching 3, four of
+    five wearing nothing and every tile in the first, which is the
+    flat no-data look this plugin's other guards exist to prevent.
+    Measured 2026-08-15, and two nearer fixes (the classification
+    cache's key, an unusable pin) each corrected a real fault without
+    touching this one.
+
+    The cost is deliberate: a data edit now RE-SEEDS, so styling
+    refined in QGIS's dock does not survive one. That is the right
+    way round, because the alternative is keeping a legend that
+    describes numbers the layer no longer holds.
     """
     # Hand-picked category colours belong here for the same reason
     # the ramp does: they decide what this element looks like, and
@@ -5571,6 +5652,7 @@ class WeavingSpaceDialog(QDialog):
     picked = a.get("category_colours") or {}
     quant = a.get("quant_colours") or {}
     return (a["var"], a["mode"], a["ramp"], a["scheme"], a["k"],
+            a.get("value_digest"),
             a["outline"], a.get("class_source"),
             # the file's CONTENTS, not merely its name: see
             # _class_source_stamp

@@ -9323,6 +9323,91 @@ def test_pinning_redraws_the_window_it_was_typed_into():
     editor.close()
 
 
+def test_a_retyped_column_reclassifies_the_map():
+  """Values edited in QGIS must reach the legend, not just the tiles.
+
+  `_signature` decides whether an element keeps the renderer it has,
+  and it held nothing about the DATA -- only the assignment. Its own
+  note reasons that spacing and family alter geometry rather than
+  meaning, which is right, and the data was never distinguished from
+  them. So a column retyped through QGIS's editing session left the
+  element carrying the classification built for the values as they
+  were: measured from 0..121 down to 0..3, the map went on drawing
+  classes that ran to 121, four of five wearing nothing and every tile
+  in the first, which is the flat no-data look several other guards
+  here exist to prevent. The tiles carried the new values the whole
+  time, so nothing about the map looked wrong.
+
+  Two nearer faults were found on the way and each fixed something
+  real without touching this: the classification cache was keyed
+  without the edit counter, and a pin the data could no longer carry
+  was applied rather than dropped. Both are guarded elsewhere. This
+  test is about the third.
+
+  The signature carries the COLUMN'S digest rather than the dialog's
+  edit counter, because that counter also bumps for a column being
+  ADDED, and re-seeding on that destroys hand styling that had every
+  right to survive -- which is
+  test_a_column_appearing_in_qgis_keeps_hand_styling, and it is
+  checked here too, since the two pull in opposite directions and a
+  fix for either alone breaks the other.
+
+  Regression: values retyped in QGIS left the map drawing the classification computed from the old values, with classes running past everything the layer now held.
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v3")
+  _tick(150)
+  tile_id = dlg.table.item(0, 0).text()
+  index = layer.fields().indexOf("v3")
+  before = [v for v in layer.uniqueValues(index) if v is not None]
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+  drawn = [(r.lowerValue(), r.upperValue()) for r
+           in project.mapLayer(dlg._element_layer_ids[tile_id])
+           .renderer().ranges()]
+  assert max(high for _low, high in drawn) > max(before) / 2, \
+    f"the fixture's first map does not reach its own data: {drawn}"
+
+  # ...the user retypes the column in QGIS, through the editing
+  # session, which is the route the dialog watches
+  assert layer.startEditing(), "the fixture layer refused an edit session"
+  for feature in layer.getFeatures():
+    value = feature["v3"]
+    if value is not None:
+      layer.changeAttributeValue(feature.id(), index, float(value) / 40.0)
+  assert layer.commitChanges(), "the edit did not commit"
+  _tick(500)
+  after = [v for v in layer.uniqueValues(index) if v is not None]
+  assert max(after) < max(before) / 10, \
+    f"the edit did not move the column: {max(before)} to {max(after)}"
+
+  _generate_and_wait(dlg)
+  element = project.mapLayer(dlg._element_layer_ids[tile_id])
+  now = [(r.lowerValue(), r.upperValue())
+         for r in element.renderer().ranges()]
+  assert now, "the element drew no classes after the edit"
+  assert max(high for _low, high in now) <= max(after) + 1e-6, \
+    f"the map still classes past its own data: {now} over values " \
+    f"reaching {max(after)}"
+  assert min(low for low, _high in now) >= min(after) - 1e-6, \
+    f"the map classes below its own data: {now}"
+  # ...and the tiles were never the problem: they had the new values
+  # all along, which is why nothing looked wrong
+  own = [v for v in element.uniqueValues(element.fields().indexOf("v3"))
+         if v is not None]
+  assert max(own) <= max(after) + 1e-6, \
+    "the element layer itself did not follow the edit"
+  dlg.close()
+
+
 def test_a_class_source_file_that_goes_away():
   """The QML is deleted, moved or renamed after being chosen.
 
@@ -39655,6 +39740,8 @@ def main():
         test_a_reopened_plugin_adopts_the_group_it_last_wrote)
   check("pinning redraws the window it was typed into",
         test_pinning_redraws_the_window_it_was_typed_into)
+  check("a retyped column reclassifies the map",
+        test_a_retyped_column_reclassifies_the_map)
   check("one variable gets one legend wherever it appears",
         test_one_variable_gets_one_legend_wherever_it_appears)
   check("a class source file that goes away",

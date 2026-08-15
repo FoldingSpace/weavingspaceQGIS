@@ -2476,6 +2476,14 @@ MUTATIONS = [
            "without this the window prints the ladder from before it "
            "and the other end's control offers a bound the map no "
            "longer has -- which is applied if that pin is clicked"),
+  dict(name="the-signature-follows-the-column", file=DIALOG,
+       old="            a.get(\"value_digest\"),",
+       new="",
+       test="test_a_retyped_column_reclassifies_the_map",
+       why="without the column's own digest an element keeps the "
+           "renderer built for the values as they were, so a column "
+           "retyped in QGIS goes on being drawn with the old data's "
+           "breaks while its tiles carry the new values"),
   dict(name="adoption-takes-the-newest-group", file=DIALOG,
        old="    group = self._newest_output_group(root)",
        new="    group = root.findGroup(GROUP_BASE_NAME)",

@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-149 defect(s) with a regression test.
+150 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -231,6 +231,8 @@ there is no separate list to remember.
   guarded by `test_a_reopened_project_keeps_an_imported_class_scheme`
 - **a retired dialog's styleChanged connections kept firing after retirement, double-adopting dock edits alongside the live dialog.**  
   guarded by `test_a_retired_dialog_stops_watching`
+- **values retyped in QGIS left the map drawing the classification computed from the old values, with classes running past everything the layer now held.**  
+  guarded by `test_a_retyped_column_reclassifies_the_map`
 - **a rebuild while Reverse was greyed silently discarded the tick underneath it.**  
   guarded by `test_a_reverse_tick_survives_a_rebuild_while_it_is_greyed`
 - **a region row with no geometry was dropped from the map in silence, with the coverage notice unable to account for it.**  
@@ -343,7 +345,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 93
+- unrecorded: 94
 - the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6

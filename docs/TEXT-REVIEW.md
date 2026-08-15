@@ -136,7 +136,7 @@ changelog=0.24.3 A colour can now mean the same thing everywhere it
 <!-- id:71e4dec731df4871 -->
 > '{}' has {} distinct value{} left between its pinned bounds, so it draws as {} class{}, not {}.
 
-**`weavingspace_qgis/dialog.py:4684`** — in `_copy_classification`
+**`weavingspace_qgis/dialog.py:4717`** — in `_copy_classification`
 
-<!-- id:7d4c66262c91c07f -->
-> Its pinned {} {} left behind, being outside what this element's data covers.
+<!-- id:7e5d5ef42edc24e0 -->
+> The pinned {} {} element '{}' {} not fit the values element '{}' holds, so {} left behind.
