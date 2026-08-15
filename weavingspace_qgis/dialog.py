@@ -66,7 +66,7 @@ import math
 import os
 import traceback
 
-from qgis.PyQt.QtCore import QRectF, QSize, Qt, QTimer
+from qgis.PyQt.QtCore import QPointF, QRectF, QSize, Qt, QTimer
 from qgis.PyQt.QtGui import (
   QBrush, QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap)
 from qgis.PyQt.QtWidgets import (
@@ -264,7 +264,7 @@ CUSTOM_RAMP_TOOLTIP = ("Colours set by hand or by a class file. "
                        "Choose a ramp to replace them.")
 
 
-def _striped_icon(colours, boxed=()):
+def _striped_icon(colours, boxed=(), hatched=()):
   """The one way this dialog draws a colour swatch.
 
   Args:
@@ -277,6 +277,14 @@ def _striped_icon(colours, boxed=()):
       outlined, which is how the table says "this end is yours"
       without the ramp cell having to claim the ramp is no longer the
       ramp: a pin moves breaks, not colours (maintainer's decision,
+      2026-08-14).
+    hatched: which stripes stand for classes NO TILE WEARS, as
+      indices. Each is crossed with light diagonals. Copying a ladder
+      onto an element carrying another column can leave classes the
+      data cannot reach, and those are kept rather than dropped --
+      a copy is meant to reproduce a classification and a silently
+      shortened one does not -- so the emptiness is made visible
+      instead of being left silent (maintainer's decision,
       2026-08-14).
 
   Returns:
@@ -297,6 +305,27 @@ def _striped_icon(colours, boxed=()):
   for i, name in enumerate(shown):
     painter.fillRect(
       QRectF(i * width, 0, width, RAMP_SWATCH.height()), QColor(name))
+  # Diagonals first, then the pin boxes, both over the fills: a
+  # hatched stripe may also be a pinned one, and the box must read as
+  # the outer line rather than being crossed by the hatching.
+  for index in hatched:
+    position = index if index >= 0 else len(shown) + index
+    if not 0 <= position < len(shown):
+      continue
+    fill = QColor(shown[position])
+    lightness = (fill.red() * 299 + fill.green() * 587
+                 + fill.blue() * 114) / 1000.0
+    ink = QColor("#ffffff") if lightness < 128 else QColor("#000000")
+    ink.setAlpha(140)             # light, so the colour still reads
+    painter.setPen(QPen(ink, 1))
+    left = position * width
+    height = RAMP_SWATCH.height()
+    step = 4
+    offset = -height
+    while offset < width:
+      painter.drawLine(QPointF(left + offset, height),
+                       QPointF(left + offset + height, 0.0))
+      offset += step
   # The pin boxes go on LAST, over the fills, so an outline is never
   # painted away by the stripe beside it. Drawn in the stripe's own
   # contrasting ink rather than a fixed colour, or the box would
@@ -317,7 +346,7 @@ def _striped_icon(colours, boxed=()):
   return QIcon(pixmap)
 
 
-def _custom_swatch_icon(colours, boxed=()):
+def _custom_swatch_icon(colours, boxed=(), hatched=()):
   """The swatch drawn while a ramp cell reads "Custom".
 
   Args:
@@ -326,13 +355,14 @@ def _custom_swatch_icon(colours, boxed=()):
       unsorted and unfiltered, so the swatch samples the map rather
       than presenting a tidied summary of it.
     boxed: stripe indices carrying a pinned bound; see _striped_icon.
+    hatched: stripe indices for classes no tile wears; see the same.
 
   Returns:
     A QIcon of the first colours as equal vertical stripes, drawn by
     _striped_icon, which is also what every named ramp's swatch goes
     through.
   """
-  return _striped_icon(colours, boxed)
+  return _striped_icon(colours, boxed, hatched)
 
 
 class RampCombo(QComboBox):
@@ -3831,6 +3861,49 @@ class WeavingSpaceDialog(QDialog):
     return [(r.lowerValue(), r.upperValue(), r.symbol().color().name())
             for r in renderer.ranges()]
 
+  def _unworn_stripes(self, tile_id, assignment, stripes):
+    """Which swatch stripes stand for classes nothing wears.
+
+    Args:
+      tile_id: the element.
+      assignment: its dict from ``_assignments()``.
+      stripes: how many stripes the swatch will draw, which is the
+        class count except on Unclassed, where fifty classes are
+        sampled down to eight.
+
+    Returns:
+      A list of stripe indices to hatch, empty when every class is
+      worn or when the question cannot be answered -- an unknown is
+      never drawn as an emptiness.
+
+    Asked of the ELEMENT's own output layer, because the question is
+    what THIS element draws rather than what the map as a whole
+    holds. Where no output exists yet the region's values answer it,
+    which is the same fallback the class preview uses.
+
+    Refused outright when the stripes are a SAMPLE of the classes
+    (Unclassed), since a stripe then stands for several classes and
+    hatching it would claim more than was measured.
+    """
+    field = assignment.get("var")
+    if not field or assignment.get("mode") != "Graduated":
+      return []
+    layer_id = self._element_layer_ids.get(tile_id)
+    layer = QgsProject.instance().mapLayer(layer_id) if layer_id else None
+    renderer = layer.renderer() if layer is not None else None
+    if renderer is None or not hasattr(renderer, "ranges"):
+      return []
+    bounds = [(r.lowerValue(), r.upperValue()) for r in renderer.ranges()]
+    if len(bounds) != stripes:
+      return []
+    index = layer.fields().indexOf(field)
+    if index < 0:
+      return []
+    try:
+      return bridge.unworn_classes(bounds, layer.uniqueValues(index))
+    except Exception:
+      return []
+
   def _custom_swatch_for(self, tile_id, field):
     """The swatch for one element's Custom display.
 
@@ -3866,7 +3939,12 @@ class WeavingSpaceDialog(QDialog):
              assignment.get("scheme"), assignment.get("k"),
              tuple(assignment.get("range_bounds", (0, 100))),
              tuple(sorted(picks.items())),
-             tuple(sorted(pinned.items())))
+             tuple(sorted((k, tuple(v) if isinstance(v, list) else v)
+                          for k, v in pinned.items())),
+             # the data's own fingerprint: an edit that empties a
+             # class must take the hatching off, and one that fills
+             # it must put it back
+             self._layer_fingerprint())
       cached = self._custom_swatch_cache.get(tile_id)
       if cached is not None and cached[0] == key:
         return cached[1]
@@ -3885,7 +3963,13 @@ class WeavingSpaceDialog(QDialog):
       # what the pin means there anyway.
       boxed = ([0] if pinned.get("low") is not None else []) + \
               ([-1] if pinned.get("high") is not None else [])
-      icon = _custom_swatch_icon(shades, boxed)
+      # ...and which classes nothing wears, asked of the ELEMENT's
+      # own layer, since the question is what THIS element draws. A
+      # copied ladder is the only ordinary way to get one: the class
+      # count is otherwise reduced to the value count, so an empty
+      # class cannot arise from a computed classification.
+      hatched = self._unworn_stripes(tile_id, assignment, len(shades))
+      icon = _custom_swatch_icon(shades, boxed, hatched)
       self._custom_swatch_cache[tile_id] = (key, icon)
       return icon
     picks = assignment.get("category_colours") or {}

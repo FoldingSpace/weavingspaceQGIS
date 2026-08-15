@@ -1079,6 +1079,42 @@ def set_class_bounds(renderer, bounds, outline, method):
     renderer.updateRangeLabel(position, label)
 
 
+def unworn_classes(bounds, values):
+  """Which classes no value falls into.
+
+  Args:
+    bounds: ``[(lower, upper), ...]`` in class order, as a graduated
+      renderer holds them.
+    values: the values actually drawn -- the element's own, since the
+      question is what THIS element wears.
+
+  Returns:
+    A list of class indices nothing occupies, in order. Empty when
+    every class is worn, which is the ordinary case.
+
+  QGIS's own containment rule, so this cannot disagree with the map
+  it describes: a value belongs to the FIRST range that contains it,
+  and a range holds ``lower < v <= upper`` except the first, which
+  includes its lower bound. A class nothing occupies is a swatch in
+  the legend that no tile wears -- normally impossible since the
+  class count is reduced to the value count, and reachable again the
+  moment a ladder is COPIED from an element carrying another column.
+  Those are kept rather than dropped (maintainer's decision,
+  2026-08-14), so they are marked instead.
+  """
+  numbers = [float(v) for v in values
+             if v is not None and v != NULL and isinstance(v, (int, float))
+             and math.isfinite(float(v))]
+  worn = set()
+  for value in numbers:
+    for index, (lower, upper) in enumerate(bounds):
+      if (value >= lower if index == 0 else value > lower) \
+          and value <= upper:
+        worn.add(index)
+        break
+  return [index for index in range(len(bounds)) if index not in worn]
+
+
 def fitted_breaks(breaks, smallest, largest):
   """A copied ladder of breaks, fitted to the receiving column.
 
