@@ -12,7 +12,7 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-08-13 (evening: every reported claim judged).
+Last updated 2026-08-15 (evening: every reported claim judged).
 
 ## How to run one
 
@@ -167,15 +167,16 @@ nothing, so it is counted against the hunt, not for it.
 | --- | --- | ---: | ---: | --- |
 | **Backwards from harm** | "What would a user be furious to lose, and how could the software do that to them?" | 1 | 2 | Found the worst defect in the project's history on its first run. Its second claim — more classes than the column has values, so swatches appear that no tile uses — was confirmed and fixed on 2026-08-13 (evening), two probes later: the first errored, the second lacked a render context |
 | **Instruments audit** | "Does each tool actually enforce the rule it claims?" | 1 | 6+ | Found the catalogue certifying tests that never ran, and (2026-08-13, evening) a documented command — the coverage report — that could never write a report at all, because the suite exits through os._exit |
-| **Asymmetry / twins** | "What does this path do that its sibling does not?" | 3 | 6 | The most reliable code-reading direction here |
+| **Asymmetry / twins** | "What does this path do that its sibling does not?" | 5 | 9 | The most reliable code-reading direction here |
 | **Suite dead axes** | "Which tests cannot fail?" | 1 | 3 | Two dead tests plus an always-true assertion |
-| **Two stores of one fact** | "Which of these two records wins when they disagree?" | 2 | 3 | Yielded well; several claims needed narrowing on verification |
-| **Unreachable branches** | "Which guard's precondition nothing produces?" | 1 | 2 | Also caught a red suite nobody had noticed |
-| **One boundary but not another** | "Which crossing was not fixed alongside the ones that were?" | 2 | 4 | Strong on export/reopen. Two QML findings confirmed later: a file edited on disk never reaches the map, and a moved file is repainted away on the restyle path |
-| **Write-only state** | "What is written and read back by nobody?" | 1 | 1 | Also misjudged a real defect as harmless — see below |
+| **Two stores of one fact** | "Which of these two records wins when they disagree?" | 3 | 4 | Yielded well; several claims needed narrowing on verification |
+| **Unreachable branches** | "Which guard's precondition nothing produces?" | 2 | 3 | Also caught a red suite nobody had noticed |
+| **One boundary but not another** | "Which crossing was not fixed alongside the ones that were?" | 3 | 5 | Strong on export/reopen. Two QML findings confirmed later: a file edited on disk never reaches the map, and a moved file is repainted away on the restyle path |
+| **Write-only state** | "What is written and read back by nobody?" | 2 | 2 | Also misjudged a real defect as harmless — see below |
 | **Preview against map** | "Do two renderings of one design agree?" | 1 | 1 | An unassigned element previewed in colour and drawn grey, confirmed and fixed. Its other claim — elements silently absent on dense designs — did NOT reproduce over ten configurations on 2026-08-13, and is counted against this direction |
 | **Dialog against live layer** | "Does the plugin's belief match the layer?" | 1 | 2 | A column rename destroying categorical picks (fixed), and a provider-level edit invisible to both stores — kept as a documented LIMIT, and the docstring that claimed otherwise corrected |
 | **Stochastic sessions** | No question — random actions, invariants checked after each | 1 | 2 | ~100 sessions. Most "breaks" were its own fixture; found a defect present since the first commit, and a crash it hit on three separate seeds |
+| **Reduction beside pinning** | "Does the newer path re-ask the older path's question?" | 1 | 1 | Run 2026-08-15 as an asymmetry hunt over two paths that both change how many classes a map draws. Found the reduction counting the whole column while a pin had already removed a class and its samples |
 | **Mutation sampling** | "Would the suite have noticed this change?" | many | **0** | 128 survivors, no product defects. It measures the SUITE |
 
 Rows are updated as claims are judged, which is why several moved
@@ -345,3 +346,54 @@ The hunt logs live in the session scratchpad and do not survive. If a
 hunt produced something worth keeping — a ranked harm list, an
 invariant set, a reproduction worth rerunning — copy it into
 `docs/process/` rather than leaving it in a temporary directory.
+
+
+## 2026-08-15: seven defects, and a instrument that had gone quiet
+
+Six hunts over one evening, all pointed at the pinned-bounds and
+copy-to features added in 0.24.3. Seven defects confirmed here after
+independent reproduction, every one of them a WRONG MAP rather than a
+crash, and every one fixed with a regression test and a catalogue
+entry that was proved to catch it.
+
+Three lessons the directions themselves taught, worth more than the
+individual finds.
+
+**When one record holds two claims, test them COEXISTING.** The pin
+record holds copied boundary VALUES and per-end pin FLAGS. Each
+worked perfectly alone, which is exactly why nothing noticed that
+together the pin did nothing: the button stayed down, the number was
+stamped into the project, and the map did not move. Two of the seven
+were this shape.
+
+**When one door into a state is guarded and another is not, check the
+unguarded door against every downstream guard sized for the guarded
+one.** `pin_problem` refuses every pin on a constant column, so no
+pin can put several classes on one value; a copy can, and the
+colouring branch downstream had been written for the guarded door. It
+left four of five classes on the placeholder grey they are built
+with, and the element drew as no data.
+
+**A hunt's OBSERVATIONS outrun its SEVERITY JUDGEMENTS, and its
+arithmetic is worth re-deriving.** Every claim reproduced here in
+substance; two did not reproduce in detail (a pool reported as two
+values was three, a count reported as fifty was twenty), and one
+claim was a designed behaviour with a real defect sitting inside it —
+copying a ladder onto a column that cannot reach it is the feature
+working, while the pin riding along unvalidated is not. Reproduce
+independently before believing, and separate the part that is a
+defect from the part that is the design.
+
+**The instrument that had gone quiet.** Auditing the catalogue while
+adding to it found SEVEN of 243 entries anchored on text that no
+longer existed in the file they named. Such an entry matches nothing,
+mutates nothing, finds no survivor and exits clean — it reports
+nothing, which is indistinguishable from reporting success. Five had
+gone silent in a rework the day before and two under the same
+evening's fixes. `tools/check_standards.py` now reads every entry
+with `ast` and fails when its anchor is absent; it caught one of this
+evening's own fixes moving a line another entry stood on, within the
+hour. One re-anchored entry then SURVIVED, which was the second half
+of the finding: since the constant-column rework either of two
+branches delivers the same result on a classed style, so mutating one
+alone changed nothing the test could see.

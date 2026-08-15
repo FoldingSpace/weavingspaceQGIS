@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-138 defect(s) with a regression test.
+145 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -153,8 +153,16 @@ there is no separate list to remember.
   guarded by `test_a_copied_classification_carries_the_whole_row`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_copied_ladder_is_fitted_to_the_column_it_lands_on`
+- **copying a classification onto an element whose column holds a single value left every class but the first on the placeholder grey, so the element drew as flat no-data colour while its ramp cell named a ramp.**  
+  guarded by `test_a_copied_ladder_on_one_value_still_wears_its_ramp`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_copy_and_its_pins_survive_a_project_round_trip`
+- **copying a classification from an element drawn Quant: Unclassed wrote fifty into the receiving element's chosen class count, which the next table rebuild clamped to twenty, replacing the count the user had chosen.**  
+  guarded by `test_a_copy_from_unclassed_leaves_the_chosen_count_alone`
+- **copying a classification wrote the source element's pinned bounds onto the target without checking them against the target's own column, recording a bound the plugin refuses when typed.**  
+  guarded by `test_a_copy_leaves_behind_a_pin_the_data_cannot_carry`
+- **a copy wrote the target's class count and ramp into the dialog's records without moving its controls, so the row's cell, its assignment and the map disagreed about how many classes were drawn.**  
+  guarded by `test_a_copy_leaves_one_number_in_every_control`
 - **a hand-picked colour the plugin reported as discarded was left on the layer, saved, and re-imposed on the map next session.**  
   guarded by `test_a_discarded_pick_does_not_come_back`
 - **five dock classes over a collapsed column indexed past the end of the dialog's one-class expectation, inside a renderer signal handler.**  
@@ -171,6 +179,8 @@ there is no separate list to remember.
   guarded by `test_a_legend_never_shows_a_class_the_map_does_not_have`
 - **moving a class-source QML and then changing any style control repainted the element in automatic colours, silently, where the re-tile path keeps the map and names the file.**  
   guarded by `test_a_moved_class_source_survives_a_restyle`
+- **per-element records survived a project change, so pinned bounds, colours and class counts set in one project were applied to the next project opened in the same session.**  
+  guarded by `test_a_new_project_does_not_inherit_the_last_one_s_pins`
 - **only _finish_run restored the determinate progress range, and the zombie recovery does not go through it.**  
   guarded by `test_a_new_run_always_shows_real_progress`
 - **a hand-picked colour changed under live update was swallowed by the no-op guard, because the run signature did not carry the picks that the restyle signature does.**  
@@ -179,10 +189,14 @@ there is no separate list to remember.
   guarded by `test_a_pin_and_a_class_source_do_not_meet`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_pin_belongs_to_an_element_and_a_field`
+- **the class-count reduction counted the whole column, so pinning a bound could leave the scheme cutting more classes than the pool between the pins had distinct values, drawing a legend swatch no tile wears.**  
+  guarded by `test_a_pin_leaves_no_class_for_a_tile_to_miss`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_pin_reaches_the_map_through_the_live_path`
 - **pinned bounds set while a run was finishing were seeded from the stale snapshot, destroyed as the run landed, and stamped absent onto the layer.**  
   guarded by `test_a_pin_set_during_a_run_is_not_lost`
+- **a pin set on an element carrying a copied classification was recorded, stamped and shown as set while the map ignored it, and then took effect later when the copy was released.**  
+  guarded by `test_a_pin_still_works_on_a_copied_ladder`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_pin_survives_a_project_round_trip`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
@@ -321,7 +335,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 82
+- unrecorded: 89
 - the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6

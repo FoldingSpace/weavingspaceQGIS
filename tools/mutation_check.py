@@ -80,10 +80,8 @@ MUTATIONS = [
            "dialogue nobody has read cannot start downloading and "
            "unpacking code"),
   dict(name="nulls-excluded-from-breaks", file=BRIDGE,
-       old="""    if layer.setSubsetString(combined):
-      restore = previous""",
-       new="""    if False:  # mutation: classify the nulls along with the data
-      restore = previous""",
+       old='    if source.setSubsetString(combined):\n      restore = previous',
+       new='    if False:  # mutation: classify the nulls along with the data\n      restore = previous',
        test="test_class_breaks_ignore_nulls",
        why="QGIS counts a NULL as zero when it computes class breaks, "
            "so a column with gaps gets a spurious 0-0 class and every "
@@ -111,14 +109,10 @@ MUTATIONS = [
   # alone; the ramp-midpoint behaviour that shares the local has its
   # own entry (constant-class-takes-ramp-start).
   dict(name="constant-column-classes", file=BRIDGE,
-       old="""  if constant:
-    k = 1""",
-       new="""  if False:  # mutation: cut k classes over one distinct value
-    k = 1""",
+       old='  if distinct == 1:\n    k = 1\n  elif not unclassed and 0 < distinct < int(k):',
+       new='  if False:  # mutation: no reduction reaches a constant\n    k = 1     # column by either route\n  elif False:',
        test="test_a_constant_column_draws_one_class_and_says_so",
-       why="a column that is 7 everywhere gets five classes all "
-           "reading 7 - 7 in five colours, a legend showing variation "
-           "the data does not have"),
+       why='a column that is 7 everywhere gets five classes all reading 7 - 7 in five colours, a legend showing variation the data does not have. BOTH branches are mutated because since the 2026-08-14 rework either one delivers k=1 on a classed style, so mutating one alone changes nothing this test can see -- it survived, silently, until the anchor audit re-ran it. The branch that is genuinely load-bearing alone is the Unclassed case, held by constant-column-beats-unclassed-fifty.'),
   # TWO entries, because there are two signatures and they gate
   # different paths: _geometry_signature decides whether pressing
   # Generate re-tiles or merely repaints, and _run_signature decides
@@ -138,13 +132,8 @@ MUTATIONS = [
            "is answered by repainting tiles built from data that no "
            "longer exists"),
   dict(name="fingerprint-in-run-signature", file=DIALOG,
-       old="""      self._layer_fingerprint(), self._data_version,
-    )
-
-  @staticmethod""",
-       new="""    )
-
-  @staticmethod""",
+       old='      self._layer_fingerprint(), self._data_version,\n    )\n\n  def _restyle_only',
+       new='    )\n\n  def _restyle_only',
        test="test_live_update_notices_the_data_changing",
        why="without it, live update compares two identical signatures "
            "after an edit and skips the run as a no-op, so a user "
@@ -1195,9 +1184,8 @@ MUTATIONS = [
   # beside it. The mutation still sends the constant case past the
   # midpoint recolour and back to whatever QGIS coloured it.
   dict(name="constant-class-takes-ramp-start", file=BRIDGE,
-       old="  if constant and count:",
-       new="  if False and count:"
-           "  # mutation: keep QGIS's endpoint colour",
+       old='  if distinct == 1 and count == 1:',
+       new="  if False and count == 1:  # mutation: keep QGIS's endpoint colour",
        test="test_a_constant_column_draws_one_class_and_says_so",
        why="a constant column's single class draws the MIDDLE of its "
            "ramp (of the display window, where one has been narrowed); "
@@ -1989,12 +1977,8 @@ MUTATIONS = [
            "move as this message exists to report. Widened to <=, a "
            "user meets exactly that change in silence"),
   dict(name="one-feature-constant-collapse", file=BRIDGE,
-       old="""    if len(seen) > 1:
-      return False
-  return len(seen) == 1""",
-       new="""    if len(seen) > 1:
-      return False
-  return False  # mutation: no column is ever constant""",
+       old='  return distinct_numeric_count(values, limit=2) == 1',
+       new='  return False  # mutation: no column is ever constant',
        test="test_a_region_of_one_feature_degenerates_honestly",
        why="a region of ONE feature makes every mapped column constant "
            "on the map, whatever variation the data has elsewhere. "
@@ -2334,12 +2318,8 @@ MUTATIONS = [
   # and this entry stays aimed at the one scheme that arrives here
   # with a class count already fixed.
   dict(name="constant-column-beats-unclassed-fifty", file=BRIDGE,
-       old="""  constant = index >= 0 and numeric_values_are_constant(values)
-  if constant:
-    k = 1""",
-       new="""  constant = index >= 0 and numeric_values_are_constant(values)
-  if constant and k != 50:  # mutation: the collapse no longer
-    k = 1                   # overrides the fifty Unclassed fixed""",
+       old='  if distinct == 1:\n    k = 1',
+       new='  if distinct == 1 and not unclassed:  # mutation: the collapse no\n    k = 1  # longer overrides the fifty Unclassed fixed',
        test="test_unclassed_over_a_constant_column",
        why="Quant: Unclassed cuts fifty linear intervals, so over a "
            "column that is 7 everywhere the legend claims fifty grades "
@@ -2425,8 +2405,8 @@ MUTATIONS = [
            "value in a middle colour, so a reader matching the darkest "
            "swatch to 'high' reads the map wrongly"),
   dict(name="a-copy-carries-the-pin-flags", file=DIALOG,
-       old="      if source_pins.get(end) is not None:",
-       new="      if False:  # mutation: the flags stay behind",
+       old='      if source_pins.get(end) is None:\n        continue',
+       new='      if True:  # mutation: the flags stay behind\n        continue',
        test="test_a_copied_classification_carries_the_whole_row",
        why="the pin FLAG is a different statement from the boundary "
            "VALUES, and a copy must carry both: without the flag a "
@@ -2487,6 +2467,67 @@ MUTATIONS = [
            "flags and their two bounds are a smaller and more durable "
            "statement and must survive, with the scheme recomputing "
            "the middle around them"),
+  dict(name="one-class-colouring-needs-one-class", file=BRIDGE,
+       old="  if distinct == 1 and count == 1:",
+       new="  if distinct == 1 and count:",
+       test="test_a_copied_ladder_on_one_value_still_wears_its_ramp",
+       why="a copied ladder puts several classes on a one-value "
+           "column, and colouring index 0 alone leaves the rest on "
+           "the placeholder grey set_class_bounds builds them with, "
+           "so the element draws as no data while its cell names a "
+           "ramp"),
+  dict(name="unclassed-fifty-is-not-a-chosen-count", file=DIALOG,
+       old="    if not unclassed_source:\n"
+           "      self._class_counts[target_id] = len(classes)",
+       new="    if True:\n"
+           "      self._class_counts[target_id] = len(classes)",
+       test="test_a_copy_from_unclassed_leaves_the_chosen_count_alone",
+       why="`_class_counts` is the record that means CHOSEN, and "
+           "Unclassed's fifty is fixed by the style; written there it "
+           "is clamped to twenty at the next rebuild, replacing the "
+           "count the user picked with no notice"),
+  dict(name="a-pin-is-read-under-a-copied-ladder", file=BRIDGE,
+       old="""  if low_pin is not None and copied:""",
+       new="""  if False and copied:""",
+       test="test_a_pin_still_works_on_a_copied_ladder",
+       why="the record holds copied VALUES and pin FLAGS, and each "
+           "worked alone -- so nothing noticed that together the pin "
+           "did nothing: the button stayed down, the number was "
+           "stamped, the map did not move, and the pin then fired "
+           "later when the copy was released"),
+  dict(name="a-copy-moves-the-controls-too", file=DIALOG,
+       old="    self._sync_target_controls(\n      target_id,",
+       new="    self._skip_target_controls(\n      target_id,",
+       test="test_a_copy_leaves_one_number_in_every_control",
+       why="`_assignments` reads the class count off the spinner, so "
+           "writing the record without moving the widget leaves four "
+           "descriptions of one setting and a fifth after a reopen"),
+  dict(name="a-project-change-drops-the-last-project", file=DIALOG,
+       old="    QgsProject.instance().cleared.connect("
+           "self._forget_the_last_project)",
+       new="    pass",
+       test="test_a_new_project_does_not_inherit_the_last_one_s_pins",
+       why="the dialog outlives the project and tile ids repeat across "
+           "families, so without this a bound pinned in the project "
+           "just closed lands on the project just opened, where the "
+           "plugin itself refuses that number when typed"),
+  dict(name="a-copied-pin-is-checked-against-its-new-data", file=DIALOG,
+       old="""      if bridge.pin_problem(trial["low"], trial["high"], target_values,
+                            source.get("k", 5)):""",
+       new="""      if False:""",
+       test="test_a_copy_leaves_behind_a_pin_the_data_cannot_carry",
+       why="every typed bound goes through pin_problem; the copy path "
+           "is the only route by which one could arrive unexamined, "
+           "and because a copy degrades to its pins that bound "
+           "outlives the copy it came in on"),
+  dict(name="the-reduction-sees-the-pinned-pool", file=BRIDGE,
+       old="  if pins and wants_middle and not unclassed:",
+       new="  if False:",
+       test="test_a_pin_leaves_no_class_for_a_tile_to_miss",
+       why="a pin removes a class from the ladder AND its samples from "
+           "the pool, so without re-asking the reduction's question "
+           "the scheme cuts more classes than the middle has values "
+           "and the legend gains a swatch no tile wears"),
   dict(name="the-map-is-seeded-with-its-pins", file=BRIDGE,
        old="""      assignment.get("quant_colours"), classify_from,
       assignment.get("pinned")))""",
@@ -2497,7 +2538,7 @@ MUTATIONS = [
            "table, the swatch and the editor all say otherwise -- "
            "caught in PIXELS here, against the library's own render"),
   dict(name="a-pin-decides-its-own-break", file=BRIDGE,
-       old="  if pins:\n    _apply_pinned_bounds(",
+       old="  if pins and copied is None:\n    _apply_pinned_bounds(",
        new="  if False:\n    _apply_pinned_bounds(",
        test="test_a_pinned_class_bound_reaches_the_map",
        why="a bound set by hand must be the bound the map draws; "
@@ -2521,8 +2562,12 @@ MUTATIONS = [
            "the pinned classes do not meet: measured, that draws 0-10 "
            "beside 60-121 with everything between in no class"),
   dict(name="pins-are-stamped-on-the-layer", file=DIALOG,
-       old='"pinned": {k: float(v) for k, v in pinned.items()},',
-       new='"pinned": {},  # mutation: never recorded',
+       old="""                    "pinned": {
+                      key: ([float(x) for x in value]
+                            if isinstance(value, (list, tuple))
+                            else float(value))
+                      for key, value in pinned.items()},""",
+       new="""                    "pinned": {},""",
        test="test_a_pin_survives_a_project_round_trip",
        why="nothing on a renderer records that a break was chosen "
            "rather than computed, so an unstamped pin is lost on "

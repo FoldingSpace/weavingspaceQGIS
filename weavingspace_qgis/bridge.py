@@ -924,7 +924,7 @@ def inset_collapse_message(declared: int, remaining: int,
           f"choose a coarser spacing.")
 
 
-def pin_problem(low, high, values, asked: int):
+def pin_problem(low, high, values, asked: int, breaks=None):
   """Why a pair of pinned bounds cannot be used, or None.
 
   Args:
@@ -937,6 +937,9 @@ def pin_problem(low, high, values, asked: int):
     asked: the class count the row asks for, so that a pin leaving
       nothing for the middle can be told from one that merely leaves
       little.
+    breaks: the interior boundaries of a COPIED ladder already in
+      force on this element, or None. A pin on top of a copy moves
+      one of those boundaries, so it must not cross the next one.
 
   Returns:
     A sentence for the message bar naming what is wrong, or None when
@@ -990,6 +993,21 @@ def pin_problem(low, high, values, asked: int):
     return (f"A {int(asked)}-class scheme has {available} "
             f"{boundaries} to pin, so it cannot carry {pins}. Ask "
             f"for more classes, or unpin one end.")
+  # A pin sitting on top of a COPIED ladder moves one of that ladder's
+  # boundaries, and it must not cross its neighbour: the ladder would
+  # stop being monotonic and a class would run backwards. Checked here
+  # rather than clamped there, because a typed number is honoured or
+  # visibly rejected and never quietly changed.
+  ladder = [float(b) for b in (breaks or [])]
+  if ladder:
+    if low is not None and len(ladder) > 1 and float(low) >= ladder[1]:
+      return (f"The first class cannot end at {_trim(low)}: the copied "
+              f"classes put the next break at {_trim(ladder[1])}.")
+    if high is not None and len(ladder) > 1 and float(high) <= ladder[-2]:
+      return (f"The last class cannot begin at {_trim(high)}: the "
+              f"copied classes put the break before it at "
+              f"{_trim(ladder[-2])}.")
+
   # Something has to be left for the classes in between. A pin takes
   # one class of its own, so the middle is what the row asked for
   # minus the pins, and it needs at least one value to cut.
@@ -1017,7 +1035,51 @@ def _trim(value: float) -> str:
   return text
 
 
-def few_values_message(field: str, distinct: int, asked: int):
+def classes_the_map_will_draw(values, asked, pinned=None):
+  """How many classes this column actually draws, pins included.
+
+  Args:
+    values: every value of the column, from the REGION layer.
+    asked: the class count the table asked for.
+    pinned: the element's pin record, or None. Only "low" and "high"
+      are read; a copied ladder's "breaks" decide their own count and
+      never come through here.
+
+  Returns:
+    (count, from_a_pinned_pool). The count is what the legend will
+    hold; the flag says whether the reduction came from the pool
+    between the pins rather than from the whole column, which is what
+    the notice needs in order to be true.
+
+  ONE QUESTION ASKED ONCE. Both notice sites used to count the whole
+  column and compare against k, which is right until a pin removes a
+  class from the ladder AND its samples from the pool -- after which
+  the sentence describes a legend the map does not have, which is the
+  precise thing these notices exist to prevent. This is the same
+  arithmetic make_graduated_renderer performs, kept beside it so the
+  two cannot drift.
+  """
+  finite = [float(v) for v in values
+            if v is not None and v != NULL and isinstance(v, (int, float))
+            and math.isfinite(float(v))]
+  low = (pinned or {}).get("low")
+  high = (pinned or {}).get("high")
+  pins = (low is not None) + (high is not None)
+  whole = distinct_numeric_count(finite)
+  if not pins or int(asked) - pins <= 0:
+    return (min(whole, int(asked)) if whole else int(asked)), False
+  middle = [v for v in finite
+            if (low is None or v > float(low))
+            and (high is None or v < float(high))]
+  middle_distinct = distinct_numeric_count(middle)
+  room = int(asked) - pins
+  if 0 < middle_distinct < room:
+    return middle_distinct + pins, True
+  return (min(whole, int(asked)) if whole else int(asked)), False
+
+
+def few_values_message(field: str, distinct: int, asked: int,
+                       pinned: bool = False):
   """The notice for a column with fewer distinct values than classes.
 
   Args:
@@ -1026,6 +1088,11 @@ def few_values_message(field: str, distinct: int, asked: int):
       for it — the user's own areas, not the tiles, for the same
       reason missing_values_message counts areas.
     asked: how many classes the table asked for.
+    pinned: whether the count came from the pool a PIN left rather
+      than from the whole column, which changes the sentence: the
+      column still holds every value it held, and a notice saying
+      otherwise would send a user looking for data they have not
+      lost. Defaults to False, the plain case.
 
   Returns:
     One sentence for the message bar, or None when the count was not
@@ -1042,6 +1109,11 @@ def few_values_message(field: str, distinct: int, asked: int):
   """
   if distinct >= asked or distinct <= 0:
     return None
+  if pinned:
+    return (f"'{field}' has {distinct} distinct value"
+            f"{'' if distinct == 1 else 's'} left between its pinned "
+            f"bounds, so it draws as {distinct} "
+            f"class{'' if distinct == 1 else 'es'}, not {asked}.")
   return (f"'{field}' has {distinct} distinct value"
           f"{'' if distinct == 1 else 's'}, so it draws as {distinct} "
           f"class{'' if distinct == 1 else 'es'}, not {asked}.")
@@ -1576,6 +1648,35 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   wants_middle = int(k) - pins > 0
   if pins:
     k = max(1, int(k) - pins)
+  # THE REDUCTION ABOVE ASKED ITS QUESTION TOO EARLY, and this asks it
+  # again where the answer is decidable. Up there, k was compared with
+  # the distinct values of the WHOLE column; a pin then takes a class
+  # out of the ladder AND its samples out of the pool, so the scheme
+  # is asked to cut k-pins classes from a strictly smaller set. That
+  # is the same arithmetic the reduction exists to prevent, arriving
+  # by a route it cannot see. Measured 2026-08-15 on the column
+  # [1, 2, 3, 10, 20, 30, 100] with k=5 and pins at 3 and 30: the
+  # middle holds {10, 20} and was asked for three classes, so the
+  # ladder's third class, 13.3333 to 16.6667, was worn by no tile and
+  # 20 painted a rung of the ramp too low. Four colours under a legend
+  # of five, and nothing said so.
+  #
+  # The PINNED classes are not counted here. They are named rather
+  # than cut, and a pinned class holding no samples is a deliberate
+  # statement about where a reader's eye should start -- which is why
+  # this counts the middle pool alone, on exactly the rule the subset
+  # string below filters by, so the two cannot disagree.
+  #
+  # Unclassed is exempt for the reason the first reduction gives: its
+  # fifty steps reproduce a continuous ramp rather than a class count
+  # anybody chose.
+  if pins and wants_middle and not unclassed:
+    middle_values = [v for v in finite_values
+                     if (low_pin is None or v > float(low_pin))
+                     and (high_pin is None or v < float(high_pin))]
+    middle_distinct = distinct_numeric_count(middle_values)
+    if 0 < middle_distinct < int(k):
+      k = middle_distinct
   # ---- A COPIED LADDER short-circuits the classifier entirely
   #
   # `pinned["breaks"]` holds every interior boundary of a ladder
@@ -1590,6 +1691,28 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
     copied = fitted_breaks(pinned["breaks"], finite_values[0],
                            finite_values[-1])
   if copied is not None:
+    # A PIN ON TOP OF A COPY moves that end's boundary, and until
+    # 2026-08-15 it did nothing at all: this branch read
+    # pinned["breaks"] and never looked at low or high, so the button
+    # stayed down, the number was stamped into the project, and the
+    # map did not move. Worse, it was LATENT -- releasing the copied
+    # values later (a new class count) let the pin fire at a moment
+    # the user had not connected it to. Found by a hunt pointed at
+    # "which of two records wins", which is the right question: the
+    # record holds two claims and each worked alone.
+    #
+    # The pin replaces the outermost boundary and its neighbour's
+    # matching edge, so the ladder stays contiguous. A pin that would
+    # cross the next copied boundary is refused by pin_problem before
+    # it ever reaches here.
+    if low_pin is not None and copied:
+      copied[0] = (copied[0][0], float(low_pin))
+      if len(copied) > 1:
+        copied[1] = (float(low_pin), copied[1][1])
+    if high_pin is not None and copied:
+      copied[-1] = (float(high_pin), copied[-1][1])
+      if len(copied) > 1:
+        copied[-2] = (copied[-2][0], float(high_pin))
     set_class_bounds(renderer, copied, outline, method)
     pins = 1        # force the full recolour below, as a pin does
   FINITE = 1e307
@@ -1649,7 +1772,17 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   # first written.
   lo, hi = range_bounds
   count = len(renderer.ranges())
-  if distinct == 1 and count:
+  # `count == 1` as well as `distinct == 1`, and the second half is
+  # not redundant: a COPIED LADDER puts several classes on a column
+  # holding one value, and this branch colours index 0 alone -- so
+  # the other four kept the placeholder grey set_class_bounds builds
+  # them with, and the element drew as flat #c0c0c0, which on a map
+  # reads as no data. Measured 2026-08-15 on a column that is 7
+  # everywhere carrying a four-break copied ladder: one Greens colour
+  # and four greys. The pins-forced recolour below is what such a
+  # ladder needs, and it was being shadowed by this branch winning
+  # the if/elif. The one-class case itself is unchanged.
+  if distinct == 1 and count == 1:
     # One class ranges over the whole window, and QGIS colours it
     # from the ramp's START (measured: near-white on Reds), which on
     # the map reads as "no data" rather than "one value". The

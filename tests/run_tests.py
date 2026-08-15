@@ -8539,6 +8539,534 @@ def test_pins_hold_across_the_whole_family_catalogue():
   dlg.close()
 
 
+def test_a_pin_still_works_on_a_copied_ladder():
+  """The two claims in one record must work TOGETHER, not just alone.
+
+  The record holds copied boundary VALUES and per-end PIN FLAGS, and
+  each worked perfectly by itself, which is exactly why nothing
+  noticed that together the pin did nothing: make_graduated_renderer
+  short-circuited on the copied ladder and never read the pin. The
+  button stayed down, the number was stamped into the project, and
+  the map did not move -- then releasing the copy later let the pin
+  fire at a moment the user had not connected it to.
+
+  Found by a hunt pointed at "which of two records wins when they
+  disagree", and the lesson is the general one: when one record holds
+  two claims, test them COEXISTING.
+
+  Regression: a pin set on an element carrying a copied classification was recorded, stamped and shown as set while the map ignored it, and then took effect later when the copy was released.
+  """
+  from weavingspace_qgis import bridge
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  ladder = [4.0, 14.2, 30.0, 55.0]
+
+  def bounds(pinned):
+    renderer = bridge.make_graduated_renderer(
+      layer, "v1", "Reds", "Quantiles", 5, False, pinned=pinned)
+    return [(round(r.lowerValue(), 3), round(r.upperValue(), 3))
+            for r in renderer.ranges()]
+
+  copy_only = bounds({"breaks": ladder})
+  with_pin = bounds({"breaks": ladder, "low": 3.0})
+  assert with_pin != copy_only, \
+    f"the pin did nothing on top of a copied ladder: {with_pin}"
+  assert with_pin[0][1] == 3.0, \
+    f"the pinned bound is not where it was put: {with_pin}"
+  assert with_pin[1][0] == 3.0, \
+    f"the ladder is no longer contiguous at the pin: {with_pin}"
+  assert all(low <= high for low, high in with_pin), \
+    f"a class runs backwards after pinning a copy: {with_pin}"
+  assert with_pin[2:] == copy_only[2:], \
+    f"pinning one end moved boundaries it should not have: " \
+    f"{with_pin} against {copy_only}"
+
+  high = bounds({"breaks": ladder, "high": 40.0})
+  assert high[-1][0] == 40.0 and high[-2][1] == 40.0, \
+    f"the high pin did not move the copied ladder: {high}"
+
+  # ...and a pin that would cross the next copied boundary is refused
+  # rather than quietly reordering somebody's classes
+  values = layer.uniqueValues(layer.fields().indexOf("v1"))
+  assert bridge.pin_problem(20.0, None, values, 5, ladder), \
+    "a low pin past the copied ladder's second break must be refused"
+  assert bridge.pin_problem(3.0, None, values, 5, ladder) is None, \
+    "a low pin below the next copied break is legal and was refused"
+
+
+def test_a_copy_leaves_one_number_in_every_control():
+  """After a copy, the cell, the record and the map must agree.
+
+  `_assignments` reads the class count from the spin box's own
+  property, so writing `_class_counts` without moving the widget left
+  four descriptions of one setting: the map drew seven, the spinner
+  showed five, the assignment claimed five, the record held seven --
+  and a reopened project produced a fifth reading. The ramp did the
+  same, the cell naming one ramp while the record named another.
+
+  This is the fault test_an_unclassed_excursion_leaves_the_count_alone
+  guards for a different cause, and it arrived here because a copy
+  wrote records rather than driving controls.
+
+  Regression: a copy wrote the target's class count and ramp into the dialog's records without moving its controls, so the row's cell, its assignment and the map disagreed about how many classes were drawn.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v3")
+  dlg.table.cellWidget(1, 1).setCurrentText("v1")
+  _tick(150)
+  source = dlg.table.item(0, 0).text()
+  target = dlg.table.item(1, 0).text()
+  spin_source = dlg.table.cellWidget(0, 3)
+  assert spin_source is not None and spin_source.isEnabled(), \
+    "the source row has no class-count spinner to move"
+  spin_source.setValue(7)
+  _pick_ramp(dlg.table.cellWidget(0, 4), "Reds")
+  _tick(200)
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+
+  assert dlg._copy_classification(source, target) is None, \
+    "the copy was refused"
+  _tick(300)
+
+  drawn = len(project.mapLayer(
+    dlg._element_layer_ids[target]).renderer().ranges())
+  spin_target = dlg.table.cellWidget(1, 3)
+  row = next((a for a in dlg._assignments() if a["id"] == target), None)
+  readings = {
+    "the map": drawn,
+    "the spinner": spin_target.value() if spin_target else None,
+    "the assignment": row and row.get("k"),
+    "_class_counts": dlg._class_counts.get(target),
+  }
+  assert len(set(readings.values())) == 1, \
+    f"one setting, several numbers: {readings}"
+
+  cell = dlg.table.cellWidget(1, 4)
+  named = cell.currentText() if cell is not None else None
+  assert named == dlg._ramp_choices.get(target), \
+    f"the ramp cell reads {named!r} where the record holds " \
+    f"{dlg._ramp_choices.get(target)!r}"
+  dlg.close()
+
+
+def test_a_new_project_does_not_inherit_the_last_one_s_pins():
+  """The dialog outlives the project; its beliefs must not.
+
+  QGIS keeps one plugin dialog per session, so every per-element
+  record survives File > Open -- and the keys collide readily, since
+  tile ids come from the family ("a", "b", "c") and field names
+  repeat across projects drawn from one data schema. A bound pinned
+  in the project just closed therefore lands on the project just
+  opened, where the plugin itself refuses that number when typed.
+
+  The harm is the characteristic one here: the map is wrong and looks
+  fine. Every tile draws one colour under a legend of five classes,
+  and nothing in the new project ever asked for a pin.
+
+  Found by a hunt pointed at "state that survives one boundary and
+  not another"; a save and a reopen were both covered, and the
+  boundary with no file at either end was not.
+
+  Regression: per-element records survived a project change, so pinned bounds, colours and class counts set in one project were applied to the next project opened in the same session.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  first = make_region_layer(n=12)
+  project.addMapLayer(first)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(first)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v3")
+  _tick(150)
+  tile_id = dlg.table.item(0, 0).text()
+  wide = [v for v in first.uniqueValues(first.fields().indexOf("v3"))
+          if v is not None]
+  pin = round(min(wide) + 0.7 * (max(wide) - min(wide)), 2)
+  dlg._pinned_bounds.setdefault(tile_id, {})["v3"] = {"low": float(pin)}
+  dlg._class_counts[tile_id] = 9
+  dlg._ramp_choices[tile_id] = "Reds"
+  assert dlg._pinned_bounds, "the fixture never set a pin to lose"
+
+  # ...the user opens a different project in the same QGIS session
+  project.clear()
+  second = make_region_layer(n=4)
+  project.addMapLayer(second)
+  dlg.layer_combo.setLayer(second)
+  _tick(300)
+  combo = dlg.table.cellWidget(0, 1)
+  if combo is not None:
+    combo.setCurrentText("v3")
+  _tick(200)
+  # The records that make a claim ABOUT DATA are the ones that must
+  # not cross: a bound, a class count, a positional colour, a layer
+  # id. The data-blind row controls (ramp, reverse, opacity) are
+  # cleared with them and then re-established from their own widgets
+  # when the table rebuilds, which is why they are not asserted here
+  # -- a ramp carried into the next project is a colour preference,
+  # not a number applied to somebody else's column, and the record
+  # and the widget still agree about it.
+  for name, record in (("pinned bounds", dlg._pinned_bounds),
+                       ("class counts", dlg._class_counts),
+                       ("hand-picked class colours", dlg._quant_colours),
+                       ("layer ids", dlg._element_layer_ids)):
+    assert not record, \
+      f"the new project inherited the last one's {name}: {record}"
+
+  narrow = [v for v in second.uniqueValues(second.fields().indexOf("v3"))
+            if v is not None]
+  assert pin > max(narrow), \
+    "the fixture's two columns overlap, so nothing here is proved"
+  new_id = dlg.table.item(0, 0).text()
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+  layer_id = dlg._element_layer_ids.get(new_id)
+  assert layer_id, "the second project produced no element layer"
+  bounds = [(r.lowerValue(), r.upperValue())
+            for r in project.mapLayer(layer_id).renderer().ranges()]
+  assert bounds, "the second project's element drew no classes at all"
+  assert max(high for _low, high in bounds) <= max(narrow) + 1e-6, \
+    f"the second project's classes reach past its own data: {bounds}"
+  assert len(bounds) > 1, \
+    f"the second project drew a single class, as an inherited pin " \
+    f"would make it: {bounds}"
+  dlg.close()
+
+
+def test_a_copy_leaves_behind_a_pin_the_data_cannot_carry():
+  """A pin is a claim about THIS element's data.
+
+  Every typed bound goes through bridge.pin_problem before it is
+  recorded. The copy path wrote the source's pin flags straight into
+  the target with no such check, so copying between elements carrying
+  different variables recorded a bound the plugin refuses when typed
+  -- and because a copy DEGRADES TO ITS PINS, that bound outlived the
+  copy: retire the ladder with a new class count and the illegal pin
+  is what remained.
+
+  The LADDER still travels whole, unreachable classes and all, since
+  reproducing a classification is what a copy is for. What cannot
+  travel is the claim that somebody chose that bound for this data.
+
+  Regression: copying a classification wrote the source element's pinned bounds onto the target without checking them against the target's own column, recording a bound the plugin refuses when typed.
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v3")
+  dlg.table.cellWidget(1, 1).setCurrentText("v1")
+  _tick(150)
+  source = dlg.table.item(0, 0).text()
+  target = dlg.table.item(1, 0).text()
+  wide = [v for v in layer.uniqueValues(layer.fields().indexOf("v3"))
+          if v is not None]
+  narrow = [v for v in layer.uniqueValues(layer.fields().indexOf("v1"))
+            if v is not None]
+  pin = round(min(wide) + 0.6 * (max(wide) - min(wide)), 2)
+  assert pin > max(narrow), \
+    "the two columns overlap at the chosen pin, so nothing is proved"
+  assert bridge.pin_problem(float(pin), None, narrow, 5), \
+    "the receiving column would accept this bound if typed"
+  dlg._pinned_bounds.setdefault(source, {})["v3"] = {"low": float(pin)}
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+
+  assert dlg._copy_classification(source, target) is None, \
+    "the copy was refused"
+  _tick(300)
+  record = dlg._pinned_bounds.get(target, {}).get("v1") or {}
+  assert record.get("low") is None, \
+    f"an unreachable bound was pinned on the target anyway: {record}"
+  assert record.get("breaks"), \
+    f"the ladder did not travel, and a copy is what it is for: {record}"
+  said = [text for _kind, text in BAR_MESSAGES
+          if "left behind" in text.lower()]
+  assert said, \
+    "the copy dropped a pin and said nothing about it"
+
+  # ...and the drop is what stops the illegal bound outliving the
+  # copy: retiring the ladder must leave the element on its own data
+  spin = dlg.table.cellWidget(1, 3)
+  assert spin is not None, "the target row offers no class-count spinner"
+  spin.setValue(spin.value() + 1)
+  _tick(200)
+  released = dlg._pinned_bounds.get(target, {}).get("v1") or {}
+  assert not released.get("breaks"), \
+    f"a new class count did not retire the copied ladder: {released}"
+  # ...and the MAP is read after a redraw, not before one: live update
+  # is off in this test, so the renderer still holds the copy until
+  # something restyles it, and asserting on it here would be asserting
+  # on a picture nobody has repainted
+  _generate_and_wait(dlg)
+  bounds = [(r.lowerValue(), r.upperValue()) for r
+            in project.mapLayer(dlg._element_layer_ids[target])
+            .renderer().ranges()]
+  assert max(high for _low, high in bounds) <= max(narrow) + 1e-6, \
+    f"the retired copy left the element classed past its data: {bounds}"
+  dlg.close()
+
+
+def test_a_pin_leaves_no_class_for_a_tile_to_miss():
+  """The reduction must count the pool a PIN actually leaves.
+
+  The class-count reduction compares the whole column's distinct
+  values against k. A pin then takes a class out of the ladder AND
+  its samples out of the pool, so the scheme cuts k-pins classes from
+  a strictly smaller set -- which is the same arithmetic the
+  reduction exists to prevent, arriving by a route it could not see.
+
+  Measured on [1, 2, 3, 10, 20, 30, 100], k=5, pinned at 3 and 30:
+  the middle held {10, 20} and was asked for three classes, so
+  13.3333-16.6667 was worn by no tile and 20 painted a rung of the
+  ramp too low. Four colours under a legend of five, and both notice
+  sites stayed silent because both counted the whole column.
+
+  Checked through a RENDER CONTEXT rather than by reading bounds:
+  which colour each value is actually painted is the thing a reader
+  sees, and a ladder can look contiguous while a class in the middle
+  of it is unreachable.
+
+  Regression: the class-count reduction counted the whole column, so pinning a bound could leave the scheme cutting more classes than the pool between the pins had distinct values, drawing a legend swatch no tile wears.
+  """
+  from qgis.core import QgsRenderContext
+  from weavingspace_qgis import bridge, compat
+  values = [1, 2, 3, 10, 20, 30, 100]
+  layer = QgsVectorLayer("Polygon?crs=EPSG:2193", "pinned pool", "memory")
+  provider = layer.dataProvider()
+  provider.addAttributes([compat.make_field("v", float)])
+  layer.updateFields()
+  features = []
+  for i, value in enumerate(values):
+    feature = QgsFeature(layer.fields())
+    feature.setAttribute("v", float(value))
+    x = i * 10.0
+    feature.setGeometry(QgsGeometry.fromPolygonXY([[
+      QgsPointXY(x, 0), QgsPointXY(x + 9, 0),
+      QgsPointXY(x + 9, 9), QgsPointXY(x, 9), QgsPointXY(x, 0)]]))
+    features.append(feature)
+  provider.addFeatures(features)
+  layer.updateExtents()
+  assert bridge.pin_problem(3.0, 30.0, values, 5) is None, \
+    "the fixture's pins are refused, so nothing below is exercised"
+  assert bridge.few_values_message("v", len(set(values)), 5) is None, \
+    "the whole column already reduces, so the pins prove nothing"
+
+  renderer = bridge.make_graduated_renderer(
+    layer, "v", "Reds", "Quantiles", 5, False,
+    pinned={"low": 3.0, "high": 30.0})
+  bounds = [(r.lowerValue(), r.upperValue()) for r in renderer.ranges()]
+  assert bounds[0] == (min(values), 3.0), \
+    f"the low pin is not where it was put: {bounds}"
+  assert bounds[-1] == (30.0, max(values)), \
+    f"the high pin is not where it was put: {bounds}"
+  assert bridge.unworn_classes(bounds, values) == [], \
+    f"a pinned ladder kept a class no tile wears: {bounds}"
+
+  layer.setRenderer(renderer)
+  context = QgsRenderContext()
+  renderer.startRender(context, layer.fields())
+  painted = {}
+  for feature in layer.getFeatures():
+    symbol = renderer.symbolForFeature(feature, context)
+    assert symbol is not None, \
+      f"value {feature['v']} fell outside every class: {bounds}"
+    painted[float(feature["v"])] = symbol.color().name()
+  renderer.stopRender(context)
+  assert len(set(painted.values())) == len(bounds), \
+    f"{len(set(painted.values()))} colours across {len(bounds)} " \
+    f"classes, so a swatch is unreachable: {painted}"
+
+  # ...and the user is TOLD, in a sentence that does not claim their
+  # column has lost values it still has
+  drawn, from_pins = bridge.classes_the_map_will_draw(
+    values, 5, {"low": 3.0, "high": 30.0})
+  assert (drawn, from_pins) == (len(bounds), True), \
+    f"the notice would count {drawn} against a map of {len(bounds)}"
+  note = bridge.few_values_message("v", drawn, 5, from_pins)
+  assert note and "pinned bounds" in note, \
+    f"the reduction went unexplained, or blamed the column: {note!r}"
+  assert f"{len(set(values))} distinct" not in note, \
+    f"the notice claims the column lost values it still has: {note!r}"
+
+
+def test_a_copy_from_unclassed_leaves_the_chosen_count_alone():
+  """Unclassed's fifty is the style's number, not the user's.
+
+  This is the rule test_an_unclassed_excursion_leaves_the_count_alone
+  guards, met by a route that did not exist when it was written: the
+  copy writes the source's class count into `_class_counts`, and that
+  record is the one of the two that means CHOSEN. From an Unclassed
+  source it wrote fifty, which the next table rebuild clamps to the
+  twenty the controls can express -- so a user who had chosen four
+  classes and copied a look from an Unclassed element came back to a
+  classed style redrawn in twenty, with nothing said.
+
+  What still travels is the whole look: the style, so an Unclassed
+  source makes its target Unclassed, and the ramp and its reversal.
+  Only the count is withheld, because there is no count to send.
+
+  Found by a hunt asking what is written and read back by nobody; the
+  general lesson it recorded is worth the line -- when a record has
+  its invariant written in a comment, look for writers added AFTER
+  that comment, because the newest writer is the one that has not
+  read it.
+
+  Regression: copying a classification from an element drawn Quant: Unclassed wrote fifty into the receiving element's chosen class count, which the next table rebuild clamped to twenty, replacing the count the user had chosen.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v3")
+  dlg.table.cellWidget(1, 1).setCurrentText("v3")
+  _tick(150)
+  source = dlg.table.item(0, 0).text()
+  target = dlg.table.item(1, 0).text()
+  chosen = 4
+  dlg.table.cellWidget(1, 3).setValue(chosen)
+  _tick(150)
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+  # ...the source goes Unclassed AFTER the run, and the fixture is
+  # checked rather than assumed: setting a mode before the first
+  # Generate did not survive the table rebuild, so an earlier version
+  # of this test copied from a Quantiles row and proved nothing
+  source_mode = dlg.table.cellWidget(0, 2)
+  source_mode.setCurrentText("Quant: Unclassed")
+  source_mode.activated.emit(source_mode.currentIndex())
+  _tick(300)
+  source_row = next((a for a in dlg._assignments() if a["id"] == source), None)
+  assert source_row and source_row.get("scheme") == "Unclassed", \
+    f"the source is not on Unclassed, so nothing here is exercised: " \
+    f"{source_row and source_row.get('scheme')}"
+  assert dlg._class_counts.get(target) == chosen, \
+    f"the fixture lost the chosen count before the copy: " \
+    f"{dlg._class_counts.get(target)}"
+
+  assert dlg._copy_classification(source, target) is None, \
+    "the copy from an Unclassed source was refused"
+  _tick(300)
+  recorded = dlg._class_counts.get(target)
+  assert recorded == chosen, \
+    f"the copy wrote {recorded} over the count the user chose ({chosen})"
+  # the LOOK still travelled, which is what a copy is for
+  row = next((a for a in dlg._assignments() if a["id"] == target), None)
+  assert row and row.get("scheme") == "Unclassed", \
+    f"the style did not travel with the copy: {row and row.get('scheme')}"
+
+  # ...and the count survives the rebuild that used to clamp it, and
+  # the return to a classed style that used to draw twenty
+  dlg.spacing_spin.setValue(dlg.spacing_spin.value() + 10)
+  _tick(400)
+  # PICKED, not merely displayed: the style chooser's handler hangs
+  # off `activated`, which is a user choosing, so setCurrentText moves
+  # the text and runs nothing -- and the ladder this test is about is
+  # retired in that handler
+  mode = dlg.table.cellWidget(1, 2)
+  mode.setCurrentText("Quant: Quantiles")
+  mode.activated.emit(mode.currentIndex())
+  _tick(300)
+  back = next((a for a in dlg._assignments() if a["id"] == target), None)
+  assert back and back.get("scheme") == "Quantiles", \
+    f"the target did not return to a classed style: " \
+    f"{back and back.get('scheme')}"
+  # a copy is made for one style, so returning to a classed one must
+  # have retired the copied ladder along with it
+  assert not (dlg._pinned_bounds.get(target, {}).get("v3") or {}).get(
+    "breaks"), "the copied ladder outlived the style it was made for"
+  _generate_and_wait(dlg)
+  spin = dlg.table.cellWidget(1, 3)
+  drawn = len(project.mapLayer(
+    dlg._element_layer_ids[target]).renderer().ranges())
+  readings = {"the spinner": spin.value() if spin else None,
+              "_class_counts": dlg._class_counts.get(target),
+              "the map": drawn}
+  assert set(readings.values()) == {chosen}, \
+    f"after a copy from Unclassed and a return to a classed style, " \
+    f"one setting reads: {readings}"
+  dlg.close()
+
+
+def test_a_copied_ladder_on_one_value_still_wears_its_ramp():
+  """No class may be left on the colour it was built with.
+
+  `set_class_bounds` builds every class in a placeholder grey and
+  lets the caller colour them, because who decides a class's colour
+  depends on whether a display window or a hand-pick is in force. The
+  one-value branch below it colours index 0 alone -- correct while a
+  constant column has exactly one class, and wrong the moment a
+  COPIED LADDER puts several classes on such a column: the other four
+  kept #c0c0c0, so the element drew flat placeholder grey, which on a
+  map reads as no data.
+
+  Two doors into one state, one of them guarded. `pin_problem`
+  refuses every pin on a constant column, so the pin door never
+  delivers this; the copy door is not guarded that way, and the
+  branch downstream was sized for the guarded one.
+
+  Regression: copying a classification onto an element whose column holds a single value left every class but the first on the placeholder grey, so the element drew as flat no-data colour while its ramp cell named a ramp.
+  """
+  from weavingspace_qgis import bridge, compat
+  layer = QgsVectorLayer("Polygon?crs=EPSG:2193", "one value", "memory")
+  provider = layer.dataProvider()
+  provider.addAttributes([compat.make_field("v", float)])
+  layer.updateFields()
+  features = []
+  for i in range(6):
+    feature = QgsFeature(layer.fields())
+    feature.setAttribute("v", 7.0)          # the whole column, one value
+    x = i * 10.0
+    feature.setGeometry(QgsGeometry.fromPolygonXY([[
+      QgsPointXY(x, 0), QgsPointXY(x + 9, 0),
+      QgsPointXY(x + 9, 9), QgsPointXY(x, 9), QgsPointXY(x, 0)]]))
+    features.append(feature)
+  provider.addFeatures(features)
+  layer.updateExtents()
+  QgsProject.instance().addMapLayer(layer)
+
+  # the one-class case is unchanged, and is checked first so a fix
+  # that simply disabled the branch could not pass this test
+  alone = bridge.make_graduated_renderer(
+    layer, "v", "Greens", "Quantiles", 5, False)
+  assert len(alone.ranges()) == 1, \
+    f"a constant column stopped drawing one class: {len(alone.ranges())}"
+  solo = alone.ranges()[0].symbol().color().name().lower()
+  assert solo != "#c0c0c0", \
+    "the single class kept the colour it was built with"
+
+  copied = bridge.make_graduated_renderer(
+    layer, "v", "Greens", "Quantiles", 5, False,
+    pinned={"breaks": [4.0, 14.2, 30.0, 55.0]})
+  colours = [r.symbol().color().name().lower() for r in copied.ranges()]
+  assert len(colours) == 5, \
+    f"the copied ladder did not arrive whole: {colours}"
+  left_grey = [i for i, c in enumerate(colours) if c == "#c0c0c0"]
+  assert not left_grey, \
+    f"classes {left_grey} kept the placeholder grey they were built " \
+    f"with, so the element draws as no data: {colours}"
+  assert len(set(colours)) == len(colours), \
+    f"the copied ladder's classes are not distinguishable: {colours}"
+
+
 def test_a_class_source_file_that_goes_away():
   """The QML is deleted, moved or renamed after being chosen.
 
@@ -38795,6 +39323,20 @@ def main():
         test_a_pin_and_a_class_source_do_not_meet)
   check("pins hold across the whole family catalogue",
         test_pins_hold_across_the_whole_family_catalogue)
+  check("a pin still works on a copied ladder",
+        test_a_pin_still_works_on_a_copied_ladder)
+  check("a copy leaves one number in every control",
+        test_a_copy_leaves_one_number_in_every_control)
+  check("a new project does not inherit the last one's pins",
+        test_a_new_project_does_not_inherit_the_last_one_s_pins)
+  check("a copy leaves behind a pin the data cannot carry",
+        test_a_copy_leaves_behind_a_pin_the_data_cannot_carry)
+  check("a pin leaves no class for a tile to miss",
+        test_a_pin_leaves_no_class_for_a_tile_to_miss)
+  check("a copy from unclassed leaves the chosen count alone",
+        test_a_copy_from_unclassed_leaves_the_chosen_count_alone)
+  check("a copied ladder on one value still wears its ramp",
+        test_a_copied_ladder_on_one_value_still_wears_its_ramp)
   check("one variable gets one legend wherever it appears",
         test_one_variable_gets_one_legend_wherever_it_appears)
   check("a class source file that goes away",

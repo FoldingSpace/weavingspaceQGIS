@@ -460,6 +460,25 @@ obligations: they exist so nobody pays twice for the same discovery.
   Implemented 2026-08-12 and proved to fail by adding a harness the
   workflow does not name. When you write that something is enforced,
   open the checker in the same commit.
+- **A catalogue entry that matches nothing REPORTS nothing, which
+  reads exactly like success.** Each entry in `tools/mutation_check.py`
+  finds its `old` text in a source file and replaces it. When that
+  text is edited away, the entry applies no mutation, finds no
+  survivor and exits clean: the behaviour it names is unguarded while
+  the catalogue still lists it, and the count of entries goes on
+  overstating how much is actually held. Found 2026-08-15 with SEVEN
+  of 243 entries in that state — five orphaned by the constant-column
+  rework the day before, two by the same evening's own fixes — and
+  the first re-anchored entry then SURVIVED, because either of two
+  branches now delivers its result and mutating one alone changed
+  nothing its test could see. `tools/check_standards.py` now reads
+  every entry with `ast` (the entries name their file through module
+  constants, so a literal-only reader finds none, which its own count
+  caught on the first run) and fails when an anchor is absent. Two
+  habits go with it: when you edit a line, expect to re-anchor the
+  entry standing on it, and when a mutation is CAUGHT, check it was
+  applied rather than trusting a clean exit.
+
 - **One changelog, TWO RENDERERS, and it must read in both.** The
   `changelog=` entry is shown by QGIS's plugin manager, which
   displays the metadata text as it stands, and by the GitHub release

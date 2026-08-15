@@ -952,6 +952,24 @@ class WeavingSpaceDialog(QDialog):
     # building one means constructing the real renderer against the
     # region layer (see _custom_swatch_for)
     self._custom_swatch_cache = {}
+    # THE DIALOG OUTLIVES THE PROJECT, which is the whole reason this
+    # connection exists. QGIS keeps one dialog per session, so opening
+    # a second project leaves every record below holding the FIRST
+    # project's answers -- and the keys collide readily, because tile
+    # ids come from the family ("a", "b", "c") and field names repeat
+    # across projects drawn from one data schema. Measured 2026-08-15:
+    # a low bound pinned at 84.7 in a project whose column ran 0-121
+    # was carried into the next project, whose column ran 0-9, where
+    # it drew the whole map as a single class 0-84.7 -- a number that
+    # column's own data cannot carry and that the plugin REFUSES when
+    # somebody types it. The record's own comment already said pins
+    # must not apply "one column's numbers to another's data"; this is
+    # that rule across a boundary rather than across a field switch.
+    # `cleared` fires on File > New and before File > Open, so the
+    # stamped records on the incoming project's layers are read into
+    # an empty dialog and win, which is also what makes the
+    # setdefault in _adopt_row_pins correct rather than merely safe.
+    QgsProject.instance().cleared.connect(self._forget_the_last_project)
     # which layer auto-spacing last ran for (it must run once per
     # newly chosen layer, never on the combo's spurious re-emissions)
     self._auto_spacing_layer = None
@@ -3449,6 +3467,69 @@ class WeavingSpaceDialog(QDialog):
       self._pinned_bounds.setdefault(tile_id, {}).setdefault(
         field, dict(stored_pins))
 
+  def _legend_size_note(self, field, assignment):
+    """The notice when a column draws fewer classes than it was asked.
+
+    Args:
+      field: the column the element carries.
+      assignment: that element's row of _assignments, read for its
+        class count and its pin record.
+
+    Returns:
+      One sentence for the message bar, or None when the legend will
+      hold exactly what the table asked for.
+
+    Both notice sites call this rather than counting for themselves,
+    because they used to count the WHOLE column against k -- true
+    until a pin takes a class out of the ladder and its samples out
+    of the pool, after which the sentence describes a legend the map
+    does not have. That is the one thing these notices exist to
+    prevent, so the arithmetic lives in bridge beside the code that
+    performs it.
+    """
+    source = self._classification_values(field)
+    if source is None:
+      return None
+    values = source.uniqueValues(source.fields().indexOf(field))
+    asked = assignment.get("k", 5)
+    drawn, from_pins = bridge.classes_the_map_will_draw(
+      values, asked, assignment.get("pinned"))
+    return bridge.few_values_message(field, drawn, asked, from_pins)
+
+  def _forget_the_last_project(self):
+    """Drop every per-element record when the project is replaced.
+
+    Called from QgsProject's `cleared` signal, which fires on File >
+    New and immediately before File > Open. Nothing is read from the
+    project here and nothing is written to it.
+
+    Returns:
+      None. Every record keyed by tile id is emptied in place, so the
+      dialog meets the incoming project holding no beliefs about
+      elements it has never seen.
+
+    WHAT IS NOT DROPPED, and why. `_browsed_qmls` is the file
+    chooser's memory of where the user keeps their styles, which is
+    about a person's disk rather than about a map, and the watched
+    layer state is re-established by the layer chooser's own handler
+    when the new project's layers arrive.
+    """
+    for record in (self._element_layer_ids, self._last_signatures,
+                   self._gpkg_tables_written, self._cat_count_cache,
+                   self._values_cache, self._class_choices,
+                   self._single_colours, self._ramp_choices,
+                   self._reverse_choices, self._opacity_choices,
+                   self._category_colours, self._quant_colours,
+                   self._pinned_bounds, self._ramp_ranges,
+                   self._class_counts, self._synced_modes,
+                   self._class_source_stamps, self._ramp_memory,
+                   self._custom_swatch_cache):
+      record.clear()
+    self._preserved_this_run = []
+    # auto-spacing must run again for whatever layer is chosen next:
+    # the id it remembers belongs to a project that no longer exists
+    self._auto_spacing_layer = None
+
   def _adopt_row_symbology(self, layer, tile_id):
     """Read an adopted layer's ramp, class count and colours back.
 
@@ -4519,7 +4600,7 @@ class WeavingSpaceDialog(QDialog):
                 if source is not None else [])
       problem = bridge.pin_problem(
         wanted.get("low"), wanted.get("high"), values,
-        assignment.get("k", 5))
+        assignment.get("k", 5), wanted.get("breaks"))
       if problem:
         self._report_quietly(problem)
         return problem
@@ -4597,6 +4678,10 @@ class WeavingSpaceDialog(QDialog):
     if self._class_counts.get(target_id) not in (None, source.get("k")):
       lost.append(f"its class count of {self._class_counts[target_id]}")
 
+    # The fifty of Unclassed is a property of the style, not a count
+    # somebody picked, and the two records below treat it differently.
+    unclassed_source = source.get("scheme") == "Unclassed"
+
     # THE STYLE GOES FIRST, and the order is not cosmetic: putting a
     # row on another style releases any copied ladder it carries (a
     # copy is made for one scheme and one count), so setting the
@@ -4609,24 +4694,138 @@ class WeavingSpaceDialog(QDialog):
     # not merely that its breaks are now hand-set
     source_pins = self._pinned_bounds.get(source_id, {}).get(
       source.get("var")) or {}
+    # ...each flag CHECKED against the receiving column, because a pin
+    # is a claim about this element's own data and the copy is the
+    # only route by which one could arrive unexamined. The pin path
+    # puts every typed bound through pin_problem first; this path did
+    # not, so copying between elements carrying different variables
+    # wrote a bound the plugin refuses when typed -- measured
+    # 2026-08-15, a low of 72.6 landing on a column running 0 to 11.
+    # The LADDER still travels whole, unreachable classes and all,
+    # since reproducing a classification is what a copy is for; what
+    # cannot travel is the claim that this element's user chose that
+    # bound for this element's data. A dropped flag simply means the
+    # copy no longer degrades to a pin: a later class count or scheme
+    # retires it entirely and the element classifies its own values.
+    target_source = self._classification_values(field)
+    target_values = (
+      target_source.uniqueValues(target_source.fields().indexOf(field))
+      if target_source is not None else [])
+    dropped = []
     for end in ("low", "high"):
-      if source_pins.get(end) is not None:
-        record[end] = float(source_pins[end])
+      if source_pins.get(end) is None:
+        continue
+      wanted = float(source_pins[end])
+      trial = {"low": None, "high": None}
+      trial[end] = wanted
+      if bridge.pin_problem(trial["low"], trial["high"], target_values,
+                            source.get("k", 5)):
+        dropped.append(end)
+        continue
+      record[end] = wanted
+    # reported apart from `lost`, which says what the TARGET gave up:
+    # a pin left behind is something the copy did not bring, and
+    # folding the two together would tell the user they had lost a
+    # bound they never set
+    left_behind = ""
+    if dropped:
+      ends = " and ".join("lower" if end == "low" else "upper"
+                          for end in dropped)
+      left_behind = (f" Its pinned {ends} "
+                     f"{'bounds were' if len(dropped) > 1 else 'bound was'} "
+                     f"left behind, being outside what this element's "
+                     f"data covers.")
     self._pinned_bounds.setdefault(target_id, {})[field] = record
 
     # the colours, positionally, which is what makes the row Custom
     self._quant_colours.setdefault(target_id, {})[field] = {
       str(index): colour for index, (_lo, _hi, colour) in enumerate(classes)}
-    self._class_counts[target_id] = len(classes)
+    # ...EXCEPT the fifty of an Unclassed source, which is fixed by
+    # the definition of that style rather than chosen by anybody.
+    # `_class_counts` means "chosen" -- the comment at the spinner
+    # says so, and test_an_unclassed_excursion_leaves_the_count_alone
+    # guards the same rule against a different route. Writing 50 here
+    # let it through the newer one: the next table rebuild clamps a
+    # count the controls cannot express, so a user who had chosen
+    # four classes and copied from an Unclassed element came back to
+    # a classed style redrawn in twenty, with nothing said. Measured
+    # 2026-08-15: map 4, spinner 4, record 4 before the copy; map 12,
+    # spinner 20, record 50 after a later design change.
+    if not unclassed_source:
+      self._class_counts[target_id] = len(classes)
     self._ramp_choices[target_id] = source.get("ramp")
     self._reverse_choices[target_id] = bool(source.get("reverse"))
+    # THE CONTROLS TOO, and not only the records behind them. Until
+    # 2026-08-15 a copy wrote _class_counts and _ramp_choices and left
+    # the widgets alone, while `_assignments` reads the WIDGET -- so a
+    # copy of seven classes left the map with seven, the spinner
+    # showing five, the assignment claiming five and _class_counts
+    # holding seven. Four descriptions of one setting, and the
+    # reopened project produced a fifth reading. It is the same
+    # three-numbers-for-one-setting fault
+    # test_an_unclassed_excursion_leaves_the_count_alone guards, found
+    # by a hunt pointed at "which of two records wins".
+    self._sync_target_controls(
+      target_id,
+      None if unclassed_source else len(classes),
+      source.get("ramp"), bool(source.get("reverse")))
     self._custom_swatch_cache.pop(target_id, None)
     self._apply_style_change()
     self._report_quietly(
       f"Element '{target_id}' now uses the classes from element "
       f"'{source_id}'"
-      + (f", replacing {' and '.join(lost)}." if lost else "."))
+      + (f", replacing {' and '.join(lost)}." if lost else ".")
+      + left_behind)
     return None
+
+  def _sync_target_controls(self, tile_id, classes, ramp, reverse):
+    """Put a copy's target row's own controls where the copy left it.
+
+    Args:
+      tile_id: the element that received the copy.
+      classes: how many classes it now draws, or None when the copy
+        came from an Unclassed source -- whose fifty is fixed by the
+        style rather than chosen, and must not be written onto a row
+        whose spinner means "chosen". The ramp and the reverse flag
+        still travel in that case; only the count is withheld.
+      ramp: the ramp name it now uses.
+      reverse: whether that ramp runs the other way.
+
+    Returns:
+      None. Signals are blocked while each control is moved, and the
+      records are written directly afterwards: the handlers behind
+      these widgets clear hand-picked colours and release copied
+      ladders, which is right when a USER moves them and wrong when a
+      copy has just written the very thing they would clear.
+
+    A number the widget does not know about is a number `_assignments`
+    cannot read: it takes the class count from the spin box's own
+    `user_k` property, so a record written without the widget leaves
+    the row describing a map nobody made.
+    """
+    row = self._row_for_element(tile_id)
+    if row is None:
+      return
+    spin = self.table.cellWidget(row, 3)
+    if spin is not None and hasattr(spin, "setValue") \
+        and classes is not None and 2 <= int(classes) <= 20:
+      spin.blockSignals(True)
+      spin.setValue(int(classes))
+      spin.setProperty("user_k", int(classes))
+      spin.blockSignals(False)
+      self._class_counts[tile_id] = int(classes)
+    combo = self.table.cellWidget(row, 4)
+    if combo is not None and hasattr(combo, "findText") and ramp:
+      index = combo.findText(ramp)
+      if index >= 0:
+        combo.blockSignals(True)
+        combo.setCurrentIndex(index)
+        combo.blockSignals(False)
+    box = self._row_reverse(row)
+    if box is not None and hasattr(box, "setChecked"):
+      box.blockSignals(True)
+      box.setChecked(bool(reverse))
+      box.blockSignals(False)
 
   def _copy_style_to_row(self, tile_id, mode_raw):
     """Put a target row's Style cell on the source's entry.
@@ -5244,9 +5443,7 @@ class WeavingSpaceDialog(QDialog):
       field = a.get("var")
       if not field or a.get("mode") != "Graduated" or field in said:
         continue
-      note = bridge.few_values_message(
-        field, self._numeric_value_count(field),
-        a.get("k", 5))
+      note = self._legend_size_note(field, a)
       if note is not None:
         said.add(field)
         self._report_quietly(note)
@@ -5680,9 +5877,7 @@ class WeavingSpaceDialog(QDialog):
             # only where the constant notice did not already say it,
             # since one value is this rule's n == 1 instance and two
             # sentences about one column is one too many.
-            note = bridge.few_values_message(
-              field, self._numeric_value_count(field),
-              assignment.get("k", 5))
+            note = self._legend_size_note(field, assignment)
             if note is not None:
               said_constant.add(field)
               self._report_quietly(note)

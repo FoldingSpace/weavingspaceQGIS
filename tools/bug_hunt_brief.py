@@ -48,6 +48,25 @@ arrived twice from hunts that could not see each other, which is
 some evidence they are reading the code's real fault lines rather
 than each inventing its own.
 
+Round three, 2026-08-15, six hunts all pointed at ONE pair of
+features (pinned class bounds and copy-to): 43 logged hypotheses,
+twelve confirmed, seven ruled out. SEVEN reproduced independently
+and were fixed, every one a wrong map rather than a crash -- the
+best yield per hunt this project has had, and the difference was
+narrowness. Six hunts on one feature pair beat four hunts on the
+whole plugin, because the second hunt in an area arrives knowing
+where the seams are.
+
+Three things that round taught about reading a report. The
+OBSERVATIONS were sound and the ARITHMETIC was not always: a pool
+reported as two values was three, a count reported as fifty was
+twenty, and neither error changed the finding. One claim was a
+DESIGNED behaviour with a real defect sitting inside it, and
+separating those was the whole work of that verification. And one
+report named a defect already fixed an hour earlier by another
+hunt's finding -- so re-check a claim against the CURRENT tree
+before reproducing it, not against the commit the hunt read.
+
 TWO LESSONS FROM THAT ROUND, both about what to ask for.
 
 The OBSERVATIONS were better than the SEVERITY JUDGEMENTS. One hunt

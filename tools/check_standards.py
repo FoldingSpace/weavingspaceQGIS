@@ -235,6 +235,83 @@ def check_user_facing_text():
           break
 
 
+def check_catalogue_anchors(catalogue):
+  """Every catalogue entry's `old` text is still in the file it names.
+
+  Args:
+    catalogue: the path to tools/mutation_check.py.
+
+  Returns:
+    None; anything wrong is appended to `problems`, like every other
+    check here.
+
+  WHY THIS EXISTS, and it is the catalogue's own failure mode rather
+  than a hypothetical. An entry whose `old` string no longer appears
+  in its file matches nothing, so the tool applies no mutation, finds
+  no survivor and exits clean: the entry REPORTS NOTHING instead of
+  failing, and the behaviour it was written to guard is unguarded
+  while the catalogue still lists it. Found 2026-08-15 an hour after
+  the entry was written, when the line it anchored on was reshaped by
+  the very next fix -- which is the ordinary way it will happen.
+
+  This is the same rule as the one about generated documents: a
+  guard nobody re-checks keeps its authority while losing its
+  accuracy. The entries are read with ast rather than by regular
+  expression, because the `old` values are multi-line strings with
+  escapes in them and a pattern that got that wrong would fail in
+  exactly the silent direction this check exists to close.
+  """
+  with open(catalogue, encoding="utf-8") as handle:
+    tree = ast.parse(handle.read())
+  # The entries name their file through module constants (BRIDGE,
+  # DIALOG and the rest), so those are resolved first: reading them
+  # as literals alone found nothing at all, which this check's own
+  # count caught on its first run.
+  constants = {}
+  for node in tree.body:
+    if isinstance(node, ast.Assign) and len(node.targets) == 1 \
+        and isinstance(node.targets[0], ast.Name) \
+        and isinstance(node.value, ast.Constant) \
+        and isinstance(node.value.value, str):
+      constants[node.targets[0].id] = node.value.value
+  seen = 0
+  for node in ast.walk(tree):
+    if not (isinstance(node, ast.Call)
+            and getattr(node.func, "id", None) == "dict"):
+      continue
+    fields = {kw.arg: kw.value for kw in node.keywords}
+    if not {"name", "file", "old"} <= set(fields):
+      continue
+    holder = fields["file"]
+    try:
+      name = ast.literal_eval(fields["name"])
+      old_text = ast.literal_eval(fields["old"])
+      target = (constants.get(holder.id) if isinstance(holder, ast.Name)
+                else ast.literal_eval(holder))
+    except (ValueError, TypeError):
+      continue                      # a computed entry: not ours to judge
+    if not target:
+      continue
+    seen += 1
+    path = os.path.join(ROOT, target)
+    if not os.path.exists(path):
+      problems.append(
+        f"the mutation catalogue's {name!r} names {target}, "
+        f"which does not exist")
+      continue
+    with open(path, encoding="utf-8") as handle:
+      body = handle.read()
+    if old_text not in body:
+      problems.append(
+        f"the mutation catalogue's {name!r} anchors on text that is "
+        f"no longer in {target}, so it mutates nothing and reports "
+        f"nothing; re-anchor it on the line as it stands now")
+  if seen < 30:
+    problems.append(
+      f"only {seen} catalogue entries could be read for their "
+      f"anchors, which is fewer than this catalogue holds")
+
+
 def check_audit_tools():
   """Every mutation names a test that exists, and the catalogue is
   not shrinking quietly."""
@@ -252,6 +329,7 @@ def check_audit_tools():
     if f"def {test}(" not in tests:
       problems.append(
         f"tools/mutation_check.py names {test}, which no longer exists")
+  check_catalogue_anchors(catalogue)
   count = cat.count("dict(name=")
   if count < 30:
     problems.append(
