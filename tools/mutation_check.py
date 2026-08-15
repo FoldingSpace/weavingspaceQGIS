@@ -2493,8 +2493,8 @@ MUTATIONS = [
            "replaced, and its controls apply immediately, so leaving "
            "it open invites an edit that lands on nothing"),
   dict(name="a-type-change-defers-to-qgis", file=DIALOG,
-       old="    if now_deferring:\n      self._refresh_deferring_rows()",
-       new="    if False:\n      self._refresh_deferring_rows()",
+       old='    if now_deferring:\n      if not was_deferring:',
+       new='    if False:\n      if not was_deferring:',
        test="test_a_renderer_the_row_cannot_name_defers_to_qgis",
        why="without this a renderer TYPE changed in the styling panel "
            "goes through the colour branches, which adopt category "
