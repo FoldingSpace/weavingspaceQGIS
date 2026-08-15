@@ -470,6 +470,13 @@ def check(name, fn, sharded=True):
     if spent >= ceiling * CLOSE_ENOUGH:
       NEAR_THE_CEILING.append((name, spent, ceiling))
     project.clear()
+    # ...and the message bar with it, for the same reason: a test that
+    # reads `said[0]` gets the first notice ANY test produced unless
+    # this list starts empty. Found 2026-08-15 when new tests emitting
+    # a similar sentence made an older one read somebody else's
+    # message and fail in a batch while passing alone -- the shared
+    # QgsProject fault, wearing a different singleton.
+    BAR_MESSAGES.clear()
 
 
 def make_region_layer(n=4, cell=1000, origin=(0, 0)):
@@ -5718,6 +5725,59 @@ def _temp_dir(prefix="weavingspace_test_"):
     _remove_tree(folder)
 
 
+def _move_file_aside(source, destination):
+  """Rename a file the plugin has finished with, on any platform.
+
+  Args:
+    source: the path to move.
+    destination: where it should end up.
+
+  Returns:
+    None. Raises the platform's own error if the file is still held
+    after several attempts, because that would be a real finding
+    rather than a cleanup detail.
+
+  Windows will not rename a file another process still has open, and
+  a GeoPackage that QGIS has loaded is open even after the project is
+  cleared: the provider's handle outlives the layer by a moment. The
+  loop below gives it that moment. POSIX renames an open file without
+  complaint, which is why this was invisible until the suite first ran
+  on Windows (2026-08-15).
+  """
+  for attempt in range(5):
+    try:
+      os.rename(source, destination)
+      return
+    except PermissionError:
+      if attempt == 4:
+        raise
+      gc.collect()
+      _tick(200)
+
+
+def _as_source_path(path):
+  """A filesystem path safe to paste inside generated Python source.
+
+  Args:
+    path: the path as this machine spells it.
+
+  Returns:
+    The same path with backslashes doubled, so that embedding it in a
+    quoted string literal cannot turn part of it into an escape.
+
+  Windows only, in effect, and it cost a test. The runner's checkout
+  lives at `D:\\a\\weavingspaceQGIS`, and pasting that into source
+  made `\\a` a BEL character: the child process tried to open
+  `D:\\a\\weavingspaceQGIS\\\\x07\\weavingspaceQGIS...` and died with
+  "Invalid argument", while the SyntaxWarnings about `\\w` said the
+  same thing more quietly. Forward slashes are fine on Windows, so
+  only the backslashes need doubling and nothing else about these
+  generated programs changes. (Found 2026-08-15 by the Windows
+  suite.)
+  """
+  return path.replace("\\", "\\\\")
+
+
 def _project_round_trip(folder, name="project.qgz"):
   """Write the project, empty it, and read it back.
 
@@ -10412,6 +10472,141 @@ def test_the_coverage_notice_counts_what_the_map_is_missing():
       f"({len(present)} of {layer.featureCount()} present); " \
       f"said {said!r}"
     dlg.close()
+
+
+def test_one_colour_means_one_value_across_elements():
+  """The categorical twin of ONE VARIABLE GETS ONE LEGEND.
+
+  Categorical colours follow ListedColormap sampling -- code/(k-1)
+  through int(x * N) -- so the NUMBER of categories decides which
+  colours are drawn, and a value one element happens not to contain
+  re-colours everything after it. Measured 2026-08-15: four elements
+  on one column and one tab10 ramp, three finding six values and the
+  fourth five, so `#1f77b4` meant 'bare' on three elements and 'crops'
+  on the fourth. A reader matching a colour against the legend read
+  the wrong class.
+
+  The graduated half of this rule was fixed on 2026-08-14 and this
+  half was not, because the rule had been written as being about class
+  BREAKS. It is about MEANING (settled by /grill-me, 2026-08-15).
+
+  THE CATEGORY LIST STAYS PER ELEMENT, which is the other half of that
+  decision: the defect is about which colour a value gets, not about
+  which values appear, so an element carries only the categories it
+  draws. Both halves are asserted here, because a fix that gave every
+  element every category would also make the first assertion pass.
+
+  The existing UI-against-library differentials cannot see this: their
+  fixtures give every element all values, so map-wide and per-element
+  coincide. That is why it survived.
+
+  Regression: two elements sharing a categorical column and a ramp gave the same colour to different values, because each sampled the palette against its own category count. [hunt]
+  """
+  from qgis.core import QgsFeatureRequest
+  from weavingspace_qgis import bridge
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  index = layer.fields().indexOf("landcover")
+  everywhere = sorted({v for v in layer.uniqueValues(index) if v is not None})
+  assert len(everywhere) > 2, \
+    f"the fixture has too few categories to shift: {everywhere}"
+
+  # an element that never sees the FIRST value, which is what shifts
+  # every colour after it
+  absent = everywhere[0]
+  short = layer.materialize(QgsFeatureRequest().setFilterExpression(
+    f"\"landcover\" <> '{absent}'"))
+  project.addMapLayer(short)
+
+  whole = bridge.make_categorized_renderer(
+    layer, "landcover", "tab10", False, classify_from=layer)
+  part = bridge.make_categorized_renderer(
+    short, "landcover", "tab10", False, classify_from=layer)
+
+  def painted(renderer):
+    return {str(c.value()): c.symbol().color().name()
+            for c in renderer.categories() if c.value() not in (None, "")}
+
+  full_colours, short_colours = painted(whole), painted(part)
+  shared = full_colours.keys() & short_colours.keys()
+  assert shared, "the two elements share no values, so nothing is compared"
+  disagreements = {value: (full_colours[value], short_colours[value])
+                   for value in shared
+                   if full_colours[value] != short_colours[value]}
+  assert not disagreements, \
+    f"one colour means two values across elements: {disagreements}"
+
+  # ...and the short element carries only what it draws, rather than
+  # listing a category no tile of it holds
+  assert absent not in short_colours, \
+    f"the element was given a category it never draws: {absent!r}"
+  assert len(short_colours) == len(full_colours) - 1, \
+    f"the element's category list is not its own: " \
+    f"{sorted(short_colours)} against {sorted(full_colours)}"
+
+
+def test_the_classes_cell_reports_its_own_element():
+  """A greyed report must describe the row it sits beside.
+
+  The Classes cell on a categorized row is not an ask -- it is
+  disabled, and its tooltip says it shows how many categories were
+  found. It read the REGION for every row, so elements sharing a
+  column all showed the same number while one of them drew fewer.
+
+  Rows may now legitimately differ, and all their numbers are true.
+  No notice is raised when they do, because elements differ routinely
+  on real data and a warning that fires constantly is one people learn
+  to ignore. The colours are decided map-wide, so a difference here is
+  a difference in what an element CONTAINS and never in what a colour
+  MEANS.
+
+  Regression: the Classes cell on a categorized row reported the region's category count for every element, including elements drawing fewer. [review]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  index = layer.fields().indexOf("landcover")
+  everywhere = {v for v in layer.uniqueValues(index) if v is not None}
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  for row in range(dlg.table.rowCount()):
+    combo = dlg.table.cellWidget(row, 1)
+    if combo is not None:
+      combo.setCurrentText("landcover")
+  _tick(250)
+  # COARSE ON PURPOSE. At 1200, 2500 and 4000 metres every element of
+  # this fixture catches all four categories, so the region's count
+  # and each element's coincide and the test proves nothing -- it
+  # passed with the behaviour broken until this was measured. At 6000
+  # the four elements draw 1, 2, 3 and 4.
+  dlg.spacing_spin.setValue(6000)
+  _generate_and_wait(dlg)
+
+  seen = []
+  for row in range(dlg.table.rowCount()):
+    item = dlg.table.item(row, 0)
+    spin = dlg.table.cellWidget(row, 3)
+    if item is None or spin is None:
+      continue
+    drawn = project.mapLayer(dlg._element_layer_ids.get(item.text(), ""))
+    if drawn is None:
+      continue
+    where = drawn.fields().indexOf("landcover")
+    if where < 0:
+      continue
+    own = len({v for v in drawn.uniqueValues(where) if v is not None})
+    seen.append(own)
+    assert spin.value() == own, \
+      f"element {item.text()} draws {own} categories and its Classes " \
+      f"cell says {spin.value()} (the region holds {len(everywhere)})"
+  assert len(set(seen)) > 1, \
+    f"every element drew the same number of categories ({seen}), so " \
+    f"reading the region would have passed too"
+  dlg.close()
 
 
 def test_a_class_source_file_that_goes_away():
@@ -27113,7 +27308,8 @@ def test_a_project_whose_region_layer_has_moved():
     # immediately, and the whole case is that the world changed in
     # between
     project.clear()
-    os.rename(region_path, os.path.join(folder, "region-elsewhere.gpkg"))
+    _move_file_aside(
+      region_path, os.path.join(folder, "region-elsewhere.gpkg"))
     assert project.read(project_path), "the project would not read back"
     _tick(300)
 
@@ -34759,7 +34955,7 @@ try:
   print("SILENT")
 except ImportError as exc:
   print("RAISED", "matplotlib" in str(exc))
-""".replace("__ROOT__", ROOT)     # not .format: the program below
+""".replace("__ROOT__", _as_source_path(ROOT))     # not .format: the program below
   # is full of braces of its own
 
   result = subprocess.run([_sys.executable, "-c", program],
@@ -35064,7 +35260,7 @@ for name, layer, note in rt.hostile_layers():
     dlg.close()
 sys.stdout.flush()
 os._exit(0)
-""".replace("__ROOT__", ROOT)
+""".replace("__ROOT__", _as_source_path(ROOT))
 
   troubles = []
   for name, _layer, note in hostile_layers():
@@ -35633,7 +35829,7 @@ rt._generate_and_wait(dlg)
 print("WROTE %d" % (1 if os.path.exists(path) else 0))
 sys.stdout.flush()
 os._exit(0)
-""".replace("__ROOT__", ROOT)
+""".replace("__ROOT__", _as_source_path(ROOT))
 
   result = subprocess.run([_sys.executable, "-c", program],
                           capture_output=True, text=True, timeout=300)
@@ -40885,6 +41081,10 @@ def main():
         test_the_constant_notice_counts_the_users_areas)
   check("the coverage notice counts what the map is missing",
         test_the_coverage_notice_counts_what_the_map_is_missing)
+  check("one colour means one value across elements",
+        test_one_colour_means_one_value_across_elements)
+  check("the Classes cell reports its own element",
+        test_the_classes_cell_reports_its_own_element)
   check("one variable gets one legend wherever it appears",
         test_one_variable_gets_one_legend_wherever_it_appears)
   check("a class source file that goes away",

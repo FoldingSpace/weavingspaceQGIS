@@ -41,6 +41,11 @@ WANTED = sys.argv[1:]
 failed = 0
 for name in WANTED:
   QgsProject.instance().clear()      # the suite's empty-project rule
+  # ...and the message bar, which `check` also clears. Without it a
+  # test reading `said[0]` gets the first notice ANY test produced,
+  # so a batch here disagreed with the same tests under the suite --
+  # this tool has to be faithful or its verdicts mean nothing.
+  rt.BAR_MESSAGES.clear()
   fn = getattr(rt, name, None)
   if fn is None:
     print(f"MISSING  {name}")

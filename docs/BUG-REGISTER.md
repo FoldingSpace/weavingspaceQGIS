@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-162 defect(s) with a regression test.
+164 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -71,6 +71,8 @@ there is no separate list to remember.
   guarded by `test_a_pinned_bound_can_hold_the_numbers_a_column_carries`
 - **a plugin closed and reopened adopted the oldest output group rather than the newest, so the next Generate overwrote a result the user had deliberately kept and restored bounds they had unpinned.**  
   guarded by `test_a_reopened_plugin_adopts_the_group_it_last_wrote`
+- **two elements sharing a categorical column and a ramp gave the same colour to different values, because each sampled the palette against its own category count.**  
+  guarded by `test_one_colour_means_one_value_across_elements`
 - **pinning a class bound left the colour editor showing the ladder from before the pin, and the unpinned end's control offering a bound the map no longer had.**  
   guarded by `test_pinning_redraws_the_window_it_was_typed_into`
 - **the constant-column notice counted the tiled output rather than the region layer, so a small area dropped at a coarse spacing produced "every area has the same value" beside a legend showing a range.**  
@@ -151,6 +153,8 @@ there is no separate list to remember.
   guarded by `test_real_world_data`
 - **an element styled in QGIS could not be taken back by picking the style it had before, because that restored its old signature and both seeding paths kept the renderer as unchanged.**  
   guarded by `test_taking_an_element_back_from_qgis_restyles_at_once`
+- **the Classes cell on a categorized row reported the region's category count for every element, including elements drawing fewer.**  
+  guarded by `test_the_classes_cell_reports_its_own_element`
 
 ## Found by running the suite somewhere other than the machine it was written on
 
@@ -373,15 +377,15 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 82
-- a bug hunt pointed in a named direction: 16
+- a bug hunt pointed in a named direction: 17
 - the mutation campaign: 16
 - reported by a user: 10
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6
 - a multi-step session test: 5
+- reading the code: 5
 - driving the UI and rebuilding the same map from the library directly: 5
 - a family audit of the claims the software makes: 4
 - the hostile data corpus: 4
-- reading the code: 4
 - a randomised differential sweep: 3
 - comparing rendered output against the reference in Lab space: 1

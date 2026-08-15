@@ -2024,6 +2024,7 @@ def make_categorized_renderer(layer: QgsVectorLayer, field: str,
                               template: dict | None = None,
                               reverse: bool = False,
                               overrides: dict | None = None,
+                              classify_from: QgsVectorLayer | None = None,
                               ) -> QgsCategorizedSymbolRenderer:
   """One class per distinct field value, plus a "no data" catch-all.
 
@@ -2043,6 +2044,10 @@ def make_categorized_renderer(layer: QgsVectorLayer, field: str,
       Categorical colour editor, plus optionally NO_DATA_KEY for the
       catch-all. These outrank the template and the ramp alike.
       Values not named here are coloured exactly as before.
+    classify_from: a layer holding the WHOLE MAP's values for this
+      column, or None to read the element's own tiles. It decides
+      COLOURS only; the categories built below are still this
+      element's own.
 
   Returns:
     A QgsCategorizedSymbolRenderer, including the None-valued
@@ -2055,17 +2060,72 @@ def make_categorized_renderer(layer: QgsVectorLayer, field: str,
   before strings so mixed-type fields (possible after joins) cannot
   break Python's comparison rules.
   """
-  idx = layer.fields().indexOf(field)
-  values = sorted(
-    (v for v in layer.uniqueValues(idx) if v is not None and v != NULL),
-    key=lambda v: (isinstance(v, str), v))
+  def _sorted_values(source):
+    """This column's distinct values, in the order colours follow.
+
+    Args:
+      source: a layer to ask, or an iterable of values already
+        gathered. Callers hand over both: the run path passes the
+        scratch layer `_classification_values` builds, and some
+        callers pass the values themselves.
+
+    Returns:
+      The distinct non-null values, numbers before strings, which is
+      the order the colours below follow.
+    """
+    if hasattr(source, "fields"):
+      where = source.fields().indexOf(field)
+      if where < 0:
+        return []
+      gathered = source.uniqueValues(where)
+    else:
+      gathered = source or []
+    return sorted(
+      {v for v in gathered if v is not None and v != NULL},
+      key=lambda v: (isinstance(v, str), v))
+
+  # ONE COLOUR MEANS ONE THING, and for a categorical column that is
+  # decided by a value's POSITION in the whole map's list rather than
+  # in this element's. Categorical colours follow ListedColormap
+  # sampling -- code/(k-1) through int(x * N) -- so the NUMBER of
+  # categories decides which colours are drawn, and one value an
+  # element happens not to contain re-colours everything after it.
+  # Measured 2026-08-15: four elements on one column and one tab10
+  # ramp, three finding six values and the fourth five because no tile
+  # of it caught a 'bare' area; #1f77b4 then meant 'bare' on three
+  # elements and 'crops' on the fourth, and a reader matching a colour
+  # against the legend read the wrong class.
+  #
+  # THE CATEGORY LIST STAYS THIS ELEMENT'S OWN. The defect is about
+  # which colour a value gets, not about which values appear, so an
+  # element carries only the categories it actually draws -- listing
+  # 'bare' where no tile is 'bare' would tell a reader something false
+  # about that element, which is the same species of lie.
+  #
+  # The graduated half of this rule was fixed on 2026-08-14 and this
+  # half was not, because the rule had been written down as being
+  # about class BREAKS. It is about MEANING (settled with the
+  # maintainer, 2026-08-15, by /grill-me), and the wording in
+  # CLAUDE.md now says so.
+  values = _sorted_values(layer)
+  everywhere = _sorted_values(classify_from) if classify_from is not None \
+    else values
+  if not everywhere:
+    everywhere = values
+  positions = {v: i for i, v in enumerate(everywhere)}
   ramp = get_ramp(ramp_name, reverse)
   preset = ramp.colors() if isinstance(ramp, QgsPresetSchemeColorRamp) \
     else None
   categories = []
   overrides = overrides or {}
-  n = max(len(values), 1)
-  for i, v in enumerate(values):
+  # ...and both the position and the count come from the map-wide
+  # list, since ListedColormap sampling reads them together. A value
+  # somehow absent from that list keeps its own position, which is the
+  # pre-2026-08-15 behaviour and cannot be worse than refusing to
+  # colour it.
+  n = max(len(everywhere), 1)
+  for own_index, v in enumerate(values):
+    i = positions.get(v, own_index)
     # A colour chosen by hand in the Categorical colour editor outranks
     # everything below it, including an imported scheme: it is the most
     # specific statement anyone has made about this value. The label is
@@ -2195,7 +2255,7 @@ def seed_renderer(layer: QgsVectorLayer, assignment: dict,
     layer.setRenderer(make_categorized_renderer(
       layer, var, assignment["ramp"], outline, template,
       assignment.get("reverse", False),
-      assignment.get("category_colours")))
+      assignment.get("category_colours"), classify_from))
   elif assignment["mode"] == "Single colour":
     colour = assignment.get("single_colour") or \
       ramp_swatch_colour(assignment["ramp"])

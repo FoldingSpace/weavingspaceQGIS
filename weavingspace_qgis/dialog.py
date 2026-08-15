@@ -2343,11 +2343,44 @@ class WeavingSpaceDialog(QDialog):
   # qualitative colour sets cycled as defaults for categorized rows
   CAT_DEFAULT_RAMPS = ["tab10", "Set2", "Set1", "Pastel1", "Dark2", "Set3"]
 
-  def _category_count(self, field_name: str) -> int:
-    """Distinct non-null values in a field, shown (greyed) in the
-    Classes cell of categorized rows. ``uniqueValues`` asks the layer's
-    data provider, which may scan the table, hence the cache keyed by
-    (layer id, field); the cache clears when the layer changes."""
+  def _category_count(self, field_name: str, tile_id: str = "") -> int:
+    """How many categories a categorized row's element draws.
+
+    Args:
+      field_name: the column that row is drawing.
+      tile_id: the element, when one is known. Its OUTPUT LAYER is
+        asked first, because the cell is a report and must describe
+        the element it sits beside; the region answers only before
+        anything has been drawn, or when that element has no output.
+
+    Returns:
+      The count of distinct non-null values, greyed into the Classes
+      cell.
+
+    IT REPORTS THIS ELEMENT, NOT THE MAP (settled with the maintainer,
+    2026-08-15). It read the region for every row, so four elements
+    sharing a column all showed 6 while one of them drew 5 -- the
+    Classes cell describing somebody else's element. Rows sharing a
+    column may now legitimately read 6, 6, 6, 5, and all four are
+    true: the odd one is the element with no tile of that value. No
+    notice is raised when they differ, because elements differ
+    routinely on real data and a warning that fires constantly is one
+    people learn to ignore.
+
+    The colours themselves are decided map-wide, so a difference here
+    is a difference in what an element CONTAINS and never in what a
+    colour MEANS.
+
+    ``uniqueValues`` asks the layer's data provider, which may scan
+    the table, hence the cache keyed by (layer id, field); the cache
+    clears when the layer changes."""
+    drawn = QgsProject.instance().mapLayer(
+      self._element_layer_ids.get(tile_id, "")) if tile_id else None
+    if drawn is not None:
+      index = drawn.fields().indexOf(field_name)
+      if index >= 0:
+        return len({v for v in drawn.uniqueValues(index)
+                    if v is not None and str(v) != "NULL"})
     layer = self.layer_combo.currentLayer()
     if layer is None:
       return 0
@@ -2852,7 +2885,12 @@ class WeavingSpaceDialog(QDialog):
       k_spin.setValue(int(k_spin.property("user_k")))
       k_spin.setEnabled(True)
     elif mode == "Categorized" and var:
-      n = self._category_count(var)
+      # the row's own element, read from the table rather than from a
+      # variable this scope does not have: _sync_row is given a row
+      # index and nothing else
+      row_item = self.table.item(row, 0)
+      n = self._category_count(
+        var, row_item.text() if row_item is not None else "")
       k_spin.setSpecialValueText("")
       k_spin.setRange(0, 9999)
       k_spin.setValue(n)

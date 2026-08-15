@@ -1197,7 +1197,36 @@ Confirmed with the user via an explicit design review:
   breaks both come from the whole map now, so every element agrees.
   Nineteen tests moved on the first attempt, which is the measure of
   how deep the assumption ran.
-- **ONE VARIABLE GETS ONE LEGEND, wherever it appears.** Class breaks
+- **ONE COLOUR MEANS ONE THING, wherever it appears — and the rule is
+  about MEANING, not about breaks.** That wording matters and cost a
+  year: it was written down as being about class BREAKS, so when the
+  graduated half was fixed on 2026-08-14 nobody looked at the
+  categorized half, which had the identical fault and had been
+  shipping since 0.23.0. Categorical colours follow ListedColormap
+  sampling — code/(k-1) through int(x * N) — so the NUMBER of
+  categories decides which colours are drawn, and a value one element
+  happens not to contain re-colours everything after it. Measured
+  2026-08-15: four elements on one column and one tab10 ramp, three
+  finding six values and the fourth five, so `#1f77b4` meant 'bare' on
+  three elements and 'crops' on the fourth. Settled by `/grill-me` the
+  same day. If a rule here names a mechanism, ask what it is FOR
+  before deciding what it covers.
+  Both halves work the same way: the whole map's values decide, the
+  element's own values are what it draws. A graduated element wears
+  breaks cut once from the region; a categorical element takes each
+  value's colour from that value's position in the region's sorted
+  list while carrying ONLY the categories it actually holds — listing
+  a value no tile of it draws would tell a reader something false
+  about that element. The Classes cell on a categorized row reports
+  what its own element draws, so rows sharing a column may read 6, 6,
+  6, 5 and all four are true; no notice is raised when they differ,
+  because elements differ routinely and a warning that fires
+  constantly is one people learn to ignore. HAND-PICKED colours stay
+  per element: what this rule forbids is a colour shifting with
+  nobody choosing it, and a hand-pick is a person choosing. A
+  reopened project is trusted rather than repainted, so a project
+  saved before this keeps its old colours until something re-seeds.
+  Class breaks
   are cut ONCE, from the region layer's values, and every element
   carrying that column wears them. Until 2026-08-14 they were cut
   from each ELEMENT layer, which holds only that element's tiles:

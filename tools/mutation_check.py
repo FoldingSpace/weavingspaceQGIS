@@ -2642,6 +2642,28 @@ MUTATIONS = [
            "is the only route by which one could arrive unexamined, "
            "and because a copy degrades to its pins that bound "
            "outlives the copy it came in on"),
+  dict(name="categorical-colour-is-decided-map-wide", file=BRIDGE,
+       old="  n = max(len(everywhere), 1)",
+       new="  n = max(len(values), 1)",
+       test="test_one_colour_means_one_value_across_elements",
+       why="the palette is sampled against the category COUNT, so "
+           "taking it from the element rather than the map gives one "
+           "colour two meanings the moment an element lacks a value"),
+  dict(name="a-category-keeps-its-place-map-wide", file=BRIDGE,
+       old="    i = positions.get(v, own_index)",
+       new="    i = own_index",
+       test="test_one_colour_means_one_value_across_elements",
+       why="a value's colour comes from its position in the whole "
+           "map's list; using its position in this element's list is "
+           "the same defect by the other coordinate"),
+  dict(name="the-classes-cell-reports-its-own-element", file=DIALOG,
+       old="    drawn = QgsProject.instance().mapLayer(\n"
+           "      self._element_layer_ids.get(tile_id, \"\")) if tile_id else None",
+       new="    drawn = None",
+       test="test_the_classes_cell_reports_its_own_element",
+       why="the cell is a greyed REPORT, so reading the region makes "
+           "it describe somebody else's element -- four rows showing "
+           "6 while one of them draws 5"),
   dict(name="the-constant-notice-counts-the-region", file=DIALOG,
        old="          if bridge.numeric_values_are_constant(region_values):",
        new="          if bridge.numeric_values_are_constant(gdf[field]):",
