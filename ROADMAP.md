@@ -117,6 +117,12 @@ round numbers can sit outside the filtered range entirely. Without
 the snap, a value arriving later in the gap paints as no data on a
 map that looks perfectly fine.
 
+*The shape of the record*, which the copy feature below shares and
+extends: the boundary VALUES a person set, and a per-end PIN FLAG
+saying which ends they pinned. For pins alone the two say the same
+thing, and it is the copy that separates them -- so build the record
+with both from the start rather than discovering it later.
+
 *Ownership.* Keyed by tile id AND field, beside the hand-picked
 colours, so switching a variable away and back restores the pins.
 That makes a pin a per-element styling choice like the class count,
@@ -187,14 +193,29 @@ class count to that element.
 
 *What a copy IS, and why it is the same mechanism as a pin.* A full
 set of copied breaks is every boundary pinned at once, so it is stored
-in the SAME record the pins use -- a list of boundaries a person set
--- with pins as its two-ended case. Copied breaks therefore survive
-every recalculation, stamp onto the layer, and come home through a
-project round trip exactly as pins do. Changing the target's class
-count or scheme clears them with a notice, since the copy was made for
-that count and those breaks. One store, one set of guardrails, one
-thing to test; two stores of one fact is the shape that produced three
-defects here on 2026-08-13.
+in the SAME record the pins use, with pins as its two-ended case.
+Copied breaks therefore survive every recalculation, stamp onto the
+layer, and come home through a project round trip exactly as pins do.
+One store, one set of guardrails, one thing to test; two stores of one
+fact is the shape that produced three defects here on 2026-08-13.
+
+*That record holds TWO things, and the difference is what makes the
+copy behave.* The boundary VALUES a person set, and a per-end PIN FLAG
+saying which ends they pinned deliberately. A copy carries both -- the
+maintainer's instruction, 2026-08-14 -- and they are not the same
+statement. Copying from an element with no pins leaves the target's
+breaks hand-set and NEITHER end pinned, so its swatch draws no box and
+its editor shows no pin: the target looks like what was copied, which
+is the whole point. Collapsing the two would make every copy look
+fully pinned and would leave "unpin" with nothing coherent to do.
+
+*A copy degrades to its pins rather than to nothing.* Changing the
+target's class count or scheme clears the copied VALUES with a notice,
+since the copy was made for that count and those breaks -- but the pin
+flags and the two bounds they name SURVIVE, and the scheme recomputes
+the middle around them. A pin is a smaller and more durable statement
+than a whole imported ladder, and this is the mechanism the pins
+already provide doing exactly its job.
 
 *The style travels with the breaks.* Copying from an Unclassed element
 makes the target Unclassed, and copying from a five-class quantile
@@ -253,6 +274,11 @@ must be in, since this is stored in its record. Then: a copy proved
 end to end across two elements carrying DIFFERENT variables, with the
 end-fitting rules measured on both degenerate cases; a copy from an
 Unclassed element proved to make its target Unclassed and back again;
+the PIN FLAGS proved to arrive with the breaks, and proved ABSENT on
+the target when the source carried none, since a test that only ever
+copies from a pinned element cannot tell the flag from the values;
+a count change on a copied target proved to keep the pins and drop
+the rest;
 the hatching asserted to appear exactly on classes no tile wears, and
 to disappear when the data changes so that they do; the notice proved
 to REACH a user through the message bar, not merely to exist, which is
