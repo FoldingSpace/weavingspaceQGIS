@@ -165,7 +165,7 @@ there is no separate list to remember.
   guarded by `test_a_generate_spares_the_rest_of_the_users_geopackage`
 - **a design that shrank left its dropped elements in the GeoPackage, so the exported file described a map that no longer existed.**  
   guarded by `test_a_geopackage_loses_the_elements_a_design_dropped`
-- **five classes over three distinct values put two swatches in the legend that no tile wore, and painted the highest value in a middle colour while the legend's darkest sat beside an empty range.**  
+- **five classes over three distinct values put two swatches in the legend that no tile used, and painted the highest value in a middle colour while the legend's darkest sat beside an empty range.**  
   guarded by `test_a_legend_never_shows_a_class_the_map_does_not_have`
 - **moving a class-source QML and then changing any style control repainted the element in automatic colours, silently, where the re-tile path keeps the map and names the file.**  
   guarded by `test_a_moved_class_source_survives_a_restyle`

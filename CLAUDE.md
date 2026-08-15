@@ -1108,7 +1108,7 @@ Confirmed with the user via an explicit design review:
   **The general form of this rule IS adopted, as of 2026-08-14, and
   the history is worth keeping because the first attempt failed.**
   Five classes over three distinct values puts two swatches in the
-  legend that no tile wears and draws the highest value mid-grey
+  legend that no tile uses and draws the highest value mid-grey
   (measured 2026-08-13 with a render context); upstream's own
   `_plot_subsetted_gdf` reduces k in exactly that case. It was
   implemented and reverted the same night, because it counted the
@@ -1181,7 +1181,7 @@ Confirmed with the user via an explicit design review:
   copied ladder can leave classes the receiving column cannot reach;
   those are KEPT rather than dropped, because a copy reproduces a
   classification and a silently shortened one does not, and the
-  swatch HATCHES the stripes no tile wears so the emptiness is
+  swatch HATCHES the stripes no tile uses so the emptiness is
   visible rather than silent. And a pinned row is NOT Custom: its
   colours are still its ramp's, so the cell goes on naming the ramp
   and the swatch merely BOXES the pinned end.

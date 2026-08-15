@@ -159,7 +159,7 @@ were right that it was the fixture.
 **A fix can be RIGHT and still be wrong to ship, and the blast radius
 is the evidence.** On 2026-08-13 a real defect was fixed correctly --
 a graduated renderer drawing more classes than the column has distinct
-values, so swatches appear in the legend that no tile wears -- by the
+values, so swatches appear in the legend that no tile uses -- by the
 same reduction upstream applies. Nineteen tests moved. That number was
 the finding, not the inconvenience: the standard fixture gives four
 distinct values and the suite's graduated tests ask for five, so the

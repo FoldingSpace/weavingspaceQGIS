@@ -6928,7 +6928,7 @@ def test_a_legend_never_shows_a_class_the_map_does_not_have():
   `distinct >= k` before measuring and switching schemes to avoid it,
   which is why nobody had asked what the map looked like.
 
-  Regression: five classes over three distinct values put two swatches in the legend that no tile wore, and painted the highest value in a middle colour while the legend's darkest sat beside an empty range.
+  Regression: five classes over three distinct values put two swatches in the legend that no tile used, and painted the highest value in a middle colour while the legend's darkest sat beside an empty range.
   """
   from qgis.core import QgsRenderContext
   from weavingspace_qgis import bridge, compat

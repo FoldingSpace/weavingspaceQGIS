@@ -165,7 +165,7 @@ nothing, so it is counted against the hunt, not for it.
 
 | Direction | Question it asks | Hunts | Confirmed | Notes |
 | --- | --- | ---: | ---: | --- |
-| **Backwards from harm** | "What would a user be furious to lose, and how could the software do that to them?" | 1 | 2 | Found the worst defect in the project's history on its first run. Its second claim — more classes than the column has values, so swatches appear that no tile wears — was confirmed and fixed on 2026-08-13 (evening), two probes later: the first errored, the second lacked a render context |
+| **Backwards from harm** | "What would a user be furious to lose, and how could the software do that to them?" | 1 | 2 | Found the worst defect in the project's history on its first run. Its second claim — more classes than the column has values, so swatches appear that no tile uses — was confirmed and fixed on 2026-08-13 (evening), two probes later: the first errored, the second lacked a render context |
 | **Instruments audit** | "Does each tool actually enforce the rule it claims?" | 1 | 6+ | Found the catalogue certifying tests that never ran, and (2026-08-13, evening) a documented command — the coverage report — that could never write a report at all, because the suite exits through os._exit |
 | **Asymmetry / twins** | "What does this path do that its sibling does not?" | 3 | 6 | The most reliable code-reading direction here |
 | **Suite dead axes** | "Which tests cannot fail?" | 1 | 3 | Two dead tests plus an always-true assertion |

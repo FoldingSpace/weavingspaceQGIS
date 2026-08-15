@@ -65,7 +65,7 @@ changelog=0.24.3 A colour can now mean the same thing everywhere it
     the pattern, and nothing said so.
     Classes: a column with fewer values than the classes you asked
     for now draws the classes it has, and says so, instead of putting
-    swatches in the legend that no tile wears.
+    swatches in the legend that no tile uses.
     Reopening a project: an element whose ramp you reversed comes
     back reversed, naming the ramp you chose rather than reading as
     custom colours.

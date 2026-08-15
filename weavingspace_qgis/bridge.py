@@ -1091,7 +1091,7 @@ def unworn_classes(bounds, values):
     bounds: ``[(lower, upper), ...]`` in class order, as a graduated
       renderer holds them.
     values: the values actually drawn -- the element's own, since the
-      question is what THIS element wears.
+      question is what THIS element uses.
 
   Returns:
     A list of class indices nothing occupies, in order. Empty when
@@ -1101,7 +1101,7 @@ def unworn_classes(bounds, values):
   it describes: a value belongs to the FIRST range that contains it,
   and a range holds ``lower < v <= upper`` except the first, which
   includes its lower bound. A class nothing occupies is a swatch in
-  the legend that no tile wears -- normally impossible since the
+  the legend that no tile uses -- normally impossible since the
   class count is reduced to the value count, and reachable again the
   moment a ladder is COPIED from an element carrying another column.
   Those are kept rather than dropped (maintainer's decision,
@@ -1160,7 +1160,7 @@ def fitted_breaks(breaks, smallest, largest):
   data cannot reach. They are KEPT, deliberately: a copy is supposed
   to reproduce a classification, and a silently shortened one does
   not. The emptiness is made visible instead, by hatching the swatch
-  stripes no tile can wear.
+  stripes no tile can use.
   """
   interior = [float(b) for b in (breaks or [])]
   if not interior:

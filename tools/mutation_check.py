@@ -1328,7 +1328,7 @@ MUTATIONS = [
        test="test_qgis_side_graduated_restyles_reach_the_dialog",
        why="without the graduated branch a dock recolour is neither "
            "adopted nor followed, so the dialog names a ramp the map "
-           "no longer wears and the next Generate destroys the user's "
+           "no longer uses and the next Generate destroys the user's "
            "dock work without a word"),
   dict(name="quant-style-not-stamped", file=DIALOG,
        old="""      layer.setCustomProperty(
@@ -2421,7 +2421,7 @@ MUTATIONS = [
        new="""  elif False:  # mutation: draw more classes than there are values""",
        test="test_a_legend_never_shows_a_class_the_map_does_not_have",
        why="five classes over three distinct values puts two swatches "
-           "in the legend that no tile wears and draws the highest "
+           "in the legend that no tile uses and draws the highest "
            "value in a middle colour, so a reader matching the darkest "
            "swatch to 'high' reads the map wrongly"),
   dict(name="a-copy-carries-the-pin-flags", file=DIALOG,
@@ -2447,7 +2447,7 @@ MUTATIONS = [
        why="a copied ladder can leave classes the receiving data "
            "cannot reach, and those are kept rather than dropped, so "
            "the emptiness has to be visible: unmarked, the legend "
-           "shows swatches no tile wears with nothing to say so"),
+           "shows swatches no tile uses with nothing to say so"),
   dict(name="a-pin-decides-its-own-break", file=BRIDGE,
        old="  if pins:\n    _apply_pinned_bounds(",
        new="  if False:\n    _apply_pinned_bounds(",

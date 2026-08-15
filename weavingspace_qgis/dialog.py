@@ -355,7 +355,7 @@ def _custom_swatch_icon(colours, boxed=(), hatched=()):
       unsorted and unfiltered, so the swatch samples the map rather
       than presenting a tidied summary of it.
     boxed: stripe indices carrying a pinned bound; see _striped_icon.
-    hatched: stripe indices for classes no tile wears; see the same.
+    hatched: stripe indices for classes no tile uses; see the same.
 
   Returns:
     A QIcon of the first colours as equal vertical stripes, drawn by
@@ -3872,7 +3872,7 @@ class WeavingSpaceDialog(QDialog):
             for r in renderer.ranges()]
 
   def _unworn_stripes(self, tile_id, assignment, stripes):
-    """Which swatch stripes stand for classes nothing wears.
+    """Which swatch stripes stand for classes nothing uses.
 
     Args:
       tile_id: the element.
@@ -3973,7 +3973,7 @@ class WeavingSpaceDialog(QDialog):
       # what the pin means there anyway.
       boxed = ([0] if pinned.get("low") is not None else []) + \
               ([-1] if pinned.get("high") is not None else [])
-      # ...and which classes nothing wears, asked of the ELEMENT's
+      # ...and which classes nothing uses, asked of the ELEMENT's
       # own layer, since the question is what THIS element draws. A
       # copied ladder is the only ordinary way to get one: the class
       # count is otherwise reduced to the value count, so an empty
