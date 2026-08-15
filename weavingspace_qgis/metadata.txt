@@ -74,6 +74,21 @@ changelog=0.24.3 A colour can now mean the same thing everywhere it
     per-element colours, class counts and bounds into it. Element
     names repeat between projects, so those settings could land on
     data they were never chosen for.
+    Opening the plugin first: you can open the dialog before you load
+    your data. The variables appear as soon as the layer does. Until
+    now that order left the Variable list empty and Generate saying
+    you had not assigned anything.
+    Styling in QGIS: change an element's renderer in the Layer
+    Styling panel to something the dialog cannot describe, and its
+    Style now reads "Deferring to QGIS" instead of naming a style
+    that no longer decides the map. The renderer survives Generate,
+    the swatch shows the colours QGIS is actually drawing, and the
+    controls that would overwrite it are greyed until you take the
+    element back by choosing a style again.
+    Losing the region layer: removing it from a project that holds
+    several other layers is now noticed. Before, the dialog went on
+    pointing at a layer that had gone, said nothing, and Generate
+    did nothing at all.
     0.24.2 Bugfixes, one of them about not losing data.
     Your files: an existing .gpkg chosen as the output was rewritten
     whole, so every other table in it was lost, including the layer
