@@ -604,7 +604,21 @@ jobs:
       - name: Install QGIS the way a macOS user does
         # The cask, not a vcpkg build: the question this job answers is
         # what happens on the package people actually download.
-        run: brew install --cask qgis --no-quarantine
+        #
+        # DIAGNOSTIC BEFORE THE ATTEMPT, because the first run failed
+        # here and left nothing to read. `brew info` prints the cask's
+        # version, its architecture and any macOS requirement whether
+        # or not the install then works, so a second failure arrives
+        # with the reason attached rather than sending somebody back
+        # for another round. The same rule the Windows job follows for
+        # its install layout: fail with a listing.
+        run: |
+          set -x
+          sw_vers
+          uname -m
+          brew --version
+          brew info --cask qgis || echo "no cask called qgis in this tap"
+          brew install --cask qgis --no-quarantine
 
       - name: What actually got installed
         # PROBED, not assumed, exactly as the Windows job learned to
