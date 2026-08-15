@@ -1139,6 +1139,24 @@ Confirmed with the user via an explicit design review:
   sampled, the reduction, insetting, weaving and geometry -- and it
   cannot again pass because of one profile. What it gave up is covered
   by `test_the_ramp_a_row_names_is_the_ramp_the_map_draws`.
+  **ITS REMAINING REDS ARE THE SAME FACT AGAIN, and they are not a
+  Linux problem.** Measured the same night by holding everything
+  constant but the profile: this Mac scores the "web-app parity" cases
+  at dE mean 2.6-3.1 on its own seeded library, and at 3.7-4.1 with
+  p90 6.7-7.1 on a THROWAWAY profile -- the Linux figures to the
+  decimal. A fresh QGIS resolves Reds and YlGn to ColorBrewer-anchored
+  gradients of nine stops, or five, where the seeded library holds the
+  plugin's sixteen-stop versions, so the two differ EVERYWHERE rather
+  than at edges. The earlier explanation, a platform offset blamed on
+  antialiasing and missing fonts, was wrong.
+  The 4.0 limit was therefore calibrated against renders from a
+  profile no user has. Whether a parity comparison should still fail a
+  build for that is the maintainer's decision and a real one:
+  re-deriving a limit whose baseline was never representative is not
+  the same act as loosening a threshold to get a green run, but it is
+  near enough that nobody should make the change quietly. Reproduce in
+  thirty seconds by rendering the gallery under
+  `QGIS_CUSTOM_CONFIG_PATH=$(mktemp -d)` and scoring it.
 - Optional GPKG output embeds styles; live update renders a first map
   as soon as a layer and variables are in place (no button press) and
   is gated: memory-mode output only, estimated tiles ≤
