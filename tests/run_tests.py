@@ -29334,11 +29334,25 @@ def test_ui_affordances_are_deliberate():
   dlg.spacing_spin.setValue(500)
   dlg._generate()
   assert dlg._task is not None
-  _tick(300)
-  text = dlg.progress.format().lower()
-  assert "%p%" in text, "the progress bar must show a percentage"
-  assert any(word in text for word in ("tiling", "joining", "layers")), \
-    f"and say what it is doing ({text!r}), since during a long run it " \
+  # SAMPLED, not read once at 300 ms. The phase text arrives when the
+  # worker first reports, and how long that takes belongs to the
+  # machine: a fixed wait tuned here failed on the macOS runner, where
+  # the format was still Qt's default when the clock ran out. Sampling
+  # cannot hide the defect this guards -- a bar that never names a
+  # phase still fails, and the assertion quotes the best text seen.
+  seen = ""
+  deadline = time.monotonic() + 10 * CONTENTION
+  while time.monotonic() < deadline:
+    text = dlg.progress.format().lower()
+    if len(text) > len(seen):
+      seen = text
+    if any(word in seen for word in ("tiling", "joining", "layers")):
+      break
+    _tick(100)
+  assert "%p%" in seen, \
+    f"the progress bar must show a percentage (best seen {seen!r})"
+  assert any(word in seen for word in ("tiling", "joining", "layers")), \
+    f"and say what it is doing ({seen!r}), since during a long run it " \
     "is the only thing on screen"
   _settle(dlg, 60)
   dlg.close()
