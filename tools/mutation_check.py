@@ -2467,6 +2467,15 @@ MUTATIONS = [
            "flags and their two bounds are a smaller and more durable "
            "statement and must survive, with the scheme recomputing "
            "the middle around them"),
+  dict(name="a-pin-redraws-its-own-window",
+       file="weavingspace_qgis/category_editor.py",
+       old="    self._redraw_bounds(answer)\n\n  def _bound_edited",
+       new="    pass\n\n  def _bound_edited",
+       test="test_pinning_redraws_the_window_it_was_typed_into",
+       why="a pin recomputes every break between the pinned ones, so "
+           "without this the window prints the ladder from before it "
+           "and the other end's control offers a bound the map no "
+           "longer has -- which is applied if that pin is clicked"),
   dict(name="adoption-takes-the-newest-group", file=DIALOG,
        old="    group = self._newest_output_group(root)",
        new="    group = root.findGroup(GROUP_BASE_NAME)",

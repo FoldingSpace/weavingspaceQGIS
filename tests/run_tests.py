@@ -9257,6 +9257,72 @@ def test_a_reopened_plugin_adopts_the_group_it_last_wrote():
   again.close()
 
 
+def test_pinning_redraws_the_window_it_was_typed_into():
+  """A pin moves every break between the pins, so the window must say so.
+
+  The editor was built with the ladder as it stood, and nothing
+  updated it: pinning recomputes the middle, and the window went on
+  printing the ladder from BEFORE the pin while the map drew the one
+  after. Worse than stale, because the other end's box also kept its
+  old number, and clicking that pin applied the OLD number, moving
+  three more breaks nobody had touched.
+
+  The asymmetry that hid it: `range_changed` hands its new colours
+  back and the window repaints from them, while `pin_changed`
+  answered only "refused or not". It now answers with the ladder.
+
+  Driven through the editor's own handler with a stub for the
+  dialog's half, because what is under test is whether the WINDOW
+  follows the answer -- the arithmetic that produces the answer has
+  its own tests.
+
+  Regression: pinning a class bound left the colour editor showing the ladder from before the pin, and the unpinned end's control offering a bound the map no longer had.
+  """
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+  before = [(0.0, 14.2), (14.2, 30.0), (30.0, 55.0), (55.0, 121.0)]
+  after = [(0.0, 30.0), (30.0, 55.5), (55.5, 77.0), (77.0, 121.0)]
+  answers = []
+
+  def pin_changed(which, value):
+    answers.append((which, value))
+    return after
+
+  # the graduated editor keys its rows by class INDEX as a string,
+  # exactly as _edit_quant_colours builds them: one row per class,
+  # and without them there is no row for a pin control to sit in
+  order = [str(index) for index in range(len(before))]
+  colours = {name: "#cccccc" for name in order}
+  editor = CategoryColourDialog(
+    "a", "v3", order, colours, lambda *a: None,
+    bounds=before, pinned={}, pin_changed=pin_changed)
+  try:
+    assert editor._pin_widgets, \
+      "the graduated editor built no pin controls, so nothing is driven"
+    pin, box = editor._pin_widgets["low"]
+    box.setValue(30.0)
+    pin.setChecked(True)          # the user pins the first class
+    assert answers, "the pin never reached the dialog"
+
+    offset = 1 if editor._pin_column else 0
+    shown = [(editor.table.item(row, offset).text(),
+              editor.table.item(row, offset + 1).text())
+             for row in range(len(after))]
+    expected = [(editor._format_bound(low), editor._format_bound(high))
+                for low, high in after]
+    assert shown == expected, \
+      f"the window still prints the ladder from before the pin: " \
+      f"{shown} against {expected}"
+
+    # ...and the OTHER end's control, which is what turned a stale
+    # display into a wrong map: clicking it applies whatever it shows
+    _high_pin, high_box = editor._pin_widgets["high"]
+    assert abs(high_box.value() - after[-1][0]) < 1e-6, \
+      f"the high control offers {high_box.value()} where the map now " \
+      f"has that boundary at {after[-1][0]}"
+  finally:
+    editor.close()
+
+
 def test_a_class_source_file_that_goes_away():
   """The QML is deleted, moved or renamed after being chosen.
 
@@ -39587,6 +39653,8 @@ def main():
         test_a_pinned_bound_can_hold_the_numbers_a_column_carries)
   check("a reopened plugin adopts the group it last wrote",
         test_a_reopened_plugin_adopts_the_group_it_last_wrote)
+  check("pinning redraws the window it was typed into",
+        test_pinning_redraws_the_window_it_was_typed_into)
   check("one variable gets one legend wherever it appears",
         test_one_variable_gets_one_legend_wherever_it_appears)
   check("a class source file that goes away",

@@ -259,11 +259,15 @@ class CategoryColourDialog(QDialog):
       target is chosen; a message means it refused. The dropdown
       returns to reading "Copy to..." either way, so it never sits
       showing a completed action as though it were a state.
-    pin_changed: callback(which, value) -> message or None, where
+    pin_changed: callback(which, value) -> a refusal MESSAGE, or the
+      ladder the map now draws as ``[(lower, upper), ...]``, where
       ``which`` is "low" or "high" and ``value`` is a float or None
-      to unpin. The dialog validates, applies and repaints; a
-      returned message means it REFUSED, and the editor puts the
-      control back where it was. The editor decides nothing about
+      to unpin. The dialog validates, applies and repaints. A
+      returned STRING means it REFUSED, and the editor puts the
+      control back where it was; anything else is the new ladder,
+      which the window redraws itself from -- a pin recomputes every
+      break between the pinned ones, so "not refused" is not enough
+      to keep the window honest. The editor decides nothing about
       what is legal, for the same reason it computes no colours:
       the rule lives with the map, not with the window.
 
@@ -607,6 +611,56 @@ class CategoryColourDialog(QDialog):
     pin.toggled.connect(lambda on, w=which: self._pin_toggled(w, on))
     box.editingFinished.connect(lambda w=which: self._bound_edited(w))
 
+  def _redraw_bounds(self, bounds):
+    """Show the ladder the map now draws, after a pin moved it.
+
+    Args:
+      bounds: ``[(lower, upper), ...]`` as the map now holds them, or
+        anything falsy, which leaves the window alone.
+
+    Returns:
+      None. The read-only cells are rewritten and the two pin boxes
+      moved to the boundaries they now name, with their signals
+      blocked so putting a number in place does not read as somebody
+      typing it.
+
+    WHY THIS EXISTS. `self._bounds` was set once, at construction, and
+    a pin recomputes every break between the pinned ones -- so the
+    window went on printing the ladder from BEFORE the pin while the
+    map drew the one after it. That is worse than merely stale: the
+    disabled box for the other end still showed its old number, and
+    clicking that pin applied the OLD number, moving three more breaks
+    that nobody had touched. Measured 2026-08-15 with low pinned at
+    30: the map read 30, 42, 55.5, 77 and the window read 14.2, 30,
+    55, with the high box offering 55 for a boundary then at 77.
+
+    The asymmetry that hid it is worth naming: `range_changed` hands
+    its new colours back and the window repaints from them, while
+    `pin_changed` answered only "refused or not".
+    """
+    if not bounds:
+      return
+    self._bounds = [(float(low), float(high)) for low, high in bounds]
+    offset = 1 if self._pin_column else 0
+    for row, pair in enumerate(self._bounds):
+      if row >= self.table.rowCount():
+        break
+      for col, bound in enumerate(pair):
+        cell = self.table.item(row, col + offset)
+        if cell is not None:
+          cell.setText(self._format_bound(bound))
+    # ...and the two boxes, which name boundaries rather than cells:
+    # the first class's upper bound and the last class's lower one
+    for which, value in (("low", self._bounds[0][1]),
+                         ("high", self._bounds[-1][0])):
+      widgets = self._pin_widgets.get(which)
+      if widgets is None:
+        continue
+      _pin, box = widgets
+      box.blockSignals(True)
+      box.setValue(float(value))
+      box.blockSignals(False)
+
   def _pin_toggled(self, which, on):
     """Pin or unpin one end, and put the control back if refused.
 
@@ -624,14 +678,16 @@ class CategoryColourDialog(QDialog):
     """
     pin, box = self._pin_widgets[which]
     value = float(box.value()) if on else None
-    problem = self._pin_changed(which, value) if self._pin_changed else None
-    if problem:
+    answer = self._pin_changed(which, value) if self._pin_changed else None
+    if isinstance(answer, str):
       pin.blockSignals(True)
       pin.setChecked(not on)
       pin.blockSignals(False)
       return
     box.setEnabled(on)
     self._pinned[which] = value
+    # the ladder the map now draws, so the window and the map agree
+    self._redraw_bounds(answer)
 
   def _bound_edited(self, which):
     """Move a pinned bound to the number just typed.
@@ -650,8 +706,8 @@ class CategoryColourDialog(QDialog):
     if not pin.isChecked():
       return
     value = float(box.value())
-    problem = self._pin_changed(which, value) if self._pin_changed else None
-    if problem:
+    answer = self._pin_changed(which, value) if self._pin_changed else None
+    if isinstance(answer, str):
       previous = self._pinned.get(which)
       box.blockSignals(True)
       if previous is not None:
@@ -659,6 +715,9 @@ class CategoryColourDialog(QDialog):
       box.blockSignals(False)
       return
     self._pinned[which] = value
+    # every break between the pins has just moved, so the rest of the
+    # window must say so too
+    self._redraw_bounds(answer)
 
   def _label_for(self, value):
     """What the left column says for one value."""

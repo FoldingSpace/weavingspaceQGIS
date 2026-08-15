@@ -4560,7 +4560,16 @@ class WeavingSpaceDialog(QDialog):
         self._pinned_bounds.get(tile_id, {}).pop(field, None)
       self._custom_swatch_cache.pop(tile_id, None)
       self._apply_style_change()
-      return None
+      # ...and the LADDER back, not merely "not refused". A pin
+      # recomputes every break between the pinned ones, and the window
+      # was built with the ladder from before that, so it went on
+      # printing numbers the map no longer draws -- and offering the
+      # stale one to the other pin. A string still means refused.
+      settled = self._assignment_for(tile_id)
+      if settled is None:
+        return None
+      return [(low, high) for low, high, _colour
+              in self._current_graduated_classes(settled)]
 
     editor = CategoryColourDialog(
       tile_id, field, order, colours, picked, self,
@@ -6450,6 +6459,14 @@ class WeavingSpaceDialog(QDialog):
       old_ids = {}
 
     first_gpkg_layer = True
+    # EVERY SWATCH IS RETHOUGHT, because a run changes which values an
+    # element's tiles carry and the cache key cannot see that. The
+    # hatching in particular is a fact about the ELEMENT'S OWN LAYER:
+    # a coarser spacing can leave a class unreachable that was worn
+    # before, or the reverse, and the cached icon would go on claiming
+    # whichever was true of the previous map. Cheap -- an icon is
+    # rebuilt only when a row asks for one.
+    self._custom_swatch_cache.clear()
     # elements whose renderer is carried over rather than re-seeded;
     # _finish_run re-examines exactly these, because a dock edit made
     # mid-run rides across in that renderer with no record behind it

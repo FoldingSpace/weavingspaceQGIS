@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-148 defect(s) with a regression test.
+149 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -289,6 +289,8 @@ there is no separate list to remember.
   guarded by `test_live_update_notices_the_data_changing`
 - **class breaks were cut from each element's own tiles, so four elements carrying one variable drew four different legends and one colour meant four different numbers.**  
   guarded by `test_one_variable_gets_one_legend_wherever_it_appears`
+- **pinning a class bound left the colour editor showing the ladder from before the pin, and the unpinned end's control offering a bound the map no longer had.**  
+  guarded by `test_pinning_redraws_the_window_it_was_typed_into`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_pins_hold_across_the_whole_family_catalogue`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
@@ -341,7 +343,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 92
+- unrecorded: 93
 - the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6

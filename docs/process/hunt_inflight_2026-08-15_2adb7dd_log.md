@@ -109,3 +109,77 @@ NEXT:   That comparison is RELATIVE: if a loss happened on both paths it
         ask whether the ladder and the pin come back -- and the same
         through a GeoPackage output, which is the artefact that leaves
         the machine.
+
+## 15:44:30  iteration 5  [perturbation]
+TRIED:  H4 measured. probe_roundtrip.py: pin (low 30 on element a, v3)
+        + copy a->b, done quiescent and in flight, then (i) project
+        saved, project CLEARED, reloaded into a fresh dialog, and (ii)
+        the same with a GeoPackage output, the file then opened COLD as
+        a brand new QgsVectorLayer with no dialog anywhere.
+RESULT: RULED OUT. All four artefacts carry it. a draws
+        (0,30)(30,42)(42,55.5)(55.5,77)(77,121) before and after the
+        round trip; b draws the fitted ladder
+        (0,30)(30,42)(42,55.5)(55.5,77)(77,77) in both. Stamps survive:
+        a {"pinned":{"low":30.0}}, b {"pinned":{"breaks":[30,42,55.5,
+        77]}} with five positional colours, and the fresh dialog adopts
+        both. The cold .gpkg reads back identical (421888 / 413696
+        bytes). Note b's low pin is correctly LEFT BEHIND -- v1 runs
+        0..11 and pin_problem refuses 30 -- which is tonight's fix
+        working through the in-flight path too.
+NEXT:   H5: seeded random interleavings, in case a combination beats
+        the hand-picked ones.
+
+## 15:48:10  iteration 6  [perturbation]
+TRIED:  H5. probe_sweep.py, seed 20260815, 22 sessions (10 + 12), live
+        update chosen at random per session. Each: Generate; launch a
+        second run; THREE random actions from {pin, unpin, copy, class
+        count, ramp, style, class colour, display window} while it is in
+        flight; land; Generate again; settle. Invariants: I1 the
+        dialog's own class list (_current_graduated_classes,
+        the helper the editor and the swatch both use) equals
+        what each element layer draws; I2 the same steps replayed
+        quiescently leave the same map.
+        Then control_i1.py, the negative control the record insists on:
+        re-seed one landed layer from a different ramp and a smaller k
+        behind the dialog's back.
+RESULT: 0 problem sessions of 22. Both invariants FIRE under the
+        control -- I1 reported element a believing
+        (0,4)(4,14.2)... while drawing (0,6)(6,21)..., and the
+        divergence check reported ['a'] -- so the 22 clean sessions are
+        evidence rather than decoration.
+NOTHING CLAIMED. The map, the stamp, the project file and the
+GeoPackage all survive a pin or a copy made underneath a run, on both
+live settings. The one disagreement I found in the area (the hatching)
+belongs to the swatch hunt, which got there first and reproduced it
+twice.
+
+## 15:48:39  iteration 7  [close]
+TRIED:  git status; check nothing of mine is in the source tree.
+RESULT: Nothing of mine outside this log. No repo source was edited by
+        this hunt at any point; every probe lives in the scratchpad
+        (probe_copy_inflight.py, probe_swatch.py, probe_converge.py,
+        probe_roundtrip.py, probe_sweep.py, control_i1.py) and each is
+        one command under qpy.sh. (`git status` is NOT clean at the
+        moment I write this: category_editor.py and dialog.py carry
+        somebody else's in-progress fix for the swatch hunt's second
+        finding, arriving while I worked. Everything measured above
+        was measured before it.)
+
+## What I would look at next
+
+The area's RECORDS are sound; what is not sound is what DESCRIBES
+them, and that is where both disagreements found tonight in this
+neighbourhood live -- the hatched swatch, and the open editor's stale
+ladder, both in the swatch hunt's log. So the next direction here is
+not "a pin inside a run" but "every widget that renders a pinned or
+copied element, against the layer": the legend QGIS builds, the
+Classes cell on an Unclassed row, the class preview under the editor,
+and the message-bar notices, each asked twice -- once after a restyle
+and once after a landing.
+
+The other thing worth a night: the landing's re-read list is a
+HAND-KEPT list of four keys against a record set that keeps growing.
+It is correct today, measured six ways. It has been wrong three times,
+each time within days of something new being written through that
+window. A test that walks the editor's writers and requires each to be
+re-read would cost less than a fourth occurrence.
