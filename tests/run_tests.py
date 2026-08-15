@@ -27583,16 +27583,42 @@ def test_a_project_whose_region_layer_has_moved():
     assert "landcover" in offered_fields, \
       f"the live layer's columns are not on offer ({offered_fields}), " \
       f"so the dialog has not really come back to life"
-    # The elements come back UNASSIGNED. Their variables were dropped
-    # when the data went away, and an element left on "---" stays
-    # unassigned through rebuilds by design -- the dialog cannot tell
-    # a blank it imposed from one the user chose. So recovery means
-    # the chooser works again, not that yesterday's assignment
-    # returns, and the user assigns as they would on any other day.
-    assert not [a for a in reopened._assignments() if a["var"]], \
-      "the elements came back already assigned. That may well be an " \
-      "improvement, but it changes what recovery means here, so " \
-      "re-decide this test rather than relaxing it"
+    # The elements come back ASSIGNED, to the NEW layer's columns.
+    #
+    # This is a re-decision, made by the maintainer on 2026-08-15, and
+    # the reasoning matters more than the assertion. Until that day
+    # this test required them to come back BLANK, on the argument that
+    # the dialog cannot tell a blank it imposed from one the user
+    # chose, so recovery meant the chooser worked again and nothing
+    # more. The fix for a field report the same day made that false:
+    # somebody who opens the plugin BEFORE loading their data gets a
+    # table built with no fields on offer, and if those empty rows are
+    # honoured as deliberate they are left with a dialog that refuses
+    # to draw and blames them for not assigning a variable. So the
+    # dialog now distinguishes the two (`_fieldless_build`), and a
+    # blank that a failure imposed is no longer treated as a choice.
+    #
+    # Which lands here, because a region layer whose file has gone is
+    # the same situation reached by another road. Auto-assigning is
+    # what a user meets on any other day, and it is now what they meet
+    # after a recovery.
+    #
+    # WHAT MUST STILL BE TRUE, and this is the part worth testing: the
+    # assignments must name columns THE NEW LAYER HAS. Carrying
+    # yesterday's column onto today's data is the failure this guards,
+    # and it is a sharper question than the blank/not-blank one it
+    # replaces.
+    recovered = [a for a in reopened._assignments() if a["var"]]
+    assert recovered, \
+      "the elements came back blank after the chooser was pointed at " \
+      "a live layer. Auto-assigning on recovery was settled on " \
+      "2026-08-15; re-decide it rather than relaxing this"
+    live_fields = {f.name() for f in second.fields()}
+    stale = [a["var"] for a in recovered if a["var"] not in live_fields]
+    assert not stale, \
+      f"recovery assigned {stale}, which the layer the user just " \
+      f"chose does not have ({sorted(live_fields)}) -- so the dialog " \
+      f"carried the lost layer's columns onto different data"
     chooser.setCurrentText("landcover")
     _tick(250)
     assert [a for a in reopened._assignments() if a["var"]], \

@@ -64,6 +64,17 @@ MUTATIONS = [
   # written for. These entries are how that cannot happen quietly
   # again.
   # ---- this round's defects, each undone here so its test is proved
+  dict(name="a-blank-a-failure-imposed-is-not-a-choice", file=DIALOG,
+       old="      elif prev is not None and prev[\"var\"] is None \\\n"
+           "          and not self._fieldless_build:",
+       new="      elif prev is not None and prev[\"var\"] is None:",
+       test="test_a_project_whose_region_layer_has_moved",
+       why="a table built with no fields on offer leaves every row "
+           "blank, and honouring those blanks as deliberate is how a "
+           "plugin opened before its data refuses to draw and blames "
+           "the user; the same road reaches a region layer whose file "
+           "has gone, where recovery must assign rather than stay "
+           "blank (maintainer's decision, 2026-08-15)"),
   dict(name="region-removal-heard-from-the-project", file=DIALOG,
        old="    QgsProject.instance().layersRemoved.connect(self._layers_removed)",
        new="    pass    # mutated: rely on the combo alone",

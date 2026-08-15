@@ -1259,6 +1259,28 @@ Confirmed with the user via an explicit design review:
   joins the list. It was found by the maintainer asking whether the
   new features had been tested for races, which is worth more than
   the fix.
+- **A BLANK THE PLUGIN IMPOSED IS NOT A CHOICE THE USER MADE.** An
+  element left on "---" stays unassigned through rebuilds, because
+  cycling a default back in would undo a deliberate switching-off. But
+  a table built when NO FIELDS were on offer leaves every row blank
+  for a reason that has nothing to do with anybody's intent, and
+  honouring those blanks is how a plugin opened before its data ends
+  up refusing to draw and blaming the user for not assigning a
+  variable -- the field report of 2026-08-15. `_fieldless_build`
+  tells the two apart.
+  THE SAME ROAD REACHES RECOVERY, which is where the rule had to be
+  decided rather than inferred. A region layer whose file has moved
+  loses its elements' variables; when the user then points the chooser
+  at a live layer, the elements AUTO-ASSIGN as they would on any other
+  day, rather than staying blank. That reverses the contract
+  `test_a_project_whose_region_layer_has_moved` had held since it was
+  written, and the test said so itself rather than quietly bending --
+  it required the change to be re-decided, and the maintainer decided
+  it on 2026-08-15. What the test now guards is sharper than what it
+  gave up: the assignments must name columns THE NEW LAYER HAS, since
+  carrying the lost layer's columns onto different data is the real
+  harm nearby. Catalogue entry
+  `a-blank-a-failure-imposed-is-not-a-choice`.
 - **A region layer with no CRS is tiled as it is, and its output says
   so.** QGIS permits a layer with no CRS and users sometimes want one
   (a floor plan, a scanned map, a diagram), so the plugin gets on with
