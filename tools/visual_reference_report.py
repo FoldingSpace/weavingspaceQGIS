@@ -374,6 +374,12 @@ def _reference_bins(region, variables, scheme, k):
 # has been called with a report directory.
 RAMP_COLOURS = {}
 
+# Recorded ramp name -> the matplotlib name its colours were actually
+# registered under. Filled by _register_recorded_colormaps; see
+# cmap_name_for for why the two differ.
+RECORDED_ALIAS = {}
+ALIAS_PREFIX = "weavingspace_in_force_"
+
 
 def load_ramp_colours(report_dir):
   """Read the colours the gallery was rendered with.
@@ -436,18 +442,91 @@ def _register_recorded_colormaps():
   """
   import matplotlib
   from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+  RECORDED_ALIAS.clear()
   for name, recorded in RAMP_COLOURS.items():
     colours = recorded.get("colours")
     if not colours:
       continue
+    alias = ALIAS_PREFIX + name
     if recorded.get("kind") == "preset":
-      cmap = ListedColormap(colours, name=name)
+      cmap = ListedColormap(colours, name=alias)
     else:
-      cmap = LinearSegmentedColormap.from_list(name, colours)
+      cmap = LinearSegmentedColormap.from_list(alias, colours)
     try:
-      matplotlib.colormaps.register(cmap, name=name, force=True)
+      matplotlib.colormaps.register(cmap, name=alias, force=True)
     except Exception:
       continue
+    RECORDED_ALIAS[name] = alias
+  if RECORDED_ALIAS and not _install_name_redirect():
+    print("WARNING: the colours in force could not be substituted, so "
+          "this comparison is scoring the plugin against matplotlib's "
+          "own palettes -- a claim this project retired on 2026-08-15. "
+          "Read every figure below in that light.")
+
+
+def _install_name_redirect():
+  """Make a lookup of "RdBu" return the colours the plugin drew with.
+
+  Returns:
+    True when the redirect is in place, False when matplotlib's shape
+    has changed enough that it could not be installed -- in which case
+    the caller says so out loud rather than reporting figures that
+    quietly mean something else.
+
+  WHY A REDIRECT AND NOT A REGISTRATION, which is the part that took
+  three attempts. The ramp NAME cannot change: `TiledMap.render`
+  validates each entry of `colors_to_use` against its own
+  `CMAPS_SEQUENTIAL`, `CMAPS_DIVERGING` and `CMAPS_CATEGORICAL` lists
+  and SILENTLY REPLACES anything it does not recognise with a
+  positional default (tile_map.py:1154). Handing it an alias therefore
+  scored every case at dE 18-46, because every case was quietly drawn
+  with the library's fallback colormaps rather than with ours.
+  Registering over the name instead is what this tool did from the
+  morning of 2026-08-15 until that night, and matplotlib REFUSES to
+  overwrite a builtin colormap even with force=True; the refusal was
+  caught and passed over, so the substitution did nothing whatever and
+  the comparison went on scoring against matplotlib's palettes -- the
+  exact claim the colour decision had retired hours earlier. Measured:
+  `get_cmap("RdBu")` still ended #67001f/#053061 after loading colours
+  recorded as #ca0020/#0571b0.
+  And a colormap OBJECT cannot be passed down either: it goes through
+  a different path inside the library and scored 21.8 where a name
+  scored 2.7.
+  So the name stays the library's, and the LOOKUP is what moves. This
+  is the narrowest point at which the difference can be made, and it
+  leaves the library's own code path untouched, which is the whole
+  requirement -- the two sides must differ in the COLOURS ALONE.
+  """
+  try:
+    from matplotlib.cm import ColormapRegistry
+    import matplotlib.pyplot as plt
+  except Exception:
+    return False
+  if not getattr(ColormapRegistry, "_weavingspace_redirect", False):
+    original_getitem = ColormapRegistry.__getitem__
+
+    def redirected(self, item):
+      if isinstance(item, str) and item in RECORDED_ALIAS:
+        return original_getitem(self, RECORDED_ALIAS[item])
+      return original_getitem(self, item)
+
+    # Patched on the CLASS, since Python resolves dunder methods on
+    # the type rather than the instance, so setting it on
+    # `matplotlib.colormaps` alone would be ignored.
+    ColormapRegistry.__getitem__ = redirected
+    ColormapRegistry._weavingspace_redirect = True
+
+  if not getattr(plt.get_cmap, "_weavingspace_redirect", False):
+    original_get_cmap = plt.get_cmap
+
+    def get_cmap(name=None, lut=None):
+      if isinstance(name, str) and name in RECORDED_ALIAS:
+        name = RECORDED_ALIAS[name]
+      return original_get_cmap(name, lut)
+
+    get_cmap._weavingspace_redirect = True
+    plt.get_cmap = get_cmap
+  return True
 
 
 def colormap_for(name):
@@ -538,14 +617,18 @@ def reference_render(unit, png, ids, variables, cmaps,
   tm = Tiling(unit, region, **tiling_kw).get_tiled_map()
   tm.ids_to_map = list(ids)
   tm.vars_to_map = list(variables)
-  # NAMES, unchanged. The colours are substituted by REGISTERING them
-  # under those names in matplotlib's own registry (see
-  # load_ramp_colours), rather than by handing colormap objects down
-  # here: passing objects went through a different path inside the
-  # library and scored dE 21.8 where naming the same colours scores
-  # 2.7, so the library plainly resolves these itself. Registering
-  # leaves its code path exactly as it was, which is the point -- the
-  # comparison must differ from the plugin in the COLOURS ALONE.
+  # NAMES, because the library resolves these itself: handing colormap
+  # OBJECTS down went through a different path inside TiledMap.render
+  # and scored dE 21.8 where naming the same colours scored 2.7. The
+  # comparison must differ from the plugin in the COLOURS ALONE, so
+  # its code path is left exactly as it was.
+  #
+  # The names are the RAMPS' OWN, unchanged, and they have to be: the
+  # library checks each one against its own lists and silently swaps
+  # in a positional default for anything it does not recognise, so an
+  # alias here draws the whole gallery in the wrong colours. What was
+  # substituted instead is the LOOKUP those names go through; see
+  # _install_name_redirect.
   tm.colors_to_use = list(cmaps)
   if categoricals is not None:
     tm.categoricals = list(categoricals)
