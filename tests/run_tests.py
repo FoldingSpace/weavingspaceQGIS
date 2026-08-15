@@ -7078,7 +7078,15 @@ def test_one_variable_gets_one_legend_wherever_it_appears():
   dlg.live_check.setChecked(False)
   dlg.n_combo.setCurrentText("4")
   dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
-  dlg.spacing_spin.setValue(500)
+  # 1200, and the number is load-bearing. At 500 every element
+  # receives exactly the same 595 tiles, so classifying each on its
+  # own tiles gives the same answer as classifying the whole map and
+  # this test passes whatever the code does -- measured, and caught
+  # by the catalogue entry rather than by anybody's judgement. At
+  # 1200 the four elements get 113, 112, 113 and 112 tiles and
+  # produce FOUR different legends when classified separately, which
+  # the guard below requires before believing anything that follows.
+  dlg.spacing_spin.setValue(1200)
   for row in range(dlg.table.rowCount()):
     combo = dlg.table.cellWidget(row, 1)
     if combo is not None:
@@ -7116,6 +7124,31 @@ def test_one_variable_gets_one_legend_wherever_it_appears():
 
   assert len(bounds) >= 2, \
     f"only {len(bounds)} element(s) carry v3, so nothing is compared"
+
+  # THE NEGATIVE CONTROL, and this test has no business asserting
+  # agreement without it. Classify each element on its own tiles, the
+  # way the plugin did until 2026-08-14, and require the answers to
+  # DISAGREE: if they do not, this configuration cannot tell the two
+  # behaviours apart and every assertion below is satisfied by
+  # arithmetic rather than by the software.
+  from weavingspace_qgis import bridge
+  alone = set()
+  for a in dlg._assignments():
+    if a.get("var") != "v3" or a.get("mode") != "Graduated":
+      continue
+    out = project.mapLayer(dlg._element_layer_ids.get(a["id"], ""))
+    if out is None:
+      continue
+    per_element = bridge.make_graduated_renderer(
+      out, "v3", a["ramp"], a.get("scheme", "Quantiles"),
+      a.get("k", 5), False)
+    alone.add(tuple((round(r.lowerValue(), 6), round(r.upperValue(), 6))
+                    for r in per_element.ranges()))
+  assert len(alone) >= 2, \
+    f"classifying each element on its own tiles gives {len(alone)} " \
+    f"distinct legend(s) here, so this design cannot distinguish " \
+    f"per-element classification from one classification per map " \
+    f"and the agreement below would be a property of the fixture"
   first = sorted(bounds)[0]
   for tile_id, theirs in sorted(bounds.items()):
     assert theirs == bounds[first], \

@@ -2407,9 +2407,8 @@ MUTATIONS = [
            "matters, a design inset until its tiles are slivers"),
   # --- 0.24.3: one legend per variable, and a ramp that comes home
   dict(name="breaks-come-from-the-whole-map", file=BRIDGE,
-       old="""  source = classification_source(field, classify_from) \\
-    if classify_from is not None else None""",
-       new="""  source = None  # mutation: classify each element's own tiles""",
+       old="  if classify_from is None:",
+       new="  if True:  # mutation: classify each element's own tiles",
        test="test_one_variable_gets_one_legend_wherever_it_appears",
        why="an element layer holds only its own tiles, so cutting the "
            "breaks from it gives every element a different legend for "
