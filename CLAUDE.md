@@ -913,6 +913,19 @@ first, kept here so they are unmissable:
   source directly before believing it. The file was annotated by hand
   rather than rewritten, because a log that silently corrects itself
   is worth less than one that says where it was unreliable.
+  **The same fault twice in five days, and the second time it was a
+  RELAUNCH.** 2026-08-14: a sharded suite was started, appeared to
+  die, and was started again over the same `shardN.log` paths -- but
+  one shard of the first run had outlived the kill, so two runs of
+  the same shard, on two different commits, appended to one file. The
+  counts stopped making sense before anybody wondered why. Two rules
+  follow, both cheap. Key a run's logs to the RUN (a timestamp, the
+  commit, anything unique), never to the shard number alone, so a
+  second launch cannot land in the first one's file. And verify the
+  kill rather than assuming it: `pgrep` for the work itself, not for
+  the wrapper that started it, because a launcher can exit while what
+  it launched carries on -- which this project already learned once
+  from a stochastic hunt that relaunched itself with nohup.
 - A watcher that REPEATS itself misleads as badly as one that goes
   silent: a monitor grepping a whole log each pass re-reported the
   same historical failure every 45 seconds as though it were news,

@@ -4063,7 +4063,10 @@ class WeavingSpaceDialog(QDialog):
       combo would land elsewhere than the layer. A dock edit that
       changed the CLASS COUNT or the field is a reclassification the
       dialog has no record to reconcile against, so it is left alone
-      -- the signature rule preserves it, as it always has.
+      -- the signature rule preserves it, as it always has. That
+      count is measured against what the plugin would DRAW, not
+      against the row's ``k``: the two differ whenever a column has
+      fewer distinct values than the row asks classes for.
     """
     assignment = self._assignment_for(tile_id)
     if assignment is None or assignment["mode"] != "Graduated" \
@@ -4073,22 +4076,32 @@ class WeavingSpaceDialog(QDialog):
       return
     ranges = renderer.ranges()
     actual = [r.symbol().color().name() for r in ranges]
-    if not actual or len(actual) != assignment.get("k", 5):
-      return  # reclassified to a different count in the dock
+    if not actual:
+      return
+    # The count is compared against what the plugin would DRAW, below,
+    # and not against the row's `k`. Those are two different numbers
+    # whenever the column has fewer distinct values than the row asks
+    # classes for: `k` is the ask, the map honestly draws fewer, and a
+    # guard reading the ask rejected every dock edit on such an
+    # element -- adoption stopped silently and the user's recolour was
+    # thrown away by the next restyle. Found on 2026-08-14 by
+    # test_a_graduated_dock_refinement_survives_the_next_restyle, one
+    # commit after the reduction it is about.
     expected = [colour for _lo, _hi, colour
                 in self._current_graduated_classes(assignment)]
     if actual == expected:
       return  # our own seeding, or an edit that changed nothing
     if len(expected) != len(actual):
-      # The count guard above compares the layer against the
-      # dialog's CLASS COUNT, and these two lists can still differ:
-      # a CONSTANT column is deliberately collapsed to one class
-      # here, while QGIS's own Classify button happily returns five
-      # identical "7 - 7" ranges over the same data. Five against
-      # one, both agreeing that k is five. The positional walk below
-      # then ran off the end of the shorter list, inside a slot on
-      # rendererChanged -- so the traceback went to a console nobody
-      # had open and adoption quietly stopped for that element.
+      # THE count guard, and the only one: the layer against what the
+      # plugin would draw for this row. A CONSTANT column is
+      # deliberately collapsed to one class here, while QGIS's own
+      # Classify button happily returns five identical "7 - 7" ranges
+      # over the same data. Five against one, both agreeing that k is
+      # five -- which is why comparing either against `k` answers the
+      # wrong question. The positional walk below then ran off the end
+      # of the shorter list, inside a slot on rendererChanged -- so
+      # the traceback went to a console nobody had open and adoption
+      # quietly stopped for that element.
       # A reclassification the dialog has no matching record for is
       # left alone, exactly as a changed class count is; the
       # signature rule preserves it. Guarded by

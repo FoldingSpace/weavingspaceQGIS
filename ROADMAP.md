@@ -89,42 +89,6 @@ entry as it lands.
 
 ### Wanted
 
-**Fewer distinct values than classes. DECIDED 2026-08-14.** The
-maintainer's answer: reduce the class count to the number of distinct
-values, and where QGIS puts the full count back, leave it.
-
-The defect is real and measured (QGIS 4.0.3, 2026-08-13, with a render
-context): k=5 over {1, 5, 9} gives five ranges, two of them degenerate,
-three colours on the map, and the HIGHEST value drawn mid-grey while
-the legend's black sits beside a range nothing occupies. A reader
-matching the darkest swatch to "high" reads the map wrongly and
-nothing on screen says so. Upstream's own `_plot_subsetted_gdf`
-reduces k in exactly this case.
-
-What the first attempt got wrong is the whole of the design question
-(implemented in ed418dd, reverted in 359a82e the same night): it
-counted distinct values on the ELEMENT layer, which holds only that
-element's tiles, so two elements carrying the same variable could draw
-different class counts. `test_metamorphic_variable_permutation`
-requires the opposite in as many words. The count is therefore taken
-over the whole run, so every element classes alike, and the reduction
-follows the shape of the NULL workaround beside it: applied at the
-narrowest point, falling through rather than failing when it cannot be
-applied, said out loud to the user, and reverting if the user presses
-Classify in QGIS's own panel.
-
-**Reverse is not recovered when a project reopens. DECIDED
-2026-08-14.** Reversing produces a ramp clone matching no name in the
-library, so `_ramp_name_matching` returns None and the element comes
-back as Custom carrying its actual class colours. The map is exactly
-preserved; what is lost is the knowledge that those colours came from
-reversing, and with it the tick a user would expect to find set.
-Closing it means teaching that lookup to recognise a reversed clone,
-and then removing `reverse` from `NOT_YET_RESTORED` in
-`test_a_project_round_trip_changes_nothing_a_user_chose` so the test
-starts requiring it. The scheme (Quantiles against Natural breaks)
-cannot be recovered from breaks at all and is not attempted.
-
 **Sampling the six unsampled assignment-lookup copies.** Deferred here
 from 0.24.2 deliberately: it is measurement rather than
 defect-finding, and the night of 2026-08-13 put mutation sampling at

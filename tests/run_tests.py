@@ -7056,13 +7056,21 @@ def test_one_variable_gets_one_legend_wherever_it_appears():
       f"element {a['id']} is not graduated, so it cannot be compared"
     bounds[a["id"]] = [(round(r.lowerValue(), 6), round(r.upperValue(), 6))
                        for r in renderer.ranges()]
+    # WHICH CLASS each value lands in, by position, not which colour:
+    # elements deliberately wear different ramps (Reds, Blues, Greens,
+    # Purples here), so the same value drawing a different colour in
+    # each is the design working. What must agree is the class, since
+    # that is what the legends are read against.
+    order = {colour: index for index, colour
+             in enumerate(r.symbol().color().name()
+                          for r in renderer.ranges())}
     context = QgsRenderContext()
     renderer.startRender(context, out.fields())
     seen = {}
     for feature in out.getFeatures():
       symbol = renderer.originalSymbolForFeature(feature, context)
       if symbol is not None:
-        seen[float(feature["v3"])] = symbol.color().name()
+        seen[float(feature["v3"])] = order.get(symbol.color().name())
     renderer.stopRender(context)
     drawn[a["id"]] = seen
 
@@ -7075,20 +7083,21 @@ def test_one_variable_gets_one_legend_wherever_it_appears():
       f"{first} classes it as {bounds[first]}. One variable, two " \
       f"legends: the same colour means two different numbers"
 
-  # and the same value really does draw the same colour, which is the
-  # half a reader can see. Compared only over values BOTH elements
-  # carry -- an element that received no tile for a value cannot
-  # disagree about it.
+  # ...and the same value really does land in the same class, which
+  # is the half a reader can see. Compared only over values EVERY
+  # element carries: an element that received no tile for a value
+  # cannot disagree about it.
   shared = set(drawn[first])
   for tile_id in drawn:
     shared &= set(drawn[tile_id])
   assert len(shared) >= 3, \
     f"only {len(shared)} value(s) appear in every element, so the " \
-    f"colour comparison is nearly vacuous"
+    f"class comparison is nearly vacuous"
   for value in sorted(shared):
-    colours = {tile_id: drawn[tile_id][value] for tile_id in drawn}
-    assert len(set(colours.values())) == 1, \
-      f"v3 = {value} draws {colours!r}: one value, several colours"
+    classes = {tile_id: drawn[tile_id][value] for tile_id in drawn}
+    assert len(set(classes.values())) == 1, \
+      f"v3 = {value} falls in class {classes!r}: one value, several " \
+      f"classes, so the legends cannot be read against each other"
   dlg.close()
 
 
@@ -12049,7 +12058,12 @@ def test_integration_interleaved_session():
   from qgis.gui import QgsColorButton
   from qgis.PyQt.QtGui import QColor
   project = QgsProject.instance()
-  layer = make_region_layer()
+  # seven a side, because step 4 asks for seven classes and a column
+  # cannot be cut into more than it has distinct values -- on the
+  # four-cell default the map honestly draws four and this session
+  # test would be measuring the reduction instead of the state it
+  # carries across a dozen interleaved steps
+  layer = make_region_layer(n=7)
   project.addMapLayer(layer)
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(False)
@@ -12091,8 +12105,12 @@ def test_integration_interleaved_session():
   b_ranges = len(renderer("b").ranges())
   dlg.table.cellWidget(0, 3).setValue(7)
   _generate_and_wait(dlg)
-  assert len(renderer("a").ranges()) == 7
-  assert len(renderer("b").ranges()) == b_ranges
+  assert len(renderer("a").ranges()) == 7, \
+    f"a was asked for seven classes and drew " \
+    f"{len(renderer('a').ranges())}"
+  assert len(renderer("b").ranges()) == b_ranges, \
+    f"b was not touched and must keep its {b_ranges} classes, but " \
+    f"drew {len(renderer('b').ranges())}"
 
   # 5. data: change c's variable; a and b keep everything
   a_colour, a_classes = top_colour("a"), len(renderer("a").ranges())
@@ -30104,6 +30122,21 @@ def test_a_project_round_trip_changes_nothing_a_user_chose():
           if came_back.get(key) != was:
             still_lost.append(key)
           continue
+        if key == "k" and came_back.get(key) != was:
+          # RE-DESCRIBED, not lost, and only in one direction. A
+          # column cannot be cut into more classes than it has
+          # distinct values, so a row that asked for five over a
+          # four-value column DRAWS four and was told so at the time.
+          # Reopening reads the count back off the layer, which is
+          # the settled contract -- the layer is the authority -- so
+          # the row comes back saying four. That is the map's own
+          # number and it agrees with the notice the user was given.
+          # Allowed ONLY while it really is the number of classes on
+          # the map: anything else is the table inventing a count.
+          drawn = colours_on_the_map.get(tile_id)
+          if drawn is not None and came_back.get(key) == str(len(drawn)) \
+              and int(came_back.get(key) or 0) < int(was or 0):
+            continue
         if key == "quant" and was in ("{}", "") \
             and came_back.get(key) not in ("{}", "", None):
           # RE-DESCRIBED, not lost. Where no ramp in the library
@@ -30614,6 +30647,7 @@ def test_the_row_agrees_with_the_map_about_what_it_shows():
   Regression: nothing compared a row's stated field and style against the renderer the run produced, so a map could carry a different field from the one the table named. [differential]
   """
   from qgis.core import QgsCategorizedSymbolRenderer, QgsGraduatedSymbolRenderer
+  from weavingspace_qgis import bridge
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
   layer = make_region_layer()
@@ -30660,10 +30694,30 @@ def test_the_row_agrees_with_the_map_about_what_it_shows():
 
     if graduated and assignment.get("k"):
       ranges = len(renderer.ranges())
-      if ranges != int(assignment["k"]):
+      # A column cannot be cut into more classes than it has distinct
+      # values, so a row asking for five over a four-value column
+      # DRAWS four and the user is told so at the time. That is the
+      # one legitimate way these two numbers differ, and it is
+      # allowed only in that direction and only up to the count the
+      # data can actually support: `k` records what was asked for
+      # (see dialog._assignments), the map records what the data
+      # allows, and any other gap between them is the table lying.
+      # counted on the REGION layer, which is where the breaks are cut
+      # from: an element holds only its own tiles and can be missing a
+      # value the map as a whole has, so counting here would set the
+      # bar too low and pass a genuine disagreement
+      source = dlg.layer_combo.currentLayer()
+      values = bridge.distinct_numeric_count(
+        source.uniqueValues(source.fields().indexOf(field))) \
+        if field and source is not None \
+        and source.fields().indexOf(field) >= 0 else 0
+      allowed = min(int(assignment["k"]), values) if values else \
+        int(assignment["k"])
+      if ranges != allowed:
         wrong.append(
-          f"{tile_id}: the row asks for {assignment['k']} classes, the "
-          f"map has {ranges}")
+          f"{tile_id}: the row asks for {assignment['k']} classes over "
+          f"a column with {values} distinct value(s), so the map should "
+          f"have {allowed}, and it has {ranges}")
       if ranges == 0:
         wrong.append(
           f"{tile_id}: the map has NO ranges, so every tile falls "
