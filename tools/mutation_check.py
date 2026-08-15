@@ -64,6 +64,31 @@ MUTATIONS = [
   # written for. These entries are how that cannot happen quietly
   # again.
   # ---- this round's defects, each undone here so its test is proved
+  dict(name="a-data-tab-change-never-rebuilds-the-table", file=DIALOG,
+       # ANCHORED ON THE COMMENT, and it took two goes. The two lines
+       # alone match TWO sites five lines apart -- `changed`, on
+       # currentIndexChanged, and `picked`, on activated -- and the
+       # tool rightly refused the ambiguous anchor. Narrowing it to
+       # the SECOND site then SURVIVED, because setCurrentText emits
+       # currentIndexChanged and never activated, so the test drives
+       # the first. Which twin a test actually reaches is not a detail:
+       # anchoring the wrong one certifies nothing while looking
+       # exactly like a guard.
+       old="""        # reselected anew", settled 2026-08-09)
+        self._clear_category_colours(tid, "a new colour ramp")
+        self._clear_quant_customization(tid, "a new colour ramp")
+      self._refresh_preview_colours()""",
+       new="""        # reselected anew", settled 2026-08-09)
+        self._clear_category_colours(tid, "a new colour ramp")
+        self._clear_quant_customization(tid, "a new colour ramp")
+      self._rebuild_unit()""",
+       test="test_palette_pick_survives_debounce",
+       why="a rebuild replaces every cell widget in the table, so one "
+           "debounced from a ramp pick lands mid-interaction with the "
+           "next: open dropdowns die and a pick commits to a dead "
+           "widget. Data-tab handlers repaint, they never rebuild -- "
+           "and the test had no catalogue entry until 2026-08-15, so "
+           "nothing had ever proved it could fail"),
   dict(name="a-blank-a-failure-imposed-is-not-a-choice", file=DIALOG,
        old="      elif prev is not None and prev[\"var\"] is None \\\n"
            "          and not self._fieldless_build:",

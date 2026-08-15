@@ -1870,10 +1870,34 @@ def test_palette_pick_survives_debounce():
   dlg.spacing_spin.setValue(500)
   # spacing is a DESIGN change, so a rebuild is expected and correct;
   # let it land before grabbing widget references — the property under
-  # test is that *data-tab* changes cause no further rebuilds
-  settle = QEventLoop()
-  QTimer.singleShot(600, settle.quit)
-  settle.exec()
+  # test is that *data-tab* changes cause no further rebuilds.
+  #
+  # WAITED FOR, not timed. This was a flat 600 ms until 2026-08-15,
+  # when it failed on the windows runner at the identity assertion
+  # below: the design rebuild had not landed inside the allowance, so
+  # the references were taken BEFORE it and the rebuild it is right to
+  # perform arrived afterwards, looking exactly like the defect this
+  # test exists to catch. A fixed wait tuned on one machine is re-tuned
+  # by every other, and this suite runs on four.
+  #
+  # So the table is watched until it stops changing: two consecutive
+  # looks with the same widget objects mean the pending rebuild has
+  # been and gone. This cannot mask the defect -- a data-tab change
+  # that rebuilds still replaces the widgets after the references are
+  # taken, which is what the assertion reads.
+  stable_since = None
+  deadline = time.monotonic() + 20 * CONTENTION
+  while time.monotonic() < deadline:
+    seen = (dlg.table.cellWidget(0, 4), dlg.table.cellWidget(1, 1))
+    if None not in seen and seen == stable_since:
+      break
+    stable_since = seen
+    _tick(int(400 * CONTENTION))
+  else:
+    raise AssertionError(
+      "the table never stopped rebuilding itself, so this test could "
+      "not reach the state it is about: something is rebuilding on a "
+      "timer with nobody asking it to")
 
   ramp_widget = dlg.table.cellWidget(0, 4)
   var_widget = dlg.table.cellWidget(1, 1)
