@@ -94,6 +94,11 @@
   "excerpt": "# WeavingSpace QGIS plugin",
   "where": "README.md"
  },
+ "0fecfcd1640a7651": {
+  "approved": "2026-08-15",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
  "102e7ccb57665571": {
   "approved": "2026-08-08",
   "excerpt": "Could not build tile unit: {}",
@@ -544,6 +549,11 @@
   "excerpt": "One unit per polygon, at its centre, instead of a continuous",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "65facef53f381361": {
+  "approved": "2026-08-15",
+  "excerpt": "The last class cannot begin at {}: the copied classes put th",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "663c58421e36f94e": {
   "approved": "2026-08-09",
   "excerpt": "Where this element's class colours come from.",
@@ -594,6 +604,11 @@
   "excerpt": "The pattern's grain, in map units: unit size for tilings, st",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "6c676ac3916b88f0": {
+  "approved": "2026-08-15",
+  "excerpt": "{} of {} areas have no geometry, so they are left out of the",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "6d018091ba667251": {
   "approved": "2026-08-09",
   "excerpt": "Opens a gap around each whole unit (tilings only).",
@@ -613,6 +628,11 @@
   "approved": "2026-08-09",
   "excerpt": "Rings of neighbouring copies around the unit; 0 shows the un",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "71e4dec731df4871": {
+  "approved": "2026-08-15",
+  "excerpt": "'{}' has {} distinct value{} left between its pinned bounds,",
+  "where": "weavingspace_qgis/bridge.py"
  },
  "73c0239ddfcb2822": {
   "approved": "2026-08-15",
@@ -679,6 +699,11 @@
   "excerpt": "Tiled or woven? The two carry the same information, and we w",
   "where": "docs/USER-GUIDE.md"
  },
+ "7e5d5ef42edc24e0": {
+  "approved": "2026-08-15",
+  "excerpt": "The pinned {} {} element '{}' {} not fit the values element ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "7edcef7e57e54b87": {
   "approved": "2026-08-08",
   "excerpt": "That layer's symbology defines no classes",
@@ -702,6 +727,11 @@
  "833f0e7895b7a071": {
   "approved": "2026-08-09",
   "excerpt": "The region layer was removed from the project, so there is n",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "851a11ef81be0b47": {
+  "approved": "2026-08-15",
+  "excerpt": "Element '{}' is now styled in QGIS, so its colours are set i",
   "where": "weavingspace_qgis/dialog.py"
  },
  "8591c5f1b08a3efc": {
@@ -837,6 +867,11 @@
  "9bc197f228806dd1": {
   "approved": "2026-08-09",
   "excerpt": "The layer's coordinate system changed, so the spacing has be",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "9c35c1b823d70bae": {
+  "approved": "2026-08-15",
+  "excerpt": "Element '{}' was styled in QGIS, and changing its variable m",
   "where": "weavingspace_qgis/dialog.py"
  },
  "9e471b0afdf7f1d1": {
@@ -1099,6 +1134,11 @@
   "excerpt": "Run this element's ramp the other way round",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "d67370e4b7b5f340": {
+  "approved": "2026-08-15",
+  "excerpt": "The first class cannot end at {}: the copied classes put the",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "d84cfc40a917feb6": {
   "approved": "2026-08-09",
   "excerpt": "Keeps the previous result and adds this run as a separate gr",
@@ -1257,6 +1297,11 @@
  "ee4e54ecbcf3e695": {
   "approved": "2026-08-08",
   "excerpt": "WeavingSpace: tiling with {}",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "ee4fbfa708438419": {
+  "approved": "2026-08-15",
+  "excerpt": "Styled in QGIS; set it in the Layer Styling panel.",
   "where": "weavingspace_qgis/dialog.py"
  },
  "ef46c42e84d4d5a9": {
