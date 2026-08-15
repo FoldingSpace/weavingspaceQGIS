@@ -61,7 +61,7 @@ server=False
 
 **`weavingspace_qgis/metadata.txt:39`**
 
-<!-- id:33b2581bca9db35e -->
+<!-- id:88ab490f39004b66 -->
 ````
 ; Shown in the QGIS plugin manager. Keep the newest version first, and
 ; describe what a USER would notice rather than what changed in the code.
@@ -72,9 +72,9 @@ server=False
 ; wants to know what moved reads on. One text serving both is how a
 ; changelog becomes a list nobody finishes.
 ; (Maintainer's instruction, 2026-08-13.)
-changelog=0.24.3 A colour means the same thing everywhere it appears
-    on the map, and you can set the class bounds yourself where the
-    automatic ones do not suit.
+changelog=0.24.3 A colour can now mean the same thing everywhere it
+    appears on the map, if that is what you want, and you can set the
+    class bounds yourself where the automatic ones do not suit.
     Class bounds: pin the first or last class in the colour editor and
     type its inner bound, and the classes between are recomputed
     around it. Unpin and that break goes back to being worked out for
@@ -84,15 +84,15 @@ changelog=0.24.3 A colour means the same thing everywhere it appears
     to another from the same window. Where the two carry different
     columns the ends are fitted to the receiving data, and any class
     its values cannot reach is hatched in the swatch so an empty class
-    is visible rather than silent.
-    Colour: every element showing the same variable is now classed
-    the same way, so its legend can be read against the others.
-    Each element used to be classed on its own tiles alone, which
-    quietly gave them different class breaks, and the same shade
-    stood for different numbers in different parts of the pattern.
+    is visible.
+    Colour: an element is now classed from the whole map's values
+    rather than from its own tiles alone, so two elements you have set
+    up alike can be read against each other. They could not before:
+    the same shade stood for different numbers in different parts of
+    the pattern.
     Classes: a column with fewer values than the classes you asked
     for now draws the classes it has, and says so, instead of putting
-    swatches in the legend that no tile wears.
+    swatches in the legend that no tile uses.
     Reopening a project: an element whose ramp you reversed comes
     back reversed, naming the ramp you chose rather than reading as
     custom colours.
@@ -174,12 +174,12 @@ changelog=0.24.3 A colour means the same thing everywhere it appears
 <!-- id:c3dd2d8765fd4fe8 -->
 > The first class must end below where the last class begins.
 
-**`weavingspace_qgis/bridge.py:935`** — in `pin_problem`
+**`weavingspace_qgis/bridge.py:941`** — in `pin_problem`
 
-<!-- id:56491953357bf591 -->
-> A {}-class ladder has {} boundar{} to pin, so it cannot carry {}. Ask for more classes, or unpin one end.
+<!-- id:bfb5aa3c22ba0775 -->
+> A {}-class scheme has {} {} to pin, so it cannot carry {}. Ask for more classes, or unpin one end.
 
-**`weavingspace_qgis/bridge.py:947`** — in `pin_problem`
+**`weavingspace_qgis/bridge.py:952`** — in `pin_problem`
 
 <!-- id:5cb6ad1fc728afbc -->
 > Those bounds leave nothing between them to divide into classes.
@@ -221,15 +221,15 @@ changelog=0.24.3 A colour means the same thing everywhere it appears
 
 **`weavingspace_qgis/dialog.py:4626`** — in `_copy_classification`
 
-<!-- id:bdce7f46d3626627 -->
-> Element '{}' now uses element '{}'s classes
+<!-- id:73c0239ddfcb2822 -->
+> Element '{}' now uses the classes from element '{}'
 
-**`weavingspace_qgis/dialog.py:4688`** — in `_release_copied_breaks`
+**`weavingspace_qgis/dialog.py:4689`** — in `_release_copied_breaks`
 
 <!-- id:8c4cdc922b6b0cea -->
 > Element '{}' had classes copied from another element, and {} recomputes them
 
-**`weavingspace_qgis/dialog.py:4690`** — in `_release_copied_breaks`
+**`weavingspace_qgis/dialog.py:4691`** — in `_release_copied_breaks`
 
 <!-- id:67e58ce3fe99978a -->
 > . Its pinned bounds are kept.

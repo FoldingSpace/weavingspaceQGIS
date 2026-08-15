@@ -57,12 +57,12 @@ changelog=0.24.3 A colour can now mean the same thing everywhere it
     to another from the same window. Where the two carry different
     columns the ends are fitted to the receiving data, and any class
     its values cannot reach is hatched in the swatch so an empty class
-    is visible rather than silent.
+    is visible.
     Colour: an element is now classed from the whole map's values
     rather than from its own tiles alone, so two elements you have set
     up alike can be read against each other. They could not before:
     the same shade stood for different numbers in different parts of
-    the pattern, and nothing said so.
+    the pattern.
     Classes: a column with fewer values than the classes you asked
     for now draws the classes it has, and says so, instead of putting
     swatches in the legend that no tile uses.
