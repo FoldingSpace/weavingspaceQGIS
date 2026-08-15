@@ -9,12 +9,19 @@
 # four hundred tests first. This asks only the failing question, needs
 # no QGIS at all, and answers in the time a runner takes to boot.
 #
-# It is workflow_dispatch ONLY, so it never lengthens an ordinary push
-# and never competes with the rounds that gate a candidate.
+# Triggered by pushes that touch THIS PROBE ONLY, so it never
+# lengthens an ordinary push and never competes with the rounds that
+# gate a candidate. `workflow_dispatch` would be tidier and does not
+# work: GitHub resolves a dispatchable workflow against the DEFAULT
+# branch, so one that lives only on a feature branch answers 404.
 name: windows process probe (temporary)
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - tools/win_process_probe.py
+      - .github/workflows/winprobe.yml
 
 jobs:
   probe:
