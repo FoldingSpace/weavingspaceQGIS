@@ -264,7 +264,7 @@ CUSTOM_RAMP_TOOLTIP = ("Colours set by hand or by a class file. "
                        "Choose a ramp to replace them.")
 
 
-def _striped_icon(colours):
+def _striped_icon(colours, boxed=()):
   """The one way this dialog draws a colour swatch.
 
   Args:
@@ -272,6 +272,12 @@ def _striped_icon(colours):
       to right. At most SWATCH_STRIPES are drawn; an empty list gets
       one neutral grey stripe, so a cell never shows an empty icon
       that would read as a failure to draw.
+    boxed: which stripes carry a PINNED class bound, as indices into
+      the drawn stripes -- 0 for the first, -1 for the last. Each is
+      outlined, which is how the table says "this end is yours"
+      without the ramp cell having to claim the ramp is no longer the
+      ramp: a pin moves breaks, not colours (maintainer's decision,
+      2026-08-14).
 
   Returns:
     A QIcon of equal vertical stripes at RAMP_SWATCH size.
@@ -291,11 +297,27 @@ def _striped_icon(colours):
   for i, name in enumerate(shown):
     painter.fillRect(
       QRectF(i * width, 0, width, RAMP_SWATCH.height()), QColor(name))
+  # The pin boxes go on LAST, over the fills, so an outline is never
+  # painted away by the stripe beside it. Drawn in the stripe's own
+  # contrasting ink rather than a fixed colour, or the box would
+  # vanish on a dark ramp and shout on a pale one.
+  for index in boxed:
+    position = index if index >= 0 else len(shown) + index
+    if not 0 <= position < len(shown):
+      continue
+    fill = QColor(shown[position])
+    lightness = (fill.red() * 299 + fill.green() * 587
+                 + fill.blue() * 114) / 1000.0
+    ink = QColor("#ffffff") if lightness < 128 else QColor("#000000")
+    painter.setPen(QPen(ink, 2))
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+    painter.drawRect(QRectF(position * width + 1, 1, width - 2,
+                            RAMP_SWATCH.height() - 2))
   painter.end()
   return QIcon(pixmap)
 
 
-def _custom_swatch_icon(colours):
+def _custom_swatch_icon(colours, boxed=()):
   """The swatch drawn while a ramp cell reads "Custom".
 
   Args:
@@ -303,13 +325,14 @@ def _custom_swatch_icon(colours):
       class order, exactly as the renderer would paint them --
       unsorted and unfiltered, so the swatch samples the map rather
       than presenting a tidied summary of it.
+    boxed: stripe indices carrying a pinned bound; see _striped_icon.
 
   Returns:
     A QIcon of the first colours as equal vertical stripes, drawn by
     _striped_icon, which is also what every named ramp's swatch goes
     through.
   """
-  return _striped_icon(colours)
+  return _striped_icon(colours, boxed)
 
 
 class RampCombo(QComboBox):
@@ -343,6 +366,9 @@ class RampCombo(QComboBox):
     # None means "paint normally"; a QIcon means "paint the Custom
     # display, with this swatch of the element's actual colours"
     self._custom_icon = None
+    # a swatch whose pinned ends are boxed, shown BESIDE the ramp's
+    # own name; Custom outranks it when both apply
+    self._pinned_icon = None
 
   def set_custom_display(self, icon):
     """Show or clear the Custom display.
@@ -361,6 +387,24 @@ class RampCombo(QComboBox):
     # (one more colour picked) must also reach the screen
     self.update()
 
+  def set_pinned_display(self, icon):
+    """Show the ramp's NAME beside a swatch that boxes a pinned end.
+
+    Args:
+      icon: a QIcon of the element's classes with its pinned ends
+        outlined, or None to return to the plain ramp swatch.
+
+    Returns:
+      None. Unlike set_custom_display this leaves the TEXT alone, and
+      that is the whole point: a pin moves breaks, not colours, so
+      the cell goes on naming the ramp it really is drawing while the
+      box says which end the user set (maintainer's decision,
+      2026-08-14). Custom outranks it -- an element with hand-picked
+      colours is Custom whether or not it is also pinned.
+    """
+    self._pinned_icon = icon
+    self.update()
+
   def showing_custom(self) -> bool:
     """Whether the closed combo currently reads Custom."""
     return self._custom_icon is not None
@@ -371,8 +415,19 @@ class RampCombo(QComboBox):
     text and icon are swapped inside the style option Qt was about to
     draw anyway, so platform styling, the focus ring and the drop-down
     arrow all stay native."""
-    if self._custom_icon is None:
+    if self._custom_icon is None and self._pinned_icon is None:
       super().paintEvent(event)
+      return
+    if self._custom_icon is None:
+      # pinned but not custom: Qt draws the combo as it always would,
+      # with the ramp's own name, and only the swatch is swapped
+      painter = QStylePainter(self)
+      option = QStyleOptionComboBox()
+      self.initStyleOption(option)
+      option.currentIcon = self._pinned_icon
+      option.iconSize = RAMP_SWATCH
+      painter.drawComplexControl(QStyle.ComplexControl.CC_ComboBox, option)
+      painter.drawControl(QStyle.ControlElement.CE_ComboBoxLabel, option)
       return
     painter = QStylePainter(self)
     option = QStyleOptionComboBox()
@@ -2907,12 +2962,24 @@ class WeavingSpaceDialog(QDialog):
         quant_picks = self._quant_colours.get(row_tid, {}).get(var)
         window = tuple(self._ramp_ranges.get(row_tid, (0, 100)))
         show_custom = bool(quant_picks) or window != (0, 100)
+      # A PINNED row is not Custom: its colours are its ramp's, and
+      # only its breaks are hand-set. So it keeps naming the ramp and
+      # takes a boxed swatch instead, which is what says "this end is
+      # yours" without the cell claiming the ramp is no longer the
+      # ramp (maintainer's decision, 2026-08-14). Custom outranks it
+      # when both apply, because hand-picked colours really do leave
+      # the ramp behind.
+      pinned = (self._pinned_bounds.get(row_tid, {}).get(var)
+                if mode == "Graduated" and var and row_tid else None)
       if show_custom:
         ramp_cell.set_custom_display(
           self._custom_swatch_for(row_tid, var))
+        ramp_cell.set_pinned_display(None)
         ramp_cell.setToolTip(CUSTOM_RAMP_TOOLTIP)
       else:
         ramp_cell.set_custom_display(None)
+        ramp_cell.set_pinned_display(
+          self._custom_swatch_for(row_tid, var) if pinned else None)
         # only undo our own tooltip; never blank one set elsewhere
         if ramp_cell.toolTip() == CUSTOM_RAMP_TOOLTIP:
           ramp_cell.setToolTip("")
@@ -3768,10 +3835,15 @@ class WeavingSpaceDialog(QDialog):
       # positional picks and the display window are what decide a
       # graduated row's colours, so they are the cache key here
       picks = assignment.get("quant_colours") or {}
+      pinned = assignment.get("pinned") or {}
+      # the pins are IN the key: without them the box would be drawn
+      # once and then cached past every later pin and unpin, which is
+      # a swatch quietly describing a map that has moved
       key = (field, assignment.get("ramp"), assignment.get("reverse"),
              assignment.get("scheme"), assignment.get("k"),
              tuple(assignment.get("range_bounds", (0, 100))),
-             tuple(sorted(picks.items())))
+             tuple(sorted(picks.items())),
+             tuple(sorted(pinned.items())))
       cached = self._custom_swatch_cache.get(tile_id)
       if cached is not None and cached[0] == key:
         return cached[1]
@@ -3783,7 +3855,14 @@ class WeavingSpaceDialog(QDialog):
         # whole of what the range selected
         step = (len(shades) - 1) / 7
         shades = [shades[round(j * step)] for j in range(8)]
-      icon = _custom_swatch_icon(shades)
+      # First stripe for a pinned low bound, last for a pinned high
+      # one. On Unclassed the fifty classes were sampled down to
+      # eight stripes just above, so the boxed stripe reads as "the
+      # low end" rather than literally class 0 of fifty -- which is
+      # what the pin means there anyway.
+      boxed = ([0] if pinned.get("low") is not None else []) + \
+              ([-1] if pinned.get("high") is not None else [])
+      icon = _custom_swatch_icon(shades, boxed)
       self._custom_swatch_cache[tile_id] = (key, icon)
       return icon
     picks = assignment.get("category_colours") or {}
