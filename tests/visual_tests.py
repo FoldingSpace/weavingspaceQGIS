@@ -42,6 +42,7 @@ for that signal. Everything else comes from the plugin's bridge module.
 
 import base64
 import html
+import json
 import os
 import sys
 import time
@@ -1064,6 +1065,68 @@ def plugin_version():
   return "unknown"
 
 
+def write_ramp_colours(out_dir):
+  """Record the colours actually in force, for the reference to use.
+
+  Args:
+    out_dir: the release's report directory.
+
+  Returns:
+    The path written, or None when the style could not be read.
+
+  WHY THE COMPARISON NEEDS THIS. `tools/visual_reference_report.py`
+  runs in a plain environment with matplotlib and NO QGIS, so it
+  cannot ask the style library what `RdBu` is here. It used to name
+  matplotlib's colormaps instead, which quietly asserted that the
+  plugin's colours ARE matplotlib's -- and on 2026-08-15 that turned
+  out to be false on every fresh QGIS, because thirty-five of the
+  plugin's palette names are also stock ColorBrewer names and the
+  plugin's install is additive only. The comparison passed on the
+  development machine solely because that profile had been seeded by
+  the plugin years earlier.
+
+  Since the maintainer's decision that colour belongs to QGIS
+  (2026-08-15), matching matplotlib is not a claim this project makes.
+  So the reference is handed the colours in force and goes on testing
+  everything that can actually be wrong: where the breaks fall, how
+  categories are sampled, the reduction, insetting, weaving, geometry.
+  The gate stops depending on whose profile it runs in, which is the
+  whole point.
+
+  Preset schemes are written out as their exact colour list and
+  gradients as an even sampling, because the categorical path's
+  ListedColormap arithmetic depends on the difference.
+  """
+  from qgis.core import QgsStyle, QgsPresetSchemeColorRamp
+  try:
+    style = QgsStyle.defaultStyle()
+    names = list(style.colorRampNames())
+  except Exception:
+    return None
+  recorded = {}
+  for name in names:
+    try:
+      ramp = style.colorRamp(name)
+      if ramp is None:
+        continue
+      if isinstance(ramp, QgsPresetSchemeColorRamp):
+        recorded[name] = {
+          "kind": "preset",
+          "colours": [c.name() for c in ramp.colors()]}
+      else:
+        recorded[name] = {
+          "kind": "gradient",
+          "colours": [ramp.color(i / 255.0).name() for i in range(256)]}
+    except Exception:
+      continue
+  if not recorded:
+    return None
+  path = os.path.join(out_dir, "ramp-colours.json")
+  with open(path, "w", encoding="utf-8") as handle:
+    json.dump(recorded, handle, sort_keys=True)
+  return path
+
+
 def write_report(out_dir, functional_summary=""):
   """One self-contained HTML page per release: environment, functional
   summary (passed in by release.py), and the visual gallery with PNGs
@@ -1124,6 +1187,10 @@ pre {{ white-space: pre-wrap; }}
   path = os.path.join(out_dir, "index.html")
   with open(path, "w", encoding="utf-8") as f:
     f.write(page)
+  # ...and the colours those renders were made with, beside them, so
+  # the colourspace comparison can draw its reference with the same
+  # ones instead of assuming matplotlib's
+  write_ramp_colours(out_dir)
   return path
 
 

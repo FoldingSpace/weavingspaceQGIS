@@ -618,7 +618,13 @@ jobs:
           uname -m
           brew --version
           brew info --cask qgis || echo "no cask called qgis in this tap"
-          brew install --cask qgis --no-quarantine
+          # NOT --no-quarantine: Homebrew removed that option, and the
+          # first attempt died on "invalid option" before downloading
+          # anything. Quarantine does not matter here anyway -- this
+          # job runs the bundled interpreter directly rather than
+          # launching the app through Finder, which is what the
+          # attribute gates.
+          brew install --cask qgis
 
       - name: What actually got installed
         # PROBED, not assumed, exactly as the Windows job learned to
