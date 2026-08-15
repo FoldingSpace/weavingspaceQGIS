@@ -35,16 +35,23 @@ because a push is the one step this project cannot take back:
   repository is fine to keep, anything that is neither is a mistake
   to fix before it is public rather than after.
 
-### The runners are kept CURRENT with the Mac, not merely present
+### The runners are kept AS CLOSE TO THE LOCAL SUITE AS PRACTICAL
 
-The standard is parity of coverage. A platform that only proves the
-plugin loads has been smoke-tested rather than tested, and `compat.py`
-exists precisely because QGIS moves its APIs -- so the functional
-suite, the visual gallery and the colourspace comparison belong on
-every platform CI can reach. Windows carried an install-and-load
-alone until 2026-08-15, which meant the module written to absorb
-QGIS's API changes had never run on the platform most of this
-plugin's users are on.
+The standard is parity of coverage with what this machine runs, on
+every platform: Linux, Windows and macOS. A platform that only proves
+the plugin loads has been smoke-tested rather than tested, and
+`compat.py` exists precisely because QGIS moves its APIs -- so the
+functional suite, the visual gallery and the colourspace comparison
+belong on every platform CI can reach. Windows carried an
+install-and-load alone until 2026-08-15, which meant the module
+written to absorb QGIS's API changes had never run on the platform
+most of this plugin's users are on.
+
+The macOS leg is the one that measures the package a user downloads
+rather than a container image, in a profile nobody has seeded, and it
+repaid the whole exercise on its first complete run: three faults
+this development machine is constitutionally unable to show, one of
+which had left QGIS with no colour ramps at all for months.
 
 Feasibility is the only ground for divergence, and it is narrow: a
 limit the platform imposes that no amount of code gets round. COST IS
@@ -95,10 +102,11 @@ on a clean checkout, which is the one thing this machine can never
 be.
 
 **The six jobs are present**: standards, suite, install, gallery,
-windows. They answer questions none of the others can -- the rules,
-the behaviour, what a USER receives, whether the map is drawn right,
-and whether the artefact survives a filesystem with the other
-separator. And each must still be running a command the check can
+windows, macos. They answer questions none of the others can -- the
+rules, the behaviour, what a USER receives, whether the map is drawn
+right, whether the artefact survives a filesystem with the other
+separator, and what happens on the package a macOS user downloads in
+a profile nobody has seeded. And each must still be running a command the check can
 recognise: a job that goes quiet is indistinguishable from a job that
 passes, which is the same fault the mutation catalogue turned up in
 seven of its entries.
@@ -190,13 +198,19 @@ suite legs would add to every one of them. The matrix is deliberate --
 `metadata.txt` PROMISES QGIS 4.0, and a plugin that will not load on
 the floor it declares is a promise broken at install time.
 
-**The zip is installed and loaded ON WINDOWS**, once, in the
-`windows` job, and that is the whole of the Windows leg. The
-mathematics is platform-blind and three Linux legs already cover it;
-what Linux cannot answer is anything that turns on Windows being
-Windows -- path separators, the long-path ceiling, a file still
-locked by whatever wrote it, and whether the archive's layout
-survives a Windows unpacking. `compat.py` has never run there at all.
+**The zip is installed and loaded ON WINDOWS AND ON MACOS**, in the
+`windows` and `macos` jobs, and neither stops there any more: both
+provision the stack and run the functional suite and the gallery, so
+each platform is as close to what this machine runs as GitHub
+permits. The paragraph that used to stand here said install-and-load
+"is the whole of the Windows leg", which was true for a few hours on
+2026-08-15 and is kept only as the shape to argue against: a leg that
+proves the plugin loads has been smoke-tested, and what Linux cannot
+answer is everything that turns on the platform being itself -- path
+separators, the long-path ceiling, a file still locked by whatever
+wrote it, code signing, an app bundle's own interpreter, and whether
+the archive's layout survives that unpacking. `compat.py` exists
+because QGIS moves its APIs and had never run on either platform.
 
 QGIS arrives through Chocolatey's `qgis` package, which installs the
 standalone installer's QGIS -- the same thing a Windows user

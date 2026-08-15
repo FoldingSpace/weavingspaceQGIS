@@ -89,177 +89,21 @@ entry as it lands.
 
 ### Wanted
 
-**"Deferring to QGIS": what happens when the dock changes an
-element's RENDERER TYPE.** Settled by `/grill-me` with the maintainer,
-2026-08-15, eight decisions, being built now. Delete this entry when
-it lands; until then it is the specification.
-
-Today `_on_layer_style_edited` handles COLOUR changes inside a
-graduated or categorized renderer and leaves single-symbol and unknown
-renderers alone. A TYPE change is not handled: the categorical branch
-would adopt colours as hand-picks onto a row still reading Graduated.
-
-THE PRINCIPLE. The row always describes the map. Where a row can
-express what the dock now holds, it follows — the style chooser, the
-scheme, the count and the ramp all move. Where it cannot, the row
-reads a new style, **Deferring to QGIS**, which is itself a true
-description rather than a lie.
-
-The eight decisions, each the maintainer's:
-
-1. The row follows where it can, and defers where it cannot.
-2. A deferring element's renderer is CARRIED ACROSS a Generate — the
-   geometry is rebuilt and the dock's renderer re-attached — but
-   deferral BREAKS when that element's variable changes, because a
-   renderer keyed to a column the element no longer draws puts every
-   tile outside every class. Same bargain as hand styling: it
-   survives unless that element's assignment changed.
-3. "Deferring to QGIS" is ALWAYS SHOWN in the style chooser and
-   DISABLED unless the element is deferring. Not freely selectable: a
-   selectable mode multiplies guard surface (`_plausible_mode`, the
-   text-field correction, the Classes and Reverse columns each need an
-   opinion), and a chooser that silently grows an item is not
-   trusted. Present-but-disabled matches how the Classes and Reverse
-   columns already behave.
-4. Deferral is INFERRED from the renderer, never stored. A stamp
-   saying "deferring" beside a renderer saying what it is would be one
-   fact in two places, which is the shape that cost this project most
-   on 2026-08-15. The renderer is the single authority, and the
-   inference self-corrects: when a later version learns to express
-   some renderer, elements deferring only for that reason stop, with
-   nothing to migrate.
-   MAINTAINER'S CONDITION: a GeoPackage round trip brings back the
-   renderer AND the stamped `weavingspace_quant_style`, so the rule is
-   that the stamp NEVER decides the mode. It is re-asked of the
-   restored renderer every time, and the stamp's colours and pins are
-   applied only once that has answered yes. A legacy style written by
-   an older version cannot resurrect a mode the layer does not hold.
-5. An open colour editor CLOSES when deferral begins, with one
-   sentence. Its premise is void; rebuilding it in the new mode is
-   closing and reopening with the seam hidden, and leaving it open
-   guarantees numbers describing a renderer that no longer exists.
-   Nothing is lost, because every action in that window applies
-   immediately.
-6. NO FINE ADJUSTMENTS means: every control that writes the RENDERER
-   is inert (ramp, Reverse, Classes, class source, Edit colours,
-   Single colour, tile outlines — the outline is a stroke on the fill
-   symbol). Layer OPACITY stays live, being a property beside the
-   renderer that cannot destroy dock work, and one the dock sets too.
-   A line that can be checked mechanically rather than a list somebody
-   maintains.
-7. ONE NOTICE when deferral begins, and no more. The maintainer chose
-   this over also warning when a deferring element shares its variable
-   with one that is not — so note the consequence where the rule
-   lives: ONE VARIABLE GETS ONE LEGEND IS KNOWINGLY NOT KEPT for a
-   deferring element, which draws whatever the dock built. Two
-   elements on one column can then mean two different things, and it
-   looks fine. That exception belongs in CLAUDE.md beside the rule.
-8. Leaving deferral REPLACES the dock renderer IMMEDIATELY, with the
-   loss reported — the same shape as choosing a ramp clearing
-   hand-picked colours. A gap between the row saying Quantiles and the
-   map still showing dock work is the state this design removes.
-
-THE SWATCH, decided in the same conversation. A deferring row's swatch
-is built from what QGIS is ACTUALLY DISPLAYING: the renderer's own
-symbols, refreshed whenever the dock edits the layer.
-`bridge.renderer_fill_colours` already reads from the renderer rather
-than the ramp, and `_watch_element_layer` already connects
-`styleChanged`, so this is a cache invalidation on a signal that
-exists. Two conditions: it must fall back to `renderer.symbols()`, the
-base-class method, since the existing helper walks only `ranges` and
-`categories` and returns nothing for exactly the deferring case; and
-when a symbol's fill colour is DATA-DEFINED the swatch shows a neutral
-marker instead of sampling, because `symbols()` hands back the base
-symbol and a swatch claiming one colour for a map drawing hundreds is
-the plugin describing a map it will not draw. An unknown is drawn as
-an unknown, never as a certainty.
-
-TESTING NOTE, from the same evening: `renderer_fill_colours` being
-well tested is not evidence the swatch works. A unit-tested mechanism
-plus an undriven caller is a motionless axis — that is exactly how the
-hatching promise went unkept from the day it shipped. The test drives
-a real dock-side renderer change through to the PIXELS of the icon.
-
-
-**A data edit in QGIS leaves the map drawing the OLD classification.**
-FOUND AND MEASURED 2026-08-15, cause NOT isolated; this is the most
-serious thing open. Retype a column through QGIS's own editing session
-(`startEditing` / `changeAttributeValue` / `commitChanges`) so its
-range moves — measured from 0..121 down to 0..3 — and then Generate.
-The element layer is rebuilt and carries the NEW values (checked: its
-own `v3` reads 0..3, 113 features), `_data_version` bumps to 146, and
-the classification source hands back 0..3. The renderer nevertheless
-goes on drawing `(0, 84.7) (84.7, 90) (90, 99) (99, 107.5) (107.5,
-121)`, which are the OLD data's quantiles. Four of five classes wear
-nothing and every tile draws in the first, which is the flat
-no-data look several other guards here exist to prevent. Nothing is
-said.
-
-Two contributing faults were found and FIXED on the way, and neither
-was sufficient, so do not assume the remaining one is nearby:
-`_classification_values`' cache was keyed on `(layer id, field,
-fingerprint)` with no `_data_version`, so it served a snapshot of the
-values as they were — the fingerprint measures what a layer IS (count,
-extent, field names, CRS) and a retyped value moves none of them; and
-a pin the data can no longer carry was applied unchecked rather than
-dropped. Both are in, both verified at their own level, and the map is
-still wrong.
-
-WHERE TO LOOK NEXT, in the order I would try: whether
-`_add_output_layers` carries the previous run's renderer across for
-this element despite `_data_version` being in both signatures; whether
-the `weavingspace_quant_style` stamp restores the old ladder; whether
-`seed_renderer` is reached at all on this path. Reproduce with
-`scratchpad/verify_pin_drift.py` from the 2026-08-15 session, which
-prints all of it. Note the probe drives the EDITING SESSION, not the
-data provider — a provider-level write is a documented limit and a
-different question.
-
-**A Windows leg of CI.** Settled with the maintainer 2026-08-15 and
-being implemented. Money is not the constraint: the repository is
-public, so GitHub's standard runners — `windows-latest` included — are
-free, and the 2x Windows multiplier bills only against private repos.
-Wall-clock is not the constraint either, since jobs run in parallel
-and the Linux legs already take 52-54 minutes.
-
-The cost is engineering. Every QGIS job today runs inside the
-`qgis/qgis` Docker image, three versions across suite, install and
-gallery; Windows runners cannot run Linux containers, so none of that
-machinery transfers and QGIS must be really installed on the runner.
-OSGeo4W is what users actually run, which is the point of going, and
-is a large slow network install; conda-forge through micromamba is
-fast and scriptable but is a different build, which weakens the
-reason for going at all.
-
-SCOPE, deliberately narrow: ONE job running `tools/install_and_load.py`
-against the built zip, on a single QGIS. Not the suite, not the
-gallery, not the colourspace comparison. The Windows-specific risk is
-path separators, long paths, file locking on the vendored libs and the
-zip's internal layout — not the mathematics, which Linux covers.
-`compat.py`, which exists precisely because QGIS moves its APIs, has
-never run on Windows at all.
-
-Two frictions to expect. `QT_QPA_PLATFORM=offscreen` renders fonts
-differently, and this project has already been burned by a belief
-about CI fonts that was simply false, so any visual gate would need
-its own tolerances rather than sharing Linux's — another reason to
-keep them out of scope. And `tools/check_standards.py` requires every
-release stage and every harness under `tests/` to be covered by a
-named CI job or exempt with a written reason, so the mapping is
-updated in the same commit as the job.
-
-
 **Sampling the six unsampled assignment-lookup copies.** Deferred here
 from 0.24.2 deliberately: it is measurement rather than
 defect-finding, and the night of 2026-08-13 put mutation sampling at
 zero product defects across 128 survivors. `_assignment_for` now holds
 the lookup, so a future mutant has one place to land.
 
-**Four things the 2026-08-13 instruments audit left undone**, all of
-them about tools that produce numbers people then believe. The
-catalogue's entry validation is a script somebody ran once, and
-belongs in the tool as a preflight that refuses to judge a broken
-entry. `check_standards` compares only the COUNTS in the derived
+**Three things the 2026-08-13 instruments audit left undone**, all of
+them about tools that produce numbers people then believe. (The
+fourth landed on 2026-08-15: `check_standards` now reads every
+catalogue entry with `ast` and fails when its anchor is absent, after
+seven entries were found anchored on text that no longer existed. It
+is asked at push time rather than inside `mutation_check`, which is
+where the original entry wanted it -- a sweep run by hand still gets
+no preflight, and that is the part left standing.)
+`check_standards` compares only the COUNTS in the derived
 documents where the generators' own `--check` catches more. Three
 `EQUIVALENT` entries exclude nothing. And `mutate_auto`'s watchdog
 ignores a child's CPU, so it can score a live mutant as stalled --

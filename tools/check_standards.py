@@ -747,11 +747,18 @@ def check_ci_covers_what_it_claims():
   # ever, which is exactly the vacuous pass this is here to prevent --
   # written that way first, and it passed when the windows job's
   # variable was renamed, which is how it was caught.
-  for job in ("standards", "suite", "install", "gallery", "windows"):
+  # The macos job was missing from this list until 2026-08-15, the day
+  # it was added -- so the newest platform was the one job that could
+  # go quiet without failing anything, which is the exact fault above
+  # wearing a new coat. Its interpreter is discovered at run time and
+  # carried in "$QGIS_PY", a third spelling beside python3 and the
+  # OSGeo4W shim, so the pattern has to know all three.
+  for job in ("standards", "suite", "install", "gallery", "windows",
+              "macos"):
     block = re.search(rf"^  {job}:\n(.*?)(?=^  \S|\Z)",
                       workflow, re.M | re.S)
     if block and not re.search(
-        r"(?:python3?|python-qgis[\w-]*\.bat|%QGIS_SHIM%\")"
+        r"(?:python3?|python-qgis[\w-]*\.bat|%QGIS_SHIM%\"|\"\$QGIS_PY\")"
         r"(?:\s+-\w+)*\s+(?:tools|tests)[\\/][\w./\\-]+\.py",
         block.group(1)):
       problems.append(

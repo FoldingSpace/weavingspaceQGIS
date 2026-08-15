@@ -207,17 +207,29 @@ obligations: they exist so nobody pays twice for the same discovery.
   section, an edit no tool may make on their behalf. Delete an entry
   when it lands; a roadmap nobody prunes becomes a diary.
   (User instruction, 2026-08-11.)
-- **LINUX AND WINDOWS CI ARE KEPT CURRENT WITH WHAT THE MAC RUNS,
-  wherever it is feasible.** The standard is PARITY OF COVERAGE, not
-  the existence of a job. A platform that only proves the plugin
-  loads has been smoke-tested rather than tested -- and `compat.py`
-  exists precisely because QGIS moves its APIs, so the functional
-  suite, the visual gallery and the colourspace comparison belong on
-  every platform CI can reach. Windows is where most of this
-  plugin's users are, and until 2026-08-15 it ran nothing but an
-  install-and-load. (Maintainer's instruction that day: Windows and
-  Linux should test as much as macOS does, within only the limits
-  GitHub imposes that we cannot code around.)
+- **EVERY CI PLATFORM IS KEPT AS CLOSE TO THE LOCAL SUITE AS
+  PRACTICAL.** Linux, Windows and macOS alike: the standard is PARITY
+  OF COVERAGE with what this machine runs, not the existence of a job.
+  A platform that only proves the plugin loads has been smoke-tested
+  rather than tested -- and `compat.py` exists precisely because QGIS
+  moves its APIs, so the functional suite, the visual gallery and the
+  colourspace comparison belong on every platform CI can reach.
+  Windows is where most of this plugin's users are, and until
+  2026-08-15 it ran nothing but an install-and-load. (Maintainer's
+  instruction that day: Windows and Linux should test as much as
+  macOS does, within only the limits GitHub imposes that we cannot
+  code around; restated that night, once a macOS runner existed, as
+  every platform staying as close to the local suite as practical.)
+  THE MACOS LEG EARNED ITS PLACE ON ITS FIRST COMPLETE RUN, and the
+  reason is worth keeping: it is the only leg that runs the package a
+  macOS user actually installs, in a profile nobody has seeded, and
+  it immediately found three faults this machine cannot show -- a
+  bundled interpreter that will not start without PYTHONHOME, a
+  QGIS_PREFIX_PATH that had been wrong for months and left QGIS with
+  NO COLOUR RAMPS AT ALL, and eight palettes dropped as duplicates of
+  ramps a fresh QGIS does not have. Each was masked here by a style
+  library the plugin seeded years ago, which is the same masking that
+  let the colourspace gate pass on one machine's profile.
   WHAT COUNTS AS INFEASIBLE IS NARROW, and must be written down at
   the exemption: a limit the platform imposes that no amount of code
   gets round. Cost is not one -- the repository is public, so
@@ -238,8 +250,11 @@ obligations: they exist so nobody pays twice for the same discovery.
   exempt with a written reason; it also requires every harness under
   `tests/` to be run by the workflow or exempt, every script the
   workflow names to exist, and the six jobs -- standards, suite,
-  install, gallery, windows -- to be present, each of them still
-  running a command this check can SEE. That last clause was added
+  install, gallery, windows, macos -- to be present, each of them
+  still running a command this check can SEE. `macos` was missing
+  from that last list on the day the job was added, so the newest
+  platform was the one that could go quiet without failing anything;
+  corrected 2026-08-15 and proved by hushing it in a throwaway copy. That last clause was added
   2026-08-15 with the Windows job: a job whose invocation is
   rewritten into a shape the pattern no longer matches drops out of
   the existence check without failing anything, which is the
