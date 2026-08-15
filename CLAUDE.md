@@ -1005,6 +1005,17 @@ first, kept here so they are unmissable:
   needs is the other half, which is that every watcher NAMES ITS
   SUBJECT in each line it emits. A verdict without its branch is a
   verdict about whatever the reader is thinking of.
+- **A GATE PIPED INTO ANYTHING IS NOT A GATE.** `check_before_push |
+  tail -2` returns TAIL's exit status, so a shell `&&` after it fires
+  whatever the gate said. That is how a tree failing the standards
+  check reached the branch on 2026-08-15, one command after the gate
+  reported the failure on screen -- the words were right there and the
+  exit code was gone. Run the gate on its own line and read its
+  status, or use `set -o pipefail`; never let a pipe stand between a
+  gate and the thing it gates. The same applies to `grep`-ing a test
+  runner's output: the runner's verdict is lost the moment it is
+  piped.
+
 - **A WATCHER IS A PROGRAM, AND A PROGRAM CAN DIE.** The thirteenth
   fault here, 2026-08-15: a CI poller with associative arrays, a
   nested here-string loop and two embedded Python readers exited 1

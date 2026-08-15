@@ -39,3 +39,24 @@ RESULT: inconclusive — orientation only. Candidate asymmetries written
 NEXT:   read the construction path and every caller of the exclusion
         and rebuild routines, then drive the dialog in the user's
         order under QGIS's own python.
+
+## 00:18:40  iteration 1  [perturbation]
+TRIED:  seq_probe1.py — build WeavingSpaceDialog on an EMPTY project,
+        then addMapLayer(make_region_layer()), pump 400ms; compare
+        every dialog belief with the suite's order (layer first).
+RESULT: CONFIRMED, and it is the reported shape, still live at HEAD.
+        Order A (layer, then dialog): vars ['v1','v2','v3','v1'],
+        modes all 'Graduated', spacing auto-derived to 500.0,
+        _watched_layer set, _had_a_layer True, _auto_spacing_layer set.
+        Order B (dialog, then layer): layer_combo.currentLayer() IS
+        the region layer — the combo picked it up — but vars
+        [None,None,None,None], modes all 'Single colour', spacing
+        still the default 1000.0, _watched_layer None,
+        _watched_fields (), _had_a_layer False, _auto_spacing_layer
+        None. So the combo's selection and every belief the dialog
+        holds about it disagree, and nothing ever reconciles them.
+NEXT:   second route: read the variable QComboBox's own item list off
+        the table widget, and press Generate, to see what the USER
+        sees rather than what _assignments() reports. Then instrument
+        layerChanged to find out whether it fires at all and what
+        currentLayer() says at emission time.
