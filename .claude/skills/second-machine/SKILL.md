@@ -79,6 +79,68 @@ watchdogs encode how long healthy work takes on the machine they were
 written on — which is the fastest one the job will ever meet. See
 below.
 
+**State your own machine has quietly accumulated.** The subtlest of
+the five, because it hides faults rather than causing them. A user
+profile, a style or template library, a package cache, a config
+directory, a keychain, a login session: anything the software wrote
+once and then found again. On the original machine the software works
+because of something it did months ago, and nothing distinguishes
+that from working by design.
+
+One project met three of these in a single evening, all masked by one
+profile. A path variable had been wrong for months, so the
+application could not find its own resource database and started with
+none of its stock colour ramps — invisible, because the developer's
+profile already held them. Eight of those resources had then been
+deleted from the software as "duplicates the platform already
+provides" — invisible for the same reason. And the visual regression
+gate had been certifying fidelity against a library the software
+itself had seeded years earlier, so it was comparing the software
+with its own past output and calling it agreement.
+
+Each was found within an hour of a runner with an empty profile
+existing, and not one could have been found before.
+
+## Measure configuration somewhere nobody has been
+
+The remedy for accumulated state is not a stronger assertion. It is
+choosing a fresh state to measure in, and most tools give you one for
+a line: a throwaway home or config directory, a temporary profile, a
+container, `--no-rc`, a clean database.
+
+Make the tool that decides a setting prove it there. One project's
+setup script now picks its platform prefix by asking the application
+how many resources it can see with its config directory pointed at a
+`mktemp -d`. Asked with the developer's own profile, every candidate
+answers "plenty" — so the measurement would have confirmed the wrong
+setting exactly as confidently as the right one. In a fresh
+directory, the wrong candidates answer zero and the right one answers
+thirty-five.
+
+The general question, worth asking of any check that reads
+machine-accumulated state: **what would this say on a machine that
+has never run our software?** If the answer is "the same thing", it
+is measuring the developer, not the software.
+
+## Deduplicate against what the platform HAS, not what it can make
+
+A specific and expensive confusion, worth its own line because it
+reads as obviously correct while being wrong.
+
+When you drop something from your own software because "the platform
+already provides it", the question is what the platform actually
+HOLDS, not what its API is capable of producing. One project removed
+thirty-five bundled colour palettes as duplicates, having compared
+its list against the platform's list of scheme names it can
+SYNTHESIZE. Eight of those schemes were not present as resources at
+all: the platform could generate them on request but had no entry
+under that name, so looking one up returned nothing. The eight
+removed were, as it happens, the whole of one category — every
+palette meant for categorical data, gone from every fresh install.
+
+Ask the dependency for its inventory, not for its capabilities, and
+prefer to ask it at run time on a machine with nothing in it.
+
 ## Ceilings are the most common own goal
 
 A limit a healthy run can reach produces a red result that means

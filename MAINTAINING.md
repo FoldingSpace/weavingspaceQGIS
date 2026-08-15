@@ -76,6 +76,7 @@ Files you will actually touch:
 | `tools/coverage_report.py` | Which plugin lines the suite never reaches. Run it when you are deciding where to write tests; it left the release path on 2026-08-12, having cost half an hour a candidate and gated nothing. It could not write a report at all until 2026-08-13: the suite ends in `os._exit`, so everything after the call was unreachable and the documented command produced nothing. |
 | `tools/mutation_check.py` | Breaks each guarded behaviour and requires its test to fail. Run before substantial releases. |
 | `tools/check_no_secrets.py` | Refuses to publish credentials, key material, private files or machine paths. Runs twice inside every release, and is worth running by hand before any commit. |
+| `tools/macos_qgis_env.sh` | Finds a macOS QGIS bundle and prints the environment its Python needs, proving each candidate rather than trusting a path. Called by `tests/run_tests_macos.sh` and by the macOS CI job, which is what keeps the two in step. |
 | `tools/sync_release_content.py` | Audits the claims the README and project page make (citation version, changelog, images, links, vendored version, URLs) and mends the mechanical ones. |
 | `tools/make_site_images.py` | Retakes the published images: maps from the current release gallery, plus a fresh grab of the dialog. |
 | `docs/MUTATION-LOOP.md`, `tools/loop/` | The runbook and scripts for re-running the whole mutation-score improvement campaign: cycle driver, health check, triage taxonomy, stopping rule. |
@@ -118,6 +119,16 @@ macOS:
 ```bash
 bash tests/run_tests_macos.sh            # auto-finds /Applications/QGIS*.app
 ```
+
+That script does not know where anything is. It calls
+`tools/macos_qgis_env.sh`, which finds the app bundle, finds an
+interpreter that will actually start, and works out `PYTHONHOME` and
+`QGIS_PREFIX_PATH` by trying them — the macOS CI job calls the same
+script, so the runner and this machine cannot drift apart about how
+to start QGIS's Python. Both paths were hardcoded here until
+2026-08-15, and the prefix was wrong, which left QGIS with no colour
+ramps at all on any machine whose profile had not already been seeded
+by the plugin.
 
 Windows (OSGeo4W shell):
 

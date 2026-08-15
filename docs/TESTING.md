@@ -769,6 +769,33 @@ machine. The same caution applies anywhere state outlives the process:
 the QGIS style, the plugin's own settings, a GeoPackage left behind by
 an earlier test.
 
+**And it can satisfy the thing MEASURING the test, which is worse.**
+2026-08-15 produced three faults in one evening that this machine is
+constitutionally unable to show, all masked by the same seeded
+profile. `QGIS_PREFIX_PATH` had been wrong for months, so QGIS could
+not find its own style database and started with NO RAMPS AT ALL --
+invisible here, because the profile already held 63. Eight palettes
+were dropped as duplicates of ramps a fresh QGIS does not have --
+invisible for the same reason. And the colourspace gate had been
+certifying colour fidelity against a library the plugin itself seeded
+years earlier.
+
+The technique that finds this class of fault is worth copying, and it
+is cheap: **make the measurement somewhere nobody has been.** When
+`tools/macos_qgis_env.sh` decides which prefix is right, it asks QGIS
+how many ramps it can see with `QGIS_CUSTOM_CONFIG_PATH` pointed at a
+throwaway directory. Asked with the developer's own profile, every
+candidate answers "ramps present" and the measurement proves nothing
+whatever -- it would have confirmed the wrong prefix as confidently as
+the right one.
+
+So when a check reads state that a person's machine accumulates --
+a profile, a cache, a style library, a config directory, a login
+session -- ask what it would say on a machine that has never run this
+software. If the answer is "the same thing", the check is measuring
+the developer rather than the software, and the way to fix it is a
+fresh state rather than a stronger assertion.
+
 **Defaults are masked by the things that override them.** The 1000 m
 spacing default is invisible in any test that loads a layer, because
 auto-spacing immediately overwrites it. Assert a default where nothing

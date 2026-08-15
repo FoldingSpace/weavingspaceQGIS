@@ -103,6 +103,19 @@ passed while a fix was being written and proved nothing.
 **When a test mutates a fixture, assert that the mutation CHANGED
 it** before asserting what followed.
 
+**The same trap catches the throwaway probe you write to VERIFY a
+claim, and there it is likelier**, because a probe is written in a
+hurry, run once, and believed. One written to judge a reported defect
+— removing the item a tool was pointed at — built every fixture item
+with identical field names. So the tool silently carried on with a
+different item, the probe saw a perfectly ordinary success, and the
+claim was nearly recorded as not reproducing. Rebuilt with the fields
+differing, as any real data would, the same probe showed the
+operation doing nothing at all.
+
+Before believing a probe that says "no defect here", ask what its
+fixture had to be like for the harm to show, and whether it was.
+
 ## A comparison too coarse to see the defect
 
 Tile count and bounding box both survive a region being reshaped

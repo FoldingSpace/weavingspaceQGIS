@@ -1064,10 +1064,25 @@ Self-contained suite, synthetic data, runs under QGIS's bundled Python:
 
     bash tests/run_tests_macos.sh          # macOS, auto-detects the app
 
-On this project's dev machine QGIS 4.0.3 lives at
-`/Applications/QGIS-final-4_0_3.app` (vcpkg build, Python 3.12,
-`PYTHONHOME=Contents/Frameworks`, `PROJ_LIB=Contents/Resources/qgis/proj`,
-`QT_QPA_PLATFORM=offscreen` works headless).
+The environment that script needs is DISCOVERED, by
+`tools/macos_qgis_env.sh`, which the macOS CI job also calls -- so the
+runner and this machine cannot disagree about how to start QGIS's
+Python. It finds the bundle, finds an interpreter that actually
+STARTS (the cask's carries the paths of the machine it was built on
+and dies without a PYTHONHOME), and picks `QGIS_PREFIX_PATH` by asking
+QGIS, AGAINST A THROWAWAY PROFILE.
+That last part is the whole trick and it is worth understanding
+before touching the script. The prefix decides `pkgDataPath`, which is
+where QGIS finds the style database every stock ramp lives in. This
+project had it wrong for months -- `Contents/MacOS` yields a doubled
+path that does not exist -- and QGIS started, imported, tiled and
+rendered with NO RAMPS AT ALL. It never showed here because the
+profile on this machine has carried 63 ramps since the plugin seeded
+it. Asked with a seeded profile every candidate answers "ramps
+present", so the measurement has to be made somewhere nobody has
+been. The bundle itself is the prefix: 35 ramps on a fresh profile,
+`/Applications/QGIS-final-4_0_3.app`, Python 3.12, offscreen works
+headless.
 
 Dialog tests run offscreen with a stub iface (see `tests/run_tests.py`);
 QMessageBox popups block headless runs, so live/silent code paths exist —
@@ -1086,13 +1101,26 @@ Confirmed with the user via an explicit design review:
   single); refinement belongs to QGIS's styling dock, not a plugin UI.
 - **COLOUR BELONGS TO QGIS.** Ramps come from QgsStyle, and where a
   name means something there already, QGIS's meaning wins. The plugin
-  installs only palettes QGIS LACKS -- 28 of them, tab10 and the
-  matplotlib-only families -- tagged "mapweaver", additive only.
+  installs only palettes QGIS LACKS -- 36 of them, tab10, the
+  matplotlib-only families and the eight ColorBrewer QUALITATIVE sets
+  -- tagged "mapweaver", additive only.
   Settled by `/grill-me` on 2026-08-15 after measuring that 35 of the
   palette file's 63 entries were also stock ColorBrewer names, so they
   had never installed on any fresh QGIS since 0.23.0: the plugin's
   maps were already drawn with QGIS's colours and the project had
-  simply not noticed. The colourspace gate passed only because the
+  simply not noticed.
+  **"LACKS" IS ANSWERED BY THE STYLE LIBRARY, NEVER BY WHAT QGIS CAN
+  GENERATE**, and getting that wrong the same evening cost eight
+  palettes. The 35 were identified as ColorBrewer SCHEME names, which
+  QGIS can synthesize through `QgsColorBrewerColorRamp`; eight of them
+  -- Accent, Dark2, Paired, Pastel1, Pastel2, Set1, Set2, Set3 -- are
+  not entries in `QgsStyle.defaultStyle()` at all. A fresh QGIS 4.0.3
+  holds 35 ramps and every one is sequential or diverging, so dropping
+  those eight removed every qualitative palette from every fresh
+  install, and `get_ramp("Set2")` returned None. Restored the same
+  night after macOS and Windows CI failed on it identically. The
+  question to ask of any deduplication against a dependency is what it
+  HAS, not what it could make. The colourspace gate passed only because the
   development machine's style library had been seeded by the plugin
   years earlier -- a gate certifying fidelity against a profile no
   user has.
