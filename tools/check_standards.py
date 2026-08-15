@@ -235,6 +235,76 @@ def check_user_facing_text():
           break
 
 
+def check_regression_shapes():
+  """Every Regression: line says HOW the defect was found.
+
+  Returns:
+    None; anything untagged is appended to `problems`.
+
+  WHY IT IS ENFORCED. The tag is what makes docs/BUG-REGISTER.md
+  answer the only question it is consulted for -- which shape of test
+  is actually catching defects, and therefore whether the next
+  afternoon goes on another differential sweep or on another hunt. It
+  was optional, and on 2026-08-15 a HUNDRED of the 162 lines had no
+  tag at all, which made the register's own summary read "unrecorded:
+  100" and the rest of it decoration.
+
+  Absent is now an error. A defect whose provenance genuinely was not
+  written down carries `[unrecorded]` EXPLICITLY: that keeps the
+  history honest -- inventing a shape would be worse than admitting
+  none -- while making silence impossible for anything written from
+  now on. (Maintainer's instruction: "this should never go
+  unrecorded. fix the rules".)
+  """
+  import ast as _ast
+  known = set()
+  register = os.path.join(ROOT, "tools", "bug_register.py")
+  if os.path.exists(register):
+    with open(register, encoding="utf-8") as handle:
+      tree = _ast.parse(handle.read())
+    for node in _ast.walk(tree):
+      if isinstance(node, _ast.Assign) and len(node.targets) == 1 \
+          and getattr(node.targets[0], "id", None) == "HOW" \
+          and isinstance(node.value, _ast.Dict):
+        for key in node.value.keys:
+          try:
+            known.add(_ast.literal_eval(key))
+          except (ValueError, TypeError):
+            continue
+  if not known:
+    problems.append(
+      "tools/bug_register.py's HOW map could not be read, so the "
+      "shapes a Regression line may name are unknown")
+    return
+  for name in ("run_tests.py", "visual_tests.py"):
+    path = os.path.join(ROOT, "tests", name)
+    if not os.path.exists(path):
+      continue
+    with open(path, encoding="utf-8") as handle:
+      tree = _ast.parse(handle.read())
+    for node in _ast.walk(tree):
+      if not isinstance(node, _ast.FunctionDef) \
+          or not node.name.startswith("test_"):
+        continue
+      doc = _ast.get_docstring(node) or ""
+      found = re.search(r"Regression:\s*(.+?)(?:\n\s*\n|\Z)", doc, re.S)
+      if not found:
+        continue
+      text = " ".join(found.group(1).split())
+      tag = re.search(r"\[([a-z-]+)\]\s*$", text)
+      if tag is None:
+        problems.append(
+          f"tests/{name}: {node.name} records a defect without saying "
+          f"how it was found; end its Regression line with a shape in "
+          f"brackets, or [unrecorded] if it genuinely was not written "
+          f"down")
+      elif tag.group(1) not in known:
+        problems.append(
+          f"tests/{name}: {node.name} names the shape "
+          f"[{tag.group(1)}], which tools/bug_register.py does not "
+          f"know; add it to HOW or use one that exists")
+
+
 def check_catalogue_anchors(catalogue):
   """Every catalogue entry's `old` text is still in the file it names.
 
@@ -335,6 +405,7 @@ def check_audit_tools():
     problems.append(
       f"the mutation catalogue has shrunk to {count} entries; it is "
       "meant to grow with the behaviours worth guarding")
+  check_regression_shapes()
   check_equivalence_claims()
   check_binding_documents()
 

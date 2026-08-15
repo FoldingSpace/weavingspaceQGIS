@@ -3336,6 +3336,16 @@ class WeavingSpaceDialog(QDialog):
       if prev and prev.get("class_choice") is not None:
         self._class_choices[tid] = prev["class_choice"]
     self._update_dynamic_columns()
+    # ...and every fresh row is asked what its LAYER holds, because
+    # the rows above were built from the dialog's records and a layer
+    # adopted from a reopened project or a GeoPackage may carry a
+    # renderer no row can name. Without this a project reopened after
+    # an element was styled in QGIS came back reading "Quant:
+    # Quantiles" over a rule-based map, and the next Generate would
+    # have destroyed the user's work -- measured 2026-08-15 by the
+    # round-trip test, which is why deferral is inferred here rather
+    # than trusted from a stamp.
+    self._refresh_deferring_rows()
 
   # ------------------------------------------------------------ assignments
 
@@ -4290,8 +4300,13 @@ class WeavingSpaceDialog(QDialog):
     layer_now = QgsProject.instance().mapLayer(layer_id)
     now_deferring = (layer_now is not None
                      and bridge.expressible_style(layer_now.renderer()) is None)
+    # RECONCILED EITHER WAY, and the `if now_deferring` this used to
+    # sit inside was the bug: a dock edit that goes BACK to something
+    # a row can name left the row saying "Deferring to QGIS" with its
+    # controls inert over a map the plugin could perfectly well
+    # describe. The two directions are one question asked once.
+    self._refresh_deferring_rows()
     if now_deferring:
-      self._refresh_deferring_rows()
       if not was_deferring:
         # ONE notice, when it begins (maintainer's decision). The
         # editor goes with it: every number in that window describes
@@ -5067,6 +5082,13 @@ class WeavingSpaceDialog(QDialog):
     # restyle reads the dialog's records, never the preview.
     self._restyle_only()
     self._refresh_preview_colours()
+    # ...and the rows are re-asked, because a style change is exactly
+    # how an element STOPS deferring: the user picks a plugin style,
+    # the restyle above replaces the renderer somebody built in QGIS,
+    # and the controls that were switched off must come back. Without
+    # this they stayed inert until the next full run -- a row the
+    # plugin had taken back that the user still could not touch.
+    self._refresh_deferring_rows()
 
   def _warn_about_close_colours(self):
     """Say so if hand-picked colours left two elements inseparable.
@@ -5311,13 +5333,33 @@ class WeavingSpaceDialog(QDialog):
         combo.setCurrentText(self.DEFERRING)
         combo.blockSignals(False)
       elif not deferring and combo.currentText() == self.DEFERRING:
-        # the element stopped deferring without anybody picking a
-        # style -- QGIS was put back on something a row can name --
-        # so the row follows it rather than sitting on a stale word
+        # THE ELEMENT STOPPED DEFERRING WITHOUT ANYBODY PICKING A
+        # STYLE: somebody put QGIS back on something a row can name.
+        # The row follows the RENDERER rather than guessing from the
+        # variable, because the whole principle is that the row
+        # describes the map -- and the map is now a thing with a name.
+        # Measured 2026-08-15 by a hunt: without this the row sat on
+        # "Deferring to QGIS" over a plain single symbol, with its
+        # controls still inert, and the next Generate seeded a
+        # graduated renderer over it saying only "no re-tiling
+        # needed".
+        layer_now = QgsProject.instance().mapLayer(
+          self._element_layer_ids.get(item.text(), ""))
+        style = bridge.expressible_style(
+          layer_now.renderer()) if layer_now is not None else None
+        variable = self.table.cellWidget(row, 1)
+        label = self._plausible_mode(
+          variable.currentText() if variable is not None else "")
+        if style is not None:
+          mode, scheme = style
+          if mode == "Graduated":
+            label = next(
+              (text for text, name in self.GRAD_SCHEMES.items()
+               if name == scheme), label)
+          else:
+            label = mode
         combo.blockSignals(True)
-        combo.setCurrentText(self._plausible_mode(
-          self.table.cellWidget(row, 1).currentText()
-          if self.table.cellWidget(row, 1) is not None else ""))
+        combo.setCurrentText(label)
         combo.blockSignals(False)
       if deferring:
         # THE RAMP CELL MUST NOT GO ON NAMING A RAMP. It read "Blues"
@@ -5489,6 +5531,28 @@ class WeavingSpaceDialog(QDialog):
       alternative is a graduated renderer on text.
     """
     var = var_combo.currentText()
+    # A VARIABLE CHANGE ENDS DEFERRAL, and the row says so NOW rather
+    # than at the next landing. Deferral cannot survive it -- a
+    # renderer keyed to the old column describes nothing about the new
+    # one -- so this correction is made whether or not the user has
+    # ever picked a style by hand, which is the one case `touched`
+    # below would otherwise skip.
+    #
+    # Leaving it to the landing drew NOTHING AT ALL. Measured
+    # 2026-08-15 by a hunt: an element styled in QGIS and then moved
+    # onto a text column kept the mode "Deferring to QGIS", which is
+    # not "Graduated", so the text-field guard in `_assignments` never
+    # fired and seed_renderer fell into its graduated branch over
+    # words. A graduated renderer over text has no ranges at all --
+    # 84 of 84 tiles with no symbol, the row reading Categorized and
+    # the message bar saying the element was "drawn by the plugin
+    # again". Correcting the ROW here lets every guard downstream see
+    # a mode it recognises, rather than teaching each of them a new
+    # word.
+    if mode_combo.currentText() == self.DEFERRING:
+      mode_combo.blockSignals(True)
+      mode_combo.setCurrentText(self._plausible_mode(var))
+      mode_combo.blockSignals(False)
     if not mode_combo.property("touched"):
       mode_combo.blockSignals(True)
       mode_combo.setCurrentText(self._plausible_mode(var))
@@ -5662,9 +5726,41 @@ class WeavingSpaceDialog(QDialog):
       for tid, layer in layers.items():
         a = assignments[tid]
         signature = self._signature(a)
-        if self._last_signatures.get(tid) == signature:
+        if self._last_signatures.get(tid) == signature \
+            and not (a.get("mode_raw") != self.DEFERRING
+                     and bridge.expressible_style(layer.renderer()) is None):
           continue  # this element is already wearing what it should
-        if a.get("class_source") in unreadable:
+        # ...the second half of that test is the RECLAIM case, and it
+        # is here for the same reason as on the run-landing path: an
+        # element taken back by picking the style it had before
+        # deferral arrives with the signature it had before deferral,
+        # so "already wearing what it should" is exactly wrong -- it
+        # is wearing what QGIS built.
+        if a.get("mode_raw") == self.DEFERRING \
+            and bridge.expressible_style(layer.renderer()) is None:
+          # A DEFERRING ELEMENT IS NOT RESTYLED, and this arm is the
+          # twin of `carried_while_deferring` on the run-landing path.
+          # It was missing, and the run-landing arm alone was not
+          # enough: a dock edit moves this element's signature all by
+          # itself, because `_assignments` resolves its mode to
+          # "Deferring to QGIS" and _signature carries the mode -- so
+          # the very next Generate came here with a moved signature
+          # and re-seeded a graduated renderer over the work somebody
+          # had just done in the styling panel. Measured 2026-08-15 by
+          # a hunt: 640 interior pixels of the dock's green replaced by
+          # two shades of the plugin's Blues, the row still reading
+          # "Deferring to QGIS", and the message bar saying only
+          # "restyled b (no re-tiling needed)".
+          #
+          # The lesson generalises past this feature: when a new mode
+          # is added to a row, follow it into the SIGNATURE, because a
+          # mode that moves the signature by itself arms every fast
+          # path guarded on a moved signature.
+          #
+          # Opacity is still set below, which is right: it is the one
+          # control that stays live while deferring.
+          pass
+        elif a.get("class_source") in unreadable:
           # The scheme this element draws from cannot be read, so it
           # KEEPS THE COLOURS IT IS WEARING. Everything else about the
           # element is still honoured -- the opacity below is usually
@@ -5724,6 +5820,15 @@ class WeavingSpaceDialog(QDialog):
         said.add(field)
         self._report_quietly(note)
     self._last_run_sig = self._run_signature()
+    # ...and the rows are re-asked here too, because this path answers
+    # a Generate WITHOUT going through _add_output_layers, where the
+    # other call lives. Reclaiming an element the user had styled in
+    # QGIS is exactly a no-design-change Generate, so without this the
+    # element was correctly re-seeded and its row's controls stayed
+    # inert -- a row the plugin had taken back that the user could
+    # still not touch. Measured 2026-08-15 by tracing which calls
+    # actually fired.
+    self._refresh_deferring_rows()
     return True
 
   def _run_signature(self):
@@ -6855,8 +6960,17 @@ class WeavingSpaceDialog(QDialog):
       # unless THAT ELEMENT'S assignment changed in the one way that
       # makes it meaningless. `previous[0]` is the variable, because
       # _signature puts it first.
+      # THE ROW'S OWN STATEMENT gates both of these, not the layer's
+      # renderer alone. Picking a plugin style is how a user takes an
+      # element BACK, and it must replace the dock's renderer at once
+      # (settled 2026-08-15) -- but the layer still holds that
+      # renderer at the moment of the pick, so a test on the layer
+      # alone can never be false and the element could never be
+      # reclaimed. Measured while building this: choosing Categorized
+      # left the rule-based renderer in place for good.
       carried_while_deferring = (
         not unchanged and tid in old_renderers and previous is not None
+        and a.get("mode_raw") == self.DEFERRING
         and bridge.expressible_style(old_renderers[tid]) is None
         and previous[0] == a.get("var"))
       if (not unchanged and tid in old_renderers and previous is not None
@@ -6868,7 +6982,20 @@ class WeavingSpaceDialog(QDialog):
           f"Element '{tid}' was styled in QGIS, and changing its "
           f"variable means those classes no longer describe it, so it "
           f"is drawn by the plugin again.")
-      if unchanged or carried_while_deferring:
+      # RECLAIMED: the layer holds something no row can name, and the
+      # row now names a style. That is a user taking the element back,
+      # and it must re-seed WHATEVER the signature says -- because
+      # picking back the same style the element had before it was
+      # deferred restores the old signature EXACTLY, so `unchanged`
+      # goes true and the branch below preserves the very renderer
+      # they are trying to replace. Measured while building this: the
+      # row read Categorized, the map stayed rule-based through two
+      # Generates, and the controls stayed inert because the element
+      # was still, in fact, deferring.
+      reclaimed = (tid in old_renderers
+                   and a.get("mode_raw") != self.DEFERRING
+                   and bridge.expressible_style(old_renderers[tid]) is None)
+      if (unchanged or carried_while_deferring) and not reclaimed:
         out.setRenderer(old_renderers[tid])
         self._preserved_this_run.append(tid)
         # opacity travels with the renderer: an element the dialog has

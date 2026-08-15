@@ -5,14 +5,14 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-153 defect(s) with a regression test.
+159 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
 - **categorical colours were sampled with round() where matplotlib's ListedColormap uses int(), so a five-class field took entries 0,2,4,7,9 instead of 0,2,5,7,9 and the middle category was painted purple where the original renders brown.**  
   guarded by `test_ui_library_categorical_template`
 
-## Found by differential
+## Found by a randomised differential sweep
 
 - **nothing compared the design view against the map it predicts, so the two could diverge without any test noticing.**  
   guarded by `test_the_preview_agrees_with_the_map_it_predicts`
@@ -42,6 +42,37 @@ there is no separate list to remember.
   guarded by `test_hostile_numbers_are_handled_or_declined`
 - **a corrupt bundled wheel raised BadZipFile out of provision_from_bundled, reaching the user as an unhandled traceback from the toolbar button rather than a plain report that the packages are still missing.**  
   guarded by `test_the_deps_installer_declines_a_corrupt_wheel`
+
+## Found by a bug hunt pointed in a named direction
+
+- **copying a classification onto an element whose column holds a single value left every class but the first on the placeholder grey, so the element drew as flat no-data colour while its ramp cell named a ramp.**  
+  guarded by `test_a_copied_ladder_on_one_value_still_wears_its_ramp`
+- **copying a classification from an element drawn Quant: Unclassed wrote fifty into the receiving element's chosen class count, which the next table rebuild clamped to twenty, replacing the count the user had chosen.**  
+  guarded by `test_a_copy_from_unclassed_leaves_the_chosen_count_alone`
+- **copying a classification onto a column that cannot reach its upper classes left the swatch unhatched, so a user was never shown which of their legend classes no tile uses.**  
+  guarded by `test_a_copy_hatches_the_classes_it_leaves_unreachable`
+- **copying a classification wrote the source element's pinned bounds onto the target without checking them against the target's own column, recording a bound the plugin refuses when typed.**  
+  guarded by `test_a_copy_leaves_behind_a_pin_the_data_cannot_carry`
+- **a copy wrote the target's class count and ramp into the dialog's records without moving its controls, so the row's cell, its assignment and the map disagreed about how many classes were drawn.**  
+  guarded by `test_a_copy_leaves_one_number_in_every_control`
+- **a Generate destroyed a renderer built in QGIS's styling panel for a deferring element, or kept one whose column the element no longer drew.**  
+  guarded by `test_a_deferring_element_keeps_its_renderer_across_a_generate`
+- **an element styled in QGIS and then moved onto a text column was drawn by a graduated renderer over words, so every tile fell outside every class and the map painted nothing.**  
+  guarded by `test_a_deferring_element_moved_to_words_still_draws`
+- **per-element records survived a project change, so pinned bounds, colours and class counts set in one project were applied to the next project opened in the same session.**  
+  guarded by `test_a_new_project_does_not_inherit_the_last_one_s_pins`
+- **the class-count reduction counted the whole column, so pinning a bound could leave the scheme cutting more classes than the pool between the pins had distinct values, drawing a legend swatch no tile wears.**  
+  guarded by `test_a_pin_leaves_no_class_for_a_tile_to_miss`
+- **a pin set on an element carrying a copied classification was recorded, stamped and shown as set while the map ignored it, and then took effect later when the copy was released.**  
+  guarded by `test_a_pin_still_works_on_a_copied_ladder`
+- **the class-bound control had a fixed range and a fixed number of decimal places, so a bound typed on a column of large or very small values was silently replaced by a different number.**  
+  guarded by `test_a_pinned_bound_can_hold_the_numbers_a_column_carries`
+- **a plugin closed and reopened adopted the oldest output group rather than the newest, so the next Generate overwrote a result the user had deliberately kept and restored bounds they had unpinned.**  
+  guarded by `test_a_reopened_plugin_adopts_the_group_it_last_wrote`
+- **pinning a class bound left the colour editor showing the ladder from before the pin, and the unpinned end's control offering a bound the map no longer had.**  
+  guarded by `test_pinning_redraws_the_window_it_was_typed_into`
+- **a renderer changed in QGIS back to something the plugin can express left the row reading "Deferring to QGIS" with its controls disabled, and the next Generate overwrote the map.**  
+  guarded by `test_the_row_follows_the_dock_back_out_of_deferring`
 
 ## Found by a multi-step session test
 
@@ -110,8 +141,12 @@ there is no separate list to remember.
 
 - **choosing a layer produced nothing until Generate was pressed, leaving a first-time user with an empty canvas and no indication that anything was meant to happen.**  
   guarded by `test_auto_first_render`
+- **a project reopened after an element was styled in QGIS lost the fact that the plugin had stopped styling it, so the next Generate destroyed the user's work.**  
+  guarded by `test_deferral_survives_a_project_round_trip`
 - **CRS work on the QgsTask worker thread segfaulted QGIS, because PROJ is not safe to use concurrently with the main thread; the CRS is now stripped before the task and reattached in the done callback.**  
   guarded by `test_real_world_data`
+- **an element styled in QGIS could not be taken back by picking the style it had before, because that restored its old signature and both seeding paths kept the renderer as unchanged.**  
+  guarded by `test_taking_an_element_back_from_qgis_restyles_at_once`
 
 ## Found by running the suite somewhere other than the machine it was written on
 
@@ -141,7 +176,7 @@ there is no separate list to remember.
 - **identity modifier transforms (rotate 0, scale 1) rebuilt geometry with enough floating-point rounding to flip tie-prone joins, changing which element a boundary tile belonged to.**  
   guarded by `test_ui_library_modifier_chain`
 
-## Found by unrecorded
+## Found by not written down at the time
 
 - **quant picks dropped by the run they were made during.**  
   guarded by `test_a_class_colour_picked_during_a_run_is_not_lost`
@@ -153,22 +188,8 @@ there is no separate list to remember.
   guarded by `test_a_copied_classification_carries_the_whole_row`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_copied_ladder_is_fitted_to_the_column_it_lands_on`
-- **copying a classification onto an element whose column holds a single value left every class but the first on the placeholder grey, so the element drew as flat no-data colour while its ramp cell named a ramp.**  
-  guarded by `test_a_copied_ladder_on_one_value_still_wears_its_ramp`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_copy_and_its_pins_survive_a_project_round_trip`
-- **copying a classification from an element drawn Quant: Unclassed wrote fifty into the receiving element's chosen class count, which the next table rebuild clamped to twenty, replacing the count the user had chosen.**  
-  guarded by `test_a_copy_from_unclassed_leaves_the_chosen_count_alone`
-- **copying a classification onto a column that cannot reach its upper classes left the swatch unhatched, so a user was never shown which of their legend classes no tile uses.**  
-  guarded by `test_a_copy_hatches_the_classes_it_leaves_unreachable`
-- **copying a classification wrote the source element's pinned bounds onto the target without checking them against the target's own column, recording a bound the plugin refuses when typed.**  
-  guarded by `test_a_copy_leaves_behind_a_pin_the_data_cannot_carry`
-- **a copy wrote the target's class count and ramp into the dialog's records without moving its controls, so the row's cell, its assignment and the map disagreed about how many classes were drawn.**  
-  guarded by `test_a_copy_leaves_one_number_in_every_control`
-- **a Generate destroyed a renderer built in QGIS's styling panel for a deferring element, or kept one whose column the element no longer drew.**  
-  guarded by `test_a_deferring_element_keeps_its_renderer_across_a_generate`
-- **a deferring element's ramp cell went on naming a ramp, and its swatch did not follow the colours set in QGIS's styling panel.**  
-  guarded by `test_a_deferring_row_shows_the_colours_qgis_is_drawing`
 - **a hand-picked colour the plugin reported as discarded was left on the layer, saved, and re-imposed on the map next session.**  
   guarded by `test_a_discarded_pick_does_not_come_back`
 - **five dock classes over a collapsed column indexed past the end of the dialog's one-class expectation, inside a renderer signal handler.**  
@@ -185,8 +206,6 @@ there is no separate list to remember.
   guarded by `test_a_legend_never_shows_a_class_the_map_does_not_have`
 - **moving a class-source QML and then changing any style control repainted the element in automatic colours, silently, where the re-tile path keeps the map and names the file.**  
   guarded by `test_a_moved_class_source_survives_a_restyle`
-- **per-element records survived a project change, so pinned bounds, colours and class counts set in one project were applied to the next project opened in the same session.**  
-  guarded by `test_a_new_project_does_not_inherit_the_last_one_s_pins`
 - **only _finish_run restored the determinate progress range, and the zombie recovery does not go through it.**  
   guarded by `test_a_new_run_always_shows_real_progress`
 - **a hand-picked colour changed under live update was swallowed by the no-op guard, because the run signature did not carry the picks that the restyle signature does.**  
@@ -195,22 +214,16 @@ there is no separate list to remember.
   guarded by `test_a_pin_and_a_class_source_do_not_meet`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_pin_belongs_to_an_element_and_a_field`
-- **the class-count reduction counted the whole column, so pinning a bound could leave the scheme cutting more classes than the pool between the pins had distinct values, drawing a legend swatch no tile wears.**  
-  guarded by `test_a_pin_leaves_no_class_for_a_tile_to_miss`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_pin_reaches_the_map_through_the_live_path`
 - **pinned bounds set while a run was finishing were seeded from the stale snapshot, destroyed as the run landed, and stamped absent onto the layer.**  
   guarded by `test_a_pin_set_during_a_run_is_not_lost`
-- **a pin set on an element carrying a copied classification was recorded, stamped and shown as set while the map ignored it, and then took effect later when the copy was released.**  
-  guarded by `test_a_pin_still_works_on_a_copied_ladder`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_pin_survives_a_project_round_trip`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_pin_survives_the_table_being_rebuilt`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_pin_that_cannot_be_drawn_is_refused`
-- **the class-bound control had a fixed range and a fixed number of decimal places, so a bound typed on a column of large or very small values was silently replaced by a different number.**  
-  guarded by `test_a_pinned_bound_can_hold_the_numbers_a_column_carries`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_pinned_class_bound_reaches_the_map`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
@@ -229,16 +242,10 @@ there is no separate list to remember.
   guarded by `test_a_reloaded_module_retires_the_old_dialog_cleanly`
 - **renaming a column destroyed an element's hand-picked categorical colours, while the graduated twin survived the same act.**  
   guarded by `test_a_renamed_column_does_not_destroy_hand_picked_colours`
-- **a renderer type changed in QGIS's styling panel left the plugin's row naming a style and a ramp that no longer decided the map.**  
-  guarded by `test_a_renderer_the_row_cannot_name_defers_to_qgis`
-- **a plugin closed and reopened adopted the oldest output group rather than the newest, so the next Generate overwrote a result the user had deliberately kept and restored bounds they had unpinned.**  
-  guarded by `test_a_reopened_plugin_adopts_the_group_it_last_wrote`
 - **reopening a project and pressing Generate painted away a categorical scheme imported from a QML, because the adoption recovered a graduated element's colours and returned empty-handed for its categorized twin.**  
   guarded by `test_a_reopened_project_keeps_an_imported_class_scheme`
 - **a retired dialog's styleChanged connections kept firing after retirement, double-adopting dock edits alongside the live dialog.**  
   guarded by `test_a_retired_dialog_stops_watching`
-- **values retyped in QGIS left the map drawing the classification computed from the old values, with classes running past everything the layer now held.**  
-  guarded by `test_a_retyped_column_reclassifies_the_map`
 - **a rebuild while Reverse was greyed silently discarded the tick underneath it.**  
   guarded by `test_a_reverse_tick_survives_a_rebuild_while_it_is_greyed`
 - **a region row with no geometry was dropped from the map in silence, with the coverage notice unable to account for it.**  
@@ -297,8 +304,6 @@ there is no separate list to remember.
   guarded by `test_live_update_notices_the_data_changing`
 - **class breaks were cut from each element's own tiles, so four elements carrying one variable drew four different legends and one colour meant four different numbers.**  
   guarded by `test_one_variable_gets_one_legend_wherever_it_appears`
-- **pinning a class bound left the colour editor showing the ladder from before the pin, and the unpinned end's control offering a bound the map no longer had.**  
-  guarded by `test_pinning_redraws_the_window_it_was_typed_into`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_pins_hold_across_the_whole_family_catalogue`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
@@ -340,10 +345,20 @@ there is no separate list to remember.
 
 ## Found by reported by a user
 
+- **a deferring element whose renderer set its fill from an expression got a swatch showing one colour, which the map did not have.**  
+  guarded by `test_a_data_defined_fill_is_drawn_as_an_unknown`
+- **a deferring element's ramp cell went on naming a ramp, and its swatch did not follow the colours set in QGIS's styling panel.**  
+  guarded by `test_a_deferring_row_shows_the_colours_qgis_is_drawing`
+- **a renderer type changed in QGIS's styling panel left the plugin's row naming a style and a ramp that no longer decided the map.**  
+  guarded by `test_a_renderer_the_row_cannot_name_defers_to_qgis`
+- **values retyped in QGIS left the map drawing the classification computed from the old values, with classes running past everything the layer now held.**  
+  guarded by `test_a_retyped_column_reclassifies_the_map`
 - **a subset string set by the user on an element layer was discarded at every regeneration, silently, while the hand styling beside it survived.**  
   guarded by `test_a_user_subset_survives_regeneration`
 - **the colour-separability warning fired unconditionally, on every map, whether or not anyone wanted that opinion; and later, with the box checked, every warning reached a real message bar TWICE, pushed immediately and again by the settled-dust send whose stash had been added for the note-line wipe without removing the push.**  
   guarded by `test_colour_legibility_warnings_are_opt_in`
+- **a renderer type changed in QGIS while the colour editor was open left the window showing class bounds and colours for a renderer that had been replaced.**  
+  guarded by `test_deferral_closes_the_colour_editor_under_it`
 - **the guard sampled a fixed 12 mutants whatever the diff; over a 1,700-line round that certified nearly nothing while reading as a passed gate.**  
   guarded by `test_the_mutation_guard_scales_with_the_diff`
 - **the table drew Qt's row-number gutter beside the tile ids, which the user reported as a messy second numbering.**  
@@ -351,15 +366,16 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 97
+- not written down at the time: 82
 - the mutation campaign: 16
+- a bug hunt pointed in a named direction: 14
+- reported by a user: 9
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5
 - a family audit of the claims the software makes: 4
 - the hostile data corpus: 4
-- reported by a user: 4
-- differential: 3
-- reading the code: 2
+- reading the code: 4
+- a randomised differential sweep: 3
 - comparing rendered output against the reference in Lab space: 1

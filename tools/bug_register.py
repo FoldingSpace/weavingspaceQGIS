@@ -54,6 +54,15 @@ HOW = {
                     "machine it was written on",
   "user": "reported by a user",
   "review": "reading the code",
+  "hunt": "a bug hunt pointed in a named direction",
+  "differential": "a randomised differential sweep",
+  # Not a shape of test at all: a defect whose provenance was not
+  # written down at the time. It is spelled out rather than left
+  # blank so that nothing is EVER silently unrecorded -- a reader
+  # sees a deliberate mark, and tools/check_standards.py refuses a
+  # Regression line with no tag, so a new one cannot join these.
+  # (Maintainer's instruction, 2026-08-15, on finding 100 of them.)
+  "unrecorded": "not written down at the time",
 }
 
 

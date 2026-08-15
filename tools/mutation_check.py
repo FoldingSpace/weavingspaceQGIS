@@ -1111,7 +1111,7 @@ MUTATIONS = [
        test='test_ui_library_modifier_chain',
        why='the group (prototile) inset reaching the unit'),
   dict(name='selective-reseed-inverted', file=DIALOG,
-       old='      if unchanged or carried_while_deferring:',
+       old='      if (unchanged or carried_while_deferring) and not reclaimed:',
        new='      if not unchanged:  # mutation: keep the WRONG renderer',
        test='test_integration_interleaved_session',
        why='hand styling kept for unchanged elements only'),
@@ -2203,8 +2203,8 @@ MUTATIONS = [
            "pressed Generate got the old colours back with nothing said. "
            "Measured 2026-08-13"),
   dict(name="an-unreadable-class-source-keeps-its-colours", file=DIALOG,
-       old='        if a.get("class_source") in unreadable:',
-       new='        if False:  # mutation: seed from nothing instead',
+       old='        elif a.get("class_source") in unreadable:',
+       new='        elif False:  # mutation: repaint from a file that failed',
        test="test_a_moved_class_source_survives_a_restyle",
        why="the restyle fast path swallowed a class source it could not "
            "read and seeded the element from nothing, painting automatic "
@@ -2476,6 +2476,82 @@ MUTATIONS = [
            "without this the window prints the ladder from before it "
            "and the other end's control offers a bound the map no "
            "longer has -- which is applied if that pin is clicked"),
+  dict(name="a-rebuilt-table-asks-the-layer", file=DIALOG,
+       old='    # than trusted from a stamp.\n    self._refresh_deferring_rows()',
+       new='    # than trusted from a stamp.\n    pass  # mutation: the rebuilt rows never ask the layer',
+       test="test_deferral_survives_a_project_round_trip",
+       why="rows are built from the dialog's records, so a project "
+           "reopened after an element was styled in QGIS comes back "
+           "naming a plugin style over a rule-based map, and the next "
+           "Generate destroys the user's work"),
+  dict(name="deferral-closes-the-open-editor", file=DIALOG,
+       old="        if self._open_editor is not None:\n"
+           "          self._open_editor.reject()",
+       new="        if False:\n          self._open_editor.reject()",
+       test="test_deferral_closes_the_colour_editor_under_it",
+       why="the window's rows describe a renderer that has just been "
+           "replaced, and its controls apply immediately, so leaving "
+           "it open invites an edit that lands on nothing"),
+  dict(name="a-type-change-defers-to-qgis", file=DIALOG,
+       old="    if now_deferring:\n      self._refresh_deferring_rows()",
+       new="    if False:\n      self._refresh_deferring_rows()",
+       test="test_a_renderer_the_row_cannot_name_defers_to_qgis",
+       why="without this a renderer TYPE changed in the styling panel "
+           "goes through the colour branches, which adopt category "
+           "picks onto a row still reading Graduated while the ramp "
+           "cell names a ramp that decides nothing"),
+  dict(name="the-row-follows-the-dock-both-ways", file=DIALOG,
+       old="    self._refresh_deferring_rows()\n    if now_deferring:",
+       new="    if now_deferring:\n      self._refresh_deferring_rows()",
+       test="test_the_row_follows_the_dock_back_out_of_deferring",
+       why="reconciling only when the new renderer is unnameable "
+           "leaves the row saying Deferring, with its controls inert, "
+           "over a map the plugin could describe -- and the next "
+           "Generate seeds straight over it"),
+  dict(name="an-element-can-be-taken-back", file=DIALOG,
+       old="      if (unchanged or carried_while_deferring) and not reclaimed:",
+       new="      if unchanged or carried_while_deferring:",
+       test="test_taking_an_element_back_from_qgis_restyles_at_once",
+       why="picking back the style an element had before it was "
+           "deferred restores its old signature exactly, so without "
+           "the reclaim test both seeding paths keep the renderer "
+           "they are being asked to replace and the element can never "
+           "be taken back"),
+  dict(name="a-variable-change-ends-deferral-in-the-row", file=DIALOG,
+       old="    if mode_combo.currentText() == self.DEFERRING:\n"
+           "      mode_combo.blockSignals(True)",
+       new="    if False:\n      mode_combo.blockSignals(True)",
+       test="test_a_deferring_element_moved_to_words_still_draws",
+       why="the row keeps a mode no downstream guard knows, so the "
+           "text-field guard never fires and a graduated renderer is "
+           "seeded over words -- every tile outside every class, and "
+           "a run that reports success"),
+  dict(name="the-fast-path-respects-deferral", file=DIALOG,
+       old='        if a.get("mode_raw") == self.DEFERRING \\\n            and bridge.expressible_style(layer.renderer()) is None:',
+       new='        if False:',
+       test="test_a_deferring_element_keeps_its_renderer_across_a_generate",
+       why="a dock edit moves the element's signature by itself, "
+           "because _signature carries the mode and the mode is now "
+           "Deferring -- so without this arm the very next Generate "
+           "re-seeds a graduated renderer over the work somebody just "
+           "did in the styling panel, saying only 'no re-tiling "
+           "needed'"),
+  dict(name="a-deferring-element-keeps-its-renderer", file=DIALOG,
+       old='      if (unchanged or carried_while_deferring) and not reclaimed:',
+       new='      if unchanged and not reclaimed:',
+       test="test_a_deferring_element_keeps_its_renderer_across_a_generate",
+       why="a Generate rebuilds every element layer, so without this "
+           "the renderer somebody built in QGIS is destroyed by the "
+           "next spacing change -- which is the whole of what "
+           "deferring promises not to do"),
+  dict(name="the-deferring-swatch-comes-from-the-layer", file=DIALOG,
+       old="    if self._element_is_deferring(tile_id):\n      layer = QgsProject.instance().mapLayer(",
+       new="    if False:\n      layer = QgsProject.instance().mapLayer(",
+       test="test_a_deferring_row_shows_the_colours_qgis_is_drawing",
+       why="the plugin no longer decides a deferring element's "
+           "colours, so a swatch built from its records shows colours "
+           "the map does not have -- a control describing a map it "
+           "will not draw"),
   dict(name="the-signature-follows-the-column", file=DIALOG,
        old="            a.get(\"value_digest\"),",
        new="",

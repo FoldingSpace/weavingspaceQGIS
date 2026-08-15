@@ -1030,6 +1030,7 @@ def test_element_ids_survive_a_case_insensitive_path():
   to go in that format.
 
   Regression: none yet -- the cap was set at 52 for two days, during which any map with 27 or more elements could have collided on export.
+ [unrecorded]
   """
   import contextlib
   import io
@@ -1480,6 +1481,7 @@ def test_size_guard():
   message and a hung application.
 
   Regression: a design whose spacing implied millions of tiles was attempted rather than refused, and QGIS became unresponsive while it ran.
+ [unrecorded]
   """
   from weavingspace_qgis import bridge
   from weavingspace import TileUnit, Tiling
@@ -1546,6 +1548,7 @@ def test_support_logic():
   the generated docs/BUG-REGISTER.md that this test could not
   possibly have supported, since nothing here goes near a tile count.
   The line now sits on test_size_guard, which does guard it.
+ [unrecorded]
   """
   import sys
   from weavingspace_qgis import compat, deps
@@ -2304,6 +2307,7 @@ def test_cancelling_frees_the_dialog_at_once():
   WITHOUT waiting, which is the only way the difference shows.
 
   Regression: cancel's immediate report to the dialog was untested; removing it left the window disabled until the abandoned work finished.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   layer = make_region_layer()
@@ -2452,6 +2456,7 @@ def test_every_control_starts_where_it_should():
   a setting none of it asserted.
 
   Regression: control defaults were unasserted as a class, so any one of them could change unnoticed.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   # No layer in the project. With one, auto-spacing legitimately
@@ -2678,6 +2683,7 @@ def test_the_preview_actually_draws_what_it_is_given():
     between the fills that neither fill accounts for.
 
   Regression: the preview's painting had almost no coverage, and removing its brush, pen, render hint or fitting arithmetic changed a picture no test looked at.
+ [unrecorded]
   """
   from qgis.PyQt.QtGui import QColor, QImage, QPainter
   from weavingspace_qgis.dialog import WeavingSpaceDialog
@@ -2815,6 +2821,7 @@ def test_the_design_view_draws_no_tile_outlines():
   fill the preview uses.
 
   Regression: the design view drew a dark outline around every tile, which fights the colour comparison the view is for.
+ [unrecorded]
   """
   from qgis.PyQt.QtGui import QColor, QImage, QPainter
   from weavingspace_qgis.dialog import WeavingSpaceDialog
@@ -2960,6 +2967,7 @@ def test_awkward_layers_are_handled_or_declined():
   much a pass as one that succeeds.
 
   Regression: none of these shapes had ever been put through the plugin; the suite's fixtures are all well-formed.
+ [unrecorded]
   """
   from qgis.core import QgsField, QgsFeature, QgsGeometry, QgsPointXY
   from qgis.PyQt.QtCore import QVariant
@@ -3439,6 +3447,7 @@ def test_a_constant_column_draws_one_class_and_says_so():
   second of the run finishing.
 
   Regression: a constant column produced five identical classes in five colours; the user's own instruction was that it should revert to a single class with a warning.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   from weavingspace_qgis import compat
@@ -4227,6 +4236,7 @@ def test_data_changed_in_qgis_while_the_plugin_is_open():
   separate question, asked by the test below this one.
 
   Regression: the geometry signature held the layer's ID and nothing about its contents, so deleting half the features left every term identical and the run was answered by repainting tiles built from data that no longer existed — pressing Generate did not help, which is what made it serious.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   from weavingspace_qgis import compat
@@ -4446,6 +4456,7 @@ def test_live_update_notices_the_data_changing():
   trusted at the moment it stops being true.
 
   Regression: the live-update signature described the settings but not the data, so an in-place geometry edit or a deletion left the map showing what had been deleted.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   layer = _editable_region()
@@ -4839,6 +4850,7 @@ def test_qgis_changes_around_the_plugin():
   is carrying on as though the layer were still there.
 
   Regression: deleting the file behind a layer and reloading it made layer.extent() segfault QGIS outright — no exception, no traceback, nothing in the log — and isValid() returned True while the provider was gone; the live-update gate read that extent on every debounce, so the crash was reachable without pressing anything.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   from qgis.core import QgsCoordinateReferenceSystem, QgsVectorFileWriter
@@ -5166,6 +5178,7 @@ def test_a_sequence_of_edits_under_the_plugin():
   identical is the stale-map defect returning by a longer road.
 
   Regression: a column added in QGIS — with the Field Calculator, the usual way — never appeared in the variable choosers, because their item lists are built during a table rebuild and a rebuild happens when the LAYER changes, not when its columns do; the column stayed invisible until the user switched layers and back.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   from weavingspace_qgis import compat
@@ -6228,6 +6241,7 @@ def test_a_generate_spares_the_rest_of_the_users_geopackage():
   file already held. So nothing is lost by never recreating.
 
   Regression: choosing an existing GeoPackage as the output destroyed every other table in it, including the region layer being tiled.
+ [unrecorded]
   """
   import shutil
   import tempfile
@@ -6313,6 +6327,7 @@ def test_a_geopackage_loses_the_elements_a_design_dropped():
   strength of a name matching its own convention.
 
   Regression: a design that shrank left its dropped elements in the GeoPackage, so the exported file described a map that no longer existed.
+ [unrecorded]
   """
   import shutil
   import tempfile
@@ -6809,6 +6824,7 @@ def test_an_inset_that_eats_the_design_says_so():
   lost, and that the sentence the user reads names the inset.
 
   Regression: an inset that swallowed some of a design's elements failed the run with a raw geopandas exception about invalid geometries, and one that swallowed all of them was reported as a missing variable.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
@@ -6929,6 +6945,7 @@ def test_a_legend_never_shows_a_class_the_map_does_not_have():
   which is why nobody had asked what the map looked like.
 
   Regression: five classes over three distinct values put two swatches in the legend that no tile used, and painted the highest value in a middle colour while the legend's darkest sat beside an empty range.
+ [unrecorded]
   """
   from qgis.core import QgsRenderContext
   from weavingspace_qgis import bridge, compat
@@ -7065,6 +7082,7 @@ def test_one_variable_gets_one_legend_wherever_it_appears():
   actually does with two elements side by side.
 
   Regression: class breaks were cut from each element's own tiles, so four elements carrying one variable drew four different legends and one colour meant four different numbers.
+ [unrecorded]
   """
   from qgis.core import QgsRenderContext
   from weavingspace_qgis.dialog import WeavingSpaceDialog
@@ -7191,6 +7209,7 @@ def test_a_pinned_class_bound_reaches_the_map():
   something behind.
 
   Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+ [unrecorded]
   """
   from weavingspace_qgis import bridge
   project = QgsProject.instance()
@@ -7277,6 +7296,7 @@ def test_a_pin_that_cannot_be_drawn_is_refused():
   rather than two.
 
   Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+ [unrecorded]
   """
   from weavingspace_qgis import bridge
   values = [float(v) for v in range(0, 101)]
@@ -7320,6 +7340,7 @@ def test_a_pin_survives_a_project_round_trip():
   reason the hand-picked colours are.
 
   Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+ [unrecorded]
   """
   import shutil
   import tempfile
@@ -7413,6 +7434,7 @@ def test_a_copied_classification_carries_the_whole_row():
   a data range, so the end-fitting rules only bite across variables.
 
   Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
@@ -7525,6 +7547,7 @@ def test_a_copied_ladder_is_fitted_to_the_column_it_lands_on():
   the receiving column's max.
 
   Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+ [unrecorded]
   """
   from weavingspace_qgis import bridge
   ladder = [4.0, 14.2, 30.0, 55.0]
@@ -7577,6 +7600,7 @@ def test_the_categorical_editor_offers_no_pin_and_no_copy():
   absence is asserted rather than assumed.
 
   Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+ [unrecorded]
   """
   from weavingspace_qgis.category_editor import CategoryColourDialog
   order = ["forest", "water", "urban"]
@@ -7613,6 +7637,7 @@ def test_the_pin_shows_which_way_it_is_set():
   never what was drawn.
 
   Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+ [unrecorded]
   """
   from qgis.PyQt.QtGui import QImage, QPainter
   from weavingspace_qgis.category_editor import PinButton
@@ -7650,6 +7675,7 @@ def test_a_refused_pin_reverts_and_says_so():
   bound the map does not have.
 
   Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+ [unrecorded]
   """
   from weavingspace_qgis import bridge
   from weavingspace_qgis.category_editor import CategoryColourDialog
@@ -7731,6 +7757,7 @@ def test_the_release_notes_keep_their_categories():
   checked.
 
   Regression: the categorized changelog shape rendered correctly in QGIS's plugin manager and reached the GitHub release page as a single undifferentiated paragraph.
+ [unrecorded]
   """
   import importlib.util
   spec = importlib.util.spec_from_file_location(
@@ -7782,6 +7809,7 @@ def test_a_pin_set_during_a_run_is_not_lost():
   layer, so a reopened project could not bring it back either.
 
   Regression: pinned bounds set while a run was finishing were seeded from the stale snapshot, destroyed as the run landed, and stamped absent onto the layer.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
@@ -7828,6 +7856,7 @@ def test_a_pin_survives_the_table_being_rebuilt():
   a positional default for exactly this reason.
 
   Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
@@ -7869,6 +7898,7 @@ def test_pins_hold_against_awkward_columns():
   than they already are, and must never produce a ladder with a gap.
 
   Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+ [unrecorded]
   """
   from qgis.core import QgsFeature, QgsGeometry, QgsPointXY
   from weavingspace_qgis import bridge, compat
@@ -7924,6 +7954,7 @@ def test_a_copy_and_its_pins_survive_a_project_round_trip():
   both have to survive.
 
   Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+ [unrecorded]
   """
   import shutil
   import tempfile
@@ -7999,6 +8030,7 @@ def test_a_pinned_element_exports_and_reopens_from_a_geopackage():
   own list of test ideas names as the richest.
 
   Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+ [unrecorded]
   """
   import shutil
   import tempfile
@@ -8055,6 +8087,7 @@ def test_copying_between_two_elements_and_back_is_stable():
   copy would show.
 
   Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
@@ -8102,6 +8135,7 @@ def test_a_pin_reaches_the_map_through_the_live_path():
   in the tuple at all.
 
   Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
@@ -8150,6 +8184,7 @@ def test_a_row_with_no_geometry_is_named():
   no geometry.
 
   Regression: a region row with no geometry was dropped from the map in silence, with the coverage notice unable to account for it.
+ [unrecorded]
   """
   from qgis.core import QgsFeature, QgsGeometry, QgsPointXY
   from weavingspace_qgis import bridge, compat
@@ -8210,6 +8245,7 @@ def test_a_pin_belongs_to_an_element_and_a_field():
   renamed, arriving on the other side of the same window.
 
   Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
@@ -8260,6 +8296,7 @@ def test_two_editors_in_one_session_do_not_leak():
   not disturb what the second wrote.
 
   Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+ [unrecorded]
   """
   from weavingspace_qgis.category_editor import CategoryColourDialog
   bounds = [(0.0, 4.0), (4.0, 14.0), (14.0, 30.0), (30.0, 55.0),
@@ -8307,6 +8344,7 @@ def test_a_pinned_element_draws_what_the_library_draws():
   interior pixel.
 
   Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+ [unrecorded]
   """
   from weavingspace_qgis import bridge
   from weavingspace_qgis.dialog import WeavingSpaceDialog
@@ -8371,6 +8409,7 @@ def test_a_session_of_pinning_and_copying_holds_together():
   and asserts after EACH step rather than at the end.
 
   Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
@@ -8459,6 +8498,7 @@ def test_a_pin_and_a_class_source_do_not_meet():
   colours.
 
   Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
@@ -8510,6 +8550,7 @@ def test_pins_hold_across_the_whole_family_catalogue():
   classification per family.
 
   Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+ [unrecorded]
   """
   from weavingspace_qgis import bridge
   from weavingspace_qgis.dialog import WeavingSpaceDialog
@@ -8555,6 +8596,7 @@ def test_a_pin_still_works_on_a_copied_ladder():
   two claims, test them COEXISTING.
 
   Regression: a pin set on an element carrying a copied classification was recorded, stamped and shown as set while the map ignored it, and then took effect later when the copy was released.
+ [hunt]
   """
   from weavingspace_qgis import bridge
   project = QgsProject.instance()
@@ -8610,6 +8652,7 @@ def test_a_copy_leaves_one_number_in_every_control():
   wrote records rather than driving controls.
 
   Regression: a copy wrote the target's class count and ramp into the dialog's records without moving its controls, so the row's cell, its assignment and the map disagreed about how many classes were drawn.
+ [hunt]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
@@ -8677,6 +8720,7 @@ def test_a_new_project_does_not_inherit_the_last_one_s_pins():
   boundary with no file at either end was not.
 
   Regression: per-element records survived a project change, so pinned bounds, colours and class counts set in one project were applied to the next project opened in the same session.
+ [hunt]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
@@ -8758,6 +8802,7 @@ def test_a_copy_leaves_behind_a_pin_the_data_cannot_carry():
   travel is the claim that somebody chose that bound for this data.
 
   Regression: copying a classification wrote the source element's pinned bounds onto the target without checking them against the target's own column, recording a bound the plugin refuses when typed.
+ [hunt]
   """
   from weavingspace_qgis import bridge
   from weavingspace_qgis.dialog import WeavingSpaceDialog
@@ -8842,6 +8887,7 @@ def test_a_pin_leaves_no_class_for_a_tile_to_miss():
   of it is unreachable.
 
   Regression: the class-count reduction counted the whole column, so pinning a bound could leave the scheme cutting more classes than the pool between the pins had distinct values, drawing a legend swatch no tile wears.
+ [hunt]
   """
   from qgis.core import QgsRenderContext
   from weavingspace_qgis import bridge, compat
@@ -8927,6 +8973,7 @@ def test_a_copy_from_unclassed_leaves_the_chosen_count_alone():
   read it.
 
   Regression: copying a classification from an element drawn Quant: Unclassed wrote fifty into the receiving element's chosen class count, which the next table rebuild clamped to twenty, replacing the count the user had chosen.
+ [hunt]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
@@ -9024,6 +9071,7 @@ def test_a_copied_ladder_on_one_value_still_wears_its_ramp():
   branch downstream was sized for the guarded one.
 
   Regression: copying a classification onto an element whose column holds a single value left every class but the first on the placeholder grey, so the element drew as flat no-data colour while its ramp cell named a ramp.
+ [hunt]
   """
   from weavingspace_qgis import bridge, compat
   layer = QgsVectorLayer("Polygon?crs=EPSG:2193", "one value", "memory")
@@ -9086,6 +9134,7 @@ def test_a_copy_hatches_the_classes_it_leaves_unreachable():
   agreeing with the mechanism is exactly what the old code did.
 
   Regression: copying a classification onto a column that cannot reach its upper classes left the swatch unhatched, so a user was never shown which of their legend classes no tile uses.
+ [hunt]
   """
   from weavingspace_qgis import bridge, dialog as dialog_module
   from weavingspace_qgis.dialog import WeavingSpaceDialog
@@ -9159,6 +9208,7 @@ def test_a_pinned_bound_can_hold_the_numbers_a_column_carries():
   and fails the small one.
 
   Regression: the class-bound control had a fixed range and a fixed number of decimal places, so a bound typed on a column of large or very small values was silently replaced by a different number.
+ [hunt]
   """
   from weavingspace_qgis.category_editor import CategoryColourDialog
 
@@ -9209,6 +9259,7 @@ def test_a_reopened_plugin_adopts_the_group_it_last_wrote():
   of the checkbox is that the older result is the one to leave alone.
 
   Regression: a plugin closed and reopened adopted the oldest output group rather than the newest, so the next Generate overwrote a result the user had deliberately kept and restored bounds they had unpinned.
+ [hunt]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
@@ -9277,6 +9328,7 @@ def test_pinning_redraws_the_window_it_was_typed_into():
   its own tests.
 
   Regression: pinning a class bound left the colour editor showing the ladder from before the pin, and the unpinned end's control offering a bound the map no longer had.
+ [hunt]
   """
   from weavingspace_qgis.category_editor import CategoryColourDialog
   before = [(0.0, 14.2), (14.2, 30.0), (30.0, 55.0), (55.0, 121.0)]
@@ -9353,6 +9405,7 @@ def test_a_retyped_column_reclassifies_the_map():
   fix for either alone breaks the other.
 
   Regression: values retyped in QGIS left the map drawing the classification computed from the old values, with classes running past everything the layer now held.
+ [user]
   """
   from weavingspace_qgis import bridge
   from weavingspace_qgis.dialog import WeavingSpaceDialog
@@ -9446,6 +9499,7 @@ def test_a_renderer_the_row_cannot_name_defers_to_qgis():
   /grill-me; the eight decisions are in ROADMAP.md.
 
   Regression: a renderer type changed in QGIS's styling panel left the plugin's row naming a style and a ramp that no longer decided the map.
+ [user]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
@@ -9512,6 +9566,7 @@ def test_a_deferring_element_keeps_its_renderer_across_a_generate():
   reported.
 
   Regression: a Generate destroyed a renderer built in QGIS's styling panel for a deferring element, or kept one whose column the element no longer drew.
+ [hunt]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
@@ -9531,9 +9586,40 @@ def test_a_deferring_element_keeps_its_renderer_across_a_generate():
   element.styleChanged.emit()
   _tick(400)
 
-  # a design change must not touch it
+  # THE RESTYLE FAST PATH FIRST, and the ORDER is the whole of it. A
+  # dock edit moves this element's signature by itself -- the mode
+  # resolves to "Deferring to QGIS" and _signature carries the mode --
+  # so the FIRST Generate after deferral begins is the one that
+  # arrives with a moved signature and no design change, and it goes
+  # down the restyle path rather than the run landing. Any Generate
+  # after that records the new signature and is skipped as unchanged,
+  # which is why putting this leg later proved nothing: the test
+  # passed with the arm broken until it was moved here.
+  _generate_and_wait(dlg)          # no spacing, no modifier, nothing
+  fast = project.mapLayer(dlg._element_layer_ids[tile_id])
+  assert type(fast.renderer()).__name__ == "QgsRuleBasedRenderer", \
+    f"the restyle fast path re-seeded over a deferring element: " \
+    f"{type(fast.renderer()).__name__}"
+
+  # A CHANGE THAT MOVES THE SIGNATURE, not merely the design. Spacing
+  # is deliberately absent from `_signature` -- it alters geometry
+  # rather than what the colours mean -- so a spacing change alone
+  # carries the renderer through the ORDINARY unchanged branch and
+  # proves nothing about deferral. The catalogue caught exactly that:
+  # this test passed with the deferring branch broken. Opacity is in
+  # the signature AND stays live while deferring, so it is the honest
+  # way to move it, and it is what a user does next anyway -- fade the
+  # element they have just styled.
+  opacity = dlg.table.cellWidget(1, 6)
+  assert opacity is not None and opacity.isEnabled(), \
+    "opacity is not available, so the signature cannot be moved here"
+  before_signature = dlg._last_signatures.get(tile_id)
+  opacity.setValue(max(10, opacity.value() - 20))
+  _tick(200)
   dlg.spacing_spin.setValue(1300)
   _generate_and_wait(dlg)
+  assert dlg._last_signatures.get(tile_id) != before_signature, \
+    "the signature did not move, so the deferring branch is untested"
   after = project.mapLayer(dlg._element_layer_ids[tile_id])
   assert type(after.renderer()).__name__ == "QgsRuleBasedRenderer", \
     f"a Generate destroyed the dock's renderer: " \
@@ -9574,6 +9660,7 @@ def test_a_deferring_row_shows_the_colours_qgis_is_drawing():
   from the day it shipped.
 
   Regression: a deferring element's ramp cell went on naming a ramp, and its swatch did not follow the colours set in QGIS's styling panel.
+ [user]
   """
   from weavingspace_qgis import bridge
   from weavingspace_qgis.dialog import WeavingSpaceDialog
@@ -9617,6 +9704,374 @@ def test_a_deferring_row_shows_the_colours_qgis_is_drawing():
   drawn = bridge.renderer_fill_colours(element)
   assert (255, 0, 0) in drawn, \
     f"the fixture's own renderer does not hold the colour set: {drawn}"
+  dlg.close()
+
+
+def test_deferral_survives_a_project_round_trip():
+  """A reopened project asks the RENDERER, not a stamp.
+
+  Deferral is inferred and never stored, which is the design's most
+  load-bearing choice: a stamp saying "deferring" beside a renderer
+  saying what it is would be one fact in two places, and they part
+  company the moment somebody reverts the renderer in QGIS. So the
+  test that matters is a real file: write the project, clear it, read
+  it back, and see whether the row still tells the truth with nothing
+  but the layer to go on.
+
+  The maintainer's own condition rides on the same mechanism -- a
+  legacy `weavingspace_quant_style` written by an older version must
+  never resurrect a mode the layer does not hold -- so this also
+  plants one and checks it loses.
+
+  Regression: a project reopened after an element was styled in QGIS lost the fact that the plugin had stopped styling it, so the next Generate destroyed the user's work.
+ [review]
+  """
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(1, 1).setCurrentText("v3")
+  _tick(150)
+  tile_id = dlg.table.item(1, 0).text()
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+  element = project.mapLayer(dlg._element_layer_ids[tile_id])
+  element.setRenderer(_rule_based_renderer("#00aa44"))
+  # ...and a LEGACY stamp claiming a graduated style, of the kind an
+  # older version wrote and a GeoPackage carries forward
+  element.setCustomProperty("weavingspace_quant_style", json.dumps(
+    {"field": "v3", "colours": {"0": "#ff0000"}, "pinned": {},
+     "range": [0, 100]}))
+  element.styleChanged.emit()
+  _tick(400)
+  assert dlg.table.cellWidget(1, 2).currentText() == dlg.DEFERRING, \
+    "the fixture is not deferring, so the round trip proves nothing"
+  dlg.close()
+
+  with tempfile.TemporaryDirectory() as folder:
+    _project_round_trip(folder, "deferring.qgz")
+    reopened = WeavingSpaceDialog(iface=_Iface())
+    reopened.live_check.setChecked(False)
+    layers = [l for l in QgsProject.instance().mapLayers().values()
+              if not l.customProperty("weavingspace_output")]
+    assert layers, "the round trip lost the region layer"
+    reopened.layer_combo.setLayer(layers[0])
+    _tick(500)
+    row = next((r for r in range(reopened.table.rowCount())
+                if reopened.table.item(r, 0) is not None
+                and reopened.table.item(r, 0).text() == tile_id), None)
+    assert row is not None, f"element {tile_id} has no row after reopening"
+    adopted = QgsProject.instance().mapLayer(
+      reopened._element_layer_ids.get(tile_id, ""))
+    assert adopted is not None, "the reopened dialog adopted no layer"
+    assert type(adopted.renderer()).__name__ == "QgsRuleBasedRenderer", \
+      f"the file did not bring the renderer back: " \
+      f"{type(adopted.renderer()).__name__}"
+    assert reopened.table.cellWidget(row, 2).currentText() == \
+        reopened.DEFERRING, \
+      f"a reopened project forgot that QGIS styles this element, so " \
+      f"the next Generate would destroy it: " \
+      f"{reopened.table.cellWidget(row, 2).currentText()!r}"
+    reopened.close()
+
+
+def test_a_data_defined_fill_is_drawn_as_an_unknown():
+  """symbols() hands back the base symbol, not what is painted.
+
+  A renderer whose fill comes from an expression paints a colour per
+  feature, and `symbols()` — the only way to read a rule-based or
+  otherwise unknown renderer — returns the symbol it starts from. A
+  swatch built from that shows one confident colour for a map drawing
+  hundreds, which is the plugin describing a map it will not draw.
+
+  So it is drawn as an unknown instead, which is the same rule the
+  hatched stripes follow: an unknown is never drawn as a certainty.
+
+  Regression: a deferring element whose renderer set its fill from an expression got a swatch showing one colour, which the map did not have.
+ [user]
+  """
+  from weavingspace_qgis import bridge
+  from qgis.core import QgsFillSymbol, QgsSymbolLayer, QgsProperty
+  from qgis.core import QgsSingleSymbolRenderer
+  plain = QgsFillSymbol.createSimple({"color": "#00aa44"})
+  assert not bridge.renderer_has_data_defined_fill(
+    QgsSingleSymbolRenderer(plain)), \
+    "a plain symbol was reported as data-defined"
+
+  expressive = QgsFillSymbol.createSimple({"color": "#00aa44"})
+  layer_symbol = expressive.symbolLayer(0)
+  layer_symbol.setDataDefinedProperty(
+    QgsSymbolLayer.PropertyFillColor,
+    QgsProperty.fromExpression("color_rgb(\"v3\" * 2, 0, 0)"))
+  assert bridge.renderer_has_data_defined_fill(
+    QgsSingleSymbolRenderer(expressive)), \
+    "a fill colour driven by an expression was not noticed, so the " \
+    "swatch would show one colour for a map drawing many"
+  assert not bridge.renderer_has_data_defined_fill(None), \
+    "None is not a renderer with a data-defined fill"
+
+
+def test_deferral_closes_the_colour_editor_under_it():
+  """A window whose renderer has just stopped existing must not stay open.
+
+  The colour editor is modal to the plugin dialog only, so QGIS and
+  its styling panel stay live: a user genuinely can restyle an element
+  while its colour editor is showing. Every number in that window then
+  describes a renderer that no longer exists, and the window's
+  controls apply immediately — so leaving it open does not merely
+  mislead, it invites an edit that lands on nothing.
+
+  Driven with a stand-in for the window rather than a real modal one,
+  because `exec()` blocks: what is under test is that DEFERRAL closes
+  whatever editor is open, not how that particular window paints.
+
+  Regression: a renderer type changed in QGIS while the colour editor was open left the window showing class bounds and colours for a renderer that had been replaced.
+ [user]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(1, 1).setCurrentText("v3")
+  _tick(150)
+  tile_id = dlg.table.item(1, 0).text()
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+
+  class _StandInEditor:
+    """Records being closed, and nothing else."""
+
+    def __init__(self):
+      self.rejected = 0
+
+    def reject(self):
+      self.rejected += 1
+
+  standing = _StandInEditor()
+  dlg._open_editor = standing
+  element = project.mapLayer(dlg._element_layer_ids[tile_id])
+  element.setRenderer(_rule_based_renderer("#00aa44"))
+  element.styleChanged.emit()
+  _tick(400)
+  assert standing.rejected == 1, \
+    f"deferral began with a colour editor open and closed it " \
+    f"{standing.rejected} times"
+
+  # ...and a SECOND dock edit on an already-deferring element does not
+  # keep closing windows: the notice fires once, and so does this
+  again = _StandInEditor()
+  dlg._open_editor = again
+  element.setRenderer(_rule_based_renderer("#ff0000"))
+  element.styleChanged.emit()
+  _tick(400)
+  assert again.rejected == 0, \
+    "a further edit to an already-deferring element closed the editor " \
+    "again, so a user could not keep a window open at all"
+  dlg._open_editor = None
+  dlg.close()
+
+
+def test_taking_an_element_back_from_qgis_restyles_at_once():
+  """Picking a plugin style must replace the dock's renderer NOW.
+
+  The trap is the signature. An element deferring after a dock edit
+  has its mode set to "Deferring to QGIS", and _signature carries the
+  mode -- so picking back the SAME style it had before deferral
+  restores the signature it had before deferral, exactly. Both the run
+  landing and the restyle fast path then read "unchanged" and keep the
+  renderer, which is the one they are being asked to replace. The
+  element could never be reclaimed, its controls stayed inert, and the
+  row read a style the map did not have.
+
+  So both paths carry a reclaim test: the layer holds something no row
+  can name AND the row now names a style, which is a user taking the
+  element back, and it re-seeds whatever the signature says.
+
+  Regression: an element styled in QGIS could not be taken back by picking the style it had before, because that restored its old signature and both seeding paths kept the renderer as unchanged. [review]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(1, 1).setCurrentText("v3")
+  _tick(150)
+  tile_id = dlg.table.item(1, 0).text()
+  mode = dlg.table.cellWidget(1, 2)
+  chosen = mode.currentText()
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+
+  element = project.mapLayer(dlg._element_layer_ids[tile_id])
+  element.setRenderer(_rule_based_renderer("#00aa44"))
+  element.styleChanged.emit()
+  _tick(400)
+  assert dlg.table.cellWidget(1, 2).currentText() == dlg.DEFERRING, \
+    "the fixture is not deferring, so nothing here is exercised"
+
+  # ...and back to EXACTLY the style it had, which is the case that
+  # restores the old signature and therefore the case that failed
+  mode = dlg.table.cellWidget(1, 2)
+  mode.setCurrentText(chosen)
+  mode.activated.emit(mode.currentIndex())
+  _tick(300)
+  _generate_and_wait(dlg)
+  taken = project.mapLayer(dlg._element_layer_ids[tile_id])
+  assert type(taken.renderer()).__name__ != "QgsRuleBasedRenderer", \
+    f"picking {chosen!r} left QGIS's renderer on the map"
+  assert dlg.table.cellWidget(1, 2).currentText() == chosen, \
+    "the row does not name the style that was picked"
+  for column in dlg.RENDERER_COLUMNS:
+    widget = dlg.table.cellWidget(1, column)
+    if widget is not None and widget.property("disabled_by_deferring"):
+      assert widget.isEnabled(), \
+        f"column {column} stayed inert after the element was taken back"
+  dlg.close()
+
+
+def test_a_deferring_element_moved_to_words_still_draws():
+  """Every mode must be a mode the guards downstream recognise.
+
+  A quantitative style never stands on a text field: a graduated
+  renderer over words comes back with no ranges at all, every tile
+  falls outside every class, and the layer paints NOTHING while the
+  run reports success. `_assignments` has a guard for exactly that,
+  and it tested for "Graduated".
+
+  "Deferring to QGIS" is not "Graduated". So an element styled in
+  QGIS and then moved onto a text column kept that mode through the
+  guard, and seed_renderer fell into its graduated branch over words:
+  measured by a hunt, 84 of 84 tiles with no symbol, the row reading
+  Categorized and the message bar saying the element was drawn by the
+  plugin again.
+
+  The fix corrects the ROW when the variable changes, so every guard
+  downstream sees a mode it knows, rather than teaching each of them a
+  new word. The hunt's own lesson is the general one: when a new mode
+  is added to a row, follow it into every guard that switches on the
+  mode.
+
+  Regression: an element styled in QGIS and then moved onto a text column was drawn by a graduated renderer over words, so every tile fell outside every class and the map painted nothing. [hunt]
+  """
+  from qgis.core import QgsRenderContext
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(1, 1).setCurrentText("v3")
+  _tick(150)
+  # a style PICKED by hand, which is the case that failed: the
+  # variable handler's ordinary correction is skipped once the mode
+  # has been touched
+  mode = dlg.table.cellWidget(1, 2)
+  mode.setCurrentText("Quant: Equal intervals")
+  mode.activated.emit(mode.currentIndex())
+  _tick(200)
+  tile_id = dlg.table.item(1, 0).text()
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+  element = project.mapLayer(dlg._element_layer_ids[tile_id])
+  element.setRenderer(_rule_based_renderer("#00aa44"))
+  element.styleChanged.emit()
+  _tick(400)
+  assert dlg.table.cellWidget(1, 2).currentText() == dlg.DEFERRING, \
+    "the fixture is not deferring, so nothing here is exercised"
+
+  dlg.table.cellWidget(1, 1).setCurrentText("landcover")   # words
+  _tick(300)
+  _generate_and_wait(dlg)
+  drawn = project.mapLayer(dlg._element_layer_ids[tile_id])
+  assert isinstance(drawn.renderer(), QgsCategorizedSymbolRenderer), \
+    f"a text column is not drawn as categories: " \
+    f"{type(drawn.renderer()).__name__}"
+
+  # ...and the map is READ, not assumed: a renderer with no ranges
+  # gives every feature no symbol at all, which is what "paints
+  # nothing" means and what counting classes would walk straight past
+  context = QgsRenderContext()
+  renderer = drawn.renderer()
+  renderer.startRender(context, drawn.fields())
+  blank = sum(1 for feature in drawn.getFeatures()
+              if renderer.symbolForFeature(feature, context) is None)
+  total = drawn.featureCount()
+  renderer.stopRender(context)
+  assert total > 0, "the element drew no tiles at all"
+  assert blank == 0, \
+    f"{blank} of {total} tiles have no symbol, so the element paints " \
+    f"nothing while the run reports success"
+  dlg.close()
+
+
+def test_the_row_follows_the_dock_back_out_of_deferring():
+  """Reconciliation is one question, asked in both directions.
+
+  The handler refreshed the rows only when the new renderer was
+  UNNAMEABLE. A user who styles an element in QGIS and then changes
+  their mind there -- back to a plain single symbol, say -- therefore
+  left the row saying "Deferring to QGIS", with every renderer control
+  inert, over a map the plugin could describe perfectly well. The next
+  Generate then seeded straight over it, saying only that no re-tiling
+  was needed.
+
+  And the row follows the RENDERER rather than guessing from the
+  variable, because the principle is that the row describes the map:
+  the map is now a thing with a name, so the row says that name.
+
+  Regression: a renderer changed in QGIS back to something the plugin can express left the row reading "Deferring to QGIS" with its controls disabled, and the next Generate overwrote the map. [hunt]
+  """
+  from qgis.core import QgsSingleSymbolRenderer
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(1, 1).setCurrentText("v3")
+  _tick(150)
+  tile_id = dlg.table.item(1, 0).text()
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+  element = project.mapLayer(dlg._element_layer_ids[tile_id])
+
+  element.setRenderer(_rule_based_renderer("#00aa44"))
+  element.styleChanged.emit()
+  _tick(400)
+  assert dlg.table.cellWidget(1, 2).currentText() == dlg.DEFERRING, \
+    "the fixture never began deferring"
+
+  # ...and the user changes their mind, in the dock
+  element.setRenderer(QgsSingleSymbolRenderer(
+    QgsFillSymbol.createSimple({"color": "#3366cc"})))
+  element.styleChanged.emit()
+  _tick(400)
+  assert dlg.table.cellWidget(1, 2).currentText() == "Single colour", \
+    f"the row did not follow the dock back: " \
+    f"{dlg.table.cellWidget(1, 2).currentText()!r}"
+  inert = [column for column in dlg.RENDERER_COLUMNS
+           if dlg.table.cellWidget(1, column) is not None
+           and not dlg.table.cellWidget(1, column).isEnabled()
+           and dlg.table.cellWidget(1, column).property(
+             "disabled_by_deferring")]
+  assert not inert, \
+    f"columns {inert} stayed inert over a map the plugin can describe"
   dlg.close()
 
 
@@ -9937,6 +10392,7 @@ def test_class_breaks_ignore_nulls():
   leaking into the arithmetic.
 
   Regression: QGIS's classifier counts a NULL as zero (its own minimumValue does not, so QGIS disagrees with itself), so nine values of 1..9 beside five nulls classified as 0-0, 0-2.5, 2.5-5.75, 5.75-9 instead of 1-3, 3-5, 5-7, 7-9 — every break in the wrong place, a legend class meaning "missing" that reads as a number, and nothing on screen to say so; measured identically on the memory provider and on a GeoPackage through OGR.
+ [unrecorded]
   """
   from weavingspace_qgis import bridge, compat
   values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
@@ -10542,6 +10998,7 @@ def test_qgis_still_mishandles_non_finite_class_breaks():
   fixing only one of them still retires the workaround's other half.
 
   Regression: the non-finite workaround named a canary that did not exist, so nothing would ever have reported QGIS fixing it.
+ [unrecorded]
   """
   import json
   import subprocess
@@ -11041,6 +11498,7 @@ def test_a_stage_log_never_shows_the_previous_run():
   holding whichever was older.
 
   Regression: a stage log kept the previous run's verdict for the whole time the stage ran, and read as current.
+ [unrecorded]
   """
   import shutil
   import tempfile
@@ -11446,6 +11904,7 @@ def test_the_coverage_record_survives_the_suite_exiting():
   a new door: survivors overstated, newest work ignored.
 
   Regression: tests/run_tests.py gained os._exit at the end of main() on 2026-08-11, which skipped the write in tools/coverage_per_test.py; three sharded recorders ran the whole suite, wrote no file, and the rc5 candidate aborted 35 minutes in at the merge stage with "nothing to merge". The last good record was a day old, and the release would otherwise have measured mutants against it.
+ [unrecorded]
   """
   written, text = _record_coverage_against_a_stub_suite(0)
   assert written, \
@@ -11702,6 +12161,7 @@ def test_a_failed_stage_is_not_remembered():
   not a rare case.
 
   Regression: release.py's watchdog used threading without importing it, so the first release stage would have died on a NameError; committed untested and caught the moment these held-back tests were applied.
+ [unrecorded]
   """
   import shutil
   import tempfile
@@ -11770,6 +12230,7 @@ def test_region_outlines_are_cased():
   would be measuring the rasteriser, not the decision.
 
   Regression: the outline casing had no test, so losing the black line entirely was invisible to the suite.
+ [unrecorded]
   """
   from weavingspace_qgis import bridge
   layer = make_region_layer()
@@ -12141,6 +12602,7 @@ def test_ramp_swatches_run_the_right_way_round():
   Reds.
 
   Regression: swatch direction was untested, so drawing every ramp backwards was invisible.
+ [unrecorded]
   """
   from qgis.PyQt.QtGui import QColor
   from weavingspace_qgis import bridge
@@ -12188,6 +12650,7 @@ def test_every_swatch_in_the_ramp_column_is_built_the_same_way():
   than continuous; and its stripe colours are the ramp's own samples.
 
   Regression: named ramps used QgsSymbolLayerUtils' gradient preview while Custom swatches were hand-drawn stripes, so one column drew its cells two different ways.
+ [unrecorded]
   """
   from qgis.PyQt.QtGui import QColor
   from weavingspace_qgis import bridge
@@ -12306,6 +12769,7 @@ def test_a_new_run_always_shows_real_progress():
   reported by a bar that says only "something is happening".
 
   Regression: only _finish_run restored the determinate progress range, and the zombie recovery does not go through it.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   layer = make_region_layer()
@@ -12365,6 +12829,7 @@ def test_live_update_is_on_by_default():
   the suite was unanimous about a setting no test asserted.
 
   Regression: the live-update default was unasserted, so turning it off shipped silently past 100 tests.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   layer = make_region_layer()
@@ -13362,6 +13827,7 @@ def test_a_class_colour_picked_during_a_run_is_not_lost():
   the project is reopened either.
 
   Regression: quant picks dropped by the run they were made during.
+ [unrecorded]
   """
   from weavingspace_qgis import bridge
   dlg, layer, tid = _quant_dialog()
@@ -13410,6 +13876,7 @@ def test_an_unclassed_excursion_leaves_the_count_alone():
   property that something else reads.
 
   Regression: an excursion through Quant: Unclassed left fifty classes recorded against a row whose spinner showed twenty.
+ [unrecorded]
   """
   # sized for SEVEN, which is what the spinner is set to below: a
   # column cannot be cut into more classes than it has distinct
@@ -13480,6 +13947,7 @@ def test_an_emptied_region_layer_does_not_raise():
   separate seeds before anybody looked at it deliberately.
 
   Regression: emptying the region layer made the dialog's fingerprint raise, inside paths reached from Qt slots where nothing reports.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
@@ -13529,6 +13997,7 @@ def test_a_renamed_column_does_not_destroy_hand_picked_colours():
   behaving differently from the other.
 
   Regression: renaming a column destroyed an element's hand-picked categorical colours, while the graduated twin survived the same act.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
@@ -13579,6 +14048,7 @@ def test_an_unassigned_element_previews_as_it_draws():
   that judgement against a picture the map would not produce.
 
   Regression: an unassigned element was previewed in a colour while the map drew it as no-data fill.
+ [unrecorded]
   """
   from weavingspace_qgis import bridge
   from weavingspace_qgis.dialog import WeavingSpaceDialog
@@ -13632,6 +14102,7 @@ def test_a_ramp_you_are_offered_is_the_ramp_you_get():
   ramp replaced.
 
   Regression: a ramp the dropdown offered was refused on a categorized row, the user's hand-picked colours were destroyed for it, and the notice described a change that never happened.
+ [unrecorded]
   """
   from weavingspace_qgis import bridge
   project = QgsProject.instance()
@@ -13737,6 +14208,7 @@ def test_a_discarded_pick_does_not_come_back():
   the fix is to call the thing that was written for exactly this.
 
   Regression: a hand-picked colour the plugin reported as discarded was left on the layer, saved, and re-imposed on the map next session.
+ [unrecorded]
   """
   import shutil
   import tempfile
@@ -13814,6 +14286,7 @@ def test_a_ramp_chosen_during_a_run_is_not_lost():
   up describing a behaviour nobody chose.
 
   Regression: the ramp cell reverted to the pre-run ramp after a run landed, while the element's own record held the new one.
+ [unrecorded]
   """
   from weavingspace_qgis import bridge
   dlg, layer, tid = _quant_dialog()
@@ -13891,6 +14364,7 @@ def test_an_exported_geopackage_is_still_recognised_as_our_own():
   this week.
 
   Regression: a GeoPackage was exported with a style that carried none of the plugin's own stamps, so its layers came back unrecognised and were offered as region layers.
+ [unrecorded]
   """
   import shutil
   import tempfile
@@ -13970,6 +14444,7 @@ def test_a_closed_dialog_writes_nothing_into_the_project():
   which is the shape of a guard that looks like a fix and is not.
 
   Regression: a closed dialog re-armed itself from the region layer's signals and rewrote output the user had deleted.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
@@ -14045,6 +14520,7 @@ def test_a_pick_is_not_swallowed_by_the_live_path():
   untouched, so the run that follows the guard is a restyle in place.
 
   Regression: a hand-picked colour changed under live update was swallowed by the no-op guard, because the run signature did not carry the picks that the restyle signature does.
+ [unrecorded]
   """
   from weavingspace_qgis import bridge
   dlg, layer, tid = _categorical_dialog()
@@ -14142,6 +14618,7 @@ def test_two_notices_from_one_run_both_survive():
   to the conditions that trigger it.
 
   Regression: two warnings from one run shared a single label and the last one silently erased the first.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog, NOTE_SEPARATOR
   dlg = WeavingSpaceDialog(iface=None)      # headless: the fallback path
@@ -14726,6 +15203,85 @@ def test_integration_interleaved_session():
   assert isinstance(renderer("d"), QgsSingleSymbolRenderer), \
     "hand styling must survive a design-only change"
   assert renderer("d").symbol().color().name() == "#0b1e2d"
+
+  # 6b. a renderer the row CANNOT name, which is a different bargain
+  # from 6 above: a single-symbol renderer is something the chooser
+  # can say, so d follows it; a rule-based one is not, so c defers.
+  # Inside the session because deferral is an INTERACTION -- it has to
+  # survive the design changes, variable changes and style flips the
+  # rest of this test does around it, and no single-behaviour test
+  # sees that.
+  from qgis.core import QgsRuleBasedRenderer
+  root = QgsRuleBasedRenderer.Rule(
+    QgsFillSymbol.createSimple({"color": "#404040"}))
+  branch = QgsRuleBasedRenderer.Rule(
+    QgsFillSymbol.createSimple({"color": "#d95f0e"}))
+  branch.setFilterExpression('"landcover" IS NOT NULL')
+  root.appendChild(branch)
+  c_layer = project.mapLayer(dlg._element_layer_ids["c"])
+  c_layer.setRenderer(QgsRuleBasedRenderer(root))
+  c_layer.styleChanged.emit()
+  _tick(300)
+  c_row = next(r for r in range(dlg.table.rowCount())
+               if dlg.table.item(r, 0).text() == "c")
+  assert dlg.table.cellWidget(c_row, 2).currentText() == dlg.DEFERRING, \
+    f"c was styled in QGIS and its row still claims a plugin style: " \
+    f"{dlg.table.cellWidget(c_row, 2).currentText()!r}"
+  # ...and the controls that write the renderer went inert, while
+  # opacity did not
+  for column in dlg.RENDERER_COLUMNS:
+    widget = dlg.table.cellWidget(c_row, column)
+    if widget is not None:
+      assert not widget.isEnabled(), \
+        f"c's column {column} still writes a renderer the plugin has " \
+        f"stopped deciding"
+  c_opacity = dlg.table.cellWidget(c_row, 6)
+  if c_opacity is not None:
+    assert c_opacity.isEnabled(), "opacity went inert with the renderer"
+    c_opacity.setValue(max(10, c_opacity.value() - 15))
+    _tick(150)
+
+  # a design change AND a moved signature: c keeps what QGIS built,
+  # and the elements around it are unaffected
+  a_before = top_colour("a")
+  dlg.mod_rotate.setValue(25)
+  _generate_and_wait(dlg)
+  assert type(renderer("c")).__name__ == "QgsRuleBasedRenderer", \
+    f"the session destroyed a renderer built in QGIS: " \
+    f"{type(renderer('c')).__name__}"
+  assert dlg.table.cellWidget(c_row, 2).currentText() == dlg.DEFERRING, \
+    "c stopped saying it was deferring partway through the session"
+  assert top_colour("a") == a_before, \
+    "deferring one element changed another's colours"
+  assert isinstance(renderer("d"), QgsSingleSymbolRenderer), \
+    "d's hand styling did not survive alongside c's deferral"
+
+  # 6c. and the user takes c BACK: picking a plugin style ends
+  # deferral and replaces the dock's renderer AT ONCE, with the loss
+  # reported -- the same shape as choosing a ramp clearing hand-picked
+  # colours. Immediately, because a gap between the row saying
+  # Categorized and the map still showing dock work is the state this
+  # whole design exists to remove.
+  #
+  # PICKED, not merely displayed: the style chooser's handler hangs
+  # off `activated`, so setCurrentText moves the text and runs
+  # nothing. It also puts c back where the rest of this session
+  # expects it.
+  c_mode = dlg.table.cellWidget(c_row, 2)
+  c_mode.setCurrentText("Categorized")
+  c_mode.activated.emit(c_mode.currentIndex())
+  _tick(300)
+  _generate_and_wait(dlg)
+  assert isinstance(renderer("c"), QgsCategorizedSymbolRenderer), \
+    f"picking a plugin style left QGIS's renderer in place: " \
+    f"{type(renderer('c')).__name__}"
+  assert dlg.table.cellWidget(c_row, 2).currentText() != dlg.DEFERRING, \
+    "the row still says deferring after a style was chosen"
+  for column in dlg.RENDERER_COLUMNS:
+    widget = dlg.table.cellWidget(c_row, column)
+    if widget is not None and widget.property("disabled_by_deferring"):
+      assert widget.isEnabled(), \
+        f"column {column} stayed inert after the plugin took c back"
 
   # 7. styling: flip a to Single colour, pick one, generate
   dlg.table.cellWidget(0, 2).setCurrentText("Single colour")
@@ -17082,6 +17638,7 @@ def test_a_dock_classify_on_a_constant_column_does_not_crash():
   cannot reconcile is to leave it alone, which is what it does here.
 
   Regression: five dock classes over a collapsed column indexed past the end of the dialog's one-class expectation, inside a renderer signal handler.
+ [unrecorded]
   """
   from qgis.core import (QgsGraduatedSymbolRenderer, QgsRendererRange,
                          QgsSymbol)
@@ -18181,6 +18738,7 @@ def test_a_reverse_tick_survives_a_rebuild_while_it_is_greyed():
   and nothing said the tick had gone.
 
   Regression: a rebuild while Reverse was greyed silently discarded the tick underneath it.
+ [unrecorded]
   """
   dlg, layer, tid = _quant_dialog()
   box = dlg._row_reverse(1)
@@ -19198,6 +19756,7 @@ def test_a_dock_edit_during_a_run_is_not_lost():
   preserved elements once the run is over.
 
   Regression: a dock recolour made while a run was in flight was preserved on the map but never adopted into the record, so the ramp cell did not read Custom and a later re-seed would have destroyed it silently.
+ [unrecorded]
   """
   from qgis.core import QgsFillSymbol
   project = QgsProject.instance()
@@ -19246,6 +19805,7 @@ def test_a_retired_dialog_stops_watching():
   both would adopt one dock edit and the user would be told twice.
 
   Regression: a retired dialog's styleChanged connections kept firing after retirement, double-adopting dock edits alongside the live dialog.
+ [unrecorded]
   """
   from qgis.core import QgsFillSymbol
   from weavingspace_qgis.dialog import WeavingSpaceDialog
@@ -21261,6 +21821,7 @@ def test_a_reloaded_module_retires_the_old_dialog_cleanly():
   class the objects around it were built from.
 
   Regression: reloading the dialog module reset the module-level _LIVE_DIALOG to None, so the dialog built from the reloaded class retired nothing and the predecessor went on running its debounces against the newcomer's layers.
+ [unrecorded]
   """
   import importlib
   from qgis.core import QgsFillSymbol
@@ -22269,6 +22830,7 @@ def test_extreme_magnitudes_render_readable_legends():
   the other.
 
   Regression: measured 2026-08-10 on QGIS 4.0.3. Five classes over values from 1e-9 to 1.6e-8 all carry the label "0 - 0", so the legend shows five colours claiming one meaning; the same five over values from 1e12 to 1.6e13 carry labels of 37 to 39 characters, and a column reaching 1e308 is written out in full to over four hundred.
+ [unrecorded]
   """
   from weavingspace_qgis import bridge
   layer = _extreme_magnitude_layer()
@@ -23443,6 +24005,7 @@ def test_the_style_is_saved_through_the_current_api():
   does that, end to end.
 
   Regression: the plugin wrote embedded styles through an API QGIS had already deprecated, discovered while probing a segfault on QGIS 4.2.1.
+ [unrecorded]
   """
   from weavingspace_qgis import compat
 
@@ -23501,6 +24064,7 @@ def test_an_embedded_style_name_fits_the_column_it_is_written_to():
   rather than about what QGIS reports having written.
 
   Regression: the embedded style name was the layer's own, so a long column name overran GDAL's thirty-character styleName column and was truncated with a warning on every write.
+ [unrecorded]
   """
   import shutil
   import sqlite3
@@ -24052,6 +24616,7 @@ def test_the_tile_estimate_is_honest_where_shapes_are_awkward():
   refusal names a number that would be refused again.
 
   Regression: the spacing offered in the size-guard refusal was computed from a pure inverse-square law and came out slightly too fine, so a user who typed the number the plugin had just suggested was refused a second time.
+ [unrecorded]
   """
   from weavingspace_qgis import bridge, catalog
   from weavingspace_qgis.dialog import WeavingSpaceDialog
@@ -27637,6 +28202,7 @@ def test_an_inset_percentage_is_a_percentage_of_the_spacing():
   leaves the geometry to the library.
 
   Regression: the inset percentage conversion was defended only by comparisons whose tolerance is wider than the error.
+ [unrecorded]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   layer = make_region_layer()
@@ -27769,6 +28335,7 @@ def test_every_element_count_still_has_its_designs():
   could not have produced.
 
   Regression: a vanished element count was invisible, because the catalogue tests all iterate the catalogue's own keys.
+ [unrecorded]
   """
   from weavingspace_qgis import catalog
   # Every count from 2 to 26, written out rather than read from
@@ -35441,6 +36008,7 @@ def test_a_test_creeping_toward_its_ceiling_is_reported():
   wired to nothing.
 
   Regression: a test at 92% of its stall ceiling passed silently and stalled on the next round.
+ [unrecorded]
   """
   before = list(NEAR_THE_CEILING)
   passed_before, offered_before = list(PASSED), list(OFFERED)
@@ -35513,6 +36081,7 @@ def test_every_expected_stage_is_actually_run():
   rather than anything a module exposes.
 
   Regression: two stages stayed in EXPECTED_STAGES after they were retired, so every progress chart counted half an hour of work that would never happen.
+ [unrecorded]
   """
   import ast
   source = open(os.path.join(ROOT, "release.py"), encoding="utf-8").read()
@@ -35595,6 +36164,7 @@ def test_resuming_skips_only_what_still_holds():
   publishing yesterday's verdict about today's code.
 
   Regression: release.py could not resume at all, so a defect in the release machinery cost a full re-run of every gate; on 2026-08-11 that happened three times in one evening while the plugin itself passed every gate it was given.
+ [unrecorded]
   """
   root, release = _release_gate_copy()
   step = "a stage under test"
@@ -35706,6 +36276,7 @@ def test_a_withdrawn_equivalence_stops_excluding_its_mutant():
   would pass against a function that excluded nothing at all.
 
   Regression: an equivalence whose evidence a later change falsified went on removing its mutant from the denominator.
+ [unrecorded]
   """
   import importlib.util
   spec = importlib.util.spec_from_file_location(
@@ -35834,6 +36405,7 @@ def test_a_release_publishes_from_the_branch_the_page_is_served_from():
   branch would throw away the candidate receipt for no reason.
 
   Regression: the 0.24.0 sequence was written out on 2026-08-11 and the release would have been tagged on pre-0.24.0rc5, leaving main 51 commits behind with the page and README describing 0.23.
+ [unrecorded]
   """
   import shutil
   import subprocess
@@ -38034,6 +38606,7 @@ def test_an_edited_class_source_reaches_the_map():
   would sail past.
 
   Regression: a class-source QML rewritten on disk never reached the map, because the signature held the file's name and nothing about its contents.
+ [unrecorded]
   """
   import shutil
   import tempfile
@@ -38113,6 +38686,7 @@ def test_a_moved_class_source_survives_a_restyle():
   triggered the restyle is still applied.
 
   Regression: moving a class-source QML and then changing any style control repainted the element in automatic colours, silently, where the re-tile path keeps the map and names the file.
+ [unrecorded]
   """
   import shutil
   import tempfile
@@ -38206,6 +38780,7 @@ def test_a_reopened_project_keeps_an_imported_class_scheme():
   nothing.
 
   Regression: reopening a project and pressing Generate painted away a categorical scheme imported from a QML, because the adoption recovered a graduated element's colours and returned empty-handed for its categorized twin.
+ [unrecorded]
   """
   import shutil
   import tempfile
@@ -39960,6 +40535,18 @@ def main():
         test_a_deferring_element_keeps_its_renderer_across_a_generate)
   check("a deferring row shows the colours QGIS is drawing",
         test_a_deferring_row_shows_the_colours_qgis_is_drawing)
+  check("deferral survives a project round trip",
+        test_deferral_survives_a_project_round_trip)
+  check("a data-defined fill is drawn as an unknown",
+        test_a_data_defined_fill_is_drawn_as_an_unknown)
+  check("deferral closes the colour editor under it",
+        test_deferral_closes_the_colour_editor_under_it)
+  check("taking an element back from QGIS restyles at once",
+        test_taking_an_element_back_from_qgis_restyles_at_once)
+  check("a deferring element moved to words still draws",
+        test_a_deferring_element_moved_to_words_still_draws)
+  check("the row follows the dock back out of deferring",
+        test_the_row_follows_the_dock_back_out_of_deferring)
   check("one variable gets one legend wherever it appears",
         test_one_variable_gets_one_legend_wherever_it_appears)
   check("a class source file that goes away",
