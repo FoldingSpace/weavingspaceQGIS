@@ -7001,6 +7001,46 @@ def test_a_legend_never_shows_a_class_the_map_does_not_have():
   assert bridge.few_values_message("v1", 5, 5) is None, \
     "a column with enough values must raise no notice at all"
 
+  # ...and it REACHES a user, which is a separate question from
+  # whether the sentence exists. Every notice this plugin raises
+  # after a run was once invisible to the whole suite at once,
+  # because the message-bar stub swallowed its calls and the note
+  # line is cleared within a second of a run landing
+  # (docs/TESTING.md). So the dialog is driven and the note sampled.
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  region = make_region_layer()          # v1 holds four distinct values
+  project.addMapLayer(region)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(region)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(100)
+  spin = dlg.table.cellWidget(0, 3)
+  assert spin is not None and spin.isEnabled(), \
+    "row 0 offers no class-count spinner, so nothing here is driven"
+  spin.setValue(9)                      # more than the column can carry
+  _tick(150)
+  dlg.spacing_spin.setValue(500)
+  _generate_and_wait(dlg)
+  # Read from the MESSAGE BAR, not the note line: _report_quietly
+  # writes to the note only when there is no iface, so with one
+  # present -- which is the path a real user is on -- the note line
+  # stays empty and a test reading it would report silence that is
+  # not silence. That distinction is the one docs/TESTING.md records
+  # as having hidden every post-run notice from the suite at once.
+  said = [text for _kind, text in BAR_MESSAGES
+          if "distinct value" in text.lower()]
+  assert said, \
+    f"asking for nine classes over a four-value column drew four and " \
+    f"the user was told {BAR_MESSAGES!r}, so they meet a spinner " \
+    f"reading nine beside a legend of four with nothing to tell them " \
+    f"which is true"
+  assert "9" in said[0] and "4" in said[0], \
+    f"the notice must say both numbers, and says {said[0]!r}"
+  dlg.close()
+
 
 def test_one_variable_gets_one_legend_wherever_it_appears():
   """Two elements carrying one variable must class identically.
