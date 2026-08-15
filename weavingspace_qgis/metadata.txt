@@ -45,10 +45,20 @@ server=False
 ; wants to know what moved reads on. One text serving both is how a
 ; changelog becomes a list nobody finishes.
 ; (Maintainer's instruction, 2026-08-13.)
-changelog=0.24.3 PLACEHOLDER, and deliberately one that cannot ship
-    unnoticed: nothing a user meets has changed yet. Rewrite this
-    against `git diff v0.24.2..HEAD -- weavingspace_qgis/` before any
-    candidate, which is the step 0.24.2 nearly skipped.
+changelog=0.24.3 A colour means the same thing everywhere it appears
+    on the map, and reopening a project brings back more of what you
+    chose.
+    Colour: every element showing the same variable is now classed
+    the same way, so its legend can be read against the others.
+    Each element used to be classed on its own tiles alone, which
+    quietly gave them different class breaks, and the same shade
+    stood for different numbers in different parts of the pattern.
+    Classes: a column with fewer values than the classes you asked
+    for now draws the classes it has, and says so, instead of putting
+    swatches in the legend that no tile wears.
+    Reopening a project: an element whose ramp you reversed comes
+    back reversed, naming the ramp you chose rather than reading as
+    custom colours.
     0.24.2 Bugfixes, one of them about not losing data.
     Your files: an existing .gpkg chosen as the output was rewritten
     whole, so every other table in it was lost, including the layer

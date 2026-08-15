@@ -522,6 +522,11 @@ def layers_from_gdf(gdf, assignments, region=None):
     assignments: the per-element assignment dicts to seed from; an
       element whose id matches no row is skipped, exactly as in
       tiled_layers.
+    region: the region GeoDataFrame the map was tiled from, so that
+      graduated breaks are cut from the whole map's values rather
+      than from each element's own tiles. None leaves each element
+      classified on its own, which differs from what the plugin
+      draws and is right only where nothing here is graduated.
 
   Returns:
     A list of fresh memory layers in assignment order. Fresh matters:

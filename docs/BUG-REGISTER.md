@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-113 defect(s) with a regression test.
+115 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -161,6 +161,8 @@ there is no separate list to remember.
   guarded by `test_a_generate_spares_the_rest_of_the_users_geopackage`
 - **a design that shrank left its dropped elements in the GeoPackage, so the exported file described a map that no longer existed.**  
   guarded by `test_a_geopackage_loses_the_elements_a_design_dropped`
+- **five classes over three distinct values put two swatches in the legend that no tile wore, and painted the highest value in a middle colour while the legend's darkest sat beside an empty range.**  
+  guarded by `test_a_legend_never_shows_a_class_the_map_does_not_have`
 - **moving a class-source QML and then changing any style control repainted the element in automatic colours, silently, where the re-tile path keeps the map and names the file.**  
   guarded by `test_a_moved_class_source_survives_a_restyle`
 - **only _finish_run restored the determinate progress range, and the zombie recovery does not go through it.**  
@@ -231,6 +233,8 @@ there is no separate list to remember.
   guarded by `test_live_update_is_on_by_default`
 - **the live-update signature described the settings but not the data, so an in-place geometry edit or a deletion left the map showing what had been deleted.**  
   guarded by `test_live_update_notices_the_data_changing`
+- **class breaks were cut from each element's own tiles, so four elements carrying one variable drew four different legends and one colour meant four different numbers.**  
+  guarded by `test_one_variable_gets_one_legend_wherever_it_appears`
 - **deleting the file behind a layer and reloading it made layer.extent() segfault QGIS outright — no exception, no traceback, nothing in the log — and isValid() returned True while the provider was gone; the live-update gate read that extent on every debounce, so the crash was reachable without pressing anything.**  
   guarded by `test_qgis_changes_around_the_plugin`
 - **the non-finite workaround named a canary that did not exist, so nothing would ever have reported QGIS fixing it.**  
@@ -271,7 +275,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 57
+- unrecorded: 59
 - the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6
