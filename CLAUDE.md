@@ -981,6 +981,23 @@ first, kept here so they are unmissable:
   needs is the other half, which is that every watcher NAMES ITS
   SUBJECT in each line it emits. A verdict without its branch is a
   verdict about whatever the reader is thinking of.
+- **A WATCHER IS A PROGRAM, AND A PROGRAM CAN DIE.** The thirteenth
+  fault here, 2026-08-15: a CI poller with associative arrays, a
+  nested here-string loop and two embedded Python readers exited 1
+  partway through a run, having reported two jobs of eleven. Its
+  silence afterwards was indistinguishable from "nothing has changed
+  yet", which is the same failure mode as every other entry in this
+  list, reached by a new road -- the watcher's OWN complexity. It was
+  survivable only because the harness reports a monitor's exit; a
+  watcher launched any other way would simply have gone quiet.
+  So: keep the script trivially simple, guard every external call so
+  a transient failure cannot end the loop, and prefer re-deriving the
+  whole state each pass over accumulating it in shell variables.
+  When a watcher does die, ASK THE SOURCE DIRECTLY before saying
+  anything about what it was watching -- the last line it printed is
+  not the current state, and reporting it as though it were is how a
+  green summary gets written over a red run.
+
 - A watcher that REPEATS itself misleads as badly as one that goes
   silent: a monitor grepping a whole log each pass re-reported the
   same historical failure every 45 seconds as though it were news,
