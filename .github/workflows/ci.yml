@@ -433,15 +433,27 @@ jobs:
             Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "using $($shim.FullName)"
 
-      - name: What QGIS is this, actually
+      - name: What QGIS is this, actually, and REFUSE anything but 4.x
         # The Linux legs record this every run for the same reason:
         # months from now the first question about a failure here is
         # which QGIS and which Python, and the answer has to be in the
         # log rather than in somebody's memory of what Chocolatey
         # served that week.
+        #
+        # And it is ASSERTED, not merely printed. metadata.txt declares
+        # qgisMinimumVersion=4.0 and this plugin is PyQt6/Python 3.12
+        # throughout; Chocolatey's `qgis` package is 4.x today and its
+        # `qgis-ltr` is 3.44, but a package that moves under us would
+        # otherwise turn this job green against a QGIS the plugin does
+        # not support -- a green that means the opposite of what it
+        # says. Printing a version is not checking it, which is the
+        # rule this project already writes down about its own
+        # standards checker. (Maintainer's instruction, 2026-08-15:
+        # no 3.x is allowed here.)
         shell: cmd
         run: |
           call "%QGIS_SHIM%" -c "import qgis.core, sys; print('QGIS', qgis.core.Qgis.QGIS_VERSION); print(sys.version)"
+          call "%QGIS_SHIM%" -c "import sys, qgis.core as q; v=q.Qgis.QGIS_VERSION; sys.exit(0) if v.split('.')[0]=='4' else (sys.stderr.write('REFUSED: this job requires QGIS 4.x and Chocolatey served '+v+'. The plugin declares qgisMinimumVersion=4.0 and is PyQt6-only, so a 3.x run would report a pass that means nothing. Fix the package, do not relax this check.\n') or sys.exit(1))"
 
       - name: Install it into a profile and load it
         # No provisioning step, unlike the Linux legs, and that is a

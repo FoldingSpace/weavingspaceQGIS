@@ -105,6 +105,38 @@ def classification_method(scheme: str):
   return cls() if cls is not None else None
 
 
+def scheme_for_method(method) -> str | None:
+  """Name the scheme a graduated renderer was classified with.
+
+  Args:
+    method: the object ``QgsGraduatedSymbolRenderer.classificationMethod()``
+      returns, or None.
+
+  Returns:
+    The scheme's name as this plugin spells it ("Quantiles", "Equal
+    intervals", "Natural breaks (Jenks)", "Pretty breaks"), or None
+    when the renderer was classified some other way — which is a
+    perfectly ordinary thing for a user to have done in QGIS's own
+    styling panel, and the caller's cue that no row can express it.
+
+  The inverse of ``classification_method`` above, and it lives beside
+  it for that reason: the two share one mapping, so a QGIS rename
+  breaks both in the same file rather than one of them silently.
+  Matched on the CLASS NAME rather than on ``id()``, because the id
+  strings are QGIS's own and have changed spelling between versions
+  while the class names have not.
+  """
+  if method is None:
+    return None
+  by_class = {
+    "QgsClassificationQuantile": "Quantiles",
+    "QgsClassificationEqualInterval": "Equal intervals",
+    "QgsClassificationJenks": "Natural breaks (Jenks)",
+    "QgsClassificationPrettyBreaks": "Pretty breaks",
+  }
+  return by_class.get(type(method).__name__)
+
+
 def layer_data_is_available(layer) -> bool:
   """Whether a layer's data source can still be safely questioned.
 

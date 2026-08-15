@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-150 defect(s) with a regression test.
+153 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -165,6 +165,10 @@ there is no separate list to remember.
   guarded by `test_a_copy_leaves_behind_a_pin_the_data_cannot_carry`
 - **a copy wrote the target's class count and ramp into the dialog's records without moving its controls, so the row's cell, its assignment and the map disagreed about how many classes were drawn.**  
   guarded by `test_a_copy_leaves_one_number_in_every_control`
+- **a Generate destroyed a renderer built in QGIS's styling panel for a deferring element, or kept one whose column the element no longer drew.**  
+  guarded by `test_a_deferring_element_keeps_its_renderer_across_a_generate`
+- **a deferring element's ramp cell went on naming a ramp, and its swatch did not follow the colours set in QGIS's styling panel.**  
+  guarded by `test_a_deferring_row_shows_the_colours_qgis_is_drawing`
 - **a hand-picked colour the plugin reported as discarded was left on the layer, saved, and re-imposed on the map next session.**  
   guarded by `test_a_discarded_pick_does_not_come_back`
 - **five dock classes over a collapsed column indexed past the end of the dialog's one-class expectation, inside a renderer signal handler.**  
@@ -225,6 +229,8 @@ there is no separate list to remember.
   guarded by `test_a_reloaded_module_retires_the_old_dialog_cleanly`
 - **renaming a column destroyed an element's hand-picked categorical colours, while the graduated twin survived the same act.**  
   guarded by `test_a_renamed_column_does_not_destroy_hand_picked_colours`
+- **a renderer type changed in QGIS's styling panel left the plugin's row naming a style and a ramp that no longer decided the map.**  
+  guarded by `test_a_renderer_the_row_cannot_name_defers_to_qgis`
 - **a plugin closed and reopened adopted the oldest output group rather than the newest, so the next Generate overwrote a result the user had deliberately kept and restored bounds they had unpinned.**  
   guarded by `test_a_reopened_plugin_adopts_the_group_it_last_wrote`
 - **reopening a project and pressing Generate painted away a categorical scheme imported from a QML, because the adoption recovered a graduated element's colours and returned empty-handed for its categorized twin.**  
@@ -345,7 +351,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 94
+- unrecorded: 97
 - the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6

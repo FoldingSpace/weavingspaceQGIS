@@ -9408,6 +9408,218 @@ def test_a_retyped_column_reclassifies_the_map():
   dlg.close()
 
 
+def _rule_based_renderer(colour, expression='"v3" > 10'):
+  """A renderer no plugin row can name, for the deferring tests.
+
+  Args:
+    colour: the fill for the rule, as "#rrggbb".
+    expression: the rule's filter, which needs a field the fixture
+      has.
+
+  Returns:
+    A QgsRuleBasedRenderer with a grey root and one coloured rule.
+    Rule-based is used throughout these tests because it is the
+    commonest thing a user actually builds in the styling panel that
+    the plugin cannot express, and because its symbols come back
+    through the base class rather than through ranges or categories.
+  """
+  from qgis.core import QgsRuleBasedRenderer
+  root = QgsRuleBasedRenderer.Rule(
+    QgsFillSymbol.createSimple({"color": "#888888"}))
+  rule = QgsRuleBasedRenderer.Rule(QgsFillSymbol.createSimple({"color": colour}))
+  rule.setFilterExpression(expression)
+  root.appendChild(rule)
+  return QgsRuleBasedRenderer(root)
+
+
+def test_a_renderer_the_row_cannot_name_defers_to_qgis():
+  """The row always describes the map, even when the plugin stopped.
+
+  QGIS is live and this dialog is not modal to it, so a user can put
+  an element on a rule-based renderer in the styling panel. Until
+  2026-08-15 a TYPE change was not handled at all: the colour branch
+  adopted category picks onto a row still reading Graduated, and the
+  ramp cell went on naming a ramp that no longer decided anything.
+
+  Deferring is the honest answer -- the row names the arrangement
+  rather than a style the plugin is not drawing. Settled by
+  /grill-me; the eight decisions are in ROADMAP.md.
+
+  Regression: a renderer type changed in QGIS's styling panel left the plugin's row naming a style and a ramp that no longer decided the map.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(1, 1).setCurrentText("v3")
+  _tick(150)
+  tile_id = dlg.table.item(1, 0).text()
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+  assert dlg.table.cellWidget(1, 2).currentText() != dlg.DEFERRING, \
+    "the row was deferring before anything had been styled in QGIS"
+
+  element = project.mapLayer(dlg._element_layer_ids[tile_id])
+  element.setRenderer(_rule_based_renderer("#00aa44"))
+  element.styleChanged.emit()
+  _tick(400)
+
+  assert dlg.table.cellWidget(1, 2).currentText() == dlg.DEFERRING, \
+    f"the row still claims to style this element: " \
+    f"{dlg.table.cellWidget(1, 2).currentText()!r}"
+  said = [text for _kind, text in BAR_MESSAGES
+          if "styled in QGIS" in text]
+  assert said, "deferral began and nothing was said"
+  # every control that writes the RENDERER is inert; OPACITY is not,
+  # being a layer property beside it that cannot destroy dock work
+  for column in dlg.RENDERER_COLUMNS:
+    widget = dlg.table.cellWidget(1, column)
+    if widget is not None:
+      assert not widget.isEnabled(), \
+        f"column {column} still writes the renderer while deferring"
+  opacity = dlg.table.cellWidget(1, 6)
+  if opacity is not None:
+    assert opacity.isEnabled(), \
+      "opacity was disabled; it is a layer property, not the renderer"
+  # ...and the entry is selectable only now
+  combo = dlg.table.cellWidget(1, 2)
+  index = combo.findText(dlg.DEFERRING)
+  assert index >= 0, "the style chooser does not offer the deferring entry"
+  other = dlg.table.cellWidget(0, 2)
+  other_index = other.findText(dlg.DEFERRING)
+  assert not other.model().item(other_index).isEnabled(), \
+    "a row that is not deferring offers Deferring as a choice"
+  dlg.close()
+
+
+def test_a_deferring_element_keeps_its_renderer_across_a_generate():
+  """Deferring means deferring, until the variable makes it meaningless.
+
+  Generate rebuilds every element layer, so a renderer built in the
+  styling panel is destroyed unless deliberately carried across. It is
+  carried -- the plugin has stopped styling this element and
+  re-seeding would throw the work away at the next spacing change.
+
+  ONE thing breaks it: the element's variable changing. A renderer
+  keyed to a column the element no longer draws puts every tile
+  outside every class and paints nothing, which is the empty-map
+  failure the text-field guard already exists to prevent. So deferral
+  follows the bargain hand styling has always had, and the loss is
+  reported.
+
+  Regression: a Generate destroyed a renderer built in QGIS's styling panel for a deferring element, or kept one whose column the element no longer drew.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(1, 1).setCurrentText("v3")
+  _tick(150)
+  tile_id = dlg.table.item(1, 0).text()
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+  element = project.mapLayer(dlg._element_layer_ids[tile_id])
+  element.setRenderer(_rule_based_renderer("#00aa44"))
+  element.styleChanged.emit()
+  _tick(400)
+
+  # a design change must not touch it
+  dlg.spacing_spin.setValue(1300)
+  _generate_and_wait(dlg)
+  after = project.mapLayer(dlg._element_layer_ids[tile_id])
+  assert type(after.renderer()).__name__ == "QgsRuleBasedRenderer", \
+    f"a Generate destroyed the dock's renderer: " \
+    f"{type(after.renderer()).__name__}"
+  assert dlg.table.cellWidget(1, 2).currentText() == dlg.DEFERRING, \
+    "the row stopped saying it was deferring"
+
+  # ...but a new variable does, and says so
+  dlg.table.cellWidget(1, 1).setCurrentText("v1")
+  _tick(200)
+  _generate_and_wait(dlg)
+  ended = project.mapLayer(dlg._element_layer_ids[tile_id])
+  assert type(ended.renderer()).__name__ != "QgsRuleBasedRenderer", \
+    "a renderer keyed to the old column was kept, so every tile " \
+    "falls outside every class"
+  assert dlg.table.cellWidget(1, 2).currentText() != dlg.DEFERRING, \
+    "the row still says deferring after the plugin took the element back"
+  told = [text for _kind, text in BAR_MESSAGES
+          if "drawn by the plugin again" in text]
+  assert told, "the element was taken back and nothing was said"
+  dlg.close()
+
+
+def test_a_deferring_row_shows_the_colours_qgis_is_drawing():
+  """The swatch samples the map, and follows the styling panel.
+
+  A deferring row's ramp cell cannot name a ramp -- it read "Blues"
+  over a rule-based map while this was being built, which is a control
+  lying about the map. It shows the Custom display instead, with a
+  swatch taken from the layer's OWN renderer through
+  `renderer_fill_colours`, which reads the renderer rather than the
+  ramp and now falls through to the base class's `symbols()` for
+  exactly the renderers deferring consists of.
+
+  Driven to the PIXELS of the icon rather than to the helper's return
+  value, because a unit-tested mechanism plus an undriven caller is a
+  motionless axis -- which is how the hatching promise went unkept
+  from the day it shipped.
+
+  Regression: a deferring element's ramp cell went on naming a ramp, and its swatch did not follow the colours set in QGIS's styling panel.
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(1, 1).setCurrentText("v3")
+  _tick(150)
+  tile_id = dlg.table.item(1, 0).text()
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+  element = project.mapLayer(dlg._element_layer_ids[tile_id])
+
+  def stripe_colours(icon):
+    if icon is None or icon.isNull():
+      return None
+    image = icon.pixmap(48, 16).toImage()
+    return tuple(image.pixel(x, 8) for x in range(0, 48, 6))
+
+  element.setRenderer(_rule_based_renderer("#00aa44"))
+  element.styleChanged.emit()
+  _tick(400)
+  cell = dlg.table.cellWidget(1, 4)
+  assert cell._custom_icon is not None, \
+    "the ramp cell is still painting a named ramp over a map it does " \
+    "not decide"
+  green = stripe_colours(cell._custom_icon)
+
+  element.setRenderer(_rule_based_renderer("#ff0000"))
+  element.styleChanged.emit()
+  _tick(400)
+  red = stripe_colours(dlg.table.cellWidget(1, 4)._custom_icon)
+  assert green != red, \
+    f"the swatch did not follow the styling panel: {green} then {red}"
+  # ...and it is the MAP's colours, not a guess: the layer's own
+  # renderer is the only source
+  drawn = bridge.renderer_fill_colours(element)
+  assert (255, 0, 0) in drawn, \
+    f"the fixture's own renderer does not hold the colour set: {drawn}"
+  dlg.close()
+
+
 def test_a_class_source_file_that_goes_away():
   """The QML is deleted, moved or renamed after being chosen.
 
@@ -39742,6 +39954,12 @@ def main():
         test_pinning_redraws_the_window_it_was_typed_into)
   check("a retyped column reclassifies the map",
         test_a_retyped_column_reclassifies_the_map)
+  check("a renderer the row cannot name defers to QGIS",
+        test_a_renderer_the_row_cannot_name_defers_to_qgis)
+  check("a deferring element keeps its renderer across a generate",
+        test_a_deferring_element_keeps_its_renderer_across_a_generate)
+  check("a deferring row shows the colours QGIS is drawing",
+        test_a_deferring_row_shows_the_colours_qgis_is_drawing)
   check("one variable gets one legend wherever it appears",
         test_one_variable_gets_one_legend_wherever_it_appears)
   check("a class source file that goes away",

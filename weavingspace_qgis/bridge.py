@@ -653,6 +653,91 @@ def map_unit_label(layer: QgsVectorLayer) -> str:
   return compat.map_unit_label(layer)
 
 
+def expressible_style(renderer):
+  """What a plugin row would have to say to describe this renderer.
+
+  Args:
+    renderer: any ``QgsFeatureRenderer`` taken off a layer, or None.
+
+  Returns:
+    ``(mode, scheme)`` the dialog can put in a row — ("Graduated",
+    "Quantiles"), ("Graduated", "Unclassed"), ("Categorized", None) or
+    ("Single colour", None) — or None when no row can express it,
+    which is the cue to DEFER to QGIS.
+
+  This is the whole of the "can we say this?" question, in one place,
+  because it is asked from three directions that must agree: when the
+  styling dock changes a layer, when a project is reopened, and when a
+  layer comes back out of a GeoPackage. Three callers reaching three
+  answers is the shape that has cost this project most.
+
+  UNCLASSED is recognised by its construction rather than by a flag,
+  since QGIS has no such concept: the plugin draws it as fifty equal
+  intervals, so fifty equal-interval classes is what it looks like
+  coming back. A user who builds fifty equal intervals by hand gets
+  Unclassed, which is what they made.
+
+  Rule-based, inverted-polygon, 2.5D, heatmap, null and anything else
+  return None. So does a graduated renderer classified by a method the
+  plugin does not offer -- the classes are real and the map is fine,
+  and the row simply cannot name it.
+  """
+  if renderer is None:
+    return None
+  name = type(renderer).__name__
+  if name == "QgsSingleSymbolRenderer":
+    return ("Single colour", None)
+  if name == "QgsCategorizedSymbolRenderer":
+    return ("Categorized", None)
+  if name != "QgsGraduatedSymbolRenderer":
+    return None
+  from . import compat
+  scheme = compat.scheme_for_method(
+    renderer.classificationMethod()
+    if hasattr(renderer, "classificationMethod") else None)
+  if scheme is None:
+    return None
+  if scheme == "Equal intervals" and len(renderer.ranges()) == 50:
+    return ("Graduated", "Unclassed")
+  return ("Graduated", scheme)
+
+
+def renderer_has_data_defined_fill(renderer) -> bool:
+  """Does this renderer decide a fill colour per feature?
+
+  Args:
+    renderer: any ``QgsFeatureRenderer``, or None.
+
+  Returns:
+    True when any symbol's fill colour comes from an expression or a
+    field rather than from the symbol itself.
+
+  Why the caller wants to know. ``symbols()`` hands back the BASE
+  symbol, which is what a data-defined renderer starts from and not
+  what any feature is painted. A swatch built from it would show one
+  confident colour for a map drawing hundreds — the plugin describing
+  a map it will not draw, which is the failure the Custom display and
+  the hatched stripes both exist to prevent. An unknown is drawn as an
+  unknown, never as a certainty.
+  """
+  if renderer is None:
+    return False
+  try:
+    from qgis.core import QgsRenderContext, QgsSymbolLayer
+    for symbol in renderer.symbols(QgsRenderContext()) or []:
+      for index in range(symbol.symbolLayerCount()):
+        properties = symbol.symbolLayer(index).dataDefinedProperties()
+        for key in ("PropertyFillColor", "PropertyStrokeColor"):
+          prop = getattr(QgsSymbolLayer, key, None)
+          if prop is not None and properties.isActive(prop):
+            return True
+  except Exception:
+    # A renderer that cannot be asked is not evidence of anything;
+    # the caller falls back to its neutral display either way.
+    return False
+  return False
+
+
 def renderer_fill_colours(layer) -> list:
   """Every fill colour a layer's renderer will actually paint.
 
@@ -669,6 +754,22 @@ def renderer_fill_colours(layer) -> list:
   """
   renderer = layer.renderer()
   colours = []
+  # ...and for a renderer of some OTHER kind -- rule-based, and
+  # anything else a user builds in the styling panel -- the base
+  # class's own `symbols()` answers, in the renderer's own order.
+  # Without this the function returned nothing for exactly the case
+  # the deferring display needs it for (2026-08-15).
+  if type(renderer).__name__ not in (
+      "QgsGraduatedSymbolRenderer", "QgsCategorizedSymbolRenderer",
+      "QgsSingleSymbolRenderer") and renderer is not None:
+    try:
+      from qgis.core import QgsRenderContext
+      for symbol in renderer.symbols(QgsRenderContext()) or []:
+        colour = symbol.color()
+        colours.append((colour.red(), colour.green(), colour.blue()))
+    except Exception:
+      return []
+    return colours
   for accessor in ("ranges", "categories"):
     items = getattr(renderer, accessor, None)
     if callable(items):

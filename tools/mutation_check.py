@@ -1111,7 +1111,7 @@ MUTATIONS = [
        test='test_ui_library_modifier_chain',
        why='the group (prototile) inset reaching the unit'),
   dict(name='selective-reseed-inverted', file=DIALOG,
-       old='      if unchanged:',
+       old='      if unchanged or carried_while_deferring:',
        new='      if not unchanged:  # mutation: keep the WRONG renderer',
        test='test_integration_interleaved_session',
        why='hand styling kept for unchanged elements only'),

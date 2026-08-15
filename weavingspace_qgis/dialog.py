@@ -801,9 +801,20 @@ class WeavingSpaceDialog(QDialog):
   N_CHOICES = sorted(catalog.TILINGS_BY_N)
   # entries of the per-row Style dropdown; "Quant: X" rows all mean a
   # graduated (classed numeric) renderer, differing in break method
+  # The styles a row can NAME. Every entry but the last is something
+  # the plugin draws; DEFERRING is something it stops drawing, and it
+  # is in this list rather than outside it because the row must always
+  # be a true description of the map (settled 2026-08-15). It is shown
+  # ALWAYS and enabled ONLY while the element is deferring: a freely
+  # selectable version would need `_plausible_mode`, the text-field
+  # correction and the Classes and Reverse columns each to hold an
+  # opinion about it, and a chooser that silently grows an item is not
+  # trusted.
+  DEFERRING = "Deferring to QGIS"
   MODES = ["Quant: Quantiles", "Quant: Equal intervals",
            "Quant: Natural breaks", "Quant: Pretty breaks",
-           "Quant: Unclassed", "Categorized", "Single colour"]
+           "Quant: Unclassed", "Categorized", "Single colour",
+           DEFERRING]
   GRAD_SCHEMES = {
     "Quant: Quantiles": "Quantiles",
     "Quant: Equal intervals": "Equal intervals",
@@ -870,6 +881,9 @@ class WeavingSpaceDialog(QDialog):
     # and read by _signature so an element is re-seeded when the
     # column it draws actually moves.
     self._value_digests = {}
+    # the colour editor while it is showing, or None. Deferral closes
+    # it: its rows describe a renderer that has just stopped existing.
+    self._open_editor = None
     self._class_choices = {}
     self._browsed_qmls = []
     self._single_colours = {}
@@ -4031,6 +4045,31 @@ class WeavingSpaceDialog(QDialog):
       because building it constructs a real renderer and _sync_row
       runs on every control change.
     """
+    # A DEFERRING element's swatch comes off its LAYER, because the
+    # plugin no longer decides those colours and the row must still
+    # describe the map. `renderer_fill_colours` reads the renderer
+    # rather than the ramp -- which it was already written to do --
+    # and falls through to the base class's own `symbols()` for the
+    # rule-based and other renderers that deferring consists of.
+    # Refreshed by _refresh_deferring_rows on every styleChanged, so
+    # it follows the styling panel (settled with the maintainer,
+    # 2026-08-15).
+    if self._element_is_deferring(tile_id):
+      layer = QgsProject.instance().mapLayer(
+        self._element_layer_ids.get(tile_id))
+      renderer = layer.renderer() if layer is not None else None
+      # ...unless the colour is DATA-DEFINED, where `symbols()` hands
+      # back the BASE symbol rather than what any feature is painted:
+      # a swatch claiming one colour for a map drawing hundreds is the
+      # plugin describing a map it will not draw. An unknown is drawn
+      # as an unknown, exactly as an unworn class is hatched rather
+      # than guessed at.
+      if bridge.renderer_has_data_defined_fill(renderer):
+        return _custom_swatch_icon([])
+      shown = ["#%02x%02x%02x" % rgb
+               for rgb in bridge.renderer_fill_colours(layer)[:8]] \
+        if layer is not None else []
+      return _custom_swatch_icon(shown)
     assignment = self._assignment_for(tile_id)
     if assignment is None:
       return _custom_swatch_icon([])
@@ -4229,6 +4268,41 @@ class WeavingSpaceDialog(QDialog):
       return
     if self._element_layer_ids.get(tile_id) != layer_id:
       return  # a stale connection from a layer since replaced
+    # ...and BEFORE the two colour reactions below, the question of
+    # whether a row can still name what this layer holds. A change of
+    # renderer TYPE is not a recolour, and putting it through the
+    # colour branches adopted category picks onto a row still reading
+    # Graduated. Settled 2026-08-15: where a row can express the new
+    # renderer it follows, and where it cannot the element DEFERS.
+    # ASKED OF THE ROW, not of the layer. The layer already holds the
+    # new renderer by the time this signal arrives, so asking it
+    # whether the element "was" deferring always answers yes and the
+    # notice never fires -- measured while building this, 2026-08-15.
+    # The row is the thing that has not caught up yet, which is
+    # precisely what makes it the right witness to whether the user
+    # has been told.
+    was_deferring = any(
+      self.table.item(row, 0) is not None
+      and self.table.item(row, 0).text() == tile_id
+      and self.table.cellWidget(row, 2) is not None
+      and self.table.cellWidget(row, 2).currentText() == self.DEFERRING
+      for row in range(self.table.rowCount()))
+    layer_now = QgsProject.instance().mapLayer(layer_id)
+    now_deferring = (layer_now is not None
+                     and bridge.expressible_style(layer_now.renderer()) is None)
+    if now_deferring:
+      self._refresh_deferring_rows()
+      if not was_deferring:
+        # ONE notice, when it begins (maintainer's decision). The
+        # editor goes with it: every number in that window describes
+        # the renderer that has just been replaced, and leaving it
+        # open guarantees the user reads one of them.
+        if self._open_editor is not None:
+          self._open_editor.reject()
+        self._report_quietly(
+          f"Element '{tile_id}' is now styled in QGIS, so its colours "
+          f"are set in the Layer Styling panel.")
+      return
     layer = QgsProject.instance().mapLayer(layer_id)
     if layer is None:
       return
@@ -4545,7 +4619,16 @@ class WeavingSpaceDialog(QDialog):
 
     editor = CategoryColourDialog(tile_id, field, order, colours,
                                   picked, self)
-    editor.exec()
+    # HELD while it is open, and only for the length of exec(), so
+    # deferral beginning underneath can close it. QGIS stays live
+    # while this window is modal to the plugin dialog, so a user
+    # genuinely can restyle the element in the styling panel with its
+    # colour editor open.
+    self._open_editor = editor
+    try:
+      editor.exec()
+    finally:
+      self._open_editor = None
     self._warn_about_close_colours()
 
   def _edit_quant_colours(self, tile_id, field, assignment):
@@ -4648,7 +4731,16 @@ class WeavingSpaceDialog(QDialog):
       pin_changed=pin_changed,
       copy_targets=self._copy_targets(tile_id),
       copy_to=lambda target: self._copy_classification(tile_id, target))
-    editor.exec()
+    # HELD while it is open, and only for the length of exec(), so
+    # deferral beginning underneath can close it. QGIS stays live
+    # while this window is modal to the plugin dialog, so a user
+    # genuinely can restyle the element in the styling panel with its
+    # colour editor open.
+    self._open_editor = editor
+    try:
+      editor.exec()
+    finally:
+      self._open_editor = None
     self._warn_about_close_colours()
 
   def _copy_classification(self, source_id, target_id):
@@ -5171,6 +5263,135 @@ class WeavingSpaceDialog(QDialog):
         "value_digest": self._value_digest(var),
       })
     return result
+
+  # Columns that write the RENDERER, and are therefore inert while an
+  # element is deferring. The line is the renderer rather than a list
+  # somebody maintains: Classes, Colour ramp, Reverse, the categorical
+  # colourmap source and Edit colours all end up inside it. OPACITY
+  # (column 6) is deliberately absent -- it is a layer property beside
+  # the renderer, cannot destroy anything the styling panel built, and
+  # is the one control a user is likely to want while reading a
+  # hand-styled element against a basemap (settled 2026-08-15).
+  RENDERER_COLUMNS = (3, 4, 5, 7, 8)
+
+  def _refresh_deferring_rows(self):
+    """Make every row say whether the plugin still styles its element.
+
+    Returns:
+      None. For each row: the style chooser reads "Deferring to QGIS"
+      exactly when that element's layer holds a renderer no row can
+      name, the DEFERRING entry is selectable only then, and the
+      controls that write the renderer are enabled only when it is
+      not.
+
+    Called wherever layers can have changed underneath the table -- a
+    run landing, a project adopted, a style edited in QGIS's own panel
+    -- because the question is asked of the LAYER and the answer can
+    move without the dialog doing anything.
+
+    Signals are blocked while the chooser is moved: putting a row's
+    own truth into it is not somebody choosing a style, and letting it
+    read as one would fire the handler that RE-SEEDS, destroying the
+    very work deferral exists to protect.
+    """
+    for row in range(self.table.rowCount()):
+      item = self.table.item(row, 0)
+      combo = self.table.cellWidget(row, 2)
+      if item is None or combo is None:
+        continue
+      deferring = self._element_is_deferring(item.text())
+      model = combo.model()
+      index = combo.findText(self.DEFERRING)
+      if index >= 0 and model is not None:
+        entry = model.item(index)
+        if entry is not None:
+          entry.setEnabled(deferring)
+      if deferring and combo.currentText() != self.DEFERRING:
+        combo.blockSignals(True)
+        combo.setCurrentText(self.DEFERRING)
+        combo.blockSignals(False)
+      elif not deferring and combo.currentText() == self.DEFERRING:
+        # the element stopped deferring without anybody picking a
+        # style -- QGIS was put back on something a row can name --
+        # so the row follows it rather than sitting on a stale word
+        combo.blockSignals(True)
+        combo.setCurrentText(self._plausible_mode(
+          self.table.cellWidget(row, 1).currentText()
+          if self.table.cellWidget(row, 1) is not None else ""))
+        combo.blockSignals(False)
+      if deferring:
+        # THE RAMP CELL MUST NOT GO ON NAMING A RAMP. It read "Blues"
+        # over a rule-based map while building this, which is a
+        # control lying about the map -- the exact thing the Custom
+        # display was built for, so it is what deferring uses. The
+        # swatch beside it is sampled from the layer, and the cache
+        # entry is dropped first because the colours it summarises
+        # have just changed and its key cannot see the renderer.
+        ramp_cell = self.table.cellWidget(row, 4)
+        if ramp_cell is not None and hasattr(ramp_cell, "set_custom_display"):
+          self._custom_swatch_cache.pop(item.text(), None)
+          variable = self.table.cellWidget(row, 1)
+          ramp_cell.set_custom_display(self._custom_swatch_for(
+            item.text(),
+            variable.currentText() if variable is not None else ""))
+      for column in self.RENDERER_COLUMNS:
+        widget = self.table.cellWidget(row, column)
+        if widget is None or not hasattr(widget, "setEnabled"):
+          continue
+        if deferring:
+          # MARKED as ours, because these controls are disabled for
+          # other reasons too -- Classes on a categorical row, Edit
+          # colours with no variable -- and re-enabling everything on
+          # the way out would switch on controls that were never ours
+          # to switch off.
+          if widget.isEnabled():
+            widget.setProperty("disabled_by_deferring", True)
+          widget.setEnabled(False)
+          widget.setToolTip("Styled in QGIS; set it in the Layer "
+                            "Styling panel.")
+        elif widget.property("disabled_by_deferring"):
+          widget.setProperty("disabled_by_deferring", False)
+          widget.setEnabled(True)
+
+  def _element_is_deferring(self, tile_id) -> bool:
+    """Is this element drawn by something no row can express?
+
+    Args:
+      tile_id: the element to ask about.
+
+    Returns:
+      True when the element HAS an output layer and that layer's
+      renderer is of a kind the style chooser cannot name — rule-based
+      or any other thing built in QGIS's styling panel, or a graduated
+      renderer classified by a method this plugin does not offer.
+      False when there is no layer yet, since an element that has
+      never been drawn is not deferring to anything.
+
+    INFERRED, NEVER STORED, and that is the whole design (settled
+    2026-08-15). A stamp saying "deferring" beside a renderer saying
+    what it actually is would be one fact in two places, which is the
+    shape that cost this project most in a single evening: the two
+    disagree the moment somebody reverts the renderer in the dock. The
+    renderer is the single authority, which is also what the settled
+    rule already says — renderers are standard QGIS objects and the
+    dock is where refinement lives.
+
+    It self-corrects, too. When a later version learns to express some
+    renderer, elements deferring only for that reason simply stop,
+    with nothing to migrate and no stale flag to clean up.
+
+    The same question is asked from three directions that must agree —
+    a dock edit, a reopened project, a layer out of a GeoPackage — so
+    all three come here, and the GeoPackage case is the reason the
+    STAMP may never answer it: a style written by an older version
+    travels in that file and would otherwise resurrect a mode the
+    layer does not hold (maintainer's condition, 2026-08-15).
+    """
+    layer_id = self._element_layer_ids.get(tile_id)
+    layer = QgsProject.instance().mapLayer(layer_id) if layer_id else None
+    if layer is None:
+      return False
+    return bridge.expressible_style(layer.renderer()) is None
 
   def _plausible_mode(self, var_text: str) -> str:
     """The style a fresh element gets: quantile classes for numeric
@@ -6617,9 +6838,37 @@ class WeavingSpaceDialog(QDialog):
       # styling: keep the previous layer's (possibly hand-refined)
       # renderer when this element's assignment didn't change
       signature = self._signature(a)
-      unchanged = (tid in old_renderers
-                   and self._last_signatures.get(tid) == signature)
-      if unchanged:
+      previous = self._last_signatures.get(tid)
+      unchanged = (tid in old_renderers and previous == signature)
+      # A DEFERRING element keeps the renderer somebody built in
+      # QGIS's styling panel even though its assignment moved, because
+      # the plugin has stopped styling it -- that is what deferring
+      # means, and re-seeding here would destroy the work at the next
+      # spacing change. Settled 2026-08-15.
+      #
+      # ONE THING BREAKS IT: the element's VARIABLE changing. A
+      # renderer keyed to `landcover` re-attached to an element now
+      # drawing `v3` puts every tile outside every class and paints
+      # nothing -- the empty-map failure the text-field guard already
+      # exists to prevent, arriving by a new road. So deferral follows
+      # the same bargain hand styling has always had: it survives
+      # unless THAT ELEMENT'S assignment changed in the one way that
+      # makes it meaningless. `previous[0]` is the variable, because
+      # _signature puts it first.
+      carried_while_deferring = (
+        not unchanged and tid in old_renderers and previous is not None
+        and bridge.expressible_style(old_renderers[tid]) is None
+        and previous[0] == a.get("var"))
+      if (not unchanged and tid in old_renderers and previous is not None
+          and bridge.expressible_style(old_renderers[tid]) is None
+          and previous[0] != a.get("var")):
+        # ...and the loss is REPORTED, never silent, exactly as every
+        # other loss on this path is
+        self._report_quietly(
+          f"Element '{tid}' was styled in QGIS, and changing its "
+          f"variable means those classes no longer describe it, so it "
+          f"is drawn by the plugin again.")
+      if unchanged or carried_while_deferring:
         out.setRenderer(old_renderers[tid])
         self._preserved_this_run.append(tid)
         # opacity travels with the renderer: an element the dialog has
@@ -6717,6 +6966,12 @@ class WeavingSpaceDialog(QDialog):
       if tid not in new_ids:
         del self._last_signatures[tid]
     self._element_layer_ids = new_ids
+    # AFTER the ids are adopted, not during the loop that builds them:
+    # the question "is this element deferring" is asked of the layer
+    # the dialog currently points at, and until this line that is the
+    # PREVIOUS run's layer. Asked once here rather than once per
+    # element, which is also what it costs.
+    self._refresh_deferring_rows()
     # A GeoPackage is REPLACED table by table, so a design that
     # shrank left its old elements in the file: the map showed three
     # and the file held six, with nothing to say which three were the
