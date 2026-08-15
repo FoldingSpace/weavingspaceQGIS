@@ -2467,6 +2467,14 @@ MUTATIONS = [
            "flags and their two bounds are a smaller and more durable "
            "statement and must survive, with the scheme recomputing "
            "the middle around them"),
+  dict(name="adoption-takes-the-newest-group", file=DIALOG,
+       old="    group = self._newest_output_group(root)",
+       new="    group = root.findGroup(GROUP_BASE_NAME)",
+       test="test_a_reopened_plugin_adopts_the_group_it_last_wrote",
+       why="the bare name cannot find 'WeavingSpace tiles 2', so a "
+           "reopened plugin adopts the result the user chose to KEEP "
+           "and the next Generate overwrites it, while the map they "
+           "were working on is orphaned"),
   dict(name="the-bound-box-is-sized-from-the-data",
        file="weavingspace_qgis/category_editor.py",
        old="    box.setDecimals(max(0, min(12, places)))\n"

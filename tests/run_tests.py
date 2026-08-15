@@ -9193,6 +9193,70 @@ def test_a_pinned_bound_can_hold_the_numbers_a_column_carries():
         f"on {label}, {upper!r} is outside the box's own range"
 
 
+def test_a_reopened_plugin_adopts_the_group_it_last_wrote():
+  """"Create as new group" exists so a result can be KEPT.
+
+  Group tracking lives on the dialog, and the adoption that survives a
+  plugin being closed and reopened looked the group up by its bare
+  name. After a new-group run the live result is "WeavingSpace tiles
+  2", which that lookup can never find -- so the reopened dialog took
+  over the map the user had chosen to keep, the next Generate
+  overwrote exactly that, and the map they were working on was
+  orphaned and never updated again. Its stamps came back with it, so a
+  class bound they had unpinned was in force again.
+
+  Users close and reopen this plugin constantly, and the whole point
+  of the checkbox is that the older result is the one to leave alone.
+
+  Regression: a plugin closed and reopened adopted the oldest output group rather than the newest, so the next Generate overwrote a result the user had deliberately kept and restored bounds they had unpinned.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v3")
+  _tick(150)
+  tile_id = dlg.table.item(0, 0).text()
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+  kept = dict(dlg._element_layer_ids)
+  assert kept, "the first run produced no output to keep"
+
+  # ...a bound is pinned, then the user asks to KEEP this result
+  dlg._pinned_bounds.setdefault(tile_id, {})["v3"] = {"low": 10.0}
+  dlg._apply_style_change()
+  _tick(200)
+  assert dlg.opt_new_group is not None, "there is no new-group control"
+  dlg.opt_new_group.setChecked(True)
+  dlg.spacing_spin.setValue(1400)
+  _generate_and_wait(dlg)
+  live = dict(dlg._element_layer_ids)
+  assert set(live.values()) != set(kept.values()), \
+    "the second run reused the first run's layers, so nothing is kept"
+  names = [g.name() for g in project.layerTreeRoot().findGroups()]
+  assert len(names) >= 2, f"only one output group exists: {names}"
+  dlg.close()
+
+  # ...the plugin is closed and opened again
+  again = WeavingSpaceDialog(iface=_Iface())
+  again.live_check.setChecked(False)
+  again.layer_combo.setLayer(layer)
+  _tick(400)
+  adopted = set(again._element_layer_ids.values())
+  assert adopted, "the reopened dialog adopted nothing at all"
+  assert not (adopted & set(kept.values())), \
+    f"the reopened dialog took over the KEPT result, which the next " \
+    f"Generate would overwrite: adopted {sorted(adopted)}, kept " \
+    f"{sorted(kept.values())}"
+  assert adopted & set(live.values()), \
+    f"the reopened dialog adopted neither result: {sorted(adopted)}"
+  again.close()
+
+
 def test_a_class_source_file_that_goes_away():
   """The QML is deleted, moved or renamed after being chosen.
 
@@ -39521,6 +39585,8 @@ def main():
         test_a_copy_hatches_the_classes_it_leaves_unreachable)
   check("a pinned bound can hold the numbers a column carries",
         test_a_pinned_bound_can_hold_the_numbers_a_column_carries)
+  check("a reopened plugin adopts the group it last wrote",
+        test_a_reopened_plugin_adopts_the_group_it_last_wrote)
   check("one variable gets one legend wherever it appears",
         test_one_variable_gets_one_legend_wherever_it_appears)
   check("a class source file that goes away",

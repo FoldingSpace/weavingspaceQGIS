@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-147 defect(s) with a regression test.
+148 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -225,6 +225,8 @@ there is no separate list to remember.
   guarded by `test_a_reloaded_module_retires_the_old_dialog_cleanly`
 - **renaming a column destroyed an element's hand-picked categorical colours, while the graduated twin survived the same act.**  
   guarded by `test_a_renamed_column_does_not_destroy_hand_picked_colours`
+- **a plugin closed and reopened adopted the oldest output group rather than the newest, so the next Generate overwrote a result the user had deliberately kept and restored bounds they had unpinned.**  
+  guarded by `test_a_reopened_plugin_adopts_the_group_it_last_wrote`
 - **reopening a project and pressing Generate painted away a categorical scheme imported from a QML, because the adoption recovered a graduated element's colours and returned empty-handed for its categorized twin.**  
   guarded by `test_a_reopened_project_keeps_an_imported_class_scheme`
 - **a retired dialog's styleChanged connections kept firing after retirement, double-adopting dock edits alongside the live dialog.**  
@@ -339,7 +341,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 91
+- unrecorded: 92
 - the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6

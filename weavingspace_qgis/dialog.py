@@ -5952,7 +5952,7 @@ class WeavingSpaceDialog(QDialog):
     survives as before.
     """
     root = QgsProject.instance().layerTreeRoot()
-    group = root.findGroup(GROUP_BASE_NAME)
+    group = self._newest_output_group(root)
     if group is None:
       return
     project = QgsProject.instance()
@@ -5971,7 +5971,60 @@ class WeavingSpaceDialog(QDialog):
       elif layer.customProperty("weavingspace_outline"):
         self._outline_layer_id = layer.id()
     if self._element_layer_ids or self._outline_layer_id:
-      self._group_name = GROUP_BASE_NAME
+      self._group_name = group.name()
+
+  def _newest_output_group(self, root):
+    """The output group a reopened dialog should take over.
+
+    Args:
+      root: the project's layer tree root.
+
+    Returns:
+      The layer-tree group holding the most recent output, or None
+      when this project has none.
+
+    WHY NOT ``findGroup(GROUP_BASE_NAME)``, which is what this did.
+    "Create as new group" exists so a user can KEEP the previous
+    result, and it names the new one "WeavingSpace tiles 2". The bare
+    name then finds only the OLD group -- so a plugin closed and
+    reopened, which users do constantly, adopted the map they had
+    chosen to keep, and the next Generate overwrote exactly that
+    while the map they were working on was orphaned and never updated
+    again. Its stamps came back too, restoring a class bound they had
+    unpinned. Measured 2026-08-15: run 1 pinned at 10, kept; run 2
+    unpinned and recomputed; reopened, the dialog held run 1's layers
+    and `{"a": {"v3": {"low": 10.0}}}`.
+
+    The newest is read off the SUFFIX, because that is exactly how
+    _get_or_make_group assigns it: the bare name counts as zero and
+    "WeavingSpace tiles N" as N, so the highest is the most recently
+    created. A group holding no output layers cannot win, which is
+    what stops an empty leftover from beating a real result.
+    """
+    best, best_rank = None, None
+    for group in root.findGroups():
+      name = group.name()
+      if name == GROUP_BASE_NAME:
+        rank = 0
+      elif name.startswith(f"{GROUP_BASE_NAME} "):
+        tail = name[len(GROUP_BASE_NAME) + 1:]
+        if not tail.isdigit():
+          continue            # somebody renamed it; not ours to guess
+        rank = int(tail)
+      else:
+        continue
+      # ...and it must actually hold output, or an empty leftover
+      # would outrank the group carrying the user's map
+      carries = any(
+        getattr(child, "layer", lambda: None)() is not None
+        and (child.layer().customProperty("weavingspace_tile_id")
+             or child.layer().customProperty("weavingspace_outline"))
+        for child in group.children())
+      if not carries:
+        continue
+      if best_rank is None or rank > best_rank:
+        best, best_rank = group, rank
+    return best
 
   def _get_or_make_group(self, force_new: bool):
     """Return (layer-tree group, created?) for this run's output.
