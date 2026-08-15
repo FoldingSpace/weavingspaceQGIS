@@ -4681,10 +4681,13 @@ class WeavingSpaceDialog(QDialog):
     if dropped:
       ends = " and ".join("lower" if end == "low" else "upper"
                           for end in dropped)
-      left_behind = (f" Its pinned {ends} "
-                     f"{'bounds were' if len(dropped) > 1 else 'bound was'} "
-                     f"left behind, being outside what this element's "
-                     f"data covers.")
+      left_behind = (
+        f" The pinned {ends} "
+        f"{'bounds from' if len(dropped) > 1 else 'bound from'} "
+        f"element '{source_id}' "
+        f"{'do' if len(dropped) > 1 else 'does'} not fit the values "
+        f"element '{target_id}' holds, so "
+        f"{'they were' if len(dropped) > 1 else 'it was'} left behind.")
     self._pinned_bounds.setdefault(target_id, {})[field] = record
 
     # the colours, positionally, which is what makes the row Custom
@@ -4872,8 +4875,20 @@ class WeavingSpaceDialog(QDialog):
       yet, or a run is in flight -- in the latter case the change is
       already recorded and the finishing run will seed it.
     """
-    self._refresh_preview_colours()
+    # THE RESTYLE GOES FIRST, and the order is the whole of this
+    # method. The swatch asks the ELEMENT'S OWN LAYER which classes
+    # nothing wears -- that is the only honest source, since a copied
+    # ladder's empty classes are a fact about what this element draws
+    # -- so painting the swatch before the layer is restyled asks the
+    # question of the previous map. Measured 2026-08-15: a ladder
+    # copied from a 0-121 column onto an 0-11 one left classes 2, 3
+    # and 4 unreachable, `unworn_classes` said so, and the swatch was
+    # built with `hatched=[]` and cached that way. The hatching the
+    # changelog promises had therefore never once appeared from the
+    # copy that creates it. Restyling first costs nothing: the
+    # restyle reads the dialog's records, never the preview.
     self._restyle_only()
+    self._refresh_preview_colours()
 
   def _warn_about_close_colours(self):
     """Say so if hand-picked colours left two elements inseparable.

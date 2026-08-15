@@ -2467,6 +2467,15 @@ MUTATIONS = [
            "flags and their two bounds are a smaller and more durable "
            "statement and must survive, with the scheme recomputing "
            "the middle around them"),
+  dict(name="the-swatch-is-painted-after-the-restyle", file=DIALOG,
+       old="    self._restyle_only()\n    self._refresh_preview_colours()",
+       new="    self._refresh_preview_colours()\n    self._restyle_only()",
+       test="test_a_copy_hatches_the_classes_it_leaves_unreachable",
+       why="the swatch asks the element's own layer which classes "
+           "nothing wears, so painting it before the restyle puts "
+           "that question to the previous map and caches the answer "
+           "-- the hatching the changelog promises then never appears "
+           "from the copy that creates it"),
   dict(name="one-class-colouring-needs-one-class", file=BRIDGE,
        old="  if distinct == 1 and count == 1:",
        new="  if distinct == 1 and count:",

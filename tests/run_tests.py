@@ -9067,6 +9067,77 @@ def test_a_copied_ladder_on_one_value_still_wears_its_ramp():
     f"the copied ladder's classes are not distinguishable: {colours}"
 
 
+def test_a_copy_hatches_the_classes_it_leaves_unreachable():
+  """The hatching must appear from the copy that creates it.
+
+  A copied ladder is the only ordinary way to get a class no tile
+  wears, and the swatch hatches those stripes so the emptiness is
+  visible. The hatching is asked of the ELEMENT'S OWN LAYER, which is
+  the only honest source -- and `_apply_style_change` painted the
+  swatch BEFORE restyling that layer, so the question was put to the
+  previous map, answered "nothing is empty", and cached. The promise
+  had therefore never once been kept from the copy that creates it,
+  while `bridge.unworn_classes` sat underneath it correct and
+  unit-tested.
+
+  A unit-tested mechanism plus an undriven caller is a motionless
+  axis. This test drives the caller, and asserts on what the SWATCH
+  was built with rather than on the mechanism's return value, since
+  agreeing with the mechanism is exactly what the old code did.
+
+  Regression: copying a classification onto a column that cannot reach its upper classes left the swatch unhatched, so a user was never shown which of their legend classes no tile uses.
+  """
+  from weavingspace_qgis import bridge, dialog as dialog_module
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v3")      # the wide column
+  dlg.table.cellWidget(1, 1).setCurrentText("v1")      # the narrow one
+  _tick(150)
+  source = dlg.table.item(0, 0).text()
+  target = dlg.table.item(1, 0).text()
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+
+  # what each swatch was built WITH, recorded as it is built: the
+  # cached icon alone cannot say whether the hatching was asked for
+  built = []
+  original = dialog_module._custom_swatch_icon
+
+  def recording(shades, boxed=(), hatched=()):
+    built.append((len(shades), list(boxed), list(hatched)))
+    return original(shades, boxed, hatched)
+
+  dialog_module._custom_swatch_icon = recording
+  try:
+    assert dlg._copy_classification(source, target) is None, \
+      "the copy was refused"
+    _tick(400)
+  finally:
+    dialog_module._custom_swatch_icon = original
+
+  drawn = project.mapLayer(dlg._element_layer_ids[target]).renderer()
+  bounds = [(r.lowerValue(), r.upperValue()) for r in drawn.ranges()]
+  values = [v for v in layer.uniqueValues(layer.fields().indexOf("v1"))
+            if v is not None]
+  empty = bridge.unworn_classes(bounds, values)
+  assert empty, \
+    f"the fixture left no unreachable class, so nothing is proved: " \
+    f"{bounds} over {sorted(set(values))}"
+  hatchings = [h for stripes, _boxed, h in built if stripes == len(bounds)]
+  assert hatchings, \
+    f"no swatch of {len(bounds)} stripes was built during the copy: {built}"
+  assert hatchings[-1] == empty, \
+    f"the swatch was built hatching {hatchings[-1]} where the map " \
+    f"leaves {empty} unreachable"
+  dlg.close()
+
+
 def test_a_class_source_file_that_goes_away():
   """The QML is deleted, moved or renamed after being chosen.
 
@@ -39391,6 +39462,8 @@ def main():
         test_a_copy_from_unclassed_leaves_the_chosen_count_alone)
   check("a copied ladder on one value still wears its ramp",
         test_a_copied_ladder_on_one_value_still_wears_its_ramp)
+  check("a copy hatches the classes it leaves unreachable",
+        test_a_copy_hatches_the_classes_it_leaves_unreachable)
   check("one variable gets one legend wherever it appears",
         test_one_variable_gets_one_legend_wherever_it_appears)
   check("a class source file that goes away",

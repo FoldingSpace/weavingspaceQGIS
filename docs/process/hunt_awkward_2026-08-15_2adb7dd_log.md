@@ -86,3 +86,86 @@ NEXT:   The brief's own steer: the exact boundary. Take a value that
         sits EXACTLY on a pinned bound all the way through the dialog
         and ask which class its tiles are drawn in, against what the
         control says the pin means.
+
+## 15:36:05  iteration 3  [perturbation]
+TRIED:  Tree moved under me (HEAD 0305787, dialog.py modified by another
+        agent), so everything from here runs against a pinned copy of
+        2adb7dd exported with `git archive` into
+        scratchpad/hunt-awkward. Probe p4_empty.py: for 10 columns x
+        every pin position sitting exactly ON a data value x k in
+        {3,5,8} x Quantiles/Equal interval, count classes NO tile can
+        occupy, split into PINNED-EMPTY and MIDDLE-EMPTY, with the
+        unpinned column as control.
+RESULT: 102 PINNED-EMPTY, 46 MIDDLE-EMPTY, and NEITHER is a defect.
+        PINNED-EMPTY is a settled decision (CLAUDE.md, bridge.py:1664:
+        "a pinned class holding no samples is a deliberate statement
+        about where a reader's eye should start"). It is where the
+        low/high asymmetry lives -- pinning HIGH at the column maximum
+        leaves (max, max], which nothing can occupy, while pinning LOW
+        at the minimum gives [min, min], which the minimum occupies --
+        but that is QGIS's containment rule and the decision above, not
+        a fault. Every MIDDLE-EMPTY family reproduces with pinned=None:
+        e.g. "on bound" [1,2,3,5,5,5,5,5,9,10] unpinned, k=3,
+        Quantiles -> [(1,5),(5,5),(5,10)], class 1 empty. Frequent
+        repeated values, not pins.
+NEXT:   Arithmetic in this area looks sound. Move to the CONTROL that
+        sets a pin, and ask whether it can represent the numbers an
+        awkward column carries.
+
+## 15:38:40  iteration 4  [logical then perturbation]
+TRIED:  category_editor._bound_box (category_editor.py:534-541) gives
+        every pinnable bound a QDoubleSpinBox with setDecimals(6) and
+        setRange(-1e12, 1e12), while the READ-ONLY cells beside it in
+        the same row print through _format_bound with "%.10g". Its own
+        docstring says the range is "wide open ... because what is
+        legal is decided by the map's own data ... a range set here
+        would refuse a number for a reason this window cannot explain".
+        Probe p5_spinbox.py builds the real CategoryColourDialog on
+        three ladders and reads the widgets.
+RESULT: CONFIRMED, measured. Province-scale areas in square metres
+        (ladder [(1.1e11,5.4e11),(5.4e11,1.54e12),(1.54e12,9.1e12)]):
+        the last row's read-only cell prints "1.54e+12" and the
+        editable box on that same row holds 1000000000000.0. Driving
+        the pin the way a user does (pin.setChecked(True), which is
+        what a click emits) pinned 1.0e12 -- not the break the row was
+        showing. On a rate column [(1e-9,4e-7),(4e-7,8.5e-7),
+        (8.5e-7,3e-6)] the low box shows 0.0 for a bound of 4e-07 and
+        the high box shows 1e-06 for a bound of 8.5e-07. The ordinary
+        column is faithful, so the two ends of one window can disagree
+        depending only on magnitude.
+NEXT:   Two more things to nail: real KEYSTROKES rather than setValue,
+        and whether the substituted number reaches the map.
+
+## 15:41:30  iteration 5  [perturbation]
+TRIED:  p7_typing.py -- QTest.keyClicks into the box's line edit, then
+        Return, on the ladder whose last class begins at 1.875e12.
+        p6_reaches_map.py -- twenty province-scale areas through
+        bridge.make_graduated_renderer, pinned at the break the user
+        was looking at versus pinned at what the control pinned, then
+        each value placed under QGIS's own containment rule.
+RESULT: CONFIRMED, and worse than the display fault. Typing
+        "3000000000000" (3e12) leaves the box holding 300000000000.0
+        (3e11) -- the validator swallows the digit that would cross the
+        ceiling and the pin record takes 3e11 with no message at all.
+        A factor of TEN, silently, through the one control whose
+        docstring promises "a typed number is either honoured or
+        visibly rejected and never quietly changed into a different
+        one". Second route, the map: pinning the last class at
+        1.875e12 gives [(2.1e10,2.83e11),(2.83e11,1.117e12),
+        (1.117e12,1.875e12),(1.875e12,9.1e12)]; pinning at the 1.0e12
+        the control produced gives [(2.1e10,6.7e10),(6.7e10,3.817e11),
+        (3.817e11,1.0e12),(1.0e12,9.1e12)] -- 11 of the 20 areas change
+        class. pin_problem accepts both, so nothing refuses and nothing
+        is said.
+        Introduced by 12f8c3d ("The pin reaches the map, by a glyph and
+        two dresses", 2026-08-14), the commit that added the control;
+        still present in the live tree at 0305787
+        (category_editor.py:537-538).
+NEXT:   Report. Ruled out along the way and worth recording: the
+        subset-clause interaction (the null clause and the pin clause
+        compose correctly, and `> low` / `< high` match QGIS's
+        containment at both ends); the notice against the map
+        (classes_the_map_will_draw agreed with the renderer everywhere
+        except Pretty breaks, which disagrees unpinned too); and the
+        backwards Jenks class, which is QGIS's own and reproduces with
+        no plugin code in the process.

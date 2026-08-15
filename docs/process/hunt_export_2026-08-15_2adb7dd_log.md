@@ -110,3 +110,50 @@ RESULT: CONFIRMED by the second route.
 NEXT:   observation (i) — the stamps travel inside an exported QML.
         Measure what that costs when a style is pasted from one output
         layer onto another layer.
+
+## 15:33:45  iteration 4  [perturbation]
+TRIED:  observation (i). saveNamedStyle from element 'a' writes
+        weavingspace_output, weavingspace_tile_id='a' and
+        weavingspace_quant_style into the .qml, and loadNamedStyle
+        restores all three — which is exactly what makes the .gpkg
+        export work (the 2026-08-13 fix), and it cannot tell a
+        GeoPackage from a paste. probe4.py and probe5.py measure the
+        two routes a user reaches it by.
+RESULT: CONFIRMED as observations; severity is the maintainer's call.
+        Route 1, a's style pasted onto element b's layer:
+          b's tile_id stamp becomes 'a', b's quant stamp becomes a's
+          (pinned low 10.0, field v3);
+          a reopened dialog then has _element_layer_ids
+          {'a': <b's layer>, 'c': ..., 'd': ...} — element b is not
+          tracked at all and a's real layer is orphaned;
+          the next Generate (spacing 2000) leaves the output group
+          holding FIVE layers, two of them named 'a – v3': the
+          orphan at 113 features from the previous design, beside the
+          new one at 45. Both stamped tile_id 'a'.
+        Route 2, the same .qml applied to the user's own region layer:
+          weavingspace_output becomes True on it, and a fresh dialog's
+          region chooser offers [] — an EMPTY list. The user cannot
+          tile their own data and nothing says why.
+        Both routes were measured from project.clear() in a fresh
+        process.
+NEXT:   nothing further; writing up. Hypotheses logged 4, ruled out 1
+        (the pin crossing all three boundaries, iteration 1), claimed
+        2 (iterations 2-3 as a defect, iteration 4 as observations).
+
+## Not defects, checked and ruled out
+- "Create as new group" does NOT remove the previous group's layers:
+  _get_or_make_group empties _element_layer_ids before old_ids is read
+  (dialog.py 6317 then 6320).
+- new group + the same .gpkg path is refused with a modal (5673).
+- a second embed_style DOES reach the .gpkg: the pin set after the run
+  arrived in the cold-opened file, so _restyle_only's embed replaced
+  the run's style rather than sitting behind it.
+- an unreachable class from a copied ladder is hatched in the TABLE
+  swatch only (dialog._striped_icon); the map has no tiles to draw
+  there, so this is the design, not a disagreement.
+
+## Repository state
+No repo source was edited. `git diff` is empty and `git status`
+reports the working tree clean; this log is the only file this hunt
+wrote inside the repository. Probes are in the session scratchpad
+(harness.py, probe1.py .. probe5.py).

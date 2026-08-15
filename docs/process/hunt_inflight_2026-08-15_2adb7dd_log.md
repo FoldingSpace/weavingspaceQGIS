@@ -60,3 +60,29 @@ NEXT:   The map is right; look at what DESCRIBES it. `_unworn_stripes`
         the element layer or the run. H2: the hatching on the ramp
         cell is a second store of "which classes are empty", and the
         landing never invalidates it.
+
+## 15:35:04  iteration 3  [perturbation]
+TRIED:  H2 measured with probe_swatch.py: the hatching on a Custom ramp
+        cell against `_unworn_stripes` recomputed from the landed layer,
+        for a copy quiescent, a copy in flight, and after two further
+        Generates at other spacings.
+RESULT: The icon the cell holds is the UNHATCHED one in every case
+        (truth [3,4,5,6], icon matches "none", identical hash
+        b9a5f9ae5808 across all five measurements). But this is NOT
+        mine to claim: `docs/process/hunt_swatch_2026-08-15_2adb7dd_
+        log.md`, committed while I worked, already has it confirmed
+        twice over on two fixtures, with provenance (ee506ab). Same
+        defect, found first by another hunt. Recorded here as a
+        DUPLICATE, not a finding.
+        Also noted: HEAD moved under me to 4376ba1 (0305787 then
+        4376ba1). The only plugin-source change since 2adb7dd is the
+        deletion of `_numeric_value_count`, a helper nobody called, so
+        everything measured here stands at both.
+NEXT:   Drop the descriptive layer and go back to the map. H3: whatever
+        the landing defers rather than applies, an explicit Generate
+        afterwards must recover. Sweep the editor's actions -- pin,
+        unpin, copy, class count, ramp, display window, class colour,
+        variable, style -- performed (i) quiescent and (ii) with a run
+        in flight, and compare the FINAL map after one more explicit
+        Generate. Anything that fails to converge was destroyed rather
+        than deferred.

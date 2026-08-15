@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-145 defect(s) with a regression test.
+146 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -159,6 +159,8 @@ there is no separate list to remember.
   guarded by `test_a_copy_and_its_pins_survive_a_project_round_trip`
 - **copying a classification from an element drawn Quant: Unclassed wrote fifty into the receiving element's chosen class count, which the next table rebuild clamped to twenty, replacing the count the user had chosen.**  
   guarded by `test_a_copy_from_unclassed_leaves_the_chosen_count_alone`
+- **copying a classification onto a column that cannot reach its upper classes left the swatch unhatched, so a user was never shown which of their legend classes no tile uses.**  
+  guarded by `test_a_copy_hatches_the_classes_it_leaves_unreachable`
 - **copying a classification wrote the source element's pinned bounds onto the target without checking them against the target's own column, recording a bound the plugin refuses when typed.**  
   guarded by `test_a_copy_leaves_behind_a_pin_the_data_cannot_carry`
 - **a copy wrote the target's class count and ramp into the dialog's records without moving its controls, so the row's cell, its assignment and the map disagreed about how many classes were drawn.**  
@@ -335,7 +337,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- unrecorded: 89
+- unrecorded: 90
 - the mutation campaign: 16
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6
