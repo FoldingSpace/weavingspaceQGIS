@@ -926,6 +926,16 @@ first, kept here so they are unmissable:
   the wrapper that started it, because a launcher can exit while what
   it launched carries on -- which this project already learned once
   from a stochastic hunt that relaunched itself with nohup.
+  **And a watcher outlives the thing it watched.** 2026-08-14, the
+  twelfth: a CI poller armed for `pre-0.24.1rc1` was still running two
+  releases later and announced `CI GREEN <sha>` while the work was on
+  `pre-0.24.3rc1`. Nothing about the message said which branch, so the
+  obvious reading -- that the current branch had gone green on a
+  machine nobody had pushed to -- was wrong and comfortable. The rule
+  already exists ("stop the watcher when the work finishes"); what it
+  needs is the other half, which is that every watcher NAMES ITS
+  SUBJECT in each line it emits. A verdict without its branch is a
+  verdict about whatever the reader is thinking of.
 - A watcher that REPEATS itself misleads as badly as one that goes
   silent: a monitor grepping a whole log each pass re-reported the
   same historical failure every 45 seconds as though it were news,
