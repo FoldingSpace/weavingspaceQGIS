@@ -177,6 +177,89 @@ a user chooses; and the categorical editor asserted to offer no pin
 at all. Every new test gets a catalogue entry and must report
 `caught`.
 
+**COPY A CLASSIFICATION FROM ONE ELEMENT TO ANOTHER. Settled by
+`/grill-me` on 2026-08-14, and it is built AFTER the pinned bounds
+above, on the record that work creates.** A "Copy to..." dropdown at
+the top of the colour editor, listing the other elements this one may
+be copied to and reading "Copy to..." until it is used. Picking one
+sends this element's class breaks, its colours, its pin status and its
+class count to that element.
+
+*What a copy IS, and why it is the same mechanism as a pin.* A full
+set of copied breaks is every boundary pinned at once, so it is stored
+in the SAME record the pins use -- a list of boundaries a person set
+-- with pins as its two-ended case. Copied breaks therefore survive
+every recalculation, stamp onto the layer, and come home through a
+project round trip exactly as pins do. Changing the target's class
+count or scheme clears them with a notice, since the copy was made for
+that count and those breaks. One store, one set of guardrails, one
+thing to test; two stores of one fact is the shape that produced three
+defects here on 2026-08-13.
+
+*The style travels with the breaks.* Copying from an Unclassed element
+makes the target Unclassed, and copying from a five-class quantile
+element makes the target classed at five. It is the only way "breaks
+and number of classes" can be honoured in both directions: fifty
+hand-set breaks on a row whose spinner caps at twenty is exactly the
+three-numbers-for-one-setting fault
+`test_an_unclassed_excursion_leaves_the_count_alone` already guards.
+
+*The ends are fitted to the receiving data* (the maintainer's own
+specification): the highest class's upper bound and the lowest class's
+lower bound become the target column's max and min. Where the target's
+max is BELOW the upper class's lower bound, the two are made equal, so
+that class collapses; likewise where the target's min is above the
+lower class's upper bound, the lower class's lower bound is set to its
+upper. Since breaks are now cut from the region's values for a field,
+two elements on the SAME variable share a data range and none of this
+bites -- these rules exist for copying ACROSS variables, which is the
+case the feature is really for.
+
+*Interior breaks stranded outside the target's data are KEPT, and the
+swatch says so with light diagonal hatching over the stripes no tile
+can wear.* Copying v3's breaks onto an element carrying v1 leaves
+several classes the data cannot reach; dropping them would be the
+tidier answer and was rejected deliberately, because the copy is
+supposed to reproduce a classification and a silently shortened one
+does not. The hatch is what makes the emptiness visible rather than
+silent, which was the only real objection to keeping them. It marks
+ANY class no tile wears, so it covers the collapsed ends above as
+well. Two limits to state plainly: it is a plugin-UI affordance, since
+QGIS draws its own legend from the symbol and hatching that would
+change the map rather than describe it; and it belongs in the editor's
+class table as well as the main table's swatch, or the emptiness is
+only visible from the window the user has just left.
+
+*No collision with the class-count reduction.* Hand-set breaks bypass
+the classifier entirely, so "a column cannot be cut into more classes
+than it has distinct values" still governs every break the software
+COMPUTES and never overrules one a user imported.
+
+*Overwriting.* The copy lands at once and the map repaints while the
+window is open; the note line names what was replaced ("element c's
+four hand-picked colours and its low pin were replaced by a copy from
+element a"). Reported, never silent, and never asked -- the habit
+every other loss in this plugin follows.
+
+*Two details settled without asking, recorded so they can be
+overturned deliberately.* The dropdown returns to reading "Copy to..."
+after each use, and copies to one element per pick rather than
+offering a multi-select, because a destructive action reads better one
+target at a time. And an element carrying no variable is not offered,
+having no column to classify.
+
+*What must be true before it merges.* The pinned-bounds work above
+must be in, since this is stored in its record. Then: a copy proved
+end to end across two elements carrying DIFFERENT variables, with the
+end-fitting rules measured on both degenerate cases; a copy from an
+Unclassed element proved to make its target Unclassed and back again;
+the hatching asserted to appear exactly on classes no tile wears, and
+to disappear when the data changes so that they do; the notice proved
+to REACH a user through the message bar, not merely to exist, which is
+the fault this session met twice; and the dropdown asserted to be
+absent altogether in categorical dress. Every new test gets a
+catalogue entry and must report `caught`.
+
 **Sampling the six unsampled assignment-lookup copies.** Deferred here
 from 0.24.2 deliberately: it is measurement rather than
 defect-finding, and the night of 2026-08-13 put mutation sampling at
