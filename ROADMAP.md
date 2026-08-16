@@ -104,6 +104,27 @@ Deferred from 0.24.3 on 2026-08-15. All three are MEASUREMENT: they
 say how good the suite is rather than whether the plugin is right,
 so none of them blocks an artefact.
 
+**Adopt the output group on `projectRead`, not only in `__init__`.**
+Added 2026-08-16. A project opened under an OPEN dialog is currently
+neither adopted nor replaced: `_forget_the_last_project` now clears
+the group name and output path, so the next Generate makes its OWN
+group rather than silently drawing over the incoming project's, which
+stops the wrong map but leaves a visible extra group where a user
+would expect their old one to be taken over. The elegant repair is to
+adopt on `projectRead`, so a dialog that survives a File > Open takes
+over the new project's group the way a freshly constructed one does.
+That is a change of shape rather than a line, which is why it was not
+done under a release.
+
+**Give the stochastic hunt an exported-file invariant that RUNS.** Added
+2026-08-16. A hunt over 105 checked steps reported its five axes:
+holes 103, tile totals 103, opacity pairing 23, values-on-no-data 23,
+and the GeoPackage comparison ZERO. That last axis never executed, so
+a green run said nothing whatever about the exported file while
+looking like full coverage. Counting what each invariant actually
+compared is the practice worth keeping; an axis that never runs is
+indistinguishable from one that always passes.
+
 **Sampling the six unsampled assignment-lookup copies.** Deferred here
 from 0.24.2 deliberately: it is measurement rather than
 defect-finding, and the night of 2026-08-13 put mutation sampling at

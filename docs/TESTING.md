@@ -14,6 +14,38 @@ The suite lives in `tests/run_tests.py` (behaviour), `tests/visual_tests.py`
 `tools/` (coverage, mutation, standards, secrets). Everything runs
 under QGIS's own Python; `release.py` gates on all of it.
 
+## Tests written in haste, measured
+
+2026-08-16. Fourteen tests were written in one day alongside the fixes
+they guard, and a hunt afterwards mutated the behaviour each one names
+to see whether it would notice. Eleven killed everything aimed at
+them. THREE HAD DEAD SECONDARY AXES, which is about one in five and
+matches this project's historical rate:
+
+- a tile-count check that compared a sum WITH ITSELF -- twice. The
+  first version was literal; the second compared `featureCount()`
+  against the same two layers iterated, which a split that DROPS rows
+  passes happily. It counts against an independent sibling now.
+- `assert dlg._element_layer_ids[tid] == dlg._element_layer_ids[tid]`,
+  a value read twice from one dict, which no mutation can disturb.
+- a colour check that passed while the RECORD went from one
+  hand-picked colour to four: the map was pixel-identical and the row
+  silently stopped following the ramp it still named.
+
+Two of the three were in tests whose PRIMARY axis was live and
+well-aimed, which is the point worth keeping: a test is not one
+assertion but several, and a live first assertion says nothing about
+the ones after it. When a batch of tests is written quickly, point a
+hunt at the tests rather than the product.
+
+The same day produced three more fixture faults worth recognising on
+sight: a layer never added to the project, so every element came back
+unassigned; two chooser picks made back to back, which is the race
+among choosers and loses both; and a fixture whose elements all sat on
+an axis, where a half turn and a single mirror are indistinguishable.
+Each was caught by an assertion that stated its own premise, which is
+the cheapest guard there is.
+
 ## The differential sweep: reproducing and sharding
 
 Three environment variables, all added 2026-08-10 while chasing a

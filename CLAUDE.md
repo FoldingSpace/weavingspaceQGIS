@@ -925,7 +925,64 @@ first, kept here so they are unmissable:
 - Every test that produces a map checks it visually (`visual_pair` or
   `visual_gamut`), and those checks appear in the release PDF.
 
+**Adding a thing that PAIRS with an existing thing.** (2026-08-16, the
+No Data layer. Six defects in one day, all one shape, and the shape
+recurs whenever a feature gives an element a second layer, a second
+record or a second table.)
+- **A PAIRED ARTEFACT INHERITS THE IDENTITY OF WHAT IT IS PAIRED
+  WITH**, so every reader keyed on that identity silently gains a
+  second answer, and every writer that maintained the original has a
+  twin that does not. The no-data layer carries its element's
+  `weavingspace_tile_id` because it belongs to that element -- and
+  adoption, keyed on that id alone, let the twin OVERWRITE its own
+  element, so the next Generate removed the twin and orphaned the real
+  layer. Yesterday's map then sat on top of the new one for good.
+  GREP THE PROPERTY, NOT THE FEATURE: every reader of the id, every
+  per-element dict, every count of a group's children.
+- **ENUMERATE WHAT A CLEAR SITE LEAVES**, not what it clears. Three
+  places in dialog.py clear per-element state and no two cleared the
+  same set; the first two were fixed and the commit message NAMED the
+  third, which was then not looked at. Reading the list of records a
+  site clears tells you nothing about the record missing from it.
+- **WHEN A FIX WIDENS A SIGNATURE, ASK WHETHER THE NEW TERM IS COARSER
+  THAN WHAT IT STANDS FOR.** A boolean per element ("does this need a
+  split") is INVARIANT UNDER A PERMUTATION, so swapping two elements'
+  variables left each holding the other's split -- values drawn as no
+  data and gaps drawn as nothing. It carries the field now.
+- **WHEN A FIX IS INSERTED INTO AN EXISTING SEQUENCE, CHECK ITS ORDER
+  AGAINST THE TWIN**, not merely that the line is present. `setOpacity`
+  went in after `embed_style`, so the layer in the project was right
+  and the GeoPackage kept 1.0: the map a user sends on was not the map
+  they made, and the project's copy being correct is exactly what hid
+  it.
+- **A GUARD THAT TESTS SIGN DOES NOT TEST FINITENESS.** `span > 0` is
+  perfectly true of infinity, and log10 of it overflows through a Qt
+  slot, so the button silently does nothing and QGIS shows a Python
+  error window.
+- **DECIDE ABOVE THE THING, NOT INSIDE IT.** "This cannot be classified
+  at all" was implemented inside `make_graduated_renderer`, which
+  promises a QgsGraduatedSymbolRenderer and whose callers read its
+  ranges; returning a different class from it crashed the dialog on
+  the very column the change was about. It belongs in `seed_renderer`.
+
 **Process.**
+- **TARGETED RUNS CANNOT FIND WHAT THEY DO NOT NAME**, and three
+  candidate builds aborted proving it (2026-08-16). Each abort was the
+  same fault -- something counts or renders an element and looks only
+  at `_element_layer_ids` -- and each time it was fixed in the
+  instances a keyword search turned up, because the keyword matched
+  what had just been fixed. The tests that finally caught the worst of
+  it mention neither colour nor class nor no data. Two habits follow:
+  when a change alters what a map CONTAINS, grep every reader that
+  counts, measures or renders it and fix the SET rather than the
+  instance; and do not mistake a green subset for a green suite. The
+  full suite in `release.py` is the only thing that found it.
+- **A TEMPORARY LIST FROM A QGIS GETTER FREES ITS CONTENTS.**
+  `renderer.ranges()[0].symbol()` and `categories()[0].symbol()` read
+  memory that has just been released: one segfaulted QGIS outright,
+  the other returned a plausible WRONG COLOUR (#000000) that looked
+  exactly like the Qt double-ownership bug and sent an hour after the
+  wrong cause. Bind the list to a name first, then subscript it.
 - Check upstream's actual semantics before reimplementing behaviour:
   "unclassed" turned out to be matplotlib's linear Normalize (so 50
   equal intervals, not a new scheme), and categorical colours follow
