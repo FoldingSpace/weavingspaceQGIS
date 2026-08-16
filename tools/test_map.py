@@ -178,7 +178,12 @@ def marks(node, doc, body):
                              "for name in wanted", "problems = []",
                              "wrong = []", "missing = []")):
     out.append("family")
-  if doc and "Regression:" in doc:
+  # The marker must BEGIN a line, as tools/bug_register.py and
+  # tools/check_standards.py both require. A bare substring test also
+  # matches a docstring merely NAMING the marker -- "No ``Regression:``
+  # line, deliberately" -- and this map is read beside the register,
+  # so the two counts silently disagreed by one until 2026-08-16.
+  if doc and re.search(r"^[ \t]*Regression:", doc, re.M):
     out.append("guards")
   return out
 

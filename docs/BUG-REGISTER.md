@@ -205,6 +205,8 @@ there is no separate list to remember.
   guarded by `test_the_classes_cell_reports_its_own_element`
 - **nothing yet; written to keep an assertion the colourspace comparison gave up when it stopped naming matplotlib's colormaps.**  
   guarded by `test_the_ramp_a_row_names_is_the_ramp_the_map_draws`
+- **both generators searched for `Regression:` ANYWHERE in a docstring, so test_support_logic's sentence saying it deliberately carries no such line was published as a guarded defect -- the entry reading "`` line, deliberately", a count of 190 where the suite supported 189, and a shape tally overstating "not written down at the time" by one. check_standards then demanded a [shape] tag for the phantom and one was supplied, so the suite carried a tag on a paragraph declaring it had nothing to tag. Neither checker could see it: check_standards recounts the register with the GENERATOR'S OWN rules, so it agreed with the bug.**  
+  guarded by `test_the_report_generators_survive_hostile_docstrings`
 
 ## Found by running the suite somewhere other than the machine it was written on
 
@@ -378,8 +380,6 @@ there is no separate list to remember.
   guarded by `test_resuming_skips_only_what_still_holds`
 - **a design whose spacing implied millions of tiles was attempted rather than refused, and QGIS became unresponsive while it ran.**  
   guarded by `test_size_guard`
-- **`` line, deliberately. This guards ground we imagined rather than ground we fell through, and it used to carry the size guard's defect line by a mispaste -- which put a claim into the generated docs/BUG-REGISTER.md that this test could not possibly have supported, since nothing here goes near a tile count. The line now sits on test_size_guard, which does guard it.**  
-  guarded by `test_support_logic`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_the_categorical_editor_offers_no_pin_and_no_copy`
 - **tests/run_tests.py gained os._exit at the end of main() on 2026-08-11, which skipped the write in tools/coverage_per_test.py; three sharded recorders ran the whole suite, wrote no file, and the rc5 candidate aborted 35 minutes in at the merge stage with "nothing to merge". The last good record was a day old, and the release would otherwise have measured mutants against it.**  
@@ -428,12 +428,12 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- not written down at the time: 82
+- not written down at the time: 81
 - a bug hunt pointed in a named direction: 41
 - the mutation campaign: 16
 - reported by a user: 11
+- reading the code: 7
 - race and stress testing: 6
-- reading the code: 6
 - running the suite somewhere other than the machine it was written on: 6
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5

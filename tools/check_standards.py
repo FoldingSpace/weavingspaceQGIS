@@ -287,7 +287,15 @@ def check_regression_shapes():
           or not node.name.startswith("test_"):
         continue
       doc = _ast.get_docstring(node) or ""
-      found = re.search(r"Regression:\s*(.+?)(?:\n\s*\n|\Z)", doc, re.S)
+      # The SAME anchored pattern tools/bug_register.py uses, and it
+      # must stay the same: this check decides which docstrings owe a
+      # [shape] tag, and the register decides which become entries, so
+      # a difference between the two makes one of them demand a tag
+      # the other will never read. Unanchored, both matched a sentence
+      # that merely NAMED the marker, and the tag went on a docstring
+      # saying it deliberately had no line. (2026-08-16.)
+      found = re.search(r"^[ \t]*Regression:\s*(.+?)(?:\n\s*\n|\Z)",
+                        doc, re.S | re.M)
       if not found:
         continue
       text = " ".join(found.group(1).split())

@@ -1576,7 +1576,14 @@ def test_support_logic():
   the generated docs/BUG-REGISTER.md that this test could not
   possibly have supported, since nothing here goes near a tile count.
   The line now sits on test_size_guard, which does guard it.
- [unrecorded]
+
+  The ``[unrecorded]`` tag that stood here until 2026-08-16 was not a
+  record of anything: both generators searched for the marker
+  ANYWHERE in a docstring, so the sentence above was read as a defect
+  line, check_standards demanded a shape for it, and the tag was
+  supplied to satisfy a paragraph-length phantom. Both patterns are
+  anchored to a line start now, so this docstring can say what it
+  means.
   """
   import sys
   from weavingspace_qgis import compat, deps
@@ -28164,14 +28171,15 @@ def _c2_hostile_module_source():
   """A synthetic suite module built to defeat a careless AST reader.
 
   Returns:
-    Python source, as text, defining five module-level tests, a
+    Python source, as text, defining six module-level tests, a
     test-shaped method on a class, a zero-argument lambda bound to a
-    test-shaped name, and a ``main`` that registers five of them.
+    test-shaped name, and a ``main`` that registers six of them.
     Between them the docstrings carry a raw string with backslashes, a
     block of indented source quoted inside a docstring (including a
     ``Regression:`` line for a test that does not exist), non-ASCII
-    text, and a ``Regression:`` line inside a string in a function
-    BODY rather than in its docstring.
+    text, a ``Regression:`` line inside a string in a function BODY
+    rather than in its docstring, and a docstring that NAMES the
+    marker mid-sentence while declaring it carries no such line.
 
   Two things about how this is assembled, both deliberate. The triple
   quotes are built from ``q3`` and ``s3`` rather than typed, because
@@ -28229,6 +28237,20 @@ def _c2_hostile_module_source():
     "  return message",
     "",
     "",
+    # The marker NAMED inside a sentence rather than beginning one.
+    # This is the shape that cost the real register an entry: the
+    # generators searched anywhere in the docstring, so a test saying
+    # it deliberately had no defect line was published as guarding
+    # one, and the rest of the sentence became the defect.
+    "def test_says_it_has_no_regression_line():",
+    f"  {q3}A test that talks ABOUT defect lines without carrying one.",
+    "",
+    "  No ``Regression:`` line, deliberately -- this guards ground we",
+    "  imagined rather than ground we fell through.",
+    f"  {q3}",
+    "  return None",
+    "",
+    "",
     "test_defined_as_a_lambda = lambda: None",
     "helper = lambda: 42",
     "",
@@ -28254,6 +28276,8 @@ def _c2_hostile_module_source():
     '  REGISTER("unicode docstring", test_unicode_docstring)',
     '  REGISTER("regression word inside a body string",',
     "           test_regression_word_inside_a_body_string)",
+    '  REGISTER("says it has no regression line",',
+    "           test_says_it_has_no_regression_line)",
     '  REGISTER("defined as a lambda", test_defined_as_a_lambda)',
     "",
   ]
@@ -28296,11 +28320,24 @@ def test_the_report_generators_survive_hostile_docstrings():
   raw docstring carrying backslashes, a docstring quoting indented
   source that includes a Regression line for a test nobody defined,
   non-ASCII text, a Regression line inside a body string rather than a
-  docstring, a zero-argument lambda bound to a test-shaped name, and a
-  class with a test-shaped method. What must hold: nothing raises,
-  every module-level test the module defines is reported, the one
-  nobody registers is flagged as such, and the register picks up
-  exactly the defect lines that are really in docstrings.
+  docstring, a docstring that names the marker inside a sentence while
+  saying it carries no such line, a zero-argument lambda bound to a
+  test-shaped name, and a class with a test-shaped method. What must
+  hold: nothing raises, every module-level test the module defines is
+  reported, the one nobody registers is flagged as such, and the
+  register picks up exactly the defect lines that are really in
+  docstrings.
+
+  Regression: both generators searched for `Regression:` ANYWHERE in a
+  docstring, so test_support_logic's sentence saying it deliberately
+  carries no such line was published as a guarded defect -- the entry
+  reading "`` line, deliberately", a count of 190 where the suite
+  supported 189, and a shape tally overstating "not written down at
+  the time" by one. check_standards then demanded a [shape] tag for
+  the phantom and one was supplied, so the suite carried a tag on a
+  paragraph declaring it had nothing to tag. Neither checker could see
+  it: check_standards recounts the register with the GENERATOR'S OWN
+  rules, so it agreed with the bug. [review]
 
   Two limits are measured rather than demanded, because the generators
   read ``def`` statements and that is a reasonable thing to do: a test
@@ -28334,6 +28371,7 @@ def test_the_report_generators_survive_hostile_docstrings():
                        "test_never_registered",
                        "test_raw_string_docstring",
                        "test_regression_word_inside_a_body_string",
+                       "test_says_it_has_no_regression_line",
                        "test_unicode_docstring"], \
       f"the fixture defines {defined}, not what this test expects"
 
@@ -28365,6 +28403,18 @@ def test_the_report_generators_survive_hostile_docstrings():
       "a function quoted inside a docstring was reported as a test"
     assert "test_also_phantom" not in by_function, \
       "a function quoted inside a body string was reported as a test"
+    # The map keeps a THIRD copy of the same question -- which
+    # docstrings guard a real defect -- and it is read beside the
+    # register, so the two counts must come from the same rule. They
+    # did not: a bare `"Regression:" in doc` marked the docstring that
+    # merely names the marker, and the map said 191 where the register
+    # said 190.
+    guarding = {row["function"] for row in rows
+                if "guards" in row.get("marks", [])}
+    assert guarding == {"test_raw_string_docstring",
+                        "test_unicode_docstring"}, \
+      f"the map and the register must agree about which tests guard a " \
+      f"defect; the map marks {sorted(guarding)}"
     rendered = test_map.render(rows)
     assert "unicode docstring" in rendered and "élément" in rendered, \
       "the rendered map lost the unicode row"
@@ -28390,8 +28440,49 @@ def test_the_report_generators_survive_hostile_docstrings():
     assert "test_phantom" not in by_test, \
       "a Regression line in a function that does not exist was " \
       "registered against it"
+    assert "test_says_it_has_no_regression_line" not in by_test, \
+      "a docstring that NAMES the marker in a sentence -- 'No " \
+      "``Regression:`` line, deliberately' -- was registered as " \
+      "guarding a defect, and the rest of that sentence became the " \
+      "defect. This is the real fault of 2026-08-16: the register " \
+      "claimed 190 where the suite supported 189"
+    # the whole set, not only the absences named above: a generator
+    # that registered some SIXTH thing would satisfy every assertion
+    # so far and still put a claim in the register that no test backs
+    assert set(by_test) == {"test_raw_string_docstring",
+                            "test_unicode_docstring"}, \
+      f"exactly two of the fixture's docstrings begin a Regression " \
+      f"line; the register found {sorted(by_test)}"
     assert len(bug_register.render(entries)) > 0, \
       "the register rendered nothing at all"
+
+    # ---- the standards check's own copy of that pattern. It decides
+    # which docstrings OWE a [shape] tag while the register decides
+    # which become entries, so the two matchers must agree: unanchored,
+    # both matched the sentence above, and the tag demanded by one was
+    # written into a docstring declaring it had no line to tag.
+    standards = _c2_tool_module("check_standards")
+    standards.ROOT = folder
+    standards.problems = []
+    # It reads the HOW map out of tools/bug_register.py UNDER ITS OWN
+    # ROOT, and gives up early when it cannot find one. Pointed at a
+    # bare temporary folder it therefore checks nothing and reports
+    # nothing, which passes -- the axis was dead exactly this way when
+    # first written. Give the fixture a tools/ and then ASSERT the
+    # check ran, so a future rearrangement cannot quietly kill it.
+    os.makedirs(os.path.join(folder, "tools"))
+    shutil.copy(os.path.join(ROOT, "tools", "bug_register.py"),
+                os.path.join(folder, "tools", "bug_register.py"))
+    standards.check_regression_shapes()
+    assert not [p for p in standards.problems if "HOW map" in p], \
+      f"the standards check could not read the HOW map, so it gave up " \
+      f"before examining any docstring: {standards.problems}"
+    # the fixture's two real defect lines both carry a tag, so a
+    # working check finds nothing to complain about at all
+    assert not standards.problems, \
+      f"the standards check demands a [shape] tag for a docstring " \
+      f"that carries no defect line, which is how the real suite came " \
+      f"to wear one: {standards.problems}"
 
     # ---- the release's testing-report annotations
     release = _release_module("release")

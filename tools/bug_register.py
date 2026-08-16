@@ -100,7 +100,20 @@ def entries():
         continue
       doc = ast.get_docstring(node) or ""
       name = node.name
-      note = re.search(r"Regression:\s*(.+?)(?:\n\s*\n|\Z)", doc, re.S)
+      # ANCHORED TO THE START OF A LINE, and that is the whole point.
+      # An unanchored search matches the marker wherever it appears,
+      # including inside a sentence ABOUT it -- and a docstring saying
+      # "No ``Regression:`` line, deliberately" duly published the rest
+      # of that sentence as a defect this suite guards, inflating the
+      # count by one and putting a claim into docs/BUG-REGISTER.md that
+      # no test supported. Worse, check_standards then demanded a
+      # [shape] tag on the phantom, and somebody supplied one, so the
+      # file ended up carrying a tag on a paragraph declaring it had no
+      # line to tag. Real lines always begin one: ast.get_docstring
+      # cleans the indentation, so `^[ \t]*` is all the leeway needed.
+      # (Found 2026-08-16 by reading the generated register.)
+      note = re.search(r"^[ \t]*Regression:\s*(.+?)(?:\n\s*\n|\Z)",
+                       doc, re.S | re.M)
       if not note:
         continue
       text = " ".join(note.group(1).split())
