@@ -1144,6 +1144,26 @@ renderer, found by a hunt hours after the carry-over was written.)
   definitions and check BOTH directions of the registration list;
   `test_the_report_generators_survive_hostile_docstrings` asserts both
   and is the cheapest thing to run.
+- **AND THE OPPOSITE EDIT IS QUIETER: A SECOND DEFINITION REPLACES THE
+  FIRST AND NOTHING GOES MISSING.** Also 2026-08-16, hours later.
+  Widening `_label_for` for the three kinds of absence was done by
+  writing a NEW method below the old one instead of changing it.
+  Python binds a name once per statement, so the last wins: the dead
+  one sat above the live one, in its own place, with its own docstring
+  describing behaviour the software no longer had. The survivor's
+  fallback was the fixed word "no data" -- and the categorical branch
+  calls it for EVERY row, so the window whose whole job is to say
+  which value draws in which colour labelled forest, water and urban
+  alike. A deletion leaves a hole somebody trips over; an addition
+  leaves two plausible functions and no symptom at the site.
+  `test_nothing_defines_the_same_name_twice` now checks the whole tree
+  at module and class level, exempting the decorated idioms where
+  redefining a name is Python's own (a property's setter, a
+  `singledispatch` registration, `typing.overload`). WHEN A HELPER
+  MUST ANSWER DIFFERENTLY FOR TWO CALLERS, that is the signal to look
+  at the callers, not to write a second helper: the parentheses that
+  mark the categorical catch-all now live at that call site, and the
+  one method answers plainly.
 - **A GATE PIPED INTO ANYTHING IS NOT A GATE.** `check_before_push |
   tail -2` returns TAIL's exit status, so a shell `&&` after it fires
   whatever the gate said. That is how a tree failing the standards

@@ -103,6 +103,20 @@ Deferred from 0.24.3 on 2026-08-15. All three are MEASUREMENT: they
 say how good the suite is rather than whether the plugin is right,
 so none of them blocks an artefact.
 
+**Why the table is rebuilt 2.8 times as often as it was.** Measured
+2026-08-16 and NOT explained: `_refresh_table` runs 461 times at
+v0.24.2 and 1,282 times at HEAD over the same test. The cost that made
+it matter is gone -- each rebuild redrew a swatch for every ramp for
+every row, and those are cached now -- so what remains is 1.3x CPU
+rather than 3x, comfortably inside every ceiling. What is not known is
+whether those extra rebuilds are necessary or redundant. An
+investigation was started and deliberately stopped: it could not run
+beside the timing measurement that decided the release, and its answer
+changes no artefact. Point it at the caller histogram (instrument
+`_refresh_table` inside the function, behind an environment flag, and
+diff the callers between the two revisions); the answer is which
+callers grew.
+
 **Give the stochastic hunt an exported-file invariant that RUNS.** Added
 2026-08-16. A hunt over 105 checked steps reported its five axes:
 holes 103, tile totals 103, opacity pairing 23, values-on-no-data 23,

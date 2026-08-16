@@ -14,6 +14,52 @@ The suite lives in `tests/run_tests.py` (behaviour), `tests/visual_tests.py`
 `tools/` (coverage, mutation, standards, secrets). Everything runs
 under QGIS's own Python; `release.py` gates on all of it.
 
+## A red suite can mean the software got SLOWER, and reading it as a hang costs the diagnosis
+
+2026-08-16. Every CI suite leg went red at once -- three Linux
+versions and macOS -- with the same line: `STALL adversarial
+sequences [no result after 600s]`, exit 2. The stacks were genuine and
+pointed at real work, so the first reading was a hang in the newest
+code on that path. That reading was wrong twice over, and both
+corrections are worth keeping.
+
+**The test passed in isolation, at both revisions.** 101s at HEAD, 78s
+at v0.24.2, well inside the 600s ceiling. Nothing was hanging. What
+had changed was CPU: 15s against 46s on the same test. Wall clock hid
+it, because most of that time is the test waiting on debounces; the
+project's own rule about diagnosing by CPU rather than elapsed time
+applies to a SLOWDOWN exactly as it does to a stall.
+
+**The stack names where time is SPENT, not what made it expensive.**
+Profiling both revisions gave the answer the stacks could not: the
+table was rebuilt 461 times at 0.24.2 and 1,282 times at HEAD, and
+each rebuild redrew a ramp swatch for every ramp in the style library
+for every row -- 306,558 draws, 311,613 style lookups and 2.45 million
+`fillRect` calls in one test, against the 63 distinct swatches it
+actually needs. The regression was a multiplier meeting an
+already-expensive thing that nothing had ever cached.
+
+Read call COUNTS rather than seconds when comparing two profiles: a
+profiler's overhead swamps the totals, so the ratio of self-times
+understated this threefold difference as 1.2x while the call counts
+carried it exactly.
+
+TWO TRAPS IN PROFILING THIS PROJECT AT ALL, both paid for that day.
+`python -m cProfile -o file` writes NOTHING here, because the suite and
+`tools/run_some.py` both end in `os._exit` and cProfile dumps at
+interpreter shutdown -- the same trap that left
+`tools/coverage_report.py` unable to write a report until 2026-08-13.
+Write a driver that dumps the stats itself, before exiting. And a
+plain `python3` invoked from a shell that has sourced the QGIS
+environment inherits `PYTHONHOME` and dies on `No module named
+'encodings'`; read profiles back with `env -i`.
+
+THE FIX FOR A CEILING A HEALTHY RUN NOW REACHES IS NOT THE CEILING.
+Raising 600s would have turned every leg green and hidden a threefold
+cost increase on a path a user meets whenever the region layer
+changes. A watchdog catches hangs; it is not a performance budget, and
+that rule cuts in the inconvenient direction too.
+
 ## A guard is not a guard until you have watched it fail
 
 2026-08-16 produced two guards that were DEAD the moment they were
@@ -38,6 +84,31 @@ and watch the guard fail. Not the behaviour it names in the abstract:
 the actual line you just wrote. Both of these passed their first run,
 which is exactly what made them worth suspecting -- and a fixture that
 cannot exhibit the case is invisible in a green result.
+
+**AND A GUARD THAT FAILS IS NOT YET A GUARD THAT IS RIGHT.** Later the
+same day a cache test failed on its first run, saying the cache was
+deaf to QGIS's style signals. The verdict was right and the premise
+was wrong: it staged the library change with `addColorRamp`, and
+measured on QGIS 4.0.3 that call emits NOTHING, while
+`removeColorRamp` emits `rampRemoved` and `entityRemoved`. Had the
+failure been taken at face value the "fix" would have been machinery
+for a signal that does not exist. Probing which signals actually fire
+took two minutes and turned the test into one that stages the change
+through the call that emits AND asserts the silent one is harmless,
+because a name never cached cannot be stale. When a new test fails,
+establish that its premise is true before believing its conclusion --
+the reflex to fix the product is as strong as the reflex to fix the
+test, and both are wrong when the fixture is what is mistaken.
+
+**A TEST CAN CHECK THE EXCEPTIONAL ROW AND NEVER THE ORDINARY ONE.**
+The categorical editor's test asserted that the last row reads "(no
+data)", that the column is the settled width, and that every row's
+button carries the colour the map would use -- and never once tied an
+ordinary row's LABEL to its value. So it passed while every row in
+the window read "no data". Found because its catalogue entry SURVIVED
+while the two beside it were caught, which is the catalogue doing the
+job it exists for. When a test enumerates rows, ask whether it
+asserts the thing the rows are FOR, or only the decoration around it.
 
 ## What a day of hunting one's own new code actually costs
 

@@ -12,7 +12,7 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-08-16, after SIX rounds in one day: three against
+Last updated 2026-08-16 (evening), after SIX rounds in one day: three against
 the No Data feature as it was written, then four aimed at the same
 day's fixes, then six more after those. Twenty-one hunts in all.
 
@@ -501,6 +501,46 @@ above does not fill the slate: a third of any round's directions must
 still be unable to pattern-match against the code, or the hunts
 converge on the failure modes we already know how to see.
 
+## Reading the documents IS a direction, and it found two defects
+
+2026-08-16, and it was not planned as a hunt at all. A session that
+began by re-reading every procedural `.md` file turned up, within the
+hour, a method DEFINED TWICE in one class -- the categorical colour
+editor labelling every value "no data" -- and then, chasing why a
+candidate was slow, an uncached swatch redrawn 306,558 times in one
+test.
+
+Neither came from a question about the code. The first came from
+following a user-guide sentence to the window it described; the
+second from asking why a stage was over its usual time instead of
+waiting for it. That makes this a sibling of the prose direction, and
+the same lesson applies more widely than either: THE DOCUMENTS AND
+THE INSTRUMENTS ARE FULL OF CLAIMS, and a claim can be checked
+without a hypothesis about where a bug is.
+
+**Performance is now TRIED, and it paid.** It was on the untried list
+above, described as "a design that takes ten minutes and produces
+nothing is a harm, and nothing hunts for it". What actually happened
+is that the harm arrived as a red CI suite, and the direction was
+forced. The technique that worked: profile the SAME test at two
+revisions and diff the CALL COUNTS, not the seconds. Counts are
+immune to profiler overhead and to contention from anything else
+running, which is what makes them usable on a busy machine -- the
+self-time ratio understated a threefold difference as 1.2x while the
+call counts carried it exactly.
+
+**A stopped hunt is a legitimate outcome and belongs in the record.**
+Four investigations were launched that afternoon and three were
+stopped: two duplicates run on a second model for agreement, killed
+when the token cost outweighed the value of a second opinion on work
+that could be verified directly; and one real investigation killed
+because it was running QGIS suites on the machine where the timing
+measurement that decided the release had to be taken. That last is
+the reusable point -- A HUNT THAT CONTENDS WITH A MEASUREMENT IS
+COSTING MORE THAN IT KNOWS, and the rule against running two
+measurements at once applies to agents as much as to processes. Its
+question survives as a roadmap entry rather than as a loose end.
+
 ## Directions not yet tried
 
 Written down so they are a decision rather than an oversight:
@@ -517,8 +557,11 @@ Written down so they are a decision rather than an oversight:
 - **The specification itself** — every hunt so far assumes the settled
   decisions are right and looks for code that fails them. None asks
   whether a settled decision is wrong.
-- **Performance and scale** — a design that takes ten minutes and
-  produces nothing is a harm, and nothing hunts for it.
+- ~~**Performance and scale**~~ — TRIED 2026-08-16, not by choice:
+  the harm arrived as four red CI suite legs, all stalled at one
+  test. Found an uncached swatch redrawn 306,558 times in a single
+  test. See "Reading the documents IS a direction" above for the
+  technique, which is to diff call COUNTS between two revisions.
 - **The prose** — the user guide and help text make claims about
   behaviour; nobody has tested those claims as claims.
 

@@ -176,6 +176,40 @@ editing under them produced two spoiled measurements in one night
 existed, and a census baselining source that had changed underneath
 it.
 
+### A captured stage must never be able to wedge, and must leave a record
+
+Found 2026-08-16, in the machinery rather than the plugin, while a
+candidate sat at seventy minutes on a stage that usually takes
+fourteen. `run_sharded` started every shard with `stdout=PIPE` and
+then called `communicate()` on them ONE AT A TIME. A shard nobody is
+draining keeps writing into a pipe; at 64 KB the buffer fills and its
+`write()` blocks. Measured: shard 2 sat at exactly 20:00.99 CPU for
+over fifty minutes while the other two ran on, with 2374 of 2374
+stack samples in `__write_nocancel` beneath GDAL's error handler.
+
+It was never a deadlock -- the blocked shard resumes when the loop
+reaches it -- which is what made it invisible: the stage completes,
+eventually, and the only symptom is that sharding quietly stops
+buying anything whenever output is heavy. THE SECOND HALF WAS WORSE.
+Because the captured text only reached disk when the stage ENDED, a
+run killed part-way left no stage log at all, so seventy minutes of
+suite output bought exactly nothing.
+
+Each shard now writes to its own file, named for the RUN (a timestamp
+and pid) rather than the shard number, so a relaunch cannot land in a
+live run's file -- the rule this project already learned when two
+runs of one shard appended to `shard0.log` and the counts stopped
+making sense. Guarded by
+`test_no_shard_waits_on_a_pipe_nobody_is_reading`, whose stand-in
+shards each write about 1.3 MB and then wait for each other, so the
+old code stands still rather than merely running slowly.
+
+TWO THINGS TO CHECK OF ANY CAPTURED CHILD, and neither is exotic: can
+it produce more output than a pipe buffer holds while nobody is
+reading, and does its output survive the run being killed? A
+long-running child whose log appears only at the end is one you cannot
+diagnose and cannot interrupt.
+
 ### What CI checks about the ARTEFACT, not the source
 
 Three of the jobs ask about the thing a user receives rather than the
