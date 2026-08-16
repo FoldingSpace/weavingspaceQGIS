@@ -20416,9 +20416,20 @@ def test_icon_mode_says_when_an_element_has_no_icon_for_an_area():
   statement is not an improvement, so the icon case gets its own
   wording naming the elements.
 
-  Regression: in icon mode an element with no icon for some areas was never reported, because the coverage count asks whether any element drew them. [hunt]
+  THIS TEST COULD NOT FAIL UNTIL 2026-08-16 and is worth reading as a
+  cautionary example. It asserted only on `icon_coverage_message`,
+  called with a dictionary written by hand, and never opened a dialog
+  -- so setting the dialog's `note` to None, which deletes the notice
+  from the plugin entirely, left it green. A hunt aimed at our own
+  tests found that, and a second hunt found, independently, that the
+  count feeding the notice was wrong. The dead axis is why the wrong
+  count shipped. The helper assertions are kept, because the wording
+  is a real claim; what follows them now is the dialog.
+
+  Regression: in icon mode an element with no icon for some areas was never reported, because the coverage count asks whether any element drew them. And then the count that replaced the silence read `_element_layer_ids` alone, so every gap in the column made every element look short by the number of gaps -- a notice naming all four elements while saying the others still drew those areas, which refutes itself. Measured 2026-08-16 on a 36-area region with one NULL: both halves sum to 36 of 36 on every element. [hunt]
   """
   from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
 
   # the helper, on the shape the measurement found
   note = bridge.icon_coverage_message(
@@ -20431,6 +20442,51 @@ def test_icon_mode_says_when_an_element_has_no_icon_for_an_area():
     f"false -- other elements draw them: {note}"
   assert bridge.icon_coverage_message({}, 144, 6000.0, "m") is None, \
     "a complete map produced a warning"
+
+  # ...and now the same claim through the plugin, which is where it
+  # was wrong. A column with ONE gap, in icon mode: every element
+  # draws every area across its two layers, so nothing may be said.
+  project = QgsProject.instance()
+  layer = _layer_with_a_gap(n=6, field="v1")
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  for row in range(dlg.table.rowCount()):
+    chooser = dlg.table.cellWidget(row, 1)
+    if chooser is not None and hasattr(chooser, "setCurrentText"):
+      chooser.setCurrentText("v1")
+      _tick(120)          # a tick between picks: two back to back
+                          # lose both, which is the race among choosers
+  dlg.opt_icons.setChecked(True)
+  _tick(150)
+  BAR_MESSAGES.clear()
+  _generate_and_wait(dlg)
+
+  # the premise, so this cannot pass by never splitting at all
+  tids = list(dlg._element_layer_ids)
+  assert tids, "no element layers, so there is nothing to count"
+  assert dlg._no_data_layer_ids, \
+    "the gap produced no paired layer, so the miscount this test " \
+    "names could not arise and the assertion below is vacuous"
+  units = layer.featureCount()
+  for tid in tids:
+    element = project.mapLayer(dlg._element_layer_ids[tid])
+    paired_id = dlg._no_data_layer_ids.get(tid)
+    paired = project.mapLayer(paired_id) if paired_id else None
+    drawn = element.featureCount() + (
+      paired.featureCount() if paired is not None else 0)
+    assert drawn == units, \
+      f"element {tid} draws {drawn} of {units} areas across its two " \
+      f"layers, so this fixture does not show the case"
+  said = [text for _, text in BAR_MESSAGES if "no icon" in text]
+  assert not said, \
+    f"every element draws every one of the {units} areas across its " \
+    f"two layers, and the plugin still reported {said}. A notice " \
+    f"that names elements while saying other elements draw those " \
+    f"areas contradicts itself"
+  dlg.close()
 
 
 def test_both_halves_of_an_element_fade_together():

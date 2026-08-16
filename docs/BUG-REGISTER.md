@@ -99,7 +99,7 @@ there is no separate list to remember.
   guarded by `test_both_halves_of_an_element_fade_together`
 - **a mode change or a variable swap was answered by the restyle path, which cannot cut a no-data split, so the missing-value areas became holes again.**  
   guarded by `test_changing_to_a_graduated_style_cuts_the_split_it_needs`
-- **in icon mode an element with no icon for some areas was never reported, because the coverage count asks whether any element drew them.**  
+- **in icon mode an element with no icon for some areas was never reported, because the coverage count asks whether any element drew them. And then the count that replaced the silence read `_element_layer_ids` alone, so every gap in the column made every element look short by the number of gaps -- a notice naming all four elements while saying the others still drew those areas, which refutes itself. Measured 2026-08-16 on a 36-area region with one NULL: both halves sum to 36 of 36 on every element.**  
   guarded by `test_icon_mode_says_when_an_element_has_no_icon_for_an_area`
 - **generating into a new group deleted the kept result's no-data layers, punching holes in the map the user had asked to keep.**  
   guarded by `test_keeping_a_result_keeps_both_halves_of_every_element`

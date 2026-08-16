@@ -7054,7 +7054,26 @@ class WeavingSpaceDialog(QDialog):
             element = QgsProject.instance().mapLayer(lid)
             if element is None:
               continue
-            missing_here = unit_count - element.featureCount()
+            # BOTH HALVES, or every gap in the column becomes a
+            # fabricated notice. An element whose variable has missing
+            # values keeps its icons for those areas on the PAIRED
+            # layer, so counting the element alone reports it short by
+            # exactly the number of gaps -- and since every element on
+            # that column is short by the same amount, the sentence
+            # named all four while saying the others still drew them,
+            # which refutes itself. Measured 2026-08-16 on a 36-area
+            # region with one gap: both halves sum to 36 of 36 on
+            # every element, against a notice claiming up to 1
+            # missing. This is the FOURTH reader to count an element
+            # by `_element_layer_ids` alone since the paired layer
+            # arrived; the commit before the one that added this loop
+            # is called "Every count against the library now counts
+            # both halves of an element".
+            paired = QgsProject.instance().mapLayer(
+              self._no_data_layer_ids.get(tid) or "")
+            drawn = element.featureCount() + (
+              paired.featureCount() if paired is not None else 0)
+            missing_here = unit_count - drawn
             if missing_here > 0:
               short[str(tid)] = missing_here
           note = bridge.icon_coverage_message(
