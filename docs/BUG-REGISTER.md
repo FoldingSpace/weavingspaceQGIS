@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-198 defect(s) with a regression test.
+199 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -81,6 +81,8 @@ there is no separate list to remember.
   guarded by `test_a_pin_leaves_no_class_for_a_tile_to_miss`
 - **a pin set on an element carrying a copied classification was recorded, stamped and shown as set while the map ignored it, and then took effect later when the copy was released.**  
   guarded by `test_a_pin_still_works_on_a_copied_ladder`
+- **pin_problem correctly dropped an undrawable pin from the map while the record, the ramp cell's pinned box and the layer's `weavingspace_quant_style` stamp all still asserted it, and nothing was reported. Measured 2026-08-16: a low pinned at 7.0 on a column running 0-35, the column retyped to 5000-40000, the map's first class ending at 12000 and `_pinned_bounds` still holding 7.0. The comment in bridge said "the DIALOG reports the loss" and no such site existed.**  
+  guarded by `test_a_pin_the_data_moved_under_is_released_and_said`
 - **the class-bound control had a fixed range and a fixed number of decimal places, so a bound typed on a column of large or very small values was silently replaced by a different number.**  
   guarded by `test_a_pinned_bound_can_hold_the_numbers_a_column_carries`
 - **opening a project while the plugin was open left the dialog holding the old group name and output path, so the next Generate drew its map on top of the opened project's instead of replacing it.**  
@@ -445,7 +447,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 81
-- a bug hunt pointed in a named direction: 45
+- a bug hunt pointed in a named direction: 46
 - the mutation campaign: 16
 - reported by a user: 13
 - reading the code: 9

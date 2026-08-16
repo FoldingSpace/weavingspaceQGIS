@@ -2048,6 +2048,15 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   # to prevent. `pin_problem` is the same judge the typed bound faces,
   # asked again of the values as they now are; the DIALOG reports the
   # loss, since bridge draws maps and says nothing.
+  # THAT LAST CLAUSE WAS FALSE UNTIL 2026-08-16, and a hunt found it:
+  # no such site existed anywhere. The pin was dropped from the map
+  # while the dialog's record, the swatch's pinned box and the layer's
+  # stamp all went on asserting it, and a save and reopen read the
+  # dead number straight back off the layer -- a pin shown as set over
+  # a map that ignores it, while `pin_problem` refuses that very
+  # number if it is typed. `dialog._retire_an_undrawable_pin` is the
+  # site now, called from both notice paths. A comment describing what
+  # a caller is supposed to do is not a caller.
   # ...but NOT under a copied ladder, which is deliberately allowed to
   # run past the receiving column: a copy reproduces a classification,
   # its unreachable classes are kept and hatched rather than dropped,

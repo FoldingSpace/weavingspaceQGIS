@@ -3923,6 +3923,65 @@ class WeavingSpaceDialog(QDialog):
       self._pinned_bounds.setdefault(tile_id, {}).setdefault(
         field, dict(stored_pins))
 
+  def _retire_an_undrawable_pin(self, field, assignment):
+    """Drop a pin the data has moved out from under, and say so.
+
+    Args:
+      field: the column the element carries.
+      assignment: that element's row of `_assignments`, read for its
+        tile id, its class count and its pin record.
+
+    Returns:
+      One sentence for the message bar when a pin was retired, or
+      None when there was nothing to retire -- which is the ordinary
+      case. The dialog's own record is cleared as a side effect, and
+      the element is left to be re-stamped by the run in progress.
+
+    WHY THIS EXISTS. `make_graduated_renderer` already asks
+    `bridge.pin_problem` of the values as they NOW are and drops a
+    pin it cannot draw, which is right: the alternative is a ladder
+    running to a bound the data no longer reaches, four classes
+    wearing nothing and every tile in the first. But bridge draws
+    maps and says nothing, so the loss was invisible -- and the
+    comment there said "the DIALOG reports the loss" while no such
+    site existed anywhere.
+
+    Measured 2026-08-16: pin `v1`'s low at 7.0 on a column running
+    0-35, then retype that column to 5000-40000 or swap in a layer at
+    that scale. The map's first class ends at 12000, and
+    `_pinned_bounds` still holds 7.0, the ramp cell still draws its
+    pinned box, the layer is still stamped with it, and nothing is
+    said. Save, reopen, and the 7.0 is read back off the layer, so
+    the row shows a pin over a map that ignores it -- while
+    `pin_problem` refuses that very number if it is typed.
+
+    A pin is a statement a PERSON made, so retiring one is worth a
+    sentence rather than a silent correction; that is the same reason
+    a refused pin reverts its control and reports instead of being
+    quietly clamped.
+    """
+    tile_id = str(assignment.get("id") or "")
+    record = self._pinned_bounds.get(tile_id, {}).get(field) or {}
+    low, high = record.get("low"), record.get("high")
+    if low is None and high is None:
+      return None
+    source = self._classification_values(field)
+    if source is None:
+      return None
+    values = source.uniqueValues(source.fields().indexOf(field))
+    if not bridge.pin_problem(low, high, values,
+                              int(assignment.get("k", 5) or 5),
+                              record.get("breaks")):
+      return None
+    # Clear the whole record for this field: the flags and any copied
+    # boundary values go together, because what made them undrawable
+    # was the column moving beneath all of them at once.
+    self._pinned_bounds.get(tile_id, {}).pop(field, None)
+    ends = "bounds" if (low is not None and high is not None) else "bound"
+    return (f"The class {ends} you set on '{field}' cannot be drawn "
+            f"from the values it holds now, so it has been released "
+            f"and the classes are worked out for you again.")
+
   def _legend_size_note(self, field, assignment):
     """The notice when a column draws fewer classes than it was asked.
 
@@ -6670,6 +6729,12 @@ class WeavingSpaceDialog(QDialog):
       field = a.get("var")
       if not field or a.get("mode") != "Graduated" or field in said:
         continue
+      # the pin FIRST: retiring one changes how many classes the
+      # legend note is about, so asking in the other order describes
+      # a ladder that is about to stop existing
+      retired = self._retire_an_undrawable_pin(field, a)
+      if retired is not None:
+        self._report_quietly(retired)
       note = self._legend_size_note(field, a)
       if note is not None:
         said.add(field)
@@ -7218,6 +7283,9 @@ class WeavingSpaceDialog(QDialog):
             # only where the constant notice did not already say it,
             # since one value is this rule's n == 1 instance and two
             # sentences about one column is one too many.
+            retired = self._retire_an_undrawable_pin(field, assignment)
+            if retired is not None:
+              self._report_quietly(retired)
             note = self._legend_size_note(field, assignment)
             if note is not None:
               said_constant.add(field)
@@ -7861,6 +7929,16 @@ class WeavingSpaceDialog(QDialog):
           # the paragraph above describes, arriving a third time
           # because the rule was written as one about COLOUR. Guarded
           # by test_a_pin_set_during_a_run_is_not_lost.
+          # ...and RETIRED HERE if the data has moved out from under
+          # it, because this is the last moment before the value is
+          # stamped onto the layer. Doing it at the notice sites alone
+          # cleared the dialog's record and left the STAMP carrying
+          # the dead number, so a reopen read it straight back -- the
+          # acted-on-at-landing, recorded-at-launch shape again, and
+          # it cost this feature a defect once already.
+          retired = self._retire_an_undrawable_pin(a["var"], a)
+          if retired is not None:
+            self._report_quietly(retired)
           a["pinned"] = self._pinned_bounds.get(
             a["id"], {}).get(a["var"])
         a["range_bounds"] = tuple(

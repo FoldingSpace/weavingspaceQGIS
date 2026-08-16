@@ -20922,6 +20922,72 @@ def test_the_split_tells_the_kinds_of_absence_apart():
   dlg.close()
 
 
+def test_a_pin_the_data_moved_under_is_released_and_said():
+  """A pin the map has stopped honouring must stop being shown as set.
+
+  `make_graduated_renderer` already drops a pin the current values
+  cannot carry, which is right: a ladder running to a bound the data
+  no longer reaches leaves four classes wearing nothing and every tile
+  in the first. What was missing is the other half. The dialog went on
+  holding the bound, the swatch went on drawing its pinned box, the
+  layer went on being stamped with it, and nothing was said -- so a
+  save and reopen read the dead number back and showed a pin over a
+  map that ignores it.
+
+  Driven by moving the DATA under a live pin rather than by calling
+  the check, because the claim is about what a user meets: they retype
+  a column in QGIS, or point the plugin at a layer at a different
+  scale, and the pin they set stops meaning anything.
+
+  Regression: pin_problem correctly dropped an undrawable pin from the map while the record, the ramp cell's pinned box and the layer's `weavingspace_quant_style` stamp all still asserted it, and nothing was reported. Measured 2026-08-16: a low pinned at 7.0 on a column running 0-35, the column retyped to 5000-40000, the map's first class ending at 12000 and `_pinned_bounds` still holding 7.0. The comment in bridge said "the DIALOG reports the loss" and no such site existed. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(150)
+  tid = dlg.table.item(0, 0).text()
+  dlg._pinned_bounds.setdefault(tid, {})["v1"] = {"low": 7.0}
+  _generate_and_wait(dlg)
+  # the premise: a pin the CURRENT data can carry, so the release
+  # below is caused by the data moving and not by a bad pin
+  assert dlg._pinned_bounds.get(tid, {}).get("v1"), \
+    "the pin was gone before the data moved, so this proves nothing"
+
+  # now move the values out from under it, as a retype in QGIS would
+  index = layer.fields().indexFromName("v1")
+  layer.startEditing()
+  for n, feature in enumerate(layer.getFeatures()):
+    layer.changeAttributeValue(feature.id(), index, 5000.0 + n * 300.0)
+  assert layer.commitChanges(), "the retype would not commit"
+  _tick(300)
+  BAR_MESSAGES.clear()
+  _generate_and_wait(dlg)
+
+  held = dlg._pinned_bounds.get(tid, {}).get("v1")
+  assert not held, \
+    f"the dialog still holds {held!r} after the column moved to " \
+    f"5000-8300, so the row shows a pin the map ignores and a reopen " \
+    f"reads the dead number back off the layer"
+  said = [text for _kind, text in BAR_MESSAGES
+          if "cannot be drawn" in text or "released" in text]
+  assert said, \
+    f"the pin was released and the user was told nothing: " \
+    f"{[t for _k, t in BAR_MESSAGES]!r}. A pin is a statement a " \
+    f"person made, so retiring one is worth a sentence"
+  element = project.mapLayer(dlg._element_layer_ids[tid])
+  stamp = element.customProperty("weavingspace_quant_style") or ""
+  assert "7.0" not in stamp, \
+    f"the layer is still stamped with the released pin, so reopening " \
+    f"the project brings it back: {stamp!r}"
+  dlg.close()
+
+
 def test_a_no_data_colour_comes_home_beside_a_class_colour():
   """Two colours on one element must both survive a reopen.
 
@@ -44740,6 +44806,8 @@ def main():
         test_an_infinity_alone_still_asks_for_the_split)
   check("the split tells the kinds of absence apart",
         test_the_split_tells_the_kinds_of_absence_apart)
+  check("a pin the data moved under is released and said",
+        test_a_pin_the_data_moved_under_is_released_and_said)
   check("a no data colour comes home beside a class colour",
         test_a_no_data_colour_comes_home_beside_a_class_colour)
   check("a hand styled no data layer survives a re-tile",
