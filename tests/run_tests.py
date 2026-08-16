@@ -20571,6 +20571,96 @@ def _layer_with_infinities(n=12, field="v1"):
   return layer
 
 
+def test_an_infinity_alone_still_asks_for_the_split():
+  """The question that DECIDES the split must match the split itself.
+
+  `_needs_a_no_data_split` feeds the geometry signature, and the
+  signature is what tells a full re-tile from the restyle fast path.
+  The fast path repaints layers that already exist and can neither
+  make nor unmake a paired one, so an element that ought to gain a
+  split and is answered there keeps its holes.
+
+  The fixture holds an infinity and NO nulls, deliberately: that is
+  the case where a scan looking for NULL alone says "nothing to split"
+  while the split, asked properly, has work to do. Driven through a
+  mode change rather than by reading the predicate, because what is
+  being tested is that the RUN takes the right path.
+
+  Regression: the split widened from "missing" to "the classifier cannot place this" so it would catch an infinity, and this scan went on looking for NULL alone. A full Generate still drew correctly, since the split is not gated by it -- but on a column of infinities with no nulls the signature said no split was needed, so a style change was answered by the restyle path and the holes came back. Opened and closed the same day, 2026-08-16, by widening a predicate without enumerating its readers. [review]
+  """
+  import math
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  index = layer.fields().indexFromName("v1")
+  # SEVERAL areas, not one. An element receives only some of the
+  # map's tiles, so a single spoiled area can fall entirely outside
+  # the element this test drives -- which is how the first version of
+  # this test failed against a correct fix, and is the fixture fault
+  # docs/TESTING.md calls a case made vacuous without failing.
+  ids = [f.id() for f in layer.getFeatures()]
+  layer.startEditing()
+  for position, fid in enumerate(ids[:4]):
+    assert layer.changeAttributeValue(
+      fid, index, math.inf if position % 2 == 0 else -math.inf), \
+      "the fixture refused an infinity"
+  assert layer.commitChanges(), "the edit would not commit"
+  # the premise this test stands on: NOT ONE NULL in the column, so a
+  # scan for nulls alone would answer False and the older code would
+  # look correct
+  values = [f["v1"] for f in layer.getFeatures()]
+  assert not any(v is None for v in values), \
+    "the fixture has a null in it, which is the case that already " \
+    "worked and would make this test pass for the wrong reason"
+  assert any(isinstance(v, float) and math.isinf(v) for v in values), \
+    "the fixture carries no infinity at all"
+  project.addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(150)
+  tid = dlg.table.item(0, 0).text()
+  style = dlg.table.cellWidget(0, 2)
+  categorized = style.findText("Categorized")
+  assert categorized >= 0, "the style chooser offers no Categorized"
+  style.setCurrentIndex(categorized)
+  style.activated.emit(categorized)
+  _tick(200)
+  _generate_and_wait(dlg)
+  assert not dlg._no_data_layer_ids.get(tid), \
+    "a categorized element was split, which it never needs -- it has " \
+    "its own catch-all, so the second act below tests nothing"
+
+  # RE-FETCH THE WIDGET. A run rebuilds the table and replaces every
+  # cell widget, so the reference captured above is now a dead object
+  # and setting it changes nothing -- the first version of this test
+  # drove a corpse and reported the product broken, with the
+  # assignment still reading Categorized.
+  style = dlg.table.cellWidget(0, 2)
+  # now the style change that must be answered by a full re-tile
+  graduated = style.findText("Quant: Quantiles")
+  assert graduated >= 0, "the style chooser offers no Quantiles"
+  style.setCurrentIndex(graduated)
+  style.activated.emit(graduated)
+  _tick(200)
+  _generate_and_wait(dlg)
+  paired_id = dlg._no_data_layer_ids.get(tid)
+  assert paired_id, \
+    "moving to a graduated style over a column holding an infinity " \
+    "made no paired layer, so that area is a hole: the run was " \
+    "answered by the restyle path, which cannot cut a split"
+  paired = project.mapLayer(paired_id)
+  kinds = {f[bridge.ABSENCE_FIELD] for f in paired.getFeatures()}
+  assert kinds and kinds <= {"pos-infinity", "neg-infinity"}, \
+    f"the paired layer carries {kinds}, not the infinity that put it " \
+    f"there"
+  dlg.close()
+
+
 def test_the_split_tells_the_kinds_of_absence_apart():
   """A hole and an off-the-scale value are not the same statement.
 
@@ -44403,6 +44493,8 @@ def main():
         test_both_halves_of_an_element_fade_together)
   check("the spinner outranks a value the dialog itself wrote",
         test_the_spinner_outranks_a_value_the_dialog_itself_wrote)
+  check("an infinity alone still asks for the split",
+        test_an_infinity_alone_still_asks_for_the_split)
   check("the split tells the kinds of absence apart",
         test_the_split_tells_the_kinds_of_absence_apart)
   check("a hand styled no data layer survives a re-tile",

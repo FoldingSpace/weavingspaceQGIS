@@ -3861,8 +3861,24 @@ class WeavingSpaceDialog(QDialog):
       except (ValueError, KeyError, TypeError, AttributeError):
         field, colours = None, None
       if field and colours:
-        self._category_colours.setdefault(tile_id, {}).setdefault(
-          field, dict(colours))
+        # PER KEY, NOT PER FIELD, and the difference cost the No data
+        # colour. `_adopt_row_symbology` runs first and ASSIGNS the
+        # colours it recovered from the renderer -- which never
+        # include the no-data entry, since no renderer records one --
+        # so a setdefault on the FIELD found something already there
+        # and did nothing. Measured 2026-08-16: the .qgz held
+        # {"no-data": "#abcdef", "0": "#123456"} and the dialog came
+        # back with the class colour alone, offering #dddddd over a
+        # map still drawing #abcdef, until the next Generate painted
+        # #dddddd over it. A plain close-and-reopen was enough.
+        # The gap rule itself is unchanged and still right: anything
+        # the dialog already holds was chosen since reopening and
+        # wins. It just has to be asked about each colour rather than
+        # about the whole field.
+        have = self._category_colours.setdefault(tile_id, {}).setdefault(
+          field, {})
+        for key, value in colours.items():
+          have.setdefault(key, value)
     # and the graduated record, guarded the same way: an unreadable
     # property must never stop the dialog from opening
     raw = layer.customProperty("weavingspace_quant_style")
@@ -3879,8 +3895,13 @@ class WeavingSpaceDialog(QDialog):
     if not field:
       return
     if colours:
-      self._quant_colours.setdefault(tile_id, {}).setdefault(
-        field, dict(colours))
+      # per key, for the reason spelled out on the categorized twin
+      # above: the recovered class colours arrive first and would
+      # otherwise make this whole merge a no-op, taking the No data
+      # colour with them
+      have = self._quant_colours.setdefault(tile_id, {}).setdefault(field, {})
+      for key, value in colours.items():
+        have.setdefault(key, value)
     if (lo, hi) != (0, 100) and 0 <= lo <= hi <= 100 \
         and tile_id not in self._ramp_ranges:
       self._ramp_ranges[tile_id] = (lo, hi)
@@ -6208,17 +6229,32 @@ class WeavingSpaceDialog(QDialog):
     return self._column_has_nulls(assignment.get("var"))
 
   def _column_has_nulls(self, field):
-    """Whether the region layer has missing values in one column.
+    """Whether the region layer has UNPLACEABLE values in one column.
 
     Args:
       field: the column name, or None, which answers False.
 
     Returns:
-      True when at least one feature's value there is absent. False
+      True when at least one feature's value there cannot be drawn by
+      a graduated renderer -- a NULL, a NaN, or an infinity. False
       when none is, when there is no such column, or when there is no
       region layer to ask -- absence of an answer is not evidence of
-      nulls, and claiming one would put an element through a full
+      anything, and claiming one would put an element through a full
       re-tile for nothing.
+
+    IT MUST ASK THE SAME QUESTION `bridge.split_out_the_no_data` ASKS,
+    and for a few hours on 2026-08-16 it did not. The split widened
+    from "missing" to "the classifier cannot place this", so that it
+    would catch an infinity; this scan went on looking for NULL alone.
+    The split itself is not gated by this, so a full Generate still
+    drew correctly -- what this feeds is the GEOMETRY SIGNATURE, and
+    on a column holding infinities but no NULLs the dialog therefore
+    believed no split was needed, so a style-only change was answered
+    by `_restyle_only`, which can neither make nor unmake a paired
+    layer, and the holes came back. Exactly the defect
+    test_changing_to_a_graduated_style_cuts_the_split_it_needs guards
+    for nulls, reached through a door opened by widening a predicate
+    without enumerating its readers.
 
     Cached on the layer, the column and `_data_version`, which is
     bumped whenever the data underneath changes, so an edit in QGIS
@@ -6241,6 +6277,16 @@ class WeavingSpaceDialog(QDialog):
     for feature in layer.getFeatures():
       value = feature[field]
       if value is None or str(value) == "NULL":
+        found = True
+        break
+      # ...and the two states a float can be in that no class can
+      # hold. `value != value` is true only of a NaN, and the
+      # comparisons catch either infinity; both are ordinary values as
+      # far as QGIS is concerned, which is why neither was noticed
+      # here. Guarded against a non-float by the isinstance, since
+      # this column may be text.
+      if isinstance(value, float) and (
+          value != value or value in (float("inf"), float("-inf"))):
         found = True
         break
     # One entry per column per data version. It IS cleared with the
