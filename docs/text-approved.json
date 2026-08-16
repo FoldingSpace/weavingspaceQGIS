@@ -289,6 +289,11 @@
   "excerpt": "'{}': {} tiles across {} element layers",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "363d40541c40e972": {
+  "approved": "2026-08-16",
+  "excerpt": "'{}' has {} distinct values, so {} of the {} classes are emp",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "364344d670831204": {
   "approved": "2026-08-08",
   "excerpt": "Strand width as a fraction of spacing: 1.0 fills all space; ",
@@ -333,6 +338,11 @@
   "approved": "2026-08-08",
   "excerpt": "No symbology found in the style file.",
   "where": "weavingspace_qgis/bridge.py"
+ },
+ "40b6010412c0e118": {
+  "approved": "2026-08-16",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
  },
  "42562fd4c77de6c3": {
   "approved": "2026-08-08",
@@ -1053,6 +1063,11 @@
   "approved": "2026-08-08",
   "excerpt": "![Anthropogenic biomes at six moments in time across northea",
   "where": "README.md"
+ },
+ "bd3480a5e9366f87": {
+  "approved": "2026-08-16",
+  "excerpt": "'{}' has {} distinct values left between its pinned bounds, ",
+  "where": "weavingspace_qgis/bridge.py"
  },
  "bf717698d324fd5c": {
   "approved": "2026-08-08",
