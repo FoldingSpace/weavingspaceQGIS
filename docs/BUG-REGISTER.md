@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-200 defect(s) with a regression test.
+201 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -105,6 +105,8 @@ there is no separate list to remember.
   guarded by `test_both_halves_of_an_element_fade_together`
 - **a mode change or a variable swap was answered by the restyle path, which cannot cut a no-data split, so the missing-value areas became holes again.**  
   guarded by `test_changing_to_a_graduated_style_cuts_the_split_it_needs`
+- **the missing-values notice counted NULLs only, so with two NULLs and four infinities among 144 areas it said "2 of 144" while the map drew nine no-data tiles across seven areas -- and on a column whose only unplaceable values were infinities it said nothing whatever. `_element_has_missing_values` had the same one-line scan, so the colour editor withheld its No data row on such a column. Both are the fifth and sixth readers of a predicate widened that morning.**  
+  guarded by `test_every_reader_of_unplaceable_agrees_with_the_split`
 - **in icon mode an element with no icon for some areas was never reported, because the coverage count asks whether any element drew them. And then the count that replaced the silence read `_element_layer_ids` alone, so every gap in the column made every element look short by the number of gaps -- a notice naming all four elements while saying the others still drew those areas, which refutes itself. Measured 2026-08-16 on a 36-area region with one NULL: both halves sum to 36 of 36 on every element.**  
   guarded by `test_icon_mode_says_when_an_element_has_no_icon_for_an_area`
 - **generating into a new group deleted the kept result's no-data layers, punching holes in the map the user had asked to keep.**  
@@ -449,7 +451,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 81
-- a bug hunt pointed in a named direction: 47
+- a bug hunt pointed in a named direction: 48
 - the mutation campaign: 16
 - reported by a user: 13
 - reading the code: 9

@@ -1617,6 +1617,44 @@ def classification_source(field: str, values) -> QgsVectorLayer | None:
     return None
 
 
+def cannot_be_placed(value) -> bool:
+  """Whether a graduated renderer has nowhere to draw this value.
+
+  Args:
+    value: one attribute value, as QGIS hands it back -- Python None
+      for a NULL, or a float which may be NaN or infinite.
+
+  Returns:
+    True when the value belongs on the paired No Data layer rather
+    than in any class: a NULL, a NaN, or an infinity. False for
+    anything a classifier can place, including text, which a
+    graduated element never carries.
+
+  ONE OWNER, because this question is asked in five places and the
+  answer drifted apart three times in a single day. The split widened
+  from "missing" to "the classifier cannot place this" so it would
+  catch an infinity, and each reader had to be found separately
+  afterwards: `_column_has_nulls`, which decides whether an element
+  needs a split at all; `_element_has_missing_values`, which decides
+  whether the colour editor offers a No data row; and the count
+  behind the missing-values notice, which told a user 2 of 144 areas
+  while the map drew 9 no-data tiles across 7 areas -- and said
+  NOTHING AT ALL when the only unplaceable values were infinities,
+  so grey patches appeared with no explanation.
+  Each was a one-line scan for NULL that looked complete on its own.
+  Deriving the rule once is the only way the map and the sentences
+  about it can agree.
+  """
+  if value is None or value == NULL or str(value) == "NULL":
+    return True
+  if isinstance(value, float):
+    # the only value not equal to itself is a NaN; the comparisons
+    # catch either infinity. Both are ordinary values to QGIS, which
+    # is why neither was noticed by a scan looking for absence.
+    return value != value or value in (float("inf"), float("-inf"))
+  return False
+
+
 def _nudge_off_shared_bounds(renderer) -> int:
   """Let a repeated value reach the class that stands for it.
 

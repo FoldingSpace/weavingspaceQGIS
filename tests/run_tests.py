@@ -20713,6 +20713,90 @@ def test_a_repeated_value_reaches_the_class_that_means_it():
     f"1, 3 and 5, so exactly classes 2 and 4 are empty"
 
 
+def test_every_reader_of_unplaceable_agrees_with_the_split():
+  """The map and the sentences about it must count the same things.
+
+  Five places ask "can a graduated renderer draw this value": the
+  split itself, the scan deciding whether an element NEEDS a split,
+  the check deciding whether the colour editor offers a No data row,
+  the missing-values notice, and the icon-mode notice. When the split
+  widened to catch infinities the others were left asking about NULL
+  alone, and each looked complete on its own.
+
+  This drives the dialog over a column carrying BOTH kinds and then
+  over one carrying infinities ONLY -- the second is what a scan for
+  NULL cannot see at all, and where the plugin drew grey patches and
+  said nothing.
+
+  Regression: the missing-values notice counted NULLs only, so with two NULLs and four infinities among 144 areas it said "2 of 144" while the map drew nine no-data tiles across seven areas -- and on a column whose only unplaceable values were infinities it said nothing whatever. `_element_has_missing_values` had the same one-line scan, so the colour editor withheld its No data row on such a column. Both are the fifth and sixth readers of a predicate widened that morning. [hunt]
+  """
+  import math
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  # the owner itself, on every kind it must recognise
+  for value in (None, float("nan"), math.inf, -math.inf):
+    assert bridge.cannot_be_placed(value), \
+      f"{value!r} is not drawable by any class and was not recognised"
+  for value in (0.0, -3.5, 1e12, "text"):
+    assert not bridge.cannot_be_placed(value), \
+      f"{value!r} is perfectly drawable and was called unplaceable"
+
+  project = QgsProject.instance()
+  layer = _layer_with_infinities()       # a NULL, a NaN, +inf, -inf
+  project.addMapLayer(layer)
+  spoiled = sum(1 for f in layer.getFeatures()
+                if bridge.cannot_be_placed(f["v1"]))
+  assert spoiled == 4, \
+    f"the fixture spoils {spoiled} areas, not the four this counts on"
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(150)
+  BAR_MESSAGES.clear()
+  _generate_and_wait(dlg)
+  said = [t for _k, t in BAR_MESSAGES if "no value" in t]
+  assert said, "nothing was said about the missing values at all"
+  assert str(spoiled) in said[0], \
+    f"the notice counts NULLs only: it says {said[0]!r} where {spoiled} " \
+    f"areas hold values no class can draw"
+  dlg.close()
+
+  # ...and the case a scan for NULL is blind to: infinities alone
+  project.clear()
+  only_inf = make_region_layer(n=12)
+  index = only_inf.fields().indexFromName("v1")
+  only_inf.startEditing()
+  for n, feature in enumerate(only_inf.getFeatures()):
+    if n < 3:
+      only_inf.changeAttributeValue(feature.id(), index,
+                                    math.inf if n % 2 else -math.inf)
+  assert only_inf.commitChanges(), "the fixture would not commit"
+  assert not any(f["v1"] is None for f in only_inf.getFeatures()), \
+    "the fixture has a NULL, which is the case that already worked"
+  project.addMapLayer(only_inf)
+  second = WeavingSpaceDialog(iface=_Iface())
+  second.live_check.setChecked(False)
+  second.layer_combo.setLayer(only_inf)
+  _tick(200)
+  second.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(150)
+  tid_two = second.table.item(0, 0).text()
+  assert second._element_has_missing_values(tid_two, "v1"), \
+    "the colour editor would offer no No data row on a column whose " \
+    "only unplaceable values are infinities, though the map draws them"
+  BAR_MESSAGES.clear()
+  _generate_and_wait(second)
+  said = [t for _k, t in BAR_MESSAGES if "no value" in t]
+  assert said, \
+    f"infinities alone: the map drew them as no data and the user was " \
+    f"told nothing, so grey patches appear with no explanation. Bar " \
+    f"held {[t for _k, t in BAR_MESSAGES]!r}"
+  second.close()
+
+
 def test_the_nudge_never_orphans_a_value():
   """No value may end up belonging to no class at all.
 
@@ -44846,6 +44930,8 @@ def main():
         test_the_spinner_outranks_a_value_the_dialog_itself_wrote)
   check("a repeated value reaches the class that means it",
         test_a_repeated_value_reaches_the_class_that_means_it)
+  check("every reader of unplaceable agrees with the split",
+        test_every_reader_of_unplaceable_agrees_with_the_split)
   check("the nudge never orphans a value",
         test_the_nudge_never_orphans_a_value)
   check("ordinary data keeps qgis's own breaks",

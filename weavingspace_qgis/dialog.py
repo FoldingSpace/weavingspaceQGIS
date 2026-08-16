@@ -6338,18 +6338,7 @@ class WeavingSpaceDialog(QDialog):
       return False
     found = False
     for feature in layer.getFeatures():
-      value = feature[field]
-      if value is None or str(value) == "NULL":
-        found = True
-        break
-      # ...and the two states a float can be in that no class can
-      # hold. `value != value` is true only of a NaN, and the
-      # comparisons catch either infinity; both are ordinary values as
-      # far as QGIS is concerned, which is why neither was noticed
-      # here. Guarded against a non-float by the isinstance, since
-      # this column may be text.
-      if isinstance(value, float) and (
-          value != value or value in (float("inf"), float("-inf"))):
+      if bridge.cannot_be_placed(feature[field]):
         found = True
         break
     # One entry per column per data version. It IS cleared with the
@@ -6435,8 +6424,11 @@ class WeavingSpaceDialog(QDialog):
     if index < 0:
       return False
     for feature in source.getFeatures():
-      value = feature[field]
-      if value is None or str(value) == "NULL":
+      # the SAME question the split asks, through the same owner: this
+      # decides whether the editor offers a No data row at all, and
+      # scanning for NULL alone withheld it on a column whose only
+      # unplaceable values were infinities
+      if bridge.cannot_be_placed(feature[field]):
         return True
     return False
 
@@ -7307,9 +7299,16 @@ class WeavingSpaceDialog(QDialog):
             if self._source_layer_alive(layer) else -1
           if index < 0:
             continue
+          # COUNTED THROUGH THE SAME OWNER as the split, or the
+          # sentence describes a different map from the one drawn.
+          # Measured 2026-08-16 on 144 areas with two NULLs and four
+          # infinities: the bar said "2 of 144" while the map drew
+          # nine no-data tiles across seven areas, and on an
+          # infinities-only column it said nothing whatever, so grey
+          # patches appeared with no explanation.
           missing = sum(
             1 for feature in layer.getFeatures()
-            if feature[field] is None or str(feature[field]) == "NULL")
+            if bridge.cannot_be_placed(feature[field]))
           note = bridge.missing_values_message(
             field, missing, int(layer.featureCount()))
           if note is not None:
