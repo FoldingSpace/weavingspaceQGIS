@@ -77,6 +77,54 @@ NO_DATA_FILL = "#dddddd"
 # "no data", so this is deliberately something no attribute value can
 # collide with rather than a readable word.
 NO_DATA_KEY = "\x00no-data"
+
+# THE THREE WAYS A VALUE CAN BE UNPLACEABLE, and they are not one
+# thing. A graduated renderer draws none of them, so all three leave
+# the element's own layer for its paired one -- but a reader is owed
+# the difference between "nobody recorded a value here" and "this area
+# is off the top of the scale", which on a choropleth is the
+# difference between missing and extreme. (Maintainer's instruction,
+# 2026-08-16.)
+#
+# WHY THREE AND NOT FOUR, which is the measurement that settled it. A
+# stored NaN is a fourth state QGIS itself holds apart from NULL --
+# but writing one to a GeoPackage stores NULL (measured 2026-08-16
+# through QgsVectorFileWriter and read back with sqlite3), so the
+# category would be empty for anyone whose data came from a file,
+# and a legend swatch no tile can ever wear is the defect this
+# project fixes elsewhere. The maintainer's ruling was to support
+# what a GeoPackage supports and collapse NaN into No data, which
+# `isna()` already does for free. The infinities need no such care:
+# the same measurement showed SQLite stores them as REAL and hands
+# them straight back, and they arrive here as ordinary values whose
+# only peculiarity is that `isna()` is False -- which is exactly why
+# they used to fall through the split AND the class breaks and be
+# drawn as nothing at all.
+POS_INF_KEY = "\x00+inf"
+NEG_INF_KEY = "\x00-inf"
+
+# The column the paired layer carries so its renderer can tell the
+# kinds apart. Named once here because the renderer categorizes on it
+# and should not have to know which variable produced the layer.
+ABSENCE_FIELD = "ws_absence"
+
+# key -> (value stored in ABSENCE_FIELD, legend label, default fill).
+# The labels say what happened rather than naming a floating-point
+# state. The infinities are deliberately NOT the no-data grey: they
+# mean off-the-scale rather than absent, and one colour for both would
+# break one-colour-one-meaning inside the feature meant to uphold it.
+ABSENCE_KINDS = (
+  (NO_DATA_KEY, "no-value", "no value", NO_DATA_FILL),
+  (NEG_INF_KEY, "neg-infinity", "below any value", "#8c9fc7"),
+  (POS_INF_KEY, "pos-infinity", "above any value", "#c78c8c"),
+)
+
+# key -> the value stored in ABSENCE_FIELD, and back again. Two dicts
+# rather than repeated indexing into the tuples above, so a reader
+# never has to remember which position means what.
+ABSENCE_VALUE = {key: stored for key, stored, _label, _fill in ABSENCE_KINDS}
+ABSENCE_BY_VALUE = {stored: key for key, stored, _l, _f in ABSENCE_KINDS}
+
 # tag attached to ramps we install, so they are identifiable/removable
 RAMP_TAG = "mapweaver"
 
@@ -2557,7 +2605,32 @@ def split_out_the_no_data(frame, field, column_has_values=None):
   if field is None or frame is None or field not in getattr(
       frame, "columns", []):
     return frame, None
-  missing = frame[field].isna()
+  import numpy as np
+  import pandas as pd
+
+  # WHAT THE CLASSIFIER CANNOT PLACE, which is wider than "missing".
+  # `isna()` alone is False for an infinity, so ±inf was neither
+  # classed (the breaks exclude non-finite values) nor split onto the
+  # paired layer, and those areas were drawn as NOTHING -- a hole,
+  # which is the very thing this split exists to abolish. Measured
+  # 2026-08-16: sixteen tiles per element where symbolForFeature
+  # returned None, 0.000 of the area painted against 0.26 for a
+  # control. A GeoPackage really does carry an infinity: SQLite
+  # stores it as REAL and OGR hands it straight back.
+  #
+  # A NaN needs no special case and deliberately gets none. `isna()`
+  # already covers it, which collapses it into No data -- the
+  # maintainer's ruling, because a GeoPackage stores a written NaN as
+  # NULL, so a category of its own would be empty for anyone whose
+  # data came from a file.
+  values = frame[field]
+  missing = values.isna()
+  # to_numeric coerces a text column to NaN, so `infinite` is empty
+  # there rather than raising: a text field has no infinities and
+  # asking is not an error.
+  numeric = pd.to_numeric(values, errors="coerce")
+  infinite = numeric.notna() & ~np.isfinite(numeric)
+  missing = missing | infinite
   if not bool(missing.any()):
     return frame, None
   if bool(missing.all()) and not column_has_values:
@@ -2617,7 +2690,24 @@ def split_out_the_no_data(frame, field, column_has_values=None):
     # hole to read, and the existing path already says the right
     # thing.
     return frame, None
-  return frame[~missing], frame[missing]
+  # The paired layer carries WHICH KIND each row is, in a column the
+  # plugin owns, so its renderer can categorize on one fixed name
+  # without knowing which variable produced the layer. Computed from
+  # the values rather than carried down from the region, because by
+  # here they are exactly as informative: a NULL and a NaN are both
+  # `isna()` and are meant to collapse, and an infinity is still an
+  # infinity.
+  gone = frame[missing].copy()
+  kind = []
+  for value in pd.to_numeric(gone[field], errors="coerce"):
+    if pd.isna(value):
+      kind.append(ABSENCE_VALUE[NO_DATA_KEY])
+    elif value > 0:
+      kind.append(ABSENCE_VALUE[POS_INF_KEY])
+    else:
+      kind.append(ABSENCE_VALUE[NEG_INF_KEY])
+  gone[ABSENCE_FIELD] = kind
+  return frame[~missing], gone
 
 
 def make_no_data_renderer(colour: str, outline: bool):

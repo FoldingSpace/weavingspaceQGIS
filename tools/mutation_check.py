@@ -174,8 +174,13 @@ MUTATIONS = [
            "handler runs on a destroyed dialog, reaches a deleted "
            "QTableWidget and takes QGIS down with it"),
   dict(name="a-missing-value-is-drawn-not-left-as-a-hole", file=BRIDGE,
-       old="""  missing = frame[field].isna()""",
-       new="""  missing = frame[field].isna() & False""",
+       # RE-ANCHORED 2026-08-16: the predicate widened from "missing"
+       # to "the classifier cannot place this", so the isna() line
+       # gained an infinity term beside it and this entry stood on
+       # text that no longer existed. Anchored on the union now, which
+       # is the line that actually decides what leaves the element.
+       old="""  missing = missing | infinite""",
+       new="""  missing = (missing | infinite) & False""",
        test="test_an_area_with_no_value_is_drawn_rather_than_left_as_a_hole",
        why="QgsGraduatedSymbolRenderer has no class for a NULL -- no "
            "default, no-data, else or fallback symbol in its whole "
