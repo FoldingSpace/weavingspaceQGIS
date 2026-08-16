@@ -60,6 +60,38 @@ cost increase on a path a user meets whenever the region layer
 changes. A watchdog catches hangs; it is not a performance budget, and
 that rule cuts in the inconvenient direction too.
 
+## Assert the sentence the product composes, not a phrase copied out of it
+
+2026-08-16, and it cost an afternoon of wrong diagnosis. A test
+asserted `"no value" in said` about the missing-values notice. The
+maintainer reworded that notice the same morning -- "have no value"
+became "do not have finite numeric data", correctly, because the count
+had widened to infinities, which are values and simply not finite
+ones. The product was right; the test failed on EVERY platform.
+
+It read as a WINDOWS fault for hours, and the reason is worth more
+than the fix: Windows was the only leg anybody looked at. The macOS
+leg produced 160 results and then stalled at another test without ever
+reaching this one; the Linux legs' logs were never pulled, because
+`gh run view --log-failed` returns nothing while a run is still in
+progress and that emptiness was accepted as absence of evidence. A
+platform-shaped symptom is not evidence of a platform-shaped cause,
+and the way to tell is to run the test on the machine in front of you
+before theorising about the one you cannot see.
+
+The repair is general: compose the expected text from the same
+function the product uses (`bridge.missing_values_message`) and assert
+THAT appears. Rewording then moves the test with the product, and only
+a notice that stops appearing can fail it. A phrase transcribed into a
+test is a second copy of the wording with no mechanism keeping the two
+in step -- which is the same fault as a derived document nobody
+regenerates, in a smaller place.
+
+Worth checking the siblings when you meet one: of five nearby
+fragment assertions here, four still matched the product verbatim and
+the fifth was composed at run time, so only the one had rotted. Ten
+minutes to check, against another afternoon.
+
 ## A guard is not a guard until you have watched it fail
 
 2026-08-16 produced two guards that were DEAD the moment they were
