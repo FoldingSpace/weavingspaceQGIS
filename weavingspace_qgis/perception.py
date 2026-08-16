@@ -238,10 +238,29 @@ def clashes(element_colours, shared=None, threshold=CLASH_THRESHOLD):
       if first in shared and shared[first] == shared.get(second):
         continue
       worst = None
+      # LAB ONCE PER COLOUR, not once per COMPARISON. `distance`
+      # converts both of its arguments every call, so the obvious
+      # nested loop did 2*k*k conversions where 2*k will do -- and a
+      # conversion is about 12 microseconds, which is the whole cost.
+      #
+      # Measured before this change, per element pair: k=250 took
+      # 2.25s, k=500 9.11s, k=1000 37.05s, exactly four times per
+      # doubling. Four categorized elements of 401 classes froze QGIS
+      # for 36.75s of which 35.70s was here, on the GUI thread, with
+      # the event loop dead -- a heartbeat fired 9 times instead of
+      # ~700. The tiling those colours belonged to took 1.05s.
+      #
+      # Nothing about WHAT is compared changes: the same pairs, the
+      # same distances, the same worst-case picked. Only the repeated
+      # arithmetic goes.
       for vision in VISIONS:
-        for one in element_colours[first]:
-          for two in element_colours[second]:
-            apart = distance(one, two, vision)
+        firsts = [_to_lab(_as_dichromat(c, vision))
+                  for c in element_colours[first]]
+        seconds = [_to_lab(_as_dichromat(c, vision))
+                   for c in element_colours[second]]
+        for one in firsts:
+          for two in seconds:
+            apart = sum((a - b) ** 2 for a, b in zip(one, two)) ** 0.5
             if apart < threshold and (worst is None or apart < worst[3]):
               worst = (first, second, vision, apart)
       if worst is not None:

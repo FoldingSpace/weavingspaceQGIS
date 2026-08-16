@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-170 defect(s) with a regression test.
+171 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -83,6 +83,8 @@ there is no separate list to remember.
   guarded by `test_removing_the_region_layer_is_noticed_in_a_real_project`
 - **the constant-column notice counted the tiled output rather than the region layer, so a small area dropped at a coarse spacing produced "every area has the same value" beside a legend showing a range.**  
   guarded by `test_the_constant_notice_counts_the_users_areas`
+- **`distance` converts BOTH its arguments to CIELAB on every call, and the clash search compared every class of one element against every class of another -- so it did 2*k*k conversions where 2*k would do, at about twelve microseconds each. Measured: four categorized elements of 401 classes froze QGIS for 36.75s, of which 35.70s was here, on the GUI thread with the event loop dead; the tiling those colours belonged to took 1.05s. The live path paid it on every tweak.**  
+  guarded by `test_the_legibility_check_agrees_with_its_own_distance`
 - **a renderer changed in QGIS back to something the plugin can express left the row reading "Deferring to QGIS" with its controls disabled, and the next Generate overwrote the map.**  
   guarded by `test_the_row_follows_the_dock_back_out_of_deferring`
 - **the message bar told a user with twelve distinct values that their Unclassed element "draws as 12 classes, not 50" while the map drew fifty. `make_graduated_renderer` reduces only `if not unclassed` -- Unclassed reproduces a CONTINUOUS ramp, so its fifty steps are the shape of the reproduction rather than a class count anybody chose -- but `classes_the_map_will_draw` was never told the scheme and reduced anyway. Its own docstring claimed the two arithmetics were "kept beside it so the two cannot drift".**  
@@ -389,7 +391,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 82
-- a bug hunt pointed in a named direction: 21
+- a bug hunt pointed in a named direction: 22
 - the mutation campaign: 16
 - reported by a user: 11
 - race and stress testing: 6

@@ -5144,6 +5144,58 @@ def test_a_reopened_project_cannot_overwrite_yesterdays_geopackage():
     QgsProject.instance().clear()
 
 
+def test_the_legibility_check_agrees_with_its_own_distance():
+  """The clash search computes what `distance` computes, and quickly.
+
+  Regression: `distance` converts BOTH its arguments to CIELAB on
+  every call, and the clash search compared every class of one element
+  against every class of another -- so it did 2*k*k conversions where
+  2*k would do, at about twelve microseconds each. Measured: four
+  categorized elements of 401 classes froze QGIS for 36.75s, of which
+  35.70s was here, on the GUI thread with the event loop dead; the
+  tiling those colours belonged to took 1.05s. The live path paid it
+  on every tweak. [hunt]
+
+  The conversion is now hoisted out of the inner loop, which changes
+  nothing about WHAT is compared -- and that is what this test pins,
+  because an optimisation that quietly changes the answer is worse
+  than the slowness it cured. Timing is deliberately NOT asserted: a
+  ceiling a healthy run can reach is worse than no ceiling, and this
+  suite runs on four machines of different speeds.
+  """
+  from weavingspace_qgis import perception
+
+  # what the search reports must be exactly what distance() gives
+  colours = {"a": [(200, 30, 30), (10, 10, 200)],
+             "b": [(205, 33, 28), (250, 250, 10)]}
+  reported = perception.clashes(colours)
+  assert reported, \
+    "two near-identical reds were not reported as a clash at all"
+  closest = min(
+    perception.distance(one, two, vision)
+    for one in colours["a"] for two in colours["b"]
+    for vision in perception.VISIONS)
+  assert abs(reported[0][3] - closest) < 1e-12, \
+    f"the search reports {reported[0][3]} where distance() gives "\
+    f"{closest}; the hoisted arithmetic has drifted from the function "\
+    f"it is supposed to reproduce"
+
+  # and the hoisted form must equal the function colour by colour,
+  # under every vision, not merely at the minimum
+  import random
+  random.seed(20260816)
+  for _ in range(200):
+    one = tuple(random.randrange(256) for _ in range(3))
+    two = tuple(random.randrange(256) for _ in range(3))
+    for vision in perception.VISIONS:
+      want = perception.distance(one, two, vision)
+      first = perception._to_lab(perception._as_dichromat(one, vision))
+      second = perception._to_lab(perception._as_dichromat(two, vision))
+      got = sum((x - y) ** 2 for x, y in zip(first, second)) ** 0.5
+      assert abs(want - got) < 1e-12, \
+        f"{one} against {two} under {vision}: {want} != {got}"
+
+
 def test_unclassed_never_announces_a_reduction():
   """Quant: Unclassed draws its fifty steps, and says nothing else.
 
@@ -41693,6 +41745,8 @@ def main():
         test_the_spacing_box_at_its_extremes)
   check("a reopened project cannot overwrite yesterday's geopackage",
         test_a_reopened_project_cannot_overwrite_yesterdays_geopackage)
+  check("the legibility check agrees with its own distance",
+        test_the_legibility_check_agrees_with_its_own_distance)
   check("unclassed never announces a reduction",
         test_unclassed_never_announces_a_reduction)
   check("a scale control steps over zero",
