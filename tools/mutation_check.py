@@ -3129,6 +3129,39 @@ MUTATIONS = [
            "library, so without the reversed pass a reopened project "
            "brings the element back as Custom picks: the map is right "
            "and the tick the user set is gone"),
+  dict(name="the-label-answers-for-every-row", file=EDITOR,
+       old="""    for key, _stored, label, _fill in bridge.ABSENCE_KINDS:
+      if value == key:
+        return label
+    return str(value)""",
+       new="""    for key, _stored, label, _fill in bridge.ABSENCE_KINDS:
+      if value == key:
+        return label
+    return "no data"  # mutation: the dead twin's fallback, back again""",
+       test="test_the_editor_lists_every_value_and_the_no_data_row",
+       why="_label_for answers for EVERY categorical row, not only the "
+           "absence rows: a fixed fallback labels forest, water and "
+           "urban alike as no data, which is exactly what shipped for "
+           "a few hours on 2026-08-16 when a second definition of the "
+           "method silently replaced the first"),
+  dict(name="a-swatch-is-not-redrawn-per-appearance", file=DIALOG,
+       old="""  cached = _RAMP_ICON_CACHE.get(key)""",
+       new="""  cached = None  # mutation: every lookup misses""",
+       test="test_a_ramp_swatch_is_drawn_once_and_follows_the_library",
+       why="a table rebuild wants ~240 swatches and each was redrawn "
+           "on the GUI thread every time: 306,558 draws and 2.45M "
+           "fillRect calls in one test, three-quarters of the cost "
+           "that pushed every CI suite leg past its 600s stall "
+           "ceiling on 2026-08-16"),
+  dict(name="the-swatch-cache-hears-the-style-library", file=DIALOG,
+       old="""      if signal is not None:
+        signal.connect(_forget_ramp_icons)""",
+       new="""      if signal is not None:
+        pass  # mutation: the cache goes deaf""",
+       test="test_a_ramp_swatch_is_drawn_once_and_follows_the_library",
+       why="economy without invalidation is a STALE swatch: a ramp "
+           "removed or renamed in the Style Manager keeps its old "
+           "picture forever, silently, since nothing else redraws it"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a

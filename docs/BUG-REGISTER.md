@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-204 defect(s) with a regression test.
+206 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -213,6 +213,8 @@ there is no separate list to remember.
 
 - **none yet -- this guards the repair rather than a defect that reached anybody. The half-fixed state shipped deliberately (a visible extra group beats an invisible double map) and was recorded on ROADMAP for 0.24.4; adopting on `readProject` is that entry, done.**  
   guarded by `test_a_project_opened_under_an_open_dialog_is_taken_over`
+- **every table rebuild redrew a swatch for every ramp in the style library. Measured 2026-08-16 under cProfile on one test: 306,558 icon draws, 311,613 style-library lookups and 2.45 million fillRect calls, all on the GUI thread; the same test needs 63 distinct swatches. Survivable at 0.24.2's 461 rebuilds, it became three-quarters of the cost that pushed every CI suite leg past its 600-second stall ceiling when 0.24.3 nearly tripled the rebuild count.**  
+  guarded by `test_a_ramp_swatch_is_drawn_once_and_follows_the_library`
 - **none yet; this pins the scope of a change made 2026-08-16, because a nudge that fired on ordinary data would silently move every boundary value up one class across every map this plugin draws.**  
   guarded by `test_a_value_on_a_break_belongs_to_the_class_below`
 - **the split widened from "missing" to "the classifier cannot place this" so it would catch an infinity, and this scan went on looking for NULL alone. A full Generate still drew correctly, since the split is not gated by it -- but on a column of infinities with no nulls the signature said no split was needed, so a style change was answered by the restyle path and the holes came back. Opened and closed the same day, 2026-08-16, by widening a predicate without enumerating its readers.**  
@@ -223,6 +225,8 @@ there is no separate list to remember.
   guarded by `test_deferral_survives_a_project_round_trip`
 - **the two infinity placeholder fills were compared against themselves, so any two elements carrying an infinity were reported as an unreadable pair.**  
   guarded by `test_no_placeholder_fill_is_ever_a_clash`
+- **`_label_for` was defined twice in CategoryColourDialog, a correct version and then a second written below it rather than replacing it when the absence rows learned to tell a NULL from an infinity. Python kept the second, whose fallback is the fixed word "no data" -- and the categorical branch calls it for EVERY row, so the window whose whole job is to say which value draws in which colour labelled forest, water and urban alike as "no data". Measured 2026-08-16 by lifting both definitions out of the source and running them in a bare class. The existing editor test would have caught it; no suite had run over that tree yet.**  
+  guarded by `test_nothing_defines_the_same_name_twice`
 - **CRS work on the QgsTask worker thread segfaulted QGIS, because PROJ is not safe to use concurrently with the main thread; the CRS is now stripped before the task and reattached in the done callback.**  
   guarded by `test_real_world_data`
 - **an element styled in QGIS could not be taken back by picking the style it had before, because that restored its old signature and both seeding paths kept the renderer as unchanged.**  
@@ -459,8 +463,8 @@ there is no separate list to remember.
 - not written down at the time: 81
 - a bug hunt pointed in a named direction: 50
 - the mutation campaign: 16
+- reading the code: 13
 - reported by a user: 12
-- reading the code: 11
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6
 - a multi-step session test: 5

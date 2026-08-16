@@ -191,8 +191,78 @@ NOTE_SEPARATOR = "  |  "
 COL_EDIT_COLOURS = 8
 
 
+# DRAWN ONCE PER RAMP AND DIRECTION, not once per appearance.
+#
+# Every ramp combo is filled with an icon for EVERY ramp in the style
+# library, and there is one combo per table row, so a single table
+# rebuild draws around 240 of these. Measured 2026-08-16 on one test:
+# 306,558 icon draws, 311,613 style-library lookups and 2.45 million
+# fillRect calls, against 115,038 / 117,053 / 920,304 for the same
+# test at 0.24.2 -- the same work, done nearly three times as often
+# because this release rebuilds the table more.
+#
+# An icon is a pure function of the ramp's name and its direction, and
+# the ramp library does not change while nobody is editing it, so
+# almost all of that is the identical picture drawn again. The cache
+# keys on exactly what the drawing depends on.
+#
+# WHAT INVALIDATES IT: every signal QgsStyle offers about its
+# contents changing. Measured on QGIS 4.0.3 (2026-08-16):
+# removeColorRamp emits rampRemoved and entityRemoved, and the cache
+# hears both; plain addColorRamp emits NOTHING. That silence is
+# harmless for a new name -- it was never cached, so the next ask
+# misses and draws fresh -- and stale only for an in-place overwrite
+# of an existing name through that same silent call, which nothing in
+# this plugin does (ensure_ramps_installed skips names that exist).
+# Clearing is cheap either way: the next draw refills what it needs.
+# Failures are NOT cached: a lookup returning None usually means a
+# ramp not installed yet, and caching that would outlive the install
+# if a signal were ever missed.
+_RAMP_ICON_CACHE = {}
+_RAMP_ICONS_WATCHED = []
+
+
+def _forget_ramp_icons(*_ignored):
+  """Drop every cached swatch; the next draw rebuilds what it needs."""
+  _RAMP_ICON_CACHE.clear()
+
+
+def _watch_the_style_library():
+  """Connect the cache's invalidation to QGIS's own style signals.
+
+  Done on first use rather than at import, because QgsStyle wants a
+  running QgsApplication and this module is imported before one
+  exists in some harnesses.
+
+  Signals are connected through ``getattr`` and each is optional, as
+  ``_watch_layer`` does for layers: the list is QGIS's, a future
+  release may rename one, and a missing signal should cost a stale
+  swatch rather than an exception on the first table build.
+  """
+  if _RAMP_ICONS_WATCHED:
+    return
+  _RAMP_ICONS_WATCHED.append(True)      # even if the connecting fails
+  try:
+    from qgis.core import QgsStyle
+    style = QgsStyle.defaultStyle()
+    for name in ("entityAdded", "entityChanged", "entityRemoved",
+                 "entityRenamed", "rampAdded", "rampChanged",
+                 "rampRemoved", "rampRenamed", "styleChanged"):
+      signal = getattr(style, name, None)
+      if signal is not None:
+        signal.connect(_forget_ramp_icons)
+  except Exception:
+    # No style library yet, or a QGIS that names none of these. The
+    # cache still works; it simply will not hear about a change, and
+    # the un-cached behaviour was to redraw every time anyway.
+    pass
+
+
 def _ramp_icon(name: str, reverse: bool = False):
   """Small preview swatch (a QIcon) for a named colour ramp.
+
+  Cached per (name, direction); see _RAMP_ICON_CACHE above for what
+  clears it.
 
   Args:
     name: a ramp in QgsStyle.
@@ -206,6 +276,11 @@ def _ramp_icon(name: str, reverse: bool = False):
   named symbols and colour ramps shared across all of QGIS); ramps are
   looked up in it by name.
   """
+  _watch_the_style_library()
+  key = (name, bool(reverse))
+  cached = _RAMP_ICON_CACHE.get(key)
+  if cached is not None:
+    return cached
   try:
     # bridge.get_ramp clones and, when asked, reverses; the swatch
     # therefore shows the direction the map will actually use
@@ -229,7 +304,10 @@ def _ramp_icon(name: str, reverse: bool = False):
     # choosing a ramp resets that window (the settled "until
     # reselected anew"), so a windowed preview would promise colours
     # the click itself would discard
-    return _striped_icon(colours)
+    icon = _striped_icon(colours)
+    if icon is not None:
+      _RAMP_ICON_CACHE[key] = icon
+    return icon
   except Exception:
     pass
   return None

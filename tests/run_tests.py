@@ -5169,6 +5169,103 @@ def test_a_reopened_project_cannot_overwrite_yesterdays_geopackage():
     QgsProject.instance().clear()
 
 
+def test_a_ramp_swatch_is_drawn_once_and_follows_the_library():
+  """One draw per ramp and direction, and a fresh one when a ramp moves.
+
+  Every ramp combo carries an icon for every ramp in the style
+  library, one combo per table row, so a table rebuild wants around
+  240 swatches. Each is a pure function of the ramp's name and its
+  direction, so drawing the same picture again is pure cost -- paid on
+  the GUI thread, which is the freeze family the legibility check
+  already joined. The cache in `_ramp_icon` holds each swatch until
+  QGIS's own style signals say the library moved.
+
+  Both halves are asserted, because they fail in opposite directions.
+  Economy without invalidation shows a STALE swatch after the library
+  changes -- wrong, and silently so, since nothing else redraws it.
+  Invalidation without economy is the old cost back again. The
+  invalidation half is checked END TO END, by changing the real style
+  library and requiring a fresh draw: the signal names are QGIS's,
+  connected optionally through getattr, and a renamed signal would
+  otherwise fail nothing while every swatch went stale.
+
+  The library change is staged with removeColorRamp, DELIBERATELY:
+  measured on QGIS 4.0.3, removal emits rampRemoved and entityRemoved
+  while plain addColorRamp emits nothing at all. The first version of
+  this test staged the change with the silent call and failed -- the
+  right verdict on the wrong premise. The add's silence is asserted
+  HARMLESS instead: a name never cached misses the cache and draws
+  fresh, no signal needed.
+
+  Regression: every table rebuild redrew a swatch for every ramp in
+  the style library. Measured 2026-08-16 under cProfile on one test:
+  306,558 icon draws, 311,613 style-library lookups and 2.45 million
+  fillRect calls, all on the GUI thread; the same test needs 63
+  distinct swatches. Survivable at 0.24.2's 461 rebuilds, it became
+  three-quarters of the cost that pushed every CI suite leg past its
+  600-second stall ceiling when 0.24.3 nearly tripled the rebuild
+  count. [review]
+  """
+  from qgis.core import QgsGradientColorRamp, QgsStyle
+  from qgis.PyQt.QtGui import QColor
+  from weavingspace_qgis import dialog as dialog_module
+
+  probe_name = "ws test cache probe"
+  style = QgsStyle.defaultStyle()
+  # The counter is a pass-through, not a stand-in: the real function
+  # still draws, so the icons compared below are the real icons.
+  real_draw = dialog_module._striped_icon
+  draws = []
+
+  def counting_draw(colours, boxed=(), hatched=()):
+    draws.append(len(colours))
+    return real_draw(colours, boxed=boxed, hatched=hatched)
+
+  dialog_module._striped_icon = counting_draw
+  dialog_module._forget_ramp_icons()
+  try:
+    first = dialog_module._ramp_icon("Reds")
+    again = dialog_module._ramp_icon("Reds")
+    assert first is not None, "no swatch for a stock ramp"
+    assert len(draws) == 1, \
+      f"asking twice for one swatch drew {len(draws)} times"
+    assert again is first, \
+      "the second ask got a different object, so nothing was cached"
+    dialog_module._ramp_icon("Reds", reverse=True)
+    assert len(draws) == 2, \
+      "a reversed swatch shows the map's own direction, so it cannot " \
+      "share the forward one's picture"
+
+    # A ramp ADDED through the plain API. Measured on QGIS 4.0.3:
+    # this call emits no signal, so the cache never hears it -- and
+    # must not need to, because a name never cached cannot be stale.
+    added = style.addColorRamp(
+      probe_name,
+      QgsGradientColorRamp(QColor("#000000"), QColor("#ffffff")))
+    assert added, "the style library refused the probe ramp, so this " \
+      "test cannot stage a library change"
+    assert dialog_module._ramp_icon(probe_name) is not None, \
+      "a ramp added moments ago has no swatch"
+    assert len(draws) == 3, \
+      "a never-cached name must miss the cache and draw fresh; " \
+      "nothing else covers a silently added ramp"
+
+    # The library moves by a route that EMITS (rampRemoved and
+    # entityRemoved, measured). This is the end of the wire: a signal
+    # QGIS renames fails here rather than leaving every swatch stale
+    # in a released plugin.
+    style.removeColorRamp(probe_name)
+    dialog_module._ramp_icon("Reds")
+    assert len(draws) == 4, \
+      "the style library changed and the swatch was NOT redrawn: the " \
+      "cache is deaf to QGIS's style signals, so a ramp removed or " \
+      "renamed in the Style Manager would keep its old swatch forever"
+  finally:
+    dialog_module._striped_icon = real_draw
+    style.removeColorRamp(probe_name)
+    dialog_module._forget_ramp_icons()
+
+
 def test_the_legibility_check_agrees_with_its_own_distance():
   """The clash search computes what `distance` computes, and quickly.
 
@@ -14507,6 +14604,17 @@ def test_the_editor_lists_every_value_and_the_no_data_row():
   assert editor.windowTitle() == "Categorical colour editor"
   assert editor.table.rowCount() == len(order)
   assert editor.table.item(len(order) - 1, 0).text() == "(no data)"
+  # ...and every OTHER row's label is the value itself, which is the
+  # one thing this window exists to show. Unasserted until 2026-08-16,
+  # when a second definition of _label_for shadowed the first and
+  # every row read "no data" -- this test still passed, because it
+  # checked the catch-all row and the colour buttons and never once
+  # connected an ordinary row's label to its value.
+  for row, value in enumerate(order[:-1]):
+    shown = editor.table.item(row, 0).text()
+    assert shown == str(value), \
+      f"row {row} should read {value!r} and reads {shown!r}: the " \
+      f"window cannot say which value draws in which colour"
   assert editor.table.columnWidth(0) == VALUE_WIDTH, \
     f"the value column is {editor.table.columnWidth(0)}px, not the "\
     f"settled {VALUE_WIDTH}px"
@@ -29774,6 +29882,124 @@ def test_the_report_generators_survive_hostile_docstrings():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_nothing_defines_the_same_name_twice():
+  """A second definition silently replaces the first, and says nothing.
+
+  Python binds a name once per statement, so two `def`s of one name in
+  one class body leave the LAST one in force and the first dead. No
+  warning, no error, and the file reads as though both are there --
+  the dead one sitting above the live one, in its own place, with its
+  own docstring explaining behaviour the software no longer has.
+
+  It is the span-edit family arriving from the other direction. This
+  project already records that deleting between two anchors takes the
+  neighbours with it; this is the same carelessness ADDING rather than
+  removing, and it is quieter, because nothing goes missing.
+
+  The check is over the whole tree rather than the one file it was
+  found in, because the hazard belongs to editing rather than to any
+  module: the plugin, the tooling, and this suite. `vendor/` is
+  excluded, being upstream's code held verbatim.
+
+  Regression: `_label_for` was defined twice in CategoryColourDialog, a
+  correct version and then a second written below it rather than
+  replacing it when the absence rows learned to tell a NULL from an
+  infinity. Python kept the second, whose fallback is the fixed word
+  "no data" -- and the categorical branch calls it for EVERY row, so
+  the window whose whole job is to say which value draws in which
+  colour labelled forest, water and urban alike as "no data". Measured
+  2026-08-16 by lifting both definitions out of the source and running
+  them in a bare class. The existing editor test would have caught it;
+  no suite had run over that tree yet. [review]
+
+  What is deliberately allowed: the decorated idioms where redefining a
+  name is the language's own way of saying something -- a property's
+  setter, getter or deleter, a `singledispatch` registration, and
+  `typing.overload`. None appears in this tree today, so the exemption
+  is here to keep the check honest for whoever writes the first one
+  rather than to excuse anything present.
+  """
+  import ast
+  import collections
+
+  # Decorators under which a second definition of a name is the
+  # language's own idiom rather than an accident.
+  def deliberate(node):
+    for dec in getattr(node, "decorator_list", []):
+      name = dec.func if isinstance(dec, ast.Call) else dec
+      if isinstance(name, ast.Attribute) and name.attr in (
+          "setter", "getter", "deleter", "register"):
+        return True
+      if isinstance(name, ast.Name) and name.id == "overload":
+        return True
+      if isinstance(name, ast.Attribute) and name.attr == "overload":
+        return True
+    return False
+
+  def duplicates(body, where, path):
+    """Names defined more than once among a body's DIRECT children.
+
+    Direct children only, so a definition inside an `if` or a `try` --
+    which is how a module offers one of two implementations -- is not
+    counted as a redefinition of the other.
+    """
+    seen = collections.Counter()
+    lines = collections.defaultdict(list)
+    for item in body:
+      if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef,
+                           ast.ClassDef)):
+        if deliberate(item):
+          continue
+        seen[item.name] += 1
+        lines[item.name].append(item.lineno)
+    return [f"{path}: {where} defines {name} "
+            f"{count} times, at lines "
+            f"{', '.join(str(n) for n in lines[name])}"
+            for name, count in seen.items() if count > 1]
+
+  roots = [os.path.join(ROOT, "weavingspace_qgis"),
+           os.path.join(ROOT, "tools"),
+           os.path.join(ROOT, "tests")]
+  files = [os.path.join(ROOT, "release.py"), os.path.join(ROOT, "build.py")]
+  for root in roots:
+    for folder, dirs, names in os.walk(root):
+      dirs[:] = [d for d in dirs
+                 if d not in ("vendor", "libs", "__pycache__")]
+      files += [os.path.join(folder, n) for n in names
+                if n.endswith(".py")]
+
+  faults = []
+  scanned = 0
+  for path in sorted(set(files)):
+    if not os.path.exists(path):
+      continue
+    with open(path, encoding="utf-8") as handle:
+      source = handle.read()
+    try:
+      tree = ast.parse(source)
+    except SyntaxError as exc:            # a file this suite cannot read
+      faults.append(f"{path}: will not parse: {exc}")
+      continue
+    scanned += 1
+    shown = os.path.relpath(path, ROOT)
+    faults += duplicates(tree.body, "the module", shown)
+    for node in ast.walk(tree):
+      if isinstance(node, ast.ClassDef):
+        faults += duplicates(node.body, f"class {node.name}", shown)
+
+  # The premise, asserted rather than assumed: a walk that found no
+  # files would report no faults and look exactly like a clean tree.
+  # The floor is well under the 51 files this reads today, because a
+  # premise check sized at the current count is a ceiling a healthy
+  # tree reaches the day somebody deletes a module.
+  assert scanned > 30, \
+    f"only {scanned} files were read, so a clean result here says " \
+    f"nothing about the tree"
+  assert not faults, \
+    "a second definition silently replaces the first:\n  " \
+    + "\n  ".join(faults)
+
+
 def test_the_no_data_grey_is_never_a_clash():
   """The colour nobody chose cannot make two elements confusable.
 
@@ -44903,6 +45129,8 @@ def main():
         test_the_spacing_box_at_its_extremes)
   check("a reopened project cannot overwrite yesterday's geopackage",
         test_a_reopened_project_cannot_overwrite_yesterdays_geopackage)
+  check("a ramp swatch is drawn once and follows the library",
+        test_a_ramp_swatch_is_drawn_once_and_follows_the_library)
   check("the legibility check agrees with its own distance",
         test_the_legibility_check_agrees_with_its_own_distance)
   check("unclassed never announces a reduction",
@@ -45159,6 +45387,8 @@ def main():
         test_default_ramp_pairs_pass_our_own_legibility_bar)
   check("the report generators survive hostile docstrings",
         test_the_report_generators_survive_hostile_docstrings)
+  check("nothing defines the same name twice",
+        test_nothing_defines_the_same_name_twice)
   check("a stage log never shows the previous run",
         test_a_stage_log_never_shows_the_previous_run)
   check("a candidate number is never reused",

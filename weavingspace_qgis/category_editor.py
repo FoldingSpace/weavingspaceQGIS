@@ -496,7 +496,19 @@ class CategoryColourDialog(QDialog):
     for row, value in enumerate(self._values):
       if self._bounds is None:
         # Categorical: the value in one cell, exactly as before.
+        # The catch-all is PARENTHESISED here and bare in the
+        # graduated list, and the difference is deliberate: this
+        # column holds nothing but the data's own values, so the
+        # brackets are what say "not one of them". A graduated row
+        # carries bounds beside every real class and needs no such
+        # mark. Wrapped at the call site rather than inside
+        # `_label_for`, because the two lists want different words
+        # from it and a single answer cannot serve both -- which is
+        # exactly what went wrong when a second `_label_for` was
+        # written below the first instead of replacing it.
         label = self._label_for(value)
+        if _is_absence(value):
+          label = f"({label})"
         cell = QTableWidgetItem(label)
         cell.setToolTip(label)    # the full value, however long
         # Values right, colours left, so the two columns meet at the
@@ -960,31 +972,34 @@ class CategoryColourDialog(QDialog):
     # window must say so too
     self._redraw_bounds(answer)
 
-  def _label_for(self, value):
-    """What the left column says for one value."""
-    # Each kind reads as itself. The labels come from ABSENCE_KINDS so
-    # the editor, the legend and the map cannot drift apart, and a
-    # fourth kind added there appears here without an edit.
-    for key, _stored, label, _fill in bridge.ABSENCE_KINDS:
-      if value == key:
-        return f"({label})"
-    return str(value)
-
   def _label_for(self, value) -> str:
-    """The words an absence row shows.
+    """The words one row shows in its left-hand column.
+
+    Called for EVERY categorical row and for the graduated list's
+    absence rows, so it must answer for an ordinary value as well as
+    for a kind of absence. There were two of these for a few hours on
+    2026-08-16 -- a second written below the first rather than
+    replacing it -- and Python keeps the last, so every categorical
+    value was labelled "no data" and the window that exists to say
+    which value draws in which colour said nothing of the sort.
 
     Args:
-      value: the row's key, one of the ABSENCE_KINDS keys.
+      value: the row's key: one of the ABSENCE_KINDS keys, or a value
+        the field actually takes.
 
     Returns:
-      That kind's label, or "no data" for anything unrecognised --
-      the safe direction, since it is what every absence row said
-      before the kinds were told apart.
+      That kind's label where the key names one, and otherwise the
+      value as it reads. Never a fixed word for an unrecognised key:
+      the categorical list is mostly unrecognised keys, so a
+      catch-all answer here is wrong on nearly every row.
     """
+    # The labels come from ABSENCE_KINDS so the editor, the legend and
+    # the map cannot drift apart, and a fourth kind added there
+    # appears here without an edit.
     for key, _stored, label, _fill in bridge.ABSENCE_KINDS:
       if value == key:
         return label
-    return "no data"
+    return str(value)
 
   def _format_bound(self, value):
     """A class bound as the row prints it.
