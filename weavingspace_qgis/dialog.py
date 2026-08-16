@@ -6969,6 +6969,12 @@ class WeavingSpaceDialog(QDialog):
     # went missing.
     run_sig = self._run_signature()
     geometry_sig = self._geometry_signature()
+    # Snapshotted WITH the signature it belongs to. The landing acts
+    # on this switch rather than baking it into the tiling, so
+    # reading it live at the landing let a mid-run toggle cancel its
+    # own signature difference and leave the box inert for good; see
+    # _add_output_layers for the measurement.
+    outlines_at_launch = self.opt_outlines.isChecked()
     # Snapshotted for the same reason: the coverage notice names the
     # spacing THIS map was tiled at, and the user is free to type a
     # different one while it runs. map_unit_label reads the layer, so
@@ -6987,7 +6993,7 @@ class WeavingSpaceDialog(QDialog):
       if gdf is not None and result_crs is not None:
         gdf.crs = result_crs  # reattach on the main thread (pyproj-safe)
       self._on_generated(gdf, error, family, layer, assignments, path,
-                         run_sig, geometry_sig, live)
+                         run_sig, geometry_sig, live, outlines_at_launch)
       # The coverage notice goes out AFTER _on_generated, never inside
       # it: that method's finally clears live_note, which is where
       # _report_quietly writes when there is no QGIS window (headless
@@ -7344,7 +7350,8 @@ class WeavingSpaceDialog(QDialog):
     return root.insertGroup(0, name), True
 
   def _on_generated(self, gdf, error, family, source_layer, assignments,
-                    path, run_sig=None, geometry_sig=None, live=False):
+                    path, run_sig=None, geometry_sig=None, live=False,
+                    outlines=None):
     """Main-thread completion handler for every run, successful or not.
 
     Args:
@@ -7368,6 +7375,12 @@ class WeavingSpaceDialog(QDialog):
         must not interrupt somebody who never asked for it -- and it
         is what allows a queued live rerun to start once this one has
         finished landing its layers.
+      outlines: whether the outlines box was ticked WHEN THIS RUN WAS
+        LAUNCHED, captured for the same reason the signatures are and
+        passed straight through to _add_output_layers. It is the one
+        geometry setting the LANDING acts on rather than the tiling,
+        so reading it live there let a mid-run toggle cancel its own
+        signature difference. None means read it now.
 
     Returns:
       None; the project gains the layers, and the dialog returns to
@@ -7424,7 +7437,7 @@ class WeavingSpaceDialog(QDialog):
     QApplication.processEvents()  # let that text actually paint
     try:
       self._add_output_layers(gdf, family, source_layer, assignments,
-                              path, run_sig, geometry_sig)
+                              path, run_sig, geometry_sig, outlines)
     except Exception as e:
       # The commonest way to land here is the user deleting the region
       # layer while the tiling ran: the result is fine, but there is
@@ -7565,7 +7578,8 @@ class WeavingSpaceDialog(QDialog):
       self._live_timer.start()
 
   def _add_output_layers(self, gdf, family, source_layer, assignments,
-                         path, run_sig=None, geometry_sig=None):
+                         path, run_sig=None, geometry_sig=None,
+                         outlines=None):
     """Turn the tiled GeoDataFrame into the project's output layers.
 
     Args:
@@ -7593,6 +7607,13 @@ class WeavingSpaceDialog(QDialog):
         recorded as though the map already showed it, and the next
         Generate would take the restyle fast path over geometry that
         never matched.
+      outlines: whether the outlines box was ticked WHEN THIS RUN WAS
+        LAUNCHED. None means read it now, which is right only for a
+        caller that did not go through the worker. It is passed for
+        the same reason the signatures are, and it is the one
+        geometry setting the LANDING acts on rather than the tiling,
+        which is what made reading it live a defect rather than a
+        harmless shortcut.
 
     Returns:
       None; the project is what changes. Afterwards
@@ -7990,7 +8011,24 @@ class WeavingSpaceDialog(QDialog):
     if old_outline and project.mapLayer(old_outline) is not None:
       project.removeMapLayer(old_outline)
       self._outline_layer_id = None
-    if self.opt_outlines.isChecked():
+    # THE BOX AS IT WAS WHEN THE RUN WAS LAUNCHED, not as it stands
+    # now. This read the live checkbox while recording the signature
+    # captured at launch, and `opt_outlines` is the only geometry
+    # term the landing acts on rather than baking into the tiling. So
+    # toggling it MID-RUN cancelled its own signature difference: the
+    # map already matched the new box, the signature no longer moved
+    # when the user put the box back, and every later Generate went
+    # down the restyle path, which can neither make nor unmake an
+    # outlines layer. The box and the map then disagreed for good --
+    # ticking it drew nothing and said nothing, unticking it left the
+    # outlines drawn over the map. Present since 0.23.0; measured
+    # 2026-08-16 by a hunt reading the layer tree.
+    #
+    # The general form: WHEN A RUN RECORDS A SNAPSHOT SIGNATURE,
+    # every setting the landing still reads from its widget is a
+    # place the two can disagree. The pair is the fault, not either
+    # line.
+    if (self.opt_outlines.isChecked() if outlines is None else outlines):
       outline_layer = bridge.region_outline_layer(source_layer)
       outline_layer.setCustomProperty("weavingspace_output", True)
       outline_layer.setCustomProperty("weavingspace_outline", True)

@@ -19,8 +19,11 @@ in the brief prevents that. So this refuses.
 
 USAGE, and it is meant to be the whole of a hunt's setup:
 
-    python3 tools/hunt_probe.py --prepare
-        Archive HEAD into a scratch directory and print the commit.
+    python3 tools/hunt_probe.py --prepare --name <this-hunt>
+        Archive HEAD into a scratch directory of this hunt's OWN and
+        print the commit. Pass --name (or set $WEAVINGSPACE_HUNT)
+        whenever more than one hunt runs at a time, which is the
+        usual case here; without it the copy is called "solo".
         Everything after this runs against that frozen copy, never
         against the working tree, so a sibling's uncommitted fix
         cannot read as a race.
@@ -47,10 +50,49 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# One place per checkout, so two hunts in one session share the frozen
-# copy rather than each paying to build one -- and so --status can
-# answer without being told where to look.
-HOME = os.path.join(os.environ.get("TMPDIR", "/tmp"), "weavingspace-hunt")
+
+# ONE PLACE PER HUNT, not one per checkout. It used to be shared, on
+# the reasoning that two hunts in a session should not each pay to
+# build a copy -- and that was wrong in a way that only shows when
+# several hunts run at once, which is how they are actually run here.
+# Six hunts probing one directory write their probe scripts into it,
+# read each other's files, and one calling --prepare wipes the tree
+# the other five are working in. A sibling's probe output is
+# indistinguishable from your own results, which is the single thing
+# a hunt must never get wrong.
+#
+# Measured 2026-08-16: eleven hunts across three rounds, every one of
+# them told by hand to copy the shared tree somewhere private first,
+# because the harness would not do it. That instruction is what this
+# replaces.
+#
+# The name comes from --name, or $WEAVINGSPACE_HUNT, or the string
+# "solo". A hunt that names nothing still gets a directory of its
+# own name rather than a shared one, so the default is safe and the
+# flag is only needed to run two at once.
+def _hunt_name() -> str:
+  """Which hunt this invocation belongs to.
+
+  Returns:
+    The name from --name, else $WEAVINGSPACE_HUNT, else "solo".
+    Reduced to characters that are safe in a path, since it becomes a
+    directory: anything else is replaced with a dash.
+  """
+  wanted = None
+  argv = sys.argv
+  for i, arg in enumerate(argv):
+    if arg == "--name" and i + 1 < len(argv):
+      wanted = argv[i + 1]
+      break
+    if arg.startswith("--name="):
+      wanted = arg.split("=", 1)[1]
+      break
+  wanted = wanted or os.environ.get("WEAVINGSPACE_HUNT") or "solo"
+  return "".join(c if c.isalnum() or c in "-_" else "-" for c in wanted)
+
+
+BASE = os.path.join(os.environ.get("TMPDIR", "/tmp"), "weavingspace-hunt")
+HOME = os.path.join(BASE, _hunt_name())
 TREE = os.path.join(HOME, "tree")
 STAMP = os.path.join(HOME, "commit.txt")
 
@@ -134,6 +176,8 @@ def prepare():
   with open(STAMP, "w", encoding="utf-8") as handle:
     handle.write(commit + "\n")
   print(f"frozen at {commit[:7]}  ->  {TREE}")
+  print(f"this hunt is '{_hunt_name()}'; siblings get their own copies, "
+        f"so nothing here is anybody else's.")
   print("Probe THIS copy, never the working tree: on a shared tree a "
         "sibling's uncommitted fix reads exactly like a race.")
   return 0
@@ -151,6 +195,7 @@ def status():
     return 0
   frozen = open(STAMP, encoding="utf-8").read().strip()
   head = git("rev-parse", "HEAD")
+  print(f"hunt:   {_hunt_name()}")
   print(f"frozen: {frozen[:7]}   copy: {TREE}")
   print(f"HEAD:   {(head or 'unknown')[:7]}")
   if head and head != frozen:
@@ -228,6 +273,10 @@ def main():
                       help="probe script and arguments, run in the copy")
   parser.add_argument("--anyway", action="store_true",
                       help="run even though HEAD has moved, and say so")
+  parser.add_argument("--name", default=None,
+                      help="this hunt's name; it gets a frozen copy of "
+                           "its own, so siblings running at the same "
+                           "time cannot read each other's probes")
   args = parser.parse_args()
   if args.prepare:
     return prepare()
