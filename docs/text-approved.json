@@ -1164,6 +1164,11 @@
   "excerpt": "Run this element's ramp the other way round",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "d4bf6e6fd8638c42": {
+  "approved": "2026-08-16",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
  "d67370e4b7b5f340": {
   "approved": "2026-08-15",
   "excerpt": "The first class cannot end at {}: the copied classes put the",
