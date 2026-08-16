@@ -156,8 +156,10 @@ MUTATIONS = [
        old="""      would_replace = bridge.gpkg_tables_we_would_replace(
         path_now, [f"tiles_{a['id']}" for a in self._assignments()])""",
        new="""      would_replace = []""",
-       test="test_a_reopened_project_cannot_overwrite_yesterdays_"
-            "geopackage",
+       # ONE LITERAL, however long: the standards check reads an
+       # entry's test name from its FIRST string, so a name split
+       # across two lines is read as a test that does not exist.
+       test="test_a_reopened_project_cannot_overwrite_yesterdays_geopackage",
        why="the overwrite guard used to compare against _last_path, "
            "which records only what THIS dialog instance wrote, so a "
            "reopened project ticking 'create as new group' to KEEP "
