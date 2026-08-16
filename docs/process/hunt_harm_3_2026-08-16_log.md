@@ -54,3 +54,37 @@ NEXT:   harm 7, the kept comparison group. It is the one the brief
         names explicitly ("a kept comparison group") and the one
         today's ADOPTION change can reach.
 
+## 13:40:00  iteration 2  [perturbation]
+TRIED:  harm 7. Generate; tick "Create as new group" and Generate
+        again so the FIRST group is the kept comparison; save; then
+        open the project again with the dialog STILL SHOWING, and see
+        which group is adopted and what the region chooser is pointed
+        at. Probe `probe_kept_group.py`.
+RESULT: at ed7231f, the adopted group was the right one (the newer),
+        but the region chooser came back POINTED AT `a – no data`,
+        one of the kept group's own paired layers -- the plugin
+        offering its own output as a region, which the record names
+        as how "the next map is tiled on top of the last".
+NEXT:   confirm by a second route that does not save or reopen at
+        all: ask the chooser's exception list directly.
+
+## 14:05:00  iteration 3  [logical]
+TRIED:  the same claim at the tree as it now stands. HEAD had moved
+        under me twice -- ed7231f -> 3b78241 ("Withdraw the class-bound
+        experiment, and mend what the hunts found") -> b1e86d1 -- so I
+        re-prepared and re-measured. Three probes: `probe_chooser.py`
+        (one group, no reopen), `probe_reopen_chooser.py` (one group,
+        reopen under the open dialog, settled 5.5s) and
+        `probe_two_groups.py` (kept comparison group AND reopen).
+RESULT: ruled out at b1e86d1. In all three the chooser excepts every
+        layer carrying `weavingspace_output` -- 6 of 6, then 11 of 11
+        including the kept comparison group's -- offers only `region`,
+        and stays pointed at `region` after the reopen. The ed7231f
+        reading was real but is history: 3b78241 mended it. NOTE the
+        class-bound nudge is WITHDRAWN as of 3b78241, so the harm
+        about a nudged bound putting a value in the wrong class no
+        longer has a mechanism.
+NEXT:   harm 5 -- hand styling on the paired layer. Today's change
+        makes a renderer or filter set there survive a Generate; the
+        question is whether it survives onto the RIGHT element.
+

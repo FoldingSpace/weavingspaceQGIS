@@ -259,6 +259,11 @@
   "excerpt": "Stretch the pattern up-down; negative mirrors it.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "2e56920bc83e09c4": {
+  "approved": "2026-08-16",
+  "excerpt": "Quantitative elements open the same window. Each class is li",
+  "where": "docs/USER-GUIDE.md"
+ },
  "302693fce18f3e49": {
   "approved": "2026-08-09",
   "excerpt": "WeavingSpace draws its maps with three well-known Python lib",
@@ -1049,6 +1054,11 @@
   "excerpt": "Warns when two elements use colours a reader may confuse.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "b5453e83361a54d5": {
+  "approved": "2026-08-16",
+  "excerpt": "Trims the pattern to the region outline. The slowest step.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "b82031d17558e246": {
   "approved": "2026-08-08",
   "excerpt": "Each element/row below becomes its own QGIS layer, initially",
@@ -1173,6 +1183,11 @@
   "approved": "2026-08-08",
   "excerpt": "joining data to tiles\u2026 %p%",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "d25283b74a00b004": {
+  "approved": "2026-08-16",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
  },
  "d38d4a72a832af94": {
   "approved": "2026-08-08",
