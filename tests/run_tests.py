@@ -16950,6 +16950,36 @@ def _record_scenario(entry):
     f.write(json.dumps(entry) + "\n")
 
 
+def _ui_layers_with_no_data(project, dlg):
+  """Every layer the dialog drew, both halves of each element.
+
+  Args:
+    project: the QgsProject holding the output.
+    dlg: the dialog that produced it.
+
+  Returns:
+    A list of layers in the order the layer tree holds them: each
+    element followed by its no-data half where it has one. Elements
+    without missing values contribute one layer, exactly as before.
+
+  A comparison that renders only `_element_layer_ids` measures a map
+  the plugin does not draw: since 2026-08-16 the tiles whose value is
+  missing live on a second layer, and the library draws those areas
+  too. Leaving them out is a hole in the render rather than a
+  difference in symbology.
+  """
+  layers = []
+  for tid in sorted(dlg._element_layer_ids):
+    main = project.mapLayer(dlg._element_layer_ids[tid])
+    if main is not None:
+      layers.append(main)
+    paired_id = getattr(dlg, "_no_data_layer_ids", {}).get(tid)
+    paired = project.mapLayer(paired_id) if paired_id else None
+    if paired is not None:
+      layers.append(paired)
+  return layers
+
+
 def _interior_diff(ui_png, lib_png):
   """(differing, total) interior pixels between two renders.
 
@@ -17307,8 +17337,18 @@ def _compare_ui_to_library(label, setup, expected_unit, tiling_kw,
   if True:
     ui_png = os.path.join(out_dir, f"{slug}_ui.png")
     lib_png = os.path.join(out_dir, f"{slug}_library.png")
-    render_layers([project.mapLayer(dlg._element_layer_ids[t])
-                   for t in sorted(dlg._element_layer_ids)], ui_png)
+    # BOTH HALVES OF EVERY ELEMENT. Since the No Data feature an
+    # element can be two layers: the tiles a graduated renderer can
+    # place, and the tiles whose value is missing, which the library
+    # draws too (matplotlib gives NaN its own colour). Rendering only
+    # the element layers left holes where the library had colour, and
+    # four of these comparisons duly failed at up to 33,500 of 48,528
+    # interior pixels -- a difference in what was RENDERED, not in
+    # what either side drew.
+    #
+    # Ordered element-then-paired, matching the layer tree, where the
+    # no-data half sits immediately below its own element.
+    render_layers(_ui_layers_with_no_data(project, dlg), ui_png)
     # Map each element's settings BY ITS ID, never by position.
     #
     # `variables` and `ramps` are given in element order, the same
@@ -17737,8 +17777,17 @@ def test_ui_library_categorical_template():
   for tid in "abcd":
     out = project.mapLayer(dlg._element_layer_ids[tid])
     want = expected[expected["tile_id"] == tid]
-    assert out.featureCount() == len(want), \
-      f"element {tid}: {out.featureCount()} vs library {len(want)}"
+    # AN ELEMENT CAN BE TWO LAYERS. Tiles whose value is missing are
+    # drawn by a paired layer and the library draws those areas too,
+    # so the count to compare is the element AND its no-data half.
+    paired_id = getattr(dlg, "_no_data_layer_ids", {}).get(tid)
+    paired = project.mapLayer(paired_id) if paired_id else None
+    whole = out.featureCount() + (paired.featureCount() if paired else 0)
+    assert whole == len(want), \
+      f"element {tid}: {whole} tile(s) across its layer(s) " \
+      f"({out.featureCount()} drawn + " \
+      f"{paired.featureCount() if paired else 0} no data) vs " \
+      f"library {len(want)}"
 
   # imported mapping on a, automatic preset on b, graduated on c,
   # plain fill on the unassigned d
@@ -17765,8 +17814,7 @@ def test_ui_library_categorical_template():
   # the picture, against the library's own map with the same
   # symbology (the imported mapping included, via the template)
   visual_pair("categorical sources and unassigned element",
-              [project.mapLayer(dlg._element_layer_ids[t])
-               for t in "abcd"],
+              _ui_layers_with_no_data(project, dlg),
               expected, dlg._assignments(),
               templates={"file:" + qml:
                          bridge.load_categorized_template(qml)},
@@ -17833,8 +17881,17 @@ def test_ui_library_categorical_weave_icons():
   for tid in "abcd":
     out = project.mapLayer(dlg._element_layer_ids[tid])
     want = expected[expected["tile_id"] == tid]
-    assert out.featureCount() == len(want), \
-      f"element {tid}: {out.featureCount()} vs library {len(want)}"
+    # AN ELEMENT CAN BE TWO LAYERS. Tiles whose value is missing are
+    # drawn by a paired layer and the library draws those areas too,
+    # so the count to compare is the element AND its no-data half.
+    paired_id = getattr(dlg, "_no_data_layer_ids", {}).get(tid)
+    paired = project.mapLayer(paired_id) if paired_id else None
+    whole = out.featureCount() + (paired.featureCount() if paired else 0)
+    assert whole == len(want), \
+      f"element {tid}: {whole} tile(s) across its layer(s) " \
+      f"({out.featureCount()} drawn + " \
+      f"{paired.featureCount() if paired else 0} no data) vs " \
+      f"library {len(want)}"
 
   a_renderer = project.mapLayer(dlg._element_layer_ids["a"]).renderer()
   assert isinstance(a_renderer, QgsCategorizedSymbolRenderer)
@@ -17848,8 +17905,7 @@ def test_ui_library_categorical_weave_icons():
   assert got.get("forest") == "#31a354", \
     f"the alternative mapping should be in force: {got}"
   visual_pair("categorical weave icons layer source",
-              [project.mapLayer(dlg._element_layer_ids[t])
-               for t in "abcd"],
+              _ui_layers_with_no_data(project, dlg),
               expected, dlg._assignments(),
               templates={f"layer:{styled.id()}":
                          bridge.template_from_layer(styled)},

@@ -313,7 +313,7 @@ MUTATIONS = [
            "keeps breaks cut from the whole map, matches none of "
            "them and is absent while its siblings draw"),
   dict(name="nothing-to-classify-draws-as-no-data", file=BRIDGE,
-       old="""  elif not _anything_to_classify(classify_from or layer, var):""",
+       old="""  elif not _anything_to_classify(layer, var):""",
        new="""  elif False:""",
        test="test_a_column_with_no_values_at_all_invents_no_class",
        why="a graduated renderer over a column with no usable values "

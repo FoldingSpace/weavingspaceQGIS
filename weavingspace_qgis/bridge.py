@@ -2278,9 +2278,20 @@ def _anything_to_classify(source, field) -> bool:
   """Whether a column holds a value a classifier could put a break in.
 
   Args:
-    source: the layer whose values decide the classes -- the shared
-      classification source where there is one, or the element's own
-      layer.
+    source: THE ELEMENT'S OWN LAYER, and deliberately not the shared
+      classification source. The shared source is a geometry-less
+      scratch layer built to cut breaks from the whole map, and
+      asking it for this element's column answered False wherever it
+      does not carry that name -- which greyed out elements that had
+      perfectly good values, at up to 33,500 of 48,528 interior
+      pixels against the library's map. Measured 2026-08-16, by four
+      UI-against-library comparisons failing in a candidate build.
+
+      The element layer is also the RIGHT question. By the time this
+      is asked the missing rows have already been split off, so the
+      layer holds exactly the rows a classifier could place: if any
+      remain they have values, and if none remain there is genuinely
+      nothing to classify.
     field: the column name.
 
   Returns:
@@ -2350,7 +2361,7 @@ def seed_renderer(layer: QgsVectorLayer, assignment: dict,
     colour = assignment.get("single_colour") or \
       ramp_swatch_colour(assignment["ramp"])
     layer.setRenderer(make_single_renderer(colour, outline))
-  elif not _anything_to_classify(classify_from or layer, var):
+  elif not _anything_to_classify(layer, var):
     # NOTHING TO CLASSIFY, so the element draws as NO DATA rather
     # than not at all. The maintainer's decision, 2026-08-16.
     #
