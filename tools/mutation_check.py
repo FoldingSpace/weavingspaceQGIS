@@ -141,6 +141,31 @@ MUTATIONS = [
            "the user; the same road reaches a region layer whose file "
            "has gone, where recovery must assign rather than stay "
            "blank (maintainer's decision, 2026-08-15)"),
+  dict(name="unclassed-is-exempt-from-the-reduction", file=BRIDGE,
+       old="""  if unclassed:
+    return int(asked), False""",
+       new="""  if False:
+    return int(asked), False""",
+       test="test_unclassed_never_announces_a_reduction",
+       why="Unclassed reproduces a continuous ramp, so its fifty steps "
+           "are the shape of the reproduction and make_graduated_"
+           "renderer does not reduce them; without this guard the "
+           "message bar announces a reduction the map never performs, "
+           "which is the one thing these notices exist to prevent"),
+  dict(name="a-replaced-region-layer-is-announced", file=DIALOG,
+       old="""    survivor = self.layer_combo.currentLayer()
+    if survivor is not None:
+      self._report_quietly(""",
+       new="""    survivor = self.layer_combo.currentLayer()
+    if False:
+      self._report_quietly(""",
+       test="test_removing_the_region_layer_is_noticed_in_a_real_project",
+       why="with a survivor present the dialog FOLLOWS the removal, so "
+           "the map moves to different ground with different variables "
+           "and looks perfectly fine; the notice in _on_layer_changed "
+           "fires only when the chooser is left holding nothing, which "
+           "is the one-layer case. Silence here is a wrong map rather "
+           "than a missing one"),
   dict(name="region-removal-heard-from-the-project", file=DIALOG,
        old="    QgsProject.instance().layersRemoved.connect(self._layers_removed)",
        new="    pass    # mutated: rely on the combo alone",

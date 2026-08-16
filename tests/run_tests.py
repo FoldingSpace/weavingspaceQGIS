@@ -5035,6 +5035,18 @@ def test_removing_the_region_layer_is_noticed_in_a_real_project():
         trouble.append(
           f"{size} layer(s): the chooser holds "
           f"{None if now is None else now.name()} rather than a survivor")
+      # AND THE USER IS TOLD. Following the layer silently is worse
+      # than not following it: the map moves to different ground with
+      # different variables and looks perfectly fine. The notice in
+      # _on_layer_changed only fires when the chooser is left holding
+      # NOTHING, so with a survivor present nothing spoke until
+      # 2026-08-16 -- a hunt measured four element layers moving
+      # twenty kilometres in silence.
+      told = " ".join(str(m) for m in BAR_MESSAGES)
+      if "removed from the project" not in told:
+        trouble.append(
+          f"{size} layer(s): the region layer was replaced under the "
+          f"user and nothing said so; the bar held {told!r}")
       # And the map must still be reachable: the defect's real cost was
       # a Generate that did nothing whatever.
       BAR_MESSAGES.clear()
@@ -5058,6 +5070,49 @@ def test_removing_the_region_layer_is_noticed_in_a_real_project():
     project.clear()
 
   assert not trouble, "; ".join(trouble)
+
+
+def test_unclassed_never_announces_a_reduction():
+  """Quant: Unclassed draws its fifty steps, and says nothing else.
+
+  Regression: the message bar told a user with twelve distinct values
+  that their Unclassed element "draws as 12 classes, not 50" while the
+  map drew fifty. `make_graduated_renderer` reduces only `if not
+  unclassed` -- Unclassed reproduces a CONTINUOUS ramp, so its fifty
+  steps are the shape of the reproduction rather than a class count
+  anybody chose -- but `classes_the_map_will_draw` was never told the
+  scheme and reduced anyway. Its own docstring claimed the two
+  arithmetics were "kept beside it so the two cannot drift". [hunt]
+
+  Asserted at BOTH ends, because silencing a notice is the easiest
+  thing in the world to overdo: an Unclassed row must say nothing, and
+  a classed row over the same column must still say what it always
+  did.
+  """
+  from weavingspace_qgis import bridge
+
+  values = list(range(12))
+  drawn, from_pins = bridge.classes_the_map_will_draw(
+    values, 50, None, unclassed=True)
+  assert drawn == 50, \
+    f"Unclassed was reduced to {drawn}; its fifty steps ARE the "\
+    f"reproduction and the renderer does not reduce them"
+  assert bridge.few_values_message("crime", drawn, 50, from_pins) is None, \
+    "Unclassed announced a reduction that never happens"
+
+  # the same column, classed, must still be reported
+  drawn, from_pins = bridge.classes_the_map_will_draw([1, 5, 9], 5, None)
+  said = bridge.few_values_message("crime", drawn, 5, from_pins)
+  assert said and "3 classes" in said, \
+    f"a classed row over three distinct values stopped reporting its "\
+    f"reduction, which is the notice this one exists to keep: {said!r}"
+
+  # and an Unclassed row over a column that genuinely has fewer values
+  # than fifty is the exact shape the user met
+  drawn, _ = bridge.classes_the_map_will_draw([1, 5, 9], 50, None,
+                                              unclassed=True)
+  assert drawn == 50, \
+    f"three distinct values under Unclassed reported {drawn} classes"
 
 
 def test_a_scale_control_steps_over_zero():
@@ -41564,6 +41619,8 @@ def main():
         test_a_reprojected_layer_is_followed)
   check("the spacing box at its extremes",
         test_the_spacing_box_at_its_extremes)
+  check("unclassed never announces a reduction",
+        test_unclassed_never_announces_a_reduction)
   check("a scale control steps over zero",
         test_a_scale_control_steps_over_zero)
   check("QGIS changes around the plugin",
