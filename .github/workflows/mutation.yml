@@ -169,14 +169,38 @@ jobs:
         # carried 89. A guard that names the wrong cause is still a
         # guard; the cause is named here now.
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - name: Can this checkout actually see ${{ inputs.since || 'pre-0.24.0' }}
-        # Instrument BEFORE the thing that would otherwise answer
-        # quietly, and keep it AFTER the step above so a failure here
-        # means the ref really is absent rather than git being shut
-        # out of the directory.
+      - name: Decide and verify the baseline this run diffs against
+        # RESOLVED AT RUNTIME, never hardcoded. A dispatch says which
+        # tag it wants; a PUSH says nothing, and the first version of
+        # this trigger defaulted to `pre-0.24.0` -- which is a BRANCH
+        # name, not a tag. The run duly failed on 2026-08-16 with
+        # "NOT FOUND: pre-0.24.0" beside a tag list reading v0.24.0,
+        # v0.24.1, v0.24.2, v0.24.3rc1, v0.24.3rc2. Naming a second
+        # fixed tag would only rot at the next release, so a push
+        # takes the NEWEST tag this commit descends from, which is
+        # what "the lines changed since the last release" means and
+        # stays true without anybody editing it.
+        #
+        # Instrumented BEFORE the thing that would otherwise answer
+        # quietly, and kept AFTER the safe.directory step so a failure
+        # here means the ref really is absent rather than git being
+        # shut out of the directory.
         run: |
-          git rev-parse --verify "${{ inputs.since || 'pre-0.24.0' }}^{commit}" \
-            || { echo "NOT FOUND: ${{ inputs.since || 'pre-0.24.0' }}"; git tag | tail -20; exit 1; }
+          SINCE="${{ inputs.since }}"
+          if [ -z "$SINCE" ]; then
+            SINCE=$(git tag --sort=-v:refname --merged HEAD | head -1)
+            echo "push: diffing against the newest tag reachable here"
+          fi
+          if [ -z "$SINCE" ]; then
+            echo "NO TAG AT ALL is reachable from this commit, so there"
+            echo "is no baseline to diff against and nothing to sample."
+            git tag | tail -20
+            exit 1
+          fi
+          git rev-parse --verify "${SINCE}^{commit}" \
+            || { echo "NOT FOUND: ${SINCE}"; git tag | tail -20; exit 1; }
+          echo "baseline: ${SINCE}"
+          echo "SINCE=${SINCE}" >> "$GITHUB_ENV"
       - name: Provision what this QGIS lacks
         run: python3 -u tools/ci_provision.py
       - name: Record which tests touch which lines
@@ -214,10 +238,10 @@ jobs:
           done
           [ "$failed" -eq 0 ] || { echo "a coverage shard failed"; exit 1; }
           python3 -u tools/merge_coverage_shards.py
-      - name: Mutate the lines changed since ${{ inputs.since || 'pre-0.24.0' }}
+      - name: Mutate the lines changed since the baseline
         continue-on-error: true
         run: |
-          python3 -u tools/mutate_auto.py --since ${{ inputs.since || 'pre-0.24.0' }} \
+          python3 -u tools/mutate_auto.py --since "${SINCE}" \
             2>&1 | tee incremental.log
       - name: Keep the report
         if: always()

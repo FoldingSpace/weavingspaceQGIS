@@ -20807,7 +20807,7 @@ def test_every_reader_of_unplaceable_agrees_with_the_split():
   _tick(150)
   BAR_MESSAGES.clear()
   _generate_and_wait(dlg)
-  said = [t for _k, t in BAR_MESSAGES if "no value" in t]
+  said = [t for _k, t in BAR_MESSAGES if "finite numeric" in t]
   assert said, "nothing was said about the missing values at all"
   assert str(spoiled) in said[0], \
     f"the notice counts NULLs only: it says {said[0]!r} where {spoiled} " \
@@ -20839,7 +20839,7 @@ def test_every_reader_of_unplaceable_agrees_with_the_split():
     "only unplaceable values are infinities, though the map draws them"
   BAR_MESSAGES.clear()
   _generate_and_wait(second)
-  said = [t for _k, t in BAR_MESSAGES if "no value" in t]
+  said = [t for _k, t in BAR_MESSAGES if "finite numeric" in t]
   assert said, \
     f"infinities alone: the map drew them as no data and the user was " \
     f"told nothing, so grey patches appear with no explanation. Bar " \
@@ -23229,11 +23229,14 @@ def test_every_notice_describes_the_map_it_came_from():
   _generate_and_wait(dlg)
   _tick(300)
   said = " ".join(text for _kind, text in BAR_MESSAGES)
-  null_areas = sum(
-    1 for f in layer.getFeatures()
-    if f["gaps"] is None or str(f["gaps"]) == "NULL")
-  assert "no value" in said, f"gaps in the column went unmentioned: " \
-    f"{BAR_MESSAGES!r}"
+  # counted through the one owner, like the notice itself: a scan for
+  # NULL alone would disagree with the sentence the moment a column
+  # holds a NaN or an infinity
+  from weavingspace_qgis import bridge as _b
+  null_areas = sum(1 for f in layer.getFeatures()
+                   if _b.cannot_be_placed(f["gaps"]))
+  assert "finite numeric" in said, \
+    f"gaps in the column went unmentioned: {BAR_MESSAGES!r}"
   assert f"{null_areas} of {layer.featureCount()}" in said, \
     f"the notice must count the user's AREAS ({null_areas} of " \
     f"{layer.featureCount()}), not tiles; it said {said!r}"

@@ -6378,10 +6378,11 @@ class WeavingSpaceDialog(QDialog):
     if layer is None:
       return
     field = assignment.get("var")
-    colour = (self._quant_colours.get(tile_id, {}).get(field, {})
-              .get(bridge.NO_DATA_KEY) or bridge.NO_DATA_FILL)
+    colours, kinds = self._absence_colours_and_kinds(tile_id, field, layer)
     layer.setRenderer(bridge.make_no_data_renderer(
-      colour, assignment.get("outline", False)))
+      # the DICT even when empty: a bare string colours every kind
+      # alike, and each kind has its own default in ABSENCE_KINDS
+      colours, assignment.get("outline", False), kinds))
     # the same opacity as its element: they are one element to a
     # reader, and two layers fading differently would say otherwise
     layer.setOpacity(max(0, min(100, assignment.get("opacity", 100))) / 100.0)
@@ -6431,6 +6432,38 @@ class WeavingSpaceDialog(QDialog):
       if bridge.cannot_be_placed(feature[field]):
         return True
     return False
+
+  def _absence_colours_and_kinds(self, tile_id, field, layer):
+    """The per-kind colours for a paired layer, and the kinds it holds.
+
+    Args:
+      tile_id: the element the paired layer belongs to.
+      field: the column that element is coloured by.
+      layer: the paired layer itself, read for which kinds of absence
+        its tiles actually carry.
+
+    Returns:
+      ``(colours, kinds)`` -- a dict keyed by the ABSENCE_KINDS keys
+      holding whatever the user has picked, and the set of stored kind
+      values present on the layer. `kinds` is None when the layer has
+      no ABSENCE_FIELD column at all, which is every layer written
+      before that column existed and every older GeoPackage reopened;
+      the renderer then falls back to its single catch-all.
+
+    ONE PLACE, because both the creating path and the repainting twin
+    need the same answer and this feature has already paid twice for
+    a rule written into one of a pair.
+    """
+    picks = self._quant_colours.get(tile_id, {}).get(field, {}) or {}
+    colours = {key: picks.get(key)
+               for key, _stored, _label, _fill in bridge.ABSENCE_KINDS
+               if picks.get(key)}
+    if layer is None:
+      return colours, None
+    index = layer.fields().indexOf(bridge.ABSENCE_FIELD)
+    if index < 0:
+      return colours, None
+    return colours, {str(v) for v in layer.uniqueValues(index)}
 
   def _add_no_data_layer(self, assignment, tile_id, absent, group,
                          project, path, hand_opacity=None,
@@ -6505,11 +6538,9 @@ class WeavingSpaceDialog(QDialog):
     if hand_renderer is not None:
       layer.setRenderer(hand_renderer)
     else:
-      colour = (self._quant_colours.get(tile_id, {}).get(field, {})
-                .get(bridge.NO_DATA_KEY) or bridge.NO_DATA_FILL)
-      layer.setRenderer(
-        bridge.make_no_data_renderer(colour,
-                                     assignment.get("outline", False)))
+      colours, kinds = self._absence_colours_and_kinds(tile_id, field, layer)
+      layer.setRenderer(bridge.make_no_data_renderer(
+        colours, assignment.get("outline", False), kinds))
     # TAGGED AS OUR OUTPUT like every other layer this run writes, or
     # the plugin would offer it back as a region layer to tile -- the
     # settled rule that tiling the tiles draws the next map on the

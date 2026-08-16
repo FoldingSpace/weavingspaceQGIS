@@ -1052,7 +1052,9 @@ def missing_values_message(field: str, missing: int, total: int):
 
   Args:
     field: the attribute name, as the user chose it in the table.
-    missing: how many mapped areas have no value for it.
+    missing: how many mapped areas hold nothing a graduated
+      renderer can place for it -- a NULL, a NaN or an
+      infinity, counted through `cannot_be_placed`.
     total: how many areas were mapped altogether.
 
   Returns:
@@ -1065,9 +1067,15 @@ def missing_values_message(field: str, missing: int, total: int):
   """
   if missing <= 0:
     return None
-  return (f"{missing:,} of {total:,} areas have no value for "
-          f"'{field}'. They draw as no data, outside the class "
-          f"breaks.")
+  # "DO NOT HAVE FINITE NUMERIC DATA" rather than "have no value"
+  # (maintainer's wording, 2026-08-16). The count widened that day to
+  # everything a graduated renderer cannot place -- a NULL, a NaN and
+  # either infinity -- and "no value" is exactly true of the first and
+  # false of an infinity, which is a value and simply not a finite
+  # one. The sentence now covers what it counts.
+  return (f"{missing:,} of {total:,} areas do not have finite numeric "
+          f"data for '{field}'. They draw as no data, outside the "
+          f"class breaks.")
 
 
 def constant_field_message(field: str) -> str:
@@ -2896,16 +2904,38 @@ def split_out_the_no_data(frame, field, column_has_values=None):
   return frame[~missing], gone
 
 
-def make_no_data_renderer(colour: str, outline: bool):
+def make_no_data_renderer(colour, outline: bool, kinds=None):
   """The renderer for an element's missing-value layer.
 
   Args:
-    colour: the fill those areas draw in, as "#rrggbb".
+    colour: the fill those areas draw in. Either a "#rrggbb" string,
+      which colours every kind alike and is what a caller with no
+      per-kind picks passes, or a dict keyed by the ABSENCE_KINDS keys
+      (NO_DATA_KEY, NEG_INF_KEY, POS_INF_KEY) holding a colour each.
+      Missing entries fall back to that kind's default fill.
     outline: whether tile boundaries are drawn, exactly as elsewhere.
+    kinds: which absence values this element's tiles actually hold, as
+      the strings stored in ABSENCE_FIELD -- normally read off the
+      paired layer. None means "only no-value", which is what a caller
+      that has not looked should assume and is the shape every layer
+      written before ABSENCE_FIELD existed has.
 
   Returns:
-    A QgsCategorizedSymbolRenderer with a single catch-all category
-    labelled "no data".
+    A QgsCategorizedSymbolRenderer with ONE CATEGORY PER KIND PRESENT,
+    labelled from ABSENCE_KINDS, in that tuple's order so the legend
+    reads no value, below any value, above any value whatever order
+    the tiles arrived in.
+
+  ONLY THE KINDS PRESENT, for the reason the categorical path already
+  gives: listing a category no tile of this element wears tells a
+  reader something false about the element. An element whose gaps are
+  all NULLs gets one entry, exactly as before this existed.
+
+  BACKWARD COMPATIBLE ON PURPOSE. A layer written before
+  ABSENCE_FIELD, or reopened from an older GeoPackage, has no such
+  column; passing kinds=None gives it the single catch-all it has
+  always had, categorized on "" so the value never matches and every
+  feature falls to it.
 
   CATEGORIZED RATHER THAN SINGLE-SYMBOL, deliberately. A single symbol
   would paint the same pixels, and would put a bare layer name in the
@@ -2923,9 +2953,30 @@ def make_no_data_renderer(colour: str, outline: bool):
   # inside the category, #000000 once the renderer was constructed.
   # make_categorized_renderer above has always built its own
   # categories inline for the same reason.
-  return QgsCategorizedSymbolRenderer("", [
-    QgsRendererCategory(
-      None, _fill_symbol(colour or NO_DATA_FILL, outline), "no data")])
+  picks = colour if isinstance(colour, dict) else {}
+  plain = colour if isinstance(colour, str) else None
+  present = set(kinds or ())
+  if not present:
+    # nothing said, or a layer from before the column existed: the
+    # single catch-all this has always produced. Categorized on "" so
+    # no value ever matches and every feature falls to the category.
+    return QgsCategorizedSymbolRenderer("", [
+      QgsRendererCategory(
+        None, _fill_symbol(plain or NO_DATA_FILL, outline), "no data")])
+  categories = []
+  for key, stored, label, fill in ABSENCE_KINDS:
+    if stored not in present:
+      continue
+    # Each symbol BUILT INLINE, and that is not a style preference.
+    # Holding one in a Python name and passing it to the category
+    # leaves two owners: the renderer takes it, Python frees it, and
+    # the category comes back wearing a default BLACK fill. Measured
+    # 2026-08-16 -- #dddddd through _fill_symbol, #dddddd inside the
+    # category, #000000 once the renderer was constructed.
+    categories.append(QgsRendererCategory(
+      stored, _fill_symbol(picks.get(key) or plain or fill, outline),
+      label))
+  return QgsCategorizedSymbolRenderer(ABSENCE_FIELD, categories)
 
 
 def gpkg_tables_we_would_replace(path: str, layer_names) -> list:
