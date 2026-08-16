@@ -19973,6 +19973,61 @@ def test_swapping_two_variables_re_cuts_both_splits():
   dlg.close()
 
 
+def test_the_colour_editor_opens_on_a_column_with_no_values():
+  """Three clicks, no Generate, and the editor used to raise.
+
+  A column with no usable values gives Unclassed fifty classes
+  running from 1.797e308 to minus infinity, so the SPAN is infinite.
+  The bound box sizes its decimals from `log10(span)`, guarded by
+  `span > 0`, which is true of infinity -- and log10 of it overflows.
+  The OverflowError escapes through a Qt slot, so Edit colours
+  silently does nothing and QGIS throws up its Python error window.
+
+  `span > 0` and "is this a number I can take a logarithm of" are not
+  the same question, which is the general form worth keeping: a guard
+  that tests SIGN does not test FINITENESS.
+
+  Found by a stochastic hunt at seed 301, step 23, and reachable
+  without generating anything at all.
+
+  Regression: opening the colour editor for an Unclassed element on a column with no values raised an unhandled OverflowError, so the button did nothing and QGIS showed a Python error. [hunt]
+  """
+  import math
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+
+  # the shape the hunt measured: fifty classes spanning the whole of
+  # the float range, which is what an empty column produces
+  huge = 1.7976931348623157e308
+  bounds = [(huge, float("-inf"))]
+  bounds += [(float("-inf"), float("-inf"))] * 48
+  bounds += [(float("-inf"), -huge)]
+  order = [str(i) for i in range(len(bounds))]
+  span = max(max(b) for b in bounds) - min(min(b) for b in bounds)
+  assert not math.isfinite(span), \
+    f"the fixture's span is {span}, which is finite, so it does not " \
+    f"reproduce the case this test is about"
+
+  # the assertion IS that constructing it does not raise
+  # PINS SUPPLIED, or no bound box is built and the arithmetic this
+  # test is about never runs -- an earlier draft omitted them and
+  # passed with the guard removed.
+  editor = CategoryColourDialog(
+    "a", "empty", order, {k: "#ff0000" for k in order}, {},
+    bounds=bounds, locked=True, ramp_name="Reds",
+    range_bounds=(0, 100), pinned={},
+    pin_changed=lambda *a, **k: None)
+  try:
+    assert editor._pin_widgets, \
+      "no bound box was built, so log10 of the span was never taken " \
+      "and this test would pass however the guard is written"
+    assert editor.table.rowCount() == len(order), \
+      f"the editor opened with {editor.table.rowCount()} rows for " \
+      f"{len(order)} classes"
+  finally:
+    editor.close()
+
+
 def test_both_halves_of_an_element_fade_together():
   """An element is ONE thing to a reader, however many layers it is.
 

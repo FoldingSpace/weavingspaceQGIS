@@ -2441,10 +2441,30 @@ def split_out_the_no_data(frame, field):
     return frame, None
   if bool(missing.all()):
     # EVERY row is missing, and splitting here would be both
-    # redundant and harmful. Redundant because an element with
-    # nothing to classify already draws in NO_DATA_FILL through the
-    # single-symbol path below -- the whole element says "no data"
-    # without a second layer. Harmful because the split would leave
+    # redundant and harmful. Redundant because there is nothing to
+    # put on a second layer that is not already on the first.
+    #
+    # WHAT THIS COMMENT USED TO CLAIM WAS FALSE, and the correction
+    # matters more than the branch. It said such an element "already
+    # draws in NO_DATA_FILL through the single-symbol path below" --
+    # but that path is reached only by an element carrying NO
+    # variable, which an element with an empty column never is. A
+    # stochastic hunt measured what actually happens on 2026-08-16:
+    # QGIS builds a graduated renderer with ZERO ranges, every tile
+    # gets no symbol, and the element is absent from the map at 0.000
+    # painted against 0.255 for its neighbours, while its row shows a
+    # swatch, a ramp name and a class count, and the message bar says
+    # the areas "draw as no data". Three statements to the user, all
+    # of them wrong.
+    #
+    # It is left alone here deliberately: this is settled behaviour
+    # guarded by test_a_column_with_no_values_at_all_invents_no_class,
+    # whose docstring says the element "is entitled to paint
+    # nothing", and changing what an empty column draws is the
+    # maintainer's decision rather than a defect to fix in passing.
+    # Raised 2026-08-16; the choice is between drawing the element in
+    # the no-data colour, which is what the message already promises,
+    # and keeping the present silence. Harmful because the split would leave
     # the graduated layer EMPTY beside a full paired one, so the
     # element a user selects, filters and reads a feature count from
     # would carry no tiles at all.

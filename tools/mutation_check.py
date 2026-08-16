@@ -294,6 +294,17 @@ MUTATIONS = [
            "both have gaps leaves the signature still and each "
            "element holding the split cut for the other field -- "
            "values drawn as no data and gaps drawn as nothing"),
+  dict(name="a-sign-guard-is-not-a-finiteness-guard", file=EDITOR,
+       old="""    places = (9 - int(math.floor(math.log10(span)))
+              if math.isfinite(span) and span > 0 else 6)""",
+       new="""    places = 9 - int(math.floor(math.log10(span))) if span > 0 else 6""",
+       test="test_the_colour_editor_opens_on_a_column_with_no_values",
+       why="a column with no usable values gives Unclassed fifty "
+           "classes spanning the whole float range, so the span is "
+           "INFINITE and `span > 0` is true of it; log10 then "
+           "overflows and the OverflowError escapes through a Qt "
+           "slot, leaving Edit colours doing nothing and QGIS "
+           "showing a Python error window"),
   dict(name="unclassed-is-exempt-from-the-reduction", file=BRIDGE,
        old="""  if unclassed:
     return int(asked), False""",

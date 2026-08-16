@@ -687,7 +687,16 @@ class CategoryColourDialog(QDialog):
     # ...enough decimal places to separate values on THIS column, and
     # no more: nine significant places below the span, which gives 0
     # on a column of square metres and eleven on a column of rates
-    places = 9 - int(math.floor(math.log10(span))) if span > 0 else 6
+    # `span > 0` is not the same question as "is this a number I can
+    # take a logarithm of". A column with no usable values at all
+    # gives Unclassed fifty classes running from 1.797e308 to -inf,
+    # so the span is INFINITE, `span > 0` is true, and log10 of it
+    # overflows -- an unhandled OverflowError escaping a Qt slot, so
+    # the Edit colours button silently does nothing and QGIS throws
+    # up its Python error window. Three clicks and no Generate.
+    # Measured 2026-08-16 by a stochastic hunt at seed 301.
+    places = (9 - int(math.floor(math.log10(span)))
+              if math.isfinite(span) and span > 0 else 6)
     box.setDecimals(max(0, min(12, places)))
     box.setRange(-magnitude * 100.0, magnitude * 100.0)
     box.setValue(float(value))

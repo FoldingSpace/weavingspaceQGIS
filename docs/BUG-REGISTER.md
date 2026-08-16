@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-185 defect(s) with a regression test.
+186 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -107,6 +107,8 @@ there is no separate list to remember.
   guarded by `test_removing_the_region_layer_is_noticed_in_a_real_project`
 - **swapping the variables of two elements whose columns both had missing values left each holding the other's no-data split, so values were drawn as gaps and gaps as values.**  
   guarded by `test_swapping_two_variables_re_cuts_both_splits`
+- **opening the colour editor for an Unclassed element on a column with no values raised an unhandled OverflowError, so the button did nothing and QGIS showed a Python error.**  
+  guarded by `test_the_colour_editor_opens_on_a_column_with_no_values`
 - **the constant-column notice counted the tiled output rather than the region layer, so a small area dropped at a coarse spacing produced "every area has the same value" beside a legend showing a range.**  
   guarded by `test_the_constant_notice_counts_the_users_areas`
 - **`distance` converts BOTH its arguments to CIELAB on every call, and the clash search compared every class of one element against every class of another -- so it did 2*k*k conversions where 2*k would do, at about twelve microseconds each. Measured: four categorized elements of 401 classes froze QGIS for 36.75s, of which 35.70s was here, on the GUI thread with the event loop dead; the tiling those colours belonged to took 1.05s. The live path paid it on every tweak.**  
@@ -419,7 +421,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 82
-- a bug hunt pointed in a named direction: 36
+- a bug hunt pointed in a named direction: 37
 - the mutation campaign: 16
 - reported by a user: 11
 - race and stress testing: 6
