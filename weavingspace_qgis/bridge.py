@@ -1487,6 +1487,51 @@ def classification_source(field: str, values) -> QgsVectorLayer | None:
     return None
 
 
+def quant_class_colours(ramp_name: str, reverse: bool, count: int,
+                        range_bounds: tuple = (0, 100)) -> list:
+  """The colours a graduated element wears, for a given ramp and k.
+
+  Args:
+    ramp_name: the ramp as the row names it, resolved through
+      get_ramp, so QGIS's meaning for the name wins.
+    reverse: whether the row's Reverse column is ticked.
+    count: how many classes are drawn. One class is coloured from the
+      MIDDLE of the window rather than its start, for the reason
+      make_graduated_renderer gives at that branch.
+    range_bounds: the Ramp Display Range as (lo, hi) percentages;
+      (0, 100) is the whole ramp and is the default.
+
+  Returns:
+    A list of `count` colour names ("#rrggbb"), lowest class first.
+    Empty when count is not positive or the ramp cannot be resolved --
+    callers treat that as "cannot say" rather than as "no colours".
+
+  WHY THIS IS A FUNCTION AND NOT THREE COPIES OF A ONE-LINER. QGIS
+  colours class i at ramp.color(i/(k-1)) (measured, QGIS 4.0.3), and
+  the plugin re-colours the same way when a display window or a pin
+  is in force. That formula was written out twice in
+  make_graduated_renderer, and a THIRD caller then needed it: reading
+  an adopted layer back has to ask whether the ramp explains the
+  colours that are drawn, and a reimplementation there would agree
+  with itself rather than with the map. One owner means the question
+  and the answer cannot drift apart.
+  """
+  if count <= 0:
+    return []
+  try:
+    ramp = get_ramp(ramp_name, reverse)
+  except Exception:
+    return []
+  if ramp is None:
+    return []
+  lo, hi = range_bounds
+  colours = []
+  for i in range(count):
+    along = i / (count - 1) if count > 1 else 0.5
+    colours.append(ramp.color((lo + (hi - lo) * along) / 100.0).name())
+  return colours
+
+
 def make_graduated_renderer(layer: QgsVectorLayer, field: str,
                             ramp_name: str, scheme: str, k: int,
                             outline: bool,
@@ -1950,8 +1995,9 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
     # the map reads as "no data" rather than "one value". The
     # window's MIDDLE is the honest colour -- the plain ramp middle
     # when the window is the whole ramp. (User decision, 2026-08-09.)
-    mid = get_ramp(ramp_name, reverse).color((lo + hi) / 200.0).name()
-    renderer.updateRangeSymbol(0, _fill_symbol(mid, outline))
+    mid = quant_class_colours(ramp_name, reverse, 1, (lo, hi))
+    if mid:
+      renderer.updateRangeSymbol(0, _fill_symbol(mid[0], outline))
   elif ((lo, hi) != (0, 100) or pins) and count:
     # the Ramp Display Range: first class at lo, last at hi, linear
     # between. Skipped at (0, 100) UNLESS a bound is pinned, because
@@ -1963,12 +2009,9 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
     # all and the middle would wear the extremes. Recolouring the
     # full set restores exactly what QGIS would have drawn for this
     # many classes.
-    ramp = get_ramp(ramp_name, reverse)
-    for i in range(count):
-      along = i / (count - 1) if count > 1 else 0.5
-      fraction = (lo + (hi - lo) * along) / 100.0
-      renderer.updateRangeSymbol(
-        i, _fill_symbol(ramp.color(fraction).name(), outline))
+    for i, colour in enumerate(
+        quant_class_colours(ramp_name, reverse, count, (lo, hi))):
+      renderer.updateRangeSymbol(i, _fill_symbol(colour, outline))
   # hand-picked class colours outrank the range and the ramp alike
   for key, colour in (overrides or {}).items():
     try:

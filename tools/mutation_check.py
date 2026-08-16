@@ -141,6 +141,38 @@ MUTATIONS = [
            "the user; the same road reaches a region layer whose file "
            "has gone, where recovery must assign rather than stay "
            "blank (maintainer's decision, 2026-08-15)"),
+  dict(name="a-named-ramp-does-not-prove-the-ramp-decides", file=DIALOG,
+       old="""      expected = bridge.quant_class_colours(
+        named, flipped, len(bands),
+        tuple(self._ramp_ranges.get(tile_id, (0, 100))))""",
+       new="""      expected = None""",
+       test="test_a_graduated_dock_recolour_survives_the_plugin_being_shut",
+       why="reading an adopted layer back has to ask whether the ramp "
+           "EXPLAINS the colours drawn, not merely whether a ramp is "
+           "named; QGIS keeps the source ramp on a renderer whose "
+           "classes have been recoloured by hand, so without this the "
+           "row believes the ramp is the whole story and the next "
+           "Generate repaints over the user's choice"),
+  dict(name="the-live-dialog-record-is-cleared-on-destruction",
+       file=DIALOG,
+       old="""    dialog.destroyed.connect(
+      lambda *_ignored, t=token: _forget_live_dialog(t))""",
+       new="""    pass""",
+       test="test_a_destroyed_dialog_cannot_be_reached_by_a_layer_it_made",
+       why="the record is parked on the QApplication so it survives a "
+           "plugin reload, and nothing else clears it; left dangling, "
+           "merely READING the property segfaults QGIS, so it has to "
+           "be dropped while the dialog is still alive enough to say "
+           "so"),
+  dict(name="a-dead-dialog-answers-no-signal", file=DIALOG,
+       old="""    if _dialog_is_gone(self):""",
+       new="""    if False:""",
+       test="test_a_destroyed_dialog_cannot_be_reached_by_a_layer_it_made",
+       why="Qt disconnects a bound method when its receiver dies but "
+           "keeps calling a LAMBDA, and an element layer outlives the "
+           "dialog that made it; without this guard the styleChanged "
+           "handler runs on a destroyed dialog, reaches a deleted "
+           "QTableWidget and takes QGIS down with it"),
   dict(name="unclassed-is-exempt-from-the-reduction", file=BRIDGE,
        old="""  if unclassed:
     return int(asked), False""",
@@ -903,15 +935,21 @@ MUTATIONS = [
            "drawing another, and the next Generate pushes the "
            "table's belief onto the map"),
   dict(name="reopened-classes-recovered-as-custom", file=DIALOG,
-       old="""    self._quant_colours.setdefault(tile_id, {})[field] = {
-      str(index): colour for index, colour in enumerate(bands)}""",
+       old="""    if recovered and (expected is not None or not named):
+      self._quant_colours.setdefault(tile_id, {})[field] = recovered""",
        new="""    pass  # mutation: unnameable colours are not recovered""",
-       test="test_a_project_round_trip_changes_nothing_a_user_chose",
-       why="an element whose colours no library ramp draws -- a "
-           "reversed ramp is the everyday case -- coming back as "
-           "Custom carrying those exact colours. Without it the row "
-           "claims a ramp that is not what is drawn, and the next "
-           "Generate makes the map agree with the claim"),
+       test="test_a_graduated_dock_recolour_survives_the_plugin_being_shut",
+       why="an element whose drawn colours the ramp does not explain "
+           "comes back carrying those exact colours; without it the "
+           "row claims a ramp that is not what is drawn, and the next "
+           "Generate makes the map agree with the claim. RE-POINTED "
+           "2026-08-16: this entry named the reversed ramp as its "
+           "everyday case and pointed at a round-trip test, and both "
+           "halves had gone stale -- since reversed ramps came back "
+           "NAMED with a flip flag, that test stopped driving this "
+           "line, and the entry SURVIVED the moment it was "
+           "re-anchored. The behaviour is unchanged and still worth "
+           "guarding; what changed is which journey reaches it"),
   dict(name="greyed-reverse-keeps-its-record", file=DIALOG,
        # The mutation is the code as it stood before 2026-08-13:
        # restore the switch's report verbatim, and a rebuild while
@@ -1399,8 +1437,8 @@ MUTATIONS = [
   # 2026-08-09 evening): the range arithmetic, the involution, the
   # destruction list, the graduated watcher, persistence, the column
   dict(name="quant-range-formula", file=BRIDGE,
-       old="      along = i / (count - 1) if count > 1 else 0.5",
-       new="      along = i / count if count > 1 else 0.5"
+       old="    along = i / (count - 1) if count > 1 else 0.5",
+       new="    along = i / count if count > 1 else 0.5"
            "  # mutation: top class never reaches hi",
        test="test_the_ramp_display_range_reinterpolates",
        why="the window arithmetic is the whole feature: divide by k "

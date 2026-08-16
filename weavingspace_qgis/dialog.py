@@ -489,6 +489,86 @@ _LIVE_DIALOG = None
 # is no application object (some headless uses).
 _LIVE_KEY = "weavingspace_live_dialog"
 
+# ...and beside it, a plain STRING naming which dialog that record is
+# about. Parking the object on the QApplication solved the reload
+# problem and created a worse one: nothing cleared the property when
+# the dialog was destroyed, so the application went on holding a
+# pointer to freed memory, and merely READING it segfaulted QGIS --
+# not raising, not returning None, crashing the host application.
+# Measured 2026-08-16: destroy the dialog, then recolour any element
+# layer in QGIS's styling dock, and the styleChanged handler dies in
+# _live_dialog at the property read. Reachable in ordinary use,
+# because Plugin Reloader destroys the previous dialog and the output
+# layers outlive it.
+# Checking the object for deadness cannot work -- the crash IS the
+# read -- so the record is cleared while the dialog is still alive
+# enough to say so, from its own destroyed signal. The token is what
+# makes that safe: a dialog being destroyed AFTER its successor
+# registered must not clear the successor's record, and comparing
+# tokens is the only comparison available once the object is gone.
+_LIVE_TOKEN_KEY = "weavingspace_live_dialog_token"
+
+
+def _dialog_is_gone(dialog):
+  """Whether a dialog's C++ half has been destroyed under Python.
+
+  Args:
+    dialog: a WeavingSpaceDialog, or None.
+
+  Returns:
+    True when the object must not be touched -- it is None, or sip
+    reports the wrapped C++ object deleted. False when it is safe, and
+    False as well when sip cannot be imported, since refusing to work
+    is worse than the rare crash this guards.
+
+  Qt disconnects a signal from a BOUND METHOD when the receiving
+  QObject dies, but a LAMBDA is an ordinary Python object that Qt
+  keeps alive and goes on calling. An element layer outlives the
+  dialog that made it, so its styleChanged lambda fires into a dead
+  dialog and reaches a deleted QTableWidget. Guarding at the handler
+  covers every route by which the connection can survive, which
+  disconnecting at one teardown site would not.
+  """
+  if dialog is None:
+    return True
+  try:
+    from qgis.PyQt import sip
+  except Exception:
+    return False
+  try:
+    return bool(sip.isdeleted(dialog))
+  except Exception:
+    return False
+
+
+def _forget_live_dialog(token):
+  """Drop the live-dialog record, if it is still the one named.
+
+  Args:
+    token: the string identifying the dialog whose destruction is
+      being reported.
+
+  Returns:
+    None. Does nothing when the record has since moved to another
+    dialog, which is the case this exists to get right.
+  """
+  global _LIVE_DIALOG
+  try:
+    from qgis.PyQt.QtWidgets import QApplication
+    app = QApplication.instance()
+    if app is None:
+      _LIVE_DIALOG = None
+      return
+    # reading the TOKEN is safe where reading the dialog is not: it
+    # is a string, and holds no pointer into the dead object
+    if app.property(_LIVE_TOKEN_KEY) != token:
+      return
+    app.setProperty(_LIVE_KEY, None)
+    app.setProperty(_LIVE_TOKEN_KEY, None)
+  except Exception:
+    pass
+  _LIVE_DIALOG = None
+
 
 def _live_dialog():
   """The dialog currently in charge, across module reloads.
@@ -521,11 +601,26 @@ def _set_live_dialog(dialog):
   """
   global _LIVE_DIALOG
   _LIVE_DIALOG = dialog
+  token = f"weavingspace-dialog-{id(dialog)}" if dialog is not None else None
   try:
     from qgis.PyQt.QtWidgets import QApplication
     app = QApplication.instance()
     if app is not None:
       app.setProperty(_LIVE_KEY, dialog)
+      app.setProperty(_LIVE_TOKEN_KEY, token)
+  except Exception:
+    pass
+  if dialog is None:
+    return
+  # The record must not outlive what it points at. `destroyed` fires
+  # while the object is going away, which is the last moment anything
+  # can safely say so -- afterwards the property read itself crashes.
+  # The token travels by default argument rather than by capturing
+  # `dialog`, since a closure holding the dialog would keep a
+  # reference to the very object whose death is being reported.
+  try:
+    dialog.destroyed.connect(
+      lambda *_ignored, t=token: _forget_live_dialog(t))
   except Exception:
     pass
 
@@ -3966,10 +4061,6 @@ class WeavingSpaceDialog(QDialog):
     if 2 <= len(bands) <= 20 and tile_id not in self._class_counts:
       self._class_counts[tile_id] = len(bands)
 
-    if named:
-      return
-    # No ramp in the library draws these, so the colours ARE the
-    # style: keep them positionally and let _sync_row read Custom.
     try:
       field = renderer.classAttribute()
     except Exception:
@@ -3978,8 +4069,51 @@ class WeavingSpaceDialog(QDialog):
       return
     if self._quant_colours.get(tile_id, {}).get(field):
       return          # the user has picks of their own; do not touch
-    self._quant_colours.setdefault(tile_id, {})[field] = {
-      str(index): colour for index, colour in enumerate(bands)}
+
+    # A NAMED RAMP IS NOT PROOF THAT THE RAMP DECIDES THE COLOURS, and
+    # this half went on believing it was. The categorized branch above
+    # was corrected on 2026-08-13 and its graduated twin, forty lines
+    # away, was never revisited: `if named: return` threw away a class
+    # a user had recoloured in QGIS's styling panel, in any session
+    # where the plugin dialog was not open to hear `rendererChanged`.
+    # Reopen the project, press Generate, and the colour was gone --
+    # while the categorized element beside it survived the identical
+    # journey. Measured 2026-08-16: #abcdef held through the reopen and
+    # reverted to #e32f27 on the next run.
+    #
+    # So ask the real seeding code what the ramp WOULD draw, exactly as
+    # the categorized branch does. Reimplementing the sampling here
+    # would agree with itself rather than with the map.
+    expected = None
+    if named:
+      # The SCHEME is deliberately absent from this question. A
+      # scheme decides where the breaks fall; the colours are the
+      # ramp sampled across however many classes there are, so
+      # asking for the colours needs the ramp, the reverse flag, the
+      # count and the display window and nothing else. Reaching for
+      # make_graduated_renderer here would have meant inventing a
+      # scheme to pass it -- and it reclassifies, so on a column
+      # with few distinct values it can return FEWER classes than
+      # the layer draws, which would read as colours the ramp does
+      # not explain and recover the lot.
+      expected = bridge.quant_class_colours(
+        named, flipped, len(bands),
+        tuple(self._ramp_ranges.get(tile_id, (0, 100))))
+      if len(expected) != len(bands):
+        expected = None          # cannot say; do not guess
+
+    # Recover only the colours the ramp does NOT explain, for the same
+    # reason the categorized branch gives: recording all of them would
+    # make the record mean "what is drawn" rather than "what the user
+    # chose", so an ordinary ramp would come back reading Custom.
+    recovered = {}
+    for index, colour in enumerate(bands):
+      if expected is not None and index < len(expected) \
+          and expected[index] == colour:
+        continue
+      recovered[str(index)] = colour
+    if recovered and (expected is not None or not named):
+      self._quant_colours.setdefault(tile_id, {})[field] = recovered
 
   def _clear_category_colours(self, tile_id, because):
     """Forget an element's hand-picked colours for its current field.
@@ -4507,6 +4641,10 @@ class WeavingSpaceDialog(QDialog):
       rule, and the ramp cell makes no claim a recolour could turn
       into a lie.
     """
+    if _dialog_is_gone(self):
+      # the layer outlived this dialog and its lambda came
+      # with it; there is nothing here to update
+      return
     from qgis.core import (QgsCategorizedSymbolRenderer,
                            QgsGraduatedSymbolRenderer)
     live = _live_dialog()

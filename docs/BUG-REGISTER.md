@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-171 defect(s) with a regression test.
+173 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -61,6 +61,10 @@ there is no separate list to remember.
   guarded by `test_a_deferring_element_keeps_its_renderer_across_a_generate`
 - **an element styled in QGIS and then moved onto a text column was drawn by a graduated renderer over words, so every tile fell outside every class and the map painted nothing.**  
   guarded by `test_a_deferring_element_moved_to_words_still_draws`
+- **destroying the plugin dialog left a dangling pointer on the QApplication and a live styleChanged lambda on every output layer, so restyling an element layer afterwards crashed QGIS.**  
+  guarded by `test_a_destroyed_dialog_cannot_be_reached_by_a_layer_it_made`
+- **a class recoloured in QGIS's styling dock was discarded when the plugin reopened, because the graduated adoption path stopped at the mere presence of a ramp name, while its categorized twin asked whether that ramp explained the colours.**  
+  guarded by `test_a_graduated_dock_recolour_survives_the_plugin_being_shut`
 - **per-element records survived a project change, so pinned bounds, colours and class counts set in one project were applied to the next project opened in the same session.**  
   guarded by `test_a_new_project_does_not_inherit_the_last_one_s_pins`
 - **the class-count reduction counted the whole column, so pinning a bound could leave the scheme cutting more classes than the pool between the pins had distinct values, drawing a legend swatch no tile wears.**  
@@ -391,7 +395,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 82
-- a bug hunt pointed in a named direction: 22
+- a bug hunt pointed in a named direction: 24
 - the mutation campaign: 16
 - reported by a user: 11
 - race and stress testing: 6

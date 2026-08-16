@@ -19065,6 +19065,222 @@ def test_a_graduated_dock_refinement_survives_the_next_restyle():
   dlg.close()
 
 
+def test_a_destroyed_dialog_cannot_be_reached_by_a_layer_it_made():
+  """Destroying the dialog must not leave QGIS holding a dead pointer.
+
+  This one CRASHES the host application rather than spoiling a map,
+  which puts it in a different class from everything around it, and
+  it was found while writing the test above rather than by a hunt.
+
+  Two mechanisms, both of them "something outlives the dialog".
+
+  The live-dialog record is parked on the QApplication so it survives
+  a plugin reload -- and nothing cleared it when the dialog was
+  destroyed, so the application went on holding a pointer into freed
+  memory. Reading it was the crash: `app.property(...)` segfaulted,
+  so no amount of checking the returned object afterwards could have
+  helped, and the record has to be dropped while the dialog is still
+  alive enough to say so.
+
+  And the element layers outlive the dialog that made them. Their
+  styleChanged is connected through a LAMBDA, which Qt keeps alive
+  and goes on calling -- unlike a bound method, which it disconnects
+  when the receiver dies -- so the handler ran on a destroyed dialog
+  and reached a deleted QTableWidget.
+
+  Reachable in ordinary use: QGIS's Plugin Reloader destroys the
+  previous dialog while the output layers stay in the project, and
+  recolouring one of them in the styling dock is then enough.
+
+  Regression: destroying the plugin dialog left a dangling pointer on the QApplication and a live styleChanged lambda on every output layer, so restyling an element layer afterwards crashed QGIS.
+ [hunt]
+  """
+  from qgis.PyQt import sip
+  from qgis.PyQt.QtGui import QColor
+  from weavingspace_qgis import dialog as dialog_module
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(150)
+  tid = dlg.table.item(0, 0).text()
+  dlg.spacing_spin.setValue(500)
+  _generate_and_wait(dlg)
+  out = project.mapLayer(dlg._element_layer_ids[tid])
+  assert out is not None, "the run produced no element layer to restyle"
+  assert dialog_module._live_dialog() is dlg, \
+    "the dialog never took the live record, so destroying it below " \
+    "would not exercise the clearing this test is about"
+
+  dlg.close()
+  sip.delete(dlg)
+  del dlg
+  _tick(200)
+
+  # the record must be gone, not merely stale: reading a stale one is
+  # itself the crash, so there is no safe way to inspect it later
+  assert dialog_module._live_dialog() is None, \
+    "the QApplication still names a destroyed dialog as the live " \
+    "one, and reading that record is what crashes QGIS"
+
+  # ...and the layer's own signal must find nobody home. Before the
+  # fix this reached a deleted QTableWidget and Qt aborted the
+  # process, so reaching the next line at all is the assertion.
+  edited = out.renderer().clone()
+  bands = edited.ranges() if hasattr(edited, "ranges") else []
+  if bands:
+    symbol = bands[0].symbol().clone()
+    symbol.setColor(QColor("#204060"))
+    edited.updateRangeSymbol(0, symbol)
+  else:
+    cats = edited.categories()
+    symbol = cats[0].symbol().clone()
+    symbol.setColor(QColor("#204060"))
+    edited.updateCategorySymbol(0, symbol)
+  out.setRenderer(edited)
+  _tick(200)
+  assert True, "reaching here means the restyle did not take QGIS down"
+
+
+def test_a_graduated_dock_recolour_survives_the_plugin_being_shut():
+  """The same promise, with nobody listening at the time.
+
+  Its sibling above covers the LIVE path: the dialog is open, QGIS
+  emits rendererChanged, and `_graduated_layer_edited` records the
+  recolour. Shut the plugin first and no signal is heard by anyone,
+  so the only chance to notice is `_adopt_row_symbology`, which reads
+  the layer back when the dialog reopens.
+
+  That reading gave up the moment the layer named a ramp -- `if
+  named: return` -- on the theory that a named ramp decides the
+  colours. It does not. QGIS keeps the source ramp on a renderer
+  whose classes have since been recoloured by hand, so the row came
+  back believing the ramp was the whole story and the next Generate
+  repainted over the user's choice. The CATEGORIZED half of this
+  function was corrected on 2026-08-13; its graduated twin, forty
+  lines below, was never revisited -- which is the "if a rule names
+  one of a pair, check the other" lesson arriving for the fourth
+  time.
+
+  The user story is ordinary and the loss is silent: recolour a class
+  in the styling dock, save, come back tomorrow, press Generate, and
+  the colour is the ramp's again.
+
+  Regression: a class recoloured in QGIS's styling dock was discarded when the plugin reopened, because the graduated adoption path stopped at the mere presence of a ramp name, while its categorized twin asked whether that ramp explained the colours.
+ [hunt]
+  """
+  from qgis.core import QgsGraduatedSymbolRenderer
+  from qgis.PyQt.QtGui import QColor
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(150)
+  tid = dlg.table.item(0, 0).text()
+  dlg.spacing_spin.setValue(500)
+  _generate_and_wait(dlg)
+  out = project.mapLayer(dlg._element_layer_ids[tid])
+  renderer = out.renderer()
+  assert isinstance(renderer, QgsGraduatedSymbolRenderer), \
+    f"row 0 was mapped to a numeric field and did not come back " \
+    f"graduated ({renderer!r}), so the path under test never runs"
+  assert renderer.sourceColorRamp() is not None, \
+    "the element carries no source ramp, so `if named` -- the very " \
+    "branch this test is about -- would not be taken"
+
+  # The plugin is GONE first, and closing is not enough: a closed
+  # dialog is still connected to rendererChanged, so the live path
+  # goes on recording the edit and this test would pass with the bug
+  # fully present -- which it did, measured 2026-08-16, before the
+  # premise below was asserted. The scenario being modelled is the
+  # ordinary one: QGIS is opened on yesterday's project, the plugin
+  # has not been opened this session, and a class is recoloured in
+  # the styling dock before anybody presses Generate.
+  from qgis.PyQt import sip
+  dlg.close()
+  sip.delete(dlg)
+  del dlg
+  _tick(200)
+  stamp_before = out.customProperty("weavingspace_quant_style")
+
+  CHOSEN = "#204060"
+  edited = out.renderer().clone()      # re-fetched AFTER the close
+  # `edited.ranges()` hands back a temporary list that owns the
+  # ranges; subscripting it and then asking the range for its symbol
+  # frees the list first and reads the symbol out of freed memory,
+  # which segfaults QGIS rather than failing. Bind the list to a name
+  # so it outlives the call. (Measured here 2026-08-16; the sibling
+  # test above never met it because iterating keeps the list alive.)
+  bands = edited.ranges()
+  before = [r.symbol().color().name() for r in bands]
+  assert before[0] != CHOSEN, \
+    f"the fixture already draws class 0 as {CHOSEN}, so the " \
+    f"assertions below would pass without anything being preserved"
+  symbol = bands[0].symbol().clone()
+  symbol.setColor(QColor(CHOSEN))
+  edited.updateRangeSymbol(0, symbol)
+  out.setRenderer(edited)
+  _tick(100)
+  # bound, not subscripted off a temporary, for the reason above --
+  # and this one would not have crashed, it would have read freed
+  # memory and reported a plausible wrong colour
+  landed_bands = out.renderer().ranges()
+  now = [r.symbol().color().name() for r in landed_bands]
+  assert now[0] == CHOSEN, \
+    f"the hand recolour did not take on the layer itself: {now}"
+  # THE PREMISE, asserted rather than assumed: with no dialog alive,
+  # nothing may have reacted to the edit. If some listener survives,
+  # the reopened dialog would read the answer off the layer and this
+  # test would prove nothing about the adoption path it is aimed at.
+  assert out.customProperty("weavingspace_quant_style") == stamp_before, \
+    "something reacted to the dock recolour although the plugin was " \
+    "destroyed, so this test is exercising the live path and not " \
+    "the adoption path it names"
+
+  # ...and the plugin is opened again, which is where the reading is
+  again = WeavingSpaceDialog(iface=_Iface())
+  again.live_check.setChecked(False)
+  again.layer_combo.setLayer(layer)
+  _tick(400)
+  assert again._element_layer_ids.get(tid) == out.id(), \
+    f"the reopened dialog did not adopt the element under test, so " \
+    f"nothing below is about it: {again._element_layer_ids!r}"
+  assert again._quant_colours.get(tid, {}).get("v1", {}).get("0") \
+      == CHOSEN, \
+    f"the reopened dialog read the layer back and did not notice " \
+    f"that class 0 is {CHOSEN} rather than its ramp's colour, so " \
+    f"the next Generate will repaint over it: " \
+    f"{again._quant_colours.get(tid, {})!r}"
+
+  # the assertion that matters to the user: it survives a Generate
+  again.spacing_spin.setValue(520)
+  _generate_and_wait(again)
+  landed = project.mapLayer(again._element_layer_ids[tid])
+  drawn = [r.symbol().color().name() for r in landed.renderer().ranges()]
+  assert drawn[0] == CHOSEN, \
+    f"a class recoloured in QGIS's styling dock was repainted by " \
+    f"the next Generate after the plugin was closed and reopened: " \
+    f"class 0 is {drawn[0]} and should be {CHOSEN} (all: {drawn})"
+  # ...and ONLY that class: the rest are still the ramp's, or this
+  # would pass by recording every colour as hand-picked, which is
+  # the failure the categorized branch's comment warns about.
+  assert drawn[1:] == before[1:], \
+    f"the other classes stopped following the ramp, so the fix " \
+    f"recovered everything rather than the one colour the ramp does " \
+    f"not explain: {drawn} against {before}"
+  again.close()
+
+
 def test_an_unclassed_swatch_reaches_both_ends_of_its_ramp():
   """The Custom swatch for Unclassed shows the whole selected range.
 
