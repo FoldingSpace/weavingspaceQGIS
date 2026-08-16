@@ -12,7 +12,8 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-08-15 (night: the three fixture-order hunts judged).
+Last updated 2026-08-16 (the mechanics audit, the harness and the
+portfolio rule; six hunts launched under them).
 
 ## How to run one
 
@@ -330,6 +331,49 @@ hunts, and they are written faster and with less scrutiny.
 shapes as equivalent to the fixture order and said so. That is not a
 null result: it is ground nobody need walk again, and it is the only
 kind of answer that shrinks the queue rather than lengthening it.
+
+## What the mechanics cost, measured 2026-08-15
+
+The audit that produced the harness and the portfolio rule. The
+numbers are kept because the changes only make sense against them, and
+because anybody proposing to undo one should have to argue with the
+measurement rather than with the conclusion.
+
+**Token cost.** Three hunts in one round: 165,391, 193,261 and 215,315
+tokens, over 58, 96 and 57 tool calls. 573,967 in total, for four
+claims of which ONE survived verification. The two rounds before it
+returned 1.17 and 1.25 confirmed defects per hunt against this round's
+0.33 -- and the difference was not effort or mechanics but DIRECTION:
+both earlier rounds were pointed at code written the same day.
+
+**Setup rebuilt every time.** 373 one-shot probe scripts in one
+session's scratchpad, median 79 lines, of which roughly forty were the
+same boilerplate re-typed -- standing up QGIS, a project and a dialog.
+Names ran `hd_probe1` to `hd_probe9` and `stores_probe1` to `8`: a
+fresh file per hypothesis rather than a case on a runner. Order of
+18,000 lines written and read back, comparable to one whole hunt.
+
+**And the setup was WRONG.** Eleven hand-written shell wrappers, every
+one of them setting `QGIS_PREFIX_PATH` to the doubled path that leaves
+QGIS unable to find its style database. Those hunts probed a QGIS with
+NO STOCK COLOUR RAMPS and none of them knew. This is the finding that
+turned an efficiency audit into a correctness one: a shared harness
+would have been wrong once instead of eleven times, and would have
+been fixed for every future hunt the day the prefix was understood.
+
+**Stale trees.** Two hunts of the three read a commit that a fix landed
+on top of while they ran -- about 350,000 tokens, 60% of the round,
+spent confirming defects that no longer existed. One of them filed the
+very defect the fix had been written for, with high confidence.
+
+**Unreadable logs.** Two of the three logs drifted out of the
+`RESULT: confirmed` shape the supervision loop greps, so watching them
+meant reading them whole. A format that is advisory is a format that
+costs more to check than to follow.
+
+The scratchpad itself held 30,580 files and 1.8 GB by the end of the
+session -- disk rather than tokens, and harmless, but a fair measure
+of how much of hunting had become file management.
 
 ## The portfolio rule, and why yield is the wrong thing to maximise
 
