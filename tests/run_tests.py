@@ -12821,11 +12821,22 @@ def test_no_data_features_still_draw_after_classifying():
   assert checked, "no output layers to check"
 
   said = " ".join(text for _kind, text in BAR_MESSAGES)
-  assert "no value" in said, \
+  # Asked of the MESSAGE the product composes, not of a phrase
+  # transcribed from it. This assertion read `"no value" in said` and
+  # broke on 2026-08-16 when the maintainer reworded the notice to
+  # "do not have finite numeric data" -- right, because the count had
+  # widened to infinities, which are values and simply not finite
+  # ones. The product was correct and the test failed on every
+  # platform for hours, read as a Windows fault because Windows was
+  # the first leg anybody looked at.
+  from weavingspace_qgis import bridge
+  expected = bridge.missing_values_message("v", 2, 9)
+  assert expected and expected in said, \
     f"nothing told the user the column has gaps; the bar received " \
-    f"{BAR_MESSAGES!r}. They are owed the count, and it is what gives " \
-    f"them a chance of understanding if QGIS's own Classify button " \
-    f"later moves every break"
+    f"{BAR_MESSAGES!r} and the notice reads {expected!r}. They are " \
+    f"owed the count, and it is what gives them a chance of " \
+    f"understanding if QGIS's own Classify button later moves every " \
+    f"break"
   dlg.close()
 
 

@@ -1047,6 +1047,13 @@ class WeavingSpaceDialog(QDialog):
     self._outline_layer_id = None
     self._last_signatures = {}
     self._last_path = None
+    # TRUE between adopting a group somebody else's session wrote and
+    # the first Generate into it. Adoption records that group's file in
+    # `_last_path`, so without this the destination the user then
+    # chooses reads as a CHANGE and the run builds a rival beside the
+    # group it just took over -- see `_add_output_layers`, where this
+    # is read and cleared.
+    self._adopted_group_unwritten = False
     # {gpkg path: {element ids this dialog wrote into it}}. Kept so a
     # design that SHRINKS can remove the tables its own previous run
     # left behind, and so that it can remove ONLY those: a GeoPackage
@@ -1937,6 +1944,14 @@ class WeavingSpaceDialog(QDialog):
   def _settle_layer_choice(self):
     """Rebuild the table if the chooser landed on a layer after the fact.
 
+    A RETIRED DIALOG DOES NOTHING HERE, and the guard is the same one
+    `_on_project_read` carries. This runs from a `singleShot` queued
+    off the layer chooser, and a dialog the user has finished with is
+    still connected to the project until its C++ object dies -- which
+    may be much later, or never in a session that opens the plugin
+    several times. Each such dialog rebuilding its unit is a full
+    weave construction for a window nobody is looking at.
+
     Returns:
       None. Compares what the assignment table was last built for
       against what the chooser holds now, and rebuilds only when they
@@ -1947,6 +1962,8 @@ class WeavingSpaceDialog(QDialog):
     before the combo has a current layer at all, and a table built in
     that instant has no fields in it.
     """
+    if _dialog_is_gone(self) or _live_dialog() is not self:
+      return
     layer = self.layer_combo.currentLayer()
     stamp = (layer.id() if layer is not None else None,
              tuple(self._layer_fields()))
@@ -2008,6 +2025,8 @@ class WeavingSpaceDialog(QDialog):
     This exists only because the ORDER of the two handlers is not
     guaranteed; see the connection site for the measurement.
     """
+    if _dialog_is_gone(self) or _live_dialog() is not self:
+      return
     if self._watched_layer_id is None:
       return
     if self._watched_layer_id in tuple(layer_ids):
@@ -2038,6 +2057,8 @@ class WeavingSpaceDialog(QDialog):
     has. `layersRemoved` is the project's own account of the same
     event and does not depend on a widget's bookkeeping.
     """
+    if _dialog_is_gone(self) or _live_dialog() is not self:
+      return
     # The id this dialog was pointed at, taken from whichever witness
     # still holds it: `_removal_pending` was set before the removal,
     # `_watched_layer_id` is only still right if no combo handler has
@@ -4205,6 +4226,10 @@ class WeavingSpaceDialog(QDialog):
     # new group beats an invisible double map.
     self._group_name = None
     self._last_path = None
+    # ...and this, which belongs to the group being forgotten. A
+    # record left set here would let the NEXT project's first run
+    # replace a group it never adopted.
+    self._adopted_group_unwritten = False
     self._outline_layer_id = None
     # auto-spacing must run again for whatever layer is chosen next:
     # the id it remembers belongs to a project that no longer exists
@@ -7675,6 +7700,11 @@ class WeavingSpaceDialog(QDialog):
     group = self._newest_output_group(root)
     if group is None:
       return
+    # Taken over rather than written by us, so the first Generate
+    # REPLACES it whatever the output box says. Read and cleared in
+    # `_add_output_layers`; set here rather than at the call sites
+    # because this is the one place that establishes the fact.
+    self._adopted_group_unwritten = True
     project = QgsProject.instance()
     self._no_data_layer_ids = dict(
       self._no_data_layer_ids)
@@ -8154,7 +8184,67 @@ class WeavingSpaceDialog(QDialog):
     preserved via the signature check.
     """
     project = QgsProject.instance()
-    force_new = self.opt_new_group.isChecked() or path != self._last_path
+    # A NEW GROUP IS FOR A DELIBERATE REDIRECT, not for any difference
+    # between where output is going and where it last went.
+    #
+    # This read `path != self._last_path`, and on 2026-08-16 that
+    # turned the adoption fix into the very defect the adoption fix
+    # was written to cure. Adopting a reopened project's group now
+    # records that group's GeoPackage in `_last_path` (see
+    # `_remember_our_table`, which had to, or a dialog comparing
+    # against None built a rival). A user who then clears the output
+    # box -- asking for memory layers, which is what somebody
+    # recovering a project with a moved region layer does -- left
+    # `path` empty against a remembered file, so the destination read
+    # as CHANGED and Generate built a second group beside the one it
+    # had just taken over. Both groups then drew the same tables, and
+    # the abandoned one redrew the new data under the old symbology:
+    # the invisible double map, arriving through its own repair.
+    # Bisected to 3b78241; the same test passes at its parent.
+    #
+    # So the comparison now asks what it always meant: is the user
+    # sending output to a DIFFERENT FILE. Both sides must name a file
+    # for that to be true. Clearing the box means "memory output"
+    # rather than "start again", and going from memory to a file
+    # writes the group we already have into it. `Create as new group`
+    # remains the control for saying start again on purpose, which is
+    # the point -- an explicit checkbox should not be shadowed by an
+    # inference from a file path.
+    # ...EXCEPT ON THE FIRST RUN AFTER ADOPTING SOMEBODY ELSE'S GROUP,
+    # which is the case the two contracts disagreed about.
+    #
+    # A group this dialog WROTE and a group it INHERITED are different
+    # things, and `_last_path` stopped telling them apart on
+    # 2026-08-16 when adoption began recording the adopted file (it had
+    # to: comparing against None built a rival beside the group it had
+    # just taken over). Then a user recovering a project -- adopt, point
+    # at a live layer, clear the output box for memory layers -- left
+    # `path` empty against a remembered file, the destination read as
+    # changed, and Generate built the rival anyway. The invisible
+    # double map, arriving through its own repair. Bisected to 3b78241.
+    #
+    # Making a cleared box mean "not a redirect" fixed that and broke
+    # the other contract, which is deliberate and tested: moving output
+    # to a file, or back to memory, DOES start its own group, because
+    # the previous result came from somewhere else and overwriting it
+    # would conflate two outputs (test_model_based_dialog_states).
+    #
+    # Both hold once the question is asked properly. A path change
+    # starts a new group; adopting a group and then generating into it
+    # for the FIRST time replaces it, whatever the box says, because
+    # taking a project over is the whole purpose of adopting it. After
+    # that first run the group is ours and the ordinary rule resumes.
+    # `Create as new group` overrides either way, which keeps the
+    # explicit control ahead of any inference.
+    adopted_not_yet_written = self._adopted_group_unwritten
+    force_new = self.opt_new_group.isChecked() or (
+      path != self._last_path and not adopted_not_yet_written)
+    # Spent the moment it is read: the group is this dialog's from
+    # here on, and a second run with a changed destination follows the
+    # ordinary rule again. Cleared BEFORE the work below rather than
+    # after, so an exception on the way cannot leave it armed for a
+    # later run that has no claim to it.
+    self._adopted_group_unwritten = False
     group, created = self._get_or_make_group(force_new)
     group.setName(self._group_name)
 
