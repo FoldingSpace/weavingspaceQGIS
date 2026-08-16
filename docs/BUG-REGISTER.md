@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-179 defect(s) with a regression test.
+182 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -79,12 +79,18 @@ there is no separate list to remember.
   guarded by `test_a_pinned_bound_can_hold_the_numbers_a_column_carries`
 - **a plugin closed and reopened adopted the oldest output group rather than the newest, so the next Generate overwrote a result the user had deliberately kept and restored bounds they had unpinned.**  
   guarded by `test_a_reopened_plugin_adopts_the_group_it_last_wrote`
+- **a reopened plugin adopted an element's no-data layer as the element itself, orphaning the real layer so a stale map stayed on top of every later run.**  
+  guarded by `test_a_reopened_plugin_does_not_mistake_a_no_data_layer_for_its_element`
 - **the guard that refuses to write a new group over an existing GeoPackage compared the chosen path against `_last_path`, which records only what THIS dialog instance last wrote. A reopened project has a fresh dialog that remembers nothing, so a user ticking the box precisely IN ORDER to keep yesterday's map overwrote it without a warning. Measured 2026-08-16: 41/40/41/40 features became 113/112/113/112, no modal, nothing on the note line.**  
   guarded by `test_a_reopened_project_cannot_overwrite_yesterdays_geopackage`
 - **negative scale factors were allowed on 2026-08-16 so that a pattern can be mirrored, which put ZERO inside the control's range for the first time. The library does not refuse a zero scale: `transform_scale(0, ...)` returns a unit collapsed to no area, and the failure surfaces much later inside `Tiling.__init__` as `numpy.linalg.LinAlgError: Singular matrix` -- reaching the user as a raw "Tiling failed" line about a matrix they never asked about.**  
   guarded by `test_a_scale_control_steps_over_zero`
 - **an area whose value was NULL was not drawn at all, leaving a hole in the map that reads as absence rather than as missing data.**  
   guarded by `test_an_area_with_no_value_is_drawn_rather_than_left_as_a_hole`
+- **an element's no-data layer ignored its opacity when the run landed, so a faded element drew opaque patches until something unrelated restyled it.**  
+  guarded by `test_both_halves_of_an_element_fade_together`
+- **a mode change or a variable swap was answered by the restyle path, which cannot cut a no-data split, so the missing-value areas became holes again.**  
+  guarded by `test_changing_to_a_graduated_style_cuts_the_split_it_needs`
 - **the bound spin boxes were greyed until a pin was clicked, and moving one could not pin the bound it named.**  
   guarded by `test_moving_a_bound_off_its_computed_value_pins_it`
 - **the No data class had no control anywhere, so the colour of a missing-value area could not be chosen.**  
@@ -407,7 +413,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 82
-- a bug hunt pointed in a named direction: 30
+- a bug hunt pointed in a named direction: 33
 - the mutation campaign: 16
 - reported by a user: 11
 - race and stress testing: 6

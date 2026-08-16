@@ -19747,6 +19747,222 @@ def test_a_negative_scale_factor_mirrors_the_design():
     dlg.close()
 
 
+def _layer_with_a_gap(n=12, field="v1"):
+  """A region layer with exactly one feature missing a value.
+
+  Args:
+    n: how many areas, passed to make_region_layer.
+    field: the column to empty in one feature.
+
+  Returns:
+    The layer, already committed, so a graduated renderer meets a
+    NULL it cannot place. Built here rather than in each test because
+    three tests need the same shape and a fixture that drifts between
+    them would make their results incomparable.
+  """
+  layer = make_region_layer(n=n)
+  index = layer.fields().indexFromName(field)
+  assert index >= 0, f"the fixture has no {field} to empty"
+  target = next(layer.getFeatures())
+  layer.startEditing()
+  assert layer.changeAttributeValue(target.id(), index, None), \
+    "the fixture refused a NULL"
+  assert layer.commitChanges(), "the edit would not commit"
+  return layer
+
+
+def test_both_halves_of_an_element_fade_together():
+  """An element is ONE thing to a reader, however many layers it is.
+
+  Set an element's opacity to 40 and its missing-value areas drew at
+  full strength: the hardest, most saturated shapes on an otherwise
+  faded map, hiding whatever lay beneath. Any later style change
+  silently corrected it, so the map exported was the wrong one and
+  the map seen afterwards was right.
+
+  The creating path had every stamp its repainting twin had except
+  the last line. The twin even carries a comment saying the two
+  halves must fade together, which is worth recording: writing the
+  rule down in one of a pair does not put it in the other.
+
+  Regression: an element's no-data layer ignored its opacity when the run landed, so a faded element drew opaque patches until something unrelated restyled it. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = _layer_with_a_gap()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(150)
+  tid = dlg.table.item(0, 0).text()
+  # the CONTROL, not the record behind it: `_assignments` reads the
+  # spin box, so writing the dict alone leaves the map at full
+  # strength and the test proves nothing (measured while writing it)
+  opacity = dlg.table.cellWidget(0, 6)
+  assert opacity is not None and hasattr(opacity, "setValue"), \
+    f"row 0 column 6 is {opacity!r}, not the opacity spin this " \
+    f"test drives"
+  opacity.setValue(40)
+  _tick(150)
+  dlg.spacing_spin.setValue(400)
+  _generate_and_wait(dlg)
+
+  paired_id = dlg._no_data_layer_ids.get(tid)
+  assert paired_id, "no paired layer, so this test is about nothing"
+  element = project.mapLayer(dlg._element_layer_ids[tid])
+  paired = project.mapLayer(paired_id)
+  assert abs(element.opacity() - 0.4) < 0.01, \
+    f"the element itself is at {element.opacity()}, not the 0.4 " \
+    f"asked for, so the comparison below would prove nothing"
+  assert abs(paired.opacity() - element.opacity()) < 0.01, \
+    f"the element draws at {element.opacity()} and its no-data half " \
+    f"at {paired.opacity()}; two halves of one element fading " \
+    f"differently tell a reader they are different things"
+  dlg.close()
+
+
+def test_changing_to_a_graduated_style_cuts_the_split_it_needs():
+  """The split is GEOMETRY, however much it looks like styling.
+
+  Only a full run splits an element's missing values onto their own
+  layer; the restyle fast path repaints a paired layer that already
+  exists and can neither make nor unmake one. So an element switched
+  from Categorized to a graduated scheme was answered in place, its
+  nulls stayed on the graduated layer, and the holes this whole
+  feature exists to remove came straight back -- with the message bar
+  saying only "no re-tiling needed".
+
+  A second door reaches the same state: two elements SWAPPING their
+  variables. The geometry signature carries the sorted SET of mapped
+  variables, so a permutation looks like nothing changed, while which
+  element needs a split has moved from one to the other.
+
+  Regression: a mode change or a variable swap was answered by the restyle path, which cannot cut a no-data split, so the missing-value areas became holes again. [hunt]
+  """
+  from qgis.core import QgsGraduatedSymbolRenderer
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = _layer_with_a_gap()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  # THE VARIABLE STAYS PUT and only the STYLE moves, which is the
+  # whole point: the mapped-variable set is already in the geometry
+  # signature, so changing the column re-tiles anyway and would prove
+  # nothing about the fast path. A mode change is the door the hunt
+  # actually walked through, and an earlier draft of this test used
+  # the other one and passed with the fix removed.
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(150)
+  tid = dlg.table.item(0, 0).text()
+  def choose_style(name):
+    """Pick a style the way a USER picks one.
+
+    `setCurrentText` moves the display and records nothing: the
+    choice is taken from `activated`, which only a person emits. An
+    earlier draft of this test set the text alone, the row stayed
+    graduated, and the first assertion below caught it -- the same
+    trap this project already wrote down for the ramp combo.
+    """
+    combo = dlg.table.cellWidget(0, 2)
+    index = combo.findText(name)
+    assert index >= 0, \
+      f"the Style dropdown does not offer {name!r}: " \
+      f"{[combo.itemText(i) for i in range(combo.count())]}"
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(250)
+
+  choose_style("Categorized")
+  dlg.spacing_spin.setValue(400)
+  _generate_and_wait(dlg)
+  assert not dlg._no_data_layer_ids.get(tid), \
+    "a categorized element was given a no-data layer; it has its " \
+    "own catch-all and needs none"
+
+  # ...then the STYLE alone moves to a graduated scheme
+  choose_style("Quant: Quantiles")
+  _generate_and_wait(dlg)
+
+  out = project.mapLayer(dlg._element_layer_ids[tid])
+  renderer = out.renderer()
+  assert isinstance(renderer, QgsGraduatedSymbolRenderer), \
+    f"the element did not become graduated ({renderer!r}), so the " \
+    f"case this test is about never arose"
+  assert dlg._no_data_layer_ids.get(tid), \
+    "the element became graduated on a column with gaps and no " \
+    "no-data layer was cut, so those tiles are holes again"
+  assert all(f["v1"] is not None and str(f["v1"]) != "NULL"
+             for f in out.getFeatures()), \
+    "the graduated layer still holds tiles with no value, which it " \
+    "cannot paint"
+  dlg.close()
+
+
+def test_a_reopened_plugin_does_not_mistake_a_no_data_layer_for_its_element():
+  """A paired layer carries its element's id, and is not that element.
+
+  Adoption keyed on `weavingspace_tile_id` alone, which the no-data
+  layer carries too, so the paired layer OVERWROTE its own element in
+  the record. The next Generate then removed exactly what the record
+  named -- the no-data layer -- and orphaned the real element layer,
+  leaving yesterday's map, with yesterday's tiling and yesterday's
+  variable, drawn on top of the new one and never updated again.
+
+  The shape generalises past this feature: a paired artefact inherits
+  the identity property of the thing it is paired with, so every
+  lookup keyed on that property silently gains a second answer.
+
+  Regression: a reopened plugin adopted an element's no-data layer as the element itself, orphaning the real layer so a stale map stayed on top of every later run. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = _layer_with_a_gap()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(150)
+  tid = dlg.table.item(0, 0).text()
+  dlg.spacing_spin.setValue(400)
+  _generate_and_wait(dlg)
+  first_element = dlg._element_layer_ids[tid]
+  first_paired = dlg._no_data_layer_ids.get(tid)
+  assert first_paired, "no paired layer, so this test is about nothing"
+  dlg.close()
+
+  again = WeavingSpaceDialog(iface=_Iface())
+  again.live_check.setChecked(False)
+  again.layer_combo.setLayer(layer)
+  _tick(400)
+  assert again._element_layer_ids.get(tid) == first_element, \
+    f"the reopened dialog adopted " \
+    f"{again._element_layer_ids.get(tid)!r} as element '{tid}'; the " \
+    f"element is {first_element!r} and " \
+    f"{first_paired!r} is its no-data half"
+  assert again._no_data_layer_ids.get(tid) == first_paired, \
+    f"the reopened dialog did not recover the no-data layer: " \
+    f"{again._no_data_layer_ids!r}"
+
+  # ...and the next run replaces both, orphaning neither
+  again.spacing_spin.setValue(430)
+  _generate_and_wait(again)
+  survivors = [lyr.name() for lyr in project.mapLayers().values()
+               if lyr.customProperty("weavingspace_tile_id") == tid]
+  assert len(survivors) == 2, \
+    f"element '{tid}' is drawn by {len(survivors)} layer(s) after a " \
+    f"reopen and a run ({survivors}); it should be exactly its own " \
+    f"layer and its no-data half, with the previous run's gone"
+  again.close()
+
+
 def test_a_graduated_dock_recolour_survives_the_plugin_being_shut():
   """The same promise, with nobody listening at the time.
 

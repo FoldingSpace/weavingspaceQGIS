@@ -958,6 +958,8 @@ class WeavingSpaceDialog(QDialog):
     # deleting a table on the strength of its name matching our
     # convention would eventually delete somebody's work.
     self._gpkg_tables_written = {}
+    # {(layer id, column, data version): bool} -- see _column_has_nulls
+    self._nulls_cache = {}
     # the watched layer's id, recorded by `_layers_going` while the
     # layer still exists, so the removal notice does not depend on
     # which of two Qt handlers runs first
@@ -6093,6 +6095,20 @@ class WeavingSpaceDialog(QDialog):
       self.opt_outlines.isChecked(),
       self.gpkg_widget.filePath().strip() or None,
       tuple(sorted(a["var"] for a in self._assignments() if a["var"])),
+      # WHETHER EACH ELEMENT NEEDS ITS TILES SPLIT, which is geometry
+      # and not style however much it looks like styling. Only a full
+      # run splits an element's missing values onto their own layer;
+      # `_restyle_only` repaints a paired layer that already exists
+      # and cannot make or unmake one. So switching an element from
+      # Categorized to a graduated scheme was answered in place, the
+      # nulls stayed on the graduated layer, and the holes this
+      # feature exists to remove came straight back -- while the
+      # reverse left a paired layer behind holding values nothing
+      # drew. Measured 2026-08-16 by a hunt: eight null tiles
+      # unpainted after the mode change, `symbolForFeature` answering
+      # None for every one of them.
+      tuple((a["id"], self._needs_a_no_data_split(a))
+            for a in self._assignments()),
       # What the layer HOLDS, not merely which layer it is. Without
       # this, deleting half the features left every term here
       # identical, so the run was treated as a style-only change and
@@ -6101,6 +6117,69 @@ class WeavingSpaceDialog(QDialog):
       # demand and never marked as out of date.
       self._layer_fingerprint(), self._data_version,
     )
+
+  def _needs_a_no_data_split(self, assignment):
+    """Whether this element's tiles must be split onto a second layer.
+
+    Args:
+      assignment: one row from `_assignments()`.
+
+    Returns:
+      True when the element is drawn by a graduated renderer AND its
+      column has values a classifier cannot place. False otherwise,
+      including for every categorized or single-colour element, which
+      have their own catch-all and need no second layer.
+
+    IT IS IN THE GEOMETRY SIGNATURE, so it is asked on every debounce
+    tick and must not cost a scan each time; `_column_has_nulls`
+    caches per column and per data version. Widening a signature into
+    something that rescans the layer is a trap this project has
+    already written down.
+    """
+    if assignment.get("mode") != "Graduated":
+      return False
+    return self._column_has_nulls(assignment.get("var"))
+
+  def _column_has_nulls(self, field):
+    """Whether the region layer has missing values in one column.
+
+    Args:
+      field: the column name, or None, which answers False.
+
+    Returns:
+      True when at least one feature's value there is absent. False
+      when none is, when there is no such column, or when there is no
+      region layer to ask -- absence of an answer is not evidence of
+      nulls, and claiming one would put an element through a full
+      re-tile for nothing.
+
+    Cached on the layer, the column and `_data_version`, which is
+    bumped whenever the data underneath changes, so an edit in QGIS
+    retires the answer and nothing else does.
+    """
+    if not field:
+      return False
+    layer = self.layer_combo.currentLayer()
+    if layer is None:
+      return False
+    key = (layer.id(), field, self._data_version)
+    cached = self._nulls_cache.get(key)
+    if cached is not None:
+      return cached
+    index = layer.fields().indexOf(field)
+    if index < 0:
+      self._nulls_cache[key] = False
+      return False
+    found = False
+    for feature in layer.getFeatures():
+      value = feature[field]
+      if value is None or str(value) == "NULL":
+        found = True
+        break
+    # one entry per column per data version; the dict is small and is
+    # cleared with the rest of the caches when the layer changes
+    self._nulls_cache[key] = found
+    return found
 
   def _restyle_no_data_layer(self, tile_id, assignment):
     """Repaint one element's missing-value layer in place.
@@ -6244,6 +6323,18 @@ class WeavingSpaceDialog(QDialog):
     layer.setCustomProperty("weavingspace_no_data", True)
     if path:
       bridge.embed_style(layer)
+    # THE SAME OPACITY AS ITS ELEMENT. The repainting twin sets this
+    # and the creating path did not, so an element faded to 40% drew
+    # its missing-value areas at full strength -- the hardest shapes
+    # on an otherwise faded map, hiding whatever lay beneath -- until
+    # some unrelated style change silently corrected it, which meant
+    # the map a user exported was the wrong one and the map they saw
+    # afterwards was right. Found by two hunts independently on
+    # 2026-08-16, in the commit that added this method, whose twin
+    # forty lines above carries a comment saying the two halves must
+    # fade together. Writing that comment did not put the line here.
+    layer.setOpacity(
+      max(0, min(100, assignment.get("opacity", 100))) / 100.0)
     project.addMapLayer(layer, False)
     group.addLayer(layer)
     self._no_data_layer_ids[tile_id] = layer.id()
@@ -7032,12 +7123,34 @@ class WeavingSpaceDialog(QDialog):
     if group is None:
       return
     project = QgsProject.instance()
+    self._no_data_layer_ids = dict(
+      getattr(self, "_no_data_layer_ids", {}) or {})
     for child in group.children():
       layer = child.layer() if hasattr(child, "layer") else None
       if layer is None or project.mapLayer(layer.id()) is None:
         continue
       tid = layer.customProperty("weavingspace_tile_id")
-      if tid:
+      # A PAIRED NO-DATA LAYER CARRIES ITS ELEMENT'S TILE ID, because
+      # it belongs to that element -- and this loop keyed adoption on
+      # that id alone, so the paired layer OVERWROTE its own element
+      # in `_element_layer_ids`. What followed was the worst outcome
+      # this dialog can produce: the next Generate removed exactly
+      # what `old_ids` named, which was the no-data layer, and left
+      # the real element layer orphaned in the project. Yesterday's
+      # map -- old tiling, old variable -- stayed on top of the new
+      # one and was never updated again. Measured 2026-08-16 by a
+      # hunt working backwards from harm: element 'a' drawn as
+      # 'a - v1' with 938 features at spacing 400, over a live map of
+      # 'a - v2' with 313 at 700.
+      #
+      # The general shape, worth more than the fix: a PAIRED artefact
+      # inherits the identity property of the thing it is paired
+      # with, so every lookup keyed on that property silently gains a
+      # second answer. When you add one, grep the property rather
+      # than the feature.
+      if tid and layer.customProperty("weavingspace_no_data"):
+        self._no_data_layer_ids[str(tid)] = layer.id()
+      elif tid:
         self._element_layer_ids[str(tid)] = layer.id()
         # a project saved with hand-picked colours brings them back
         self._adopt_category_colours(layer, str(tid))

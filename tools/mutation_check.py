@@ -224,6 +224,39 @@ MUTATIONS = [
            "value leaves a control that reaches negative numbers and "
            "a map that ignores them, which is worse than not "
            "offering them"),
+  dict(name="both-halves-of-an-element-fade-together", file=DIALOG,
+       old="""    layer.setOpacity(
+      max(0, min(100, assignment.get("opacity", 100))) / 100.0)
+    project.addMapLayer(layer, False)""",
+       new="""    project.addMapLayer(layer, False)""",
+       test="test_both_halves_of_an_element_fade_together",
+       why="an element is one thing to a reader however many layers "
+           "it is; without this the creating path leaves the "
+           "missing-value areas opaque on an element faded to 40%, "
+           "so they become the hardest shapes on the map and hide "
+           "what lies beneath, until an unrelated restyle silently "
+           "corrects it"),
+  dict(name="the-no-data-split-is-geometry-not-style", file=DIALOG,
+       old="""      tuple((a["id"], self._needs_a_no_data_split(a))
+            for a in self._assignments()),""",
+       new="""      (),""",
+       test="test_changing_to_a_graduated_style_cuts_the_split_it_needs",
+       why="only a full run can cut the split; the restyle path "
+           "repaints a paired layer that exists and can neither make "
+           "nor unmake one, so without this term a mode change or a "
+           "variable swap is answered in place and the holes the "
+           "feature exists to remove come back"),
+  dict(name="a-paired-layer-is-not-its-element", file=DIALOG,
+       old="""      if tid and layer.customProperty("weavingspace_no_data"):
+        self._no_data_layer_ids[str(tid)] = layer.id()
+      elif tid:""",
+       new="""      if tid:""",
+       test="test_a_reopened_plugin_does_not_mistake_a_no_data_layer_for_its_element",
+       why="the paired layer carries its element's tile id, so "
+           "adoption keyed on that id alone lets the twin overwrite "
+           "the element; the next run then removes the twin and "
+           "orphans the real layer, leaving yesterday's map on top "
+           "of the new one for good"),
   dict(name="unclassed-is-exempt-from-the-reduction", file=BRIDGE,
        old="""  if unclassed:
     return int(asked), False""",
