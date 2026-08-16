@@ -1264,7 +1264,22 @@ def test_real_world_data():
   _generate_and_wait(dlg)
 
   group = project.layerTreeRoot().findGroup(dlg._group_name)
-  assert group is not None and len(group.children()) == len(dlg._tile_ids())
+  assert group is not None, "the run produced no output group"
+  # ONE LAYER PER ELEMENT, PLUS A NO-DATA HALF WHERE THE DATA HAS
+  # GAPS. This counted children against elements alone, which was
+  # right until an element could be two layers. Auckland's IMD data
+  # has real gaps, so the group legitimately holds more children
+  # than there are elements -- and asserting the old equality would
+  # be asserting that the missing areas are not drawn.
+  wanted = len(dlg._tile_ids()) + len(dlg._no_data_layer_ids)
+  assert len(group.children()) == wanted, \
+    f"the group holds {len(group.children())} layer(s) for " \
+    f"{len(dlg._tile_ids())} element(s) and " \
+    f"{len(dlg._no_data_layer_ids)} no-data half/halves"
+  assert dlg._no_data_layer_ids, \
+    "no element of this real dataset got a no-data layer, so the " \
+    "count above is the old one wearing new arithmetic; Auckland's " \
+    "IMD columns do have gaps"
   out = project.mapLayer(dlg._element_layer_ids["a"])
   assert out.featureCount() > 0
   # the CRS made the round trip: stripped before the task (pyproj is
@@ -1303,9 +1318,12 @@ def test_real_world_data():
     .get_tiled_map(join_on_prototiles=False, retain_tileables=False,
                    ragged_edges=True).map
   for tid in sorted(set(expected["tile_id"])):
-    got = project.mapLayer(dlg._element_layer_ids[tid]).featureCount()
+    halves = _element_halves(project, dlg, tid)
+    got = sum(h.featureCount() for h in halves)
     want = len(expected[expected["tile_id"] == tid])
-    assert got == want, f"element {tid}: {got} tiles, library says {want}"
+    assert got == want, \
+      f"element {tid}: {got} tiles across {len(halves)} layer(s), " \
+      f"library says {want}"
   # every element, not just the assigned ones: the dialog draws the
   # unassigned elements as plain fill, so a comparison that left them
   # out would be comparing two different maps
@@ -16362,7 +16380,14 @@ def test_integration_second_dialog_session():
   assert len(groups) == 1, \
     f"a second session must not add a rival group ({len(groups)} found)"
   assert dlg2._group_name == group_name
-  assert len(groups[0].children()) == len(dlg2._tile_ids())
+  # elements plus any no-data halves, since an element with gaps in
+  # its data is two layers (this fixture has none, but the arithmetic
+  # should follow the feature rather than the fixture)
+  assert len(groups[0].children()) == \
+    len(dlg2._tile_ids()) + len(dlg2._no_data_layer_ids), \
+    f"the group holds {len(groups[0].children())} layer(s) for " \
+    f"{len(dlg2._tile_ids())} element(s) and " \
+    f"{len(dlg2._no_data_layer_ids)} no-data half/halves"
   # adoption happens at construction, before any Generate: a freshly
   # opened dialog already knows the project's element layers
   dlg3 = WeavingSpaceDialog(iface=_Iface())
@@ -16950,6 +16975,32 @@ def _record_scenario(entry):
     f.write(json.dumps(entry) + "\n")
 
 
+def _element_halves(project, dlg, tid):
+  """Both layers that draw one element: its own, and its no-data half.
+
+  Args:
+    project: the QgsProject holding the output.
+    dlg: the dialog that produced it.
+    tid: the element id.
+
+  Returns:
+    A list of one or two layers. Since 2026-08-16 the tiles whose
+    value is missing live on a second layer, so any comparison
+    against the library -- which draws those areas too -- must count
+    both. Comparing the element layer alone measures a map the plugin
+    does not draw, and reads as lost tiles.
+  """
+  layers = []
+  main = project.mapLayer(dlg._element_layer_ids[tid])
+  if main is not None:
+    layers.append(main)
+  paired_id = getattr(dlg, "_no_data_layer_ids", {}).get(tid)
+  paired = project.mapLayer(paired_id) if paired_id else None
+  if paired is not None:
+    layers.append(paired)
+  return layers
+
+
 def _ui_layers_with_no_data(project, dlg):
   """Every layer the dialog drew, both halves of each element.
 
@@ -17298,11 +17349,15 @@ def _compare_ui_to_library(label, setup, expected_unit, tiling_kw,
     f"elements {sorted(dlg._element_layer_ids)} vs library " \
     f"{sorted(set(expected['tile_id']))}"
   for tid in sorted(set(expected["tile_id"])):
-    out = project.mapLayer(dlg._element_layer_ids[tid])
+    halves = _element_halves(project, dlg, tid)
+    out = halves[0]
     want = expected[expected["tile_id"] == tid]
-    assert out.featureCount() == len(want), \
-      f"element {tid}: {out.featureCount()} tiles, library says {len(want)}"
-    got_area = sum(f.geometry().area() for f in out.getFeatures())
+    got_count = sum(h.featureCount() for h in halves)
+    assert got_count == len(want), \
+      f"element {tid}: {got_count} tiles across {len(halves)} " \
+      f"layer(s), library says {len(want)}"
+    got_area = sum(f.geometry().area()
+                   for h in halves for f in h.getFeatures())
     want_area = float(want.geometry.area.sum())
     assert abs(got_area - want_area) <= want_area * area_tolerance, \
       f"element {tid}: area {got_area:.0f} vs library {want_area:.0f}"
