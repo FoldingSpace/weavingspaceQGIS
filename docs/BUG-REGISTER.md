@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-167 defect(s) with a regression test.
+168 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -71,6 +71,8 @@ there is no separate list to remember.
   guarded by `test_a_pinned_bound_can_hold_the_numbers_a_column_carries`
 - **a plugin closed and reopened adopted the oldest output group rather than the newest, so the next Generate overwrote a result the user had deliberately kept and restored bounds they had unpinned.**  
   guarded by `test_a_reopened_plugin_adopts_the_group_it_last_wrote`
+- **negative scale factors were allowed on 2026-08-16 so that a pattern can be mirrored, which put ZERO inside the control's range for the first time. The library does not refuse a zero scale: `transform_scale(0, ...)` returns a unit collapsed to no area, and the failure surfaces much later inside `Tiling.__init__` as `numpy.linalg.LinAlgError: Singular matrix` -- reaching the user as a raw "Tiling failed" line about a matrix they never asked about.**  
+  guarded by `test_a_scale_control_steps_over_zero`
 - **two elements sharing a categorical column and a ramp gave the same colour to different values, because each sampled the palette against its own category count.**  
   guarded by `test_one_colour_means_one_value_across_elements`
 - **pinning a class bound left the colour editor showing the ladder from before the pin, and the unpinned end's control offering a bound the map no longer had.**  
@@ -383,7 +385,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 82
-- a bug hunt pointed in a named direction: 18
+- a bug hunt pointed in a named direction: 19
 - the mutation campaign: 16
 - reported by a user: 11
 - race and stress testing: 6

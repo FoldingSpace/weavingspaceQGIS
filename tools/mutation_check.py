@@ -116,6 +116,20 @@ MUTATIONS = [
            "activated and NOT currentIndexChanged, so this handler is "
            "the only one that runs; a rebuild here replaces every cell "
            "widget while the user is still working the table"),
+  dict(name="a-scale-of-zero-is-never-reachable", file=DIALOG,
+       old="""    if value != 0:
+      self._last_scale[box] = value
+      return""",
+       new="""    if True:
+      self._last_scale[box] = value
+      return""",
+       test="test_a_scale_control_steps_over_zero",
+       why="a scale of zero collapses the tile unit to no area, and "
+           "the library does not refuse it -- it returns the "
+           "degenerate unit and fails much later inside Tiling as a "
+           "singular matrix, reaching the user as a raw traceback "
+           "about a matrix they never asked about. Zero became "
+           "reachable the day negative scales were allowed"),
   dict(name="a-blank-a-failure-imposed-is-not-a-choice", file=DIALOG,
        old="      elif prev is not None and prev[\"var\"] is None \\\n"
            "          and not self._fieldless_build:",

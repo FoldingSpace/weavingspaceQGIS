@@ -1023,6 +1023,10 @@ class WeavingSpaceDialog(QDialog):
     # The watched layer's id, kept beside the object because it is
     # what survives the object being destroyed. See _layers_removed.
     self._watched_layer_id = None
+    # The last non-zero value each scale control held, so stepping
+    # across zero can continue in the direction of travel. See
+    # _skip_zero_scale.
+    self._last_scale = {}
     self._watched_fields = ()
     # None until a layer is chosen, so choosing the first one is not
     # mistaken for the CRS having been changed underneath us.
@@ -1282,10 +1286,31 @@ class WeavingSpaceDialog(QDialog):
       "Turn the whole pattern; 15–75° usually suits two-direction "
       "weaves.")
     mform.addRow("Rotate (°)", self.mod_rotate)
-    self.mod_scale_x = spin(0.5, 4.0, 1.0, 0.02)
-    self.mod_scale_x.setToolTip("Stretch the pattern right-left.")
-    self.mod_scale_y = spin(0.5, 4.0, 1.0, 0.02)
-    self.mod_scale_y.setToolTip("Stretch the pattern up-down.")
+    # NEGATIVE SCALES MIRROR THE PATTERN, and are allowed as of
+    # 2026-08-16 at a user's request. Measured before widening the
+    # range: `Tileable.transform_scale` is a plain GeoSeries.scale, so
+    # -1 is a true reflection -- every centroid lands at exactly
+    # (-x, y), the element ids survive, and the whole chain through
+    # get_tiled_map, gdf_to_layer and the GeoPackage write returns the
+    # same tile count and the same total area. Elements swap sides of
+    # the map, which is the point of asking for it.
+    #
+    # ZERO IS THE HOLE IN THAT RANGE. transform_scale(0, ...) does not
+    # raise; it returns a collapsed unit whose prototile has no area,
+    # and the failure surfaces much later inside Tiling.__init__ as
+    # numpy.linalg.LinAlgError: Singular matrix, which reaches the
+    # user as a raw "Tiling failed" line. A spin box cannot exclude a
+    # single value, so _skip_zero below steps over it in whichever
+    # direction the user is travelling.
+    self.mod_scale_x = spin(-4.0, 4.0, 1.0, 0.02)
+    self.mod_scale_x.setToolTip(
+      "Stretch the pattern right-left; negative mirrors it.")
+    self.mod_scale_y = spin(-4.0, 4.0, 1.0, 0.02)
+    self.mod_scale_y.setToolTip(
+      "Stretch the pattern up-down; negative mirrors it.")
+    for box in (self.mod_scale_x, self.mod_scale_y):
+      box.valueChanged.connect(
+        lambda value, b=box: self._skip_zero_scale(b, value))
     pair("Scale EW / NS", self.mod_scale_x, self.mod_scale_y)
     self.mod_skew_x = spin(-45, 45, 0, 1)
     self.mod_skew_x.setToolTip("Slant the pattern right-left.")
@@ -1700,6 +1725,43 @@ class WeavingSpaceDialog(QDialog):
     self._table_built_for = stamp
     self._rebuild_unit()
 
+  def _skip_zero_scale(self, box, value):
+    """Step a scale control over zero rather than onto it.
+
+    Args:
+      box: the scale spin box that just changed.
+      value: the value it now holds.
+
+    Returns:
+      None. When the box has landed exactly on zero it is moved one
+      step further in the direction it was travelling, so a user
+      dragging or stepping across zero passes through rather than
+      stopping on it.
+
+    WHY ZERO IS SPECIAL. A scale of zero collapses the tile unit to no
+    area at all, and the library does not complain at the time: it
+    returns the degenerate unit and the failure appears later inside
+    `Tiling.__init__` as `numpy.linalg.LinAlgError: Singular matrix`,
+    which reaches a user as a raw "Tiling failed" line about a matrix
+    they never asked about. Measured 2026-08-16, when negatives were
+    allowed and zero became reachable for the first time.
+
+    A QDoubleSpinBox cannot carry a hole in its range, so the hole is
+    made here. The direction matters: stepping DOWN through zero must
+    land on -0.02 and stepping UP on +0.02, or the control fights the
+    user by pushing them back the way they came.
+    """
+    if value != 0:
+      self._last_scale[box] = value
+      return
+    previous = self._last_scale.get(box, 1.0)
+    step = box.singleStep()
+    box.blockSignals(True)
+    box.setValue(-step if previous > 0 else step)
+    box.blockSignals(False)
+    self._last_scale[box] = box.value()
+    self._queue_preview()
+
   def _layers_removed(self, layer_ids):
     """Notice the region layer leaving when the chooser does not say so.
 
@@ -1729,6 +1791,27 @@ class WeavingSpaceDialog(QDialog):
       return
     if self._watched_layer_id not in tuple(layer_ids):
       return
+    # SAY SO, and say it HERE. The notice in _on_layer_changed fires
+    # only when the chooser is left holding nothing, which is the
+    # one-layer case; with a survivor present the combo quietly moves
+    # to it and that arm never runs. Before this handler existed, a
+    # project of three or more simply went deaf and the map stayed
+    # put. Now it follows -- so without a sentence it would follow
+    # SILENTLY, and a hunt measured exactly that on 2026-08-16: four
+    # element layers moved twenty kilometres onto different ground
+    # with different variables, the group replaced in place, and the
+    # only message was "312 tiles across 4 element layers".
+    #
+    # Trading a silent do-nothing for a silent wrong map is worse than
+    # the fault it fixed, and CLAUDE.md already promised that the
+    # region layer being removed "is reported rather than silently
+    # emptying the chooser".
+    survivor = self.layer_combo.currentLayer()
+    if survivor is not None:
+      self._report_quietly(
+        f"The region layer was removed from the project, so the map "
+        f"now follows '{survivor.name()}'. Check the variables: they "
+        f"have been matched to the new layer's columns.")
     # Drop the reference BEFORE anything else runs: _watch_layer's
     # disconnect loop is guarded against a destroyed wrapper, but
     # there is no reason to hand it one when we already know.
@@ -3682,8 +3765,16 @@ class WeavingSpaceDialog(QDialog):
       return None
     values = source.uniqueValues(source.fields().indexOf(field))
     asked = assignment.get("k", 5)
+    # The SCHEME decides whether a reduction happens at all. An
+    # Unclassed row is mode "Graduated" with k forced to fifty, so
+    # nothing above this line distinguishes it, and the notice used to
+    # announce a reduction the renderer never performs -- "12 distinct
+    # values, so it draws as 12 classes, not 50" over a map drawing
+    # fifty. The renderer's own guard is `if not unclassed`; this is
+    # the same question, asked in the same words.
     drawn, from_pins = bridge.classes_the_map_will_draw(
-      values, asked, assignment.get("pinned"))
+      values, asked, assignment.get("pinned"),
+      unclassed=assignment.get("scheme") == "Unclassed")
     return bridge.few_values_message(field, drawn, asked, from_pins)
 
   def _forget_the_last_project(self):

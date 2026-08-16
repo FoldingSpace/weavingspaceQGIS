@@ -2495,8 +2495,15 @@ CONTROL_DEFAULTS = {
   "spacing_spin": (1000.0, 1e-06, 1e12, 1.0),
   "shells_spin": (1, 0, 4, 1),
   "mod_rotate": (0.0, -90.0, 90.0, 1.0),
-  "mod_scale_x": (1.0, 0.5, 4.0, 0.02),
-  "mod_scale_y": (1.0, 0.5, 4.0, 0.02),
+  # NEGATIVE SCALES MIRROR, allowed 2026-08-16 at a user's request and
+  # measured first: transform_scale is a plain GeoSeries.scale, so -1
+  # reflects exactly and the whole chain to the GeoPackage survives it.
+  # The range spans zero, which the library CANNOT take -- it returns a
+  # collapsed unit and fails later as a Singular matrix -- so the
+  # dialog steps over zero rather than onto it. See _skip_zero_scale
+  # and test_a_scale_control_steps_over_zero.
+  "mod_scale_x": (1.0, -4.0, 4.0, 0.02),
+  "mod_scale_y": (1.0, -4.0, 4.0, 0.02),
   "mod_skew_x": (0.0, -45.0, 45.0, 1.0),
   "mod_skew_y": (0.0, -45.0, 45.0, 1.0),
   "mod_p_inset": (0.0, 0.0, 10.0, 0.1),
@@ -5051,6 +5058,62 @@ def test_removing_the_region_layer_is_noticed_in_a_real_project():
     project.clear()
 
   assert not trouble, "; ".join(trouble)
+
+
+def test_a_scale_control_steps_over_zero():
+  """A scale of zero is never reachable, in either direction.
+
+  Regression: negative scale factors were allowed on 2026-08-16 so
+  that a pattern can be mirrored, which put ZERO inside the control's
+  range for the first time. The library does not refuse a zero scale:
+  `transform_scale(0, ...)` returns a unit collapsed to no area, and
+  the failure surfaces much later inside `Tiling.__init__` as
+  `numpy.linalg.LinAlgError: Singular matrix` -- reaching the user as
+  a raw "Tiling failed" line about a matrix they never asked about.
+  [hunt]
+
+  A QDoubleSpinBox cannot carry a hole in its range, so the dialog
+  makes one. DIRECTION IS THE WHOLE TEST: stepping down through zero
+  must continue downward and stepping up must continue upward, or the
+  control shoves the user back the way they came, which is worse than
+  stopping.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    for box in (dlg.mod_scale_x, dlg.mod_scale_y):
+      assert box.minimum() < 0, \
+        f"{box.objectName() or 'a scale box'} cannot mirror: its "\
+        f"minimum is {box.minimum()}"
+
+      # DOWNWARD through zero, one step at a time as the arrow does
+      box.setValue(box.singleStep())        # one step above zero
+      _tick(60)
+      box.stepBy(-1)
+      _tick(60)
+      assert box.value() < 0, \
+        f"stepping down from {box.singleStep()} stopped at "\
+        f"{box.value()}; a user travelling downward must pass zero"
+
+      # UPWARD through zero
+      box.setValue(-box.singleStep())
+      _tick(60)
+      box.stepBy(1)
+      _tick(60)
+      assert box.value() > 0, \
+        f"stepping up from -{box.singleStep()} stopped at "\
+        f"{box.value()}; a user travelling upward must pass zero"
+
+      # and typing it outright is refused too, since the value can be
+      # set directly as well as stepped -- which is how the user who
+      # asked for this said they work
+      box.setValue(0.0)
+      _tick(60)
+      assert box.value() != 0, \
+        "a scale of zero was accepted when typed; it collapses the "\
+        "unit and fails later as a singular matrix"
+  finally:
+    dlg.close()
 
 
 def test_qgis_changes_around_the_plugin():
@@ -41501,6 +41564,8 @@ def main():
         test_a_reprojected_layer_is_followed)
   check("the spacing box at its extremes",
         test_the_spacing_box_at_its_extremes)
+  check("a scale control steps over zero",
+        test_a_scale_control_steps_over_zero)
   check("QGIS changes around the plugin",
         test_qgis_changes_around_the_plugin)
   check("the region layer removed from a project of any size",

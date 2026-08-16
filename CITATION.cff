@@ -28,8 +28,8 @@ keywords:
   - QGIS
   - choropleth
 license: MIT
-version: 0.24.2
-date-released: '2026-08-14'
+version: 0.24.3
+date-released: '2026-08-15'
 preferred-citation:
   type: article
   title: >-

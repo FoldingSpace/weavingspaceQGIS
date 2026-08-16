@@ -249,6 +249,11 @@
   "excerpt": "[general]\nname=WeavingSpace\nqgisMinimumVersion=4.0\nqgisMaxim",
   "where": "weavingspace_qgis/metadata.txt"
  },
+ "2c0806533eebc62b": {
+  "approved": "2026-08-15",
+  "excerpt": "Stretch the pattern up-down; negative mirrors it.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "302693fce18f3e49": {
   "approved": "2026-08-09",
   "excerpt": "WeavingSpace draws its maps with three well-known Python lib",
@@ -337,6 +342,11 @@
  "4386757262e57cf9": {
   "approved": "2026-08-08",
   "excerpt": "Pulls each repeating unit apart from its neighbours, showing",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "44d6e59a20996c5a": {
+  "approved": "2026-08-15",
+  "excerpt": "Stretch the pattern right-left; negative mirrors it.",
   "where": "weavingspace_qgis/dialog.py"
  },
  "464ab6d445ede40f": {
@@ -1017,6 +1027,11 @@
  "b845030305876608": {
   "approved": "2026-08-09",
   "excerpt": "Turn the whole pattern; 15\u201375\u00b0 usually suits two-direction w",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "ba284fbfdcfc8431": {
+  "approved": "2026-08-15",
+  "excerpt": "The region layer was removed from the project, so the map no",
   "where": "weavingspace_qgis/dialog.py"
  },
  "ba4f79738e5c7d43": {

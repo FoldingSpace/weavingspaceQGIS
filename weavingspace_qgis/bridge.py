@@ -1136,7 +1136,7 @@ def _trim(value: float) -> str:
   return text
 
 
-def classes_the_map_will_draw(values, asked, pinned=None):
+def classes_the_map_will_draw(values, asked, pinned=None, unclassed=False):
   """How many classes this column actually draws, pins included.
 
   Args:
@@ -1145,6 +1145,11 @@ def classes_the_map_will_draw(values, asked, pinned=None):
     pinned: the element's pin record, or None. A copied ladder's
       "breaks" decide their own count; "low" and "high" narrow the
       pool the scheme cuts from.
+    unclassed: True when the row is Quant: Unclassed, which is EXEMPT
+      from the reduction -- its fifty steps reproduce a continuous
+      ramp rather than a class count anybody chose, so the renderer
+      does not reduce them and neither may this. Omitted, it defaults
+      False, which is the classed behaviour every other scheme wants.
 
   Returns:
     (count, from_a_pinned_pool). The count is what the legend will
@@ -1173,6 +1178,23 @@ def classes_the_map_will_draw(values, asked, pinned=None):
   #
   # When a docstring asserts that a case cannot arrive, grep the
   # callers before believing it.
+  # QUANT: UNCLASSED IS EXEMPT FROM THE REDUCTION, and this is the
+  # half that went missing. `make_graduated_renderer` reduces only
+  # `if not unclassed`, because Unclassed reproduces a CONTINUOUS ramp
+  # -- its fifty steps are the shape of the reproduction rather than a
+  # class count anybody chose, so drawing fewer of them would not be
+  # reproducing it. This helper was never told the scheme, so it went
+  # on reducing, and the message bar told a user with twelve distinct
+  # values that their Unclassed element "draws as 12 classes, not 50"
+  # while the map drew fifty. Found by a hunt pointed at the settled
+  # decisions, 2026-08-16, and reported by the maintainer the same
+  # night as something they did not want to see.
+  #
+  # The docstring above claims this is the same arithmetic
+  # make_graduated_renderer performs, "kept beside it so the two
+  # cannot drift". That claim is only true now.
+  if unclassed:
+    return int(asked), False
   breaks = (pinned or {}).get("breaks")
   if breaks:
     return len(breaks) + 1, False
