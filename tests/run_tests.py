@@ -13047,6 +13047,244 @@ def test_a_stage_log_never_shows_the_previous_run():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+# One shard of the stand-in stage. Written to disk by the test rather
+# than passed as `python -c`, because it is a program with a barrier in
+# it and a one-liner nobody can read is a fixture nobody can check.
+#
+# It does three things, in this order, and each matters:
+# writes well over a megabyte, which is far past the 64 KB a pipe will
+# hold, so a shard writing into a pipe nobody is reading STOPS here;
+# announces that it got that far, by creating a file; and then waits
+# until every sibling has announced the same. That last step is what
+# makes the test able to fail. Without it the old implementation
+# merely SERIALISED the shards -- each one unblocking as the parent
+# finally got round to draining it -- and a test that only asked for
+# the right text within a generous window would have passed, slowly,
+# on the very code it was written to catch.
+#
+# The padding is readable lines rather than one long run of a single
+# character, so the numbered first and last line prove the whole of a
+# shard's output survived, and so that the tail release.py prints
+# reads as deliberate padding instead of as corruption.
+_SHARD_STAND_IN = '''
+import os
+import sys
+import time
+
+# the shard learns which slice it is from the environment, exactly as
+# tests/run_tests.py does when release.py shards it
+index = os.environ["WEAVINGSPACE_TEST_SHARD"].split("/")[0]
+folder, total, exit_code = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+
+for line in range(14000):                 # about 1.3 MB, in 92-byte lines
+  sys.stdout.write("pad %07d " % line + "-" * 80 + "\\n")
+sys.stdout.flush()
+open(os.path.join(folder, "wrote-" + index), "w").close()
+
+# Wait for every sibling to have written as much. A shard blocked on a
+# full pipe never gets here, so under the old implementation this is a
+# genuine standstill rather than a slow run -- which is the point.
+# "abandon" is the test's way of releasing us once it has recorded the
+# failure; the deadline is a backstop so a stray child cannot outlive
+# the run whatever happens.
+deadline = time.monotonic() + 240
+while time.monotonic() < deadline:
+  written = len([n for n in os.listdir(folder) if n.startswith("wrote-")])
+  if written >= total or os.path.exists(os.path.join(folder, "abandon")):
+    break
+  time.sleep(0.02)
+
+sys.stdout.write("\\nSHARD " + index + " FINISHED\\n")
+sys.stdout.flush()
+sys.exit(exit_code)
+'''
+
+
+def _sharded_stand_in(release, folder, exit_code=0, seconds=60):
+  """Run release.run_sharded over stand-in shards, without hanging.
+
+  Args:
+    release: the release module, already pointed at a throwaway tree.
+    folder: a directory the shards may write their marker files into.
+      It must be empty of "wrote-" files when this is called.
+    exit_code: what each shard exits with, so the failure path can be
+      driven as well as the passing one.
+    seconds: how long to wait before calling it stuck. Sixty, against
+      a measured 0.1 s for three shards on this machine -- six hundred
+      times the observed cost, so no amount of load explains reaching
+      it, and short enough that a stuck implementation is reported in
+      a minute rather than left to a suite-level watchdog.
+
+  Returns:
+    (stuck, seen, text, aborted). `stuck` is True when run_sharded had
+    not returned within the allowance, which is the defect this exists
+    to detect; `seen` names the shards that had got past their write
+    AT THE MOMENT that verdict was reached, which is the evidence for
+    it; `text` is what run_sharded returned (empty if it never did);
+    `aborted` is the SystemExit it raised, or None.
+
+  `seen` is sampled BEFORE the shards are released, and that ordering
+  is the whole value of it. Read afterwards it would list every shard,
+  because releasing them lets them all finish -- a failure message
+  that describes the recovery instead of the fault, which is this
+  project's standing complaint about messages that name an assertion
+  rather than a finding.
+
+  Nothing is left running. When the allowance runs out the shards are
+  released through the "abandon" file rather than killed, so
+  run_sharded winds down of its own accord and the temporary tree can
+  be removed without a child still writing into it.
+  """
+  import threading
+  script = os.path.join(folder, "shard_stand_in.py")
+  with open(script, "w", encoding="utf-8") as handle:
+    handle.write(_SHARD_STAND_IN)
+  # An environment we CHOSE. Under a release this process is itself a
+  # shard, so WEAVINGSPACE_TEST_SHARD is already set and would be
+  # inherited by a child that reads it -- the trap that cost a
+  # candidate on 2026-08-11. Everything else is kept, because the
+  # interpreter needs PYTHONHOME and friends to start at all.
+  env = {k: v for k, v in os.environ.items()
+         if not k.startswith("WEAVINGSPACE_")}
+  argv = [sys.executable, script, folder, str(release.SHARDS), str(exit_code)]
+  held = {}
+
+  def drive():
+    try:
+      held["text"] = release.run_sharded("stand-in stage", argv, env,
+                                         capture=True)
+    except BaseException as exc:            # SystemExit is the failure path
+      held["error"] = exc
+
+  worker = threading.Thread(target=drive, daemon=True)
+  worker.start()
+  worker.join(seconds)
+  stuck = worker.is_alive()
+  seen = sorted(n[len("wrote-"):] for n in os.listdir(folder)
+                if n.startswith("wrote-"))
+  if stuck:
+    open(os.path.join(folder, "abandon"), "w").close()
+    worker.join(300)
+  return stuck, seen, held.get("text", ""), held.get("error")
+
+
+def test_no_shard_waits_on_a_pipe_nobody_is_reading():
+  """Sharded stages run at the same time as each other, not in turn.
+
+  release.py runs the functional suite as three concurrent shards.
+  Each was started with its own PIPE and then drained ONE AT A TIME,
+  which is fine while the output is small and quietly disastrous once
+  it is not: a pipe holds 64 KB, and past that a write() by a shard
+  nobody has got round to reading BLOCKS. Measured on 2026-08-16,
+  shard 2 sat at exactly 20:00.99 cpu seconds for over fifty minutes
+  while shards 0 and 1 ran on, with 2,374 of 2,374 stack samples
+  inside a write beneath GDAL's error handler. It was never a
+  permanent deadlock -- the blocked shard resumes the moment the loop
+  reaches it -- which is exactly why it survived: the run finished,
+  with the right answer, having serialised the work that sharding
+  exists to overlap.
+
+  So the property here is CONCURRENCY, not correctness of the text,
+  and it is asserted by making the shards depend on each other: each
+  writes well over a pipeful, says so, and then waits for its
+  siblings to have done the same. A shard held up by an unread pipe
+  never reaches the barrier and nothing finishes. Under the old
+  implementation this stands still until the test releases it; under
+  the fix it completes in about a tenth of a second.
+
+  Two things are checked alongside, both of which this change could
+  have broken. The whole of every shard's output must still come back
+  labelled -- first padding line, last padding line and the shard's
+  closing marker, so a truncated capture cannot pass -- and a shard
+  that exits non-zero must still abort the release naming which shard
+  failed. And one thing the fix had to get right in its own terms:
+  each shard's live log is keyed to the RUN, never to the shard
+  number alone, because a relaunch over shardN.log is how two runs of
+  one shard on two different commits came to append to a single file
+  on 2026-08-14.
+
+  Regression: every shard of a sharded stage was started on a pipe and the pipes were drained one at a time, so any shard producing more than 64 KB blocked until the parent reached it -- fifty minutes in one measured case -- serialising the shards and throwing away most of the benefit of sharding. [review]
+  """
+  import shutil
+  import tempfile
+  release = _release_module("release")
+  tree = tempfile.mkdtemp(prefix="ws-shard-drain-")
+  work = os.path.join(tree, "work")
+  os.makedirs(work)
+  # Everything release.py would otherwise write into the real tree.
+  # TIMINGS_PATH and STAGE_STATE_PATH are built from ROOT at import,
+  # so repointing ROOT alone would still leave this test dropping
+  # files into the repository's own dist/ and reports/.
+  release.ROOT = tree
+  release.TIMINGS_PATH = os.path.join(tree, "dist", "stage-timings.json")
+  release.STAGE_STATE_PATH = os.path.join(tree, "reports",
+                                          "stage-state.json")
+  release.SHARDS = 3            # not the environment's: the count is
+  release.RESUMING = False      # part of what the barrier is sized to
+  try:
+    stuck, seen, text, aborted = _sharded_stand_in(release, work)
+    assert not stuck, \
+      f"{release.SHARDS} shards were started and 60 seconds later the " \
+      f"stage had not returned. Shards {seen} had got past their own " \
+      f"write by then; the others were still inside one, because " \
+      f"their output goes into a pipe nothing is reading yet and a " \
+      f"pipe holds 64 KB. A shard must not be able to block on the " \
+      f"parent being busy with another shard."
+    assert aborted is None, f"a stage of passing shards aborted: {aborted}"
+
+    # ...and the text still comes back whole, and still labelled. Both
+    # ends of the padding, so a capture that lost the middle or was
+    # cut short cannot pass by carrying the marker alone.
+    for index in range(release.SHARDS):
+      assert f"--- shard {index} of {release.SHARDS} ---" in text, \
+        f"shard {index}'s output is not labelled: {text[:400]!r}"
+      assert f"SHARD {index} FINISHED" in text, \
+        f"shard {index}'s last line never arrived, so its output was " \
+        f"truncated somewhere: {len(text)} characters in total"
+    assert text.count("pad 0000000 ") == release.SHARDS and \
+        text.count("pad 0013999 ") == release.SHARDS, \
+      f"every shard's first and last padding line should appear once " \
+      f"per shard; found {text.count('pad 0000000 ')} first lines and " \
+      f"{text.count('pad 0013999 ')} last ones in {len(text)} characters"
+
+    # the stage log holds the same text, since that is what --resume
+    # hands back and what the testing report quotes
+    saved = open(release.stage_log_path("stand-in stage"),
+                 encoding="utf-8").read()
+    assert saved == text, \
+      f"the stage log and the returned text disagree ({len(saved)} " \
+      f"characters against {len(text)})"
+
+    # A LIVE SHARD LOG BELONGS TO ONE RUN. Same stage, same shard, a
+    # different run: the paths must differ, or a second launch writes
+    # into the first one's file.
+    first = release.shard_log_path("stand-in stage", 0)
+    release.RUN_KEY = "a-second-launch"
+    second = release.shard_log_path("stand-in stage", 0)
+    assert first != second, \
+      f"two runs of the same stage share a shard log path ({first}); " \
+      f"a relaunch would append to a live run's file, which is how " \
+      f"two commits' results were mixed in one log on 2026-08-14"
+    assert release.shard_log_path("stand-in stage", 0) != \
+        release.shard_log_path("stand-in stage", 1), \
+      "two shards of one run share a log path"
+
+    # and a failing shard still stops the release, naming which
+    for stale in os.listdir(work):
+      os.remove(os.path.join(work, stale))
+    stuck, seen, _text, aborted = _sharded_stand_in(release, work,
+                                                    exit_code=3)
+    assert not stuck, \
+      f"the failing-shard case did not finish either; shards {seen} " \
+      f"got past their write"
+    assert isinstance(aborted, SystemExit), \
+      f"every shard exited 3 and the release carried on: {aborted!r}"
+    assert "0, 1, 2" in str(aborted.code).replace("[", "").replace("]", ""), \
+      f"the abort does not say which shards failed: {aborted.code!r}"
+  finally:
+    shutil.rmtree(tree, ignore_errors=True)
+
+
 def test_a_candidate_number_is_never_reused():
   """A number belongs to a candidate for good, deleted zip or not.
 
@@ -45391,6 +45629,8 @@ def main():
         test_nothing_defines_the_same_name_twice)
   check("a stage log never shows the previous run",
         test_a_stage_log_never_shows_the_previous_run)
+  check("no shard waits on a pipe nobody is reading",
+        test_no_shard_waits_on_a_pipe_nobody_is_reading)
   check("a candidate number is never reused",
         test_a_candidate_number_is_never_reused)
   check("the release digest watches what ships",

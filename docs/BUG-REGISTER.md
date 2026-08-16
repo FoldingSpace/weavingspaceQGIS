@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-206 defect(s) with a regression test.
+207 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -225,6 +225,8 @@ there is no separate list to remember.
   guarded by `test_deferral_survives_a_project_round_trip`
 - **the two infinity placeholder fills were compared against themselves, so any two elements carrying an infinity were reported as an unreadable pair.**  
   guarded by `test_no_placeholder_fill_is_ever_a_clash`
+- **every shard of a sharded stage was started on a pipe and the pipes were drained one at a time, so any shard producing more than 64 KB blocked until the parent reached it -- fifty minutes in one measured case -- serialising the shards and throwing away most of the benefit of sharding.**  
+  guarded by `test_no_shard_waits_on_a_pipe_nobody_is_reading`
 - **`_label_for` was defined twice in CategoryColourDialog, a correct version and then a second written below it rather than replacing it when the absence rows learned to tell a NULL from an infinity. Python kept the second, whose fallback is the fixed word "no data" -- and the categorical branch calls it for EVERY row, so the window whose whole job is to say which value draws in which colour labelled forest, water and urban alike as "no data". Measured 2026-08-16 by lifting both definitions out of the source and running them in a bare class. The existing editor test would have caught it; no suite had run over that tree yet.**  
   guarded by `test_nothing_defines_the_same_name_twice`
 - **CRS work on the QgsTask worker thread segfaulted QGIS, because PROJ is not safe to use concurrently with the main thread; the CRS is now stripped before the task and reattached in the done callback.**  
@@ -463,7 +465,7 @@ there is no separate list to remember.
 - not written down at the time: 81
 - a bug hunt pointed in a named direction: 50
 - the mutation campaign: 16
-- reading the code: 13
+- reading the code: 14
 - reported by a user: 12
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6
