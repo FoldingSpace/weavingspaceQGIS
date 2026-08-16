@@ -20498,6 +20498,56 @@ def test_icon_mode_says_when_an_element_has_no_icon_for_an_area():
     f"areas contradicts itself"
   dlg.close()
 
+  # ...AND THE POSITIVE CASE, through the dialog, which the first
+  # rewrite of this test left out. Asserting only silence on a clean
+  # fixture is not a rewrite: a hunt set the notice to None -- deleting
+  # it from the plugin outright, the exact mutation this docstring
+  # says walked past the PREVIOUS version -- and the test still
+  # passed. A claim that a notice fires has to be driven until it
+  # fires.
+  #
+  # Measured 2026-08-16: 144 areas, four elements on one column, icon
+  # mode. At 6,000 m two elements carry 132 of 144 and the other two
+  # carry all 144, so the shortfall is real and belongs to named
+  # elements.
+  project.clear()
+  wide = make_region_layer(n=12)
+  project.addMapLayer(wide)
+  short = WeavingSpaceDialog(iface=_Iface())
+  short.live_check.setChecked(False)
+  short.layer_combo.setLayer(wide)
+  _tick(200)
+  for row in range(short.table.rowCount()):
+    chooser = short.table.cellWidget(row, 1)
+    if chooser is not None and hasattr(chooser, "setCurrentText"):
+      chooser.setCurrentText("v1")
+      _tick(120)
+  short.opt_icons.setChecked(True)
+  _tick(150)
+  short.spacing_spin.setValue(6000)
+  BAR_MESSAGES.clear()
+  _generate_and_wait(short)
+  areas = wide.featureCount()
+  drawn_by = {}
+  for tid, lid in short._element_layer_ids.items():
+    element = project.mapLayer(lid)
+    paired_id = short._no_data_layer_ids.get(tid)
+    paired = project.mapLayer(paired_id) if paired_id else None
+    drawn_by[tid] = element.featureCount() + (
+      paired.featureCount() if paired is not None else 0)
+  lacking = sorted(t for t, n in drawn_by.items() if n < areas)
+  assert lacking, \
+    f"at 6,000 m every element still covers all {areas} areas " \
+    f"({drawn_by}), so this fixture cannot show the notice firing"
+  told = [text for _, text in BAR_MESSAGES if "no icon" in text]
+  assert told, \
+    f"elements {lacking} have no icon for some of the {areas} areas " \
+    f"({drawn_by}) and the user was told nothing: {[t for _k, t in BAR_MESSAGES]!r}"
+  for tid in lacking:
+    assert tid in told[0], \
+      f"element {tid} is short and is not named in {told[0]!r}"
+  short.close()
+
 
 def test_both_halves_of_an_element_fade_together():
   """An element is ONE thing to a reader, however many layers it is.
@@ -20863,9 +20913,43 @@ def test_ordinary_data_keeps_qgis_s_own_breaks():
             for i in range(len(ranges))]
   assert all(hi > lo for lo, hi in bounds), \
     f"this fixture was meant to have no degenerate range: {bounds}"
-  assert bridge._nudge_off_shared_bounds(renderer) == 0, \
-    "the nudge fired on ordinary data, where it would move every " \
-    "value sitting on a break up into the next class"
+  # ASKED OF THE MAP, not of a second call to the helper. Calling
+  # `_nudge_off_shared_bounds` again here was the first version and it
+  # could not fail: after the product's own call no range is
+  # degenerate, so the scope test returns 0 whatever the product did.
+  # A hunt broke the scope -- shrinking every finite upper bound
+  # inside make_graduated_renderer, sparing only the last -- and this
+  # test passed while four of eleven values changed colour.
+  #
+  # What must be true is QGIS's convention: a value sitting EXACTLY on
+  # a break belongs to the class BELOW it. Equal intervals over 0..10
+  # puts breaks on 2, 4, 6 and 8, so each is the upper bound of its
+  # class and must wear that class's colour rather than the next.
+  even = _few_values_layer(values=tuple(float(v) for v in range(11)))
+  spaced = bridge.make_graduated_renderer(
+    even, "v", "Greys", "Equal intervals", 5, False)
+  even.setRenderer(spaced)
+  even_ranges = spaced.ranges()
+  colours = [even_ranges[i].symbol().color().name()
+             for i in range(len(even_ranges))]
+  drawn = _drawn_colours(spaced, even)
+  # The expected pairs come from the DATA and the scheme, never from
+  # the renderer's bounds: reading the boundaries back was the first
+  # version, and under a mutant that moves them they matched no value
+  # at all, so the loop skipped every case and the test passed. Equal
+  # intervals over 0..10 at k=5 breaks on 2, 4, 6 and 8, and each is
+  # the upper bound of its class.
+  checked = 0
+  for boundary, position in ((2.0, 0), (4.0, 1), (6.0, 2), (8.0, 3)):
+    assert boundary in drawn, \
+      f"{boundary} is not in the fixture, so this proves nothing"
+    assert drawn[boundary] == colours[position], \
+      f"{boundary} sits exactly on a break and draws " \
+      f"{drawn[boundary]}, not class {position + 1}'s {colours[position]} " \
+      f"-- the nudge has fired on ordinary data and moved every " \
+      f"boundary value up a class, reversing QGIS's own convention"
+    checked += 1
+  assert checked == 4, f"only {checked} boundary values were measured"
 
   # and the carve-out at the other end: one value still collapses to
   # one class, which is the maintainer's instruction of 2026-08-09 and
