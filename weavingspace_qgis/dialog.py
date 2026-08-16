@@ -6289,7 +6289,7 @@ class WeavingSpaceDialog(QDialog):
     return False
 
   def _add_no_data_layer(self, assignment, tile_id, absent, group,
-                         project, path):
+                         project, path, hand_opacity=None):
     """Draw one element's missing-value tiles as their own layer.
 
     Args:
@@ -6301,6 +6301,10 @@ class WeavingSpaceDialog(QDialog):
       group: the output group this run is filling.
       project: the QgsProject the layer is registered with.
       path: the output GeoPackage, or falsy for memory output.
+      hand_opacity: the opacity the PREVIOUS paired layer carried, as
+        a fraction, when the user had set it by hand in Layer
+        Properties. None when there was none, in which case the row's
+        own opacity is used.
 
     Returns:
       None. The layer is registered, added to the group directly
@@ -6359,8 +6363,12 @@ class WeavingSpaceDialog(QDialog):
     # 2026-08-16, in the commit that added this method, whose twin
     # forty lines above carries a comment saying the two halves must
     # fade together. Writing that comment did not put the line here.
-    layer.setOpacity(
-      max(0, min(100, assignment.get("opacity", 100))) / 100.0)
+    # A hand-set opacity from the PREVIOUS paired layer outranks the
+    # row's spin box, on the same promise the element's own hand-set
+    # opacity has always had: the dialog did not choose it, so the
+    # dialog does not overwrite it.
+    layer.setOpacity(hand_opacity if hand_opacity is not None else
+                     max(0, min(100, assignment.get("opacity", 100))) / 100.0)
     # ...AND ONLY THEN EMBED IT. `embed_style` writes what the layer
     # is wearing AT THAT MOMENT into the GeoPackage, so setting the
     # opacity afterwards fixed the layer in the project and left the
@@ -7697,6 +7705,7 @@ class WeavingSpaceDialog(QDialog):
     # styling dock) before touching any layers
     old_renderers = {}
     old_layer_opacity = {}
+    old_no_data_opacity = {}
     old_subsets = {}
     for tid, lid in old_ids.items():
       old_layer = project.mapLayer(lid)
@@ -7705,6 +7714,18 @@ class WeavingSpaceDialog(QDialog):
         # opacity lives on the layer, not the renderer, so it has to
         # be carried across separately when an element is kept as-is
         old_layer_opacity[tid] = old_layer.opacity()
+      # ...AND THE PAIRED LAYER'S OWN, which a user can set in Layer
+      # Properties exactly as they set its element's. The element's
+      # was carried across and the twin's was not, so fading an
+      # element by hand and then changing the spacing snapped its
+      # missing-value areas back to full strength -- the same harm
+      # the spin-box half was fixed for, through the door that fix
+      # did not close. Measured 2026-08-16 in pixels: 0.196 and
+      # 1.000 after a re-tile, from 0.204 and 0.196 before it.
+      paired_before = project.mapLayer(
+        self._no_data_layer_ids.get(tid) or "")
+      if paired_before is not None:
+        old_no_data_opacity[tid] = paired_before.opacity()
       # A subset string is the user's own filter, set in Layer
       # Properties or the layer panel's Filter dialogue, and it used
       # to die with the layer at every regeneration -- deliberate
@@ -7728,6 +7749,29 @@ class WeavingSpaceDialog(QDialog):
       old_ids = {}
       old_no_data = {}
 
+    def column_has_values(field):
+      """Whether any tile ANYWHERE on this map has a value here.
+
+      Args:
+        field: the column, or None, which answers False.
+
+      Returns:
+        True when at least one tile of the whole run carries a usable
+        value. Asked of `gdf`, the map entire, because the split is
+        decided per element and an element cannot see past its own
+        tiles -- which is exactly how an element sitting wholly on
+        areas with no value came to be left unsplit and undrawn.
+
+      Cached per run in `seen`: a design of twenty elements sharing
+      four columns asks four questions, not twenty.
+      """
+      if not field or field not in getattr(gdf, "columns", []):
+        return False
+      if field not in seen:
+        seen[field] = bool(gdf[field].notna().any())
+      return seen[field]
+
+    seen = {}
     first_gpkg_layer = True
     # EVERY SWATCH IS RETHOUGHT, because a run changes which values an
     # element's tiles carry and the cache key cannot see that. The
@@ -7761,8 +7805,9 @@ class WeavingSpaceDialog(QDialog):
       # Only the GRADUATED path needs it. A categorized renderer has
       # `addCategory` and therefore its own catch-all, which this
       # plugin already builds and already lets a user colour.
+      field_here = a["var"] if a.get("mode") == "Graduated" else None
       drawable, absent = bridge.split_out_the_no_data(
-        sub, a["var"] if a.get("mode") == "Graduated" else None)
+        sub, field_here, column_has_values(field_here))
       mem = bridge.gdf_to_layer(drawable, display)
       if path:
         # THE FILE IS RECREATED ONLY IF IT DOES NOT EXIST, and that
@@ -7901,7 +7946,8 @@ class WeavingSpaceDialog(QDialog):
       project.addMapLayer(out, False)
       group.addLayer(out)
       if absent is not None and len(absent):
-        self._add_no_data_layer(a, tid, absent, group, project, path)
+        self._add_no_data_layer(a, tid, absent, group, project, path,
+                                old_no_data_opacity.get(tid))
       # the user's own filter, back on the fresh layer. Applied AFTER
       # the renderer, because a subset changes what a classifier
       # would see and the styling above belongs to the whole element;

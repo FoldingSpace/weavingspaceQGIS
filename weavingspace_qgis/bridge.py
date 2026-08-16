@@ -2274,6 +2274,31 @@ def make_single_renderer(colour: str, outline: bool) -> QgsSingleSymbolRenderer:
   return QgsSingleSymbolRenderer(_fill_symbol(colour, outline))
 
 
+def _anything_to_classify(source, field) -> bool:
+  """Whether a column holds a value a classifier could put a break in.
+
+  Args:
+    source: the layer whose values decide the classes -- the shared
+      classification source where there is one, or the element's own
+      layer.
+    field: the column name.
+
+  Returns:
+    True when at least one usable numeric value is present. False
+    when the column is absent, or holds nothing but nulls and values
+    no break can separate. False is also the answer when the question
+    cannot be asked, since drawing an element as no data is a milder
+    wrong than drawing nothing at all.
+  """
+  try:
+    index = source.fields().indexOf(field)
+    if index < 0:
+      return False
+    return distinct_numeric_count(source.uniqueValues(index)) > 0
+  except Exception:
+    return False
+
+
 def seed_renderer(layer: QgsVectorLayer, assignment: dict,
                   template: dict | None = None,
                   classify_from=None) -> None:
@@ -2325,6 +2350,29 @@ def seed_renderer(layer: QgsVectorLayer, assignment: dict,
     colour = assignment.get("single_colour") or \
       ramp_swatch_colour(assignment["ramp"])
     layer.setRenderer(make_single_renderer(colour, outline))
+  elif not _anything_to_classify(classify_from or layer, var):
+    # NOTHING TO CLASSIFY, so the element draws as NO DATA rather
+    # than not at all. The maintainer's decision, 2026-08-16.
+    #
+    # What happened before: QGIS builds a graduated renderer with
+    # ZERO ranges over a column with no usable values, so
+    # `symbolForFeature` answers None for every tile and the element
+    # is simply absent from the map. Measured by a stochastic hunt at
+    # 0.000 of the layer painted against 0.255 for its neighbours,
+    # while the row still showed a swatch, a ramp name and a class
+    # count of five, and the message bar said those areas "draw as no
+    # data". Three statements to the user and none of them true. A
+    # user reaches it by mapping a column that turned out empty, a
+    # join that matched nothing, and on a design of several elements
+    # the others draw normally so the map looks deliberate.
+    #
+    # THE DECISION IS TAKEN HERE AND NOT INSIDE THE CLASSIFIER,
+    # deliberately. `make_graduated_renderer` promises a
+    # QgsGraduatedSymbolRenderer, and callers read its ranges;
+    # returning a different class from it crashed the dialog on the
+    # very column this is about. "This cannot be classified at all"
+    # is a decision ABOUT classifying, so it belongs above it.
+    layer.setRenderer(make_single_renderer(NO_DATA_FILL, outline))
   else:
     layer.setRenderer(make_graduated_renderer(
       layer, var, assignment["ramp"], assignment.get("scheme", "Quantiles"),
@@ -2400,13 +2448,19 @@ def write_gpkg_layer(layer: QgsVectorLayer, path: str, layer_name: str,
   return out
 
 
-def split_out_the_no_data(frame, field):
+def split_out_the_no_data(frame, field, column_has_values=None):
   """Separate the rows a graduated renderer cannot draw.
 
   Args:
     frame: one element's tiles, as a GeoDataFrame.
     field: the column that element is coloured by, or None when it
       carries no variable at all.
+    column_has_values: whether the column has any usable value
+      ANYWHERE ON THE MAP, which this frame cannot know: it holds one
+      element's tiles. True means the classifier has real breaks to
+      draw with, so an element whose own tiles are all missing must
+      still be split, or it draws nothing at all. None (the default)
+      keeps the older behaviour for callers that cannot say.
 
   Returns:
     A pair ``(drawable, absent)`` of frames: the rows whose value the
@@ -2439,7 +2493,7 @@ def split_out_the_no_data(frame, field):
   missing = frame[field].isna()
   if not bool(missing.any()):
     return frame, None
-  if bool(missing.all()):
+  if bool(missing.all()) and not column_has_values:
     # EVERY row is missing, and splitting here would be both
     # redundant and harmful. Redundant because there is nothing to
     # put on a second layer that is not already on the first.
@@ -2457,7 +2511,26 @@ def split_out_the_no_data(frame, field):
     # the areas "draw as no data". Three statements to the user, all
     # of them wrong.
     #
-    # It is left alone here deliberately: this is settled behaviour
+    # THE ELEMENT-LEVEL CASE IS DIFFERENT AND IS SPLIT. This function
+    # is called per element, so `missing.all()` is a fact about THAT
+    # ELEMENT'S TILES and not about the column: a design can easily
+    # put one element entirely on areas that happen to have no value
+    # while the column has plenty elsewhere. Declining the split
+    # there left the element wearing breaks cut from the whole map
+    # and matching none of them, so it was absent from the map while
+    # its siblings drew normally, its row showed a swatch and a class
+    # count, and the bar said those areas draw as no data. Measured
+    # 2026-08-16 by a stochastic hunt: six tiles, six unpainted, no
+    # paired layer, against siblings drawing correctly.
+    # `column_has_values` is what tells the two cases apart.
+    #
+    # The COLUMN-level case needs no split, and now genuinely draws:
+    # `make_graduated_renderer` returns a single no-data symbol when
+    # the column has no usable values, so the whole element says "no
+    # data" without a second layer. That was the claim this comment
+    # made before it was true; the maintainer settled it on
+    # 2026-08-16 and the code was changed to match. It replaced
+    # settled behaviour
     # guarded by test_a_column_with_no_values_at_all_invents_no_class,
     # whose docstring says the element "is entitled to paint
     # nothing", and changing what an empty column draws is the

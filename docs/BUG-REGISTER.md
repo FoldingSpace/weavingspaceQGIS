@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-186 defect(s) with a regression test.
+187 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -89,6 +89,8 @@ there is no separate list to remember.
   guarded by `test_a_scale_control_steps_over_zero`
 - **an area whose value was NULL was not drawn at all, leaving a hole in the map that reads as absence rather than as missing data.**  
   guarded by `test_an_area_with_no_value_is_drawn_rather_than_left_as_a_hole`
+- **an element whose own tiles all fell on areas with no value was left unsplit and drew nothing, while its siblings drew and the plugin said it drew as no data.**  
+  guarded by `test_an_element_sitting_wholly_on_missing_values_still_draws`
 - **an element's no-data layer ignored its opacity when the run landed, so a faded element drew opaque patches until something unrelated restyled it.**  
   guarded by `test_both_halves_of_an_element_fade_together`
 - **a mode change or a variable swap was answered by the restyle path, which cannot cut a no-data split, so the missing-value areas became holes again.**  
@@ -421,7 +423,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 82
-- a bug hunt pointed in a named direction: 37
+- a bug hunt pointed in a named direction: 38
 - the mutation campaign: 16
 - reported by a user: 11
 - race and stress testing: 6

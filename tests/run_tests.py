@@ -19396,9 +19396,26 @@ def test_an_area_with_no_value_is_drawn_rather_than_left_as_a_hole():
               {f["tile_id"] for f in paired.getFeatures()}
   assert drawn_ids == {tid}, \
     f"the two layers carry tiles of more than one element: {drawn_ids}"
-  assert whole == len(list(element.getFeatures())) + \
-    len(list(paired.getFeatures())), \
-    "featureCount disagrees with the features actually present"
+  # AGAINST AN INDEPENDENT COUNT, which is the whole difficulty. Two
+  # earlier versions of this compared a sum with itself: first
+  # literally, and then by checking featureCount against the same two
+  # layers iterated, which a split that DROPPED rows passes happily.
+  # A hunt proved it by returning `frame[~missing].iloc[5:]` from the
+  # split and watching this block stay green. The count that cannot
+  # lie is a sibling element's, on the same design and the same
+  # spacing, whose column has no gaps at all.
+  siblings = [other for other in dlg._element_layer_ids
+              if other != tid]
+  assert siblings, "the design has one element, so there is no " \
+    "independent count to compare against"
+  control = project.mapLayer(dlg._element_layer_ids[siblings[0]])
+  assert control is not None and control.featureCount() > 0, \
+    "the control element drew nothing, so it cannot vouch for a count"
+  assert whole == control.featureCount(), \
+    f"element '{tid}' holds {whole} tile(s) across its two layers " \
+    f"and its sibling '{siblings[0]}' holds " \
+    f"{control.featureCount()} on the same design; the split has " \
+    f"lost or invented tiles"
   assert all(f["v1"] is None or str(f["v1"]) == "NULL"
              for f in paired.getFeatures()), \
     "the no-data layer holds tiles that DO have a value"
@@ -19495,6 +19512,7 @@ def test_no_data_is_one_more_colour_in_the_element_s_editor():
     f"the paired layer already draws {CHOSEN}, so the assertion " \
     f"below would hold without anything being applied"
 
+  element_before = dlg._element_layer_ids[tid]
   # what the editor's colour button does, through the dialog's own
   # record rather than by driving a modal colour dialogue
   dlg._quant_colours.setdefault(tid, {}) \
@@ -19509,9 +19527,14 @@ def test_no_data_is_one_more_colour_in_the_element_s_editor():
     f"the No data colour was chosen and the paired layer still " \
     f"draws {drawn}; it should be {CHOSEN}"
   # ...and it was a RESTYLE, not a re-tile: the element layer is the
-  # same object, which is what "no re-tiling needed" has to mean
-  assert dlg._element_layer_ids[tid] == \
-    dlg._element_layer_ids[tid], "ids are unstable"
+  # SAME OBJECT, which is what "no re-tiling needed" has to mean.
+  # This compared the id with itself until a hunt pointed at it --
+  # `x == x` for a value read twice from one dict, which no mutation
+  # can ever disturb. The id has to be captured BEFORE the change.
+  assert dlg._element_layer_ids[tid] == element_before, \
+    f"the element layer was rebuilt by a colour change: " \
+    f"{element_before!r} became {dlg._element_layer_ids[tid]!r}, so " \
+    f"this was a re-tile and not the restyle it should have been"
   dlg.close()
 
 
@@ -20028,6 +20051,52 @@ def test_the_colour_editor_opens_on_a_column_with_no_values():
     editor.close()
 
 
+def test_an_element_sitting_wholly_on_missing_values_still_draws():
+  """`missing.all()` is a fact about an ELEMENT, not about a column.
+
+  `split_out_the_no_data` is called per element, so "every row is
+  missing" can be true of one element's tiles while the column has
+  plenty of values elsewhere on the map. The all-missing branch
+  declined the split for that case too, and the element was then left
+  wearing breaks cut from the whole map and matching none of them: it
+  was absent from the map while its siblings drew normally, its row
+  showed a swatch and a class count, and the bar said those areas
+  draw as no data.
+
+  The general shape: a per-element function cannot answer a question
+  about the column, and a branch that reads like a statement about
+  the data may be a statement about one slice of it.
+
+  Regression: an element whose own tiles all fell on areas with no value was left unsplit and drew nothing, while its siblings drew and the plugin said it drew as no data. [hunt]
+  """
+  from weavingspace_qgis import bridge
+
+  # bridge-level, because the geometry needed to make ONE element
+  # land wholly on the empty areas is a fixture in its own right and
+  # the split is where the decision is made
+  import pandas
+  frame = pandas.DataFrame({
+    "tile_id": ["b", "b", "b"],
+    "rate": [None, None, None]})
+  drawable, absent = bridge.split_out_the_no_data(
+    frame, "rate", column_has_values=True)
+  assert absent is not None and len(absent) == 3, \
+    f"the element's three missing tiles were not split off: " \
+    f"{None if absent is None else len(absent)}"
+  assert len(drawable) == 0, \
+    f"{len(drawable)} tile(s) were left on the graduated layer, " \
+    f"which cannot paint a value that is not there"
+
+  # ...and the COLUMN-level case is still left alone, since an
+  # element with nothing to classify anywhere is given a single
+  # no-data fill by seed_renderer instead
+  whole, none_missing = bridge.split_out_the_no_data(
+    frame, "rate", column_has_values=False)
+  assert none_missing is None and len(whole) == 3, \
+    "a column with no values anywhere should not be split; it draws " \
+    "as no data through the single-symbol path"
+
+
 def test_both_halves_of_an_element_fade_together():
   """An element is ONE thing to a reader, however many layers it is.
 
@@ -20351,6 +20420,17 @@ def test_a_graduated_dock_recolour_survives_the_plugin_being_shut():
     f"the other classes stopped following the ramp, so the fix " \
     f"recovered everything rather than the one colour the ramp does " \
     f"not explain: {drawn} against {before}"
+  # ...and the RECORD holds only that one class. Drawing the same map
+  # is not the same as recording the same thing: with the "this
+  # colour IS the ramp's" filter removed, all four classes are
+  # recovered, the map is pixel-identical, and the row silently stops
+  # naming its ramp and reads Custom instead. A hunt showed the
+  # assertion above passing through exactly that.
+  recovered = again._quant_colours.get(tid, {}).get("v1", {})
+  assert sorted(recovered) == ["0"], \
+    f"the adoption recorded {sorted(recovered)} as hand-picked when " \
+    f"only class 0 differs from the ramp; the row will read Custom " \
+    f"and stop following the ramp it still names"
   again.close()
 
 
@@ -32988,8 +33068,11 @@ def test_a_column_with_no_values_at_all_invents_no_class():
   looks exactly like an element whose ramp failed to load.
 
   The layer is not put through visual_gamut: the element under test
-  is entitled to paint nothing, so a score over the map's remaining
-  elements would be a picture of the parts this test is not about.
+  draws in the no-data grey rather than from any ramp, so a score
+  over the map's remaining elements would be a picture of the parts
+  this test is not about. (Until 2026-08-16 this paragraph said the
+  element "is entitled to paint nothing", which is what the code did
+  and what the maintainer then changed.)
   The other elements' colours are covered wherever they are the
   subject.
   """
@@ -33056,13 +33139,47 @@ def test_a_column_with_no_values_at_all_invents_no_class():
     assert _element_layers(dlg), "the run produced no map at all"
     tid, out = _element_showing(dlg, "unfilled")
     renderer = out.renderer()
-    assert hasattr(renderer, "ranges"), \
-      f"element {tid} came back with a {type(renderer).__name__} over " \
-      f"the empty column, so there are no class breaks here to inspect"
     assert out.featureCount() >= 4, \
       f"element {tid} carries {out.featureCount()} tile(s), so there " \
       f"is nothing here for a class break to be wrong about"
-    bounds = [(r.lowerValue(), r.upperValue()) for r in renderer.ranges()]
+    # IT DRAWS AS NO DATA, which the maintainer settled on 2026-08-16
+    # and which this test used to forbid. It asserted only that no
+    # break was invented, and let the element paint NOTHING: its
+    # docstring said the element "is entitled to paint nothing". A
+    # stochastic hunt then measured what that costs -- 0.000 of the
+    # layer painted against 0.255 for its neighbours, while the row
+    # showed a swatch, a ramp name and a class count of five, and the
+    # message bar said those areas "draw as no data". The plugin was
+    # making three statements to the user and keeping none of them.
+    #
+    # So the element is now given a single no-data fill, and the two
+    # things this test has always held still hold: no break is
+    # invented over a column with no numbers, and the user is told,
+    # naming the column.
+    from qgis.core import QgsRenderContext, QgsSingleSymbolRenderer
+    from weavingspace_qgis import bridge
+    assert isinstance(renderer, QgsSingleSymbolRenderer), \
+      f"element {tid} came back with a {type(renderer).__name__} " \
+      f"over the empty column; it should draw as no data"
+    fill = renderer.symbol().color().name()
+    assert fill.lower() == bridge.NO_DATA_FILL.lower(), \
+      f"element {tid} draws the empty column in {fill}, not the " \
+      f"no-data colour {bridge.NO_DATA_FILL}"
+    # ...and every tile actually GETS that symbol, which is the whole
+    # complaint: a graduated renderer with no ranges answers None per
+    # feature and the element vanishes.
+    context = QgsRenderContext()
+    renderer.startRender(context, out.fields())
+    try:
+      unpainted = [f.id() for f in out.getFeatures()
+                   if renderer.symbolForFeature(f, context) is None]
+    finally:
+      renderer.stopRender(context)
+    assert not unpainted, \
+      f"element {tid} leaves {len(unpainted)} of " \
+      f"{out.featureCount()} tile(s) with no symbol at all, so it is " \
+      f"absent from the map while the bar says it draws as no data"
+    bounds = []
     # The signature of nulls having been counted: a break sitting on
     # zero, which is not a number this column ever held. The whole
     # class list is quoted, because a message naming only the

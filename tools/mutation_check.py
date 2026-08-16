@@ -225,11 +225,9 @@ MUTATIONS = [
            "a map that ignores them, which is worse than not "
            "offering them"),
   dict(name="both-halves-of-an-element-fade-together", file=DIALOG,
-       old="""    layer.setOpacity(
-      max(0, min(100, assignment.get("opacity", 100))) / 100.0)
-    # ...AND ONLY THEN EMBED IT.""",
-       new="""    pass  # mutation: the paired half keeps full strength
-    # ...AND ONLY THEN EMBED IT.""",
+       old="""    layer.setOpacity(hand_opacity if hand_opacity is not None else
+                     max(0, min(100, assignment.get("opacity", 100))) / 100.0)""",
+       new="""    pass  # mutation: the paired half keeps full strength""",
        test="test_both_halves_of_an_element_fade_together",
        why="an element is one thing to a reader however many layers "
            "it is; without this the creating path leaves the "
@@ -305,6 +303,24 @@ MUTATIONS = [
            "overflows and the OverflowError escapes through a Qt "
            "slot, leaving Edit colours doing nothing and QGIS "
            "showing a Python error window"),
+  dict(name="an-element-on-missing-values-is-still-split", file=BRIDGE,
+       old="""  if bool(missing.all()) and not column_has_values:""",
+       new="""  if bool(missing.all()):""",
+       test="test_an_element_sitting_wholly_on_missing_values_still_draws",
+       why="the split is decided per ELEMENT, so all-missing can be "
+           "true of one element while the column has values "
+           "elsewhere; without the column question that element "
+           "keeps breaks cut from the whole map, matches none of "
+           "them and is absent while its siblings draw"),
+  dict(name="nothing-to-classify-draws-as-no-data", file=BRIDGE,
+       old="""  elif not _anything_to_classify(classify_from or layer, var):""",
+       new="""  elif False:""",
+       test="test_a_column_with_no_values_at_all_invents_no_class",
+       why="a graduated renderer over a column with no usable values "
+           "has zero ranges, so every tile gets no symbol and the "
+           "element vanishes while the row shows a swatch and a "
+           "class count and the bar says it draws as no data "
+           "(maintainer's decision, 2026-08-16)"),
   dict(name="unclassed-is-exempt-from-the-reduction", file=BRIDGE,
        old="""  if unclassed:
     return int(asked), False""",
