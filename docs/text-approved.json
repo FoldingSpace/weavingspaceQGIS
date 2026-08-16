@@ -319,6 +319,11 @@
   "excerpt": "Stretch the pattern up-down.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "3da4643e9a6cffe9": {
+  "approved": "2026-08-16",
+  "excerpt": "{} of {} areas do not have finite numeric data for '{}'. The",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "3db8aaa36d577848": {
   "approved": "2026-08-09",
   "excerpt": "Opens a thin gap around every tile or strand.",
@@ -1088,6 +1093,11 @@
   "approved": "2026-08-09",
   "excerpt": "Menlo, Consolas, 'DejaVu Sans Mono', monospace",
   "where": "weavingspace_qgis/category_editor.py"
+ },
+ "c0f8a4afc43b01d7": {
+  "approved": "2026-08-16",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
  },
  "c3dd2d8765fd4fe8": {
   "approved": "2026-08-15",

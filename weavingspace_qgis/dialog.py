@@ -6404,7 +6404,7 @@ class WeavingSpaceDialog(QDialog):
 
     Returns:
       The ABSENCE_KINDS keys present, in that tuple's order, so the
-      editor lists no value, below any value, above any value however
+      editor lists no data, negative infinity, infinity however
       the data arrived. Empty when the element has nothing unplaceable.
 
     Asked of the PAIRED LAYER when one exists, exactly as

@@ -2910,7 +2910,7 @@ def make_no_data_renderer(colour, outline: bool, kinds=None):
   Returns:
     A QgsCategorizedSymbolRenderer with ONE CATEGORY PER KIND PRESENT,
     labelled from ABSENCE_KINDS, in that tuple's order so the legend
-    reads no value, below any value, above any value whatever order
+    reads no data, negative infinity, infinity whatever order
     the tiles arrived in.
 
   ONLY THE KINDS PRESENT, for the reason the categorical path already

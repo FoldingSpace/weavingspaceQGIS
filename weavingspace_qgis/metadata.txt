@@ -52,8 +52,8 @@ changelog=0.24.3 Areas with no value are drawn now rather than left
     Missing values: an area whose value is absent used to come out as
     a hole in the map. So did one holding an infinity, which a
     classifier can no more place than a blank. Those areas are drawn
-    now, and told apart: no data, below any value, and above any
-    value each get their own colour and their own line in the legend,
+    now, and told apart: no data, infinity, and negative infinity
+    each get their own colour and their own line in the legend,
     and each sits in that element's colour editor to be changed. QGIS
     gains a second layer beside the element carrying those areas,
     while the dialog still shows one element.

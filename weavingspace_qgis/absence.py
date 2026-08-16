@@ -73,8 +73,14 @@ ABSENCE_KINDS = (
   # renaming it would be an unreviewed change to shipped text for
   # no gain. The two infinities are new and get new words.
   (NO_DATA_KEY, "no-value", "no data", NO_DATA_FILL),
-  (NEG_INF_KEY, "neg-infinity", "below any value", "#8c9fc7"),
-  (POS_INF_KEY, "pos-infinity", "above any value", "#c78c8c"),
+  # NAMED, NOT DESCRIBED. These read "below any value" and "above
+  # any value" for a few hours on 2026-08-16 and the maintainer cut
+  # them as euphemisms: a legend entry has to say what the data
+  # holds, and somebody whose column contains an infinity is better
+  # served by the word than by a periphrasis that could equally mean
+  # "off the bottom of the scale I chose".
+  (NEG_INF_KEY, "neg-infinity", "negative infinity", "#8c9fc7"),
+  (POS_INF_KEY, "pos-infinity", "infinity", "#c78c8c"),
 )
 
 # Every DEFAULT placeholder fill, lowercased, as a set for testing

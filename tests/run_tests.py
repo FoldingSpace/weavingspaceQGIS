@@ -29680,7 +29680,7 @@ def test_no_placeholder_fill_is_ever_a_clash():
     f"identical by construction and say the same true thing on both"
 
   # ACT THREE: a hand-picked colour is still compared. The user has
-  # given "above any value" this purple on both elements, which is a
+  # given "infinity" this purple on both elements, which is a
   # choice and a real collision.
   picked = _rgb_of("#7f3fbf")
   assert perception._hex_of(picked) not in perception.ABSENCE_FILLS, \
