@@ -19771,6 +19771,208 @@ def _layer_with_a_gap(n=12, field="v1"):
   return layer
 
 
+def test_keeping_a_result_keeps_both_halves_of_every_element():
+  """"Create as new group" exists so a result can be KEPT, entire.
+
+  Three places in this dialog clear per-element state and no two
+  cleared the same set: `_get_or_make_group` reset the element ids
+  and the outline id and not the paired no-data ids, so the record
+  went on naming the KEPT group's no-data layers, and the next run
+  removed them as though they were its own. The map a user had
+  deliberately kept then drew nothing where its missing-value areas
+  had been, which is the hole-reads-as-absence failure the paired
+  layer exists to prevent, arriving by way of the feature meant to
+  protect the map.
+
+  Regression: generating into a new group deleted the kept result's no-data layers, punching holes in the map the user had asked to keep. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = _layer_with_a_gap(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(150)
+  tid = dlg.table.item(0, 0).text()
+  dlg.spacing_spin.setValue(400)
+  _generate_and_wait(dlg)
+  kept_element = dlg._element_layer_ids[tid]
+  kept_paired = dlg._no_data_layer_ids.get(tid)
+  assert kept_paired, "no paired layer, so this test is about nothing"
+
+  assert dlg.opt_new_group is not None, "there is no new-group control"
+  dlg.opt_new_group.setChecked(True)
+  dlg.spacing_spin.setValue(430)
+  _generate_and_wait(dlg)
+
+  assert project.mapLayer(kept_element) is not None, \
+    "the kept result lost its element layer, which is the older " \
+    "fault this control already guards against"
+  survivor = project.mapLayer(kept_paired)
+  assert survivor is not None, \
+    "the kept result lost its no-data layer, so the map the user " \
+    "chose to keep now has holes where its missing values were"
+  assert survivor.featureCount() > 0, \
+    "the kept no-data layer survived but draws nothing"
+  # ...and the NEW result has its own pair, not the kept one's
+  assert dlg._no_data_layer_ids.get(tid) not in (None, kept_paired), \
+    f"the new group is pointing at the kept result's no-data layer: " \
+    f"{dlg._no_data_layer_ids.get(tid)!r}"
+  dlg.close()
+
+
+def test_a_geopackage_carries_the_no_data_opacity_it_was_given():
+  """The map that TRAVELS must be the map that was made.
+
+  `embed_style` writes what a layer is wearing at that moment, so
+  setting the opacity after embedding fixes the layer in the project
+  and leaves the FILE saying 1.0. A colleague opening the .gpkg then
+  sees the missing-value patches at full strength over a faded
+  element. Both twins already set opacity before embedding; the first
+  fix for this, made hours earlier the same day, inserted the line
+  after the embed and so corrected only the half that was easy to
+  see.
+
+  The lesson is about inserting a line into an existing sequence:
+  check its ORDER against the twin, not merely that it is present.
+
+  Regression: the no-data layer's style was embedded in the GeoPackage before its opacity was set, so an exported map drew those areas opaque. [hunt]
+  """
+  import os
+  from qgis.core import QgsVectorLayer
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = _layer_with_a_gap(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(150)
+  tid = dlg.table.item(0, 0).text()
+  opacity = dlg.table.cellWidget(0, 6)
+  assert opacity is not None and hasattr(opacity, "setValue"), \
+    "row 0 column 6 is not the opacity spin this test drives"
+  opacity.setValue(40)
+  _tick(150)
+  with _temp_dir() as td:
+    path = os.path.join(td, "faded.gpkg")
+    dlg.gpkg_widget.setFilePath(path)
+    dlg.spacing_spin.setValue(400)
+    _generate_and_wait(dlg)
+    assert dlg._no_data_layer_ids.get(tid), \
+      "no paired layer, so this test is about nothing"
+
+    # opened COLD from the file, the way a colleague would
+    fresh = QgsVectorLayer(f"{path}|layername=tiles_{tid}_no_data",
+                           "cold no data", "ogr")
+    assert fresh.isValid(), \
+      f"the no-data table is not in the file: tiles_{tid}_no_data"
+    fresh.loadDefaultStyle()
+    element = QgsVectorLayer(f"{path}|layername=tiles_{tid}",
+                             "cold element", "ogr")
+    assert element.isValid(), "the element table is not in the file"
+    element.loadDefaultStyle()
+    assert abs(element.opacity() - 0.4) < 0.02, \
+      f"the element's own style came back at {element.opacity()}, " \
+      f"not 0.4, so the comparison below would prove nothing"
+    assert abs(fresh.opacity() - element.opacity()) < 0.02, \
+      f"the file draws the element at {element.opacity()} and its " \
+      f"no-data half at {fresh.opacity()}; the map that travels is " \
+      f"not the map that was made"
+  dlg.close()
+
+
+def test_swapping_two_variables_re_cuts_both_splits():
+  """A boolean cannot see a field move, and a swap is an ordinary move.
+
+  The split term was first written as one boolean per element: does
+  this element need its missing values split off. That is INVARIANT
+  UNDER A PERMUTATION. Swap the variables of two graduated elements
+  whose columns BOTH have gaps and every boolean stays True, the
+  geometry signature does not move, the restyle path answers in
+  place, and each element keeps the paired layer cut for the OTHER
+  field. Real values are then drawn as no data, and areas that do
+  have values are drawn as nothing at all, while the message bar says
+  "no re-tiling needed".
+
+  The general lesson, which is why this test exists rather than a
+  narrower one: when a fix widens a signature, ask whether the new
+  term is COARSER than the thing it stands for.
+
+  Regression: swapping the variables of two elements whose columns both had missing values left each holding the other's no-data split, so values were drawn as gaps and gaps as values. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  # BOTH columns carry gaps, and in DIFFERENT rows, or the two splits
+  # would hold the same tiles and the swap would be invisible
+  layer = make_region_layer(n=12)
+  first, second = layer.fields().indexFromName("v1"), \
+    layer.fields().indexFromName("v2")
+  assert first >= 0 and second >= 0, "the fixture lacks v1 or v2"
+  features = list(layer.getFeatures())
+  assert len(features) >= 4, "too few areas to put gaps in different rows"
+  layer.startEditing()
+  assert layer.changeAttributeValue(features[0].id(), first, None)
+  assert layer.changeAttributeValue(features[1].id(), second, None)
+  assert layer.commitChanges(), "the edit would not commit"
+  project.addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  assert dlg.layer_combo.currentLayer() is layer, \
+    "the chooser is not on the fixture layer, so nothing below is " \
+    "about it"
+  # ONE PICK AT A TIME, with the debounce allowed to land between
+  # them. Two chooser picks back to back is the "race among
+  # choosers" this project already documented: the rebuild from the
+  # first arrives mid-interaction with the second and both are lost.
+  # Measured here while writing this test -- every element came back
+  # unassigned and no run happened at all.
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(250)
+  dlg.table.cellWidget(1, 1).setCurrentText("v2")
+  _tick(250)
+  one = dlg.table.item(0, 0).text()
+  two = dlg.table.item(1, 0).text()
+  dlg.spacing_spin.setValue(400)
+  _generate_and_wait(dlg)
+  assert dlg._no_data_layer_ids.get(one) and dlg._no_data_layer_ids.get(two), \
+    f"both elements should have a no-data layer: " \
+    f"{dlg._no_data_layer_ids!r}"
+
+  # ...now SWAP the two variables, changing nothing else
+  dlg.table.cellWidget(0, 1).setCurrentText("v2")
+  _tick(250)
+  dlg.table.cellWidget(1, 1).setCurrentText("v1")
+  _tick(250)
+  _generate_and_wait(dlg)
+
+  for tid, field in ((one, "v2"), (two, "v1")):
+    element = project.mapLayer(dlg._element_layer_ids[tid])
+    paired = project.mapLayer(dlg._no_data_layer_ids.get(tid))
+    assert paired is not None, \
+      f"element '{tid}' lost its no-data layer across the swap"
+    stray = [f.id() for f in paired.getFeatures()
+             if f[field] is not None and str(f[field]) != "NULL"]
+    assert not stray, \
+      f"element '{tid}' now draws {field}, and its no-data layer " \
+      f"greys {len(stray)} tile(s) that DO have a value; it is " \
+      f"holding the split cut for the other field"
+    missed = [f.id() for f in element.getFeatures()
+              if f[field] is None or str(f[field]) == "NULL"]
+    assert not missed, \
+      f"element '{tid}' keeps {len(missed)} tile(s) with no {field} " \
+      f"value on its graduated layer, which cannot paint them"
+  dlg.close()
+
+
 def test_both_halves_of_an_element_fade_together():
   """An element is ONE thing to a reader, however many layers it is.
 

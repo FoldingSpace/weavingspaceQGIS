@@ -948,6 +948,12 @@ class WeavingSpaceDialog(QDialog):
     # signature (used to skip no-op live regenerations)
     self._group_name = None
     self._element_layer_ids = {}
+    # {tile id: layer id} for the half of an element that draws its
+    # missing values. Set up HERE and not only where it is filled: a
+    # record several paths read must exist from construction, and
+    # relying on getattr defaults at the read sites is how one path
+    # sees {} while another sees the real thing.
+    self._no_data_layer_ids = {}
     self._outline_layer_id = None
     self._last_signatures = {}
     self._last_path = None
@@ -973,6 +979,7 @@ class WeavingSpaceDialog(QDialog):
     # class-source choice, QML files browsed anywhere this session,
     # picked single colours, and last ramp names
     self._cat_count_cache = {}
+    self._nulls_cache = {}
     # one field's values, keyed by (layer, field, fingerprint) and
     # holding a single entry: the breaks are cut from these, and a
     # stale set would classify the map against data that has gone
@@ -1768,6 +1775,7 @@ class WeavingSpaceDialog(QDialog):
     anything here must be safe to run repeatedly for the same layer.
     """
     self._cat_count_cache = {}
+    self._nulls_cache = {}
     layer = self.layer_combo.currentLayer()
     # Hear the layer itself, not merely the fact that a different one
     # was chosen: a user editing in QGIS never touches this combo.
@@ -6107,7 +6115,23 @@ class WeavingSpaceDialog(QDialog):
       # drew. Measured 2026-08-16 by a hunt: eight null tiles
       # unpainted after the mode change, `symbolForFeature` answering
       # None for every one of them.
-      tuple((a["id"], self._needs_a_no_data_split(a))
+      #
+      # IT CARRIES THE FIELD AND NOT MERELY A YES. The first version
+      # of this term was a boolean per element, which is INVARIANT
+      # UNDER A PERMUTATION: swap the variables of two elements whose
+      # columns both have nulls and every boolean stays True, the
+      # signature does not move, and the paired layer built for the
+      # OLD field is left holding the wrong rows -- real values drawn
+      # as no data, and areas that have values drawn as nothing.
+      # Measured 2026-08-16: element 'a' with 16 tiles painted by
+      # nothing and 17 greyed that all had a value, against a re-tile
+      # of the same design with none of either.
+      #
+      # The lesson generalises: when a fix widens a signature, ask
+      # whether the new term is COARSER than the thing it stands for.
+      # A boolean summarising a field cannot see the field move.
+      tuple((a["id"],
+             a.get("var") if self._needs_a_no_data_split(a) else None)
             for a in self._assignments()),
       # What the layer HOLDS, not merely which layer it is. Without
       # this, deleting half the features left every term here
@@ -6176,8 +6200,12 @@ class WeavingSpaceDialog(QDialog):
       if value is None or str(value) == "NULL":
         found = True
         break
-    # one entry per column per data version; the dict is small and is
-    # cleared with the rest of the caches when the layer changes
+    # One entry per column per data version. It IS cleared with the
+    # sibling caches when the region layer changes -- which the
+    # comment here claimed before anything did it, and a hunt counted
+    # 600 entries after 200 data-version bumps. A comment describing
+    # what the code was meant to do is worse than none, because it is
+    # believed and therefore not checked.
     self._nulls_cache[key] = found
     return found
 
@@ -6201,7 +6229,7 @@ class WeavingSpaceDialog(QDialog):
     override loop skips anything that is not an integer, so it can
     never be mistaken for a class colour.
     """
-    layer_id = getattr(self, "_no_data_layer_ids", {}).get(tile_id)
+    layer_id = self._no_data_layer_ids.get(tile_id)
     if not layer_id:
       return
     from qgis.core import QgsProject
@@ -6242,7 +6270,7 @@ class WeavingSpaceDialog(QDialog):
     """
     if not field:
       return False
-    paired = getattr(self, "_no_data_layer_ids", {}).get(tile_id)
+    paired = self._no_data_layer_ids.get(tile_id)
     if paired:
       from qgis.core import QgsProject
       layer = QgsProject.instance().mapLayer(paired)
@@ -6321,8 +6349,6 @@ class WeavingSpaceDialog(QDialog):
     layer.setCustomProperty("weavingspace_output", True)
     layer.setCustomProperty("weavingspace_tile_id", tile_id)
     layer.setCustomProperty("weavingspace_no_data", True)
-    if path:
-      bridge.embed_style(layer)
     # THE SAME OPACITY AS ITS ELEMENT. The repainting twin sets this
     # and the creating path did not, so an element faded to 40% drew
     # its missing-value areas at full strength -- the hardest shapes
@@ -6335,6 +6361,17 @@ class WeavingSpaceDialog(QDialog):
     # fade together. Writing that comment did not put the line here.
     layer.setOpacity(
       max(0, min(100, assignment.get("opacity", 100))) / 100.0)
+    # ...AND ONLY THEN EMBED IT. `embed_style` writes what the layer
+    # is wearing AT THAT MOMENT into the GeoPackage, so setting the
+    # opacity afterwards fixed the layer in the project and left the
+    # FILE saying 1.0 -- the map a user sends on was not the map they
+    # made. Both twins already had this order; the first fix for the
+    # opacity, made hours earlier the same day, put the new line
+    # after the embed and so corrected only the half that was easy to
+    # see. When a fix is inserted into an existing sequence, check
+    # the ORDER against the twin, not merely the presence of a line.
+    if path:
+      bridge.embed_style(layer)
     project.addMapLayer(layer, False)
     group.addLayer(layer)
     self._no_data_layer_ids[tile_id] = layer.id()
@@ -7124,7 +7161,7 @@ class WeavingSpaceDialog(QDialog):
       return
     project = QgsProject.instance()
     self._no_data_layer_ids = dict(
-      getattr(self, "_no_data_layer_ids", {}) or {})
+      self._no_data_layer_ids)
     for child in group.children():
       layer = child.layer() if hasattr(child, "layer") else None
       if layer is None or project.mapLayer(layer.id()) is None:
@@ -7283,6 +7320,7 @@ class WeavingSpaceDialog(QDialog):
       name = f"{GROUP_BASE_NAME} {i}"
     self._group_name = name
     self._element_layer_ids = {}
+    self._no_data_layer_ids = {}
     self._outline_layer_id = None
     self._last_signatures = {}
     return root.insertGroup(0, name), True
@@ -7679,7 +7717,7 @@ class WeavingSpaceDialog(QDialog):
         old_subsets[tid] = old_layer.subsetString()
     # what the LAST run's no-data layers were, so this run can drop
     # exactly those; the new ones are collected as they are built
-    old_no_data = dict(getattr(self, "_no_data_layer_ids", {}) or {})
+    old_no_data = dict(self._no_data_layer_ids)
     self._no_data_layer_ids = {}
     if path:
       # release file handles before overwriting GeoPackage layers,

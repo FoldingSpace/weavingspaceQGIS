@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-182 defect(s) with a regression test.
+185 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -65,6 +65,8 @@ there is no separate list to remember.
   guarded by `test_a_deferring_element_moved_to_words_still_draws`
 - **destroying the plugin dialog left a dangling pointer on the QApplication and a live styleChanged lambda on every output layer, so restyling an element layer afterwards crashed QGIS.**  
   guarded by `test_a_destroyed_dialog_cannot_be_reached_by_a_layer_it_made`
+- **the no-data layer's style was embedded in the GeoPackage before its opacity was set, so an exported map drew those areas opaque.**  
+  guarded by `test_a_geopackage_carries_the_no_data_opacity_it_was_given`
 - **a class recoloured in QGIS's styling dock was discarded when the plugin reopened, because the graduated adoption path stopped at the mere presence of a ramp name, while its categorized twin asked whether that ramp explained the colours.**  
   guarded by `test_a_graduated_dock_recolour_survives_the_plugin_being_shut`
 - **nothing described what a negative scale factor did to the map, so the only guard on the feature was that its spin box could reach negative numbers.**  
@@ -91,6 +93,8 @@ there is no separate list to remember.
   guarded by `test_both_halves_of_an_element_fade_together`
 - **a mode change or a variable swap was answered by the restyle path, which cannot cut a no-data split, so the missing-value areas became holes again.**  
   guarded by `test_changing_to_a_graduated_style_cuts_the_split_it_needs`
+- **generating into a new group deleted the kept result's no-data layers, punching holes in the map the user had asked to keep.**  
+  guarded by `test_keeping_a_result_keeps_both_halves_of_every_element`
 - **the bound spin boxes were greyed until a pin was clicked, and moving one could not pin the bound it named.**  
   guarded by `test_moving_a_bound_off_its_computed_value_pins_it`
 - **the No data class had no control anywhere, so the colour of a missing-value area could not be chosen.**  
@@ -101,6 +105,8 @@ there is no separate list to remember.
   guarded by `test_pinning_redraws_the_window_it_was_typed_into`
 - **with three or more polygon layers in the project, QgsMapLayerComboBox emitted no layerChanged at all when the chosen region layer was destroyed, so the dialog went on holding a destroyed layer, said nothing, and Generate produced no map and no refusal. Measured 2026-08-15 at one, two, three and four layers: the guarded door is the ONE-layer case, which every earlier test walked through because the suite's own removal case clears every other layer first.**  
   guarded by `test_removing_the_region_layer_is_noticed_in_a_real_project`
+- **swapping the variables of two elements whose columns both had missing values left each holding the other's no-data split, so values were drawn as gaps and gaps as values.**  
+  guarded by `test_swapping_two_variables_re_cuts_both_splits`
 - **the constant-column notice counted the tiled output rather than the region layer, so a small area dropped at a coarse spacing produced "every area has the same value" beside a legend showing a range.**  
   guarded by `test_the_constant_notice_counts_the_users_areas`
 - **`distance` converts BOTH its arguments to CIELAB on every call, and the clash search compared every class of one element against every class of another -- so it did 2*k*k conversions where 2*k would do, at about twelve microseconds each. Measured: four categorized elements of 401 classes froze QGIS for 36.75s, of which 35.70s was here, on the GUI thread with the event loop dead; the tiling those colours belonged to took 1.05s. The live path paid it on every tweak.**  
@@ -413,7 +419,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 82
-- a bug hunt pointed in a named direction: 33
+- a bug hunt pointed in a named direction: 36
 - the mutation campaign: 16
 - reported by a user: 11
 - race and stress testing: 6

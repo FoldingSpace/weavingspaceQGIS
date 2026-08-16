@@ -227,8 +227,9 @@ MUTATIONS = [
   dict(name="both-halves-of-an-element-fade-together", file=DIALOG,
        old="""    layer.setOpacity(
       max(0, min(100, assignment.get("opacity", 100))) / 100.0)
-    project.addMapLayer(layer, False)""",
-       new="""    project.addMapLayer(layer, False)""",
+    # ...AND ONLY THEN EMBED IT.""",
+       new="""    pass  # mutation: the paired half keeps full strength
+    # ...AND ONLY THEN EMBED IT.""",
        test="test_both_halves_of_an_element_fade_together",
        why="an element is one thing to a reader however many layers "
            "it is; without this the creating path leaves the "
@@ -237,7 +238,8 @@ MUTATIONS = [
            "what lies beneath, until an unrelated restyle silently "
            "corrects it"),
   dict(name="the-no-data-split-is-geometry-not-style", file=DIALOG,
-       old="""      tuple((a["id"], self._needs_a_no_data_split(a))
+       old="""      tuple((a["id"],
+             a.get("var") if self._needs_a_no_data_split(a) else None)
             for a in self._assignments()),""",
        new="""      (),""",
        test="test_changing_to_a_graduated_style_cuts_the_split_it_needs",
@@ -257,6 +259,41 @@ MUTATIONS = [
            "the element; the next run then removes the twin and "
            "orphans the real layer, leaving yesterday's map on top "
            "of the new one for good"),
+  dict(name="a-kept-result-keeps-both-its-halves", file=DIALOG,
+       old="""    self._element_layer_ids = {}
+    self._no_data_layer_ids = {}""",
+       new="""    self._element_layer_ids = {}""",
+       test="test_keeping_a_result_keeps_both_halves_of_every_element",
+       why="three places clear per-element state and no two cleared "
+           "the same set; without this the record goes on naming the "
+           "KEPT group's no-data layers and the next run removes "
+           "them, punching holes in the map the user asked to keep"),
+  dict(name="the-file-gets-the-opacity-the-map-has", file=DIALOG,
+       old="""    if path:
+      bridge.embed_style(layer)
+    project.addMapLayer(layer, False)""",
+       new="""    if path:
+      # mutation: what the FILE is told, before it is told it
+      layer.setOpacity(1.0)
+      bridge.embed_style(layer)
+    project.addMapLayer(layer, False)""",
+       test="test_a_geopackage_carries_the_no_data_opacity_it_was_given",
+       why="embed_style writes what the layer wears at that moment, "
+           "so an opacity set afterwards reaches the project and not "
+           "the file, and the map a user sends on draws its "
+           "missing-value areas opaque over a faded element"),
+  dict(name="the-split-term-carries-the-field", file=DIALOG,
+       old="""      tuple((a["id"],
+             a.get("var") if self._needs_a_no_data_split(a) else None)
+            for a in self._assignments()),""",
+       new="""      tuple((a["id"], self._needs_a_no_data_split(a))
+            for a in self._assignments()),""",
+       test="test_swapping_two_variables_re_cuts_both_splits",
+       why="a boolean per element is invariant under a permutation, "
+           "so swapping the variables of two elements whose columns "
+           "both have gaps leaves the signature still and each "
+           "element holding the split cut for the other field -- "
+           "values drawn as no data and gaps drawn as nothing"),
   dict(name="unclassed-is-exempt-from-the-reduction", file=BRIDGE,
        old="""  if unclassed:
     return int(asked), False""",
