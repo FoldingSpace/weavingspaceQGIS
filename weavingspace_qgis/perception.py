@@ -160,12 +160,22 @@ def distance(first, second, vision="normal"):
   return sum((a - b) ** 2 for a, b in zip(one, two)) ** 0.5
 
 
-# The grey every element uses where a feature has no value. Kept as
-# a literal rather than imported from bridge, which pulls in QGIS:
-# this module is deliberately importable without it. Guarded by
-# test_the_no_data_grey_is_never_a_clash, which fails if bridge's
-# own NO_DATA_FILL moves away from this value.
-NO_DATA_FILL = "#dddddd"
+# The placeholder fills, from the one module that defines them.
+#
+# There used to be a COPY of the no-data grey here, because bridge.py
+# defines it and importing bridge pulls in QGIS, which this module
+# deliberately does without. A copy answers the need and goes stale:
+# the day a second placeholder colour arrived the copy still matched
+# the grey perfectly and excluded the new colours not at all, which is
+# the failure a copy always has -- it stops being complete without
+# ever stopping being correct. absence.py imports nothing, so it can
+# be read from here as easily as from bridge, and there is no second
+# copy to drift. `NO_DATA_FILL` is re-exported because callers and
+# tests name it.
+from .absence import (  # noqa: E402, F401 (constant, and a re-export)
+  ABSENCE_FILLS,
+  NO_DATA_FILL,
+)
 
 
 def _hex_of(colour):
@@ -209,7 +219,7 @@ def clashes(element_colours, shared=None, threshold=CLASH_THRESHOLD):
   """
   found = []
   shared = shared or {}
-  # The no-data fill is the SAME grey in every element by
+  # A PLACEHOLDER FILL IS THE SAME COLOUR IN EVERY ELEMENT by
   # construction, so it can never distinguish one element from
   # another: comparing it against itself scored every categorical
   # pair at Delta-E 0.00 and made this warning useless for
@@ -220,9 +230,22 @@ def clashes(element_colours, shared=None, threshold=CLASH_THRESHOLD):
   # the comparison entirely (user decision, 2026-08-09); an element
   # left with NOTHING else keeps it, so a design of two unmapped
   # elements is still described rather than silently skipped.
+  #
+  # ALL of them, not only the grey: the paired layer gained two more
+  # placeholder colours on 2026-08-16, one per infinity, and they have
+  # exactly the property the grey has -- every element carrying an
+  # infinity wears the same one, so every such pair would be reported
+  # as confusable. ABSENCE_FILLS is derived from the kinds themselves,
+  # so a fourth kind is excluded by the person who adds it.
+  #
+  # What is NOT excluded is a colour a user hand-picked for one of
+  # these kinds. That is a choice like any other, it is off these
+  # defaults by construction (it is why somebody opens the editor),
+  # and two elements landing on the same picked colour is a real
+  # clash a reader would meet.
   compared = {}
   for tile_id, colours in element_colours.items():
-    kept = [c for c in colours if _hex_of(c) != NO_DATA_FILL.lower()]
+    kept = [c for c in colours if _hex_of(c) not in ABSENCE_FILLS]
     compared[tile_id] = kept or list(colours)
   element_colours = compared
   ids = sorted(element_colours)

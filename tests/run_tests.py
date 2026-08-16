@@ -29551,17 +29551,22 @@ def test_the_no_data_grey_is_never_a_clash():
   grey tiles teach a reader the same true thing, that nothing was
   mapped there.
 
-  Also pins the literal. perception carries its own copy of the grey
-  so the module stays importable without QGIS, and a copy that drifts
-  from bridge's would silently stop excluding anything.
+  Also pins the grey into what is excluded. perception used to carry
+  its own COPY of it, so the module stays importable without QGIS, and
+  the copy is gone: both read absence.py, which imports nothing. What
+  is asserted here is therefore not that two literals agree -- they
+  are one literal now, and comparing it with itself would assert
+  nothing -- but that the grey is in the exclusion set the comparison
+  actually consults. The wider family is
+  test_no_placeholder_fill_is_ever_a_clash.
 
   Regression: the shared no-data grey was compared against itself, scoring every categorical pair at Delta-E 0.00 and making the legibility warning useless for categorical designs. [family-audit]
   """
   from weavingspace_qgis import bridge, perception
-  assert perception.NO_DATA_FILL.lower() == bridge.NO_DATA_FILL.lower(), \
-    f"perception's copy of the no-data grey " \
-    f"({perception.NO_DATA_FILL}) has drifted from bridge's " \
-    f"({bridge.NO_DATA_FILL}), so nothing is being excluded"
+  assert bridge.NO_DATA_FILL.lower() in perception.ABSENCE_FILLS, \
+    f"the no-data grey ({bridge.NO_DATA_FILL}) is not in the set " \
+    f"clashes() excludes ({sorted(perception.ABSENCE_FILLS)}), so " \
+    f"nothing is being excluded"
 
   grey = tuple(int(bridge.NO_DATA_FILL[i:i + 2], 16) for i in (1, 3, 5))
   # two elements whose REAL colours are far apart, each also painting
@@ -29583,6 +29588,113 @@ def test_the_no_data_grey_is_never_a_clash():
   assert perception.clashes(bare), \
     "two elements that draw nothing but no-data grey are genuinely " \
     "indistinguishable and should still be reported"
+
+
+def _rgb_of(fill):
+  """One "#rrggbb" fill as the (r, g, b) triple clashes() wants.
+
+  Args:
+    fill: a hex colour string, with the leading "#".
+
+  Returns:
+    A tuple of three ints on 0..255. Written out rather than using
+    QColor to match perception.py, which is arithmetic about human
+    vision and is deliberately free of Qt.
+  """
+  return tuple(int(fill[i:i + 2], 16) for i in (1, 3, 5))
+
+
+def test_no_placeholder_fill_is_ever_a_clash():
+  """Every colour standing for an absent value, not only the grey.
+
+  The paired layer stopped being one grey on 2026-08-16: it draws
+  three kinds of unplaceable value, and bridge.ABSENCE_KINDS gives
+  each its own default fill. Those two new fills have exactly the
+  property the grey has and for exactly the same reason -- EVERY
+  element that has an infinity paints the same #8c9fc7 or #c78c8c --
+  so comparing them against each other reports a clash between any two
+  elements whose columns both run off the scale, in a warning whose
+  whole subject is whether two elements can be told apart. The
+  exclusion is derived from ABSENCE_KINDS rather than written out, so
+  a fourth kind cannot bring the fault back quietly.
+
+  Narrow, though: a colour a user HAND-PICKED for one of these kinds
+  is a choice like any other, is off the defaults by construction, and
+  two elements landing on it are genuinely confusable. The last act
+  drives that case and requires the warning to fire.
+
+  Regression: the two infinity placeholder fills were compared against themselves, so any two elements carrying an infinity were reported as an unreadable pair. [review]
+  """
+  from weavingspace_qgis import bridge, perception
+  # far apart under all three visions -- proved by the sibling test,
+  # and asserted here too, since every case below rests on it
+  red, blue = (215, 25, 28), (44, 123, 182)
+  assert not perception.clashes({"a": [red], "b": [blue]}), \
+    "the fixture's own real colours clash, so nothing below measures " \
+    "what it claims to"
+
+  # ACT ONE: each kind's default fill, one case per kind, counted so a
+  # loop that silently stopped running cannot pass
+  seen = 0
+  for key, _stored, label, fill in bridge.ABSENCE_KINDS:
+    placeholder = _rgb_of(fill)
+    # THE POSITIVE TWIN, per kind, and it is what makes the negative
+    # below mean anything: the same fixture carrying a colour ONE STEP
+    # off this default -- a colour nothing excludes -- must be
+    # reported. If it is not, the fixture cannot report a clash at all
+    # and the negative case is passing on the shape of the data.
+    nudged = (placeholder[0], placeholder[1], (placeholder[2] + 1) % 256)
+    assert perception._hex_of(nudged) not in perception.ABSENCE_FILLS, \
+      f"the control colour for {label} is itself excluded, so it " \
+      f"cannot show that this fixture reports anything"
+    control = {"a": [red, nudged], "b": [blue, nudged]}
+    assert perception.clashes(control), \
+      f"a colour nothing excludes, shared by both elements, was not " \
+      f"reported: this fixture cannot show a clash, so the {label} " \
+      f"case below proves nothing"
+    both = {"a": [red, placeholder], "b": [blue, placeholder]}
+    found = perception.clashes(both)
+    assert not found, \
+      f"two elements both drawing the '{label}' placeholder " \
+      f"({fill}, key {key!r}) were reported as an unreadable pair " \
+      f"{found!r}; every element draws that one colour, so it can " \
+      f"never tell two elements apart"
+    seen += 1
+  assert seen == len(bridge.ABSENCE_KINDS) and seen >= 3, \
+    f"only {seen} of {len(bridge.ABSENCE_KINDS)} absence kinds were " \
+    f"measured, and there are at least three"
+
+  # ACT TWO: the case the maintainer asked about -- two elements whose
+  # columns both run off the scale in both directions
+  by_key = {key: fill for key, _s, _l, fill in bridge.ABSENCE_KINDS}
+  below = _rgb_of(by_key[bridge.NEG_INF_KEY])
+  above = _rgb_of(by_key[bridge.POS_INF_KEY])
+  assert below != above, \
+    "the two infinities share one fill, so this case cannot show " \
+    "that both are excluded"
+  infinities = {"a": [red, below, above], "b": [blue, below, above]}
+  found = perception.clashes(infinities)
+  assert not found, \
+    f"two elements each carrying both infinities were reported as " \
+    f"an unreadable pair {found!r}; the placeholder colours are " \
+    f"identical by construction and say the same true thing on both"
+
+  # ACT THREE: a hand-picked colour is still compared. The user has
+  # given "above any value" this purple on both elements, which is a
+  # choice and a real collision.
+  picked = _rgb_of("#7f3fbf")
+  assert perception._hex_of(picked) not in perception.ABSENCE_FILLS, \
+    "the hand-picked colour used here is one of the defaults, so " \
+    "this act cannot distinguish a choice from a placeholder"
+  chosen = {"a": [red, picked], "b": [blue, picked]}
+  found = perception.clashes(chosen)
+  assert found, \
+    "two elements given the SAME hand-picked colour for an absence " \
+    "kind were not reported; a picked colour is a choice like any " \
+    "other and this pair is genuinely unreadable"
+  assert found[0][3] < 1.0, \
+    f"the reported pair {found[0]!r} is not the identical picked " \
+    f"colour, so this act found something other than what it names"
 
 
 def _c3_choose(combo, text):
@@ -37514,7 +37626,22 @@ def _classes_the_data_allows(dlg, field, asked, scheme=None):
   if index < 0:
     return asked
   values = bridge.distinct_numeric_count(source.uniqueValues(index))
-  return min(int(asked), values) if values else int(asked)
+  # NOTHING IS REDUCED any more, as of 2026-08-16. The ladder keeps
+  # the length the row asked for, so the map draws `asked` and the
+  # classes no tile wears are hatched rather than dropped -- the
+  # maintainer's rule that an empty class is invisible, not deleted.
+  # This used to return min(asked, distinct), which was the contract
+  # then and is the reason four differentials went red across every
+  # platform when the behaviour changed: they were asserting the OLD
+  # rule, correctly, and had to be re-decided rather than relaxed.
+  #
+  # The ONE surviving carve-out is a column with a single value, which
+  # genuinely collapses to one class (maintainer's instruction,
+  # 2026-08-09): five ranges all reading "7 - 7" in five colours is a
+  # legend claiming variation the data does not have.
+  if values == 1:
+    return 1
+  return int(asked)
 
 
 def _views_disagree(dlg, project):
@@ -44456,6 +44583,8 @@ def main():
         test_colour_legibility_warnings_are_opt_in)
   check("the no-data grey is never a clash",
         test_the_no_data_grey_is_never_a_clash)
+  check("no placeholder fill is ever a clash",
+        test_no_placeholder_fill_is_ever_a_clash)
   check("awkward layers are handled or declined",
         test_awkward_layers_are_handled_or_declined)
   check("hostile numbers are handled or declined",

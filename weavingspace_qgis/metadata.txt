@@ -50,11 +50,13 @@ changelog=0.24.3 Areas with no value are drawn now rather than left
     everywhere it appears, and you can set the class bounds yourself
     where the automatic ones do not suit.
     Missing values: an area whose value is absent used to come out as
-    a hole in the map. Those areas are drawn now, in a colour you
-    choose: No data sits below the classes in that element's colour
-    editor. QGIS gains a second layer beside the element carrying
-    those areas, labelled no data in its legend, while the dialog
-    still shows one element.
+    a hole in the map. So did one holding an infinity, which a
+    classifier can no more place than a blank. Those areas are drawn
+    now, and told apart: no data, below any value, and above any
+    value each get their own colour and their own line in the legend,
+    and each sits in that element's colour editor to be changed. QGIS
+    gains a second layer beside the element carrying those areas,
+    while the dialog still shows one element.
     Class bounds: the box holding the first or last class's inner
     bound is live whenever that element can carry a pin. Move it off
     the value the classification worked out and the bound is yours,

@@ -188,9 +188,13 @@ MUTATIONS = [
            "unpainted, and on a map made of areas a hole reads as "
            "'nothing is here' rather than 'this is not known'"),
   dict(name="the-no-data-row-is-not-the-last-class", file=EDITOR,
+       # RE-ANCHORED 2026-08-16: the paired layer gained a row per
+       # KIND of unplaceable value, so the trailing absence rows are
+       # counted in a loop rather than tested one deep.
        old="""    self._last_class_row = len(order) - 1
-    if order and order[-1] == bridge.NO_DATA_KEY:
-      self._last_class_row = len(order) - 2""",
+    while self._last_class_row >= 0 \\
+        and order[self._last_class_row] in absence_keys:
+      self._last_class_row -= 1""",
        new="""    self._last_class_row = len(order) - 1""",
        test="test_a_class_that_cannot_be_pinned_says_so_in_its_cell",
        why="a no-data row sits below the classes, so reading 'last "
@@ -621,6 +625,20 @@ MUTATIONS = [
        why="colour-vision deficiency actually being simulated; without "
            "it every pair looks as separable as it does to a reader "
            "with normal vision, which is the whole point"),
+  # The narrowing back to the ONE colour it used to be. Anchored on
+  # the comparison rather than on ABSENCE_FILLS itself, because the
+  # set is derived from bridge's kinds and a mutation of the derivation
+  # would be a mutation of the data model rather than of this check.
+  dict(name="every-placeholder-fill-is-excluded", file=PERCEPTION,
+       old="    kept = [c for c in colours if _hex_of(c) not in ABSENCE_FILLS]",
+       new="    kept = [c for c in colours "
+           "if _hex_of(c) != NO_DATA_FILL.lower()]",
+       test="test_no_placeholder_fill_is_ever_a_clash",
+       why="the two infinity placeholders being left out of the "
+           "comparison as the no-data grey is: every element that has "
+           "an infinity paints the same colour, so comparing it with "
+           "itself reports a clash between any two such elements and "
+           "the warning stops meaning anything for those designs"),
   dict(name="shared-ramp-exemption", file=PERCEPTION,
        old="      if first in shared and shared[first] == shared.get(second):",
        new="      if False:",

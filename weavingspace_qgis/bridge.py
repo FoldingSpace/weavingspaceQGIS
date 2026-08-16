@@ -1716,7 +1716,30 @@ def _nudge_off_shared_bounds(renderer) -> int:
       continue
     next_lo, next_hi = bounds[index + 1]
     if hi > lo and next_hi <= next_lo and next_lo == hi:
-      renderer.updateRangeUpperValue(index, math.nextafter(hi, -math.inf))
+      # A MARGIN, NOT ONE UNIT IN THE LAST PLACE. The first version
+      # stepped by `math.nextafter`, which made a tile's class depend
+      # on the LAST BIT of a number -- and anything that perturbs a
+      # float by an ulp then moves that tile between classes. It duly
+      # broke the GeoPackage round trip on every platform: the
+      # reloaded file-backed layers painted differently from the ones
+      # the dialog had made, 2,413 of 48,948 pixels.
+      #
+      # A relative margin of 1e-9 is enormous beside any rounding a
+      # store or a recomputation can introduce (which is ~1e-16
+      # relative), and invisible beside anything a legend prints --
+      # QGIS's formatter rounds it away, so the label still reads
+      # "1 - 5". The `abs(hi) or 1.0` keeps it meaningful when the
+      # bound is zero.
+      #
+      # It never crosses the range's own lower bound: with a margin
+      # that wide a very narrow range could otherwise be turned
+      # inside out, so the step is clamped and a range too narrow to
+      # take it is left alone rather than inverted.
+      margin = (abs(hi) or 1.0) * 1e-9
+      shrunk = hi - margin
+      if shrunk <= lo:
+        continue
+      renderer.updateRangeUpperValue(index, shrunk)
       moved += 1
   return moved
 

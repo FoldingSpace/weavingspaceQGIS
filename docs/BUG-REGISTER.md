@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-201 defect(s) with a regression test.
+202 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -213,6 +213,8 @@ there is no separate list to remember.
   guarded by `test_auto_first_render`
 - **a project reopened after an element was styled in QGIS lost the fact that the plugin had stopped styling it, so the next Generate destroyed the user's work.**  
   guarded by `test_deferral_survives_a_project_round_trip`
+- **the two infinity placeholder fills were compared against themselves, so any two elements carrying an infinity were reported as an unreadable pair.**  
+  guarded by `test_no_placeholder_fill_is_ever_a_clash`
 - **none yet; this pins the scope of a change made 2026-08-16, because a nudge that fired on ordinary data would silently move every boundary value up one class across every map this plugin draws.**  
   guarded by `test_ordinary_data_keeps_qgis_s_own_breaks`
 - **CRS work on the QgsTask worker thread segfaulted QGIS, because PROJ is not safe to use concurrently with the main thread; the CRS is now stripped before the task and reattached in the done callback.**  
@@ -454,7 +456,7 @@ there is no separate list to remember.
 - a bug hunt pointed in a named direction: 48
 - the mutation campaign: 16
 - reported by a user: 13
-- reading the code: 9
+- reading the code: 10
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6
 - a multi-step session test: 5

@@ -68,7 +68,11 @@ ABSENCE_FIELD = "ws_absence"
 # mean off-the-scale rather than absent, and one colour for both would
 # break one-colour-one-meaning inside the feature meant to uphold it.
 ABSENCE_KINDS = (
-  (NO_DATA_KEY, "no-value", "no value", NO_DATA_FILL),
+  # "no data" and NOT "no value": this label is the one this plugin
+  # has always shown, in the legend and in the colour editor, and
+  # renaming it would be an unreviewed change to shipped text for
+  # no gain. The two infinities are new and get new words.
+  (NO_DATA_KEY, "no-value", "no data", NO_DATA_FILL),
   (NEG_INF_KEY, "neg-infinity", "below any value", "#8c9fc7"),
   (POS_INF_KEY, "pos-infinity", "above any value", "#c78c8c"),
 )

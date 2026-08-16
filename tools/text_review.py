@@ -82,7 +82,7 @@ DOCUMENTS = ["README.md", os.path.join("docs", "index.html"),
 # tests/, whose messages are read by us.
 SOURCES = ["dialog.py", "bridge.py", "perception.py", "compat.py",
            "help_content.py", "deps.py", "plugin.py",
-           "category_editor.py"]
+           "category_editor.py", "absence.py"]
 
 
 def looks_like_prose(text):

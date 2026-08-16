@@ -89,27 +89,7 @@ entry as it lands.
 
 ### Wanted
 
-**The paired layer draws its three kinds in one colour.** Added
-2026-08-16, and it is HALF A FEATURE rather than a defect. The split
-now separates everything a graduated renderer cannot place and labels
-each row in `ws_absence` -- `no-value`, `neg-infinity`,
-`pos-infinity` -- so an infinity is no longer drawn as a hole. But
-`make_no_data_renderer` is still single-symbol, so all three draw in
-the no-data grey and the difference the maintainer asked for is
-recorded and not shown. What is left: a categorized renderer over
-`ws_absence` carrying only the kinds present, the two extra colours in
-the element's colour editor beside No data, the legend labels from
-`bridge.ABSENCE_KINDS`, and the legibility check taught to exclude the
-two new placeholder fills as it already excludes the no-data grey.
-Nothing promises this to users yet -- the changelog describes the
-missing-value half only -- so the shipped state is honest, merely
-incomplete.
-
-THIS BLOCKS A CANDIDATE while it stands here, which is the point of
-the entry. Finish it, or move it to 0.24.4 deliberately; moving it is
-the maintainer's decision and no tool may make it.
-
-The three measurement entries that stood here were deferred to 0.24.4
+Nothing outstanding. The three measurement entries that stood here were deferred to 0.24.4
 by the maintainer on 2026-08-15: none is a defect, and one of them --
 the certification batch -- cannot honestly run against this version at
 all, because a mutation score is a property of a suite and this suite

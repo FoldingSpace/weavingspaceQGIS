@@ -52,6 +52,9 @@ USER_FACING = [
   os.path.join(PLUGIN, "bridge.py"),
   os.path.join(PLUGIN, "perception.py"),
   os.path.join(PLUGIN, "category_editor.py"),
+  # absence.py holds the legend labels for the three kinds of
+  # unplaceable value, which are read straight off a map's legend.
+  os.path.join(PLUGIN, "absence.py"),
   os.path.join(PLUGIN, "compat.py"),
   os.path.join(PLUGIN, "deps.py"),
   os.path.join(PLUGIN, "plugin.py"),
