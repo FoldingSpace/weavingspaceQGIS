@@ -28573,6 +28573,24 @@ def test_the_report_generators_survive_hostile_docstrings():
       f"the suite registers {sorted(registered - top_level)}, which " \
       f"are not module-level def statements. The test map indexes " \
       f"only def statements, so these would be run and never listed"
+    # AND THE CONVERSE, which is the direction that actually bit. The
+    # assertion above asks whether every registration names a real
+    # function -- a test that is run but not listed. Nobody asked the
+    # other way round until 2026-08-16, when NINETEEN tests turned out
+    # to be defined, passing by hand, named in docs/TEST-MAP.md's own
+    # "these never run" section, and never offered to the suite at
+    # all. They were almost the whole of 0.24.3. A one-directional
+    # check on a two-directional relation reads as covering it.
+    unregistered = sorted(
+      name for name in top_level
+      if name.startswith("test_") and name not in registered)
+    assert not unregistered, \
+      f"{len(unregistered)} test(s) are defined and never registered " \
+      f"in main(), so they do not run in the suite, in a release or " \
+      f"on any CI runner, while passing when anybody runs them by " \
+      f"hand: {unregistered}. Add a check() line for each. If one is " \
+      f"deliberately not run, it needs a reason written here rather " \
+      f"than silence"
     methods = [f"{node.name}.{item.name}"
                for node in ast.walk(real_tree)
                if isinstance(node, ast.ClassDef)
@@ -44003,6 +44021,63 @@ def main():
         test_the_output_group_is_renamed_while_a_run_is_in_flight)
   check("the region layer goes while the quant editor is open",
         test_the_region_layer_goes_while_the_quant_editor_is_open)
+
+  # NINETEEN TESTS THAT HAD NEVER RUN, registered 2026-08-16. Every
+  # one was written, passed by hand, and then left out of this list --
+  # and this list is the suite. They are almost the whole of 0.24.3:
+  # the No Data feature, the pins, the negative scale factors, both
+  # reopened-project fixes, the crash that took QGIS down with a
+  # destroyed dialog, and the removal notice written to CLEAR A RED CI
+  # RUN on three platforms. So rc1 and rc2 were both gated by a suite
+  # that never touched the release's own features, and sixteen of the
+  # nineteen are named in tools/mutation_check.py as their behaviour's
+  # only killer -- which the catalogue calls directly, so it reported
+  # them caught while the suite would have let the mutant through.
+  # docs/TEST-MAP.md has carried a section headed "Not registered --
+  # these never run" the entire time. A generated document that names
+  # a fault nobody gates on is how this survives being visible.
+  # Guarded now by the converse assertion in
+  # test_the_report_generators_survive_hostile_docstrings, which
+  # already checked that every registration names a real function and
+  # never that every function reaches a registration.
+  check("a class that cannot be pinned says so in its cell",
+        test_a_class_that_cannot_be_pinned_says_so_in_its_cell)
+  check("a destroyed dialog cannot be reached by a layer it made",
+        test_a_destroyed_dialog_cannot_be_reached_by_a_layer_it_made)
+  check("a geopackage carries the no data opacity it was given",
+        test_a_geopackage_carries_the_no_data_opacity_it_was_given)
+  check("a graduated dock recolour survives the plugin being shut",
+        test_a_graduated_dock_recolour_survives_the_plugin_being_shut)
+  check("a negative scale factor mirrors the design",
+        test_a_negative_scale_factor_mirrors_the_design)
+  check("a project opened under an open dialog is not drawn over",
+        test_a_project_opened_under_an_open_dialog_is_not_drawn_over)
+  check("a project opened under an open dialog keeps its no data layers",
+        test_a_project_opened_under_an_open_dialog_keeps_its_no_data_layers)
+  check("a reopened plugin does not mistake a no data layer for its element",
+        test_a_reopened_plugin_does_not_mistake_a_no_data_layer_for_its_element)
+  check("an area with no value is drawn rather than left as a hole",
+        test_an_area_with_no_value_is_drawn_rather_than_left_as_a_hole)
+  check("an element sitting wholly on missing values still draws",
+        test_an_element_sitting_wholly_on_missing_values_still_draws)
+  check("both halves of an element fade together",
+        test_both_halves_of_an_element_fade_together)
+  check("changing to a graduated style cuts the split it needs",
+        test_changing_to_a_graduated_style_cuts_the_split_it_needs)
+  check("icon mode says when an element has no icon for an area",
+        test_icon_mode_says_when_an_element_has_no_icon_for_an_area)
+  check("keeping a result keeps both halves of every element",
+        test_keeping_a_result_keeps_both_halves_of_every_element)
+  check("moving a bound off its computed value pins it",
+        test_moving_a_bound_off_its_computed_value_pins_it)
+  check("no data is one more colour in the element's editor",
+        test_no_data_is_one_more_colour_in_the_element_s_editor)
+  check("swapping two variables re-cuts both splits",
+        test_swapping_two_variables_re_cuts_both_splits)
+  check("the colour editor opens on a column with no values",
+        test_the_colour_editor_opens_on_a_column_with_no_values)
+  check("the removal notice survives the chooser moving first",
+        test_the_removal_notice_survives_the_chooser_moving_first)
 
   if SHARD_COUNT > 1:
     print(f"\nshard {SHARD_INDEX} of {SHARD_COUNT}: "
