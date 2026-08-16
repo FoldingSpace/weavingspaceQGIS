@@ -979,6 +979,31 @@ record or a second table.)
   ranges; returning a different class from it crashed the dialog on
   the very column the change was about. It belongs in `seed_renderer`.
 
+**Changing something a classifier or a renderer decides.** (2026-08-16,
+three withdrawn attempts at one fix in a single afternoon.)
+- **MAGNITUDE IS A FIXTURE DIMENSION.** Every fixture in this suite
+  lived between 0 and about 50, so arithmetic that is correct there
+  and wrong at 1e12 or 1e-9 shipped green three times. A relative
+  epsilon is an ABSOLUTE gap: 1e-9 of 2e12 is two thousand, wide
+  enough to swallow a real value and draw it as a hole. When a change
+  depends on the size of a number, the sweep crosses magnitudes or it
+  proves nothing.
+- **A LEGEND IS RENDERED BY SOMEBODY ELSE'S FORMATTER.** A bound moved
+  by an amount "too small to see" is printed by QGIS at four decimals
+  once the value passes about 1e5, so a map of populations or dollars
+  showed `100,000,000,000 - 999,999,999,000`. Check what the label
+  says, not only what the number is.
+- **DO NOT MAKE MEMBERSHIP DEPEND ON THE LAST BIT.** Stepping a bound
+  by one ulp made a tile's class depend on a float's final bit, and
+  the GeoPackage round trip duly painted 2,413 of 48,948 pixels
+  differently. Anything that stores, reloads or recomputes a number
+  can move that bit.
+- **WHEN THREE ATTEMPTS FAIL, THE APPROACH IS WRONG, NOT THE
+  CONSTANT.** Each fix here was a smaller step than the last and each
+  found a new way for a real value to fall into the gap it created.
+  The withdrawal, with the symptom left VISIBLE instead (empty classes
+  hatched), was the right answer and should have come sooner.
+
 **Process.**
 - **TARGETED RUNS CANNOT FIND WHAT THEY DO NOT NAME**, and three
   candidate builds aborted proving it (2026-08-16). Each abort was the
@@ -1091,6 +1116,15 @@ record or a second table.)
   needs is the other half, which is that every watcher NAMES ITS
   SUBJECT in each line it emits. A verdict without its branch is a
   verdict about whatever the reader is thinking of.
+- **A WHOLESALE SPAN REWRITE TAKES ITS NEIGHBOURS.** Deleting
+  everything between two anchors removed TWO tests on 2026-08-16, not
+  the one intended, because another sat between them -- and one
+  registration then named a function that no longer existed, which
+  would have broken the suite at `main()`. It was caught by running
+  the tests, not by the edit. After any span deletion, count the
+  definitions and check BOTH directions of the registration list;
+  `test_the_report_generators_survive_hostile_docstrings` asserts both
+  and is the cheapest thing to run.
 - **A GATE PIPED INTO ANYTHING IS NOT A GATE.** `check_before_push |
   tail -2` returns TAIL's exit status, so a shell `&&` after it fires
   whatever the gate said. That is how a tree failing the standards

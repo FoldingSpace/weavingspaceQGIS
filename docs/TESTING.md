@@ -14,6 +14,37 @@ The suite lives in `tests/run_tests.py` (behaviour), `tests/visual_tests.py`
 `tools/` (coverage, mutation, standards, secrets). Everything runs
 under QGIS's own Python; `release.py` gates on all of it.
 
+## What a day of hunting one's own new code actually costs
+
+2026-08-16, twenty-one hunts across six rounds, and the arithmetic is
+worth writing down before anybody budgets another day like it.
+
+FOURTEEN confirmed defects came out of the later rounds. ELEVEN were
+in code written within the previous few hours; FIVE were inside
+repairs for defects the same day's earlier hunts had found. Three
+successive attempts at one fix were each withdrawn after a hunt
+measured what they broke, and the third had passed a day's worth of
+tests before it died.
+
+What that means in practice, stated plainly because it is not the
+usual picture of what hunting is for:
+
+- **A hunt aimed at fresh work is part of writing the code**, not an
+  audit of it. Aimed at old code the same directions returned little;
+  aimed at the afternoon's work they returned defect after defect.
+- **A repair is new code and deserves the same suspicion.** Five of
+  fourteen were in fixes written hours earlier, including two in the
+  fix for the defect a hunt had just reported.
+- **The cost is not machine time, it is judgement.** Every claim has
+  to be reproduced by a route the hunt did not use before it is
+  believed, and that queue is the real limit on how many hunts are
+  worth running at once.
+- **Turning a hunt on our own TESTS pays at a steady rate.** Three
+  rounds of it, on 26, 12 and 11 tests: six, two and two dead
+  assertions. Roughly one test in five or six, every time, and in all
+  three rounds the dead axis sat inside a test whose primary
+  assertion was live and well aimed.
+
 ## Three ways to move a class boundary, and why none of them worked
 
 2026-08-16, and the whole episode took an afternoon. It belongs in a

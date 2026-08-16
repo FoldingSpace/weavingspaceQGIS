@@ -12,9 +12,21 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-08-16, after three rounds of hunting the No Data
-feature on the day it was written. Eleven hunts were launched across
-those rounds; the table below carries rows for the directions whose
+Last updated 2026-08-16, after SIX rounds in one day: three against
+the No Data feature as it was written, then four aimed at the same
+day's fixes, then six more after those. Twenty-one hunts in all.
+
+THE DISTRIBUTION IS THE FINDING, and it sharpened as the day went on.
+Of the later rounds' fourteen confirmed defects, ELEVEN were in code
+written within the previous few HOURS, and five were inside repairs
+for defects the earlier rounds had found. Three separate attempts at
+one fix were each withdrawn after a hunt measured what they broke.
+A hunt aimed at fresh work is not a check on old code; it is the
+last stage of writing the new code, and this project should treat it
+as part of the change rather than as an audit afterwards.
+
+The earlier note, kept because its numbers are still the ones quoted
+below: eleven hunts were launched across the first three rounds; the table below carries rows for the directions whose
 findings were confirmed and acted on. IT IS NOT A COMPLETE ROSTER OF
 THE ELEVEN, and saying so is the point of a record that counts against
 itself: several hunts wrote their logs into session scratch that has
@@ -206,6 +218,11 @@ nothing, so it is counted against the hunt, not for it.
 | **Backwards from harm** (3rd) | "What would a user be furious to lose, among today's changes?" | 1 | (same defect) | Reached the SAME finding as the nudge hunt, independently and by a different route — it was forbidden to read the source and started from "a value drawn as a gap". Counted once, in the row above, because two hunts finding one defect is one defect. Recorded here because the independence is the evidence: three outings, three first-probe hits |
 | **The absence categories** | "Does every reader of *what the classifier cannot place* agree with the split?" | 1 | 1 (+1 minor) | New 2026-08-16. The missing-values notice still counted NULLs alone: two NULLs and four infinities among 144 areas were reported as "2 of 144" while the map drew nine no-data tiles across seven areas, and an infinities-only column produced NO SENTENCE AT ALL. `_element_has_missing_values` had the same one-line scan. Fifth and sixth readers of a predicate widened that morning; the question now has one owner |
 | **Tests that cannot fail** (2nd) | "Which of today's tests would pass with the behaviour broken?" | 1 | 2 | Twelve of the day's tests mutated PER ASSERTION, 28 mutants, ten killed everything. Two in twelve, holding this project's one-in-five. Both dead axes sat in tests whose primary axis was live, and one was in a test rewritten THAT MORNING to repair a dead axis — the repair asserted only silence, so deleting the notice outright still passed |
+| **The class-bound margin** | "What does moving a class bound break that the last attempt did not?" | 1 | 2 | Third round against the same code in one day, and it paid twice: a RELATIVE margin is an ABSOLUTE gap, so at 2e12 it was two thousand wide and a real value a hundred below the bound was orphaned and drawn as nothing; and above ~1e5 QGIS's own formatter PRINTS the margin, so a legend read "100,000,000,000 - 999,999,999,000". The experiment was withdrawn entirely. Lesson: MAGNITUDE IS A FIXTURE DIMENSION -- every fixture in this suite lived between 0 and 50 |
+| **Adoption on projectRead** | "What does a signal that restores state fail to restore?" | 1 | 2 | Aimed at wiring one hour old. Adoption took the group and not `_last_path`, so the next Generate saw a changed destination and built a SECOND group beside the one it had just adopted, both reading the same tables -- the double map the adoption exists to prevent, arriving through the adoption. Also found the connection unguarded and the read path running one of the constructor's three calls, so its own comment claiming parity with a fresh dialog was false |
+| **The absence categories** (2nd) | "Does the record survive every journey the rendering now has?" | 1 | 2 (+1 minor) | The colour editor raised IndexError on ANY column holding an infinity -- a row builder still testing one key while its twin had been widened that morning -- so no colour on that element was reachable. And the value digest was built from finite values only, so a NULL edited to an infinity moved nothing, the paired layer kept last run's categories, and those tiles drew as holes |
+| **The prose** | "Do the sentences a user reads still describe what the software does?" | 1 | 5 | UNTRIED until 2026-08-16 and productive on its first outing. A tooltip corrupted since 766cada and shipping ever since ("the sloleft step") -- invisible to `test_every_control_explains_itself`, which asks for existence, length and non-repetition, none of which a typo violates. A user guide claiming class bounds are not yours, false since pinning shipped in the same release. A changelog describing a half-fix replaced two hours earlier. It also reached the editor crash independently. Reading prose as CLAIMS finds what no test asserts |
+| **Tests that cannot fail** (3rd) | "Which of today's tests would pass with the behaviour broken?" | 1 | 2 | 11 tests, 77 assertions, 41 aimed mutations, 39 killed at the intended line. Both dead axes were substring or fixture faults: `str(4) in "144 areas"` passed with the notice counting NULLs alone, and a MEMORY region layer round-tripped through a .qgz comes back valid with ZERO features, so the second Generate was refused and the closing assertions counted restored layers rather than fresh ones. Third round, third time both sat in tests whose primary axis was live |
 
 **Two hunts, one defect, and it is counted once.** The nudge hunt and
 the third backwards-from-harm outing found the same fault within the
