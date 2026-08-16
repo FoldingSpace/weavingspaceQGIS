@@ -2357,6 +2357,50 @@ def write_gpkg_layer(layer: QgsVectorLayer, path: str, layer_name: str,
   return out
 
 
+def gpkg_tables_we_would_replace(path: str, layer_names) -> list:
+  """Which of these tables the file ALREADY holds.
+
+  Args:
+    path: the .gpkg a run is about to write into. A path that does not
+      exist yet is not an overwrite, and answers empty.
+    layer_names: the table names this run intends to write, which for
+      an element layer is what `write_gpkg_layer` would be given.
+
+  Returns:
+    The subset of `layer_names` already present in the file, in the
+    order given, or an empty list when the file is absent, unreadable,
+    or GDAL is not available. Never raises: this is asked in order to
+    WARN somebody, and a check that explodes is worse than one that
+    declines.
+
+  WHY IT ASKS THE FILE. The dialog used to answer this from
+  `_last_path`, a record of what THIS dialog instance last wrote --
+  so a reopened project, whose dialog remembers nothing, would tick
+  "create as new group" to keep yesterday's map and overwrite it
+  without a word. Measured 2026-08-16: 41/40/41/40 features became
+  113/112/113/112, no warning. A file outlives a session, so the
+  question has to be put to the file.
+  """
+  if not path or not os.path.exists(path):
+    return []
+  try:
+    from osgeo import ogr
+  except ImportError:
+    return []
+  source = None
+  try:
+    source = ogr.Open(path, 0)          # 0 = read only; we only look
+    if source is None:
+      return []
+    present = {source.GetLayer(i).GetName()
+               for i in range(source.GetLayerCount())}
+    return [name for name in layer_names if name in present]
+  except Exception:
+    return []
+  finally:
+    source = None
+
+
 def drop_gpkg_layer(path: str, layer_name: str) -> bool:
   """Best-effort: remove one table from a GeoPackage.
 

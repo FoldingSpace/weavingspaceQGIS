@@ -152,6 +152,17 @@ MUTATIONS = [
            "renderer does not reduce them; without this guard the "
            "message bar announces a reduction the map never performs, "
            "which is the one thing these notices exist to prevent"),
+  dict(name="the-file-not-the-memory-decides-an-overwrite", file=DIALOG,
+       old="""      would_replace = bridge.gpkg_tables_we_would_replace(
+        path_now, [f"tiles_{a['id']}" for a in self._assignments()])""",
+       new="""      would_replace = []""",
+       test="test_a_reopened_project_cannot_overwrite_yesterdays_"
+            "geopackage",
+       why="the overwrite guard used to compare against _last_path, "
+           "which records only what THIS dialog instance wrote, so a "
+           "reopened project ticking 'create as new group' to KEEP "
+           "yesterday's map destroyed it without a warning. A file "
+           "outlives a session and session state cannot protect one"),
   dict(name="a-replaced-region-layer-is-announced", file=DIALOG,
        old="""    survivor = self.layer_combo.currentLayer()
     if survivor is not None:

@@ -6316,8 +6316,19 @@ class WeavingSpaceDialog(QDialog):
       return
 
     path_now = self.gpkg_widget.filePath().strip() or None
+    # ASK THE FILE, not this dialog's memory. `_last_path` records
+    # only what THIS instance last wrote, so a reopened project -- a
+    # fresh dialog that remembers nothing -- would tick "create as new
+    # group" to keep yesterday's map and overwrite it without a word.
+    # Measured 2026-08-16: 41/40/41/40 features became 113/112/113/112
+    # with no warning and no modal. A file outlives a session, and a
+    # guard on session state cannot protect one.
+    would_replace = []
+    if not live and self.opt_new_group.isChecked() and path_now:
+      would_replace = bridge.gpkg_tables_we_would_replace(
+        path_now, [f"tiles_{a['id']}" for a in self._assignments()])
     if not live and self.opt_new_group.isChecked() and path_now \
-        and path_now == self._last_path:
+        and (would_replace or path_now == self._last_path):
       QMessageBox.warning(
         self, "WeavingSpace",
         "You asked to keep the previous result as its own group, but "

@@ -5072,6 +5072,78 @@ def test_removing_the_region_layer_is_noticed_in_a_real_project():
   assert not trouble, "; ".join(trouble)
 
 
+def test_a_reopened_project_cannot_overwrite_yesterdays_geopackage():
+  """"Create as new group" protects the file across a session, not just
+  within one.
+
+  Regression: the guard that refuses to write a new group over an
+  existing GeoPackage compared the chosen path against `_last_path`,
+  which records only what THIS dialog instance last wrote. A reopened
+  project has a fresh dialog that remembers nothing, so a user ticking
+  the box precisely IN ORDER to keep yesterday's map overwrote it
+  without a warning. Measured 2026-08-16: 41/40/41/40 features became
+  113/112/113/112, no modal, nothing on the note line. [hunt]
+
+  A file outlives a session, so the question is put to the FILE.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from qgis.core import QgsProject, QgsVectorLayer
+
+  folder = tempfile.mkdtemp(prefix="weavingspace_gpkg_keep_")
+  path = os.path.join(folder, "map.gpkg")
+
+  def counts():
+    found = {}
+    for name in ("a", "b", "c", "d"):
+      lyr = QgsVectorLayer(f"{path}|layername=tiles_{name}", name, "ogr")
+      if lyr.isValid():
+        found[name] = lyr.featureCount()
+    return found
+
+  try:
+    # yesterday
+    QgsProject.instance().clear()
+    QgsProject.instance().addMapLayer(make_region_layer())
+    first = WeavingSpaceDialog(iface=_Iface())
+    first.live_check.setChecked(False)
+    _tick(600)
+    first.gpkg_widget.setFilePath(path)
+    first.spacing_spin.setValue(700)
+    _generate_and_wait(first)
+    _tick(300)
+    before = counts()
+    assert before, "nothing was written, so this test cannot run"
+    first.close()
+
+    # today: the project is reopened, so the dialog is NEW and knows
+    # nothing about that file
+    QgsProject.instance().clear()
+    QgsProject.instance().addMapLayer(make_region_layer())
+    second = WeavingSpaceDialog(iface=_Iface())
+    second.live_check.setChecked(False)
+    _tick(600)
+    assert second._last_path is None, \
+      "the fresh dialog remembers a path, so this test is no longer "\
+      "staging the case it names"
+    second.gpkg_widget.setFilePath(path)
+    second.opt_new_group.setChecked(True)
+    second.spacing_spin.setValue(400)
+    MODALS.clear()
+    second._generate()
+    _tick(2500)
+    after = counts()
+    assert after == before, \
+      f"yesterday's map was overwritten: {before} became {after}. "\
+      f"The box was ticked to KEEP it"
+    said = " ".join(str(m) for m in MODALS)
+    assert "overwrite" in said.lower(), \
+      f"the run was refused without saying why: {MODALS!r}"
+    second.close()
+  finally:
+    shutil.rmtree(folder, ignore_errors=True)
+    QgsProject.instance().clear()
+
+
 def test_unclassed_never_announces_a_reduction():
   """Quant: Unclassed draws its fifty steps, and says nothing else.
 
@@ -41619,6 +41691,8 @@ def main():
         test_a_reprojected_layer_is_followed)
   check("the spacing box at its extremes",
         test_the_spacing_box_at_its_extremes)
+  check("a reopened project cannot overwrite yesterday's geopackage",
+        test_a_reopened_project_cannot_overwrite_yesterdays_geopackage)
   check("unclassed never announces a reduction",
         test_unclassed_never_announces_a_reduction)
   check("a scale control steps over zero",
