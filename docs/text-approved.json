@@ -899,6 +899,11 @@
   "excerpt": "Create as new group (keep the previous result)",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "9b7bbdde0c0842f7": {
+  "approved": "2026-08-16",
+  "excerpt": "The class bound you set on '{}' cannot be drawn from the val",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "9bc197f228806dd1": {
   "approved": "2026-08-09",
   "excerpt": "The layer's coordinate system changed, so the spacing has be",

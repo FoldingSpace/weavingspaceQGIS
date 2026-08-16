@@ -20713,6 +20713,52 @@ def test_a_repeated_value_reaches_the_class_that_means_it():
     f"1, 3 and 5, so exactly classes 2 and 4 are empty"
 
 
+def test_the_nudge_never_orphans_a_value():
+  """No value may end up belonging to no class at all.
+
+  A graduated renderer has nowhere to put a value outside every
+  range: it returns no symbol, and on a map made of areas that is a
+  HOLE. So whatever the bounds are moved to, every value the column
+  holds must still land somewhere.
+
+  This sweeps SEVERAL fixtures and several schemes because the first
+  version of the nudge shipped green against a single hand-made case
+  -- {1, 5, 9}, whose top range is degenerate and is therefore the one
+  shape where the harm cannot appear. Two hunts found it within the
+  hour. When a fix ships with one fixture, vary the fixture.
+
+  Regression: `_nudge_off_shared_bounds` shrank the upper bound of EVERY finite-width range, including the LAST, whose upper bound is the column's maximum -- so the largest value belonged to no range, QGIS gave it no symbol, and the map drew a hole where the darkest tile should be while the legend still listed a class for it and a lower value wore the darkest colour. Measured 2026-08-16 on [10]*8 + [20, 30] under Quantiles at k=5, and confirmed by rendering onto a coloured ground, where that tile came back as the background. [hunt]
+  """
+  from weavingspace_qgis import bridge
+  cases = {
+    "three spread values": (1.0, 1.0, 5.0, 5.0, 9.0, 9.0),
+    "clustered low, lone maximum": tuple([10.0] * 8 + [20.0, 30.0]),
+    "two values": (4.0, 4.0, 4.0, 9.0),
+    "a long tail": tuple([2.0] * 6 + [3.0, 40.0, 41.0]),
+    "negatives": (-9.0, -9.0, -4.0, -4.0, 0.0),
+  }
+  schemes = ("Quantiles", "Equal intervals", "Natural breaks (Jenks)",
+             "Pretty breaks")
+  checked = 0
+  for name, values in cases.items():
+    for scheme in schemes:
+      for k in (2, 5, 9):
+        layer = _few_values_layer(values=values)
+        renderer = bridge.make_graduated_renderer(
+          layer, "v", "Greys", scheme, k, False)
+        drawn = _drawn_colours(renderer, layer)
+        orphans = sorted(v for v, colour in drawn.items() if colour is None)
+        assert not orphans, \
+          f"{name} under {scheme} at k={k}: {orphans} belong to no " \
+          f"class, so those areas are drawn as holes while the legend " \
+          f"still lists classes for them. Ranges: " \
+          f"{[(r.lowerValue(), r.upperValue()) for r in renderer.ranges()]}"
+        checked += 1
+  # the axis has to have RUN, not merely not complained
+  assert checked == len(cases) * len(schemes) * 3, \
+    f"only {checked} combinations were measured"
+
+
 def test_ordinary_data_keeps_qgis_s_own_breaks():
   """The nudge is scoped, and nothing else may feel it.
 
@@ -20975,7 +21021,7 @@ def test_a_pin_the_data_moved_under_is_released_and_said():
     f"5000-8300, so the row shows a pin the map ignores and a reopen " \
     f"reads the dead number back off the layer"
   said = [text for _kind, text in BAR_MESSAGES
-          if "cannot be drawn" in text or "released" in text]
+          if "cannot be drawn" in text and "recalculated" in text]
   assert said, \
     f"the pin was released and the user was told nothing: " \
     f"{[t for _k, t in BAR_MESSAGES]!r}. A pin is a statement a " \
@@ -44800,6 +44846,8 @@ def main():
         test_the_spinner_outranks_a_value_the_dialog_itself_wrote)
   check("a repeated value reaches the class that means it",
         test_a_repeated_value_reaches_the_class_that_means_it)
+  check("the nudge never orphans a value",
+        test_the_nudge_never_orphans_a_value)
   check("ordinary data keeps qgis's own breaks",
         test_ordinary_data_keeps_qgis_s_own_breaks)
   check("an infinity alone still asks for the split",

@@ -3977,10 +3977,14 @@ class WeavingSpaceDialog(QDialog):
     # boundary values go together, because what made them undrawable
     # was the column moving beneath all of them at once.
     self._pinned_bounds.get(tile_id, {}).pop(field, None)
-    ends = "bounds" if (low is not None and high is not None) else "bound"
-    return (f"The class {ends} you set on '{field}' cannot be drawn "
-            f"from the values it holds now, so it has been released "
-            f"and the classes are worked out for you again.")
+    # The maintainer's wording, 2026-08-16. One form for one end and
+    # for both: a user who pinned two ends and lost them reads "bound"
+    # rather than "bounds", which is a small inaccuracy against the
+    # cost of a sentence that changes shape while somebody is trying
+    # to understand what happened to their map.
+    return (f"The class bound you set on '{field}' cannot be drawn "
+            f"from the values it holds now, so it has been "
+            f"recalculated.")
 
   def _legend_size_note(self, field, assignment):
     """The notice when a column draws fewer classes than it was asked.

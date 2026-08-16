@@ -1677,7 +1677,35 @@ def _nudge_off_shared_bounds(renderer) -> int:
     return 0
   moved = 0
   for index, (lo, hi) in enumerate(bounds):
-    if hi > lo:
+    # ONLY WHERE THE NEXT RANGE IS THE DEGENERATE ONE THAT WANTS THIS
+    # BOUNDARY VALUE. Anything wider than that does harm:
+    #
+    # THE LAST RANGE MUST NEVER MOVE, because its upper bound is the
+    # column's MAXIMUM. Shrinking it left the largest value belonging
+    # to no range at all, so QGIS gave it no symbol and the map drew
+    # a HOLE where the darkest tile should be, while the legend still
+    # listed a class for it and a lower value wore the darkest
+    # colour. Found within the hour by two hunts independently and
+    # reproduced here: values [10]*8 + [20, 30] under Quantiles at
+    # k=5 left 30 homeless, confirmed by rendering onto a coloured
+    # ground, where that tile came back as the background.
+    #
+    # AND A RANGE WHOSE SUCCESSOR HAS WIDTH must not move either.
+    # There is no degenerate class waiting to catch the boundary
+    # value, so nudging would push it up into an ordinary class it
+    # does not belong to -- which is the same convention-reversal the
+    # scope test above exists to prevent, arriving one range at a
+    # time instead of all at once.
+    #
+    # The first version of this loop had neither test and shipped
+    # green, because its fixture ({1, 5, 9}) is degenerate at the TOP,
+    # which is the one shape where the harm cannot appear. When a fix
+    # ships with a single hand-made case, vary the case before
+    # trusting the green.
+    if index + 1 >= len(bounds):
+      continue
+    next_lo, next_hi = bounds[index + 1]
+    if hi > lo and next_hi <= next_lo and next_lo == hi:
       renderer.updateRangeUpperValue(index, math.nextafter(hi, -math.inf))
       moved += 1
   return moved
