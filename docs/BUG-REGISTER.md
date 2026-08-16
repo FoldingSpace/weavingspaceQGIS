@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-187 defect(s) with a regression test.
+188 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -79,6 +79,8 @@ there is no separate list to remember.
   guarded by `test_a_pin_still_works_on_a_copied_ladder`
 - **the class-bound control had a fixed range and a fixed number of decimal places, so a bound typed on a column of large or very small values was silently replaced by a different number.**  
   guarded by `test_a_pinned_bound_can_hold_the_numbers_a_column_carries`
+- **opening a project while the plugin was open deleted that project's no-data layers on the next Generate, because the record naming them was never cleared.**  
+  guarded by `test_a_project_opened_under_an_open_dialog_keeps_its_no_data_layers`
 - **a plugin closed and reopened adopted the oldest output group rather than the newest, so the next Generate overwrote a result the user had deliberately kept and restored bounds they had unpinned.**  
   guarded by `test_a_reopened_plugin_adopts_the_group_it_last_wrote`
 - **a reopened plugin adopted an element's no-data layer as the element itself, orphaning the real layer so a stale map stayed on top of every later run.**  
@@ -423,7 +425,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 82
-- a bug hunt pointed in a named direction: 38
+- a bug hunt pointed in a named direction: 39
 - the mutation campaign: 16
 - reported by a user: 11
 - race and stress testing: 6

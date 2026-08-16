@@ -3945,7 +3945,17 @@ class WeavingSpaceDialog(QDialog):
     layer state is re-established by the layer chooser's own handler
     when the new project's layers arrive.
     """
-    for record in (self._element_layer_ids, self._last_signatures,
+    # `_no_data_layer_ids` BELONGS IN THIS LIST, and its absence was
+    # the third of the three clear sites this dialog has -- the one
+    # named in the commit that fixed the second and then not checked.
+    # A project opened while the dialog is still open left these ids
+    # behind, and a .qgz restores layers under the SAME ids, so the
+    # incoming project's no-data layers were deleted by the next
+    # Generate as though they were the previous run's. Measured
+    # 2026-08-16 by a hunt: both no-data layers gone from a reopened
+    # project, while its element layers stayed.
+    for record in (self._element_layer_ids, self._no_data_layer_ids,
+                   self._last_signatures,
                    self._gpkg_tables_written, self._cat_count_cache,
                    self._values_cache, self._class_choices,
                    self._single_colours, self._ramp_choices,

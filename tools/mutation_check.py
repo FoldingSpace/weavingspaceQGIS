@@ -321,6 +321,16 @@ MUTATIONS = [
            "element vanishes while the row shows a swatch and a "
            "class count and the bar says it draws as no data "
            "(maintainer's decision, 2026-08-16)"),
+  dict(name="the-third-clear-site-clears-it-too", file=DIALOG,
+       old="""    for record in (self._element_layer_ids, self._no_data_layer_ids,
+                   self._last_signatures,""",
+       new="""    for record in (self._element_layer_ids,
+                   self._last_signatures,""",
+       test="test_a_project_opened_under_an_open_dialog_keeps_its_no_data_layers",
+       why="a project replaced under an open dialog leaves these ids "
+           "behind, and a .qgz restores layers under the SAME ids, so "
+           "the incoming project's no-data layers are deleted by the "
+           "next Generate as though they were the last project's"),
   dict(name="unclassed-is-exempt-from-the-reduction", file=BRIDGE,
        old="""  if unclassed:
     return int(asked), False""",

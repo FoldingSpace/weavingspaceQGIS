@@ -20097,6 +20097,56 @@ def test_an_element_sitting_wholly_on_missing_values_still_draws():
     "as no data through the single-symbol path"
 
 
+def test_a_project_opened_under_an_open_dialog_keeps_its_no_data_layers():
+  """The THIRD place that clears per-element state, and the one missed.
+
+  Two commits today fixed the first two clear sites and named the
+  third in as many words -- three places clear per-element state and
+  no two clear the same set -- and then did not check it.
+  `_forget_the_last_project` runs when a project is REPLACED under an
+  open dialog, and it did not clear `_no_data_layer_ids`. A .qgz
+  restores layers under the SAME ids, so the incoming project's
+  no-data layers matched ids the dialog was still holding from the
+  last project, and the next Generate deleted them as though they
+  were its own.
+
+  The lesson the hunt drew is the useful one: enumerating what a
+  clear site LEAVES is more productive than reading what it clears,
+  and this journey has to be driven with the dialog STILL OPEN, which
+  no existing test does -- the covered case closes one dialog and
+  builds another, which adopts correctly.
+
+  Regression: opening a project while the plugin was open deleted that project's no-data layers on the next Generate, because the record naming them was never cleared. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = _layer_with_a_gap(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(200)
+  tid = dlg.table.item(0, 0).text()
+  dlg.spacing_spin.setValue(400)
+  _generate_and_wait(dlg)
+  assert dlg._no_data_layer_ids.get(tid), \
+    "the first run made no paired layer, so this test is about nothing"
+
+  # THE PROJECT IS REPLACED WITH THE DIALOG STILL OPEN, which is what
+  # File > Open does and what every existing test avoids by closing
+  # the dialog first.
+  project.clear()
+  _tick(300)
+  assert not dlg._no_data_layer_ids, \
+    f"the dialog still names no-data layers from the project it no " \
+    f"longer has: {dlg._no_data_layer_ids!r}. A reopened project " \
+    f"restores layers under the same ids, so the next run would " \
+    f"delete ITS layers as though they were the old ones"
+  dlg.close()
+
+
 def test_both_halves_of_an_element_fade_together():
   """An element is ONE thing to a reader, however many layers it is.
 
