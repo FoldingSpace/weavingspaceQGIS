@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-190 defect(s) with a regression test.
+191 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -407,6 +407,8 @@ there is no separate list to remember.
   guarded by `test_a_data_defined_fill_is_drawn_as_an_unknown`
 - **a deferring element's ramp cell went on naming a ramp, and its swatch did not follow the colours set in QGIS's styling panel.**  
   guarded by `test_a_deferring_row_shows_the_colours_qgis_is_drawing`
+- **the diagonals were drawn unclipped, each one `height` px long and starting a full height BEFORE the stripe, so marking a single class painted a 49px band around a stripe 12.8px wide. Measured 2026-08-16 on the shipped 64x18 swatch at five classes: hatching class 3 alone put 44 pixels of ink into class 2 against 58 into class 3 itself, and 6 into class 1 and 33 into class 4 as well, so a user could not tell which class the cell was talking about. Reported from a screenshot of four Custom rows.**  
+  guarded by `test_a_hatched_class_hatches_only_itself`
 - **a renderer type changed in QGIS's styling panel left the plugin's row naming a style and a ramp that no longer decided the map.**  
   guarded by `test_a_renderer_the_row_cannot_name_defers_to_qgis`
 - **values retyped in QGIS left the map drawing the classification computed from the old values, with classes running past everything the layer now held.**  
@@ -431,7 +433,7 @@ there is no separate list to remember.
 - not written down at the time: 81
 - a bug hunt pointed in a named direction: 41
 - the mutation campaign: 16
-- reported by a user: 11
+- reported by a user: 12
 - reading the code: 7
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6

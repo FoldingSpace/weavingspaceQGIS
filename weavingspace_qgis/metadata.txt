@@ -83,6 +83,9 @@ changelog=0.24.3 Areas with no value are drawn now rather than left
     design about that axis and scale it by the size of the number.
     The up and down controls step through zero rather than stopping
     there.
+    Icons: you are told when an element has no icon for some of your
+    areas, and which elements those are. Nothing was said before,
+    because the other elements still drew those areas.
     Speed: the optional warning about colours a reader may not be
     able to separate used to hold QGIS still for half a minute on a
     map of many classes. It answers in under two seconds.
@@ -99,7 +102,9 @@ changelog=0.24.3 Areas with no value are drawn now rather than left
     Another project: opening one no longer carries the last project's
     per-element colours, class counts and bounds into it. Element
     names repeat between projects, so those settings could land on
-    data they were never chosen for.
+    data they were never chosen for. The next Generate makes its own
+    group as well, rather than drawing over the map that project
+    already holds.
     Opening the plugin first: you can open the dialog before you load
     your data. The variables appear as soon as the layer does. Until
     now that order left the Variable list empty and Generate saying

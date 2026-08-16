@@ -320,12 +320,24 @@ def _striped_icon(colours, boxed=(), hatched=()):
     painter.setPen(QPen(ink, 1))
     left = position * width
     height = RAMP_SWATCH.height()
+    # CLIPPED TO THIS STRIPE, and the swatch is unreadable without it.
+    # Each diagonal is drawn `height` px long, and the loop starts a
+    # full height BEFORE the stripe so the corner is covered, so an
+    # unclipped run paints from left-18 to left+width+18 -- a band of
+    # 49px around a stripe 12.8px wide. Measured 2026-08-16 on the
+    # shipped 64x18 swatch at five classes: hatching class 3 alone put
+    # 44 pixels of ink into class 2 against 58 in class 3 itself, so
+    # the cell could not say WHICH class no tile wears, which is the
+    # only thing it is drawn to say. (Reported from a screenshot.)
+    painter.save()
+    painter.setClipRect(QRectF(left, 0.0, width, height))
     step = 4
     offset = -height
     while offset < width:
       painter.drawLine(QPointF(left + offset, height),
                        QPointF(left + offset + height, 0.0))
       offset += step
+    painter.restore()
   # The pin boxes go on LAST, over the fills, so an outline is never
   # painted away by the stripe beside it. Drawn in the stripe's own
   # contrasting ink rather than a fixed colour, or the box would

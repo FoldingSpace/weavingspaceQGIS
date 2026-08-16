@@ -8471,6 +8471,55 @@ def test_the_pin_shows_which_way_it_is_set():
     f"reads across a table"
 
 
+def test_a_hatched_class_hatches_only_itself():
+  """The hatching says WHICH class no tile wears, or it says nothing.
+
+  The swatch's whole job here is to point at a particular class, so
+  ink landing on a neighbour is not a cosmetic blemish: it makes the
+  cell unreadable for its only purpose. This renders the real
+  ``_striped_icon`` with one class marked and requires every changed
+  pixel to fall inside that class's own stripe.
+
+  The bound allows the boundary pixel at each end. Stripes are
+  ``64 / k`` wide and k rarely divides 64, so a stripe genuinely
+  starts and ends part-way through a pixel column, and the clip
+  antialiases into it. Demanding otherwise would fail on arithmetic
+  rather than on drawing.
+
+  Regression: the diagonals were drawn unclipped, each one `height`
+  px long and starting a full height BEFORE the stripe, so marking a
+  single class painted a 49px band around a stripe 12.8px wide.
+  Measured 2026-08-16 on the shipped 64x18 swatch at five classes:
+  hatching class 3 alone put 44 pixels of ink into class 2 against 58
+  into class 3 itself, and 6 into class 1 and 33 into class 4 as well,
+  so a user could not tell which class the cell was talking about.
+  Reported from a screenshot of four Custom rows. [user]
+  """
+  from weavingspace_qgis.dialog import RAMP_SWATCH, _striped_icon
+
+  shades = ["#fee0d2", "#fc9272", "#fb6a4a", "#de2d26", "#67000d"]
+  width = RAMP_SWATCH.width() / len(shades)
+  plain = _striped_icon(shades).pixmap(RAMP_SWATCH).toImage()
+  for target in range(len(shades)):
+    marked = _striped_icon(
+      shades, hatched=[target]).pixmap(RAMP_SWATCH).toImage()
+    changed = [(x, y) for x in range(RAMP_SWATCH.width())
+               for y in range(RAMP_SWATCH.height())
+               if plain.pixel(x, y) != marked.pixel(x, y)]
+    # the premise, stated so this cannot pass by drawing nothing at
+    # all: a class marked unworn must actually be marked
+    assert len(changed) > 20, \
+      f"hatching class {target} changed only {len(changed)} pixels, " \
+      f"so the swatch is not saying anything about it"
+    low, high = int(target * width), int((target + 1) * width) + 1
+    strayed = sorted({x for x, _ in changed if not low <= x <= high})
+    assert not strayed, \
+      f"hatching class {target} of {len(shades)} put ink in pixel " \
+      f"columns {strayed}, outside its own stripe " \
+      f"({target * width:.1f} to {(target + 1) * width:.1f}). The " \
+      f"cell then points at no class in particular"
+
+
 def test_a_refused_pin_reverts_and_says_so():
   """A bound the map cannot draw puts the control back, and reports.
 
@@ -43624,6 +43673,8 @@ def main():
         test_the_categorical_editor_offers_no_pin_and_no_copy)
   check("the pin shows which way it is set",
         test_the_pin_shows_which_way_it_is_set)
+  check("a hatched class hatches only itself",
+        test_a_hatched_class_hatches_only_itself)
   check("a refused pin reverts and says so",
         test_a_refused_pin_reverts_and_says_so)
   check("the release notes keep their categories",
