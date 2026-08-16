@@ -1362,8 +1362,45 @@ Confirmed with the user via an explicit design review:
   never wrong; the legend was, and the legend is what a reader trusts.
   `make_graduated_renderer` collapses to k=1 and the dialog reports
   it. (User instruction, 2026-08-09.)
-  **The general form of this rule IS adopted, as of 2026-08-14, and
-  the history is worth keeping because the first attempt failed.**
+  **THE GENERAL FORM WAS WITHDRAWN ON 2026-08-16 AND REPLACED BY A
+  NUDGE. Read this before the history below it.** Reducing k re-samples
+  the ramp: class i takes `ramp.color(i/(k-1))`, so a shorter ladder
+  spreads its survivors across the whole ramp and every colour moves
+  with nobody choosing to move it. Measured that day, five asked over
+  four distinct values on Reds: the map drew the FOUR-class ladder
+  exactly, and neither middle colour was one the five-class ladder
+  would have used. It is also unstable -- a column that gains a value
+  later re-colours every class -- which is the thing
+  one-colour-one-meaning exists to forbid. The maintainer's rule is
+  that an empty class is INVISIBLE, NOT DELETED.
+  What cures the original symptom instead is
+  `bridge._nudge_off_shared_bounds`: where the classifier has returned
+  DEGENERATE ranges, every finite-width range's upper bound moves down
+  by one unit in the last place. A value sitting on a shared boundary
+  then falls past the interval swallowing it into the degenerate range
+  that means exactly that value. On {1, 5, 9} at k=5 the values land
+  in classes 1, 3 and 5, the highest wears the darkest colour, and the
+  two empty classes are REAL numeric ranges -- so a value arriving
+  later from someone editing in QGIS lands in one and draws in its
+  colour. That last property is why the empty classes are hatched only
+  in the plugin's swatch and never given a hatched SYMBOL: a hatch
+  baked into a renderer is a snapshot of emptiness that nothing
+  refreshes, and it would go on hatching features added later.
+  IT IS SCOPED, and the scope is the whole safety of it: on ordinary
+  data every range has width, nothing is degenerate, and no bound
+  moves. Shrinking bounds generally would push any value sitting
+  exactly on a break up into the next class, reversing QGIS's
+  convention across every classed map for no benefit.
+  The ONE-VALUE COLLAPSE survives as a deliberate carve-out
+  (maintainer's ruling the same day): five ranges all reading "7 - 7"
+  in five colours is a legend claiming variation the data lacks, and
+  hatching four of them would not cure that.
+  The break values are otherwise QGIS's own, moved by an ulp its label
+  formatter rounds away, so the legend still reads "1 - 5", the
+  renderer is an ordinary graduated one, and pressing Classify
+  restores QGIS's untouched answer.
+  **The history of the withdrawn reduction, kept because the first
+  attempt at it failed too and the reasons still instruct.**
   Five classes over three distinct values puts two swatches in the
   legend that no tile uses and draws the highest value mid-grey
   (measured 2026-08-13 with a render context); upstream's own

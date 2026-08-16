@@ -440,10 +440,14 @@ MUTATIONS = [
   # alone; the ramp-midpoint behaviour that shares the local has its
   # own entry (constant-class-takes-ramp-start).
   dict(name="constant-column-classes", file=BRIDGE,
-       old='  if distinct == 1:\n    k = 1\n  elif not unclassed and 0 < distinct < int(k):',
-       new='  if False:  # mutation: no reduction reaches a constant\n    k = 1     # column by either route\n  elif False:',
+       # RE-ANCHORED 2026-08-16: the general reduction was removed, so
+       # the `elif` this stood on is gone and only the one-value
+       # carve-out remains. It is load-bearing on its own again, which
+       # is why one branch is now enough where two were needed.
+       old='  if distinct == 1:\n    k = 1',
+       new='  if False:  # mutation: a constant column keeps its k\n    k = 1',
        test="test_a_constant_column_draws_one_class_and_says_so",
-       why='a column that is 7 everywhere gets five classes all reading 7 - 7 in five colours, a legend showing variation the data does not have. BOTH branches are mutated because since the 2026-08-14 rework either one delivers k=1 on a classed style, so mutating one alone changes nothing this test can see -- it survived, silently, until the anchor audit re-ran it. The branch that is genuinely load-bearing alone is the Unclassed case, held by constant-column-beats-unclassed-fifty.'),
+       why='a column that is 7 everywhere gets five classes all reading 7 - 7 in five colours, a legend showing variation the data does not have. From 2026-08-14 to 2026-08-16 a second branch reduced k generally and delivered the same k=1 by another route, so this entry had to mutate both and said so; that branch is gone and this one stands alone.'),
   # TWO entries, because there are two signatures and they gate
   # different paths: _geometry_signature decides whether pressing
   # Generate re-tiles or merely repaints, and _run_signature decides
@@ -2745,14 +2749,32 @@ MUTATIONS = [
            "numbers on a map made for reading elements against each "
            "other. The mutation is exactly the behaviour that shipped "
            "until 2026-08-14"),
-  dict(name="classes-never-outnumber-the-values", file=BRIDGE,
-       old="""  elif not unclassed and 0 < distinct < int(k):""",
-       new="""  elif False:  # mutation: draw more classes than there are values""",
-       test="test_a_legend_never_shows_a_class_the_map_does_not_have",
-       why="five classes over three distinct values puts two swatches "
-           "in the legend that no tile uses and draws the highest "
-           "value in a middle colour, so a reader matching the darkest "
-           "swatch to 'high' reads the map wrongly"),
+  # REPLACES `classes-never-outnumber-the-values`, whose behaviour was
+  # withdrawn on 2026-08-16. That entry guarded the class REDUCTION,
+  # which cured the wrong-colour symptom by shortening the ladder --
+  # and shortening re-samples the ramp, moving colours nobody chose.
+  # The nudge cures the same symptom without touching the ladder, so
+  # the guard moves with it.
+  dict(name="a-repeated-value-reaches-its-own-class", file=BRIDGE,
+       old="""  _nudge_off_shared_bounds(renderer)""",
+       new="""  pass  # mutation: leave values stranded on shared bounds""",
+       test="test_a_repeated_value_reaches_the_class_that_means_it",
+       why="a graduated renderer gives a value to the FIRST range "
+           "containing it, so on repeated values the degenerate "
+           "ranges above are unreachable: the map draws its highest "
+           "value mid-grey while the legend's darkest sits beside a "
+           "range nothing occupies, and a reader matching darkest to "
+           "'high' reads the map wrongly"),
+  dict(name="the-nudge-stays-off-ordinary-data", file=BRIDGE,
+       old="""  if not any(hi <= lo for lo, hi in bounds):
+    return 0""",
+       new="""  if False:
+    return 0""",
+       test="test_ordinary_data_keeps_qgis_s_own_breaks",
+       why="without the scope test every upper bound is shrunk on "
+           "every map, so any value sitting exactly on a break moves "
+           "up one class -- reversing QGIS's own convention across "
+           "every classed map this plugin draws, for no benefit"),
   dict(name="a-copy-carries-the-pin-flags", file=DIALOG,
        old='      if source_pins.get(end) is None:\n        continue',
        new='      if True:  # mutation: the flags stay behind\n        continue',

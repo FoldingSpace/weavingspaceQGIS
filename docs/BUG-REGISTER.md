@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-195 defect(s) with a regression test.
+197 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -205,6 +205,8 @@ there is no separate list to remember.
   guarded by `test_auto_first_render`
 - **a project reopened after an element was styled in QGIS lost the fact that the plugin had stopped styling it, so the next Generate destroyed the user's work.**  
   guarded by `test_deferral_survives_a_project_round_trip`
+- **none yet; this pins the scope of a change made 2026-08-16, because a nudge that fired on ordinary data would silently move every boundary value up one class across every map this plugin draws.**  
+  guarded by `test_ordinary_data_keeps_qgis_s_own_breaks`
 - **CRS work on the QgsTask worker thread segfaulted QGIS, because PROJ is not safe to use concurrently with the main thread; the CRS is now stripped before the task and reattached in the done callback.**  
   guarded by `test_real_world_data`
 - **an element styled in QGIS could not be taken back by picking the style it had before, because that restored its old signature and both seeding paths kept the renderer as unchanged.**  
@@ -270,8 +272,6 @@ there is no separate list to remember.
   guarded by `test_a_generate_spares_the_rest_of_the_users_geopackage`
 - **a design that shrank left its dropped elements in the GeoPackage, so the exported file described a map that no longer existed.**  
   guarded by `test_a_geopackage_loses_the_elements_a_design_dropped`
-- **five classes over three distinct values put two swatches in the legend that no tile used, and painted the highest value in a middle colour while the legend's darkest sat beside an empty range.**  
-  guarded by `test_a_legend_never_shows_a_class_the_map_does_not_have`
 - **moving a class-source QML and then changing any style control repainted the element in automatic colours, silently, where the re-tile path keeps the map and names the file.**  
   guarded by `test_a_moved_class_source_survives_a_restyle`
 - **only _finish_run restored the determinate progress range, and the zombie recovery does not go through it.**  
@@ -334,6 +334,8 @@ there is no separate list to remember.
   guarded by `test_an_embedded_style_name_fits_the_column_it_is_written_to`
 - **emptying the region layer made the dialog's fingerprint raise, inside paths reached from Qt slots where nothing reports.**  
   guarded by `test_an_emptied_region_layer_does_not_raise`
+- **five classes over three distinct values put two swatches in the legend that no tile used, and painted the highest value in a middle colour while the legend's darkest sat beside an empty range.**  
+  guarded by `test_an_empty_class_keeps_its_place_and_its_colour`
 - **a GeoPackage was exported with a style that carried none of the plugin's own stamps, so its layers came back unrecognised and were offered as region layers.**  
   guarded by `test_an_exported_geopackage_is_still_recognised_as_our_own`
 - **the inset percentage conversion was defended only by comparisons whose tolerance is wider than the error.**  
@@ -419,6 +421,8 @@ there is no separate list to remember.
   guarded by `test_a_hatched_class_hatches_only_itself`
 - **a renderer type changed in QGIS's styling panel left the plugin's row naming a style and a ramp that no longer decided the map.**  
   guarded by `test_a_renderer_the_row_cannot_name_defers_to_qgis`
+- **five classes over three distinct values put two swatches in the legend that no tile used, and painted the highest value in a middle colour while the legend's darkest sat beside an empty range. First answered by REDUCING the class count, which re-sampled the ramp across the survivors and moved colours nobody chose to move -- measured 2026-08-16, five asked over four distinct values drew the four-class ladder exactly. Replaced by the nudge, which leaves every class where it was.**  
+  guarded by `test_a_repeated_value_reaches_the_class_that_means_it`
 - **values retyped in QGIS left the map drawing the classification computed from the old values, with classes running past everything the layer now held.**  
   guarded by `test_a_retyped_column_reclassifies_the_map`
 - **a subset string set by the user on an element layer was discarded at every regeneration, silently, while the hand styling beside it survived.**  
@@ -441,8 +445,8 @@ there is no separate list to remember.
 - not written down at the time: 81
 - a bug hunt pointed in a named direction: 44
 - the mutation campaign: 16
-- reported by a user: 12
-- reading the code: 8
+- reported by a user: 13
+- reading the code: 9
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6
 - a multi-step session test: 5

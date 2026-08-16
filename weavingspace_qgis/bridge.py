@@ -1338,28 +1338,40 @@ def few_values_message(field: str, distinct: int, asked: int,
       lost. Defaults to False, the plain case.
 
   Returns:
-    One sentence for the message bar, or None when the count was not
-    reduced, so the caller can report unconditionally.
+    One sentence for the message bar, or None when every class the
+    row asked for is occupied, so the caller can report
+    unconditionally.
 
-  This is the constant-column notice at n > 1, and it exists for the
-  same reason: the class count in the table would otherwise describe
-  a legend the map does not have. Left unsaid, a user sees their
-  Classes spinner reading five and a legend of three and has nothing
-  to tell them which is the truth. It also gives them a chance of
-  understanding what happens if they later press Classify in QGIS's
-  own Graduated panel, which recomputes k from the panel and puts the
-  five back.
+  WHAT THIS SENTENCE SAYS CHANGED ON 2026-08-16, with the behaviour
+  it describes. It used to report a REDUCTION -- "draws as 3 classes,
+  not 5" -- because the class count really was cut to the number of
+  distinct values. That cut re-sampled the ramp across the survivors
+  and moved colours nobody had chosen to move, so it was removed on
+  the maintainer's ruling: the ladder keeps the length the row asked
+  for, every class keeps the colour of its position, and the classes
+  no tile can reach are hatched in the swatch instead.
+
+  So the notice now reports EMPTINESS rather than shortening. It
+  still earns its place for the reason the old one did: a user whose
+  Classes spinner reads five while two swatches are hatched deserves
+  to be told why, in words, rather than left to work it out from a
+  pattern of diagonal lines.
+
+  A column with ONE distinct value says nothing here: it genuinely
+  does collapse to a single class, which is the maintainer's
+  instruction of 2026-08-09, and `constant_field_message` is the
+  sentence for it.
   """
-  if distinct >= asked or distinct <= 0:
+  if distinct >= asked or distinct <= 1:
     return None
+  empty = int(asked) - int(distinct)
   if pinned:
-    return (f"'{field}' has {distinct} distinct value"
-            f"{'' if distinct == 1 else 's'} left between its pinned "
-            f"bounds, so it draws as {distinct} "
-            f"class{'' if distinct == 1 else 'es'}, not {asked}.")
-  return (f"'{field}' has {distinct} distinct value"
-          f"{'' if distinct == 1 else 's'}, so it draws as {distinct} "
-          f"class{'' if distinct == 1 else 'es'}, not {asked}.")
+    return (f"'{field}' has {distinct} distinct values left between "
+            f"its pinned bounds, so {empty} of the {asked} classes "
+            f"are empty and their swatches are hatched.")
+  return (f"'{field}' has {distinct} distinct values, so {empty} of "
+          f"the {asked} classes are empty and their swatches are "
+          f"hatched.")
 
 
 def _apply_pinned_bounds(renderer, low, high, smallest, largest,
@@ -1463,13 +1475,28 @@ def unworn_classes(bounds, values):
 
   QGIS's own containment rule, so this cannot disagree with the map
   it describes: a value belongs to the FIRST range that contains it,
-  and a range holds ``lower < v <= upper`` except the first, which
-  includes its lower bound. A class nothing occupies is a swatch in
-  the legend that no tile uses -- normally impossible since the
-  class count is reduced to the value count, and reachable again the
-  moment a ladder is COPIED from an element carrying another column.
-  Those are kept rather than dropped (maintainer's decision,
-  2026-08-14), so they are marked instead.
+  and a range holds ``lower <= v <= upper`` -- INCLUSIVE AT BOTH
+  ENDS, which is what a graduated renderer actually does.
+
+  THAT LAST WORD WAS WRONG UNTIL 2026-08-16 and it mattered the
+  moment the degenerate-range nudge arrived. This used to exclude the
+  lower bound for every range but the first, which agrees with the
+  renderer while the ranges touch -- a value on a shared boundary is
+  caught by the range BELOW it, earlier in the loop, so first-match
+  hides the difference. Once `_nudge_off_shared_bounds` moves that
+  lower range's top down by an ulp, the boundary value falls through
+  to the degenerate range that means exactly it, and the renderer
+  accepts it there while this rule refused it. Measured: with 1, 5, 9
+  in five classes the map drew classes 1, 3 and 5, and this reported
+  classes 2, 3, 4 and 5 unworn -- hatching two swatches that were in
+  use.
+
+  A class nothing occupies is a swatch in the legend no tile uses.
+  Since the class count is no longer reduced to the value count, that
+  is an ordinary situation rather than a rarity, and it is also
+  reachable by COPYING a ladder from an element carrying another
+  column. Either way they are kept rather than dropped and marked
+  instead.
   """
   numbers = [float(v) for v in values
              if v is not None and v != NULL and isinstance(v, (int, float))
@@ -1477,8 +1504,7 @@ def unworn_classes(bounds, values):
   worn = set()
   for value in numbers:
     for index, (lower, upper) in enumerate(bounds):
-      if (value >= lower if index == 0 else value > lower) \
-          and value <= upper:
+      if lower <= value <= upper:
         worn.add(index)
         break
   return [index for index in range(len(bounds)) if index not in worn]
@@ -1589,6 +1615,72 @@ def classification_source(field: str, values) -> QgsVectorLayer | None:
     return layer
   except Exception:
     return None
+
+
+def _nudge_off_shared_bounds(renderer) -> int:
+  """Let a repeated value reach the class that stands for it.
+
+  Args:
+    renderer: a QgsGraduatedSymbolRenderer whose classes have just
+      been computed. Mutated in place.
+
+  Returns:
+    How many ranges were moved, which is zero for ordinary data. The
+    count is returned so a caller or a test can assert that the
+    adjustment did or did not happen, rather than inferring it.
+
+  THE PROBLEM, measured on QGIS 4.0.3, 2026-08-16. Ask for five
+  quantile classes over a column holding 1, 5 and 9 and QGIS returns
+  ``1..1, 1..5, 5..5, 5..9, 9..9``. Three of those are DEGENERATE, and
+  a graduated renderer gives a value to the FIRST range that contains
+  it -- so 5 goes to ``1..5`` and 9 to ``5..9``, the two degenerate
+  ranges above them can never be reached at all, and the map draws its
+  highest value mid-grey while the legend's black sits beside a range
+  nothing occupies. A reader matching the darkest swatch to "high"
+  reads that map wrongly.
+
+  THE FIX IS ONE UNIT IN THE LAST PLACE. Shrink the upper bound of
+  every FINITE-WIDTH range, leaving the degenerate ones alone: a value
+  sitting on a shared boundary then falls past the interval that was
+  swallowing it and into the degenerate range that means exactly that
+  value. Measured on the same case: 1, 5 and 9 land in classes 1, 3
+  and 5, the highest value takes the darkest colour, and the ramp is
+  used end to end.
+
+  WHY IT IS SCOPED TO DEGENERATE RANGES. On ordinary data every range
+  has width, and shrinking each upper bound would push any value
+  sitting exactly on a break up into the next class -- reversing
+  QGIS's own convention for no benefit whatever. So nothing happens
+  unless the classifier has actually produced a degenerate range,
+  which is its way of saying there were fewer distinct values than
+  classes.
+
+  WHAT THIS COSTS AND WHY IT IS STILL QGIS. The break values are
+  QGIS's own; two of them move by an ulp, which its label formatter
+  rounds away, so the legend still reads "1 - 5" and "5 - 9". The
+  renderer stays an ordinary graduated renderer, so the styling panel,
+  the QML round trip and the GeoPackage are unaffected, and pressing
+  Classify in QGIS restores QGIS's untouched answer. It runs AFTER any
+  pinned bounds, so it adjusts final bounds rather than ones a pin is
+  about to rewrite.
+
+  This replaces the class REDUCTION that stood here from 2026-08-14 to
+  2026-08-16. Reducing k re-sampled the ramp across the survivors, so
+  colours moved with nobody choosing to move them; keeping k and
+  nudging leaves every class where it was. (Maintainer's ruling, and
+  the nudge was the maintainer's idea.)
+  """
+  import math
+  ranges = renderer.ranges()          # bound first: a temporary frees
+  bounds = [(r.lowerValue(), r.upperValue()) for r in ranges]
+  if not any(hi <= lo for lo, hi in bounds):
+    return 0
+  moved = 0
+  for index, (lo, hi) in enumerate(bounds):
+    if hi > lo:
+      renderer.updateRangeUpperValue(index, math.nextafter(hi, -math.inf))
+      moved += 1
+  return moved
 
 
 def quant_class_colours(ramp_name: str, reverse: bool, count: int,
@@ -1788,24 +1880,42 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   distinct = distinct_numeric_count(values) if index >= 0 else 0
   if distinct == 1:
     k = 1
-  elif not unclassed and 0 < distinct < int(k):
-    # The general form of the constant case, and the constant case is
-    # its n == 1 instance. Five classes over three distinct values
-    # gives five ranges of which two are DEGENERATE: a value sits on
-    # a break, QGIS gives it to the first range containing it, and
-    # the ranges above never paint. Measured 2026-08-13 with a render
-    # context, k=5 over {1, 5, 9}: five swatches, three colours on
-    # the map, the highest value drawn mid-grey while the legend's
-    # black sat beside a range nothing occupied. Upstream reduces k
-    # in exactly this case (_plot_subsetted_gdf sets cspec["k"] to
-    # the value count), so this follows the library rather than
-    # inventing a rule.
-    #
-    # Unclassed is exempt: its fifty steps reproduce a continuous
-    # ramp rather than a class count anybody chose, and cutting them
-    # to the number of distinct values would turn a settled
-    # continuous look into a coarse classed one.
-    k = distinct
+  # AND NOTHING ELSE IS REDUCED. Between 2026-08-14 and 2026-08-16
+  # this went on to cut k down to the number of distinct values
+  # whenever there were fewer than the row asked for, following
+  # upstream's `_plot_subsetted_gdf`. It was removed on the
+  # maintainer's ruling, and the reason is about COLOUR rather than
+  # about class counts.
+  #
+  # A REDUCED LADDER IS RE-SAMPLED, AND THAT MOVES COLOURS NOBODY
+  # CHOSE TO MOVE. Class i takes ramp.color(i/(k-1)), so lowering k
+  # re-spreads every surviving class across the whole ramp. Measured
+  # 2026-08-16, five asked over four distinct values on Reds: the map
+  # drew #fff5f0 #fca082 #e32f27 #67000d, which is the four-class
+  # ladder exactly, and neither middle colour is one the five-class
+  # ladder would have used. The three-value case looks correct only
+  # by accident, since sampling three points and five points both
+  # land on 0, half and 1. Worse, it is unstable: a column that
+  # gains a value later re-colours every class, with nobody choosing
+  # anything -- which is the one thing one-colour-one-meaning exists
+  # to forbid.
+  #
+  # The maintainer's rule is that an empty class is INVISIBLE, NOT
+  # DELETED. Keeping k satisfies it by construction: nothing is ever
+  # re-sampled because the ladder never changes length, and the
+  # classes no tile wears are HATCHED in the swatch by
+  # `unworn_classes`, which already asks any graduated element's own
+  # layer and needed no widening for this. The legend keeps entries a
+  # reader can see are empty, which is what the hatching is for, and
+  # the copy path -- which has always kept and hatched unreachable
+  # classes -- stops being a special case.
+  #
+  # THE ONE-VALUE COLLAPSE ABOVE SURVIVES, deliberately: it is the
+  # maintainer's instruction of 2026-08-09, and it answers a
+  # different complaint. Five ranges all reading "7 - 7" in five
+  # colours is a legend claiming variation the data does not have,
+  # which hatching four of them would not cure. (Ruling 2026-08-16:
+  # keep the smaller carve-out.)
   renderer = QgsGraduatedSymbolRenderer(field)
   renderer.setSourceSymbol(_fill_symbol("#c0c0c0", outline))
   renderer.setSourceColorRamp(get_ramp(ramp_name, reverse))
@@ -2064,6 +2174,7 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
     _apply_pinned_bounds(renderer, low_pin, high_pin, finite_values[0],
                          finite_values[-1], outline, method,
                          wants_middle)
+  _nudge_off_shared_bounds(renderer)
   # A single class spans the whole ramp and QGIS colours it from the
   # ramp's START (measured, QGIS 4.0.3: one class on Reds comes back
   # #fff5f0, the ramp's 0.0 endpoint) -- for a sequential ramp that is

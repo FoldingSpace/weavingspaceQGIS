@@ -5252,9 +5252,13 @@ def test_unclassed_never_announces_a_reduction():
   # the same column, classed, must still be reported
   drawn, from_pins = bridge.classes_the_map_will_draw([1, 5, 9], 5, None)
   said = bridge.few_values_message("crime", drawn, 5, from_pins)
-  assert said and "3 classes" in said, \
-    f"a classed row over three distinct values stopped reporting its "\
-    f"reduction, which is the notice this one exists to keep: {said!r}"
+  # The CONTROL: the notice still fires for a classed row, so this
+  # test cannot pass by the sentence having disappeared for everyone.
+  # Its wording changed on 2026-08-16 with the behaviour -- nothing is
+  # reduced any more, so it reports how many classes are EMPTY.
+  assert said and "empty" in said and "3 distinct values" in said, \
+    f"a classed row over three distinct values stopped reporting "\
+    f"anything, which is the notice this one exists to keep: {said!r}"
 
   # and an Unclassed row over a column that genuinely has fewer values
   # than fifty is the exact shape the user met
@@ -7584,8 +7588,8 @@ def test_a_class_source_file_that_changes_on_disk():
     shutil.rmtree(folder, ignore_errors=True)
 
 
-def test_a_legend_never_shows_a_class_the_map_does_not_have():
-  """Fewer distinct values than classes must not invent classes.
+def test_an_empty_class_keeps_its_place_and_its_colour():
+  """Fewer distinct values than classes: kept, hatched, and reachable.
 
   Ask for five classes over a column holding three distinct values and
   QGIS returns five. Two of them are degenerate (1-1, 5-5, 9-9 among
@@ -7633,9 +7637,10 @@ def test_a_legend_never_shows_a_class_the_map_does_not_have():
       layer, "v", "Greys", "Quantiles", asked, False)
     layer.setRenderer(renderer)
     ranges = renderer.ranges()
-    assert len(ranges) == 3, \
+    assert len(ranges) == asked, \
       f"asked for {asked} classes over three distinct values and got " \
-      f"{len(ranges)}: {[r.label() for r in ranges]}"
+      f"{len(ranges)}: the ladder is being shortened again, which " \
+      f"re-samples the ramp and moves colours nobody chose to move"
 
     # STARTED before it is asked, and stopped afterwards. A renderer
     # asked which symbol a feature gets without being started returns
@@ -7654,8 +7659,13 @@ def test_a_legend_never_shows_a_class_the_map_does_not_have():
     used = set(painted.values())
     dead = [r.label() for r in ranges
             if r.symbol().color().name() not in used]
-    assert not dead, \
-      f"the legend shows {dead!r}, which no tile on the map wears"
+    # KEPT AND HATCHED rather than forbidden, since 2026-08-16: the
+    # ladder holds its length so colours never re-spread, and the
+    # empty classes are real numeric ranges, so a value arriving
+    # later in QGIS lands in one and draws in its colour.
+    assert len(dead) == asked - 3, \
+      f"three distinct values in {asked} classes should leave " \
+      f"{asked - 3} empty, and {len(dead)} are: {dead!r}"
     # and the darkest swatch belongs to the largest value, which is
     # the reading a legend exists to support
     darkest = min(ranges,
@@ -7676,7 +7686,7 @@ def test_a_legend_never_shows_a_class_the_map_does_not_have():
 
   # the user is told, in words, why the spinner and the legend differ
   note = bridge.few_values_message("v1", 3, 5)
-  assert note and "3" in note and "5" in note, \
+  assert note and "3" in note and "5" in note and "empty" in note, \
     f"the notice does not say what happened: {note!r}"
   assert bridge.few_values_message("v1", 5, 5) is None, \
     "a column with enough values must raise no notice at all"
@@ -20571,6 +20581,174 @@ def _layer_with_infinities(n=12, field="v1"):
   return layer
 
 
+def _few_values_layer(values=(1.0, 1.0, 5.0, 5.0, 9.0, 9.0)):
+  """A polygon layer whose column holds repeated values.
+
+  Args:
+    values: the column's contents, one feature each.
+
+  Returns:
+    A memory layer with a double column "v", used by the tests about
+    fewer distinct values than classes.
+  """
+  from weavingspace_qgis import compat
+  layer = QgsVectorLayer("Polygon?crs=EPSG:2193", "few values", "memory")
+  provider = layer.dataProvider()
+  provider.addAttributes([compat.make_field("v", float)])
+  layer.updateFields()
+  features = []
+  for i, value in enumerate(values):
+    feature = QgsFeature(layer.fields())
+    feature.setAttribute("v", value)
+    x = i * 10.0
+    feature.setGeometry(QgsGeometry.fromPolygonXY([[
+      QgsPointXY(x, 0), QgsPointXY(x + 9, 0),
+      QgsPointXY(x + 9, 9), QgsPointXY(x, 9), QgsPointXY(x, 0)]]))
+    features.append(feature)
+  provider.addFeatures(features)
+  layer.updateExtents()
+  return layer
+
+
+def _drawn_colours(renderer, layer, extra=()):
+  """What colour the renderer actually paints each value.
+
+  Args:
+    renderer: a started-and-stopped graduated renderer.
+    layer: the layer whose features are asked.
+    extra: further values to ask about that are not in the layer --
+      used to test where a value ARRIVING LATER would land.
+
+  Returns:
+    ``{value: "#rrggbb" or None}``. Asked through startRender /
+    symbolForFeature / stopRender, because a renderer asked without
+    being started returns an answer that means nothing while looking
+    exactly like data.
+  """
+  from qgis.core import QgsRenderContext
+  context = QgsRenderContext()
+  renderer.startRender(context, layer.fields())
+  seen = {}
+  try:
+    for feature in layer.getFeatures():
+      symbol = renderer.symbolForFeature(feature, context)
+      seen[feature["v"]] = None if symbol is None else symbol.color().name()
+    for value in extra:
+      probe = QgsFeature(layer.fields())
+      probe.setAttribute("v", value)
+      symbol = renderer.symbolForFeature(probe, context)
+      seen[value] = None if symbol is None else symbol.color().name()
+  finally:
+    renderer.stopRender(context)
+  return seen
+
+
+def test_a_repeated_value_reaches_the_class_that_means_it():
+  """Fewer values than classes must still use the ramp end to end.
+
+  Ask for five quantile classes over 1, 5 and 9 and QGIS returns
+  ``1..1, 1..5, 5..5, 5..9, 9..9``. A graduated renderer gives a value
+  to the FIRST range containing it, so 5 went to ``1..5`` and 9 to
+  ``5..9``: the two degenerate ranges above them were unreachable by
+  construction, the map drew its HIGHEST value mid-grey, and the
+  legend's black sat beside a range nothing occupied.
+
+  The cure is one unit in the last place, on finite-width ranges only,
+  so a value on a shared boundary falls past the interval swallowing
+  it into the degenerate range that means exactly that value.
+
+  Four things are asserted because four things had to be true at once,
+  and the earlier answers to this problem each got one of them wrong:
+  every value lands in its own class, the highest wears the darkest
+  colour, the colours are the ASKED ladder rather than a re-sampled
+  shorter one, and a value arriving later lands in the gap where it
+  belongs rather than in a hatched class that has gone stale.
+
+  Regression: five classes over three distinct values put two swatches in the legend that no tile used, and painted the highest value in a middle colour while the legend's darkest sat beside an empty range. First answered by REDUCING the class count, which re-sampled the ramp across the survivors and moved colours nobody chose to move -- measured 2026-08-16, five asked over four distinct values drew the four-class ladder exactly. Replaced by the nudge, which leaves every class where it was. [user]
+  """
+  from weavingspace_qgis import bridge
+  layer = _few_values_layer()
+  renderer = bridge.make_graduated_renderer(
+    layer, "v", "Greys", "Quantiles", 5, False)
+  layer.setRenderer(renderer)
+  ranges = renderer.ranges()
+  assert len(ranges) == 5, \
+    f"asked for five classes and got {len(ranges)}: the ladder is " \
+    f"still being shortened, which re-samples the ramp"
+
+  colours = [ranges[i].symbol().color().name() for i in range(len(ranges))]
+  expected = bridge.quant_class_colours("Greys", False, 5)
+  assert colours == expected, \
+    f"the classes wear {colours}, not the five-class ladder " \
+    f"{expected}: something re-sampled the ramp"
+
+  drawn = _drawn_colours(renderer, layer, extra=(3.0, 7.0))
+  assert drawn[1.0] == colours[0], \
+    f"the lowest value draws {drawn[1.0]}, not class 1 ({colours[0]})"
+  assert drawn[5.0] == colours[2], \
+    f"the middle value draws {drawn[5.0]}, not class 3 ({colours[2]}): " \
+    f"it is still being swallowed by the range below it"
+  assert drawn[9.0] == colours[4], \
+    f"the highest value draws {drawn[9.0]} while the darkest class is " \
+    f"{colours[4]} -- a reader matching darkest to high reads this " \
+    f"map wrongly"
+  # ...and the gaps are REAL RANGES, so data added in QGIS later, with
+  # the plugin closed, lands in them and draws in their colour. This
+  # is why the empty classes are not given a hatched SYMBOL: a hatch
+  # would be a snapshot of emptiness that nothing refreshes.
+  assert drawn[3.0] == colours[1], \
+    f"a value of 3 arriving later draws {drawn[3.0]}, not class 2 " \
+    f"({colours[1]}): the gap is not a usable range"
+  assert drawn[7.0] == colours[3], \
+    f"a value of 7 arriving later draws {drawn[7.0]}, not class 4 " \
+    f"({colours[3]})"
+
+  # the swatch's hatching must name exactly the classes the map left
+  # empty -- a differential, so the two cannot drift apart
+  bounds = [(ranges[i].lowerValue(), ranges[i].upperValue())
+            for i in range(len(ranges))]
+  unworn = bridge.unworn_classes(bounds, [f["v"] for f in layer.getFeatures()])
+  assert unworn == [1, 3], \
+    f"the hatching reports {unworn} unworn; the map occupies classes " \
+    f"1, 3 and 5, so exactly classes 2 and 4 are empty"
+
+
+def test_ordinary_data_keeps_qgis_s_own_breaks():
+  """The nudge is scoped, and nothing else may feel it.
+
+  Shrinking every upper bound would push a value sitting exactly on a
+  break up into the next class, reversing QGIS's convention for no
+  benefit. So it happens only where the classifier produced a
+  degenerate range -- its way of saying there were fewer distinct
+  values than classes.
+
+  Regression: none yet; this pins the scope of a change made 2026-08-16, because a nudge that fired on ordinary data would silently move every boundary value up one class across every map this plugin draws. [review]
+  """
+  from weavingspace_qgis import bridge
+  layer = _few_values_layer(values=tuple(float(v) for v in range(12)))
+  renderer = bridge.make_graduated_renderer(
+    layer, "v", "Greys", "Quantiles", 5, False)
+  ranges = renderer.ranges()
+  bounds = [(ranges[i].lowerValue(), ranges[i].upperValue())
+            for i in range(len(ranges))]
+  assert all(hi > lo for lo, hi in bounds), \
+    f"this fixture was meant to have no degenerate range: {bounds}"
+  assert bridge._nudge_off_shared_bounds(renderer) == 0, \
+    "the nudge fired on ordinary data, where it would move every " \
+    "value sitting on a break up into the next class"
+
+  # and the carve-out at the other end: one value still collapses to
+  # one class, which is the maintainer's instruction of 2026-08-09 and
+  # was kept deliberately when the reduction went
+  flat = _few_values_layer(values=(7.0, 7.0, 7.0, 7.0))
+  one = bridge.make_graduated_renderer(flat, "v", "Greys", "Quantiles",
+                                       5, False)
+  assert len(one.ranges()) == 1, \
+    f"a constant column drew {len(one.ranges())} classes; five ranges " \
+    f"all reading '7 - 7' in five colours is a legend claiming " \
+    f"variation the data does not have"
+
+
 def test_an_infinity_alone_still_asks_for_the_split():
   """The question that DECIDES the split must match the split itself.
 
@@ -21638,7 +21816,7 @@ def _quant_dialog(mode="Quant: Quantiles", k=5, ramp="Reds", row=1,
       ``v1`` takes exactly n distinct values. Defaults to whatever
       makes the requested k honest, because a column cannot be cut
       into more classes than it has values
-      (test_a_legend_never_shows_a_class_the_map_does_not_have) -- a
+      (test_an_empty_class_keeps_its_place_and_its_colour) -- a
       test asking for eight classes over a four-value column would
       otherwise be measuring the reduction rather than the thing it
       names. Pass it explicitly where the region's SIZE matters.
@@ -44104,8 +44282,8 @@ def main():
         test_a_class_source_file_that_changes_on_disk)
   check("an inset that eats the design says so",
         test_an_inset_that_eats_the_design_says_so)
-  check("a legend never shows a class the map does not have",
-        test_a_legend_never_shows_a_class_the_map_does_not_have)
+  check("an empty class keeps its place and its colour",
+        test_an_empty_class_keeps_its_place_and_its_colour)
   check("a pinned class bound reaches the map",
         test_a_pinned_class_bound_reaches_the_map)
   check("a pin that cannot be drawn is refused",
@@ -44493,6 +44671,10 @@ def main():
         test_both_halves_of_an_element_fade_together)
   check("the spinner outranks a value the dialog itself wrote",
         test_the_spinner_outranks_a_value_the_dialog_itself_wrote)
+  check("a repeated value reaches the class that means it",
+        test_a_repeated_value_reaches_the_class_that_means_it)
+  check("ordinary data keeps qgis's own breaks",
+        test_ordinary_data_keeps_qgis_s_own_breaks)
   check("an infinity alone still asks for the split",
         test_an_infinity_alone_still_asks_for_the_split)
   check("the split tells the kinds of absence apart",
