@@ -1449,8 +1449,14 @@ MUTATIONS = [
        test='test_ui_library_modifier_chain',
        why='the group (prototile) inset reaching the unit'),
   dict(name='selective-reseed-inverted', file=DIALOG,
-       old='      if (unchanged or carried_while_deferring) and not reclaimed:',
-       new='      if not unchanged:  # mutation: keep the WRONG renderer',
+       # RE-ANCHORED 2026-08-16: the condition became a named flag,
+       # `kept_by_hand`, so that the paired no-data layer could be put
+       # through the same gate. The three entries that stood on the
+       # old `if` line matched nothing for the length of that commit,
+       # which is a mutation that applies nothing and reports nothing.
+       old='      kept_by_hand = ((unchanged or carried_while_deferring)\n'
+           '                      and not reclaimed)',
+       new='      kept_by_hand = not unchanged  # mutation: WRONG renderer',
        test='test_integration_interleaved_session',
        why='hand styling kept for unchanged elements only'),
   dict(name='outline-layer-not-on-top', file=DIALOG,
@@ -2855,8 +2861,9 @@ MUTATIONS = [
            "over a map the plugin could describe -- and the next "
            "Generate seeds straight over it"),
   dict(name="an-element-can-be-taken-back", file=DIALOG,
-       old="      if (unchanged or carried_while_deferring) and not reclaimed:",
-       new="      if unchanged or carried_while_deferring:",
+       old="      kept_by_hand = ((unchanged or carried_while_deferring)\n"
+           "                      and not reclaimed)",
+       new="      kept_by_hand = (unchanged or carried_while_deferring)",
        test="test_taking_an_element_back_from_qgis_restyles_at_once",
        why="picking back the style an element had before it was "
            "deferred restores its old signature exactly, so without "
@@ -2883,8 +2890,9 @@ MUTATIONS = [
            "did in the styling panel, saying only 'no re-tiling "
            "needed'"),
   dict(name="a-deferring-element-keeps-its-renderer", file=DIALOG,
-       old='      if (unchanged or carried_while_deferring) and not reclaimed:',
-       new='      if unchanged and not reclaimed:',
+       old='      kept_by_hand = ((unchanged or carried_while_deferring)\n'
+           '                      and not reclaimed)',
+       new='      kept_by_hand = unchanged and not reclaimed',
        test="test_a_deferring_element_keeps_its_renderer_across_a_generate",
        why="a Generate rebuilds every element layer, so without this "
            "the renderer somebody built in QGIS is destroyed by the "
