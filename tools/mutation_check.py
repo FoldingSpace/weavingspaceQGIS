@@ -173,6 +173,57 @@ MUTATIONS = [
            "dialog that made it; without this guard the styleChanged "
            "handler runs on a destroyed dialog, reaches a deleted "
            "QTableWidget and takes QGIS down with it"),
+  dict(name="a-missing-value-is-drawn-not-left-as-a-hole", file=BRIDGE,
+       old="""  missing = frame[field].isna()""",
+       new="""  missing = frame[field].isna() & False""",
+       test="test_an_area_with_no_value_is_drawn_rather_than_left_as_a_hole",
+       why="QgsGraduatedSymbolRenderer has no class for a NULL -- no "
+           "default, no-data, else or fallback symbol in its whole "
+           "public API -- so an unsplit frame leaves those tiles "
+           "unpainted, and on a map made of areas a hole reads as "
+           "'nothing is here' rather than 'this is not known'"),
+  dict(name="the-no-data-row-is-not-the-last-class", file=EDITOR,
+       old="""    self._last_class_row = len(order) - 1
+    if order and order[-1] == bridge.NO_DATA_KEY:
+      self._last_class_row = len(order) - 2""",
+       new="""    self._last_class_row = len(order) - 1""",
+       test="test_a_class_that_cannot_be_pinned_says_so_in_its_cell",
+       why="a no-data row sits below the classes, so reading 'last "
+           "row' as 'last class' hands the high pin to a row that "
+           "has no bound to pin and leaves the real last class "
+           "unpinnable"),
+  dict(name="the-removal-notice-does-not-depend-on-handler-order",
+       file=DIALOG,
+       old="""    lost = pending or self._watched_layer_id""",
+       new="""    lost = self._watched_layer_id""",
+       test="test_the_removal_notice_survives_the_chooser_moving_first",
+       why="QgsMapLayerComboBox emits layerChanged when the project "
+           "churns and with two polygon layers quietly selects the "
+           "survivor; if that handler runs first the watched id has "
+           "already moved, so without the id recorded before the "
+           "removal the dialog says nothing -- which passed on the "
+           "development Mac and failed on all three CI runners"),
+  dict(name="a-negative-scale-mirrors-in-Y-too", file=DIALOG,
+       old="""        self.mod_scale_x.value(), self.mod_scale_y.value(),""",
+       new="""        self.mod_scale_x.value(), abs(self.mod_scale_y.value()),""",
+       test="test_a_negative_scale_factor_mirrors_the_design",
+       why="x and y are two controls reaching two arguments, and the "
+           "entry beside this one mutates both at once, so it is "
+           "caught by a test that drives x alone; this one mutates Y "
+           "ONLY and therefore survives unless the other axis is "
+           "genuinely exercised -- the twin problem this project has "
+           "paid for on three other pairs"),
+  dict(name="a-negative-scale-mirrors-rather-than-clamps", file=DIALOG,
+       old="""      unit = unit.transform_scale(
+        self.mod_scale_x.value(), self.mod_scale_y.value(),""",
+       new="""      unit = unit.transform_scale(
+        abs(self.mod_scale_x.value()), abs(self.mod_scale_y.value()),""",
+       test="test_a_negative_scale_factor_mirrors_the_design",
+       why="the sign is what mirrors the design about that axis and "
+           "the magnitude is what scales it; taking the absolute "
+           "value leaves a control that reaches negative numbers and "
+           "a map that ignores them, which is worse than not "
+           "offering them"),
   dict(name="unclassed-is-exempt-from-the-reduction", file=BRIDGE,
        old="""  if unclassed:
     return int(asked), False""",
@@ -275,21 +326,25 @@ MUTATIONS = [
   # whether a live update runs at all. One entry pointed at the wrong
   # one survived, which is the failure this file is for.
   dict(name="fingerprint-in-geometry-signature", file=DIALOG,
-       old="""      self._layer_fingerprint(), self._data_version,
-    )
-
-  def _restyle_only(self) -> bool:""",
-       new="""    )
-
-  def _restyle_only(self) -> bool:""",
+       # ANCHORED ON THE COMMENT ABOVE, not on the def below. Both
+       # fingerprint entries used to disambiguate themselves by the
+       # method that happened to follow, so adding a method anywhere
+       # between the signature and `_restyle_only` silently orphaned
+       # them; three arrived on 2026-08-16 and the standards check
+       # caught it. Preceding context cannot be displaced by an
+       # insertion in the same way.
+       old="""      # demand and never marked as out of date.
+      self._layer_fingerprint(), self._data_version,""",
+       new="""      # demand and never marked as out of date.""",
        test="test_data_changed_in_qgis_while_the_plugin_is_open",
        why="without the layer's CONTENTS here, deleting half the "
            "features leaves every term identical, so pressing Generate "
            "is answered by repainting tiles built from data that no "
            "longer exists"),
   dict(name="fingerprint-in-run-signature", file=DIALOG,
-       old='      self._layer_fingerprint(), self._data_version,\n    )\n\n  def _restyle_only',
-       new='    )\n\n  def _restyle_only',
+       old="""      # not look like one.
+      self._layer_fingerprint(), self._data_version,""",
+       new="""      # not look like one.""",
        test="test_live_update_notices_the_data_changing",
        why="without it, live update compares two identical signatures "
            "after an edit and skips the run as a no-op, so a user "
@@ -900,8 +955,10 @@ MUTATIONS = [
            "map is drawn from data the same run deleted, silently, "
            "because an open layer answers featureCount from cache"),
   dict(name="shrunk-design-tidies-its-geopackage", file=DIALOG,
-       old="""      for stale in sorted(written - set(new_ids)):
-        bridge.drop_gpkg_layer(path, f"tiles_{stale}")""",
+       old="""      for stale in sorted(written):
+        name = stale if stale.startswith("tiles_") else f"tiles_{stale}"
+        if name not in current:
+          bridge.drop_gpkg_layer(path, name)""",
        new="""      pass  # mutation: dropped elements stay in the file""",
        test="test_a_geopackage_loses_the_elements_a_design_dropped",
        why="the exported file describing the design that exists. A "

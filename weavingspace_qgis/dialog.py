@@ -958,6 +958,10 @@ class WeavingSpaceDialog(QDialog):
     # deleting a table on the strength of its name matching our
     # convention would eventually delete somebody's work.
     self._gpkg_tables_written = {}
+    # the watched layer's id, recorded by `_layers_going` while the
+    # layer still exists, so the removal notice does not depend on
+    # which of two Qt handlers runs first
+    self._removal_pending = None
     self._last_run_sig = None
     # the geometry of the last completed run, so a later style-only
     # change can be answered without tiling again
@@ -1098,6 +1102,19 @@ class WeavingSpaceDialog(QDialog):
     # `layersRemoved` carries the ids, which is what makes this safe
     # to ask: the layer object is already gone by then, so anything
     # here must compare ids rather than touch the wrapper.
+    # BOTH signals, and the first one is what makes this reliable.
+    # `layersRemoved` arrives after the layers are gone -- and after
+    # QgsMapLayerComboBox has churned, which with exactly two polygon
+    # layers makes it emit layerChanged and quietly select the
+    # survivor. If that handler runs first it moves
+    # `_watched_layer_id` onto the survivor, so the removal handler
+    # then finds nothing of its own among the removed ids and says
+    # nothing. Qt does not promise an order between two connections,
+    # so this passed on the development Mac and failed on all three
+    # CI runners at exactly the two-layer case (2026-08-16).
+    # `layersWillBeRemoved` fires BEFORE any of that, so what was
+    # about to be lost is recorded while it is still true.
+    QgsProject.instance().layersWillBeRemoved.connect(self._layers_going)
     QgsProject.instance().layersRemoved.connect(self._layers_removed)
     # which layer auto-spacing last ran for (it must run once per
     # newly chosen layer, never on the combo's spurious re-emissions)
@@ -1857,6 +1874,27 @@ class WeavingSpaceDialog(QDialog):
     self._last_scale[box] = box.value()
     self._queue_preview()
 
+  def _layers_going(self, layer_ids):
+    """Record that the watched layer is about to be removed.
+
+    Args:
+      layer_ids: the ids QGIS is ABOUT to remove, as strings. The
+        layers still exist at this moment, but nothing here touches
+        them: only the recorded id is needed.
+
+    Returns:
+      None. Sets `_removal_pending` to the watched id when it is
+      among them, and leaves it alone otherwise, so an unrelated
+      removal cannot arm a notice about the region layer.
+
+    This exists only because the ORDER of the two handlers is not
+    guaranteed; see the connection site for the measurement.
+    """
+    if self._watched_layer_id is None:
+      return
+    if self._watched_layer_id in tuple(layer_ids):
+      self._removal_pending = self._watched_layer_id
+
   def _layers_removed(self, layer_ids):
     """Notice the region layer leaving when the chooser does not say so.
 
@@ -1882,9 +1920,16 @@ class WeavingSpaceDialog(QDialog):
     has. `layersRemoved` is the project's own account of the same
     event and does not depend on a widget's bookkeeping.
     """
-    if self._watched_layer_id is None:
+    # The id this dialog was pointed at, taken from whichever witness
+    # still holds it: `_removal_pending` was set before the removal,
+    # `_watched_layer_id` is only still right if no combo handler has
+    # run in between.
+    pending = getattr(self, "_removal_pending", None)
+    self._removal_pending = None
+    lost = pending or self._watched_layer_id
+    if lost is None:
       return
-    if self._watched_layer_id not in tuple(layer_ids):
+    if lost not in tuple(layer_ids) and pending is None:
       return
     # SAY SO, and say it HERE. The notice in _on_layer_changed fires
     # only when the chooser is left holding nothing, which is the
@@ -5055,6 +5100,18 @@ class WeavingSpaceDialog(QDialog):
                for index, (_lo, _hi, colour) in enumerate(classes)}
     bounds = [(lower, upper) for (lower, upper, _c) in classes]
 
+    # NO DATA IS ONE MORE ROW, and only where it means something. An
+    # element with nothing missing gets no such row: a colour control
+    # for a class the map does not draw is an invitation to wonder
+    # which tiles it governs, and the answer would be none. Offered
+    # for the classed and Unclassed graduated paths alike, since both
+    # are graduated renderers and neither can place a null.
+    if self._element_has_missing_values(tile_id, field):
+      order.append(bridge.NO_DATA_KEY)
+      colours[bridge.NO_DATA_KEY] = (
+        self._quant_colours.get(tile_id, {}).get(field, {})
+        .get(bridge.NO_DATA_KEY) or bridge.NO_DATA_FILL)
+
     def picked(index, colour):
       # positional: "class 3 is this colour", surviving break moves
       self._quant_colours.setdefault(tile_id, {}) \
@@ -5114,9 +5171,25 @@ class WeavingSpaceDialog(QDialog):
       return [(low, high) for low, high, _colour
               in self._current_graduated_classes(settled)]
 
+    # What the scheme would compute with NOTHING pinned. The editor
+    # needs it so a spin box moving off that number can pin itself and
+    # moving back can unpin: without it the pin is a thing you click
+    # and the two controls can disagree. Asked of the same code that
+    # classifies the map, with the pins removed from the assignment --
+    # `_current_graduated_classes` reads them from that dict, so
+    # dropping the key is the whole of "as if nothing were pinned",
+    # and self._pinned_bounds is never touched.
+    unpinned = dict(assignment)
+    unpinned.pop("pinned", None)
+    try:
+      defaults = [(low, high) for low, high, _colour
+                  in self._current_graduated_classes(unpinned)]
+    except Exception:
+      defaults = None       # cannot say; the pin stays a click
+
     editor = CategoryColourDialog(
       tile_id, field, order, colours, picked, self,
-      bounds=bounds, locked=unclassed,
+      bounds=bounds, locked=unclassed, defaults=defaults,
       range_bounds=tuple(self._ramp_ranges.get(tile_id, (0, 100))),
       ramp_name=assignment["ramp"],
       reverse=assignment.get("reverse", False),
@@ -6029,6 +6102,152 @@ class WeavingSpaceDialog(QDialog):
       self._layer_fingerprint(), self._data_version,
     )
 
+  def _restyle_no_data_layer(self, tile_id, assignment):
+    """Repaint one element's missing-value layer in place.
+
+    Args:
+      tile_id: the element whose paired layer is to be repainted.
+      assignment: that element's row, read for its variable, its
+        outline switch and its opacity.
+
+    Returns:
+      None. Does nothing when the element has no paired layer, which
+      is the ordinary case -- most maps have no missing values and
+      pay nothing here.
+
+    The colour comes from the same record the run-landing path reads,
+    `_quant_colours[tile][field][NO_DATA_KEY]`, so the two ways a map
+    can be repainted cannot come to disagree. That key is a string
+    rather than a class index, and `make_graduated_renderer`'s
+    override loop skips anything that is not an integer, so it can
+    never be mistaken for a class colour.
+    """
+    layer_id = getattr(self, "_no_data_layer_ids", {}).get(tile_id)
+    if not layer_id:
+      return
+    from qgis.core import QgsProject
+    layer = QgsProject.instance().mapLayer(layer_id)
+    if layer is None:
+      return
+    field = assignment.get("var")
+    colour = (self._quant_colours.get(tile_id, {}).get(field, {})
+              .get(bridge.NO_DATA_KEY) or bridge.NO_DATA_FILL)
+    layer.setRenderer(bridge.make_no_data_renderer(
+      colour, assignment.get("outline", False)))
+    # the same opacity as its element: they are one element to a
+    # reader, and two layers fading differently would say otherwise
+    layer.setOpacity(max(0, min(100, assignment.get("opacity", 100))) / 100.0)
+    if self._last_path:
+      bridge.embed_style(layer)
+    layer.triggerRepaint()
+
+  def _element_has_missing_values(self, tile_id, field):
+    """Whether this element actually draws tiles with no value.
+
+    Args:
+      tile_id: the element being asked about.
+      field: the column it is coloured by; None answers False.
+
+    Returns:
+      True when a no-data layer exists for this element, or -- before
+      anything has been generated -- when the REGION layer has nulls
+      in that column. False otherwise, including when either question
+      cannot be answered, since offering a No data row that governs
+      nothing is worse than not offering one.
+
+    Two sources deliberately, in that order. Once a map exists, the
+    paired layer IS the answer and cannot disagree with what is
+    drawn. Before that, the colour editor still opens -- it works
+    before a first Generate, which is a settled property of this
+    window -- and the region layer is the only thing that can say.
+    """
+    if not field:
+      return False
+    paired = getattr(self, "_no_data_layer_ids", {}).get(tile_id)
+    if paired:
+      from qgis.core import QgsProject
+      layer = QgsProject.instance().mapLayer(paired)
+      if layer is not None:
+        return layer.featureCount() > 0
+    source = self.layer_combo.currentLayer()
+    if source is None:
+      return False
+    index = source.fields().indexOf(field)
+    if index < 0:
+      return False
+    for feature in source.getFeatures():
+      value = feature[field]
+      if value is None or str(value) == "NULL":
+        return True
+    return False
+
+  def _add_no_data_layer(self, assignment, tile_id, absent, group,
+                         project, path):
+    """Draw one element's missing-value tiles as their own layer.
+
+    Args:
+      assignment: the element's row, read for its outline switch, its
+        variable and the colour picked for No data.
+      tile_id: the element these tiles belong to.
+      absent: the rows whose value is missing, as a GeoDataFrame --
+        never empty, since the caller checks before asking.
+      group: the output group this run is filling.
+      project: the QgsProject the layer is registered with.
+      path: the output GeoPackage, or falsy for memory output.
+
+    Returns:
+      None. The layer is registered, added to the group directly
+      beneath its element, and its id recorded in
+      `_no_data_layer_ids` so the next run can drop exactly this one.
+
+    WHY A SECOND LAYER RATHER THAN A CLEVERER RENDERER. QGIS's
+    graduated renderer has nowhere to put a missing value, and the
+    alternatives were worse: a rule-based renderer would replace the
+    standard one a user opens the styling dock expecting to find, and
+    baking the no-data areas into the graduated layer as an extra
+    class would put a class in the legend that the CLASSIFIER does
+    not know about, so pressing Classify in QGIS's own panel would
+    silently destroy it. A paired layer keeps every renderer standard
+    and every QGIS panel truthful.
+    (Design settled by the maintainer, 2026-08-16.)
+
+    The plugin's own table still shows ONE element: No data is one
+    more class in its colour editor, and this layer is where that
+    class is drawn. That is the whole of the "seamless" requirement --
+    two layers in QGIS, one element in the dialog.
+    """
+    field = assignment.get("var")
+    name = f"{tile_id} – no data"
+    layer = bridge.gdf_to_layer(absent, name)
+    if layer is None or not layer.isValid():
+      return
+    if path:
+      # its own table, named for the element it belongs to, so a
+      # GeoPackage opened elsewhere carries the same two layers and
+      # the stale-table drop below can recognise it as ours
+      written = bridge.write_gpkg_layer(layer, path,
+                                        f"tiles_{tile_id}_no_data",
+                                        first=False)
+      if written is not None and written.isValid():
+        layer = written
+    colour = (self._quant_colours.get(tile_id, {}).get(field, {})
+              .get(bridge.NO_DATA_KEY) or bridge.NO_DATA_FILL)
+    layer.setRenderer(
+      bridge.make_no_data_renderer(colour, assignment.get("outline", False)))
+    # TAGGED AS OUR OUTPUT like every other layer this run writes, or
+    # the plugin would offer it back as a region layer to tile -- the
+    # settled rule that tiling the tiles draws the next map on the
+    # last one. `weavingspace_no_data` is what tells this layer apart
+    # from the element beside it, which carries the same tile id.
+    layer.setCustomProperty("weavingspace_output", True)
+    layer.setCustomProperty("weavingspace_tile_id", tile_id)
+    layer.setCustomProperty("weavingspace_no_data", True)
+    if path:
+      bridge.embed_style(layer)
+    project.addMapLayer(layer, False)
+    group.addLayer(layer)
+    self._no_data_layer_ids[tile_id] = layer.id()
+
   def _restyle_only(self) -> bool:
     """Answer a style change by re-seeding the existing layers.
 
@@ -6166,6 +6385,11 @@ class WeavingSpaceDialog(QDialog):
           bridge.embed_style(layer)
         layer.setName(f"{tid} – {a['var']}" if a["var"]
                       else f"{tid} (no data)")
+        # ...AND THE PAIRED LAYER, or the No data colour would be the
+        # one colour in this window that needed a full re-tile to take
+        # effect. It is a style change like any other, and the whole
+        # purpose of this path is that a style change never re-tiles.
+        self._restyle_no_data_layer(tid, a)
         self._last_signatures[tid] = signature
         changed.append(tid)
     finally:
@@ -6820,10 +7044,57 @@ class WeavingSpaceDialog(QDialog):
         # adopted layers are watched like freshly made ones, so a
         # styling-dock edit reaches the dialog here too
         self._watch_element_layer(layer, str(tid))
+      if tid or layer.customProperty("weavingspace_no_data"):
+        # WHICH GEOPACKAGE TABLES ARE OURS, remembered across
+        # sessions. `_gpkg_tables_written` lives on the dialog, so a
+        # reopened plugin knew nothing about what yesterday's session
+        # wrote and the stale-table drop had nothing to drop: a
+        # design that shrank left its old elements in the file
+        # forever, and the file is the thing a user sends on.
+        #
+        # Seeded from the ADOPTED LAYERS rather than by listing the
+        # file, and that is the whole safety of it. A table is
+        # treated as ours only when a layer in our own output group,
+        # carrying our own custom property, is reading from it --
+        # which is evidence, not a guess about a name. Listing
+        # `tiles_*` in the file would have been easier and would risk
+        # dropping a table a user happened to name that way, and
+        # destroying data the plugin did not create is the one thing
+        # it must never do.
+        self._remember_our_table(layer)
       elif layer.customProperty("weavingspace_outline"):
         self._outline_layer_id = layer.id()
     if self._element_layer_ids or self._outline_layer_id:
       self._group_name = group.name()
+
+  def _remember_our_table(self, layer):
+    """Record that this layer is reading a table this plugin wrote.
+
+    Args:
+      layer: an adopted output layer, element or no-data alike.
+
+    Returns:
+      None. Does nothing for a memory layer, which has no file behind
+      it, or for a source this cannot parse -- in which case the
+      table is simply not claimed, and the stale-table drop leaves it
+      alone. Not claiming is always the safe direction: an unclaimed
+      table survives, and only a claimed one can ever be removed.
+
+    A GeoPackage layer's source reads `<path>|layername=<table>`, and
+    both halves are needed: the record is keyed by file, since one
+    dialog can write several over a session.
+    """
+    try:
+      source = layer.source()
+    except Exception:
+      return
+    if not source or "layername=" not in source:
+      return
+    path, _, rest = source.partition("|")
+    table = rest.split("layername=", 1)[1].split("|", 1)[0]
+    if not path or not table or not path.lower().endswith(".gpkg"):
+      return
+    self._gpkg_tables_written.setdefault(path, set()).add(table)
 
   def _newest_output_group(self, root):
     """The output group a reopened dialog should take over.
@@ -7293,13 +7564,18 @@ class WeavingSpaceDialog(QDialog):
       # which features to draw, not how to colour them.
       if old_layer is not None and old_layer.subsetString():
         old_subsets[tid] = old_layer.subsetString()
+    # what the LAST run's no-data layers were, so this run can drop
+    # exactly those; the new ones are collected as they are built
+    old_no_data = dict(getattr(self, "_no_data_layer_ids", {}) or {})
+    self._no_data_layer_ids = {}
     if path:
       # release file handles before overwriting GeoPackage layers,
       # otherwise the write can hit sqlite locks (notably on Windows)
-      for lid in old_ids.values():
+      for lid in list(old_ids.values()) + list(old_no_data.values()):
         if project.mapLayer(lid) is not None:
           project.removeMapLayer(lid)
       old_ids = {}
+      old_no_data = {}
 
     first_gpkg_layer = True
     # EVERY SWATCH IS RETHOUGHT, because a run changes which values an
@@ -7320,7 +7596,23 @@ class WeavingSpaceDialog(QDialog):
                           "outline": False})
       display = f"{tid} – {a['var']}" if a["var"] else f"{tid} (no data)"
       sub = gdf[gdf["tile_id"] == tid]
-      mem = bridge.gdf_to_layer(sub, display)
+      # ROWS A GRADUATED RENDERER CANNOT PLACE COME OUT HERE.
+      # QgsGraduatedSymbolRenderer has no class for a missing value --
+      # no default, no-data, else or fallback symbol anywhere in its
+      # public API on QGIS 4.0.3 -- so symbolForFeature answers None
+      # and the tile is simply not painted. On a map whose whole
+      # subject is areas, an unpainted area is a HOLE, and a hole
+      # reads as "nothing is here" rather than "this is not known".
+      # Reported from the field 2026-08-16 with an area null in every
+      # column, so it appeared under two different tilings and
+      # whichever variable was mapped.
+      #
+      # Only the GRADUATED path needs it. A categorized renderer has
+      # `addCategory` and therefore its own catch-all, which this
+      # plugin already builds and already lets a user colour.
+      drawable, absent = bridge.split_out_the_no_data(
+        sub, a["var"] if a.get("mode") == "Graduated" else None)
+      mem = bridge.gdf_to_layer(drawable, display)
       if path:
         # THE FILE IS RECREATED ONLY IF IT DOES NOT EXIST, and that
         # condition used to be `created` -- meaning the layer-tree
@@ -7457,6 +7749,8 @@ class WeavingSpaceDialog(QDialog):
         bridge.embed_style(out)
       project.addMapLayer(out, False)
       group.addLayer(out)
+      if absent is not None and len(absent):
+        self._add_no_data_layer(a, tid, absent, group, project, path)
       # the user's own filter, back on the fresh layer. Applied AFTER
       # the renderer, because a subset changes what a classifier
       # would see and the styling above belongs to the whole element;
@@ -7501,6 +7795,14 @@ class WeavingSpaceDialog(QDialog):
     for tid, lid in old_ids.items():
       if project.mapLayer(lid) is not None:
         project.removeMapLayer(lid)
+    # ...and the no-data layers that belonged to them. Keyed by
+    # element, and removed by the SAME rule, because a paired layer
+    # that outlives its element is a second map of stale values
+    # sitting under the live one -- the failure the stale-table drop
+    # already describes for the GeoPackage, in the layer tree.
+    for tid, lid in old_no_data.items():
+      if project.mapLayer(lid) is not None:
+        project.removeMapLayer(lid)
     for tid in list(self._last_signatures):
       if tid not in new_ids:
         del self._last_signatures[tid]
@@ -7521,10 +7823,26 @@ class WeavingSpaceDialog(QDialog):
     # own file already contained. Guarded by
     # test_a_geopackage_loses_the_elements_a_design_dropped.
     if path:
+      # TABLE NAMES, not element ids, since 2026-08-16. An element
+      # with missing values writes a SECOND table, and a record kept
+      # by element could not name it -- so a no-data table outlived
+      # the values that made it and travelled inside the file a user
+      # sends on, which is the same wrongness this drop already
+      # exists to prevent, arriving through the new feature. Old
+      # records held ids; those are bare element names and still
+      # match the tiles_<id> they were written for, so a dialog
+      # carrying one from earlier in the session drops what it always
+      # did and simply does not know about no-data tables until its
+      # next run.
       written = self._gpkg_tables_written.get(path, set())
-      for stale in sorted(written - set(new_ids)):
-        bridge.drop_gpkg_layer(path, f"tiles_{stale}")
-      self._gpkg_tables_written[path] = set(new_ids)
+      current = {f"tiles_{tid}" for tid in new_ids}
+      current |= {f"tiles_{tid}_no_data"
+                  for tid in self._no_data_layer_ids}
+      for stale in sorted(written):
+        name = stale if stale.startswith("tiles_") else f"tiles_{stale}"
+        if name not in current:
+          bridge.drop_gpkg_layer(path, name)
+      self._gpkg_tables_written[path] = current
     self._last_path = path
     # what this run DREW, not what the table says now (see the note
     # where these are captured, in _generate)

@@ -36,7 +36,7 @@ import math
 
 from qgis.PyQt.QtCore import QEvent, QPointF, QSize, Qt, QTimer
 from qgis.PyQt.QtGui import (QBrush, QColor, QIcon, QPainter, QPen,
-                             QPixmap)
+                             QPainterPath, QPixmap, QPolygonF)
 from qgis.PyQt.QtWidgets import (QAbstractButton, QAbstractItemView,
                                  QColorDialog, QComboBox, QDialog,
                                  QDialogButtonBox,
@@ -144,6 +144,17 @@ class PinButton(QAbstractButton):
   replaces, which is the line
   test_a_toggle_switch_shows_which_way_it_is_set already holds for
   the other hand-painted control here.
+
+  THE SILHOUETTE IS A TACK, and the first version was not. It drew a
+  round head on a straight shaft, which is a MAGNIFYING GLASS -- the
+  maintainer read it as one on sight, 2026-08-16, and once seen it
+  cannot be unseen. What separates the two shapes is the taper: a
+  lens has a handle of even width, a tack has a body that narrows to
+  a point. So the head is wide and flat like a tack's, and the body
+  is a triangle ending in a point rather than a line ending in
+  nothing. Drawing an icon whose meaning is its outline is worth a
+  minute with a pencil first; "it has the right parts" is not the
+  same as "it reads as the thing".
   """
 
   SIZE = QSize(20, 20)
@@ -186,18 +197,83 @@ class PinButton(QAbstractButton):
     # tilt is what makes the state readable at a glance, before the
     # fill or the colour has been noticed.
     painter.rotate(0 if pinned else -35)
-    painter.setPen(QPen(ink, 1.4))
+    painter.setPen(QPen(ink, 1.2))
     painter.setBrush(QBrush(ink) if pinned else Qt.BrushStyle.NoBrush)
-    head = height * 0.30
-    painter.drawEllipse(QPointF(0.0, -head), head * 0.85, head * 0.85)
-    painter.setPen(QPen(ink, 1.6))
-    painter.drawLine(QPointF(0.0, -head * 0.1),
-                     QPointF(0.0, height * 0.42))
+    # The head is WIDE and FLAT, the way a tack's is seen side on --
+    # a circle here is what made the old glyph a lens -- and the body
+    # is a triangle narrowing to a point, since the taper is what
+    # separates a tack from a magnifier.
+    head = QPainterPath()
+    head.addEllipse(QPointF(0.0, -height * 0.28),
+                    width * 0.26, height * 0.11)
+    body = QPainterPath()
+    body.addPolygon(QPolygonF([
+      QPointF(-width * 0.135, -height * 0.20),
+      QPointF(width * 0.135, -height * 0.20),
+      QPointF(0.0, height * 0.44)]))
+    # United into ONE outline before stroking. Drawn as two shapes
+    # the outline state showed both of their edges crossing inside
+    # the glyph, which read as a cone rather than a pin; the filled
+    # state hid the seam and looked fine, so this is a fault only the
+    # unpinned half had.
+    painter.drawPath(head.united(body).simplified())
     painter.restore()
     if self.hasFocus():
       painter.setPen(QPen(palette.color(palette.ColorRole.Highlight), 1))
       painter.setBrush(Qt.BrushStyle.NoBrush)
       painter.drawRoundedRect(0, 0, width - 1, height - 1, 3, 3)
+    painter.end()
+
+
+class NoPinHere(QWidget):
+  """Thin diagonal hatching where a pin cannot go.
+
+  Args:
+    parent: the owning widget, as usual in Qt.
+
+  A pin can only name the FIRST class's upper bound and the LAST
+  class's lower bound; every class between them has its breaks
+  computed. Those cells were simply left empty, and an empty cell in
+  a column called "Pin", with the table's own grid drawn round it,
+  reads as a slot somebody has not filled in yet -- the maintainer's
+  words, 2026-08-16: people might think they are able to add a pin
+  there.
+
+  Blank was tried first and is not available here for the reason the
+  cell is misleading in the first place: the grid draws the box
+  whether or not anything sits in it, so "nothing" and "an empty
+  control" look the same. Hatching says NOT AVAILABLE in the one
+  vocabulary a table has, and it is the same answer this project
+  already gives for a class no tile can reach, so the two uses agree.
+
+  It takes no clicks and no focus: it is a statement, not a control.
+  """
+
+  def __init__(self, parent=None):
+    super().__init__(parent)
+    self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+    self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+  def paintEvent(self, _event):  # noqa: N802 (Qt API)
+    """Draw several thin diagonals across the cell.
+
+    The ink is the palette's own text colour at low alpha, so the
+    hatching follows a light or dark QGIS theme and stays quieter
+    than any real control beside it.
+    """
+    painter = QPainter(self)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    ink = self.palette().color(self.palette().ColorRole.WindowText)
+    ink.setAlpha(95)
+    painter.setPen(QPen(ink, 1.0))
+    width, height = self.width(), self.height()
+    # every fourth pixel, running corner to corner, so a narrow cell
+    # still gets several lines rather than one lonely stroke
+    step = 4
+    offset = -height
+    while offset < width:
+      painter.drawLine(offset, height, offset + height, 0)
+      offset += step
     painter.end()
 
 
@@ -281,7 +357,7 @@ class CategoryColourDialog(QDialog):
                parent=None, *, bounds=None, locked=False,
                range_bounds=None, ramp_name=None, reverse=False,
                range_changed=None, pinned=None, pin_changed=None,
-               copy_targets=(), copy_to=None):
+               copy_targets=(), copy_to=None, defaults=None):
     super().__init__(parent)
     # Graduated mode is recognised by its extras, not by a flag of its
     # own: bounds columns and a range section arrive together from the
@@ -308,6 +384,20 @@ class CategoryColourDialog(QDialog):
     # classed style, the clamp strip above it for Unclassed. One
     # record, one set of handlers, two places to put the controls.
     self._pin_widgets = {}
+    # What the scheme would compute for each end with NOTHING pinned,
+    # as [(lower, upper), ...]. It is what makes a pin follow the
+    # bound: moving a spin box away from this number IS pinning, and
+    # putting it back is unpinning, so the control and the state can
+    # never disagree. None when the dialog did not supply it, in
+    # which case the pin goes back to being clicked explicitly.
+    self._defaults = list(defaults) if defaults else None
+    # Which row is the last CLASS, which is the last row unless a
+    # no-data row follows the classes. Computed once, because two
+    # places ask and a second reading of "last row" is how the pin
+    # would land on the no-data row.
+    self._last_class_row = len(order) - 1
+    if order and order[-1] == bridge.NO_DATA_KEY:
+      self._last_class_row = len(order) - 2
     self._pins_offered = (bounds is not None and pin_changed is not None)
 
     layout = QVBoxLayout(self)
@@ -385,26 +475,56 @@ class CategoryColourDialog(QDialog):
           cell.setFont(font)
         self.table.setItem(row, 0, cell)
       else:
-        # Graduated: the class's two bounds, read-only, one per cell.
-        # Right-aligned like the categorical values, and for the same
-        # reason: numbers are compared down a column by their ends.
         offset = 1 if self._pin_column else 0
-        for col, bound in enumerate(self._bounds[row]):
-          cell = QTableWidgetItem(self._format_bound(bound))
+        if value == bridge.NO_DATA_KEY:
+          # NOT A CLASS, and the row says so instead of pretending.
+          # These are the element's tiles whose value is missing;
+          # they have no bounds, they cannot be pinned, and the
+          # classifier has never heard of them. They appear here at
+          # all so that No data is ONE MORE COLOUR a person sets in
+          # the same window as the rest -- two layers in QGIS, one
+          # element in this dialog. (Maintainer's design, 2026-08-16.)
+          cell = QTableWidgetItem("no data")
+          font = cell.font()
+          font.setItalic(True)          # as the categorical catch-all
+          cell.setFont(font)
           cell.setTextAlignment(Qt.AlignmentFlag.AlignRight
                                 | Qt.AlignmentFlag.AlignVCenter)
-          self.table.setItem(row, col + offset, cell)
-        # ...except the two a pin makes editable: the FIRST class's
-        # upper bound and the LAST class's lower bound, which are the
-        # two boundaries a pin can name. The spin box is present
-        # whether or not the end is pinned, and merely disabled when
-        # it is not: swapping a widget in and out on every toggle is
-        # how a cell comes to hold a dead reference.
-        if self._pin_column:
-          which = ("low" if row == 0 else
-                   "high" if row == len(self._values) - 1 else None)
-          if which is not None:
-            self._install_pin_row(row, which)
+          self.table.setItem(row, offset, cell)
+          self.table.setItem(row, offset + 1, QTableWidgetItem(""))
+          if self._pin_column:
+            self.table.setCellWidget(row, 0, NoPinHere())
+        else:
+          # Graduated: the class's two bounds, read-only, one per
+          # cell. Right-aligned like the categorical values, and for
+          # the same reason: numbers are compared down a column by
+          # their ends.
+          for col, bound in enumerate(self._bounds[row]):
+            cell = QTableWidgetItem(self._format_bound(bound))
+            cell.setTextAlignment(Qt.AlignmentFlag.AlignRight
+                                  | Qt.AlignmentFlag.AlignVCenter)
+            self.table.setItem(row, col + offset, cell)
+          # ...except the two a pin makes editable: the FIRST class's
+          # upper bound and the LAST class's lower bound, which are
+          # the two boundaries a pin can name. The spin box is
+          # present whether or not the end is pinned: swapping a
+          # widget in and out on every toggle is how a cell comes to
+          # hold a dead reference.
+          #
+          # THE LAST CLASS IS NOT ALWAYS THE LAST ROW. A no-data row
+          # sits below every class when the element has missing
+          # values, and reading "last row" as "last class" would have
+          # given it the high pin -- a pin on something that has no
+          # bound to pin.
+          if self._pin_column:
+            which = ("low" if row == 0 else
+                     "high" if row == self._last_class_row else None)
+            if which is not None:
+              self._install_pin_row(row, which)
+            else:
+              # a middle class: its breaks are computed, and the cell
+              # says so rather than sitting empty and looking free
+              self.table.setCellWidget(row, 0, NoPinHere())
 
       # The colour button is the last column in either mode.
       self.table.setCellWidget(row, columns - 1,
@@ -515,7 +635,6 @@ class CategoryColourDialog(QDialog):
       pin.setToolTip("Pin this end; the steps between are spread over "
                      "what is left")
       box = self._bound_box(upper if which == "low" else lower)
-      box.setEnabled(pin.isChecked())
       row.addWidget(pin, 0, Qt.AlignmentFlag.AlignVCenter)
       row.addWidget(QLabel(label), 0, Qt.AlignmentFlag.AlignVCenter)
       row.addWidget(box, 0, Qt.AlignmentFlag.AlignVCenter)
@@ -523,6 +642,7 @@ class CategoryColourDialog(QDialog):
       self._pin_widgets[which] = (pin, box)
       pin.toggled.connect(lambda on, w=which: self._pin_toggled(w, on))
       box.editingFinished.connect(lambda w=which: self._bound_edited(w))
+      box.valueChanged.connect(lambda _v, w=which: self._bound_moved(w))
     row.addStretch(1)
     layout.addWidget(strip)
 
@@ -598,8 +718,8 @@ class CategoryColourDialog(QDialog):
     pin.setChecked(self._pinned.get(which) is not None)
     pin.setToolTip("Pin this bound; the rest are computed around it")
     box = self._bound_box(upper if which == "low" else lower)
-    box.setEnabled(pin.isChecked())
-    box.setToolTip("The bound this class is pinned at")
+    box.setToolTip("Set this bound; moving it off the computed value "
+                   "pins it")
     column = 2 if which == "low" else 1     # Upper on top, Lower below
     holder = QWidget()
     layout = QHBoxLayout(holder)
@@ -610,6 +730,74 @@ class CategoryColourDialog(QDialog):
     self._pin_widgets[which] = (pin, box)
     pin.toggled.connect(lambda on, w=which: self._pin_toggled(w, on))
     box.editingFinished.connect(lambda w=which: self._bound_edited(w))
+    box.valueChanged.connect(lambda _v, w=which: self._bound_moved(w))
+
+  def _default_bound(self, which):
+    """The number the scheme computes for one end with no pin on it.
+
+    Args:
+      which: "low" for the first class's upper bound, "high" for the
+        last class's lower bound.
+
+    Returns:
+      The bound as a float, or None when the dialog supplied no
+      defaults -- in which case nothing can be inferred from the spin
+      box and the pin stays a thing you click.
+    """
+    if not self._defaults:
+      return None
+    try:
+      return float(self._defaults[0][1] if which == "low"
+                   else self._defaults[-1][0])
+    except (IndexError, TypeError, ValueError):
+      return None
+
+  def _bound_moved(self, which):
+    """Follow the spin box: off the computed value is pinned, on it is not.
+
+    Args:
+      which: "low" or "high".
+
+    Returns:
+      None. Applies through the same handlers a click goes through,
+      so a pin made this way is the same pin in every respect.
+
+    The maintainer's design, 2026-08-16: the up/down control is live
+    at all times, moving it to anything other than what the
+    classification would compute turns the pin ON, and a change that
+    puts it back turns the pin OFF. It fires on a VALUE CHANGE and
+    never on a repaint -- which is what lets somebody click the pin
+    while the box already shows the computed number without the pin
+    instantly undoing itself.
+
+    The consequence, stated because it is a real one: a bound pinned
+    deliberately AT the computed value releases if it is nudged away
+    and back. Holding it would need the explicit click remembered
+    separately from the value, and two pins that look identical
+    behaving differently is the worse trade.
+    """
+    pin, box = self._pin_widgets.get(which, (None, None))
+    if pin is None:
+      return
+    default = self._default_bound(which)
+    if default is None:
+      return
+    # a tolerance of half the box's own last digit: the number shown
+    # is rounded to those decimals, so an exact comparison would call
+    # the displayed default "different" and pin it
+    try:
+      tolerance = 0.5 * (10.0 ** -box.decimals())
+    except Exception:
+      tolerance = 1e-9
+    wants = abs(float(box.value()) - default) > tolerance
+    if wants != pin.isChecked():
+      pin.blockSignals(True)
+      pin.setChecked(wants)
+      pin.blockSignals(False)
+      pin.update()
+      self._pin_toggled(which, wants)
+    elif wants:
+      self._bound_edited(which)
 
   def _redraw_bounds(self, bounds):
     """Show the ladder the map now draws, after a pin moved it.
@@ -684,7 +872,6 @@ class CategoryColourDialog(QDialog):
       pin.setChecked(not on)
       pin.blockSignals(False)
       return
-    box.setEnabled(on)
     self._pinned[which] = value
     # the ladder the map now draws, so the window and the map agree
     self._redraw_bounds(answer)

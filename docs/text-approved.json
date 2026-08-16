@@ -454,6 +454,11 @@
   "excerpt": "Categorical fields (land cover, dominant crop, period labels",
   "where": "docs/USER-GUIDE.md"
  },
+ "54d5fbde4ec3886b": {
+  "approved": "2026-08-15",
+  "excerpt": "Set this bound; moving it off the computed value pins it",
+  "where": "weavingspace_qgis/category_editor.py"
+ },
  "54dca3e5daced86f": {
   "approved": "2026-08-08",
   "excerpt": "Some class style files could not be used (",
@@ -1293,6 +1298,11 @@
   "approved": "2026-08-08",
   "excerpt": "At {} {} spacing, {} of {} areas received no tiles and appea",
   "where": "weavingspace_qgis/bridge.py"
+ },
+ "e9de580859680a59": {
+  "approved": "2026-08-15",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
  },
  "eb089e22d053f4cc": {
   "approved": "2026-08-08",

@@ -45,14 +45,24 @@ server=False
 ; wants to know what moved reads on. One text serving both is how a
 ; changelog becomes a list nobody finishes.
 ; (Maintainer's instruction, 2026-08-13.)
-changelog=0.24.3 A colour can now mean the same thing everywhere it
-    appears on the map, if that is what you want, and you can set the
-    class bounds yourself where the automatic ones do not suit.
-    Class bounds: pin the first or last class in the colour editor and
-    type its inner bound, and the classes between are recomputed
-    around it. Unpin and that break goes back to being worked out for
-    you. Bounds that cannot be drawn are refused and the reason said,
-    rather than quietly turned into different numbers.
+changelog=0.24.3 Areas with no value are drawn now rather than left
+    as gaps in the map. A colour can also mean the same thing
+    everywhere it appears, and you can set the class bounds yourself
+    where the automatic ones do not suit.
+    Missing values: an area whose value is absent used to come out as
+    a hole in the map. Those areas are drawn now, in a colour you
+    choose: No data sits below the classes in that element's colour
+    editor. QGIS gains a second layer beside the element carrying
+    those areas, labelled no data in its legend, while the dialog
+    still shows one element.
+    Class bounds: the box holding the first or last class's inner
+    bound is live whenever that element can carry a pin. Move it off
+    the value the classification worked out and the bound is yours,
+    with the classes between recomputed around it; move it back and
+    the break returns to being worked out for you. Classes whose
+    breaks are always computed are hatched in the pin column. Bounds
+    that cannot be drawn are refused and the reason said, rather than
+    quietly turned into different numbers.
     Copying: send one element's classes, colours, pins and class count
     to another from the same window. Where the two carry different
     columns the ends are fitted to the receiving data, and any class
@@ -66,10 +76,26 @@ changelog=0.24.3 A colour can now mean the same thing everywhere it
     the pattern.
     Classes: a column with fewer values than the classes you asked
     for now draws the classes it has, and says so, instead of putting
-    swatches in the legend that no tile uses.
+    swatches in the legend that no tile uses. An element set to
+    Unclassed no longer reports such a reduction, its fifty steps
+    never having been a count you chose.
+    Design: the scale factors take negative values, which mirror the
+    design about that axis and scale it by the size of the number.
+    The up and down controls step through zero rather than stopping
+    there.
+    Speed: the optional warning about colours a reader may not be
+    able to separate used to hold QGIS still for half a minute on a
+    map of many classes. It answers in under two seconds.
     Reopening a project: an element whose ramp you reversed comes
     back reversed, naming the ramp you chose rather than reading as
-    custom colours.
+    custom colours. A class you recoloured in QGIS's Layer Styling
+    panel comes back too, where the next Generate used to paint over
+    it.
+    Your files: asking for a result in a new group no longer rewrites
+    the output .gpkg from the beginning, which had been losing the
+    tables your earlier runs wrote into it.
+    Reloading the plugin: reloading it and then restyling one of its
+    layers in QGIS could bring QGIS down. It cannot now.
     Another project: opening one no longer carries the last project's
     per-element colours, class counts and bounds into it. Element
     names repeat between projects, so those settings could land on

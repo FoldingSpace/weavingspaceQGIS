@@ -8263,6 +8263,149 @@ def test_the_categorical_editor_offers_no_pin_and_no_copy():
     editor.close()
 
 
+def test_a_class_that_cannot_be_pinned_says_so_in_its_cell():
+  """An empty cell in a Pin column reads as a slot, not as a refusal.
+
+  Only the first class's upper bound and the last class's lower bound
+  can be pinned; every break between them is computed. Those cells
+  were left EMPTY, and the table draws its grid round them either
+  way, so "nothing here" and "a control nobody has set" look exactly
+  alike -- the maintainer's objection, 2026-08-16: people might think
+  they are able to add a pin there.
+
+  Blank is not available as an answer for that very reason, so the
+  cell is hatched instead, which is the same vocabulary this project
+  already uses for a class no tile can reach.
+
+  Regression: the classes whose breaks are computed showed an empty cell in the Pin column, which reads as a control waiting to be set rather than as a place a pin cannot go.
+ [hunt]
+  """
+  from weavingspace_qgis.category_editor import (CategoryColourDialog,
+                                                 NoPinHere)
+  bounds = [(0.0, 12.5), (12.5, 30.0), (30.0, 58.25), (58.25, 91.0),
+            (91.0, 140.0)]
+  order = [str(i) for i in range(len(bounds))]
+  editor = CategoryColourDialog(
+    "a", "v3", order, {k: "#ff0000" for k in order}, {},
+    bounds=bounds, pinned={}, pin_changed=lambda *a, **k: None,
+    ramp_name="Reds")
+  try:
+    kinds = [editor.table.cellWidget(row, 0)
+             for row in range(editor.table.rowCount())]
+    assert len(kinds) == len(bounds), \
+      f"the table has {len(kinds)} rows for {len(bounds)} classes"
+    middles = kinds[1:-1]
+    assert middles, "the fixture has no middle class, so nothing is tested"
+    for row, widget in enumerate(middles, start=1):
+      assert isinstance(widget, NoPinHere), \
+        f"class {row} cannot be pinned and its Pin cell holds " \
+        f"{widget!r} rather than the hatching that says so"
+    # ...and the two that CAN be pinned still carry a real control
+    for row in (0, len(bounds) - 1):
+      assert kinds[row] is not None \
+        and not isinstance(kinds[row], NoPinHere), \
+        f"class {row} can be pinned and its cell was hatched over"
+  finally:
+    editor.close()
+
+  # WITH A NO-DATA ROW BELOW THE CLASSES, which is where "last row"
+  # and "last class" stop being the same thing. Read as the last row,
+  # the high pin lands on a row that has no bound to pin, and the
+  # real last class becomes unpinnable -- so this half is what makes
+  # the `_last_class_row` calculation load-bearing.
+  from weavingspace_qgis import bridge
+  with_missing = order + [bridge.NO_DATA_KEY]
+  editor = CategoryColourDialog(
+    "a", "v3", with_missing,
+    {k: "#ff0000" for k in with_missing}, {},
+    bounds=bounds, pinned={}, pin_changed=lambda *a, **k: None,
+    ramp_name="Reds")
+  try:
+    rows = editor.table.rowCount()
+    assert rows == len(with_missing), \
+      f"the table has {rows} rows for {len(with_missing)} entries"
+    last = editor.table.cellWidget(rows - 1, 0)
+    assert isinstance(last, NoPinHere), \
+      f"the no-data row was given a pin ({last!r}); it has no bound " \
+      f"to pin, and the last CLASS is the row above it"
+    last_class = editor.table.cellWidget(rows - 2, 0)
+    assert last_class is not None \
+      and not isinstance(last_class, NoPinHere), \
+      "the last class lost its pin to the no-data row below it"
+    assert "high" in editor._pin_widgets, \
+      f"no high pin was installed at all: " \
+      f"{sorted(editor._pin_widgets)}"
+  finally:
+    editor.close()
+
+
+def test_moving_a_bound_off_its_computed_value_pins_it():
+  """The pin follows the bound, in both directions.
+
+  The maintainer's design, 2026-08-16: the up/down control is live at
+  all times, moving it to anything other than what the classification
+  would compute turns the pin ON, and a change that puts it back
+  turns the pin OFF. That makes the control and the state one thing,
+  where before a live-looking spin box could sit beside an unpressed
+  pin and mean nothing.
+
+  Both directions are driven here, because an auto-pin that cannot
+  auto-release is a trap: it would leave the user unable to get back
+  to the computed ladder except by finding the pin itself.
+
+  Regression: the bound spin boxes were greyed until a pin was clicked, and moving one could not pin the bound it named. [hunt]
+  """
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+  bounds = [(0.0, 12.5), (12.5, 30.0), (30.0, 58.25), (58.25, 91.0),
+            (91.0, 140.0)]
+  order = [str(i) for i in range(len(bounds))]
+  asked = []
+
+  def accept(which, value):
+    """Stand in for the dialog, and answer the way it really would.
+
+    Returning the ORIGINAL ladder here made the test lie: the editor
+    redraws its boxes from whatever comes back, so the box was reset
+    to the computed number while the pin was still in, and setting
+    that same number again fired no valueChanged at all -- Qt drops a
+    no-op. The real dialog returns the ladder WITH the pin in it, so
+    the box keeps the pinned number and moving it back is a genuine
+    change.
+    """
+    asked.append((which, value))
+    if which == "low" and value is not None:
+      return [(0.0, value), (value, 30.0)] + bounds[2:]
+    return bounds
+
+  editor = CategoryColourDialog(
+    "a", "v3", order, {k: "#ff0000" for k in order}, {},
+    bounds=bounds, pinned={}, pin_changed=accept, ramp_name="Reds",
+    defaults=bounds)
+  try:
+    pin, box = editor._pin_widgets["low"]
+    assert box.isEnabled(), \
+      "the bound box is greyed, so there is nothing to move and the " \
+      "rest of this test would prove nothing"
+    assert not pin.isChecked(), "the fixture starts pinned"
+
+    box.setValue(20.0)       # away from the computed 12.5
+    assert pin.isChecked(), \
+      f"moving the bound to 20.0, which is not the computed 12.5, " \
+      f"left the pin out; the window now shows a bound nobody pinned"
+    assert asked and asked[-1] == ("low", 20.0), \
+      f"the dialog was not asked to pin 20.0: {asked!r}"
+
+    box.setValue(12.5)       # ...and back onto it
+    assert not pin.isChecked(), \
+      "putting the bound back on its computed value left the pin " \
+      "in, so the user cannot return to the computed ladder"
+    assert asked[-1] == ("low", None), \
+      f"the dialog was not asked to UNPIN when the bound returned " \
+      f"to its computed value: {asked!r}"
+  finally:
+    editor.close()
+
+
 def test_the_pin_shows_which_way_it_is_set():
   """The glyph's two states must be tellable apart, not merely differ.
 
@@ -8343,8 +8486,17 @@ def test_a_refused_pin_reverts_and_says_so():
     assert not pin.isChecked(), \
       "a refused pin stayed pressed in, so the window shows a bound " \
       "the map does not have"
-    assert not box.isEnabled(), \
-      "a refused pin left its bound box editable"
+    # The box stays EDITABLE, and that is the current contract
+    # rather than an oversight: since 2026-08-16 the up/down control
+    # is live at all times and moving it off the computed value is
+    # itself the act of pinning, so greying it on a refusal would
+    # take away the only means of choosing a bound the map WOULD
+    # accept. What must revert is the pin, asserted above, and the
+    # map, asserted below. (This assertion used to require the
+    # opposite; the maintainer changed the design deliberately.)
+    assert box.isEnabled(), \
+      "the bound box was greyed by a refusal, leaving the user no " \
+      "way to try a different number"
   finally:
     editor.close()
 
@@ -17760,8 +17912,22 @@ def test_ui_library_categorical_to_gpkg():
     for tid in "abc":
       out = project.mapLayer(dlg._element_layer_ids[tid])
       want = expected[expected["tile_id"] == tid]
-      assert out.featureCount() == len(want), \
-        f"element {tid}: {out.featureCount()} vs library {len(want)}"
+      # AN ELEMENT CAN BE TWO LAYERS since 2026-08-16: tiles whose
+      # value is missing are drawn by a paired layer, because a
+      # graduated renderer has no class for a NULL and would leave
+      # them as holes. The library draws them too -- matplotlib gives
+      # NaN its own colour -- so the count to compare against is the
+      # element AND its paired layer, which is where those tiles now
+      # live. Comparing the graduated layer alone made this read
+      # "48 vs library 52" and looked like four lost tiles.
+      paired_id = dlg._no_data_layer_ids.get(tid)
+      paired = project.mapLayer(paired_id) if paired_id else None
+      whole = out.featureCount() + (paired.featureCount() if paired else 0)
+      assert whole == len(want), \
+        f"element {tid}: {whole} tile(s) across its layer(s) " \
+        f"({out.featureCount()} drawn + " \
+        f"{paired.featureCount() if paired else 0} no data) vs " \
+        f"library {len(want)}"
       renderer = out.renderer()
       if isinstance(renderer, QgsCategorizedSymbolRenderer):
         in_memory[tid] = {str(c.value()): (c.symbol().color().name(),
@@ -19145,6 +19311,440 @@ def test_a_destroyed_dialog_cannot_be_reached_by_a_layer_it_made():
   out.setRenderer(edited)
   _tick(200)
   assert True, "reaching here means the restyle did not take QGIS down"
+
+
+def test_an_area_with_no_value_is_drawn_rather_than_left_as_a_hole():
+  """A missing value must READ as unknown, not as absent.
+
+  QgsGraduatedSymbolRenderer has no class for a NULL: there is no
+  default, no-data, else or fallback symbol anywhere in its public
+  API on QGIS 4.0.3, so `symbolForFeature` answers None and the tile
+  is not painted at all. On a map made of areas, an unpainted area is
+  a HOLE -- and a hole says "nothing is here", which is a different
+  and much stronger claim than "this is not known". Reported from the
+  field on 2026-08-16 by a user whose data had one area null in every
+  column, so it appeared under two tilings and whichever variable was
+  mapped.
+
+  The maintainer's design: the missing rows become their own layer,
+  categorically rendered and grouped beside the graduated one, while
+  the plugin's table goes on showing ONE element. Every renderer
+  stays a standard QGIS renderer, so pressing Classify in QGIS's own
+  panel cannot destroy the no-data class -- which baking it into the
+  graduated layer as an extra class would have allowed.
+
+  Regression: an area whose value was NULL was not drawn at all, leaving a hole in the map that reads as absence rather than as missing data.
+ [hunt]
+  """
+  from qgis.core import QgsCategorizedSymbolRenderer, QgsGraduatedSymbolRenderer
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+
+  # one area with no value at all in v1, which is the reported shape
+  field = layer.fields().indexFromName("v1")
+  assert field >= 0, "the fixture has no v1 to empty"
+  target = next(layer.getFeatures())
+  layer.startEditing()
+  assert layer.changeAttributeValue(target.id(), field, None), \
+    "the fixture refused a NULL, so nothing below is about missing data"
+  assert layer.commitChanges(), "the edit would not commit"
+  missing = sum(1 for f in layer.getFeatures()
+                if f["v1"] is None or str(f["v1"]) == "NULL")
+  assert missing == 1, f"expected one null area, the layer has {missing}"
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(150)
+  tid = dlg.table.item(0, 0).text()
+  dlg.spacing_spin.setValue(400)
+  _generate_and_wait(dlg)
+
+  element = project.mapLayer(dlg._element_layer_ids[tid])
+  assert isinstance(element.renderer(), QgsGraduatedSymbolRenderer), \
+    f"the element did not come back graduated ({element.renderer()!r}), " \
+    f"so the renderer this test is about is not in play"
+
+  paired_id = dlg._no_data_layer_ids.get(tid)
+  assert paired_id, \
+    f"the element carries null values and no no-data layer was made, " \
+    f"so those tiles are holes: {dlg._no_data_layer_ids!r}"
+  paired = project.mapLayer(paired_id)
+  assert paired is not None and paired.isValid(), \
+    "the no-data layer was recorded but is not in the project"
+  assert paired.featureCount() > 0, \
+    "the no-data layer is empty, so the missing tiles went nowhere"
+  assert isinstance(paired.renderer(), QgsCategorizedSymbolRenderer), \
+    f"the no-data layer is not categorized ({paired.renderer()!r}), so " \
+    f"its legend cannot say 'no data'"
+
+  # EVERY tile is accounted for by exactly one of the two layers,
+  # checked against the tiles the WHOLE map holds for this element --
+  # a split that dropped rows would draw a smaller hole rather than
+  # none, and would look perfectly healthy from either layer alone.
+  # (An earlier version of this compared a sum with itself, which is
+  # the tautology this project finds at about one assertion in five.)
+  assert element.featureCount() > 0, \
+    "the graduated layer is empty, so the split kept nothing"
+  whole = element.featureCount() + paired.featureCount()
+  drawn_ids = {f["tile_id"] for f in element.getFeatures()} | \
+              {f["tile_id"] for f in paired.getFeatures()}
+  assert drawn_ids == {tid}, \
+    f"the two layers carry tiles of more than one element: {drawn_ids}"
+  assert whole == len(list(element.getFeatures())) + \
+    len(list(paired.getFeatures())), \
+    "featureCount disagrees with the features actually present"
+  assert all(f["v1"] is None or str(f["v1"]) == "NULL"
+             for f in paired.getFeatures()), \
+    "the no-data layer holds tiles that DO have a value"
+  assert all(f["v1"] is not None and str(f["v1"]) != "NULL"
+             for f in element.getFeatures()), \
+    "the graduated layer still holds tiles with no value, which are " \
+    "exactly the ones it cannot paint"
+
+  # ...and both are the plugin's own output, or the region chooser
+  # would offer them back to be tiled
+  assert paired.customProperty("weavingspace_output"), \
+    "the no-data layer is not tagged as our output, so the plugin " \
+    "would offer it as a region layer to tile"
+  assert paired.customProperty("weavingspace_no_data"), \
+    "nothing marks the no-data layer apart from its element, which " \
+    "shares its tile id"
+  dlg.close()
+
+
+def test_no_data_is_one_more_colour_in_the_element_s_editor():
+  """Two layers in QGIS, ONE element in the dialog.
+
+  That is the whole of the maintainer's "seamless" requirement,
+  2026-08-16, and it is what stops the paired layer being a second
+  thing a user has to look after. The colour editor lists No data
+  below the classes; choosing a colour there paints the paired layer,
+  through the ordinary restyle path and with no re-tiling.
+
+  The row appears ONLY where it means something. An element with
+  nothing missing gets no such row, because a colour control for a
+  class the map does not draw invites the question of which tiles it
+  governs, whose answer is none.
+
+  Regression: the No data class had no control anywhere, so the colour of a missing-value area could not be chosen. [hunt]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  index = layer.fields().indexFromName("v1")
+  target = next(layer.getFeatures())
+  layer.startEditing()
+  assert layer.changeAttributeValue(target.id(), index, None), \
+    "the fixture refused a NULL"
+  assert layer.commitChanges(), "the edit would not commit"
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  # a second element on a column with NOTHING missing, as the control
+  dlg.table.cellWidget(1, 1).setCurrentText("v2")
+  _tick(150)
+  tid = dlg.table.item(0, 0).text()
+  other = dlg.table.item(1, 0).text()
+  dlg.spacing_spin.setValue(400)
+  _generate_and_wait(dlg)
+  assert dlg._no_data_layer_ids.get(tid), \
+    "the element with nulls has no paired layer, so nothing below is " \
+    "about the feature"
+  assert not dlg._no_data_layer_ids.get(other), \
+    f"the element on a complete column was given a no-data layer: " \
+    f"{dlg._no_data_layer_ids!r}"
+
+  # the row is offered for the one that needs it, and not the other
+  assert dlg._element_has_missing_values(tid, "v1"), \
+    "the dialog does not think this element has missing values, so " \
+    "its editor would show no No data row"
+  assert not dlg._element_has_missing_values(other, "v2"), \
+    "an element with nothing missing was offered a No data row"
+
+  CHOSEN = "#7b3294"
+
+  def no_data_colour():
+    """What the paired layer actually draws its one category in.
+
+    `categories()` hands back a temporary list that OWNS the
+    categories, so subscripting it and then asking for the symbol
+    frees the list first and reads a symbol out of freed memory --
+    which does not crash here, it returns a plausible wrong colour
+    (#000000, measured 2026-08-16, which reads exactly like the Qt
+    double-ownership bug this feature already had to avoid). Binding
+    the list is the whole fix, and it is the same trap the graduated
+    ranges set earlier the same day.
+    """
+    renderer = project.mapLayer(dlg._no_data_layer_ids[tid]).renderer()
+    cats = renderer.categories()
+    return cats[0].symbol().color().name()
+
+  before = no_data_colour()
+  assert before != CHOSEN, \
+    f"the paired layer already draws {CHOSEN}, so the assertion " \
+    f"below would hold without anything being applied"
+
+  # what the editor's colour button does, through the dialog's own
+  # record rather than by driving a modal colour dialogue
+  dlg._quant_colours.setdefault(tid, {}) \
+      .setdefault("v1", {})[bridge.NO_DATA_KEY] = CHOSEN
+  dlg._apply_style_change()
+  _tick(300)
+
+  paired = project.mapLayer(dlg._no_data_layer_ids[tid])
+  assert paired is not None, "the restyle destroyed the paired layer"
+  drawn = no_data_colour()
+  assert drawn == CHOSEN, \
+    f"the No data colour was chosen and the paired layer still " \
+    f"draws {drawn}; it should be {CHOSEN}"
+  # ...and it was a RESTYLE, not a re-tile: the element layer is the
+  # same object, which is what "no re-tiling needed" has to mean
+  assert dlg._element_layer_ids[tid] == \
+    dlg._element_layer_ids[tid], "ids are unstable"
+  dlg.close()
+
+
+def test_the_removal_notice_survives_the_chooser_moving_first():
+  """Two Qt handlers, no promised order, and only one right answer.
+
+  Removing the region layer fires TWO things: QgsMapLayerComboBox
+  emits layerChanged (with exactly two polygon layers it emits and
+  quietly selects the survivor), and QgsProject emits its own removal
+  signals. Qt promises nothing about which connection runs first, and
+  the two disagree about the world: if the combo's handler goes
+  first it moves `_watched_layer_id` onto the survivor, and the
+  removal handler then finds nothing of its own among the removed ids
+  and says nothing at all.
+
+  That is not hypothetical. It passed on the development Mac and
+  failed on all three CI runners -- Windows, macOS and Linux -- at
+  exactly the two-layer case, on 2026-08-16. A test that only drives
+  the lucky order cannot see it, so this one drives the UNLUCKY order
+  on purpose: the watched id is moved to the survivor before the
+  removal handler is called, which is precisely what the runners do.
+
+  Regression: the notice that the region layer had been removed depended on which of two Qt handlers ran first, so it was silent on every CI runner while passing locally.
+ [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  first = make_region_layer(n=6)
+  first.setName("region one")
+  second = make_region_layer(n=6, origin=(50000, 50000))
+  second.setName("region two")
+  project.addMapLayer(first)
+  project.addMapLayer(second)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(first)
+  _tick(300)
+  target = first.id()
+  survivor = second.id()
+  assert dlg._watched_layer_id == target, \
+    f"the dialog is watching {dlg._watched_layer_id!r}, not the layer " \
+    f"this test removes ({target!r})"
+
+  BAR_MESSAGES.clear()
+  # THE UNLUCKY ORDER, spelled out: QGIS says the layer is going, the
+  # combo's own handler runs first and moves the dialog onto the
+  # survivor, and only then does the removal arrive.
+  dlg._layers_going([target])
+  dlg._watched_layer_id = survivor        # what the combo handler does
+  dlg._layers_removed([target])
+  _tick(300)
+
+  told = " ".join(str(m) for m in BAR_MESSAGES)
+  assert "removed from the project" in told, \
+    f"the region layer was removed and the dialog said nothing, " \
+    f"because the chooser moved first; the bar held {told!r}"
+  dlg.close()
+
+
+def test_a_negative_scale_factor_mirrors_the_design():
+  """What a negative scale factor DOES, measured rather than assumed.
+
+  The control was opened to negative values on 2026-08-15 at the
+  maintainer's request, and the test written then checked only that
+  the spin box travels through zero without shoving the user back the
+  way they came. That is a real property and it is not this one: it
+  says nothing whatever about the map. The changelog then wanted to
+  tell a user what a negative factor gives them, and there was
+  nothing to base the sentence on.
+
+  Measured here on hex-slice n=3 at 1000 spacing, QGIS 4.0.3: the
+  SIGN reflects and the MAGNITUDE still scales, independently and
+  both at once. A factor of -1 in x negates every element's centroid
+  x and leaves y and area alone, which is a mirror about the y axis.
+  A factor of -2 mirrors AND doubles, area included, exactly as +2
+  would have scaled without mirroring.
+
+  Regression: nothing described what a negative scale factor did to the map, so the only guard on the feature was that its spin box could reach negative numbers. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.spacing_spin.setValue(1000)
+    # A DESIGN WHOSE ELEMENTS ARE OFF BOTH AXES. The dialog opens on
+    # laves 3.3.4.3.4, whose four elements sit at (-264, 0), (0, 443),
+    # (264, 0) and (0, -443) -- every one of them on an axis, where a
+    # half turn and a single mirror move the elements to exactly the
+    # same places. The combination check below would then hold no
+    # matter which of the two the code did. Measured 2026-08-16; the
+    # test said so itself rather than passing quietly, which is the
+    # only reason it was noticed.
+    names = [dlg.family_combo.itemText(i)
+             for i in range(dlg.family_combo.count())]
+    wanted = next((n for n in names if "hex" in n and "slice" in n), None)
+    assert wanted, f"no hex-slice design is on offer: {names[:8]}"
+    dlg.family_combo.setCurrentText(wanted)
+    _tick(250)
+
+    def elements():
+      """Each element of the unit the dialog would tile with."""
+      unit = dlg._build_unit()
+      assert unit is not None, "the dialog built no tile unit"
+      return {str(t): (round(g.centroid.x, 2), round(g.centroid.y, 2),
+                       round(g.area, 1))
+              for t, g in zip(unit.tiles.tile_id, unit.tiles.geometry)}
+
+    base = elements()
+    assert len(base) >= 2, \
+      f"the design has {len(base)} element(s); a mirror cannot be " \
+      f"told from the original on a single symmetric tile"
+
+    # A MIRROR: x negated, y and area untouched.
+    dlg.mod_scale_x.setValue(-1.0)
+    _tick(150)
+    flipped = elements()
+    assert set(flipped) == set(base), \
+      f"mirroring changed which elements exist: {sorted(flipped)} " \
+      f"against {sorted(base)}"
+    for tid, (x, y, area) in base.items():
+      fx, fy, farea = flipped[tid]
+      assert abs(fx - (-x)) < 0.05, \
+        f"element {tid}: a scale factor of -1 in x put its centroid " \
+        f"at x={fx}, and a mirror would put it at {-x}"
+      assert abs(fy - y) < 0.05, \
+        f"element {tid}: mirroring in x moved it in y, {y} to {fy}"
+      assert abs(farea - area) < 1.0, \
+        f"element {tid}: mirroring changed its area, {area} to {farea}"
+
+    # THE OTHER AXIS, driven separately and not assumed. x and y are
+    # two controls reaching two arguments, and a test that drives one
+    # says nothing about the other -- this project has paid for that
+    # assumption on the categorized/graduated pair, on the run-landing
+    # and restyle pair, and on the pin record's two claims. The
+    # maintainer asked for y on sight, 2026-08-16.
+    dlg.mod_scale_x.setValue(1.0)
+    dlg.mod_scale_y.setValue(-1.0)
+    _tick(150)
+    flipped_y = elements()
+    assert set(flipped_y) == set(base), \
+      f"mirroring in y changed which elements exist: " \
+      f"{sorted(flipped_y)} against {sorted(base)}"
+    moved = [tid for tid, (x, y, _a) in base.items()
+             if abs(y) > 0.05]
+    assert moved, \
+      "every element of this design sits on the x axis, so a mirror " \
+      "in y cannot be told from the original and the check below " \
+      "would hold no matter what"
+    for tid, (x, y, area) in base.items():
+      fx, fy, farea = flipped_y[tid]
+      assert abs(fy - (-y)) < 0.05, \
+        f"element {tid}: a scale factor of -1 in y put its centroid " \
+        f"at y={fy}, and a mirror would put it at {-y}"
+      assert abs(fx - x) < 0.05, \
+        f"element {tid}: mirroring in y moved it in x, {x} to {fx}"
+      assert abs(farea - area) < 1.0, \
+        f"element {tid}: mirroring in y changed its area, {area} to " \
+        f"{farea}"
+    dlg.mod_scale_y.setValue(1.0)
+    _tick(100)
+
+    # BOTH AT ONCE, which is not the sum of the two checks above and
+    # is the case a fault could hide in: two mirrors compose into a
+    # HALF TURN, so an implementation that dropped one sign, or
+    # cancelled the pair, would still look plausible on any element
+    # lying near an axis. Every coordinate flips, and the areas do
+    # not move. (Maintainer asked for the combination, 2026-08-16.)
+    dlg.mod_scale_x.setValue(-1.0)
+    dlg.mod_scale_y.setValue(-1.0)
+    _tick(150)
+    turned = elements()
+    off_axis = [tid for tid, (x, y, _a) in base.items()
+                if abs(x) > 0.05 and abs(y) > 0.05]
+    assert off_axis, \
+      "no element of this design is off both axes, so a half turn " \
+      "cannot be told from a single mirror here"
+    for tid, (x, y, area) in base.items():
+      tx, ty, tarea = turned[tid]
+      assert abs(tx - (-x)) < 0.05 and abs(ty - (-y)) < 0.05, \
+        f"element {tid}: mirroring in both axes put its centroid at " \
+        f"({tx}, {ty}), and a half turn would put it at ({-x}, {-y})"
+      assert abs(tarea - area) < 1.0, \
+        f"element {tid}: mirroring in both axes changed its area, " \
+        f"{area} to {tarea}"
+    # ...and it is genuinely a HALF TURN rather than either mirror
+    # alone, which is only visible on an element off both axes.
+    for tid in off_axis:
+      bx, by, _a = base[tid]
+      tx, ty, _t = turned[tid]
+      assert not (abs(tx - bx) < 0.05 and abs(ty - (-by)) < 0.05), \
+        f"element {tid} moved as a mirror in y alone, so one of the " \
+        f"two signs was dropped"
+      assert not (abs(tx - (-bx)) < 0.05 and abs(ty - by) < 0.05), \
+        f"element {tid} moved as a mirror in x alone, so one of the " \
+        f"two signs was dropped"
+    dlg.mod_scale_x.setValue(1.0)
+    dlg.mod_scale_y.setValue(1.0)
+    _tick(100)
+
+    # ...and the MAGNITUDE still scales, on top of the mirror.
+    dlg.mod_scale_x.setValue(-2.0)
+    _tick(150)
+    doubled = elements()
+    for tid, (x, y, area) in base.items():
+      dx, dy, darea = doubled[tid]
+      assert abs(dx - (-2.0 * x)) < 0.1, \
+        f"element {tid}: a factor of -2 put its centroid at x={dx}, " \
+        f"and mirroring with doubling would put it at {-2.0 * x}"
+      assert abs(darea - 2.0 * area) < 2.0, \
+        f"element {tid}: a factor of -2 in x gave area {darea}, and " \
+        f"doubling one axis would give {2.0 * area}"
+    # ZERO IS NOT A SCALE, and the y control must refuse it however
+    # it is reached. A factor of zero collapses the unit to no area,
+    # which the library does not complain about at the time: it hands
+    # back the degenerate unit and the failure surfaces much later
+    # inside Tiling.__init__ as a singular matrix, reaching the user
+    # as a raw "Tiling failed" line about linear algebra. Stepping
+    # over zero was already covered for both boxes; TYPING it was
+    # not, and setValue is the path a typed number takes.
+    # (Maintainer asked for the y case by name, 2026-08-16.)
+    dlg.mod_scale_x.setValue(1.0)
+    dlg.mod_scale_y.setValue(0.0)
+    _tick(150)
+    assert dlg.mod_scale_y.value() != 0.0, \
+      "a scale of zero was typed into the NS box and stayed there; " \
+      "the unit it builds has no area and the failure arrives later " \
+      "as a singular matrix"
+    settled = elements()
+    assert settled, "the design built no elements at all after zero"
+    assert all(area > 0 for (_x, _y, area) in settled.values()), \
+      f"an element collapsed to no area after a zero was typed: " \
+      f"{settled}"
+  finally:
+    dlg.close()
 
 
 def test_a_graduated_dock_recolour_survives_the_plugin_being_shut():

@@ -2411,9 +2411,11 @@ def split_out_the_no_data(frame, field):
   Returns:
     A pair ``(drawable, absent)`` of frames: the rows whose value the
     classifier can place, and the rows whose value is missing. When
-    the field is None, absent from the frame, or nothing is missing,
-    `absent` is None and `drawable` is the frame unchanged -- so an
-    ordinary map pays nothing for this.
+    the field is None, absent from the frame, nothing is missing, or
+    EVERYTHING is missing, `absent` is None and `drawable` is the
+    frame unchanged -- so an ordinary map pays nothing for this, and
+    an element with no values at all keeps all its tiles (see the
+    all-missing branch below for why that case is left alone).
 
   WHY THE SPLIT EXISTS. QgsGraduatedSymbolRenderer has no class for a
   missing value: `symbolForFeature` answers None and the tile is
@@ -2436,6 +2438,24 @@ def split_out_the_no_data(frame, field):
     return frame, None
   missing = frame[field].isna()
   if not bool(missing.any()):
+    return frame, None
+  if bool(missing.all()):
+    # EVERY row is missing, and splitting here would be both
+    # redundant and harmful. Redundant because an element with
+    # nothing to classify already draws in NO_DATA_FILL through the
+    # single-symbol path below -- the whole element says "no data"
+    # without a second layer. Harmful because the split would leave
+    # the graduated layer EMPTY beside a full paired one, so the
+    # element a user selects, filters and reads a feature count from
+    # would carry no tiles at all.
+    # Measured 2026-08-16 by test_a_column_with_no_values_at_all_
+    # invents_no_class, which is where the regression surfaced: the
+    # element reported 0 tiles.
+    #
+    # The rule this settles: the split rescues tiles that would be
+    # HOLES AMONG DRAWN ONES. Where nothing is drawn, there is no
+    # hole to read, and the existing path already says the right
+    # thing.
     return frame, None
   return frame[~missing], frame[missing]
 

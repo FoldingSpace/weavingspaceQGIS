@@ -1378,6 +1378,18 @@ Confirmed with the user via an explicit design review:
   broadcast to every element and one set of bins cannot be right for
   all of them. Guarded by
   `test_one_variable_gets_one_legend_wherever_it_appears`.
+  **PINNING IS AN EXCEPTION TO THIS RULE, and the maintainer decided
+  so deliberately.** A pinned bound moves the breaks on the element
+  that carries it, so a colour on that element can stop meaning the
+  numbers it means elsewhere -- which is precisely what the rule
+  above forbids when nobody chose it. The difference is that
+  somebody did choose it. A pin is a person saying "this break is
+  mine", exactly as a hand-picked colour is, and the rule has always
+  been about a colour shifting with NO ONE deciding. So a pin is not
+  a hole in one-colour-one-meaning; it is the same carve-out as a
+  hand-pick, arriving through a different control. Read the rule as:
+  the plugin never moves a meaning on its own, and a person may.
+  (Maintainer's ruling, 2026-08-15.)
 - **CLASS BOUNDS A PERSON SET, and the record that holds them.**
   Added 0.24.3, settled by `/grill-me`. A user may PIN the first
   and/or last class and type its inner bound: the samples inside a
