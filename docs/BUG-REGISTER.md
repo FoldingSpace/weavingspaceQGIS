@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-204 defect(s) with a regression test.
+205 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -223,6 +223,8 @@ there is no separate list to remember.
   guarded by `test_deferral_survives_a_project_round_trip`
 - **the two infinity placeholder fills were compared against themselves, so any two elements carrying an infinity were reported as an unreadable pair.**  
   guarded by `test_no_placeholder_fill_is_ever_a_clash`
+- **every shard of a sharded stage was started on a pipe and the pipes were drained one at a time, so any shard producing more than 64 KB blocked until the parent reached it -- fifty minutes in one measured case -- serialising the shards and throwing away most of the benefit of sharding.**  
+  guarded by `test_no_shard_waits_on_a_pipe_nobody_is_reading`
 - **CRS work on the QgsTask worker thread segfaulted QGIS, because PROJ is not safe to use concurrently with the main thread; the CRS is now stripped before the task and reattached in the done callback.**  
   guarded by `test_real_world_data`
 - **an element styled in QGIS could not be taken back by picking the style it had before, because that restored its old signature and both seeding paths kept the renderer as unchanged.**  
@@ -459,8 +461,8 @@ there is no separate list to remember.
 - not written down at the time: 81
 - a bug hunt pointed in a named direction: 50
 - the mutation campaign: 16
+- reading the code: 12
 - reported by a user: 12
-- reading the code: 11
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6
 - a multi-step session test: 5

@@ -188,6 +188,19 @@ def _spell(seconds):
 # already passed rather than only what broke.
 RELEASE_STARTED = time.time()
 
+# What makes THIS run's per-shard logs its own. A run's logs are keyed
+# to the RUN, never to the shard number alone: on 2026-08-14 a sharded
+# suite was started, appeared to die, and was relaunched over the same
+# shardN.log paths -- but one shard of the first run had outlived the
+# kill, so two runs of the same shard, on two different commits,
+# appended to one file and the counts stopped making sense before
+# anybody wondered why. A wall-clock stamp to the second plus the pid
+# cannot collide: two processes cannot share a pid in the same second.
+# (This is one of the few legitimate readings of time.time() here --
+# it names a file for a human, it is never subtracted from anything.)
+RUN_KEY = (time.strftime("%Y%m%d-%H%M%S", time.localtime(RELEASE_STARTED))
+           + f"-{os.getpid()}")
+
 # How long a stage may accumulate NO cpu time before it is considered
 # stuck rather than slow. Ten minutes for ordinary stages: everything
 # here is compute, so ten minutes of a completely idle process tree
@@ -722,6 +735,48 @@ def stage_log_path(step):
     log_dir, "".join(c if c.isalnum() else "-" for c in step) + ".log")
 
 
+def shard_log_path(step, index):
+  """Where ONE shard of a sharded stage writes, while it is writing.
+
+  Args:
+    step: the human stage name, e.g. "functional suite".
+    index: which shard, counted from zero.
+
+  Returns:
+    An absolute path under reports/stage-logs/. Nothing is created
+    here; run_sharded opens it, and removes it once its text has been
+    folded into the stage log. The name carries the stage, THIS RUN's
+    key and the shard number, in that order, so the files of one run
+    sort together and a reader can see at a glance which run they
+    belong to.
+
+  Two properties, and each was paid for once.
+
+  A shard writes to a FILE rather than into a pipe nobody is reading.
+  Every shard used to be started with subprocess.PIPE and then drained
+  one at a time, so a shard nobody had reached yet filled the 64 KB
+  pipe buffer and its next write() simply blocked -- measured on
+  2026-08-16, shard 2 sitting at exactly 20:00.99 cpu seconds for over
+  fifty minutes with 2,374 of 2,374 stack samples inside a write under
+  GDAL's error handler, while shards 0 and 1 ran on. It was not a
+  permanent deadlock, since the blocked shard resumes the moment the
+  loop reaches it, which is what made it survivable and invisible: it
+  simply serialised the shards and threw away most of what sharding
+  is for, exactly when output is heavy and sharding matters most.
+
+  And the name carries the RUN, never the shard number alone. A
+  relaunch over `shard2.log` is how two runs of one shard, on two
+  different commits, came to append to a single file on 2026-08-14 --
+  after which the counts stopped making sense before anybody wondered
+  why. RUN_KEY is what stops a second launch landing in the first
+  one's file.
+  """
+  log_dir = os.path.join(ROOT, "reports", "stage-logs")
+  os.makedirs(log_dir, exist_ok=True)
+  slug = "".join(c if c.isalnum() else "-" for c in step)
+  return os.path.join(log_dir, f"{slug}-{RUN_KEY}-shard{index}.log")
+
+
 def stamp_stage_log(step, began):
   """Replace a stage's log with a note saying this stage is running.
 
@@ -798,6 +853,15 @@ def run(step, cmd, env, capture=False):
     # merely OLD is a log that lies, because nothing about it says so.
     stamp_stage_log(step, began)
   stalled = []
+  # A pipe is safe HERE, and it is worth saying why, because the same
+  # two lines in run_sharded had to be replaced by files on
+  # 2026-08-16. A pipe holds 64 KB and then blocks the writer until
+  # somebody reads. There is exactly ONE child here and communicate()
+  # below reads it continuously from the moment it starts, so the
+  # buffer is always being emptied. run_sharded started THREE children
+  # on three pipes and then read them one at a time, which left two
+  # children writing into a buffer nobody was emptying: see the note
+  # on shard_log_path. One child with one reader is not that shape.
   process = subprocess.Popen(
     cmd, env=env, cwd=ROOT, text=True,
     stdout=subprocess.PIPE if capture else None,
@@ -915,12 +979,17 @@ def run_sharded(step, argv, env, capture=False):
       the suite reads at import.
     env: the base environment; each shard receives a copy.
     capture: collect and return the combined output, as run() does.
+      Each shard is then given its OWN FILE to write into and the
+      files are read back once every shard has exited; no shard ever
+      writes into a pipe, so no shard can be blocked by the parent
+      being busy with another one.
 
   Returns:
-    The concatenated output when capture is set, otherwise "". Exits
-    the release if any shard fails, naming which -- a slice that fails
-    is the suite failing, and three green shards beside one red one is
-    not a passing suite.
+    The concatenated output when capture is set, otherwise "". The
+    text is labelled shard by shard and is also written whole to this
+    stage's log, exactly as before. Exits the release if any shard
+    fails, naming which -- a slice that fails is the suite failing,
+    and three green shards beside one red one is not a passing suite.
 
   Why this is safe here and would not be everywhere: the tests are
   order-independent by construction, since every one runs with an
@@ -932,6 +1001,29 @@ def run_sharded(step, argv, env, capture=False):
   1.5. Without that headroom sharding would turn slow tests into
   false stalls, which is the fault this project committed twice on
   2026-08-11 and does not intend to commit a third time.
+
+  WHY FILES AND NOT PIPES, since a pipe is the obvious thing to reach
+  for and was what this did until 2026-08-16. Every shard was started
+  with subprocess.PIPE and then drained ONE AT A TIME, in the order
+  they were started. A pipe holds 64 KB; past that, a write() by a
+  shard nobody is reading yet BLOCKS until somebody reads. So shard 2
+  stopped dead partway through its slice and stayed there until the
+  loop had finished draining shards 0 and 1 -- measured that day at
+  exactly 20:00.99 cpu seconds for over fifty minutes, with 2,374 of
+  2,374 stack samples inside a write beneath GDAL's error handler.
+  Nothing hung permanently, which is why it survived: the blocked
+  shard resumes the moment the loop reaches it, and the run finishes
+  with the right answer, having serialised the very work that was
+  sharded to run in parallel. It cost most of the benefit of sharding
+  precisely when output is heavy, which is when it is needed.
+  A file has no such ceiling, and it buys the other half of the fix
+  for nothing: the text is ON DISK AS IT IS PRODUCED, so a run that
+  is interrupted leaves a readable record per shard, where captured
+  text used to reach disk only when the stage ended. Once the stage
+  finishes, those files are folded into the one stage log the rest of
+  the release already knows about and are removed, so nothing here
+  changes what --resume, the testing report or the abort message
+  read.
   """
   skipped, remembered = skip_if_already_done(step, capture)
   if skipped:
@@ -941,21 +1033,63 @@ def run_sharded(step, argv, env, capture=False):
     STAGE_ORDER.append(step)
   STAGE_STATE[step] = ["running", time.monotonic()]
   began = time.monotonic()
-  processes = []
+  logs = [shard_log_path(step, index) for index in range(SHARDS)]
+  if capture:
+    # Say so in the combined log before any work starts, for the same
+    # reason run() stamps: the file otherwise holds the PREVIOUS run's
+    # verdict for as long as this stage takes, with nothing in it to
+    # say it is old. The note names the per-shard files, which are
+    # where a reader watching this run should actually look.
+    stamp_stage_log(step, time.time())
+    with open(stage_log_path(step), "a", encoding="utf-8") as note:
+      note.write("\nThis stage is sharded; each shard is writing to "
+                 "its own file as it goes:\n"
+                 + "".join(f"  {p}\n" for p in logs))
+  processes, handles = [], []
   for index in range(SHARDS):
     shard_env = dict(env)
     shard_env["WEAVINGSPACE_TEST_SHARD"] = f"{index}/{SHARDS}"
+    # The handle is the PARENT's, and it is kept open until the shard
+    # has exited: the child inherits the file descriptor, so closing
+    # here would leave it writing to a descriptor we had closed.
+    sink = open(logs[index], "w", encoding="utf-8") if capture else None
+    handles.append(sink)
     processes.append(subprocess.Popen(
-      argv, env=shard_env, cwd=ROOT, text=True,
-      stdout=subprocess.PIPE if capture else None,
+      argv, env=shard_env, cwd=ROOT,
+      stdout=sink if capture else None,
       stderr=subprocess.STDOUT if capture else None))
   output, failed = "", []
+  # Every shard is waited for, and NOTHING is read until they have all
+  # finished. There is nothing to drain -- each shard has been writing
+  # straight to its own file the whole time -- so the order of this
+  # loop cannot hold any shard up, which is the property the pipe
+  # version silently lacked.
   for index, process in enumerate(processes):
-    text = process.communicate()[0] if capture else None
-    if capture:
-      output += f"\n--- shard {index} of {SHARDS} ---\n" + (text or "")
     if process.wait() != 0:
       failed.append(index)
+    if handles[index] is not None:
+      handles[index].close()
+  if capture:
+    for index, path in enumerate(logs):
+      # errors="replace" rather than strict: a shard that dies inside
+      # C can leave a half-written multi-byte sequence at the end of
+      # its file, and losing the whole stage's output to a decoding
+      # error at exactly the moment something has crashed is the worst
+      # possible time for it.
+      with open(path, encoding="utf-8", errors="replace") as saved:
+        text = saved.read()
+      output += f"\n--- shard {index} of {SHARDS} ---\n" + text
+      # Now that the text is in hand it is about to be written whole
+      # to this stage's log, so the per-shard file has done its job --
+      # it existed to give a reader something DURING the run. Removing
+      # it keeps reports/stage-logs/ from growing by a file per shard
+      # per release, and it is safe because RUN_KEY means these are
+      # only ever THIS run's files: a concurrent release, which is
+      # exactly what the key exists to keep separate, has its own.
+      try:
+        os.remove(path)
+      except OSError:
+        pass       # tidying has no business failing a release
   spent = time.monotonic() - began
   STAGE_STATE[step] = ("failed" if failed else "done", spent)
   if not failed:
