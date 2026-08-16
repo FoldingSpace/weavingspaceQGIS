@@ -1004,6 +1004,25 @@ three withdrawn attempts at one fix in a single afternoon.)
   The withdrawal, with the symptom left VISIBLE instead (empty classes
   hatched), was the right answer and should have come sooner.
 
+**Carrying a record across a run.** (2026-08-16, the paired layer's
+renderer, found by a hunt hours after the carry-over was written.)
+- **ASK WHETHER THE RECORD DESCRIBES THE DATA OR ONE RUN'S OUTPUT.** An
+  element's class breaks come from the whole region and survive a
+  re-tile, so keeping them is safe. Its paired layer's CATEGORIES
+  enumerate the kinds of absence one tiling happened to produce -- a
+  different spacing hands the same element a kind it did not have, and
+  a carried categorized renderer has no entry for it AND NO CATCH-ALL,
+  so those tiles paint nothing. Gating the twin on the element's own
+  question put holes in the map.
+- **A CARRIED RENDERER IS KEPT ONLY WHILE IT CAN DRAW WHAT IS THERE**,
+  and rebuilt otherwise. Losing a custom fill is visible and undoable;
+  an unpainted area is neither, so that is the right way to fail.
+- **A RENDERER WITH NO CATEGORIES COVERS EVERYTHING.** A single symbol
+  paints every feature whatever its value, which is what somebody
+  usually sets in Layer Properties -- treating "no categories" as
+  "covers nothing" threw away the very styling the carry-over exists
+  to preserve.
+
 **Process.**
 - **TARGETED RUNS CANNOT FIND WHAT THEY DO NOT NAME**, and three
   candidate builds aborted proving it (2026-08-16). Each abort was the

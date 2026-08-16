@@ -684,6 +684,11 @@
   "excerpt": "Element '{}' now uses the classes from element '{}'",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "74d974a8d81c2dc4": {
+  "approved": "2026-08-16",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
  "7526e469aabaa352": {
   "approved": "2026-08-12",
   "excerpt": "{} could not be provisioned: {}",

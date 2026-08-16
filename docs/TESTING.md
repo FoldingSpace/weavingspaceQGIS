@@ -14,6 +14,31 @@ The suite lives in `tests/run_tests.py` (behaviour), `tests/visual_tests.py`
 `tools/` (coverage, mutation, standards, secrets). Everything runs
 under QGIS's own Python; `release.py` gates on all of it.
 
+## A guard is not a guard until you have watched it fail
+
+2026-08-16 produced two guards that were DEAD the moment they were
+written, both by the same author on the same day the rule was being
+written down, and both caught only by disabling the fix and re-running.
+
+The first asserted that a helper returned zero when called a second
+time, on an object the product had already put through it -- an
+answer that could not depend on what the product did.
+
+The second is the more instructive, because nothing about it looks
+wrong. It drove two Generates at different spacings and required the
+paired layer's renderer to cover every kind of absence the layer held.
+Its FIXTURE gave every element all three kinds at every spacing, so
+the case it was written for could not arise, and it passed with the
+fix disabled. Rebuilt on a measured spacing pair -- at 1300 one
+element carries two kinds, at 1100 it carries three -- it failed at
+once, naming the element and the kind that would have painted nothing.
+
+THE HABIT, and it costs a minute: after writing a guard, break the fix
+and watch the guard fail. Not the behaviour it names in the abstract:
+the actual line you just wrote. Both of these passed their first run,
+which is exactly what made them worth suspecting -- and a fixture that
+cannot exhibit the case is invisible in a green result.
+
 ## What a day of hunting one's own new code actually costs
 
 2026-08-16, twenty-one hunts across six rounds, and the arithmetic is
