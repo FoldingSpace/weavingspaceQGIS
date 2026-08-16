@@ -210,6 +210,35 @@ move on -- that is a useful report."""
 RULES = """\
 HOW TO WORK, and none of this is optional.
 
+  * USE THE HARNESS. Do not write your own wrapper to start QGIS's
+    Python, and do not copy one from an old hunt's scratchpad:
+
+        python3 tools/hunt_probe.py --prepare        # freeze HEAD
+        python3 tools/hunt_probe.py --run probe.py   # in the copy
+        python3 tools/hunt_probe.py --status         # has HEAD moved
+
+    Eleven hand-written wrappers in one session all carried the same
+    WRONG `QGIS_PREFIX_PATH`, so those hunts probed a QGIS with no
+    stock colour ramps and none of them knew. The harness resolves
+    that the same way the suite and CI do, freezes HEAD into a copy
+    for you, prints the commit on every run, and REFUSES once HEAD
+    has moved -- which is not fussiness: two hunts of three in one
+    round spent their entire run confirming defects that had been
+    fixed while they ran.
+  * A PROBE IS A HYPOTHESIS, not a program. The harness supplies the
+    interpreter, the environment and the working directory, so a
+    probe should be the ten or twenty lines that state the question.
+    One session produced 373 probe files at a median of 79 lines,
+    most of it the same boilerplate re-typed.
+  * WRITE THE LOG IN THE GIVEN FORMAT, exactly. Each entry begins
+    `## HH:MM:SS  iteration N` and every result line begins
+    `RESULT: confirmed`, `RESULT: ruled out`, or
+    `RESULT: inconclusive`. Supervision greps those lines; when the
+    wording drifts, the only way to know what a hunt is doing is to
+    read the whole log, which costs more than the hunt.
+  * RE-READ HEAD BEFORE YOU REPORT and say whether it moved under
+    you. Naming the commit makes a claim REPRODUCIBLE; it does not
+    make it CURRENT, and a fixed defect reads exactly like a live one.
   * READ FIRST: CLAUDE.md, docs/TESTING.md, and docs/TEST-MAP.md.
     The first two are binding, not background. The third tells you
     what is already covered, and re-finding a covered thing wastes

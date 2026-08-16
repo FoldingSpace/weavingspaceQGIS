@@ -331,6 +331,44 @@ shapes as equivalent to the fixture order and said so. That is not a
 null result: it is ground nobody need walk again, and it is the only
 kind of answer that shrinks the queue rather than lengthening it.
 
+## The portfolio rule, and why yield is the wrong thing to maximise
+
+Added 2026-08-15 after auditing what hunting costs. Three hunts that
+night spent 573,000 tokens between them and produced ONE confirmed
+defect, against 1.17 and 1.25 per hunt in the two rounds before. The
+obvious conclusion -- point every hunt at whatever scores best -- is
+wrong, and the record above is the evidence.
+
+FIVE OF THE THIRTEEN DIRECTIONS ARE THE SAME MOVE: asymmetry and
+twins, two stores of one fact, one boundary but not another,
+unreachable branches, write-only state. Each reads two code paths and
+asks how they differ. They are efficient precisely because they are
+pattern matches, and a pattern match finds only what the pattern has
+a shape for. The portfolio drifted that way with nobody deciding it.
+
+What the record says about the exceptions is sharper than any yield
+figure. The worst defect this project has had -- an existing
+GeoPackage chosen as output losing every other table in it -- came
+from backwards-from-harm, AFTER eight code-reading hunts had walked
+past it, and that hunt's own ranked list had put the harm thirteenth
+of eighteen. The stochastic direction, at two confirmations from
+about a hundred sessions, found something present since the first
+commit that no deliberate reading had found. A process tuned on yield
+cuts both of those first.
+
+SO: hold about A THIRD of any round on directions that cannot
+pattern-match -- backwards-from-harm, stochastic, and whatever is next
+off the untried list -- and judge those on whether they find KINDS
+nothing else finds, never on count. Rotate one untried direction per
+round. Cross-platform divergence proved itself by accident on
+2026-08-15, when a second machine found three faults no hunt would
+have; that is the argument for the four still untried.
+
+The sample is too small to tune further, and saying so is part of the
+rule: one to five hunts per direction and single-digit confirmations
+cannot distinguish 1.8 from 1.3. Rank crudely, spend the judgement on
+the direction, and do not mistake the table for a model.
+
 ## Directions not yet tried
 
 Written down so they are a decision rather than an oversight:
