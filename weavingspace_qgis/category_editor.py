@@ -246,6 +246,19 @@ class NoPinHere(QWidget):
   vocabulary a table has, and it is the same answer this project
   already gives for a class no tile can reach, so the two uses agree.
 
+  THAT SHARING IS THE MAINTAINER'S RULING, 2026-08-16, and not merely
+  this docstring's opinion: 45 degrees in both columns is fine. It was
+  put to them because the two hatchings say different KINDS of thing
+  -- here that a control cannot exist, in the swatch that no tile
+  wears a class -- and a reader meets both on one row. The answer is
+  that "nothing available here" covers both honestly, and a second
+  hatching pattern would ask somebody to tell two textures apart at
+  twelve pixels. So do not differentiate them by angle or density
+  later on the grounds that they are confusable; that was considered.
+  When the swatch's hatching DID read as ambiguous, the cause was
+  ordinary and elsewhere: the diagonals were unclipped and spilled
+  across neighbouring stripes.
+
   It takes no clicks and no focus: it is a statement, not a control.
   """
 

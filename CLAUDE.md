@@ -1513,6 +1513,26 @@ Confirmed with the user via an explicit design review:
   source's fifty never reaches `_class_counts`, which is the record
   that means CHOSEN.
 
+- **ONE HATCHING, TWO MEANINGS, AND THAT IS FINE.** Thin 45-degree
+  diagonals at the same step say "no pin can go here" in the Pin
+  column and "no tile wears this class" in the ramp swatch -- a fact
+  about a control and a fact about the map, met by a reader on one
+  row. Put to the maintainer 2026-08-16 after a screenshot of four
+  Custom rows, and ruled: 45 degrees for both is fine. "Nothing
+  available here" covers both honestly, and a second texture would ask
+  somebody to distinguish two hatchings at twelve pixels. Do not
+  differentiate them later on confusability grounds; that is what was
+  weighed.
+  THE AMBIGUITY THAT WAS REAL WAS ARITHMETIC, not vocabulary, and it
+  is the lesson worth carrying: the swatch's diagonals were drawn
+  UNCLIPPED, each stroke a full swatch-height long and starting a
+  height before the stripe, so marking ONE class painted a 49px band
+  around a stripe 12.8px wide. Measured on the shipped 64x18 swatch at
+  five classes: hatching class 3 put 44 pixels into class 2 against 58
+  into class 3. When a drawn signal reads as ambiguous, measure where
+  its ink actually lands before redesigning what it means -- a
+  vocabulary argument is the more interesting explanation and was the
+  wrong one. Guarded by `test_a_hatched_class_hatches_only_itself`.
 - **A tiles inset that swallows elements is refused in terms of the
   inset.** Insetting shrinks every tile by a fixed distance, so past
   some value the narrower elements disappear. Left to itself the
