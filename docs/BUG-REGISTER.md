@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-188 defect(s) with a regression test.
+190 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -79,6 +79,8 @@ there is no separate list to remember.
   guarded by `test_a_pin_still_works_on_a_copied_ladder`
 - **the class-bound control had a fixed range and a fixed number of decimal places, so a bound typed on a column of large or very small values was silently replaced by a different number.**  
   guarded by `test_a_pinned_bound_can_hold_the_numbers_a_column_carries`
+- **opening a project while the plugin was open left the dialog holding the old group name and output path, so the next Generate drew its map on top of the opened project's instead of replacing it.**  
+  guarded by `test_a_project_opened_under_an_open_dialog_is_not_drawn_over`
 - **opening a project while the plugin was open deleted that project's no-data layers on the next Generate, because the record naming them was never cleared.**  
   guarded by `test_a_project_opened_under_an_open_dialog_keeps_its_no_data_layers`
 - **a plugin closed and reopened adopted the oldest output group rather than the newest, so the next Generate overwrote a result the user had deliberately kept and restored bounds they had unpinned.**  
@@ -97,6 +99,8 @@ there is no separate list to remember.
   guarded by `test_both_halves_of_an_element_fade_together`
 - **a mode change or a variable swap was answered by the restyle path, which cannot cut a no-data split, so the missing-value areas became holes again.**  
   guarded by `test_changing_to_a_graduated_style_cuts_the_split_it_needs`
+- **in icon mode an element with no icon for some areas was never reported, because the coverage count asks whether any element drew them.**  
+  guarded by `test_icon_mode_says_when_an_element_has_no_icon_for_an_area`
 - **generating into a new group deleted the kept result's no-data layers, punching holes in the map the user had asked to keep.**  
   guarded by `test_keeping_a_result_keeps_both_halves_of_every_element`
 - **the bound spin boxes were greyed until a pin was clicked, and moving one could not pin the bound it named.**  
@@ -425,7 +429,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 82
-- a bug hunt pointed in a named direction: 39
+- a bug hunt pointed in a named direction: 41
 - the mutation campaign: 16
 - reported by a user: 11
 - race and stress testing: 6

@@ -331,6 +331,18 @@ MUTATIONS = [
            "behind, and a .qgz restores layers under the SAME ids, so "
            "the incoming project's no-data layers are deleted by the "
            "next Generate as though they were the last project's"),
+  dict(name="a-replaced-project-is-not-drawn-over", file=DIALOG,
+       old="""    self._group_name = None
+    self._last_path = None
+    self._outline_layer_id = None""",
+       new="""    pass""",
+       test="test_a_project_opened_under_an_open_dialog_is_not_drawn_over",
+       why="a project replaced under an OPEN dialog left the old "
+           "group name and output path behind, so the dialog adopted "
+           "a group in the incoming project without the ids that say "
+           "what is in it and never rebuilt it either; the next "
+           "Generate then drew alongside what was there and the map "
+           "was two tilings at once, the stale one on top"),
   dict(name="unclassed-is-exempt-from-the-reduction", file=BRIDGE,
        old="""  if unclassed:
     return int(asked), False""",

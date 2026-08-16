@@ -3967,6 +3967,27 @@ class WeavingSpaceDialog(QDialog):
                    self._custom_swatch_cache):
       record.clear()
     self._preserved_this_run = []
+    # THE GROUP AND THE OUTPUT PATH GO TOO, and leaving them was the
+    # larger half of this fault. `_group_name` survived, so
+    # `_get_or_make_group` found the incoming project's group by name
+    # and adopted it WITHOUT the element ids that say what is in it;
+    # `_last_path` survived, so `force_new` stayed False and the
+    # group was never rebuilt either. The dialog then neither adopted
+    # the opened project nor replaced it: the next Generate added its
+    # layers ALONGSIDE the ones already there, the previous run's
+    # elements sat above the new ones, and the map drew two tilings
+    # at once while looking perfectly plausible. Measured 2026-08-16
+    # by a hunt: ten layers in a group that should hold six.
+    #
+    # Forgetting the name is the honest state. A dialog just told the
+    # project is gone knows nothing about which group in the NEXT
+    # project is its own, and `_adopt_existing_group` runs only at
+    # construction. Forgetting means the next Generate makes its own
+    # group rather than silently sharing somebody else's: a visible
+    # new group beats an invisible double map.
+    self._group_name = None
+    self._last_path = None
+    self._outline_layer_id = None
     # auto-spacing must run again for whatever layer is chosen next:
     # the id it remembers belongs to a project that no longer exists
     self._auto_spacing_layer = None
@@ -6975,6 +6996,9 @@ class WeavingSpaceDialog(QDialog):
     # own signature difference and leave the box inert for good; see
     # _add_output_layers for the measurement.
     outlines_at_launch = self.opt_outlines.isChecked()
+    # ...and whether this run drew icons, for the same reason: the
+    # coverage notice below is about the map THIS run made
+    icons_at_launch = self.opt_icons.isChecked()
     # Snapshotted for the same reason: the coverage notice names the
     # spacing THIS map was tiled at, and the user is free to type a
     # different one while it runs. map_unit_label reads the layer, so
@@ -7005,6 +7029,26 @@ class WeavingSpaceDialog(QDialog):
                                        spacing_used, unit_label)
         if note is not None:
           self._report_quietly(note)
+        # ...and in ICON MODE, the loss the map-wide count cannot
+        # see. One tileable per area is the promise there, so an
+        # element carrying fewer tiles than the region has areas is
+        # missing icons -- while `coverage["missing"]` stays zero
+        # because the other elements still draw those areas. Asked
+        # only for icons, since in ordinary tiling an element having
+        # fewer tiles than there are areas is the normal case.
+        if outlines_at_launch is not None and icons_at_launch:
+          short = {}
+          for tid, lid in self._element_layer_ids.items():
+            element = QgsProject.instance().mapLayer(lid)
+            if element is None:
+              continue
+            missing_here = unit_count - element.featureCount()
+            if missing_here > 0:
+              short[str(tid)] = missing_here
+          note = bridge.icon_coverage_message(
+            short, unit_count, spacing_used, unit_label)
+          if note is not None:
+            self._report_quietly(note)
         # ...and separately, the rows that could not be drawn at all.
         # Its own sentence because the coverage one names a spacing as
         # the thing to change, and no spacing draws a row with no

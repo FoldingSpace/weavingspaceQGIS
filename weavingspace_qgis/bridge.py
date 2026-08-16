@@ -825,6 +825,46 @@ def categorical_shift_message(field: str, previous: int | None,
           f"colours the same from one map to the next.")
 
 
+def icon_coverage_message(short: dict, unit_count: int,
+                          spacing: float, unit_label: str) -> str | None:
+  """The warning coverage_message cannot give, for icon mode.
+
+  Args:
+    short: {element id: how many areas that element has no icon for},
+      already filtered to the elements that are short.
+    unit_count: how many areas the region layer holds altogether.
+    spacing: the spacing this run used, in the region's map units.
+    unit_label: what those units are called.
+
+  Returns:
+    One sentence for the message bar, or None when every element has
+    an icon for every area.
+
+  WHY THIS IS SEPARATE from `coverage_message`. That one asks a
+  MAP-WIDE question -- did any area get a tile anywhere -- and in
+  icon mode the answer is yes even when half the elements have no
+  icon for it, because the other half does. Measured 2026-08-16 on a
+  144-area region with four elements: at 6,000 and 9,000 spacing two
+  elements carried 132 icons and two carried 144, so twelve areas
+  were missing from half the map and nothing was said, while the same
+  loss in ordinary tiling mode is reported.
+
+  Its sentence could not simply be reused: "appear nowhere on the
+  map" would be FALSE of those areas, since the other elements do
+  draw them. Trading silence for a wrong statement is not an
+  improvement, so this says the thing that is true instead -- which
+  elements, and how many areas each is missing.
+  """
+  if not short:
+    return None
+  spacing_text = f"{spacing:,.6f}".rstrip("0").rstrip(".")
+  worst = max(short.values())
+  named = ", ".join(sorted(short))
+  return (f"At {spacing_text} {unit_label} spacing, elements {named} "
+          f"have no icon for up to {worst:,} of {unit_count:,} areas, "
+          f"which other elements still draw.")
+
+
 def coverage_message(missing: int, unit_count: int, spacing: float,
                      unit_label: str) -> str | None:
   """The message bar's warning about areas the pattern missed.
@@ -839,6 +879,22 @@ def coverage_message(missing: int, unit_count: int, spacing: float,
   Returns:
     One sentence for the message bar, or None when every area got at
     least one tile and there is nothing to say.
+
+    THE QUESTION IS MAP-WIDE, and in ICON MODE that makes it blind to
+    a real loss. `count_units_without_tiles` counts areas that got a
+    tile ANYWHERE, so an area still represented by one element is not
+    missing even when another element has no icon for it. Measured
+    2026-08-16 on a 144-area region with four elements: at 6,000 and
+    9,000 spacing two elements carried 132 tiles and two carried 144,
+    so twelve areas had no icon on half the map and this said
+    nothing, while the same twelve at the same spacing in ordinary
+    tiling mode are reported. At 400 all four carried 144.
+
+    Whether that should change is the maintainer's call and is open:
+    the sentence as written ("appear nowhere on the map") would be
+    FALSE of those areas, so firing it unchanged would trade silence
+    for a wrong statement, and a per-element count needs its own
+    wording and its own review. Raised 2026-08-16 under #45.
 
     The spacing is in the sentence deliberately. Users arrive at a
     spacing by trying several, and each try pushes another of these

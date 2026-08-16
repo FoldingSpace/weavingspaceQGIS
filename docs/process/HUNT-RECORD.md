@@ -12,8 +12,24 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-08-16 (the mechanics audit, the harness and the
-portfolio rule; six hunts launched under them).
+Last updated 2026-08-16, after three rounds of hunting the No Data
+feature on the day it was written. Eleven hunts were launched across
+those rounds; the table below carries rows for the directions whose
+findings were confirmed and acted on. IT IS NOT A COMPLETE ROSTER OF
+THE ELEVEN, and saying so is the point of a record that counts against
+itself: several hunts wrote their logs into session scratch that has
+since been cleared, so their hypotheses-logged counts cannot be quoted
+honestly and are not. What IS quoted is what was reproduced
+independently and fixed.
+
+The round is worth one summary line, because the distribution is the
+finding. Of roughly seventeen confirmed defects across the three
+rounds, THIRTEEN WERE IN CODE WRITTEN THAT SAME DAY, and three were
+inside earlier fixes for the same feature. Hunting is usually
+described as looking for old bugs; here it was overwhelmingly a check
+on new work, and the directions that paid were the ones aimed at
+shapes (a paired identity, an order, a record that outlives its
+subject) rather than at features
 
 ## How to run one
 
@@ -181,6 +197,10 @@ nothing, so it is counted against the hunt, not for it.
 | **The first five minutes** | "What does a user meet before anything is configured?" | 1 | 1 | Removing the region layer from a project holding three or more polygon layers emits no layerChanged at all, so the dialog holds a destroyed layer and says nothing. Confirmed in substance, NOT in detail: the hunt reported a KeyError modal, and what a second route measured was silence -- a Generate that produced no map and no refusal. Which of the two a user meets depends on whether the surviving layer carries the same column names |
 | **Order of operations** | "What order does the suite always do this in, and what happens in the other order?" | 1 | **0** | Two claims, neither reproduced. A hand-typed spacing destroyed by the first Generate: measured at HEAD, the typed 250 survives, because the hunt read a commit PREDATING the fix for the field defect. A project opened under a showing dialog offering the plugin's own output as a region: not reproduced with live update on or off |
 | **Suite fixtures as blind spots** | "Which fixture order could no user follow, and what happens in the user's order?" | 1 | 0 | Reproduced the shipped field defect independently and found a second door into it (swapping the region layer), both already closed at HEAD. Three further shapes measured EQUIVALENT to the fixture order, which is worth as much: nobody need re-check them |
+| **Paired identity** | "A new artefact carries the identity of the thing it is paired with. What does every reader of that identity do now that two layers answer to one id?" | 1 | 2 | New 2026-08-16, and the most productive single question of that day. Found "Create as new group" deleting the KEPT result's no-data layers, and a GeoPackage style embedded before the opacity it was meant to carry. Its lesson went further than its findings: the sibling faults live in the per-element DICTS, and the tell is a reset list that names some records and not others |
+| **Order of operations** (2nd) | "Which setting is acted on at LANDING but recorded from LAUNCH?" | 1 | 1 | Found `opt_outlines`, the only geometry-signature input the landing reads live, so toggling it mid-run cancels its own signature difference and the box goes permanently inert. Present since 0.23.0. Three sibling cases (opacity, ramp, style mode) measured EQUIVALENT, which is worth as much as the finding |
+| **Write-only state** (2nd) | "Does each new record survive the journeys it must, and do the clear sites clear the same set?" | 1 | 1 | A project opened under an OPEN dialog: three symptoms, one cause. The lesson is the transferable part — enumerate what a clear site LEAVES, not what it clears, and drive the reopened-project journey with the dialog still open, which no existing test did |
+| **Tests that cannot fail** | "Which of the tests just written would pass with the behaviour broken?" | 1 | 3 | Aimed at fourteen tests written the same day, all mutated. Eleven killed everything; three had dead secondary axes, including a tautology that had already been "fixed" once and a literal `x == x`. About one in five, which is this project's historical rate. Turned on our own work rather than the product, and worth repeating whenever a batch of tests is written in haste |
 | **Mutation sampling** | "Would the suite have noticed this change?" | many | **0** | 128 survivors, no product defects. It measures the SUITE |
 
 Rows are updated as claims are judged, which is why several moved
@@ -417,8 +437,13 @@ the direction, and do not mistake the table for a model.
 
 Written down so they are a decision rather than an oversight:
 
-- **Against an external oracle** — the vendored library's own render,
-  rather than one of our descriptions against another.
+- ~~**Against an external oracle**~~ — TRIED 2026-08-16, twice, as the
+  pixel-level hunts. Rendering the map and reading it, rather than
+  asking the object graph, found the paired layer ignoring its
+  element's opacity and then a hand-set opacity lost at every
+  re-tile. Its technique is worth keeping: render the same scene on
+  two backgrounds and opacity falls out per pixel without knowing any
+  colour.
 - **Cross-platform divergence** — the first Linux run found a defect
   invisible on any Mac. Nobody has hunted that seam deliberately.
 - **The specification itself** — every hunt so far assumes the settled

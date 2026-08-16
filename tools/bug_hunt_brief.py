@@ -41,6 +41,22 @@ configuration tried. The difference was not the model. The first was
 asked for a structural property that either exists or does not; the
 second was asked, in effect, for a failure.
 
+Updated 2026-08-16, after three rounds against a feature written that
+morning. Roughly seventeen confirmed defects; THIRTEEN of them were in
+code written the same day and three were inside earlier fixes for the
+same feature. Two consequences for whoever is being briefed. A hunt
+aimed at NEW work pays better here than one aimed at old, which is the
+opposite of how hunting is usually described. And the directions that
+paid were aimed at SHAPES rather than features -- a paired artefact
+inheriting an identity, a setting acted on at landing but recorded at
+launch, a record that outlives what it names -- because a shape can be
+grepped across the whole tree while a feature can only be read.
+
+One direction was turned on our own tests rather than the product and
+found three of fourteen that could not fail, including a tautology
+already "fixed" once. Consider it whenever a batch of tests is written
+in haste.
+
 Round two the same night, four hunts under this brief: 46 logged
 hypotheses, five confirmed and five explicitly ruled out. Three
 survived independent reproduction here and were fixed. Two findings

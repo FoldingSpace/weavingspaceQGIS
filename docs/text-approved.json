@@ -29,6 +29,11 @@
   "excerpt": "That layer has no categorized symbology",
   "where": "weavingspace_qgis/bridge.py"
  },
+ "0666f60cd0fed7ca": {
+  "approved": "2026-08-16",
+  "excerpt": "At {} {} spacing, elements {} have no icon for up to {} of {",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "07e649472d74794d": {
   "approved": "2026-08-08",
   "excerpt": "> O'Sullivan, D., & Bergmann, L. (2026). Using MapWeaver to ",

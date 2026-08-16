@@ -20208,6 +20208,91 @@ def test_an_element_sitting_wholly_on_missing_values_still_draws():
     "as no data through the single-symbol path"
 
 
+def test_a_project_opened_under_an_open_dialog_is_not_drawn_over():
+  """Open a project with the plugin open, and Generate must not double it.
+
+  `_forget_the_last_project` fires when a project is replaced, and it
+  left `_group_name` and `_last_path` behind. The group name then
+  matched a group in the INCOMING project, so `_get_or_make_group`
+  adopted it while holding none of the element ids that say what is
+  in it, and `force_new` stayed False because the path had not
+  changed either. The dialog neither adopted the opened project nor
+  replaced it: the next Generate added its layers alongside the ones
+  already there, the previous run's elements sat above the new ones,
+  and the map drew two tilings at once.
+
+  This is the journey no existing test drove, because every other one
+  closes the dialog first and builds a fresh one, which adopts
+  correctly.
+
+  Regression: opening a project while the plugin was open left the dialog holding the old group name and output path, so the next Generate drew its map on top of the opened project's instead of replacing it. [hunt]
+  """
+  import os
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(200)
+  dlg.spacing_spin.setValue(500)
+  _generate_and_wait(dlg)
+  first_group = dlg._group_name
+  assert first_group, "the first run made no group"
+  # the NAME, taken while the layer still exists: after
+  # project.clear() the Python wrapper is a deleted C++ object and
+  # touching it raises rather than answering
+  region_name = layer.name()
+
+  with _temp_dir() as td:
+    saved = os.path.join(td, "yesterday.qgz")
+    assert project.write(saved), "the project would not save"
+    # THE DIALOG STAYS OPEN while the project is replaced, which is
+    # what File > Open does and what no other test drives.
+    project.clear()
+    _tick(200)
+    assert dlg._group_name is None, \
+      f"the dialog still names the group {dlg._group_name!r} from a " \
+      f"project it no longer has; the next Generate would adopt a " \
+      f"group in the incoming project without knowing its contents"
+    assert dlg._last_path is None, \
+      "the dialog still holds the old output path, so force_new " \
+      "stays False and the group is never rebuilt"
+    assert project.read(saved), "the project would not reopen"
+    _tick(400)
+
+    # ...and now a run, on the reopened project
+    again = project.mapLayer(
+      [l.id() for l in project.mapLayers().values()
+       if l.name() == region_name][0])
+    dlg.layer_combo.setLayer(again)
+    _tick(300)
+    dlg.spacing_spin.setValue(540)
+    _generate_and_wait(dlg)
+
+    groups = project.layerTreeRoot().findGroups()
+    holding = [g for g in groups
+               if any(c.layer() is not None
+                      and c.layer().customProperty("weavingspace_output")
+                      for c in g.children())]
+    drawn = {}
+    for g in holding:
+      for child in g.children():
+        lyr = child.layer()
+        tid = lyr.customProperty("weavingspace_tile_id") if lyr else None
+        if tid and not lyr.customProperty("weavingspace_no_data"):
+          drawn.setdefault(str(tid), []).append(g.name())
+    doubled = {t: gs for t, gs in drawn.items() if len(gs) > 1}
+    assert not doubled, \
+      f"after reopening the project under an open dialog, these " \
+      f"elements are drawn by more than one layer: {doubled}. The " \
+      f"map is two tilings at once, the stale one on top"
+  dlg.close()
+
+
 def test_a_project_opened_under_an_open_dialog_keeps_its_no_data_layers():
   """The THIRD place that clears per-element state, and the one missed.
 
@@ -20256,6 +20341,40 @@ def test_a_project_opened_under_an_open_dialog_keeps_its_no_data_layers():
     f"restores layers under the same ids, so the next run would " \
     f"delete ITS layers as though they were the old ones"
   dlg.close()
+
+
+def test_icon_mode_says_when_an_element_has_no_icon_for_an_area():
+  """The coverage notice asks a MAP-WIDE question, and icon mode hides in it.
+
+  `count_units_without_tiles` counts areas that got a tile ANYWHERE,
+  so in icon mode -- where the promise is one tileable per area per
+  element -- an area still drawn by one element is not "missing" even
+  when another element has no icon for it. Measured 2026-08-16 on a
+  144-area region with four elements: at 6,000 spacing two elements
+  carried 132 icons and two carried 144, so twelve areas were absent
+  from half the map and nothing was said, while the same loss in
+  ordinary tiling mode is reported.
+
+  The existing sentence could not be reused: "appear nowhere on the
+  map" would be FALSE of those areas. Trading silence for a wrong
+  statement is not an improvement, so the icon case gets its own
+  wording naming the elements.
+
+  Regression: in icon mode an element with no icon for some areas was never reported, because the coverage count asks whether any element drew them. [hunt]
+  """
+  from weavingspace_qgis import bridge
+
+  # the helper, on the shape the measurement found
+  note = bridge.icon_coverage_message(
+    {"a": 12, "b": 12}, 144, 6000.0, "m")
+  assert note is not None, "a real shortfall produced no sentence"
+  assert "a, b" in note, f"the short elements are not named: {note}"
+  assert "144" in note, f"the total is not given: {note}"
+  assert "nowhere" not in note, \
+    f"the icon sentence claims the areas appear nowhere, which is " \
+    f"false -- other elements draw them: {note}"
+  assert bridge.icon_coverage_message({}, 144, 6000.0, "m") is None, \
+    "a complete map produced a warning"
 
 
 def test_both_halves_of_an_element_fade_together():

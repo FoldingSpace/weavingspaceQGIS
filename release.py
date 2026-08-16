@@ -1626,18 +1626,38 @@ def main():
     ref_python = os.path.join(venv_dir, "bin", "python3")
     if not os.path.exists(ref_python):
       print("\n=== creating reference environment (.venv-reference) ===")
+      clean = dict(os.environ)
+      for leaked in ("PYTHONHOME", "PYTHONPATH"):
+        clean.pop(leaked, None)
       run("create reference venv",
-          [sys.executable, "-m", "venv", venv_dir], dict(os.environ))
+          [sys.executable, "-m", "venv", venv_dir], clean)
       run("install reference packages",
           [os.path.join(venv_dir, "bin", "pip"), "install", "--quiet",
            "geopandas", "matplotlib", "networkx", "mapclassify"],
           dict(os.environ))
   # ALSO always: sixteen seconds, and it is the one check that scores
   # what the plugin drew against what the library itself draws.
+  # THE REFERENCE INTERPRETER MUST NOT INHERIT QGIS'S PYTHONHOME.
+  # It is an ordinary venv on the system Python; PYTHONHOME pointed at
+  # the app's Frameworks makes it fail at start-up with "No module
+  # named 'encodings'", which is a fatal error before any of our code
+  # runs and reads as the comparison failing rather than as an
+  # environment fault.
+  #
+  # This is not a hypothetical: `tools/macos_qgis_env.sh` exists to
+  # produce a shell with exactly those variables exported, the testing
+  # documentation tells a maintainer to use it, and a release started
+  # from that shell died here at the last stage but one -- after the
+  # suite, the gallery and about twenty minutes. release.py sets
+  # PYTHONHOME itself for the QGIS children that need it, so stripping
+  # it here costs nothing and removes the trap.
+  ref_env = dict(os.environ)
+  for leaked in ("PYTHONHOME", "PYTHONPATH"):
+    ref_env.pop(leaked, None)
   comparison = run(
       "reference comparison",
       [ref_python, os.path.join("tools", "visual_reference_report.py"),
-       report_dir], dict(os.environ), capture=True)
+       report_dir], ref_env, capture=True)
 
   write_testing_report(report_dir, version, functional, visual,
                        comparison, coverage)
