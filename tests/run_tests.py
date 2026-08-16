@@ -20542,6 +20542,212 @@ def test_both_halves_of_an_element_fade_together():
   dlg.close()
 
 
+def _layer_with_infinities(n=12, field="v1"):
+  """A region layer carrying a NULL, a NaN, a +inf and a -inf.
+
+  Args:
+    n: how many areas, passed to make_region_layer.
+    field: the column to spoil.
+
+  Returns:
+    The layer, committed, with four of its features unplaceable in
+    four different ways and the rest holding ordinary numbers. Built
+    here because three tests need the same shape and a fixture that
+    drifted between them would make their results incomparable.
+  """
+  import math
+  layer = make_region_layer(n=n)
+  index = layer.fields().indexFromName(field)
+  assert index >= 0, f"the fixture has no {field} to spoil"
+  ids = [f.id() for f in layer.getFeatures()]
+  assert len(ids) >= 6, \
+    f"the fixture has {len(ids)} areas, too few to spoil four and " \
+    f"still leave values for the classifier"
+  layer.startEditing()
+  for fid, value in zip(ids, [None, math.nan, math.inf, -math.inf]):
+    assert layer.changeAttributeValue(fid, index, value), \
+      f"the fixture refused {value!r}"
+  assert layer.commitChanges(), "the edits would not commit"
+  return layer
+
+
+def test_the_split_tells_the_kinds_of_absence_apart():
+  """A hole and an off-the-scale value are not the same statement.
+
+  A graduated renderer can draw none of NULL, NaN, +inf or -inf, so
+  all of them leave the element's own layer. What a reader is owed is
+  the difference between "nobody recorded a value here" and "this area
+  is off the top of the scale", which on a choropleth is the
+  difference between missing and extreme.
+
+  Three categories and not four, on the maintainer's ruling: a stored
+  NaN is a state QGIS holds apart from a NULL, but writing one to a
+  GeoPackage stores NULL (measured 2026-08-16 through
+  QgsVectorFileWriter and read back with sqlite3), so a fourth
+  category would be empty for anybody whose data came from a file.
+  ``isna()`` collapses it into No data for free.
+
+  Driven at both levels deliberately. The bridge function is where the
+  arithmetic lives, and the dialog is where it has to arrive: a split
+  that labels correctly into a frame nobody carries onto a layer would
+  satisfy the first half and none of the point.
+
+  Regression: an area whose value was an infinity was neither classed -- the breaks exclude non-finite values -- nor moved to the paired layer, so it was drawn as NOTHING. A hole, which is what this split exists to abolish. Measured 2026-08-16: sixteen tiles per element where symbolForFeature returned None, 0.000 of the area painted against 0.26 for a control. Both dependencies carry an infinity: SQLite stores it as REAL and OGR hands it back. [hunt]
+  """
+  import math
+  import geopandas as gpd
+  import shapely.geometry as sg
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  values = [12.5, 7.0, None, math.nan, math.inf, -math.inf]
+  frame = gpd.GeoDataFrame(
+    {"v": values},
+    geometry=[sg.box(i, 0, i + 1, 1) for i in range(len(values))],
+    crs="EPSG:3857")
+  kept, gone = bridge.split_out_the_no_data(frame, "v",
+                                            column_has_values=True)
+  assert gone is not None, \
+    "nothing was split at all, so the infinities are still holes"
+  assert len(kept) == 2, \
+    f"{len(kept)} rows were kept; only the two real values can be classed"
+  counted = dict(gone[bridge.ABSENCE_FIELD].value_counts())
+  assert counted == {"no-value": 2, "pos-infinity": 1,
+                     "neg-infinity": 1}, \
+    f"the paired frame labels the kinds {counted}; a NULL and a NaN " \
+    f"collapse to one and the two infinities stay apart"
+
+  # a text column has no infinities, and asking must not be an error
+  text = gpd.GeoDataFrame(
+    {"t": ["a", None, "b"]},
+    geometry=[sg.box(i, 0, i + 1, 1) for i in range(3)], crs="EPSG:3857")
+  _, text_gone = bridge.split_out_the_no_data(text, "t",
+                                              column_has_values=True)
+  assert text_gone is not None and len(text_gone) == 1, \
+    "a text column's own missing value stopped being split"
+
+  # ...and now the same claim through the plugin, onto a real layer
+  project = QgsProject.instance()
+  layer = _layer_with_infinities()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(150)
+  tid = dlg.table.item(0, 0).text()
+  _generate_and_wait(dlg)
+  paired_id = dlg._no_data_layer_ids.get(tid)
+  assert paired_id, \
+    "no paired layer, so the four spoiled areas are holes again"
+  paired = project.mapLayer(paired_id)
+  assert paired.fields().indexFromName(bridge.ABSENCE_FIELD) >= 0, \
+    f"the paired layer carries no {bridge.ABSENCE_FIELD} column, so " \
+    f"its renderer cannot tell an absence from an infinity"
+  on_layer = {f[bridge.ABSENCE_FIELD] for f in paired.getFeatures()}
+  assert on_layer <= {"no-value", "pos-infinity", "neg-infinity"}, \
+    f"the paired layer carries unexpected kinds: {on_layer}"
+  assert len(on_layer) >= 2, \
+    f"the paired layer carries only {on_layer}, so this element's " \
+    f"tiles cannot show that the kinds are told apart"
+  dlg.close()
+
+
+def test_a_hand_styled_no_data_layer_survives_a_re_tile():
+  """The twin keeps what the user gave it, on its element's terms.
+
+  The paired layer sits in the layer tree like any other, so somebody
+  can open Layer Properties and give it a hatch, a different grey or a
+  filter. Every Generate called setRenderer on it unconditionally, so
+  that work vanished while the identical act on the element beside it
+  survived AND was announced in the message bar.
+
+  The maintainer's ruling (2026-08-16) is that the twin goes through
+  the element's own gate rather than owning its look outright: when
+  the dialog leaves an element's styling alone it leaves the twin
+  alone, and when it restyles the element it rebuilds both. That is
+  what keeps the No data colour in the colour editor working instead
+  of creating a second, unguarded door into one state -- so this test
+  drives BOTH directions, because a fix that only preserved would be
+  indistinguishable here from one that had broken the editor.
+
+  Regression: a renderer or filter set on an element's no-data layer in QGIS was destroyed by the next Generate, silently, while the same work on the element beside it survived and was reported. Found independently by two hunts on 2026-08-16; confirmed by reading layer_styles out of the exported GeoPackage, where tiles_a carried the hand-set colour and tiles_a_no_data carried the default. [hunt]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = _layer_with_a_gap()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(150)
+  tid = dlg.table.item(0, 0).text()
+  _generate_and_wait(dlg)
+  paired_id = dlg._no_data_layer_ids.get(tid)
+  assert paired_id, "no paired layer, so this test is about nothing"
+
+  def fill_of(layer):
+    """The colour a paired layer is drawing, whichever renderer it has.
+
+    Args:
+      layer: the no-data layer to read.
+
+    Returns:
+      A "#rrggbb" string, or None when the renderer has no symbol at
+      all. The plugin's own no-data renderer is CATEGORIZED and a
+      hand-set one is typically single, so a test that assumed either
+      would report a type error where it means to report a colour.
+      The category list is bound to a name before subscripting: a
+      temporary from a QGIS getter frees its contents, which has cost
+      this project a segfault and an hour on a plausible wrong colour.
+    """
+    renderer = layer.renderer()
+    if hasattr(renderer, "symbol"):
+      symbol = renderer.symbol()
+      return None if symbol is None else symbol.color().name()
+    categories = renderer.categories()
+    if not categories:
+      return None
+    symbol = categories[0].symbol()
+    return None if symbol is None else symbol.color().name()
+
+  # style it the way a user would, in QGIS, not through the dialog
+  paired = project.mapLayer(paired_id)
+  paired.setRenderer(bridge.make_single_renderer("#ff00ff", False))
+  paired.triggerRepaint()
+  assert fill_of(paired) == "#ff00ff", \
+    "the fixture did not take the hand styling, so nothing below " \
+    "could show whether it survived"
+
+  # a re-tile that leaves this element's own styling alone
+  dlg.spacing_spin.setValue(430)
+  _generate_and_wait(dlg)
+  kept = project.mapLayer(dlg._no_data_layer_ids[tid])
+  assert kept is not None, "the paired layer went missing entirely"
+  assert fill_of(kept) == "#ff00ff", \
+    f"the no-data layer came back wearing {fill_of(kept)} " \
+    f"rather than the #ff00ff set in QGIS, while the element beside " \
+    f"it keeps its own hand styling and is told about it"
+
+  # ...and the other direction: choosing the No data colour in the
+  # element's editor must still reach the map, or the gate has simply
+  # locked the plugin out of a layer it owns
+  dlg._quant_colours.setdefault(tid, {}).setdefault("v1", {})[
+    bridge.NO_DATA_KEY] = "#00ff00"
+  dlg.spacing_spin.setValue(470)
+  _generate_and_wait(dlg)
+  repainted = project.mapLayer(dlg._no_data_layer_ids[tid])
+  assert fill_of(repainted) == "#00ff00", \
+    f"a No data colour picked in the colour editor left the map " \
+    f"drawing {fill_of(repainted)}: preserving hand styling has " \
+    f"shut the editor out of the layer it is for"
+  dlg.close()
+
+
 def test_the_spinner_outranks_a_value_the_dialog_itself_wrote():
   """A carried-over opacity is only the user's if the user set it.
 
@@ -44197,6 +44403,10 @@ def main():
         test_both_halves_of_an_element_fade_together)
   check("the spinner outranks a value the dialog itself wrote",
         test_the_spinner_outranks_a_value_the_dialog_itself_wrote)
+  check("the split tells the kinds of absence apart",
+        test_the_split_tells_the_kinds_of_absence_apart)
+  check("a hand styled no data layer survives a re-tile",
+        test_a_hand_styled_no_data_layer_survives_a_re_tile)
   check("changing to a graduated style cuts the split it needs",
         test_changing_to_a_graduated_style_cuts_the_split_it_needs)
   check("icon mode says when an element has no icon for an area",

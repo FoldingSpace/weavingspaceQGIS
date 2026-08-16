@@ -6332,7 +6332,8 @@ class WeavingSpaceDialog(QDialog):
     return False
 
   def _add_no_data_layer(self, assignment, tile_id, absent, group,
-                         project, path, hand_opacity=None):
+                         project, path, hand_opacity=None,
+                         hand_renderer=None, hand_subset=None):
     """Draw one element's missing-value tiles as their own layer.
 
     Args:
@@ -6348,6 +6349,15 @@ class WeavingSpaceDialog(QDialog):
         a fraction, when the user had set it by hand in Layer
         Properties. None when there was none, in which case the row's
         own opacity is used.
+      hand_renderer: the renderer the previous paired layer wore, when
+        this element's own styling was kept this run. None means the
+        dialog is restyling the element, so the twin is rebuilt with
+        it. Passed only through the element's own gate, which is what
+        keeps the colour editor's No data pick reaching the map.
+      hand_subset: the filter the previous paired layer carried, or
+        None. NOT gated, because a subset says which features to draw
+        rather than how to colour them and is nobody's styling -- the
+        same rule the element's own subset follows.
 
     Returns:
       None. The layer is registered, added to the group directly
@@ -6384,10 +6394,21 @@ class WeavingSpaceDialog(QDialog):
                                         first=False)
       if written is not None and written.isValid():
         layer = written
-    colour = (self._quant_colours.get(tile_id, {}).get(field, {})
-              .get(bridge.NO_DATA_KEY) or bridge.NO_DATA_FILL)
-    layer.setRenderer(
-      bridge.make_no_data_renderer(colour, assignment.get("outline", False)))
+    # A RENDERER THE USER BUILT IN QGIS OUTRANKS OURS, on exactly the
+    # terms its element's does: `hand_renderer` arrives only when the
+    # element itself was left alone this run, so the pair is either
+    # both kept or both rebuilt and the colour editor's No data pick
+    # still reaches the map. (Maintainer's ruling, 2026-08-16, after
+    # two hunts found this layer's styling silently replaced while the
+    # element's was preserved and announced.)
+    if hand_renderer is not None:
+      layer.setRenderer(hand_renderer)
+    else:
+      colour = (self._quant_colours.get(tile_id, {}).get(field, {})
+                .get(bridge.NO_DATA_KEY) or bridge.NO_DATA_FILL)
+      layer.setRenderer(
+        bridge.make_no_data_renderer(colour,
+                                     assignment.get("outline", False)))
     # TAGGED AS OUR OUTPUT like every other layer this run writes, or
     # the plugin would offer it back as a region layer to tile -- the
     # settled rule that tiling the tiles draws the next map on the
@@ -6425,6 +6446,12 @@ class WeavingSpaceDialog(QDialog):
       bridge.embed_style(layer)
     project.addMapLayer(layer, False)
     group.addLayer(layer)
+    # The user's own filter back on the fresh layer, after the style
+    # and the registration, exactly where the element's own subset is
+    # restored. A provider that refuses the clause is left unfiltered
+    # rather than failing the run: a slightly wider map beats no map.
+    if hand_subset:
+      layer.setSubsetString(hand_subset)
     self._no_data_layer_ids[tile_id] = layer.id()
 
   def _restyle_only(self) -> bool:
@@ -7812,6 +7839,8 @@ class WeavingSpaceDialog(QDialog):
     old_renderers = {}
     old_layer_opacity = {}
     old_no_data_opacity = {}
+    old_no_data_renderers = {}
+    old_no_data_subsets = {}
     old_subsets = {}
     for tid, lid in old_ids.items():
       old_layer = project.mapLayer(lid)
@@ -7832,6 +7861,29 @@ class WeavingSpaceDialog(QDialog):
         self._no_data_layer_ids.get(tid) or "")
       if paired_before is not None:
         old_no_data_opacity[tid] = paired_before.opacity()
+        # ...AND ITS RENDERER AND ITS FILTER, on the same terms its
+        # element gets. The paired layer sits in the layer tree like
+        # any other, so a user can open Layer Properties and give it a
+        # hatch, a different grey or a filter -- and every Generate
+        # called setRenderer on it unconditionally, so that work
+        # vanished while the identical act on the element beside it
+        # survived AND was announced in the message bar. Found by two
+        # hunts independently on 2026-08-16.
+        # The RENDERER goes through the element's own gate
+        # (maintainer's ruling the same day): when the dialog leaves
+        # an element's styling alone it leaves its twin alone, and
+        # when it restyles the element it restyles both. That keeps
+        # the No data colour in the element's colour editor working --
+        # picking one moves the style signature, so the pair is
+        # rebuilt -- rather than creating a second, unguarded door
+        # into the same state.
+        if paired_before.renderer() is not None:
+          old_no_data_renderers[tid] = paired_before.renderer().clone()
+        # The FILTER is carried unconditionally, exactly as the
+        # element's is, because a subset says which features to draw
+        # rather than how to colour them and is nobody's styling.
+        if paired_before.subsetString():
+          old_no_data_subsets[tid] = paired_before.subsetString()
       # A subset string is the user's own filter, set in Layer
       # Properties or the layer panel's Filter dialogue, and it used
       # to die with the layer at every regeneration -- deliberate
@@ -8076,7 +8128,11 @@ class WeavingSpaceDialog(QDialog):
           # Outside it, a value the dialog itself wrote last run reads
           # as a hand-set one and outranks the spin box the user just
           # moved.
-          old_no_data_opacity.get(tid) if kept_by_hand else None)
+          old_no_data_opacity.get(tid) if kept_by_hand else None,
+          old_no_data_renderers.get(tid) if kept_by_hand else None,
+          # the filter is not styling and is not gated, matching the
+          # element's own subset a few lines below
+          old_no_data_subsets.get(tid))
       # the user's own filter, back on the fresh layer. Applied AFTER
       # the renderer, because a subset changes what a classifier
       # would see and the styling above belongs to the whole element;
