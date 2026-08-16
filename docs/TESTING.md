@@ -14,6 +14,66 @@ The suite lives in `tests/run_tests.py` (behaviour), `tests/visual_tests.py`
 `tools/` (coverage, mutation, standards, secrets). Everything runs
 under QGIS's own Python; `release.py` gates on all of it.
 
+## Three ways to move a class boundary, and why none of them worked
+
+2026-08-16, and the whole episode took an afternoon. It belongs in a
+testing document rather than a design one because what it really
+demonstrates is how a fix ships green.
+
+THE PROBLEM IS REAL. QGIS gives a value to the FIRST range containing
+it, inclusive at both ends. On a column with repeated values the
+classifier returns degenerate ranges -- `1..1, 1..5, 5..5, 5..9, 9..9`
+for `{1, 5, 9}` at k=5 -- and the degenerate ones above are
+unreachable by construction. So the map draws its HIGHEST value in a
+middle colour while the legend's darkest sits beside a range nothing
+occupies, and a reader matching darkest to "high" reads it wrongly.
+
+THREE FIXES, EACH WITHDRAWN.
+
+*Reduce k to the number of distinct values.* Correct output, wrong
+means: class i takes `ramp.color(i/(k-1))`, so a shorter ladder
+re-spreads its survivors across the whole ramp. Five asked over four
+distinct values drew the FOUR-class ladder exactly, and a column that
+later gained a value re-coloured everything with nobody choosing
+anything. Withdrawn on the maintainer's rule that an empty class is
+invisible, not deleted.
+
+*Shrink every finite-width upper bound by one ulp*, so a boundary
+value falls into the degenerate range that means it. It moved the LAST
+range too, whose upper bound is the column's maximum, so the largest
+value belonged to no range and drew as NOTHING. Two hunts found it
+independently within the hour.
+
+*Shrink only where the next range is degenerate, by a relative margin
+of 1e-9*, never the last range. This survived a day's tests and died
+on two counts: a relative margin is an ABSOLUTE GAP, so at 2e12 it is
+two thousand wide and a value a hundred below the bound was orphaned
+and drawn as nothing; and above about 1e5 QGIS's own label formatter
+PRINTS the margin, so a legend read `100,000,000,000 -
+999,999,999,000`.
+
+WHAT EACH ONE TAUGHT, and the third is the one worth carrying:
+
+- a fix can be right about the symptom and wrong about the means, and
+  the tell is what it moves that nobody asked it to move;
+- a single hand-made fixture is one shape. `{1, 5, 9}` is degenerate
+  at the TOP, which is the only arrangement in which the second fix's
+  harm cannot appear, and it shipped green;
+- MAGNITUDE IS A FIXTURE DIMENSION. Every fixture in this suite lived
+  between 0 and about 50. The third fix was correct there and wrong at
+  1e12 and at 1e-9, and nothing in the suite would ever have said so.
+  When arithmetic depends on the size of a number, the sweep has to
+  cross magnitudes, and `test_no_value_is_ever_orphaned_by_a_
+  classification` now does.
+
+WHAT SURVIVED. The reduction stayed withdrawn, because colour
+stability is the property the maintainer asked for. The class bounds
+are QGIS's own, untouched. The remaining wart -- a possibly empty
+darkest class -- is left VISIBLE rather than cured: the swatch hatches
+every class no tile wears. And the orphan sweep is kept as a permanent
+invariant, since it caught two of the three attempts and is about any
+classification rather than about any one of them.
+
 ## Four ways a test passed while the product was broken, 2026-08-16
 
 A second round of the same measurement, on twelve tests written that
@@ -26,9 +86,9 @@ being well aimed says nothing about the rest.
 The four shapes, three of which were new that day:
 
 **A SECOND CALL TO A HELPER THE PRODUCT HAS ALREADY APPLIED cannot
-see what the product did with it.** `_nudge_off_shared_bounds` is
-scoped to ladders holding a degenerate range; the test asserted that
-calling it again returned zero. After the product's own call nothing
+see what the product did with it.** The bound-moving helper described
+above (since withdrawn) was scoped to ladders holding a degenerate
+range; the test asserted that calling it again returned zero. After the product's own call nothing
 is degenerate, so it returns zero whatever happened. The scope was
 then genuinely broken — every boundary value moved up a class on
 ordinary data — and the test passed. Ask the MAP, not the helper.
@@ -49,7 +109,7 @@ passed. Every negative case needs its positive twin, driven until the
 sentence appears.
 
 **A SINGLE HAND-MADE FIXTURE IS ONE SHAPE, AND THE HARM LIVES IN THE
-OTHERS.** The nudge shipped green against `{1, 5, 9}`, whose top range
+OTHERS.** That helper shipped green against `{1, 5, 9}`, whose top range
 is degenerate — the one arrangement in which its defect cannot appear.
 It was deleting the column's maximum from real maps, found within the
 hour by two hunts independently. When a fix ships with one fixture,

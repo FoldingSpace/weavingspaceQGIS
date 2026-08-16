@@ -106,9 +106,9 @@ changelog=0.24.3 Areas with no value are drawn now rather than left
     Another project: opening one no longer carries the last project's
     per-element colours, class counts and bounds into it. Element
     names repeat between projects, so those settings could land on
-    data they were never chosen for. The next Generate makes its own
-    group as well, rather than drawing over the map that project
-    already holds.
+    data they were never chosen for. The plugin takes over that
+    project's own group of layers, so the next Generate rebuilds it
+    where it stands rather than adding a second one beside it.
     Opening the plugin first: you can open the dialog before you load
     your data. The variables appear as soon as the layer does. Until
     now that order left the Variable list empty and Generate saying

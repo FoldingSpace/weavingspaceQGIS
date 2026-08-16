@@ -1450,18 +1450,18 @@ def unworn_classes(bounds, values):
   and a range holds ``lower <= v <= upper`` -- INCLUSIVE AT BOTH
   ENDS, which is what a graduated renderer actually does.
 
-  THAT LAST WORD WAS WRONG UNTIL 2026-08-16 and it mattered the
-  moment the degenerate-range nudge arrived. This used to exclude the
+  THAT LAST WORD WAS WRONG UNTIL 2026-08-16, and it was found when a
+  short-lived experiment moved a class bound (see docs/TESTING.md,
+  "Three ways to move a class boundary, and why none of them worked").
+  The experiment is gone; the correction it exposed is real and
+  stays. This used to exclude the
   lower bound for every range but the first, which agrees with the
   renderer while the ranges touch -- a value on a shared boundary is
   caught by the range BELOW it, earlier in the loop, so first-match
-  hides the difference. Once `_nudge_off_shared_bounds` moves that
-  lower range's top down by an ulp, the boundary value falls through
-  to the degenerate range that means exactly it, and the renderer
-  accepts it there while this rule refused it. Measured: with 1, 5, 9
-  in five classes the map drew classes 1, 3 and 5, and this reported
-  classes 2, 3, 4 and 5 unworn -- hatching two swatches that were in
-  use.
+  hides the difference. A boundary value moved off that shared bound
+  -- by anything, including the experiment that briefly did so on
+  purpose -- falls to the degenerate range that means exactly it, and
+  the renderer accepts it there while the old rule refused it.
 
   A class nothing occupies is a swatch in the legend no tile uses.
   Since the class count is no longer reduced to the value count, that
@@ -1625,123 +1625,6 @@ def cannot_be_placed(value) -> bool:
     # is why neither was noticed by a scan looking for absence.
     return value != value or value in (float("inf"), float("-inf"))
   return False
-
-
-def _nudge_off_shared_bounds(renderer) -> int:
-  """Let a repeated value reach the class that stands for it.
-
-  Args:
-    renderer: a QgsGraduatedSymbolRenderer whose classes have just
-      been computed. Mutated in place.
-
-  Returns:
-    How many ranges were moved, which is zero for ordinary data. The
-    count is returned so a caller or a test can assert that the
-    adjustment did or did not happen, rather than inferring it.
-
-  THE PROBLEM, measured on QGIS 4.0.3, 2026-08-16. Ask for five
-  quantile classes over a column holding 1, 5 and 9 and QGIS returns
-  ``1..1, 1..5, 5..5, 5..9, 9..9``. Three of those are DEGENERATE, and
-  a graduated renderer gives a value to the FIRST range that contains
-  it -- so 5 goes to ``1..5`` and 9 to ``5..9``, the two degenerate
-  ranges above them can never be reached at all, and the map draws its
-  highest value mid-grey while the legend's black sits beside a range
-  nothing occupies. A reader matching the darkest swatch to "high"
-  reads that map wrongly.
-
-  THE FIX IS ONE UNIT IN THE LAST PLACE. Shrink the upper bound of
-  every FINITE-WIDTH range, leaving the degenerate ones alone: a value
-  sitting on a shared boundary then falls past the interval that was
-  swallowing it and into the degenerate range that means exactly that
-  value. Measured on the same case: 1, 5 and 9 land in classes 1, 3
-  and 5, the highest value takes the darkest colour, and the ramp is
-  used end to end.
-
-  WHY IT IS SCOPED TO DEGENERATE RANGES. On ordinary data every range
-  has width, and shrinking each upper bound would push any value
-  sitting exactly on a break up into the next class -- reversing
-  QGIS's own convention for no benefit whatever. So nothing happens
-  unless the classifier has actually produced a degenerate range,
-  which is its way of saying there were fewer distinct values than
-  classes.
-
-  WHAT THIS COSTS AND WHY IT IS STILL QGIS. The break values are
-  QGIS's own; two of them move by an ulp, which its label formatter
-  rounds away, so the legend still reads "1 - 5" and "5 - 9". The
-  renderer stays an ordinary graduated renderer, so the styling panel,
-  the QML round trip and the GeoPackage are unaffected, and pressing
-  Classify in QGIS restores QGIS's untouched answer. It runs AFTER any
-  pinned bounds, so it adjusts final bounds rather than ones a pin is
-  about to rewrite.
-
-  This replaces the class REDUCTION that stood here from 2026-08-14 to
-  2026-08-16. Reducing k re-sampled the ramp across the survivors, so
-  colours moved with nobody choosing to move them; keeping k and
-  nudging leaves every class where it was. (Maintainer's ruling, and
-  the nudge was the maintainer's idea.)
-  """
-  import math
-  ranges = renderer.ranges()          # bound first: a temporary frees
-  bounds = [(r.lowerValue(), r.upperValue()) for r in ranges]
-  if not any(hi <= lo for lo, hi in bounds):
-    return 0
-  moved = 0
-  for index, (lo, hi) in enumerate(bounds):
-    # ONLY WHERE THE NEXT RANGE IS THE DEGENERATE ONE THAT WANTS THIS
-    # BOUNDARY VALUE. Anything wider than that does harm:
-    #
-    # THE LAST RANGE MUST NEVER MOVE, because its upper bound is the
-    # column's MAXIMUM. Shrinking it left the largest value belonging
-    # to no range at all, so QGIS gave it no symbol and the map drew
-    # a HOLE where the darkest tile should be, while the legend still
-    # listed a class for it and a lower value wore the darkest
-    # colour. Found within the hour by two hunts independently and
-    # reproduced here: values [10]*8 + [20, 30] under Quantiles at
-    # k=5 left 30 homeless, confirmed by rendering onto a coloured
-    # ground, where that tile came back as the background.
-    #
-    # AND A RANGE WHOSE SUCCESSOR HAS WIDTH must not move either.
-    # There is no degenerate class waiting to catch the boundary
-    # value, so nudging would push it up into an ordinary class it
-    # does not belong to -- which is the same convention-reversal the
-    # scope test above exists to prevent, arriving one range at a
-    # time instead of all at once.
-    #
-    # The first version of this loop had neither test and shipped
-    # green, because its fixture ({1, 5, 9}) is degenerate at the TOP,
-    # which is the one shape where the harm cannot appear. When a fix
-    # ships with a single hand-made case, vary the case before
-    # trusting the green.
-    if index + 1 >= len(bounds):
-      continue
-    next_lo, next_hi = bounds[index + 1]
-    if hi > lo and next_hi <= next_lo and next_lo == hi:
-      # A MARGIN, NOT ONE UNIT IN THE LAST PLACE. The first version
-      # stepped by `math.nextafter`, which made a tile's class depend
-      # on the LAST BIT of a number -- and anything that perturbs a
-      # float by an ulp then moves that tile between classes. It duly
-      # broke the GeoPackage round trip on every platform: the
-      # reloaded file-backed layers painted differently from the ones
-      # the dialog had made, 2,413 of 48,948 pixels.
-      #
-      # A relative margin of 1e-9 is enormous beside any rounding a
-      # store or a recomputation can introduce (which is ~1e-16
-      # relative), and invisible beside anything a legend prints --
-      # QGIS's formatter rounds it away, so the label still reads
-      # "1 - 5". The `abs(hi) or 1.0` keeps it meaningful when the
-      # bound is zero.
-      #
-      # It never crosses the range's own lower bound: with a margin
-      # that wide a very narrow range could otherwise be turned
-      # inside out, so the step is clamped and a range too narrow to
-      # take it is left alone rather than inverted.
-      margin = (abs(hi) or 1.0) * 1e-9
-      shrunk = hi - margin
-      if shrunk <= lo:
-        continue
-      renderer.updateRangeUpperValue(index, shrunk)
-      moved += 1
-  return moved
 
 
 def quant_class_colours(ramp_name: str, reverse: bool, count: int,
@@ -2244,7 +2127,6 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
     _apply_pinned_bounds(renderer, low_pin, high_pin, finite_values[0],
                          finite_values[-1], outline, method,
                          wants_middle)
-  _nudge_off_shared_bounds(renderer)
   # A single class spans the whole ramp and QGIS colours it from the
   # ramp's START (measured, QGIS 4.0.3: one class on Reds comes back
   # #fff5f0, the ramp's 0.0 endpoint) -- for a sequential ramp that is
@@ -2947,9 +2829,17 @@ def make_no_data_renderer(colour, outline: bool, kinds=None):
     # nothing said, or a layer from before the column existed: the
     # single catch-all this has always produced. Categorized on "" so
     # no value ever matches and every feature falls to the category.
+    # `picks` FIRST, because `plain` is None whenever a dict was
+    # passed -- which is exactly what the dialog passes -- so reading
+    # `plain or NO_DATA_FILL` dropped a hand-picked No data colour for
+    # any paired layer with no ws_absence column, meaning every layer
+    # written before today and every older GeoPackage reopened.
     return QgsCategorizedSymbolRenderer("", [
       QgsRendererCategory(
-        None, _fill_symbol(plain or NO_DATA_FILL, outline), "no data")])
+        None,
+        _fill_symbol(picks.get(NO_DATA_KEY) or plain or NO_DATA_FILL,
+                     outline),
+        "no data")])
   categories = []
   for key, stored, label, fill in ABSENCE_KINDS:
     if stored not in present:

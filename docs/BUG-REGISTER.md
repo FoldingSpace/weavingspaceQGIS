@@ -115,6 +115,8 @@ there is no separate list to remember.
   guarded by `test_moving_a_bound_off_its_computed_value_pins_it`
 - **the No data class had no control anywhere, so the colour of a missing-value area could not be chosen.**  
   guarded by `test_no_data_is_one_more_colour_in_the_element_s_editor`
+- **`_nudge_off_shared_bounds` shrank the upper bound of EVERY finite-width range, including the LAST, whose upper bound is the column's maximum -- so the largest value belonged to no range, QGIS gave it no symbol, and the map drew a hole where the darkest tile should be while the legend still listed a class for it and a lower value wore the darkest colour. Measured 2026-08-16 on [10]*8 + [20, 30] under Quantiles at k=5, and confirmed by rendering onto a coloured ground, where that tile came back as the background.**  
+  guarded by `test_no_value_is_ever_orphaned_by_a_classification`
 - **two elements sharing a categorical column and a ramp gave the same colour to different values, because each sampled the palette against its own category count.**  
   guarded by `test_one_colour_means_one_value_across_elements`
 - **pinning a class bound left the colour editor showing the ladder from before the pin, and the unpinned end's control offering a bound the map no longer had.**  
@@ -125,12 +127,12 @@ there is no separate list to remember.
   guarded by `test_swapping_two_variables_re_cuts_both_splits`
 - **opening the colour editor for an Unclassed element on a column with no values raised an unhandled OverflowError, so the button did nothing and QGIS showed a Python error.**  
   guarded by `test_the_colour_editor_opens_on_a_column_with_no_values`
+- **opening the colour editor on an element whose column holds an infinity raised IndexError inside a Qt slot, so the button did nothing and QGIS showed a Python error; the map drew the three kinds correctly and the window meant to colour them could not open. Found by a hunt on 2026-08-16, the day the kinds went from one to three.**  
+  guarded by `test_the_colour_editor_opens_on_an_element_with_infinities`
 - **the constant-column notice counted the tiled output rather than the region layer, so a small area dropped at a coarse spacing produced "every area has the same value" beside a legend showing a range.**  
   guarded by `test_the_constant_notice_counts_the_users_areas`
 - **`distance` converts BOTH its arguments to CIELAB on every call, and the clash search compared every class of one element against every class of another -- so it did 2*k*k conversions where 2*k would do, at about twelve microseconds each. Measured: four categorized elements of 401 classes froze QGIS for 36.75s, of which 35.70s was here, on the GUI thread with the event loop dead; the tiling those colours belonged to took 1.05s. The live path paid it on every tweak.**  
   guarded by `test_the_legibility_check_agrees_with_its_own_distance`
-- **`_nudge_off_shared_bounds` shrank the upper bound of EVERY finite-width range, including the LAST, whose upper bound is the column's maximum -- so the largest value belonged to no range, QGIS gave it no symbol, and the map drew a hole where the darkest tile should be while the legend still listed a class for it and a lower value wore the darkest colour. Measured 2026-08-16 on [10]*8 + [20, 30] under Quantiles at k=5, and confirmed by rendering onto a coloured ground, where that tile came back as the background.**  
-  guarded by `test_the_nudge_never_orphans_a_value`
 - **the notice that the region layer had been removed depended on which of two Qt handlers ran first, so it was silent on every CI runner while passing locally.**  
   guarded by `test_the_removal_notice_survives_the_chooser_moving_first`
 - **a renderer changed in QGIS back to something the plugin can express left the row reading "Deferring to QGIS" with its controls disabled, and the next Generate overwrote the map.**  
@@ -209,6 +211,8 @@ there is no separate list to remember.
 
 - **none yet -- this guards the repair rather than a defect that reached anybody. The half-fixed state shipped deliberately (a visible extra group beats an invisible double map) and was recorded on ROADMAP for 0.24.4; adopting on `readProject` is that entry, done.**  
   guarded by `test_a_project_opened_under_an_open_dialog_is_taken_over`
+- **none yet; this pins the scope of a change made 2026-08-16, because a nudge that fired on ordinary data would silently move every boundary value up one class across every map this plugin draws.**  
+  guarded by `test_a_value_on_a_break_belongs_to_the_class_below`
 - **the split widened from "missing" to "the classifier cannot place this" so it would catch an infinity, and this scan went on looking for NULL alone. A full Generate still drew correctly, since the split is not gated by it -- but on a column of infinities with no nulls the signature said no split was needed, so a style change was answered by the restyle path and the holes came back. Opened and closed the same day, 2026-08-16, by widening a predicate without enumerating its readers.**  
   guarded by `test_an_infinity_alone_still_asks_for_the_split`
 - **choosing a layer produced nothing until Generate was pressed, leaving a first-time user with an empty canvas and no indication that anything was meant to happen.**  
@@ -217,8 +221,6 @@ there is no separate list to remember.
   guarded by `test_deferral_survives_a_project_round_trip`
 - **the two infinity placeholder fills were compared against themselves, so any two elements carrying an infinity were reported as an unreadable pair.**  
   guarded by `test_no_placeholder_fill_is_ever_a_clash`
-- **none yet; this pins the scope of a change made 2026-08-16, because a nudge that fired on ordinary data would silently move every boundary value up one class across every map this plugin draws.**  
-  guarded by `test_ordinary_data_keeps_qgis_s_own_breaks`
 - **CRS work on the QgsTask worker thread segfaulted QGIS, because PROJ is not safe to use concurrently with the main thread; the CRS is now stripped before the task and reattached in the done callback.**  
   guarded by `test_real_world_data`
 - **an element styled in QGIS could not be taken back by picking the style it had before, because that restored its old signature and both seeding paths kept the renderer as unchanged.**  
@@ -433,8 +435,6 @@ there is no separate list to remember.
   guarded by `test_a_hatched_class_hatches_only_itself`
 - **a renderer type changed in QGIS's styling panel left the plugin's row naming a style and a ramp that no longer decided the map.**  
   guarded by `test_a_renderer_the_row_cannot_name_defers_to_qgis`
-- **five classes over three distinct values put two swatches in the legend that no tile used, and painted the highest value in a middle colour while the legend's darkest sat beside an empty range. First answered by REDUCING the class count, which re-sampled the ramp across the survivors and moved colours nobody chose to move -- measured 2026-08-16, five asked over four distinct values drew the four-class ladder exactly. Replaced by the nudge, which leaves every class where it was.**  
-  guarded by `test_a_repeated_value_reaches_the_class_that_means_it`
 - **values retyped in QGIS left the map drawing the classification computed from the old values, with classes running past everything the layer now held.**  
   guarded by `test_a_retyped_column_reclassifies_the_map`
 - **a subset string set by the user on an element layer was discarded at every regeneration, silently, while the hand styling beside it survived.**  
@@ -455,9 +455,9 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 81
-- a bug hunt pointed in a named direction: 48
+- a bug hunt pointed in a named direction: 49
 - the mutation campaign: 16
-- reported by a user: 13
+- reported by a user: 12
 - reading the code: 11
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6

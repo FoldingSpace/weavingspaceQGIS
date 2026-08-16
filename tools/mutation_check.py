@@ -1010,9 +1010,9 @@ MUTATIONS = [
   dict(name="editor-value-alignment", file=EDITOR,
        old="""        cell.setTextAlignment(Qt.AlignmentFlag.AlignRight
                               | Qt.AlignmentFlag.AlignVCenter)
-        if value == bridge.NO_DATA_KEY:""",
+        if _is_absence(value):""",
        new="""        pass  # mutation: values fall back to left-aligned
-        if value == bridge.NO_DATA_KEY:""",
+        if _is_absence(value):""",
        test="test_the_editor_is_laid_out_as_specified",
        why="values set right against colours set left, so the eye "
            "runs down one gap rather than across a ragged one"),
@@ -2773,26 +2773,6 @@ MUTATIONS = [
   # and shortening re-samples the ramp, moving colours nobody chose.
   # The nudge cures the same symptom without touching the ladder, so
   # the guard moves with it.
-  dict(name="a-repeated-value-reaches-its-own-class", file=BRIDGE,
-       old="""  _nudge_off_shared_bounds(renderer)""",
-       new="""  pass  # mutation: leave values stranded on shared bounds""",
-       test="test_a_repeated_value_reaches_the_class_that_means_it",
-       why="a graduated renderer gives a value to the FIRST range "
-           "containing it, so on repeated values the degenerate "
-           "ranges above are unreachable: the map draws its highest "
-           "value mid-grey while the legend's darkest sits beside a "
-           "range nothing occupies, and a reader matching darkest to "
-           "'high' reads the map wrongly"),
-  dict(name="the-nudge-stays-off-ordinary-data", file=BRIDGE,
-       old="""  if not any(hi <= lo for lo, hi in bounds):
-    return 0""",
-       new="""  if False:
-    return 0""",
-       test="test_ordinary_data_keeps_qgis_s_own_breaks",
-       why="without the scope test every upper bound is shrunk on "
-           "every map, so any value sitting exactly on a break moves "
-           "up one class -- reversing QGIS's own convention across "
-           "every classed map this plugin draws, for no benefit"),
   dict(name="a-copy-carries-the-pin-flags", file=DIALOG,
        old='      if source_pins.get(end) is None:\n        continue',
        new='      if True:  # mutation: the flags stay behind\n        continue',

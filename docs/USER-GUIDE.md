@@ -166,9 +166,11 @@ standard categorical ramps simply moves the ramp cell to that ramp.
 ### Class colours and the display range
 
 Quantitative elements open the same window. Each class is listed with
-its lower and upper bounds and the colour it draws in; the bounds
-belong to the data, so only the colours are yours to change, and a
-class keeps its colour even as the breaks move underneath it. Changing
+its lower and upper bounds and the colour it draws in. A class
+keeps its colour even as the breaks move underneath it, and the
+first and last class's inner bound is yours to set: type into it and
+that break is pinned, with the classes between recomputed around
+it. Changing
 the break method or the number of classes starts the colours over,
 since the classes they were picked for no longer exist, and the plugin
 says how many it dropped.

@@ -7666,14 +7666,22 @@ def test_an_empty_class_keeps_its_place_and_its_colour():
     assert len(dead) == asked - 3, \
       f"three distinct values in {asked} classes should leave " \
       f"{asked - 3} empty, and {len(dead)} are: {dead!r}"
-    # and the darkest swatch belongs to the largest value, which is
-    # the reading a legend exists to support
-    darkest = min(ranges,
-                  key=lambda r: sum(r.symbol().color().getRgb()[:3]))
-    assert painted[9.0] == darkest.symbol().color().name(), \
-      f"the highest value draws {painted[9.0]} while the legend's " \
-      f"darkest class is {darkest.symbol().color().name()} " \
-      f"({darkest.label()})"
+    # THE DARKEST CLASS MAY BE EMPTY, and that is the cost of the
+    # rule this test now guards. On repeated values QGIS gives a value
+    # to the FIRST range containing it, so the degenerate ranges above
+    # are unreachable and the highest value can wear a middle colour.
+    # Three attempts to move a class boundary and cure that were all
+    # withdrawn on 2026-08-16 -- each one orphaned a real value at
+    # some magnitude, drawing it as nothing, which is strictly worse
+    # (docs/TESTING.md, "Three ways to move a class boundary").
+    # An assertion that the darkest class is occupied would pin the
+    # withdrawn behaviour, so it is deliberately absent, and the
+    # emptiness is VISIBLE instead: the swatch hatches every class no
+    # tile wears, which is what the next assertion checks.
+    assert painted[9.0] in {r.symbol().color().name() for r in ranges}, \
+      f"the highest value draws {painted[9.0]}, which is not any " \
+      f"class's colour at all -- that is an orphaned value, not the " \
+      f"known cost of leaving QGIS's breaks alone"
 
   # Unclassed is exempt, and that is a decision rather than an
   # oversight: its fifty steps reproduce a continuous ramp rather than
@@ -20173,6 +20181,65 @@ def test_swapping_two_variables_re_cuts_both_splits():
   dlg.close()
 
 
+def test_the_colour_editor_opens_on_an_element_with_infinities():
+  """Every absence row is a row without bounds, not just the first.
+
+  The graduated editor lists one row per KIND of unplaceable value the
+  element holds, and those rows are not classes: they have no bounds
+  and cannot be pinned. The row-building loop asked `== NO_DATA_KEY`,
+  so an infinity row fell into the CLASS branch and indexed a bounds
+  list that has one entry per real class -- IndexError, raised inside
+  a Qt slot, so the Edit colours button did nothing and QGIS showed a
+  Python error.
+
+  What makes it worth a test rather than a one-line fix is the shape.
+  `_last_class_row` a hundred lines above was widened for every
+  trailing absence row on the same day; this site was its twin and was
+  not. A rule written into one of a pair is the failure this project
+  has recorded more often than any other.
+
+  Regression: opening the colour editor on an element whose column holds an infinity raised IndexError inside a Qt slot, so the button did nothing and QGIS showed a Python error; the map drew the three kinds correctly and the window meant to colour them could not open. Found by a hunt on 2026-08-16, the day the kinds went from one to three. [hunt]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+
+  # three real classes, then every absence kind, which is what the
+  # dialog builds for an element carrying NULLs and both infinities
+  bounds = [(0.0, 3.0), (3.0, 6.0), (6.0, 9.0)]
+  order = [str(i) for i in range(len(bounds))]
+  order += [key for key, _v, _l, _f in bridge.ABSENCE_KINDS]
+  assert len(order) > len(bounds) + 1, \
+    "the fixture carries at most one absence row, so it cannot show " \
+    "that the SECOND one is handled too"
+  colours = {k: "#ff0000" for k in order}
+
+  # the assertion IS that constructing it does not raise
+  editor = CategoryColourDialog(
+    "a", "v1", order, colours, {}, bounds=bounds, locked=False,
+    ramp_name="Reds", range_bounds=(0, 100), pinned={},
+    pin_changed=lambda *a, **k: None)
+  try:
+    assert editor.table.rowCount() == len(order), \
+      f"the editor built {editor.table.rowCount()} rows for " \
+      f"{len(order)} entries"
+    # ...and each absence row says which kind it is, in the label
+    # from ABSENCE_KINDS, rather than showing a class's bounds
+    offset = 1 if editor._pin_column else 0
+    shown = {editor.table.item(row, offset).text()
+             for row in range(len(bounds), editor.table.rowCount())
+             if editor.table.item(row, offset) is not None}
+    wanted = {label for _k, _v, label, _f in bridge.ABSENCE_KINDS}
+    assert shown == wanted, \
+      f"the absence rows read {shown}, not the kinds {wanted}: a row " \
+      f"showing a class's bounds is the window pretending an absence " \
+      f"is a class"
+    assert editor._last_class_row == len(bounds) - 1, \
+      f"the last CLASS is row {editor._last_class_row}, not " \
+      f"{len(bounds) - 1}: a pin would land on an absence row"
+  finally:
+    editor.deleteLater()
+
+
 def test_the_colour_editor_opens_on_a_column_with_no_values():
   """Three clicks, no Generate, and the editor used to raise.
 
@@ -20351,6 +20418,62 @@ def test_a_project_opened_under_an_open_dialog_is_taken_over():
     f"the output lives in {holding[0].name()!r} rather than the " \
     f"project's own {saved_group!r}"
   dlg.close()
+
+  # ...AND AGAIN WITH A GEOPACKAGE, which is where adopting the group
+  # alone is not enough. `_add_output_layers` asks
+  # `path != self._last_path` to decide whether the destination
+  # changed, and the FILE WIDGET survives a File > Open while
+  # `_last_path` is cleared with the rest -- so a dialog that had just
+  # adopted the group compared the chooser's path against None and
+  # built a second group anyway, both reading the SAME tables. The
+  # memory case above cannot show this: None equals None.
+  project.clear()
+  _tick(200)
+  gpkg = os.path.join(folder, "out.gpkg")
+  filed = make_region_layer(n=12)
+  filed.setName("region on file")
+  project.addMapLayer(filed)
+  second = WeavingSpaceDialog(iface=_Iface())
+  second.live_check.setChecked(False)
+  second.layer_combo.setLayer(filed)
+  _tick(200)
+  second.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(150)
+  second.gpkg_widget.setFilePath(gpkg)
+  _tick(150)
+  second.spacing_spin.setValue(520)
+  _generate_and_wait(second)
+  assert second._last_path == gpkg, \
+    f"the run did not write to {gpkg!r}, so this act tests nothing"
+  filed_group = second._group_name
+  saved_two = os.path.join(folder, "filed.qgz")
+  assert project.write(saved_two), "the project would not save"
+  project.clear()
+  _tick(200)
+  assert project.read(saved_two), "the project would not reopen"
+  _tick(400)
+  assert second._last_path == gpkg, \
+    f"after adopting, the dialog holds {second._last_path!r} rather " \
+    f"than the file its adopted layers actually read, so the next " \
+    f"Generate treats the destination as changed and abandons the " \
+    f"group it just took over"
+  back = [l for l in project.mapLayers().values()
+          if l.name() == "region on file"]
+  assert back, "the reopened project has no region layer"
+  second.layer_combo.setLayer(back[0])
+  _tick(300)
+  second.spacing_spin.setValue(555)
+  _generate_and_wait(second)
+  groups = [g for g in project.layerTreeRoot().findGroups()
+            if any(c.layer() is not None
+                   and c.layer().customProperty("weavingspace_output")
+                   for c in g.children())]
+  assert len(groups) == 1 and groups[0].name() == filed_group, \
+    f"after a GeoPackage run, reopen and run, the output lives in " \
+    f"{[g.name() for g in groups]} rather than only {filed_group!r}: " \
+    f"two groups reading the same tables is the double map adoption " \
+    f"exists to prevent"
+  second.close()
 
 
 def test_a_project_opened_under_an_open_dialog_is_not_drawn_over():
@@ -20772,76 +20895,6 @@ def _drawn_colours(renderer, layer, extra=()):
   return seen
 
 
-def test_a_repeated_value_reaches_the_class_that_means_it():
-  """Fewer values than classes must still use the ramp end to end.
-
-  Ask for five quantile classes over 1, 5 and 9 and QGIS returns
-  ``1..1, 1..5, 5..5, 5..9, 9..9``. A graduated renderer gives a value
-  to the FIRST range containing it, so 5 went to ``1..5`` and 9 to
-  ``5..9``: the two degenerate ranges above them were unreachable by
-  construction, the map drew its HIGHEST value mid-grey, and the
-  legend's black sat beside a range nothing occupied.
-
-  The cure is one unit in the last place, on finite-width ranges only,
-  so a value on a shared boundary falls past the interval swallowing
-  it into the degenerate range that means exactly that value.
-
-  Four things are asserted because four things had to be true at once,
-  and the earlier answers to this problem each got one of them wrong:
-  every value lands in its own class, the highest wears the darkest
-  colour, the colours are the ASKED ladder rather than a re-sampled
-  shorter one, and a value arriving later lands in the gap where it
-  belongs rather than in a hatched class that has gone stale.
-
-  Regression: five classes over three distinct values put two swatches in the legend that no tile used, and painted the highest value in a middle colour while the legend's darkest sat beside an empty range. First answered by REDUCING the class count, which re-sampled the ramp across the survivors and moved colours nobody chose to move -- measured 2026-08-16, five asked over four distinct values drew the four-class ladder exactly. Replaced by the nudge, which leaves every class where it was. [user]
-  """
-  from weavingspace_qgis import bridge
-  layer = _few_values_layer()
-  renderer = bridge.make_graduated_renderer(
-    layer, "v", "Greys", "Quantiles", 5, False)
-  layer.setRenderer(renderer)
-  ranges = renderer.ranges()
-  assert len(ranges) == 5, \
-    f"asked for five classes and got {len(ranges)}: the ladder is " \
-    f"still being shortened, which re-samples the ramp"
-
-  colours = [ranges[i].symbol().color().name() for i in range(len(ranges))]
-  expected = bridge.quant_class_colours("Greys", False, 5)
-  assert colours == expected, \
-    f"the classes wear {colours}, not the five-class ladder " \
-    f"{expected}: something re-sampled the ramp"
-
-  drawn = _drawn_colours(renderer, layer, extra=(3.0, 7.0))
-  assert drawn[1.0] == colours[0], \
-    f"the lowest value draws {drawn[1.0]}, not class 1 ({colours[0]})"
-  assert drawn[5.0] == colours[2], \
-    f"the middle value draws {drawn[5.0]}, not class 3 ({colours[2]}): " \
-    f"it is still being swallowed by the range below it"
-  assert drawn[9.0] == colours[4], \
-    f"the highest value draws {drawn[9.0]} while the darkest class is " \
-    f"{colours[4]} -- a reader matching darkest to high reads this " \
-    f"map wrongly"
-  # ...and the gaps are REAL RANGES, so data added in QGIS later, with
-  # the plugin closed, lands in them and draws in their colour. This
-  # is why the empty classes are not given a hatched SYMBOL: a hatch
-  # would be a snapshot of emptiness that nothing refreshes.
-  assert drawn[3.0] == colours[1], \
-    f"a value of 3 arriving later draws {drawn[3.0]}, not class 2 " \
-    f"({colours[1]}): the gap is not a usable range"
-  assert drawn[7.0] == colours[3], \
-    f"a value of 7 arriving later draws {drawn[7.0]}, not class 4 " \
-    f"({colours[3]})"
-
-  # the swatch's hatching must name exactly the classes the map left
-  # empty -- a differential, so the two cannot drift apart
-  bounds = [(ranges[i].lowerValue(), ranges[i].upperValue())
-            for i in range(len(ranges))]
-  unworn = bridge.unworn_classes(bounds, [f["v"] for f in layer.getFeatures()])
-  assert unworn == [1, 3], \
-    f"the hatching reports {unworn} unworn; the map occupies classes " \
-    f"1, 3 and 5, so exactly classes 2 and 4 are empty"
-
-
 def test_every_reader_of_unplaceable_agrees_with_the_split():
   """The map and the sentences about it must count the same things.
 
@@ -20888,9 +20941,16 @@ def test_every_reader_of_unplaceable_agrees_with_the_split():
   _generate_and_wait(dlg)
   said = [t for _k, t in BAR_MESSAGES if "finite numeric" in t]
   assert said, "nothing was said about the missing values at all"
-  assert str(spoiled) in said[0], \
-    f"the notice counts NULLs only: it says {said[0]!r} where {spoiled} " \
-    f"areas hold values no class can draw"
+  # THE WHOLE PHRASE, not a substring. `str(spoiled) in said[0]` was a
+  # search for "4" in a sentence whose total is 144, so it passed with
+  # the notice counting NULLs alone -- the very defect this test's
+  # Regression line names -- and would pass on "14 of 144" too. A
+  # number inside a longer number is the cheapest way for an assertion
+  # to look specific and mean nothing.
+  wanted = f"{spoiled} of {layer.featureCount()}"
+  assert wanted in said[0], \
+    f"the notice counts NULLs only: it says {said[0]!r} where " \
+    f"{wanted} areas hold values no class can draw"
   dlg.close()
 
   # ...and the case a scan for NULL is blind to: infinities alone
@@ -20926,8 +20986,15 @@ def test_every_reader_of_unplaceable_agrees_with_the_split():
   second.close()
 
 
-def test_the_nudge_never_orphans_a_value():
+def test_no_value_is_ever_orphaned_by_a_classification():
   """No value may end up belonging to no class at all.
+
+  KEPT AFTER THE EXPERIMENT THAT PROMPTED IT WAS WITHDRAWN, and that
+  is the point: it is an invariant about any classification this
+  plugin produces, not a test of one attempt. It caught two of the
+  three tries at moving a class boundary, each of which orphaned a
+  real value at a magnitude nobody had thought to try
+  (docs/TESTING.md, "Three ways to move a class boundary").
 
   A graduated renderer has nowhere to put a value outside every
   range: it returns no symbol, and on a map made of areas that is a
@@ -20949,6 +21016,10 @@ def test_the_nudge_never_orphans_a_value():
     "two values": (4.0, 4.0, 4.0, 9.0),
     "a long tail": tuple([2.0] * 6 + [3.0, 40.0, 41.0]),
     "negatives": (-9.0, -9.0, -4.0, -4.0, 0.0),
+    # MAGNITUDE IS A FIXTURE DIMENSION, added after a hunt orphaned a
+    # value at 2e12 that every fixture between 0 and 50 had missed.
+    "clustered at 2e12": (2e12, 2e12, 2e12, 2e12 - 100.0, 1e12, 5e11),
+    "tiny and clustered": (1.0, 1.0, 1.0, 1.0 - 5e-10, 1.0 - 2e-9, 0.5),
   }
   schemes = ("Quantiles", "Equal intervals", "Natural breaks (Jenks)",
              "Pretty breaks")
@@ -20972,7 +21043,7 @@ def test_the_nudge_never_orphans_a_value():
     f"only {checked} combinations were measured"
 
 
-def test_ordinary_data_keeps_qgis_s_own_breaks():
+def test_a_value_on_a_break_belongs_to_the_class_below():
   """The nudge is scoped, and nothing else may feel it.
 
   Shrinking every upper bound would push a value sitting exactly on a
@@ -45225,14 +45296,12 @@ def main():
         test_both_halves_of_an_element_fade_together)
   check("the spinner outranks a value the dialog itself wrote",
         test_the_spinner_outranks_a_value_the_dialog_itself_wrote)
-  check("a repeated value reaches the class that means it",
-        test_a_repeated_value_reaches_the_class_that_means_it)
   check("every reader of unplaceable agrees with the split",
         test_every_reader_of_unplaceable_agrees_with_the_split)
-  check("the nudge never orphans a value",
-        test_the_nudge_never_orphans_a_value)
-  check("ordinary data keeps qgis's own breaks",
-        test_ordinary_data_keeps_qgis_s_own_breaks)
+  check("no value is ever orphaned by a classification",
+        test_no_value_is_ever_orphaned_by_a_classification)
+  check("a value on a break belongs to the class below",
+        test_a_value_on_a_break_belongs_to_the_class_below)
   check("an infinity alone still asks for the split",
         test_an_infinity_alone_still_asks_for_the_split)
   check("the split tells the kinds of absence apart",
@@ -45255,6 +45324,8 @@ def main():
         test_no_data_is_one_more_colour_in_the_element_s_editor)
   check("swapping two variables re-cuts both splits",
         test_swapping_two_variables_re_cuts_both_splits)
+  check("the colour editor opens on an element with infinities",
+        test_the_colour_editor_opens_on_an_element_with_infinities)
   check("the colour editor opens on a column with no values",
         test_the_colour_editor_opens_on_a_column_with_no_values)
   check("the removal notice survives the chooser moving first",

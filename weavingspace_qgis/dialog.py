@@ -1126,7 +1126,7 @@ class WeavingSpaceDialog(QDialog):
     # so it cannot be fooled by a project that happens to contain a
     # group called "WeavingSpace tiles".
     QgsProject.instance().readProject.connect(
-      lambda _doc: self._adopt_existing_group())
+      lambda _doc: self._on_project_read())
     # AND the project's own removal signal, because the layer chooser
     # is not a reliable witness to its own layer leaving. Measured
     # 2026-08-15 across four arrangements: with ONE polygon layer in
@@ -1570,7 +1570,7 @@ class WeavingSpaceDialog(QDialog):
       "spill outward.")
     self.opt_clip = QCheckBox("Clip by map units (no ragged edges)")
     self.opt_clip.setToolTip(
-      "Trims the pattern to the region outline. The sloleft step.")
+      "Trims the pattern to the region outline. The slowest step.")
     self.opt_icons = QCheckBox("Use tileable as icon (one per map unit)")
     self.opt_icons.setToolTip(
       "One unit at the centre of each polygon, instead of a "
@@ -2838,11 +2838,37 @@ class WeavingSpaceDialog(QDialog):
       numbers = sorted(
         float(v) for v in values
         if isinstance(v, (int, float)) and math.isfinite(float(v)))
+      # ...AND WHAT IS UNPLACEABLE, per kind. Every term above is
+      # built from FINITE values, so swapping one kind of absence for
+      # another -- a NULL edited to an infinity in QGIS -- moved
+      # nothing: the digest was identical, `_signature` said
+      # unchanged, the run kept the previous paired renderer, and the
+      # tiles now wearing `pos-infinity` matched no category and were
+      # drawn as NOTHING. The hole the paired layer exists to remove,
+      # arriving through the gate meant to notice. Measured by a hunt,
+      # 2026-08-16: digest identical either side of the edit, four
+      # tiles unpainted after it.
+      #
+      # Counted per KIND rather than in total, because a NULL becoming
+      # an infinity leaves the total unchanged and is exactly the edit
+      # that must be noticed.
+      absent = {}
+      for v in values:
+        if not bridge.cannot_be_placed(v):
+          continue
+        if isinstance(v, float) and v == float("inf"):
+          kind = bridge.POS_INF_KEY
+        elif isinstance(v, float) and v == float("-inf"):
+          kind = bridge.NEG_INF_KEY
+        else:
+          kind = bridge.NO_DATA_KEY
+        absent[kind] = absent.get(kind, 0) + 1
       self._value_digests[(layer.id(), field_name)] = (
         len(values), len(numbers),
         numbers[0] if numbers else None,
         numbers[-1] if numbers else None,
-        hash(tuple(numbers)))
+        hash(tuple(numbers)),
+        tuple(sorted(absent.items())))
     return self._values_cache.get(key)
 
   def _value_digest(self, field_name):
@@ -7484,6 +7510,37 @@ class WeavingSpaceDialog(QDialog):
         pass
     _set_live_dialog(self)
 
+  def _on_project_read(self):
+    """Take over the project QGIS has just opened.
+
+    Returns:
+      None. Adopts the incoming project's output group, then brings
+      the chooser and its exclusions into line with it, which is what
+      the constructor does in the same order.
+
+    GUARDED LIKE ITS SIBLINGS, and it was not at first. A connection
+    made on the QgsProject SINGLETON outlives the dialog that made it,
+    so every dialog ever built in a session would answer every project
+    opened afterwards -- and reaching a destroyed dialog through a
+    live connection is what took QGIS down once already here. The two
+    checks are the ones `_on_layer_style_edited` carries: has this
+    dialog been destroyed, and is it still the live one.
+
+    AND IT DOES WHAT THE CONSTRUCTOR DOES. The first version adopted
+    the group and stopped, while the constructor goes on to refresh
+    the layer exclusions and the chooser -- so after a File > Open the
+    chooser could sit on the plugin's OWN output, and Generate then
+    failed with a KeyError about a column the user never chose. The
+    comment claiming a surviving dialog "ends up in exactly the state
+    a freshly opened one would be in" was therefore false when
+    written; it is true now because the same three calls run.
+    """
+    if _dialog_is_gone(self) or _live_dialog() is not self:
+      return
+    self._adopt_existing_group()
+    self._update_layer_exclusions()
+    self._on_layer_changed()
+
   def _adopt_existing_group(self):
     """Take over the output group this project already has, if any.
 
@@ -7593,6 +7650,24 @@ class WeavingSpaceDialog(QDialog):
     if not path or not table or not path.lower().endswith(".gpkg"):
       return
     self._gpkg_tables_written.setdefault(path, set()).add(table)
+    # ...AND THE PATH ITSELF, which adoption needs quite as much as
+    # the group. `_add_output_layers` computes
+    # `force_new = opt_new_group.isChecked() or path != self._last_path`
+    # and the FILE WIDGET survives a File > Open while `_last_path`
+    # is cleared with everything else -- so a dialog that had just
+    # adopted the incoming project's group compared the chooser's
+    # path against None, decided the destination had changed, and
+    # built a SECOND group beside the one it had adopted. Measured by
+    # a hunt on 2026-08-16: two groups, four adopted layers orphaned,
+    # both groups' layers reading the SAME tables, so the abandoned
+    # one redrew the new data under the old symbology. That is the
+    # invisible double map the adoption exists to prevent, arriving
+    # through the adoption itself.
+    #
+    # Taken from the layer rather than from the file widget, so it
+    # describes where the output actually IS rather than where the
+    # dialog would put it next.
+    self._last_path = path
 
   def _newest_output_group(self, root):
     """The output group a reopened dialog should take over.

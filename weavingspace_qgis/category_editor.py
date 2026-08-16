@@ -117,6 +117,25 @@ def colour_swatch(colour: str) -> QIcon:
   return QIcon(pixmap)
 
 
+
+def _is_absence(value) -> bool:
+  """Whether this row stands for an absence rather than a class.
+
+  Args:
+    value: the row's key, as it appears in the editor's `order`.
+
+  Returns:
+    True for any of the ABSENCE_KINDS keys. Derived from that tuple
+    rather than testing one key, because the paired layer grew from
+    one kind to three on 2026-08-16 and every site that asked
+    `== NO_DATA_KEY` became a site that handled one of them: one such
+    site was widened, its twin was not, and the editor raised
+    IndexError on an element carrying an infinity -- inside a Qt slot,
+    so the button simply did nothing and QGIS showed a Python error.
+  """
+  return any(value == key for key, _v, _l, _f in bridge.ABSENCE_KINDS)
+
+
 class PinButton(QAbstractButton):
   """A pushpin that can be pressed in or left out.
 
@@ -487,7 +506,7 @@ class CategoryColourDialog(QDialog):
         # which is what tells you it is a header.
         cell.setTextAlignment(Qt.AlignmentFlag.AlignRight
                               | Qt.AlignmentFlag.AlignVCenter)
-        if value == bridge.NO_DATA_KEY:
+        if _is_absence(value):
           # separated from the data's own values, because it is not
           # one
           font = cell.font()
@@ -496,7 +515,7 @@ class CategoryColourDialog(QDialog):
         self.table.setItem(row, 0, cell)
       else:
         offset = 1 if self._pin_column else 0
-        if value == bridge.NO_DATA_KEY:
+        if _is_absence(value):
           # NOT A CLASS, and the row says so instead of pretending.
           # These are the element's tiles whose value is missing;
           # they have no bounds, they cannot be pinned, and the
@@ -504,7 +523,13 @@ class CategoryColourDialog(QDialog):
           # all so that No data is ONE MORE COLOUR a person sets in
           # the same window as the rest -- two layers in QGIS, one
           # element in this dialog. (Maintainer's design, 2026-08-16.)
-          cell = QTableWidgetItem("no data")
+          # ITS OWN KIND, not a fixed word. This said "no data" for
+          # every absence row, which was right while there was one and
+          # became three rows reading the same thing the day the
+          # paired layer learned to tell a NULL from an infinity. The
+          # label comes from ABSENCE_KINDS, so this window, the legend
+          # and the map cannot disagree about what a row means.
+          cell = QTableWidgetItem(self._label_for(value))
           font = cell.font()
           font.setItalic(True)          # as the categorical catch-all
           cell.setFont(font)
@@ -944,6 +969,22 @@ class CategoryColourDialog(QDialog):
       if value == key:
         return f"({label})"
     return str(value)
+
+  def _label_for(self, value) -> str:
+    """The words an absence row shows.
+
+    Args:
+      value: the row's key, one of the ABSENCE_KINDS keys.
+
+    Returns:
+      That kind's label, or "no data" for anything unrecognised --
+      the safe direction, since it is what every absence row said
+      before the kinds were told apart.
+    """
+    for key, _stored, label, _fill in bridge.ABSENCE_KINDS:
+      if value == key:
+        return label
+    return "no data"
 
   def _format_bound(self, value):
     """A class bound as the row prints it.
