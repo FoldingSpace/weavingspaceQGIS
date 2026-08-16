@@ -68,62 +68,26 @@ CATEGORICAL_RAMPS = set(PALETTES["categorical"])
 # distinct colours for tile ids in the design preview (tab20)
 ID_COLOURS = PALETTES["categorical"]["tab20"]
 
-# light grey used wherever an element has no variable or a feature has
-# no value
-NO_DATA_FILL = "#dddddd"
-
-# The key standing for the catch-all category in a per-value colour
-# override map. A real field value could in principle be the string
-# "no data", so this is deliberately something no attribute value can
-# collide with rather than a readable word.
-NO_DATA_KEY = "\x00no-data"
-
-# THE THREE WAYS A VALUE CAN BE UNPLACEABLE, and they are not one
-# thing. A graduated renderer draws none of them, so all three leave
-# the element's own layer for its paired one -- but a reader is owed
-# the difference between "nobody recorded a value here" and "this area
-# is off the top of the scale", which on a choropleth is the
-# difference between missing and extreme. (Maintainer's instruction,
-# 2026-08-16.)
-#
-# WHY THREE AND NOT FOUR, which is the measurement that settled it. A
-# stored NaN is a fourth state QGIS itself holds apart from NULL --
-# but writing one to a GeoPackage stores NULL (measured 2026-08-16
-# through QgsVectorFileWriter and read back with sqlite3), so the
-# category would be empty for anyone whose data came from a file,
-# and a legend swatch no tile can ever wear is the defect this
-# project fixes elsewhere. The maintainer's ruling was to support
-# what a GeoPackage supports and collapse NaN into No data, which
-# `isna()` already does for free. The infinities need no such care:
-# the same measurement showed SQLite stores them as REAL and hands
-# them straight back, and they arrive here as ordinary values whose
-# only peculiarity is that `isna()` is False -- which is exactly why
-# they used to fall through the split AND the class breaks and be
-# drawn as nothing at all.
-POS_INF_KEY = "\x00+inf"
-NEG_INF_KEY = "\x00-inf"
-
-# The column the paired layer carries so its renderer can tell the
-# kinds apart. Named once here because the renderer categorizes on it
-# and should not have to know which variable produced the layer.
-ABSENCE_FIELD = "ws_absence"
-
-# key -> (value stored in ABSENCE_FIELD, legend label, default fill).
-# The labels say what happened rather than naming a floating-point
-# state. The infinities are deliberately NOT the no-data grey: they
-# mean off-the-scale rather than absent, and one colour for both would
-# break one-colour-one-meaning inside the feature meant to uphold it.
-ABSENCE_KINDS = (
-  (NO_DATA_KEY, "no-value", "no value", NO_DATA_FILL),
-  (NEG_INF_KEY, "neg-infinity", "below any value", "#8c9fc7"),
-  (POS_INF_KEY, "pos-infinity", "above any value", "#c78c8c"),
+# The absence vocabulary -- the no-data grey, the three kinds a
+# graduated renderer cannot place, the column they are stamped into --
+# is DEFINED in absence.py and re-exported here, so every existing
+# `bridge.NO_DATA_FILL` and `bridge.ABSENCE_KINDS` still resolves.
+# It moved out on 2026-08-16 for one reason: perception.py must know
+# which fills are placeholders (they are identical across elements, so
+# comparing them reports a clash in every design that has one) and
+# perception.py is deliberately importable without QGIS, which this
+# module is not. absence.py imports nothing, so both can read it and
+# neither has to keep a copy that could go stale. See its docstring.
+from .absence import (  # noqa: E402  (constants, read as such)
+  ABSENCE_BY_VALUE,
+  ABSENCE_FIELD,
+  ABSENCE_KINDS,
+  ABSENCE_VALUE,
+  NEG_INF_KEY,
+  NO_DATA_FILL,
+  NO_DATA_KEY,
+  POS_INF_KEY,
 )
-
-# key -> the value stored in ABSENCE_FIELD, and back again. Two dicts
-# rather than repeated indexing into the tuples above, so a reader
-# never has to remember which position means what.
-ABSENCE_VALUE = {key: stored for key, stored, _label, _fill in ABSENCE_KINDS}
-ABSENCE_BY_VALUE = {stored: key for key, stored, _l, _f in ABSENCE_KINDS}
 
 # tag attached to ramps we install, so they are identifiable/removable
 RAMP_TAG = "mapweaver"

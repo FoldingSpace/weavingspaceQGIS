@@ -5243,11 +5243,16 @@ class WeavingSpaceDialog(QDialog):
     # which tiles it governs, and the answer would be none. Offered
     # for the classed and Unclassed graduated paths alike, since both
     # are graduated renderers and neither can place a null.
-    if self._element_has_missing_values(tile_id, field):
-      order.append(bridge.NO_DATA_KEY)
-      colours[bridge.NO_DATA_KEY] = (
-        self._quant_colours.get(tile_id, {}).get(field, {})
-        .get(bridge.NO_DATA_KEY) or bridge.NO_DATA_FILL)
+    # ONE ROW PER KIND PRESENT since 2026-08-16, not one row for all
+    # of them. A NULL and an infinity are different statements -- one
+    # says nobody recorded a value, the other says the value is off
+    # the scale -- and the map now draws them apart, so the editor
+    # that sets those colours has to offer them apart.
+    picks = self._quant_colours.get(tile_id, {}).get(field, {}) or {}
+    defaults = {key: fill for key, _v, _l, fill in bridge.ABSENCE_KINDS}
+    for key in self._absence_kinds_for(tile_id, field):
+      order.append(key)
+      colours[key] = picks.get(key) or defaults[key]
 
     def picked(index, colour):
       # positional: "class 3 is this colour", surviving break moves
@@ -6389,6 +6394,57 @@ class WeavingSpaceDialog(QDialog):
     if self._last_path:
       bridge.embed_style(layer)
     layer.triggerRepaint()
+
+  def _absence_kinds_for(self, tile_id, field):
+    """Which kinds of unplaceable value this element actually has.
+
+    Args:
+      tile_id: the element being asked about.
+      field: the column it is coloured by; falsy answers an empty list.
+
+    Returns:
+      The ABSENCE_KINDS keys present, in that tuple's order, so the
+      editor lists no value, below any value, above any value however
+      the data arrived. Empty when the element has nothing unplaceable.
+
+    Asked of the PAIRED LAYER when one exists, exactly as
+    `_element_has_missing_values` does, since that layer is this
+    element's own tiles; and of the region layer before a first run,
+    which is the only thing that can say then -- accepting, as that
+    method already does, that the region is map-wide and this element
+    might not receive a tile on every kind.
+    """
+    if not field:
+      return []
+    from qgis.core import QgsProject
+    stored = None
+    paired = self._no_data_layer_ids.get(tile_id)
+    if paired:
+      layer = QgsProject.instance().mapLayer(paired)
+      if layer is not None:
+        index = layer.fields().indexOf(bridge.ABSENCE_FIELD)
+        if index >= 0:
+          stored = {str(v) for v in layer.uniqueValues(index)}
+    if stored is None:
+      source = self.layer_combo.currentLayer()
+      if source is None:
+        return []
+      index = source.fields().indexOf(field)
+      if index < 0:
+        return []
+      stored = set()
+      for feature in source.getFeatures():
+        value = feature[field]
+        if not bridge.cannot_be_placed(value):
+          continue
+        if isinstance(value, float) and value == float("inf"):
+          stored.add(bridge.ABSENCE_VALUE[bridge.POS_INF_KEY])
+        elif isinstance(value, float) and value == float("-inf"):
+          stored.add(bridge.ABSENCE_VALUE[bridge.NEG_INF_KEY])
+        else:
+          stored.add(bridge.ABSENCE_VALUE[bridge.NO_DATA_KEY])
+    return [key for key, value, _label, _fill in bridge.ABSENCE_KINDS
+            if value in stored]
 
   def _element_has_missing_values(self, tile_id, field):
     """Whether this element actually draws tiles with no value.

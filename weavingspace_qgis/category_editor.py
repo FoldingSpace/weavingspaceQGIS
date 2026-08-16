@@ -408,9 +408,16 @@ class CategoryColourDialog(QDialog):
     # no-data row follows the classes. Computed once, because two
     # places ask and a second reading of "last row" is how the pin
     # would land on the no-data row.
+    # EVERY trailing absence row, not just one. This counted a single
+    # no-data row until 2026-08-16, when the paired layer gained a row
+    # per kind of unplaceable value -- so with an infinity present the
+    # "last class" was an absence row, and the pin would have landed
+    # on it.
+    absence_keys = {key for key, _v, _l, _f in bridge.ABSENCE_KINDS}
     self._last_class_row = len(order) - 1
-    if order and order[-1] == bridge.NO_DATA_KEY:
-      self._last_class_row = len(order) - 2
+    while self._last_class_row >= 0 \
+        and order[self._last_class_row] in absence_keys:
+      self._last_class_row -= 1
     self._pins_offered = (bounds is not None and pin_changed is not None)
 
     layout = QVBoxLayout(self)
@@ -930,7 +937,13 @@ class CategoryColourDialog(QDialog):
 
   def _label_for(self, value):
     """What the left column says for one value."""
-    return "(no data)" if value == bridge.NO_DATA_KEY else str(value)
+    # Each kind reads as itself. The labels come from ABSENCE_KINDS so
+    # the editor, the legend and the map cannot drift apart, and a
+    # fourth kind added there appears here without an edit.
+    for key, _stored, label, _fill in bridge.ABSENCE_KINDS:
+      if value == key:
+        return f"({label})"
+    return str(value)
 
   def _format_bound(self, value):
     """A class bound as the row prints it.
