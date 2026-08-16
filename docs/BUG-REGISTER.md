@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-197 defect(s) with a regression test.
+198 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -75,6 +75,8 @@ there is no separate list to remember.
   guarded by `test_a_negative_scale_factor_mirrors_the_design`
 - **per-element records survived a project change, so pinned bounds, colours and class counts set in one project were applied to the next project opened in the same session.**  
   guarded by `test_a_new_project_does_not_inherit_the_last_one_s_pins`
+- **a hand-picked No data colour was destroyed by any reopen once another colour on that element had also been picked. Measured 2026-08-16: the .qgz held {"no-data": "#abcdef", "0": "#123456"} and the dialog came back with the class colour alone, offering the default grey over a map still drawing #abcdef, until the next Generate painted the default over it. A plain close-and-reopen was enough; no save or export needed.**  
+  guarded by `test_a_no_data_colour_comes_home_beside_a_class_colour`
 - **the class-count reduction counted the whole column, so pinning a bound could leave the scheme cutting more classes than the pool between the pins had distinct values, drawing a legend swatch no tile wears.**  
   guarded by `test_a_pin_leaves_no_class_for_a_tile_to_miss`
 - **a pin set on an element carrying a copied classification was recorded, stamped and shown as set while the map ignored it, and then took effect later when the copy was released.**  
@@ -443,7 +445,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 81
-- a bug hunt pointed in a named direction: 44
+- a bug hunt pointed in a named direction: 45
 - the mutation campaign: 16
 - reported by a user: 13
 - reading the code: 9

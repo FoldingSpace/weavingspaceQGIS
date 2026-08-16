@@ -20922,6 +20922,67 @@ def test_the_split_tells_the_kinds_of_absence_apart():
   dlg.close()
 
 
+def test_a_no_data_colour_comes_home_beside_a_class_colour():
+  """Two colours on one element must both survive a reopen.
+
+  The stamp on the layer holds every colour picked for that element,
+  the No data entry among them. Reopening runs two readers over it in
+  order: `_adopt_row_symbology` recovers the class colours FROM THE
+  RENDERER and assigns them, and then the stamp reader merges what it
+  finds. The merge asked its gap question about the whole FIELD, so
+  once the first reader had written anything the second did nothing at
+  all -- and no renderer records a no-data colour, so that entry was
+  exactly what went missing.
+
+  Note the shape: with only the No data colour picked, everything
+  comes home and this test would pass. It takes a SECOND pick to give
+  the first reader something to write. A test covering one pick would
+  have been green throughout.
+
+  Regression: a hand-picked No data colour was destroyed by any reopen once another colour on that element had also been picked. Measured 2026-08-16: the .qgz held {"no-data": "#abcdef", "0": "#123456"} and the dialog came back with the class colour alone, offering the default grey over a map still drawing #abcdef, until the next Generate painted the default over it. A plain close-and-reopen was enough; no save or export needed. [hunt]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = _layer_with_a_gap()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(150)
+  tid = dlg.table.item(0, 0).text()
+  # BOTH picks, which is the whole point: one alone cannot show this
+  picks = dlg._quant_colours.setdefault(tid, {}).setdefault("v1", {})
+  picks["0"] = "#123456"
+  picks[bridge.NO_DATA_KEY] = "#abcdef"
+  _generate_and_wait(dlg)
+  element_id = dlg._element_layer_ids[tid]
+  stamped = project.mapLayer(element_id).customProperty(
+    "weavingspace_quant_style")
+  assert stamped and "abcdef" in stamped.lower(), \
+    f"the element was not stamped with the No data pick, so the " \
+    f"reopen below would have nothing to recover: {stamped!r}"
+  dlg.close()
+
+  # reopen over the same project, which is all it took
+  second = WeavingSpaceDialog(iface=_Iface())
+  second.live_check.setChecked(False)
+  second.layer_combo.setLayer(layer)
+  _tick(250)
+  recovered = second._quant_colours.get(tid, {}).get("v1", {})
+  assert recovered.get("0", "").lower() == "#123456", \
+    f"the class colour did not come home either, so this test is " \
+    f"not showing what it names: {recovered!r}"
+  assert recovered.get(bridge.NO_DATA_KEY, "").lower() == "#abcdef", \
+    f"the No data colour was lost on reopen: the element came back " \
+    f"holding {recovered!r}, so the editor would offer the default " \
+    f"grey over a map still drawing #abcdef, and the next Generate " \
+    f"would paint the default over it"
+  second.close()
+
+
 def test_a_hand_styled_no_data_layer_survives_a_re_tile():
   """The twin keeps what the user gave it, on its element's terms.
 
@@ -44679,6 +44740,8 @@ def main():
         test_an_infinity_alone_still_asks_for_the_split)
   check("the split tells the kinds of absence apart",
         test_the_split_tells_the_kinds_of_absence_apart)
+  check("a no data colour comes home beside a class colour",
+        test_a_no_data_colour_comes_home_beside_a_class_colour)
   check("a hand styled no data layer survives a re-tile",
         test_a_hand_styled_no_data_layer_survives_a_re_tile)
   check("changing to a graduated style cuts the split it needs",
