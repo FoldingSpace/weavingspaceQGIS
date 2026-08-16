@@ -14,6 +14,49 @@ The suite lives in `tests/run_tests.py` (behaviour), `tests/visual_tests.py`
 `tools/` (coverage, mutation, standards, secrets). Everything runs
 under QGIS's own Python; `release.py` gates on all of it.
 
+## Four ways a test passed while the product was broken, 2026-08-16
+
+A second round of the same measurement, on twelve tests written that
+day, mutated PER ASSERTION: 28 mutants, ten tests killed everything,
+two did not. One in six, near this project's standing one in five.
+Both dead axes were in tests whose PRIMARY axis was live, which is now
+the reliable finding — a test is not one assertion, and the first one
+being well aimed says nothing about the rest.
+
+The four shapes, three of which were new that day:
+
+**A SECOND CALL TO A HELPER THE PRODUCT HAS ALREADY APPLIED cannot
+see what the product did with it.** `_nudge_off_shared_bounds` is
+scoped to ladders holding a degenerate range; the test asserted that
+calling it again returned zero. After the product's own call nothing
+is degenerate, so it returns zero whatever happened. The scope was
+then genuinely broken — every boundary value moved up a class on
+ordinary data — and the test passed. Ask the MAP, not the helper.
+
+**AN EXPECTATION READ BACK OFF THE OBJECT UNDER TEST MOVES WITH THE
+BUG.** The repair for the above first read the class boundaries from
+the renderer and checked each one's colour. Under a mutant that MOVES
+those boundaries they matched no data value, the loop skipped every
+case, and it passed again. Expectations come from the fixture and the
+scheme, never from the thing being measured.
+
+**A CLAIM THAT A NOTICE FIRES CANNOT BE TESTED BY SILENCE.** A test
+whose subject is a warning was rewritten that morning to repair an
+earlier dead axis, and the repair drove the dialog on a CLEAN fixture
+and asserted nothing was said. Deleting the notice from the plugin
+outright — the exact mutation named in its own docstring — still
+passed. Every negative case needs its positive twin, driven until the
+sentence appears.
+
+**A SINGLE HAND-MADE FIXTURE IS ONE SHAPE, AND THE HARM LIVES IN THE
+OTHERS.** The nudge shipped green against `{1, 5, 9}`, whose top range
+is degenerate — the one arrangement in which its defect cannot appear.
+It was deleting the column's maximum from real maps, found within the
+hour by two hunts independently. When a fix ships with one fixture,
+vary the fixture BEFORE trusting the green: the replacement sweeps
+five value sets across four schemes at three class counts and asserts
+the combination count actually ran.
+
 ## Tests written in haste, measured
 
 2026-08-16. Fourteen tests were written in one day alongside the fixes

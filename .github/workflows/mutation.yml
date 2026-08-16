@@ -23,6 +23,24 @@
 name: mutation
 
 on:
+  # ...AND ON EVERY PRE-CANDIDATE PUSH, for the incremental instrument
+  # only. Settled 2026-08-16 (docs/process/HUNT-RECORD.md, "Two hunts
+  # that should be TRIGGERED rather than chosen"): the question "would
+  # the suite have noticed what just changed" is worth asking of fresh
+  # work every time, and a rate of roughly one dead axis in five says
+  # it is a trigger rather than a hunch.
+  #
+  # IT STILL COLOURS NOTHING. This is a separate workflow from ci.yml
+  # by design, so its status is its own; the steps below are already
+  # allowed to fail so the summary is always written; and nothing in
+  # the release path reads it. Its output is a work list for the NEXT
+  # candidate. A red that means "write some tests this week" is not a
+  # gate, and treating it as one is how people learn to route around
+  # gates -- the same reasoning that took the new-code mutation guard
+  # out of the release path.
+  push:
+    branches:
+      - 'pre-*'
   workflow_dispatch:
     inputs:
       what:
@@ -86,7 +104,7 @@ jobs:
       #
       # Ask `stable` deliberately when the question really is whether
       # a newer QGIS has stopped an entry reaching its behaviour.
-      image: qgis/qgis:${{ inputs.qgis }}
+      image: qgis/qgis:${{ inputs.qgis || '4.0.3' }}
       options: --user root
     env:
       QT_QPA_PLATFORM: offscreen
@@ -120,11 +138,17 @@ jobs:
   # beside the gates and a number that informs the next round belongs
   # here.
   incremental:
-    if: inputs.what == 'incremental' || inputs.what == 'both'
+    # On a push there are no inputs at all, so `inputs.what` is empty
+    # and this is the ONE instrument that runs: the catalogue and the
+    # census stay dispatch-only, being hours of machine time nobody
+    # asked for.
+    if: >-
+      github.event_name == 'push'
+      || inputs.what == 'incremental' || inputs.what == 'both'
     runs-on: ubuntu-latest
     timeout-minutes: 180
     container:
-      image: qgis/qgis:${{ inputs.qgis }}
+      image: qgis/qgis:${{ inputs.qgis || '4.0.3' }}
       options: --user root
     env:
       QT_QPA_PLATFORM: offscreen
@@ -145,14 +169,14 @@ jobs:
         # carried 89. A guard that names the wrong cause is still a
         # guard; the cause is named here now.
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - name: Can this checkout actually see ${{ inputs.since }}
+      - name: Can this checkout actually see ${{ inputs.since || 'pre-0.24.0' }}
         # Instrument BEFORE the thing that would otherwise answer
         # quietly, and keep it AFTER the step above so a failure here
         # means the ref really is absent rather than git being shut
         # out of the directory.
         run: |
-          git rev-parse --verify "${{ inputs.since }}^{commit}" \
-            || { echo "NOT FOUND: ${{ inputs.since }}"; git tag | tail -20; exit 1; }
+          git rev-parse --verify "${{ inputs.since || 'pre-0.24.0' }}^{commit}" \
+            || { echo "NOT FOUND: ${{ inputs.since || 'pre-0.24.0' }}"; git tag | tail -20; exit 1; }
       - name: Provision what this QGIS lacks
         run: python3 -u tools/ci_provision.py
       - name: Record which tests touch which lines
@@ -190,10 +214,10 @@ jobs:
           done
           [ "$failed" -eq 0 ] || { echo "a coverage shard failed"; exit 1; }
           python3 -u tools/merge_coverage_shards.py
-      - name: Mutate the lines changed since ${{ inputs.since }}
+      - name: Mutate the lines changed since ${{ inputs.since || 'pre-0.24.0' }}
         continue-on-error: true
         run: |
-          python3 -u tools/mutate_auto.py --since ${{ inputs.since }} \
+          python3 -u tools/mutate_auto.py --since ${{ inputs.since || 'pre-0.24.0' }} \
             2>&1 | tee incremental.log
       - name: Keep the report
         if: always()
@@ -248,7 +272,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     container:
-      image: qgis/qgis:${{ inputs.qgis }}
+      image: qgis/qgis:${{ inputs.qgis || '4.0.3' }}
       options: --user root
     env:
       QT_QPA_PLATFORM: offscreen

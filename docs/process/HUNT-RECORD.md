@@ -202,6 +202,19 @@ nothing, so it is counted against the hunt, not for it.
 | **Write-only state** (2nd) | "Does each new record survive the journeys it must, and do the clear sites clear the same set?" | 1 | 1 | A project opened under an OPEN dialog: three symptoms, one cause. The lesson is the transferable part — enumerate what a clear site LEAVES, not what it clears, and drive the reopened-project journey with the dialog still open, which no existing test did |
 | **Tests that cannot fail** | "Which of the tests just written would pass with the behaviour broken?" | 1 | 3 | Aimed at fourteen tests written the same day, all mutated. Eleven killed everything; three had dead secondary axes, including a tautology that had already been "fixed" once and a literal `x == x`. About one in five, which is this project's historical rate. Turned on our own work rather than the product, and worth repeating whenever a batch of tests is written in haste |
 | **Mutation sampling** | "Would the suite have noticed this change?" | many | **0** | 128 survivors, no product defects. It measures the SUITE |
+| **The classification nudge** | "What does shrinking every finite upper bound break?" | 1 | 1 | New 2026-08-16, pointed at a change three hours old. Found the nudge DELETING THE COLUMN'S MAXIMUM: the loop moved every finite-width range's upper bound including the LAST, whose upper bound is the maximum, so the largest value belonged to no range, drew as nothing, and a lower value wore the darkest colour. Confirmed by rendering onto a coloured ground, where that tile came back as the background |
+| **Backwards from harm** (3rd) | "What would a user be furious to lose, among today's changes?" | 1 | (same defect) | Reached the SAME finding as the nudge hunt, independently and by a different route — it was forbidden to read the source and started from "a value drawn as a gap". Counted once, in the row above, because two hunts finding one defect is one defect. Recorded here because the independence is the evidence: three outings, three first-probe hits |
+| **The absence categories** | "Does every reader of *what the classifier cannot place* agree with the split?" | 1 | 1 (+1 minor) | New 2026-08-16. The missing-values notice still counted NULLs alone: two NULLs and four infinities among 144 areas were reported as "2 of 144" while the map drew nine no-data tiles across seven areas, and an infinities-only column produced NO SENTENCE AT ALL. `_element_has_missing_values` had the same one-line scan. Fifth and sixth readers of a predicate widened that morning; the question now has one owner |
+| **Tests that cannot fail** (2nd) | "Which of today's tests would pass with the behaviour broken?" | 1 | 2 | Twelve of the day's tests mutated PER ASSERTION, 28 mutants, ten killed everything. Two in twelve, holding this project's one-in-five. Both dead axes sat in tests whose primary axis was live, and one was in a test rewritten THAT MORNING to repair a dead axis — the repair asserted only silence, so deleting the notice outright still passed |
+
+**Two hunts, one defect, and it is counted once.** The nudge hunt and
+the third backwards-from-harm outing found the same fault within the
+hour, from opposite ends: one read the change and asked what it broke,
+the other was forbidden the source and asked what a user would lose.
+Recording both as findings would inflate the table; recording only one
+would hide the more useful fact, which is that a code-reading
+direction and a harm-first direction converged. The convergence is
+also what made the claim safe to act on immediately.
 
 Rows are updated as claims are judged, which is why several moved
 after their hunt reported: a direction's number is what SURVIVED
@@ -432,6 +445,44 @@ The sample is too small to tune further, and saying so is part of the
 rule: one to five hunts per direction and single-digit confirmations
 cannot distinguish 1.8 from 1.3. Rank crudely, spend the judgement on
 the direction, and do not mistake the table for a model.
+
+## Two hunts that should be TRIGGERED rather than chosen
+
+Settled 2026-08-16, after a round in which three of four defects were
+in code written that day. The yield of a direction is confounded with
+the age of what it was pointed at: what repeats is not a clever
+question but a productive question meeting FRESH WORK. So two of them
+stop being choices and become triggers, fired at the same moment as a
+push, with nothing waiting on what they find.
+
+**A batch of tests written in haste gets a tests-that-cannot-fail
+hunt.** Run twice now, on fourteen tests and then on twelve: six dead
+axes between them, right on this project's one-in-five. That is a
+rate, not a hunch, and a rate is a trigger.
+
+**A fix that ships with a single hand-made fixture gets a hunt.** Paid
+for on the day it was written down: the class-bound nudge shipped
+green against one fixture whose shape was the only one immune to its
+defect, and was deleting the column's maximum from real maps.
+
+WHAT IS AND IS NOT AUTOMATED. The mechanical half — would the suite
+have noticed this change — is `mutation.yml`'s incremental instrument,
+which mutates only the lines that changed. It runs in its own workflow
+precisely so it can never colour a push's status. The judgement half
+is not automatable and is not pretended to be: an agent reading the
+day's diff and asking what a user would lose is a hunt, and it is
+dispatched by hand at the same moment.
+
+NOTHING DEPENDS ON WHAT THEY FIND. Their output is a work list for the
+next candidate, never a gate on this one, for the same reason the
+new-code mutation guard stopped gating: a red that means "write some
+tests over the next few days" is not a gate, and treating it as one
+teaches people to route around it.
+
+The portfolio rule still governs what ELSE runs. Triggering the two
+above does not fill the slate: a third of any round's directions must
+still be unable to pattern-match against the code, or the hunts
+converge on the failure modes we already know how to see.
 
 ## Directions not yet tried
 
