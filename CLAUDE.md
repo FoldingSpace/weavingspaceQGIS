@@ -38,6 +38,20 @@ obligations: they exist so nobody pays twice for the same discovery.
   reading, as another platform for making these maps with the same
   library. Never as an explanation of what a control does.
   (Explicit user instruction, 2026-08-07.)
+  A SECOND SANCTIONED USE, settled 2026-08-16: PROVENANCE. README.md
+  and docs/index.html say the plugin "echoes and extends our earlier
+  (also handwritten) web-based interface", inside the paragraph about
+  who wrote this and how, and the maintainer ruled that fine. The rule
+  forbids explaining what the software DOES in terms of something the
+  reader cannot see; it does not forbid saying where the software came
+  from. A prose hunt raised it on 2026-08-16 and the answer is here so
+  the next one need not.
+  WORTH KNOWING WHILE YOU READ THAT: `check_standards` greps for
+  `web app` and `MapWeaver`, so that sentence passes because of its
+  wording rather than because the checker understands the exemption.
+  If the rule is ever tightened, tighten the checker and declare this
+  as an exception in the same commit -- an exemption that survives
+  only by synonym is not an exemption anybody decided.
 - **Human-facing prose follows the Bergmann–O'Sullivan voice.** All
   user-facing text (USER-GUIDE.md, help_content.py, tooltips, dialog
   messages, README, docs/index.html) was written through the
