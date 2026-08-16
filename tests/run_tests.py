@@ -21413,6 +21413,90 @@ def test_a_no_data_colour_comes_home_beside_a_class_colour():
   second.close()
 
 
+def test_a_carried_renderer_never_leaves_an_absence_unpainted():
+  """A kept renderer must still draw what the new layer holds.
+
+  The paired layer's categories enumerate the kinds of absence ONE
+  TILING happened to produce, which is not a property of the column:
+  two Generates at different spacings can hand an element a kind it
+  did not have before. A carried renderer has no category for it and
+  no catch-all, so those tiles paint no ink at all -- a hole, which is
+  what the split exists to abolish.
+
+  The element's own gate is the wrong question for the twin, and that
+  is the transferable part: an element's graduated breaks come from
+  the whole region and survive a re-tile, so keeping them is safe;
+  the twin's categories describe one run's output.
+
+  Regression: the fix that made a hand-set paired renderer survive a Generate applied the carried renderer unconditionally, so a re-tile that produced a new kind of absence left those tiles unpainted, while elements that LOST a kind kept its legend entry. Measured 2026-08-16 by rendering each paired layer over a magenta ground: uncovered rows came back as the background while their neighbours drew #8c9fc7 and #dddddd. [hunt]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  import math
+  project = QgsProject.instance()
+  # SPOILED FOUR WAYS AND SPREAD, so that different spacings hand
+  # different elements different kinds. A fixture whose elements all
+  # carry all three kinds at every spacing cannot show this at all --
+  # the first version of this test used one and passed with the fix
+  # disabled, which is the dead axis this suite finds at one in five.
+  layer = make_region_layer(n=8)
+  index = layer.fields().indexFromName("v1")
+  ids = [f.id() for f in layer.getFeatures()]
+  layer.startEditing()
+  for position, fid in enumerate(ids[:8]):
+    layer.changeAttributeValue(
+      fid, index,
+      [None, math.nan, math.inf, -math.inf][position % 4])
+  assert layer.commitChanges(), "the fixture would not commit"
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  for row in range(dlg.table.rowCount()):
+    chooser = dlg.table.cellWidget(row, 1)
+    if chooser is not None and hasattr(chooser, "setCurrentText"):
+      chooser.setCurrentText("v1")
+      _tick(110)
+
+  def kinds_now():
+    held = {}
+    for tid, pid in dlg._no_data_layer_ids.items():
+      paired = project.mapLayer(pid)
+      if paired is not None:
+        held[tid] = {f[bridge.ABSENCE_FIELD] for f in paired.getFeatures()}
+    return held
+
+  # Measured 2026-08-16: at 1300 element d carries two kinds and at
+  # 1100 it carries three, so the second run hands it one the carried
+  # renderer has no category for.
+  dlg.spacing_spin.setValue(1300)
+  _generate_and_wait(dlg)
+  before = kinds_now()
+  assert before, "no paired layers at all, so nothing is carried"
+  dlg.spacing_spin.setValue(1100)
+  _generate_and_wait(dlg)
+  after = kinds_now()
+  gained = {t: sorted(after[t] - before.get(t, set()))
+            for t in after if after[t] - before.get(t, set())}
+  assert gained, \
+    f"no element gained a kind between the two spacings " \
+    f"({before} then {after}), so this fixture cannot show a carried " \
+    f"renderer failing to cover one"
+
+  for tid, held in after.items():
+    paired = project.mapLayer(dlg._no_data_layer_ids[tid])
+    categories = paired.renderer().categories()   # bound before use
+    drawn = {str(c.value()) for c in categories}
+    missing = held - drawn
+    assert not missing, \
+      f"element {tid} holds {sorted(held)} and its renderer draws " \
+      f"{sorted(drawn)}: rows of kind {sorted(missing)} match no " \
+      f"category and paint nothing at all, which is the hole the " \
+      f"split exists to remove. Kinds gained this run: {gained}"
+  dlg.close()
+
+
 def test_a_hand_styled_no_data_layer_survives_a_re_tile():
   """The twin keeps what the user gave it, on its element's terms.
 
@@ -45310,6 +45394,8 @@ def main():
         test_a_pin_the_data_moved_under_is_released_and_said)
   check("a no data colour comes home beside a class colour",
         test_a_no_data_colour_comes_home_beside_a_class_colour)
+  check("a carried renderer never leaves an absence unpainted",
+        test_a_carried_renderer_never_leaves_an_absence_unpainted)
   check("a hand styled no data layer survives a re-tile",
         test_a_hand_styled_no_data_layer_survives_a_re_tile)
   check("changing to a graduated style cuts the split it needs",

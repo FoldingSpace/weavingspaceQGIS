@@ -88,3 +88,72 @@ NEXT:   harm 5 -- hand styling on the paired layer. Today's change
         makes a renderer or filter set there survive a Generate; the
         question is whether it survives onto the RIGHT element.
 
+## 15:10:00  iteration 4  [perturbation]
+TRIED:  harm 5. Hand-style element a's paired layer (lime single
+        symbol, plus a filter), then re-tile by changing the spacing,
+        then swap two elements' variables. Does her work survive, and
+        does it stay on HER element? Probe `probe_hand_styling.py`,
+        measured at b1e86d1 through startRender/symbolForFeature.
+RESULT: harm 5 itself ruled out -- the renderer and filter survived
+        the re-tile on element a and appeared on no other element,
+        and after the swap the renderer was correctly re-seeded
+        (a's assignment changed, which is the settled rule). But the
+        probe reported something I had not asked for: element c's
+        paired layer, never touched by hand, drew 2 of its 5 features
+        as NOTHING.
+NEXT:   chase that. It is harm 2 on my list -- an area drawn as a
+        hole -- arriving by a route I had not thought of.
+
+## 15:40:00  iteration 5  [perturbation]
+TRIED:  the hole, with NO hand styling anywhere and measured in
+        PIXELS rather than by asking the object graph: two ordinary
+        Generates at spacing 1500 then 1300, then for every paired
+        layer compare the kinds its rows carry against the categories
+        its renderer offers, and render the layer alone over a
+        magenta ground and sample the pixel at each uncovered row's
+        centroid. Probe `probe_holes.py`, at eaf7485.
+RESULT: **CONFIRMED.** Element a gained a `pos-infinity` row and its
+        renderer offers only `neg-infinity, no-value`; element c
+        gained two `neg-infinity` rows against categories
+        `no-value, pos-infinity`. All three tiles sample #ff00ff --
+        the ground -- while the control, a covered row on the same
+        layer in the same render, paints #8c9fc7 and #dddddd. The
+        same carry gives the mirror harm on the other two elements:
+        b and d keep categories for kinds their tiles no longer hold,
+        so their legends name absences the map does not draw.
+NEXT:   the mechanism, which I went to only now.
+
+## 16:05:00  iteration 6  [logical]
+TRIED:  reading dialog.py for the site.
+RESULT: `dialog.py:8188` clones the paired layer's renderer before
+        the run and `dialog.py:8439` hands it back when the ELEMENT's
+        styling gate says the element was kept; `_add_no_data_layer`
+        then applies it unconditionally at `dialog.py:6638-6639`, and
+        the branch that would ask what kinds the NEW layer holds
+        (`_absence_colours_and_kinds`) is the `else` at 6641-6642, so
+        it never runs. `bridge.make_no_data_renderer` builds ONE
+        CATEGORY PER KIND PRESENT and no catch-all
+        (bridge.py:2793-2801), which is right when it is seeded and
+        wrong when it is carried: the element's own graduated
+        renderer stays valid across a re-tile because its breaks come
+        from the whole region, while the twin's categories enumerate
+        the values one tiling happened to produce. The element's gate
+        is the wrong question for the twin.
+NEXT:   report. Ruled out on the way: harms 1, 2 (by the first
+        route), 5, 6 (no mechanism -- the nudge was withdrawn at
+        3b78241) and 7.
+
+## 16:20:00  iteration 7  [logical]
+TRIED:  HEAD moved four times under this hunt (ed7231f, 3b78241,
+        b1e86d1, eaf7485, 7908f9d). Re-prepared and re-ran
+        `probe_holes.py` against 7908f9d before reporting.
+RESULT: confirmed, identical figures. Nothing under
+        `weavingspace_qgis/` changed between eaf7485 and 7908f9d.
+NEXT:   nothing. Reported.
+
+## What was NOT looked at
+
+Harm 3 (hand-picked absence colours across a reopen, now that there
+are three of them) and harm 4 (a pin released though the data did not
+move) were on the list and were not reached. Neither is refuted.
+

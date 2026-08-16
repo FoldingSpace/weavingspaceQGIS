@@ -78,10 +78,9 @@ changelog=0.24.3 Areas with no value are drawn now rather than left
     the pattern.
     Classes: a column with fewer values than the classes you asked
     for keeps every class you asked for, and each keeps the colour of
-    its place on the ramp. Your values now reach the classes that
-    stand for them, so the largest wears the darkest colour instead of
-    a middle one, and the classes left empty are hatched in the swatch
-    and counted in a notice. An element set to Unclassed says nothing
+    its place on the ramp, so adding data later does not repaint the
+    classes you already had. The classes left empty are hatched in the
+    swatch and counted in a notice. An element set to Unclassed says nothing
     about this, its fifty steps never having been a count you chose.
     Design: the scale factors take negative values, which mirror the
     design about that axis and scale it by the size of the number.

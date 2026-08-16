@@ -6635,10 +6635,43 @@ class WeavingSpaceDialog(QDialog):
     # still reaches the map. (Maintainer's ruling, 2026-08-16, after
     # two hunts found this layer's styling silently replaced while the
     # element's was preserved and announced.)
-    if hand_renderer is not None:
+    colours, kinds = self._absence_colours_and_kinds(tile_id, field, layer)
+    # ...BUT ONLY IF IT CAN STILL DRAW WHAT THIS LAYER HOLDS. The
+    # element's gate is the wrong question for the twin, and answering
+    # it alone left holes in the map. An element's graduated breaks
+    # come from the whole region and survive a re-tile; the twin's
+    # CATEGORIES enumerate the kinds of absence one tiling happened to
+    # produce. Two ordinary Generates at different spacings can hand
+    # an element a kind it did not have before -- and a carried
+    # renderer has no category for it and no catch-all, so those tiles
+    # painted NO INK AT ALL. Measured 2026-08-16 by rendering each
+    # paired layer over a magenta ground: the uncovered rows came back
+    # as the background while their neighbours drew #8c9fc7 and
+    # #dddddd. The mirror case was on the same map: elements that LOST
+    # a kind kept its legend entry, naming an absence nothing draws.
+    #
+    # So the carried renderer is used while it covers the kinds
+    # present, and rebuilt otherwise. Hand styling survives the case
+    # that matters -- the same kinds, re-tiled -- and a hole never
+    # survives, which is the right way round: a lost custom fill is
+    # visible and undoable, an unpainted area is neither.
+    #
+    # A renderer WITHOUT categories -- a single symbol, which is what
+    # somebody usually sets in Layer Properties -- paints every
+    # feature whatever its kind, so it covers everything by
+    # definition. Only a CATEGORIZED renderer can fail to have an
+    # entry for a value, and only that case is asked about. Treating
+    # "no categories" as "covers nothing" threw away exactly the hand
+    # styling this carry-over exists to preserve.
+    enough = hand_renderer is not None
+    if enough and hasattr(hand_renderer, "categories"):
+      # bound before subscripting: a temporary from a QGIS getter
+      # frees its contents
+      existing = hand_renderer.categories()
+      enough = {str(c.value()) for c in existing} >= set(kinds or ())
+    if enough:
       layer.setRenderer(hand_renderer)
     else:
-      colours, kinds = self._absence_colours_and_kinds(tile_id, field, layer)
       layer.setRenderer(bridge.make_no_data_renderer(
         colours, assignment.get("outline", False), kinds))
     # TAGGED AS OUR OUTPUT like every other layer this run writes, or

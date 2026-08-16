@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-203 defect(s) with a regression test.
+204 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -45,6 +45,8 @@ there is no separate list to remember.
 
 ## Found by a bug hunt pointed in a named direction
 
+- **the fix that made a hand-set paired renderer survive a Generate applied the carried renderer unconditionally, so a re-tile that produced a new kind of absence left those tiles unpainted, while elements that LOST a kind kept its legend entry. Measured 2026-08-16 by rendering each paired layer over a magenta ground: uncovered rows came back as the background while their neighbours drew #8c9fc7 and #dddddd.**  
+  guarded by `test_a_carried_renderer_never_leaves_an_absence_unpainted`
 - **the classes whose breaks are computed showed an empty cell in the Pin column, which reads as a control waiting to be set rather than as a place a pin cannot go.**  
   guarded by `test_a_class_that_cannot_be_pinned_says_so_in_its_cell`
 - **under a copied ladder the class-count notice reported the column's distinct values rather than the classes the map drew, telling a user their map had fewer classes than it did.**  
@@ -455,7 +457,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 81
-- a bug hunt pointed in a named direction: 49
+- a bug hunt pointed in a named direction: 50
 - the mutation campaign: 16
 - reported by a user: 12
 - reading the code: 11
