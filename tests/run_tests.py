@@ -20542,6 +20542,68 @@ def test_both_halves_of_an_element_fade_together():
   dlg.close()
 
 
+def test_the_spinner_outranks_a_value_the_dialog_itself_wrote():
+  """A carried-over opacity is only the user's if the user set it.
+
+  The paired layer keeps a hand-set opacity across a re-tile, which is
+  the promise its element has always had. But "hand-set" was INFERRED
+  from the layer rather than recorded: the previous paired layer's
+  opacity was collected unconditionally, so a value the DIALOG wrote
+  on the last run came back looking like somebody's choice and
+  outranked the spin box they had just moved.
+
+  The element's own path answers this with the signature comparison,
+  which is exactly what tells the two apart. This drives the case that
+  gate exists for: move the spinner AND the spacing in one round, so
+  the run is a re-tile and the element's styling is legitimately
+  rebuilt. Both halves must then wear the number on screen.
+
+  Regression: the opacity carried onto an element's no-data layer was collected unconditionally, so it outranked the row's spin box on every re-tile: fading an element to 40 and changing the spacing in the same round left its missing-value areas at full strength, in the project and in the exported GeoPackage, with the spinner reading 40. Measured 2026-08-16 by opening the tables cold in a cleared project: tiles_a at 0.4, tiles_a_no_data at 1.0. The regression arrived inside the fix for the opposite fault, made hours earlier the same day. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = _layer_with_a_gap()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(150)
+  tid = dlg.table.item(0, 0).text()
+  dlg.spacing_spin.setValue(420)
+  _generate_and_wait(dlg)
+  # the premise: a first run at full strength, so the carried value
+  # about to be tested is one the DIALOG wrote rather than a user's
+  assert dlg._no_data_layer_ids.get(tid), \
+    "no paired layer after the first run, so there is nothing to carry"
+  first = project.mapLayer(dlg._no_data_layer_ids[tid])
+  assert abs(first.opacity() - 1.0) < 0.01, \
+    f"the first run left the paired layer at {first.opacity()}, not " \
+    f"the full strength this test needs it to carry forward"
+
+  # now the two changes together, which is what makes this a re-tile
+  opacity = dlg.table.cellWidget(0, 6)
+  assert opacity is not None and hasattr(opacity, "setValue"), \
+    f"row 0 column 6 is {opacity!r}, not the opacity spin"
+  opacity.setValue(40)
+  _tick(150)
+  dlg.spacing_spin.setValue(380)
+  _generate_and_wait(dlg)
+
+  element = project.mapLayer(dlg._element_layer_ids[tid])
+  paired = project.mapLayer(dlg._no_data_layer_ids[tid])
+  assert abs(element.opacity() - 0.4) < 0.01, \
+    f"the element is at {element.opacity()}, not the 0.4 asked for, " \
+    f"so the comparison below would prove nothing"
+  assert abs(paired.opacity() - 0.4) < 0.01, \
+    f"the spin box says 40 and the element draws at " \
+    f"{element.opacity()}, while its missing-value half draws at " \
+    f"{paired.opacity()} -- the value the dialog wrote last run " \
+    f"outranking the one the user just chose"
+  dlg.close()
+
+
 def test_changing_to_a_graduated_style_cuts_the_split_it_needs():
   """The split is GEOMETRY, however much it looks like styling.
 
@@ -39230,11 +39292,26 @@ def test_a_test_creeping_toward_its_ceiling_is_reported():
   original = globals()["_stall_ceiling"]
   probe = "probe: a test that sits close to its allowance"
   try:
-    # a ceiling this test is bound to approach, since it sleeps for
-    # most of it. sharded=False because a registration made from
-    # inside a test consumes a slot in one shard and not the others.
-    globals()["_stall_ceiling"] = lambda name: 0.4
-    check(probe, lambda: time.sleep(0.3), sharded=False)
+    # A ceiling this test is bound to APPROACH and must not CROSS,
+    # since it sleeps for most of it. sharded=False because a
+    # registration made from inside a test consumes a slot in one
+    # shard and not the others.
+    #
+    # THE RATIO IS THE POINT; THE ABSOLUTE MARGIN IS WHAT KEEPS IT
+    # HONEST. This was 0.4 against a 0.3 sleep -- a hundred
+    # milliseconds of headroom -- and it duly STALLED on the macOS
+    # runner on 2026-08-16, failing the whole leg while the other ten
+    # jobs passed. A 0.3 second sleep taking longer than 0.4 on a
+    # shared runner is not a defect in anything; it is a scheduler.
+    # So the test written to warn that a ceiling a healthy run can
+    # reach is worse than no ceiling had been given one, which is the
+    # rule in CLAUDE.md applied to everything except itself.
+    # Widened to a full second of headroom, ten times the margin that
+    # failed, keeping the sleep at 80% of the ceiling so it still sits
+    # above CLOSE_ENOUGH and is still recorded. Four seconds of suite
+    # time is the price of a leg that does not go red on a hiccup.
+    globals()["_stall_ceiling"] = lambda name: 5.0
+    check(probe, lambda: time.sleep(4.0), sharded=False)
   finally:
     globals()["_stall_ceiling"] = original
     # leave the suite's own tallies exactly as they were: this probe
@@ -44118,6 +44195,8 @@ def main():
         test_an_element_sitting_wholly_on_missing_values_still_draws)
   check("both halves of an element fade together",
         test_both_halves_of_an_element_fade_together)
+  check("the spinner outranks a value the dialog itself wrote",
+        test_the_spinner_outranks_a_value_the_dialog_itself_wrote)
   check("changing to a graduated style cuts the split it needs",
         test_changing_to_a_graduated_style_cuts_the_split_it_needs)
   check("icon mode says when an element has no icon for an area",

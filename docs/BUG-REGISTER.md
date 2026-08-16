@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-191 defect(s) with a regression test.
+192 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -125,6 +125,8 @@ there is no separate list to remember.
   guarded by `test_the_removal_notice_survives_the_chooser_moving_first`
 - **a renderer changed in QGIS back to something the plugin can express left the row reading "Deferring to QGIS" with its controls disabled, and the next Generate overwrote the map.**  
   guarded by `test_the_row_follows_the_dock_back_out_of_deferring`
+- **the opacity carried onto an element's no-data layer was collected unconditionally, so it outranked the row's spin box on every re-tile: fading an element to 40 and changing the spacing in the same round left its missing-value areas at full strength, in the project and in the exported GeoPackage, with the spinner reading 40. Measured 2026-08-16 by opening the tables cold in a cleared project: tiles_a at 0.4, tiles_a_no_data at 1.0. The regression arrived inside the fix for the opposite fault, made hours earlier the same day.**  
+  guarded by `test_the_spinner_outranks_a_value_the_dialog_itself_wrote`
 - **the message bar told a user with twelve distinct values that their Unclassed element "draws as 12 classes, not 50" while the map drew fifty. `make_graduated_renderer` reduces only `if not unclassed` -- Unclassed reproduces a CONTINUOUS ramp, so its fifty steps are the shape of the reproduction rather than a class count anybody chose -- but `classes_the_map_will_draw` was never told the scheme and reduced anyway. Its own docstring claimed the two arithmetics were "kept beside it so the two cannot drift".**  
   guarded by `test_unclassed_never_announces_a_reduction`
 
@@ -431,7 +433,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 81
-- a bug hunt pointed in a named direction: 41
+- a bug hunt pointed in a named direction: 42
 - the mutation campaign: 16
 - reported by a user: 12
 - reading the code: 7

@@ -8001,7 +8001,25 @@ class WeavingSpaceDialog(QDialog):
       reclaimed = (tid in old_renderers
                    and a.get("mode_raw") != self.DEFERRING
                    and bridge.expressible_style(old_renderers[tid]) is None)
-      if (unchanged or carried_while_deferring) and not reclaimed:
+      # THE GATE, named because its TWIN needs the same answer. This
+      # is what tells "kept because the user set it" from "kept
+      # because it was there", and the paired layer's copy of the
+      # opacity carry-over was written without it: `old_no_data_
+      # opacity` is filled unconditionally from whatever the previous
+      # paired layer wore, so "hand-set in QGIS" was inferred rather
+      # than recorded and was true of every paired layer that had ever
+      # existed. Fading an element to 40 and changing the spacing in
+      # one round therefore left its missing-value areas at full
+      # strength, in the project AND in the exported GeoPackage, with
+      # the spinner reading 40. Measured 2026-08-16 by opening the
+      # tables cold in a cleared project: tiles_a 0.4, tiles_a_no_data
+      # 1.0. The regression arrived inside the fix for the opposite
+      # fault hours earlier, which is the shape worth remembering --
+      # when a fix teaches a path to CARRY a value across, the gate is
+      # the part that has to travel with it.
+      kept_by_hand = ((unchanged or carried_while_deferring)
+                      and not reclaimed)
+      if kept_by_hand:
         out.setRenderer(old_renderers[tid])
         self._preserved_this_run.append(tid)
         # opacity travels with the renderer: an element the dialog has
@@ -8052,8 +8070,13 @@ class WeavingSpaceDialog(QDialog):
       project.addMapLayer(out, False)
       group.addLayer(out)
       if absent is not None and len(absent):
-        self._add_no_data_layer(a, tid, absent, group, project, path,
-                                old_no_data_opacity.get(tid))
+        self._add_no_data_layer(
+          a, tid, absent, group, project, path,
+          # ...through the SAME gate its element just went through.
+          # Outside it, a value the dialog itself wrote last run reads
+          # as a hand-set one and outranks the spin box the user just
+          # moved.
+          old_no_data_opacity.get(tid) if kept_by_hand else None)
       # the user's own filter, back on the fresh layer. Applied AFTER
       # the renderer, because a subset changes what a classifier
       # would see and the styling above belongs to the whole element;
