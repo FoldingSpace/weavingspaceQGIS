@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-202 defect(s) with a regression test.
+203 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -207,6 +207,8 @@ there is no separate list to remember.
 
 ## Found by reading the code
 
+- **none yet -- this guards the repair rather than a defect that reached anybody. The half-fixed state shipped deliberately (a visible extra group beats an invisible double map) and was recorded on ROADMAP for 0.24.4; adopting on `readProject` is that entry, done.**  
+  guarded by `test_a_project_opened_under_an_open_dialog_is_taken_over`
 - **the split widened from "missing" to "the classifier cannot place this" so it would catch an infinity, and this scan went on looking for NULL alone. A full Generate still drew correctly, since the split is not gated by it -- but on a column of infinities with no nulls the signature said no split was needed, so a style change was answered by the restyle path and the holes came back. Opened and closed the same day, 2026-08-16, by widening a predicate without enumerating its readers.**  
   guarded by `test_an_infinity_alone_still_asks_for_the_split`
 - **choosing a layer produced nothing until Generate was pressed, leaving a first-time user with an empty canvas and no indication that anything was meant to happen.**  
@@ -456,7 +458,7 @@ there is no separate list to remember.
 - a bug hunt pointed in a named direction: 48
 - the mutation campaign: 16
 - reported by a user: 13
-- reading the code: 10
+- reading the code: 11
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6
 - a multi-step session test: 5

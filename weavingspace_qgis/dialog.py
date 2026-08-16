@@ -1109,6 +1109,24 @@ class WeavingSpaceDialog(QDialog):
     # an empty dialog and win, which is also what makes the
     # setdefault in _adopt_row_pins correct rather than merely safe.
     QgsProject.instance().cleared.connect(self._forget_the_last_project)
+    # ...AND ADOPT THE INCOMING PROJECT'S OWN GROUP once it has loaded.
+    # `cleared` fires first and empties the dialog's records, which
+    # stops the next Generate drawing over a map it knows nothing
+    # about; but on its own that left the dialog with no group at all,
+    # so the run made a SECOND one beside the group the user had just
+    # opened and expected to be taken over. A visible extra group beat
+    # an invisible double map, which is why it shipped that way, and
+    # this is the repair the roadmap named.
+    #
+    # `readProject` fires after the project's layers exist, so
+    # adoption finds them; and it is the same method the constructor
+    # calls, so a dialog that survives a File > Open ends up in
+    # exactly the state a freshly opened one would be in. Adoption is
+    # by the layers' own custom properties rather than by group name,
+    # so it cannot be fooled by a project that happens to contain a
+    # group called "WeavingSpace tiles".
+    QgsProject.instance().readProject.connect(
+      lambda _doc: self._adopt_existing_group())
     # AND the project's own removal signal, because the layer chooser
     # is not a reliable witness to its own layer leaving. Measured
     # 2026-08-15 across four arrangements: with ONE polygon layer in

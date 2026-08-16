@@ -20274,6 +20274,85 @@ def test_an_element_sitting_wholly_on_missing_values_still_draws():
     "as no data through the single-symbol path"
 
 
+def test_a_project_opened_under_an_open_dialog_is_taken_over():
+  """The dialog adopts the incoming project's group, not a new one.
+
+  Two things had to be true and only the first was. A project opened
+  while the plugin is open must not be DRAWN OVER -- the dialog used
+  to keep the previous project's group name and output path, so the
+  next Generate wrote into a group belonging to a project it knew
+  nothing about. Clearing those records fixed that, and left the
+  second half wrong: with no group at all the run made its OWN,
+  beside the one the user had just opened and expected to be taken
+  over.
+
+  So this drives the whole journey and asserts the END STATE rather
+  than the absence of a symptom: one group, the incoming project's
+  own, holding the fresh layers. Asserting only "nothing is doubled"
+  would pass on a dialog that adopted nothing and made a second group
+  the first run's layers happened to have vacated.
+
+  Regression: none yet -- this guards the repair rather than a defect that reached anybody. The half-fixed state shipped deliberately (a visible extra group beats an invisible double map) and was recorded on ROADMAP for 0.24.4; adopting on `readProject` is that entry, done. [review]
+  """
+  import os
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  layer.setName("region for adoption")
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  _tick(200)
+  dlg.spacing_spin.setValue(520)
+  _generate_and_wait(dlg)
+  saved_group = dlg._group_name
+  assert saved_group, "the first run made no group to save"
+
+  folder = tempfile.mkdtemp(prefix="weavingspace_adopt_")
+  saved = os.path.join(folder, "kept.qgz")
+  assert project.write(saved), "the project would not save"
+
+  # a DIFFERENT project in between, so the dialog cannot simply still
+  # be holding the same group by luck
+  project.clear()
+  _tick(200)
+  assert dlg._group_name is None, \
+    "the dialog kept a group name across a cleared project"
+
+  assert project.read(saved), "the project would not reopen"
+  _tick(400)
+  # the adoption happens on readProject, before any run
+  assert dlg._group_name == saved_group, \
+    f"the dialog holds {dlg._group_name!r} after reopening a project " \
+    f"whose own output group is {saved_group!r}, so the next Generate " \
+    f"would build a second group beside the one the user opened"
+
+  again = [l for l in project.mapLayers().values()
+           if l.name() == "region for adoption"]
+  assert again, "the reopened project has no region layer"
+  dlg.layer_combo.setLayer(again[0])
+  _tick(300)
+  dlg.spacing_spin.setValue(560)
+  _generate_and_wait(dlg)
+
+  holding = [g for g in project.layerTreeRoot().findGroups()
+             if any(c.layer() is not None
+                    and c.layer().customProperty("weavingspace_output")
+                    for c in g.children())]
+  assert len(holding) == 1, \
+    f"after adopting and running, {len(holding)} groups hold output " \
+    f"({[g.name() for g in holding]}); the incoming project's own " \
+    f"group should have been rebuilt in place"
+  assert holding[0].name() == saved_group, \
+    f"the output lives in {holding[0].name()!r} rather than the " \
+    f"project's own {saved_group!r}"
+  dlg.close()
+
+
 def test_a_project_opened_under_an_open_dialog_is_not_drawn_over():
   """Open a project with the plugin open, and Generate must not double it.
 
@@ -45130,6 +45209,8 @@ def main():
         test_a_graduated_dock_recolour_survives_the_plugin_being_shut)
   check("a negative scale factor mirrors the design",
         test_a_negative_scale_factor_mirrors_the_design)
+  check("a project opened under an open dialog is taken over",
+        test_a_project_opened_under_an_open_dialog_is_taken_over)
   check("a project opened under an open dialog is not drawn over",
         test_a_project_opened_under_an_open_dialog_is_not_drawn_over)
   check("a project opened under an open dialog keeps its no data layers",
