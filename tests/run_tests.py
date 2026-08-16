@@ -12698,9 +12698,28 @@ def test_the_release_watchdog_measures_the_whole_tree():
         f"working release would look idle and be killed"
   finally:
     import signal
-    try:
-      os.killpg(os.getpgid(child.pid), signal.SIGKILL)
-    except (ProcessLookupError, PermissionError):
+    # KILL THE GROUP WHERE THERE ARE GROUPS. The grandchild loops for
+    # ever by design, so killing only the child would orphan an
+    # immortal cpu burner on the machine -- which is why this reaches
+    # for the process group. `os.killpg` and `os.getpgid` are POSIX
+    # ONLY and do not exist on Windows, where the attribute error came
+    # out of the `finally` and failed a test whose assertions had all
+    # passed (measured 2026-08-15, after the cpu reading started
+    # working there and the test got this far for the first time).
+    #
+    # Windows has no process groups to reach for, and `start_new_session`
+    # above is a no-op there, so the child and its grandchild are killed
+    # directly instead.
+    if hasattr(os, "killpg") and hasattr(os, "getpgid"):
+      try:
+        os.killpg(os.getpgid(child.pid), signal.SIGKILL)
+      except (ProcessLookupError, PermissionError):
+        child.kill()
+    else:
+      # `taskkill /T` is Windows's own "this process and everything it
+      # started", which is the same intent as killing a process group.
+      subprocess.run(["taskkill", "/T", "/F", "/PID", str(child.pid)],
+                     capture_output=True)
       child.kill()
     child.wait()
 
