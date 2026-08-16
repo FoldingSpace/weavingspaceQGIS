@@ -2357,6 +2357,78 @@ def write_gpkg_layer(layer: QgsVectorLayer, path: str, layer_name: str,
   return out
 
 
+def split_out_the_no_data(frame, field):
+  """Separate the rows a graduated renderer cannot draw.
+
+  Args:
+    frame: one element's tiles, as a GeoDataFrame.
+    field: the column that element is coloured by, or None when it
+      carries no variable at all.
+
+  Returns:
+    A pair ``(drawable, absent)`` of frames: the rows whose value the
+    classifier can place, and the rows whose value is missing. When
+    the field is None, absent from the frame, or nothing is missing,
+    `absent` is None and `drawable` is the frame unchanged -- so an
+    ordinary map pays nothing for this.
+
+  WHY THE SPLIT EXISTS. QgsGraduatedSymbolRenderer has no class for a
+  missing value: `symbolForFeature` answers None and the tile is
+  simply not drawn, so the layer beneath shows through as a hole.
+  Verified against the renderer's whole public API on QGIS 4.0.3 --
+  there is no default, no-data, else or fallback symbol of any kind,
+  where the CATEGORIZED renderer has `addCategory` and therefore its
+  familiar "(no data)" catch-all.
+
+  Reported from the field on 2026-08-16 with an area that is null in
+  every variable, so it read as a hole under two different tilings and
+  whichever column was mapped. The fix chosen by the maintainer keeps
+  every renderer standard: the missing rows become their own layer,
+  categorically rendered, grouped beside the graduated one, and the
+  plugin's own table goes on showing ONE element with No data as one
+  more class in its colour editor.
+  """
+  if field is None or frame is None or field not in getattr(
+      frame, "columns", []):
+    return frame, None
+  missing = frame[field].isna()
+  if not bool(missing.any()):
+    return frame, None
+  return frame[~missing], frame[missing]
+
+
+def make_no_data_renderer(colour: str, outline: bool):
+  """The renderer for an element's missing-value layer.
+
+  Args:
+    colour: the fill those areas draw in, as "#rrggbb".
+    outline: whether tile boundaries are drawn, exactly as elsewhere.
+
+  Returns:
+    A QgsCategorizedSymbolRenderer with a single catch-all category
+    labelled "no data".
+
+  CATEGORIZED RATHER THAN SINGLE-SYMBOL, deliberately. A single symbol
+  would paint the same pixels, and would put a bare layer name in the
+  legend where this puts the words "no data" -- which is the whole
+  point of drawing these areas rather than leaving them blank. It also
+  matches what the categorical path already does for its own
+  catch-all, so a reader meets one idea rather than two.
+  """
+  from qgis.core import QgsCategorizedSymbolRenderer, QgsRendererCategory
+  # BUILT INLINE, and that is not a style preference. Holding the
+  # category in a Python name and passing it to the renderer leaves
+  # two owners of one symbol: the renderer takes it, Python frees it,
+  # and the category comes back wearing a default BLACK fill.
+  # Measured 2026-08-16 -- #dddddd through _fill_symbol, #dddddd
+  # inside the category, #000000 once the renderer was constructed.
+  # make_categorized_renderer above has always built its own
+  # categories inline for the same reason.
+  return QgsCategorizedSymbolRenderer("", [
+    QgsRendererCategory(
+      None, _fill_symbol(colour or NO_DATA_FILL, outline), "no data")])
+
+
 def gpkg_tables_we_would_replace(path: str, layer_names) -> list:
   """Which of these tables the file ALREADY holds.
 
