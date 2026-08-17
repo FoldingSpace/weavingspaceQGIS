@@ -24633,6 +24633,35 @@ def test_one_file_spelt_two_ways_is_one_destination():
       _skip_loudly("a symlinked directory could not be created here, "
                    "so that spelling was not staged")
 
+    # ...AND A CASE-DIFFERING SPELLING, where the volume says those
+    # are one file. Asked of the FILESYSTEM rather than assumed:
+    # macOS and Windows are usually case-insensitive and Linux is
+    # usually not, so the right answer differs per volume and the
+    # test must ask the same question the product does. This is the
+    # spelling the first version of this guard could not stage, and a
+    # hunt found the hole hours later -- `normcase` is identity on
+    # POSIX while APFS folds case, so two Generates made two groups
+    # over one file.
+    upper = os.path.join(folder, "OUT.gpkg")
+    with open(upper, "w"):
+      pass
+    lower = os.path.join(folder, "out2.gpkg")
+    # does THIS volume fold case? create one name, ask for the other
+    probe = os.path.join(folder, "CaseProbe.tmp")
+    with open(probe, "w"):
+      pass
+    folds = os.path.exists(os.path.join(folder, "caseprobe.tmp"))
+    if folds:
+      staged += 1
+      assert same_destination(upper, os.path.join(folder, "out.gpkg")), \
+        "this volume treats OUT.gpkg and out.gpkg as one file and " \
+        "the plugin reads them as two destinations, so one file " \
+        "under two spellings makes two layer groups"
+    else:
+      _skip_loudly("this volume is case-sensitive, so the "
+                   "case-differing spelling was not staged")
+    del lower
+
     # ...and two genuinely different files still read as two.
     other = os.path.join(folder, "elsewhere.gpkg")
     with open(other, "w"):

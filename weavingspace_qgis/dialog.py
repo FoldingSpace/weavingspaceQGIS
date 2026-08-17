@@ -311,6 +311,32 @@ def same_destination(one, other):
     except (OSError, ValueError):
       return os.path.normcase(path)
 
+  # ASK THE FILESYSTEM FIRST, because it is the authority on whether
+  # two names are one file and the answer differs per VOLUME. Added
+  # 2026-08-17, hours after this function, when a hunt showed the hole
+  # its fixture had hidden: `normcase` is identity on POSIX and
+  # `realpath` does not fold case, while APFS does -- so `Output.gpkg`
+  # and `output.gpkg` are one file on this Mac and compared as two.
+  # Measured by two routes: two Generates produced `WeavingSpace
+  # tiles` and `WeavingSpace tiles 2` over ONE file on disk, and after
+  # an adoption the two groups read the same four tables. The double
+  # map, on the developer's own platform, through the very fix written
+  # to prevent it.
+  #
+  # A blanket casefold would be WRONG on a case-sensitive volume,
+  # where those really are two files. `samefile` compares device and
+  # inode, so the volume decides -- and it answers Windows' short
+  # names too.
+  try:
+    if os.path.samefile(one, other):
+      return True
+  except OSError:
+    # one of them does not exist yet, which is ordinary: a GeoPackage
+    # names where output is GOING. Fall through to the string form,
+    # whose remaining gap is two case-differing spellings of a file
+    # that has not been written -- once it exists, the check above
+    # settles it.
+    pass
   return settled(one) == settled(other)
 
 
@@ -2188,6 +2214,41 @@ class WeavingSpaceDialog(QDialog):
     self._watched_layer = None
     self._watched_layer_id = None
     self._on_layer_changed()
+
+  def _gpkg_key(self, path):
+    """The key under which one GeoPackage's tables are recorded.
+
+    Args:
+      path: the file, spelt however the caller happens to hold it --
+        from a layer's own source, or from the file widget.
+
+    Returns:
+      A form that two spellings of one file share, so the record
+      cannot split in two; the path unchanged when it is empty.
+
+    Why not the path itself. `same_destination` taught `_last_path`
+    to compare files rather than strings on 2026-08-17; this record
+    was its twin and was not told. One file under two spellings gave
+    two keys, so a run could not see the tables an earlier run had
+    written and a shrinking design orphaned a table in the file the
+    user sends on.
+    """
+    if not path:
+      return path
+    try:
+      # THE FILE'S OWN IDENTITY where it exists, for the reason
+      # `same_destination` asks `samefile`: whether two spellings are
+      # one file is the volume's business, and device-plus-inode is
+      # what the volume says. A key cannot compare pairwise, so it
+      # takes the identity instead.
+      stat = os.stat(path)
+      return f"file:{stat.st_dev}:{stat.st_ino}"
+    except OSError:
+      pass
+    try:
+      return os.path.normcase(os.path.realpath(path))
+    except (OSError, ValueError):
+      return os.path.normcase(path)
 
   def _layer_fingerprint(self):
     """What the region layer CONTAINS, cheaply enough to ask often.
@@ -7882,7 +7943,8 @@ class WeavingSpaceDialog(QDialog):
     table = rest.split("layername=", 1)[1].split("|", 1)[0]
     if not path or not table or not path.lower().endswith(".gpkg"):
       return
-    self._gpkg_tables_written.setdefault(path, set()).add(table)
+    self._gpkg_tables_written.setdefault(
+      self._gpkg_key(path), set()).add(table)
     # ...AND THE PATH ITSELF, which adoption needs quite as much as
     # the group. `_add_output_layers` computes
     # `force_new = opt_new_group.isChecked() or path != self._last_path`
@@ -8328,10 +8390,26 @@ class WeavingSpaceDialog(QDialog):
     # that first run the group is ours and the ordinary rule resumes.
     # `Create as new group` overrides either way, which keeps the
     # explicit control ahead of any inference.
-    adopted_not_yet_written = self._adopted_group_unwritten
+    # ...AND ONLY WHERE THE USER NAMED NO FILE. Narrowed 2026-08-17
+    # after a hunt measured what the wider version did: with the flag
+    # armed, redirecting to a DIFFERENT GeoPackage was swallowed --
+    # no new group, the adopted map replaced in place, nothing said --
+    # while the very next redirect behaved normally. Same action,
+    # opposite answers, turning on whether this dialog had written the
+    # group, which no user can see.
+    #
+    # The recovery this exists for is narrower than I first made it:
+    # somebody reopening a project whose region layer has moved clears
+    # the output box to get memory layers. That is the case where an
+    # empty path must not read as a redirect. Where they NAME a file,
+    # they have said where output goes and the ordinary rule is right.
+    # (A third scope was considered and is a no-op: when the path
+    # still MATCHES what was adopted, `force_new` is already False
+    # without any flag -- measured.)
+    adopted_and_no_file_named = self._adopted_group_unwritten and not path
     force_new = self.opt_new_group.isChecked() or (
       not same_destination(path, self._last_path)
-      and not adopted_not_yet_written)
+      and not adopted_and_no_file_named)
     # Spent the moment it is read: the group is this dialog's from
     # here on, and a second run with a changed destination follows the
     # ordinary rule again. Cleared BEFORE the work below rather than
@@ -8834,7 +8912,17 @@ class WeavingSpaceDialog(QDialog):
       # carrying one from earlier in the session drops what it always
       # did and simply does not know about no-data tables until its
       # next run.
-      written = self._gpkg_tables_written.get(path, set())
+      # KEYED BY THE FILE, not by the spelling. `_last_path` learnt
+      # this on 2026-08-17 and this record did not, which is the twin
+      # the fix missed: one file reached under two spellings splits
+      # into two keys, so the tables an earlier run wrote are invisible
+      # to this one and a design that SHRANK leaves its dropped
+      # element's table behind. The user then sends on a GeoPackage
+      # describing a design they abandoned, and nothing on screen says
+      # so, because the group itself is correctly reused. Windows
+      # produces the two spellings unaided.
+      key = self._gpkg_key(path)
+      written = self._gpkg_tables_written.get(key, set())
       current = {f"tiles_{tid}" for tid in new_ids}
       current |= {f"tiles_{tid}_no_data"
                   for tid in self._no_data_layer_ids}
@@ -8842,7 +8930,7 @@ class WeavingSpaceDialog(QDialog):
         name = stale if stale.startswith("tiles_") else f"tiles_{stale}"
         if name not in current:
           bridge.drop_gpkg_layer(path, name)
-      self._gpkg_tables_written[path] = current
+      self._gpkg_tables_written[key] = current
     self._last_path = path
     # what this run DREW, not what the table says now (see the note
     # where these are captured, in _generate)
