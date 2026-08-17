@@ -248,7 +248,32 @@ rather than assumed:
 - `_newest_output_group` now examines every top-level group's
   children, though only at construction.
 
-**MEASURED 2026-08-17, AND ALL THREE SUSPECTS ARE INNOCENT.** Six
+**THE QUESTION WAS MIS-SCOPED, AND THAT IS THE MOST IMPORTANT LINE
+HERE.** Clarified by the maintainer after the measurement below: the
+tester is not reporting an rc4-to-rc5 regression. He is lamenting
+that the plugin USED TO BE efficient, responsive and easy to ITERATE
+with, and no longer feels that way. That is a drift over many
+versions and a complaint about the interactive loop, not about one
+release and not about Generate.
+
+So the measurement below answers a real question -- did this release
+make it worse -- and not the one being asked. What the asked question
+needs instead:
+
+- profile ONE INTERACTIVE TICK, not a run: nudging a spinner,
+  changing a ramp, a table rebuild, a preview redraw. "Easy to
+  iterate with" lives in the 350 ms and 900 ms debounces, and a
+  Generate measurement says almost nothing about them;
+- baseline against a version he remembers as SNAPPY -- 0.23.x or
+  0.24.0 -- rather than against last night's candidate;
+- and read ABSOLUTE costs, not only deltas. A loop can be slow
+  without any release having made it slower, and this project has
+  already found one such thing by accident: a ramp swatch redrawn
+  306,558 times in a single test, uncached since it was written.
+  Nobody has ever measured what one interaction costs.
+
+**MEASURED 2026-08-17 AGAINST rc4, AND ALL THREE SUSPECTS ARE
+INNOCENT.** Six
 full runs at the auto spacing in each tree, profiled, compared by
 call count: `569aefb` 1,390,561 calls against `6c7af51` 1,391,768.
 **+1,207, or +0.09%.** This session's additions are visible and
