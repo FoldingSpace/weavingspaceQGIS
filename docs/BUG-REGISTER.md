@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-216 defect(s) with a regression test.
+218 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -446,6 +446,8 @@ there is no separate list to remember.
   guarded by `test_two_editors_in_one_session_do_not_leak`
 - **two warnings from one run shared a single label and the last one silently erased the first.**  
   guarded by `test_two_notices_from_one_run_both_survive`
+- **none yet; this guards the second pin control added 2026-08-17 against the landing that has destroyed pin state here before.**  
+  guarded by `test_two_pin_controls_agree_across_a_run_landing`
 
 ## Found by reported by a user
 
@@ -461,6 +463,8 @@ there is no separate list to remember.
   guarded by `test_a_retyped_column_reclassifies_the_map`
 - **a subset string set by the user on an element layer was discarded at every regeneration, silently, while the hand styling beside it survived.**  
   guarded by `test_a_user_subset_survives_regeneration`
+- **an Unclassed row offered no Pin column, so the pins were reported as not working there at all. Reported against 0.24.3rc5.**  
+  guarded by `test_an_unclassed_row_pins_from_either_control`
 - **the colour-separability warning fired unconditionally, on every map, whether or not anyone wanted that opinion; and later, with the box checked, every warning reached a real message bar TWICE, pushed immediately and again by the settled-dust send whose stash had been added for the note-line wipe without removing the push.**  
   guarded by `test_colour_legibility_warnings_are_opt_in`
 - **a renderer type changed in QGIS while the colour editor was open left the window showing class bounds and colours for a renderer that had been replaced.**  
@@ -480,11 +484,11 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- not written down at the time: 81
+- not written down at the time: 82
 - a bug hunt pointed in a named direction: 54
 - the mutation campaign: 16
 - reading the code: 15
-- reported by a user: 14
+- reported by a user: 15
 - running the suite somewhere other than the machine it was written on: 8
 - race and stress testing: 6
 - a multi-step session test: 5

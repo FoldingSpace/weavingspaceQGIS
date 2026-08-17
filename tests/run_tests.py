@@ -527,6 +527,39 @@ def check(name, fn, sharded=True):
     BAR_MESSAGES.clear()
 
 
+def _pin_control(editor, which, where="any"):
+  """One (pin, box) pair from a colour editor, by which control it is.
+
+  Args:
+    editor: an open CategoryColourDialog.
+    which: "low" or "high".
+    where: "table" for the Pin column's pair, "strip" for the clamp
+      strip's, "any" for the first registered.
+
+  Returns:
+    The (PinButton, QDoubleSpinBox) pair. Raises AssertionError when
+    there is no such control, rather than returning None for a caller
+    to unpack -- a test that silently skips its own subject is the
+    failure this suite has met most often.
+
+  `_pin_widgets[which]` holds a LIST since 2026-08-17, because an
+  Unclassed end is named by the table's Pin column AND by the clamp
+  strip above it. Before that it held one pair and every caller
+  unpacked it directly.
+  """
+  pairs = list(editor._pin_widgets.get(which) or [])
+  assert pairs, f"the editor offers no {which} pin at all"
+  if where == "any":
+    return pairs[0]
+  in_table = [p for p in pairs if editor.table.isAncestorOf(p[1])]
+  wanted = in_table if where == "table" else \
+    [p for p in pairs if p not in in_table]
+  assert wanted, \
+    f"no {which} pin in the {where}; the editor has {len(pairs)} " \
+    f"control(s) for that end"
+  return wanted[0]
+
+
 def make_region_layer(n=4, cell=1000, origin=(0, 0)):
   """A small synthetic region layer.
 
@@ -8813,7 +8846,7 @@ def test_moving_a_bound_off_its_computed_value_pins_it():
     bounds=bounds, pinned={}, pin_changed=accept, ramp_name="Reds",
     defaults=bounds)
   try:
-    pin, box = editor._pin_widgets["low"]
+    pin, box = _pin_control(editor, "low")
     assert box.isEnabled(), \
       "the bound box is greyed, so there is nothing to move and the " \
       "rest of this test would prove nothing"
@@ -8910,7 +8943,7 @@ def test_a_refused_pin_reverts_and_says_so():
     bounds=bounds, range_bounds=(0, 100), ramp_name="Reds",
     pin_changed=refuse)
   try:
-    pin, box = editor._pin_widgets["low"]
+    pin, box = _pin_control(editor, "low")
     assert not pin.isChecked(), "the fixture starts pinned"
     pin.setChecked(True)
     assert asked, "the editor never asked the dialog whether it could"
@@ -9350,6 +9383,288 @@ def test_equal_intervals_stay_equal_under_a_pin():
     "two different columns drew the same QUANTILE ladder, so the " \
     "equal-intervals rule has been applied to a scheme it does not " \
     "name"
+
+
+def test_an_unclassed_row_pins_from_either_control():
+  """Two controls name one end, and neither may go stale.
+
+  An Unclassed row used to have no Pin column: the reasoning was that
+  fifty faded slivers are a preview and that pinning row 0 of fifty is
+  a strange way to say "the ramp starts at 10", so a clamp strip above
+  the table said it better. It does say it better, and it was still
+  reported as "pins do not work on unclassed" -- because a user learns
+  the pin AS A COLUMN, and meeting fifty faded rows without one they
+  conclude the feature is absent. The maintainer's instruction,
+  2026-08-17, is to have BOTH.
+
+  That is the whole hazard here, and it is a shape this project keeps
+  meeting: one piece of state, two controls describing it. Before this
+  the registry held ONE (pin, box) pair per end, so a second builder
+  would have left the first control wired, clickable and applying the
+  other one's number. So what is asserted is not that either control
+  works, which is easy, but that acting on EITHER moves the record,
+  the map AND the other control.
+
+  Regression: an Unclassed row offered no Pin column, so the pins were reported as not working there at all. Reported against 0.24.3rc5. [user]
+  """
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer(n=8)
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(400)
+  mode = dlg.table.cellWidget(0, 2)
+  wanted = mode.findText("Quant: Unclassed")
+  assert wanted >= 0, "the mode chooser does not offer Quant: Unclassed"
+  mode.setCurrentIndex(wanted)
+  mode.activated.emit(wanted)            # what a click emits
+  _tick(400)
+  tile_id = dlg.table.item(0, 0).text()
+  field = dlg._assignment_for(tile_id).get("var")
+  _generate_and_wait(dlg)
+  _tick(200)
+
+  def printed():
+    """Every class bound the editor's own table is SHOWING.
+
+    The numbers a person reads, taken from the table rather than from
+    the record: pinning recomputes every break between the pins, so a
+    window that does not repaint them goes on printing a ladder the
+    map has left behind -- and offers the stale number to the other
+    pin. Cells replaced by a spin box read their value instead.
+    """
+    seen = []
+    offset = 1 if editor._pin_column else 0
+    for row in range(editor.table.rowCount()):
+      for column in (offset, offset + 1):
+        widget = editor.table.cellWidget(row, column)
+        item = editor.table.item(row, column)
+        if widget is not None and hasattr(widget, "value"):
+          seen.append(f"{widget.value():.6g}")
+        elif item is not None:
+          seen.append(item.text())
+    return seen
+
+  def glyph(button):
+    """The pin button's actual pixels, so a repaint can be required."""
+    return button.grab().toImage()
+
+  def ladder():
+    """The class bounds the element's own layer is drawing."""
+    drawn = QgsProject.instance().mapLayer(
+      dlg._element_layer_ids.get(tile_id))
+    renderer = drawn.renderer() if drawn is not None else None
+    if renderer is None or not hasattr(renderer, "ranges"):
+      return []
+    ranges = renderer.ranges()
+    return [(r.lowerValue(), r.upperValue()) for r in ranges]
+
+  # open the editor without blocking on its modal loop
+  opened = {}
+
+  def catch(self, *_a, **_k):
+    """Stand in for exec() so the window does not block the test."""
+    opened["editor"] = self
+    return 0
+
+  real_exec = CategoryColourDialog.exec
+  CategoryColourDialog.exec = catch
+  try:
+    dlg._edit_quant_colours(tile_id, field,
+                            dlg._assignment_for(tile_id))
+  finally:
+    CategoryColourDialog.exec = real_exec
+  editor = opened.get("editor")
+  assert editor is not None, "no colour editor opened, so nothing below ran"
+  try:
+    assert editor._pin_column, \
+      "an Unclassed row still has no Pin column, which is the whole " \
+      "of what was reported"
+    pairs = editor._pin_widgets.get("low") or []
+    assert len(pairs) == 2, \
+      f"the low end is named by {len(pairs)} control(s); it should be " \
+      f"two -- the table's Pin column and the clamp strip"
+
+    # WHICH IS WHICH, asked of the widget tree rather than of the
+    # order they happen to be registered in: a list order is not a
+    # fact about the interface, and this test is about two SPECIFIC
+    # controls.
+    in_table = [p for p in pairs if editor.table.isAncestorOf(p[1])]
+    outside = [p for p in pairs if not editor.table.isAncestorOf(p[1])]
+    assert len(in_table) == 1 and len(outside) == 1, \
+      f"{len(in_table)} control(s) in the table and {len(outside)} " \
+      f"outside it; expected one of each"
+    table_pin, table_box = in_table[0]
+    strip_pin, strip_box = outside[0]
+
+    before = ladder()
+    assert before, "the element drew no classes, so nothing below means anything"
+    shown_before = printed()
+    assert shown_before, "the table printed no bounds at all"
+    strip_before = glyph(strip_pin)
+
+    # (1) PIN FROM THE TABLE. The record, the map and the STRIP move.
+    table_box.setValue(1.75)
+    table_pin.setChecked(True)           # emits toggled
+    _tick(500)
+    assert dlg._pinned_bounds.get(tile_id, {}).get(field) == {"low": 1.75}, \
+      f"pinning from the table recorded " \
+      f"{dlg._pinned_bounds.get(tile_id, {}).get(field)!r}"
+    assert strip_pin.isChecked(), \
+      "the table's pin was set and the strip's pin still reads unpinned"
+    assert abs(strip_box.value() - 1.75) < 1e-9, \
+      f"the strip's box shows {strip_box.value()} where the pin is 1.75"
+    after = ladder()
+    assert abs(after[0][1] - 1.75) < 1e-9, \
+      f"the map's first class ends at {after[0][1]}, not at the pin"
+    assert printed() != shown_before, \
+      "the editor's table prints the same bounds it did before the " \
+      "pin, so the window is showing a ladder the map has left behind"
+    assert glyph(strip_pin) != strip_before, \
+      "the strip's pin holds its old PIXELS after the table pinned " \
+      "the same end; isChecked() moving is not the same as the " \
+      "control repainting, and a hand-painted button needs update()"
+
+    # (2) NOW MOVE IT FROM THE STRIP. Everything follows the other way.
+    shown_after_table = printed()
+    strip_box.setValue(2.5)
+    strip_box.editingFinished.emit()     # what leaving the box emits
+    _tick(500)
+    assert dlg._pinned_bounds.get(tile_id, {}).get(field) == {"low": 2.5}, \
+      f"editing from the strip recorded " \
+      f"{dlg._pinned_bounds.get(tile_id, {}).get(field)!r}"
+    assert abs(table_box.value() - 2.5) < 1e-9, \
+      f"the table's box shows {table_box.value()} where the pin is 2.5; " \
+      f"a stale second copy is how a user clicks a pin that applies a " \
+      f"number the map left behind"
+    assert table_pin.isChecked(), \
+      "the strip set a pin and the table's pin reads unpinned"
+    assert abs(ladder()[0][1] - 2.5) < 1e-9, \
+      f"the map's first class ends at {ladder()[0][1]}, not at 2.5"
+    assert printed() != shown_after_table, \
+      "the strip moved the pin and the table went on printing the " \
+      "previous ladder"
+
+    # (3) AND UNPINNING travels too, or one control goes on claiming a
+    # pin the map no longer has.
+    table_pin.setChecked(False)
+    _tick(500)
+    assert not dlg._pinned_bounds.get(tile_id, {}).get(field), \
+      f"unpinning left " \
+      f"{dlg._pinned_bounds.get(tile_id, {}).get(field)!r} behind"
+    assert not strip_pin.isChecked(), \
+      "the table unpinned and the strip's pin still reads pinned"
+  finally:
+    editor.close()
+    dlg.close()
+
+
+def test_two_pin_controls_agree_across_a_run_landing():
+  """Pin from the table mid-run: the strip, the map and the record agree.
+
+  The maintainer's concern when the second control was added, and the
+  right one: this plugin's characteristic defect is two descriptions
+  of one state that drift, and QGIS is live underneath so a run can
+  land at any moment. The colour editor already had that shape once --
+  a pin made during a run was DESTROYED as the run landed, and stamped
+  absent onto the layer, because the landing re-read the categorical
+  picks and not the pinned bounds.
+
+  What is new is that an Unclassed end is now named by TWO controls.
+  So the question is no longer "does the pin survive the landing" --
+  test_a_pin_set_during_a_run_is_not_lost holds that -- but whether
+  BOTH controls and the map still agree afterwards. A control left
+  reading unpinned over a pinned map is a click away from applying a
+  number the map left behind.
+
+  Regression: none yet; this guards the second pin control added 2026-08-17 against the landing that has destroyed pin state here before.
+ [unrecorded]
+  """
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  mode = dlg.table.cellWidget(0, 2)
+  wanted = mode.findText("Quant: Unclassed")
+  assert wanted >= 0, "the mode chooser does not offer Quant: Unclassed"
+  mode.setCurrentIndex(wanted)
+  mode.activated.emit(wanted)
+  _tick(400)
+  tile_id = dlg.table.item(0, 0).text()
+  field = dlg._assignment_for(tile_id).get("var")
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+  _tick(200)
+
+  opened = {}
+
+  def catch(self, *_a, **_k):
+    """Stand in for exec() so the window does not block the test."""
+    opened["editor"] = self
+    return 0
+
+  real_exec = CategoryColourDialog.exec
+  CategoryColourDialog.exec = catch
+  try:
+    dlg._edit_quant_colours(tile_id, field,
+                            dlg._assignment_for(tile_id))
+  finally:
+    CategoryColourDialog.exec = real_exec
+  editor = opened.get("editor")
+  assert editor is not None, "no colour editor opened"
+  try:
+    pairs = list(editor._pin_widgets.get("low") or [])
+    assert len(pairs) == 2, \
+      f"the low end is named by {len(pairs)} control(s), not two"
+    in_table = [p for p in pairs if editor.table.isAncestorOf(p[1])]
+    outside = [p for p in pairs if p not in in_table]
+    assert in_table and outside, "expected one control in each place"
+    table_pin, table_box = in_table[0]
+    strip_pin, strip_box = outside[0]
+
+    # A RUN IN FLIGHT, and the pin made while it is still going. This
+    # is the moment the landing used to destroy.
+    dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.2)
+    dlg._generate()
+    assert dlg._task is not None, \
+      "no run was in flight, so this test staged nothing"
+    table_box.setValue(4.0)
+    table_pin.setChecked(True)
+    _settle(dlg)
+    _tick(400)
+
+    held = dlg._pinned_bounds.get(tile_id, {}).get(field)
+    assert held == {"low": 4.0}, \
+      f"the run landed and the record holds {held!r}; a pin made " \
+      f"while a run was finishing was thrown away by it"
+    out = project.mapLayer(dlg._element_layer_ids[tile_id])
+    drawn = [(r.lowerValue(), r.upperValue())
+             for r in out.renderer().ranges()]
+    assert drawn and abs(drawn[0][1] - 4.0) < 1e-9, \
+      f"the map's first class ends at {drawn[0][1] if drawn else None}, " \
+      f"not at the pin the user set mid-run"
+
+    # ...and BOTH controls still describe that map.
+    for name, pin, box in (("table", table_pin, table_box),
+                           ("strip", strip_pin, strip_box)):
+      assert pin.isChecked(), \
+        f"the {name}'s pin reads unpinned over a map pinned at 4.0, " \
+        f"so clicking it would apply a number the map left behind"
+      assert abs(box.value() - 4.0) < 1e-9, \
+        f"the {name}'s box shows {box.value()} where the map is " \
+        f"pinned at 4.0"
+  finally:
+    editor.close()
+    dlg.close()
 
 
 def test_the_release_notes_keep_their_categories():
@@ -9926,8 +10241,8 @@ def test_two_editors_in_one_session_do_not_leak():
   first = make("a", {"low": 4.0})
   second = make("b", None)
   try:
-    a_pin, _a_box = first._pin_widgets["low"]
-    b_pin, b_box = second._pin_widgets["low"]
+    a_pin, _a_box = _pin_control(first, "low")
+    b_pin, b_box = _pin_control(second, "low")
     assert a_pin.isChecked(), "element a's editor did not show its pin"
     assert not b_pin.isChecked(), \
       "element b's editor came up pinned, so a's record reached it"
@@ -10900,7 +11215,7 @@ def test_pinning_redraws_the_window_it_was_typed_into():
   try:
     assert editor._pin_widgets, \
       "the graduated editor built no pin controls, so nothing is driven"
-    pin, box = editor._pin_widgets["low"]
+    pin, box = _pin_control(editor, "low")
     box.setValue(30.0)
     pin.setChecked(True)          # the user pins the first class
     assert answers, "the pin never reached the dialog"
@@ -10917,7 +11232,7 @@ def test_pinning_redraws_the_window_it_was_typed_into():
 
     # ...and the OTHER end's control, which is what turned a stale
     # display into a wrong map: clicking it applies whatever it shows
-    _high_pin, high_box = editor._pin_widgets["high"]
+    _high_pin, high_box = _pin_control(editor, "high")
     assert abs(high_box.value() - after[-1][0]) < 1e-6, \
       f"the high control offers {high_box.value()} where the map now " \
       f"has that boundary at {after[-1][0]}"
@@ -47083,6 +47398,10 @@ def main():
         test_a_pin_may_sit_outside_the_data_it_classifies)
   check("equal intervals stay equal under a pin",
         test_equal_intervals_stay_equal_under_a_pin)
+  check("an unclassed row pins from either control",
+        test_an_unclassed_row_pins_from_either_control)
+  check("two pin controls agree across a run landing",
+        test_two_pin_controls_agree_across_a_run_landing)
   check("the release notes keep their categories",
         test_the_release_notes_keep_their_categories)
   check("a pin set during a run is not lost",

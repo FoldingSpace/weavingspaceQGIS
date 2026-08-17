@@ -3161,6 +3161,39 @@ MUTATIONS = [
            "the pool, so without re-asking the reduction's question "
            "the scheme cuts more classes than the middle has values "
            "and the legend gains a swatch no tile wears"),
+  dict(name="unclassed-gets-the-pin-column-too", file=EDITOR,
+       old="    self._pin_column = self._pins_offered",
+       new="    self._pin_column = self._pins_offered and not self._locked",
+       test="test_an_unclassed_row_pins_from_either_control",
+       why="without it an Unclassed row has no Pin column, only the "
+           "clamp strip above the table -- which is exactly what was "
+           "reported as 'pins do not work on unclassed', because a "
+           "user who learned the pin as a column meets fifty faded "
+           "rows and concludes the feature is absent"),
+  dict(name="a-pin-click-moves-the-other-control", file=EDITOR,
+       old="    # the ladder the map now draws, so the window and the "
+           "map agree\n    self._redraw_bounds(answer)\n"
+           "    self._sync_pin_controls(which, pair)",
+       new="    # the ladder the map now draws, so the window and the "
+           "map agree\n    self._redraw_bounds(answer)",
+       test="test_an_unclassed_row_pins_from_either_control",
+       why="an Unclassed end is named by TWO controls, so clicking "
+           "the table's pin must light the strip's; without this the "
+           "strip goes on reading unpinned over a map that is pinned, "
+           "and clicking it applies a number the map left behind"),
+  dict(name="a-typed-bound-moves-the-other-control", file=EDITOR,
+       old="    # every break between the pins has just moved, so the "
+           "rest of the\n    # window must say so too\n"
+           "    self._redraw_bounds(answer)\n"
+           "    self._sync_pin_controls(which, pair)",
+       new="    # every break between the pins has just moved, so the "
+           "rest of the\n    # window must say so too\n"
+           "    self._redraw_bounds(answer)",
+       test="test_an_unclassed_row_pins_from_either_control",
+       why="the twin of the entry above, anchored separately because "
+           "one anchor covering both would survive whatever the tests "
+           "do: typing a bound in the strip must move the table's box "
+           "and pin, or the two describe different maps"),
   dict(name="equal-intervals-are-cut-from-the-pin", file=BRIDGE,
        old="  if cuts_from_the_pin and copied is None:",
        new="  if False:",

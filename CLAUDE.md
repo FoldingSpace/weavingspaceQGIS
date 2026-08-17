@@ -1769,6 +1769,33 @@ Confirmed with the user via an explicit design review:
   source's fifty never reaches `_class_counts`, which is the record
   that means CHOSEN.
 
+- **AN UNCLASSED END IS NAMED BY TWO CONTROLS, AND THEY MUST AGREE.**
+  (Maintainer's instruction, 2026-08-17, reversing a decision of the
+  same week.) Unclassed used to get no Pin column -- fifty faded
+  slivers are a preview, and pinning row 0 of fifty is a strange way
+  to say "the ramp starts at 10" -- so a clamp strip above the table
+  said it better. It does say it better, and it was still reported as
+  "pins do not work on unclassed". The reason is worth keeping,
+  because it generalises past pins: A USER LEARNS A CONTROL IN ONE
+  PLACE AND LOOKS FOR IT THERE. Meeting fifty faded rows and no Pin
+  column, they conclude the feature is absent rather than moved. So
+  the row now carries BOTH, and the strip's better wording is a
+  second way in rather than the only one.
+  THE COST IS A CLASSIC OF THIS CODEBASE: one piece of state, two
+  descriptions. `_pin_widgets` maps each end to a LIST of (pin, box)
+  pairs and `_register_pin` wires every one, so the handlers know
+  which control fired; `_sync_pin_controls` then moves the others,
+  with signals blocked, or setting a control right would fire the
+  handler that set it right. Before this the registry held ONE pair
+  per end, so a second builder would have left the first control
+  wired, clickable, and applying the other's number.
+  Guarded by `test_an_unclassed_row_pins_from_either_control`, which
+  drives BOTH ways round and asserts the table's printed bounds and
+  the pin's own PIXELS change, and by
+  `test_two_pin_controls_agree_across_a_run_landing`, which pins
+  mid-run because that is the moment this editor's state has been
+  destroyed before. Three catalogue entries, the two sync calls
+  anchored separately.
 - **ONE HATCHING NOW, AND THE OTHER WAS WITHDRAWN.** Thin 45-degree
   diagonals say "no pin can go here" in the PIN COLUMN, and that is
   the only place they are drawn. The ramp swatch used the same mark

@@ -169,32 +169,26 @@ nobody grepped for the older test standing on the opposite claim. No
 CI round could see it, because the roadmap blocked a candidate and
 nothing had been pushed.
 
-**NEEDS A RULING, NOT A FIX: can anybody FIND the pins on an
-Unclassed row?** Reported 2026-08-17 that pins do not seem to work
-there. Driven end to end the same day, and they do: the clamp strip
-records the pin, the map moves, both ends work together, a full
-Generate leaves it alone, reopening the editor shows both pins with
-their numbers, and a project round trip brings them back. Measured on
-a column of 0-7 pinned to 1.75 and 5.0 -- the ladder came back
-(0, 1.75) .. (5.0, 7.0) with 48 equal middle classes of 0.0677.
+**RULED AND BUILT 2026-08-17, kept here only for what it still owes.**
+Pins were reported as not working on Quant: Unclassed. Driven end to
+end they did: the clamp strip recorded them, the map moved, and a
+project round trip brought them back. What was missing was the PIN
+COLUMN -- a user learns the control in one place and looks for it
+there, and fifty faded rows without one read as "not available". The
+maintainer ruled for both, and both are in: the column beside the
+strip, one record, `_sync_pin_controls` keeping them in step.
 
-SO THE MECHANISM IS SOUND AND THE REPORT IS STILL WORTH SOMETHING.
-A classed row pins from a Pin COLUMN in the table, one glyph per
-class. An Unclassed row has no Pin column at all and takes a strip
-above the table instead, reading "Ramp starts at" and "Ramp ends at".
-That was a deliberate decision -- pinning row 0 of fifty is a strange
-way to say "the ramp starts at 10" -- and the reasoning still holds.
-What it costs is that somebody who learned the pin AS A COLUMN opens
-the Unclassed editor, meets fifty faded rows and no column, and
-concludes the feature is not there. The fade says "nothing here is
-editable" rather loudly, and the strip does not use the word "pin".
-
-Three ways out, and the choice is the maintainer's because it is
-about what the interface should teach rather than about what it does:
-leave it and let the user guide carry the explanation; give the strip
-the pin word as well as the glyph; or put a Pin column on the
-Unclassed table after all and accept pinning "row 0 of fifty". The
-first costs nothing and the third reverses a settled decision.
+WHAT IT STILL OWES IS THE RACE SURFACE, which the maintainer flagged
+when asking for it and which is only partly measured. What IS held:
+acting on either control moves the record, the map and the other
+control; unpinning travels; and a pin made while a run is in flight
+survives the landing with both controls still agreeing. What is NOT
+yet driven with two controls open: the region layer going away, the
+class count changing underneath, an Unclassed row switching scheme
+mid-edit, and rapid alternation between the two controls. Each has a
+single-control test already; none has been re-run with the second
+control present, and this project's own record says a rule that names
+one of a pair gets read as a rule about one of a pair.
 
 **AWAITING THE MAINTAINER'S EYE, not code: the ghost numbers.** The
 cause is removed -- the Unclassed table is no longer composited

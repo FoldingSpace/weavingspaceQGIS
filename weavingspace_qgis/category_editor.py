@@ -422,6 +422,10 @@ class CategoryColourDialog(QDialog):
     # presentation this dress uses: the table's own column for a
     # classed style, the clamp strip above it for Unclassed. One
     # record, one set of handlers, two places to put the controls.
+    # {"low": [(pin, box), ...], "high": [...]} -- a LIST, because an
+    # end may be named by the table's Pin column and by the clamp
+    # strip at once. Keyed by the end rather than by the control, so
+    # a handler always knows which boundary it is being asked about.
     self._pin_widgets = {}
     # What the scheme would compute for each end with NOTHING pinned,
     # as [(lower, upper), ...]. It is what makes a pin follow the
@@ -477,12 +481,22 @@ class CategoryColourDialog(QDialog):
     heading.setWordWrap(True)
     layout.addWidget(heading)
 
-    # A PIN column joins the classed graduated dress, first, so the
-    # eye meets it on the way into the row. Unclassed does not get
-    # one: its fifty faded slivers are a preview, and pinning row 0
-    # of fifty is a strange way to say "the ramp starts at 10", so
-    # that dress takes the clamp strip above the table instead.
-    self._pin_column = self._pins_offered and not self._locked
+    # A PIN column, first, so the eye meets it on the way into the
+    # row -- on BOTH graduated dresses since 2026-08-17.
+    #
+    # Unclassed used to be refused one, on the reasoning that fifty
+    # faded slivers are a preview and that pinning row 0 of fifty is a
+    # strange way to say "the ramp starts at 10". The clamp strip
+    # above the table was built to say it better, and it does. What
+    # that missed is that a user LEARNS the pin as a column: meeting
+    # fifty faded rows and no column, they conclude the feature is not
+    # there, which is what was reported. The maintainer's instruction
+    # is to have both -- the column so the feature is where it was
+    # learned, the strip because it is the better way to say it.
+    #
+    # The cost is that one end is now named by TWO controls, and
+    # everything below about keeping them in step is that cost.
+    self._pin_column = self._pins_offered
     columns = 2 if self._bounds is None else 3
     if self._pin_column:
       columns += 1
@@ -711,11 +725,17 @@ class CategoryColourDialog(QDialog):
 
     Returns:
       None. Builds the same PinButton and bound box the classed table
-      builds, registered in the same `_pin_widgets` and driven by the
-      same handlers, so the two presentations cannot come to mean
-      different things. The wording is the difference: "Ramp starts
-      at" and "Ramp ends at" rather than a pin on a class, because
-      that is what fifty equal steps make of it.
+      builds, registered through the same `_register_pin` and driven
+      by the same handlers, so the two presentations cannot come to
+      mean different things. The wording is the difference: "Ramp
+      starts at" and "Ramp ends at" rather than a pin on a class,
+      because that is what fifty equal steps make of it.
+
+      SINCE 2026-08-17 THIS SITS BESIDE THE PIN COLUMN rather than
+      instead of it, on the maintainer's instruction: the column so
+      somebody who learned the pin there still finds it, the strip
+      because it says the thing better. `_sync_pin_controls` is what
+      stops the two disagreeing.
     """
     strip = QWidget()
     row = QHBoxLayout(strip)
@@ -732,10 +752,7 @@ class CategoryColourDialog(QDialog):
       row.addWidget(QLabel(label), 0, Qt.AlignmentFlag.AlignVCenter)
       row.addWidget(box, 0, Qt.AlignmentFlag.AlignVCenter)
       row.addSpacing(12)
-      self._pin_widgets[which] = (pin, box)
-      pin.toggled.connect(lambda on, w=which: self._pin_toggled(w, on))
-      box.editingFinished.connect(lambda w=which: self._bound_edited(w))
-      box.valueChanged.connect(lambda _v, w=which: self._bound_moved(w))
+      self._register_pin(which, pin, box)
     row.addStretch(1)
     layout.addWidget(strip)
 
@@ -798,6 +815,64 @@ class CategoryColourDialog(QDialog):
                      | Qt.AlignmentFlag.AlignVCenter)
     return box
 
+  def _register_pin(self, which, pin, box):
+    """Wire one pin-and-bound pair to the end it names.
+
+    Args:
+      which: "low" for the first class's upper bound, "high" for the
+        last class's lower bound.
+      pin: the PinButton for this control.
+      box: the QDoubleSpinBox holding this end's bound.
+
+    Returns:
+      None. The pair is added to `_pin_widgets[which]` and its three
+      signals are connected, each carrying the PAIR that fired.
+
+    THE PAIR TRAVELS WITH THE SIGNAL, and that is the whole reason
+    this exists. Two controls may name one end -- the table's Pin
+    column and the clamp strip -- so a handler told only "low" cannot
+    know which box holds the number the user just typed. It used to
+    read `_pin_widgets[which]`, which held ONE pair, so a second
+    builder would have silently orphaned the first: still wired, still
+    clickable, and applying the other control's number.
+    """
+    pair = (pin, box)
+    self._pin_widgets.setdefault(which, []).append(pair)
+    pin.toggled.connect(
+      lambda on, w=which, p=pair: self._pin_toggled(w, on, p))
+    box.editingFinished.connect(
+      lambda w=which, p=pair: self._bound_edited(w, p))
+    box.valueChanged.connect(
+      lambda _v, w=which, p=pair: self._bound_moved(w, p))
+
+  def _sync_pin_controls(self, which, source=None):
+    """Make every control naming one end agree with the settled record.
+
+    Args:
+      which: "low" or "high".
+      source: the pair the user just acted on, left alone so their
+        own number is never rewritten under their hands.
+
+    Returns:
+      None. Every other pin for that end is set to match whether the
+      end is pinned, and every other box to the pinned value. Signals
+      are blocked throughout, or putting a control right would fire
+      the handler that put it right.
+    """
+    value = self._pinned.get(which)
+    for pair in self._pin_widgets.get(which, []):
+      pin, box = pair
+      if pin.isChecked() != (value is not None):
+        pin.blockSignals(True)
+        pin.setChecked(value is not None)
+        pin.blockSignals(False)
+        pin.update()
+      if pair is source or value is None:
+        continue
+      box.blockSignals(True)
+      box.setValue(float(value))
+      box.blockSignals(False)
+
   def _install_pin_row(self, row, which):
     """Put a pin and an editable bound on one end row of the table.
 
@@ -829,10 +904,7 @@ class CategoryColourDialog(QDialog):
     layout.addWidget(pin, 0, Qt.AlignmentFlag.AlignCenter)
     self.table.setCellWidget(row, 0, holder)
     self.table.setCellWidget(row, column, box)
-    self._pin_widgets[which] = (pin, box)
-    pin.toggled.connect(lambda on, w=which: self._pin_toggled(w, on))
-    box.editingFinished.connect(lambda w=which: self._bound_edited(w))
-    box.valueChanged.connect(lambda _v, w=which: self._bound_moved(w))
+    self._register_pin(which, pin, box)
 
   def _default_bound(self, which):
     """The number the scheme computes for one end with no pin on it.
@@ -854,11 +926,15 @@ class CategoryColourDialog(QDialog):
     except (IndexError, TypeError, ValueError):
       return None
 
-  def _bound_moved(self, which):
+  def _bound_moved(self, which, source=None):
     """Follow the spin box: off the computed value is pinned, on it is not.
 
     Args:
       which: "low" or "high".
+      source: the (pin, box) pair that fired, where an end is named
+        by more than one control. Omitted, the first registered
+        control answers -- which is right for a classed row, where
+        there is only ever one.
 
     Returns:
       None. Applies through the same handlers a click goes through,
@@ -878,9 +954,10 @@ class CategoryColourDialog(QDialog):
     separately from the value, and two pins that look identical
     behaving differently is the worse trade.
     """
-    pin, box = self._pin_widgets.get(which, (None, None))
-    if pin is None:
+    pair = source or next(iter(self._pin_widgets.get(which, [])), None)
+    if pair is None:
       return
+    pin, box = pair
     default = self._default_bound(which)
     if default is None:
       return
@@ -897,7 +974,7 @@ class CategoryColourDialog(QDialog):
       pin.setChecked(wants)
       pin.blockSignals(False)
       pin.update()
-      self._pin_toggled(which, wants)
+      self._pin_toggled(which, wants, pair)
     elif wants:
       self._bound_edited(which)
 
@@ -943,21 +1020,26 @@ class CategoryColourDialog(QDialog):
     # the first class's upper bound and the last class's lower one
     for which, value in (("low", self._bounds[0][1]),
                          ("high", self._bounds[-1][0])):
-      widgets = self._pin_widgets.get(which)
-      if widgets is None:
-        continue
-      _pin, box = widgets
-      box.blockSignals(True)
-      box.setValue(float(value))
-      box.blockSignals(False)
+      # EVERY control naming that end, not one: the table's Pin column
+      # and the clamp strip both show it, and a stale second copy is
+      # how a user comes to click a pin that applies a number the map
+      # left behind three breaks ago.
+      for _pin, box in self._pin_widgets.get(which, []):
+        box.blockSignals(True)
+        box.setValue(float(value))
+        box.blockSignals(False)
 
-  def _pin_toggled(self, which, on):
+  def _pin_toggled(self, which, on, source=None):
     """Pin or unpin one end, and put the control back if refused.
 
     Args:
       which: "low" or "high".
       on: True to pin at whatever the spin box currently shows,
         False to unpin and let that break be computed again.
+      source: the (pin, box) pair that fired, where an end is named
+        by more than one control. Omitted, the first registered
+        control answers -- which is right for a classed row, where
+        there is only ever one.
 
     Returns:
       None. The dialog validates and applies; a message back means it
@@ -966,7 +1048,10 @@ class CategoryColourDialog(QDialog):
       the revert would fire this handler a second time and report the
       refusal twice.
     """
-    pin, box = self._pin_widgets[which]
+    pair = source or next(iter(self._pin_widgets.get(which, [])), None)
+    if pair is None:
+      return
+    pin, box = pair
     value = float(box.value()) if on else None
     answer = self._pin_changed(which, value) if self._pin_changed else None
     if isinstance(answer, str):
@@ -977,12 +1062,17 @@ class CategoryColourDialog(QDialog):
     self._pinned[which] = value
     # the ladder the map now draws, so the window and the map agree
     self._redraw_bounds(answer)
+    self._sync_pin_controls(which, pair)
 
-  def _bound_edited(self, which):
+  def _bound_edited(self, which, source=None):
     """Move a pinned bound to the number just typed.
 
     Args:
       which: "low" or "high".
+      source: the (pin, box) pair that fired, where an end is named
+        by more than one control. Omitted, the first registered
+        control answers -- which is right for a classed row, where
+        there is only ever one.
 
     Returns:
       None. Refused edits put the previous number back, so the box
@@ -991,7 +1081,10 @@ class CategoryColourDialog(QDialog):
       honoured or visibly rejected, never quietly changed into a
       different one.
     """
-    pin, box = self._pin_widgets[which]
+    pair = source or next(iter(self._pin_widgets.get(which, [])), None)
+    if pair is None:
+      return
+    pin, box = pair
     if not pin.isChecked():
       return
     value = float(box.value())
@@ -1007,6 +1100,7 @@ class CategoryColourDialog(QDialog):
     # every break between the pins has just moved, so the rest of the
     # window must say so too
     self._redraw_bounds(answer)
+    self._sync_pin_controls(which, pair)
 
   def _label_for(self, value) -> str:
     """The words one row shows in its left-hand column.
