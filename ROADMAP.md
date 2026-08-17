@@ -208,6 +208,35 @@ counts, so those rows genuinely believe they are categorical; that is
 a second-order effect of the same staleness rather than a separate
 bug, and the tester's numeric-style experiment is what shows it.
 
+**A SECOND SCREENSHOT SUGGESTS A SECOND DEFECT UNDERNEATH THE FIRST.**
+Taken after the tester set the affected rows to a numeric style. QGIS
+holds element `d` as Graduated on `Percent_Hispanic` with FIVE classes
+on a yellow-orange-red ramp; the plugin's table reads:
+
+    a  Percent_White     Quant: Natural breaks   5    PuRd
+    b  Percent_Black     Quant: Natural breaks   20   Reds
+    c  Percent_Asian     Quant: Natural breaks   20   Reds
+    d  Percent_Hispanic  Quant: Natural breaks   6    Reds
+
+Row d disagrees with the layer on the class COUNT and the RAMP as well
+as the breaks, so it is not only breaks that fail to follow.
+
+AND ROWS b AND c BOTH READ EXACTLY 20, WHICH IS THE CEILING of the
+2-20 class-count range. In the first screenshot those same rows were
+Categorized with greyed counts of 32 and 33 -- distinct-value counts.
+32 and 33 clamped into 2..20 are 20 and 20. That is a testable chain:
+a CATEGORICAL distinct-value count reaching `_class_counts`, which is
+the record that means a count somebody CHOSE, and being clamped at the
+next rebuild. This project has already met that hazard from another
+route and written it down -- an Unclassed source's fifty must not
+travel into `_class_counts` for exactly this reason -- so the question
+is whether the guard that keeps Unclassed's fifty out is simply
+missing for the categorical case.
+
+Row d reads 6 rather than 20, so whatever produced b and c did not
+produce d. A mechanism that explains two of the three is not yet the
+mechanism.
+
 WHAT THE CODE SAYS, still a reading and still needing measurement:
 `_element_is_deferring` asks only whether the renderer is of a KIND
 the chooser can NAME. Graduated-on-Natural-breaks is nameable, so the
