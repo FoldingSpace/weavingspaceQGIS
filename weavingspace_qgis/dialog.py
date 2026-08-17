@@ -506,6 +506,16 @@ def _custom_swatch_icon(colours, boxed=()):
   return _striped_icon(colours, boxed)
 
 
+# The fewest decimal places any number box in this dialog may have,
+# whatever its own step suggests. The significant-figures sweep is a
+# DISPLAY rule and `decimals` is not a display setting: it decides
+# what the box can hold and store as well as what it prints. Three is
+# the maintainer's figure, 2026-08-17, sized so a half-degree rotation
+# and a quarter-unit inset both survive being typed. Costs nothing to
+# look at, because every box here trims its own trailing zeros.
+_LEAST_FIGURES_DECIMALS = 3
+
+
 class SpacingSpinBox(TrimmedSpinBox):
   """A spacing box that keeps its precision and shows no idle zeros.
 
@@ -1516,7 +1526,27 @@ class WeavingSpaceDialog(QDialog):
       # box resting at zero is still sized by the units it moves in
       scale = max(abs(box.value()), step)
       digits = len(str(int(scale))) if scale >= 1 else 0
-      box.setDecimals(min(needed, max(0, 3 - digits)))
+      # THREE DECIMALS AT LEAST, on the maintainer's ruling of
+      # 2026-08-17, and the reason is the one this project already
+      # wrote down about the spacing box and then repeated here.
+      # `decimals` governs display AND input AND storage, so a rule
+      # that lowers it to tidy the display DESTROYS DATA -- and this
+      # sweep had lowered `mod_rotate`, `mod_skew_x/y`,
+      # `opt_offset_angle` and `opt_point_angle` to ZERO. Typing 22.5
+      # into Rotate swallowed the 5, the unit was built at 22 degrees
+      # vertex-for-vertex, and nothing was said. 22.5 is the natural
+      # angle for an eight-fold design. Found by a hunt the same day
+      # the sweep was written; the sibling that got it right is
+      # `widgets.TrimmedSpinBox`, whose docstring names this exact
+      # mistake as the tempting one.
+      #
+      # The display rule is kept by TRIMMING instead: every box here
+      # is a TrimmedSpinBox now, so it prints "0" rather than "0.000"
+      # and "22.5" rather than "22.500" while still HOLDING whatever
+      # somebody types. The cap still bounds what is shown; the floor
+      # stops it eating what is stored.
+      box.setDecimals(max(_LEAST_FIGURES_DECIMALS,
+                          min(needed, max(0, 3 - digits))))
 
   def _build_ui(self):
     """Construct every widget and wire its signals.
@@ -1621,7 +1651,7 @@ class WeavingSpaceDialog(QDialog):
     form.addRow("Spacing (map units)", spacing_row)
 
     # family-specific options
-    self.opt_offset = QDoubleSpinBox()
+    self.opt_offset = TrimmedSpinBox()
     self.opt_offset.setRange(-1.0, 1.0)
     self.opt_offset.setSingleStep(0.01)
     self.opt_offset.setDecimals(2)
@@ -1631,7 +1661,7 @@ class WeavingSpaceDialog(QDialog):
     self.opt_offset.valueChanged.connect(self._queue_preview)
     self.opt_offset_row = self._form_row(form, "Offset", self.opt_offset)
 
-    self.opt_offset_angle = QDoubleSpinBox()
+    self.opt_offset_angle = TrimmedSpinBox()
     self.opt_offset_angle.setRange(-50, 85)
     self.opt_offset_angle.setSingleStep(1)
     self.opt_offset_angle.setToolTip(
@@ -1640,7 +1670,7 @@ class WeavingSpaceDialog(QDialog):
     self.opt_offset_angle_row = self._form_row(
       form, "Inner angle", self.opt_offset_angle)
 
-    self.opt_point_angle = QDoubleSpinBox()
+    self.opt_point_angle = TrimmedSpinBox()
     self.opt_point_angle.setRange(10, 120)
     self.opt_point_angle.setValue(30)
     self.opt_point_angle.setToolTip(
@@ -1649,7 +1679,7 @@ class WeavingSpaceDialog(QDialog):
     self.opt_point_angle_row = self._form_row(
       form, "Point angle", self.opt_point_angle)
 
-    self.opt_aspect = QDoubleSpinBox()
+    self.opt_aspect = TrimmedSpinBox()
     self.opt_aspect.setRange(0.083, 1.0)
     self.opt_aspect.setSingleStep(0.083)
     self.opt_aspect.setDecimals(3)
@@ -1708,11 +1738,12 @@ class WeavingSpaceDialog(QDialog):
       Returns:
         The QDoubleSpinBox, already connected to the preview debounce.
       """
-      box = QDoubleSpinBox()
+      box = TrimmedSpinBox()
       box.setRange(lo, hi)
       box.setValue(val)
       box.setSingleStep(step)
-      box.setDecimals(3 if step < 1 else 1)
+      box.setDecimals(max(_LEAST_FIGURES_DECIMALS,
+                          3 if step < 1 else 1))
       box.valueChanged.connect(self._queue_preview)
       return box
 
@@ -5479,6 +5510,33 @@ class WeavingSpaceDialog(QDialog):
       # adopt the same dock edit and the user would be told twice
       return
     if self._applying_style or self._task is not None:
+      # THE ROW STILL LEARNS IT IS DEFERRING, even mid-run, and that
+      # one line is the difference between a style surviving and being
+      # destroyed.
+      #
+      # Adopting a dock edit while a tiling is in flight is genuinely
+      # unsafe -- the run lands with the settings it was LAUNCHED with
+      # and would overwrite whatever we did -- so this gate is right.
+      # What it must not do is leave the TABLE ignorant, because the
+      # landing consults the table: `_add_output_layers` reads "the row
+      # names a style, the layer holds something the row cannot name"
+      # as the user having TAKEN THE ELEMENT BACK, so `kept_by_hand` is
+      # false and it re-seeds. `_finish_run`'s catch-up only revisits
+      # elements already in `_preserved_this_run`, which this one never
+      # joined.
+      #
+      # MEASURED 2026-08-17, confirmed four ways including rendered
+      # pixels: paste a rule-based style onto an element 250 ms into a
+      # run and it is gone when the run lands, with the only notice
+      # being the tile count. The identical paste a second earlier or
+      # later survives and is honoured for good. Bounded, too -- an
+      # element ALREADY deferring survives, and an EXPRESSIBLE paste in
+      # the same window survives; the deferral has to BEGIN inside it.
+      #
+      # `_refresh_deferring_rows` writes no renderer and starts no run.
+      # It reads each layer and moves the chooser, which is exactly the
+      # knowledge the landing is about to need.
+      self._refresh_deferring_rows()
       return
     if self._element_layer_ids.get(tile_id) != layer_id:
       return  # a stale connection from a layer since replaced
@@ -5942,7 +6000,37 @@ class WeavingSpaceDialog(QDialog):
     expected = [colour for _lo, _hi, colour
                 in self._current_graduated_classes(assignment)]
     if actual == expected:
-      return  # our own seeding, or an edit that changed nothing
+      # A COLOUR COMPARISON CANNOT SEE A MOVED BREAK, and this exit
+      # stood in front of everything that writes the file.
+      #
+      # MEASURED 2026-08-17, three fixtures and three read routes, one
+      # of them reading `layer_styles.styleQML` out of the GeoPackage
+      # with sqlite and no QGIS involved. Retype a class break in
+      # QGIS's Symbology panel: QGIS, the plugin's map and the saved
+      # .qgz all show it, and the file a colleague opens draws the
+      # plugin's original ladder -- same colours, different classes.
+      #
+      #     what you see : [1.5, 2.0, 3.0, 4.0, 5.0]
+      #     what they get: [1.0, 2.0, 3.0, 4.0, 5.0]
+      #
+      # Generate does not heal it: `_restyle_only` continues past an
+      # element whose row never moved, before its own embed. A layer
+      # opacity set in Layer Properties goes the same way, 0.25 in the
+      # project and 1.0 in the file.
+      #
+      # The colour-only comparison dates to 2026-08-10 and is right
+      # about what it is FOR -- deciding whether to adopt positional
+      # picks. It was simply carrying an exit it has no business
+      # deciding. So the file is brought up to date here, on the way
+      # out, for every edit that reaches this line: the renderer on
+      # the layer is the truth whatever our records say about colour.
+      #
+      # THE SHAPE, three times in one day: a guard that asks about one
+      # thing standing in front of an exit that is about another. Ask
+      # what a guard is FOR before deciding what it may skip.
+      if self._last_path:
+        bridge.embed_style(layer)
+      return  # our own seeding, or an edit that changed no colour
     if len(expected) != len(actual):
       # THE count guard, and the only one: the layer against what the
       # plugin would draw for this row. A CONSTANT column is

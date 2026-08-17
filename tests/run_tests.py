@@ -31800,8 +31800,20 @@ def test_the_tile_estimate_is_honest_where_shapes_are_awkward():
 
   # the printed forms across magnitudes, since the same rounding has
   # to survive a floor plan and a country
-  for value, expected in ((1.2150048, "1.22"), (0.00040001, "0.000401"),
-                          (1500.0, "1,500"), (12.0, "12")):
+  # composed through the SAME locale the sentence uses, never
+  # transcribed: this printing was hand-built with a full stop and a
+  # comma until 2026-08-17, and under a comma-decimal locale the box
+  # beside the message parsed "23.4" as 234
+  from qgis.PyQt.QtCore import QLocale
+  def _local(text):
+    """The same digits, punctuated the way this QGIS punctuates."""
+    point = QLocale().decimalPoint()
+    group = QLocale().groupSeparator()
+    return text.replace(".", "\x00").replace(",", group).replace("\x00", point)
+
+  for value, plain in ((1.2150048, "1.22"), (0.00040001, "0.000401"),
+                       (1500.0, "1,500"), (12.0, "12")):
+    expected = _local(plain)
     printed = bridge.spacing_in_words(bridge._rounded_up_to_figures(value, 3))
     assert printed == expected, \
       f"a spacing of {value!r} prints as {printed!r}, wanted {expected!r}"

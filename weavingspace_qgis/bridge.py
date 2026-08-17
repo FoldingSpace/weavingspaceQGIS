@@ -697,9 +697,34 @@ def spacing_in_words(value: float) -> str:
   # enough places to show three significant figures at this size, and
   # never negative, since a whole number needs none
   places = max(0, 2 - int(math.floor(math.log10(value))))
-  text = f"{value:,.{places}f}"
-  if "." in text:
-    text = text.rstrip("0").rstrip(".")
+  # THE LOCALE'S OWN NUMBER, not a hand-built one, and this is the
+  # defect that made the sentence worse rather than better.
+  #
+  # It was `f"{value:,.{places}f}"`: a full stop for the decimal point
+  # and a comma for grouping, because that is what Python does. On a
+  # QGIS whose numbers use a comma decimal point -- German, French,
+  # most of Europe and Latin America -- the spacing box beside the
+  # message parses through QLocale, so the two disagree. Measured
+  # 2026-08-17 under de_DE on a region 4,000 units across: the refusal
+  # advised "23.4 map units", typing 23.4 left **234**, and Generate
+  # then SUCCEEDED with no message at ten times the advised spacing. At
+  # 200,000 across the advice "1,170" left 1.17 and the refusal
+  # repeated forever.
+  #
+  # The comma half is as old as this project; the full stop arrived
+  # with the rounding fix earlier today, which turned "refused again"
+  # into a silently wrong map. `widgets.py` forbids exactly this in
+  # words -- format through the locale, never by hand -- and it was
+  # written the same morning, three files away.
+  #
+  # QLocale rather than QgsApplication's: the spin box the user types
+  # into uses the widget default, so this must be the same one or the
+  # two can still part company.
+  from qgis.PyQt.QtCore import QLocale
+  text = QLocale().toString(float(value), 'f', places)
+  point = QLocale().decimalPoint()
+  if point and point in text:
+    text = text.rstrip("0").rstrip(point)
   return text
 
 

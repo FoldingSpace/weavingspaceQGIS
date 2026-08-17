@@ -153,6 +153,32 @@ range. The spacing advice names a spacing that is actually accepted.
 And the guard for the Unclassed pins, which had a dead axis, compares
 written cells against the renderer and drives the strip's pin button.
 
+### Fixed after rc7 was published, so rc7 must be replaced
+
+**rc7 IS PUBLISHED AND CARRIES EIGHT DEFECTS THAT ARE FIXED HERE.**
+The published build predates commits b4956cb and the one after it, so
+it must be REPLACED rather than promoted. Four were in code written
+that afternoon; four were older and found by hunts pointed at the new
+work. Each is guarded, and the reasoning is at the code and in
+CLAUDE.md.
+
+What they were, in one line each, so the shape is not lost: the follow
+skipping the stamp-and-embed exits behind a colour guard; every
+Unclassed row warned its classes were empty; a far pin destroying a
+small one through the decimals; leaving deferral for a hand-mixed fill
+losing it; the significant-figures sweep lowering `decimals` to zero so
+a 22.5 degree rotation became 22; the spacing advice hand-formatted so
+a comma-decimal locale drew a map ten times too coarse in silence; a
+break retyped in QGIS never reaching the exported GeoPackage; and a
+style pasted mid-run destroyed by the run's landing.
+
+THE SHAPE THAT RECURRED, three times in one day and worth the space:
+A GUARD THAT ASKS ABOUT ONE THING STANDING IN FRONT OF AN EXIT THAT IS
+ABOUT ANOTHER. A colour comparison in front of the file write; a
+"nothing nameable moved" test in front of the same; an in-flight gate
+in front of the table learning what it is about to be asked. Ask what
+a guard is FOR before deciding what it may skip.
+
 ### Process items, which do not block a candidate
 
 **CONFIRM THE GHOST NUMBERS ON A REAL SCREEN.** Deferred until after
