@@ -138,6 +138,20 @@ they are in -- and that touches the path every run goes through, at
 the end of a session that has already produced five corrections to its
 own fixes. It wants a rested morning, not another hour.
 
+**A MISSING RAMP CRASHES `make_categorized_renderer`.** Found
+2026-08-17 in the mutation workflow's own coverage run, once that
+workflow was made to name the test it had failed: `test_qml_class_
+template` died on Linux with `'NoneType' object has no attribute
+'color'` at bridge.py:2397, because `get_ramp("tab10")` returned None
+in that container. Two questions, and they are separate. WHY the ramp
+was absent is an environment matter and may be the same seeded-style-
+library family as the QGIS_PREFIX_PATH fault -- that container may
+never have had the plugin's palettes installed. But a ramp the style
+library does not hold should not raise an AttributeError from inside a
+renderer builder in any case: this is the guard-that-tests-sign-not-
+finiteness shape, a lookup whose None nobody checked. Fix the second
+whatever the answer to the first, and say what a user is told.
+
 Nothing else outstanding. `CONTENTION` gained its platform term on
 2026-08-16 and the entry that stood here is deleted: every timing
 allowance is now `CONTENTION * WEAVINGSPACE_TEST_SLOWNESS`, each CI

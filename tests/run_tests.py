@@ -24639,7 +24639,8 @@ def test_one_file_spelt_two_ways_is_one_destination():
       # symlinks need a privilege on some platforms; the other
       # spellings still make the point, and saying which ran is what
       # stops a skipped case reading as a passed one
-      _skip_loudly("a symlinked directory could not be created here, "
+      _skip_loudly("one file spelt two ways is one destination",
+                   "a symlinked directory could not be created here, "
                    "so that spelling was not staged")
 
     # ...AND A CASE-DIFFERING SPELLING, where the volume says those
@@ -24667,7 +24668,8 @@ def test_one_file_spelt_two_ways_is_one_destination():
         "the plugin reads them as two destinations, so one file " \
         "under two spellings makes two layer groups"
     else:
-      _skip_loudly("this volume is case-sensitive, so the "
+      _skip_loudly("one file spelt two ways is one destination",
+                   "this volume is case-sensitive, so the "
                    "case-differing spelling was not staged")
     del lower
 
@@ -24686,6 +24688,10 @@ def test_one_file_spelt_two_ways_is_one_destination():
     # the dot segment is unconditional, so the floor that means
     # anything is TWO -- the dot segment plus at least one of the
     # symlink or the case pair.
+    # TWO on a volume that folds case, and two on one that does not
+    # (the dot segment plus the symlink) -- but never assume a
+    # spelling this filesystem cannot make. The count is what says
+    # which ones actually ran.
     assert staged >= 2, \
       f"only {staged} spelling(s) were staged, so this volume showed " \
       f"almost nothing: the dot segment alone does not exercise " \
