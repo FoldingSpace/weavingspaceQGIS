@@ -319,6 +319,11 @@
   "excerpt": "## What it makes",
   "where": "README.md"
  },
+ "3b8726b210fd02dc": {
+  "approved": "2026-08-17",
+  "excerpt": "Element '{}' follows the styling you set in QGIS:",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "3c06de43f48834b6": {
   "approved": "2026-08-09",
   "excerpt": "Stretch the pattern up-down.",
@@ -649,6 +654,11 @@
   "excerpt": "The pattern's grain, in map units: unit size for tilings, st",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "6c31c9806c73b055": {
+  "approved": "2026-08-17",
+  "excerpt": "'{}' leaves {} of its {} classes empty: no value falls in {}",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "6c676ac3916b88f0": {
   "approved": "2026-08-15",
   "excerpt": "{} of {} areas have no geometry, so they are left out of the",
@@ -898,6 +908,11 @@
   "approved": "2026-08-08",
   "excerpt": "![The plugin dialog](docs/img/dialog.png)",
   "where": "README.md"
+ },
+ "961fdb8bea1a97db": {
+  "approved": "2026-08-17",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
  },
  "965bdd176b70bb1a": {
   "approved": "2026-08-09",
