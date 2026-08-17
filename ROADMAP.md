@@ -131,27 +131,18 @@ lesson about seed counts that came out of it, are in
 
 ### Reported by the maintainer against rc5, owed by rc6
 
-**A PIN MUST BE ALLOWED OUTSIDE THE DATA'S OWN RANGE.** Reported
-2026-08-17 against rc5. `pin_problem` refuses a bound the column does
-not cover -- "The upper class bound must sit between -5.71 and 2.83,
-which is what the data covers" -- and the maintainer's answer is that
-this is precisely what somebody wants to do: set one pair of limits
-across SEVERAL variables, so that a colour means the same number on
-every map, rather than each column stretching to its own extremes.
+DONE 2026-08-17 and deleted from here: a class bound may now sit
+outside the data it classifies, so one pair of limits can be given to
+several variables. Guarded by
+`test_a_pin_may_sit_outside_the_data_it_classifies`, which found that
+relaxing `pin_problem` was only half of it -- `_apply_pinned_bounds`
+built the outer class from the column's own extreme, so the ladder
+snapped back to the data and the accepted number changed nothing.
 
-That is not an edge case, it is this plugin's central claim -- several
-attributes of real places read against each other -- and the refusal
-works against it. So the rule changes: a bound outside the data is
-ALLOWED, and the classes it creates simply go unworn. The swatch
-already hatches a class no tile wears, which is the honest way to show
-it, and `unworn_classes` already computes exactly that.
-
-What must NOT be lost with it: the refusals that stay are the ones
-naming something that cannot be DRAWN -- crossed bounds, nothing left
-for the middle, more pinned boundaries than k-1. "Outside the data" is
-not in that family, and grouping it with them is the error. Settled
-decisions in CLAUDE.md name the four refusals together and will need
-the same correction, with the maintainer's ruling recorded beside it.
+STILL OWED FROM IT: the settled-decisions paragraph in CLAUDE.md
+names the four refusals together, which is how "outside the data"
+came to look like one of the undrawable three. Correct it there with
+the maintainer's ruling beside it.
 
 **GHOST NUMBERS BEHIND THE UNCLASSED EDITOR'S CLASS BOUNDS.** Reported
 2026-08-17 against rc5, with a screenshot: a second, faint set of
