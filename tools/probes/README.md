@@ -20,6 +20,16 @@ are not equal. Run it before touching `make_graduated_renderer` and
 again afterwards; the fix is done when both columns print the same
 ladder and the interior widths match.
 
+**`one_interaction.py`** measures what ONE interaction costs -- a
+spinner nudge, a weave-unit rebuild, a ramp pick, a table rebuild, and
+a nudge with live update on -- in whichever tree `WEAVINGSPACE_REPO`
+names, so two trees can be compared by running it twice. It prints its
+own premise (how many layers reached the project, how many live ticks
+actually ran a tiling) because both of the wrong answers it gave on
+the way looked exactly like measurements. `PERF_EXTRA_LAYERS` fills
+the project to test whether cost rises with project size;
+`PERF_LIVE_TICKS` sets how many of the expensive tick to drive.
+
 **`interaction_cost.py`** profiles runs and dumps the stats itself,
 because the harnesses here end in `os._exit` and `cProfile -o` would
 write nothing. `PERF_OUT` says where, `PERF_RUNS` how many.

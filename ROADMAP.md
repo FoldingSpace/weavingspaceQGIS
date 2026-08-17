@@ -207,108 +207,66 @@ whole table through an effect) must be confirmed by the maintainer on
 a real screen, and the guard can only assert the cause is gone rather
 than that the symptom is.
 
-**THE PLUGIN IS SLOWER IN rc5, AND THE TESTER NOTICED.** Reported
-2026-08-17, and then narrowed by the tester in the sentence that
-matters most here: *tiling at small spacings does not seem any
-slower, but the snappy interactive feel at large "auto" spacing has
-gone.*
+**THE INTERACTIVE LOOP, MEASURED AT LAST -- AND IT IS NOT SLOWER.**
+Reported 2026-08-17: the plugin feels slower, and then narrowed by the
+tester to the sentence that mattered most -- *tiling at small spacings
+does not seem any slower, but the snappy interactive feel at large
+"auto" spacing has gone* -- and narrowed again by the maintainer, who
+said the complaint is not about one release at all. It is that the
+plugin USED TO BE efficient, responsive and easy to ITERATE with.
 
-READ THAT CAREFULLY, BECAUSE IT NAMES THE SHAPE. Large spacing means
-FEW tiles, so the tiling itself is cheap and what dominates a run is
-its FIXED cost. Small spacing means many tiles, where the tiling
-swamps everything and a fixed cost disappears into it. A regression
-visible at large spacing and invisible at small is therefore
-per-RUN overhead, not per-tile work -- and with live update firing on
-a 900 ms debounce while somebody drags a control, a fixed cost is
-paid over and over.
+SO ONE INTERACTIVE TICK WAS PROFILED, against v0.24.0, which is the
+oldest version this repository holds and the nearest thing to the one
+the tester remembers. `tools/probes/one_interaction.py`, four elements
+at the auto spacing of 500, CPU milliseconds per tick:
 
-That rules out most of the tiling path by inspection and points at
-what every run does regardless of size. Profile a LARGE-spacing live
-render, not a small-spacing Generate, or the measurement will be
-taken where the effect is known to hide.
+    tick                        v0.24.0     HEAD
+    nudge a design number          57.8     35.2
+    nudge the weave unit           58.1     40.4
+    pick a different ramp          15.1     18.1
+    rebuild the table              87.3     60.1
+    nudge, live update ON         225.2    224.1
 
-MEASURE, DO NOT GUESS. This project already spent a day on a
-performance regression whose obvious culprit was innocent, and the
-technique that worked is written down: profile the SAME operation at
-two revisions and diff the CALL COUNTS, not the seconds. Counts are
-immune to profiler overhead and to whatever else the machine is
-doing; on 2026-08-16 the self-time ratio understated a threefold
-difference as 1.2x while the counts carried it exactly. The two
-revisions here are `569aefb` (rc4) and `6c7af51` (rc5).
+Python calls across the four cheap ticks: 1,191,851 then 991,486, so
+HEAD makes SEVENTEEN PER CENT FEWER. Three of five ticks are markedly
+cheaper, the expensive one is unchanged, and picking a ramp costs
+three milliseconds more.
 
-Candidates from this session's own work, all of them PER-RUN and so
-all of them consistent with the shape above, listed to be ruled out
-rather than assumed:
+**THE PLUGIN'S INTERACTIVE LOOP IS NOT SLOWER THAN v0.24.0. It is
+faster.** Two further things were ruled out by measurement rather than
+by argument. The DEBOUNCES are identical in both trees, 350 ms for the
+preview and 900 ms for a live run, so the wait before anything happens
+has not moved. And PROJECT SIZE does not matter: 61 layers in the
+project instead of one changed nothing measurable, which retires the
+`findLayer`-walks-the-tree suspicion the earlier entry raised about
+`_group_of_our_layers`.
 
-- `_group_of_our_layers` runs THREE times per run -- at launch, in
-  `_get_or_make_group`, and again for `renamed_mid_run` -- and each
-  call asks `root.findLayer()` for up to nine layer ids. `findLayer`
-  walks the layer tree, so the cost rises with how many layers the
-  user's project holds, which is invisible on a fixture of four and
-  is not invisible on a real project;
-- the missing-ramp notice asks `bridge.get_ramp(name)` once per
-  assignment per run, and `get_ramp` queries the style database and
-  CLONES the ramp. A lookup was measured at 0.024 ms in another
-  context, which would make this negligible -- but that figure was
-  taken for a different question and should not be reused here;
-- `_newest_output_group` now examines every top-level group's
-  children, though only at construction.
+WHAT THE ABSOLUTE FIGURES SAY, and nobody had ever measured them.
+Nudging a control with live update on -- the tick a real user makes --
+costs about 225 ms of CPU inside about 1.7 SECONDS of wall clock. Some
+900 ms of that is the live debounce and another 350 the preview one,
+so roughly two thirds of what a person waits is deliberate delay
+rather than work. If iteration should feel snappier, THAT is the
+lever, and it is a design question rather than a regression to hunt:
+what should the debounces be, should the preview and the live run
+share one, and should a run that is about to be superseded be
+cancelled sooner.
 
-**THE QUESTION WAS MIS-SCOPED, AND THAT IS THE MOST IMPORTANT LINE
-HERE.** Clarified by the maintainer after the measurement below: the
-tester is not reporting an rc4-to-rc5 regression. He is lamenting
-that the plugin USED TO BE efficient, responsive and easy to ITERATE
-with, and no longer feels that way. That is a drift over many
-versions and a complaint about the interactive loop, not about one
-release and not about Generate.
+TWO ARTEFACTS ON THE WAY, both caught by making the probe print its
+own premise, and both worth knowing because they are the same shape.
+The live tick first read 3.6x WORSE at HEAD; v0.24.0 had in fact run
+no tiling at all on any of those ticks, so the figure compared a whole
+run against a debounce. The cause was two-layered -- live update there
+waits for a first Generate where a later version does not, and the
+four earlier ticks left the dialog in a state where that tree produced
+no output. A probe that quietly measures the wrong thing announces
+nothing; the fix was to print how many ticks ran a task and how many
+tiles resulted, which is now in the probe and would fail loudly.
 
-So the measurement below answers a real question -- did this release
-make it worse -- and not the one being asked. What the asked question
-needs instead:
-
-- profile ONE INTERACTIVE TICK, not a run: nudging a spinner,
-  changing a ramp, a table rebuild, a preview redraw. "Easy to
-  iterate with" lives in the 350 ms and 900 ms debounces, and a
-  Generate measurement says almost nothing about them;
-- baseline against a version he remembers as SNAPPY -- 0.23.x or
-  0.24.0 -- rather than against last night's candidate;
-- and read ABSOLUTE costs, not only deltas. A loop can be slow
-  without any release having made it slower, and this project has
-  already found one such thing by accident: a ramp swatch redrawn
-  306,558 times in a single test, uncached since it was written.
-  Nobody has ever measured what one interaction costs.
-
-**MEASURED 2026-08-17 AGAINST rc4, AND ALL THREE SUSPECTS ARE
-INNOCENT.** Six
-full runs at the auto spacing in each tree, profiled, compared by
-call count: `569aefb` 1,390,561 calls against `6c7af51` 1,391,768.
-**+1,207, or +0.09%.** This session's additions are visible and
-minute -- `ramp_or_default` 20 calls, `get_ramp` 60 to 80,
-`_group_of_our_layers` 15, `findLayer` 15, `same_destination` 5 --
-about ninety calls across six runs.
-
-SO THE PYTHON SIDE IS FLAT, and that redirects the hunt rather than
-closing it. A slowdown a person can feel, with call counts unchanged,
-means the SAME calls are costing more: Qt and C++ work, repaints, or
-something outside this path altogether. The next measurement is
-therefore CPU and wall clock per run at both revisions, not counts --
-the opposite of the advice that solved the last performance
-regression, and for the opposite reason.
-
-Two honest limits on the above. The fixture's auto spacing came out
-at 500 with 612 tiles over four elements, which may not be the "large
-auto spacing" the tester means; ask what region and what spacing, or
-the measurement may be taken where the effect is not. And the
-comparison first reported hundreds of large increases that were an
-artefact of keying the diff on LINE NUMBERS -- every function in a
-file that gained six hundred lines looks new -- which is worth
-knowing because the artefact was entirely convincing until each
-"increase" turned out to have a matching disappearance at the same
-count.
-
-The largest genuine deltas after that correction, neither obviously
-costly and both unexplained: `QTableWidget.item` 144 to 860, and
-`setEnabled` 144 to 250.
+STILL OPEN, and it is the honest limit: this is one fixture, four
+elements, 612 tiles, on one machine. The tester's own region and
+spacing were never asked for. If the feeling persists on a real
+project the next measurement is his project, not this one.
 
 **DONE 2026-08-17 AND DELETED FROM HERE: the significant figures.**
 `_limit_the_figures_on_show` sweeps every number box at construction
