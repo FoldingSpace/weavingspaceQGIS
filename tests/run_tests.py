@@ -24557,9 +24557,18 @@ def test_every_ceiling_widens_for_a_slow_machine():
   assert slow == 4.0, \
     f"a machine declaring itself four times slower reads {slow}, so " \
     f"its ceilings are still sized for the Mac this was written on"
-  assert both > sharded, \
+  # THE PRODUCT, not merely "bigger". `both > sharded` passed under
+  # max(), and passed with the sharding term deleted outright -- so a
+  # sharded run on a declared-slow machine would have got 4x where it
+  # needs 10x, and the meaningless red this mechanism exists to
+  # prevent would have come back. (Found by a hunt on 2026-08-17,
+  # mutating this suite's own new tests per assertion.)
+  assert both == sharded * slow, \
     f"sharding and slowness must MULTIPLY -- they are independent " \
-    f"costs -- and {both} is not above {sharded}"
+    f"costs -- and {both} is not {sharded} * {slow}"
+  assert both == 10.0, \
+    f"a three-way shard on a machine declaring itself four times " \
+    f"slower must widen every allowance tenfold, and reads {both}"
   # a malformed value must not silently hand back the un-widened
   # ceiling this exists to widen
   assert contention(WEAVINGSPACE_TEST_SLOWNESS="quite") == 1.0
@@ -24672,7 +24681,15 @@ def test_one_file_spelt_two_ways_is_one_destination():
     # memory output, said two ways, is still memory output
     assert same_destination("", None)
     assert not same_destination(real, "")
-    assert staged >= 1, "no spelling was staged, so this proves nothing"
+    # `staged` counts the spellings this volume could actually make.
+    # It began at 1 on the line above, which made this constant-true;
+    # the dot segment is unconditional, so the floor that means
+    # anything is TWO -- the dot segment plus at least one of the
+    # symlink or the case pair.
+    assert staged >= 2, \
+      f"only {staged} spelling(s) were staged, so this volume showed " \
+      f"almost nothing: the dot segment alone does not exercise " \
+      f"realpath or the filesystem's own idea of one file"
   finally:
     shutil.rmtree(folder, ignore_errors=True)
 
@@ -24832,6 +24849,49 @@ def test_a_retired_dialog_rebuilds_nothing_when_the_project_moves():
     f"same, so the cost grows with the square of how often the " \
     f"plugin has been opened -- and each rebuild is a full weave " \
     f"construction on the GUI thread"
+
+  # ...AND EACH GATE ON ITS OWN, which is the half this test lacked.
+  # A hunt on 2026-08-17 mutated it and found the assertion above
+  # passing with the gates removed from BOTH hooks its Regression line
+  # names: `_settle_layer_choice` is never entered on a retired dialog
+  # (it is queued from `_on_layer_changed`, which returns at its own
+  # gate first), and `_layers_removed` returned early because the
+  # fixture removed a layer that dialog had never watched. Only
+  # `_on_layer_changed` -- which the line did not mention -- made it
+  # fail. So the end-to-end check above covers ONE of four gates, and
+  # each of the others is asked here directly, the way Qt calls it.
+  # ...AND EACH GATE ASKED FOR WHAT IT ACTUALLY PROTECTS, which took
+  # two attempts. Counting rebuilds cannot discriminate the gates on
+  # `_settle_layer_choice` and `_layers_removed`, because neither
+  # rebuilds anything ITSELF: both reach `_rebuild_unit` only through
+  # `_on_layer_changed`, which returns at its own gate first. Removing
+  # their gates therefore changes no rebuild count, and an assertion
+  # about rebuilds passes either way -- which is what a hunt found in
+  # the first version of this test, and what the second version still
+  # could not see. They are redundant FOR THE REBUILD and load-bearing
+  # for the SPEECH: `_layers_removed` reports the region layer leaving,
+  # so an ungated one says it once per dialog the user has ever opened.
+  watched = retired._watched_layer_id
+  rebuilds.clear()
+  retired._on_layer_changed()
+  _tick(150)
+  assert not rebuilds, \
+    "a retired dialog rebuilt its unit from _on_layer_changed, which " \
+    "is the route every other hook reaches the work through"
+
+  BAR_MESSAGES.clear()
+  retired._layers_going([watched])
+  retired._layers_removed([watched])
+  _tick(150)
+  said = " ".join(text for _kind, text in BAR_MESSAGES)
+  assert not said, \
+    f"a retired dialog spoke when the region layer was removed: " \
+    f"{BAR_MESSAGES!r}. Every window the user has finished with " \
+    f"would say the same thing, so one removal is reported once per " \
+    f"dialog ever opened"
+  assert not rebuilds, \
+    "the removal hooks rebuilt a retired dialog's unit"
+
 
   live.close()
   retired.close()
