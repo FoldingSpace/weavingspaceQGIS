@@ -341,9 +341,13 @@ MUTATIONS = [
            "the incoming project's no-data layers are deleted by the "
            "next Generate as though they were the last project's"),
   dict(name="a-replaced-project-is-not-drawn-over", file=DIALOG,
+       # RE-ANCHORED 2026-08-16: the adopted-group record was added
+       # between the second and third lines, so the old three-line
+       # anchor matched nothing and this entry had gone silent --
+       # which reads exactly like success. Anchored on the two lines
+       # that carry the defect it names.
        old="""    self._group_name = None
-    self._last_path = None
-    self._outline_layer_id = None""",
+    self._last_path = None""",
        new="""    pass""",
        test="test_a_project_opened_under_an_open_dialog_is_not_drawn_over",
        why="a project replaced under an OPEN dialog left the old "

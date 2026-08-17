@@ -1889,6 +1889,18 @@ class WeavingSpaceDialog(QDialog):
     layer list changes, which happens after every generation, so
     anything here must be safe to run repeatedly for the same layer.
     """
+    # A RETIRED DIALOG DOES NOTHING HERE. QgsMapLayerComboBox
+    # re-emits layerChanged whenever the project's layers churn, and
+    # every dialog ever opened still owns a combo doing that until its
+    # C++ object dies -- so a session that opens the plugin several
+    # times pays a full weave-unit rebuild per dead window per project
+    # change, which is quadratic. Measured 2026-08-16: this path alone
+    # ran 647 times in one test against 230 at v0.24.2, and it is the
+    # last of the four routes that reached a window nobody is looking
+    # at. The gate is the one `_on_project_read` has carried since it
+    # was written.
+    if _dialog_is_gone(self) or _live_dialog() is not self:
+      return
     self._cat_count_cache = {}
     self._nulls_cache = {}
     layer = self.layer_combo.currentLayer()

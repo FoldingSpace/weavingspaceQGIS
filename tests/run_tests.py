@@ -24257,6 +24257,71 @@ def test_a_dock_edit_during_a_run_is_not_lost():
   dlg.close()
 
 
+def test_a_retired_dialog_rebuilds_nothing_when_the_project_moves():
+  """A dialog the user has finished with does no work for a project.
+
+  Two hooks added in 0.24.3 listen to the PROJECT rather than to a
+  layer -- `_settle_layer_choice` and the pair around
+  `layersRemoved` -- and a dialog stays connected to the project until
+  its C++ object is destroyed, which in a session that opens the
+  plugin several times may be much later or never. Without the gate
+  `_on_project_read` already carried, every project change reached
+  every dialog ever opened, and each one rebuilt a full weave unit
+  for a window nobody is looking at. The cost is QUADRATIC in how
+  many times the plugin has been opened.
+
+  Counted rather than timed, so the assertion means the same thing on
+  any machine and under any contention.
+
+  Regression: `_settle_layer_choice` (0f6f5c0) and `_layers_removed` (c0b91e9) hooked the project without the retirement gate that `_on_project_read` already had, so every dialog ever opened rebuilt its tile unit on every project change. Measured 2026-08-16 over one test: `_layers_removed` fired 231 times across 22 dialogs, which is sum(0..21), and unit rebuilds ran 1,282 times against 461 at v0.24.2. Real geometry, on the GUI thread, for retired windows. [review]
+  """
+  from weavingspace_qgis import dialog as dialog_module
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  retired = WeavingSpaceDialog(iface=_Iface())
+  retired.live_check.setChecked(False)
+  _tick(200)
+
+  # The LIVE one supersedes it, exactly as a plugin reload does.
+  live = WeavingSpaceDialog(iface=_Iface())
+  live.live_check.setChecked(False)
+  _tick(200)
+  assert dialog_module._live_dialog() is live, \
+    "the second dialog did not take charge, so this test would be " \
+    "asking the question of the wrong object"
+
+  # Count the retired one's rebuilds, and PASS THROUGH to the real
+  # method so nothing is disabled by the counting itself.
+  rebuilds = []
+  real = retired._rebuild_unit
+
+  def counted(*args, **kwargs):
+    rebuilds.append(1)
+    return real(*args, **kwargs)
+
+  retired._rebuild_unit = counted
+
+  # A project change of exactly the kind the new hooks listen for.
+  second = make_region_layer()
+  project.addMapLayer(second)
+  _tick(300)
+  project.removeMapLayer(second.id())
+  _tick(300)
+
+  assert not rebuilds, \
+    f"a retired dialog rebuilt its unit {len(rebuilds)} time(s) when " \
+    f"the project changed. Every dialog ever opened would do the " \
+    f"same, so the cost grows with the square of how often the " \
+    f"plugin has been opened -- and each rebuild is a full weave " \
+    f"construction on the GUI thread"
+
+  live.close()
+  retired.close()
+
+
 def test_a_retired_dialog_stops_watching():
   """Only the LIVE dialog reacts to a dock edit; its predecessor is
   deaf.
@@ -45336,6 +45401,8 @@ def main():
         test_a_dock_edit_while_the_editor_is_open)
   check("a dock edit during a run is not lost",
         test_a_dock_edit_during_a_run_is_not_lost)
+  check("a retired dialog rebuilds nothing when the project moves",
+        test_a_retired_dialog_rebuilds_nothing_when_the_project_moves)
   check("a retired dialog stops watching",
         test_a_retired_dialog_stops_watching)
   check("a project saved by an older plugin still opens",

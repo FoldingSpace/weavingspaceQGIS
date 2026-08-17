@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-207 defect(s) with a regression test.
+208 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -215,6 +215,8 @@ there is no separate list to remember.
   guarded by `test_a_project_opened_under_an_open_dialog_is_taken_over`
 - **every table rebuild redrew a swatch for every ramp in the style library. Measured 2026-08-16 under cProfile on one test: 306,558 icon draws, 311,613 style-library lookups and 2.45 million fillRect calls, all on the GUI thread; the same test needs 63 distinct swatches. Survivable at 0.24.2's 461 rebuilds, it became three-quarters of the cost that pushed every CI suite leg past its 600-second stall ceiling when 0.24.3 nearly tripled the rebuild count.**  
   guarded by `test_a_ramp_swatch_is_drawn_once_and_follows_the_library`
+- **`_settle_layer_choice` (0f6f5c0) and `_layers_removed` (c0b91e9) hooked the project without the retirement gate that `_on_project_read` already had, so every dialog ever opened rebuilt its tile unit on every project change. Measured 2026-08-16 over one test: `_layers_removed` fired 231 times across 22 dialogs, which is sum(0..21), and unit rebuilds ran 1,282 times against 461 at v0.24.2. Real geometry, on the GUI thread, for retired windows.**  
+  guarded by `test_a_retired_dialog_rebuilds_nothing_when_the_project_moves`
 - **none yet; this pins the scope of a change made 2026-08-16, because a nudge that fired on ordinary data would silently move every boundary value up one class across every map this plugin draws.**  
   guarded by `test_a_value_on_a_break_belongs_to_the_class_below`
 - **the split widened from "missing" to "the classifier cannot place this" so it would catch an infinity, and this scan went on looking for NULL alone. A full Generate still drew correctly, since the split is not gated by it -- but on a column of infinities with no nulls the signature said no split was needed, so a style change was answered by the restyle path and the holes came back. Opened and closed the same day, 2026-08-16, by widening a predicate without enumerating its readers.**  
@@ -465,7 +467,7 @@ there is no separate list to remember.
 - not written down at the time: 81
 - a bug hunt pointed in a named direction: 50
 - the mutation campaign: 16
-- reading the code: 14
+- reading the code: 15
 - reported by a user: 12
 - race and stress testing: 6
 - running the suite somewhere other than the machine it was written on: 6
