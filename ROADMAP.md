@@ -295,6 +295,46 @@ restyle draws; then Copy Style from one layer and Paste Style onto an
 element, with an expressible renderer and an inexpressible one, and
 check whether the plugin hears it at all.
 
+**OUTSTANDING FOR rc7: nothing tells a user a class is empty any
+more, and I said otherwise.** Found by a hunt, 2026-08-17.
+
+WHEN THE SWATCH HATCHING WENT this morning, the removal was justified
+-- in the commit message, in CLAUDE.md, in bridge.py's comments, in
+docs/TESTING.md and in the CHANGELOG THE MAINTAINER APPROVED -- with
+the claim that `few_values_message` now carries the whole job of
+reporting emptiness in words. That claim was never measured and it is
+FALSE.
+
+MEASURED. `few_values_message` fires only when a column's distinct
+value count is below the asked class count, which is neither
+necessary nor sufficient for "no tile wears this class". Asked of the
+same renderer across six scenarios, it and `unworn_classes` disagree
+in FOUR: a pin below the data, a pin above it, a copied ladder (four
+of five classes unworn), and a plain tied column with no pin at all.
+And `bridge.unworn_classes` -- the function that asks the right
+question -- has had NO CALLER since the removal deleted
+`dialog._unworn_stripes`.
+
+THE HARM, reproduced. One element, Classes 5, Generate, then pin the
+low bound at -5 through the Pin column: the legend shows five classes,
+the spinner reads five, FOUR colours are ever painted, and the only
+thing said is "restyled a (no re-tiling needed)". That is precisely
+the workflow the wide-limits ruling invites, so the case is common
+rather than exotic.
+
+WHAT MUST BE DECIDED, and it is the maintainer's. Either give
+`unworn_classes` a caller again so emptiness is reported in words
+whenever a class is unworn -- which is what the removal promised --
+or rule that the signal itself was meant to go, in which case
+CLAUDE.md, bridge.py's comments, docs/TESTING.md, a test's docstring
+AND the approved changelog line "The classes left empty are counted
+in a notice" are all stale prose and must be corrected together.
+
+THE LESSON IS ALREADY EARNED whichever way it goes: when a removal is
+justified by "X now carries the whole job", RUN X AGAINST EVERY CASE
+THE REMOVED THING COVERED. X covered two of six here, and the
+function that asked the right question was the one being deleted.
+
 ### Process items, which do not block a candidate
 
 **CONFIRM THE GHOST NUMBERS ON A REAL SCREEN.** Deferred until after
