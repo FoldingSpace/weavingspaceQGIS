@@ -4497,6 +4497,28 @@ class WeavingSpaceDialog(QDialog):
     # construction. Forgetting means the next Generate makes its own
     # group rather than silently sharing somebody else's: a visible
     # new group beats an invisible double map.
+    # CANCEL ANY RUN STILL IN FLIGHT, first, because it was launched
+    # for the project that is going away and `_on_generated` never
+    # asks which project it is landing into. Measured 2026-08-17: with
+    # a live run under way in project B, File > Open on project A
+    # brought A's group back holding four MEMORY layers of 1,176
+    # features tiled from B's region -- A's GeoPackage-backed layers
+    # gone, and the whole thing reported as a success, "4,704 tiles
+    # across 4 element layers". The user opened a project and it
+    # destroyed the map in it.
+    #
+    # `cleared` fires on File > New and immediately BEFORE File >
+    # Open, so this is the last moment at which the run can still be
+    # stopped while it is still about the project it was started for.
+    if self._task is not None:
+      try:
+        self._task.cancel()
+      except Exception:
+        # a task whose C++ object has gone cannot be cancelled and
+        # does not need to be; refusing to forget the project because
+        # of it would be worse
+        pass
+      self._task = None
     self._group_name = None
     self._last_path = None
     # THE WIDGET TOO, and it was the one record every clear site left
@@ -5403,6 +5425,21 @@ class WeavingSpaceDialog(QDialog):
           # Guarded by test_a_discarded_pick_does_not_come_back.
           # the CATEGORIZED half of this branch
           self._stamp_category_colours(layer, refreshed)
+          # ...AND THE FILE, which this exit forgot. Its twin in
+          # `_restyle_only` stamps AND embeds; these four adoption
+          # exits stamped only, so a recolour made in QGIS's own
+          # styling dock never reached the exported GeoPackage -- and
+          # the signature recorded a moment later then made the
+          # restyle path SKIP the element, so pressing Generate could
+          # not heal it either. A colleague opening the file saw the
+          # colours from before the edit, beside a stamp claiming the
+          # new ones. Measured 2026-08-17 over 1,751 comparisons
+          # between a sending project and the file a separate process
+          # opened: 11 disagreements for a categorical recolour, 12
+          # for a graduated one, and an element at 0.25 opacity in the
+          # project and 0.85 in the file.
+          if self._last_path:
+            bridge.embed_style(layer)
         return
 
     # adopt the divergent colours as hand-picks for the current field
@@ -5424,6 +5461,21 @@ class WeavingSpaceDialog(QDialog):
     if refreshed is not None:
       self._last_signatures[tile_id] = self._signature(refreshed)
       self._stamp_category_colours(layer, refreshed)
+      # ...AND THE FILE, which this exit forgot. Its twin in
+      # `_restyle_only` stamps AND embeds; these four adoption
+      # exits stamped only, so a recolour made in QGIS's own
+      # styling dock never reached the exported GeoPackage -- and
+      # the signature recorded a moment later then made the
+      # restyle path SKIP the element, so pressing Generate could
+      # not heal it either. A colleague opening the file saw the
+      # colours from before the edit, beside a stamp claiming the
+      # new ones. Measured 2026-08-17 over 1,751 comparisons
+      # between a sending project and the file a separate process
+      # opened: 11 disagreements for a categorical recolour, 12
+      # for a graduated one, and an element at 0.25 opacity in the
+      # project and 0.85 in the file.
+      if self._last_path:
+        bridge.embed_style(layer)
     self._report_quietly(
       f"Element '{tile_id}' keeps the {adopted} colour(s) set in "
       f"QGIS; its ramp cell now reads Custom.")
@@ -5536,6 +5588,21 @@ class WeavingSpaceDialog(QDialog):
           # Guarded by test_a_discarded_pick_does_not_come_back.
           # the GRADUATED half of this branch
           self._stamp_category_colours(layer, refreshed)
+          # ...AND THE FILE, which this exit forgot. Its twin in
+          # `_restyle_only` stamps AND embeds; these four adoption
+          # exits stamped only, so a recolour made in QGIS's own
+          # styling dock never reached the exported GeoPackage -- and
+          # the signature recorded a moment later then made the
+          # restyle path SKIP the element, so pressing Generate could
+          # not heal it either. A colleague opening the file saw the
+          # colours from before the edit, beside a stamp claiming the
+          # new ones. Measured 2026-08-17 over 1,751 comparisons
+          # between a sending project and the file a separate process
+          # opened: 11 disagreements for a categorical recolour, 12
+          # for a graduated one, and an element at 0.25 opacity in the
+          # project and 0.85 in the file.
+          if self._last_path:
+            bridge.embed_style(layer)
         return
 
     # adopt the divergent classes as positional picks
@@ -5557,6 +5624,21 @@ class WeavingSpaceDialog(QDialog):
     if refreshed is not None:
       self._last_signatures[tile_id] = self._signature(refreshed)
       self._stamp_category_colours(layer, refreshed)
+      # ...AND THE FILE, which this exit forgot. Its twin in
+      # `_restyle_only` stamps AND embeds; these four adoption
+      # exits stamped only, so a recolour made in QGIS's own
+      # styling dock never reached the exported GeoPackage -- and
+      # the signature recorded a moment later then made the
+      # restyle path SKIP the element, so pressing Generate could
+      # not heal it either. A colleague opening the file saw the
+      # colours from before the edit, beside a stamp claiming the
+      # new ones. Measured 2026-08-17 over 1,751 comparisons
+      # between a sending project and the file a separate process
+      # opened: 11 disagreements for a categorical recolour, 12
+      # for a graduated one, and an element at 0.25 opacity in the
+      # project and 0.85 in the file.
+      if self._last_path:
+        bridge.embed_style(layer)
     self._report_quietly(
       f"Element '{tile_id}' keeps the {adopted} colour(s) set in "
       f"QGIS; its ramp cell now reads Custom.")

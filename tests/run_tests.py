@@ -24694,6 +24694,60 @@ def test_one_file_spelt_two_ways_is_one_destination():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_a_run_in_flight_does_not_land_in_the_project_that_replaced_it():
+  """A run launched for one project must not land in the next one.
+
+  `_on_generated` never asks which project it is landing into, and
+  `cleared` fires immediately before File > Open -- so a run still in
+  flight when the user opens another project delivered its layers into
+  THAT project, over whatever it already held.
+
+  Measured 2026-08-17: with a live run under way, opening a project
+  whose own map was four GeoPackage-backed layers brought it back
+  holding four MEMORY layers tiled from the previous project's region,
+  reported as a success. The user opened a project and it destroyed
+  the map inside it.
+
+  Regression: a tiling still in flight when the project was replaced landed its layers into the incoming project, replacing that project's own output with memory layers tiled from the previous project's region -- and reported it as a successful run. `_forget_the_last_project` did not cancel the task and `_on_generated` never asked which project it was for. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  project = QgsProject.instance()
+  layer = make_region_layer(n=10)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  dlg.spacing_spin.setValue(320)
+
+  # launch, and do NOT wait: the run must still be in flight
+  dlg._generate()
+  assert dlg._task is not None, \
+    "no run was started, so this test cannot show what replacing the " \
+    "project does to one still in flight"
+
+  # ...and the project is replaced underneath it, as File > Open does
+  project.clear()
+  _tick(200)
+  assert dlg._task is None, \
+    "a run launched for the previous project is still in flight " \
+    "after that project was replaced: when it lands it will deliver " \
+    "its layers into whatever project is open by then"
+
+  # let any queued work run itself out, then require the new project
+  # to be untouched by it
+  _tick(2000)
+  strays = [l for l in project.mapLayers().values()
+            if l.customProperty("weavingspace_output")]
+  assert not strays, \
+    f"{len(strays)} layer(s) from the previous project's run were " \
+    f"delivered into the project that replaced it: " \
+    f"{[l.name() for l in strays]}"
+  dlg.close()
+  project.clear()
+
+
 def test_reopening_a_saved_project_does_not_replace_its_map():
   """Open a saved project, open the plugin, touch nothing: the map stays.
 
@@ -46109,6 +46163,8 @@ def main():
         test_every_ceiling_widens_for_a_slow_machine)
   check("one file spelt two ways is one destination",
         test_one_file_spelt_two_ways_is_one_destination)
+  check("a run in flight does not land in the project that replaced it",
+        test_a_run_in_flight_does_not_land_in_the_project_that_replaced_it)
   check("reopening a saved project does not replace its map",
         test_reopening_a_saved_project_does_not_replace_its_map)
   check("a retired dialog rebuilds nothing when the project moves",

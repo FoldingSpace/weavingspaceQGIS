@@ -115,7 +115,30 @@ widget inside `_adopt_existing_group`, which runs BEFORE `_build_ui`
 in the constructor. The guard caught it, which is what a guard written
 before believing the fix is for.
 
-Nothing outstanding. `CONTENTION` gained its platform term on
+**BLOCKING: renaming the output group makes a second one, and both
+read the same tables.** Found 2026-08-17 by a backwards-from-harm
+hunt, verified with both doors. `_get_or_make_group` looks the group
+up BY NAME, and on failing to find it empties `_element_layer_ids`
+before `old_ids` is read -- so a user who renames the group in the
+layers panel, which is an ordinary thing to do, gets a second group at
+the next run.
+
+Two routes measured. The memory door needs no button: generate, fade
+element a to 0.37, rename the group, nudge the spacing, and 900 ms
+later there are two groups and eight layers with the fade only on the
+orphan. The GeoPackage door is worse: eight layers all reading the
+SAME FOUR TABLES, so the abandoned group redraws the new data under
+the old class breaks -- the invisible double map, and the handle
+release loop released nothing.
+
+Not fixed tonight, deliberately. The lookup keys on a NAME where every
+other record keys on a custom property, so the repair is to find the
+group the way adoption already does, by asking the layers whose group
+they are in -- and that touches the path every run goes through, at
+the end of a session that has already produced five corrections to its
+own fixes. It wants a rested morning, not another hour.
+
+Nothing else outstanding. `CONTENTION` gained its platform term on
 2026-08-16 and the entry that stood here is deleted: every timing
 allowance is now `CONTENTION * WEAVINGSPACE_TEST_SLOWNESS`, each CI
 job declares its own figure with the reason beside it, and
