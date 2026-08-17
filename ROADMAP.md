@@ -177,6 +177,20 @@ on every map, I said yes; the measurement above says no, and the rule
 here is what would make it true. Unclassed rides the same rule, its
 fifty steps spanning the pinned range rather than the column's.
 
+**AWAITING THE MAINTAINER'S EYE, not code: the ghost numbers.** The
+cause is removed -- the Unclassed table is no longer composited
+through a `QGraphicsOpacityEffect`, and fades per item through the
+palette's disabled colour instead. Guarded by
+`test_the_unclassed_list_fades_without_a_graphics_effect` and by the
+catalogue entry `the-unclassed-list-is-not-composited`, which puts the
+effect back and is caught.
+
+WHAT THE SUITE CANNOT SAY is whether the ghosts have gone, because
+they live in the window system's backing store where `grab()` cannot
+look. **This entry stays open until somebody scrolls that window on a
+real screen.** The original report follows, unedited, so the check has
+something to check against.
+
 **GHOST NUMBERS BEHIND THE UNCLASSED EDITOR'S CLASS BOUNDS.** Reported
 2026-08-17 against rc5, with a screenshot: a second, faint set of
 bounds painted behind the live ones in the Lower and Upper columns,

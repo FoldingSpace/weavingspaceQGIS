@@ -2984,6 +2984,20 @@ MUTATIONS = [
            "the row still names the ramp, the swatch still draws, and "
            "the user has no way to learn that the colours are not the "
            "ones they chose"),
+  dict(name="the-unclassed-list-is-not-composited", file=EDITOR,
+       old="      faded = self.table.palette().color(",
+       new="      from qgis.PyQt.QtWidgets import QGraphicsOpacityEffect\n"
+           "      self.table.setGraphicsEffect("
+           "QGraphicsOpacityEffect(self.table))\n"
+           "      faded = self.table.palette().color(",
+       test="test_the_unclassed_list_fades_without_a_graphics_effect",
+       why="a graphics effect renders the table into an offscreen "
+           "pixmap while QAbstractScrollArea scrolls by blitting, so "
+           "the two disagree and previously-painted class bounds stay "
+           "visible behind the current ones -- the ghost numbers the "
+           "maintainer photographed. The suite cannot see the artefact "
+           "itself, which lives in the backing store, so what it holds "
+           "is that the mechanism is absent"),
   dict(name="a-rename-during-a-run-keeps-the-group", file=DIALOG,
        old="    force_new = self.opt_new_group.isChecked() or "
            "renamed_mid_run or (",

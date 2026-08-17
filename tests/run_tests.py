@@ -8995,6 +8995,75 @@ def test_a_refused_pin_reverts_and_says_so():
   dlg.close()
 
 
+def test_the_unclassed_list_fades_without_a_graphics_effect():
+  """The Unclassed editor must not composite its table offscreen.
+
+  The maintainer's screenshot of rc5 showed a second, faint set of
+  class bounds painted behind the live ones, each about one row out.
+  `locked=unclassed`, and the locked branch put a
+  `QGraphicsOpacityEffect` on the table: an effect renders its source
+  into an offscreen pixmap while `QAbstractScrollArea` scrolls by
+  BLITTING, so the cached source and the blitted viewport disagree.
+  Unclassed is where it bites because fifty classes are what make the
+  table scroll at all.
+
+  WHAT THIS TEST CAN AND CANNOT DO, said plainly because the
+  difference matters. It CANNOT see the artefact: that lives in the
+  window system's backing store, and `grab()` repaints cleanly --
+  measured, a scrolled render matched a force-repainted one on all
+  32,900 sampled pixels offscreen. So this asserts the CAUSE is gone
+  and that the fade the effect provided is still there by another
+  route. A green run here is not evidence that the ghosts have gone;
+  only a person looking at a real screen is.
+
+  Regression: the Unclassed colour editor faded its table with a QGraphicsOpacityEffect, which composites offscreen while the table scrolls by blitting, so previously-painted class bounds stayed visible behind the current ones. Reported with a screenshot against 0.24.3rc5. [user]
+  """
+  from qgis.PyQt.QtGui import QPalette
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+
+  bounds, colours, order = [], {}, []
+  low = -0.9276
+  for i in range(50):
+    high = low + 0.1708
+    bounds.append((low, high))
+    order.append(i)
+    colours[i] = "#e7f4cb"
+    low = high
+
+  editor = CategoryColourDialog(
+    "a", "January", order, colours, lambda *a, **k: None,
+    bounds=bounds, locked=True, ramp_name="RdYlBu", reverse=False,
+    range_bounds=(0, 100))
+  try:
+    assert editor.table.graphicsEffect() is None, \
+      f"the table carries a " \
+      f"{type(editor.table.graphicsEffect()).__name__}, which " \
+      f"composites it offscreen while it scrolls by blitting -- the " \
+      f"mechanism behind the ghosted class bounds"
+
+    # ...and it is still visibly a list you watch rather than edit,
+    # which is what the effect was there for. Asserted through the
+    # palette rather than against a hard-coded grey, since the whole
+    # point of using the palette is that it follows the user's theme.
+    faded = editor.table.palette().color(
+      QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText)
+    checked = 0
+    for row in range(editor.table.rowCount()):
+      item = editor.table.item(row, 0)
+      if item is None:
+        continue
+      assert item.foreground().color() == faded, \
+        f"row {row} is drawn in {item.foreground().color().name()} " \
+        f"rather than the palette's disabled {faded.name()}: the " \
+        f"list no longer reads as one you cannot edit"
+      checked += 1
+    assert checked >= 50, \
+      f"only {checked} rows were examined, so this proves little " \
+      f"about a fifty-class list"
+  finally:
+    editor.close()
+
+
 def test_a_pin_may_sit_outside_the_data_it_classifies():
   """Limits WIDER than the column are the point, not a mistake.
 
@@ -46885,6 +46954,8 @@ def main():
         test_a_hatched_class_hatches_only_itself)
   check("a refused pin reverts and says so",
         test_a_refused_pin_reverts_and_says_so)
+  check("the unclassed list fades without a graphics effect",
+        test_the_unclassed_list_fades_without_a_graphics_effect)
   check("a pin may sit outside the data it classifies",
         test_a_pin_may_sit_outside_the_data_it_classifies)
   check("the release notes keep their categories",

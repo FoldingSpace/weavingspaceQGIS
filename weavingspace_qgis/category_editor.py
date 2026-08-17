@@ -35,12 +35,12 @@ from __future__ import annotations
 import math
 
 from qgis.PyQt.QtCore import QEvent, QPointF, QSize, Qt, QTimer
-from qgis.PyQt.QtGui import (QBrush, QColor, QIcon, QPainter, QPen,
-                             QPainterPath, QPixmap, QPolygonF)
+from qgis.PyQt.QtGui import (QBrush, QColor, QIcon, QPainter, QPalette,
+                             QPen, QPainterPath, QPixmap, QPolygonF)
 from qgis.PyQt.QtWidgets import (QAbstractButton, QAbstractItemView,
                                  QColorDialog, QComboBox, QDialog,
                                  QDialogButtonBox,
-                                 QDoubleSpinBox, QGraphicsOpacityEffect,
+                                 QDoubleSpinBox,
                                  QHBoxLayout, QHeaderView, QLabel,
                                  QPushButton, QSpinBox, QTableWidget,
                                  QTableWidgetItem, QVBoxLayout, QWidget)
@@ -90,10 +90,13 @@ RAMP_PREVIEW_HEIGHT = 20
 # box, fires immediately.
 RANGE_DEBOUNCE_MS = 150
 
-# The Unclassed list is shown at just under half opacity: present
-# enough to watch the range recolour it, faded enough to read as
-# not-editable.
-LOCKED_OPACITY = 0.45
+# The Unclassed list used to be shown at just under half opacity,
+# through a QGraphicsOpacityEffect on the whole table. That is gone
+# (2026-08-17): an effect composites its source offscreen while the
+# table scrolls by blitting, and the two disagreed visibly, painting
+# each class bound faintly behind the row above it. The fade is done
+# per item now, through the palette's own disabled colour, so there is
+# no constant left to tune -- see the branch in `_rebuild`.
 
 # A hex code is read digit by digit and compared down the column, so
 # it wants fixed pitch. Named families rather than a single font, in
@@ -591,12 +594,41 @@ class CategoryColourDialog(QDialog):
 
     if self._locked:
       # The Unclassed list is watched, not edited: the buttons are
-      # already disabled (see _colour_button), and the whole table is
-      # faded so the window says so at a glance. The effect belongs
-      # to the table, so the range section above stays fully opaque.
-      effect = QGraphicsOpacityEffect(self.table)
-      effect.setOpacity(LOCKED_OPACITY)
-      self.table.setGraphicsEffect(effect)
+      # already disabled (see _colour_button), and the text is faded
+      # so the window says so at a glance. Only the table fades; the
+      # range section above stays fully opaque.
+      #
+      # FADED PER ITEM, AND NOT WITH A GRAPHICS EFFECT, which is what
+      # this did until 2026-08-17. `QGraphicsOpacityEffect` renders
+      # its source into an offscreen pixmap, and `QAbstractScrollArea`
+      # scrolls by BLITTING rather than repainting -- so the cached
+      # source and the blitted viewport disagree and the old rows stay
+      # composited under the new ones. The maintainer's screenshot
+      # showed exactly that: a second, faint set of class bounds
+      # behind the live ones, each about one row out. Unclassed is
+      # where it bites because fifty classes are what make the table
+      # scroll at all.
+      #
+      # HONEST LIMIT: the artefact lives in the window system's
+      # backing store and could not be reproduced offscreen --
+      # `grab()` repaints cleanly, and a scrolled render matched a
+      # force-repainted one on 32,900 sampled pixels. So this removes
+      # the mechanism the evidence points at rather than a fault
+      # anything here could observe, and it wants confirming on a real
+      # screen. What IS asserted by the suite is that no effect is
+      # installed, since that is the cause and it is checkable.
+      #
+      # The palette's own disabled colour rather than a made-up grey:
+      # it is what every other Qt widget uses to say "not yours to
+      # edit", so the window agrees with the rest of QGIS and follows
+      # a user's theme instead of assuming a light one.
+      faded = self.table.palette().color(
+        QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText)
+      for row in range(self.table.rowCount()):
+        for column in range(self.table.columnCount()):
+          item = self.table.item(row, column)
+          if item is not None:
+            item.setForeground(faded)
 
     layout.addWidget(self.table)
 
