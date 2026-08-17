@@ -133,52 +133,22 @@ lesson about seed counts that came out of it, are in
 
 **REMOVE THE HATCHING FROM THE RAMP SWATCHES.** The maintainer's
 ruling, 2026-08-17: users are not used to it, so it confuses rather
-than helps.
+than helps. The swatches only -- the Pin column is not in scope.
 
-THIS REVERSES A RULING FROM 2026-08-16, and the reversal is sound
-because the two questions are different. That day the hatching was
-put to the maintainer after a screenshot of four Custom rows and the
-question was whether TWO hatchings could be told apart -- "no pin can
-go here" in the Pin column against "no tile wears this class" in the
-swatch -- and the answer was that 45 degrees for both is fine. The
-objection now is not that the two are confusable with each other but
-that neither is legible to somebody meeting it: a vocabulary nobody
-was taught. CLAUDE.md's entry says "do not differentiate them later
-on confusability grounds, that is what was weighed"; it does not
-cover this, and the entry should be corrected rather than argued
-with.
+It reverses part of the 2026-08-16 entry in CLAUDE.md, which asked a
+different question: whether two hatchings could be told apart from
+each other. This one says the mark is not legible to somebody meeting
+it. Correct that entry rather than arguing with it.
 
-FOUR THINGS TO SETTLE WITH IT, and the third is the one that bites.
-
-Whether the PIN COLUMN's hatching goes too. The ruling names the ramp
-swatches. The two were decided together, so leaving one is a
-deliberate split and should be said out loud rather than inferred.
-
-What replaces the signal, or whether nothing does. The hatch is
-currently the only place an EMPTY CLASS is visible. The standing rule
-is that an empty class is invisible-not-deleted -- deliberately, after
-three withdrawn attempts at reducing k -- and the hatch was what made
-"invisible" honest rather than silent. Removing it without a
-replacement returns the plugin to a legend swatch no tile wears and
-nothing anywhere saying so.
-
-AND IT UNDERCUTS TODAY'S PIN CHANGE, which is why this must not be
-done in isolation. A bound outside the data was allowed on the
-argument that the class it creates "simply goes unworn, which
-`unworn_classes` already computes and the swatch already hatches".
-Take the hatch away and that argument loses its evidence: wide pins
-would then create silent empty classes by design. Either the pin
-feature needs a different way to show them -- a notice when a pin
-leaves a class unworn is the obvious candidate, and this project
-prefers a sentence to a texture -- or the maintainer accepts silence
-here deliberately.
-
-What retires with it: `test_a_hatched_class_hatches_only_itself`,
+What comes out with it: the hatching in the swatch painter,
+`test_a_hatched_class_hatches_only_itself`,
 `test_a_copy_hatches_the_classes_it_leaves_unreachable`, their
-catalogue entries, the hatching passages in CLAUDE.md, and whatever
-`docs/USER-GUIDE.md` and `metadata.txt` say about it. `unworn_classes`
-itself may well survive, since something still has to KNOW which
-classes are empty even if the swatch stops drawing it.
+catalogue entries, and the hatching passages in CLAUDE.md,
+`docs/USER-GUIDE.md` and `metadata.txt`. `unworn_classes` stays --
+other code asks it which classes are empty -- and the comment in
+`pin_problem` that cites the swatch's hatching as how an unworn class
+shows needs its wording corrected in the same commit, since it will
+no longer be true.
 
 DONE 2026-08-17 and deleted from here: a class bound may now sit
 outside the data it classifies, so one pair of limits can be given to
