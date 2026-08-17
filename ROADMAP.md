@@ -131,7 +131,18 @@ lesson about seed counts that came out of it, are in
 
 ### Reported by the maintainer against rc5
 
-**Nothing outstanding.** Every code item reported against rc5 has
+**OUTSTANDING: the dock-edit report, pulled in for rc7.** The
+maintainer's decision, 2026-08-17, on reading the tester's second
+screenshot: this is 0.24.3's work rather than the next version's,
+because a plugin that silently overwrites what somebody set in QGIS's
+own Symbology panel is the kind of thing a release should not carry.
+It is described in full below. Until it lands, this section is NOT
+clear and no candidate may be built -- which is the checker doing what
+it is for.
+
+**Everything else reported against rc5 has landed**, been guarded, and
+had its guard proved against the broken fix. Deleted from here as it
+did, which is what this file asks: the
 landed, been guarded, and had its guard proved against the broken fix.
 Deleted from here as they did, which is what this file asks: the
 swatch hatching; equal intervals cut from the pin rather than
@@ -150,24 +161,6 @@ debounces, and no sensitivity to project size. What a person waits is
 about two thirds deliberate debounce, which is a design question
 rather than a regression -- recorded in 0.24.4 below, since changing
 it would change the software.
-
-### Process items, which do not block a candidate
-
-**CONFIRM THE GHOST NUMBERS ON A REAL SCREEN.** Deferred until after
-the release by the maintainer, 2026-08-17, to be tested by the person
-who reported it. The cause is removed -- the Unclassed table is no
-longer composited through a `QGraphicsOpacityEffect` and fades per
-item through the palette's disabled colour -- and guarded by
-`test_the_unclassed_list_fades_without_a_graphics_effect` and the
-catalogue entry `the-unclassed-list-is-not-composited`. What no test
-here can say is whether the ghosts are GONE: they live in the window
-system's backing store, where `grab()` repaints cleanly and a scrolled
-render matched a force-repainted one across 32,900 sampled pixels. The
-original report, kept so the check has something to check against: a
-second, faint set of class bounds painted behind the live ones in the
-Lower and Upper columns, offset by about a row, on scrolling.
-
-## 0.24.4 — after this one
 
 ### Reported from the field against rc5, 2026-08-17
 
@@ -301,6 +294,24 @@ Graduated panel, then ask what the dialog shows and what the next
 restyle draws; then Copy Style from one layer and Paste Style onto an
 element, with an expressible renderer and an inexpressible one, and
 check whether the plugin hears it at all.
+
+### Process items, which do not block a candidate
+
+**CONFIRM THE GHOST NUMBERS ON A REAL SCREEN.** Deferred until after
+the release by the maintainer, 2026-08-17, to be tested by the person
+who reported it. The cause is removed -- the Unclassed table is no
+longer composited through a `QGraphicsOpacityEffect` and fades per
+item through the palette's disabled colour -- and guarded by
+`test_the_unclassed_list_fades_without_a_graphics_effect` and the
+catalogue entry `the-unclassed-list-is-not-composited`. What no test
+here can say is whether the ghosts are GONE: they live in the window
+system's backing store, where `grab()` repaints cleanly and a scrolled
+render matched a force-repainted one across 32,900 sampled pixels. The
+original report, kept so the check has something to check against: a
+second, faint set of class bounds painted behind the live ones in the
+Lower and Upper columns, offset by about a row, on scrolling.
+
+## 0.24.4 — after this one
 
 ### Wanted
 
