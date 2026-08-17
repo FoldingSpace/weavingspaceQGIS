@@ -171,6 +171,37 @@ Lower and Upper columns, offset by about a row, on scrolling.
 
 ### Reported from the field against rc5, 2026-08-17
 
+**THE SEQUENCE, AS THE TESTER RAN IT, 2026-08-17.** Recorded before
+any diagnosis because the steps are the valuable part and a
+paraphrase would lose them:
+
+1. Symbology in QGIS, set new BREAK VALUES on `a - Percent White`.
+2. Copy that Style, paste it onto the other four element layers.
+3. In each of those four, change the VARIABLE and the COLOUR RAMP
+   back to what they were -- because QGIS's copy-and-paste symbology
+   carries the FIELD along with the style, so it has to be reset.
+4. None of it is picked up by the plugin.
+5. **And the plugin now reads three of the five variables as
+   CATEGORICAL.**
+
+STEP 5 IS THE THREAD TO PULL, because it is a symptom rather than an
+absence: something made the plugin decide those three columns are not
+numeric. The rule "a quantitative style never stands on a text field"
+forces a row to Categorized whenever the field it holds is
+non-numeric, and it is applied in `_assignments`, which every
+consumer reads. So the question is what those three rows think their
+FIELD is after a paste and a manual reset -- a field the element
+layer does not carry, a field name read off the pasted renderer
+rather than off the dialog's record, or a field whose type is being
+asked of the wrong layer. Three of five is itself a clue: find what
+distinguishes the three from the two.
+
+STEP 3 IS THE SECOND THREAD. Resetting the variable in QGIS's own
+Symbology panel is a dock edit of the classification's FIELD, not
+just its breaks, and the plugin's records are keyed by tile id AND
+field -- so a field changed outside may orphan every per-element
+record at once: the pins, the hand-picked colours, the class counts.
+
 **HAND EDITS TO CLASS BREAKS IN QGIS DO NOT COME BACK TO THE PLUGIN,
 AND NOR DOES A PASTED STYLE.** Reported by a colleague of the
 maintainer testing rc5. NOT YET REPRODUCED HERE -- what follows is a
