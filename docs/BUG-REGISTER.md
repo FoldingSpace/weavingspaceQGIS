@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-218 defect(s) with a regression test.
+216 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -55,8 +55,6 @@ there is no separate list to remember.
   guarded by `test_a_copied_ladder_on_one_value_still_wears_its_ramp`
 - **copying a classification from an element drawn Quant: Unclassed wrote fifty into the receiving element's chosen class count, which the next table rebuild clamped to twenty, replacing the count the user had chosen.**  
   guarded by `test_a_copy_from_unclassed_leaves_the_chosen_count_alone`
-- **copying a classification onto a column that cannot reach its upper classes left the swatch unhatched, so a user was never shown which of their legend classes no tile uses.**  
-  guarded by `test_a_copy_hatches_the_classes_it_leaves_unreachable`
 - **copying a classification wrote the source element's pinned bounds onto the target without checking them against the target's own column, recording a bound the plugin refuses when typed.**  
   guarded by `test_a_copy_leaves_behind_a_pin_the_data_cannot_carry`
 - **a copy wrote the target's class count and ramp into the dialog's records without moving its controls, so the row's cell, its assignment and the map disagreed about how many classes were drawn.**  
@@ -455,8 +453,6 @@ there is no separate list to remember.
   guarded by `test_a_data_defined_fill_is_drawn_as_an_unknown`
 - **a deferring element's ramp cell went on naming a ramp, and its swatch did not follow the colours set in QGIS's styling panel.**  
   guarded by `test_a_deferring_row_shows_the_colours_qgis_is_drawing`
-- **the diagonals were drawn unclipped, each one `height` px long and starting a full height BEFORE the stripe, so marking a single class painted a 49px band around a stripe 12.8px wide. Measured 2026-08-16 on the shipped 64x18 swatch at five classes: hatching class 3 alone put 44 pixels of ink into class 2 against 58 into class 3 itself, and 6 into class 1 and 33 into class 4 as well, so a user could not tell which class the cell was talking about. Reported from a screenshot of four Custom rows.**  
-  guarded by `test_a_hatched_class_hatches_only_itself`
 - **a class bound outside the column's own range was refused, so a user could not give two variables the same limits and have a colour mean the same number on both. Relaxing the guard alone was not enough: `_apply_pinned_bounds` built the outer class from the column's own extreme, so a pin below the data made a range running backwards and the ladder snapped back to 1.0. Reported against 0.24.3rc5.**  
   guarded by `test_a_pin_may_sit_outside_the_data_it_classifies`
 - **a renderer type changed in QGIS's styling panel left the plugin's row naming a style and a ramp that no longer decided the map.**  
@@ -485,10 +481,10 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 81
-- a bug hunt pointed in a named direction: 55
+- a bug hunt pointed in a named direction: 54
 - the mutation campaign: 16
 - reading the code: 15
-- reported by a user: 15
+- reported by a user: 14
 - running the suite somewhere other than the machine it was written on: 8
 - race and stress testing: 6
 - a multi-step session test: 5

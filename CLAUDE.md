@@ -1544,10 +1544,13 @@ Confirmed with the user via an explicit design review:
   in classes 1, 3 and 5, the highest wears the darkest colour, and the
   two empty classes are REAL numeric ranges -- so a value arriving
   later from someone editing in QGIS lands in one and draws in its
-  colour. That last property is why the empty classes are hatched only
-  in the plugin's swatch and never given a hatched SYMBOL: a hatch
-  baked into a renderer is a snapshot of emptiness that nothing
-  refreshes, and it would go on hatching features added later.
+  colour. That last property is why an empty class was never given a
+  hatched SYMBOL: a hatch baked into a renderer is a snapshot of
+  emptiness that nothing refreshes, and it would go on hatching
+  features added later. The plugin's SWATCH marked them instead until
+  2026-08-17, when that mark went too (see below); the argument
+  against putting it in the renderer stands whatever the swatch does,
+  and is the one to reach for if anybody proposes it again.
   IT IS SCOPED, and the scope is the whole safety of it: on ordinary
   data every range has width, nothing is degenerate, and no bound
   moves. Shrinking bounds generally would push any value sitting
@@ -1556,7 +1559,7 @@ Confirmed with the user via an explicit design review:
   The ONE-VALUE COLLAPSE survives as a deliberate carve-out
   (maintainer's ruling the same day): five ranges all reading "7 - 7"
   in five colours is a legend claiming variation the data lacks, and
-  hatching four of them would not cure that.
+  marking four of them would not cure that.
   The break values are otherwise QGIS's own, moved by an ulp its label
   formatter rounds away, so the legend still reads "1 - 5", the
   renderer is an ordinary graduated one, and pressing Classify
@@ -1721,9 +1724,10 @@ Confirmed with the user via an explicit design review:
   Two things the map may then show that nothing else here would. A
   copied ladder can leave classes the receiving column cannot reach;
   those are KEPT rather than dropped, because a copy reproduces a
-  classification and a silently shortened one does not, and the
-  swatch HATCHES the stripes no tile uses so the emptiness is
-  visible rather than silent. And a pinned row is NOT Custom: its
+  classification and a silently shortened one does not, and
+  `few_values_message` says in words how many are empty. The swatch
+  hatched those stripes as well until 2026-08-17; see the entry
+  below. And a pinned row is NOT Custom: its
   colours are still its ramp's, so the cell goes on naming the ramp
   and the swatch merely BOXES the pinned end.
 - **What ELEVEN defects taught about that feature pair, 2026-08-15.**
@@ -1749,33 +1753,43 @@ Confirmed with the user via an explicit design review:
   dialog path calling it had never once produced hatching, because
   the swatch was painted before the restyle and asked its question of
   the previous map. When a feature's promise is visual, drive it to
-  the pixels.
+  the pixels. (The hatching itself was withdrawn on 2026-08-17; the
+  lesson is about the shape and outlives the feature.)
   Two consequences are now settled behaviour rather than accident.
   A copy CHECKS each pin flag against the receiving column and leaves
   behind what that column cannot reach, saying so; and an Unclassed
   source's fifty never reaches `_class_counts`, which is the record
   that means CHOSEN.
 
-- **ONE HATCHING, TWO MEANINGS, AND THAT IS FINE.** Thin 45-degree
-  diagonals at the same step say "no pin can go here" in the Pin
-  column and "no tile wears this class" in the ramp swatch -- a fact
-  about a control and a fact about the map, met by a reader on one
-  row. Put to the maintainer 2026-08-16 after a screenshot of four
-  Custom rows, and ruled: 45 degrees for both is fine. "Nothing
-  available here" covers both honestly, and a second texture would ask
-  somebody to distinguish two hatchings at twelve pixels. Do not
-  differentiate them later on confusability grounds; that is what was
-  weighed.
+- **ONE HATCHING NOW, AND THE OTHER WAS WITHDRAWN.** Thin 45-degree
+  diagonals say "no pin can go here" in the PIN COLUMN, and that is
+  the only place they are drawn. The ramp swatch used the same mark
+  for "no tile wears this class" until 2026-08-17, when the
+  maintainer ruled it out: users are not used to it, so it confuses
+  rather than helps. The emptiness is reported in words instead, by
+  `few_values_message`; `unworn_classes` still computes which classes
+  are empty and other code still asks it.
+  THAT REVERSES PART OF A RULING MADE THE DAY BEFORE, and the pair is
+  worth keeping together because the two answer DIFFERENT QUESTIONS.
+  On 2026-08-16 the question was whether two hatchings could be told
+  apart from each other, and the answer was that they could -- one
+  texture saying "nothing available here" covers both honestly, and a
+  second texture would ask somebody to distinguish two patterns at
+  twelve pixels. That reasoning was sound and is untouched. The 17th
+  asked a different question: whether the mark is legible to somebody
+  MEETING IT for the first time. It is not. A design can be
+  self-consistent and still fail its first reader, and answering the
+  second question does not require the first to have been wrong.
   THE AMBIGUITY THAT WAS REAL WAS ARITHMETIC, not vocabulary, and it
-  is the lesson worth carrying: the swatch's diagonals were drawn
-  UNCLIPPED, each stroke a full swatch-height long and starting a
-  height before the stripe, so marking ONE class painted a 49px band
-  around a stripe 12.8px wide. Measured on the shipped 64x18 swatch at
-  five classes: hatching class 3 put 44 pixels into class 2 against 58
-  into class 3. When a drawn signal reads as ambiguous, measure where
-  its ink actually lands before redesigning what it means -- a
-  vocabulary argument is the more interesting explanation and was the
-  wrong one. Guarded by `test_a_hatched_class_hatches_only_itself`.
+  is the lesson worth carrying past the feature: the swatch's
+  diagonals were drawn UNCLIPPED, each stroke a full swatch-height
+  long and starting a height before the stripe, so marking ONE class
+  painted a 49px band around a stripe 12.8px wide. Measured on the
+  shipped 64x18 swatch at five classes: hatching class 3 put 44
+  pixels into class 2 against 58 into class 3. When a drawn signal
+  reads as ambiguous, measure where its ink actually lands before
+  redesigning what it means -- a vocabulary argument is the more
+  interesting explanation and was the wrong one.
 - **A tiles inset that swallows elements is refused in terms of the
   inset.** Insetting shrinks every tile by a fixed distance, so past
   some value the narrower elements disappear. Left to itself the

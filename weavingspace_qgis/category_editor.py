@@ -265,18 +265,22 @@ class NoPinHere(QWidget):
   cell is misleading in the first place: the grid draws the box
   whether or not anything sits in it, so "nothing" and "an empty
   control" look the same. Hatching says NOT AVAILABLE in the one
-  vocabulary a table has, and it is the same answer this project
-  already gives for a class no tile can reach, so the two uses agree.
+  vocabulary a table has.
 
-  THAT SHARING IS THE MAINTAINER'S RULING, 2026-08-16, and not merely
-  this docstring's opinion: 45 degrees in both columns is fine. It was
-  put to them because the two hatchings say different KINDS of thing
-  -- here that a control cannot exist, in the swatch that no tile
-  wears a class -- and a reader meets both on one row. The answer is
-  that "nothing available here" covers both honestly, and a second
-  hatching pattern would ask somebody to tell two textures apart at
-  twelve pixels. So do not differentiate them by angle or density
-  later on the grounds that they are confusable; that was considered.
+  THIS IS NOW THE ONLY PLACE THE PLUGIN HATCHES ANYTHING, and the
+  history is worth a paragraph because it looks like a reversal and
+  is not. The ramp swatch used the same mark for "no tile wears this
+  class", and on 2026-08-16 the maintainer was asked whether two
+  hatchings saying different KINDS of thing, met by a reader on one
+  row, could be told apart; they ruled that 45 degrees in both is
+  fine, since "nothing available here" covers both honestly and a
+  second texture would ask somebody to distinguish two patterns at
+  twelve pixels. On 2026-08-17 they ruled on a DIFFERENT question --
+  whether the mark reads at all to somebody meeting it -- and took it
+  off the swatch. The first ruling stands where it applies: do not
+  differentiate this hatching from anything by angle or density on
+  confusability grounds, because that was weighed.
+
   When the swatch's hatching DID read as ambiguous, the cause was
   ordinary and elsewhere: the diagonals were unclipped and spilled
   across neighbouring stripes.

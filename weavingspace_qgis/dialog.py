@@ -66,7 +66,7 @@ import math
 import os
 import traceback
 
-from qgis.PyQt.QtCore import QPointF, QRectF, QSize, Qt, QTimer
+from qgis.PyQt.QtCore import QRectF, QSize, Qt, QTimer
 from qgis.PyQt.QtGui import (
   QBrush, QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap)
 from qgis.PyQt.QtWidgets import (
@@ -425,7 +425,7 @@ CUSTOM_RAMP_TOOLTIP = ("Colours set by hand or by a class file. "
                        "Choose a ramp to replace them.")
 
 
-def _striped_icon(colours, boxed=(), hatched=()):
+def _striped_icon(colours, boxed=()):
   """The one way this dialog draws a colour swatch.
 
   Args:
@@ -438,14 +438,6 @@ def _striped_icon(colours, boxed=(), hatched=()):
       outlined, which is how the table says "this end is yours"
       without the ramp cell having to claim the ramp is no longer the
       ramp: a pin moves breaks, not colours (maintainer's decision,
-      2026-08-14).
-    hatched: which stripes stand for classes NO TILE WEARS, as
-      indices. Each is crossed with light diagonals. Copying a ladder
-      onto an element carrying another column can leave classes the
-      data cannot reach, and those are kept rather than dropped --
-      a copy is meant to reproduce a classification and a silently
-      shortened one does not -- so the emptiness is made visible
-      instead of being left silent (maintainer's decision,
       2026-08-14).
 
   Returns:
@@ -466,40 +458,16 @@ def _striped_icon(colours, boxed=(), hatched=()):
   for i, name in enumerate(shown):
     painter.fillRect(
       QRectF(i * width, 0, width, RAMP_SWATCH.height()), QColor(name))
-  # Diagonals first, then the pin boxes, both over the fills: a
-  # hatched stripe may also be a pinned one, and the box must read as
-  # the outer line rather than being crossed by the hatching.
-  for index in hatched:
-    position = index if index >= 0 else len(shown) + index
-    if not 0 <= position < len(shown):
-      continue
-    fill = QColor(shown[position])
-    lightness = (fill.red() * 299 + fill.green() * 587
-                 + fill.blue() * 114) / 1000.0
-    ink = QColor("#ffffff") if lightness < 128 else QColor("#000000")
-    ink.setAlpha(140)             # light, so the colour still reads
-    painter.setPen(QPen(ink, 1))
-    left = position * width
-    height = RAMP_SWATCH.height()
-    # CLIPPED TO THIS STRIPE, and the swatch is unreadable without it.
-    # Each diagonal is drawn `height` px long, and the loop starts a
-    # full height BEFORE the stripe so the corner is covered, so an
-    # unclipped run paints from left-18 to left+width+18 -- a band of
-    # 49px around a stripe 12.8px wide. Measured 2026-08-16 on the
-    # shipped 64x18 swatch at five classes: hatching class 3 alone put
-    # 44 pixels of ink into class 2 against 58 in class 3 itself, so
-    # the cell could not say WHICH class no tile wears, which is the
-    # only thing it is drawn to say. (Reported from a screenshot.)
-    painter.save()
-    painter.setClipRect(QRectF(left, 0.0, width, height))
-    step = 4
-    offset = -height
-    while offset < width:
-      painter.drawLine(QPointF(left + offset, height),
-                       QPointF(left + offset + height, 0.0))
-      offset += step
-    painter.restore()
-  # The pin boxes go on LAST, over the fills, so an outline is never
+  # THE SWATCH USED TO HATCH CLASSES NO TILE WEARS, and stopped on
+  # 2026-08-17: the maintainer ruled that users are not used to the
+  # mark, so it confused rather than helped. What it was FOR is worth
+  # keeping in mind before anybody reaches for it again -- a copied
+  # ladder can leave classes the receiving column cannot reach, and
+  # those are kept rather than dropped, so the emptiness was drawn
+  # instead of being left silent. It is now reported in words
+  # instead; `bridge.unworn_classes` still answers which classes are
+  # empty and other code still asks it.
+  # The pin boxes go on over the fills, so an outline is never
   # painted away by the stripe beside it. Drawn in the stripe's own
   # contrasting ink rather than a fixed colour, or the box would
   # vanish on a dark ramp and shout on a pale one.
@@ -519,7 +487,7 @@ def _striped_icon(colours, boxed=(), hatched=()):
   return QIcon(pixmap)
 
 
-def _custom_swatch_icon(colours, boxed=(), hatched=()):
+def _custom_swatch_icon(colours, boxed=()):
   """The swatch drawn while a ramp cell reads "Custom".
 
   Args:
@@ -528,14 +496,13 @@ def _custom_swatch_icon(colours, boxed=(), hatched=()):
       unsorted and unfiltered, so the swatch samples the map rather
       than presenting a tidied summary of it.
     boxed: stripe indices carrying a pinned bound; see _striped_icon.
-    hatched: stripe indices for classes no tile uses; see the same.
 
   Returns:
     A QIcon of the first colours as equal vertical stripes, drawn by
     _striped_icon, which is also what every named ramp's swatch goes
     through.
   """
-  return _striped_icon(colours, boxed, hatched)
+  return _striped_icon(colours, boxed)
 
 
 class RampCombo(QComboBox):
@@ -5165,49 +5132,6 @@ class WeavingSpaceDialog(QDialog):
     return [(r.lowerValue(), r.upperValue(), r.symbol().color().name())
             for r in renderer.ranges()]
 
-  def _unworn_stripes(self, tile_id, assignment, stripes):
-    """Which swatch stripes stand for classes nothing uses.
-
-    Args:
-      tile_id: the element.
-      assignment: its dict from ``_assignments()``.
-      stripes: how many stripes the swatch will draw, which is the
-        class count except on Unclassed, where fifty classes are
-        sampled down to eight.
-
-    Returns:
-      A list of stripe indices to hatch, empty when every class is
-      worn or when the question cannot be answered -- an unknown is
-      never drawn as an emptiness.
-
-    Asked of the ELEMENT's own output layer, because the question is
-    what THIS element draws rather than what the map as a whole
-    holds. Where no output exists yet the region's values answer it,
-    which is the same fallback the class preview uses.
-
-    Refused outright when the stripes are a SAMPLE of the classes
-    (Unclassed), since a stripe then stands for several classes and
-    hatching it would claim more than was measured.
-    """
-    field = assignment.get("var")
-    if not field or assignment.get("mode") != "Graduated":
-      return []
-    layer_id = self._element_layer_ids.get(tile_id)
-    layer = QgsProject.instance().mapLayer(layer_id) if layer_id else None
-    renderer = layer.renderer() if layer is not None else None
-    if renderer is None or not hasattr(renderer, "ranges"):
-      return []
-    bounds = [(r.lowerValue(), r.upperValue()) for r in renderer.ranges()]
-    if len(bounds) != stripes:
-      return []
-    index = layer.fields().indexOf(field)
-    if index < 0:
-      return []
-    try:
-      return bridge.unworn_classes(bounds, layer.uniqueValues(index))
-    except Exception:
-      return []
-
   def _custom_swatch_for(self, tile_id, field):
     """The swatch for one element's Custom display.
 
@@ -5245,8 +5169,7 @@ class WeavingSpaceDialog(QDialog):
       # back the BASE symbol rather than what any feature is painted:
       # a swatch claiming one colour for a map drawing hundreds is the
       # plugin describing a map it will not draw. An unknown is drawn
-      # as an unknown, exactly as an unworn class is hatched rather
-      # than guessed at.
+      # as an unknown rather than guessed at.
       if bridge.renderer_has_data_defined_fill(renderer):
         return _custom_swatch_icon([])
       shown = ["#%02x%02x%02x" % rgb
@@ -5270,9 +5193,17 @@ class WeavingSpaceDialog(QDialog):
              tuple(sorted(picks.items())),
              tuple(sorted((k, tuple(v) if isinstance(v, list) else v)
                           for k, v in pinned.items())),
-             # the data's own fingerprint: an edit that empties a
-             # class must take the hatching off, and one that fills
-             # it must put it back
+             # The data's own fingerprint. Its stated reason left with
+             # the swatch hatching on 2026-08-17 -- an edit that
+             # emptied a class had to take the mark off, and one that
+             # filled it had to put it back -- and nothing else in
+             # this swatch depends on the data, since a graduated
+             # row's colours come from the ramp, the count and the
+             # window. So it may now be dead weight on a path that
+             # runs per row per rebuild, which is exactly the kind of
+             # thing the responsiveness entry in ROADMAP.md exists to
+             # MEASURE rather than reason about. Kept until it is
+             # measured; delete it if that measurement says so.
              self._layer_fingerprint())
       cached = self._custom_swatch_cache.get(tile_id)
       if cached is not None and cached[0] == key:
@@ -5292,13 +5223,7 @@ class WeavingSpaceDialog(QDialog):
       # what the pin means there anyway.
       boxed = ([0] if pinned.get("low") is not None else []) + \
               ([-1] if pinned.get("high") is not None else [])
-      # ...and which classes nothing uses, asked of the ELEMENT's
-      # own layer, since the question is what THIS element draws. A
-      # copied ladder is the only ordinary way to get one: the class
-      # count is otherwise reduced to the value count, so an empty
-      # class cannot arise from a computed classification.
-      hatched = self._unworn_stripes(tile_id, assignment, len(shades))
-      icon = _custom_swatch_icon(shades, boxed, hatched)
+      icon = _custom_swatch_icon(shades, boxed)
       self._custom_swatch_cache[tile_id] = (key, icon)
       return icon
     picks = assignment.get("category_colours") or {}
@@ -6062,8 +5987,11 @@ class WeavingSpaceDialog(QDialog):
     next rebuild and replaced a count the user had picked.
 
     The receiving element's own extremes fit the ends, in
-    bridge.fitted_breaks; classes its data cannot reach are KEPT and
-    hatched rather than dropped.
+    bridge.fitted_breaks; classes its data cannot reach are KEPT
+    rather than dropped, because a copy reproduces a classification
+    and a silently shortened one does not. Until 2026-08-17 the
+    swatch also hatched them; the mark is gone on the maintainer's
+    ruling and the emptiness is reported in words alone.
 
     What was replaced is REPORTED rather than asked about, which is
     how every other loss in this plugin is handled.
@@ -6338,18 +6266,20 @@ class WeavingSpaceDialog(QDialog):
       yet, or a run is in flight -- in the latter case the change is
       already recorded and the finishing run will seed it.
     """
-    # THE RESTYLE GOES FIRST, and the order is the whole of this
-    # method. The swatch asks the ELEMENT'S OWN LAYER which classes
-    # nothing wears -- that is the only honest source, since a copied
-    # ladder's empty classes are a fact about what this element draws
-    # -- so painting the swatch before the layer is restyled asks the
-    # question of the previous map. Measured 2026-08-15: a ladder
-    # copied from a 0-121 column onto an 0-11 one left classes 2, 3
-    # and 4 unreachable, `unworn_classes` said so, and the swatch was
-    # built with `hatched=[]` and cached that way. The hatching the
-    # changelog promises had therefore never once appeared from the
-    # copy that creates it. Restyling first costs nothing: the
-    # restyle reads the dialog's records, never the preview.
+    # THE RESTYLE GOES FIRST, and it used to be the whole of this
+    # method. The swatch asked the ELEMENT'S OWN LAYER which classes
+    # nothing wears, so painting it before the layer was restyled
+    # asked the question of the previous map -- measured 2026-08-15,
+    # a ladder copied from a 0-121 column onto an 0-11 one left three
+    # classes unreachable and the swatch was built and cached with no
+    # mark at all, so the hatching had never once appeared from the
+    # copy that creates it.
+    # THAT REASON LEFT WITH THE HATCHING on 2026-08-17. The swatch no
+    # longer asks any layer: its colours are built from the
+    # assignment through the same renderer builder the map uses. The
+    # order is kept because it costs nothing -- the restyle reads the
+    # dialog's records, never the preview -- and because reversing it
+    # would be a change nobody has measured a reason for.
     self._restyle_only()
     self._refresh_preview_colours()
     # ...and the rows are re-asked, because a style change is exactly

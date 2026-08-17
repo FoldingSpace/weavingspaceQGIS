@@ -812,7 +812,7 @@ def renderer_has_data_defined_fill(renderer) -> bool:
   what any feature is painted. A swatch built from it would show one
   confident colour for a map drawing hundreds — the plugin describing
   a map it will not draw, which is the failure the Custom display and
-  the hatched stripes both exist to prevent. An unknown is drawn as an
+  the swatch both exist to prevent. An unknown is drawn as an
   unknown, never as a certainty.
   """
   if renderer is None:
@@ -1221,7 +1221,7 @@ def pin_problem(low, high, values, asked: int, breaks=None):
   that setting limits wider than one column is the point rather than a
   mistake: one pair of limits across several variables is how a colour
   comes to mean the same number on every map. The class beyond the
-  data simply goes unworn, and the swatch hatches it. The reasoning is
+  data simply goes unworn. The reasoning is
   at the line where the check used to be.
   """
   numbers = sorted(
@@ -1251,7 +1251,9 @@ def pin_problem(low, high, values, asked: int, breaks=None):
   # ladder asked for more pinned boundaries than it has, nothing left
   # for the middle to cut. A bound beyond the data draws perfectly
   # well; its outer class simply goes unworn, which `unworn_classes`
-  # already computes and the swatch already hatches. Grouping it with
+  # still computes and `few_values_message` still reports in words --
+  # the swatch hatched it too until 2026-08-17, when the maintainer
+  # ruled the mark out as more confusing than helpful. Grouping it with
   # the undrawable three is how it came to look like a rule rather
   # than a preference.
   #
@@ -1358,7 +1360,7 @@ def classes_the_map_will_draw(values, asked, pinned=None, unclassed=False):
   # hunt: a ladder of five copied onto a column holding {1, 5, 9} drew
   # FIVE classes, exactly as the copy feature intends, while the
   # message bar said it drew three. A copy's unreachable classes are
-  # KEPT and hatched by design, so there is no reduction to report,
+  # KEPT by design, so there is no reduction to report,
   # and saying otherwise describes a legend the map does not have --
   # the one thing these notices exist to prevent.
   #
@@ -1431,13 +1433,15 @@ def few_values_message(field: str, distinct: int, asked: int,
   and moved colours nobody had chosen to move, so it was removed on
   the maintainer's ruling: the ladder keeps the length the row asked
   for, every class keeps the colour of its position, and the classes
-  no tile can reach are hatched in the swatch instead.
+  no tile can reach are simply left empty.
 
-  So the notice now reports EMPTINESS rather than shortening. It
-  still earns its place for the reason the old one did: a user whose
-  Classes spinner reads five while two swatches are hatched deserves
-  to be told why, in words, rather than left to work it out from a
-  pattern of diagonal lines.
+  So the notice now reports EMPTINESS rather than shortening, and
+  since 2026-08-17 it is the ONLY thing that reports it. The swatch
+  used to hatch those classes as well; the maintainer ruled the mark
+  out as more confusing than helpful to somebody meeting it, which
+  puts the whole weight on this sentence. A user whose Classes
+  spinner reads five over a map drawing three deserves to be told
+  why, in words.
 
   A column with ONE distinct value says nothing here: it genuinely
   does collapse to a single class, which is the maintainer's
@@ -1450,10 +1454,9 @@ def few_values_message(field: str, distinct: int, asked: int,
   if pinned:
     return (f"'{field}' has {distinct} distinct values left between "
             f"its pinned bounds, so {empty} of the {asked} classes "
-            f"are empty and their swatches are hatched.")
+            f"are empty.")
   return (f"'{field}' has {distinct} distinct values, so {empty} of "
-          f"the {asked} classes are empty and their swatches are "
-          f"hatched.")
+          f"the {asked} classes are empty.")
 
 
 def _apply_pinned_bounds(renderer, low, high, smallest, largest,
@@ -1643,7 +1646,7 @@ def fitted_breaks(breaks, smallest, largest):
   What is NOT done here is dropping interior boundaries the receiving
   data cannot reach. They are KEPT, deliberately: a copy is supposed
   to reproduce a classification, and a silently shortened one does
-  not. The emptiness is made visible instead, by hatching the swatch
+  not. The emptiness is reported instead, by the swatch
   stripes no tile can use.
   """
   interior = [float(b) for b in (breaks or [])]
@@ -1969,18 +1972,19 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   # The maintainer's rule is that an empty class is INVISIBLE, NOT
   # DELETED. Keeping k satisfies it by construction: nothing is ever
   # re-sampled because the ladder never changes length, and the
-  # classes no tile wears are HATCHED in the swatch by
-  # `unworn_classes`, which already asks any graduated element's own
-  # layer and needed no widening for this. The legend keeps entries a
-  # reader can see are empty, which is what the hatching is for, and
-  # the copy path -- which has always kept and hatched unreachable
-  # classes -- stops being a special case.
+  # classes no tile wears are simply left empty and REPORTED, by
+  # `few_values_message`. They were marked in the swatch as well
+  # until 2026-08-17, when the maintainer ruled the hatching out as
+  # more confusing than helpful; `unworn_classes` still computes
+  # which they are. The legend keeps its entries, and the copy path
+  # -- which has always kept unreachable classes -- stops being a
+  # special case.
   #
   # THE ONE-VALUE COLLAPSE ABOVE SURVIVES, deliberately: it is the
   # maintainer's instruction of 2026-08-09, and it answers a
   # different complaint. Five ranges all reading "7 - 7" in five
   # colours is a legend claiming variation the data does not have,
-  # which hatching four of them would not cure. (Ruling 2026-08-16:
+  # which marking four of them would not cure. (Ruling 2026-08-16:
   # keep the smaller carve-out.)
   renderer = QgsGraduatedSymbolRenderer(field)
   renderer.setSourceSymbol(_fill_symbol("#c0c0c0", outline))
@@ -2131,7 +2135,7 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   # a caller is supposed to do is not a caller.
   # ...but NOT under a copied ladder, which is deliberately allowed to
   # run past the receiving column: a copy reproduces a classification,
-  # its unreachable classes are kept and hatched rather than dropped,
+  # its unreachable classes are kept rather than dropped,
   # and a pin on such a ladder is a claim about the LADDER rather than
   # about this column's values. Judging it against the data would
   # refuse the high pin in

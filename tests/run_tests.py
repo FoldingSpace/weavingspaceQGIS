@@ -5371,20 +5371,19 @@ def test_a_ramp_swatch_is_drawn_once_and_follows_the_library():
   real_draw = dialog_module._striped_icon
   draws = []
 
-  def counting_draw(colours, boxed=(), hatched=()):
+  def counting_draw(colours, boxed=()):
     """Count one swatch draw and pass it through to the real one.
 
     Args:
       colours: the stripe colours, as the product computed them.
       boxed: which stripes carry a pinned-bound box.
-      hatched: which are hatched as unreachable.
 
     Returns:
       Whatever the real `_striped_icon` returns, so what is compared
       afterwards is the real icon rather than this wrapper's idea of one.
     """
     draws.append(len(colours))
-    return real_draw(colours, boxed=boxed, hatched=hatched)
+    return real_draw(colours, boxed=boxed)
 
   dialog_module._striped_icon = counting_draw
   dialog_module._forget_ramp_icons()
@@ -7935,7 +7934,7 @@ def test_a_class_source_file_that_changes_on_disk():
 
 
 def test_an_empty_class_keeps_its_place_and_its_colour():
-  """Fewer distinct values than classes: kept, hatched, and reachable.
+  """Fewer distinct values than classes: kept, reported, reachable.
 
   Ask for five classes over a column holding three distinct values and
   QGIS returns five. Two of them are degenerate (1-1, 5-5, 9-9 among
@@ -8022,8 +8021,10 @@ def test_an_empty_class_keeps_its_place_and_its_colour():
     # (docs/TESTING.md, "Three ways to move a class boundary").
     # An assertion that the darkest class is occupied would pin the
     # withdrawn behaviour, so it is deliberately absent, and the
-    # emptiness is VISIBLE instead: the swatch hatches every class no
-    # tile wears, which is what the next assertion checks.
+    # emptiness is REPORTED instead, by few_values_message. The
+    # swatch hatched every class no tile wore until 2026-08-17, when
+    # the maintainer ruled the mark out; what the next assertion
+    # checks is that the highest value still wears a real class.
     assert painted[9.0] in {r.symbol().color().name() for r in ranges}, \
       f"the highest value draws {painted[9.0]}, which is not any " \
       f"class's colour at all -- that is an orphaned value, not the " \
@@ -8702,8 +8703,10 @@ def test_a_class_that_cannot_be_pinned_says_so_in_its_cell():
   they are able to add a pin there.
 
   Blank is not available as an answer for that very reason, so the
-  cell is hatched instead, which is the same vocabulary this project
-  already uses for a class no tile can reach.
+  cell is hatched instead. That mark was shared with the ramp
+  swatch, which used it for a class no tile can reach, until
+  2026-08-17: the maintainer ruled it out THERE and left it here, so
+  the Pin column is now the only place this plugin hatches anything.
 
   Regression: the classes whose breaks are computed showed an empty cell in the Pin column, which reads as a control waiting to be set rather than as a place a pin cannot go.
  [hunt]
@@ -8872,55 +8875,6 @@ def test_the_pin_shows_which_way_it_is_set():
     f"only {differing} of {total} pixels differ between a pin that is " \
     f"in and one that is out, which is not a difference anybody " \
     f"reads across a table"
-
-
-def test_a_hatched_class_hatches_only_itself():
-  """The hatching says WHICH class no tile wears, or it says nothing.
-
-  The swatch's whole job here is to point at a particular class, so
-  ink landing on a neighbour is not a cosmetic blemish: it makes the
-  cell unreadable for its only purpose. This renders the real
-  ``_striped_icon`` with one class marked and requires every changed
-  pixel to fall inside that class's own stripe.
-
-  The bound allows the boundary pixel at each end. Stripes are
-  ``64 / k`` wide and k rarely divides 64, so a stripe genuinely
-  starts and ends part-way through a pixel column, and the clip
-  antialiases into it. Demanding otherwise would fail on arithmetic
-  rather than on drawing.
-
-  Regression: the diagonals were drawn unclipped, each one `height`
-  px long and starting a full height BEFORE the stripe, so marking a
-  single class painted a 49px band around a stripe 12.8px wide.
-  Measured 2026-08-16 on the shipped 64x18 swatch at five classes:
-  hatching class 3 alone put 44 pixels of ink into class 2 against 58
-  into class 3 itself, and 6 into class 1 and 33 into class 4 as well,
-  so a user could not tell which class the cell was talking about.
-  Reported from a screenshot of four Custom rows. [user]
-  """
-  from weavingspace_qgis.dialog import RAMP_SWATCH, _striped_icon
-
-  shades = ["#fee0d2", "#fc9272", "#fb6a4a", "#de2d26", "#67000d"]
-  width = RAMP_SWATCH.width() / len(shades)
-  plain = _striped_icon(shades).pixmap(RAMP_SWATCH).toImage()
-  for target in range(len(shades)):
-    marked = _striped_icon(
-      shades, hatched=[target]).pixmap(RAMP_SWATCH).toImage()
-    changed = [(x, y) for x in range(RAMP_SWATCH.width())
-               for y in range(RAMP_SWATCH.height())
-               if plain.pixel(x, y) != marked.pixel(x, y)]
-    # the premise, stated so this cannot pass by drawing nothing at
-    # all: a class marked unworn must actually be marked
-    assert len(changed) > 20, \
-      f"hatching class {target} changed only {len(changed)} pixels, " \
-      f"so the swatch is not saying anything about it"
-    low, high = int(target * width), int((target + 1) * width) + 1
-    strayed = sorted({x for x, _ in changed if not low <= x <= high})
-    assert not strayed, \
-      f"hatching class {target} of {len(shades)} put ink in pixel " \
-      f"columns {strayed}, outside its own stripe " \
-      f"({target * width:.1f} to {(target + 1) * width:.1f}). The " \
-      f"cell then points at no class in particular"
 
 
 def test_a_refused_pin_reverts_and_says_so():
@@ -9106,7 +9060,8 @@ def test_a_pin_may_sit_outside_the_data_it_classifies():
   that cannot be DRAWN -- bounds that cross, more pinned boundaries
   than a ladder has, nothing left for the middle. A bound beyond the
   data draws perfectly well and its outer class simply goes unworn,
-  which the swatch already hatches.
+  which `few_values_message` reports in words. (The swatch hatched it
+  too until 2026-08-17, when the maintainer ruled that mark out.)
 
   So this drives the wide case to the MAP and asserts three things:
   it is accepted, every tile is still painted, and the ladder really
@@ -9178,8 +9133,8 @@ def test_a_pin_may_sit_outside_the_data_it_classifies():
   unworn = bridge.unworn_classes(bounds, values)
   assert unworn, \
     "no class was reported unworn, though the pins reach well past " \
-    "the data; the swatch would hatch nothing and the emptiness " \
-    "would be invisible"
+    "the data; nothing would report the emptiness and it would be " \
+    "invisible"
 
   # WHAT THE GUARD STILL HOLDS. Each of these names a map that cannot
   # be drawn, which is the family the wide pin never belonged to.
@@ -10752,88 +10707,6 @@ def test_a_copied_ladder_on_one_value_still_wears_its_ramp():
     f"the copied ladder's classes are not distinguishable: {colours}"
 
 
-def test_a_copy_hatches_the_classes_it_leaves_unreachable():
-  """The hatching must appear from the copy that creates it.
-
-  A copied ladder is the only ordinary way to get a class no tile
-  wears, and the swatch hatches those stripes so the emptiness is
-  visible. The hatching is asked of the ELEMENT'S OWN LAYER, which is
-  the only honest source -- and `_apply_style_change` painted the
-  swatch BEFORE restyling that layer, so the question was put to the
-  previous map, answered "nothing is empty", and cached. The promise
-  had therefore never once been kept from the copy that creates it,
-  while `bridge.unworn_classes` sat underneath it correct and
-  unit-tested.
-
-  A unit-tested mechanism plus an undriven caller is a motionless
-  axis. This test drives the caller, and asserts on what the SWATCH
-  was built with rather than on the mechanism's return value, since
-  agreeing with the mechanism is exactly what the old code did.
-
-  Regression: copying a classification onto a column that cannot reach its upper classes left the swatch unhatched, so a user was never shown which of their legend classes no tile uses.
- [hunt]
-  """
-  from weavingspace_qgis import bridge, dialog as dialog_module
-  from weavingspace_qgis.dialog import WeavingSpaceDialog
-  project = QgsProject.instance()
-  layer = make_region_layer(n=12)
-  project.addMapLayer(layer)
-  dlg = WeavingSpaceDialog(iface=_Iface())
-  dlg.live_check.setChecked(False)
-  dlg.layer_combo.setLayer(layer)
-  _tick(200)
-  dlg.table.cellWidget(0, 1).setCurrentText("v3")      # the wide column
-  dlg.table.cellWidget(1, 1).setCurrentText("v1")      # the narrow one
-  _tick(150)
-  source = dlg.table.item(0, 0).text()
-  target = dlg.table.item(1, 0).text()
-  dlg.spacing_spin.setValue(1200)
-  _generate_and_wait(dlg)
-
-  # what each swatch was built WITH, recorded as it is built: the
-  # cached icon alone cannot say whether the hatching was asked for
-  built = []
-  original = dialog_module._custom_swatch_icon
-
-  def recording(shades, boxed=(), hatched=()):
-    """Record one swatch's shape and pass it through.
-
-    Args:
-      shades: the stripe colours.
-      boxed: which stripes are boxed as a pinned bound.
-      hatched: which are hatched as unreachable.
-
-    Returns:
-      Whatever the real builder returns.
-    """
-    built.append((len(shades), list(boxed), list(hatched)))
-    return original(shades, boxed, hatched)
-
-  dialog_module._custom_swatch_icon = recording
-  try:
-    assert dlg._copy_classification(source, target) is None, \
-      "the copy was refused"
-    _tick(400)
-  finally:
-    dialog_module._custom_swatch_icon = original
-
-  drawn = project.mapLayer(dlg._element_layer_ids[target]).renderer()
-  bounds = [(r.lowerValue(), r.upperValue()) for r in drawn.ranges()]
-  values = [v for v in layer.uniqueValues(layer.fields().indexOf("v1"))
-            if v is not None]
-  empty = bridge.unworn_classes(bounds, values)
-  assert empty, \
-    f"the fixture left no unreachable class, so nothing is proved: " \
-    f"{bounds} over {sorted(set(values))}"
-  hatchings = [h for stripes, _boxed, h in built if stripes == len(bounds)]
-  assert hatchings, \
-    f"no swatch of {len(bounds)} stripes was built during the copy: {built}"
-  assert hatchings[-1] == empty, \
-    f"the swatch was built hatching {hatchings[-1]} where the map " \
-    f"leaves {empty} unreachable"
-  dlg.close()
-
-
 def test_a_pinned_bound_can_hold_the_numbers_a_column_carries():
   """The control must be able to REPRESENT the data's domain.
 
@@ -11311,8 +11184,8 @@ def test_a_deferring_row_shows_the_colours_qgis_is_drawing():
 
   Driven to the PIXELS of the icon rather than to the helper's return
   value, because a unit-tested mechanism plus an undriven caller is a
-  motionless axis -- which is how the hatching promise went unkept
-  from the day it shipped.
+  motionless axis -- which is how the swatch hatching, since
+  withdrawn, went unkept from the day it shipped.
 
   Regression: a deferring element's ramp cell went on naming a ramp, and its swatch did not follow the colours set in QGIS's styling panel.
  [user]
@@ -11444,8 +11317,8 @@ def test_a_data_defined_fill_is_drawn_as_an_unknown():
   swatch built from that shows one confident colour for a map drawing
   hundreds, which is the plugin describing a map it will not draw.
 
-  So it is drawn as an unknown instead, which is the same rule the
-  hatched stripes follow: an unknown is never drawn as a certainty.
+  So it is drawn as an unknown instead: an unknown is never drawn as
+  a certainty.
 
   Regression: a deferring element whose renderer set its fill from an expression got a swatch showing one colour, which the map did not have.
  [user]
@@ -11740,9 +11613,9 @@ def test_a_copied_ladder_is_not_reported_as_a_reduction():
   record's pins and ignored its breaks. A ladder of five copied onto a
   column holding three values drew five and said three.
 
-  The unreachable classes of a copy are KEPT and hatched by design --
-  a copy reproduces a classification, and a silently shortened one
-  does not -- so there is no reduction to report at all.
+  The unreachable classes of a copy are KEPT by design -- a copy
+  reproduces a classification, and a silently shortened one does not
+  -- so there is no reduction to report at all.
 
   The counter's own docstring asserted that a copied ladder "never
   comes through here", while the caller passed the whole record. When
@@ -39942,7 +39815,7 @@ def _classes_the_data_allows(dlg, field, asked, scheme=None):
   values = bridge.distinct_numeric_count(source.uniqueValues(index))
   # NOTHING IS REDUCED any more, as of 2026-08-16. The ladder keeps
   # the length the row asked for, so the map draws `asked` and the
-  # classes no tile wears are hatched rather than dropped -- the
+  # classes no tile wears are kept rather than dropped -- the
   # maintainer's rule that an empty class is invisible, not deleted.
   # This used to return min(asked, distinct), which was the contract
   # then and is the reason four differentials went red across every
@@ -47154,8 +47027,6 @@ def main():
         test_the_categorical_editor_offers_no_pin_and_no_copy)
   check("the pin shows which way it is set",
         test_the_pin_shows_which_way_it_is_set)
-  check("a hatched class hatches only itself",
-        test_a_hatched_class_hatches_only_itself)
   check("a refused pin reverts and says so",
         test_a_refused_pin_reverts_and_says_so)
   check("the unclassed list fades without a graphics effect",
@@ -47208,8 +47079,6 @@ def main():
         test_a_copy_from_unclassed_leaves_the_chosen_count_alone)
   check("a copied ladder on one value still wears its ramp",
         test_a_copied_ladder_on_one_value_still_wears_its_ramp)
-  check("a copy hatches the classes it leaves unreachable",
-        test_a_copy_hatches_the_classes_it_leaves_unreachable)
   check("a pinned bound can hold the numbers a column carries",
         test_a_pinned_bound_can_hold_the_numbers_a_column_carries)
   check("a reopened plugin adopts the group it last wrote",

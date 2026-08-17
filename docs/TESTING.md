@@ -228,8 +228,10 @@ WHAT EACH ONE TAUGHT, and the third is the one worth carrying:
 WHAT SURVIVED. The reduction stayed withdrawn, because colour
 stability is the property the maintainer asked for. The class bounds
 are QGIS's own, untouched. The remaining wart -- a possibly empty
-darkest class -- is left VISIBLE rather than cured: the swatch hatches
-every class no tile wears. And the orphan sweep is kept as a permanent
+darkest class -- is left VISIBLE rather than cured: the swatch hatched
+every class no tile wore until 2026-08-17, and since the maintainer
+ruled that mark out it is `few_values_message` that says so, in
+words. And the orphan sweep is kept as a permanent
 invariant, since it caught two of the three attempts and is about any
 classification rather than about any one of them.
 

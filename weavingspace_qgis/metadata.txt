@@ -68,9 +68,9 @@ changelog=0.24.3 Areas with no value are drawn now rather than left
     Copying: send one element's classes, colours, pins and class count
     to another from the same window. Where the two carry different
     columns the ends are fitted to the receiving data, and any class
-    its values cannot reach is hatched in the swatch so an empty class
-    is visible. A pin the receiving column cannot reach is left behind
-    rather than carried, and said.
+    its values cannot reach is kept rather than dropped, so the
+    classification arrives whole. A pin the receiving column cannot
+    reach is left behind rather than carried, and said.
     Colour: an element is now classed from the whole map's values
     rather than from its own tiles alone, so two elements you have set
     up alike can be read against each other. They could not before:
@@ -79,8 +79,8 @@ changelog=0.24.3 Areas with no value are drawn now rather than left
     Classes: a column with fewer values than the classes you asked
     for keeps every class you asked for, and each keeps the colour of
     its place on the ramp, so adding data later does not repaint the
-    classes you already had. The classes left empty are hatched in the
-    swatch and counted in a notice. An element set to Unclassed says nothing
+    classes you already had. The classes left empty are counted in a
+    notice. An element set to Unclassed says nothing
     about this, its fifty steps never having been a count you chose.
     Design: the scale factors take negative values, which mirror the
     design about that axis and scale it by the size of the number.

@@ -3042,15 +3042,15 @@ MUTATIONS = [
            "at 1e12 and a rate of 4e-07 pinned at zero, both silently, "
            "because pin_problem is asked about the number the control "
            "produced and that number is inside the data"),
-  dict(name="the-swatch-is-painted-after-the-restyle", file=DIALOG,
-       old="    self._restyle_only()\n    self._refresh_preview_colours()",
-       new="    self._refresh_preview_colours()\n    self._restyle_only()",
-       test="test_a_copy_hatches_the_classes_it_leaves_unreachable",
-       why="the swatch asks the element's own layer which classes "
-           "nothing wears, so painting it before the restyle puts "
-           "that question to the previous map and caches the answer "
-           "-- the hatching the changelog promises then never appears "
-           "from the copy that creates it"),
+  # RETIRED 2026-08-17 with the swatch hatching: `the-swatch-is-
+  # painted-after-the-restyle`, which mutated the order in
+  # `_apply_style_change` and was caught by
+  # test_a_copy_hatches_the_classes_it_leaves_unreachable. Both the
+  # test and the behaviour are gone -- the swatch no longer asks any
+  # layer which classes nothing wears, so the order it guarded no
+  # longer decides anything. An entry left standing on either would
+  # have matched nothing and reported nothing, which reads exactly
+  # like success.
   dict(name="one-class-colouring-needs-one-class", file=BRIDGE,
        old="  if distinct == 1 and count == 1:",
        new="  if distinct == 1 and count:",
