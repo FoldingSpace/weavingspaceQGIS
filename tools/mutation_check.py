@@ -2847,7 +2847,15 @@ MUTATIONS = [
            "the middle around them"),
   dict(name="a-pin-redraws-its-own-window",
        file="weavingspace_qgis/category_editor.py",
-       old="    self._redraw_bounds(answer)\n\n  def _bound_edited",
+       # RE-ANCHORED 2026-08-17: `_pin_toggled` gained a
+       # `_sync_pin_controls` call after this line when an Unclassed
+       # end came to be named by two controls, so the old anchor --
+       # which ran straight into `def _bound_edited` -- matched
+       # nothing and reported nothing, which reads exactly like
+       # success. Found by check_standards at push time.
+       old="    self._redraw_bounds(answer)\n"
+           "    self._sync_pin_controls(which, pair)\n\n"
+           "  def _bound_edited",
        new="    pass\n\n  def _bound_edited",
        test="test_pinning_redraws_the_window_it_was_typed_into",
        why="a pin recomputes every break between the pinned ones, so "
