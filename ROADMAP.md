@@ -89,78 +89,26 @@ entry as it lands.
 
 ### Wanted
 
-**`test_adversarial_sequences` STALLS at 600s on every CI leg, and the
-swatch cache did not fix it.** This is the entry that actually blocks
-a green suite, and it was mis-scoped twice before landing here.
+Two entries were DELETED here on 2026-08-16 having landed, which is
+what this file asks for: the `test_adversarial_sequences` stall (four
+routes into a rebuild that a retired dialog kept open; 1,282 rebuilds
+down to 173, below v0.24.2's own 461) and both Windows failures (a
+notice assertion that had rotted against a reworded sentence, and a
+sampling window sized for this Mac). Each is guarded, and each guard
+was proved against the broken fix. The reasoning they produced is in
+CLAUDE.md and docs/TESTING.md, where it binds; a roadmap nobody prunes
+becomes a diary.
 
-Measured: with the cache in (`d3c0f0c`), the stall stack no longer
-touches our icon drawing at all. It runs
-`_on_layer_changed` -> `_rebuild_unit` -> `_build_unit` ->
-`catalog.make_unit` -> `WeaveUnit.__init__` ->
-`_setup_regularised_prototile` -> `_regularise_tiles` ->
-`_merge_fragments` -> shapely. Every one of this release's extra table
-rebuilds carries a FULL WEAVE-UNIT CONSTRUCTION -- real computational
-geometry, not a redraw. The cache removed the cheap half of the
-multiplier and left the expensive half untouched.
-
-It passes locally only because a sharded run widens the stall ceiling
-to 1500s while CI runs unsharded at 600s, and this Mac is faster. The
-same code, the same test, two verdicts from the harness alone.
-
-So the deferred question below -- why `_refresh_table` runs 2.8x as
-often -- is NOT a 0.24.4 curiosity any more. It is the direct cause of
-a red suite on three platforms, and cutting the rebuilds is the only
-one of the three available answers that fixes the software rather than
-the measurement. The others: give this test a measured allowance
-beside `_stall_ceiling`, which is legitimate ONLY once the rebuilds
-are known to be necessary; or raise the global ceiling, which hides a
-threefold cost and is what this project's own rules forbid.
-
-**The Windows leg has been RED for several commits and nobody was
-reading it.** Found 2026-08-16 by the maintainer forwarding a failure,
-which is the second time a red branch has surfaced that way rather
-than from the process. At least two distinct causes, and they are not
-the same kind of thing:
-
-*`test_ui_affordances_are_deliberate`* asserts the progress bar names
-its phase, and on Windows it only ever saw `%p%`. The phase text is
-set from the first progress report, which the worker emits before any
-heavy work, so seeing the bare default means the task had not started
-reporting inside the test's ten-second window -- on a runner where
-neighbouring tests take 250s each. Almost certainly the test's window
-rather than the product, but the message cannot tell the two apart and
-must be made to: report whether any progress arrived at all.
-
-*`test_no_data_features_still_draw_after_classifying`* — DIAGNOSED AND
-FIXED on branch `windows-probe`, and it was never a Windows fault at
-all. It asserted `"no value" in said`; the notice was reworded that
-morning to "do not have finite numeric data", so it had been failing
-on every platform for hours. It looked Windows-shaped because Windows
-was the only leg anyone read -- macOS stalled before reaching it and
-the Linux logs were never pulled. Recorded here rather than deleted,
-because the mis-scoping is the lesson: a platform-shaped symptom is
-not evidence of a platform-shaped cause.
-
-Both block PROMOTION rather than the artefact, under the parity rule
-in CLAUDE.md: a platform running a suite that fails has not been
-tested, and Windows is where most users are. Whether they block a
-CANDIDATE is the maintainer's call -- moving this entry to 0.24.4 is
-the way to say no, and no tool may make that move.
-
-**`CONTENTION` accounts for sharding but not for a slow platform**,
-and that is the shape behind the first failure above. It is
-`2.5 if SHARD_COUNT > 1 else 1.0`, so every timing allowance derived
-from it is sized for this Mac whenever the suite is unsharded --
-which is how CI runs it. This project has now written down the
-ceiling-from-the-slowest-measured-figure rule three times and been bitten
-a fourth. The allowance wants a platform term, measured rather than
-guessed.
-
-The three measurement entries that stood here were deferred to 0.24.4
-by the maintainer on 2026-08-15: none is a defect, and one of them --
-the certification batch -- cannot honestly run against this version at
-all, because a mutation score is a property of a suite and this suite
-changed a dozen times on the day the release was prepared.
+Nothing outstanding. `CONTENTION` gained its platform term on
+2026-08-16 and the entry that stood here is deleted: every timing
+allowance is now `CONTENTION * WEAVINGSPACE_TEST_SLOWNESS`, each CI
+job declares its own figure with the reason beside it, and
+`test_every_ceiling_widens_for_a_slow_machine` fails both when the
+suite stops reading the declaration and when a job stops making one.
+The figures themselves (Linux 3, macOS 2, Windows 4) are round and
+conservative rather than measured, which is said at each of them: the
+ratio of the slowest measured runs of one test on both machines is
+what should replace them, and nobody has recorded one yet.
 
 ## 0.24.4 — after this one
 
@@ -170,19 +118,15 @@ Deferred from 0.24.3 on 2026-08-15. All three are MEASUREMENT: they
 say how good the suite is rather than whether the plugin is right,
 so none of them blocks an artefact.
 
-**Why the table is rebuilt 2.8 times as often as it was.** Measured
-2026-08-16 and NOT explained: `_refresh_table` runs 461 times at
-v0.24.2 and 1,282 times at HEAD over the same test. The cost that made
-it matter is gone -- each rebuild redrew a swatch for every ramp for
-every row, and those are cached now -- so what remains is 1.3x CPU
-rather than 3x, comfortably inside every ceiling. What is not known is
-whether those extra rebuilds are necessary or redundant. An
-investigation was started and deliberately stopped: it could not run
-beside the timing measurement that decided the release, and its answer
-changes no artefact. Point it at the caller histogram (instrument
-`_refresh_table` inside the function, behind an environment flag, and
-diff the callers between the two revisions); the answer is which
-callers grew.
+**ANSWERED and deleted from here on 2026-08-16.** The rebuild count
+was retired dialogs: four routes into `_rebuild_unit` that a dialog
+kept open after the user had finished with it, the last of them the
+layer combo's own re-emission rather than a project signal. Fixed and
+guarded; 1,282 rebuilds down to 173. Kept as one line only because
+this entry said the question "changes no artefact", and it turned out
+to be the direct cause of a red suite on three platforms -- deferring
+it was the wrong call, made on a local measurement too cheap to show
+the effect.
 
 **Give the stochastic hunt an exported-file invariant that RUNS.** Added
 2026-08-16. A hunt over 105 checked steps reported its five axes:

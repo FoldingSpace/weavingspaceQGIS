@@ -831,6 +831,39 @@ timed on three machines. The cache was kept because it is right on
 its own terms, and labelled in its commit as not the cause, because
 the next person will otherwise read the fix as the diagnosis.
 
+## Wait on the EVENT, not on a number of seconds
+
+The third ceiling sized from this machine, 2026-08-16, and the fix
+generalises past ceilings altogether.
+
+`test_ui_affordances_are_deliberate` sampled the progress bar for
+`10 * CONTENTION` seconds waiting for it to name its phase. CONTENTION
+is `2.5 if SHARD_COUNT > 1 else 1.0` -- it knows about SHARDING and
+nothing about the PLATFORM, and CI runs the suite unsharded. So that
+was a flat ten seconds on runners where neighbouring tests take 250.
+Windows saw the bare `%p%` after 18.7s and failed; macOS finished the
+whole test in 9.0s and passed. Same code, same assertion, two verdicts
+decided by nothing but the machine.
+
+Widening the constant would have been the obvious repair and the wrong
+one, because no constant is right for both. THE PHASE TEXT IS SET FROM
+THE FIRST PROGRESS REPORT, which the worker sends before any heavy
+work, so the question "has it appeared yet" is only meaningful WHILE
+THE RUN IS STILL GOING. Waiting on the task ending instead is faster
+on a quick machine (it breaks the moment the text appears), patient on
+a slow one, and STRICTER: a run that finishes having never named a
+phase is a real failure rather than an expired clock. The absolute cap
+that remains is a hang-catcher, sized well above the slowest figure
+ever measured, and the failure message now says which of the two
+happened.
+
+Ask of any timed wait: is there an EVENT that means "the answer is in
+now"? A task clearing, a signal arriving, a file appearing. Where
+there is, wait on that and keep the clock only to catch a hang. Where
+there is not, size from the slowest measured figure and multiply --
+and remember that a contention factor tuned for parallelism says
+nothing about a slower machine.
+
 ## Ceilings, and the two ways to get them wrong
 
 A watchdog exists to catch a HANG. It is not a performance budget,

@@ -1164,6 +1164,32 @@ renderer, found by a hunt hours after the carry-over was written.)
   at the callers, not to write a second helper: the parentheses that
   mark the categorical catch-all now live at that call site, and the
   one method answers plainly.
+- **A SIGNAL CONNECTED TO THE PROJECT OUTLIVES THE WINDOW THAT MADE
+  IT, AND SO DOES A COMBO.** 0.24.3 added two hooks onto
+  `QgsProject.instance()` -- `_settle_layer_choice` and the pair around
+  `layersRemoved` -- and neither carried the retirement gate
+  `_on_project_read` already had. A dialog the user has finished with
+  stays connected until its C++ object is destroyed, which in a
+  session that opens the plugin several times may be much later or
+  never, so EVERY project change reached EVERY dialog ever opened and
+  each rebuilt a full weave unit for a window nobody was looking at.
+  Measured 2026-08-16: `_layers_removed` fired 231 times across 22
+  dialogs, exactly sum(0..21) -- QUADRATIC in how often the plugin had
+  been opened.
+  THE FOURTH ROUTE WAS NOT A PROJECT SIGNAL AT ALL, and gating the
+  first three left it open: `QgsMapLayerComboBox` re-emits
+  layerChanged whenever the project's layers churn, and every retired
+  dialog still owns a combo doing that. Only a guard test written
+  afterwards found it, by counting rebuilds rather than trusting the
+  three fixes. Unit rebuilds over one test: 461 at 0.24.2, 1,282 with
+  the new hooks, 801 with the project gates, **173 once
+  `_on_layer_changed` was gated too** -- below the baseline, because
+  the gate also stops work 0.24.2 was doing for dead windows.
+  So: when you connect a NEW signal to anything that outlives this
+  dialog -- the project, the style library, a layer, or one of our own
+  widgets that QGIS re-fires -- add `if _dialog_is_gone(self) or
+  _live_dialog() is not self: return`, and grep for the other routes
+  into the same handler before believing you have them all.
 - **A GATE PIPED INTO ANYTHING IS NOT A GATE.** `check_before_push |
   tail -2` returns TAIL's exit status, so a shell `&&` after it fires
   whatever the gate said. That is how a tree failing the standards

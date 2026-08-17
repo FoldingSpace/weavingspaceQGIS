@@ -161,6 +161,19 @@ jobs:
       options: --user root
     env:
       QT_QPA_PLATFORM: offscreen
+      # HOW SLOW THIS MACHINE IS, declared rather than guessed. Every
+      # timing allowance in the suite is CONTENTION times this, and
+      # CONTENTION alone accounts for SHARDING, which CI does not use
+      # -- so without this the ceilings on every runner are the
+      # development Mac's. These legs stalled a test at the 600s
+      # watchdog on all three QGIS versions on 2026-08-16 while the
+      # same test took 101s on that Mac.
+      #
+      # 3, round and conservative rather than measured, and between
+      # macOS's 2 and Windows's 4. Replace it with a ratio of the
+      # slowest measured runs of one test on both machines, and say
+      # so here when you do.
+      WEAVINGSPACE_TEST_SLOWNESS: "3"
       # where the step above puts the pristine upstream checkout, so
       # the vendor comparison runs instead of skipping
       WEAVINGSPACE_UPSTREAM: ${{ github.workspace }}/../weavingspace
@@ -377,6 +390,16 @@ jobs:
       # `minimal`. It is named here so nobody has to rediscover it.
       QT_QPA_PLATFORM: offscreen
       PYTHONUNBUFFERED: "1"
+      # HOW SLOW THIS MACHINE IS, declared rather than guessed.
+      # Every timing allowance in the suite is CONTENTION times
+      # this; without it an unsharded run gets ceilings sized for
+      # the Mac the suite was written on, which failed a test
+      # here at 18.7s on 2026-08-16 that macOS passed in 9.0s.
+      # 4 is DELIBERATELY ROUND AND CONSERVATIVE rather than measured:
+      # the figures to hand are a Windows runner spending 250s on
+      # tests this Mac runs in tens of seconds. Replace it with a
+      # ratio of the SLOWEST measured runs of one test on both.
+      WEAVINGSPACE_TEST_SLOWNESS: "4"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -595,6 +618,17 @@ jobs:
     # replaced by a multiple of the first GREEN run on this runner
     # rather than by another platform's figures.
     timeout-minutes: 300
+    env:
+      # HOW SLOW THIS MACHINE IS, declared rather than guessed. Every
+      # timing allowance in the suite is CONTENTION times this, and
+      # CONTENTION alone accounts for SHARDING -- which CI does not
+      # use -- so without this the ceilings here are the development
+      # Mac's. This runner is the closest of the three to that Mac
+      # (same platform, slower hardware), hence 2 where Windows takes
+      # 4. Round and conservative rather than measured: replace it
+      # with a ratio of the slowest measured runs of one test on both
+      # machines, and say so here when you do.
+      WEAVINGSPACE_TEST_SLOWNESS: "2"
     steps:
       - uses: actions/checkout@v4
 

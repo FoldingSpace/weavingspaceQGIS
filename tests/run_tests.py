@@ -257,7 +257,43 @@ if _SHARD:
   if not 0 <= SHARD_INDEX < SHARD_COUNT:
     sys.exit(f"WEAVINGSPACE_TEST_SHARD={_SHARD} is not i/n with "
              f"0 <= i < n")
-CONTENTION = 2.5 if SHARD_COUNT > 1 else 1.0
+# ...AND THE MACHINE IS THE OTHER HALF OF THE SAME ARITHMETIC.
+#
+# The factor above was sharding alone, and every timing allowance in
+# this suite derives from it, so on 2026-08-16 an unsharded CI run gave
+# a test a flat ten seconds on a Windows runner where neighbouring
+# tests take 250. It failed there and passed on macOS in 9.0s: the same
+# code, the same assertion, two verdicts decided by nothing but the
+# machine. That is the third ceiling this project has sized from the
+# machine in front of it, so the factor now carries a platform term.
+#
+# WEAVINGSPACE_TEST_SLOWNESS is how a slow machine says so, and CI sets
+# it per platform. It MULTIPLIES with the shard factor rather than
+# replacing it, because the two costs are independent: a shard makes
+# every test slower on whatever machine it is already on.
+#
+# The default is 1.0, meaning "as fast as the machine this suite was
+# written on". Nothing here guesses a figure for anyone else -- a
+# number nobody measured is exactly what produced the failures above.
+# To set one honestly, take the SLOWEST measured run of the same test
+# on that platform against this Mac's, and round up.
+#
+# And the deeper lesson, which is in docs/TESTING.md at greater
+# length: where an EVENT means "the answer is in now" -- a task
+# clearing, a signal arriving -- wait on that instead, and keep the
+# clock only to catch a hang. A ceiling is the fallback, not the
+# instrument.
+try:
+  SLOWNESS = max(1.0, float(os.environ.get("WEAVINGSPACE_TEST_SLOWNESS", "1")))
+except ValueError:
+  # A malformed value must not silently become 1.0 and hand back the
+  # very ceiling this exists to widen; say so and carry on unwidened.
+  print(f"WEAVINGSPACE_TEST_SLOWNESS="
+        f"{os.environ.get('WEAVINGSPACE_TEST_SLOWNESS')!r} is not a "
+        f"number; using 1.0, so ceilings are sized for the machine "
+        f"this suite was written on", flush=True)
+  SLOWNESS = 1.0
+CONTENTION = (2.5 if SHARD_COUNT > 1 else 1.0) * SLOWNESS
 
 # how many tests this process has been offered, so a shard can say
 # what it covered rather than leaving a reader to infer it
@@ -24257,6 +24293,85 @@ def test_a_dock_edit_during_a_run_is_not_lost():
   dlg.close()
 
 
+def test_every_ceiling_widens_for_a_slow_machine():
+  """The timing factor accounts for the MACHINE, not only for sharding.
+
+  Every allowance in this suite is `CONTENTION` times something, and
+  CONTENTION was `2.5 if SHARD_COUNT > 1 else 1.0` -- a factor for
+  parallelism and nothing else. CI runs the suite UNSHARDED, so every
+  runner got ceilings sized for the Mac this suite was written on.
+
+  Two halves are asserted because they fail differently. The suite
+  must READ the declaration, or a slow runner is back to this Mac's
+  ceilings; and every CI job that runs the suite must MAKE one, or the
+  mechanism exists and nobody uses it -- which is the shape of a rule
+  that asserts its own enforcement without being enforced.
+
+  Regression: `CONTENTION` knew about sharding and nothing about the platform, so an unsharded CI run gave a test ten seconds on a Windows runner where neighbouring tests take 250s. It failed there at 18.7s and passed on macOS in 9.0s: the same code and assertion, two verdicts decided by the machine. Third ceiling this project sized from the machine in front of it. [second-machine]
+  """
+  import subprocess
+  import yaml
+
+  # ---- the suite reads it
+  probe = (
+    "import os, sys;"
+    "sys.path.insert(0, %r);"
+    "import importlib.util as u;"
+    "spec = u.spec_from_file_location('rt', %r);"
+    "m = u.module_from_spec(spec);"
+    "sys.modules['rt'] = m;"
+    "spec.loader.exec_module(m);"
+    "print(m.CONTENTION)"
+  ) % (ROOT, os.path.join(ROOT, "tests", "run_tests.py"))
+  # Reading CONTENTION needs the module imported, and importing the
+  # suite runs its start-up -- so this asks a CHILD, with an
+  # environment we chose rather than the one we inherited. A child
+  # inheriting WEAVINGSPACE_TEST_SHARD from a sharded release run
+  # would otherwise be told it is shard two of three.
+  base = {k: v for k, v in os.environ.items()
+          if not k.startswith("WEAVINGSPACE_TEST_")}
+  base["QT_QPA_PLATFORM"] = "offscreen"
+
+  def contention(**extra):
+    env = dict(base)
+    env.update(extra)
+    out = subprocess.run([sys.executable, "-c", probe], env=env,
+                         capture_output=True, text=True, timeout=300)
+    assert out.returncode == 0, \
+      f"the probe could not read CONTENTION: {out.stderr[-400:]}"
+    return float(out.stdout.strip().splitlines()[-1])
+
+  plain = contention()
+  slow = contention(WEAVINGSPACE_TEST_SLOWNESS="4")
+  sharded = contention(WEAVINGSPACE_TEST_SHARD="1/3")
+  both = contention(WEAVINGSPACE_TEST_SHARD="1/3",
+                    WEAVINGSPACE_TEST_SLOWNESS="4")
+  assert plain == 1.0, f"an unsharded run on this machine reads {plain}"
+  assert slow == 4.0, \
+    f"a machine declaring itself four times slower reads {slow}, so " \
+    f"its ceilings are still sized for the Mac this was written on"
+  assert both > sharded, \
+    f"sharding and slowness must MULTIPLY -- they are independent " \
+    f"costs -- and {both} is not above {sharded}"
+  # a malformed value must not silently hand back the un-widened
+  # ceiling this exists to widen
+  assert contention(WEAVINGSPACE_TEST_SLOWNESS="quite") == 1.0
+
+  # ---- and CI declares it, on every job that runs the suite
+  with open(os.path.join(ROOT, ".github", "workflows", "ci.yml"),
+            encoding="utf-8") as handle:
+    workflow = yaml.safe_load(handle)
+  running_the_suite = ("suite", "windows", "macos")
+  undeclared = [
+    name for name in running_the_suite
+    if not (workflow["jobs"].get(name, {}).get("env", {})
+            .get("WEAVINGSPACE_TEST_SLOWNESS"))]
+  assert not undeclared, \
+    f"CI jobs {undeclared} run the suite without saying how slow " \
+    f"they are, so their ceilings are this Mac's. Declare " \
+    f"WEAVINGSPACE_TEST_SLOWNESS in the job's env, with the reason"
+
+
 def test_a_retired_dialog_rebuilds_nothing_when_the_project_moves():
   """A dialog the user has finished with does no work for a project.
 
@@ -30253,6 +30368,17 @@ def test_nothing_defines_the_same_name_twice():
   def duplicates(body, where, path):
     """Names defined more than once among a body's DIRECT children.
 
+    Args:
+      body: a list of AST statements -- a module's or a class's body.
+      where: how to describe that scope in a message, e.g.
+        "the module" or "class CategoryColourDialog".
+      path: the file's path relative to the checkout, for the report.
+
+    Returns:
+      A list of one message per name defined more than once, naming
+      the scope, the name and every line it was defined on. Empty when
+      the scope is clean.
+
     Direct children only, so a definition inside an `if` or a `try` --
     which is how a module offers one of two implementations -- is not
     counted as a redefinition of the other.
@@ -33518,19 +33644,49 @@ def test_ui_affordances_are_deliberate():
   # cannot hide the defect this guards -- a bar that never names a
   # phase still fails, and the assertion quotes the best text seen.
   seen = ""
-  deadline = time.monotonic() + 10 * CONTENTION
+  # KEYED TO THE RUN, not to a number of seconds. The phase text is
+  # set from the first progress report, which the worker sends before
+  # any heavy work -- so on any machine that starts the task it
+  # arrives early IN THE RUN, and the question "has it appeared yet"
+  # is only meaningful while the run is still going.
+  #
+  # This waited 10 * CONTENTION seconds, and CONTENTION knows about
+  # sharding and nothing about the platform. CI runs the suite
+  # UNSHARDED, so that was a flat ten seconds on machines where the
+  # neighbouring tests take 250: Windows saw the bare "%p%" after
+  # 18.7s of trying and failed, while macOS finished the whole test in
+  # 9.0s and passed. Same code, same assertion, two verdicts decided
+  # by the runner. Third ceiling this project has sized from the
+  # machine in front of it.
+  #
+  # Waiting on the task ending is both faster and stricter: it breaks
+  # the moment the phase appears (about a second here), it waits as
+  # long as a slow machine needs, and if the run FINISHES having never
+  # named a phase that is a real failure rather than an expired clock.
+  # The absolute cap is a hang-catcher only, sized well above the
+  # 250s a Windows runner spends on tests of this kind.
+  deadline = time.monotonic() + 300 * CONTENTION
   while time.monotonic() < deadline:
     text = dlg.progress.format().lower()
     if len(text) > len(seen):
       seen = text
     if any(word in seen for word in ("tiling", "joining", "layers")):
       break
+    if dlg._task is None:         # the run landed; nothing more is coming
+      break
     _tick(100)
+  # one last look, in case the run ended between two samples
+  text = dlg.progress.format().lower()
+  if len(text) > len(seen):
+    seen = text
   assert "%p%" in seen, \
     f"the progress bar must show a percentage (best seen {seen!r})"
   assert any(word in seen for word in ("tiling", "joining", "layers")), \
     f"and say what it is doing ({seen!r}), since during a long run it " \
-    "is the only thing on screen"
+    "is the only thing on screen. The run had " \
+    f"{'finished' if dlg._task is None else 'NOT finished'} when this " \
+    "was decided, which tells you whether the bar never named a phase " \
+    "or the wait simply ran out"
   _settle(dlg, 60)
   dlg.close()
 
@@ -45401,6 +45557,8 @@ def main():
         test_a_dock_edit_while_the_editor_is_open)
   check("a dock edit during a run is not lost",
         test_a_dock_edit_during_a_run_is_not_lost)
+  check("every ceiling widens for a slow machine",
+        test_every_ceiling_widens_for_a_slow_machine)
   check("a retired dialog rebuilds nothing when the project moves",
         test_a_retired_dialog_rebuilds_nothing_when_the_project_moves)
   check("a retired dialog stops watching",

@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-208 defect(s) with a regression test.
+209 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -246,6 +246,8 @@ there is no separate list to remember.
 
 - **none yet -- the hang it answers was in CI, and this asserts the answer stays wired in.**  
   guarded by `test_a_hanging_test_is_named_rather_than_silent`
+- **`CONTENTION` knew about sharding and nothing about the platform, so an unsharded CI run gave a test ten seconds on a Windows runner where neighbouring tests take 250s. It failed there at 18.7s and passed on macOS in 9.0s: the same code and assertion, two verdicts decided by the machine. Third ceiling this project sized from the machine in front of it.**  
+  guarded by `test_every_ceiling_widens_for_a_slow_machine`
 - **tests/visual_tests.py never added libs/ to sys.path, so the visual gallery could not run on any Linux QGIS that had to provision its dependencies, and the first run of the gallery experiment measured that instead of the fonts it was written to measure.**  
   guarded by `test_every_qgis_harness_can_reach_the_provisioned_libs`
 - **a Linux CI leg failed on 2026-08-12 with shapely, pandas and networkx downloaded and geopandas silently absent; the log could not say whether PyPI was unreachable or no wheel existed for QGIS stable's Python 3.13, and the same job passed an hour later untouched.**  
@@ -469,8 +471,8 @@ there is no separate list to remember.
 - the mutation campaign: 16
 - reading the code: 15
 - reported by a user: 12
+- running the suite somewhere other than the machine it was written on: 7
 - race and stress testing: 6
-- running the suite somewhere other than the machine it was written on: 6
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5
 - a family audit of the claims the software makes: 4
