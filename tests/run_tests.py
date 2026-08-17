@@ -9237,13 +9237,17 @@ def test_equal_intervals_stay_equal_under_a_pin():
     "the thin column has enough distinct values to fill the middle, " \
     "so it does not stage the reduction at all"
 
-  def ladder(values, scheme, name):
+  def ladder(values, scheme, name, at_low=None, at_high=None):
     """The class bounds one column draws under a scheme and the pins.
 
     Args:
       values: the column's values.
       scheme: "Equal intervals", "Unclassed" or "Quantiles".
       name: a layer name, for failure messages.
+      at_low, at_high: the pins to use, defaulting to the wide pair
+        the rest of this test shares. Given explicitly for the
+        inside-the-data case, where the pinned classes have widths of
+        their own and the rule is about the ones between them.
 
     Returns:
       [(lower, upper), ...] in class order, and the layer, so the
@@ -9252,7 +9256,8 @@ def test_equal_intervals_stay_equal_under_a_pin():
     layer = layer_of(values, name)
     renderer = bridge.make_graduated_renderer(
       layer, "v", "Reds", scheme, 5, False,
-      pinned={"low": low, "high": high})
+      pinned={"low": low if at_low is None else at_low,
+              "high": high if at_high is None else at_high})
     layer.setRenderer(renderer)
     return ([(r.lowerValue(), r.upperValue()) for r in renderer.ranges()],
             layer)
@@ -9311,6 +9316,31 @@ def test_equal_intervals_stay_equal_under_a_pin():
 
   assert compared == 2, \
     f"only {compared} scheme(s) were compared, so the loop skipped one"
+
+  # A PIN INSIDE THE DATA, which is the ordinary case and which the
+  # fixture above cannot reach. Pinned to -5 and 40 the outer classes
+  # are DEGENERATE, so the width check skips them and never meets the
+  # half of the rule that says a pinned class may have any width at
+  # all. Pinned inside, they have real widths of their own -- and the
+  # rule is that those two are free while every class BETWEEN them is
+  # equal. Found on 2026-08-17 by driving an Unclassed row's clamp
+  # strip, where the pinned classes came out 1.75 and 2.0 wide beside
+  # 48 middle classes of 0.0677: correct, and invisible to the check
+  # above.
+  inside_low, inside_high = 3.0, 9.0
+  assert min(narrow) < inside_low < inside_high < max(narrow), \
+    "the inside pins are not inside the narrow column, so this " \
+    "stages the same case as the block above"
+  inside, _layer = ladder(narrow, "Equal intervals", "inside", inside_low,
+                          inside_high)
+  assert len(inside) == 5, f"{len(inside)} classes, not 5: {inside}"
+  assert abs(inside[0][1] - inside_low) < 1e-9 and \
+    abs(inside[-1][0] - inside_high) < 1e-9, \
+    f"the pinned ends are not where they were put: {inside}"
+  middle = [upper - lower for lower, upper in inside[1:-1]]
+  assert middle and max(middle) - min(middle) <= 1e-9 * max(middle), \
+    f"the classes BETWEEN two pins are not equal: {middle} from " \
+    f"{inside}"
 
   # WHAT IS DELIBERATELY NOT CHANGED. Quantiles goes on cutting from
   # each column's own samples, which is what a quantile means.
