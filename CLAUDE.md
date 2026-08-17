@@ -1382,6 +1382,37 @@ Confirmed with the user via an explicit design review:
 - An element left on "---" stays unassigned through rebuilds and draws
   as plain fill. Class counts for quantitative styles run 2–20 (the
   ceiling is ours; the app has no such control at all).
+- **AT MOST THREE SIGNIFICANT FIGURES IN ANY NUMBER BOX.**
+  (Maintainer's rule, 2026-08-17, after a tester met spacing showing
+  six decimal places of metres.) Figures rather than decimal places,
+  deliberately: a figures rule bounds what a reader takes in whatever
+  the magnitude, where a decimals rule lets 1234.567 through at four
+  and clips 0.0008 to nothing.
+  `dialog._limit_the_figures_on_show` sweeps every `QDoubleSpinBox`
+  once at construction, so a control added next year obeys the rule
+  without anybody remembering -- which the five-rules-in-five-places
+  arrangement it replaced was not. THE STEP DECIDES AND THE CAP BOUNDS
+  IT: a box shows the decimals its own `singleStep` needs, and never
+  more than three figures. Counting from the VALUE instead gives every
+  box sitting at zero three decimals, since zero has no digits to
+  count, which is how the offset angle read "0.000" degrees on the
+  first attempt.
+  TWO GOOD REASONS TO DEPART, both real. Spacing spans 1e-6 to 1e12,
+  so no construction-time setting suits a floor plan at half a metre
+  and a country at fifty kilometres; it is exempt by identity (never
+  by `objectName`, which is empty on every box here) and sizes itself
+  in `_show_spacing_to_three_figures` from the suggestion auto-fitting
+  has just computed, WHEN A LAYER IS CHOSEN and only then. The
+  maintainer chose that moment over a hook on every value change,
+  which would have added cost to the interactive path while how
+  responsive this plugin feels is still an open question. And a box
+  holding a number a PERSON TYPED, or one taken from the data, must
+  not round it away: the class-bound boxes size their decimals from
+  the data deliberately (catalogue entry
+  `the-bound-box-is-sized-from-the-data`), since clipping a pinned
+  -0.9276 to -0.928 would change the value the map is drawn from.
+  Any such box declares its exemption at the site, with the reason
+  there, and is still as tight as it honestly can be.
 - The region-outlines layer is drawn cased, a wide white line under a
   narrow black one, so boundaries stay legible over pale and dark
   parts of the pattern alike.
@@ -1637,12 +1668,30 @@ Confirmed with the user via an explicit design review:
   Keyed by tile id AND field like the hand-picked colours, stamped on
   the layer because nothing on a renderer records that a break was
   chosen rather than computed, and carried in both signatures.
-  What is REFUSED is only what cannot be drawn: crossed bounds, a
-  bound outside the data, nothing left for the middle, and a ladder
-  asked to carry more pinned boundaries than its k-1. What is
-  ACCEPTED and explained is a pin leaving fewer distinct values than
-  classes -- that is the reduction above, and two answers to one
-  question is what these rules exist to avoid.
+  What is REFUSED is only what cannot be DRAWN, and there are three:
+  crossed bounds, nothing left for the middle to cut, and a ladder
+  asked to carry more pinned boundaries than its k-1. A BOUND OUTSIDE
+  THE DATA IS NOT ONE OF THEM. It was until 2026-08-17, when the
+  maintainer met the refusal and reversed it: giving one pair of
+  limits to several variables is exactly the thing somebody wants,
+  since it is how a colour comes to mean the same number on every map,
+  which is this plugin's own claim about what these maps are for. Such
+  a bound draws perfectly well; its outer class simply goes unworn,
+  which `unworn_classes` already computes.
+  THE GROUPING WAS THE ERROR AS MUCH AS THE POLICY, and that is the
+  part that generalises: listed in one sentence beside the undrawable
+  three, a preference reads as a rule, and nobody re-examines it.
+  When you find four refusals written together, ask whether they are
+  the same kind of thing.
+  Relaxing the guard was also only half the fix --
+  `_apply_pinned_bounds` built the outer class from the column's own
+  extreme, so the ladder snapped back to the data and the accepted
+  number changed nothing visible. Guarded by
+  `test_a_pin_may_sit_outside_the_data_it_classifies`, which caught
+  exactly that, because it drove the renderer rather than the guard.
+  What is ACCEPTED and explained is a pin leaving fewer distinct
+  values than classes -- that is the reduction above, and two answers
+  to one question is what these rules exist to avoid.
   Two things the map may then show that nothing else here would. A
   copied ladder can leave classes the receiving column cannot reach;
   those are KEPT rather than dropped, because a copy reproduces a

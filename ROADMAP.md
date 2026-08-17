@@ -150,19 +150,6 @@ other code asks it which classes are empty -- and the comment in
 shows needs its wording corrected in the same commit, since it will
 no longer be true.
 
-DONE 2026-08-17 and deleted from here: a class bound may now sit
-outside the data it classifies, so one pair of limits can be given to
-several variables. Guarded by
-`test_a_pin_may_sit_outside_the_data_it_classifies`, which found that
-relaxing `pin_problem` was only half of it -- `_apply_pinned_bounds`
-built the outer class from the column's own extreme, so the ladder
-snapped back to the data and the accepted number changed nothing.
-
-STILL OWED FROM IT: the settled-decisions paragraph in CLAUDE.md
-names the four refusals together, which is how "outside the data"
-came to look like one of the undrawable three. Correct it there with
-the maintainer's ruling beside it.
-
 **EQUAL INTERVALS MUST ACTUALLY BE EQUAL, AND UNCLASSED WITH THEM.**
 The maintainer's rule, 2026-08-17: with Equal intervals or Unclassed
 every class has the SAME WIDTH, and the one exception is a PINNED
@@ -337,80 +324,16 @@ The largest genuine deltas after that correction, neither obviously
 costly and both unexplained: `QTableWidget.item` 144 to 860, and
 `setEnabled` 144 to 250.
 
-**MOSTLY DONE 2026-08-17, WITH SPACING PARKED AND STILL WRONG.**
-`_limit_the_figures_on_show` sweeps every `QDoubleSpinBox` at
-construction and sets its decimals from its own `singleStep`, capped
-at three significant figures. Measured after: spacing aside, the
-angles read "0" and "30" where one of them used to read "0.00", the
-insets "0.0", the offset "0.00", scale "1.00", aspect "0.750". Nothing
-shows more than three decimals.
-
-SPACING IS EXEMPT AND STILL SHOWS SIX, deliberately and visibly. Its
-range is 1e-6 to 1e12 -- twelve orders of magnitude -- so no single
-`decimals` suits both a floor plan at half a metre and a country at
-fifty kilometres, and the sweep runs at CONSTRUCTION while
-auto-spacing sets the value afterwards from the layer. Left to the
-rule it took 0 decimals from its step of 1, which would have rounded
-a legitimate 0.5 m spacing away: a worse fault than the one being
-fixed, and one the standard fixture at 500 m would never have shown.
-
-WHAT IT NEEDS is the rule re-applied whenever the value changes,
-which is a small hook on a signal that already fires -- but it is a
-hook on the interactive path, and it was not worth adding at the end
-of a long session without room to measure what it costs there. That
-is the remaining work.
-
-**SILLY NUMBERS OF SIGNIFICANT FIGURES THROUGHOUT THE INTERFACE.**
-Reported 2026-08-17: spacing shows six decimal places in metres, and
-the ramp bound boxes show nine. Measured across the plugin, every
-control decides for itself and in five different ways --
-`spacing_spin.setDecimals(6)`, `opt_offset` step 0.01 with 2,
-`opt_aspect` step 0.083 with 3, `opt_offset_angle` with a step of 1
-and no decimals set at all (so Qt's default 2, giving "0.00"
-degrees), the modifier boxes with a local `3 if step < 1 else 1`, and
-six QDoubleSpinBoxes in dialog.py that set nothing.
-
-**THE MAINTAINER'S RULE, 2026-08-17: AT MOST THREE SIGNIFICANT
-FIGURES DISPLAYED, unless there is good reason otherwise.** That is
-the decision; what follows is how to carry it out and the one place
-it needs care.
-
-Note it is SIGNIFICANT FIGURES and not decimal places, which is the
-stronger and more useful rule: it bounds what a reader has to take in
-whatever the magnitude, where a decimals rule lets 1234.567 through
-at four decimals and clips 0.0008 to nothing. A spin box, though,
-carries a fixed `decimals` while its value's magnitude varies, so the
-implementation is to choose decimals from the control's OWN SCALE so
-that ordinary values land at three figures: spacing in the hundreds
-gets 0, an aspect around 1 gets 2, an offset in 0..1 gets 3.
-
-An earlier suggestion here was to derive decimals from the control's
-`singleStep`, which the modifier boxes already do locally
-(`3 if step < 1 else 1`). Keep that as the FLOOR rather than the
-rule: a box must not show digits its own step cannot reach, and it
-must not show more than three figures either. Where the two
-disagree, the step is what should change, so one number per control
-governs both.
-
-One pass over `findChildren(QDoubleSpinBox)` at construction costs
-microseconds once and nothing per repaint, and a control added later
-is right without anybody remembering -- which the current
-five-rules-in-five-places arrangement is not. Today: spacing at six
-decimals in metres, the ramp bound boxes at nine, `opt_offset_angle`
-at Qt's default two so degrees read "0.00", and six boxes setting
-nothing at all.
-
-THE GOOD REASON, AND IT IS REAL: a control holding a number a PERSON
-TYPED, or one taken from the data, must not round it away. The
-class-bound boxes size their decimals from the data deliberately
-(catalogue entry `the-bound-box-is-sized-from-the-data`), and
-clipping a pinned bound of -0.9276 to -0.928 would change the value
-the map is drawn from and stamp the rounded number into the project.
-So the cap governs SETTINGS a user chooses in round numbers, and a
-box that must hold an arbitrary measured value declares its exemption
-at the site, with the reason written there. Anything exempt should
-still be as tight as it honestly can be: nine decimals on a bound of
--7.5 is not faithfulness, it is noise.
+**DONE 2026-08-17 AND DELETED FROM HERE: the significant figures.**
+`_limit_the_figures_on_show` sweeps every number box at construction
+and sizes it from its own step, capped at three figures; spacing,
+which no single setting suits, is sized from the layer when one is
+chosen. The maintainer's rule and both exemptions are in CLAUDE.md,
+where they bind the next control somebody adds; the reasoning is at
+the two methods. What follows was the entry, kept until this session
+only because its last paragraph claimed the spacing half was still
+owed after the commit that landed it -- which is the drift this file
+exists to prevent, arriving in the file itself.
 
 Nothing else outstanding. `CONTENTION` gained its platform term on
 2026-08-16 and the entry that stood here is deleted: every timing
