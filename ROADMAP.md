@@ -138,6 +138,23 @@ they are in -- and that touches the path every run goes through, at
 the end of a session that has already produced five corrections to its
 own fixes. It wants a rested morning, not another hour.
 
+**UNVERIFIED, from the stochastic hunt: a row saying Graduated over a
+layer carrying a CATEGORIZED renderer.** Seen on SEVEN independent
+seeds across 171 random sessions, which is well above the noise floor
+the hunt record describes -- and it is the table lying about the map,
+this software's characteristic failure and the shape of the defect
+found on 2026-08-13. Two weaker shapes came with it: an element in the
+design with no layer (2-3 seeds), and a table element with no layer
+(3 seeds).
+
+NOT CONFIRMED. Nothing here has been reproduced by an independent
+route, which is this project's bar, and the hunt was stopped before it
+could report. The sessions, the per-invariant fire counts and the
+seeds are in `docs/process/hunt-stochastic-2026-08-17.md` so the work
+is not lost. Reproduce the seven-seed shape first; the record's own
+advice is that sorting by independent seeds puts the real findings on
+top and the driver's own faults below.
+
 **A MISSING RAMP CRASHES `make_categorized_renderer`.** Found
 2026-08-17 in the mutation workflow's own coverage run, once that
 workflow was made to name the test it had failed: `test_qml_class_
