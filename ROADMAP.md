@@ -99,7 +99,42 @@ was proved against the broken fix. The reasoning they produced is in
 CLAUDE.md and docs/TESTING.md, where it binds; a roadmap nobody prunes
 becomes a diary.
 
-Nothing outstanding. `CONTENTION` gained its platform term on
+**BLOCKING: opening the plugin on a saved project silently replaces
+the saved map.** Found 2026-08-17 by a backwards-from-harm hunt, which
+is the direction that found the worst defect in this project's history
+after eight code-reading hunts had walked past it. It has done it
+again: six other hunts the same night did not see this.
+
+REPRODUCTION. Generate a map at a design that is not the default
+(spacing 317, rotate 23) into `map.gpkg`. Save the project. Reopen it
+-- the layers come back from OGR, 175/176/175/176 features, with a
+hand-set renderer intact. Now click the plugin's toolbar button and
+TOUCH NOTHING. Inside the 900 ms live-update debounce a run lands
+unasked and replaces all four layers with MEMORY layers of the DEFAULT
+design, 78 features each. The hand styling is gone and the link to the
+GeoPackage is severed. Save, reopen, and they come back with ZERO
+features. The only thing said is "312 tiles across 4 element layers".
+
+TWO HALVES, ONE MISSING STORE. The output path is persisted NOWHERE
+-- the file widget holds it and nothing writes it to the project or to
+QSettings -- so on reopening it returns empty. Empty is exactly the
+condition that both LETS live update run and sends output to MEMORY.
+Meanwhile `_last_path` IS restored, from the layers' own sources, so
+the two records disagree about where output goes at the moment the
+run fires. Second door: File > Open under an already-open dialog.
+
+WHY NO TEST SEES IT: every adoption test opens with
+`live_check.setChecked(False)`, and live update is ON by default for
+users. A whole family of tests agrees on a setting no user has.
+
+This needs a decision rather than a patch, which is why it is written
+here rather than fixed at the end of a long session: persist the
+output path with the project, or refuse to live-update into memory
+when the project already holds output this dialog recognises, or hold
+the first run until the user asks. The first looks right and is the
+biggest change. rc4 carries this defect.
+
+Nothing else outstanding. `CONTENTION` gained its platform term on
 2026-08-16 and the entry that stood here is deleted: every timing
 allowance is now `CONTENTION * WEAVINGSPACE_TEST_SLOWNESS`, each CI
 job declares its own figure with the reason beside it, and
