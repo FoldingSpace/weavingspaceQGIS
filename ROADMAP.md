@@ -129,181 +129,68 @@ REPRODUCE on any of seven deliberate routes -- the judgement, and the
 lesson about seed counts that came out of it, are in
 `docs/process/hunt-stochastic-2026-08-17.md` and the hunt record.
 
-### Reported by the maintainer against rc5, owed by rc6
+### Reported by the maintainer against rc5
 
-**DONE 2026-08-17 AND DELETED FROM HERE: the swatch hatching.** The
-diagonals are out of `_striped_icon`, with `_unworn_stripes` and the
-two tests that guarded them; the Pin column keeps its own hatching and
-is now the only place the plugin draws one. `unworn_classes` stays and
-`few_values_message` carries the whole job of reporting emptiness, in
-words. The reversal and the reasoning on BOTH sides of it are in
-CLAUDE.md, since the 2026-08-16 ruling it partly reverses answered a
-different question and still stands where it applies.
+**Nothing outstanding.** Every code item reported against rc5 has
+landed, been guarded, and had its guard proved against the broken fix.
+Deleted from here as they did, which is what this file asks: the
+swatch hatching; equal intervals cut from the pin rather than
+stretched to it; a class bound allowed outside the data it classifies;
+the ghost numbers' CAUSE; the significant figures, including the
+spacing box that was rounding away numbers people typed; the Unclassed
+pin column beside its clamp strip, with the three disturbances QGIS
+can deliver while that window is open; and the ramp now spanning the
+classes a tile can wear rather than the ladder's empty edges. The
+reasoning for each is in CLAUDE.md where it binds, and at the code.
 
-**DONE 2026-08-17 AND DELETED FROM HERE: equal intervals are equal.**
-The middle is cut over the span the pins declare rather than cut from
-each column's data and stretched to reach the pin. Two columns pinned
-alike now draw the same ladder, Unclassed rides the same rule at fifty
-steps, and quantiles is deliberately untouched. Guarded by
-`test_equal_intervals_stay_equal_under_a_pin` and two catalogue
-entries, both proved caught; the rule is in CLAUDE.md and the
-reasoning at the code. `tools/probes/equal_intervals_under_pins.py`
-still reproduces the before-and-after in about a minute.
+The responsiveness report was ANSWERED rather than fixed: one
+interactive tick profiled against v0.24.0 is faster at HEAD on three
+ticks of five, seventeen per cent fewer Python calls, identical
+debounces, and no sensitivity to project size. What a person waits is
+about two thirds deliberate debounce, which is a design question
+rather than a regression -- recorded in 0.24.4 below, since changing
+it would change the software.
 
-FOUND WHILE PROVING IT, and worth more than the fix: the full suite
-had been red since yesterday's pin relaxation.
-`test_a_pin_that_cannot_be_drawn_is_refused` still asserted that a
-bound outside the data is refused, which the maintainer had reversed
-that morning. The relaxation came with a new test of its own and
-nobody grepped for the older test standing on the opposite claim. No
-CI round could see it, because the roadmap blocked a candidate and
-nothing had been pushed.
+### Process items, which do not block a candidate
 
-**RULED AND BUILT 2026-08-17, kept here only for what it still owes.**
-Pins were reported as not working on Quant: Unclassed. Driven end to
-end they did: the clamp strip recorded them, the map moved, and a
-project round trip brought them back. What was missing was the PIN
-COLUMN -- a user learns the control in one place and looks for it
-there, and fifty faded rows without one read as "not available". The
-maintainer ruled for both, and both are in: the column beside the
-strip, one record, `_sync_pin_controls` keeping them in step.
-
-WHAT IT STILL OWES IS THE RACE SURFACE, which the maintainer flagged
-when asking for it and which is only partly measured. What IS held:
-acting on either control moves the record, the map and the other
-control; unpinning travels; and a pin made while a run is in flight
-survives the landing with both controls still agreeing. What is NOT
-yet driven with two controls open: the region layer going away, the
-class count changing underneath, an Unclassed row switching scheme
-mid-edit, and rapid alternation between the two controls. Each has a
-single-control test already; none has been re-run with the second
-control present, and this project's own record says a rule that names
-one of a pair gets read as a rule about one of a pair.
-
-**AWAITING THE MAINTAINER'S EYE, not code: the ghost numbers.** The
-cause is removed -- the Unclassed table is no longer composited
-through a `QGraphicsOpacityEffect`, and fades per item through the
-palette's disabled colour instead. Guarded by
-`test_the_unclassed_list_fades_without_a_graphics_effect` and by the
-catalogue entry `the-unclassed-list-is-not-composited`, which puts the
-effect back and is caught.
-
-WHAT THE SUITE CANNOT SAY is whether the ghosts have gone, because
-they live in the window system's backing store where `grab()` cannot
-look. **This entry stays open until somebody scrolls that window on a
-real screen.** The original report follows, unedited, so the check has
-something to check against.
-
-**GHOST NUMBERS BEHIND THE UNCLASSED EDITOR'S CLASS BOUNDS.** Reported
-2026-08-17 against rc5, with a screenshot: a second, faint set of
-bounds painted behind the live ones in the Lower and Upper columns,
-offset by about a row.
-
-STRONGLY INDICATED, NOT YET PROVEN. `locked=unclassed`
-(dialog.py), and the locked branch puts a `QGraphicsOpacityEffect` on
-`self.table`. A graphics effect renders its source into an offscreen
-pixmap while `QAbstractScrollArea` scrolls by BLITTING, so the cached
-source and the blitted viewport disagree -- which matches the
-screenshot exactly, where each ghost is the value one row away.
-Measured that the preconditions hold: the effect is there at 0.45 and
-the table scrolls (max 35 with fifty classes).
-
-What could NOT be shown is the artefact itself. `grab()` repaints
-cleanly and offscreen showed 0 of 32,900 sampled pixels differing
-between a scrolled and a force-repainted render, exactly as predicted
-before the run -- the fault lives in the window system's backing
-store, where this suite cannot look. So the fix (fade the ITEMS
-through the palette's disabled text colour rather than compositing the
-whole table through an effect) must be confirmed by the maintainer on
-a real screen, and the guard can only assert the cause is gone rather
-than that the symptom is.
-
-**THE INTERACTIVE LOOP, MEASURED AT LAST -- AND IT IS NOT SLOWER.**
-Reported 2026-08-17: the plugin feels slower, and then narrowed by the
-tester to the sentence that mattered most -- *tiling at small spacings
-does not seem any slower, but the snappy interactive feel at large
-"auto" spacing has gone* -- and narrowed again by the maintainer, who
-said the complaint is not about one release at all. It is that the
-plugin USED TO BE efficient, responsive and easy to ITERATE with.
-
-SO ONE INTERACTIVE TICK WAS PROFILED, against v0.24.0, which is the
-oldest version this repository holds and the nearest thing to the one
-the tester remembers. `tools/probes/one_interaction.py`, four elements
-at the auto spacing of 500, CPU milliseconds per tick:
-
-    tick                        v0.24.0     HEAD
-    nudge a design number          57.8     35.2
-    nudge the weave unit           58.1     40.4
-    pick a different ramp          15.1     18.1
-    rebuild the table              87.3     60.1
-    nudge, live update ON         225.2    224.1
-
-Python calls across the four cheap ticks: 1,191,851 then 991,486, so
-HEAD makes SEVENTEEN PER CENT FEWER. Three of five ticks are markedly
-cheaper, the expensive one is unchanged, and picking a ramp costs
-three milliseconds more.
-
-**THE PLUGIN'S INTERACTIVE LOOP IS NOT SLOWER THAN v0.24.0. It is
-faster.** Two further things were ruled out by measurement rather than
-by argument. The DEBOUNCES are identical in both trees, 350 ms for the
-preview and 900 ms for a live run, so the wait before anything happens
-has not moved. And PROJECT SIZE does not matter: 61 layers in the
-project instead of one changed nothing measurable, which retires the
-`findLayer`-walks-the-tree suspicion the earlier entry raised about
-`_group_of_our_layers`.
-
-WHAT THE ABSOLUTE FIGURES SAY, and nobody had ever measured them.
-Nudging a control with live update on -- the tick a real user makes --
-costs about 225 ms of CPU inside about 1.7 SECONDS of wall clock. Some
-900 ms of that is the live debounce and another 350 the preview one,
-so roughly two thirds of what a person waits is deliberate delay
-rather than work. If iteration should feel snappier, THAT is the
-lever, and it is a design question rather than a regression to hunt:
-what should the debounces be, should the preview and the live run
-share one, and should a run that is about to be superseded be
-cancelled sooner.
-
-TWO ARTEFACTS ON THE WAY, both caught by making the probe print its
-own premise, and both worth knowing because they are the same shape.
-The live tick first read 3.6x WORSE at HEAD; v0.24.0 had in fact run
-no tiling at all on any of those ticks, so the figure compared a whole
-run against a debounce. The cause was two-layered -- live update there
-waits for a first Generate where a later version does not, and the
-four earlier ticks left the dialog in a state where that tree produced
-no output. A probe that quietly measures the wrong thing announces
-nothing; the fix was to print how many ticks ran a task and how many
-tiles resulted, which is now in the probe and would fail loudly.
-
-STILL OPEN, and it is the honest limit: this is one fixture, four
-elements, 612 tiles, on one machine. The tester's own region and
-spacing were never asked for. If the feeling persists on a real
-project the next measurement is his project, not this one.
-
-**DONE 2026-08-17 AND DELETED FROM HERE: the significant figures.**
-`_limit_the_figures_on_show` sweeps every number box at construction
-and sizes it from its own step, capped at three figures; spacing,
-which no single setting suits, is sized from the layer when one is
-chosen. The maintainer's rule and both exemptions are in CLAUDE.md,
-where they bind the next control somebody adds; the reasoning is at
-the two methods. What follows was the entry, kept until this session
-only because its last paragraph claimed the spacing half was still
-owed after the commit that landed it -- which is the drift this file
-exists to prevent, arriving in the file itself.
-
-Nothing else outstanding. `CONTENTION` gained its platform term on
-2026-08-16 and the entry that stood here is deleted: every timing
-allowance is now `CONTENTION * WEAVINGSPACE_TEST_SLOWNESS`, each CI
-job declares its own figure with the reason beside it, and
-`test_every_ceiling_widens_for_a_slow_machine` fails both when the
-suite stops reading the declaration and when a job stops making one.
-The figures themselves (Linux 3, macOS 2, Windows 4) are round and
-conservative rather than measured, which is said at each of them: the
-ratio of the slowest measured runs of one test on both machines is
-what should replace them, and nobody has recorded one yet.
+**CONFIRM THE GHOST NUMBERS ON A REAL SCREEN.** Deferred until after
+the release by the maintainer, 2026-08-17, to be tested by the person
+who reported it. The cause is removed -- the Unclassed table is no
+longer composited through a `QGraphicsOpacityEffect` and fades per
+item through the palette's disabled colour -- and guarded by
+`test_the_unclassed_list_fades_without_a_graphics_effect` and the
+catalogue entry `the-unclassed-list-is-not-composited`. What no test
+here can say is whether the ghosts are GONE: they live in the window
+system's backing store, where `grab()` repaints cleanly and a scrolled
+render matched a force-repainted one across 32,900 sampled pixels. The
+original report, kept so the check has something to check against: a
+second, faint set of class bounds painted behind the live ones in the
+Lower and Upper columns, offset by about a row, on scrolling.
 
 ## 0.24.4 — after this one
 
 ### Wanted
+
+**WHAT SHOULD THE DEBOUNCES BE?** Measured 2026-08-17 and recorded
+here because changing it would change the software, which is the line
+between a process item and a real entry.
+
+A user nudging a control with live update on waits about 1.7 SECONDS
+before the map settles, of which roughly 225 ms is CPU and the rest is
+the 350 ms preview debounce and the 900 ms live one. So about two
+thirds of the wait is deliberate delay. That is not a regression --
+the interactive loop is measurably FASTER than v0.24.0, the debounces
+are identical in both, and 61 layers in the project change nothing --
+but it is what "the snappy interactive feel has gone" is describing,
+and nobody has ever chosen those numbers against a measurement.
+
+Three questions, and they are design rather than defect: what should
+the two intervals be; should the preview and the live run share one
+debounce instead of firing at 350 and again at 900; and should a run
+that is about to be superseded be CANCELLED sooner than it is.
+`tools/probes/one_interaction.py` is the instrument, and it takes the
+tree to measure as an argument so any two can be compared.
+
 
 Deferred from 0.24.3 on 2026-08-15. All three are MEASUREMENT: they
 say how good the suite is rather than whether the plugin is right,
