@@ -169,6 +169,33 @@ nobody grepped for the older test standing on the opposite claim. No
 CI round could see it, because the roadmap blocked a candidate and
 nothing had been pushed.
 
+**NEEDS A RULING, NOT A FIX: can anybody FIND the pins on an
+Unclassed row?** Reported 2026-08-17 that pins do not seem to work
+there. Driven end to end the same day, and they do: the clamp strip
+records the pin, the map moves, both ends work together, a full
+Generate leaves it alone, reopening the editor shows both pins with
+their numbers, and a project round trip brings them back. Measured on
+a column of 0-7 pinned to 1.75 and 5.0 -- the ladder came back
+(0, 1.75) .. (5.0, 7.0) with 48 equal middle classes of 0.0677.
+
+SO THE MECHANISM IS SOUND AND THE REPORT IS STILL WORTH SOMETHING.
+A classed row pins from a Pin COLUMN in the table, one glyph per
+class. An Unclassed row has no Pin column at all and takes a strip
+above the table instead, reading "Ramp starts at" and "Ramp ends at".
+That was a deliberate decision -- pinning row 0 of fifty is a strange
+way to say "the ramp starts at 10" -- and the reasoning still holds.
+What it costs is that somebody who learned the pin AS A COLUMN opens
+the Unclassed editor, meets fifty faded rows and no column, and
+concludes the feature is not there. The fade says "nothing here is
+editable" rather loudly, and the strip does not use the word "pin".
+
+Three ways out, and the choice is the maintainer's because it is
+about what the interface should teach rather than about what it does:
+leave it and let the user guide carry the explanation; give the strip
+the pin word as well as the glyph; or put a Pin column on the
+Unclassed table after all and accept pinning "row 0 of fifty". The
+first costs nothing and the third reverses a settled decision.
+
 **AWAITING THE MAINTAINER'S EYE, not code: the ghost numbers.** The
 cause is removed -- the Unclassed table is no longer composited
 through a `QGraphicsOpacityEffect`, and fades per item through the
