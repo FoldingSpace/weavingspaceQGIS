@@ -3153,13 +3153,32 @@ MUTATIONS = [
            "column's distinct count describes nothing -- reporting it "
            "tells a user their map has fewer classes than it draws"),
   dict(name="the-reduction-sees-the-pinned-pool", file=BRIDGE,
-       old="  if pins and wants_middle and not unclassed:",
+       old="  if pins and wants_middle and not unclassed and not "
+           "cuts_from_the_pin:",
        new="  if False:",
        test="test_a_pin_leaves_no_class_for_a_tile_to_miss",
        why="a pin removes a class from the ladder AND its samples from "
            "the pool, so without re-asking the reduction's question "
            "the scheme cuts more classes than the middle has values "
            "and the legend gains a swatch no tile wears"),
+  dict(name="equal-intervals-are-cut-from-the-pin", file=BRIDGE,
+       old="  if cuts_from_the_pin and copied is None:",
+       new="  if False:",
+       test="test_equal_intervals_stay_equal_under_a_pin",
+       why="without it the scheme cuts from the samples between the "
+           "pins and the outermost class is stretched out to reach "
+           "the pin, so the classes are not equal and two variables "
+           "given the same limits draw different ladders -- which is "
+           "the whole reason for giving them the same limits"),
+  dict(name="the-reduction-lets-a-pinned-span-alone", file=BRIDGE,
+       old="  if pins and wants_middle and not unclassed and not "
+           "cuts_from_the_pin:",
+       new="  if pins and wants_middle and not unclassed:",
+       test="test_equal_intervals_stay_equal_under_a_pin",
+       why="cut from the pins, three classes over -5..40 are the same "
+           "three whatever the column holds, so reducing k to the "
+           "middle's distinct count gives a sparse column a different "
+           "ladder from a full one under identical limits"),
   dict(name="the-map-is-seeded-with-its-pins", file=BRIDGE,
        old="""      assignment.get("quant_colours"), classify_from,
       assignment.get("pinned")))""",

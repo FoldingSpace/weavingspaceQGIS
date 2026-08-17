@@ -2172,7 +2172,20 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   # Unclassed is exempt for the reason the first reduction gives: its
   # fifty steps reproduce a continuous ramp rather than a class count
   # anybody chose.
-  if pins and wants_middle and not unclassed:
+  #
+  # EQUAL INTERVALS CUT FROM THE PIN ARE EXEMPT, and the exemption
+  # matters as much as the reduction. Where the middle is cut from the
+  # SPAN THE PINS DECLARE rather than from the samples (see below),
+  # three classes over -5..40 are -5..10, 10..25 and 25..40 whatever
+  # the column holds: real ranges of equal width, none of them
+  # degenerate, each value coloured by where it sits in the span its
+  # user declared. Reducing k there would hand two columns with
+  # identical pins two different ladders, which is the one thing
+  # setting the same limits on both is for.
+  cuts_from_the_pin = bool(
+    pins and wants_middle and scheme == "Equal intervals"
+    and finite_values and not (pinned or {}).get("breaks"))
+  if pins and wants_middle and not unclassed and not cuts_from_the_pin:
     middle_values = [v for v in finite_values
                      if (low_pin is None or v > float(low_pin))
                      and (high_pin is None or v < float(high_pin))]
@@ -2217,13 +2230,71 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
         copied[-2] = (copied[-2][0], float(high_pin))
     set_class_bounds(renderer, copied, outline, method)
     pins = 1        # force the full recolour below, as a pin does
+  # ---- EQUAL INTERVALS ARE CUT FROM THE PIN, NOT STRETCHED TO IT
+  #
+  # THE MAINTAINER'S RULE, 2026-08-17: with Equal intervals or
+  # Unclassed every class has the SAME WIDTH, and the one exception is
+  # a PINNED end, whose class takes whatever width the user's bound
+  # gives it.
+  #
+  # The mechanism above cannot deliver that, and the arithmetic is not
+  # what is wrong with it. The scheme cuts k-pins classes from the
+  # samples BETWEEN the pins -- which is each column's own data -- and
+  # `_apply_pinned_bounds` then STRETCHES the outermost computed class
+  # out to meet the pin. That stretch is what destroys equality.
+  # Measured 2026-08-17, two columns pinned alike to -5..40 at k=5:
+  #
+  #   column a, 1..13:   -5, 5, 9, 40       widths 0, 10, 4, 31, 0
+  #   column b, 0.5..38: -5, 13, 25.5, 40
+  #
+  # The middle classes are not equal to each other, and the two columns
+  # do not agree, which is the whole point of giving both the same
+  # limits.
+  #
+  # So the middle is cut from the span the pins declare. Equal widths
+  # come out by construction; the gap the stretch existed to close
+  # cannot open, because the middle already ends exactly on the pin;
+  # and two columns with the same pins draw the same ladder. The
+  # stretch still runs and is simply a no-op here, which is deliberate
+  # -- the pinned outer classes go on being built in ONE place for
+  # every scheme rather than in two that can drift.
+  #
+  # ONLY EQUAL INTERVALS, and Unclassed with it, since `scheme` above
+  # rewrites Unclassed to exactly this with k=50. Quantiles, Jenks and
+  # pretty breaks are statements about where the DATA sits, so cutting
+  # them over a span the data does not occupy would mean nothing; they
+  # keep the cut-and-stretch, and the maintainer's rule does not name
+  # them. This is also the narrow case the dependency-workaround rule
+  # allows us to compute rather than hand to QGIS: "n equal intervals
+  # over [a, b]" is a sentence, and the other three algorithms are not.
+  even_middle = None
+  if cuts_from_the_pin and copied is None:
+    span_low = (float(low_pin) if low_pin is not None
+                else finite_values[0])
+    span_high = (float(high_pin) if high_pin is not None
+                 else finite_values[-1])
+    # A pin can sit past the data on the far side -- a low pin of 40
+    # over a column of 1..13 -- which leaves no span for a middle at
+    # all. Fall through to the old path rather than building a class
+    # that runs backwards, on the rule that a slightly wrong result
+    # beats no result.
+    if span_high > span_low:
+      reach = span_high - span_low
+      edges = [span_low + reach * i / int(k) for i in range(int(k) + 1)]
+      # The arithmetic lands within an ulp of each end. The ends are
+      # numbers a PERSON TYPED, and a bound off by an ulp is how a
+      # value comes to belong to no class at all, so both are written
+      # back exactly rather than left as computed.
+      edges[0], edges[-1] = span_low, span_high
+      even_middle = list(zip(edges, edges[1:]))
   FINITE = 1e307
   restore = None
   awkward = any(
     v is None or v == NULL or (isinstance(v, float)
                                and (v != v or abs(v) > FINITE))
     for v in values)
-  if copied is None and index >= 0 and (awkward or pins):
+  if (copied is None and even_middle is None and index >= 0
+      and (awkward or pins)):
     previous = source.subsetString()
     clause = (f'"{field}" IS NOT NULL AND "{field}" > {-FINITE:g} '
               f'AND "{field}" < {FINITE:g}')
@@ -2239,6 +2310,12 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
       restore = previous
   try:
     if copied is not None:
+      raise _AlreadyClassified
+    if even_middle is not None:
+      # Set rather than classified, and then wrapped in the pinned
+      # classes by _apply_pinned_bounds below exactly as a computed
+      # middle is.
+      set_class_bounds(renderer, even_middle, outline, method)
       raise _AlreadyClassified
     # `source` and not `layer`: the breaks come from the whole map's
     # values (see above), and the filtering just applied belongs to

@@ -8320,12 +8320,25 @@ def test_a_pin_that_cannot_be_drawn_is_refused():
   """The guardrails, each of which is a bound nothing could draw.
 
   What is REFUSED is only what cannot be drawn at all: bounds that
-  cross, a bound outside the data, a pin that leaves no sample for
-  the middle, and a ladder asked to carry more pinned boundaries than
-  it has. That last one was found by measurement rather than by
-  design: two pins on a TWO-class row name two boundaries where there
-  is one, and the result drawn was 0-10 beside 60-121 with everything
-  between them in no class at all.
+  cross, a pin that leaves no sample for the middle, and a ladder
+  asked to carry more pinned boundaries than it has. That last one
+  was found by measurement rather than by design: two pins on a
+  TWO-class row name two boundaries where there is one, and the
+  result drawn was 0-10 beside 60-121 with everything between them in
+  no class at all.
+
+  A BOUND OUTSIDE THE DATA USED TO BE ON THAT LIST AND IS NOT ANY
+  MORE, and this test asserted the old behaviour for a day after the
+  software stopped doing it. The maintainer ruled on 2026-08-17 that
+  limits wider than one column are exactly what somebody wants, since
+  it is how one pair of them can serve several variables; such a
+  bound draws perfectly well and its outer class simply goes unworn.
+  What the correction cost is the part worth keeping: the relaxation
+  came with a new test of its own and nobody looked at the older test
+  standing on the opposite claim, so the branch was red from the
+  commit that landed it until a full run found it. A change that
+  reverses a rule should be answered by GREPPING FOR THE RULE, not
+  only by writing the test that proves the new behaviour.
 
   What is deliberately NOT refused is a pin leaving fewer distinct
   values than remaining classes. That draws fewer classes through the
@@ -8339,16 +8352,28 @@ def test_a_pin_that_cannot_be_drawn_is_refused():
   from weavingspace_qgis import bridge
   values = [float(v) for v in range(0, 101)]
 
-  assert bridge.pin_problem(10, 60, values, 5) is None, \
-    "an ordinary pair of bounds must be accepted"
-  assert bridge.pin_problem(None, None, values, 5) is None, \
-    "no pins at all cannot be a problem"
+  accepted = 0
+  for low, high, asked, because in (
+      (10, 60, 5, "an ordinary pair of bounds"),
+      (None, None, 5, "no pins at all cannot be a problem"),
+      (-5, None, 5, "a bound below everything the data holds draws "
+                    "fine; its class is merely unworn"),
+      (None, 1e9, 5, "a bound above everything the data holds does "
+                     "the same at the other end"),
+      (-5, 1e9, 5, "both bounds outside the column, which is the "
+                   "case the maintainer asked for")):
+    problem = bridge.pin_problem(low, high, values, asked)
+    assert problem is None, \
+      f"low={low} high={high} k={asked} must be accepted -- " \
+      f"{because} -- and it was refused with {problem!r}"
+    accepted += 1
+  assert accepted == 5, \
+    f"only {accepted} accepted cases ran, so the loop skipped one"
 
+  refused = 0
   for low, high, asked, because in (
       (60, 10, 5, "the bounds cross"),
       (10, 10, 5, "the bounds are equal, so the middle is empty"),
-      (-5, None, 5, "the bound is below everything the data holds"),
-      (None, 1e9, 5, "the bound is above everything the data holds"),
       (100.0, None, 5, "nothing is left above the pin to divide"),
       (10, 60, 2, "a two-class ladder has one boundary, not two"),
       (10, None, 1, "a one-class ladder has no boundary to pin")):
@@ -8358,6 +8383,9 @@ def test_a_pin_that_cannot_be_drawn_is_refused():
       f"{because}, and it was accepted"
     assert problem.strip().endswith((".", "!")), \
       f"the refusal must be a sentence a user can read: {problem!r}"
+    refused += 1
+  assert refused == 5, \
+    f"only {refused} refusals were checked, so the loop skipped one"
 
   # ...and the case that is explained rather than refused.
   few = [1.0, 1.0, 5.0, 9.0]
@@ -9161,6 +9189,182 @@ def test_a_pin_may_sit_outside_the_data_it_classifies():
     "a two-class ladder has one boundary and cannot carry two pins"
   assert bridge.pin_problem(20.0, 30.0, values, 5), \
     "two bounds above every value leave the middle nothing to cut"
+
+
+def test_equal_intervals_stay_equal_under_a_pin():
+  """Every class the same width, and the same ladder on two columns.
+
+  THE MAINTAINER'S RULE, 2026-08-17: with Equal intervals or
+  Unclassed every class has the SAME WIDTH, and the one exception is
+  a PINNED end, whose class takes whatever width the user's bound
+  gives it.
+
+  It was measured false the day it was stated, and the mechanism was
+  what was wrong rather than the arithmetic. The scheme cut `k` minus
+  one class per pin from the samples BETWEEN the pins -- which is
+  each column's own data -- and `_apply_pinned_bounds` then stretched
+  the outermost computed class out to meet the pin. Two columns
+  pinned alike to -5..40 at k=5 drew -5, 5, 9, 40 and -5, 13, 25.5,
+  40: interior widths of 10, 4 and 31 on the first, and no agreement
+  between the two.
+
+  So the case is staged the way the maintainer uses it -- ONE PAIR OF
+  LIMITS given to two variables of different range -- and both halves
+  of the rule are asserted: equal widths within a column, and the
+  same ladder across the two. Unclassed rides the same rule at its
+  fifty steps.
+
+  QUANTILES IS ASSERTED UNCHANGED, deliberately. A quantile ladder is
+  a statement about where the data sits, so two different columns
+  SHOULD give two different ones; the rule names equal intervals, and
+  a change that quietly moved the other three schemes would be a
+  different change from the one that was asked for.
+
+  Regression: Equal intervals and Unclassed drew classes of unequal width whenever an end was pinned, because the intervals were cut from the column's own samples and the outermost class was then stretched to reach the pin -- so two variables given the same limits drew different ladders, which is the whole reason for giving them the same limits. Measured against 0.24.3rc5. [user]
+  """
+  from qgis.core import QgsRenderContext
+  from weavingspace_qgis import bridge, compat
+
+  def layer_of(values, name):
+    """A one-column polygon layer holding these values.
+
+    Args:
+      values: the numbers to classify, one square tile each.
+      name: what to call the layer, so two of them can be told apart
+        in a failure message.
+
+    Returns:
+      A memory QgsVectorLayer with a float field "v", extents updated.
+    """
+    layer = QgsVectorLayer("Polygon?crs=EPSG:2193", name, "memory")
+    provider = layer.dataProvider()
+    provider.addAttributes([compat.make_field("v", float)])
+    layer.updateFields()
+    features = []
+    for i, value in enumerate(values):
+      feature = QgsFeature(layer.fields())
+      feature.setAttribute("v", float(value))
+      x = i * 10.0
+      feature.setGeometry(QgsGeometry.fromPolygonXY([[
+        QgsPointXY(x, 0), QgsPointXY(x + 9, 0),
+        QgsPointXY(x + 9, 9), QgsPointXY(x, 9), QgsPointXY(x, 0)]]))
+      features.append(feature)
+    provider.addFeatures(features)
+    layer.updateExtents()
+    return layer
+
+  low, high = -5.0, 40.0
+  narrow = [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]
+  wide = [0.5, 9.0, 17.0, 25.0, 31.0, 38.0]
+  # A THIRD COLUMN WITH TOO FEW DISTINCT VALUES, which is a separate
+  # mechanism and not more of the same. The reduction below the pin
+  # code cuts k down to the number of distinct values in the middle
+  # pool, correctly, where the scheme is cutting from those samples.
+  # Cut from the pins instead, three classes over -5..40 are -5..10,
+  # 10..25 and 25..40 whatever the column holds -- so reducing here
+  # would hand this column a different ladder from the other two and
+  # break the rule by a route the fixtures above cannot reach.
+  thin = [10.0, 20.0, 10.0, 20.0, 10.0, 20.0]
+  columns = [("narrow", narrow), ("wide", wide), ("thin", thin)]
+  # THE FIXTURE HAS TO STAGE THE CASE. Columns of the SAME range would
+  # agree whatever the code did, and limits inside the data would
+  # never exercise the stretch -- either way the test would pass for a
+  # reason nobody chose, which is this project's commonest way of
+  # shipping a green suite over a broken behaviour.
+  spans = {(min(values), max(values)) for _name, values in columns}
+  assert len(spans) == len(columns), \
+    f"two of the columns cover the same range ({spans}), so agreeing " \
+    f"between them says nothing"
+  everything = narrow + wide + thin
+  assert low < min(everything) and high > max(everything), \
+    "the pins sit inside the data, so nothing is ever stretched"
+  assert len({round(v, 9) for v in thin}) < 5 - 2, \
+    "the thin column has enough distinct values to fill the middle, " \
+    "so it does not stage the reduction at all"
+
+  def ladder(values, scheme, name):
+    """The class bounds one column draws under a scheme and the pins.
+
+    Args:
+      values: the column's values.
+      scheme: "Equal intervals", "Unclassed" or "Quantiles".
+      name: a layer name, for failure messages.
+
+    Returns:
+      [(lower, upper), ...] in class order, and the layer, so the
+      caller can ask a render context what each feature gets.
+    """
+    layer = layer_of(values, name)
+    renderer = bridge.make_graduated_renderer(
+      layer, "v", "Reds", scheme, 5, False,
+      pinned={"low": low, "high": high})
+    layer.setRenderer(renderer)
+    return ([(r.lowerValue(), r.upperValue()) for r in renderer.ranges()],
+            layer)
+
+  compared = 0
+  for scheme, expected_classes in (("Equal intervals", 5),
+                                   ("Unclassed", 50)):
+    drawn = {name: ladder(values, scheme, f"{scheme} {name}")
+             for name, values in columns}
+    first, first_layer = drawn["narrow"]
+    assert len(first) == expected_classes, \
+      f"{scheme} drew {len(first)} classes, not {expected_classes}: " \
+      f"{first}"
+
+    # (1) THE WIDTHS. The pinned classes are exempt by the rule -- a
+    # pin past the data makes its class degenerate, which is correct
+    # -- so the ones measured are those with any width at all.
+    widths = [upper - lower for lower, upper in first if upper > lower]
+    assert widths, f"{scheme} produced no class with any width: {first}"
+    spread = max(widths) - min(widths)
+    assert spread <= 1e-9 * max(widths), \
+      f"{scheme} class widths are not equal: {widths} on a column of " \
+      f"{min(narrow)}..{max(narrow)} pinned to {low}..{high}. The " \
+      f"ladder was {first}"
+
+    # (2) THE THREE COLUMNS. This is what one pair of limits is FOR: a
+    # colour meaning the same number on every one of these maps.
+    for name, values in columns:
+      assert drawn[name][0] == first, \
+        f"{scheme}: columns given the same limits drew different " \
+        f"ladders.\n  narrow {min(narrow)}..{max(narrow)}: {first}\n" \
+        f"  {name} {min(values)}..{max(values)}: {drawn[name][0]}"
+
+    # (3) NOTHING IS ORPHANED. A ladder can look contiguous while a
+    # value falls outside every class and paints as nothing, so this
+    # is asked of the renderer through a context rather than of the
+    # numbers.
+    context = QgsRenderContext()
+    renderer = first_layer.renderer()
+    renderer.startRender(context, first_layer.fields())
+    painted = 0
+    for feature in first_layer.getFeatures():
+      assert renderer.symbolForFeature(feature, context) is not None, \
+        f"{scheme}: {feature['v']} fell outside every class: {first}"
+      painted += 1
+    renderer.stopRender(context)
+    assert painted == len(narrow), \
+      f"{scheme}: {painted} of {len(narrow)} features were painted"
+
+    # (4) AND THE LADDER REACHES THE PINS, since equal widths over the
+    # wrong span would satisfy (1) and (2) perfectly well.
+    assert first[0][0] <= low and first[-1][1] >= high, \
+      f"{scheme}: the ladder runs {first[0][0]}..{first[-1][1]}, " \
+      f"which does not reach the pinned {low}..{high}"
+    compared += 1
+
+  assert compared == 2, \
+    f"only {compared} scheme(s) were compared, so the loop skipped one"
+
+  # WHAT IS DELIBERATELY NOT CHANGED. Quantiles goes on cutting from
+  # each column's own samples, which is what a quantile means.
+  quantile_narrow, _ = ladder(narrow, "Quantiles", "quantile narrow")
+  quantile_wide, _ = ladder(wide, "Quantiles", "quantile wide")
+  assert quantile_narrow != quantile_wide, \
+    "two different columns drew the same QUANTILE ladder, so the " \
+    "equal-intervals rule has been applied to a scheme it does not " \
+    "name"
 
 
 def test_the_release_notes_keep_their_categories():
@@ -46958,6 +47162,8 @@ def main():
         test_the_unclassed_list_fades_without_a_graphics_effect)
   check("a pin may sit outside the data it classifies",
         test_a_pin_may_sit_outside_the_data_it_classifies)
+  check("equal intervals stay equal under a pin",
+        test_equal_intervals_stay_equal_under_a_pin)
   check("the release notes keep their categories",
         test_the_release_notes_keep_their_categories)
   check("a pin set during a run is not lost",

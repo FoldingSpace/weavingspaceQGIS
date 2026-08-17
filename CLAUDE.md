@@ -1692,6 +1692,32 @@ Confirmed with the user via an explicit design review:
   What is ACCEPTED and explained is a pin leaving fewer distinct
   values than classes -- that is the reduction above, and two answers
   to one question is what these rules exist to avoid.
+  **EQUAL INTERVALS ARE CUT FROM THE PIN, NOT STRETCHED TO IT.**
+  (Maintainer's rule, 2026-08-17: with Equal intervals or Unclassed
+  every class has the SAME WIDTH, and the one exception is a pinned
+  end, whose class takes whatever width the user's bound gives it.)
+  Measured false the day it was stated, and the MECHANISM was the
+  fault rather than the arithmetic: the scheme cut k-pins classes
+  from the samples between the pins, which is each column's own data,
+  and `_apply_pinned_bounds` then stretched the outermost computed
+  class out to reach the pin. Two columns pinned alike to -5..40 at
+  k=5 drew widths 0, 10, 4, 31, 0 and did not agree with each other.
+  So the middle is cut over the span the pins declare. Equal widths
+  follow by construction, the gap the stretch existed to close cannot
+  open, and two columns with the same limits draw the SAME LADDER --
+  which is the whole reason for giving them the same limits. The
+  stretch still runs and is a no-op there, deliberately, so the outer
+  pinned classes go on being built in one place for every scheme.
+  Two consequences. The DISTINCT-VALUE REDUCTION is exempted on that
+  path: three classes over -5..40 are the same three whatever the
+  column holds, so reducing k would hand a sparse column a different
+  ladder from a full one under identical limits. And the rule reaches
+  Equal intervals and Unclassed ONLY -- quantiles, Jenks and pretty
+  breaks are statements about where the data sits, so cutting them
+  over a span the data does not occupy would mean nothing. Guarded by
+  `test_equal_intervals_stay_equal_under_a_pin` over three columns,
+  including one whose middle holds too few distinct values to fill
+  the ladder, and by two catalogue entries.
   Two things the map may then show that nothing else here would. A
   copied ladder can leave classes the receiving column cannot reach;
   those are KEPT rather than dropped, because a copy reproduces a

@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-217 defect(s) with a regression test.
+218 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -469,6 +469,8 @@ there is no separate list to remember.
   guarded by `test_colour_legibility_warnings_are_opt_in`
 - **a renderer type changed in QGIS while the colour editor was open left the window showing class bounds and colours for a renderer that had been replaced.**  
   guarded by `test_deferral_closes_the_colour_editor_under_it`
+- **Equal intervals and Unclassed drew classes of unequal width whenever an end was pinned, because the intervals were cut from the column's own samples and the outermost class was then stretched to reach the pin -- so two variables given the same limits drew different ladders, which is the whole reason for giving them the same limits. Measured against 0.24.3rc5.**  
+  guarded by `test_equal_intervals_stay_equal_under_a_pin`
 - **the coverage notice's count is checked against the areas actually absent from the output, in tiled and icon modes, after a field report that it disagreed with the map.**  
   guarded by `test_the_coverage_notice_counts_what_the_map_is_missing`
 - **the guard sampled a fixed 12 mutants whatever the diff; over a 1,700-line round that certified nearly nothing while reading as a passed gate.**  
@@ -486,7 +488,7 @@ there is no separate list to remember.
 - a bug hunt pointed in a named direction: 55
 - the mutation campaign: 16
 - reading the code: 15
-- reported by a user: 14
+- reported by a user: 15
 - running the suite somewhere other than the machine it was written on: 8
 - race and stress testing: 6
 - a multi-step session test: 5

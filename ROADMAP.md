@@ -150,38 +150,24 @@ other code asks it which classes are empty -- and the comment in
 shows needs its wording corrected in the same commit, since it will
 no longer be true.
 
-**EQUAL INTERVALS MUST ACTUALLY BE EQUAL, AND UNCLASSED WITH THEM.**
-The maintainer's rule, 2026-08-17: with Equal intervals or Unclassed
-every class has the SAME WIDTH, and the one exception is a PINNED
-end, whose class takes whatever width the user's bound gives it.
+**DONE 2026-08-17 AND DELETED FROM HERE: equal intervals are equal.**
+The middle is cut over the span the pins declare rather than cut from
+each column's data and stretched to reach the pin. Two columns pinned
+alike now draw the same ladder, Unclassed rides the same rule at fifty
+steps, and quantiles is deliberately untouched. Guarded by
+`test_equal_intervals_stay_equal_under_a_pin` and two catalogue
+entries, both proved caught; the rule is in CLAUDE.md and the
+reasoning at the code. `tools/probes/equal_intervals_under_pins.py`
+still reproduces the before-and-after in about a minute.
 
-MEASURED AND CURRENTLY FALSE. Two columns, 1..13 and 0.5..38, both
-pinned to -5..40 at k=5:
-
-    Equal intervals, column a: -5, 5, 9, 40 -- widths 0, 10, 4, 31, 0
-    Equal intervals, column b: -5, 13, 25.5, 40
-
-The middle classes are not equal to each other, and the two columns
-do not agree. The cause is the mechanism rather than the arithmetic:
-the scheme cuts `k - pins` classes from the samples BETWEEN the pins,
-which is each column's own data, and `_apply_pinned_bounds` then
-STRETCHES the outermost computed class out to meet the pin. That
-stretch is what destroys equality, and it was put there for a good
-reason -- without it a gap opens between the pin and where the data
-resumes, and a value arriving there later paints as no data.
-
-So the fix is to cut the intervals FROM THE PIN rather than cutting
-them from the data and stretching afterwards. Equal intervals over
-the span the pins declare gives equal widths by construction, closes
-the gap without a stretch, and makes two columns with the same pins
-draw the same ladder -- which is the whole point of setting the same
-limits on both.
-
-THIS ALSO SETTLES THE QUESTION I ANSWERED WRONGLY. Told that wide
-limits plus Equal intervals would make a colour mean the same number
-on every map, I said yes; the measurement above says no, and the rule
-here is what would make it true. Unclassed rides the same rule, its
-fifty steps spanning the pinned range rather than the column's.
+FOUND WHILE PROVING IT, and worth more than the fix: the full suite
+had been red since yesterday's pin relaxation.
+`test_a_pin_that_cannot_be_drawn_is_refused` still asserted that a
+bound outside the data is refused, which the maintainer had reversed
+that morning. The relaxation came with a new test of its own and
+nobody grepped for the older test standing on the opposite claim. No
+CI round could see it, because the roadmap blocked a candidate and
+nothing had been pushed.
 
 **AWAITING THE MAINTAINER'S EYE, not code: the ghost numbers.** The
 cause is removed -- the Unclassed table is no longer composited
