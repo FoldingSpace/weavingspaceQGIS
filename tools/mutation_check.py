@@ -3078,11 +3078,10 @@ MUTATIONS = [
            "field report against rc5"),
   dict(name="the-followed-row-keeps-its-new-signature",
        file="weavingspace_qgis/dialog.py",
-       old="    refreshed = self._assignment_for(tile_id)\n"
-           "    if refreshed is not None:\n"
-           "      self._last_signatures[tile_id] = self._signature(refreshed)\n"
-           "    self._refresh_preview_colours()",
-       new="    self._refresh_preview_colours()",
+       old="      self._last_signatures[tile_id] = self._signature(refreshed)\n"
+           "      # ...AND THE STAMP AND THE FILE, which this method must do",
+       new="      pass\n"
+           "      # ...AND THE STAMP AND THE FILE, which this method must do",
        test="test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis",
        why="the row moves with no signal, so without re-recording the "
            "signature the next restyle compares the layer against a row "

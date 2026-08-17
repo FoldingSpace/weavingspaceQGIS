@@ -877,7 +877,36 @@ class CategoryColourDialog(QDialog):
     if isinstance(value, (int, float)) and math.isfinite(float(value)):
       edges.append(float(value))
     magnitude = max((abs(x) for x in edges), default=1.0) or 1.0
-    span = (max(edges) - min(edges)) if len(edges) > 1 else magnitude
+    # THE SPAN COMES FROM THE UNPINNED LADDER WHERE THERE IS ONE, and
+    # this is the third defect in one day from the same root: since the
+    # outside-the-data refusal was lifted, `self._bounds` may legally
+    # be dominated by a bound that is deliberately NOT data.
+    #
+    # MEASURED 2026-08-17 by a hunt. A rates column running 0 to 2e-09,
+    # pinned low at 6e-10 and high at 40 -- both accepted, both
+    # sensible under the wide-limits ruling. The ladder's span is then
+    # 40, which asks for eight decimals, and 6e-10 at eight decimals is
+    # ZERO. In session the box holds the right number; rebuild the
+    # table or reopen the project and it reads 0.0, and the next touch
+    # of that pin redraws the map from zero, moving nine of twenty
+    # features into another class with nothing said.
+    #
+    # `_defaults` is the ladder the scheme computes with no pin on it,
+    # so its span is the DATA's, which is what the decimals are for:
+    # separating the values the bounds must fall between. A pin is a
+    # statement about where a boundary goes, never about how finely
+    # the column can be read.
+    #
+    # THE SHAPE, which generalises past this box: when a refusal is
+    # lifted, the newly legal inputs become FIXTURE INPUTS for
+    # everything downstream that measures the data. The hunt that found
+    # this swept magnitudes on the COLUMN and found nothing; the defect
+    # needed the PIN and the column to have different magnitudes.
+    unpinned = [float(x) for pair in (self._defaults or []) for x in pair
+                if isinstance(x, (int, float)) and math.isfinite(float(x))]
+    measured = unpinned or edges
+    span = ((max(measured) - min(measured)) if len(measured) > 1
+            else magnitude)
     box = TrimmedSpinBox()
     # ...enough decimal places to separate values on THIS column, and
     # no more: nine significant places below the span, which gives 0
@@ -897,7 +926,17 @@ class CategoryColourDialog(QDialog):
     # cost of spare places is nothing now the text is trimmed
     box.setDecimals(max(_LEAST_DECIMALS, min(12, places)))
     box.setRange(-_WIDEST_BOUND, _WIDEST_BOUND)
-    box.setValue(float(value))
+    # A NON-FINITE BOUND IS SHOWN AS ZERO, not as the range's ceiling.
+    # The two lines above already test `value` for finiteness before
+    # letting it widen the span, and then this handed it to setValue
+    # regardless -- which Qt clamps. That was survivable while the
+    # range was scaled to the data; at plus or minus 1e15 an infinite
+    # interior bound now displays and pins 1000000000000000. The
+    # Unclassed ladder over a column with no usable values, which this
+    # file already documents, is exactly where it comes from.
+    box.setValue(float(value)
+                 if isinstance(value, (int, float))
+                 and math.isfinite(float(value)) else 0.0)
     box.setKeyboardTracking(False)   # one signal per finished edit
     box.setAlignment(Qt.AlignmentFlag.AlignRight
                      | Qt.AlignmentFlag.AlignVCenter)

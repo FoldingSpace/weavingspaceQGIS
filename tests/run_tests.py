@@ -11538,6 +11538,11 @@ def test_a_pinned_bound_can_hold_the_numbers_a_column_carries():
 
     def __init__(self, bounds):
       self._bounds = bounds
+      # the UNPINNED ladder, which `_bound_box` sizes its decimals
+      # from since 2026-08-17. None here means "no separate default",
+      # so it falls back to `_bounds` -- which is what these cases
+      # want, since neither stages a pin that widens the ladder.
+      self._defaults = None
 
   ladders = {
     "areas in square metres": [(0.0, 1.875e12), (1.875e12, 4.2e12),
@@ -11606,6 +11611,11 @@ def test_a_pin_may_be_typed_far_outside_the_element_it_pins():
 
     def __init__(self, bounds):
       self._bounds = bounds
+      # the UNPINNED ladder, which `_bound_box` sizes its decimals
+      # from since 2026-08-17. None here means "no separate default",
+      # so it falls back to `_bounds` -- which is what these cases
+      # want, since neither stages a pin that widens the ladder.
+      self._defaults = None
 
   def typed(box, keystrokes):
     """What the box keeps when a person types this, character by

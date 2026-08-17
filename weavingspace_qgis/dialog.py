@@ -4550,6 +4550,29 @@ class WeavingSpaceDialog(QDialog):
     field = assignment.get("var")
     if not field or assignment.get("mode") != "Graduated":
       return None
+    # UNCLASSED SAYS NOTHING ABOUT EMPTINESS, and this guard is the
+    # second door into a rule the first door already had. An Unclassed
+    # row IS "Graduated" with k forced to fifty, so nothing above this
+    # line tells the two apart -- and fifty equal steps over any real
+    # column leave a dozen or more of them unoccupied, always. Measured
+    # 2026-08-17 on the packaged Auckland file: 15 of 50 empty on `fid`,
+    # a uniform 1..155 and the least likely column in it to leave a gap.
+    # The count was correct and the sentence should not have existed.
+    #
+    # `few_values_message` was given exactly this exemption on
+    # 2026-08-16, after the maintainer reported the previous Unclassed
+    # notice as unwanted: fifty is not a class count anybody chose, so
+    # a notice about how few of them are filled is a warning about a
+    # decision the user did not make. `test_an_unclassed_row_says_
+    # nothing_about_a_reduction` holds that line.
+    #
+    # THE LESSON, which is this project's own and was paid for again:
+    # when a sibling carries a hard-won exemption, GREP THE EXEMPTION
+    # rather than the function. Restoring the emptiness signal added a
+    # new caller asking the same question through a different door, and
+    # the door had no lock on it.
+    if assignment.get("scheme") == "Unclassed":
+      return None
     layer_id = self._element_layer_ids.get(tile_id)
     layer = QgsProject.instance().mapLayer(layer_id) if layer_id else None
     renderer = layer.renderer() if layer is not None else None
@@ -5832,6 +5855,40 @@ class WeavingSpaceDialog(QDialog):
     refreshed = self._assignment_for(tile_id)
     if refreshed is not None:
       self._last_signatures[tile_id] = self._signature(refreshed)
+      # ...AND THE STAMP AND THE FILE, which this method must do
+      # ITSELF because making the row agree is exactly what stops the
+      # handlers below doing it.
+      #
+      # THE REGRESSION THIS REPAIRS, found by a hunt within hours of
+      # the follow landing and worth spelling out, because the shape
+      # is general and invisible in a diff. `_graduated_layer_edited`
+      # opens with `if actual == expected: return`, where `expected`
+      # is what the plugin would draw FOR THIS ROW. Running before it
+      # and making the row agree with the layer turns that guard from
+      # a fall-through into a return -- so the stamp-and-embed exits
+      # BEHIND it stopped being reached. Those exits were themselves a
+      # fix made five hours earlier the same day, for precisely this
+      # harm: a ramp changed in QGIS reaching the map and the project
+      # but never the exported GeoPackage, with the signature recorded
+      # a moment later making the restyle path skip the element, so
+      # Generate could not heal it. A colleague opening the file saw
+      # the colours from before the edit. Measured over 1,751
+      # comparisons then; reproduced through two independent read
+      # routes now, including reading `layer_styles.styleQML` out of
+      # the file with sqlite.
+      #
+      # WHEN YOU INSERT A STEP BEFORE EXISTING HANDLERS, RE-READ EVERY
+      # GUARD THOSE HANDLERS OPEN WITH. A guard that used to fall
+      # through may now fire, and it takes everything behind it. One
+      # commit disabled another without touching a line of it, and
+      # nothing on screen told them apart: the row reads correctly in
+      # both.
+      layer_now = QgsProject.instance().mapLayer(
+        self._element_layer_ids.get(tile_id, ""))
+      if layer_now is not None:
+        self._stamp_category_colours(layer_now, refreshed)
+        if self._last_path:
+          bridge.embed_style(layer_now)
     self._refresh_preview_colours()
     self._report_quietly(
       f"Element '{tile_id}' follows the styling you set in QGIS: "
@@ -6833,6 +6890,35 @@ class WeavingSpaceDialog(QDialog):
                if name == scheme), label)
           else:
             label = mode
+          # A SINGLE COLOUR MUST BRING ITS COLOUR WITH IT, and this is
+          # the third time today the same asymmetry has cost a defect.
+          # Found by a hunt the same evening, in PIXELS rather than
+          # renderers: 1,764 interior pixels of #0b1e2d before, 1,926
+          # of #3c8bc2 after, and #0b1e2d gone. The identical dock edit
+          # WITHOUT deferring first keeps the colour, which is what
+          # proves deferral is the difference.
+          #
+          # Moving the row to "Single colour" is right -- the row
+          # should say what the map is -- but it CHANGES THE
+          # ASSIGNMENT, which is exactly the condition under which
+          # Generate re-seeds an element. So the plugin drew its own
+          # default over the fill the user had mixed in the dock. The
+          # label was honest and the record behind it was empty.
+          #
+          # `_read_style_from_layer` at the reopen path already does
+          # this, four hundred lines up: a single symbol carries its
+          # colour on it, so read it. That twin was written for a
+          # project coming back and guards `tile_id not in
+          # self._single_colours`, because a remembered choice should
+          # win on reopen. Here the user has JUST set it, so it
+          # overwrites.
+          if mode == "Single colour" and layer_now is not None:
+            try:
+              symbol = layer_now.renderer().symbol()
+              if symbol is not None:
+                self._single_colours[item.text()] = symbol.color().name()
+            except Exception:
+              pass          # a colour we cannot read is not one to guess
         combo.blockSignals(True)
         combo.setCurrentText(label)
         combo.blockSignals(False)
