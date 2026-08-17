@@ -246,6 +246,83 @@ def get_ramp(name: str, reverse: bool = False):
   ramp.invert()
   return ramp
 
+def ramp_or_default(name: str, reverse: bool = False):
+  """The named ramp, or something to draw with when it has gone.
+
+  Args:
+    name: the ramp name the row is asking for.
+    reverse: run it the other way, exactly as `get_ramp` does.
+
+  Returns:
+    A (ramp, missing) pair. The ramp is NEVER None, which is the whole
+    point of this function; `missing` is True when the style library
+    does not hold `name` and the ramp handed back is a substitute, so
+    the caller can tell the user rather than quietly drawing something
+    they did not ask for.
+
+  WHY THIS EXISTS. `get_ramp` returns None for a name the style
+  library does not hold, and every reader of it checked -- the swatch
+  falls back to grey, the row icon returns None, the colour editor
+  leaves its strip blank -- except the two RENDERER BUILDERS, which
+  are the only readers whose failure a user meets as a broken map.
+  `make_categorized_renderer` went straight on to `ramp.color(...)`
+  and died with `'NoneType' object has no attribute 'color'`; its
+  graduated twin passed the None to `setSourceColorRamp` and drew
+  every class in the placeholder grey instead, which is the same fault
+  wearing the quieter costume. Found 2026-08-17 on the mutation
+  workflow's Linux container, where `get_ramp("tab10")` answered None
+  because the plugin's own palettes had never been installed there.
+
+  WHY A DEFAULT GRADIENT RATHER THAN GREY. Flat `#c0c0c0` is what this
+  plugin paints when it has nothing to say about a value, so a map
+  drawn in it reads as NO DATA -- measured here on 2026-08-15, when a
+  copied ladder left four classes on the placeholder and the element
+  looked empty. A map whose data is fine and whose ramp is missing
+  must not claim the data is missing. `QgsGradientColorRamp()` is
+  QGIS's own default, CONSTRUCTED rather than looked up, so it exists
+  even on a profile whose style library is completely empty -- which
+  is the environment this fault came from.
+
+  This is a fallback and not a colour policy: the substitute is
+  announced (see `missing_ramp_message`), and a hand-picked colour or
+  an imported template still outranks it, because those say what a
+  particular value should be and do not depend on a ramp at all.
+  """
+  ramp = get_ramp(name, reverse)
+  if ramp is not None:
+    return ramp, False
+  from qgis.core import QgsGradientColorRamp
+  substitute = QgsGradientColorRamp()
+  if reverse:
+    substitute.invert()
+  return substitute, True
+
+
+def missing_ramp_message(name: str) -> str:
+  """The notice for a ramp the style library no longer holds.
+
+  Args:
+    name: the ramp name the row asked for, as the user sees it in the
+      table's Ramp column.
+
+  Returns:
+    One sentence for the message bar. There is no None case: the
+    caller has already established that the ramp is absent, and the
+    whole point is that a map drawn in substitute colours must say so.
+
+  It names what to DO, because the situation is recoverable and the
+  user cannot otherwise tell it happened: the map draws, the colours
+  are simply not the ones the row names. Two ways to arrive here --
+  a project made on a machine whose style library had the ramp, and a
+  library that never had it -- and the same sentence serves both,
+  since the remedy is the same.
+  """
+  return (f"The colour ramp '{name}' is not in this QGIS style "
+          f"library, so the map is drawn in substitute colours. "
+          f"Choose another ramp, or add that one to your style "
+          f"library.")
+
+
 def ramp_swatch_colour(name: str) -> str:
   """Representative hex colour of a ramp, for the design preview."""
   try:
@@ -1868,7 +1945,13 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   # keep the smaller carve-out.)
   renderer = QgsGraduatedSymbolRenderer(field)
   renderer.setSourceSymbol(_fill_symbol("#c0c0c0", outline))
-  renderer.setSourceColorRamp(get_ramp(ramp_name, reverse))
+  # The graduated twin of the None check in make_categorized_renderer,
+  # and it failed more quietly: `setSourceColorRamp(None)` raises
+  # nothing and leaves every class wearing the source symbol's
+  # placeholder grey, so a missing ramp drew a map that reads as no
+  # data everywhere. A guard added to one path and not to the
+  # identical path beside it is this project's commonest defect shape.
+  renderer.setSourceColorRamp(ramp_or_default(ramp_name, reverse)[0])
   method = compat.classification_method(scheme)
   if method is not None:
     # How many decimals the LABELS carry. QGIS defaults to four, so a
@@ -2351,7 +2434,15 @@ def make_categorized_renderer(layer: QgsVectorLayer, field: str,
   if not everywhere:
     everywhere = values
   positions = {v: i for i, v in enumerate(everywhere)}
-  ramp = get_ramp(ramp_name, reverse)
+  # A NAME THE STYLE LIBRARY NO LONGER HOLDS still has to draw
+  # something. This used to be a bare `get_ramp`, whose None went
+  # straight into `ramp.color(...)` a few lines below and raised an
+  # AttributeError from inside a function that promises a renderer.
+  # Whether to REFUSE is decided above this function and not inside it
+  # -- the same rule that moved "this cannot be classified at all" up
+  # into `seed_renderer` -- and the answer is that a map with
+  # substitute colours beats no map, said out loud by the dialog.
+  ramp = ramp_or_default(ramp_name, reverse)[0]
   preset = ramp.colors() if isinstance(ramp, QgsPresetSchemeColorRamp) \
     else None
   categories = []

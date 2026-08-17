@@ -7868,6 +7868,24 @@ class WeavingSpaceDialog(QDialog):
         if note is not None:
           self._report_quietly(note)
           self._pending_colour_note = None
+        # A ramp this row names that the style library does not hold.
+        # The renderers have already drawn the map in a substitute
+        # (see bridge.ramp_or_default); this is the half the user can
+        # read, and without it the only symptom is colours nobody
+        # chose. DECIDED HERE rather than inside the builders, which
+        # promise a renderer and must not start refusing -- and said
+        # ONCE PER NAME, since several elements commonly share a ramp
+        # and one sentence per element is how a notice becomes noise.
+        said_missing = set()
+        for assignment in assignments:
+          name = assignment.get("ramp")
+          if not name or name in said_missing:
+            continue
+          if assignment.get("mode") not in ("Graduated", "Categorized"):
+            continue          # a single-colour row draws no ramp
+          if bridge.get_ramp(name) is None:
+            said_missing.add(name)
+            self._report_quietly(bridge.missing_ramp_message(name))
         # A column that turned out to hold one value everywhere. The
         # renderer has already collapsed to a single class (see
         # bridge.make_graduated_renderer); this is the half of it the
@@ -8207,23 +8225,40 @@ class WeavingSpaceDialog(QDialog):
     unpinned and recomputed; reopened, the dialog held run 1's layers
     and `{"a": {"v3": {"low": 10.0}}}`.
 
-    The newest is read off the SUFFIX, because that is exactly how
-    _get_or_make_group assigns it: the bare name counts as zero and
-    "WeavingSpace tiles N" as N, so the highest is the most recently
-    created. A group holding no output layers cannot win, which is
-    what stops an empty leftover from beating a real result.
+    AND WHY NOT THE NAME AT ALL, which is what replaced it. The newest
+    used to be read off the SUFFIX -- the bare name counting as zero
+    and "WeavingSpace tiles N" as N -- and the loop SKIPPED any group
+    whose name did not match, on the reasoning that somebody had
+    renamed it and it was not ours to guess. Renaming a group in the
+    layers panel is an ordinary thing to do, and the consequence was
+    that adoption found nothing: the next run built a rival, leaving
+    the user's own layers in the renamed group, stale, with the
+    GeoPackage link silently dropped. Measured 2026-08-17: rename,
+    save, reopen, change the spacing, and the project holds
+    'Deprivation, woven' with four file-backed layers beneath a fresh
+    'WeavingSpace tiles' holding four memory layers of the same map.
+
+    A group is OURS when it holds a layer carrying our own custom
+    property, which is evidence rather than a guess about a name, and
+    the same rule every other record in this dialog uses. It also
+    means a layer somebody has dragged into a group of their own is
+    followed rather than orphaned.
+
+    THE NEWEST IS THE ONE NEAREST THE TOP of the layers panel, because
+    that is how they are made: `_get_or_make_group` calls
+    `insertGroup(0, ...)`, so each new group pushes the last one down.
+    The suffix was a proxy for the same fact and disagreed with it in
+    exactly one case -- a renamed group, where it gave no answer at
+    all. `root.children()` is used rather than `findGroups()` because
+    it is ordered and because it is deliberately NOT recursive: a
+    group nested inside somebody's own folder is left alone, which
+    `test_the_dialog_opens_quickly_in_a_crowded_project` stages with a
+    decoy "WeavingSpace tiles 2" two levels down.
     """
-    best, best_rank = None, None
-    for group in root.findGroups():
-      name = group.name()
-      if name == GROUP_BASE_NAME:
-        rank = 0
-      elif name.startswith(f"{GROUP_BASE_NAME} "):
-        tail = name[len(GROUP_BASE_NAME) + 1:]
-        if not tail.isdigit():
-          continue            # somebody renamed it; not ours to guess
-        rank = int(tail)
-      else:
+    for node in root.children():
+      # the root holds layers as well as groups; only a group can be
+      # written into
+      if not hasattr(node, "children"):
         continue
       # ...and it must actually hold output, or an empty leftover
       # would outrank the group carrying the user's map
@@ -8231,26 +8266,101 @@ class WeavingSpaceDialog(QDialog):
         getattr(child, "layer", lambda: None)() is not None
         and (child.layer().customProperty("weavingspace_tile_id")
              or child.layer().customProperty("weavingspace_outline"))
-        for child in group.children())
-      if not carries:
+        for child in node.children())
+      if carries:
+        return node
+    return None
+
+  def _group_of_our_layers(self, root):
+    """The layer-tree group this dialog's own output is sitting in.
+
+    Args:
+      root: the project's layer tree root.
+
+    Returns:
+      The group holding a layer this dialog made, or None when it has
+      made none yet, when they have all been removed, or when they are
+      not in a group at all (a user can drag a layer out to the top
+      level, and the root is not something we may write into).
+
+    ASKING THE LAYERS IS EVIDENCE; asking for a name is a guess. Every
+    other record in this dialog keys on a custom property, and the
+    group lookup keyed on a NAME -- so renaming the group in the
+    layers panel, which is an ordinary thing to do, hid it completely.
+    A layer node knows its parent, so the group is simply wherever our
+    layers are, whatever anybody has called it since.
+    """
+    project = QgsProject.instance()
+    ids = list(self._element_layer_ids.values())
+    ids += list(self._no_data_layer_ids.values())
+    if self._outline_layer_id:
+      ids.append(self._outline_layer_id)
+    for layer_id in ids:
+      # a record can outlive its layer: the user deletes one, or a
+      # project is opened under an open dialog. Ask the project, not
+      # the record, before believing the id names anything
+      if project.mapLayer(layer_id) is None:
         continue
-      if best_rank is None or rank > best_rank:
-        best, best_rank = group, rank
-    return best
+      # `findLayer` searches the whole tree, so this finds the layer
+      # wherever it has been dragged to
+      node = root.findLayer(layer_id)
+      parent = node.parent() if node is not None else None
+      # The tree ROOT has no parent of its own, which is how a group
+      # under the root is told from the root itself -- identity
+      # comparison against `root` is not reliable here, since PyQt
+      # hands back a fresh wrapper around the same C++ object.
+      if parent is not None and parent.parent() is not None:
+        return parent
+    return None
 
   def _get_or_make_group(self, force_new: bool):
     """Return (layer-tree group, created?) for this run's output.
 
-    Reuses the group from the previous run unless forced (user asked
-    for a new group, or the output path changed) or the user deleted
-    it; a new group gets the first free "WeavingSpace tiles N" name and
-    resets all per-run tracking. ``insertGroup(0, ...)`` puts it at the
-    top of the layers panel.
+    Args:
+      force_new: skip the lookup entirely and build a new group. Set
+        when the user ticked "Create as new group" or when the output
+        destination changed, both of which mean this run must not
+        overwrite the last one's result.
+
+    Returns:
+      A (group, created) pair. `created` is True only when a new group
+      was made, which is also when every per-run record is reset --
+      the caller reads `_element_layer_ids` afterwards to know what to
+      replace, so emptying it here says "there is nothing to replace".
+
+    Reuses the group from the previous run unless forced or the user
+    deleted it; a new group gets the first free "WeavingSpace tiles N"
+    name. ``insertGroup(0, ...)`` puts it at the top of the layers
+    panel.
+
+    THE LOOKUP ASKS THE LAYERS FIRST, and the name only as a fallback.
+    Keying on the name meant a renamed group could not be found, so
+    the next run built a rival over the same GeoPackage tables and
+    -- because the miss also empties `_element_layer_ids`, which
+    `_add_output_layers` reads as `old_ids` immediately afterwards --
+    removed none of the layers it was replacing. Eight layers, two
+    groups, four tables, and the abandoned group redrawing the new
+    data under the old class breaks. Measured 2026-08-17 through both
+    doors; guarded by
+    `test_a_renamed_group_is_still_the_group_the_next_run_replaces`.
+
+    The NAME FALLBACK is still worth having, for the one case the
+    layers cannot answer: the group survives while its layers do not,
+    which is what a user deleting the layers and undoing produces
+    (`test_qgis_changes_around_the_plugin` stages exactly that, with
+    QGIS restoring clones under new ids).
     """
     root = QgsProject.instance().layerTreeRoot()
-    if not force_new and self._group_name:
-      group = root.findGroup(self._group_name)
+    if not force_new:
+      group = self._group_of_our_layers(root)
+      if group is None and self._group_name:
+        group = root.findGroup(self._group_name)
       if group is not None:
+        # FOLLOW THE RENAME rather than undoing it. `_add_output_layers`
+        # calls `setName(self._group_name)` on the way past, so leaving
+        # the old name here would put it back and overrule the user in
+        # the same breath as finding their group.
+        self._group_name = group.name()
         return group, False
     name = GROUP_BASE_NAME
     i = 1

@@ -115,61 +115,21 @@ widget inside `_adopt_existing_group`, which runs BEFORE `_build_ui`
 in the constructor. The guard caught it, which is what a guard written
 before believing the fix is for.
 
-**BLOCKING: renaming the output group makes a second one, and both
-read the same tables.** Found 2026-08-17 by a backwards-from-harm
-hunt, verified with both doors. `_get_or_make_group` looks the group
-up BY NAME, and on failing to find it empties `_element_layer_ids`
-before `old_ids` is read -- so a user who renames the group in the
-layers panel, which is an ordinary thing to do, gets a second group at
-the next run.
+THREE ENTRIES WERE DELETED HERE ON 2026-08-17 having been settled,
+which is what this file asks for. The group rename making a second
+group over the same tables: fixed through both doors, guarded by
+`test_a_renamed_group_is_still_the_group_the_next_run_replaces` and
+`test_a_renamed_group_is_adopted_when_the_plugin_reopens`, and the
+lookup now asks the layers rather than the name. The missing ramp
+raising from inside `make_categorized_renderer`: fixed on both twins,
+announced to the user, and the test that found it now installs the
+palette it names instead of relying on a seeded profile. And the
+stochastic hunt's seven-seed claim, which was JUDGED AND DID NOT
+REPRODUCE on any of seven deliberate routes -- the judgement, and the
+lesson about seed counts that came out of it, are in
+`docs/process/hunt-stochastic-2026-08-17.md` and the hunt record.
 
-Two routes measured. The memory door needs no button: generate, fade
-element a to 0.37, rename the group, nudge the spacing, and 900 ms
-later there are two groups and eight layers with the fade only on the
-orphan. The GeoPackage door is worse: eight layers all reading the
-SAME FOUR TABLES, so the abandoned group redraws the new data under
-the old class breaks -- the invisible double map, and the handle
-release loop released nothing.
-
-Not fixed tonight, deliberately. The lookup keys on a NAME where every
-other record keys on a custom property, so the repair is to find the
-group the way adoption already does, by asking the layers whose group
-they are in -- and that touches the path every run goes through, at
-the end of a session that has already produced five corrections to its
-own fixes. It wants a rested morning, not another hour.
-
-**UNVERIFIED, from the stochastic hunt: a row saying Graduated over a
-layer carrying a CATEGORIZED renderer.** Seen on SEVEN independent
-seeds across 171 random sessions, which is well above the noise floor
-the hunt record describes -- and it is the table lying about the map,
-this software's characteristic failure and the shape of the defect
-found on 2026-08-13. Two weaker shapes came with it: an element in the
-design with no layer (2-3 seeds), and a table element with no layer
-(3 seeds).
-
-NOT CONFIRMED. Nothing here has been reproduced by an independent
-route, which is this project's bar, and the hunt was stopped before it
-could report. The sessions, the per-invariant fire counts and the
-seeds are in `docs/process/hunt-stochastic-2026-08-17.md` so the work
-is not lost. Reproduce the seven-seed shape first; the record's own
-advice is that sorting by independent seeds puts the real findings on
-top and the driver's own faults below.
-
-**A MISSING RAMP CRASHES `make_categorized_renderer`.** Found
-2026-08-17 in the mutation workflow's own coverage run, once that
-workflow was made to name the test it had failed: `test_qml_class_
-template` died on Linux with `'NoneType' object has no attribute
-'color'` at bridge.py:2397, because `get_ramp("tab10")` returned None
-in that container. Two questions, and they are separate. WHY the ramp
-was absent is an environment matter and may be the same seeded-style-
-library family as the QGIS_PREFIX_PATH fault -- that container may
-never have had the plugin's palettes installed. But a ramp the style
-library does not hold should not raise an AttributeError from inside a
-renderer builder in any case: this is the guard-that-tests-sign-not-
-finiteness shape, a lookup whose None nobody checked. Fix the second
-whatever the answer to the first, and say what a user is told.
-
-Nothing else outstanding. `CONTENTION` gained its platform term on
+Nothing outstanding. `CONTENTION` gained its platform term on
 2026-08-16 and the entry that stood here is deleted: every timing
 allowance is now `CONTENTION * WEAVINGSPACE_TEST_SLOWNESS`, each CI
 job declares its own figure with the reason beside it, and

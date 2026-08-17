@@ -83,6 +83,23 @@ report named a defect already fixed an hour earlier by another
 hunt's finding -- so re-check a claim against the CURRENT tree
 before reproducing it, not against the commit the hunt read.
 
+2026-08-17, AND THIS ONE IS A WARNING RATHER THAN A YIELD FIGURE. A
+stochastic hunt of 171 random sessions reported a top shape on SEVEN
+independent seeds -- more seeds than either of the two real findings
+that direction has ever produced -- and it did not reproduce on any of
+seven deliberate routes when each was allowed to SETTLE before it was
+read. Seed count measures how often a random walk reaches a state, not
+whether the state is wrong.
+
+So if you are checking invariants after actions: MAKE EVERY INVARIANT
+WAIT FOR THE SOFTWARE TO FINISH ANSWERING. This dialog debounces at
+350 ms and 900 ms and does main-thread work when a run lands, and it
+deliberately draws with the settings a run was LAUNCHED with -- so a
+check taken immediately after an action sees a disagreement that the
+next moment resolves, and reports correct behaviour as a defect on
+seed after seed. Wait on the event (the task clearing), not on a
+number of seconds, and say in your report which invariants waited.
+
 Round four the same night, four hunts on a feature FIVE HOURS OLD
 ("Deferring to QGIS", designed and built that evening): five defects,
 all reaching the map, all fixed. The best yield per hunt this project

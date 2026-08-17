@@ -953,6 +953,24 @@ record or a second table.)
   layer. Yesterday's map then sat on top of the new one for good.
   GREP THE PROPERTY, NOT THE FEATURE: every reader of the id, every
   per-element dict, every count of a group's children.
+- **A NAME THE USER CAN EDIT IS NOT AN IDENTITY, AND MUST NEVER BE A
+  KEY.** Every record in `dialog.py` keys on a custom property except
+  the output group, which was found with
+  `findGroup(self._group_name)` -- so renaming the group in the layers
+  panel, which is an ordinary thing to do, made it invisible and the
+  next run built a rival over the same four GeoPackage tables, the
+  abandoned group redrawing the new data under the old class breaks.
+  Adoption had the same fault from the other side, skipping any group
+  whose name it did not recognise. Both now ask the LAYERS: within a
+  session by asking which group this dialog's own layers are in, and
+  on reopening by looking for a group holding a layer that carries our
+  custom property. Measured 2026-08-17 through both doors and guarded
+  by `test_a_renamed_group_is_still_the_group_the_next_run_replaces`
+  and `test_a_renamed_group_is_adopted_when_the_plugin_reopens`.
+  The general form, which reaches past groups: anything a user can
+  rename -- a layer, a group, a field alias, a file -- is a LABEL, and
+  a label is what you show them, never what you look them up by. When
+  a lookup takes a string, ask who else can change that string.
 - **ENUMERATE WHAT A CLEAR SITE LEAVES**, not what it clears. Three
   places in dialog.py clear per-element state and no two cleared the
   same set; the first two were fixed and the commit message NAMED the

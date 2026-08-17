@@ -2477,15 +2477,16 @@ MUTATIONS = [
            "does not have, and a later dialog adopts them"),
 
   dict(name="group-deleted-under-a-run", file=DIALOG,
-       old="""      if group is not None:
-        return group, False""",
-       new="""      return group, False""",
+       old="      if group is not None:",
+       new="      if group is not None or group is None:",
        test="test_the_output_group_is_deleted_while_a_run_is_in_flight",
        why="the dialog must notice that the user deleted its output "
-           "group and make a new one. Without the check it hands back "
-           "the group it did not find, and every run from then on "
-           "dies adding layers to nothing: Generate appears to work "
-           "and no map arrives"),
+           "group and make a new one. Without the check it goes on "
+           "with the group it did not find, and every run from then "
+           "on dies before any layer is added: Generate appears to "
+           "work and no map arrives. Re-anchored 2026-08-17, when the "
+           "lookup gained the line that follows a rename and the two "
+           "the entry stood on stopped being adjacent"),
 
   # SPANS TWO GUARDS, and that is the finding rather than a shortcut.
   # A restyle arriving while the GeoPackage is being written is
@@ -2955,6 +2956,55 @@ MUTATIONS = [
            "reopened plugin adopts the result the user chose to KEEP "
            "and the next Generate overwrites it, while the map they "
            "were working on is orphaned"),
+  dict(name="a-missing-ramp-still-draws-categories", file=BRIDGE,
+       old="  ramp = ramp_or_default(ramp_name, reverse)[0]",
+       new="  ramp = get_ramp(ramp_name, reverse)",
+       test="test_a_ramp_the_library_lacks_still_draws_a_map_and_says_so",
+       why="a ramp name the style library does not hold makes "
+           "get_ramp answer None, and the next line asks it for a "
+           "colour: the categorized renderer raises AttributeError "
+           "from inside a function that promises a renderer, which is "
+           "how a whole map failed on a container that never had the "
+           "plugin's palettes"),
+  dict(name="a-missing-ramp-still-draws-classes", file=BRIDGE,
+       old="  renderer.setSourceColorRamp("
+           "ramp_or_default(ramp_name, reverse)[0])",
+       new="  renderer.setSourceColorRamp(get_ramp(ramp_name, reverse))",
+       test="test_a_ramp_the_library_lacks_still_draws_a_map_and_says_so",
+       why="the graduated twin fails more quietly than the "
+           "categorized one: a None source ramp raises nothing and "
+           "leaves every class wearing the placeholder grey, so the "
+           "map reads as no data everywhere while the data is fine"),
+  dict(name="a-substituted-ramp-is-announced", file=DIALOG,
+       old="            self._report_quietly("
+           "bridge.missing_ramp_message(name))",
+       new="            pass",
+       test="test_a_ramp_the_library_lacks_still_draws_a_map_and_says_so",
+       why="a map drawn in substitute colours has no other symptom: "
+           "the row still names the ramp, the swatch still draws, and "
+           "the user has no way to learn that the colours are not the "
+           "ones they chose"),
+  dict(name="the-group-is-found-by-its-layers", file=DIALOG,
+       old="      group = self._group_of_our_layers(root)",
+       new="      group = None",
+       test="test_a_renamed_group_is_still_the_group_the_next_run_replaces",
+       why="falling back to the NAME alone cannot find a group the "
+           "user renamed in the layers panel, so the next run builds "
+           "a rival over the same GeoPackage tables -- and the miss "
+           "also empties `_element_layer_ids`, which is read as "
+           "`old_ids` immediately afterwards, so nothing is replaced "
+           "and the abandoned group redraws the new data under the "
+           "old class breaks"),
+  dict(name="adoption-knows-a-renamed-group", file=DIALOG,
+       old="    for node in root.children():",
+       new="    for node in [n for n in root.children()\n"
+           "                 if n.name().startswith(GROUP_BASE_NAME)]:",
+       test="test_a_renamed_group_is_adopted_when_the_plugin_reopens",
+       why="reading the group's NAME rather than its layers' custom "
+           "property makes a renamed group invisible to a reopened "
+           "plugin, so the next run starts a rival and leaves the "
+           "user's own file-backed layers stale beneath it with the "
+           "GeoPackage link dropped"),
   dict(name="the-bound-box-is-sized-from-the-data",
        file="weavingspace_qgis/category_editor.py",
        old="    box.setDecimals(max(0, min(12, places)))\n"

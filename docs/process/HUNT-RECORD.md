@@ -12,7 +12,11 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-08-16 (evening), after SIX rounds in one day: three against
+Last updated 2026-08-17, when the stochastic hunt's seven-seed claim
+was judged and did not reproduce; the lesson it left is under "What
+the record says", above the entry it corrects.
+
+Before that, 2026-08-16 (evening), after SIX rounds in one day: three against
 the No Data feature as it was written, then four aimed at the same
 day's fixes, then six more after those. Twenty-one hunts in all.
 
@@ -204,7 +208,7 @@ nothing, so it is counted against the hunt, not for it.
 | **Write-only state** | "What is written and read back by nobody?" | 2 | 2 | Also misjudged a real defect as harmless — see below |
 | **Preview against map** | "Do two renderings of one design agree?" | 1 | 1 | An unassigned element previewed in colour and drawn grey, confirmed and fixed. Its other claim — elements silently absent on dense designs — did NOT reproduce over ten configurations on 2026-08-13, and is counted against this direction |
 | **Dialog against live layer** | "Does the plugin's belief match the layer?" | 1 | 2 | A column rename destroying categorical picks (fixed), and a provider-level edit invisible to both stores — kept as a documented LIMIT, and the docstring that claimed otherwise corrected |
-| **Stochastic sessions** | No question — random actions, invariants checked after each | 1 | 2 | ~100 sessions. Most "breaks" were its own fixture; found a defect present since the first commit, and a crash it hit on three separate seeds |
+| **Stochastic sessions** | No question — random actions, invariants checked after each | 2 | 2 | ~100 sessions. Most "breaks" were its own fixture; found a defect present since the first commit, and a crash it hit on three separate seeds. SECOND OUTING (2026-08-17, 171 sessions) added **nothing**: its top shape fired on seven independent seeds and did not reproduce on any of seven deliberate routes when each was allowed to SETTLE first — see below, and `hunt-stochastic-2026-08-17.md` |
 | **Reduction beside pinning** | "Does the newer path re-ask the older path's question?" | 1 | 1 | Run 2026-08-15 as an asymmetry hunt over two paths that both change how many classes a map draws. Found the reduction counting the whole column while a pin had already removed a class and its samples |
 | **The first five minutes** | "What does a user meet before anything is configured?" | 1 | 1 | Removing the region layer from a project holding three or more polygon layers emits no layerChanged at all, so the dialog holds a destroyed layer and says nothing. Confirmed in substance, NOT in detail: the hunt reported a KeyError modal, and what a second route measured was silence -- a Generate that produced no map and no refusal. Which of the two a user meets depends on whether the surviving layer carries the same column names |
 | **Order of operations** | "What order does the suite always do this in, and what happens in the other order?" | 1 | **0** | Two claims, neither reproduced. A hand-typed spacing destroyed by the first Generate: measured at HEAD, the typed 250 survives, because the hunt read a commit PREDATING the fix for the field defect. A project opened under a showing dialog offering the plugin's own output as a region: not reproduced with live update on or off |
@@ -293,6 +297,28 @@ one had to be narrowed — a hunt reported a table-versus-map
 disagreement, the fix made the map repaint unasked, and it turned out
 to contradict a settled decision that a test had guarded for months.
 Running more hunts does not raise throughput; it lengthens the queue.
+
+**AND REPETITION IS NOT ENOUGH ON ITS OWN, WHICH IS THE CORRECTION
+THIS RECORD OWED ITSELF.** The rule below says to sort a stochastic
+run by how many independent seeds produced a shape, on the evidence
+that doing so once put both real findings on top. On 2026-08-17 the
+top shape had SEVEN independent seeds -- more than either real finding
+had ever had -- and it did not reproduce on any of seven deliberate
+routes. The reason is that seed count measures how often the random
+walk REACHES a state, not whether that state is wrong: an invariant
+checked before the dialog has finished answering fires on every seed
+whose sequence happens to change a style during a run, which is most
+of them.
+
+So seed count ranks what to LOOK AT FIRST and never what to believe.
+Before reading a stochastic report at all, ask the question that
+decides whether any of it means anything: **does each invariant wait
+for the software to finish, or does it check immediately?** An
+unsettled check cannot tell a defect from a debounce, and a whole
+report built on one is unreadable rather than merely noisy. Two of the
+seven routes above first read as defects in the JUDGING probe for
+exactly this reason -- one had live update off, where a stale map is
+correct, and one flipped a control to the value it already held.
 
 **Repetition is the signal that separates a defect from a fixture
 fault.** The randomised hunt's second real finding announced itself

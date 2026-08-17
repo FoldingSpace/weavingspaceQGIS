@@ -1521,6 +1521,21 @@ def test_qml_class_template():
   """
   from weavingspace_qgis import bridge
   from qgis.core import QgsRendererCategory, QgsCategorizedSymbolRenderer
+  # THIS TEST NAMES tab10 AND MUST THEREFORE PUT IT THERE, exactly as
+  # its sibling `test_renderer_seeding` does. Without this it passed
+  # here because this machine's profile was seeded years ago, and on
+  # the mutation workflow's Linux container -- where the plugin's
+  # palettes had never been installed -- `get_ramp("tab10")` answered
+  # None and the renderer builder raised. Worse than a failure, it was
+  # ORDER-DEPENDENT: whether the ramp existed turned on whether some
+  # earlier test in the same shard had installed the palettes, so the
+  # answer depended on how the suite was sharded. A test that asks for
+  # a ramp states the condition it needs.
+  bridge.ensure_ramps_installed()
+  assert "tab10" in QgsStyle.defaultStyle().colorRampNames(), \
+    "tab10 is absent after installing the palettes, so the automatic " \
+    "colour below would come from a substitute ramp and this test " \
+    "would no longer be about the thing it names"
   layer = make_region_layer()
   # author a scheme in QGIS's own terms and save it as a real QML
   cats = [QgsRendererCategory(v, QgsFillSymbol.createSimple({"color": c}),
@@ -24849,6 +24864,372 @@ def test_reopening_a_saved_project_does_not_replace_its_map():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_a_ramp_the_library_lacks_still_draws_a_map_and_says_so():
+  """A ramp name QGIS cannot resolve must not stop the map being drawn.
+
+  `get_ramp` answers None for a name the style library does not hold,
+  and every reader of it checked -- the swatch falls back to grey, the
+  row icon returns None, the editor leaves its strip blank -- except
+  the two RENDERER BUILDERS, which are the only readers whose failure
+  a user meets. The categorized one went on to `ramp.color(...)` and
+  raised `'NoneType' object has no attribute 'color'` from inside a
+  function that promises a renderer; the graduated one handed the None
+  to `setSourceColorRamp`, which raises nothing and leaves every class
+  wearing the placeholder grey -- a map that reads as no data
+  everywhere while the data is perfectly fine.
+
+  Both twins are driven here, deliberately. A guard added to one path
+  and not to the identical path beside it is this project's commonest
+  defect shape, and this pair is how it arrived.
+
+  THE THIRD ACT IS THE SENTENCE, because a map drawn in colours nobody
+  chose has no other symptom. It is staged the way the situation
+  actually arises -- a ramp that was there when the row was set and is
+  not there when the map is drawn -- by adding a ramp to the session's
+  style library and taking it away again, which touches nothing that
+  outlives the test.
+
+  Regression: `make_categorized_renderer` died with `'NoneType' object has no attribute 'color'` when the named ramp was absent, and its graduated twin silently drew every class in placeholder grey. Found 2026-08-17 on the mutation workflow's Linux container, where `get_ramp("tab10")` answered None because the plugin's palettes had never been installed there. [hunt]
+  """
+  from qgis.core import (QgsGradientColorRamp, QgsRenderContext,
+                         QgsStyle)
+  from weavingspace_qgis import bridge, compat
+
+  absent = "no ramp is called this 8f3a"
+  assert bridge.get_ramp(absent) is None, \
+    f"{absent!r} is in the style library, so this test stages nothing"
+
+  layer = QgsVectorLayer("Polygon?crs=EPSG:2193", "ramp gone", "memory")
+  provider = layer.dataProvider()
+  provider.addAttributes([compat.make_field("v", float),
+                          compat.make_field("kind", str)])
+  layer.updateFields()
+  kinds = ["forest", "water", "urban", "bare"]
+  features = []
+  for i in range(8):
+    feature = QgsFeature(layer.fields())
+    feature.setAttribute("v", float(i * 3 + 1))
+    feature.setAttribute("kind", kinds[i % len(kinds)])
+    x = i * 10.0
+    feature.setGeometry(QgsGeometry.fromPolygonXY([[
+      QgsPointXY(x, 0), QgsPointXY(x + 9, 0),
+      QgsPointXY(x + 9, 9), QgsPointXY(x, 9), QgsPointXY(x, 0)]]))
+    features.append(feature)
+  provider.addFeatures(features)
+  layer.updateExtents()
+
+  def painted(renderer, field):
+    """What colour each feature actually gets, through a render context.
+
+    Args:
+      renderer: the renderer under test, already built.
+      field: the attribute to key the answer by, for the message.
+
+    Returns:
+      {value: "#rrggbb"}. Asked through startRender/stopRender because
+      a renderer questioned without being started answers something
+      that means nothing while looking exactly like data.
+    """
+    context = QgsRenderContext()
+    renderer.startRender(context, layer.fields())
+    out = {}
+    for feature in layer.getFeatures():
+      symbol = renderer.symbolForFeature(feature, context)
+      assert symbol is not None, \
+        f"{feature[field]!r} was painted by nothing at all"
+      out[feature[field]] = symbol.color().name()
+    renderer.stopRender(context)
+    return out
+
+  # ---- act one: the categorized twin, which used to raise
+  categorized = bridge.make_categorized_renderer(
+    layer, "kind", absent, False)
+  drawn = painted(categorized, "kind")
+  assert len(drawn) == len(kinds), \
+    f"only {len(drawn)} of {len(kinds)} categories were painted: {drawn}"
+  assert len(set(drawn.values())) > 1, \
+    f"every category came out one colour ({drawn}), so the map cannot " \
+    f"be read even though it drew"
+  assert "#c0c0c0" not in set(drawn.values()), \
+    f"a category is wearing the placeholder grey ({drawn}), which on " \
+    f"a map reads as NO DATA -- the data is fine, the ramp is not"
+
+  # ---- act two: the graduated twin, which used to draw flat grey
+  graduated = bridge.make_graduated_renderer(
+    layer, "v", absent, "Quantiles", 4, False)
+  assert graduated.ranges(), "the graduated renderer has no classes"
+  drawn = painted(graduated, "v")
+  assert len(set(drawn.values())) > 1, \
+    f"every class came out one colour ({drawn}): setSourceColorRamp " \
+    f"was handed None and the map reads as no data everywhere"
+
+  # ---- act three: and the user is told, once, naming the ramp
+  said = bridge.missing_ramp_message(absent)
+  assert absent in said, \
+    f"the notice does not name the ramp that is missing: {said!r}"
+
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  style = QgsStyle.defaultStyle()
+  temporary = "weavingspace test ramp 8f3a"
+  # update=False keeps this in the session only, so the user's own
+  # style database is not touched by a test run
+  assert style.addColorRamp(temporary, QgsGradientColorRamp(), False), \
+    "could not add the temporary ramp, so the removal below stages nothing"
+  try:
+    region = make_region_layer()
+    project.addMapLayer(region)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(300)
+    ramp_cell = dlg.table.cellWidget(0, 4)
+    assert ramp_cell is not None and \
+      ramp_cell.findText(temporary) >= 0, \
+      "the temporary ramp never reached the dropdown, so the row " \
+      "cannot be made to name it"
+    ramp_cell.setCurrentText(temporary)
+    _tick(300)
+    dlg.spacing_spin.setValue(520)
+    _generate_and_wait(dlg)
+    _tick(200)
+  finally:
+    style.removeColorRamp(temporary)
+  assert bridge.get_ramp(temporary) is None, \
+    "the ramp is still in the library, so the run below is ordinary"
+
+  BAR_MESSAGES.clear()
+  dlg.spacing_spin.setValue(560)
+  _generate_and_wait(dlg)
+  _tick(300)
+  said_now = " ".join(text for _, text in BAR_MESSAGES)
+  assert temporary in said_now, \
+    f"the plugin drew with a ramp it no longer has and said nothing " \
+    f"about it. It said: {BAR_MESSAGES}"
+  for tid, lid in dlg._element_layer_ids.items():
+    out = project.mapLayer(lid)
+    assert out is not None and out.featureCount(), \
+      f"element {tid} drew nothing at all"
+  dlg.close()
+
+
+def test_a_renamed_group_is_still_the_group_the_next_run_replaces():
+  """Rename the output group in the layers panel; the next run REPLACES it.
+
+  Renaming a group is an ordinary thing to do in QGIS, and it used to
+  cost a user their map twice over. `_get_or_make_group` looked the
+  group up with `findGroup(self._group_name)`, so a rename made it
+  invisible: the next run built a rival group, and -- because the
+  lookup empties `_element_layer_ids` on the way -- `_add_output_layers`
+  then read an EMPTY `old_ids` and removed nothing. Eight layers, two
+  groups, and on the GeoPackage door both groups' layers read the SAME
+  FOUR TABLES, so the abandoned group redrew the new data under the old
+  class breaks. That is the invisible double map: nothing looks wrong.
+
+  Staged on the GeoPackage door because it is the worse of the two --
+  the memory door leaves stale layers, this one leaves stale layers
+  reading live tables. The repair is to ask the LAYERS which group
+  they are in rather than asking the project for a name, so the answer
+  is evidence rather than a guess.
+
+  Regression: renaming the output group made the next Generate build a second group over the same tables, with the first left orphaned and never updated again. Found 2026-08-17 by a backwards-from-harm hunt and verified through both doors. [hunt]
+  """
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog, GROUP_BASE_NAME
+
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="weavingspace_rename_")
+  try:
+    layer = make_region_layer(n=6)
+    project.addMapLayer(layer)
+    gpkg = os.path.join(folder, "renamed.gpkg")
+
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    dlg.gpkg_widget.setFilePath(gpkg)
+    dlg.spacing_spin.setValue(520)
+    _generate_and_wait(dlg)
+    _tick(300)
+
+    root = project.layerTreeRoot()
+    made = root.findGroup(dlg._group_name)
+    assert made is not None, "nothing was generated, so nothing can be renamed"
+    first_ids = dict(dlg._element_layer_ids)
+    assert first_ids, "no element layers, so this test proves nothing"
+
+    # what a user does in the layers panel, and nothing else
+    chosen = "Deprivation, woven"
+    made.setName(chosen)
+    _tick(200)
+    assert root.findGroup(chosen) is not None and \
+      root.findGroup(GROUP_BASE_NAME) is None, \
+      "the rename did not take, so the case below cannot arise"
+
+    # ...and then an ordinary geometry change, which re-tiles
+    dlg.spacing_spin.setValue(560)
+    _generate_and_wait(dlg)
+    _tick(300)
+
+    ours = [g for g in root.findGroups()
+            if any(getattr(child, "layer", lambda: None)() is not None
+                   and child.layer().customProperty("weavingspace_tile_id")
+                   for child in g.children())]
+    assert len(ours) == 1, \
+      f"{len(ours)} groups hold output layers after a rename " \
+      f"({[g.name() for g in ours]}); the run built a rival group " \
+      f"instead of replacing the one the user renamed"
+    assert ours[0].name() == chosen, \
+      f"the group is called {ours[0].name()!r} rather than the " \
+      f"{chosen!r} the user chose: the plugin renamed it back"
+
+    # No table may be read twice. This is the harm itself: two layers
+    # on one table means the orphan redraws today's data under
+    # yesterday's breaks, and a handle held on a file nobody can see.
+    readers = {}
+    for lid in project.mapLayers():
+      out = project.mapLayer(lid)
+      source = out.source() if out is not None else ""
+      if "layername=" not in source:
+        continue
+      table = source.split("layername=", 1)[1].split("|", 1)[0]
+      readers.setdefault(table, []).append(out.name())
+    doubled = {t: names for t, names in readers.items() if len(names) > 1}
+    assert not doubled, \
+      f"these GeoPackage tables are read by more than one layer: " \
+      f"{doubled}. Both groups are drawing the same data, and only " \
+      f"one of them is being restyled"
+    assert readers, \
+      "no layer reads a GeoPackage table, so the check above is vacuous"
+
+    # and the previous run's layers are gone rather than orphaned
+    survivors = [lid for lid in first_ids.values()
+                 if project.mapLayer(lid) is not None
+                 and lid not in dlg._element_layer_ids.values()]
+    assert not survivors, \
+      f"{len(survivors)} layers from the first run are still in the " \
+      f"project and belong to no run: `old_ids` was read after the " \
+      f"lookup had already emptied it"
+
+    for lid in list(dlg._element_layer_ids.values()) + \
+        list(dlg._no_data_layer_ids.values()):
+      project.removeMapLayer(lid)
+    dlg.close()
+  finally:
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_renamed_group_is_adopted_when_the_plugin_reopens():
+  """The same rename, met by a dialog that was not there when it happened.
+
+  Within a session the dialog knows its own layers, so the group can be
+  found by asking them. A REOPENED plugin knows nothing: adoption has
+  to recognise the group from the project alone, and it did that by
+  reading the group's NAME -- skipping anything it did not recognise,
+  on the reasoning that a renamed group was not ours to guess at.
+
+  So a user who renames the group and reopens the project gets a rival
+  group at the next run, their own four file-backed layers left stale
+  underneath it and the GeoPackage link dropped without a word. The
+  layers carry our custom property, which is evidence; the name never
+  was.
+
+  THE REGION LAYER IS ON DISK deliberately. A memory layer round-
+  tripped through a .qgz comes back valid with ZERO features, so the
+  reopened dialog refuses the run and every count below reads as
+  "replaced in place" while nothing whatever has happened -- which is
+  what the first probe of this defect measured, and it took an
+  instrumented second run to notice.
+
+  Regression: adoption skipped any output group whose name it did not recognise, so renaming the group and reopening the project produced a second group and orphaned the first. Measured 2026-08-17: 'Deprivation, woven' with four GeoPackage layers left beneath a fresh 'WeavingSpace tiles' holding four memory layers of the same map. [hunt]
+  """
+  import tempfile
+  from qgis.core import QgsVectorFileWriter
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="weavingspace_readopt_")
+  try:
+    region_file = os.path.join(folder, "region.gpkg")
+    options = QgsVectorFileWriter.SaveVectorOptions()
+    options.driverName = "GPKG"
+    options.layerName = "region"
+    written = QgsVectorFileWriter.writeAsVectorFormatV3(
+      make_region_layer(n=6), region_file,
+      project.transformContext(), options)
+    assert written[0] == QgsVectorFileWriter.WriterError.NoError, \
+      f"could not write the region GeoPackage: {written}"
+    layer = QgsVectorLayer(
+      f"{region_file}|layername=region", "region", "ogr")
+    assert layer.isValid() and layer.featureCount(), \
+      "the region layer did not load from disk, so the reopened " \
+      "dialog would refuse to run and this test would prove nothing"
+    project.addMapLayer(layer)
+
+    gpkg = os.path.join(folder, "map.gpkg")
+    first = WeavingSpaceDialog(iface=_Iface())
+    first.live_check.setChecked(False)
+    first.layer_combo.setLayer(layer)
+    _tick(300)
+    first.gpkg_widget.setFilePath(gpkg)
+    first.spacing_spin.setValue(520)
+    _generate_and_wait(first)
+    _tick(300)
+    root = project.layerTreeRoot()
+    made = root.findGroup(first._group_name)
+    assert made is not None, "the first run made no group to rename"
+    kept = dict(first._element_layer_ids)
+    assert kept, "the first run produced no element layers"
+    chosen = "Deprivation, woven"
+    made.setName(chosen)
+    saved = os.path.join(folder, "map.qgz")
+    assert project.write(saved), "the project would not save"
+    first.close()
+    project.clear()
+    _tick(200)
+
+    assert project.read(saved), "the project would not reopen"
+    _tick(300)
+    second = WeavingSpaceDialog(iface=_Iface())
+    second.live_check.setChecked(False)
+    _tick(300)
+    assert second._group_name == chosen, \
+      f"the reopened dialog adopted {second._group_name!r} rather " \
+      f"than the renamed {chosen!r}, so its next run starts a rival"
+    assert second._element_layer_ids, \
+      "the reopened dialog adopted the group but none of its layers"
+
+    second.spacing_spin.setValue(560)
+    _generate_and_wait(second)
+    _tick(300)
+    root = project.layerTreeRoot()
+    ours = [g for g in root.findGroups()
+            if any(getattr(child, "layer", lambda: None)() is not None
+                   and child.layer().customProperty("weavingspace_tile_id")
+                   for child in g.children())]
+    assert len(ours) == 1, \
+      f"{len(ours)} groups hold output after reopening " \
+      f"({[g.name() for g in ours]}); the run built a rival beside " \
+      f"the group the user renamed"
+    assert second._element_layer_ids, "the second run produced nothing"
+    for tid, lid in second._element_layer_ids.items():
+      out = project.mapLayer(lid)
+      assert out is not None, f"element {tid} has no layer"
+      assert gpkg in (out.source() or ""), \
+        f"element {tid} now reads {out.source()!r}: the adopted " \
+        f"GeoPackage was dropped and the map went to memory"
+
+    for lid in list(second._element_layer_ids.values()) + \
+        list(second._no_data_layer_ids.values()):
+      project.removeMapLayer(lid)
+    second.close()
+  finally:
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_a_retired_dialog_rebuilds_nothing_when_the_project_moves():
   """A dialog the user has finished with does no work for a project.
 
@@ -39202,6 +39583,24 @@ def _views_disagree(dlg, project):
       found.append(
         f"{tile_id}: row says {assignment.get('mode')!r}, map wears a "
         f"{'categorized' if categorical else 'graduated'} renderer")
+    # ...AND THE SAME QUESTION ASKED OF WHAT THE USER CAN SEE. The
+    # line above reads `_assignments()`, which is the CORRECTED view --
+    # a Quant style on a text column is turned into Categorized there
+    # before any consumer sees it. So a correction that reached the
+    # assignment and not the chooser would agree here and still leave
+    # the user reading "Quant: Quantiles" over a categorized map, which
+    # is precisely what the stochastic hunt of 2026-08-17 reported on
+    # seven seeds. Judging that claim found the software right on every
+    # route tried; this axis is what would have made the claim
+    # decidable from inside the suite, so it stays.
+    style_cell = dlg.table.cellWidget(row, 2)
+    shown = style_cell.currentText() if style_cell is not None and \
+      hasattr(style_cell, "currentText") else None
+    if shown is not None and shown != dlg.DEFERRING and \
+        (shown == "Categorized") != categorical:
+      found.append(
+        f"{tile_id}: the row SHOWS {shown!r} while the map wears a "
+        f"{'categorized' if categorical else 'graduated'} renderer")
 
     cell = dlg.table.cellWidget(row, 4)
     named = cell.currentText() if cell is not None and hasattr(
@@ -46173,6 +46572,12 @@ def main():
         test_a_run_in_flight_does_not_land_in_the_project_that_replaced_it)
   check("reopening a saved project does not replace its map",
         test_reopening_a_saved_project_does_not_replace_its_map)
+  check("a ramp the library lacks still draws a map and says so",
+        test_a_ramp_the_library_lacks_still_draws_a_map_and_says_so)
+  check("a renamed group is still the group the next run replaces",
+        test_a_renamed_group_is_still_the_group_the_next_run_replaces)
+  check("a renamed group is adopted when the plugin reopens",
+        test_a_renamed_group_is_adopted_when_the_plugin_reopens)
   check("a retired dialog rebuilds nothing when the project moves",
         test_a_retired_dialog_rebuilds_nothing_when_the_project_moves)
   check("a retired dialog stops watching",

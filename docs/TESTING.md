@@ -1134,6 +1134,31 @@ machine. The same caution applies anywhere state outlives the process:
 the QGIS style, the plugin's own settings, a GeoPackage left behind by
 an earlier test.
 
+**AND WHERE IT DOES, THE TEST'S ANSWER CAN DEPEND ON HOW THE SUITE WAS
+SHARDED.** 2026-08-17: `test_qml_class_template` names the ramp
+"tab10" and never installed it, where its sibling three lines up does.
+On this machine the profile was seeded years ago, so it passed; on the
+mutation workflow's Linux container `get_ramp("tab10")` answered None
+and the renderer builder raised. The part worth keeping is what sat
+underneath: whether the ramp existed at all turned on whether some
+EARLIER test in the same shard had installed the palettes, so the same
+test could pass in one shard and fail in another with nothing about
+the code changed. A test that needs a condition states it -- and when
+a test depends on state some other test creates, sharding is what
+turns that dependency from invisible into intermittent.
+
+**AN INVARIANT CHECKED IMMEDIATELY CANNOT TELL A DEFECT FROM A
+DEBOUNCE.** The same day, a stochastic hunt's top claim -- a row
+saying Graduated over a categorized renderer, on seven independent
+seeds -- did not reproduce on any of seven deliberate routes once each
+was allowed to settle. This dialog debounces at 350 ms and 900 ms and
+draws with the settings a run was LAUNCHED with, so between a style
+change and the queued rerun landing the table and the map genuinely
+disagree, correctly. Any invariant swept over random actions must wait
+on the EVENT rather than checking on the spot, or it reports correct
+behaviour on seed after seed and the seed count reads as evidence.
+Full judgement in `docs/process/hunt-stochastic-2026-08-17.md`.
+
 **And it can satisfy the thing MEASURING the test, which is worse.**
 2026-08-15 produced three faults in one evening that this machine is
 constitutionally unable to show, all masked by the same seeded
