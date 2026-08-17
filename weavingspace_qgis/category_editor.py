@@ -40,12 +40,35 @@ from qgis.PyQt.QtGui import (QBrush, QColor, QIcon, QPainter, QPalette,
 from qgis.PyQt.QtWidgets import (QAbstractButton, QAbstractItemView,
                                  QColorDialog, QComboBox, QDialog,
                                  QDialogButtonBox,
-                                 QDoubleSpinBox,
                                  QHBoxLayout, QHeaderView, QLabel,
                                  QPushButton, QSpinBox, QTableWidget,
                                  QTableWidgetItem, QVBoxLayout, QWidget)
 
 from . import bridge
+from .widgets import TrimmedSpinBox
+
+# What a pinned class bound may be, as a Qt spin box has to be told
+# something. `bridge.pin_problem` accepts ANY finite number -- the
+# outside-the-data refusal was lifted on 2026-08-17 so that one pair
+# of limits could be given to several variables -- so the honest
+# answer here is "as wide as the box can go", and this is where a
+# double stops being written out in full rather than any judgement
+# about maps. It is deliberately not sized from the element's own
+# data: a control that narrows its own domain refuses numbers in a
+# way no guard downstream can report, which is the defect this
+# replaces. Measured that day: the box's sizeHint saturates around
+# 165 px from 1e12 upward, so nothing is paid for the width.
+_WIDEST_BOUND = 1e15
+
+# ...and the fewest decimal places a bound box may have, whatever the
+# column's own magnitude suggests. Nine significant places below a
+# span of 1e12 is a negative number, which clamps to zero places, and
+# a QDoubleSpinBox at zero decimals cannot HOLD 0.5 -- it rounds a
+# typed bound to a whole number and the map is drawn from that. Under
+# the wide-limits ruling, pinning a small bound on a large column is
+# exactly what somebody is doing. Spare places cost nothing to look
+# at because `TrimmedSpinBox` does not print them.
+_LEAST_DECIMALS = 6
 
 # The value column is a fixed width rather than one fitted to the
 # longest value. A column that resizes itself makes every element's
@@ -791,24 +814,58 @@ class CategoryColourDialog(QDialog):
       value: the bound to show, as a float.
 
     Returns:
-      A QDoubleSpinBox sized to the column it must express. What is
-      LEGAL is still decided by the map's own data and reported back
+      A TrimmedSpinBox able to hold anything ``pin_problem`` will
+      accept, showing the value without zeros it does not need. What
+      is LEGAL is decided by the map's own data and reported back
       through ``pin_changed``; a range set here refuses a number for
       a reason this window cannot explain, which is the opposite of a
       guardrail, so the limits below are generous rather than
       meaningful and exist only because Qt insists on having some.
 
-    THE RANGE AND THE DECIMALS COME FROM THE DATA, and both used to be
-    constants that ordinary geographic columns walk straight past.
-    Measured 2026-08-15 with real widgets: the range was plus or minus
-    1e12, so a province area of 1.875e12 square metres appeared in the
-    box as 1e12 and pinned there; typing 3000000000000 left
-    300000000000, a factor of ten, with nothing said. At the other end
-    six decimals rounded a rate of 4e-07 to zero and 8.5e-07 to 1e-06.
-    On twenty provinces at k=4, pinning the number the control
+    THE DECIMALS COME FROM THE DATA AND THE RANGE NO LONGER DOES, and
+    each half of that was paid for by a defect.
+
+    THE DECIMALS, measured 2026-08-15 with real widgets: they were a
+    flat six, which rounded a rate of 4e-07 to zero and 8.5e-07 to
+    1e-06. On twenty provinces at k=4, pinning the number the control
     produced rather than the number typed moved ELEVEN of twenty areas
     into a different class, and ``pin_problem`` accepts both, because
-    both are inside the data.
+    both are inside the data. So the box takes nine significant places
+    below the column's own span -- but never FEWER than
+    ``_LEAST_DECIMALS``, which is the half that was missing: a column
+    of square metres has a span of 1e12, nine places below that is
+    less than none, and a box at zero decimals cannot hold a bound of
+    0.5. Under the wide-limits ruling that is an ordinary thing to
+    ask for, since the whole point is giving one pair of limits to
+    columns of different magnitudes.
+
+    THE RANGE was plus or minus 100 TIMES this element's own extremes
+    until 2026-08-17, and before that a flat 1e12 -- so a province
+    area of 1.875e12 square metres appeared in the box as 1e12 and
+    pinned there, and typing 3000000000000 left 300000000000, a factor
+    of ten, with nothing said. The 100x rule fixed that case and kept
+    the shape of the fault: on an element whose tiles reach 11, typing
+    1200 keeps 120, because the fourth keystroke is refused by the
+    validator. The map is then drawn from 120, ``_pinned_bounds``
+    records 120, the layer is stamped 120, and nothing is said --
+    ``pin_problem`` is asked about the number the CONTROL produced,
+    and 120 is perfectly legal. Two elements given the same typed 1200
+    pin 120 and 1200: one act, two ladders, which is precisely what
+    wide limits exist to prevent.
+
+    WHEN A REFUSAL IS LIFTED, ASK WHICH WIDGET STILL ENFORCES IT. The
+    maintainer lifted the outside-the-data refusal from
+    ``pin_problem`` on 2026-08-17 and this control went on narrowing
+    its own domain independently, which is a refusal no guard can
+    report because the number never reaches one.
+
+    So the range is now sized from what ``pin_problem`` will accept --
+    any finite number -- rather than from the data.
+    ``_WIDEST_BOUND`` is where a double stops being written in full
+    rather than a judgement about maps. Measured the same day: the
+    box's sizeHint SATURATES at about 165 px from 1e12 upward, so a
+    range this wide costs nothing in layout, which is the objection
+    that would otherwise have to be answered.
 
     The docstring above this used to say the range was "wide open",
     which is what the code intended and not what it did.
@@ -821,7 +878,7 @@ class CategoryColourDialog(QDialog):
       edges.append(float(value))
     magnitude = max((abs(x) for x in edges), default=1.0) or 1.0
     span = (max(edges) - min(edges)) if len(edges) > 1 else magnitude
-    box = QDoubleSpinBox()
+    box = TrimmedSpinBox()
     # ...enough decimal places to separate values on THIS column, and
     # no more: nine significant places below the span, which gives 0
     # on a column of square metres and eleven on a column of rates
@@ -835,8 +892,11 @@ class CategoryColourDialog(QDialog):
     # Measured 2026-08-16 by a stochastic hunt at seed 301.
     places = (9 - int(math.floor(math.log10(span)))
               if math.isfinite(span) and span > 0 else 6)
-    box.setDecimals(max(0, min(12, places)))
-    box.setRange(-magnitude * 100.0, magnitude * 100.0)
+    # the FLOOR is the 2026-08-17 half: enough for the data is not
+    # enough for a bound deliberately set outside it, and the display
+    # cost of spare places is nothing now the text is trimmed
+    box.setDecimals(max(_LEAST_DECIMALS, min(12, places)))
+    box.setRange(-_WIDEST_BOUND, _WIDEST_BOUND)
     box.setValue(float(value))
     box.setKeyboardTracking(False)   # one signal per finished edit
     box.setAlignment(Qt.AlignmentFlag.AlignRight

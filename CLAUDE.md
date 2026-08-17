@@ -1733,7 +1733,9 @@ Confirmed with the user via an explicit design review:
   copied ladder can leave classes the receiving column cannot reach;
   those are KEPT rather than dropped, because a copy reproduces a
   classification and a silently shortened one does not, and
-  `few_values_message` says in words how many are empty. The swatch
+  `empty_classes_message` says in words how many are empty, on the
+  count `unworn_classes` measures from the ladder actually drawn.
+  The swatch
   hatched those stripes as well until 2026-08-17; see the entry
   below. And a pinned row is NOT Custom: its
   colours are still its ramp's, so the cell goes on naming the ramp
@@ -1821,8 +1823,18 @@ Confirmed with the user via an explicit design review:
   for "no tile wears this class" until 2026-08-17, when the
   maintainer ruled it out: users are not used to it, so it confuses
   rather than helps. The emptiness is reported in words instead, by
-  `few_values_message`; `unworn_classes` still computes which classes
-  are empty and other code still asks it.
+  `empty_classes_message`, on the count `unworn_classes` measures.
+  THAT SENTENCE WAS FALSE FOR A DAY and is the reason this one is
+  precise: the removal named `few_values_message` as carrying the
+  whole job, which fires on a column having fewer distinct values
+  than classes -- neither necessary nor sufficient for a class going
+  unworn, disagreeing in four cases of six -- and it deleted
+  `unworn_classes`'s only caller in the same commit. The maintainer
+  ruled on 2026-08-17 that the signal was meant to stay, so
+  `dialog._classes_nothing_wears` asks the element's own renderer and
+  the notice is composed from what it measures. WHEN A REMOVAL IS
+  JUSTIFIED BY "X NOW CARRIES THE WHOLE JOB", RUN X AGAINST EVERY
+  CASE THE REMOVED THING COVERED.
   THAT REVERSES PART OF A RULING MADE THE DAY BEFORE, and the pair is
   worth keeping together because the two answer DIFFERENT QUESTIONS.
   On 2026-08-16 the question was whether two hatchings could be told

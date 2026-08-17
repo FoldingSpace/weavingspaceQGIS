@@ -104,6 +104,7 @@ from qgis.gui import QgsColorButton, QgsFileWidget, QgsMapLayerComboBox
 
 from . import bridge, catalog, perception
 from .category_editor import CategoryColourDialog
+from .widgets import TrimmedSpinBox
 from .worker import TilingTask
 
 GROUP_BASE_NAME = "WeavingSpace tiles"
@@ -505,7 +506,7 @@ def _custom_swatch_icon(colours, boxed=()):
   return _striped_icon(colours, boxed)
 
 
-class SpacingSpinBox(QDoubleSpinBox):
+class SpacingSpinBox(TrimmedSpinBox):
   """A spacing box that keeps its precision and shows no idle zeros.
 
   Spacing spans 1e-6 to 1e12, twelve orders of magnitude, so it is the
@@ -527,30 +528,14 @@ class SpacingSpinBox(QDoubleSpinBox):
   the complaint: nobody objected to the precision, they objected to
   six zeros after a round number. So the box keeps its six decimals
   and simply does not print zeros it does not need.
+
+  THE TRIMMING ITSELF MOVED TO `widgets.TrimmedSpinBox` on 2026-08-17,
+  when the class-bound boxes were widened and needed exactly the same
+  thing. It lived here in full for a day, and a second copy was
+  written in `category_editor.py` before anybody noticed the two would
+  have to learn about locales separately. This class keeps only what
+  is about SPACING; the shared behaviour is documented where it lives.
   """
-
-  def textFromValue(self, value):                      # noqa: N802 (Qt API)
-    """The number as a reader wants it: no trailing zeros, no rounding.
-
-    Args:
-      value: the spacing, in the units the tiling works in.
-
-    Returns:
-      Qt's own text for that value with idle zeros removed -- "500"
-      rather than "500.000000", "500.5" rather than "500.500000", and
-      "0.000001" unchanged, since none of its zeros are idle.
-
-    Built by TRIMMING Qt's own answer rather than formatting the
-    number here, so the decimal point and any group separator stay
-    the locale's. This project has already had a locale defect that
-    took two CI rounds to name, and formatting a number by hand is
-    how the next one arrives.
-    """
-    shown = super().textFromValue(value)
-    point = self.locale().decimalPoint()
-    if point and point in shown:
-      shown = shown.rstrip("0").rstrip(point)
-    return shown
 
 
 class RampCombo(QComboBox):
@@ -4531,13 +4516,71 @@ class WeavingSpaceDialog(QDialog):
             f"from the values it holds now, so it has been "
             f"recalculated.")
 
-  def _legend_size_note(self, field, assignment):
+  def _classes_nothing_wears(self, tile_id, assignment):
+    """Which of an element's classes no tile of it falls into.
+
+    Args:
+      tile_id: the element, used to find its own output layer.
+      assignment: its row of `_assignments()`, read for the variable
+        and the styling mode.
+
+    Returns:
+      A list of class indices nothing occupies, or None when the
+      question cannot be answered here -- no output layer yet, a
+      renderer with no ranges, a field the layer does not carry. None
+      and `[]` are deliberately different: `[]` is "measured, nothing
+      is empty" and None is "not measured", and a caller must not
+      report an unknown as an emptiness.
+
+    THIS IS THE CALLER `bridge.unworn_classes` LOST, and the loss is
+    the point. When the swatch hatching was withdrawn on 2026-08-17 it
+    took `_unworn_stripes` with it, which was that function's only
+    caller -- so the plugin went on computing nothing while CLAUDE.md,
+    this module, docs/TESTING.md and the approved changelog all said
+    emptiness was reported in words. A hunt measured it false the same
+    day; the maintainer's ruling is that the signal was meant to stay,
+    so it has a caller again.
+
+    Asked of the ELEMENT's own output layer, because the question is
+    what THIS element draws rather than what the map as a whole holds.
+    A unit-tested mechanism with no live caller is a motionless axis,
+    which is exactly what the hatching turned out to be as well, so
+    the guard for this drives the notice rather than this method.
+    """
+    field = assignment.get("var")
+    if not field or assignment.get("mode") != "Graduated":
+      return None
+    layer_id = self._element_layer_ids.get(tile_id)
+    layer = QgsProject.instance().mapLayer(layer_id) if layer_id else None
+    renderer = layer.renderer() if layer is not None else None
+    if renderer is None or not hasattr(renderer, "ranges"):
+      return None
+    # BOUND FIRST: a temporary list from a QGIS getter frees its
+    # contents, and subscripting one has segfaulted this project once
+    # and returned a plausible wrong colour another time.
+    ranges = renderer.ranges()
+    bounds = [(r.lowerValue(), r.upperValue()) for r in ranges]
+    if not bounds:
+      return None
+    index = layer.fields().indexOf(field)
+    if index < 0:
+      return None
+    try:
+      return bridge.unworn_classes(bounds, layer.uniqueValues(index))
+    except Exception:
+      return None
+
+  def _legend_size_note(self, field, assignment, tile_id=None):
     """The notice when a column draws fewer classes than it was asked.
 
     Args:
       field: the column the element carries.
       assignment: that element's row of _assignments, read for its
         class count and its pin record.
+      tile_id: the element, so the ladder the map ACTUALLY draws can
+        be asked which of its classes are empty. Optional, and when
+        it is absent this falls back to the distinct-value count
+        alone -- the behaviour of every caller before 2026-08-17.
 
     Returns:
       One sentence for the message bar, or None when the legend will
@@ -4550,6 +4593,19 @@ class WeavingSpaceDialog(QDialog):
     does not have. That is the one thing these notices exist to
     prevent, so the arithmetic lives in bridge beside the code that
     performs it.
+
+    TWO QUESTIONS, ONE SENTENCE, AND THE RENDERER WINS. The
+    distinct-value count says WHY a ladder cannot be filled;
+    `unworn_classes` says THAT it is not, measured on the classes the
+    map draws. They are not the same question and a hunt found them
+    disagreeing in four cases of six on 2026-08-17 -- a pin below the
+    data, a pin above it, a copied ladder, and a plain tied column.
+    So where the renderer can be asked, its answer decides whether
+    anything is said at all, and the distinct-value sentence is
+    preferred only when it is also true, because it carries the
+    reason. Where it cannot be asked -- before the first run, most
+    often -- the old count answers alone, since a notice that waits
+    for output would never fire on the path a user meets first.
     """
     source = self._classification_values(field)
     if source is None:
@@ -4566,7 +4622,29 @@ class WeavingSpaceDialog(QDialog):
     drawn, from_pins = bridge.classes_the_map_will_draw(
       values, asked, assignment.get("pinned"),
       unclassed=assignment.get("scheme") == "Unclassed")
-    return bridge.few_values_message(field, drawn, asked, from_pins)
+    explained = bridge.few_values_message(field, drawn, asked, from_pins)
+    unworn = (self._classes_nothing_wears(tile_id, assignment)
+              if tile_id is not None else None)
+    if unworn is None:
+      # nothing to measure against, so the count answers alone
+      return explained
+    if not unworn:
+      # MEASURED, AND NOTHING IS EMPTY. The distinct-value sentence
+      # may still be firing here -- fewer values than classes does not
+      # mean a class goes unworn, since several values can share one
+      # and the ladder still fill -- and saying "3 of 5 classes are
+      # empty" over a map drawing five is the plainest kind of wrong.
+      return None
+    # BOTH FIRING IS NOT THE SAME AS BOTH AGREEING, and the count is
+    # what a reader checks against their own legend. The
+    # distinct-value sentence computes `asked - distinct`, which is a
+    # PREDICTION; `unworn` is a measurement of the ladder in front of
+    # them, and the two part company as soon as several values share a
+    # class. So the reason is worth keeping only while it is telling
+    # the truth about how many, and the measurement wins otherwise.
+    if explained is not None and (asked - drawn) == len(unworn):
+      return explained
+    return bridge.empty_classes_message(field, len(unworn), asked)
 
   def _forget_the_last_project(self):
     """Drop every per-element record when the project is replaced.
@@ -7458,7 +7536,7 @@ class WeavingSpaceDialog(QDialog):
       retired = self._retire_an_undrawable_pin(field, a)
       if retired is not None:
         self._report_quietly(retired)
-      note = self._legend_size_note(field, a)
+      note = self._legend_size_note(field, a, tid)
       if note is not None:
         said.add(field)
         self._report_quietly(note)
@@ -7781,7 +7859,8 @@ class WeavingSpaceDialog(QDialog):
         QMessageBox.critical(
           self, "WeavingSpace",
           f"A spacing this small asks for roughly {est:,} tiles. For this "
-          f"layer a spacing of about {suggestion:,.0f} map units or more will "
+          f"layer a spacing of about "
+          f"{bridge.spacing_in_words(suggestion)} map units or more will "
           f"work.")
       return
     if not live and est > bridge.MAX_TILES_CONFIRM:
@@ -8028,7 +8107,8 @@ class WeavingSpaceDialog(QDialog):
             retired = self._retire_an_undrawable_pin(field, assignment)
             if retired is not None:
               self._report_quietly(retired)
-            note = self._legend_size_note(field, assignment)
+            note = self._legend_size_note(field, assignment,
+                                          assignment.get("id"))
             if note is not None:
               said_constant.add(field)
               self._report_quietly(note)

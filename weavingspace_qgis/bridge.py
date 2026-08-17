@@ -619,7 +619,88 @@ def min_reasonable_spacing(unit, region_gdf, spacing: float) -> float:
     if estimate_tile_count_bounds(unit, bounds, scale) <= MAX_TILES_HARD:
       break
     scale *= 1.02
-  return spacing * scale
+  # ROUNDED UP, NOT RETURNED RAW, and this is the second half of the
+  # same argument. The loop above earns a number the estimator
+  # accepts -- 1.2150048 on the measured case -- and the dialog then
+  # SAID it to three significant figures. Printed with `:,.0f` that is
+  # "1", which estimates 286,676 tiles against a cap of 200,000 and is
+  # refused, so a user typed the plugin's own advice and met the
+  # identical sentence again. Below about ninety map units across it
+  # printed "0", which the spacing box's 1e-6 minimum cannot even
+  # hold and which reads as "any spacing works".
+  #
+  # Rounding here rather than at the sentence is what stops the two
+  # diverging again: `test_the_spacing_advice_is_itself_accepted`
+  # asserted this function's FLOAT and was perfectly happy while the
+  # number a user actually read was a different one. So the value
+  # this returns is now the value that gets said, already rounded the
+  # only safe direction, and `spacing_in_words` prints it without
+  # touching its magnitude.
+  return _rounded_up_to_figures(spacing * scale, 3)
+
+
+def _rounded_up_to_figures(value: float, figures: int) -> float:
+  """Round a positive number UP to this many significant figures.
+
+  Args:
+    value: the number to round. Non-finite or non-positive values are
+      handed back untouched, since neither has a meaningful rounding
+      and this is not the place to decide what to do about them.
+    figures: how many significant figures to keep.
+
+  Returns:
+    The smallest number with that many significant figures which is
+    not less than `value` -- 1.2150048 at three figures gives 1.22,
+    and 0.00041 gives 0.00041.
+
+  FIGURES RATHER THAN DECIMAL PLACES, which is the project's rule for
+  every number a person reads: a figures rule bounds what a reader
+  takes in whatever the magnitude, where a decimals rule lets
+  1234.567 through at four and clips 0.0008 to nothing.
+
+  UP RATHER THAN NEAREST, because the caller's number is a FLOOR --
+  the smallest spacing that will be accepted -- and rounding a floor
+  down produces advice the software then refuses. Where a rounding
+  direction matters, it is decided by what the number MEANS rather
+  than by what looks tidiest.
+  """
+  if not math.isfinite(value) or value <= 0:
+    return value
+  exponent = math.floor(math.log10(value)) - (figures - 1)
+  step = 10.0 ** exponent
+  return math.ceil(value / step) * step
+
+
+def spacing_in_words(value: float) -> str:
+  """A spacing as a sentence should print it.
+
+  Args:
+    value: the spacing, in the region layer's own map units.
+
+  Returns:
+    The number grouped for reading and carrying every figure it
+    needs -- "1.22", "1,220", "0.00041" -- with no trailing zeros and
+    no exponent. Non-finite values come back as "?" rather than as
+    "inf", which no reader can act on.
+
+  THE POINT IS THAT THE PRINTED NUMBER IS THE NUMBER. A spacing
+  suggestion is a floor, so any formatting that loses precision
+  downward turns advice into a contradiction; `:,.0f` did exactly
+  that. This keeps the magnitude and drops only zeros that carry
+  nothing, which is the same bargain `widgets.TrimmedSpinBox` makes
+  for the boxes.
+  """
+  if not math.isfinite(value):
+    return "?"
+  if value <= 0:
+    return "0"
+  # enough places to show three significant figures at this size, and
+  # never negative, since a whole number needs none
+  places = max(0, 2 - int(math.floor(math.log10(value))))
+  text = f"{value:,.{places}f}"
+  if "." in text:
+    text = text.rstrip("0").rstrip(".")
+  return text
 
 
 # ----------------------------------------------------------- tile coverage
@@ -1251,7 +1332,7 @@ def pin_problem(low, high, values, asked: int, breaks=None):
   # ladder asked for more pinned boundaries than it has, nothing left
   # for the middle to cut. A bound beyond the data draws perfectly
   # well; its outer class simply goes unworn, which `unworn_classes`
-  # still computes and `few_values_message` still reports in words --
+  # still computes and `empty_classes_message` still reports in words --
   # the swatch hatched it too until 2026-08-17, when the maintainer
   # ruled the mark out as more confusing than helpful. Grouping it with
   # the undrawable three is how it came to look like a rule rather
@@ -1457,6 +1538,62 @@ def few_values_message(field: str, distinct: int, asked: int,
             f"are empty.")
   return (f"'{field}' has {distinct} distinct values, so {empty} of "
           f"the {asked} classes are empty.")
+
+
+def empty_classes_message(field: str, empty: int, asked: int):
+  """The notice for classes the map draws no tile into.
+
+  Args:
+    field: the attribute name, as the user chose it in the table.
+    empty: how many of the element's classes nothing falls into, as
+      ``unworn_classes`` counted them from the renderer actually in
+      force.
+    asked: how many classes the ladder holds.
+
+  Returns:
+    One sentence for the message bar, or None when every class is
+    worn, so the caller can report unconditionally.
+
+  WHY THIS EXISTS BESIDE ``few_values_message``, which is the more
+  interesting half. When the swatch hatching was withdrawn on
+  2026-08-17 the removal was justified -- in the commit, in CLAUDE.md,
+  in this module's comments and in the changelog the maintainer
+  approved -- by the claim that ``few_values_message`` now carried the
+  whole job of reporting emptiness in words. A hunt measured that the
+  same day and it was FALSE: that sentence fires when a column's
+  distinct count is below its class count, which is neither necessary
+  nor sufficient for "no tile wears this class". Asked of one renderer
+  across six scenarios the two disagreed in FOUR -- a pin below the
+  data, a pin above it, a copied ladder, and a plain tied column with
+  no pin at all -- and ``unworn_classes``, the function that asks the
+  right question, had been left with no caller at all.
+
+  So the two say different things and both are wanted. This one
+  reports THAT classes are empty, measured on the ladder the map
+  draws; ``few_values_message`` reports WHY when the reason is a
+  column with too few distinct values to fill the ladder. The caller
+  picks whichever fits and never says both, since two sentences about
+  one column is one too many.
+
+  THE LESSON, which outlives this function: when a removal is
+  justified by "X now carries the whole job", run X against every case
+  the removed thing covered. Here X covered two of six, and the
+  function that asked the right question was the one being deleted.
+  """
+  empty = int(empty)
+  asked = int(asked)
+  if empty <= 0 or asked <= 0:
+    return None
+  # Singular where it costs nothing. The sibling above deliberately
+  # keeps one shape for one end and two, because a sentence that
+  # changes form while somebody is reading it is worse than a small
+  # inaccuracy -- but there the varying word was the SUBJECT of the
+  # notice. Here it is only the count, and "1 classes" reads as a bug
+  # in the plugin rather than as a fact about a map.
+  them = "it" if empty == 1 else "them"
+  return (f"'{field}' leaves {empty} of its {asked} classes empty: "
+          f"no value falls in {them}, so those colours are never "
+          f"drawn.")
 
 
 def _apply_pinned_bounds(renderer, low, high, smallest, largest,

@@ -3040,8 +3040,8 @@ MUTATIONS = [
            "GeoPackage link dropped"),
   dict(name="the-bound-box-is-sized-from-the-data",
        file="weavingspace_qgis/category_editor.py",
-       old="    box.setDecimals(max(0, min(12, places)))\n"
-           "    box.setRange(-magnitude * 100.0, magnitude * 100.0)",
+       old="    box.setDecimals(max(_LEAST_DECIMALS, min(12, places)))\n"
+           "    box.setRange(-_WIDEST_BOUND, _WIDEST_BOUND)",
        new="    box.setDecimals(6)\n"
            "    box.setRange(-1e12, 1e12)",
        test="test_a_pinned_bound_can_hold_the_numbers_a_column_carries",
@@ -3050,6 +3050,65 @@ MUTATIONS = [
            "at 1e12 and a rate of 4e-07 pinned at zero, both silently, "
            "because pin_problem is asked about the number the control "
            "produced and that number is inside the data"),
+  dict(name="the-spacing-advice-is-rounded-the-safe-way",
+       file=BRIDGE,
+       old="  return _rounded_up_to_figures(spacing * scale, 3)",
+       new="  return spacing * scale",
+       test="test_the_tile_estimate_is_honest_where_shapes_are_awkward",
+       why="an unrounded suggestion is printed to three figures by the "
+           "sentence instead, and printing rounds a FLOOR downward: "
+           "1.2150048 was said as '1', which estimates 286,676 tiles "
+           "against a cap of 200,000, so a user typing the plugin's own "
+           "advice met the identical refusal"),
+  dict(name="the-spacing-advice-keeps-its-magnitude",
+       file="weavingspace_qgis/dialog.py",
+       old="          f\"{bridge.spacing_in_words(suggestion)} map units or more will \"",
+       new="          f\"{suggestion:,.0f} map units or more will \"",
+       test="test_the_tile_estimate_is_honest_where_shapes_are_awkward",
+       why="printing a spacing with no decimal places says '0' for any "
+           "region under about ninety map units across, which reads as "
+           "'any spacing works' and is a number the spacing box's own "
+           "1e-6 minimum cannot even hold"),
+  dict(name="emptiness-is-still-reported-in-words",
+       file="weavingspace_qgis/dialog.py",
+       old="    return bridge.empty_classes_message(field, len(unworn), asked)",
+       new="    return explained",
+       test="test_a_class_no_tile_wears_is_said_out_loud",
+       why="falling back to the distinct-value sentence is exactly the "
+           "state the swatch removal left behind: it fires on a "
+           "condition that is neither necessary nor sufficient for a "
+           "class going unworn, so a pin below the data draws four "
+           "colours of five and the plugin says nothing at all"),
+  dict(name="the-renderer-is-asked-which-classes-are-empty",
+       file="weavingspace_qgis/dialog.py",
+       old="    unworn = (self._classes_nothing_wears(tile_id, assignment)\n"
+           "              if tile_id is not None else None)",
+       new="    unworn = None",
+       test="test_a_class_no_tile_wears_is_said_out_loud",
+       why="never asking the renderer returns unworn_classes to having "
+           "no caller, which is the defect itself: the measurement "
+           "exists, is tested, and reaches nothing a user can see"),
+  dict(name="a-bound-box-holds-what-the-guard-allows",
+       file="weavingspace_qgis/category_editor.py",
+       old="    box.setRange(-_WIDEST_BOUND, _WIDEST_BOUND)",
+       new="    box.setRange(-magnitude * 100.0, magnitude * 100.0)",
+       test="test_a_pin_may_be_typed_far_outside_the_element_it_pins",
+       why="sizing the range from THIS element's own extremes silently "
+           "truncates a bound set deliberately wider: on tiles reaching "
+           "11, typing 1200 keeps 120, the map is drawn from 120 and "
+           "pin_problem is never asked, because the number it would "
+           "refuse never reaches it -- so two elements given one typed "
+           "limit draw two different ladders, which is the opposite of "
+           "what wide limits are for"),
+  dict(name="a-bound-box-can-hold-a-small-number-on-a-big-column",
+       file="weavingspace_qgis/category_editor.py",
+       old="    box.setDecimals(max(_LEAST_DECIMALS, min(12, places)))",
+       new="    box.setDecimals(max(0, min(12, places)))",
+       test="test_a_pin_may_be_typed_far_outside_the_element_it_pins",
+       why="nine significant places below a span of 1e12 is negative, "
+           "so the floor is all that stops the box clamping to zero "
+           "decimals, where a typed bound of 0.5 is stored as 0 or 1 "
+           "and the map is drawn from the rounded number"),
   # RETIRED 2026-08-17 with the swatch hatching: `the-swatch-is-
   # painted-after-the-restyle`, which mutated the order in
   # `_apply_style_change` and was caught by

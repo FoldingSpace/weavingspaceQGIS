@@ -11451,6 +11451,227 @@ def test_a_pinned_bound_can_hold_the_numbers_a_column_carries():
         f"on {label}, {upper!r} is outside the box's own range"
 
 
+def test_a_pin_may_be_typed_far_outside_the_element_it_pins():
+  """A bound the guard allows, the CONTROL must let a person type.
+
+  The maintainer lifted the outside-the-data refusal on 2026-08-17, so
+  that one pair of limits can be given to several variables and a
+  colour come to mean the same number on every map. The bound box went
+  on narrowing its own domain: its range was plus or minus 100 TIMES
+  this element's extremes, which is generous against the element's own
+  data and far too small for a bound deliberately set past it.
+
+  MEASURED on the reported case: on tiles reaching 11 the range is
+  plus or minus 1100, and typing 1200 keeps 120 -- the fourth
+  keystroke is refused by the validator. The map is then drawn from
+  120, `_pinned_bounds` records 120 and the layer is stamped 120, with
+  nothing said, because `pin_problem` is asked about the number the
+  CONTROL produced and 120 is perfectly legal. Two elements given the
+  same typed 1200 pin 120 and 1200: one act, two ladders.
+
+  THE DECIMALS ARE THE SAME FAULT IN THE OTHER DIRECTION, and are
+  tested here rather than separately because one magnitude produces
+  both. Nine significant places below a span of 1e12 is a negative
+  number, which clamped to zero decimals, and a box at zero decimals
+  cannot hold 0.5 -- so a small bound on a large column was rounded
+  to a whole number and the map drawn from that. Pinning a small bound
+  on a large column is exactly what the wide-limits ruling invites.
+
+  Typed through Qt's own validator rather than by `setValue`, because
+  `setValue` clamps silently and the report is about keystrokes being
+  refused. The sibling test above covers the bounds a column carries
+  ITSELF; this one covers the bounds it does not.
+
+  Regression: the class-bound control sized its range from the element's own extremes, so a bound typed deliberately outside the data was truncated to a smaller number and the map was drawn from it, with nothing said.
+ [hunt]
+  """
+  from qgis.PyQt.QtGui import QValidator
+
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+
+  class _BoundsOnly(CategoryColourDialog):
+    """Enough of the editor for _bound_box, and nothing else.
+
+    The control's sizing depends on `_bounds` alone, so this hands it
+    exactly that. Nothing is patched: the method under test is the
+    shipped one, called unbound.
+    """
+
+    def __init__(self, bounds):
+      self._bounds = bounds
+
+  def typed(box, keystrokes):
+    """What the box keeps when a person types this, character by
+    character.
+
+    Args:
+      box: the spin box under test.
+      keystrokes: the string a person types, as they type it.
+
+    Returns:
+      The text the validator allowed to accumulate, which is what the
+      line edit would be showing. A refused keystroke simply does not
+      land, which is why the defect is silent.
+    """
+    kept = ""
+    for character in keystrokes:
+      trial = kept + character
+      state, _fixed, _pos = box.validate(trial, len(trial))
+      if state in (QValidator.State.Acceptable,
+                   QValidator.State.Intermediate):
+        kept = trial
+    return kept
+
+  # (what the element's own tiles span, what a person types, why)
+  cases = [
+    ([(0.0, 4.0), (4.0, 8.0), (8.0, 11.0)], "1200",
+     "the reported case: a limit set far above this element's data"),
+    ([(0.0, 4.0), (4.0, 8.0), (8.0, 11.0)], "-500",
+     "and far below it, since the low pin is the other end"),
+    ([(0.0, 6e11), (6e11, 1.2e12), (1.2e12, 1.875e12)], "0.5",
+     "the decimals twin: a small bound on a column of square metres"),
+    ([(0.0, 4e-07), (4e-07, 8.5e-07), (8.5e-07, 2e-06)], "3",
+     "and a whole number on a column of rates"),
+  ]
+  for ladder, keystrokes, why in cases:
+    holder = _BoundsOnly(ladder)
+    box = CategoryColourDialog._bound_box(holder, ladder[0][1])
+    wanted = float(keystrokes)
+
+    kept = typed(box, keystrokes)
+    assert kept == keystrokes, (
+      f"{why}: typing {keystrokes!r} into the bound box kept {kept!r} "
+      f"-- the range is {box.minimum()!r} to {box.maximum()!r} at "
+      f"{box.decimals()} decimals, and the number the map would be "
+      f"drawn from is not the number that was typed")
+
+    # ...and the box must then HOLD it, since `decimals` governs
+    # storage as well as display and a clamp here is equally silent
+    box.setValue(wanted)
+    held = box.value()
+    assert held == wanted or abs(held - wanted) <= abs(wanted) * 1e-12, (
+      f"{why}: the box accepted {wanted!r} and stored {held!r} "
+      f"({box.decimals()} decimals, range {box.minimum()!r} to "
+      f"{box.maximum()!r})")
+
+  # THE SPAN OF THE FAULT, stated as its own assertion so a fix that
+  # merely widens the constant a little is not mistaken for one that
+  # sizes the range from the guard. `pin_problem` accepts any finite
+  # number, so the box must reach far past any element's own data.
+  narrow = _BoundsOnly([(0.0, 4.0), (4.0, 8.0), (8.0, 11.0)])
+  box = CategoryColourDialog._bound_box(narrow, 11.0)
+  assert box.maximum() >= 1e12, (
+    f"an element reaching 11 gives a bound box topping out at "
+    f"{box.maximum()!r}, which cannot express the province areas the "
+    f"sibling test pins on another element -- one pair of limits "
+    f"across several variables is what the ruling is for")
+  assert box.decimals() >= 6, (
+    f"the bound box offers {box.decimals()} decimals, too few for a "
+    f"bound typed below the element's own resolution")
+
+
+def test_a_class_no_tile_wears_is_said_out_loud():
+  """Emptiness is reported in WORDS, which is what the swatch stopped
+  saying.
+
+  The ramp swatch hatched every class no tile wore until 2026-08-17,
+  when the maintainer ruled the mark out: users are not used to it, so
+  it confuses rather than helps. That removal was justified everywhere
+  -- the commit, CLAUDE.md, bridge.py's comments, docs/TESTING.md and
+  the changelog the maintainer approved -- by the claim that
+  `few_values_message` now carried the whole job of saying it in
+  words.
+
+  A hunt measured the claim the same day and it was FALSE.
+  `few_values_message` fires on a column whose distinct count is below
+  its class count, which is neither necessary nor sufficient for "no
+  tile wears this class"; across six scenarios it disagreed with
+  `unworn_classes` in four. And `bridge.unworn_classes`, the function
+  that asks the right question, had had NO CALLER since the removal
+  deleted `dialog._unworn_stripes`.
+
+  THE HARM, and it is the workflow the wide-limits ruling invites.
+  One element at five classes, Generate, then pin the low bound below
+  everything the column holds: the legend shows five classes, the
+  spinner reads five, four colours are ever painted, and the only
+  thing the plugin said was that it had restyled.
+
+  The expected sentence is COMPOSED from the function the product
+  uses, never transcribed, because a phrase copied into a test is a
+  second copy of the wording with nothing keeping the two in step --
+  which cost this project an afternoon on 2026-08-16.
+
+  Its positive twin is the second act: a clean ladder must stay
+  SILENT, since a notice that fires whatever the data does is one
+  people learn to ignore, and because "measured, nothing is empty"
+  now suppresses a distinct-value sentence that would otherwise be
+  wrong.
+
+  Regression: after the swatch hatching was removed nothing told a user a class was empty, though four documents and the approved changelog said something did.
+ [hunt]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v3")
+  _tick(150)
+  tile_id = dlg.table.item(0, 0).text()
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+
+  # ACT ONE, THE SILENT CASE. Nothing is pinned, so whatever the
+  # ladder looks like the plugin must not claim a class is empty
+  # unless one is. Driven first, because a notice that never fires
+  # would pass the second act's negative half by accident.
+  layer_id = dlg._element_layer_ids.get(tile_id)
+  element = project.mapLayer(layer_id)
+  assert element is not None, "the run produced no layer for element a"
+  ranges = element.renderer().ranges()
+  edges = [(r.lowerValue(), r.upperValue()) for r in ranges]
+  index = element.fields().indexOf("v3")
+  clean = bridge.unworn_classes(edges, element.uniqueValues(index))
+  if not clean:
+    BAR_MESSAGES.clear()
+    _generate_and_wait(dlg)
+    claimed = [t for _k, t in BAR_MESSAGES if "empty" in t.lower()]
+    assert not claimed, \
+      f"nothing is empty -- {len(edges)} classes, all worn -- and the " \
+      f"plugin said {claimed!r}"
+
+  # ACT TWO, THE HARM. The low bound goes below everything the column
+  # holds, so the first class cannot be worn by anything.
+  smallest = min(low for low, _high in edges)
+  dlg._pinned_bounds.setdefault(tile_id, {})["v3"] = {
+    "low": float(smallest) - 5.0}
+  BAR_MESSAGES.clear()
+  _generate_and_wait(dlg)
+
+  after = element.renderer().ranges()
+  bounds = [(r.lowerValue(), r.upperValue()) for r in after]
+  unworn = bridge.unworn_classes(bounds, element.uniqueValues(index))
+  assert unworn, (
+    f"the fixture did not produce an empty class, so this test cannot "
+    f"see the defect it names: bounds {bounds!r} against values "
+    f"{sorted(element.uniqueValues(index))!r}")
+
+  said = " ".join(t for _kind, t in BAR_MESSAGES)
+  wanted = bridge.empty_classes_message("v3", len(unworn), len(bounds))
+  alternative = bridge.few_values_message(
+    "v3", len(bounds) - len(unworn), len(bounds))
+  assert wanted is not None, \
+    "bridge composed no sentence for a measured emptiness"
+  assert wanted in said or (alternative and alternative in said), (
+    f"{len(unworn)} of {len(bounds)} classes are empty and the plugin "
+    f"never said so. It said: {said!r}. Expected either "
+    f"{wanted!r} or {alternative!r}")
+
+
 def test_a_reopened_plugin_adopts_the_group_it_last_wrote():
   """"Create as new group" exists so a result can be KEPT.
 
@@ -31331,6 +31552,44 @@ def test_the_tile_estimate_is_honest_where_shapes_are_awkward():
     f"{bridge.min_reasonable_spacing(advised, region, suggested):,.2f} " \
     f"instead of {suggested:,.2f}, so the advice is not a spacing the " \
     f"guard would accept"
+
+  # ...AND THE NUMBER A USER ACTUALLY READS, which is a different
+  # claim and was false for ten days while everything above passed.
+  # The dialog printed this float with `:,.0f`, so a suggestion of
+  # 1.2150048 was said as "1" -- and 1 estimates 286,676 tiles against
+  # a cap of 200,000, so somebody typing the plugin's own advice met
+  # the identical refusal. Below about ninety map units across it said
+  # "0", which the spacing box's own minimum cannot hold. Every
+  # assertion above was about the FLOAT, so none of them could see it.
+  #
+  # Parsed back from the STRING deliberately: the property is about
+  # what is on screen, so reading the float again would restate what
+  # is already proved and miss the defect a second time.
+  shown = bridge.spacing_in_words(suggested)
+  spoken = float(shown.replace(",", ""))
+  assert spoken > 0, \
+    f"the refusal offers a spacing of {shown!r}, which reads as " \
+    f"'any spacing works' and which the spacing box cannot hold"
+  said_unit = catalog.make_unit(spec, spacing=spoken, crs=3857)
+  said_tiles = bridge.estimate_tile_count(said_unit, region)
+  assert said_tiles <= bridge.MAX_TILES_HARD, \
+    f"the refusal says {shown!r} map units, and taking that literally " \
+    f"estimates {said_tiles:,} tiles against a cap of " \
+    f"{bridge.MAX_TILES_HARD:,}. The float behind it ({suggested!r}) " \
+    f"is accepted, so the advice is lost in the PRINTING: a user who " \
+    f"types what they are told is refused again with the same sentence"
+
+  # the printed forms across magnitudes, since the same rounding has
+  # to survive a floor plan and a country
+  for value, expected in ((1.2150048, "1.22"), (0.00040001, "0.000401"),
+                          (1500.0, "1,500"), (12.0, "12")):
+    printed = bridge.spacing_in_words(bridge._rounded_up_to_figures(value, 3))
+    assert printed == expected, \
+      f"a spacing of {value!r} prints as {printed!r}, wanted {expected!r}"
+    assert float(printed.replace(",", "")) >= value, \
+      f"a spacing of {value!r} prints as {printed!r}, which is SMALLER " \
+      f"than the floor it stands for -- rounding a minimum down is how " \
+      f"advice becomes a contradiction"
   dlg.close()
 
 
@@ -47795,6 +48054,10 @@ def main():
         test_a_copied_ladder_on_one_value_still_wears_its_ramp)
   check("a pinned bound can hold the numbers a column carries",
         test_a_pinned_bound_can_hold_the_numbers_a_column_carries)
+  check("a pin may be typed far outside the element it pins",
+        test_a_pin_may_be_typed_far_outside_the_element_it_pins)
+  check("a class no tile wears is said out loud",
+        test_a_class_no_tile_wears_is_said_out_loud)
   check("a reopened plugin adopts the group it last wrote",
         test_a_reopened_plugin_adopts_the_group_it_last_wrote)
   check("pinning redraws the window it was typed into",

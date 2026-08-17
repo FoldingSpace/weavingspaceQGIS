@@ -298,11 +298,14 @@ record at once: the pins, the hand-picked colours, the class counts.
 
 **HAND EDITS TO CLASS BREAKS IN QGIS DO NOT COME BACK TO THE PLUGIN,
 AND NOR DOES A PASTED STYLE.** Reported by a colleague of the
-maintainer testing rc5. NOT YET REPRODUCED HERE -- what follows is a
-reading of the code, which is a hypothesis and not a measurement, and
-the first job is to measure it.
+maintainer testing rc5. This was the first record of the defect, kept
+because the READING below turned out to be right and predicted the
+mechanism before anything was run; the measurement that confirmed it,
+with the sites and the harm, is the block above. What is still owed is
+not evidence but a DECISION, and it is stated three paragraphs down.
 
-THE READING. `_element_is_deferring` asks `bridge.expressible_style`
+THE READING, WRITTEN BEFORE THE MEASUREMENT AND BORNE OUT BY IT.
+`_element_is_deferring` asks `bridge.expressible_style`
 whether the renderer is of a KIND the style chooser can name, and
 nothing more. A graduated renderer whose breaks somebody retyped in
 the Graduated panel is still ("Graduated", "Quantiles"), so it is
@@ -328,11 +331,14 @@ with an inexpressible renderer does? The first keeps the element
 editable in the plugin; the second hands it over. Do not choose by
 implementation convenience.
 
-MEASURE FIRST, and separately for each half: retype a break in the
-Graduated panel, then ask what the dialog shows and what the next
-restyle draws; then Copy Style from one layer and Paste Style onto an
-element, with an expressible renderer and an inexpressible one, and
-check whether the plugin hears it at all.
+MEASURED, 2026-08-17, both halves, and the answers are in the block
+above: the plugin HEARS a pasted or retyped renderer -- it has
+receivers on `styleChanged` and `rendererChanged` -- and acts on it
+only when `expressible_style` returns None, which hand-typed breaks do
+(a `QgsClassificationCustom`) and a nameable renderer replaced by
+another nameable one does not. So the instruction that stood here is
+discharged. Nothing further needs running before the decision; what it
+needs is somebody making it.
 
 **OUTSTANDING FOR rc7: nothing tells a user a class is empty any
 more, and I said otherwise.** Found by a hunt, 2026-08-17.
@@ -435,6 +441,33 @@ figures to stay accepted.
 LESSON: when hunting a control's display rule, follow the number to
 every place the software says it OUT LOUD, and take the advice
 literally rather than checking the arithmetic behind it.
+
+**OUTSTANDING FOR rc7: the Unclassed pin test has a dead axis, and the
+strip's pin BUTTON is never clicked.** Found by a hunt, 2026-08-17,
+against tests written the same day. This is about the SUITE rather
+than the product, and it is here rather than under process items
+because the behaviour it fails to guard is rc7's own.
+
+`test_an_unclassed_row_pins_from_either_control` asserts that the
+table's printed bounds CHANGE after a pin
+(`tests/run_tests.py:9523` and `:9547`). Deleting the whole cell-rewrite
+loop in `category_editor._redraw_bounds` (`category_editor.py:1043-1050`)
+leaves it green: all 98 cell texts unchanged, and the comparison
+satisfied anyway because the `printed()` helper reads the SPIN BOXES as
+well as the read-only cells -- and the boxes are already asserted
+directly two lines above. So the repaint that keeps the table agreeing
+with the map is unguarded, in the test whose whole subject is the two
+controls agreeing.
+
+THE FIX: read only cells that hold no spin box, and compare them
+against the ladder the renderer now draws rather than merely against
+"different from before". An assertion that something CHANGED is
+satisfied by any change, including one the test already made itself.
+
+AND NO TEST CLICKS THE STRIP'S PIN BUTTON -- only its box. A
+wrong-pair bug in `_pin_toggled` would survive on that route, which is
+exactly the shape that produced `the-firing-control-is-the-one-that-is-read`
+the same day.
 
 ### Process items, which do not block a candidate
 

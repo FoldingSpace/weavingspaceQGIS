@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-220 defect(s) with a regression test.
+222 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -47,6 +47,8 @@ there is no separate list to remember.
 
 - **the fix that made a hand-set paired renderer survive a Generate applied the carried renderer unconditionally, so a re-tile that produced a new kind of absence left those tiles unpainted, while elements that LOST a kind kept its legend entry. Measured 2026-08-16 by rendering each paired layer over a magenta ground: uncovered rows came back as the background while their neighbours drew #8c9fc7 and #dddddd.**  
   guarded by `test_a_carried_renderer_never_leaves_an_absence_unpainted`
+- **after the swatch hatching was removed nothing told a user a class was empty, though four documents and the approved changelog said something did.**  
+  guarded by `test_a_class_no_tile_wears_is_said_out_loud`
 - **the classes whose breaks are computed showed an empty cell in the Pin column, which reads as a control waiting to be set rather than as a place a pin cannot go.**  
   guarded by `test_a_class_that_cannot_be_pinned_says_so_in_its_cell`
 - **under a copied ladder the class-count notice reported the column's distinct values rather than the classes the map drew, telling a user their map had fewer classes than it did.**  
@@ -79,6 +81,8 @@ there is no separate list to remember.
   guarded by `test_a_no_data_colour_comes_home_beside_a_class_colour`
 - **the class-count reduction counted the whole column, so pinning a bound could leave the scheme cutting more classes than the pool between the pins had distinct values, drawing a legend swatch no tile wears.**  
   guarded by `test_a_pin_leaves_no_class_for_a_tile_to_miss`
+- **the class-bound control sized its range from the element's own extremes, so a bound typed deliberately outside the data was truncated to a smaller number and the map was drawn from it, with nothing said.**  
+  guarded by `test_a_pin_may_be_typed_far_outside_the_element_it_pins`
 - **a pin set on an element carrying a copied classification was recorded, stamped and shown as set while the map ignored it, and then took effect later when the copy was released.**  
   guarded by `test_a_pin_still_works_on_a_copied_ladder`
 - **pin_problem correctly dropped an undrawable pin from the map while the record, the ramp cell's pinned box and the layer's `weavingspace_quant_style` stamp all still asserted it, and nothing was reported. Measured 2026-08-16: a low pinned at 7.0 on a column running 0-35, the column retyped to 5000-40000, the map's first class ending at 12000 and `_pinned_bounds` still holding 7.0. The comment in bridge said "the DIALOG reports the loss" and no such site existed.**  
@@ -489,7 +493,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 83
-- a bug hunt pointed in a named direction: 54
+- a bug hunt pointed in a named direction: 56
 - the mutation campaign: 16
 - reported by a user: 16
 - reading the code: 15
