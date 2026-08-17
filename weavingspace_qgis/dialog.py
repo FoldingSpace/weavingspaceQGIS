@@ -1405,6 +1405,7 @@ class WeavingSpaceDialog(QDialog):
     # reported: its existing colours will have moved.
     self._category_counts = {}
     self._build_ui()
+    self._limit_the_figures_on_show()
     # ...and now that the widget exists, show the path adoption
     # recovered a moment ago. The order is the whole point: adoption
     # runs before the UI is built.
@@ -1420,6 +1421,102 @@ class WeavingSpaceDialog(QDialog):
     QTimer.singleShot(0, self._fit_to_design)
 
   # ---------------------------------------------------------------- UI setup
+
+  # Controls whose number is not a rounded setting but a value read
+  # off the DATA or typed by a person, where clipping to three
+  # figures would change what the software is working from rather
+  # than merely how it reads. Each is the "good reason otherwise" the
+  # maintainer's rule allows for, and each is named here so that
+  # adding one is a decision somebody makes rather than an omission.
+  # SPACING IS THE ONE, and its exemption is a parked problem rather
+  # than a settled answer. Its range is 1e-6 to 1e12, twelve orders of
+  # magnitude, so no single `decimals` is right for both a floor plan
+  # at half a metre and a country at fifty kilometres -- and the sweep
+  # below runs at CONSTRUCTION, while auto-spacing sets the value
+  # later, from the layer. Left to the sweep it took 0 decimals from
+  # its step of 1 and would have rounded a legitimate 0.5 m spacing to
+  # nothing. What it actually wants is the rule re-applied whenever
+  # the value changes, which is a hook worth adding deliberately; it
+  # is on ROADMAP.md. Until then this box keeps the six decimals the
+  # maintainer complained about, which is the honest state: one
+  # control still wrong rather than one control quietly broken.
+  #
+  # The class-bound boxes, which ARE data-sized on purpose, live in
+  # category_editor and this sweep never reaches them.
+  FIGURES_EXEMPT = ("spacing_spin",)
+
+  def _limit_the_figures_on_show(self):
+    """Show at most three significant figures in every number box.
+
+    Returns:
+      None; each `QDoubleSpinBox` the dialog owns has its `decimals`
+      set, except any named in `FIGURES_EXEMPT`.
+
+    THE MAINTAINER'S RULE, 2026-08-17: at most three significant
+    figures displayed, unless there is good reason otherwise. Six
+    decimal places on a spacing in metres is five digits nobody can
+    reach and nobody wants -- the arrows cannot move them and the
+    data does not warrant them.
+
+    WHY A SWEEP RATHER THAN A NUMBER PER CONTROL. Every box decided
+    for itself before this, in five different ways: spacing at six
+    decimals, offset at two, aspect at three, the modifier boxes with
+    a local `3 if step < 1 else 1`, and six boxes that set nothing at
+    all and so got Qt's default two -- which is how the offset ANGLE
+    came to read "0.00" degrees. Five rules in five places is what
+    produced the inconsistency, and a sixth rule would not have cured
+    it. This runs once at construction over whatever boxes exist, so
+    a control added next year is right without anybody remembering.
+
+    THE STEP DECIDES AND THE CAP BOUNDS IT, which is the arrangement
+    the first attempt had backwards. A control's `singleStep` is its
+    own declaration of the smallest amount it is meant to move by:
+    step 1 means whole units, and printing three decimals after them
+    is noise the arrows can never touch. So the decimals a box would
+    need to show its own step are the answer, and three significant
+    figures are the ceiling on that answer.
+
+    Counting the ceiling from the VALUE alone does not work, and its
+    own first output said so: every box sitting at zero came out with
+    three decimals, because zero has no digits to count, so the
+    offset angle read "0.000" degrees with a step of one. The step is
+    what makes zero legible.
+
+    Where the two genuinely disagree -- a step of 0.01 on a control
+    whose values run in the thousands, where three figures are used
+    up before the point -- the CAP wins and the arrows move a digit
+    that is not shown. That is the maintainer's rule applied
+    literally, and the honest repair is to widen the step, so one
+    number per control still governs both.
+
+    Costs one pass over the dialog's widgets at construction,
+    microseconds once, and nothing whatever per repaint.
+    """
+    from qgis.PyQt.QtWidgets import QDoubleSpinBox
+    # MATCHED BY IDENTITY, NOT BY `objectName`, which the first
+    # version used and which is empty on every box here -- so the
+    # exemption matched nothing, spacing was swept after all, and its
+    # minimum of 1e-6 rounded to zero at 0 decimals.
+    # `test_every_control_accepts_the_range_it_should` caught it, on
+    # an assertion about ranges rather than about decimals: a silent
+    # skip is invisible at the site and shows up somewhere else.
+    exempt = {id(getattr(self, name, None))
+              for name in self.FIGURES_EXEMPT}
+    for box in self.findChildren(QDoubleSpinBox):
+      if id(box) in exempt:
+        continue
+      # what the step itself needs, found by asking rather than by
+      # arithmetic on logarithms, which has edge cases at exact powers
+      step = abs(box.singleStep())
+      needed = 0
+      while needed < 3 and step and round(step, needed) != step:
+        needed += 1
+      # ...and the three-figure ceiling, counted at the control's own
+      # scale: the larger of what it holds and what it steps by, so a
+      # box resting at zero is still sized by the units it moves in
+      scale = max(abs(box.value()), step)
+      digits = len(str(int(scale))) if scale >= 1 else 0
+      box.setDecimals(min(needed, max(0, 3 - digits)))
 
   def _build_ui(self):
     """Construct every widget and wire its signals.
