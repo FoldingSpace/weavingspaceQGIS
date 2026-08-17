@@ -929,6 +929,11 @@
   "excerpt": "The layer's coordinate system changed, so the spacing has be",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "9c04656b86c5a9cb": {
+  "approved": "2026-08-17",
+  "excerpt": "'{}' has {} distinct values, so {} of the {} classes are emp",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "9c35c1b823d70bae": {
   "approved": "2026-08-15",
   "excerpt": "Element '{}' was styled in QGIS, and changing its variable m",
@@ -1079,6 +1084,11 @@
   "excerpt": "Turn the whole pattern; 15\u201375\u00b0 usually suits two-direction w",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "b84ad414a3035a83": {
+  "approved": "2026-08-17",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
  "ba284fbfdcfc8431": {
   "approved": "2026-08-15",
   "excerpt": "The region layer was removed from the project, so the map no",
@@ -1198,6 +1208,11 @@
   "approved": "2026-08-16",
   "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
   "where": "weavingspace_qgis/metadata.txt"
+ },
+ "d38b031b7c5875c1": {
+  "approved": "2026-08-17",
+  "excerpt": "'{}' has {} distinct values left between its pinned bounds, ",
+  "where": "weavingspace_qgis/bridge.py"
  },
  "d38d4a72a832af94": {
   "approved": "2026-08-08",

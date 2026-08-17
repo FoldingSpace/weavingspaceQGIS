@@ -2385,9 +2385,45 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
     # all and the middle would wear the extremes. Recolouring the
     # full set restores exactly what QGIS would have drawn for this
     # many classes.
-    for i, colour in enumerate(
-        quant_class_colours(ramp_name, reverse, count, (lo, hi))):
-      renderer.updateRangeSymbol(i, _fill_symbol(colour, outline))
+    #
+    # THE RAMP SPANS THE CLASSES A TILE CAN WEAR, not the ladder's
+    # outer edges. (Maintainer's instruction, 2026-08-17.) A pin
+    # OUTSIDE the data leaves its outermost class with zero width --
+    # which is legitimate and is the point of pinning wide, since one
+    # pair of limits then serves several columns -- but the ramp used
+    # to be spread across every class including those. Measured that
+    # day on Reds, data 1..13 pinned to -5 and 40: the palest #fff5f0
+    # and the darkest #67000d both went to degenerate classes no tile
+    # can occupy, and the whole map drew from the middle three
+    # shades. A reader comparing two such maps is reading a
+    # compressed ramp and cannot tell.
+    #
+    # So the span is trimmed to the first and last class with any
+    # WIDTH, and the ramp is spread over those. Degenerate classes
+    # INSIDE the ladder keep their place -- the rule is about the
+    # outermost, and a middle class emptied by the data is a
+    # different fact -- so the trim only walks in from each end.
+    #
+    # A NO-OP ON ORDINARY DATA, which is what makes it safe on a path
+    # every classed map goes through: with no pin outside the column
+    # no class is degenerate, first and last are the ends, and this
+    # computes exactly what it computed before.
+    ranges = renderer.ranges()          # bound: a temporary frees its symbols
+    edges = [(r.lowerValue(), r.upperValue()) for r in ranges]
+    first, last = 0, count - 1
+    while first < last and edges[first][1] <= edges[first][0]:
+      first += 1
+    while last > first and edges[last][1] <= edges[last][0]:
+      last -= 1
+    drawable = last - first + 1
+    shades = quant_class_colours(ramp_name, reverse, drawable, (lo, hi))
+    if shades:
+      for i in range(count):
+        # the trimmed-off classes take the end they sit beyond: they
+        # are unworn, so nothing is drawn in that colour, and the
+        # legend reads as a ramp that starts where the map does
+        colour = shades[min(max(i - first, 0), len(shades) - 1)]
+        renderer.updateRangeSymbol(i, _fill_symbol(colour, outline))
   # hand-picked class colours outrank the range and the ramp alike
   for key, colour in (overrides or {}).items():
     try:

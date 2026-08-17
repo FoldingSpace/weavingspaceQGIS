@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-218 defect(s) with a regression test.
+220 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -448,6 +448,8 @@ there is no separate list to remember.
   guarded by `test_two_notices_from_one_run_both_survive`
 - **none yet; this guards the second pin control added 2026-08-17 against the landing that has destroyed pin state here before.**  
   guarded by `test_two_pin_controls_agree_across_a_run_landing`
+- **none yet; this guards the second pin control added 2026-08-17 against the three disturbances QGIS can deliver while the window is open.**  
+  guarded by `test_two_pin_controls_survive_qgis_moving_underneath`
 
 ## Found by reported by a user
 
@@ -477,6 +479,8 @@ there is no separate list to remember.
   guarded by `test_the_mutation_guard_scales_with_the_diff`
 - **opening the plugin before adding a dataset left the Variable dropdown empty and Generate blaming the user for not assigning one.**  
   guarded by `test_the_plugin_opened_before_the_data_still_works`
+- **a class bound pinned outside its column left the outermost class empty, and the ramp was spread across it -- so the palest and darkest shades were drawn on classes no tile could wear and the map used only the middle of the ramp.**  
+  guarded by `test_the_ramp_spans_the_classes_a_tile_can_wear`
 - **the table drew Qt's row-number gutter beside the tile ids, which the user reported as a messy second numbering.**  
   guarded by `test_the_table_headers_read_as_designed`
 - **the Unclassed colour editor faded its table with a QGraphicsOpacityEffect, which composites offscreen while the table scrolls by blitting, so previously-painted class bounds stayed visible behind the current ones. Reported with a screenshot against 0.24.3rc5.**  
@@ -484,11 +488,11 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- not written down at the time: 82
+- not written down at the time: 83
 - a bug hunt pointed in a named direction: 54
 - the mutation campaign: 16
+- reported by a user: 16
 - reading the code: 15
-- reported by a user: 15
 - running the suite somewhere other than the machine it was written on: 8
 - race and stress testing: 6
 - a multi-step session test: 5

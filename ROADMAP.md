@@ -131,24 +131,14 @@ lesson about seed counts that came out of it, are in
 
 ### Reported by the maintainer against rc5, owed by rc6
 
-**REMOVE THE HATCHING FROM THE RAMP SWATCHES.** The maintainer's
-ruling, 2026-08-17: users are not used to it, so it confuses rather
-than helps. The swatches only -- the Pin column is not in scope.
-
-It reverses part of the 2026-08-16 entry in CLAUDE.md, which asked a
-different question: whether two hatchings could be told apart from
-each other. This one says the mark is not legible to somebody meeting
-it. Correct that entry rather than arguing with it.
-
-What comes out with it: the hatching in the swatch painter,
-`test_a_hatched_class_hatches_only_itself`,
-`test_a_copy_hatches_the_classes_it_leaves_unreachable`, their
-catalogue entries, and the hatching passages in CLAUDE.md,
-`docs/USER-GUIDE.md` and `metadata.txt`. `unworn_classes` stays --
-other code asks it which classes are empty -- and the comment in
-`pin_problem` that cites the swatch's hatching as how an unworn class
-shows needs its wording corrected in the same commit, since it will
-no longer be true.
+**DONE 2026-08-17 AND DELETED FROM HERE: the swatch hatching.** The
+diagonals are out of `_striped_icon`, with `_unworn_stripes` and the
+two tests that guarded them; the Pin column keeps its own hatching and
+is now the only place the plugin draws one. `unworn_classes` stays and
+`few_values_message` carries the whole job of reporting emptiness, in
+words. The reversal and the reasoning on BOTH sides of it are in
+CLAUDE.md, since the 2026-08-16 ruling it partly reverses answered a
+different question and still stands where it applies.
 
 **DONE 2026-08-17 AND DELETED FROM HERE: equal intervals are equal.**
 The middle is cut over the span the pins declare rather than cut from

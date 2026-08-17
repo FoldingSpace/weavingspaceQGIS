@@ -9667,6 +9667,245 @@ def test_two_pin_controls_agree_across_a_run_landing():
     dlg.close()
 
 
+def test_two_pin_controls_survive_qgis_moving_underneath():
+  """The region goes, the scheme switches, the two pins are hammered.
+
+  The maintainer's condition when asking for a second pin control:
+  careful work on several things updating at once without conflicting
+  with each other or racing QGIS. `test_two_pin_controls_agree_across_
+  a_run_landing` covers the landing, which is the moment this editor's
+  state has been destroyed before. This covers the rest, and each of
+  the three has a SINGLE-control test already -- which is exactly why
+  it is here, since this project's own record says a rule that names
+  one of a pair gets read as a rule about one of a pair.
+
+  All three run inside Qt SLOTS, where a traceback reaches a console
+  the user never opened and the window simply stops responding. So
+  "nothing raised" is a real assertion here and not a formality, and
+  each act is followed by asking the two controls and the map whether
+  they still describe the same thing.
+
+  Regression: none yet; this guards the second pin control added 2026-08-17 against the three disturbances QGIS can deliver while the window is open.
+ [unrecorded]
+  """
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+
+  project = QgsProject.instance()
+  dlg, layer, tile_id = _quant_dialog(mode="Quant: Unclassed", ramp="Reds")
+  try:
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(200)
+    field = dlg._assignment_for(tile_id).get("var")
+
+    opened = {}
+
+    def catch(self, *_a, **_k):
+      """Stand in for exec() so the modal window does not block."""
+      opened["editor"] = self
+      return 0
+
+    real_exec = CategoryColourDialog.exec
+    CategoryColourDialog.exec = catch
+    try:
+      dlg._edit_quant_colours(tile_id, field,
+                              dlg._assignment_for(tile_id))
+    finally:
+      CategoryColourDialog.exec = real_exec
+    editor = opened.get("editor")
+    assert editor is not None, "no colour editor opened"
+
+    pairs = list(editor._pin_widgets.get("low") or [])
+    assert len(pairs) == 2, \
+      f"the low end is named by {len(pairs)} control(s), not two, so " \
+      f"this test stages nothing it claims to"
+    in_table = [q for q in pairs if editor.table.isAncestorOf(q[1])]
+    outside = [q for q in pairs if q not in in_table]
+    assert in_table and outside, "expected one control in each place"
+    table_pin, table_box = in_table[0]
+    strip_pin, strip_box = outside[0]
+
+    def agreed(moment):
+      """Both controls and the record describe one pin, or none."""
+      held = (dlg._pinned_bounds.get(tile_id, {}) or {}).get(field) or {}
+      low = held.get("low")
+      for name, pin, box in (("table", table_pin, table_box),
+                             ("strip", strip_pin, strip_box)):
+        assert pin.isChecked() == (low is not None), \
+          f"{moment}: the {name}'s pin reads " \
+          f"{'pinned' if pin.isChecked() else 'unpinned'} where the " \
+          f"record holds {held!r}"
+        if low is not None:
+          assert abs(box.value() - float(low)) < 1e-6, \
+            f"{moment}: the {name}'s box shows {box.value()} where " \
+            f"the record holds {low}"
+
+    # ---- (1) RAPID ALTERNATION. Each control in turn, no settling
+    # between them, which is the interleaving a user produces by
+    # correcting themselves twice in a second. The counter is the
+    # point: a loop whose acts were all swallowed would agree
+    # trivially at the end.
+    # THE VALUES COME FROM THE LADDER, not from the author's head. A
+    # low pin must leave something above it for the middle to cut, so
+    # a hard-coded 5.0 on a column that stops at 3 is REFUSED --
+    # correctly -- and the test would then read a refusal as a race.
+    # That is what the first run of this test did.
+    span = [b for pair in editor._bounds for b in pair]
+    low_end, high_end = min(span), max(span)
+    reach = high_end - low_end
+    assert reach > 0, f"the ladder spans nothing ({low_end}..{high_end})"
+    steps = [round(low_end + reach * f, 6) for f in (0.1, 0.2, 0.3, 0.4)]
+    assert all(low_end < s < high_end for s in steps), \
+      f"the alternating pins {steps} are not inside {low_end}..{high_end}"
+
+    acts = 0
+    for step, value in enumerate(steps):
+      box = table_box if step % 2 == 0 else strip_box
+      box.setValue(value)
+      box.editingFinished.emit()
+      acts += 1
+    _tick(600)
+    assert acts == 4, f"only {acts} of 4 alternating edits were made"
+    agreed("after alternating between the two controls")
+    settled = (dlg._pinned_bounds.get(tile_id, {}) or {}).get(field) or {}
+    assert settled.get("low") is not None, \
+      f"four edits left no pin at all: {settled!r}"
+    assert abs(float(settled["low"]) - steps[-1]) < 1e-6, \
+      f"the last edit was {steps[-1]} and the record holds " \
+      f"{settled!r}; an earlier act won, so the two controls raced"
+
+    # ---- (2) THE SCHEME SWITCHES UNDERNEATH, taking the row from
+    # fifty classes to five and the editor from two pin controls to
+    # what a classed row has. The open window must not raise.
+    mode = dlg.table.cellWidget(dlg.table.rowCount() - 1, 2)
+    for candidate in range(dlg.table.rowCount()):
+      cell = dlg.table.cellWidget(candidate, 2)
+      if cell is not None and dlg.table.item(candidate, 0) is not None \
+          and dlg.table.item(candidate, 0).text() == tile_id:
+        mode = cell
+        break
+    wanted = mode.findText("Quant: Equal intervals")
+    assert wanted >= 0, "the chooser does not offer Quant: Equal intervals"
+    mode.setCurrentIndex(wanted)
+    mode.activated.emit(wanted)
+    _tick(700)
+    assert dlg._assignment_for(tile_id).get("scheme") == "Equal intervals", \
+      "the scheme did not actually change, so this act staged nothing"
+
+    # ---- (3) THE REGION LAYER GOES while the window is still open.
+    # Every lookup the editor and dialog make now comes back empty.
+    project.removeMapLayer(layer.id())
+    _tick(700)
+
+    # the map already produced is OUTPUT, not a view of the input, so
+    # it must still be there and still be the user's last good map
+    out = project.mapLayer(dlg._element_layer_ids.get(tile_id))
+    assert out is not None, \
+      "removing the region layer took the element layer with it; the " \
+      "map already made is the user's, not a view of the input"
+    assert out.renderer() is not None and out.featureCount() > 0, \
+      "the last good map was emptied when its input went away"
+    # ...and the dialog is still usable, which is the whole point of
+    # not raising inside a slot
+    dlg._refresh_preview_colours()
+    _tick(200)
+  finally:
+    editor = opened.get("editor") if "opened" in dir() else None
+    if editor is not None:
+      editor.close()
+    dlg.close()
+
+
+def test_the_ramp_spans_the_classes_a_tile_can_wear():
+  """Pins outside the data must not spend the ramp on empty classes.
+
+  Pinning WIDE is the point of letting a bound sit outside its column:
+  one pair of limits given to several variables is how a colour comes
+  to mean the same number on every map. The cost is that the outermost
+  class then has zero width, and until 2026-08-17 the ramp was spread
+  across every class including those -- so on Reds, data 1..13 pinned
+  to -5 and 40, the palest #fff5f0 and the darkest #67000d both went
+  to classes no tile can occupy and the map drew from the middle three
+  shades alone. A reader comparing two such maps is reading a
+  compressed ramp and has no way to tell.
+
+  The maintainer's instruction: start and end the ramp at the first
+  and last class that is not a degenerate outer one. Asserted here
+  against the ramp's OWN endpoints, taken from the ramp rather than
+  transcribed, so the test cannot agree with a bug in the sampling.
+
+  AND THE NO-PIN CASE IS ASSERTED UNCHANGED, because this runs on the
+  path every classed map goes through: with nothing pinned outside the
+  column no class is degenerate and the colours must be exactly what
+  they always were.
+
+  Regression: a class bound pinned outside its column left the outermost class empty, and the ramp was spread across it -- so the palest and darkest shades were drawn on classes no tile could wear and the map used only the middle of the ramp. [user]
+  """
+  from weavingspace_qgis import bridge, compat
+
+  values = [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]
+  layer = QgsVectorLayer("Polygon?crs=EPSG:2193", "wide ramp", "memory")
+  provider = layer.dataProvider()
+  provider.addAttributes([compat.make_field("v", float)])
+  layer.updateFields()
+  features = []
+  for i, value in enumerate(values):
+    feature = QgsFeature(layer.fields())
+    feature.setAttribute("v", value)
+    x = i * 10.0
+    feature.setGeometry(QgsGeometry.fromPolygonXY([[
+      QgsPointXY(x, 0), QgsPointXY(x + 9, 0),
+      QgsPointXY(x + 9, 9), QgsPointXY(x, 9), QgsPointXY(x, 0)]]))
+    features.append(feature)
+  provider.addFeatures(features)
+  layer.updateExtents()
+
+  ramp = bridge.get_ramp("Reds", False)
+  assert ramp is not None, "the fixture's ramp is not installed"
+  palest, darkest = ramp.color(0.0).name(), ramp.color(1.0).name()
+  assert palest != darkest, "the ramp has no ends to speak of"
+
+  def drawn(pinned):
+    """(bounds, colour) per class, as the renderer would paint them."""
+    renderer = bridge.make_graduated_renderer(
+      layer, "v", "Reds", "Equal intervals", 5, False, pinned=pinned)
+    ranges = renderer.ranges()          # bound: a temporary frees its symbols
+    return [((r.lowerValue(), r.upperValue()), r.symbol().color().name())
+            for r in ranges]
+
+  plain = drawn(None)
+  assert [c for _b, c in plain][0] == palest \
+    and [c for _b, c in plain][-1] == darkest, \
+    f"with nothing pinned the ladder should already run the whole " \
+    f"ramp: {[c for _b, c in plain]}"
+
+  wide = drawn({"low": -5.0, "high": 40.0})
+  empty = [i for i, (b, _c) in enumerate(wide) if b[1] <= b[0]]
+  worn = [i for i, (b, _c) in enumerate(wide) if b[1] > b[0]]
+  assert empty and worn, \
+    f"the fixture produced no degenerate class ({wide}), so it does " \
+    f"not stage the case at all"
+  assert wide[worn[0]][1] == palest, \
+    f"the first class a tile can wear is {wide[worn[0]][1]}, not the " \
+    f"ramp's own {palest}; the ramp is still starting on an empty class"
+  assert wide[worn[-1]][1] == darkest, \
+    f"the last class a tile can wear is {wide[worn[-1]][1]}, not the " \
+    f"ramp's own {darkest}"
+  # ...and the middle of the worn span is the middle of the ramp, or
+  # the ends could be right while everything between them is not
+  assert len(worn) >= 3, "too few worn classes to check the middle"
+  assert wide[worn[len(worn) // 2]][1] == ramp.color(0.5).name(), \
+    f"the middle worn class is {wide[worn[len(worn) // 2]][1]}, not " \
+    f"the ramp's own {ramp.color(0.5).name()}"
+
+  # THE ORDINARY CASE IS UNTOUCHED, asserted by comparing the whole
+  # unpinned ladder with what it was before any of this existed.
+  again = drawn(None)
+  assert again == plain, \
+    f"an unpinned ladder changed between two identical calls: " \
+    f"{plain} then {again}"
+
+
 def test_the_release_notes_keep_their_categories():
   """One changelog, two renderers, and it has to read in both.
 
@@ -47402,6 +47641,10 @@ def main():
         test_an_unclassed_row_pins_from_either_control)
   check("two pin controls agree across a run landing",
         test_two_pin_controls_agree_across_a_run_landing)
+  check("two pin controls survive qgis moving underneath",
+        test_two_pin_controls_survive_qgis_moving_underneath)
+  check("the ramp spans the classes a tile can wear",
+        test_the_ramp_spans_the_classes_a_tile_can_wear)
   check("the release notes keep their categories",
         test_the_release_notes_keep_their_categories)
   check("a pin set during a run is not lost",

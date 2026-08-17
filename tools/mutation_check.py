@@ -3202,6 +3202,15 @@ MUTATIONS = [
            "one anchor covering both would survive whatever the tests "
            "do: typing a bound in the strip must move the table's box "
            "and pin, or the two describe different maps"),
+  dict(name="the-ramp-starts-where-the-map-does", file=BRIDGE,
+       old="    drawable = last - first + 1",
+       new="    first, last, drawable = 0, count - 1, count",
+       test="test_the_ramp_spans_the_classes_a_tile_can_wear",
+       why="a pin outside the column leaves its outermost class with "
+           "zero width, and spreading the ramp across those spends "
+           "the palest and darkest shades on classes no tile can wear "
+           "-- the map then draws from the middle of the ramp and a "
+           "reader comparing two of them cannot tell"),
   dict(name="equal-intervals-are-cut-from-the-pin", file=BRIDGE,
        old="  if cuts_from_the_pin and copied is None:",
        new="  if False:",

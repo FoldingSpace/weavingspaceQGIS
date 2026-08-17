@@ -198,11 +198,18 @@ class PinButton(QAbstractButton):
     return self.SIZE
 
   def paintEvent(self, _event):  # noqa: N802 (Qt API)
-    """Draw the pin: head, shaft, and a point at the bottom.
+    """Draw the pin: head, shaft, a point, and a strike when it is out.
 
     Colours come from the widget's palette rather than being
     hard-coded, so the pin follows a light or dark QGIS theme without
     knowing anything about it.
+
+    ONE GLYPH IN BOTH STATES since 2026-08-17, on the maintainer's
+    instruction: unpinned is the pinned pin with a diagonal through
+    it. What that replaces is a tilt-and-fill distinction -- out lay
+    over at -35 degrees and was hollow -- which is legible only to
+    somebody who has already learned it, where a struck-through
+    symbol is a convention every reader arrives with.
     """
     painter = QPainter(self)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -215,12 +222,15 @@ class PinButton(QAbstractButton):
     width, height = self.width(), self.height()
     painter.save()
     painter.translate(width / 2.0, height / 2.0)
-    # OUT is a pin lying over; IN is a pin driven straight down. The
-    # tilt is what makes the state readable at a glance, before the
-    # fill or the colour has been noticed.
-    painter.rotate(0 if pinned else -35)
+    # ONE GLYPH, STRUCK THROUGH WHEN IT IS OUT (maintainer's
+    # instruction, 2026-08-17). The two states used to differ by TILT
+    # and FILL -- out was a hollow pin lying over at -35 degrees, in
+    # was filled and upright -- which reads at a glance only once
+    # somebody has learned that a leaning pin means "not pinned".
+    # A pin with a line through it is a mark every reader already
+    # knows, and it says the same thing without being taught.
     painter.setPen(QPen(ink, 1.2))
-    painter.setBrush(QBrush(ink) if pinned else Qt.BrushStyle.NoBrush)
+    painter.setBrush(QBrush(ink))
     # The head is WIDE and FLAT, the way a tack's is seen side on --
     # a circle here is what made the old glyph a lens -- and the body
     # is a triangle narrowing to a point, since the taper is what
@@ -239,6 +249,21 @@ class PinButton(QAbstractButton):
     # state hid the seam and looked fine, so this is a fault only the
     # unpinned half had.
     painter.drawPath(head.united(body).simplified())
+    if not pinned:
+      # STRUCK IN TWO PASSES, and the first is the reason it reads: a
+      # single ink stroke over a filled glyph of the same ink is
+      # invisible where it crosses it. So the window's own background
+      # is laid down thicker first, cutting a channel through the
+      # pin, and the ink line is drawn inside that channel -- which is
+      # how every "not this" overlay is built and why they stay legible
+      # over anything.
+      reach = min(width, height) * 0.42
+      cut = QPointF(-reach, -reach), QPointF(reach, reach)
+      painter.setBrush(Qt.BrushStyle.NoBrush)
+      painter.setPen(QPen(palette.color(palette.ColorRole.Window), 3.2))
+      painter.drawLine(*cut)
+      painter.setPen(QPen(ink, 1.6))
+      painter.drawLine(*cut)
     painter.restore()
     if self.hasFocus():
       painter.setPen(QPen(palette.color(palette.ColorRole.Highlight), 1))
