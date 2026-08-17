@@ -177,6 +177,45 @@ paraphrase would lose them:
 5. **And the plugin now reads three of the five variables as
    CATEGORICAL.**
 
+**REPRODUCED 2026-08-17, WITH THE MECHANISM AND THE SITES.** Headless,
+in `tests/run_tests.py` as `hunt_stale_row_variants`,
+`hunt_generate_overwrites` and `hunt_count_leak_natural`. A new
+`QgsGraduatedSymbolRenderer` installed by `setRenderer` plus
+`styleChanged.emit()` and `triggerRepaint()`; the plugin HAS receivers
+on `styleChanged` and `rendererChanged`, so it hears the change and
+does not act on it.
+
+Observed: row b read `Percent_Black / Quant: Natural breaks / 5 /
+Blues` while the layer held `Percent_White`, equal intervals and
+greys. Row c read `Categorized / 36 greyed / Set1` over a graduated
+layer -- the tester's first screenshot. No notice at any point.
+
+DEFERRING IS THE ONLY ROUTE THAT WORKS, and only for a renderer the
+plugin cannot name: hand-typed breaks produce a
+`QgsClassificationCustom`, `expressible_style` returns None, and the
+row correctly flips to "Deferring to QGIS". A nameable renderer
+replaced by another nameable one reaches only a colour-only
+ramp-follow. Sites: `dialog.py:5598` (mode guard), `5600`
+(classAttribute guard), `5619` (count guard) in
+`_graduated_layer_edited`; `6532` and `6536` in
+`_refresh_deferring_rows`, which rewrite a row only when the deferring
+FLAG CHANGES; `6599` `_element_is_deferring`.
+
+**AND GENERATE DOES DESTROY IT, which is the damaging half.**
+Untouched: safe. After editing another row: safe. After ANY edit to
+the element's own row: the layer reverted to the plugin's record
+silently.
+
+THE COUNT LEAK IS REAL BUT NOT THE MECHANISM I GUESSED, and the
+correction is worth keeping. Not a categorical count reaching
+`_class_counts` directly: `dialog.py:6595` re-enables the Classes
+spinner on a STALE `disabled_by_deferring` mark -- set while the row
+was Quant, honoured after it became Categorized -- leaving it enabled
+at the distinct count of 36 with a range of 0..9999. One arrow click
+reaches `on_k` and writes 37; the next rebuild clamps at
+`dialog.py:4198` to 20. Column 2 escapes because `RENDERER_COLUMNS`
+(`6498`) omits it.
+
 **NARROWED BY THE TESTER, AND THIS IS THE ACTUAL DEFECT.** With a
 screenshot: QGIS's Symbology panel shows element `b` as GRADUATED on
 `Percent_Black` with five classes (0-10, 10-20, 20-30, 30-50, 50-80)
@@ -370,6 +409,32 @@ still narrowing it, and a control that cannot represent a value refuses
 it in a way no guard can report. This project has met that shape once
 already -- a fixed range of 1e12 and six decimals, found 2026-08-15 --
 and the entry for it is three lines from the code that broke here.
+
+**OUTSTANDING FOR rc7: the spacing advice names a spacing the plugin
+then refuses.** Found by a hunt, 2026-08-17. Present since 2026-08-07.
+
+A user tiling a small region is refused for too fine a spacing and
+told which spacing will work; they type it and are refused again with
+the identical advice. Measured on a region 210 map units across:
+spacing 0.7 gives "roughly 579,148 tiles. For this layer a spacing of
+about **1** map units or more will work"; typing 1 gives "roughly
+286,676 tiles" and the same sentence. Stationary.
+
+`dialog.py:7784` prints the suggestion as `{suggestion:,.0f}`.
+`bridge.min_reasonable_spacing` returned 1.2150048, which IS accepted;
+rounded down to 1 it estimates 286,676 against a cap of 200,000. Below
+about 90 units across it prints **0**, which the box's 1e-6 minimum
+cannot hold and which reads as "any spacing works".
+
+The function's own docstring says a suggestion that is itself refused
+"reads as the plugin contradicting itself", and
+`tests/run_tests.py:31215` asserts exactly that property -- of the
+FLOAT, never of the printed number. Round UP, and print with enough
+figures to stay accepted.
+
+LESSON: when hunting a control's display rule, follow the number to
+every place the software says it OUT LOUD, and take the advice
+literally rather than checking the arithmetic behind it.
 
 ### Process items, which do not block a candidate
 
