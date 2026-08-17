@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-209 defect(s) with a regression test.
+210 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -250,6 +250,8 @@ there is no separate list to remember.
   guarded by `test_every_ceiling_widens_for_a_slow_machine`
 - **tests/visual_tests.py never added libs/ to sys.path, so the visual gallery could not run on any Linux QGIS that had to provision its dependencies, and the first run of the gallery experiment measured that instead of the fonts it was written to measure.**  
   guarded by `test_every_qgis_harness_can_reach_the_provisioned_libs`
+- **`force_new = ... or path != self._last_path` compared paths as strings, so one file spelt two ways read as a changed destination and Generate abandoned the group it had just adopted. Found on Windows CI 2026-08-17; invisible on macOS and Linux, where a path does not come back spelt differently.**  
+  guarded by `test_one_file_spelt_two_ways_is_one_destination`
 - **a Linux CI leg failed on 2026-08-12 with shapely, pandas and networkx downloaded and geopandas silently absent; the log could not say whether PyPI was unreachable or no wheel existed for QGIS stable's Python 3.13, and the same job passed an hour later untouched.**  
   guarded by `test_provisioning_says_why_a_package_could_not_be_fetched`
 - **none yet -- written the day CI needed the packages, to keep the fix from becoming a consent bypass.**  
@@ -471,7 +473,7 @@ there is no separate list to remember.
 - the mutation campaign: 16
 - reading the code: 15
 - reported by a user: 12
-- running the suite somewhere other than the machine it was written on: 7
+- running the suite somewhere other than the machine it was written on: 8
 - race and stress testing: 6
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5

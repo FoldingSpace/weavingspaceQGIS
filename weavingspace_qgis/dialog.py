@@ -258,6 +258,62 @@ def _watch_the_style_library():
     pass
 
 
+def same_destination(one, other):
+  """Whether two output paths name the SAME FILE.
+
+  Args:
+    one: a path as the file widget or a layer source gives it, or an
+      empty value for "no file, draw into memory".
+    other: the same, to compare against.
+
+  Returns:
+    True when both name no file at all, or when both resolve to one
+    file on disk. False otherwise.
+
+  WHY NOT `a == b`. It was, and on 2026-08-17 a Windows CI runner
+  showed what that costs: the dialog held a path through the user
+  directory's 8.3 SHORT NAME (the truncated form ending in a tilde and
+  a digit) where the widget held the long name. One file, two
+  spellings. Compared as strings they differ, so
+  `_add_output_layers` read the destination as CHANGED and built a
+  rival group beside the one it had just adopted: the invisible double
+  map, on the platform most of this plugin's users are on, and
+  invisible on macOS and Linux where the two spellings never arise.
+
+  `realpath` resolves the short name and any symlink; `normcase`
+  folds the case and the separator, which Windows needs and which is
+  a no-op elsewhere. This is the "identifiers that differ only in
+  case" family: a name leaving Python for a filesystem can come back
+  spelt differently, and comparing what came back against what went
+  out is what fails.
+
+  A path that cannot be resolved -- a file not yet written, a
+  disconnected drive -- falls back to the normalised string, since
+  refusing to answer is worse than answering approximately.
+  """
+  if not one and not other:
+    return True
+  if not one or not other:
+    return False
+
+  def settled(path):
+    """One path reduced to a form two spellings of it will share.
+
+    Args:
+      path: the path to normalise.
+
+    Returns:
+      The resolved, case-folded path, or the case-folded original
+      when the filesystem cannot resolve it.
+    """
+    try:
+      return os.path.normcase(os.path.realpath(path))
+    except (OSError, ValueError):
+      return os.path.normcase(path)
+
+  return settled(one) == settled(other)
+
+
 def _ramp_icon(name: str, reverse: bool = False):
   """Small preview swatch (a QIcon) for a named colour ramp.
 
@@ -7305,7 +7361,8 @@ class WeavingSpaceDialog(QDialog):
       would_replace = bridge.gpkg_tables_we_would_replace(
         path_now, [f"tiles_{a['id']}" for a in self._assignments()])
     if not live and self.opt_new_group.isChecked() and path_now \
-        and (would_replace or path_now == self._last_path):
+        and (would_replace
+             or same_destination(path_now, self._last_path)):
       QMessageBox.warning(
         self, "WeavingSpace",
         "You asked to keep the previous result as its own group, but "
@@ -8273,7 +8330,8 @@ class WeavingSpaceDialog(QDialog):
     # explicit control ahead of any inference.
     adopted_not_yet_written = self._adopted_group_unwritten
     force_new = self.opt_new_group.isChecked() or (
-      path != self._last_path and not adopted_not_yet_written)
+      not same_destination(path, self._last_path)
+      and not adopted_not_yet_written)
     # Spent the moment it is read: the group is this dialog's from
     # here on, and a second run with a changed destination follows the
     # ordinary rule again. Cleared BEFORE the work below rather than

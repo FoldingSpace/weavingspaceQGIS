@@ -21037,8 +21037,14 @@ def test_a_project_opened_under_an_open_dialog_is_taken_over():
   _tick(150)
   second.spacing_spin.setValue(520)
   _generate_and_wait(second)
-  assert second._last_path == gpkg, \
-    f"the run did not write to {gpkg!r}, so this act tests nothing"
+  # Asked as "the same FILE", not "the same string": the dialog takes
+  # this from the layer's own source and Windows hands back the 8.3
+  # short name, so a string comparison fails there on a path that is
+  # correct. See dialog.same_destination.
+  from weavingspace_qgis.dialog import same_destination
+  assert same_destination(second._last_path, gpkg), \
+    f"the run did not write to {gpkg!r} (it holds " \
+    f"{second._last_path!r}), so this act tests nothing"
   filed_group = second._group_name
   saved_two = os.path.join(folder, "filed.qgz")
   assert project.write(saved_two), "the project would not save"
@@ -21046,11 +21052,11 @@ def test_a_project_opened_under_an_open_dialog_is_taken_over():
   _tick(200)
   assert project.read(saved_two), "the project would not reopen"
   _tick(400)
-  assert second._last_path == gpkg, \
+  assert same_destination(second._last_path, gpkg), \
     f"after adopting, the dialog holds {second._last_path!r} rather " \
-    f"than the file its adopted layers actually read, so the next " \
-    f"Generate treats the destination as changed and abandons the " \
-    f"group it just took over"
+    f"than the file its adopted layers actually read ({gpkg!r}), so " \
+    f"the next Generate treats the destination as changed and " \
+    f"abandons the group it just took over"
   back = [l for l in project.mapLayers().values()
           if l.name() == "region on file"]
   assert back, "the reopened project has no region layer"
@@ -24571,6 +24577,75 @@ def test_every_ceiling_widens_for_a_slow_machine():
     f"CI jobs {undeclared} run the suite without saying how slow " \
     f"they are, so their ceilings are this Mac's. Declare " \
     f"WEAVINGSPACE_TEST_SLOWNESS in the job's env, with the reason"
+
+
+def test_one_file_spelt_two_ways_is_one_destination():
+  """Two spellings of one path must not read as a changed destination.
+
+  `_add_output_layers` asks whether the output is going somewhere new,
+  and answers by comparing the file widget's path against
+  `_last_path` -- which the dialog takes from a LAYER'S OWN SOURCE
+  after adopting a project. A filesystem may hand that back spelt
+  differently from what went in, and Windows routinely does: on
+  2026-08-17 a CI runner held a path through the user directory's 8.3
+  short name -- the truncated form ending in a tilde and a digit --
+  against the same path through the long name. One file, two
+  spellings. Compared as strings they differ, so the plugin
+  treated the destination as changed and built a rival group beside
+  the one it had just adopted -- the double map, on the platform most
+  of this plugin's users are on.
+
+  macOS and Linux cannot produce that pair, so the case is STAGED
+  here with spellings this machine can make: a symlinked directory, a
+  redundant `.` segment, and a trailing separator. Each is one file
+  under two names, which is the property the comparison must have.
+  Windows' short names are the same fault wearing a costume only that
+  platform sells.
+
+  Regression: `force_new = ... or path != self._last_path` compared paths as strings, so one file spelt two ways read as a changed destination and Generate abandoned the group it had just adopted. Found on Windows CI 2026-08-17; invisible on macOS and Linux, where a path does not come back spelt differently. [second-machine]
+  """
+  import tempfile
+  from weavingspace_qgis.dialog import same_destination
+
+  folder = tempfile.mkdtemp(prefix="weavingspace_spelling_")
+  try:
+    real = os.path.join(folder, "out.gpkg")
+    with open(real, "w"):
+      pass
+
+    # ...the same file, said differently. Each pair is one file.
+    dotted = os.path.join(folder, ".", "out.gpkg")
+    assert same_destination(real, dotted), \
+      f"{real!r} and {dotted!r} are one file and read as two"
+
+    linked_dir = os.path.join(folder, "link")
+    staged = 1
+    try:
+      os.symlink(folder, linked_dir)
+      through_link = os.path.join(linked_dir, "out.gpkg")
+      assert same_destination(real, through_link), \
+        f"{real!r} and {through_link!r} are one file and read as two"
+      staged += 1
+    except (OSError, NotImplementedError, AttributeError):
+      # symlinks need a privilege on some platforms; the other
+      # spellings still make the point, and saying which ran is what
+      # stops a skipped case reading as a passed one
+      _skip_loudly("a symlinked directory could not be created here, "
+                   "so that spelling was not staged")
+
+    # ...and two genuinely different files still read as two.
+    other = os.path.join(folder, "elsewhere.gpkg")
+    with open(other, "w"):
+      pass
+    assert not same_destination(real, other), \
+      "two different files read as one destination, so a redirect " \
+      "would no longer start its own group"
+    # memory output, said two ways, is still memory output
+    assert same_destination("", None)
+    assert not same_destination(real, "")
+    assert staged >= 1, "no spelling was staged, so this proves nothing"
+  finally:
+    shutil.rmtree(folder, ignore_errors=True)
 
 
 def test_a_retired_dialog_rebuilds_nothing_when_the_project_moves():
@@ -45848,6 +45923,8 @@ def main():
         test_a_dock_edit_during_a_run_is_not_lost)
   check("every ceiling widens for a slow machine",
         test_every_ceiling_widens_for_a_slow_machine)
+  check("one file spelt two ways is one destination",
+        test_one_file_spelt_two_ways_is_one_destination)
   check("a retired dialog rebuilds nothing when the project moves",
         test_a_retired_dialog_rebuilds_nothing_when_the_project_moves)
   check("a retired dialog stops watching",
