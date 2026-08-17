@@ -335,6 +335,42 @@ justified by "X now carries the whole job", RUN X AGAINST EVERY CASE
 THE REMOVED THING COVERED. X covered two of six here, and the
 function that asked the right question was the one being deleted.
 
+**OUTSTANDING FOR rc7: the bound box still refuses what the rule now
+allows.** Found by a hunt, 2026-08-17, and it defeats the wide-limits
+feature outright.
+
+`category_editor._bound_box` sets its range to plus or minus 100 TIMES
+the magnitude of THIS ELEMENT'S own edges. That was harmless while a
+bound outside the data was refused. The maintainer lifted that refusal
+on 2026-08-17 so one pair of limits could serve several variables --
+and the control was never widened to match, so it silently truncates.
+
+MEASURED. On an element whose tiles reach 11, typing `1200` into a
+pinned bound keeps **120**: the fourth keystroke is swallowed by the
+validator. The map is drawn from 120, `_pinned_bounds` records 120,
+the layer is stamped 120, and nothing is said -- `pin_problem` is
+asked about the number the CONTROL produced, and 120 is perfectly
+legal. Two elements given the same typed 1200 pin 120 and 1200: one
+act, two ladders, which is precisely what wide limits exist to
+prevent.
+
+THE FIX IS TO WIDEN THE CONTROL, not to guard downstream. The box's
+own docstring already says its limits are "generous rather than
+meaningful" and exist only because Qt insists on having some, and
+`_bound_edited` promises a typed number is "either honoured or
+visibly rejected, never quietly changed". Both are currently false.
+Size the range from what `pin_problem` will accept rather than from
+the element's data, and check the DECIMALS on the same pass, since
+they come from the same magnitude.
+
+THE LESSON, which generalises past this: WHEN A REFUSAL IS LIFTED, ASK
+WHICH WIDGET STILL ENFORCES IT. A guard removed from the validation
+layer leaves every control that independently narrowed its own domain
+still narrowing it, and a control that cannot represent a value refuses
+it in a way no guard can report. This project has met that shape once
+already -- a fixed range of 1e12 and six decimals, found 2026-08-15 --
+and the entry for it is three lines from the code that broke here.
+
 ### Process items, which do not block a candidate
 
 **CONFIRM THE GHOST NUMBERS ON A REAL SCREEN.** Deferred until after
