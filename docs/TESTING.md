@@ -838,9 +838,10 @@ generalises past ceilings altogether.
 
 `test_ui_affordances_are_deliberate` sampled the progress bar for
 `10 * CONTENTION` seconds waiting for it to name its phase. CONTENTION
-is `2.5 if SHARD_COUNT > 1 else 1.0` -- it knows about SHARDING and
-nothing about the PLATFORM, and CI runs the suite unsharded. So that
-was a flat ten seconds on runners where neighbouring tests take 250.
+was then `2.5 if SHARD_COUNT > 1 else 1.0` -- it knew about SHARDING
+and nothing about the PLATFORM, and CI runs the suite unsharded. So
+that was a flat ten seconds on runners where neighbouring tests take
+250.
 Windows saw the bare `%p%` after 18.7s and failed; macOS finished the
 whole test in 9.0s and passed. Same code, same assertion, two verdicts
 decided by nothing but the machine.
@@ -863,6 +864,18 @@ there is, wait on that and keep the clock only to catch a hang. Where
 there is not, size from the slowest measured figure and multiply --
 and remember that a contention factor tuned for parallelism says
 nothing about a slower machine.
+
+The second half of that repair landed later the same day and is why
+the paragraph above reads in the past tense: CONTENTION is now
+`(2.5 if SHARD_COUNT > 1 else 1.0) * SLOWNESS`, where SLOWNESS comes
+from `WEAVINGSPACE_TEST_SLOWNESS` and each CI job declares its own
+figure with the reason beside it (Linux 3, macOS 2, Windows 4, all of
+them round and conservative rather than measured).
+`test_every_ceiling_widens_for_a_slow_machine` fails both when the
+suite stops reading the declaration and when a job stops making one.
+So a ceiling now widens for a slow machine as well as for a sharded
+one -- which does not retire the rule above, since a declared factor
+is still somebody's guess about a machine they cannot see.
 
 ## Ceilings, and the two ways to get them wrong
 
