@@ -2408,13 +2408,30 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
     # every classed map goes through: with no pin outside the column
     # no class is degenerate, first and last are the ends, and this
     # computes exactly what it computed before.
-    ranges = renderer.ranges()          # bound: a temporary frees its symbols
-    edges = [(r.lowerValue(), r.upperValue()) for r in ranges]
+    #
+    # SCOPED TO PINS, AND A COPIED LADDER IS NOT ONE. Trimming
+    # generally broke two things on the first run, and both were
+    # right to break. A COPY reproduces another element's
+    # classification, and its classes the receiving column cannot
+    # reach are KEPT rather than dropped precisely so the
+    # reproduction is whole -- collapsing their colours onto their
+    # neighbours drew a one-value column as
+    # ['#f7fcf5', '#f7fcf5', '#73c478', '#00441b', '#00441b'], two
+    # pairs a reader cannot tell apart, which is the shortened
+    # classification the keep-them rule exists to prevent. And the
+    # ramp DISPLAY WINDOW is a statement about which stretch of the
+    # ramp the classes sample, so re-spreading it over a subset makes
+    # a restored window stop governing the classes nobody picked.
+    # Both are `test_`-guarded and both failed, which is the suite
+    # doing its job on a change to a path every classed map takes.
     first, last = 0, count - 1
-    while first < last and edges[first][1] <= edges[first][0]:
-      first += 1
-    while last > first and edges[last][1] <= edges[last][0]:
-      last -= 1
+    if pins and copied is None:
+      ranges = renderer.ranges()      # bound: a temporary frees its symbols
+      edges = [(r.lowerValue(), r.upperValue()) for r in ranges]
+      while first < last and edges[first][1] <= edges[first][0]:
+        first += 1
+      while last > first and edges[last][1] <= edges[last][0]:
+        last -= 1
     drawable = last - first + 1
     shades = quant_class_colours(ramp_name, reverse, drawable, (lo, hi))
     if shades:
