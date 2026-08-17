@@ -234,7 +234,18 @@ jobs:
             wait "$pid" || failed=1
           done
           for i in 0 1 2; do
-            echo "--- shard $i ---"; tail -3 "cov-$i.log"
+            echo "--- shard $i ---"
+            # NAME WHAT FAILED, not merely that something did. This
+            # printed `tail -3` alone, so on 2026-08-17 a shard
+            # reported "155 passed, 1 failed" and NOTHING said which
+            # test -- and the artifact carried the surviving shards'
+            # records but no log, so the failure was unrecoverable
+            # from CI at all. A remote failure that cannot be
+            # attributed costs a whole round to reproduce, which is
+            # this project's own rule about instrumenting a child
+            # BEFORE it dies.
+            grep -E "^(FAIL|STALL) " "cov-$i.log" || true
+            tail -3 "cov-$i.log"
           done
           [ "$failed" -eq 0 ] || { echo "a coverage shard failed"; exit 1; }
           python3 -u tools/merge_coverage_shards.py
@@ -243,6 +254,16 @@ jobs:
         run: |
           python3 -u tools/mutate_auto.py --since "${SINCE}" \
             2>&1 | tee incremental.log
+      - name: Keep the shard logs, whatever happened
+        # Uploaded SEPARATELY and before the report, because the
+        # report step is what does not run when an earlier step exits
+        # non-zero -- which is precisely when the logs are wanted.
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation-incremental-shard-logs
+          path: cov-*.log
+          if-no-files-found: warn
       - name: Keep the report
         if: always()
         uses: actions/upload-artifact@v7
@@ -326,7 +347,18 @@ jobs:
             wait "$pid" || failed=1
           done
           for i in 0 1 2; do
-            echo "--- shard $i ---"; tail -3 "cov-$i.log"
+            echo "--- shard $i ---"
+            # NAME WHAT FAILED, not merely that something did. This
+            # printed `tail -3` alone, so on 2026-08-17 a shard
+            # reported "155 passed, 1 failed" and NOTHING said which
+            # test -- and the artifact carried the surviving shards'
+            # records but no log, so the failure was unrecoverable
+            # from CI at all. A remote failure that cannot be
+            # attributed costs a whole round to reproduce, which is
+            # this project's own rule about instrumenting a child
+            # BEFORE it dies.
+            grep -E "^(FAIL|STALL) " "cov-$i.log" || true
+            tail -3 "cov-$i.log"
           done
           [ "$failed" -eq 0 ] || { echo "a coverage shard failed"; exit 1; }
           python3 -u tools/merge_coverage_shards.py
