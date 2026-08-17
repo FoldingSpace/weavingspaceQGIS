@@ -194,8 +194,11 @@ Use an exact Clopper–Pearson lower limit, and take the two-sided
 flattering convention is the same thumb on the scale in a different
 guise.
 
-`scripts/sample_size.py` computes what a given target requires, and
-crucially, how likely a good suite is to achieve it:
+A sample-size calculation tells you what a given target requires, and
+-- the part people skip -- how likely a good suite is to achieve it.
+This project has no such script: the table below was computed
+once and written down, which is enough for a decision made a
+few times a year.
 
 | n | kills needed | observed | true 0.75 | true 0.80 | true 0.85 |
 |--:|-------------:|---------:|----------:|----------:|----------:|

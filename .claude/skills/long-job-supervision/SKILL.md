@@ -78,7 +78,9 @@ expected instead of reading what is actually there.
 
 ## The health check
 
-`scripts/health.sh` is a starting point: running work with elapsed and
+A health check is a starting point -- in this project
+`tools/loop/health.sh`, and whatever the equivalent is called
+elsewhere. It reports running work with elapsed and
 CPU side by side, watcher loops with their ages, recent logs with
 their staleness *and their last line verbatim*, finished-but-unclaimed
 results, and leftover scratch directories.
