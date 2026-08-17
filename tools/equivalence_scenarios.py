@@ -187,6 +187,18 @@ def scenario_a_working_session(rt):
   rt._tick(200)
 
   def choose(row, column, text):
+    """Set one table cell's combo, if that cell carries one.
+
+    Args:
+      row: the table row, counted from zero.
+      column: the column number.
+      text: the entry to select, ignored when the combo has no such
+        entry -- a scenario names cells generically and not every
+        design has every one.
+
+    Returns:
+      None.
+    """
     combo = dlg.table.cellWidget(row, column)
     if combo is None or not hasattr(combo, "findText"):
       return

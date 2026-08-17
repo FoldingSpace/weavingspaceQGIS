@@ -128,6 +128,25 @@ to be the direct cause of a red suite on three platforms -- deferring
 it was the wrong call, made on a local measurement too cheap to show
 the effect.
 
+**FOR STUDY: warn when a test asserts a string that also appears in
+shipped source.** Added 2026-08-16, deliberately as a question rather
+than a rule. That is exactly what rotted that day: a test asserted
+`"no value" in said`, the maintainer reworded the notice to "do not
+have finite numeric data", and the test failed on every platform while
+looking like a Windows fault -- a second copy of the wording with no
+mechanism keeping the two in step. The repair was to compose the
+expected text from the same function the product uses.
+
+What is NOT known is whether a checker can tell that fragment from a
+coincidence. Tests legitimately assert on words that appear in source
+for unrelated reasons, so this would have to WARN rather than fail,
+and a warning nobody can act on is one people learn to ignore -- which
+this project has written down twice about other instruments. The study
+is: run the comparison over the current suite, count how many hits are
+real and how many are noise, and only then decide whether it earns a
+place. If the noise is heavy the honest outcome is to drop it and keep
+the practice in docs/TESTING.md, where it already is.
+
 **Give the stochastic hunt an exported-file invariant that RUNS.** Added
 2026-08-16. A hunt over 105 checked steps reported its five axes:
 holes 103, tile totals 103, opacity pairing 23, values-on-no-data 23,

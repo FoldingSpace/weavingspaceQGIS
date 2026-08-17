@@ -160,6 +160,18 @@ def _quieten_the_offscreen_platform():
   from qgis.PyQt import QtCore
 
   def handler(mode, context, message):
+    """Qt's message handler: swallow one known noise line, print the rest.
+
+    Args:
+      mode: Qt's severity enum. Unused: anything that is not the noise
+        named below is worth seeing whatever its level.
+      context: Qt's source-location record, unused for the same reason.
+      message: the text Qt wants to print.
+
+    Returns:
+      None. The propagateSizeHints warning is counted rather than
+      printed, Qt emitting it once per table rebuild.
+    """
     if "propagateSizeHints" in message:
       QT_NOISE["propagateSizeHints"] = \
         QT_NOISE.get("propagateSizeHints", 0) + 1
@@ -3127,6 +3139,20 @@ def test_awkward_layers_are_handled_or_declined():
 
   def build(name, crs="EPSG:3857", field="v1", squares=4,
             invalid=False, nulls=False):
+    """One awkward layer, described by what is wrong with it.
+
+    Args:
+      name: the layer's name in the project.
+      crs: its coordinate system, or "" for a layer with none, which QGIS
+        permits and users sometimes want.
+      field: the numeric column's name.
+      squares: how many polygons to build.
+      invalid: give one a self-intersecting ring.
+      nulls: leave some values NULL.
+
+    Returns:
+      The memory layer, added to nothing.
+    """
     """One awkward layer, described by what is wrong with it."""
     uri = f"Polygon?crs={crs}" if crs else "Polygon"
     layer = QgsVectorLayer(uri, name, "memory")
@@ -3231,6 +3257,19 @@ def _hostile_number_layers():
   made = []
 
   def grid(name, crs, cell, values, n=4, field="v1"):
+    """A square grid of polygons carrying one numeric column.
+
+    Args:
+      name: the layer's name in the project.
+      crs: its coordinate system, as an authority string.
+      cell: the side of one square, in the CRS's own units.
+      values: what to write into `field`, cycled if shorter than n*n.
+      n: how many squares along each side.
+      field: the column's name.
+
+    Returns:
+      The memory layer, with its extent updated.
+    """
     layer = QgsVectorLayer(f"Polygon?crs={crs}", name, "memory")
     layer.dataProvider().addAttributes([compat.make_field(field, float)])
     layer.updateFields()
@@ -3455,6 +3494,16 @@ def test_a_correction_the_dialog_makes_reaches_the_preview():
       dlg._generate = original
 
   def choose(row, column, text):
+    """Set one table cell's combo, if that cell carries one.
+
+    Args:
+      row: the table row, counted from zero.
+      column: the column number.
+      text: the entry to select; ignored when the combo lacks it.
+
+    Returns:
+      None.
+    """
     """Pick an entry the way a user does, through the widget's signal."""
     combo = dlg.table.cellWidget(row, column)
     index = combo.findText(text)
@@ -4053,6 +4102,19 @@ def test_staggered_actions_during_a_run():
   trouble = []
 
   def run_case(label, delay, act, verify):
+    """Drive one action at one delay into a run, then check it landed.
+
+    Args:
+      label: how the case is named if it fails.
+      delay: milliseconds to wait after Generate before acting. That is
+        the point of the sweep: the dialog has two debounces and a task,
+        so 0, 400 and 1000 meet three different machines.
+      act: called with the dialog, to make the change.
+      verify: called with the dialog once the run settled; raises to fail.
+
+    Returns:
+      None.
+    """
     project = QgsProject.instance()
     for existing in list(project.mapLayers().values()):
       project.removeMapLayer(existing.id())
@@ -5254,6 +5316,17 @@ def test_a_ramp_swatch_is_drawn_once_and_follows_the_library():
   draws = []
 
   def counting_draw(colours, boxed=(), hatched=()):
+    """Count one swatch draw and pass it through to the real one.
+
+    Args:
+      colours: the stripe colours, as the product computed them.
+      boxed: which stripes carry a pinned-bound box.
+      hatched: which are hatched as unreachable.
+
+    Returns:
+      Whatever the real `_striped_icon` returns, so what is compared
+      afterwards is the real icon rather than this wrapper's idea of one.
+    """
     draws.append(len(colours))
     return real_draw(colours, boxed=boxed, hatched=hatched)
 
@@ -5496,29 +5569,101 @@ def test_qgis_changes_around_the_plugin():
   import tempfile
 
   def clear_the_project(layer, dlg, folder):
+    """One of the ways a project can change under an open dialog.
+
+    Args:
+      layer: the region layer the dialog is pointed at.
+      dlg: the dialog, still open, which is the premise -- each of these
+        is done WHILE it is watching rather than before it opens.
+      folder: the temporary directory holding this case's files.
+
+    Returns:
+      None. All six share one signature so the sweep can call them
+      interchangeably; several ignore arguments they do not need.
+    """
     QgsProject.instance().clear()
 
   def delete_the_output_group(layer, dlg, folder):
+    """One of the ways a project can change under an open dialog.
+
+    Args:
+      layer: the region layer the dialog is pointed at.
+      dlg: the dialog, still open, which is the premise -- each of these
+        is done WHILE it is watching rather than before it opens.
+      folder: the temporary directory holding this case's files.
+
+    Returns:
+      None. All six share one signature so the sweep can call them
+      interchangeably; several ignore arguments they do not need.
+    """
     root = QgsProject.instance().layerTreeRoot()
     group = root.findGroup(dlg._group_name or "")
     if group is not None:
       root.removeChildNode(group)
 
   def roll_back_an_edit(layer, dlg, folder):
+    """One of the ways a project can change under an open dialog.
+
+    Args:
+      layer: the region layer the dialog is pointed at.
+      dlg: the dialog, still open, which is the premise -- each of these
+        is done WHILE it is watching rather than before it opens.
+      folder: the temporary directory holding this case's files.
+
+    Returns:
+      None. All six share one signature so the sweep can call them
+      interchangeably; several ignore arguments they do not need.
+    """
     layer.startEditing()
     ids = [f.id() for f in layer.getFeatures()]
     layer.deleteFeatures(ids[: len(ids) // 2])
     layer.rollBack()              # the user changed their mind
 
   def delete_the_file(layer, dlg, folder):
+    """One of the ways a project can change under an open dialog.
+
+    Args:
+      layer: the region layer the dialog is pointed at.
+      dlg: the dialog, still open, which is the premise -- each of these
+        is done WHILE it is watching rather than before it opens.
+      folder: the temporary directory holding this case's files.
+
+    Returns:
+      None. All six share one signature so the sweep can call them
+      interchangeably; several ignore arguments they do not need.
+    """
     for name in os.listdir(folder):
       os.remove(os.path.join(folder, name))
     layer.reload()
 
   def change_the_project_crs(layer, dlg, folder):
+    """One of the ways a project can change under an open dialog.
+
+    Args:
+      layer: the region layer the dialog is pointed at.
+      dlg: the dialog, still open, which is the premise -- each of these
+        is done WHILE it is watching rather than before it opens.
+      folder: the temporary directory holding this case's files.
+
+    Returns:
+      None. All six share one signature so the sweep can call them
+      interchangeably; several ignore arguments they do not need.
+    """
     QgsProject.instance().setCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
 
   def duplicate_the_layer(layer, dlg, folder):
+    """One of the ways a project can change under an open dialog.
+
+    Args:
+      layer: the region layer the dialog is pointed at.
+      dlg: the dialog, still open, which is the premise -- each of these
+        is done WHILE it is watching rather than before it opens.
+      folder: the temporary directory holding this case's files.
+
+    Returns:
+      None. All six share one signature so the sweep can call them
+      interchangeably; several ignore arguments they do not need.
+    """
     twin = QgsVectorLayer("Polygon?crs=EPSG:3857", layer.name(), "memory")
     twin.dataProvider().addAttributes(layer.fields().toList())
     twin.updateFields()
@@ -6163,6 +6308,18 @@ def test_the_colour_editor_opened_partway_through_a_run():
       _tick(delay)
 
       def picked(v, colour, tid=tid, field=field):
+        """Record a colour the editor picked, as the dialog would.
+
+        Args:
+          v: the value the colour was chosen for.
+          colour: the hex string.
+          tid: the element, bound at definition so the closure cannot read a
+            later loop's value.
+          field: the column, bound for the same reason.
+
+        Returns:
+          None.
+        """
         dlg._category_colours.setdefault(tid, {}) \
            .setdefault(field, {})[str(v)] = colour
         dlg._apply_style_change()
@@ -8031,6 +8188,17 @@ def test_a_pinned_class_bound_reaches_the_map():
   project.addMapLayer(layer)
 
   def bounds(pinned=None, k=5, scheme="Quantiles"):
+    """The class bounds one classification produces, rounded to compare.
+
+    Args:
+      pinned: the pinned-bound record, or None for none.
+      k: how many classes to ask for.
+      scheme: the break method, by the name the dialog uses.
+
+    Returns:
+      A list of (lower, upper) pairs rounded to four places -- finer than
+      any break this fixture produces, coarser than float noise.
+    """
     renderer = bridge.make_graduated_renderer(
       layer, "v3", "Reds", scheme, k, False, pinned=pinned)
     return [(round(r.lowerValue(), 4), round(r.upperValue(), 4))
@@ -10185,6 +10353,16 @@ def test_a_copy_hatches_the_classes_it_leaves_unreachable():
   original = dialog_module._custom_swatch_icon
 
   def recording(shades, boxed=(), hatched=()):
+    """Record one swatch's shape and pass it through.
+
+    Args:
+      shades: the stripe colours.
+      boxed: which stripes are boxed as a pinned bound.
+      hatched: which are hatched as unreachable.
+
+    Returns:
+      Whatever the real builder returns.
+    """
     built.append((len(shades), list(boxed), list(hatched)))
     return original(shades, boxed, hatched)
 
@@ -17519,6 +17697,18 @@ def _interior_diff(ui_png, lib_png):
   assert a.size() == b.size(), "renders must share a size to compare"
 
   def interior(image, x, y):
+    """Whether a pixel is inside a filled area rather than on its edge.
+
+    Args:
+      image: the rendered QImage.
+      x: the pixel's column.
+      y: its row.
+
+    Returns:
+      True when all four neighbours share this pixel's colour, which is
+      what excludes antialiased edges -- they dominate an unweighted
+      colour comparison, and once scored a visually identical pair at 11.
+    """
     c = image.pixelColor(x, y)
     for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
       n = image.pixelColor(x + dx, y + dy)
@@ -17947,6 +18137,17 @@ def _compare_ui_to_library(label, setup, expected_unit, tiling_kw,
     assert a.size() == b.size()
 
     def interior(image, x, y):
+      """Whether a pixel is inside a filled area rather than on its edge.
+
+      Args:
+        image: the rendered QImage.
+        x: the pixel's column.
+        y: its row.
+
+      Returns:
+        True when all four neighbours share this pixel's colour, so
+        antialiased edges stay out of the comparison.
+      """
       """The pixel, when it sits inside a fill rather than on an
       antialiased edge; None otherwise. Weaves have enormously more
       edge than tilings do (thin strands, many crossings), so a raw
@@ -26170,12 +26371,33 @@ class _QtNoiseWatch:
     self._old_hook = sys.excepthook
 
     def hook(kind, value, tb):
+      """Collect an unhandled exception instead of letting it vanish.
+
+      Args:
+        kind: the exception class.
+        value: the exception.
+        tb: its traceback.
+
+      Returns:
+        None. An exception raised inside a Qt slot is otherwise printed and
+        forgotten, and several defects here were exactly that.
+      """
       self.exceptions.append(
         "".join(traceback.format_exception(kind, value, tb)))
 
     def handler(mode, context, message):
       # Warnings are ordinary here (QGIS talks constantly); critical
       # and fatal are the levels Qt uses for a broken object graph.
+      """Qt's message handler for this probe: keep every line.
+
+      Args:
+        mode: Qt's severity enum, unused.
+        context: Qt's source-location record, unused.
+        message: the text Qt wants to print, which is what is kept.
+
+      Returns:
+        None.
+      """
       if mode in (QtMsgType.QtCriticalMsg, QtMsgType.QtFatalMsg):
         self.messages.append(str(message))
 
@@ -28820,6 +29042,18 @@ def test_attribute_names_survive_the_round_trip():
     return [f.name() for f in layer.fields()]
 
   def check_no_collision(names, where, fold=True):
+    """Refuse duplicate names, optionally ignoring case.
+
+    Args:
+      names: the identifiers to compare.
+      where: how to describe them if they collide.
+      fold: also compare case-insensitively, which is what a filesystem,
+        a GeoPackage table name and a style library all do -- three
+        separate defects here were identifiers differing only in case.
+
+    Returns:
+      None; raises AssertionError naming the collision.
+    """
     assert len(names) == len(set(names)), \
       f"{where} has duplicate attribute names: {names}"
     if fold:
@@ -36327,6 +36561,17 @@ def test_the_element_count_changes_under_an_open_colour_editor():
       # record-keeping rather than the wiring (which
       # test_editing_a_category_colour_reaches_the_map covers).
       def picked(value, colour, tid=tid):
+        """Record a colour the editor picked, as the dialog would.
+
+        Args:
+          value: the value the colour was chosen for.
+          colour: the hex string.
+          tid: the element, bound at definition so the closure cannot read a
+            later loop's value.
+
+        Returns:
+          None.
+        """
         dlg._category_colours.setdefault(tid, {}) \
            .setdefault("landcover", {})[str(value)] = colour
         dlg._apply_style_change()
@@ -36533,6 +36778,17 @@ def test_the_field_goes_away_under_an_open_colour_editor():
         continue
 
       def picked(value, colour, tid=tid):
+        """Record a colour the editor picked, as the dialog would.
+
+        Args:
+          value: the value the colour was chosen for.
+          colour: the hex string.
+          tid: the element, bound at definition so the closure cannot read a
+            later loop's value.
+
+        Returns:
+          None.
+        """
         dlg._category_colours.setdefault(tid, {}) \
            .setdefault("landcover", {})[str(value)] = colour
         dlg._apply_style_change()
@@ -39749,6 +40005,19 @@ def hostile_layers():
   made = []
 
   def build(name, crs, fields, rows, wkts, note):
+    """One layer built from explicit geometry, for the hostile corpus.
+
+    Args:
+      name: the layer's name.
+      crs: its coordinate system, as an authority string.
+      fields: (name, type) pairs for the attribute table.
+      rows: one list of attribute values per feature.
+      wkts: one WKT geometry per feature, matching `rows` in length.
+      note: what is awkward about this layer, for failure messages.
+
+    Returns:
+      The memory layer.
+    """
     layer = QgsVectorLayer(f"MultiPolygon?crs={crs}", name, "memory")
     layer.dataProvider().addAttributes(
       [compat.make_field(f, t) for f, t in fields])
@@ -40263,6 +40532,26 @@ def test_random_designs_match_the_library():
 
     def setup(dlg, n=n, name=name, spacing=spacing, shape=shape,
               mods=mods, entry=entry, pattern=pattern, aspect=aspect):
+      """Put one randomly drawn design into the dialog.
+
+      Args:
+        dlg: the dialog to configure.
+        n: the element count.
+        name: the family, as the catalogue names it.
+        spacing: the tile spacing in map units.
+        shape: the prototile shape where the family offers a choice.
+        mods: the modifier values (rotation, insets, scale, skew).
+        entry: the catalogue entry this design was drawn from.
+        pattern: the strands code for a weave, ignored for a tiling.
+        aspect: how much of the spacing a strand fills.
+
+      Every argument is bound at definition, so the closure cannot read a
+      later iteration's values -- the fault that makes a sweep test every
+      case against the last design drawn.
+
+      Returns:
+        None.
+      """
       dlg.n_combo.setCurrentText(str(n))
       dlg.kind_combo.setCurrentText(
         "tiling" if entry["type"] == "tiling" else "weave")

@@ -239,6 +239,12 @@ def run_suite_with_monitoring(seen, branches=None, on_suite_exit=None):
   def on_branch(code, offset, destination):
     """A decision was resolved: record WHERE it jumped to.
 
+    Args:
+      code: the code object the branch is in.
+      offset: the instruction offset of the decision, which is what
+        distinguishes two branches in one function.
+      destination: the offset it jumped to this time.
+
     Keyed by (file, code-object first line, instruction offset) with
     the set of destinations seen, because a decision is only properly
     tested once it has gone both ways — one destination means the

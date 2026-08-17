@@ -923,6 +923,196 @@ def _signature_arguments(node):
   return [n for n in names if n not in ("self", "cls")]
 
 
+def check_nested_helpers_document_their_arguments():
+  """Inner functions of two or more arguments say what they mean.
+
+  Returns:
+    None; anything undocumented is appended to `problems`.
+
+  `check_documentation` deliberately governs only what a CALLER can
+  reach, on the reasoning that a closure is implementation detail of
+  the function around it. That reasoning holds for the docstring and
+  NOT for the arguments. An inner helper taking three positional
+  arguments is exactly where a reader has least context -- there is no
+  signature in any index, no test naming it, and often no name that
+  survives being read a year later -- and this project wrote one on
+  2026-08-16 (`duplicates(body, where, path)`) that said nothing about
+  any of them.
+
+  So: a nested function of two or more arguments needs an Args block.
+  It needs a docstring to put one in, which is the point rather than a
+  side effect. One-argument helpers are left alone, because
+  `to_screen(x)` inside a paint method really is noise.
+
+  Dunders are exempt, as above, and so are lambdas, which cannot carry
+  a docstring at all -- if a helper wants explaining, it wants to be a
+  def.
+  """
+  for path in our_sources():
+    with open(path, encoding="utf-8") as handle:
+      tree = ast.parse(handle.read(), path)
+    rel = os.path.relpath(path, ROOT)
+    # Everything reachable is already covered; this walks the rest.
+    outer = set()
+    for node in tree.body:
+      if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        outer.add(node)
+      elif isinstance(node, ast.ClassDef):
+        outer.update(c for c in node.body
+                     if isinstance(c, (ast.FunctionDef,
+                                       ast.AsyncFunctionDef)))
+    for node in ast.walk(tree):
+      if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        continue
+      if node in outer:
+        continue
+      name = node.name
+      if name.startswith("__") and name.endswith("__"):
+        continue
+      args = [a.arg for a in node.args.args
+              if a.arg not in ("self", "cls")]
+      args += [a.arg for a in node.args.kwonlyargs]
+      # THREE, not two, and the line was chosen from a measurement
+      # rather than by instinct (2026-08-16): at two-or-more this
+      # names 92 helpers, 64 of them Qt slot closures like
+      # `picked(index, colour)` whose arguments are Qt's and whose
+      # names already say it. Blocks there would add some three
+      # hundred lines of boilerplate and make the files longer
+      # without making them clearer. At three-or-more it names 28,
+      # including every genuinely opaque one -- `spin(lo, hi, val,
+      # step)`, a `build` of six, a `setup` of nine -- and the helper
+      # whose silence prompted the rule, `duplicates(body, where,
+      # path)`. Raise it to two if the noise turns out to be worth
+      # paying for; the number is here and nowhere else.
+      if len(args) < 3:
+        continue
+      doc = ast.get_docstring(node) or ""
+      if "Args:" not in doc and "Arg:" not in doc:
+        problems.append(
+          f"{rel}:{node.lineno} the inner helper "
+          f"{name}({', '.join(args)}) documents no arguments; a "
+          "closure is where a reader has least context, so three or "
+          "more of them need saying")
+
+
+def check_nothing_is_defined_twice():
+  """No scope binds one name to two definitions.
+
+  Returns:
+    None; every redefinition is appended to `problems`.
+
+  Python binds a name once per statement, so a second `def` of one
+  name leaves the LAST in force and the first dead -- no warning, no
+  error, and the file reading as though both are there. On 2026-08-16
+  that shipped a colour editor labelling every value "no data",
+  because the surviving definition's fallback was a fixed word and the
+  dead one above it still described the behaviour the software no
+  longer had.
+
+  The suite carries this question too, and asking it HERE is the
+  point: `check_standards` runs in a second before a push, where the
+  suite answers fifty minutes into CI. The worst defect of that day
+  would have been caught at the keyboard.
+
+  Deliberately allowed: the decorated idioms where redefining a name
+  is the language's own way of saying something -- a property's
+  setter, getter or deleter, a `singledispatch` registration, and
+  `typing.overload`. Definitions inside an `if` or a `try` are not
+  counted either, being how a module offers one of two
+  implementations; only DIRECT children of a scope are compared.
+  """
+  def deliberate(node):
+    """Whether redefining this name is a language idiom.
+
+    Args:
+      node: the FunctionDef, AsyncFunctionDef or ClassDef to judge.
+      (no second argument; listed for the reader rather than required)
+
+    Returns:
+      True when a decorator marks it as a deliberate second
+      definition, False otherwise.
+    """
+    for dec in getattr(node, "decorator_list", []):
+      target = dec.func if isinstance(dec, ast.Call) else dec
+      if isinstance(target, ast.Attribute) and target.attr in (
+          "setter", "getter", "deleter", "register", "overload"):
+        return True
+      if isinstance(target, ast.Name) and target.id == "overload":
+        return True
+    return False
+
+  for path in our_sources():
+    with open(path, encoding="utf-8") as handle:
+      tree = ast.parse(handle.read(), path)
+    rel = os.path.relpath(path, ROOT)
+    scopes = [("the module", tree.body)]
+    for node in ast.walk(tree):
+      if isinstance(node, ast.ClassDef):
+        scopes.append((f"class {node.name}", node.body))
+    for where, body in scopes:
+      seen = {}
+      for item in body:
+        if not isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                 ast.ClassDef)):
+          continue
+        if deliberate(item):
+          continue
+        seen.setdefault(item.name, []).append(item.lineno)
+      for name, lines in seen.items():
+        if len(lines) > 1:
+          problems.append(
+            f"{rel}: {where} defines {name} {len(lines)} times, at "
+            f"lines {', '.join(str(n) for n in lines)}; Python keeps "
+            "the last and the others are dead code describing "
+            "behaviour the software no longer has")
+
+
+def check_every_test_is_registered():
+  """Every test the suite defines is run, and every run test exists.
+
+  Returns:
+    None; both directions of the mismatch are appended to `problems`.
+
+  A test nobody registers never runs, and reports nothing forever --
+  indistinguishable from a test that passes. Nineteen were found in
+  that state on 2026-08-16. The converse is worse and faster: a
+  `check()` naming a function that no longer exists breaks the suite
+  at `main()`, which is how a span rewrite that took its neighbours
+  announced itself the same day.
+
+  The suite asks this of itself, and asking it here as well is
+  deliberate: this runs in a second before a push, where the suite's
+  own answer arrives after the tests it can no longer run.
+  """
+  path = os.path.join(ROOT, "tests", "run_tests.py")
+  if not os.path.exists(path):
+    problems.append("tests/run_tests.py is missing")
+    return
+  with open(path, encoding="utf-8") as handle:
+    tree = ast.parse(handle.read(), path)
+  defined = {node.name for node in tree.body
+             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+             and node.name.startswith("test_")}
+  registered = set()
+  for node in ast.walk(tree):
+    if isinstance(node, ast.Call) and getattr(node.func, "id", None) \
+        == "check" and len(node.args) > 1:
+      target = node.args[1]
+      if isinstance(target, ast.Name):
+        registered.add(target.id)
+  # Registered but undefined breaks the suite outright, so it is named
+  # first and separately.
+  for name in sorted(registered - defined):
+    if name.startswith("test_"):
+      problems.append(
+        f"tests/run_tests.py registers {name}, which is not defined "
+        "at module level; the suite would raise at main()")
+  for name in sorted(defined - registered):
+    problems.append(
+      f"tests/run_tests.py defines {name} and never registers it, so "
+      "it never runs and reports nothing forever")
+
+
 def main():
   """Run every standards check and report everything that breaches one.
 
@@ -945,6 +1135,9 @@ def main():
   check_ci_covers_what_it_claims()
   check_skill_provenance()
   check_args_blocks_match_signatures()
+  check_nested_helpers_document_their_arguments()
+  check_nothing_is_defined_twice()
+  check_every_test_is_registered()
   if problems:
     print(f"{len(problems)} standards problem(s):\n")
     for problem in problems:

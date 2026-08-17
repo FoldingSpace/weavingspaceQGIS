@@ -1503,6 +1503,19 @@ class WeavingSpaceDialog(QDialog):
     mform = QFormLayout(mods)
 
     def spin(lo, hi, val, step):
+      """One modifier's spin box, wired to the preview.
+
+      Args:
+        lo: the smallest value the control accepts.
+        hi: the largest.
+        val: where it starts, which is the identity for that modifier.
+        step: how far one press of an arrow moves it; also decides
+          the decimals shown, since a sub-unit step wants three and a
+          whole-unit step wants one.
+
+      Returns:
+        The QDoubleSpinBox, already connected to the preview debounce.
+      """
       box = QDoubleSpinBox()
       box.setRange(lo, hi)
       box.setValue(val)
@@ -1512,6 +1525,16 @@ class WeavingSpaceDialog(QDialog):
       return box
 
     def pair(label, a, b):
+      """Two controls side by side on one labelled form row.
+
+      Args:
+        label: the form label, as the user reads it.
+        a: the left-hand widget.
+        b: the right-hand one.
+
+      Returns:
+        None; the row is added to the modifiers form.
+      """
       row = QHBoxLayout()
       row.addWidget(a)
       row.addWidget(b)
