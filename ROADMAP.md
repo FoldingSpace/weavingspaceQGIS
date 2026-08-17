@@ -129,7 +129,111 @@ REPRODUCE on any of seven deliberate routes -- the judgement, and the
 lesson about seed counts that came out of it, are in
 `docs/process/hunt-stochastic-2026-08-17.md` and the hunt record.
 
-Nothing outstanding. `CONTENTION` gained its platform term on
+### Reported by the maintainer against rc5, owed by rc6
+
+**A PIN MUST BE ALLOWED OUTSIDE THE DATA'S OWN RANGE.** Reported
+2026-08-17 against rc5. `pin_problem` refuses a bound the column does
+not cover -- "The upper class bound must sit between -5.71 and 2.83,
+which is what the data covers" -- and the maintainer's answer is that
+this is precisely what somebody wants to do: set one pair of limits
+across SEVERAL variables, so that a colour means the same number on
+every map, rather than each column stretching to its own extremes.
+
+That is not an edge case, it is this plugin's central claim -- several
+attributes of real places read against each other -- and the refusal
+works against it. So the rule changes: a bound outside the data is
+ALLOWED, and the classes it creates simply go unworn. The swatch
+already hatches a class no tile wears, which is the honest way to show
+it, and `unworn_classes` already computes exactly that.
+
+What must NOT be lost with it: the refusals that stay are the ones
+naming something that cannot be DRAWN -- crossed bounds, nothing left
+for the middle, more pinned boundaries than k-1. "Outside the data" is
+not in that family, and grouping it with them is the error. Settled
+decisions in CLAUDE.md name the four refusals together and will need
+the same correction, with the maintainer's ruling recorded beside it.
+
+**GHOST NUMBERS BEHIND THE UNCLASSED EDITOR'S CLASS BOUNDS.** Reported
+2026-08-17 against rc5, with a screenshot: a second, faint set of
+bounds painted behind the live ones in the Lower and Upper columns,
+offset by about a row.
+
+STRONGLY INDICATED, NOT YET PROVEN. `locked=unclassed`
+(dialog.py), and the locked branch puts a `QGraphicsOpacityEffect` on
+`self.table`. A graphics effect renders its source into an offscreen
+pixmap while `QAbstractScrollArea` scrolls by BLITTING, so the cached
+source and the blitted viewport disagree -- which matches the
+screenshot exactly, where each ghost is the value one row away.
+Measured that the preconditions hold: the effect is there at 0.45 and
+the table scrolls (max 35 with fifty classes).
+
+What could NOT be shown is the artefact itself. `grab()` repaints
+cleanly and offscreen showed 0 of 32,900 sampled pixels differing
+between a scrolled and a force-repainted render, exactly as predicted
+before the run -- the fault lives in the window system's backing
+store, where this suite cannot look. So the fix (fade the ITEMS
+through the palette's disabled text colour rather than compositing the
+whole table through an effect) must be confirmed by the maintainer on
+a real screen, and the guard can only assert the cause is gone rather
+than that the symptom is.
+
+**THE PLUGIN IS SLOWER IN rc5, AND THE TESTER NOTICED.** Reported
+2026-08-17. No operation named yet, which is the first thing to
+establish: "slower" could be opening the dialog, the first render,
+Generate, the live debounce, or typing in the table, and they have
+almost nothing in common.
+
+MEASURE, DO NOT GUESS. This project already spent a day on a
+performance regression whose obvious culprit was innocent, and the
+technique that worked is written down: profile the SAME operation at
+two revisions and diff the CALL COUNTS, not the seconds. Counts are
+immune to profiler overhead and to whatever else the machine is
+doing; on 2026-08-16 the self-time ratio understated a threefold
+difference as 1.2x while the counts carried it exactly. The two
+revisions here are `569aefb` (rc4) and `6c7af51` (rc5).
+
+Candidates from this session's own work, listed so they can be ruled
+out rather than assumed: `_group_of_our_layers` now runs three times
+per run and walks the layer tree for each of our layers; the
+missing-ramp notice asks the style library once per assignment per
+run, and `get_ramp` clones. Both look cheap -- a ramp lookup was
+measured at 0.024 ms -- and both are on the run path rather than a
+per-keystroke one. THAT IS A HYPOTHESIS AND NOT A FINDING. The
+retirement-gate work that took rebuilds from 1,282 to 173 is also in
+this window, which means the honest prior is that rc5 should be
+FASTER than rc4 on the path a layer change touches, and a report that
+it is slower needs the measurement before any of this is believed.
+
+**SILLY NUMBERS OF SIGNIFICANT FIGURES THROUGHOUT THE INTERFACE.**
+Reported 2026-08-17: spacing shows six decimal places in metres, and
+the ramp bound boxes show nine. Measured across the plugin, every
+control decides for itself and in five different ways --
+`spacing_spin.setDecimals(6)`, `opt_offset` step 0.01 with 2,
+`opt_aspect` step 0.083 with 3, `opt_offset_angle` with a step of 1
+and no decimals set at all (so Qt's default 2, giving "0.00"
+degrees), the modifier boxes with a local `3 if step < 1 else 1`, and
+six QDoubleSpinBoxes in dialog.py that set nothing.
+
+THE RULE TO ADOPT, and it is already in the tree as one modifier's
+local habit: DERIVE THE DECIMALS FROM THE CONTROL'S OWN singleStep.
+A spin box showing more decimals than its step can move is offering
+digits the control cannot produce -- six decimals on a metre step
+means five of them are unreachable by the arrows and meaningless to
+the user. One pass over `findChildren(QDoubleSpinBox)` at
+construction costs microseconds once and nothing per repaint, and a
+control added later is right without anybody remembering, which is
+the property the current five-rules-in-five-places arrangement
+lacks.
+
+Two things to keep straight when doing it. Where a control needs
+finer precision the STEP should say so, which keeps one number per
+control rather than two that can disagree. And the class-bound boxes
+in `category_editor` size their decimals from the DATA deliberately
+(catalogue entry `the-bound-box-is-sized-from-the-data`), so either
+exempt them or size their step from the data too, so that one rule
+still covers everything.
+
+Nothing else outstanding. `CONTENTION` gained its platform term on
 2026-08-16 and the entry that stood here is deleted: every timing
 allowance is now `CONTENTION * WEAVINGSPACE_TEST_SLOWNESS`, each CI
 job declares its own figure with the reason beside it, and

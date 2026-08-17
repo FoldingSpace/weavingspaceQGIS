@@ -1208,12 +1208,21 @@ def pin_problem(low, high, values, asked: int, breaks=None):
     map.
 
   What is REFUSED here is only what cannot be drawn at all: bounds
-  that cross, a bound outside the data, or a pin that leaves no
-  sample for the middle classes. What is deliberately NOT refused is
-  a pin leaving fewer distinct values than remaining classes -- that
-  draws fewer classes through the ordinary reduction and says so
-  through few_values_message, which is one answer to "the data cannot
-  support this count" rather than two. (Settled 2026-08-14.)
+  that cross, a ladder asked to carry more pinned boundaries than it
+  has, or a pin that leaves no sample for the middle classes. What is
+  deliberately NOT refused is a pin leaving fewer distinct values than
+  remaining classes -- that draws fewer classes through the ordinary
+  reduction and says so through few_values_message, which is one
+  answer to "the data cannot support this count" rather than two.
+  (Settled 2026-08-14.)
+
+  NOR IS A BOUND OUTSIDE THE DATA, since 2026-08-17. It was refused
+  until then, and the maintainer's ruling on meeting the refusal is
+  that setting limits wider than one column is the point rather than a
+  mistake: one pair of limits across several variables is how a colour
+  comes to mean the same number on every map. The class beyond the
+  data simply goes unworn, and the swatch hatches it. The reasoning is
+  at the line where the check used to be.
   """
   numbers = sorted(
     float(v) for v in values
@@ -1227,10 +1236,28 @@ def pin_problem(low, high, values, asked: int, breaks=None):
       continue
     if not math.isfinite(float(bound)):
       return f"The {name} class bound must be a number."
-    if not smallest <= float(bound) <= largest:
-      return (f"The {name} class bound must sit between "
-              f"{_trim(smallest)} and {_trim(largest)}, which is what "
-              f"the data covers.")
+  # A BOUND OUTSIDE THE DATA IS ALLOWED, and used to be refused here
+  # with "must sit between {min} and {max}, which is what the data
+  # covers". The maintainer's ruling, 2026-08-17, on meeting it:
+  # setting limits WIDER than one column is exactly the thing somebody
+  # wants to do, because it is how one pair of limits can be given to
+  # several variables so that a colour means the same number on every
+  # map. That is this plugin's central claim -- attributes of real
+  # places read against each other -- and a guard forcing every column
+  # to its own extremes works directly against it.
+  #
+  # The refusal was wrong by CLASSIFICATION as much as by policy. The
+  # others here name a map that cannot be DRAWN: bounds that cross, a
+  # ladder asked for more pinned boundaries than it has, nothing left
+  # for the middle to cut. A bound beyond the data draws perfectly
+  # well; its outer class simply goes unworn, which `unworn_classes`
+  # already computes and the swatch already hatches. Grouping it with
+  # the undrawable three is how it came to look like a rule rather
+  # than a preference.
+  #
+  # What still refuses the genuinely undrawable version of this is the
+  # middle check at the foot of this function: two bounds on the SAME
+  # side of the data leave nothing between them, and that fires.
   if low is not None and high is not None and float(low) >= float(high):
     return ("The first class must end below where the last class "
             "begins.")
@@ -1470,10 +1497,22 @@ def _apply_pinned_bounds(renderer, low, high, smallest, largest,
     if high is not None:
       middle[-1] = (middle[-1][0], float(high))
   bounds = list(middle)
+  # A PINNED CLASS MUST CONTAIN ITS OWN PIN, which is why the outer
+  # edge is the further of the pin and the data's extreme rather than
+  # the extreme alone. Since 2026-08-17 a bound may sit outside the
+  # column -- the maintainer's ruling, so that one pair of limits can
+  # be given to several variables -- and `(smallest, low)` with a pin
+  # BELOW the smallest value builds a range running backwards, which
+  # QGIS accepts and then draws as nothing. Measured: pins at -5 and
+  # 40 over data of 1..13 left the ladder starting at 1.0, so relaxing
+  # the guard alone accepted the number and drew the same map. Two
+  # doors into one state, one of them guarded -- the shape this
+  # project keeps meeting, and the reason the test drives it to the
+  # renderer rather than stopping at `pin_problem`.
   if low is not None:
-    bounds.insert(0, (float(smallest), float(low)))
+    bounds.insert(0, (min(float(smallest), float(low)), float(low)))
   if high is not None:
-    bounds.append((float(high), float(largest)))
+    bounds.append((float(high), max(float(largest), float(high))))
   set_class_bounds(renderer, bounds, outline, method)
 
 

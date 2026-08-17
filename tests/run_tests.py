@@ -8966,18 +8966,132 @@ def test_a_refused_pin_reverts_and_says_so():
   source = dlg._classification_values("v3")
   values = source.uniqueValues(source.fields().indexOf("v3"))
   BAR_MESSAGES.clear()
+  # A bound far above EVERY value, which leaves the middle classes
+  # nothing whatever to cut. That is still refused, and it is a
+  # different refusal from the one this line used to stage: until
+  # 2026-08-17 any bound outside the data was rejected, and the
+  # maintainer ruled that WIDER limits are the point rather than a
+  # mistake -- one pair of limits across several variables is how a
+  # colour comes to mean the same number on every map. What survives
+  # is the undrawable case, which this is: no value sits above 1e9, so
+  # there is nothing between the pin and the top.
   problem = bridge.pin_problem(1e9, None, values, assignment.get("k", 5))
-  assert problem, "a bound far above the data should be refused"
+  assert problem, \
+    "a pin with no data above it leaves the middle nothing to cut " \
+    "and must still be refused"
 
   # ...and the dialog's own handler reports it and records nothing
   before = dict(dlg._pinned_bounds.get(tid, {}))
   dlg._report_quietly(problem)
-  said = [text for _kind, text in BAR_MESSAGES if "must sit between" in text]
+  # COMPOSED FROM THE PRODUCT, never transcribed. This line used to
+  # look for the fragment "must sit between", so rewording the notice
+  # -- which is exactly what happened -- would have failed a test
+  # whose subject is not the wording at all.
+  said = [text for _kind, text in BAR_MESSAGES if problem in text]
   assert said, \
     f"the refusal never reached the user: {BAR_MESSAGES!r}"
   assert dlg._pinned_bounds.get(tid, {}) == before, \
     "a refused pin must record nothing"
   dlg.close()
+
+
+def test_a_pin_may_sit_outside_the_data_it_classifies():
+  """Limits WIDER than the column are the point, not a mistake.
+
+  Until 2026-08-17 `pin_problem` refused any bound the column did not
+  cover -- "must sit between {min} and {max}, which is what the data
+  covers". The maintainer met that refusal and ruled against it: one
+  pair of limits given to SEVERAL variables is how a colour comes to
+  mean the same number on every map, which is this plugin's central
+  claim. Forcing every column to its own extremes works against it.
+
+  The refusal was also wrong by classification. The others name a map
+  that cannot be DRAWN -- bounds that cross, more pinned boundaries
+  than a ladder has, nothing left for the middle. A bound beyond the
+  data draws perfectly well and its outer class simply goes unworn,
+  which the swatch already hatches.
+
+  So this drives the wide case to the MAP and asserts three things:
+  it is accepted, every tile is still painted, and the ladder really
+  does reach past the data rather than being quietly clamped back to
+  it. The three undrawable refusals are asserted alongside, because a
+  change that relaxes a guard should show what the guard still holds.
+
+  Regression: a class bound outside the column's own range was refused, so a user could not give two variables the same limits and have a colour mean the same number on both. Relaxing the guard alone was not enough: `_apply_pinned_bounds` built the outer class from the column's own extreme, so a pin below the data made a range running backwards and the ladder snapped back to 1.0. Reported against 0.24.3rc5. [user]
+  """
+  from qgis.core import QgsRenderContext
+  from weavingspace_qgis import bridge, compat
+
+  values = [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]
+  layer = QgsVectorLayer("Polygon?crs=EPSG:2193", "wide pins", "memory")
+  provider = layer.dataProvider()
+  provider.addAttributes([compat.make_field("v", float)])
+  layer.updateFields()
+  features = []
+  for i, value in enumerate(values):
+    feature = QgsFeature(layer.fields())
+    feature.setAttribute("v", value)
+    x = i * 10.0
+    feature.setGeometry(QgsGeometry.fromPolygonXY([[
+      QgsPointXY(x, 0), QgsPointXY(x + 9, 0),
+      QgsPointXY(x + 9, 9), QgsPointXY(x, 9), QgsPointXY(x, 0)]]))
+    features.append(feature)
+  provider.addFeatures(features)
+  layer.updateExtents()
+
+  # the case the maintainer asked for: limits from a WIDER pool than
+  # this column, as a second variable would supply
+  wide_low, wide_high = -5.0, 40.0
+  assert wide_low < min(values) and wide_high > max(values), \
+    "the fixture's pins are inside the data, so it stages nothing"
+  assert bridge.pin_problem(wide_low, wide_high, values, 5) is None, \
+    f"a pin outside the data was refused: " \
+    f"{bridge.pin_problem(wide_low, wide_high, values, 5)}"
+
+  renderer = bridge.make_graduated_renderer(
+    layer, "v", "Reds", "Quantiles", 5, False,
+    pinned={"low": wide_low, "high": wide_high})
+  ranges = renderer.ranges()
+  assert ranges, "the wide pins produced no classes at all"
+  bounds = [(r.lowerValue(), r.upperValue()) for r in ranges]
+  assert bounds[0][0] <= wide_low, \
+    f"the ladder starts at {bounds[0][0]}, not at or below the pinned " \
+    f"{wide_low}: the bound was clamped back to the data"
+  assert bounds[-1][1] >= wide_high, \
+    f"the ladder ends at {bounds[-1][1]}, not at or above the pinned " \
+    f"{wide_high}: the bound was clamped back to the data"
+
+  # ...and every tile is still painted, asked through a render context
+  # because a ladder can look contiguous while a value falls outside
+  # every class and draws as nothing
+  layer.setRenderer(renderer)
+  context = QgsRenderContext()
+  renderer.startRender(context, layer.fields())
+  painted = 0
+  for feature in layer.getFeatures():
+    assert renderer.symbolForFeature(feature, context) is not None, \
+      f"{feature['v']} fell outside every class: {bounds}"
+    painted += 1
+  renderer.stopRender(context)
+  assert painted == len(values), \
+    f"{painted} of {len(values)} features were painted"
+
+  # the outer classes are empty, and the plugin knows it rather than
+  # hiding it -- which is what makes the wide ladder honest
+  unworn = bridge.unworn_classes(bounds, values)
+  assert unworn, \
+    "no class was reported unworn, though the pins reach well past " \
+    "the data; the swatch would hatch nothing and the emptiness " \
+    "would be invisible"
+
+  # WHAT THE GUARD STILL HOLDS. Each of these names a map that cannot
+  # be drawn, which is the family the wide pin never belonged to.
+  assert bridge.pin_problem(9.0, 3.0, values, 5), \
+    "crossed bounds must still be refused"
+  assert bridge.pin_problem(2.0, 9.0, values, 2), \
+    "a two-class ladder has one boundary and cannot carry two pins"
+  assert bridge.pin_problem(20.0, 30.0, values, 5), \
+    "two bounds above every value leave the middle nothing to cut"
 
 
 def test_the_release_notes_keep_their_categories():
@@ -46771,6 +46885,8 @@ def main():
         test_a_hatched_class_hatches_only_itself)
   check("a refused pin reverts and says so",
         test_a_refused_pin_reverts_and_says_so)
+  check("a pin may sit outside the data it classifies",
+        test_a_pin_may_sit_outside_the_data_it_classifies)
   check("the release notes keep their categories",
         test_the_release_notes_keep_their_categories)
   check("a pin set during a run is not lost",

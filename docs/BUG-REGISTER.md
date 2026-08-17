@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-215 defect(s) with a regression test.
+216 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -457,6 +457,8 @@ there is no separate list to remember.
   guarded by `test_a_deferring_row_shows_the_colours_qgis_is_drawing`
 - **the diagonals were drawn unclipped, each one `height` px long and starting a full height BEFORE the stripe, so marking a single class painted a 49px band around a stripe 12.8px wide. Measured 2026-08-16 on the shipped 64x18 swatch at five classes: hatching class 3 alone put 44 pixels of ink into class 2 against 58 into class 3 itself, and 6 into class 1 and 33 into class 4 as well, so a user could not tell which class the cell was talking about. Reported from a screenshot of four Custom rows.**  
   guarded by `test_a_hatched_class_hatches_only_itself`
+- **a class bound outside the column's own range was refused, so a user could not give two variables the same limits and have a colour mean the same number on both. Relaxing the guard alone was not enough: `_apply_pinned_bounds` built the outer class from the column's own extreme, so a pin below the data made a range running backwards and the ladder snapped back to 1.0. Reported against 0.24.3rc5.**  
+  guarded by `test_a_pin_may_sit_outside_the_data_it_classifies`
 - **a renderer type changed in QGIS's styling panel left the plugin's row naming a style and a ramp that no longer decided the map.**  
   guarded by `test_a_renderer_the_row_cannot_name_defers_to_qgis`
 - **values retyped in QGIS left the map drawing the classification computed from the old values, with classes running past everything the layer now held.**  
@@ -482,7 +484,7 @@ there is no separate list to remember.
 - a bug hunt pointed in a named direction: 55
 - the mutation campaign: 16
 - reading the code: 15
-- reported by a user: 12
+- reported by a user: 13
 - running the suite somewhere other than the machine it was written on: 8
 - race and stress testing: 6
 - a multi-step session test: 5
