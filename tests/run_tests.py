@@ -1810,6 +1810,47 @@ def _generate_and_wait(dlg):
   dlg._on_generated = orig
 
 
+def _reads_from(layer, path):
+  """Whether a layer's data really comes from this file.
+
+  Args:
+    layer: a QgsVectorLayer, or None. None answers False rather than
+      raising, because the callers are checking a map that may not
+      have been written at all.
+    path: the file the test asked the plugin to write.
+
+  Returns:
+    True when the layer's source names that file, WHATEVER SPELLING
+    the platform gave it.
+
+  NOT a substring test, which is what all six of these sites used
+  until 2026-08-17. A layer's source reads `<path>|layername=<table>`,
+  and on Windows the path comes back through the user directory's 8.3
+  SHORT NAME -- the truncated form ending in a tilde and a digit --
+  where the test holds the long spelling. One file, two spellings, so
+  `path in source` is False about the same file. That failed the
+  Windows leg on
+  `test_reopening_a_saved_project_does_not_replace_its_map`, a test
+  whose subject is not paths at all, and it reported the GeoPackage
+  link as severed when it was perfectly intact. (Described rather than
+  quoted: `check_no_secrets` refuses a machine path in this
+  repository, and it caught the first draft of this very paragraph.)
+
+  Two of the six sites failed that way; the other four were checking
+  for an UNWANTED source and would have gone quietly true on Windows,
+  which is the worse direction. The plugin settled this question for
+  itself already: `same_destination` canonicalises both sides and is
+  what the product uses to decide whether two spellings name one
+  destination. A test comparing paths by hand is a second rule about
+  the same fact, and this is what happens when the two disagree.
+  """
+  from weavingspace_qgis.dialog import same_destination
+  if layer is None:
+    return False
+  source = layer.source() or ""
+  return same_destination(source.split("|", 1)[0], path)
+
+
 def test_auto_first_render():
   """Choosing a layer should populate variables and render unaided.
 
@@ -24813,7 +24854,7 @@ def test_reopening_a_saved_project_does_not_replace_its_map():
       out = project.mapLayer(lid)
       assert out is not None, f"element {tid} has no layer"
       before[tid] = out.featureCount()
-      assert gpkg in out.source(), \
+      assert _reads_from(out, gpkg), \
         f"element {tid} was not written to the GeoPackage, so this " \
         f"test cannot show what reopening does to a filed map"
     assert before, "no output to save, so this test proves nothing"
@@ -24851,7 +24892,7 @@ def test_reopening_a_saved_project_does_not_replace_its_map():
       out = project.mapLayer(lid) if lid else None
       assert out is not None, \
         f"element {tid} has no layer after reopening"
-      assert gpkg in out.source(), \
+      assert _reads_from(out, gpkg), \
         f"element {tid} now reads from {out.source()!r}: the link to " \
         f"the GeoPackage was severed and the map is in memory"
       assert out.featureCount() == count, \
@@ -25217,7 +25258,7 @@ def test_a_renamed_group_is_adopted_when_the_plugin_reopens():
     for tid, lid in second._element_layer_ids.items():
       out = project.mapLayer(lid)
       assert out is not None, f"element {tid} has no layer"
-      assert gpkg in (out.source() or ""), \
+      assert _reads_from(out, gpkg), \
         f"element {tid} now reads {out.source()!r}: the adopted " \
         f"GeoPackage was dropped and the map went to memory"
 
@@ -32324,7 +32365,7 @@ def test_a_read_only_and_a_full_disk_output_path():
 
         # ---- nothing half-written adopted, and no ghosts left behind
         for lyr in project.mapLayers().values():
-          if path in lyr.source():
+          if _reads_from(lyr, path):
             trouble.append(f"{label}: {lyr.name()!r} was adopted from a "
                            f"GeoPackage that was never written")
           if lyr.customProperty("weavingspace_output"):
@@ -44441,7 +44482,7 @@ def test_a_geopackage_path_with_spaces_and_accents_still_arrives():
     for tile_id, layer_id in sorted(dlg._element_layer_ids.items()):
       out = project.mapLayer(layer_id)
       assert out is not None, f"element {tile_id!r} lost its layer"
-      if out_path not in out.source():
+      if not _reads_from(out, out_path):
         adrift.append(f"{tile_id}: reads from {out.source()!r}")
       before[tile_id] = (out.featureCount(), _boundary_fills(out))
     assert not adrift, \
@@ -45148,7 +45189,7 @@ def test_a_project_whose_output_geopackage_has_moved():
           trouble.append(f"{tile_id}: the dialog claims a layer that is gone")
         elif not out.isValid():
           trouble.append(f"{tile_id}: came back invalid again")
-        elif out_path not in out.source():
+        elif not _reads_from(out, out_path):
           trouble.append(f"{tile_id}: reads from {out.source()!r}")
       assert not trouble, \
         "after re-pointing the output at the same path the map is still " \
