@@ -2424,13 +2424,44 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
     # a restored window stop governing the classes nobody picked.
     # Both are `test_`-guarded and both failed, which is the suite
     # doing its job on a change to a path every classed map takes.
+    #
+    # ASKED AS "UNWORN", NOT AS "ZERO WIDTH", and the difference is a
+    # real map. Width was written here first as a proxy for the rule
+    # the comment above states -- the classes a tile CAN WEAR -- and
+    # the two part company at exactly the case the wide-limits
+    # feature invites. QGIS gives a value on a shared boundary to the
+    # range BELOW, so pinning the first class's bound to the column's
+    # own MINIMUM makes a class of zero width that is nonetheless
+    # worn, by every area holding that minimum. Measured 2026-08-17 on
+    # [0, 0, 2, 4, 7, 11, 20] with a low pin at 0: the trim discarded
+    # class 0, and the zero areas drew in the same #fff5f0 as the
+    # class above them, with two identical swatches in the legend.
+    # Pinning at zero made the map WORSE than not pinning.
+    # `unworn_classes` already asks the right question and is what
+    # the swatch used; ask it.
     first, last = 0, count - 1
     if pins and copied is None:
       ranges = renderer.ranges()      # bound: a temporary frees its symbols
       edges = [(r.lowerValue(), r.upperValue()) for r in ranges]
-      while first < last and edges[first][1] <= edges[first][0]:
+      # BOTH CONDITIONS, and each rules out a wrong map the other
+      # allows. Zero width ALONE discards a class that is worn: a low
+      # pin on the column's own minimum makes a zero-width class that
+      # every area holding that minimum falls into, because QGIS gives
+      # a boundary value to the range BELOW. Unworn ALONE discards a
+      # class that has real width and simply holds no data -- and
+      # doing that would make the span depend on where each column's
+      # values happen to stop, so two columns pinned alike would draw
+      # different colours, which is the one thing wide limits exist to
+      # prevent. Only a class that is zero-width AND unworn is a pure
+      # artefact of a pin placed beyond the data, and only those are
+      # trimmed.
+      empty = set(unworn_classes(edges, finite_values))
+      def spent(i):
+        """Is this class an artefact of a pin rather than a class?"""
+        return edges[i][1] <= edges[i][0] and i in empty
+      while first < last and spent(first):
         first += 1
-      while last > first and edges[last][1] <= edges[last][0]:
+      while last > first and spent(last):
         last -= 1
     drawable = last - first + 1
     shades = quant_class_colours(ramp_name, reverse, drawable, (lo, hi))

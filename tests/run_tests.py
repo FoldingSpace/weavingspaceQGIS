@@ -9908,23 +9908,99 @@ def test_the_ramp_spans_the_classes_a_tile_can_wear():
     f"ramp: {[c for _b, c in plain]}"
 
   wide = drawn({"low": -5.0, "high": 40.0})
-  empty = [i for i, (b, _c) in enumerate(wide) if b[1] <= b[0]]
-  worn = [i for i, (b, _c) in enumerate(wide) if b[1] > b[0]]
+  # ASKED OF `unworn_classes`, NOT OF THE WIDTH. This test used to
+  # define "empty" as zero width -- the same proxy the product used --
+  # so it agreed with the product's bug and could never have caught
+  # it. An expectation derived from the implementation is not an
+  # expectation. `unworn_classes` answers the question the rule
+  # actually names, and a hunt found the difference by asking whether
+  # a helper the module already owned contradicted the proxy written
+  # beside it.
+  wide_bounds = [b for b, _c in wide]
+  unworn = set(bridge.unworn_classes(wide_bounds, values))
+  empty = [i for i in range(len(wide)) if i in unworn]
+  worn = [i for i in range(len(wide)) if i not in unworn]
   assert empty and worn, \
     f"the fixture produced no degenerate class ({wide}), so it does " \
     f"not stage the case at all"
-  assert wide[worn[0]][1] == palest, \
-    f"the first class a tile can wear is {wide[worn[0]][1]}, not the " \
-    f"ramp's own {palest}; the ramp is still starting on an empty class"
-  assert wide[worn[-1]][1] == darkest, \
-    f"the last class a tile can wear is {wide[worn[-1]][1]}, not the " \
+  # WHAT IS TRIMMED IS A CLASS THAT IS BOTH ZERO-WIDTH AND UNWORN --
+  # a pure artefact of a pin placed beyond the data -- and nothing
+  # else. The two conditions each rule out a wrong map. Zero width
+  # alone would discard a WORN class, since QGIS gives a boundary
+  # value to the range below and a pin on the column's own minimum
+  # makes a zero-width class holding every such value (checked at the
+  # foot of this test). Unworn alone would discard a class with real
+  # width that merely holds no data -- and then the span would depend
+  # on where each column's values happen to stop, so two columns
+  # pinned alike would draw different colours, which is the one thing
+  # wide limits exist to prevent.
+  spent = [i for i, (b, _c) in enumerate(wide)
+           if b[1] <= b[0] and i in unworn]
+  kept = [i for i in range(len(wide)) if i not in spent]
+  assert spent and kept, \
+    f"the fixture produced no spent class ({wide}), so it does not " \
+    f"stage the case at all"
+  assert wide[kept[0]][1] == palest, \
+    f"the first class the ramp reaches is {wide[kept[0]][1]}, not the " \
+    f"ramp's own {palest}; it is still starting on a class the pin " \
+    f"invented"
+  assert wide[kept[-1]][1] == darkest, \
+    f"the last class the ramp reaches is {wide[kept[-1]][1]}, not the " \
     f"ramp's own {darkest}"
-  # ...and the middle of the worn span is the middle of the ramp, or
-  # the ends could be right while everything between them is not
-  assert len(worn) >= 3, "too few worn classes to check the middle"
-  assert wide[worn[len(worn) // 2]][1] == ramp.color(0.5).name(), \
-    f"the middle worn class is {wide[worn[len(worn) // 2]][1]}, not " \
+  # ...and the middle of that span is the middle of the ramp, or the
+  # ends could be right while everything between them is not
+  assert len(kept) >= 3, "too few kept classes to check the middle"
+  assert wide[kept[len(kept) // 2]][1] == ramp.color(0.5).name(), \
+    f"the middle kept class is {wide[kept[len(kept) // 2]][1]}, not " \
     f"the ramp's own {ramp.color(0.5).name()}"
+  assert worn, "no class is worn at all, so the fixture proves nothing"
+
+  # A PIN SITTING EXACTLY ON THE COLUMN'S MINIMUM, which is where the
+  # first version of this trim was wrong and where a hunt found it.
+  # The trim asked about zero WIDTH as a proxy for "no tile can wear
+  # this", and the two part company here: QGIS gives a value on a
+  # shared boundary to the range BELOW, so pinning the first class's
+  # bound to the minimum makes a class of zero width that every area
+  # holding that minimum DOES wear. Discarding it drew the zeros in
+  # the same ink as the class above and put two identical swatches in
+  # the legend -- so pinning at zero made the map worse than not
+  # pinning at all.
+  edge_values = [0.0, 0.0, 2.0, 4.0, 7.0, 11.0, 20.0]
+  edge_layer = QgsVectorLayer("Polygon?crs=EPSG:2193", "on the edge",
+                              "memory")
+  edge_provider = edge_layer.dataProvider()
+  edge_provider.addAttributes([compat.make_field("v", float)])
+  edge_layer.updateFields()
+  edge_rows = []
+  for i, value in enumerate(edge_values):
+    feature = QgsFeature(edge_layer.fields())
+    feature.setAttribute("v", value)
+    x = i * 10.0
+    feature.setGeometry(QgsGeometry.fromPolygonXY([[
+      QgsPointXY(x, 0), QgsPointXY(x + 9, 0),
+      QgsPointXY(x + 9, 9), QgsPointXY(x, 9), QgsPointXY(x, 0)]]))
+    edge_rows.append(feature)
+  edge_provider.addFeatures(edge_rows)
+  edge_layer.updateExtents()
+  assert min(edge_values) == 0.0 and edge_values.count(0.0) > 1, \
+    "the fixture must hold the pinned value more than once, or the " \
+    "class being discarded would be empty and the trim would be right"
+
+  on_edge = bridge.make_graduated_renderer(
+    edge_layer, "v", "Reds", "Quantiles", 5, False,
+    pinned={"low": 0.0})
+  edge_ranges = on_edge.ranges()      # bound: a temporary frees its symbols
+  edge_bounds = [(r.lowerValue(), r.upperValue()) for r in edge_ranges]
+  edge_colours = [r.symbol().color().name() for r in edge_ranges]
+  empty = set(bridge.unworn_classes(edge_bounds, edge_values))
+  worn = [i for i in range(len(edge_bounds)) if i not in empty]
+  assert 0 in worn, \
+    f"the fixture's first class {edge_bounds[0]} is unworn, so it " \
+    f"stages the trim being RIGHT rather than the case that broke it"
+  assert len({edge_colours[i] for i in worn}) == len(worn), \
+    f"two classes a tile can wear share a colour: " \
+    f"{[(edge_bounds[i], edge_colours[i]) for i in worn]}. A pin on " \
+    f"the column's own minimum must not cost the map a shade"
 
   # THE ORDINARY CASE IS UNTOUCHED, asserted by comparing the whole
   # unpinned ladder with what it was before any of this existed.
