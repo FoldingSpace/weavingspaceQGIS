@@ -1120,6 +1120,14 @@ class WeavingSpaceDialog(QDialog):
     # renderer), the last GeoPackage path, and the last full-run
     # signature (used to skip no-op live regenerations)
     self._group_name = None
+    # What our output group was CALLED when the run in flight started,
+    # or None when no run has started. The landing compares it with
+    # the name the group has then, which is how a rename made DURING a
+    # run (the user keeping that result) is told from a rename made
+    # before it (the group is just called that now). Declared here
+    # rather than only where it is set, because the landing reads it
+    # on every run including the first.
+    self._group_name_at_launch = None
     self._element_layer_ids = {}
     # {tile id: layer id} for the half of an element that draws its
     # missing values. Set up HERE and not only where it is filled: a
@@ -7981,6 +7989,32 @@ class WeavingSpaceDialog(QDialog):
           if shift is not None:
             self._report_quietly(shift)
 
+    # WHAT OUR GROUP IS CALLED AS THIS RUN STARTS, so the landing can
+    # tell a rename that happened DURING the run from one that
+    # happened before it. The two look identical to
+    # `_get_or_make_group` -- our record holds one name and the tree
+    # holds another -- and they mean opposite things:
+    #
+    #   renamed BEFORE the run: the group is simply called something
+    #   else now, and this run replaces it in place like any other;
+    #
+    #   renamed DURING the run: the user has laid a claim on the
+    #   result this run is about to replace, exactly as "Create as new
+    #   group" does, so the landing leaves it alone and starts fresh.
+    #
+    # Read off the TREE rather than off `self._group_name`, which is
+    # only refreshed at a landing and would still hold the old name in
+    # both cases. Guarded by
+    # `test_the_output_group_is_renamed_while_a_run_is_in_flight` on
+    # one side and
+    # `test_a_renamed_group_is_still_the_group_the_next_run_replaces`
+    # on the other; before 2026-08-17 the first passed only because a
+    # renamed group could not be found AT ALL, which is what made the
+    # second one's defect.
+    launching_group = self._group_of_our_layers(
+      QgsProject.instance().layerTreeRoot())
+    self._group_name_at_launch = (
+      launching_group.name() if launching_group is not None else None)
     self._task = TilingTask(
       f"WeavingSpace: tiling with {family}", work, done)
 
@@ -8738,7 +8772,19 @@ class WeavingSpaceDialog(QDialog):
     # still MATCHES what was adopted, `force_new` is already False
     # without any flag -- measured.)
     adopted_and_no_file_named = self._adopted_group_unwritten and not path
-    force_new = self.opt_new_group.isChecked() or (
+    # A RENAME MADE WHILE THIS RUN WAS TILING keeps the group, and is
+    # the one case where finding it by its layers must NOT reuse it:
+    # the user renamed the result they were looking at, which is the
+    # same act as "Create as new group" made after the fact. The
+    # comparison is against the name the group had when this run was
+    # LAUNCHED, so a rename made earlier -- when the group is simply
+    # called something else now -- is not caught by it.
+    launched_as = getattr(self, "_group_name_at_launch", None)
+    live_group = self._group_of_our_layers(
+      QgsProject.instance().layerTreeRoot())
+    renamed_mid_run = (launched_as is not None and live_group is not None
+                       and live_group.name() != launched_as)
+    force_new = self.opt_new_group.isChecked() or renamed_mid_run or (
       not same_destination(path, self._last_path)
       and not adopted_and_no_file_named)
     # Spent the moment it is read: the group is this dialog's from

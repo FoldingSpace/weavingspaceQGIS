@@ -2984,6 +2984,17 @@ MUTATIONS = [
            "the row still names the ramp, the swatch still draws, and "
            "the user has no way to learn that the colours are not the "
            "ones they chose"),
+  dict(name="a-rename-during-a-run-keeps-the-group", file=DIALOG,
+       old="    force_new = self.opt_new_group.isChecked() or "
+           "renamed_mid_run or (",
+       new="    force_new = self.opt_new_group.isChecked() or (",
+       test="test_the_output_group_is_renamed_while_a_run_is_in_flight",
+       why="renaming the output group while a tiling runs is how a "
+           "user keeps that result, exactly as 'Create as new group' "
+           "is -- so the landing must start a fresh group. Without "
+           "this term the run finds the renamed group by its layers "
+           "and replaces the keepsake, or empties it and leaves a "
+           "named, empty group with nothing to undo"),
   dict(name="the-group-is-found-by-its-layers", file=DIALOG,
        old="      group = self._group_of_our_layers(root)",
        new="      group = None",
