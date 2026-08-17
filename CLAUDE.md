@@ -1771,6 +1771,51 @@ Confirmed with the user via an explicit design review:
   source's fifty never reaches `_class_counts`, which is the record
   that means CHOSEN.
 
+- **THE PLUGIN'S TABLE FOLLOWS THE LAYER'S RENDERER, AND THE SCOPE OF
+  THAT IS THE WHOLE OF ITS SAFETY.** (Maintainer's ruling, 2026-08-17,
+  on a field report against rc5: breaks retyped in QGIS's Symbology
+  panel, then a style pasted across four element layers, reached the
+  plugin not at all -- the rows went on describing THE MAP THE PLUGIN
+  LAST DREW while QGIS drew something else, and the next Generate
+  destroyed the lot.)
+  It was ONE fault rather than three, and the tester established that
+  themselves by setting the affected rows to a numeric style and
+  repeating the paste. `_element_is_deferring` asks only whether a
+  renderer is of a KIND the chooser can NAME, so deferring -- the only
+  route by which a QGIS-side change reached the table -- opens only for
+  renderers the plugin cannot express. A nameable renderer replaced by
+  another nameable one was silently dropped.
+  The ruling, chosen between following, deferring on any outside edit,
+  and turning dock edits into pins: the row FOLLOWS the layer wherever
+  the plugin can name what the layer holds, and defers only where it
+  cannot. Pins could not have carried it -- the tester's element
+  disagreed on the class COUNT and the RAMP as well as the breaks, and
+  a pin names a bound. `_row_follows_the_renderer` reads the field, the
+  style, the class count and the ramp back into the row BEFORE the
+  colour handlers run, since each of those returns early when the row
+  and the layer disagree.
+  **A MECHANISM THAT MAKES A ROW DESCRIBE A LAYER IS SAFE ONLY WHERE
+  THE ROW CAN REPRODUCE THAT LAYER**, and that is the part worth
+  carrying past this feature. Run unscoped, the follow took a SINGLE
+  SYMBOL somebody had mixed in the dock and made the row say "Single
+  colour" -- which changes the assignment, which re-seeds the element
+  on the next Generate, which paints the plugin's own colour over
+  theirs. A hand-set #0b1e2d came back #3c8bc2. A field, a scheme, a
+  class count and a named ramp are reproducible; an arbitrary fill is
+  not, and describing it throws it away while looking like agreement.
+  Single symbols keep the older and correct rule: hand styling survives
+  unless the element's assignment changed.
+  TWO SMALLER TRAPS, both found by the FULL suite and neither by a
+  subset of eighteen tests aimed straight at this machinery. A widget
+  written with signals blocked is not a row that CHANGED: `_refresh_table`
+  restores a mode only when `style_touched` is set, so the followed
+  style reverted at the first spacing change. And a row that moves with
+  no signal must have its signature re-recorded, or the next restyle
+  compares the layer against a row it has never seen and re-seeds the
+  renderer it just followed.
+  Guarded by `test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis`,
+  which drives the paste AND a Generate, and by three catalogue entries.
+
 - **WHEN A FIX THREADS A "WHO FIRED THIS" ARGUMENT THROUGH A FAMILY OF
   HANDLERS, GREP THE CALLS THEY MAKE TO EACH OTHER.** 2026-08-17, and
   found by two independent hunts within an hour of each other, not by

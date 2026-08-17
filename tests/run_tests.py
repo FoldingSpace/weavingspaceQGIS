@@ -9448,6 +9448,64 @@ def test_an_unclassed_row_pins_from_either_control():
           seen.append(item.text())
     return seen
 
+  def cells_only():
+    """The bounds the table has WRITTEN, ignoring the spin boxes.
+
+    `printed()` above reads the boxes as well, which is right for its
+    own purpose and made a second assertion vacuous: a hunt deleted
+    the whole cell-rewrite loop from `_redraw_bounds` and this test
+    stayed green, because the boxes alone were enough to make
+    `printed() != shown_before` true -- and those boxes are asserted
+    directly two lines above anyway. So the repaint that keeps the
+    table agreeing with the map was unguarded, in the test whose
+    subject is those two things agreeing.
+
+    Read as ``{row: (lower, upper)}`` of floats, and compared against
+    the RENDERER rather than against "different from before": an
+    assertion that something changed is satisfied by any change,
+    including one the test made itself.
+    """
+    offset = 1 if editor._pin_column else 0
+    written = {}
+    for row in range(editor.table.rowCount()):
+      pair = []
+      for column in (offset, offset + 1):
+        if editor.table.cellWidget(row, column) is not None:
+          pair.append(None)          # a spin box, not a written cell
+          continue
+        item = editor.table.item(row, column)
+        pair.append(item.text() if item is not None else None)
+      written[row] = tuple(pair)
+    return written
+
+  def agrees_with_the_map():
+    """Which written cells match the ladder the layer actually draws.
+
+    Returns:
+      (matched, mismatches). `matched` counts the cells compared and
+      found right, so a caller can assert the comparison RAN -- an
+      axis that silently compares nothing is this suite's most common
+      way of passing while broken. `mismatches` names each cell that
+      disagreed, with both numbers.
+    """
+    drawn = ladder()
+    written = cells_only()
+    matched, mismatches = 0, []
+    for row, (low_text, high_text) in written.items():
+      if row >= len(drawn):
+        continue
+      for text, value, side in ((low_text, drawn[row][0], "lower"),
+                                (high_text, drawn[row][1], "upper")):
+        if text is None:
+          continue              # a spin box owns this cell
+        if text == editor._format_bound(value):
+          matched += 1
+        else:
+          mismatches.append(
+            f"row {row} {side}: table says {text!r}, the map draws "
+            f"{editor._format_bound(value)!r}")
+    return matched, mismatches
+
   def glyph(button):
     """The pin button's actual pixels, so a repaint can be required."""
     return button.grab().toImage()
@@ -9523,6 +9581,16 @@ def test_an_unclassed_row_pins_from_either_control():
     assert printed() != shown_before, \
       "the editor's table prints the same bounds it did before the " \
       "pin, so the window is showing a ladder the map has left behind"
+    # ...AND THE WRITTEN CELLS AGAINST THE MAP, which is the axis the
+    # line above cannot carry: `printed()` reads the spin boxes too,
+    # so it stays true when the cell repaint is deleted outright.
+    matched, wrong = agrees_with_the_map()
+    assert matched, \
+      "no written cell was compared against the renderer, so this " \
+      "assertion measured nothing at all"
+    assert not wrong, \
+      "the editor's table disagrees with the ladder the map draws " \
+      "after a pin from the Pin column: " + "; ".join(wrong)
     assert glyph(strip_pin) != strip_before, \
       "the strip's pin holds its old PIXELS after the table pinned " \
       "the same end; isChecked() moving is not the same as the " \
@@ -9575,6 +9643,45 @@ def test_an_unclassed_row_pins_from_either_control():
     assert printed() != shown_after_table, \
       "the strip moved the pin and the table went on printing the " \
       "previous ladder"
+    matched, wrong = agrees_with_the_map()
+    assert matched, \
+      "no written cell was compared against the renderer after the " \
+      "strip moved the pin"
+    assert not wrong, \
+      "the editor's table disagrees with the ladder the map draws " \
+      "after a pin from the clamp strip: " + "; ".join(wrong)
+
+    # (2b) THE STRIP'S PIN BUTTON ITSELF, which no test had ever
+    # clicked -- every route above reaches the strip through its BOX.
+    # A wrong-pair bug in `_pin_toggled` would survive on this one,
+    # which is exactly the shape that produced
+    # `the-firing-control-is-the-one-that-is-read` the same day: a
+    # fallback for "nobody said which control fired" turns a missing
+    # argument into a plausible answer rather than a failure.
+    table_before = glyph(table_pin)
+    strip_pin.setChecked(False)          # unpin, from the strip's pin
+    _tick(500)
+    assert not dlg._pinned_bounds.get(tile_id, {}).get(field), \
+      f"the strip's own pin button was cleared and the record still " \
+      f"holds {dlg._pinned_bounds.get(tile_id, {}).get(field)!r}"
+    assert not table_pin.isChecked(), \
+      "the strip's pin button unpinned the end and the table's pin " \
+      "still reads pinned"
+    assert glyph(table_pin) != table_before, \
+      "the table's pin holds its old PIXELS after the strip's own " \
+      "button cleared the same end"
+    strip_box.setValue(2.25)
+    strip_pin.setChecked(True)           # ...and back on, the same way
+    _tick(500)
+    assert dlg._pinned_bounds.get(tile_id, {}).get(field) == {"low": 2.25}, \
+      f"pinning from the strip's own button recorded " \
+      f"{dlg._pinned_bounds.get(tile_id, {}).get(field)!r}, not 2.25; " \
+      f"a handler that guesses which control fired reads the wrong box"
+    assert abs(table_box.value() - 2.25) < 1e-9, \
+      f"the table's box shows {table_box.value()} after the strip's " \
+      f"button pinned at 2.25"
+    assert abs(ladder()[0][1] - 2.25) < 1e-9, \
+      f"the map's first class ends at {ladder()[0][1]}, not at 2.25"
 
     # (3) AND UNPINNING travels too, or one control goes on claiming a
     # pin the map no longer has.
@@ -11670,6 +11777,108 @@ def test_a_class_no_tile_wears_is_said_out_loud():
     f"{len(unworn)} of {len(bounds)} classes are empty and the plugin "
     f"never said so. It said: {said!r}. Expected either "
     f"{wanted!r} or {alternative!r}")
+
+
+def test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis():
+  """The table must describe THE MAP, not the map the plugin last drew.
+
+  Reported from the field against rc5. The tester set new break values
+  on one element in QGIS's Symbology panel, copied that style onto the
+  other four element layers, and then reset each one's variable and
+  colour ramp by hand -- QGIS's copy-and-paste symbology carries the
+  FIELD along with the style, so it has to be. None of it reached the
+  plugin. Their screenshot shows QGIS holding element b as Graduated
+  on Percent_Black with five classes on a greyscale ramp while the
+  plugin's row for b reads Categorized, 32 classes, Set2.
+
+  IT IS ONE FAULT, NOT THREE, and the tester is who established that:
+  setting those rows back to a numeric style and repeating the paste
+  left the plugin "stuck on whatever numeric style it last applied".
+  So it is not about categorical detection, and not only about breaks.
+  The row simply never followed the renderer.
+
+  WHY IT SURVIVED. `_element_is_deferring` asks only whether the
+  renderer is of a KIND the chooser can NAME. Graduated-on-Quantiles
+  is nameable, so the element is not deferring, so the plugin kept its
+  own record as the authority and never asked the layer what it now
+  held. Deferring was the ONLY route by which a QGIS-side change
+  reached the table, and it opens only for renderers the plugin cannot
+  express -- which a pasted graduated renderer is not.
+
+  Staged the way QGIS stages it: a new renderer through `setRenderer`,
+  then `styleChanged`, which is what the dock emits. The plugin HAS
+  receivers on that signal, so this was never a case of not hearing.
+
+  Regression: a class break retyped in QGIS's Symbology panel, or a whole style pasted onto an element layer, never reached the plugin's table, which went on describing the map the plugin last drew while QGIS drew something else.
+ [hunt]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  dlg.table.cellWidget(0, 2).setCurrentText("Quant: Quantiles")
+  dlg.table.cellWidget(1, 1).setCurrentText("v3")
+  dlg._update_dynamic_columns()
+  _tick(150)
+  tid = dlg.table.item(0, 0).text()
+  dlg.spacing_spin.setValue(500)
+  _generate_and_wait(dlg)
+
+  element = project.mapLayer(dlg._element_layer_ids[tid])
+  assert isinstance(element.renderer(), QgsGraduatedSymbolRenderer), \
+    "the element did not come back graduated, so nothing under test runs"
+
+  # WHAT THE TESTER DID, in the plugin's own terms: a renderer built
+  # over a DIFFERENT field, with a DIFFERENT class count and a
+  # DIFFERENT ramp, installed from outside. Built through the
+  # plugin's own builder so the fixture cannot invent a renderer QGIS
+  # would never produce.
+  pasted = bridge.make_graduated_renderer(
+    element, "v3", "Blues", "Equal interval", 4, False,
+    classify_from=dlg._classification_values("v3"))
+  assert pasted is not None and len(pasted.ranges()) == 4, \
+    "the fixture failed to build the four-class renderer it pastes"
+  element.setRenderer(pasted)
+  element.styleChanged.emit()
+  element.triggerRepaint()
+  _tick(400)
+
+  row = dlg._row_for_element(tid)
+  variable = dlg.table.cellWidget(row, 1).currentText()
+  counter = dlg.table.cellWidget(row, 3)
+  ramp_cell = dlg.table.cellWidget(row, 4)
+  shown_ramp = (ramp_cell.currentText()
+                if hasattr(ramp_cell, "currentText") else None)
+  assert variable == "v3", (
+    f"QGIS holds this element on 'v3' and the plugin's row still says "
+    f"{variable!r}. The row describes the map the plugin last drew")
+  assert int(counter.property("user_k") or counter.value()) == 4, (
+    f"QGIS holds four classes and the row says "
+    f"{counter.property('user_k') or counter.value()!r}")
+  assert shown_ramp == "Blues", (
+    f"QGIS holds a Blues ramp and the row's ramp cell says "
+    f"{shown_ramp!r}")
+
+  # ...AND GENERATE MUST NOT DESTROY IT, which is the damaging half of
+  # the report: before this, any edit to the element's own row sent
+  # the layer back to the plugin's record silently.
+  _generate_and_wait(dlg)
+  after = project.mapLayer(dlg._element_layer_ids[tid]).renderer()
+  assert isinstance(after, QgsGraduatedSymbolRenderer), \
+    f"the element stopped being graduated after a Generate ({after!r})"
+  assert after.classAttribute() == "v3", (
+    f"Generate put the element back on {after.classAttribute()!r}, "
+    f"destroying the field set in QGIS's own Symbology panel")
+  assert len(after.ranges()) == 4, (
+    f"Generate redrew the element with {len(after.ranges())} classes "
+    f"where QGIS held four")
+  dlg.close()
 
 
 def test_a_reopened_plugin_adopts_the_group_it_last_wrote():
@@ -48058,6 +48267,8 @@ def main():
         test_a_pin_may_be_typed_far_outside_the_element_it_pins)
   check("a class no tile wears is said out loud",
         test_a_class_no_tile_wears_is_said_out_loud)
+  check("a row follows a style pasted onto its layer in qgis",
+        test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis)
   check("a reopened plugin adopts the group it last wrote",
         test_a_reopened_plugin_adopts_the_group_it_last_wrote)
   check("pinning redraws the window it was typed into",

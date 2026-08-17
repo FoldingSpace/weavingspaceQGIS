@@ -3050,6 +3050,54 @@ MUTATIONS = [
            "at 1e12 and a rate of 4e-07 pinned at zero, both silently, "
            "because pin_problem is asked about the number the control "
            "produced and that number is inside the data"),
+  dict(name="a-pin-rewrites-the-cells-it-moved",
+       file="weavingspace_qgis/category_editor.py",
+       old="      for col, bound in enumerate(pair):\n"
+           "        cell = self.table.item(row, col + offset)\n"
+           "        if cell is not None:\n"
+           "          cell.setText(self._format_bound(bound))",
+       new="      for col, bound in enumerate(pair):\n"
+           "        pass",
+       test="test_an_unclassed_row_pins_from_either_control",
+       why="a pin recomputes every break between the pins, so a table "
+           "that does not rewrite its cells goes on printing a ladder "
+           "the map has left behind -- and this entry exists because "
+           "the test SURVIVED this exact deletion until 2026-08-17, its "
+           "helper reading the spin boxes as well as the cells and so "
+           "being satisfied by boxes it already asserted directly"),
+  dict(name="the-row-follows-the-layers-renderer",
+       file="weavingspace_qgis/dialog.py",
+       old="    self._row_follows_the_renderer(tile_id, renderer)\n"
+           "    if isinstance(renderer, QgsGraduatedSymbolRenderer):",
+       new="    if isinstance(renderer, QgsGraduatedSymbolRenderer):",
+       test="test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis",
+       why="without it the table goes on describing the map the plugin "
+           "last drew: a break retyped in QGIS's Symbology panel or a "
+           "whole style pasted across elements reaches the layer and "
+           "never the row, and the next Generate destroys it -- the "
+           "field report against rc5"),
+  dict(name="the-followed-row-keeps-its-new-signature",
+       file="weavingspace_qgis/dialog.py",
+       old="    refreshed = self._assignment_for(tile_id)\n"
+           "    if refreshed is not None:\n"
+           "      self._last_signatures[tile_id] = self._signature(refreshed)\n"
+           "    self._refresh_preview_colours()",
+       new="    self._refresh_preview_colours()",
+       test="test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis",
+       why="the row moves with no signal, so without re-recording the "
+           "signature the next restyle compares the layer against a row "
+           "it has never seen and re-seeds the renderer it just "
+           "followed, which is the damaging half of the same report"),
+  dict(name="a-categorical-count-never-becomes-a-chosen-one",
+       file="weavingspace_qgis/dialog.py",
+       old="    if mode == \"Graduated\" and scheme != \"Unclassed\" \\\n"
+           "        and counter is not None and hasattr(renderer, \"ranges\"):",
+       new="    if counter is not None and hasattr(renderer, \"ranges\"):",
+       test="test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis",
+       why="letting a categorized renderer's category count into the "
+           "Classes cell is the leak that put a greyed 32 in front of "
+           "the tester and clamped it to the 2-20 ceiling at the next "
+           "rebuild, which is the 20 and 20 in their second screenshot"),
   dict(name="the-spacing-advice-is-rounded-the-safe-way",
        file=BRIDGE,
        old="  return _rounded_up_to_figures(spacing * scale, 3)",

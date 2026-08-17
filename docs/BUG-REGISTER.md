@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-222 defect(s) with a regression test.
+223 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -105,6 +105,8 @@ there is no separate list to remember.
   guarded by `test_a_reopened_plugin_does_not_mistake_a_no_data_layer_for_its_element`
 - **the guard that refuses to write a new group over an existing GeoPackage compared the chosen path against `_last_path`, which records only what THIS dialog instance last wrote. A reopened project has a fresh dialog that remembers nothing, so a user ticking the box precisely IN ORDER to keep yesterday's map overwrote it without a warning. Measured 2026-08-16: 41/40/41/40 features became 113/112/113/112, no modal, nothing on the note line.**  
   guarded by `test_a_reopened_project_cannot_overwrite_yesterdays_geopackage`
+- **a class break retyped in QGIS's Symbology panel, or a whole style pasted onto an element layer, never reached the plugin's table, which went on describing the map the plugin last drew while QGIS drew something else.**  
+  guarded by `test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis`
 - **a tiling still in flight when the project was replaced landed its layers into the incoming project, replacing that project's own output with memory layers tiled from the previous project's region -- and reported it as a successful run. `_forget_the_last_project` did not cancel the task and `_on_generated` never asked which project it was for.**  
   guarded by `test_a_run_in_flight_does_not_land_in_the_project_that_replaced_it`
 - **negative scale factors were allowed on 2026-08-16 so that a pattern can be mirrored, which put ZERO inside the control's range for the first time. The library does not refuse a zero scale: `transform_scale(0, ...)` returns a unit collapsed to no area, and the failure surfaces much later inside `Tiling.__init__` as `numpy.linalg.LinAlgError: Singular matrix` -- reaching the user as a raw "Tiling failed" line about a matrix they never asked about.**  
@@ -493,7 +495,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 83
-- a bug hunt pointed in a named direction: 56
+- a bug hunt pointed in a named direction: 57
 - the mutation campaign: 16
 - reported by a user: 16
 - reading the code: 15

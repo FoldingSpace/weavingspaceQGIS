@@ -5503,6 +5503,22 @@ class WeavingSpaceDialog(QDialog):
     if layer is None:
       return
     renderer = layer.renderer()
+    # THE ROW FOLLOWS THE LAYER FIRST, and everything below then runs
+    # against a row that agrees with the map about which field, which
+    # style, how many classes and which ramp. Added 2026-08-17 on the
+    # maintainer's ruling, answering the field report that a break
+    # retyped in QGIS's Symbology panel -- or a whole style pasted
+    # across four elements -- never reached the plugin at all.
+    #
+    # ORDER IS THE WHOLE OF IT. The two handlers below compare the
+    # layer's colours against what the plugin WOULD DRAW for this row,
+    # and each of them returns early when the field, the class count
+    # or the mode disagrees -- reasonably, since a positional walk
+    # across two different ladders means nothing. So while the row was
+    # stale those guards fired first and the edit was dropped on the
+    # floor. Bringing the row up to date here makes them the
+    # colour-refinement handlers they were always meant to be.
+    self._row_follows_the_renderer(tile_id, renderer)
     if isinstance(renderer, QgsGraduatedSymbolRenderer):
       # the graduated mirror of everything below (settled 2026-08-09)
       self._graduated_layer_edited(layer, tile_id, renderer)
@@ -5645,6 +5661,182 @@ class WeavingSpaceDialog(QDialog):
       f"Element '{tile_id}' keeps the {adopted} colour(s) set in "
       f"QGIS; its ramp cell now reads Custom.")
     self._refresh_preview_colours()
+
+  def _row_follows_the_renderer(self, tile_id, renderer):
+    """Make a row say what its layer now holds, after an outside edit.
+
+    Args:
+      tile_id: the element whose row is to be brought up to date.
+      renderer: the renderer the layer is carrying NOW, taken off the
+        layer rather than from any record of ours.
+
+    Returns:
+      True when something in the row actually moved, False when the
+      row already agreed with the layer or when the renderer is one no
+      row can name -- in which case the element is DEFERRING and
+      `_refresh_deferring_rows` owns it instead.
+
+    THE DEFECT THIS ANSWERS, reported from the field against rc5 and
+    reproduced 2026-08-17. A tester set new break values on one
+    element in QGIS's Symbology panel, copied that style onto the
+    other four, and reset each one's variable and ramp by hand --
+    QGIS's copy-and-paste carries the field along, so it has to be.
+    None of it reached the plugin. The rows went on describing the map
+    THE PLUGIN LAST DREW while QGIS drew something else, and the next
+    Generate destroyed the lot.
+
+    Three guards in `_graduated_layer_edited` each returned early on
+    exactly the cases that matter -- a changed field, a changed class
+    count, a changed mode -- on the reasoning that a reclassification
+    is something the dialog has no record to reconcile against. That
+    was true and was the wrong conclusion: the renderer IS the record,
+    and reading it is what this does.
+
+    THE MAINTAINER'S RULING, 2026-08-17, choosing between three
+    options put to them: the row FOLLOWS the layer wherever the plugin
+    can name what the layer holds, and defers only where it cannot.
+    Pins were the alternative and cannot carry this -- the tester's
+    element disagreed on the class COUNT and the RAMP as well as the
+    breaks, and a pin names a bound. Deferring on any outside edit was
+    the other, and hands away an element the user may still want to
+    drive from the table.
+
+    It also settles the reported oddity that three rows read
+    CATEGORIZED over graduated layers. That was never a categorical
+    fault: the rows were simply stale, and the greyed 32, 33 and 32
+    were distinct-value counts belonging to whatever those rows last
+    believed. Following the renderer makes the question disappear
+    rather than answering it.
+
+    SIGNALS ARE BLOCKED THROUGHOUT, and that is not a detail. A
+    handler on this path must never reach `_rebuild_unit` or
+    `_refresh_table`: a rebuild replaces every cell widget, and one
+    landing mid-interaction is the "race among choosers" this project
+    has a regression test for. So the widgets are moved quietly and
+    the records they back are written directly, which is also why the
+    signature is re-recorded here -- without it the next restyle would
+    read a row that had changed with no signal and undo the follow.
+    """
+    style = bridge.expressible_style(renderer)
+    if style is None:
+      return False            # deferring; not ours to describe
+    mode, scheme = style
+    # SCOPED TO CLASSED RENDERERS, and the scope is the whole safety of
+    # it. A SINGLE SYMBOL is already handled, correctly, by a settled
+    # rule older than this method: hand styling survives a Generate
+    # unless that element's dialog assignment CHANGED. Following it
+    # here changes the assignment -- to "Single colour" -- so the next
+    # Generate re-seeds the element and paints the plugin's own colour
+    # over the one the user set in the dock. Measured 2026-08-17 by
+    # `test_output_management`, which caught a hand-set #0b1e2d coming
+    # back as #3c8bc2 the first time this ran unscoped.
+    #
+    # THE GENERAL SHAPE, worth keeping: a mechanism that makes the row
+    # DESCRIBE the layer is safe only where the row can REPRODUCE the
+    # layer. A field, a scheme, a class count and a named ramp are
+    # reproducible; an arbitrary fill a person mixed in the dock is
+    # not, and describing it as "Single colour" throws it away while
+    # looking like agreement. What the field report is about is classed
+    # renderers on both sides anyway -- both of the tester's
+    # screenshots show Graduated.
+    if mode not in ("Graduated", "Categorized"):
+      return False
+    row = self._row_for_element(tile_id)
+    if row is None:
+      return False
+    moved = []
+
+    # ---- the FIELD, which a pasted style carries along with it
+    field = (renderer.classAttribute()
+             if hasattr(renderer, "classAttribute") else "")
+    variable = self.table.cellWidget(row, 1)
+    if field and variable is not None and hasattr(variable, "findText") \
+        and variable.currentText() != field \
+        and variable.findText(field) >= 0:
+      variable.blockSignals(True)
+      variable.setCurrentText(field)
+      variable.blockSignals(False)
+      moved.append(f"variable to '{field}'")
+
+    # ---- the STYLE, named the way the chooser names it
+    label = mode
+    if mode == "Graduated":
+      label = next((text for text, name in self.GRAD_SCHEMES.items()
+                    if name == scheme), label)
+    chooser = self.table.cellWidget(row, 2)
+    if chooser is not None and hasattr(chooser, "findText") \
+        and chooser.currentText() != label and chooser.findText(label) >= 0:
+      chooser.blockSignals(True)
+      chooser.setCurrentText(label)
+      chooser.blockSignals(False)
+      # MARKED AS TOUCHED, or the next rebuild throws it away.
+      # `_refresh_table` restores a row's mode from the previous
+      # assignment only when `style_touched` is set, and otherwise
+      # re-derives it from the variable's type -- so a style written
+      # here with signals blocked survived until the first spacing
+      # change and then silently reverted. Found by the full suite,
+      # in `test_dialog_end_to_end`, which is the argument for
+      # running it rather than a subset after touching this path.
+      #
+      # Setting it is not a fudge to get past a guard: the flag means
+      # "somebody chose this rather than the plugin guessing", and
+      # somebody did choose it -- in QGIS's Symbology panel instead
+      # of in this table. `last_style` goes with it, since that is
+      # the baseline a later scheme change compares against.
+      chooser.setProperty("touched", True)
+      chooser.setProperty("last_style", label)
+      moved.append(f"style to {label}")
+
+    # ---- the CLASS COUNT, and only where it means a count somebody
+    # CHOSE. Unclassed's fifty is fixed by the style's definition and
+    # has never been allowed into `_class_counts`; a CATEGORIZED
+    # renderer's category count is a property of the data, and letting
+    # it in here is precisely the leak that put a greyed 32 in front
+    # of the tester and clamped it to 20 at the next rebuild. So the
+    # count follows for classed graduated rows alone, and only inside
+    # the range the spinner can actually hold.
+    counter = self.table.cellWidget(row, 3)
+    if mode == "Graduated" and scheme != "Unclassed" \
+        and counter is not None and hasattr(renderer, "ranges"):
+      ranges = renderer.ranges()          # bound: temporaries dangle
+      count = len(ranges)
+      if counter.minimum() <= count <= counter.maximum() \
+          and int(counter.property("user_k") or counter.value()) != count:
+        counter.blockSignals(True)
+        counter.setValue(count)
+        counter.setProperty("user_k", count)
+        counter.blockSignals(False)
+        moved.append(f"classes to {count}")
+
+    # ---- the RAMP, where QGIS's own ramp answers to a name we offer
+    name = self._ramp_name_matching(
+      renderer.sourceColorRamp()
+      if hasattr(renderer, "sourceColorRamp") else None)
+    ramp_cell = self.table.cellWidget(row, 4)
+    if name is not None and ramp_cell is not None \
+        and hasattr(ramp_cell, "findText") \
+        and ramp_cell.currentText() != name \
+        and ramp_cell.findText(name) >= 0:
+      ramp_cell.blockSignals(True)
+      ramp_cell.setCurrentText(name)
+      ramp_cell.blockSignals(False)
+      self._ramp_choices[tile_id] = name
+      moved.append(f"ramp to '{name}'")
+
+    if not moved:
+      return False
+    # The row has changed with no signal, so nothing else knows. Record
+    # the signature against the row AS IT NOW READS, or the next
+    # restyle compares the layer with a row it has never seen and
+    # re-seeds the very renderer this followed.
+    refreshed = self._assignment_for(tile_id)
+    if refreshed is not None:
+      self._last_signatures[tile_id] = self._signature(refreshed)
+    self._refresh_preview_colours()
+    self._report_quietly(
+      f"Element '{tile_id}' follows the styling you set in QGIS: "
+      + ", ".join(moved) + ".")
+    return True
 
   def _graduated_layer_edited(self, layer, tile_id, renderer):
     """React to a styling-dock edit of a GRADUATED element layer.
@@ -6595,6 +6787,10 @@ class WeavingSpaceDialog(QDialog):
     read as one would fire the handler that RE-SEEDS, destroying the
     very work deferral exists to protect.
     """
+    # rows that have just STOPPED deferring, so their controls can be
+    # put back the way the row's own rules want them rather than the
+    # way they happened to be when deferral began
+    restore = set()
     for row in range(self.table.rowCount()):
       item = self.table.item(row, 0)
       combo = self.table.cellWidget(row, 2)
@@ -6671,8 +6867,30 @@ class WeavingSpaceDialog(QDialog):
           widget.setToolTip("Styled in QGIS; set it in the Layer "
                             "Styling panel.")
         elif widget.property("disabled_by_deferring"):
+          # THE MARK CAN BE STALE, and honouring it blindly is how the
+          # tester met a Classes spinner reading a greyed 32. The mark
+          # says "this was enabled when deferral began"; it does not
+          # say the row still WANTS it enabled, and the row may have
+          # become Categorized in between -- where the Classes cell
+          # reports a distinct-value count and is not a control at
+          # all. Re-enabled on a stale mark it sat live at 32 with a
+          # range of 0..9999, one arrow click reached `on_k` and wrote
+          # 33, and the next rebuild clamped that to the 2-20 ceiling.
+          # Which is exactly the 20 and 20 in the second screenshot.
+          #
+          # So the mark is CLEARED either way -- deferral is over --
+          # and the control is switched back on only if the row's own
+          # rules would have it on. `_sync_row_enablement` is the one
+          # place those rules live, so asking it cannot drift from
+          # them the way a second copy here would.
           widget.setProperty("disabled_by_deferring", False)
           widget.setEnabled(True)
+          restore.add(row)
+    # ...and now the row's own rules have the last word, AFTER the
+    # loop rather than inside it, since `_sync_row` reads several of
+    # the widgets the loop is still walking.
+    for row in sorted(restore):
+      self._sync_row(row)
 
   def _element_is_deferring(self, tile_id) -> bool:
     """Is this element drawn by something no row can express?
