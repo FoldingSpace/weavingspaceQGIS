@@ -144,6 +144,39 @@ names the four refusals together, which is how "outside the data"
 came to look like one of the undrawable three. Correct it there with
 the maintainer's ruling beside it.
 
+**EQUAL INTERVALS MUST ACTUALLY BE EQUAL, AND UNCLASSED WITH THEM.**
+The maintainer's rule, 2026-08-17: with Equal intervals or Unclassed
+every class has the SAME WIDTH, and the one exception is a PINNED
+end, whose class takes whatever width the user's bound gives it.
+
+MEASURED AND CURRENTLY FALSE. Two columns, 1..13 and 0.5..38, both
+pinned to -5..40 at k=5:
+
+    Equal intervals, column a: -5, 5, 9, 40 -- widths 0, 10, 4, 31, 0
+    Equal intervals, column b: -5, 13, 25.5, 40
+
+The middle classes are not equal to each other, and the two columns
+do not agree. The cause is the mechanism rather than the arithmetic:
+the scheme cuts `k - pins` classes from the samples BETWEEN the pins,
+which is each column's own data, and `_apply_pinned_bounds` then
+STRETCHES the outermost computed class out to meet the pin. That
+stretch is what destroys equality, and it was put there for a good
+reason -- without it a gap opens between the pin and where the data
+resumes, and a value arriving there later paints as no data.
+
+So the fix is to cut the intervals FROM THE PIN rather than cutting
+them from the data and stretching afterwards. Equal intervals over
+the span the pins declare gives equal widths by construction, closes
+the gap without a stretch, and makes two columns with the same pins
+draw the same ladder -- which is the whole point of setting the same
+limits on both.
+
+THIS ALSO SETTLES THE QUESTION I ANSWERED WRONGLY. Told that wide
+limits plus Equal intervals would make a colour mean the same number
+on every map, I said yes; the measurement above says no, and the rule
+here is what would make it true. Unclassed rides the same rule, its
+fifty steps spanning the pinned range rather than the column's.
+
 **GHOST NUMBERS BEHIND THE UNCLASSED EDITOR'S CLASS BOUNDS.** Reported
 2026-08-17 against rc5, with a screenshot: a second, faint set of
 bounds painted behind the live ones in the Lower and Upper columns,
@@ -215,12 +248,36 @@ rather than assumed:
 - `_newest_output_group` now examines every top-level group's
   children, though only at construction.
 
-THAT IS A LIST OF SUSPECTS AND NOT A FINDING. The honest prior runs
-the other way: the retirement-gate work in this same window took unit
-rebuilds from 1,282 to 173, so rc5 should be FASTER than rc4 on the
-path a layer change touches. A stack or a suspicion pointing at the
-newest change is a hypothesis, and this project has already spent a
-day proving that the obvious culprit was innocent.
+**MEASURED 2026-08-17, AND ALL THREE SUSPECTS ARE INNOCENT.** Six
+full runs at the auto spacing in each tree, profiled, compared by
+call count: `569aefb` 1,390,561 calls against `6c7af51` 1,391,768.
+**+1,207, or +0.09%.** This session's additions are visible and
+minute -- `ramp_or_default` 20 calls, `get_ramp` 60 to 80,
+`_group_of_our_layers` 15, `findLayer` 15, `same_destination` 5 --
+about ninety calls across six runs.
+
+SO THE PYTHON SIDE IS FLAT, and that redirects the hunt rather than
+closing it. A slowdown a person can feel, with call counts unchanged,
+means the SAME calls are costing more: Qt and C++ work, repaints, or
+something outside this path altogether. The next measurement is
+therefore CPU and wall clock per run at both revisions, not counts --
+the opposite of the advice that solved the last performance
+regression, and for the opposite reason.
+
+Two honest limits on the above. The fixture's auto spacing came out
+at 500 with 612 tiles over four elements, which may not be the "large
+auto spacing" the tester means; ask what region and what spacing, or
+the measurement may be taken where the effect is not. And the
+comparison first reported hundreds of large increases that were an
+artefact of keying the diff on LINE NUMBERS -- every function in a
+file that gained six hundred lines looks new -- which is worth
+knowing because the artefact was entirely convincing until each
+"increase" turned out to have a matching disappearance at the same
+count.
+
+The largest genuine deltas after that correction, neither obviously
+costly and both unexplained: `QTableWidget.item` 144 to 860, and
+`setEnabled` 144 to 250.
 
 **SILLY NUMBERS OF SIGNIFICANT FIGURES THROUGHOUT THE INTERFACE.**
 Reported 2026-08-17: spacing shows six decimal places in metres, and
@@ -232,24 +289,47 @@ and no decimals set at all (so Qt's default 2, giving "0.00"
 degrees), the modifier boxes with a local `3 if step < 1 else 1`, and
 six QDoubleSpinBoxes in dialog.py that set nothing.
 
-THE RULE TO ADOPT, and it is already in the tree as one modifier's
-local habit: DERIVE THE DECIMALS FROM THE CONTROL'S OWN singleStep.
-A spin box showing more decimals than its step can move is offering
-digits the control cannot produce -- six decimals on a metre step
-means five of them are unreachable by the arrows and meaningless to
-the user. One pass over `findChildren(QDoubleSpinBox)` at
-construction costs microseconds once and nothing per repaint, and a
-control added later is right without anybody remembering, which is
-the property the current five-rules-in-five-places arrangement
-lacks.
+**THE MAINTAINER'S RULE, 2026-08-17: AT MOST THREE SIGNIFICANT
+FIGURES DISPLAYED, unless there is good reason otherwise.** That is
+the decision; what follows is how to carry it out and the one place
+it needs care.
 
-Two things to keep straight when doing it. Where a control needs
-finer precision the STEP should say so, which keeps one number per
-control rather than two that can disagree. And the class-bound boxes
-in `category_editor` size their decimals from the DATA deliberately
-(catalogue entry `the-bound-box-is-sized-from-the-data`), so either
-exempt them or size their step from the data too, so that one rule
-still covers everything.
+Note it is SIGNIFICANT FIGURES and not decimal places, which is the
+stronger and more useful rule: it bounds what a reader has to take in
+whatever the magnitude, where a decimals rule lets 1234.567 through
+at four decimals and clips 0.0008 to nothing. A spin box, though,
+carries a fixed `decimals` while its value's magnitude varies, so the
+implementation is to choose decimals from the control's OWN SCALE so
+that ordinary values land at three figures: spacing in the hundreds
+gets 0, an aspect around 1 gets 2, an offset in 0..1 gets 3.
+
+An earlier suggestion here was to derive decimals from the control's
+`singleStep`, which the modifier boxes already do locally
+(`3 if step < 1 else 1`). Keep that as the FLOOR rather than the
+rule: a box must not show digits its own step cannot reach, and it
+must not show more than three figures either. Where the two
+disagree, the step is what should change, so one number per control
+governs both.
+
+One pass over `findChildren(QDoubleSpinBox)` at construction costs
+microseconds once and nothing per repaint, and a control added later
+is right without anybody remembering -- which the current
+five-rules-in-five-places arrangement is not. Today: spacing at six
+decimals in metres, the ramp bound boxes at nine, `opt_offset_angle`
+at Qt's default two so degrees read "0.00", and six boxes setting
+nothing at all.
+
+THE GOOD REASON, AND IT IS REAL: a control holding a number a PERSON
+TYPED, or one taken from the data, must not round it away. The
+class-bound boxes size their decimals from the data deliberately
+(catalogue entry `the-bound-box-is-sized-from-the-data`), and
+clipping a pinned bound of -0.9276 to -0.928 would change the value
+the map is drawn from and stamp the rounded number into the project.
+So the cap governs SETTINGS a user chooses in round numbers, and a
+box that must hold an arbitrary measured value declares its exemption
+at the site, with the reason written there. Anything exempt should
+still be as tight as it honestly can be: nine decimals on a bound of
+-7.5 is not faithfulness, it is noise.
 
 Nothing else outstanding. `CONTENTION` gained its platform term on
 2026-08-16 and the entry that stood here is deleted: every timing
