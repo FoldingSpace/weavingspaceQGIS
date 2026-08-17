@@ -1445,6 +1445,52 @@ class WeavingSpaceDialog(QDialog):
   # category_editor and this sweep never reaches them.
   FIGURES_EXEMPT = ("spacing_spin",)
 
+  def _show_spacing_to_three_figures(self, suggested: float):
+    """Size the spacing box's decimals to the layer it is about to fit.
+
+    Args:
+      suggested: the spacing auto-fitting has just computed for this
+        layer, in the units the tiling works in. Read rather than the
+        box's CURRENT value, which still holds whatever the last layer
+        wanted, and rather than its `singleStep`, which is 1 whatever
+        the data is.
+
+    Returns:
+      None; only `decimals` moves. The caller sets the value
+      afterwards, and must, because a spin box rounds what it is given
+      to the decimals it has at the time.
+
+    THE ONE CONTROL THE CONSTRUCTION SWEEP CANNOT SIZE. Spacing
+    accepts 1e-6 to 1e12, so no single setting suits a floor plan at
+    half a metre and a country at fifty kilometres, and at
+    construction the box holds a default that says nothing about
+    anybody's data. It was exempted for a few hours and went on
+    showing six decimals of metres, which was the complaint.
+
+    Choosing the moment was the maintainer's: the rule wants applying
+    when the value changes, and the value changes when a LAYER IS
+    CHOSEN -- once, on a path that already rebuilds everything, and
+    not on the interactive path where a per-keystroke hook would have
+    cost something in the middle of an open question about how
+    responsive this plugin feels.
+
+    Three significant figures of the suggestion itself: 500 shows
+    none, 12.3 shows one, 0.47 shows three. Floored at nothing and
+    capped at six, which is where the box's own minimum of 1e-6 sits
+    -- below that the number cannot be represented at all, and a
+    spacing that small is a coordinate system nobody tiles in.
+    """
+    size = abs(float(suggested))
+    if not math.isfinite(size) or size <= 0:
+      return                            # nothing to size against
+    if size >= 1:
+      wanted = 3 - len(str(int(size)))
+    else:
+      # the first significant digit sits this far past the point, and
+      # three figures run from there
+      wanted = 2 - math.floor(math.log10(size))
+    self.spacing_spin.setDecimals(max(0, min(6, int(wanted))))
+
   def _limit_the_figures_on_show(self):
     """Show at most three significant figures in every number box.
 
@@ -2857,7 +2903,17 @@ class WeavingSpaceDialog(QDialog):
     ext = self._extent_in_working_units(layer) or layer.extent()
     dim = max(ext.width(), ext.height())
     if math.isfinite(dim) and dim > 0:
-      self.spacing_spin.setValue(_nice_number(dim / 15))
+      # DECIMALS FIRST, THEN THE VALUE, and that order is the whole
+      # of it: a spin box rounds whatever it is given to the decimals
+      # it currently has, so setting a spacing of 0.47 into a box
+      # showing none stores 0. The suggestion is the only number that
+      # knows this layer's scale -- a floor plan and a country arrive
+      # through this same line -- which is why the figures are sized
+      # here rather than at construction, where the box holds a
+      # default that says nothing about anybody's data.
+      suggested = _nice_number(dim / 15)
+      self._show_spacing_to_three_figures(suggested)
+      self.spacing_spin.setValue(suggested)
     else:
       # No usable extent: a layer with no CRS, or an empty one. Leave
       # the spacing alone rather than guessing from a bad number, and
