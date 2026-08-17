@@ -22239,11 +22239,20 @@ def test_a_pin_the_data_moved_under_is_released_and_said():
   assert dlg._pinned_bounds.get(tid, {}).get("v1"), \
     "the pin was gone before the data moved, so this proves nothing"
 
-  # now move the values out from under it, as a retype in QGIS would
+  # NOW MOVE THE VALUES DOWN, not up, and the direction is the whole
+  # of this staging. The column used to be retyped to 5000-8300, so
+  # the pin at 7 ended up BELOW everything -- and since the
+  # maintainer's ruling of 2026-08-17 that is a perfectly drawable
+  # pin whose first class simply goes unworn, so it is correctly kept
+  # and this test asserted the opposite for a day. What is still
+  # undrawable is a pin with nothing left ABOVE it for the middle to
+  # cut, which is what moving the column to 0-3 produces, and it is
+  # the case the 2026-08-15 measurement found in the field: a column
+  # edited from 0-121 down to 0-3 under a bound at 84.7.
   index = layer.fields().indexFromName("v1")
   layer.startEditing()
   for n, feature in enumerate(layer.getFeatures()):
-    layer.changeAttributeValue(feature.id(), index, 5000.0 + n * 300.0)
+    layer.changeAttributeValue(feature.id(), index, float(n % 4))
   assert layer.commitChanges(), "the retype would not commit"
   _tick(300)
   BAR_MESSAGES.clear()
@@ -22252,8 +22261,9 @@ def test_a_pin_the_data_moved_under_is_released_and_said():
   held = dlg._pinned_bounds.get(tid, {}).get("v1")
   assert not held, \
     f"the dialog still holds {held!r} after the column moved to " \
-    f"5000-8300, so the row shows a pin the map ignores and a reopen " \
-    f"reads the dead number back off the layer"
+    f"0-3, which leaves nothing above the pin for the middle to cut, " \
+    f"so the row shows a pin the map ignores and a reopen reads the " \
+    f"dead number back off the layer"
   said = [text for _kind, text in BAR_MESSAGES
           if "cannot be drawn" in text and "recalculated" in text]
   assert said, \
@@ -23697,15 +23707,23 @@ def test_unclassed_opens_locked_with_live_range():
   assert buttons == 50, \
     f"only {buttons} colour buttons were found, so the lock above " \
     f"was barely exercised"
-  # the dimming is an effect on the table (or the wrapper it sits
-  # in), not a stylesheet: an effect dims the swatches too
+  # THE DIMMING IS NOT AN EFFECT ANY MORE, and this assertion said
+  # the opposite for a day after the change. Until 2026-08-17 the
+  # locked table sat behind a QGraphicsOpacityEffect at 0.45; that
+  # composites the table into an offscreen pixmap while
+  # QAbstractScrollArea scrolls by blitting, and the two disagree --
+  # which is the ghost bounds the maintainer photographed. The fade
+  # is per item now, through the palette's disabled text colour.
+  # test_the_unclassed_list_fades_without_a_graphics_effect owns that
+  # contract; what is checked HERE is only that this editor, opened
+  # locked, is not the one carrying an effect back in.
   effect = editor.table.graphicsEffect()
   if effect is None and editor.table.parentWidget() is not None:
     effect = editor.table.parentWidget().graphicsEffect()
-  assert isinstance(effect, QGraphicsOpacityEffect), \
-    "the locked list must sit behind the settled opacity effect"
-  assert 0.3 <= effect.opacity() <= 0.6, \
-    f"opacity {effect.opacity():.2f}; the settled dimming is near 0.45"
+  assert effect is None, \
+    f"the locked list is behind {effect!r}; a graphics effect " \
+    f"composites offscreen while the table scrolls by blitting, " \
+    f"which is what painted ghost bounds behind the live ones"
 
   # the range is the live part: move it through the editor's own box
   # and the fifty classes on the MAP move with it

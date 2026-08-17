@@ -1400,12 +1400,20 @@ Confirmed with the user via an explicit design review:
   TWO GOOD REASONS TO DEPART, both real. Spacing spans 1e-6 to 1e12,
   so no construction-time setting suits a floor plan at half a metre
   and a country at fifty kilometres; it is exempt by identity (never
-  by `objectName`, which is empty on every box here) and sizes itself
-  in `_show_spacing_to_three_figures` from the suggestion auto-fitting
-  has just computed, WHEN A LAYER IS CHOSEN and only then. The
-  maintainer chose that moment over a hook on every value change,
-  which would have added cost to the interactive path while how
-  responsive this plugin feels is still an open question. And a box
+  by `objectName`, which is empty on every box here) and TRIMS ITS
+  TEXT instead, in `SpacingSpinBox.textFromValue`, keeping six
+  decimals of precision and printing none of the zeros it does not
+  need.
+  THE MECHANISM THAT PRECEDED IT ROUNDED A NUMBER A PERSON TYPED, and
+  the mistake is the one to remember: it sized `decimals` from the
+  spacing auto-fitting had computed, and a QDoubleSpinBox at zero
+  decimals cannot REPRESENT 500.5. Typing 500.5 gave 501, typing
+  215.509124 gave 216, and the map was tiled from the rounded number
+  with nothing said. `decimals` governs display AND input AND
+  storage, so ANY rule that lowers it to tidy a display destroys
+  data; a display rule belongs in `textFromValue`, which touches
+  neither the value nor the validator. Four tests said so and the
+  branch carried it for a day because nothing ran them. And a box
   holding a number a PERSON TYPED, or one taken from the data, must
   not round it away: the class-bound boxes size their decimals from
   the data deliberately (catalogue entry
