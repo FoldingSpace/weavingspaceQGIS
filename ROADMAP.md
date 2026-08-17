@@ -184,7 +184,40 @@ paraphrase would lose them:
 5. **And the plugin now reads three of the five variables as
    CATEGORICAL.**
 
-STEP 5 IS THE THREAD TO PULL, because it is a symptom rather than an
+**NARROWED BY THE TESTER, AND THIS IS THE ACTUAL DEFECT.** With a
+screenshot: QGIS's Symbology panel shows element `b` as GRADUATED on
+`Percent_Black` with five classes (0-10, 10-20, 20-30, 30-50, 50-80)
+on a greyscale ramp, while the plugin's row for `b` reads
+CATEGORIZED, 32 classes, Set2. And the tester then ruled out the
+categorical reading as the cause: set those rows to a numeric style,
+repeat the copy-paste in QGIS, and *the symbolisation shown in the
+plugin remains stuck on whatever numeric style the plugin last
+applied*.
+
+SO IT IS ONE FAULT, NOT THREE. The plugin's table does not follow the
+layer's renderer at all when that renderer changes outside the
+plugin. Not the breaks, not the field, not the kind of style. The row
+goes on describing THE MAP THE PLUGIN LAST DREW, and QGIS goes on
+drawing something else -- which is this software's characteristic
+failure, a table and a map disagreeing, and the reason
+docs/TESTING.md names "two views of one truth" as where the next
+differential should point.
+
+The greyed 32, 33 and 32 in the Classes column are distinct-value
+counts, so those rows genuinely believe they are categorical; that is
+a second-order effect of the same staleness rather than a separate
+bug, and the tester's numeric-style experiment is what shows it.
+
+WHAT THE CODE SAYS, still a reading and still needing measurement:
+`_element_is_deferring` asks only whether the renderer is of a KIND
+the chooser can NAME. Graduated-on-Natural-breaks is nameable, so the
+element is not deferring, so the plugin keeps its own record as the
+authority and never asks the layer what it now holds. Deferring is
+the ONLY route by which a QGIS-side change reaches the table, and it
+opens only for renderers the plugin cannot express.
+
+STEP 5 IS A SECOND-ORDER SYMPTOM, not the cause, and is kept because
+it is a symptom rather than an
 absence: something made the plugin decide those three columns are not
 numeric. The rule "a quantitative style never stands on a text field"
 forces a row to Categorized whenever the field it holds is
