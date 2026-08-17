@@ -178,10 +178,24 @@ a real screen, and the guard can only assert the cause is gone rather
 than that the symptom is.
 
 **THE PLUGIN IS SLOWER IN rc5, AND THE TESTER NOTICED.** Reported
-2026-08-17. No operation named yet, which is the first thing to
-establish: "slower" could be opening the dialog, the first render,
-Generate, the live debounce, or typing in the table, and they have
-almost nothing in common.
+2026-08-17, and then narrowed by the tester in the sentence that
+matters most here: *tiling at small spacings does not seem any
+slower, but the snappy interactive feel at large "auto" spacing has
+gone.*
+
+READ THAT CAREFULLY, BECAUSE IT NAMES THE SHAPE. Large spacing means
+FEW tiles, so the tiling itself is cheap and what dominates a run is
+its FIXED cost. Small spacing means many tiles, where the tiling
+swamps everything and a fixed cost disappears into it. A regression
+visible at large spacing and invisible at small is therefore
+per-RUN overhead, not per-tile work -- and with live update firing on
+a 900 ms debounce while somebody drags a control, a fixed cost is
+paid over and over.
+
+That rules out most of the tiling path by inspection and points at
+what every run does regardless of size. Profile a LARGE-spacing live
+render, not a small-spacing Generate, or the measurement will be
+taken where the effect is known to hide.
 
 MEASURE, DO NOT GUESS. This project already spent a day on a
 performance regression whose obvious culprit was innocent, and the
@@ -192,17 +206,30 @@ doing; on 2026-08-16 the self-time ratio understated a threefold
 difference as 1.2x while the counts carried it exactly. The two
 revisions here are `569aefb` (rc4) and `6c7af51` (rc5).
 
-Candidates from this session's own work, listed so they can be ruled
-out rather than assumed: `_group_of_our_layers` now runs three times
-per run and walks the layer tree for each of our layers; the
-missing-ramp notice asks the style library once per assignment per
-run, and `get_ramp` clones. Both look cheap -- a ramp lookup was
-measured at 0.024 ms -- and both are on the run path rather than a
-per-keystroke one. THAT IS A HYPOTHESIS AND NOT A FINDING. The
-retirement-gate work that took rebuilds from 1,282 to 173 is also in
-this window, which means the honest prior is that rc5 should be
-FASTER than rc4 on the path a layer change touches, and a report that
-it is slower needs the measurement before any of this is believed.
+Candidates from this session's own work, all of them PER-RUN and so
+all of them consistent with the shape above, listed to be ruled out
+rather than assumed:
+
+- `_group_of_our_layers` runs THREE times per run -- at launch, in
+  `_get_or_make_group`, and again for `renamed_mid_run` -- and each
+  call asks `root.findLayer()` for up to nine layer ids. `findLayer`
+  walks the layer tree, so the cost rises with how many layers the
+  user's project holds, which is invisible on a fixture of four and
+  is not invisible on a real project;
+- the missing-ramp notice asks `bridge.get_ramp(name)` once per
+  assignment per run, and `get_ramp` queries the style database and
+  CLONES the ramp. A lookup was measured at 0.024 ms in another
+  context, which would make this negligible -- but that figure was
+  taken for a different question and should not be reused here;
+- `_newest_output_group` now examines every top-level group's
+  children, though only at construction.
+
+THAT IS A LIST OF SUSPECTS AND NOT A FINDING. The honest prior runs
+the other way: the retirement-gate work in this same window took unit
+rebuilds from 1,282 to 173, so rc5 should be FASTER than rc4 on the
+path a layer change touches. A stack or a suspicion pointing at the
+newest change is a hypothesis, and this project has already spent a
+day proving that the obvious culprit was innocent.
 
 **SILLY NUMBERS OF SIGNIFICANT FIGURES THROUGHOUT THE INTERFACE.**
 Reported 2026-08-17: spacing shows six decimal places in metres, and
