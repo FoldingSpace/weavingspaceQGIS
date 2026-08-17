@@ -160,8 +160,11 @@ class PinButton(QAbstractButton):
     parent: the owning widget, as usual in Qt.
 
   The two states are legible APART rather than merely different: out
-  is a hollow outline lying at an angle, in is filled, upright and
-  drawn in the palette's highlight colour. A pin whose states can
+  is the SAME pin with a diagonal struck through it, in is the pin
+  clean and drawn in the palette's highlight colour. It said something
+  else until 2026-08-17 -- out lay over at an angle and was hollow --
+  and the paragraph survived the change by a few hours, which is how a
+  class docstring comes to describe a glyph nobody draws. A pin whose states can
   only be told apart by looking twice is worse than the checkbox it
   replaces, which is the line
   test_a_toggle_switch_shows_which_way_it_is_set already holds for

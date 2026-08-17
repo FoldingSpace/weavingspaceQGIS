@@ -2398,8 +2398,11 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
     # shades. A reader comparing two such maps is reading a
     # compressed ramp and cannot tell.
     #
-    # So the span is trimmed to the first and last class with any
-    # WIDTH, and the ramp is spread over those. Degenerate classes
+    # So the span is trimmed to the first and last class that is not
+    # BOTH zero-width AND unworn -- see the two conditions below,
+    # which this line described as width alone until a hunt found
+    # what that costs. The ramp is spread over what survives the
+    # trim. Degenerate classes
     # INSIDE the ladder keep their place -- the rule is about the
     # outermost, and a middle class emptied by the data is a
     # different fact -- so the trim only walks in from each end.
