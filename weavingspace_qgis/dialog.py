@@ -98,6 +98,7 @@ from qgis.core import (
   QgsApplication,
   QgsMapLayerProxyModel,
   QgsProject,
+  QgsRectangle,
 )
 from qgis.gui import QgsColorButton, QgsFileWidget, QgsMapLayerComboBox
 
@@ -2254,6 +2255,55 @@ class WeavingSpaceDialog(QDialog):
     finally:
       widget.blockSignals(False)
 
+  def _extent_in_working_units(self, layer):
+    """The layer's extent as the TILING will see it, in metres.
+
+    Args:
+      layer: the region layer, in whatever CRS the user has it.
+
+    Returns:
+      A QgsRectangle in the coordinates the tiling works in --
+      the layer's own for a projected CRS, and EPSG:3857 for a
+      geographic one, which is what `bridge.layer_to_gdf` reprojects
+      to. None when there is no usable extent.
+
+    WHY NOT DEGREES TIMES 111,000. That was the arithmetic here and it
+    is only right at the equator. Web Mercator's y scale is
+    111,320/cos(latitude), so the error grows with latitude: measured
+    2026-08-17, x1.0 at the equator, x2.0 at the Faroes, x2.3 in
+    Troms and x21.5 on a Svalbard strip. The live-update gate
+    therefore UNDERSTATED the map by those factors: a Faroes layer at
+    2,676 m scored 19,995 against a 20,000 ceiling and launched a run
+    that really wanted 40,235 tiles, and a Svalbard strip scored
+    19,685 and really wanted 422,056 -- past the hard cap, refused
+    with an empty note line. Asking QGIS to transform the rectangle
+    costs one call and cannot drift from what the tiling does,
+    because it is the same reprojection.
+
+    A transform that fails -- a CRS pair PROJ cannot relate -- falls
+    back to the old approximation rather than refusing, since a
+    slightly wrong ceiling beats no map at all.
+    """
+    from . import compat
+    if not compat.layer_data_is_available(layer):
+      return None
+    extent = layer.extent()
+    if not layer.crs().isGeographic():
+      return extent
+    try:
+      from qgis.core import (QgsCoordinateReferenceSystem,
+                             QgsCoordinateTransform)
+      transform = QgsCoordinateTransform(
+        layer.crs(), QgsCoordinateReferenceSystem("EPSG:3857"),
+        QgsProject.instance())
+      return transform.transformBoundingBox(extent)
+    except Exception:
+      # the old approximation, kept as the fallback and named as one
+      return QgsRectangle(extent.xMinimum() * 111_000,
+                          extent.yMinimum() * 111_000,
+                          extent.xMaximum() * 111_000,
+                          extent.yMaximum() * 111_000)
+
   def _gpkg_key(self, path):
     """The key under which one GeoPackage's tables are recorded.
 
@@ -2274,20 +2324,33 @@ class WeavingSpaceDialog(QDialog):
     """
     if not path:
       return path
+    # DEVICE AND INODE WERE TRIED HERE AND WITHDRAWN, hours later the
+    # same night. They answer "one file, two spellings" exactly -- and
+    # they also change when the file is REPLACED rather than edited,
+    # which is what a sync client, an rsync, a restore or a copied-in
+    # file from a colleague all do. Measured: three elements written,
+    # the file replaced, the design shrunk to two, and `tiles_c` stayed
+    # in the GeoPackage while the record split across two keys. That is
+    # the very harm this key was introduced to prevent, arriving
+    # through its own fix. A path outlives the bytes at it; an inode
+    # does not, and this record is about the destination rather than
+    # about a particular copy of it.
     try:
-      # THE FILE'S OWN IDENTITY where it exists, for the reason
-      # `same_destination` asks `samefile`: whether two spellings are
-      # one file is the volume's business, and device-plus-inode is
-      # what the volume says. A key cannot compare pairwise, so it
-      # takes the identity instead.
-      stat = os.stat(path)
-      return f"file:{stat.st_dev}:{stat.st_ino}"
-    except OSError:
-      pass
-    try:
-      return os.path.normcase(os.path.realpath(path))
+      settled = os.path.normcase(os.path.realpath(path))
     except (OSError, ValueError):
-      return os.path.normcase(path)
+      settled = os.path.normcase(path)
+    # `normcase` folds case on Windows only, so ask this VOLUME
+    # whether it folds -- macOS usually does, Linux usually does not,
+    # and the answer belongs to the disk rather than to the platform.
+    # Probed on the resolved name, so a symlink cannot mislead it.
+    try:
+      folder, leaf = os.path.split(settled)
+      if leaf and leaf != leaf.upper() and os.path.exists(
+          os.path.join(folder, leaf.upper())):
+        return settled.lower()
+    except (OSError, ValueError):
+      pass
+    return settled
 
   def _layer_fingerprint(self):
     """What the region layer CONTAINS, cheaply enough to ask often.
@@ -2683,10 +2746,11 @@ class WeavingSpaceDialog(QDialog):
         "That layer's data is no longer available, so a spacing "
         "cannot be suggested.")
       return
-    ext = layer.extent()
+    # measured where the TILING works, not in degrees scaled by a
+    # constant that is only right at the equator -- see
+    # _extent_in_working_units
+    ext = self._extent_in_working_units(layer) or layer.extent()
     dim = max(ext.width(), ext.height())
-    if layer.crs().isGeographic():
-      dim = dim * 111_000  # approximate metres, layer will be reprojected
     if math.isfinite(dim) and dim > 0:
       self.spacing_spin.setValue(_nice_number(dim / 15))
     else:
@@ -2884,10 +2948,15 @@ class WeavingSpaceDialog(QDialog):
       return
     if not any(a["var"] for a in self._assignments()):
       return
-    ext = layer.extent()
-    scale = 111_000 if layer.crs().isGeographic() else 1
-    bounds = (ext.xMinimum() * scale, ext.yMinimum() * scale,
-              ext.xMaximum() * scale, ext.yMaximum() * scale)
+    # THE EXTENT THE TILING WILL ACTUALLY SEE. This scaled degrees by
+    # a flat 111,000, which understates a high-latitude map by up to
+    # twentyfold and let live update launch runs far past the ceiling
+    # this gate exists to enforce.
+    ext = self._extent_in_working_units(layer)
+    if ext is None:
+      return
+    bounds = (ext.xMinimum(), ext.yMinimum(),
+              ext.xMaximum(), ext.yMaximum())
     est = bridge.estimate_tile_count_bounds(self._unit, bounds)
     if est > bridge.LIVE_UPDATE_MAX_TILES:
       self.live_note.setText(
