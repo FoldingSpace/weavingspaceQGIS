@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-210 defect(s) with a regression test.
+211 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -125,6 +125,8 @@ there is no separate list to remember.
   guarded by `test_pinning_redraws_the_window_it_was_typed_into`
 - **with three or more polygon layers in the project, QgsMapLayerComboBox emitted no layerChanged at all when the chosen region layer was destroyed, so the dialog went on holding a destroyed layer, said nothing, and Generate produced no map and no refusal. Measured 2026-08-15 at one, two, three and four layers: the guarded door is the ONE-layer case, which every earlier test walked through because the suite's own removal case clears every other layer first.**  
   guarded by `test_removing_the_region_layer_is_noticed_in_a_real_project`
+- **opening the plugin on a saved project silently replaced the saved map. The output path was persisted nowhere, so the widget returned empty on reopening -- both the condition that lets live update run and the condition that sends output to memory -- while `_last_path` was restored from the layers. Measured 2026-08-17: four layers of 175/176 features at spacing 317 became memory layers of 78 at the default spacing, and a save-and-reopen brought them back empty.**  
+  guarded by `test_reopening_a_saved_project_does_not_replace_its_map`
 - **swapping the variables of two elements whose columns both had missing values left each holding the other's no-data split, so values were drawn as gaps and gaps as values.**  
   guarded by `test_swapping_two_variables_re_cuts_both_splits`
 - **opening the colour editor for an Unclassed element on a column with no values raised an unhandled OverflowError, so the button did nothing and QGIS showed a Python error.**  
@@ -469,7 +471,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 81
-- a bug hunt pointed in a named direction: 50
+- a bug hunt pointed in a named direction: 51
 - the mutation campaign: 16
 - reading the code: 15
 - reported by a user: 12

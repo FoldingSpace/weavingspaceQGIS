@@ -57,7 +57,13 @@ from qgis.core import (
 
 PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
 
-with open(os.path.join(PLUGIN_DIR, "palettes.json")) as _f:
+# encoding NAMED, not left to the platform: Python takes the
+# locale's preferred encoding otherwise, and a Windows code page
+# that is not UTF-8 would fail to import the plugin outright on
+# the first non-ASCII palette name. ASCII today, which is exactly
+# when this costs nothing to fix.
+with open(os.path.join(PLUGIN_DIR, "palettes.json"),
+          encoding="utf-8") as _f:
   PALETTES = json.load(_f)
 
 # ramps suited to categorical data: the qualitative palette names from

@@ -24677,6 +24677,101 @@ def test_one_file_spelt_two_ways_is_one_destination():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_reopening_a_saved_project_does_not_replace_its_map():
+  """Open a saved project, open the plugin, touch nothing: the map stays.
+
+  WITH LIVE UPDATE ON, which is the point. Every other adoption test
+  here opens with `live_check.setChecked(False)`, and live update is
+  ON by default for users -- so a whole family of tests agreed on a
+  setting nobody has, and the defect below sat underneath all of them.
+
+  What used to happen: the output path is not persisted anywhere, so
+  on reopening the file widget came back EMPTY. Empty is
+  simultaneously the condition that lets live update run and the
+  condition that sends output to memory, so within the 900 ms debounce
+  a run landed unasked and replaced four file-backed layers with
+  memory layers of the DEFAULT design. Hand styling gone, GeoPackage
+  link severed; saved and reopened, the layers came back with zero
+  features. Adoption already recovers the file from the layers' own
+  sources into `_last_path`; the widget simply was not told.
+
+  Regression: opening the plugin on a saved project silently replaced the saved map. The output path was persisted nowhere, so the widget returned empty on reopening -- both the condition that lets live update run and the condition that sends output to memory -- while `_last_path` was restored from the layers. Measured 2026-08-17: four layers of 175/176 features at spacing 317 became memory layers of 78 at the default spacing, and a save-and-reopen brought them back empty. [hunt]
+  """
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog, same_destination
+
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="weavingspace_reopen_")
+  try:
+    layer = make_region_layer(n=8)
+    layer.setName("region for reopening")
+    project.addMapLayer(layer)
+    gpkg = os.path.join(folder, "map.gpkg")
+
+    first = WeavingSpaceDialog(iface=_Iface())
+    first.live_check.setChecked(False)      # deliberate for the SETUP
+    first.layer_combo.setLayer(layer)
+    _tick(300)
+    first.gpkg_widget.setFilePath(gpkg)
+    first.spacing_spin.setValue(420)
+    _generate_and_wait(first)
+    _tick(300)
+    before = {}
+    for tid, lid in first._element_layer_ids.items():
+      out = project.mapLayer(lid)
+      assert out is not None, f"element {tid} has no layer"
+      before[tid] = out.featureCount()
+      assert gpkg in out.source(), \
+        f"element {tid} was not written to the GeoPackage, so this " \
+        f"test cannot show what reopening does to a filed map"
+    assert before, "no output to save, so this test proves nothing"
+    saved = os.path.join(folder, "map.qgz")
+    assert project.write(saved), "the project would not save"
+    first.close()
+    project.clear()
+    _tick(200)
+
+    # ...and now a user reopens it and opens the plugin, TOUCHING
+    # NOTHING. Live update left at its default, which is on.
+    assert project.read(saved), "the project would not reopen"
+    _tick(300)
+    second = WeavingSpaceDialog(iface=_Iface())
+    assert second.live_check.isChecked(), \
+      "live update is off by default now, so this test no longer " \
+      "stages what a user meets -- re-decide it rather than " \
+      "flipping the box here"
+    # long enough for the 900 ms live debounce to fire, and then some
+    _tick(2500)
+    _settle(second, seconds=60)
+    _tick(500)
+
+    assert same_destination(second._last_path, gpkg), \
+      f"after reopening, the dialog's output path is " \
+      f"{second._last_path!r} rather than {gpkg!r}"
+    assert same_destination(second.gpkg_widget.filePath(), gpkg), \
+      f"the file widget came back {second.gpkg_widget.filePath()!r} " \
+      f"rather than {gpkg!r}. Empty is what both lets live update run " \
+      f"and sends its output to memory, which is how an unasked run " \
+      f"replaced the saved map"
+
+    for tid, count in before.items():
+      lid = second._element_layer_ids.get(tid)
+      out = project.mapLayer(lid) if lid else None
+      assert out is not None, \
+        f"element {tid} has no layer after reopening"
+      assert gpkg in out.source(), \
+        f"element {tid} now reads from {out.source()!r}: the link to " \
+        f"the GeoPackage was severed and the map is in memory"
+      assert out.featureCount() == count, \
+        f"element {tid} came back with {out.featureCount()} features " \
+        f"rather than the {count} that were saved: an unasked run " \
+        f"replaced the map at a different design"
+    second.close()
+  finally:
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_a_retired_dialog_rebuilds_nothing_when_the_project_moves():
   """A dialog the user has finished with does no work for a project.
 
@@ -45954,6 +46049,8 @@ def main():
         test_every_ceiling_widens_for_a_slow_machine)
   check("one file spelt two ways is one destination",
         test_one_file_spelt_two_ways_is_one_destination)
+  check("reopening a saved project does not replace its map",
+        test_reopening_a_saved_project_does_not_replace_its_map)
   check("a retired dialog rebuilds nothing when the project moves",
         test_a_retired_dialog_rebuilds_nothing_when_the_project_moves)
   check("a retired dialog stops watching",

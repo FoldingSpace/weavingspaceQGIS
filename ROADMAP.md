@@ -99,42 +99,23 @@ was proved against the broken fix. The reasoning they produced is in
 CLAUDE.md and docs/TESTING.md, where it binds; a roadmap nobody prunes
 becomes a diary.
 
-**BLOCKING: opening the plugin on a saved project silently replaces
-the saved map.** Found 2026-08-17 by a backwards-from-harm hunt, which
-is the direction that found the worst defect in this project's history
-after eight code-reading hunts had walked past it. It has done it
-again: six other hunts the same night did not see this.
+FIXED 2026-08-17 and deleted from here: opening the plugin on a saved
+project silently replaced the saved map. Adoption already recovered
+the file from the adopted layers' own sources; the file widget was
+simply never told, and an empty widget is BOTH the condition that lets
+live update run and the condition that sends output to memory. One
+method, called after `_build_ui` and again on File > Open, makes the
+two records agree. Guarded by
+`test_reopening_a_saved_project_does_not_replace_its_map`, which
+stages it WITH LIVE UPDATE ON -- the setting every other adoption test
+disables and every user has -- and was proved by removing the call.
 
-REPRODUCTION. Generate a map at a design that is not the default
-(spacing 317, rotate 23) into `map.gpkg`. Save the project. Reopen it
--- the layers come back from OGR, 175/176/175/176 features, with a
-hand-set renderer intact. Now click the plugin's toolbar button and
-TOUCH NOTHING. Inside the 900 ms live-update debounce a run lands
-unasked and replaces all four layers with MEMORY layers of the DEFAULT
-design, 78 features each. The hand styling is gone and the link to the
-GeoPackage is severed. Save, reopen, and they come back with ZERO
-features. The only thing said is "312 tiles across 4 element layers".
+The first attempt at that fix silently did nothing, because it set the
+widget inside `_adopt_existing_group`, which runs BEFORE `_build_ui`
+in the constructor. The guard caught it, which is what a guard written
+before believing the fix is for.
 
-TWO HALVES, ONE MISSING STORE. The output path is persisted NOWHERE
--- the file widget holds it and nothing writes it to the project or to
-QSettings -- so on reopening it returns empty. Empty is exactly the
-condition that both LETS live update run and sends output to MEMORY.
-Meanwhile `_last_path` IS restored, from the layers' own sources, so
-the two records disagree about where output goes at the moment the
-run fires. Second door: File > Open under an already-open dialog.
-
-WHY NO TEST SEES IT: every adoption test opens with
-`live_check.setChecked(False)`, and live update is ON by default for
-users. A whole family of tests agrees on a setting no user has.
-
-This needs a decision rather than a patch, which is why it is written
-here rather than fixed at the end of a long session: persist the
-output path with the project, or refuse to live-update into memory
-when the project already holds output this dialog recognises, or hold
-the first run until the user asks. The first looks right and is the
-biggest change. rc4 carries this defect.
-
-Nothing else outstanding. `CONTENTION` gained its platform term on
+Nothing outstanding. `CONTENTION` gained its platform term on
 2026-08-16 and the entry that stood here is deleted: every timing
 allowance is now `CONTENTION * WEAVINGSPACE_TEST_SLOWNESS`, each CI
 job declares its own figure with the reason beside it, and

@@ -1396,6 +1396,10 @@ class WeavingSpaceDialog(QDialog):
     # reported: its existing colours will have moved.
     self._category_counts = {}
     self._build_ui()
+    # ...and now that the widget exists, show the path adoption
+    # recovered a moment ago. The order is the whole point: adoption
+    # runs before the UI is built.
+    self._show_the_adopted_path()
     self._update_layer_exclusions()
     # order matters: families must be populated (_on_n_changed) before
     # the layer handler builds the first unit and queues the first
@@ -2215,6 +2219,41 @@ class WeavingSpaceDialog(QDialog):
     self._watched_layer_id = None
     self._on_layer_changed()
 
+  def _show_the_adopted_path(self):
+    """Put the recovered output path into the file widget.
+
+    Returns:
+      None. Does nothing when there is no path to show or the widget
+      does not exist yet, which is why it is a method rather than two
+      lines at the adoption site: `_adopt_existing_group` runs BEFORE
+      `_build_ui` in the constructor, so a version of this written
+      there silently did nothing at all -- a guard skipping the whole
+      job, which is the shape this project has paid for before.
+
+    WHAT IT PREVENTS. The output path is persisted nowhere, so on
+    reopening a project the widget came back empty while `_last_path`
+    was correctly recovered from the adopted layers' own sources. An
+    empty widget is simultaneously the condition that lets live update
+    run and the condition that sends output to MEMORY, so opening the
+    plugin on a saved project fired an unasked run that replaced four
+    file-backed layers with memory layers of the default design --
+    hand styling gone, the GeoPackage link severed, and the layers
+    empty after the next save and reopen. Making the two records agree
+    closes both halves at once.
+
+    Signals are blocked because this is RECOVERY, not a destination
+    somebody chose: a user who has touched nothing should not have
+    their own change handlers fired at them.
+    """
+    widget = getattr(self, "gpkg_widget", None)
+    if widget is None or not self._last_path:
+      return
+    try:
+      widget.blockSignals(True)
+      widget.setFilePath(self._last_path)
+    finally:
+      widget.blockSignals(False)
+
   def _gpkg_key(self, path):
     """The key under which one GeoPackage's tables are recorded.
 
@@ -2368,7 +2407,17 @@ class WeavingSpaceDialog(QDialog):
       None. The counter feeds both signatures, so the next run cannot
       be skipped as a no-op, and a live update is queued so a user
       watching the map sees it follow their edit.
+
+    A RETIRED DIALOG DOES NOTHING HERE. This is the fifth route into
+    the work a dialog keeps doing after the user has finished with it,
+    and the four gated on 2026-08-16 were all PROJECT or COMBO
+    signals -- this one hangs off the region LAYER, which is why
+    gating those four left it open. Measured 2026-08-17: deleting an
+    assigned column pushed the identical warning once per dialog ever
+    opened.
     """
+    if _dialog_is_gone(self) or _live_dialog() is not self:
+      return
     self._data_version += 1
     # Follow the edit as well as recording it. This is the only place
     # a field being renamed, dropped or retyped is heard: the layer
@@ -3004,7 +3053,10 @@ class WeavingSpaceDialog(QDialog):
     idx = layer.fields().indexOf(field_name)
     if idx < 0:
       return 0
-    key = (layer.id(), field_name)
+    # KEYED ON THE DATA VERSION as both sibling caches are: without
+    # it an edit in QGIS left this answering from before the edit, so
+    # the Classes cell reported 4 where the column now held 5.
+    key = (layer.id(), field_name, self._data_version)
     if key not in self._cat_count_cache:
       try:
         self._cat_count_cache[key] = len(
@@ -4378,6 +4430,19 @@ class WeavingSpaceDialog(QDialog):
     # new group beats an invisible double map.
     self._group_name = None
     self._last_path = None
+    # THE WIDGET TOO, and it was the one record every clear site left
+    # standing -- the only one a user can see, and the only one that
+    # decides which bytes get written. Measured 2026-08-17: File > New,
+    # a fresh region layer, Generate, and the previous project's
+    # GeoPackage was rewritten from 55 features per element to 25,
+    # with no warning. Blocked signals, because forgetting is not a
+    # choice the user made in the widget.
+    if hasattr(self, "gpkg_widget"):
+      try:
+        self.gpkg_widget.blockSignals(True)
+        self.gpkg_widget.setFilePath("")
+      finally:
+        self.gpkg_widget.blockSignals(False)
     # ...and this, which belongs to the group being forgotten. A
     # record left set here would let the NEXT project's first run
     # replace a group it never adopted.
@@ -7827,6 +7892,11 @@ class WeavingSpaceDialog(QDialog):
     if _dialog_is_gone(self) or _live_dialog() is not self:
       return
     self._adopt_existing_group()
+    # ...and show what it recovered. Here the widget DOES exist -- the
+    # dialog was already open when the project arrived -- but the
+    # constructor's path needs the same call after `_build_ui`, so it
+    # lives in one method rather than two copies that could drift.
+    self._show_the_adopted_path()
     self._update_layer_exclusions()
     self._on_layer_changed()
 

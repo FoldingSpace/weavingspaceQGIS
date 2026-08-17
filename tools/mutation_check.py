@@ -521,9 +521,13 @@ MUTATIONS = [
            "invisible until the user switches layers and back, with "
            "nothing on screen to suggest that is the remedy"),
   dict(name="region-chooser-exclusions", file=DIALOG,
-       old="""    self._build_ui()
-    self._update_layer_exclusions()""",
-       new="""    self._build_ui()""",
+       # RE-ANCHORED 2026-08-17: `_show_the_adopted_path()` went in
+       # between these two lines, so the two-line anchor matched
+       # nothing and the entry had gone silent -- which reads exactly
+       # like success. Anchored on the call it is actually about.
+       old="""    self._update_layer_exclusions()
+    # order matters: families must be populated (_on_n_changed) before""",
+       new="""    # order matters: families must be populated (_on_n_changed) before""",
        test="test_plugin_never_offers_its_own_output_as_a_region",
        why="a dialog opened on a project that already holds a tiled "
            "map must not offer that map as a region layer"),
