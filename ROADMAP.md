@@ -169,6 +169,46 @@ Lower and Upper columns, offset by about a row, on scrolling.
 
 ## 0.24.4 — after this one
 
+### Reported from the field against rc5, 2026-08-17
+
+**HAND EDITS TO CLASS BREAKS IN QGIS DO NOT COME BACK TO THE PLUGIN,
+AND NOR DOES A PASTED STYLE.** Reported by a colleague of the
+maintainer testing rc5. NOT YET REPRODUCED HERE -- what follows is a
+reading of the code, which is a hypothesis and not a measurement, and
+the first job is to measure it.
+
+THE READING. `_element_is_deferring` asks `bridge.expressible_style`
+whether the renderer is of a KIND the style chooser can name, and
+nothing more. A graduated renderer whose breaks somebody retyped in
+the Graduated panel is still ("Graduated", "Quantiles"), so it is
+expressible, so the element is NOT deferring -- the plugin goes on
+believing it owns that element, and its own records decide the breaks
+at the next restyle. A pasted style would behave the same way whenever
+the pasted renderer happens to be expressible; when it is not, the
+deferring path should catch it, and whether QGIS's Paste Style even
+emits `styleChanged` is a separate thing to measure.
+
+WHY THIS IS A REAL ASYMMETRY RATHER THAN A PREFERENCE. The settled
+rule is that renderers are seeded standard QGIS objects and refinement
+belongs to the styling dock -- and a dock RECOLOUR does survive, with
+tests for it in both directions. A dock RE-BREAK apparently does not.
+One of a pair is honoured and its twin is not, which is the shape this
+project meets most often.
+
+WHAT MUST BE DECIDED, and it is the maintainer's. A pin already means
+"this break is mine": should a dock edit BECOME pins, so the plugin
+carries the user's breaks the way it carries their colours? Or should
+an element whose breaks were edited outside start deferring, as one
+with an inexpressible renderer does? The first keeps the element
+editable in the plugin; the second hands it over. Do not choose by
+implementation convenience.
+
+MEASURE FIRST, and separately for each half: retype a break in the
+Graduated panel, then ask what the dialog shows and what the next
+restyle draws; then Copy Style from one layer and Paste Style onto an
+element, with an expressible renderer and an inexpressible one, and
+check whether the plugin hears it at all.
+
 ### Wanted
 
 **WHAT SHOULD THE DEBOUNCES BE?** Measured 2026-08-17 and recorded
