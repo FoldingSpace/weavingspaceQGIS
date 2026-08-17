@@ -3169,6 +3169,15 @@ MUTATIONS = [
            "the pool, so without re-asking the reduction's question "
            "the scheme cuts more classes than the middle has values "
            "and the legend gains a swatch no tile wears"),
+  dict(name="the-firing-control-is-the-one-that-is-read", file=EDITOR,
+       old="      self._bound_edited(which, pair)",
+       new="      self._bound_edited(which)",
+       test="test_an_unclassed_row_pins_from_either_control",
+       why="with an end already pinned, dropping the firing pair makes "
+           "_bound_edited fall back to the FIRST registered control -- "
+           "the clamp strip -- so the Pin column's box takes the first "
+           "number a user types and silently discards every one after "
+           "it, applying the strip's stale value to the map"),
   dict(name="unclassed-gets-the-pin-column-too", file=EDITOR,
        old="    self._pin_column = self._pins_offered",
        new="    self._pin_column = self._pins_offered and not self._locked",

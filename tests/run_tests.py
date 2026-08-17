@@ -9528,6 +9528,34 @@ def test_an_unclassed_row_pins_from_either_control():
       "the same end; isChecked() moving is not the same as the " \
       "control repainting, and a hand-painted button needs update()"
 
+    # (1b) THE SAME BOX AGAIN, WHILE ALREADY PINNED. This is the case
+    # the first version of this test walked past, and a hunt found
+    # what it left: with the end already pinned, `_bound_moved` takes
+    # its `elif wants:` branch, which dropped the firing pair, so
+    # `_bound_edited` fell back to the FIRST registered control -- the
+    # clamp strip -- and applied that box's stale number. The Pin
+    # column took the first value typed and silently discarded every
+    # one after it.
+    #
+    # The order matters and is the lesson: driving table-then-strip
+    # passes, because the table's first act is an unpinned-to-pinned
+    # transition that goes down the other branch. A second edit to the
+    # SAME control is what exposes it.
+    table_box.setValue(1.9)
+    table_box.editingFinished.emit()
+    _tick(500)
+    assert dlg._pinned_bounds.get(tile_id, {}).get(field) == {"low": 1.9}, \
+      f"a second edit to the table's own box recorded " \
+      f"{dlg._pinned_bounds.get(tile_id, {}).get(field)!r}, not 1.9; " \
+      f"the number typed was discarded and another control's value " \
+      f"applied in its place"
+    assert abs(ladder()[0][1] - 1.9) < 1e-9, \
+      f"the map's first class ends at {ladder()[0][1]}, not at the " \
+      f"second number typed"
+    assert abs(strip_box.value() - 1.9) < 1e-9, \
+      f"the strip's box shows {strip_box.value()} after the table was " \
+      f"edited a second time"
+
     # (2) NOW MOVE IT FROM THE STRIP. Everything follows the other way.
     shown_after_table = printed()
     strip_box.setValue(2.5)

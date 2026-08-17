@@ -1769,6 +1769,25 @@ Confirmed with the user via an explicit design review:
   source's fifty never reaches `_class_counts`, which is the record
   that means CHOSEN.
 
+- **WHEN A FIX THREADS A "WHO FIRED THIS" ARGUMENT THROUGH A FAMILY OF
+  HANDLERS, GREP THE CALLS THEY MAKE TO EACH OTHER.** 2026-08-17, and
+  found by two independent hunts within an hour of each other, not by
+  the suite. Giving an Unclassed end two pin controls meant every
+  handler had to learn which control fired, so `source` was threaded
+  through three signatures and every call site updated -- except one
+  handler calling ANOTHER handler, `self._bound_edited(which)` inside
+  `_bound_moved`. That call was an UNCHANGED CONTEXT LINE in the diff
+  and therefore invisible in review, and it was on the branch taken
+  only when the end is ALREADY pinned. The fallback then picked the
+  first registered control, which is the strip, so the Pin column's
+  box took the first number typed and silently discarded every one
+  after it while the strip went on working.
+  Two habits follow. The call sites you must check are not only the
+  ones the SIGNALS reach: a family of handlers calls itself, and those
+  calls do not appear in a search for the signal. And a fallback for
+  "nobody said which" is exactly where a missing argument hides, since
+  it turns a bug into a plausible answer -- prefer failing loudly to
+  guessing when the caller should have known.
 - **AN UNCLASSED END IS NAMED BY TWO CONTROLS, AND THEY MUST AGREE.**
   (Maintainer's instruction, 2026-08-17, reversing a decision of the
   same week.) Unclassed used to get no Pin column -- fifty faded

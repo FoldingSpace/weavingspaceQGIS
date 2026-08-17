@@ -1001,7 +1001,18 @@ class CategoryColourDialog(QDialog):
       pin.update()
       self._pin_toggled(which, wants, pair)
     elif wants:
-      self._bound_edited(which)
+      # THE PAIR TRAVELS HERE TOO, and it did not for a few hours on
+      # 2026-08-17. Every other call in this class passes the control
+      # that fired; this one dropped it, so `_bound_edited` fell back
+      # to the FIRST registered pair -- which is the clamp strip,
+      # built before the table -- and applied that box's stale number
+      # instead of the one just typed. The visible harm: with an end
+      # already pinned, the Pin column's box took the first value a
+      # user typed and silently discarded every one after it, while
+      # the strip's box went on working. Found by a hunt, not by the
+      # suite, whose test happened to drive the one order that
+      # passes.
+      self._bound_edited(which, pair)
 
   def _redraw_bounds(self, bounds):
     """Show the ladder the map now draws, after a pin moved it.
