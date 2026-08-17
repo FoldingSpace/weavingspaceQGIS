@@ -112,13 +112,20 @@ changelog=0.24.3 Areas with no value are drawn now rather than left
     your data. The variables appear as soon as the layer does. Until
     now that order left the Variable list empty and Generate saying
     you had not assigned anything.
-    Styling in QGIS: change an element's renderer in the Layer
-    Styling panel to something the dialog cannot describe, and its
-    Style now reads "Deferring to QGIS" instead of naming a style
-    that no longer decides the map. The renderer survives Generate,
-    the swatch shows the colours QGIS is actually drawing, and the
+    Styling in QGIS: restyle an element in the Layer Styling panel
+    and the plugin's table now follows it. Retype the class breaks,
+    or copy a style from one element layer and paste it onto
+    another, and the row comes to read the variable, the style, the
+    number of classes and the ramp that QGIS is holding. Until now
+    the row went on describing the map the plugin had last drawn,
+    and the next Generate replaced your work with it. Where the
+    renderer is something the dialog cannot describe at all, the
+    Style reads "Deferring to QGIS" instead of naming a style that
+    no longer decides the map: the renderer survives Generate, the
+    swatch shows the colours QGIS is actually drawing, and the
     controls that would overwrite it are greyed until you take the
-    element back by choosing a style again.
+    element back by choosing a style again. A single colour you
+    mixed there is left exactly as you set it, as before.
     Losing the region layer: removing it from a project that holds
     several other layers is now noticed. Before, the dialog went on
     pointing at a layer that had gone, said nothing, and Generate
