@@ -839,6 +839,11 @@
   "excerpt": "Element '{}' coloured by '{}'",
   "where": "weavingspace_qgis/category_editor.py"
  },
+ "8ddc26b5865601ac": {
+  "approved": "2026-08-16",
+  "excerpt": "The colour ramp '{}' is not in this QGIS style library, so t",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "8e2f332ac65b86ba": {
   "approved": "2026-08-09",
   "excerpt": "Warn about lack of legibility in colour choices",
