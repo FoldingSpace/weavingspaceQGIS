@@ -14,6 +14,11 @@
   "excerpt": "Join data using whole tileable",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "03884618b7213ce1": {
+  "approved": "2026-08-18",
+  "excerpt": "<p>QGIS 4.x is required.</p>",
+  "where": "docs/index.html"
+ },
  "03fdf9b6056d9a4a": {
   "approved": "2026-08-08",
   "excerpt": "The region layer was removed while the map was being made, s",
@@ -164,6 +169,11 @@
   "excerpt": "How many variables to map is a design question more than a t",
   "where": "docs/USER-GUIDE.md"
  },
+ "14d0fa23aae20c14": {
+  "approved": "2026-08-18",
+  "excerpt": "Set *Save to GeoPackage* and every element layer is written ",
+  "where": "docs/USER-GUIDE.md"
+ },
  "159bf633920001de": {
   "approved": "2026-08-09",
   "excerpt": "Keeps whole units that touch the region, letting the pattern",
@@ -239,6 +249,11 @@
   "excerpt": "QGIS 4 or later is required.",
   "where": "README.md"
  },
+ "24846ab307fe8250": {
+  "approved": "2026-08-18",
+  "excerpt": "Hand-picked colours, a class file, or a narrowed range. Choo",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "25b0d47de8ba473e": {
   "approved": "2026-08-13",
   "excerpt": "'{}' has {} distinct value{}, so it draws as {} class{}, not",
@@ -273,6 +288,11 @@
   "approved": "2026-08-09",
   "excerpt": "WeavingSpace draws its maps with three well-known Python lib",
   "where": "weavingspace_qgis/plugin.py"
+ },
+ "317adade2c6fccd8": {
+  "approved": "2026-08-18",
+  "excerpt": "The Data & colours tab gives each element layer its initial\n",
+  "where": "docs/USER-GUIDE.md"
  },
  "31eee4ae893d3233": {
   "approved": "2026-08-09",
@@ -589,6 +609,11 @@
   "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",
   "where": "weavingspace_qgis/help_content.py"
  },
+ "62168247db803938": {
+  "approved": "2026-08-18",
+  "excerpt": "No ramp knows that forest should be green. An \"Edit colours\"",
+  "where": "docs/USER-GUIDE.md"
+ },
  "64028974e0430a30": {
   "approved": "2026-08-12",
   "excerpt": "no candidate versions for {}",
@@ -713,6 +738,11 @@
   "approved": "2026-08-16",
   "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
   "where": "weavingspace_qgis/metadata.txt"
+ },
+ "74f65966047d5d74": {
+  "approved": "2026-08-18",
+  "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",
+  "where": "weavingspace_qgis/help_content.py"
  },
  "7526e469aabaa352": {
   "approved": "2026-08-12",
@@ -934,6 +964,11 @@
   "excerpt": "Lower end of the ramp stretch, as a percentage.",
   "where": "weavingspace_qgis/category_editor.py"
  },
+ "976216d46fd63e10": {
+  "approved": "2026-08-18",
+  "excerpt": "Narrow the ramp's display range, and pin its ends",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "98e7c7ce4e0397db": {
   "approved": "2026-08-08",
   "excerpt": "This will generate roughly {} tiles and may take a while. Co",
@@ -1059,6 +1094,11 @@
   "excerpt": "There are no values to pin a class bound against.",
   "where": "weavingspace_qgis/bridge.py"
  },
+ "ab7798ead93f0b05": {
+  "approved": "2026-08-18",
+  "excerpt": "Above the list sits the Ramp Display Range: the ramp with tw",
+  "where": "docs/USER-GUIDE.md"
+ },
  "ad2e9b0a6b25716b": {
   "approved": "2026-08-08",
   "excerpt": "Pick a design to preview it.",
@@ -1073,6 +1113,11 @@
   "approved": "2026-08-09",
   "excerpt": "Draws and redraws the map as you change settings, without pr",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "ae3b4616e9be54b1": {
+  "approved": "2026-08-18",
+  "excerpt": "QGIS 4.x is required.",
+  "where": "README.md"
  },
  "af0f5b5f974901ff": {
   "approved": "2026-08-09",
