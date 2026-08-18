@@ -156,12 +156,14 @@ written cells against the renderer and drives the strip's pin button.
 
 ### Fixed after rc7 was published, so rc7 must be replaced
 
-**rc7 IS PUBLISHED AND CARRIES EIGHT DEFECTS THAT ARE FIXED HERE.**
-The published build predates commits b4956cb and the one after it, so
-it must be REPLACED rather than promoted. Four were in code written
-that afternoon; four were older and found by hunts pointed at the new
-work. Each is guarded, and the reasoning is at the code and in
-CLAUDE.md.
+**rc7 IS PUBLISHED AND CARRIES EVERY DEFECT IN THE LEDGER** -- the
+twenty-two fixed since and the four still open. The published build
+predates commit b4956cb, so it must be REPLACED rather than promoted.
+Do not send that link. The count moved four times in one evening,
+which is why this paragraph no longer states one:
+`docs/process/defects-2026-08-17.md` carries it, row by row. The
+eight named below were the first round, kept because the SHAPE they
+share is what the day was about.
 
 What they were, in one line each, so the shape is not lost: the follow
 skipping the stamp-and-embed exits behind a colour guard; every
@@ -197,31 +199,44 @@ below is its OWES column restated.
 
 ### OUTSTANDING: guards owed for fixes made on 2026-08-17
 
-**A BUG WITHOUT A REGRESSION TEST IS NOT FIXED.** Twenty-one defects
-were fixed on 2026-08-17; most carry a test and a proved catalogue
+**A BUG WITHOUT A REGRESSION TEST IS NOT FIXED.** Twenty-two defects
+were fixed on 2026-08-17; sixteen carry a test and a proved catalogue
 entry, and these do not. Each was verified by its hunt's own
 reproduction and by the neighbouring tests continuing to pass, which
-is not the same thing.
+is not the same thing. THE LEDGER'S OWES COLUMN IS THE AUTHORITY; the
+list below is it, grouped by the fix a single test can cover. Move
+both when a guard lands.
 
-- **a retyped break reaching the GeoPackage.** Read
-  `layer_styles.styleQML` with sqlite, as the hunt did.
-- **a style pasted mid-run surviving the landing.** The in-flight
-  window is about 126 ms on the n=4 fixture, so the fixture must be
-  bigger than that.
-- **a categorized dock edit reaching the exported file.** A test was
-  written and WITHDRAWN unfinished: it proved the file changes but
-  could not show the stroke it set in what it read back, so it was
-  reading the wrong rows. Two hunts corroborate the fix; finish the
-  test rather than trusting that.
-- **the deferral exit carrying a hand-mixed single colour**, and the
-  `touched` flag that stops the next rebuild discarding it.
-- **`_restyle_only` restamping a pin it has just retired**, and the
-  two dedup sets. `tools/probes/restyle_stamps_the_pin_it_retires.py`
-  is the reproduction and reads the `.qgz` as bytes.
-- **a copied ladder surviving the retirement guard**, and the guard
-  being asked with live rather than launch-snapshot values.
-- **the No Data split surviving deferral** has a test; its catalogue
-  entry is still owed.
+Ten rows owe a test AND an entry:
+
+- **the deferral exit carrying a hand-mixed single colour** (row 11),
+  and the `touched` flag that stops the next rebuild discarding it
+  (row 24). One test can drive both: leave deferral for a hand-mixed
+  fill, then change the spacing.
+- **`_restyle_only` restamping a pin it has just retired** (row 28),
+  and one dedup set gating a per-column notice beside a per-element
+  retirement (row 29).
+  `tools/probes/restyle_stamps_the_pin_it_retires.py` is the
+  reproduction and reads the `.qgz` as bytes.
+- **a copied ladder surviving the retirement guard** (row 22), and
+  that guard being asked with live rather than launch-snapshot values
+  (row 23).
+- **the follow honouring the row's Reverse** (row 20), so a forward
+  ramp does not "match" a reversed row and flip the map at the next
+  edit.
+- **an Unclassed row not warned that its fifty classes are empty**
+  (row 9). `test_a_class_no_tile_wears_is_said_out_loud` never drives
+  an Unclassed row, so the exemption is unguarded.
+- **the bound box holding a small number on a big column** (row 10):
+  the span is measured from the unpinned ladder rather than from the
+  bounds in force, so a far pin destroyed a small one and 6e-10 read
+  back 0.0.
+- **`bridge._trim` punctuating through the locale** (row 26), the
+  third member of that family and the only one still bare.
+
+Three rows have a test and owe only a proved catalogue entry: the
+Unclassed pin guard (row 7), the No Data split surviving deferral
+(row 21), and a scale between -1 and 1 (row 27).
 
 ### Process items, which do not block a candidate
 
