@@ -36260,6 +36260,307 @@ def _continuous_region(values):
   return layer
 
 
+# ---- THE SYMBOLOGY MATRIX: routes x shapes x what happens next.
+#
+# The promise is "edit the symbology in QGIS and the plugin follows".
+# The guard that existed pasted a renderer with a different field,
+# class count AND ramp at once and passed, while a tester retyping one
+# boundary found nothing followed. One big change is not coverage of
+# many small ones: a route that only ever moves three things together
+# can never show which of them carries the adoption.
+#
+# SPINE PLUS ROTATION rather than the full crossing. The spine runs
+# every ROUTE against two shapes and both aftermaths every time, so no
+# route can go unrun; the rotation samples the rest under a seed that
+# is printed, so a failure is reproducible. Full crossing is available
+# with WEAVINGSPACE_MATRIX_FULL=1 for when something changes
+# structurally. A fully-crossed grid that grows with every new route
+# eventually gets skipped, and a skipped guard is worth nothing.
+def _shape_even():
+  """A smooth spread, the reported column's shape."""
+  return [3.1 + (79.1 - 3.1) * k / 99 for k in range(100)]
+
+
+def _shape_tied():
+  """Four values worn by twenty-five areas each, so k must reduce."""
+  return [v for v in (10.0, 20.0, 30.0, 40.0) for _ in range(25)]
+
+
+def _shape_skewed():
+  """A cubic ramp: nearly every area in the first equal-interval class."""
+  return [1.0 + (k ** 3) / 400.0 for k in range(100)]
+
+
+def _shape_bimodal():
+  """Two clumps with an empty band, so some class is worn by nothing."""
+  return [2.0 + k / 25.0 for k in range(50)] + \
+         [70.0 + k / 25.0 for k in range(50)]
+
+
+def _shape_gaps():
+  """A quarter of the areas hold no value at all."""
+  return [None if k % 4 == 0 else 3.1 + k * 0.75 for k in range(100)]
+
+
+def _shape_constant():
+  """Every area identical: one class by design, a crash historically."""
+  return [7.0] * 100
+
+
+def _shape_two_values():
+  """Two distinct values against five classes: reduction territory."""
+  return [5.0 if k % 2 else 95.0 for k in range(100)]
+
+
+def _shape_negatives():
+  """Spanning negative to positive, for sign handling."""
+  return [-40.0 + k * 0.8 for k in range(100)]
+
+
+def _shape_huge():
+  """Around 1e9, where formatting and precision bite."""
+  return [1.0e9 + k * 1.0e6 for k in range(100)]
+
+
+MATRIX_SHAPES = [
+  ("even", _shape_even), ("tied", _shape_tied),
+  ("skewed", _shape_skewed), ("bimodal", _shape_bimodal),
+  ("gaps", _shape_gaps), ("constant", _shape_constant),
+  ("two values", _shape_two_values), ("negatives", _shape_negatives),
+  ("huge", _shape_huge),
+]
+MATRIX_SPINE_SHAPES = ("even", "tied")
+MATRIX_TYPED = [0.0, 10.0, 20.0, 30.0, 50.0, 80.0]
+
+
+def _route_retype_one(renderer):
+  """Retype one range's top; QGIS moves the next range's bottom."""
+  ranges = renderer.ranges()          # bound: a temporary segfaults
+  if len(ranges) < 2:
+    return None
+  mid = round((ranges[0].upperValue() + ranges[1].upperValue()) / 2, 2)
+  renderer.updateRangeUpperValue(0, mid)
+  renderer.updateRangeLowerValue(1, mid)
+  after = renderer.ranges()
+  return ("interior", [mid] + [round(r.upperValue(), 2)
+                               for r in after[1:-1]])
+
+
+def _route_retype_all(renderer):
+  """Retype every boundary into a round ladder, as a tester would."""
+  ranges = renderer.ranges()
+  if len(ranges) != len(MATRIX_TYPED) - 1:
+    return None
+  for i in range(len(MATRIX_TYPED) - 1):
+    renderer.updateRangeLowerValue(i, MATRIX_TYPED[i])
+    renderer.updateRangeUpperValue(i, MATRIX_TYPED[i + 1])
+  return ("interior", MATRIX_TYPED[1:-1])
+
+
+def _route_recolour(renderer):
+  """Change one class's colour, leaving every boundary alone."""
+  from qgis.PyQt.QtGui import QColor
+  ranges = renderer.ranges()
+  if len(ranges) < 2:
+    return None
+  symbol = ranges[1].symbol().clone()
+  symbol.setColor(QColor("#123456"))
+  renderer.updateRangeSymbol(1, symbol)
+  return ("colour_at_1", "#123456")
+
+
+def _route_delete_class(renderer):
+  """Remove a class, which is what the minus button does.
+
+  Guarded on the count because QGIS does NOT guard it: deleteClass on
+  a one-class renderer segfaults rather than raising, and a constant
+  column draws exactly one class.
+  """
+  ranges = renderer.ranges()
+  if len(ranges) < 2:
+    return None
+  renderer.deleteClass(1)
+  return ("count", len(ranges) - 1)
+
+
+def _route_relabel(renderer):
+  """Retype a legend label, changing no number and no colour."""
+  if not renderer.ranges():
+    return None
+  renderer.updateRangeLabel(0, "the lowest sort")
+  return ("label_at_0", "the lowest sort")
+
+
+def _route_paste(renderer):
+  """Paste a whole style from elsewhere: a different ramp and count."""
+  return ("paste", 3)
+
+
+def _route_pin_then_retype(renderer):
+  """Pin a bound in the plugin, then retype the ladder in QGIS.
+
+  The maintainer's rule of 2026-08-18: a QGIS edit outranks a pin when
+  it moves the boundary that pin sits on. The pin is set by the cell
+  runner, which knows the dialog; this only stages the retype.
+  """
+  return _route_retype_all(renderer)
+
+
+MATRIX_ROUTES = [
+  ("retype one boundary", _route_retype_one),
+  ("retype the whole ladder", _route_retype_all),
+  ("recolour one class", _route_recolour),
+  ("delete a class", _route_delete_class),
+  ("retype a legend label", _route_relabel),
+  ("paste a foreign style", _route_paste),
+  ("pin, then retype", _route_pin_then_retype),
+]
+MATRIX_AFTERMATHS = ("immediately", "after re-Generate")
+
+
+def _matrix_cell(route, mutate, values, aftermath):
+  """Stage one edit on one shape and say whether the plugin followed.
+
+  Args:
+    route: the route's name, which also selects the pin behaviour.
+    mutate: takes a cloned renderer, mutates it, returns
+      (what_to_check, expected) or None when it cannot be staged.
+    values: one value per area for this shape.
+    aftermath: "immediately", or "after re-Generate" to re-tile first.
+
+  Returns:
+    (verdict, detail) where verdict is "ok", "SKIPPED" or a failure.
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  project.clear()
+  layer = _continuous_region(values)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(200)
+    dlg.table.cellWidget(0, 1).setCurrentText("pct")
+    dlg.table.cellWidget(0, 2).setCurrentText("Quant: Equal interval")
+    dlg._update_dynamic_columns()
+    _tick(150)
+    tid = dlg.table.item(0, 0).text()
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(200)
+    element = project.mapLayer(dlg._element_layer_ids[tid])
+    if element is None or not hasattr(element.renderer(), "ranges"):
+      return ("SKIPPED", "the element did not come back graduated")
+
+    if route == "pin, then retype":
+      live = element.renderer().ranges()
+      if len(live) < 3:
+        return ("SKIPPED", "too few classes to pin between")
+      dlg._pinned_bounds.setdefault(tid, {})["pct"] = {
+        "low": round(live[0].upperValue(), 3)}
+      dlg._apply_style_change()
+      _tick(200)
+      element = project.mapLayer(dlg._element_layer_ids[tid])
+
+    renderer = element.renderer().clone()
+    asked = mutate(renderer)
+    if asked is None:
+      return ("SKIPPED", "this shape cannot stage this route")
+    what, expected = asked
+    if what == "paste":
+      # A PASTED CLASS COUNT IS A REQUEST, not a promise: a column
+      # cannot be cut into more classes than it has distinct values,
+      # so a constant column collapses a three-class paste to one BY
+      # DESIGN. Expecting three there reported correct behaviour as a
+      # defect twice while this was a probe.
+      expected = min(expected, len({v for v in values if v is not None}))
+      foreign = bridge.make_graduated_renderer(
+        element, "pct", "Blues", "Quantiles", 3, False,
+        classify_from=dlg._classification_values("pct"))
+      if foreign is None:
+        return ("SKIPPED", "could not build a style to paste")
+      renderer, what = foreign, "count"
+    element.setRenderer(renderer)
+    element.styleChanged.emit()
+    element.triggerRepaint()
+    _tick(400)
+    if aftermath == "after re-Generate":
+      _generate_and_wait(dlg)
+      _tick(300)
+      element = project.mapLayer(dlg._element_layer_ids[tid])
+
+    assignment = [a for a in dlg._assignments() if a["id"] == tid][0]
+    classes = dlg._current_graduated_classes(assignment)
+    if what == "interior":
+      got = [round(hi, 2) for _lo, hi, _c in classes[:-1]]
+    elif what == "count":
+      got = len(classes)
+    elif what == "colour_at_1":
+      got = classes[1][2].lower() if len(classes) > 1 else None
+    elif what == "label_at_0":
+      live = element.renderer().ranges()
+      got = [r.label() for r in live][0]
+    if got == expected:
+      return ("ok", "")
+    return ("NOT FOLLOWED", f"wanted {expected}, plugin has {got}")
+  finally:
+    dlg.close()
+
+
+def test_a_qgis_symbology_edit_reaches_the_plugin_on_every_shape():
+  """Every route a person can take in the Symbology panel, on awkward data.
+
+  Seven routes, nine shapes, two aftermaths. The SPINE -- every route
+  against `even` and `tied`, both aftermaths -- runs every time, so no
+  route can silently stop being exercised. The rest is SAMPLED under a
+  seed that this test prints on failure, so any cell it catches is
+  reproducible by re-running with WEAVINGSPACE_MATRIX_SEED set to it.
+  WEAVINGSPACE_MATRIX_FULL=1 runs the whole crossing.
+
+  ARRIVAL AND SURVIVAL ARE DIFFERENT PROMISES, which is what the
+  aftermath axis is for: this project's earlier defects lived in the
+  second -- a change that reached the map and the table and was gone
+  by the next Generate.
+
+  EVERY CELL IS REPORTED, not just the first to fail. "Some things do
+  not work" is not actionable; a named list of cells is.
+
+  Regression: editing an element's symbology in QGIS did not reach the plugin, and the guard that existed changed field, class count and ramp together -- so it could not show that a retyped boundary alone reached nothing. [user]
+  """
+  import os
+  import random
+  full = os.environ.get("WEAVINGSPACE_MATRIX_FULL") == "1"
+  seed = int(os.environ.get("WEAVINGSPACE_MATRIX_SEED", "20260818"))
+  shapes = dict(MATRIX_SHAPES)
+  cells = []
+  for shape, _build in MATRIX_SHAPES:
+    for aftermath in MATRIX_AFTERMATHS:
+      for route, _fn in MATRIX_ROUTES:
+        spine = shape in MATRIX_SPINE_SHAPES
+        if full or spine:
+          cells.append((shape, aftermath, route))
+  if not full:
+    rest = [(sh, af, ro) for sh, _b in MATRIX_SHAPES
+            for af in MATRIX_AFTERMATHS for ro, _f in MATRIX_ROUTES
+            if sh not in MATRIX_SPINE_SHAPES]
+    cells += random.Random(seed).sample(rest, min(8, len(rest)))
+
+  routes = dict(MATRIX_ROUTES)
+  trouble = []
+  for shape, aftermath, route in cells:
+    verdict, detail = _matrix_cell(
+      route, routes[route], shapes[shape](), aftermath)
+    if verdict not in ("ok", "SKIPPED"):
+      trouble.append(f"{shape} / {aftermath} / {route}: {detail}")
+  assert not trouble, (
+    f"{len(trouble)} of {len(cells)} symbology cells did not reach the "
+    f"plugin (seed {seed}; re-run with WEAVINGSPACE_MATRIX_SEED="
+    f"{seed}, or WEAVINGSPACE_MATRIX_FULL=1 for the whole crossing):"
+    "\n  " + "\n  ".join(trouble))
+
+
 def test_a_break_retyped_in_qgis_reaches_the_plugin():
   """Retype a class boundary in the Symbology panel; the plugin follows.
 
@@ -51062,6 +51363,8 @@ def main():
         test_a_project_that_already_has_forty_layers)
   check("two projects in one session",
         test_two_projects_in_one_session)
+  check("a QGIS symbology edit reaches the plugin on every shape",
+        test_a_qgis_symbology_edit_reaches_the_plugin_on_every_shape)
   check("a break retyped in QGIS reaches the plugin",
         test_a_break_retyped_in_qgis_reaches_the_plugin)
   check("a coverage notice quotes a spacing the box accepts",

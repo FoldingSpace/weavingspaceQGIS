@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-249 defect(s) with a regression test.
+250 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -517,6 +517,8 @@ there is no separate list to remember.
   guarded by `test_a_deferring_row_shows_the_colours_qgis_is_drawing`
 - **a class bound outside the column's own range was refused, so a user could not give two variables the same limits and have a colour mean the same number on both. Relaxing the guard alone was not enough: `_apply_pinned_bounds` built the outer class from the column's own extreme, so a pin below the data made a range running backwards and the ladder snapped back to 1.0. Reported against 0.24.3rc5.**  
   guarded by `test_a_pin_may_sit_outside_the_data_it_classifies`
+- **editing an element's symbology in QGIS did not reach the plugin, and the guard that existed changed field, class count and ramp together -- so it could not show that a retyped boundary alone reached nothing.**  
+  guarded by `test_a_qgis_symbology_edit_reaches_the_plugin_on_every_shape`
 - **a renderer type changed in QGIS's styling panel left the plugin's row naming a style and a ramp that no longer decided the map.**  
   guarded by `test_a_renderer_the_row_cannot_name_defers_to_qgis`
 - **values retyped in QGIS left the map drawing the classification computed from the old values, with classes running past everything the layer now held.**  
@@ -548,7 +550,7 @@ there is no separate list to remember.
 
 - not written down at the time: 83
 - a bug hunt pointed in a named direction: 81
-- reported by a user: 17
+- reported by a user: 18
 - the mutation campaign: 16
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8
