@@ -114,6 +114,25 @@ obligations: they exist so nobody pays twice for the same discovery.
 
 ## Required practices
 
+- **A DAY THAT FINDS MANY DEFECTS GETS A LEDGER, and the ledger is
+  COMMITTED.** `docs/process/defects-2026-08-17.md` is the model: one
+  row per defect with what a user lost, where it lives, when it
+  arrived, and an OWES column naming exactly which of
+  test-and-catalogue-entry it still lacks -- plus the open ones, with
+  their reproductions and any attempted fix that FAILED and why not to
+  repeat its shape.
+  IT EXISTS BECAUSE THE OTHER THREE PLACES CANNOT HOLD IT. ROADMAP.md
+  carries only what is outstanding, so a defect fixed without a guard
+  drops out of it; `dev/state-of-play.md` is gitignored and rewritten
+  every session; and a conversation ends. On 2026-08-17 twenty-six
+  defects were found in one day and eleven fixes went in without
+  guards -- exactly the state that is invisible everywhere else and
+  reads as finished.
+  Write it when a session passes roughly ten defects, point at it from
+  ROADMAP.md and from the handover, and keep the OWES column honest:
+  `--` means the fix rests on its hunt's reproduction alone, which is
+  not what this project calls fixed.
+
 - **Documentation standard**: all new code carries docstrings and
   section comments written for a weavingspace-literate, QGIS-naive
   maintainer — explain each QGIS/Qt concept at its point of use. This

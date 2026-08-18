@@ -180,6 +180,21 @@ ABOUT ANOTHER. A colour comparison in front of the file write; a
 in front of the table learning what it is about to be asked. Ask what
 a guard is FOR before deciding what it may skip.
 
+### The 2026-08-17 defect ledger
+
+**`docs/process/defects-2026-08-17.md` IS THE COMPLETE RECORD** of the
+twenty-six defects found that day: what each cost a user, where it
+lives, when it arrived, and an OWES column saying exactly which of
+test-and-catalogue-entry each still lacks. FOUR ARE STILL OPEN, with
+their reproductions named and, for one of them, an attempted fix that
+did not work and why not to repeat its shape.
+
+That file exists because this roadmap carries only what is
+OUTSTANDING, and `dev/state-of-play.md` is gitignored and rewritten
+every session -- so a defect that was found, fixed, and left without a
+guard had nowhere durable to live. Read the ledger first; the entry
+below is its OWES column restated.
+
 ### OUTSTANDING: guards owed for fixes made on 2026-08-17
 
 **A BUG WITHOUT A REGRESSION TEST IS NOT FIXED.** Twenty-one defects
