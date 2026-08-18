@@ -3765,6 +3765,35 @@ MUTATIONS = [
            "arriving as a copied classification draw five classes -- "
            "two settled rules giving opposite answers according to "
            "which control the user reached for"),
+  # THE TAIL OF `_restyle_only`, two defects three lines apart and both
+  # about ORDER. One test drives both; two entries, because a single
+  # anchor over the block would report `caught` with one axis dead.
+  dict(name="the-restyle-restamps-after-retiring", file=DIALOG,
+       old="        if layer_now is not None:\n"
+           "          fresh = self._assignment_for(tid)\n"
+           "          self._stamp_category_colours(layer_now, fresh or a)\n"
+           "          if self._last_path:\n"
+           "            bridge.embed_style(layer_now)",
+       new="        if layer_now is not None:\n"
+           "          pass  # mutation: the retired number stays stamped",
+       test="test_a_retired_pin_leaves_neither_a_stamp_nor_a_silent_neighbour",
+       why="this path stamps BEFORE it retires, where its twin retires "
+           "first and says at that line why -- so the user is told the "
+           "bound has been recalculated while the retired number goes "
+           "onto the layer anyway, and reopening the saved project "
+           "restores a pin the row shows and the map ignores"),
+  dict(name="every-element-is-asked-about-its-own-pin", file=DIALOG,
+       old="      retired = self._retire_an_undrawable_pin(field, a)",
+       new="      retired = (None if field in said\n"
+           "                 else self._retire_an_undrawable_pin(field, a))\n"
+           "      said.add(field)",
+       test="test_a_retired_pin_leaves_neither_a_stamp_nor_a_silent_neighbour",
+       why="the dedup set is about a per-COLUMN legend notice and the "
+           "retirement is per ELEMENT, so sharing it means an element's "
+           "dead pin is retired or kept according to what a different "
+           "element carrying the same column happened to trigger -- the "
+           "same act, opposite answers, decided by something no user "
+           "can see"),
   dict(name="an-undrawable-pin-is-refused", file=BRIDGE,
        old="  available = int(asked) - 1\n  if available >= pins:\n"
            "    return None",

@@ -8810,6 +8810,100 @@ def test_a_class_count_is_refused_rather_than_destroying_a_pin():
     dlg.close()
 
 
+def test_a_retired_pin_leaves_neither_a_stamp_nor_a_silent_neighbour():
+  """The restyle path retires a dead pin from EVERY element, and stamps
+  after.
+
+  Two defects at the tail of `_restyle_only`, both about ORDER, and one
+  test drives both because they are three lines apart.
+
+  THE STAMP WENT ON FIRST. Its twin `_add_output_layers` retires and
+  THEN stamps, saying at that line why: the stamp is the last moment
+  before a dead number is written where a reopen reads it straight
+  back. This path stamped first, so the user was told the bound "has
+  been recalculated" while the retired number went onto the layer
+  anyway, and reopening the saved project restored a pin the row showed
+  and the map ignored. Both calls were born in one commit and the order
+  was reversed on one side, so the twin's own explanation sat fifteen
+  hundred lines from the path that got it wrong.
+
+  AND ONE DEDUP SET GATED TWO DIFFERENT THINGS. `field in said` is
+  filled by whether a LEGEND NOTICE has fired for a column, and it also
+  stood in front of the PIN RETIREMENT, which is per element. So an
+  element's dead pin was retired or kept according to what an EARLIER
+  element carrying the same column had happened to trigger -- the same
+  act, opposite answers, decided by something no user can see.
+
+  THE ROUTE MATTERS AND HAS MOVED. The original reproduction reached
+  retirement by moving the Classes spinner, which is REFUSED now
+  (rows 32 and 38): a count may not destroy a pin. What still reaches
+  it is a record holding bounds the data cannot support, which is
+  exactly what a reopened project or a copied ladder can hand over.
+
+  Regression: the restyle path stamped a pin it was about to retire, so a reopened project restored a bound the map ignored; and it decided whether to retire an element's pin at all by whether a different element had raised a legend notice about the same column.
+ [hunt]
+  """
+  import json
+
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  project.addMapLayer(make_region_layer(n=12))
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.table.cellWidget(0, 1).setCurrentText("v3")
+    dlg.table.cellWidget(1, 1).setCurrentText("v3")
+    _tick(200)
+    dlg.spacing_spin.setValue(1200)
+    _generate_and_wait(dlg)
+    first, second = dlg.table.item(0, 0).text(), dlg.table.item(1, 0).text()
+
+    source = dlg._classification_values("v3")
+    values = sorted(float(v) for v in source.uniqueValues(
+      source.fields().indexOf("v3")))
+
+    def stamped(tid):
+      """The pin record on that element's layer, which a reopen reads."""
+      out = project.mapLayer(dlg._element_layer_ids[tid])
+      raw = out.customProperty("weavingspace_quant_style") if out else None
+      return (json.loads(raw).get("pinned") or {}) if raw else {}
+
+    # A pair of bounds ABOVE everything the column holds. Legal to
+    # store -- a reopened project or a copied ladder hands over exactly
+    # this -- and undrawable, because nothing is left between them.
+    dead = {"low": values[-1] + 1000.0, "high": values[-1] + 2000.0}
+    assert bridge.pin_problem(dead["low"], dead["high"], values, 5), \
+      "the fixture's bounds are drawable, so nothing would be retired"
+    for tid in (first, second):
+      dlg._pinned_bounds.setdefault(tid, {})["v3"] = dict(dead)
+
+    del BAR_MESSAGES[:]
+    before = dict(dlg._element_layer_ids)
+    dlg._apply_style_change()
+    _tick(600)
+    assert before == dlg._element_layer_ids, \
+      "the fixture re-tiled, so the restyle path was never driven"
+    said = " ".join(m for _k, m in BAR_MESSAGES)
+
+    # BOTH elements, not just whichever came first.
+    for tid, which in ((first, "first"), (second, "second")):
+      assert not (dlg._pinned_bounds.get(tid, {}).get("v3") or {}), (
+        f"the {which} element kept a pin the map cannot draw: "
+        f"{dlg._pinned_bounds.get(tid, {}).get('v3')!r}. Whether an "
+        f"element is asked at all must not depend on what a different "
+        f"element carrying the same column happened to trigger")
+      # ...AND THE STAMP WENT WITH IT, or a reopen brings it back.
+      assert not stamped(tid), (
+        f"the {which} element's layer is still stamped {stamped(tid)!r} "
+        f"after its pin was retired, so reopening the project would "
+        f"restore a bound the map ignores")
+    assert "class bound" in said, \
+      f"nothing was said about the retirement at all: {said!r}"
+  finally:
+    dlg.close()
+
+
 def test_a_pin_survives_a_project_round_trip():
   """A pinned bound comes home, and the next Generate honours it.
 
@@ -50233,6 +50327,8 @@ def main():
         test_a_pin_outranks_the_one_value_collapse)
   check("a class count is refused rather than destroying a pin",
         test_a_class_count_is_refused_rather_than_destroying_a_pin)
+  check("a retired pin leaves neither a stamp nor a silent neighbour",
+        test_a_retired_pin_leaves_neither_a_stamp_nor_a_silent_neighbour)
   check("a pin survives a project round trip",
         test_a_pin_survives_a_project_round_trip)
   check("a copied classification carries the whole row",
