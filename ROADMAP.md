@@ -197,46 +197,31 @@ every session -- so a defect that was found, fixed, and left without a
 guard had nowhere durable to live. Read the ledger first; the entry
 below is its OWES column restated.
 
-### OUTSTANDING: guards owed for fixes made on 2026-08-17
+### Nothing outstanding
 
-**A BUG WITHOUT A REGRESSION TEST IS NOT FIXED.** Twenty-two defects
-were fixed on 2026-08-17; sixteen carry a test and a proved catalogue
-entry, and these do not. Each was verified by its hunt's own
-reproduction and by the neighbouring tests continuing to pass, which
-is not the same thing. THE LEDGER'S OWES COLUMN IS THE AUTHORITY; the
-list below is it, grouped by the fix a single test can cover. Move
-both when a guard lands.
+DELETED HERE ON 2026-08-18, having landed, which is what this file
+asks for: the thirteen guards owed for the fixes of 2026-08-17. Every
+row of `docs/process/defects-2026-08-17.md` now carries a regression
+test AND a mutation catalogue entry proved to catch its removal, or is
+the single row honestly marked `prose` -- a sentence about which
+controls a row carries, where a test would pin the words rather than
+the truth, and what guards it is the prose hunt that found it.
 
-Ten rows owe a test AND an entry:
+The ledger's OWES column is the record and is committed; this section
+was only ever its restatement, and two documents saying one thing is
+how they come to disagree. Check it rather than believing this
+paragraph:
 
-- **the deferral exit carrying a hand-mixed single colour** (row 11),
-  and the `touched` flag that stops the next rebuild discarding it
-  (row 24). One test can drive both: leave deferral for a hand-mixed
-  fill, then change the spacing.
-- **`_restyle_only` restamping a pin it has just retired** (row 28),
-  and one dedup set gating a per-column notice beside a per-element
-  retirement (row 29).
-  `tools/probes/restyle_stamps_the_pin_it_retires.py` is the
-  reproduction and reads the `.qgz` as bytes.
-- **a copied ladder surviving the retirement guard** (row 22), and
-  that guard being asked with live rather than launch-snapshot values
-  (row 23).
-- **the follow honouring the row's Reverse** (row 20), so a forward
-  ramp does not "match" a reversed row and flip the map at the next
-  edit.
-- **an Unclassed row not warned that its fifty classes are empty**
-  (row 9). `test_a_class_no_tile_wears_is_said_out_loud` never drives
-  an Unclassed row, so the exemption is unguarded.
-- **the bound box holding a small number on a big column** (row 10):
-  the span is measured from the unpinned ladder rather than from the
-  bounds in force, so a far pin destroyed a small one and 6e-10 read
-  back 0.0.
-- **`bridge._trim` punctuating through the locale** (row 26), the
-  third member of that family and the only one still bare.
+    python3 -c "
+    import re,pathlib
+    txt=pathlib.Path('docs/process/defects-2026-08-17.md').read_text()
+    rows=[l for l in txt.split('## The ledger')[1].splitlines()
+          if re.match(r'^\|\s*\d+\s*\|',l) and len(l.split('|'))==7]
+    print([(r.split('|')[1].strip(), r.split('|')[5].strip()) for r in rows
+           if r.split('|')[5].strip() not in ('test + entry','prose')])"
 
-Three rows have a test and owe only a proved catalogue entry: the
-Unclassed pin guard (row 7), the No Data split surviving deferral
-(row 21), and a scale between -1 and 1 (row 27).
+What that leaves for 0.24.3 is the candidate itself, and the process
+item below, which does not block one.
 
 ### Process items, which do not block a candidate
 
@@ -257,6 +242,44 @@ Lower and Upper columns, offset by about a row, on scrolling.
 ## 0.24.4 — after this one
 
 ### Wanted
+
+**TAKE THE UPSTREAM LIBRARY FROM 0.0.7.61 TO 0.0.7.89.** Checked
+2026-08-18 under the standing rule that upstream is compared before
+the suite runs, and OFFERED rather than taken: the maintainer's
+decision that day was to build rc8 on the current vendor and do this
+as its own piece of work, because a twenty-eight-version jump cannot
+be folded into a candidate whose gates are about to measure it.
+
+We vendor 0.0.7.61 at commit c0f109c. Upstream's head is 0.0.7.89 at
+ac69ca2, nine commits on, and it is BEHAVIOURAL rather than a licence
+bump: compared as syntax trees with docstrings stripped, seven of the
+ten library modules differ -- `_tiling_geometries.py`, `tile_map.py`,
+`tileable.py`, `topology.py`, `weave_unit.py`, `tiling_utils.py` and
+`symmetry.py`. Only `_loom.py`, `weave_matrices.py` and
+`_weave_grid.py` are comments alone.
+
+TWO OF THOSE COMMITS ARE ABOUT ELEMENT IDS, which is why this is not
+just housekeeping. `6926d65` supplies tile ids from
+`TILE_IDS = [a..z, aa, ab..zz]` and says WeaveUnits remain
+single-character; `c26dc70` makes ids case-sensitive in both TileUnit
+and WeaveUnit, so `a` and `A` are now different. Both bear on the
+entry under "Waiting on the upstream project" below, which has been
+blocked on exactly this — and the second one bears on the GeoPackage
+collision measured there, in a direction that could go either way.
+Read that entry beside this one before either is closed.
+
+WHAT MUST BE TRUE BEFORE IT MERGES. The vendoring is a script rather
+than a project (`tools/vendor_weavingspace.py`, which re-applies the
+remaining patch family and refuses rather than writing a broken
+vendor), but the MEASUREMENT is the work: `tile_map.py` and
+`_tiling_geometries.py` have both moved, so the reference renderer
+this project compares its maps against has moved too. The visual
+gallery and the colourspace comparison must be read case by case
+rather than glanced at, and any change in them attributed to upstream
+deliberately rather than absorbed. The element-id ceiling of 26 in
+`catalog.MAX_ELEMENTS` is ours and is now guarded by
+`test_the_documents_numbers_match_the_code`; decide whether it moves,
+rather than letting it move by itself.
 
 **WHAT SHOULD THE DEBOUNCES BE?** Measured 2026-08-17 and recorded
 here because changing it would change the software, which is the line
