@@ -3859,6 +3859,20 @@ MUTATIONS = [
        why="nothing on a renderer records that a break was chosen "
            "rather than computed, so an unstamped pin is lost on "
            "reopening and the next Generate recomputes over it"),
+  dict(name="the-follow-compares-in-the-rows-own-direction", file=DIALOG,
+       old="        assignment.get(\"k\", 5), assignment.get(\"outline\", False),\n"
+           "        reverse=assignment.get(\"reverse\", False),\n"
+           "        classify_from=self._classification_values(assignment[\"var\"]))",
+       new="        assignment.get(\"k\", 5), assignment.get(\"outline\", False),\n"
+           "        classify_from=self._classification_values(assignment[\"var\"]))",
+       test="test_a_forward_ramp_does_not_match_a_reversed_row",
+       why="the trial renderer is what decides whether a dock edit "
+           "changed anything, so built without the row's tick a "
+           "REVERSED row compares itself against the FORWARD ramp -- a "
+           "genuine forward ramp set in QGIS matches, the plugin sees "
+           "no change, the row goes on claiming reversed, and the next "
+           "unrelated edit redraws the element end for end in the "
+           "project and in the exported file"),
   dict(name="a-reversed-ramp-is-recognised", file=DIALOG,
        old="""    for flipped in (False, True):""",
        new="""    for flipped in (False,):  # mutation: a reversed ramp names nothing""",

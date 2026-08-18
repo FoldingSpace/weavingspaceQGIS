@@ -47575,6 +47575,101 @@ def _element_opacities(dlg):
   return out
 
 
+def test_a_forward_ramp_does_not_match_a_reversed_row():
+  """A reversed row must not mistake the forward ramp for itself.
+
+  When somebody restyles an element in QGIS, `_graduated_layer_edited`
+  builds a TRIAL renderer from what the row claims and compares its
+  colours with the layer's. If they match, nothing has changed and the
+  edit was the plugin's own seeding.
+
+  The trial was built without the row's REVERSE, so a reversed row
+  compared itself against the FORWARD ramp -- and a genuine forward
+  ramp set in the styling panel matched. The plugin concluded nothing
+  had changed, the map was forward, the row still claimed reversed,
+  and the next unrelated edit redrew the element end for end in the
+  project AND in the exported file.
+
+  A REVERSED RAMP MATCHES NO NAME IN THE LIBRARY, which is why the
+  flag exists at all and why it keeps being dropped: every comparison
+  that reasons about ramp NAMES rather than rendered COLOURS walks
+  past it.
+
+  THE EXPECTATION COMES FROM THE RAMP, not from any function under
+  test. A sequential ramp runs light to dark, so a forward ladder has
+  its palest class first and a reversed one has it last. That holds
+  whatever the plugin believes, which is what makes it usable as an
+  oracle here.
+
+  Regression: a forward ramp set in QGIS matched a row that was ticked Reverse, so the plugin saw no change and the next unrelated edit flipped the element end for end in the project and in the exported file.
+ [hunt]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  project.addMapLayer(make_region_layer(n=12))
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.table.cellWidget(0, 1).setCurrentText("v3")
+    _tick(200)
+    dlg.spacing_spin.setValue(1200)
+    _generate_and_wait(dlg)
+    tile_id = dlg.table.item(0, 0).text()
+
+    def ladder():
+      """The element's class colours, palest-first measured by hand."""
+      out = project.mapLayer(dlg._element_layer_ids[tile_id])
+      return bridge.renderer_fill_colours(out)
+
+    def pale_first():
+      """Is the FIRST class lighter than the last?
+
+      A sequential ramp runs light to dark, so this is the ramp's own
+      direction read off the map, with nothing in the plugin asked.
+      """
+      drawn = ladder()
+      assert len(drawn) >= 2, f"too few classes to have a direction: {drawn}"
+      return sum(drawn[0]) > sum(drawn[-1])
+
+    # Tick Reverse through its own control, so the row genuinely holds
+    # it, and confirm the map turned round.
+    box = dlg._row_reverse(0)
+    assert box is not None and box.isEnabled(), \
+      "the row has no live Reverse control, so this cannot be staged"
+    box.setChecked(True)
+    _generate_and_wait(dlg)
+    assert not pale_first(), (
+      f"the fixture did not reverse the map, so a forward ramp cannot "
+      f"be mistaken for it: {ladder()}")
+
+    # Now somebody sets the FORWARD ramp in QGIS's styling panel --
+    # the very thing the trial renderer would build if it forgot the
+    # tick.
+    element = project.mapLayer(dlg._element_layer_ids[tile_id])
+    element.setRenderer(bridge.make_graduated_renderer(
+      element, "v3", dlg.table.cellWidget(0, 4).currentText(),
+      "Quantiles", 5, False, reverse=False,
+      classify_from=dlg._classification_values("v3")))
+    element.styleChanged.emit()
+    _tick(600)
+    assert pale_first(), \
+      f"the fixture's own forward renderer did not take: {ladder()}"
+
+    # THE HARM: an unrelated edit must not flip it back. Without the
+    # flag the plugin believes nothing changed, so the row goes on
+    # claiming reversed and the next Generate redraws end for end.
+    dlg.spacing_spin.setValue(1150)
+    _tick(300)
+    _generate_and_wait(dlg)
+    assert pale_first(), (
+      f"an unrelated edit redrew the element end for end: it now "
+      f"draws {ladder()}. The row went on claiming reversed because "
+      f"the comparison never asked about the tick")
+  finally:
+    dlg.close()
+
+
 def test_a_ramp_and_a_reverse_tick_commute():
   """Ramp then Reverse must paint the same map as Reverse then ramp.
 
@@ -50937,6 +51032,8 @@ def main():
         test_a_comparison_group_is_left_alone_by_the_rest_of_the_session)
   check("a family excursion brings the map back and not the excursion",
         test_a_family_excursion_brings_the_map_back_and_not_the_excursion)
+  check("a forward ramp does not match a reversed row",
+        test_a_forward_ramp_does_not_match_a_reversed_row)
   check("ramp and reverse commute", test_a_ramp_and_a_reverse_tick_commute)
   check("opacity before a run equals opacity after",
         test_an_opacity_set_before_a_run_agrees_with_one_set_after)

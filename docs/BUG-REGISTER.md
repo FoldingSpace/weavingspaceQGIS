@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-245 defect(s) with a regression test.
+246 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -77,6 +77,8 @@ there is no separate list to remember.
   guarded by `test_a_dock_edit_of_any_kind_reaches_the_exported_file`
 - **a bound pinned far outside a column of very small values flattened the box that holds the small one, so a pin of 6e-10 read back as 0.0 and the map was redrawn from zero.**  
   guarded by `test_a_far_pin_does_not_flatten_the_box_a_small_one_needs`
+- **a forward ramp set in QGIS matched a row that was ticked Reverse, so the plugin saw no change and the next unrelated edit flipped the element end for end in the project and in the exported file.**  
+  guarded by `test_a_forward_ramp_does_not_match_a_reversed_row`
 - **the no-data layer's style was embedded in the GeoPackage before its opacity was set, so an exported map drew those areas opaque.**  
   guarded by `test_a_geopackage_carries_the_no_data_opacity_it_was_given`
 - **a class recoloured in QGIS's styling dock was discarded when the plugin reopened, because the graduated adoption path stopped at the mere presence of a ramp name, while its categorized twin asked whether that ramp explained the colours.**  
@@ -539,7 +541,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 83
-- a bug hunt pointed in a named direction: 79
+- a bug hunt pointed in a named direction: 80
 - the mutation campaign: 16
 - reported by a user: 16
 - reading the code: 15
