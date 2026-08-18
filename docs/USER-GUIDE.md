@@ -106,8 +106,9 @@ so nothing chosen here is final; the built-in Layer Styling panel can
 revisit all of it. Each element's Style dropdown also fixes how numeric
 values are classed (quantiles, equal intervals, natural breaks, or
 pretty breaks), and a narrow Classes column appears beside it while any
-element is graduated, so different elements may be classed differently
-and into different numbers of classes. Quant: Unclassed gives the look of a
+element is classed, so different elements may be classed differently and
+into different numbers of classes. On a categorized row it reports how
+many categories were found rather than a number you set. Quant: Unclassed gives the look of a
 continuous ramp, cut into fifty linear steps: indistinguishable from
 an unclassed choropleth at map scale, while remaining an ordinary
 graduated renderer in the styling panel. Two strategies are worth distinguishing. Giving each
@@ -137,7 +138,8 @@ the qualitative sets (tab10 and its relatives) are for categories only.
 ### Setting a colour per value
 
 No ramp knows that forest should be green. An "Edit colours" column
-appears beside the ramp whenever any element is categorized; its "Customize"
+appears beside the ramp whenever any element is classed at all, whether
+categorized or graduated; its "Customize"
 button opens a small window listing every value that element's field
 takes, with the colour each one currently draws in. Click a colour to
 change it. The map repaints at once, without re-tiling, and the rest
@@ -187,8 +189,11 @@ rather than classes you recolour one at a time, but its ends are still
 yours. Pin either of them from the strip above the list or from the
 row's own Pin column; the two stay in step. Reverse carries all of this along -- the
 range mirrors and picked classes swap ends -- so flipping it twice
-costs nothing. The ramp cell reads Custom while any of it is in
-force, and choosing a ramp starts the element over, range and class
+costs nothing. The ramp cell reads Custom while hand-picked colours or
+a narrowed range are in force. A pinned bound does not make it Custom:
+the colours are still the ramp's, so the cell goes on naming the ramp
+and boxes the pinned end instead. Choosing a ramp starts the element
+over, range and class
 colours alike.
 
 ## The map option switches
@@ -225,7 +230,9 @@ heroic, and the Generate button remains for deliberate large runs.
 
 Set *Save to GeoPackage* and every element layer is written into a
 single file with its symbology embedded: one `.gpkg` that a colleague
-can drop into QGIS and see your map as you styled it. Left empty, the
+can drop into QGIS and see your elements as you styled them. The region
+outlines are not written to it; they are drawn from your own layer and
+stay in the project. Left empty, the
 layers are temporary and live only with the project. Regenerating
 replaces the previous group and keeps whatever styling you have refined
 by hand; an element's symbology is rebuilt only when you change its

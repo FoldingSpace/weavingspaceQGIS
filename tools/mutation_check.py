@@ -1634,14 +1634,19 @@ MUTATIONS = [
            "a standard ramp -- or the ramp cell goes on naming a ramp "
            "that no longer decides the map (user decision, 2026-08-09)"),
   dict(name="custom-tooltip-reworded", file=DIALOG,
-       old='CUSTOM_RAMP_TOOLTIP = ("Colours set by hand or by a class '
-           'file. "\n                       '
-           '"Choose a ramp to replace them.")',
+       # RE-ANCHORED 2026-08-18. The tooltip named two causes when
+       # there are three: a graduated row also reads Custom when only
+       # the Ramp Display Range is narrowed, with no picks and no
+       # class file. Found by a hunt pointed at the prose.
+       old='CUSTOM_RAMP_TOOLTIP = ("Hand-picked colours, a class file, '
+           'or a narrowed "\n                       '
+           '"range. Choose a ramp to replace them.")',
        new='CUSTOM_RAMP_TOOLTIP = "Colours chosen by hand."'
            '  # mutation: reworded',
        test="test_a_customized_element_reads_custom",
-       why="the Custom tooltip is the user's own fifteen words, "
-           "settled verbatim on 2026-08-09"),
+       why="the Custom tooltip is the user's own words, settled "
+           "verbatim on 2026-08-09 and corrected on 2026-08-18 to name "
+           "the third thing that sets Custom"),
   dict(name="opacity-header-grows-a-sign", file=DIALOG,
        old='       "Reverse", "Opacity", "Categ colourmap src", '
            '"Edit colours"])',

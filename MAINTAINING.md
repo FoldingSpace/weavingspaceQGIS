@@ -103,6 +103,19 @@ plain QGIS 4 spellings, ready to grow fallback branches. The routine:
    violation; move the version-sensitive call into compat.py as part
    of the fix.
 4. Re-run the tests, bump `version=` in `metadata.txt`, rebuild.
+5. **The `qgisMaximumVersion` ceiling moves in the same commit as the
+   first fallback branch, never before it.** `4.99` is what makes QGIS
+   refuse to install this on a version nothing has run it on, and that
+   refusal is the safety net rather than the problem: a user gets a
+   clear no instead of a plugin that loads and throws at the first
+   enum access. Raising it is a CLAIM that the plugin works there, so
+   the honest moment is when `compat.py` has a branch for the new
+   spellings and the suite is green under the new QGIS. Until then the
+   published prose says "QGIS 4.x", which is what the metadata
+   enforces. (Settled 2026-08-18, on being asked whether the ceiling
+   could legitimately be lifted: it could be, and could not be
+   justified. CI proves 4.0.0, 4.0.3 and stable; compat.py holds plain
+   QGIS 4 spellings and no fallback at all.)
 
 Known risk points (where future breakage is most likely): enum access
 patterns, `QgsField` construction, `QgsVectorFileWriter` options,

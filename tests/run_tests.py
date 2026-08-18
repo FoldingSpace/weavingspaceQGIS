@@ -32615,10 +32615,46 @@ def test_the_vendoring_tool_reproduces_the_current_vendor():
     shutil.rmtree(root, ignore_errors=True)
 
 
-DOCUMENTED_COMMAND_DOCS = ["CLAUDE.md", "MAINTAINING.md",
+DOCUMENTED_COMMAND_DOCS = ["CLAUDE.md", "MAINTAINING.md", "README.md",
+                           "ROADMAP.md",
                            os.path.join("docs", "TESTING.md"),
                            os.path.join("docs", "MUTATION-LOOP.md"),
                            os.path.join("docs", "PUBLISHING.md")]
+# WIDENED 2026-08-18. README.md and ROADMAP.md were outside this list
+# and both quote commands: the README is the first thing a stranger
+# reads, and the roadmap tells somebody how to check the ledger. The
+# gap was found by an audit rather than by the gate, which is the
+# usual way a checker's SCOPE goes wrong -- its contents are watched
+# and its boundary is not.
+# docs/index.html is deliberately NOT here: it is generated prose in
+# HTML, and its commands are the README's own, checked there.
+
+
+_BARE_FLAG_CLAIMS = []
+
+
+def _bare_flags(text):
+  """Every long flag a document quotes on its own, with no script.
+
+  Args:
+    text: one quoted span, e.g. "--no-install" or "--rc --push".
+
+  Returns:
+    A list of long flag names, or [] when the span names a script (in
+    which case `_command_parts` has it) or holds no flag at all.
+
+  WHY THIS EXISTS. `docs/PUBLISHING.md` documented `--no-install` on a
+  section whose command is `release.py --rc`, and release.py declares
+  only --push, --resume and --rc: the flag is build.py's, and
+  release.py invokes build.py without forwarding it, so the documented
+  invocation is an argparse error. `_command_parts` returns (None, [])
+  for a span with no script in it, so the claim was invisible to the
+  gate that exists to catch exactly this.
+  """
+  words = text.strip().split()
+  if not words or any(re.match(r"^[\w./-]+\.(py|sh)$", w) for w in words):
+    return []
+  return [w.split("=", 1)[0] for w in words if w.startswith("--")]
 
 # What may stand in front of a script in a documented command: a bare
 # interpreter, a bundled or virtualenv one given by path, or a shell
@@ -32696,6 +32732,16 @@ def _documented_commands():
   backtick has paired with a later one and the text between is prose.
   """
   found = []
+  # Bare flags, attributed to the most recent script named ABOVE them
+  # in the same document. That is how these documents read -- a
+  # section names its command, then discusses its flags in prose --
+  # and it is the attribution the `--no-install` claim needed: the
+  # flag was three paragraphs under `release.py --rc` and belonged to
+  # build.py. The heuristic is deliberately conservative: no preceding
+  # script in that document means no claim to check.
+  global _BARE_FLAG_CLAIMS
+  _BARE_FLAG_CLAIMS = []
+  last_script = {}
   for relative in DOCUMENTED_COMMAND_DOCS:
     with open(os.path.join(ROOT, relative), encoding="utf-8") as handle:
       text = handle.read()
@@ -32719,11 +32765,19 @@ def _documented_commands():
       if "\n\n" in span:
         continue
       span = " ".join(span.split())
+      line_number = sum(1 for start in newlines
+                        if start < match.start()) + 1
       script, flags = _command_parts(span)
       if script:
-        line_number = sum(1 for start in newlines
-                          if start < match.start()) + 1
         found.append((relative, line_number, span, script, flags))
+        last_script[relative] = script
+        continue
+      # ...and a flag quoted with no script beside it, attributed to
+      # the command the document last named.
+      for bare in _bare_flags(span):
+        owner = last_script.get(relative)
+        if owner:
+          _BARE_FLAG_CLAIMS.append((relative, line_number, bare, owner))
   return found
 
 

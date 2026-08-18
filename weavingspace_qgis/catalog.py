@@ -271,16 +271,52 @@ for _n in TILINGS_BY_N:
 # Twenty-six variables on one map is already far past what anybody
 # can read, so the cap costs nothing real.
 #
-# Lifting it is NOT a small change, and the obvious idea does not
-# work. Doubled letters (a..z then aa, ab...) would keep the ids
-# distinct without case, but a weave is specified as a STRING with one
-# character per element -- "abcdef-|ghijk-" -- which the library reads
-# character by character and which users type and this catalogue
-# stores verbatim. A two-character id has nowhere to go in that
-# format. So going past 26 means either changing the weave string
-# format itself, upstream and in every stored design, or accepting ids
-# that collide on any case-insensitive path. Twenty-six stands until
-# somebody wants it enough to do the first.
+# LIFTING IT IS NOT A SMALL CHANGE, and it is worth setting out why
+# at length, because the two obvious routes past 26 are blocked by two
+# DIFFERENT things and the reasoning gets garbled when they are run
+# together.
+#
+# ROUTE ONE: use the capitals as well, giving a..z then A..Z, 52 ids.
+# Blocked by CASE FOLDING, and measured rather than argued. An
+# element's tiles are written to a GeoPackage table named for its id,
+# and GeoPackage folds case: writing `tiles_a` and then `tiles_A` into
+# one file leaves a SINGLE table holding the second element's data,
+# and both writes report success (2026-08-14). The same fold waits on
+# any other case-insensitive path -- a filesystem, a style name, a
+# layer name -- so this route does not just need care, it needs
+# abandoning.
+#
+# ROUTE TWO: double the letters, giving a..z then aa, ab.. zz, 702
+# ids. NOT blocked by the GeoPackage at all: `tiles_aa` and `tiles_ab`
+# are distinct however case is folded, which is the whole appeal.
+# Blocked instead by the WEAVE STRING FORMAT. A weave is specified as
+# a string with one character per element -- "abcdef-|ghijk-" -- which
+# users type, this catalogue stores verbatim, and the library reads
+# character by character. Upstream's own code makes that concrete:
+# the strand count comes from `len(ID)` and the ids from
+# `list(IDs[i])`, so "ab" ALREADY MEANS two strands, a then b. A
+# two-character id is not unsupported there so much as already spoken
+# for, and widening it changes what every stored design means.
+#
+# WHAT UPSTREAM CHANGED, 2026-08-18, and what it does not settle.
+# weavingspace 0.0.7.89 supplies tile ids from
+# `TILE_IDS = [a..z, aa, ab.. zz]`, used ONLY in `_tiling_geometries`;
+# `weave_unit.py` never touches it, deliberately. So for TILINGS both
+# blockers are now off: upstream provides the ids and doubled
+# lowercase survives the GeoPackage. For WEAVES route two is still
+# shut, for the reason above, which is upstream's format to change
+# rather than ours.
+#
+# SO THE CEILING COULD MOVE FOR TILINGS ALONE, and this is a decision
+# rather than a discovery. It stays at 26 for both because a limit
+# that differs by family is one more thing a user and a maintainer
+# each have to hold in mind, nobody has asked for a twenty-seventh
+# element, and the work is not the number: it is auditing everything
+# that assumes an id is one character, in this plugin and in whatever
+# a user has already saved. Twenty-six stands until somebody wants
+# more enough to pay for that. (Reasoning rewritten 2026-08-18, after
+# the earlier version compressed the two routes into one sentence and
+# left the impression that case folding was what stopped doubling.)
 MAX_ELEMENTS = 26
 
 # Families whose construction is a formula in n, so they hold at every

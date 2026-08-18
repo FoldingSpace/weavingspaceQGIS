@@ -44,7 +44,7 @@ this.
 To update later, download the new zip and install it the same way over
 the top.
 
-QGIS 4 or later is required.
+QGIS 4.x is required.
 
 ![The plugin dialog](docs/img/dialog.png)
 

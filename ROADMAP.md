@@ -327,25 +327,39 @@ since improvement rounds cannot certify themselves.
 Blocked on the weavingspace project rather than on this repository, so
 no release waits for it.
 
-**Element ids past 26.** Weaves are specified as strings with one
-character per element (`abcdef-|ghijk-`), so doubled letters have
-nowhere to go, and case-distinguished ids collide on every path that
-folds case. That last part is now measured rather than argued: writing
-`tiles_a` and then `tiles_A` into one GeoPackage leaves a SINGLE table
-holding the second element's data, and both writes report success
-(2026-08-14). Going further means changing the weave string format
-upstream and in every stored design.
+**Element ids past 26.** Two routes past the ceiling, blocked by two
+different things. Setting both out because compressing them is how the
+reasoning gets misremembered.
 
-UPSTREAM HAS SINCE DECIDED THE TILING HALF, 2026-08-18. `6926d65`
-supplies tile ids from `TILE_IDS = [a..z, aa, ab..zz]`, and its own
-message notes WeaveUnits remain single-character -- so the ceiling is
-no longer wholly upstream's decision, and what is left of this entry
-is the WEAVE STRING FORMAT alone. `c26dc70` also made ids
-case-sensitive in both TileUnit and WeaveUnit, which does not settle
-the GeoPackage collision recorded above and may sharpen it: a design
-using both `a` and `A` is now expressible upstream and still writes
-one table here. Read this beside the 0.24.4 entry that takes the
-vendor bump; neither is closed by the other.
+*Using the capitals as well* — a..z then A..Z, 52 ids — is blocked by
+GEOPACKAGE CASE FOLDING, and that part is measured rather than argued:
+writing `tiles_a` and then `tiles_A` into one file leaves a single
+table holding the second element's data, with both writes reporting
+success (2026-08-14). Any other case-insensitive path waits with the
+same fold. This route is not difficult; it is closed.
+
+*Doubling the letters* — a..z then aa, ab.. zz, 702 ids — is NOT
+blocked by the GeoPackage: `tiles_aa` and `tiles_ab` stay distinct
+however case is folded. It is blocked by the WEAVE STRING FORMAT, in
+which one character means one element ("abcdef-|ghijk-"), typed by
+users and stored verbatim in `catalog.py`. Upstream's code makes it
+concrete: the strand count is `len(ID)` and the ids are `list(IDs[i])`,
+so "ab" already means two strands, a then b.
+
+WHAT UPSTREAM SETTLED, 2026-08-18. weavingspace 0.0.7.89 supplies tile
+ids from `TILE_IDS = [a..z, aa..zz]`, used only in
+`_tiling_geometries`; `weave_unit.py` never touches it. So for TILINGS
+both blockers are off — upstream provides the ids, and doubled
+lowercase survives the GeoPackage. For WEAVES the format is still the
+obstacle, and changing it is upstream's decision rather than ours,
+which is why this entry stays in this section.
+
+WHAT WOULD MAKE IT OURS. Moving the ceiling for tilings alone is a
+decision, not a discovery, and the work is not the number: it is
+auditing everything that assumes an id is one character, here and in
+designs users have already saved, and then living with a limit that
+differs by family. `MAX_ELEMENTS` is one number for both today.
+Nobody has asked for a twenty-seventh element.
 
 **Two conversations to have.** Whether the corrected large-plain-weave
 note was sent (`docs/process/upstream-note-large-plain-weaves.md`

@@ -422,8 +422,8 @@ PREVIEW_FLOOR = 260
 # user's own (settled 2026-08-09), and sits AT the fifteen-word
 # tooltip cap: fifteen words, which the checker allows and one more
 # would not.
-CUSTOM_RAMP_TOOLTIP = ("Colours set by hand or by a class file. "
-                       "Choose a ramp to replace them.")
+CUSTOM_RAMP_TOOLTIP = ("Hand-picked colours, a class file, or a narrowed "
+                       "range. Choose a ramp to replace them.")
 
 
 def _striped_icon(colours, boxed=()):
@@ -3665,6 +3665,22 @@ class WeavingSpaceDialog(QDialog):
     spin.valueChanged.connect(changed)
     return spin
 
+  def _row_scheme(self, row):
+    """The break method a row's style combo names, or "".
+
+    Args:
+      row: the table row.
+
+    Returns:
+      The scheme as `GRAD_SCHEMES` names it -- "Quantiles", "Equal
+      intervals", "Unclassed" and so on -- or "" when the row is not
+      graduated or the combo has gone mid-rebuild.
+    """
+    combo = self.table.cellWidget(row, 2)
+    if combo is None:
+      return ""
+    return self.GRAD_SCHEMES.get(combo.currentText(), "")
+
   def _row_opacity(self, row):
     """The opacity spin box for a row, or None mid-rebuild."""
     return self.table.cellWidget(row, 6)
@@ -4068,7 +4084,15 @@ class WeavingSpaceDialog(QDialog):
         # graduated rows edit class colours and the display range;
         # Unclassed rows open the same window with the range alone
         # live, so the button stays enabled there too
-        tip = "Choose class colours, or narrow the ramp's display range"
+        # ...and the two say different things, because on an Unclassed
+        # row every colour button in that window is disabled: the
+        # class list is a preview and only the range and the two ends
+        # are live. One tooltip for both told half the users to choose
+        # colours they cannot reach (found 2026-08-18 by a prose hunt).
+        scheme_now = self._row_scheme(row)
+        tip = ("Narrow the ramp's display range, and pin its ends"
+               if scheme_now == "Unclassed" else
+               "Choose class colours, or narrow the ramp's display range")
       elif usable:
         tip = "Choose a colour for each value this element takes"
       else:
