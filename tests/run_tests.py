@@ -13506,6 +13506,41 @@ def test_the_design_view_paints_colours_the_map_contains():
   assert was > gap, \
     f"the windowed preview is no closer to the map than the ramp name " \
     f"alone would put it ({gap} against {was}), so nothing was proved"
+
+  # ARM FOUR: HAND-PICKED CLASS COLOURS, which leave the ramp behind
+  # altogether. The ramp cell already knows this -- it switches to
+  # Custom, and says at that branch that "hand-picked colours really do
+  # leave the ramp behind" -- while the preview went on asking the ramp
+  # for its name. This is the FOURTH argument of the same expression,
+  # found by a hunt AFTER the other three were fixed, and the oldest of
+  # them: it has never worked.
+  dlg._ramp_ranges[graduated] = (0, 100)
+  dlg._custom_swatch_cache.pop(graduated, None)
+  dlg._apply_style_change()
+  _tick(500)
+  before_picks = dlg._table_id_colours()[graduated]
+  greens = ["#e5f5e0", "#c7e9c0", "#a1d99b", "#74c476", "#31a354"]
+  picks = dlg._quant_colours.setdefault(graduated, {}).setdefault("v1", {})
+  for index, colour in enumerate(greens):
+    picks[index] = colour
+  dlg._custom_swatch_cache.pop(graduated, None)
+  dlg._apply_style_change()
+  _tick(600)
+  drawn_by = project.mapLayer(dlg._element_layer_ids[graduated])
+  wearing = ["#%02x%02x%02x" % rgb
+             for rgb in bridge.renderer_fill_colours(drawn_by)]
+  assert any(c in wearing for c in greens), (
+    f"the fixture's hand-picked colours never reached the map, so the "
+    f"case this arm is about cannot arise: the element wears {wearing}")
+  picked = dlg._table_id_colours()[graduated]
+  assert picked != before_picks, \
+    f"picking every class colour by hand did not move the preview at " \
+    f"all: it still paints {picked}"
+  gap = from_the_map(picked, drawn_by)
+  assert gap <= class_step(drawn_by), (
+    f"the design view paints {picked} for an element whose every class "
+    f"colour was picked by hand: {gap}/255 from anything it wears "
+    f"({wearing})")
   dlg.close()
 
 

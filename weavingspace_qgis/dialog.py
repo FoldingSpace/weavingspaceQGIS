@@ -7511,8 +7511,8 @@ class WeavingSpaceDialog(QDialog):
       mode_combo.blockSignals(False)
       self._refresh_preview_colours()
 
-  def _deferring_preview_colour(self, tile_id):
-    """One colour standing for what QGIS draws a deferring element in.
+  def _drawn_preview_colour(self, tile_id):
+    """One colour standing for what the element's LAYER actually paints.
 
     Args:
       tile_id: the element, used to find its own output layer.
@@ -7525,11 +7525,18 @@ class WeavingSpaceDialog(QDialog):
       rather than by leaving a quarter of the design uncoloured.
 
     Taken at the same 65% along the list of drawn colours that
-    `ramp_swatch_colour` takes along a ramp, so a deferring element
-    and a plugin-styled one are represented by the same convention.
-    The design view is a COMPARISON between elements, and two
-    conventions inside one picture would make that comparison say
+    `ramp_swatch_colour` takes along a ramp, so an element read off
+    the map and one computed from a ramp are represented by the same
+    convention. The design view is a COMPARISON between elements, and
+    two conventions inside one picture would make that comparison say
     something the map does not.
+
+    NAMED FOR WHAT IT ANSWERS RATHER THAN FOR ITS FIRST CALLER. It
+    arrived on 2026-08-17 as `_deferring_preview_colour`, and within
+    the hour a hunt found the second case that needs exactly this --
+    hand-picked class colours -- which the old name argued against
+    reusing it for. A helper named after one caller is a helper the
+    next caller writes again.
     """
     layer = QgsProject.instance().mapLayer(
       self._element_layer_ids.get(tile_id) or "")
@@ -7579,9 +7586,33 @@ class WeavingSpaceDialog(QDialog):
       # test_an_unassigned_element_previews_as_it_draws.
       if not a["var"]:
         base = bridge.NO_DATA_FILL
-      elif self._element_is_deferring(a["id"]):
-        # A DEFERRING ELEMENT'S COLOUR COMES OFF ITS LAYER, for the
-        # same reason and by the same question as its ramp swatch:
+      elif (self._element_is_deferring(a["id"])
+            or a.get("quant_colours") or a.get("category_colours")):
+        # THE COLOUR COMES OFF THE LAYER WHEREVER THE ROW NO LONGER
+        # DECIDES IT, and there are TWO such cases rather than the one
+        # this branch was written for. A DEFERRING element's colours
+        # belong to QGIS; a HAND-PICKED element's belong to the person
+        # who picked them. In both, the row's ramp describes a map that
+        # is not there.
+        #
+        # The hand-picked half is the OLDEST arm of this expression and
+        # has never worked. The ramp cell has known it from the start
+        # -- it switches to Custom, and says at that branch that
+        # "hand-picked colours really do leave the ramp behind" --
+        # while this function went on asking the ramp for its name.
+        # Measured 2026-08-17: five classes picked green, the preview
+        # painting #e7342a, 144/255 from anything the element wears,
+        # and 11,873 preview pixels of a colour the map has none of.
+        #
+        # FOUND BY A HUNT AN HOUR AFTER THE OTHER THREE WERE FIXED, and
+        # the lesson is worth more than the fix: when a change widens a
+        # call to stop it ignoring X and Y, enumerate every key of the
+        # record the caller COULD read, not the ones the report
+        # happened to name. Three of the six colour keys `_assignments`
+        # carries were still unread when that commit was written.
+        #
+        # For the deferring half, the reason is the one this branch
+        # arrived with, and the question is its ramp swatch's own:
         # the plugin no longer decides those colours, and a preview
         # built from the row's records shows colours the map does not
         # have. `_ramp_cell_icon` grew this branch on 2026-08-15 and
@@ -7594,7 +7625,7 @@ class WeavingSpaceDialog(QDialog):
         # #3c8bc2, while the design view painted 15,470 of #3c8bc2 and
         # none of #00aa44 -- 102/255 away from ANY colour the element
         # draws.
-        base = self._deferring_preview_colour(a["id"]) or \
+        base = self._drawn_preview_colour(a["id"]) or \
             bridge.ramp_swatch_colour(
                 a["ramp"], bool(a.get("reverse", False)),
                 tuple(a.get("range_bounds", (0, 100))))

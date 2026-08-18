@@ -2956,15 +2956,35 @@ MUTATIONS = [
   # argument in one expression, so each needs its own entry -- a
   # single anchor covering the block would report `caught` while two
   # of the three axes sat dead.
+  # RE-ANCHORED and JOINED BY A SECOND 2026-08-17, when a hunt found
+  # the fourth arm of this expression an hour after the first three
+  # were fixed: the branch now covers hand-picked colours as well as
+  # deferral, so it needs an entry per arm.
   dict(name="the-preview-reads-a-deferring-layer", file=DIALOG,
-       old="      elif self._element_is_deferring(a[\"id\"]):",
-       new="      elif False:",
+       old="      elif (self._element_is_deferring(a[\"id\"])\n"
+           "            or a.get(\"quant_colours\") or "
+           "a.get(\"category_colours\")):",
+       new="      elif (False\n"
+           "            or a.get(\"quant_colours\") or "
+           "a.get(\"category_colours\")):",
        test="test_the_design_view_paints_colours_the_map_contains",
        why="the design view goes back to painting a deferring element "
            "in the plugin's own ramp: measured at 30,316 pixels of "
            "#00aa44 on the map against 15,470 of #3c8bc2 in the "
            "preview, so somebody judges whether their elements read as "
            "distinct from colours neither of them wears"),
+  dict(name="the-preview-reads-hand-picked-colours", file=DIALOG,
+       old="      elif (self._element_is_deferring(a[\"id\"])\n"
+           "            or a.get(\"quant_colours\") or "
+           "a.get(\"category_colours\")):",
+       new="      elif (self._element_is_deferring(a[\"id\"])\n"
+           "            or False or False):",
+       test="test_the_design_view_paints_colours_the_map_contains",
+       why="an element whose class colours were all picked by hand is "
+           "previewed in the ramp it no longer wears -- measured at "
+           "144/255 from anything it draws, with the ramp cell beside "
+           "it already reading Custom, so the row and the picture "
+           "next to it describe two different maps"),
   dict(name="the-preview-follows-the-rows-direction", file=DIALOG,
        old="        base = bridge.ramp_swatch_colour(\n"
            "            a[\"ramp\"], bool(a.get(\"reverse\", False)),\n"
