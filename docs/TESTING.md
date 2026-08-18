@@ -1513,3 +1513,87 @@ paragraph naming `ci_provision.py` to say it is NOT run, and a
 half still gates, because a flag quoted beside its own script needs no
 guessing. A gate whose failures are mostly false is one people learn
 to silence, and it takes the true failures with it.
+
+## Testing a PROMISE: synthetic shapes crossed with conditions
+
+Some defects are not a bug in a function but a hole in a promise. "Edit
+the symbology in QGIS and the plugin follows" is one: it is not one
+behaviour but a family, and a family fails one member at a time.
+
+**ONE BIG CHANGE IS NOT COVERAGE OF MANY SMALL ONES.** The guard that
+existed for that promise pasted a renderer with a different field, a
+different class count AND a different ramp at once, and passed — while
+a tester retyping a single class boundary found nothing followed at
+all. A route that only ever moves three things together can never show
+which of the three is carrying the behaviour. When a promise covers a
+family of actions, enumerate the ATOMIC actions; the compound one
+passes for whichever reason happens to be intact.
+
+**SYNTHETIC SHAPES ARE CHOSEN FOR FAILURE MODES, NOT FOR BEING
+REALISTIC.** The nine columns crossed against those routes are each
+there because something once broke on that shape: evenly spread,
+heavily tied, cubic-skewed, bimodal with an empty band, a quarter
+nulls, constant, two distinct values against five classes, spanning
+negative to positive, and around 1e9. A smooth continuous column is
+the case that always worked, so a suite made only of pretty numbers
+tests the code's easy half. Generating the data also means the fixture
+can be shaped to the question — and a synthetic column spread from 3.1
+to 79.1 reproduced a tester's screenshot to the decimal, which no
+sample of their real data was needed for.
+
+**A FIXTURE THAT CANNOT MOVE CANNOT SHOW THAT SOMETHING MOVED IT.**
+The first attempt at this used `make_region_layer`, whose `v1` holds
+four distinct values; against five classes the classifier reduces and
+any adopted ladder collapses back to the computed one. The fix could
+be neither proved nor disproved for an afternoon. Before trusting a
+green cell, ask whether that cell COULD have gone red.
+
+**ARRIVAL AND SURVIVAL ARE DIFFERENT PROMISES**, so "what happens
+next" is an axis of its own: each edit is checked immediately AND
+after a re-Generate. This project's older defects lived in the second
+— a change that reached the map and the table and was gone by the next
+run, or by a reopen.
+
+**SPINE PLUS ROTATION, NOT THE FULL CROSSING.** Full factorial is how
+you find surprises the first time; as a permanent suite member it
+grows with every new route until somebody skips it, and a skipped
+guard is worth nothing. So: every ROUTE runs against two canonical
+shapes under both aftermaths EVERY time, since a route that stops
+being exercised is the quietest way to lose coverage; the remaining
+cells are SAMPLED under a seed the failure message prints, so anything
+it catches is reproducible by re-running with that seed. The whole
+crossing stays behind an environment flag for when something changes
+structurally. Measured 2026-08-18: 36 cells in 58 seconds, against 140
+cells in 3m30s for the full grid.
+
+**REPORT EVERY CELL, NOT THE FIRST FAILURE.** "Some things do not
+work" is not actionable; a named list of route, shape and aftermath is
+a work list. Collect and assert once at the end.
+
+**EXPECTATIONS MUST BE SHAPE-AWARE BEFORE ANYTHING IS SAMPLED.** A
+pasted class count is a REQUEST, not a promise — a column cannot be
+cut into more classes than it has distinct values, so a constant
+column collapses a three-class paste to one BY DESIGN. Expecting three
+there reported correct behaviour as a defect. That matters more under
+sampling than under full crossing: a false alarm that appears in every
+run is merely annoying, while one that appears in a RANDOM SUBSET of
+runs is indistinguishable from flakiness, and flakiness is how a suite
+stops being read.
+
+**THE HARNESS WILL AUTHOR ITS OWN FAILURES, AND THEY MUST BE COUNTED.**
+This one produced three before it produced a real finding: a segfault
+of its own making (`deleteClass` on a one-class renderer crashes QGIS
+rather than raising — a constant column draws exactly one class), a
+rounding mismatch between how it staged a number and how it read one
+back, and the shape-blind expectation above. NONE was the plugin.
+Keep a tally: a matrix whose failures are mostly its own is a matrix
+nobody will act on.
+
+**PROVE IT FAILS BEFORE COUNTING IT GREEN.** Remove the fix and watch
+the grid go red — 17 of 36 cells here, each naming route, shape,
+aftermath and wanted-against-got — then restore and confirm green. A
+green matrix that cannot go red is an expensive way to feel covered.
+
+**ANY CELL THAT EVER FAILS JOINS THE SPINE PERMANENTLY.** A regression
+seen once is tested forever; the rotation then only ever covers ground
+with no known history.
