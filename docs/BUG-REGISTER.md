@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-243 defect(s) with a regression test.
+245 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -75,6 +75,8 @@ there is no separate list to remember.
   guarded by `test_a_destroyed_dialog_cannot_be_reached_by_a_layer_it_made`
 - **a class break retyped in QGIS, a stroke or legend label set on a categorized element, and a ramp changed in the styling panel all reached the map and the project but never the exported GeoPackage.**  
   guarded by `test_a_dock_edit_of_any_kind_reaches_the_exported_file`
+- **a bound pinned far outside a column of very small values flattened the box that holds the small one, so a pin of 6e-10 read back as 0.0 and the map was redrawn from zero.**  
+  guarded by `test_a_far_pin_does_not_flatten_the_box_a_small_one_needs`
 - **the no-data layer's style was embedded in the GeoPackage before its opacity was set, so an exported map drew those areas opaque.**  
   guarded by `test_a_geopackage_carries_the_no_data_opacity_it_was_given`
 - **a class recoloured in QGIS's styling dock was discarded when the plugin reopened, because the graduated adoption path stopped at the mere presence of a ramp name, while its categorized twin asked whether that ramp explained the colours.**  
@@ -137,6 +139,8 @@ there is no separate list to remember.
   guarded by `test_an_area_with_no_value_is_drawn_rather_than_left_as_a_hole`
 - **an element whose own tiles all fell on areas with no value was left unsplit and drew nothing, while its siblings drew and the plugin said it drew as no data.**  
   guarded by `test_an_element_sitting_wholly_on_missing_values_still_draws`
+- **every element on Quant: Unclassed was warned that a third of its fifty steps were empty, on a map drawing exactly what that style means.**  
+  guarded by `test_an_unclassed_row_is_not_warned_about_its_fifty_steps`
 - **an element's no-data layer ignored its opacity when the run landed, so a faded element drew opaque patches until something unrelated restyled it.**  
   guarded by `test_both_halves_of_an_element_fade_together`
 - **a mode change or a variable swap was answered by the restyle path, which cannot cut a no-data split, so the missing-value areas became holes again.**  
@@ -535,7 +539,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 83
-- a bug hunt pointed in a named direction: 77
+- a bug hunt pointed in a named direction: 79
 - the mutation campaign: 16
 - reported by a user: 16
 - reading the code: 15

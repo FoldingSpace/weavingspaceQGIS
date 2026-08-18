@@ -12260,6 +12260,84 @@ def test_a_pin_may_be_typed_far_outside_the_element_it_pins():
     f"bound typed below the element's own resolution")
 
 
+def test_an_unclassed_row_is_not_warned_about_its_fifty_steps():
+  """Fifty faded slivers are a ramp, not fifty classes going unworn.
+
+  `Quant: Unclassed` reproduces a CONTINUOUS ramp: fifty linear
+  intervals, a number that comes from upstream's semantics rather than
+  from anybody choosing it. Most of those steps have no tile in them
+  on any ordinary column, and that is what the style IS.
+
+  So the emptiness notice, which measures the ladder the map actually
+  draws, told every Unclassed element that a third of its fifty
+  classes were empty -- true as arithmetic and meaningless as a
+  sentence, on a map behaving exactly as designed. It is the shape of
+  a warning that fires constantly, which this project has twice
+  written down as how people learn to ignore warnings.
+
+  THE POSITIVE TWIN IS THE OTHER HALF, and it is not optional: a claim
+  that a notice is SILENT cannot be tested by silence. Deleting the
+  notice outright would satisfy the first arm alone. So the same
+  fixture is driven on a classed row where a class genuinely goes
+  unworn, and the sentence must appear.
+
+  Regression: every element on Quant: Unclassed was warned that a third of its fifty steps were empty, on a map drawing exactly what that style means.
+ [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  project.addMapLayer(make_region_layer(n=12))
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.table.cellWidget(0, 1).setCurrentText("v3")
+    _tick(200)
+    dlg.spacing_spin.setValue(1200)
+    _generate_and_wait(dlg)
+    tile_id = dlg.table.item(0, 0).text()
+
+    # ARM ONE: Unclassed, where empty steps are the style itself.
+    dlg.table.cellWidget(0, 2).setCurrentText("Quant: Unclassed")
+    _tick(300)
+    del BAR_MESSAGES[:]
+    dlg._apply_style_change()
+    _tick(600)
+    said = " ".join(m for _k, m in BAR_MESSAGES)
+    out = project.mapLayer(dlg._element_layer_ids[tile_id])
+    drawn = len(out.renderer().ranges())
+    assert drawn > 20, (
+      f"the fixture is not on Unclassed at all -- it draws {drawn} "
+      f"classes -- so the case this arm is about cannot arise")
+    assert "classes empty" not in said and "empty" not in said, (
+      f"an Unclassed element was warned about its own fifty steps: "
+      f"{said!r}. Those steps ARE the style; a notice that fires on "
+      f"every such element is one people learn to ignore")
+
+    # ARM TWO, THE POSITIVE TWIN: a classed row where a class really
+    # does go unworn must still be told, or arm one would be satisfied
+    # by deleting the notice altogether.
+    dlg.table.cellWidget(0, 2).setCurrentText("Quant: Equal intervals")
+    _tick(300)
+    source = dlg._classification_values("v3")
+    values = sorted(float(v) for v in source.uniqueValues(
+      source.fields().indexOf("v3")))
+    # a bound far above the data leaves its outer class unworn, which
+    # is the maintainer's own example of a pin that draws perfectly
+    # well and simply goes unused
+    dlg._pinned_bounds.setdefault(tile_id, {})["v3"] = {
+      "high": values[-1] + 500.0}
+    del BAR_MESSAGES[:]
+    dlg._apply_style_change()
+    _tick(600)
+    said = " ".join(m for _k, m in BAR_MESSAGES)
+    assert "empty" in said, (
+      f"a classed element with a class no tile wears was told nothing: "
+      f"{said!r}. Without this the first arm would pass on a plugin "
+      f"that had simply stopped reporting emptiness")
+  finally:
+    dlg.close()
+
+
 def test_a_class_no_tile_wears_is_said_out_loud():
   """Emptiness is reported in WORDS, which is what the swatch stopped
   saying.
@@ -12627,6 +12705,77 @@ def test_the_spacing_advice_can_be_typed_back_in_any_locale():
         dlg.close()
   finally:
     QLocale.setDefault(was)
+
+
+def test_a_far_pin_does_not_flatten_the_box_a_small_one_needs():
+  """One pin must not decide how finely the other can be read.
+
+  The bound box sizes its decimals from a SPAN, so that it can
+  separate the values a bound has to fall between. It measured that
+  span from `self._bounds` -- the ladder as it stands, pins included --
+  and since the outside-the-data refusal was lifted on 2026-08-17 that
+  ladder may legally be dominated by a bound which is deliberately NOT
+  data.
+
+  MEASURED THE SAME DAY. A rates column running 0 to 2e-09, pinned low
+  at 6e-10 and high at 40: both accepted, both sensible under the
+  wide-limits ruling. The ladder's span is then 40, which asks for
+  eight decimals, and 6e-10 at eight decimals is ZERO. In session the
+  box holds the right number; rebuild the table or reopen the project
+  and it reads 0.0, and the next touch of that pin redraws the map
+  from zero -- nine of twenty features into another class, with
+  nothing said.
+
+  `_defaults` is the ladder the scheme computes with NO pin on it, so
+  its span is the data's, which is what the decimals are for. A pin is
+  a statement about where a boundary goes, never about how finely the
+  column can be read.
+
+  WHY A MAGNITUDE SWEEP MISSED IT, which is the part worth carrying: a
+  hunt swept magnitudes on the COLUMN and found nothing. The defect
+  needs the PIN and the column to have DIFFERENT magnitudes, so the
+  fixture dimension is the gap between them rather than either alone.
+
+  Regression: a bound pinned far outside a column of very small values flattened the box that holds the small one, so a pin of 6e-10 read back as 0.0 and the map was redrawn from zero.
+ [hunt]
+  """
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+
+  class _BoundsOnly(CategoryColourDialog):
+    """Enough of the editor to build one bound box."""
+
+    def __init__(self, bounds, defaults):
+      self._bounds = bounds
+      self._defaults = defaults
+
+  # A rates column: the scheme's own ladder over 0 .. 2e-09.
+  data = [(0.0, 5e-10), (5e-10, 1e-09), (1e-09, 1.5e-09),
+          (1.5e-09, 2e-09)]
+  # ...and the ladder AS PINNED, whose high bound is deliberately not
+  # data at all. This is what `self._bounds` holds once a wide limit
+  # has been set, and it is a legal state since 2026-08-17.
+  pinned = [(0.0, 6e-10), (6e-10, 1e-09), (1e-09, 40.0)]
+  small = 6e-10
+
+  holder = _BoundsOnly(pinned, data)
+  box = CategoryColourDialog._bound_box(holder, small)
+  box.setValue(small)
+  assert box.value() != 0.0, (
+    f"the box flattened a pin of {small!r} to zero: the far bound of "
+    f"40 decided how finely this column can be read, and the map is "
+    f"redrawn from zero at the next touch")
+  assert abs(box.value() - small) <= abs(small) * 1e-6, (
+    f"a pin of {small!r} reads back as {box.value()!r}")
+
+  # THE CONTROL: with no unpinned ladder to measure, the box falls
+  # back to the pinned edges, which is the older behaviour and is
+  # right when that is all there is. Without this the test could pass
+  # by the fallback never being reached.
+  bare = CategoryColourDialog._bound_box(_BoundsOnly(pinned, None), small)
+  assert bare.decimals() <= box.decimals(), (
+    f"the fallback offers MORE precision ({bare.decimals()}) than the "
+    f"data-measured path ({box.decimals()}), so this fixture cannot "
+    f"tell the two apart and proves nothing")
 
 
 def test_a_refusal_names_a_number_the_box_beside_it_accepts():
@@ -50503,12 +50652,16 @@ def main():
         test_a_pinned_bound_can_hold_the_numbers_a_column_carries)
   check("a pin may be typed far outside the element it pins",
         test_a_pin_may_be_typed_far_outside_the_element_it_pins)
+  check("an unclassed row is not warned about its fifty steps",
+        test_an_unclassed_row_is_not_warned_about_its_fifty_steps)
   check("a class no tile wears is said out loud",
         test_a_class_no_tile_wears_is_said_out_loud)
   check("every number box holds a value finer than its step",
         test_every_number_box_holds_a_value_finer_than_its_step)
   check("the spacing advice can be typed back in any locale",
         test_the_spacing_advice_can_be_typed_back_in_any_locale)
+  check("a far pin does not flatten the box a small one needs",
+        test_a_far_pin_does_not_flatten_the_box_a_small_one_needs)
   check("a refusal names a number the box beside it accepts",
         test_a_refusal_names_a_number_the_box_beside_it_accepts)
   check("a bound the editor prints can be typed into its own box",

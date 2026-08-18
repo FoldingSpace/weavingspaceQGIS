@@ -3453,6 +3453,17 @@ MUTATIONS = [
            "`_legend_size_note` returns None at one distinct value by "
            "design, so without this the spinner reads 8 over a map "
            "drawing one class and nothing whatever is said"),
+  dict(name="unclassed-is-exempt-from-the-emptiness-notice", file=DIALOG,
+       old="    if assignment.get(\"scheme\") == \"Unclassed\":\n"
+           "      return None",
+       new="    if False:\n      return None",
+       test="test_an_unclassed_row_is_not_warned_about_its_fifty_steps",
+       why="Unclassed is fifty linear intervals reproducing a "
+           "CONTINUOUS ramp, so most of its steps hold no tile on any "
+           "ordinary column -- that is what the style is. Without the "
+           "exemption every such element is told a third of its "
+           "classes are empty, on a map behaving exactly as designed, "
+           "which is how a warning becomes one people ignore"),
   dict(name="emptiness-is-still-reported-in-words",
        file="weavingspace_qgis/dialog.py",
        old="    return bridge.empty_classes_message(field, len(unworn), asked)",
@@ -3484,6 +3495,17 @@ MUTATIONS = [
            "refuse never reaches it -- so two elements given one typed "
            "limit draw two different ladders, which is the opposite of "
            "what wide limits are for"),
+  dict(name="the-decimals-are-measured-from-the-unpinned-ladder",
+       file="weavingspace_qgis/category_editor.py",
+       old="    measured = unpinned or edges",
+       new="    measured = edges",
+       test="test_a_far_pin_does_not_flatten_the_box_a_small_one_needs",
+       why="since the outside-the-data refusal was lifted, the ladder "
+           "as it stands may be dominated by a bound that is "
+           "deliberately not data -- so a rates column pinned high at "
+           "40 asks for eight decimals, and its own 6e-10 low bound "
+           "reads back as ZERO the next time the table is rebuilt, "
+           "moving nine of twenty features with nothing said"),
   dict(name="a-bound-box-can-hold-a-small-number-on-a-big-column",
        file="weavingspace_qgis/category_editor.py",
        old="    box.setDecimals(max(_LEAST_DECIMALS, min(12, places)))",
