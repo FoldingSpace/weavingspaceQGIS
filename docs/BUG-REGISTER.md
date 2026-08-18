@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-242 defect(s) with a regression test.
+243 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -187,6 +187,8 @@ there is no separate list to remember.
   guarded by `test_the_legibility_check_agrees_with_its_own_distance`
 - **the notice that the region layer had been removed depended on which of two Qt handlers ran first, so it was silent on every CI runner while passing locally.**  
   guarded by `test_the_removal_notice_survives_the_chooser_moving_first`
+- **a copied classification was destroyed at the instant of copying, judged against the receiving column rather than reproduced; and pins accepted against the live class count were retired as the run landed, their stamp removed, with the message blaming the user's data.**  
+  guarded by `test_the_retirement_guard_is_asked_the_right_question`
 - **a renderer changed in QGIS back to something the plugin can express left the row reading "Deferring to QGIS" with its controls disabled, and the next Generate overwrote the map.**  
   guarded by `test_the_row_follows_the_dock_back_out_of_deferring`
 - **the spacing a refusal advised was printed with hard-coded punctuation, so under a comma-decimal locale typing it back gave a number ten times larger and the map was drawn far too coarse with nothing said.**  
@@ -533,7 +535,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 83
-- a bug hunt pointed in a named direction: 76
+- a bug hunt pointed in a named direction: 77
 - the mutation campaign: 16
 - reported by a user: 16
 - reading the code: 15

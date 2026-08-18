@@ -3768,6 +3768,29 @@ MUTATIONS = [
   # THE TAIL OF `_restyle_only`, two defects three lines apart and both
   # about ORDER. One test drives both; two entries, because a single
   # anchor over the block would report `caught` with one axis dead.
+  # TWO QUESTIONS THE RETIREMENT GUARD MUST NOT BE ASKED, both of them
+  # destroying work rather than crashing. One test drives both.
+  dict(name="a-copy-is-not-judged-against-its-new-column", file=DIALOG,
+       old="    if record.get(\"breaks\"):\n      return None",
+       new="    if False:\n      return None",
+       test="test_the_retirement_guard_is_asked_the_right_question",
+       why="a copy is a claim about the LADDER and not about what the "
+           "receiving values support, which is the carve-out "
+           "make_graduated_renderer has carried since copying arrived "
+           "-- without it the whole record is popped, copied breaks "
+           "included, at the instant of copying, and the copy reports "
+           "success"),
+  dict(name="the-guard-is-asked-with-the-live-row", file=DIALOG,
+       old="    live = self._assignment_for(tile_id)\n"
+           "    if live is not None and live.get(\"var\") == field:\n"
+           "      assignment = live",
+       new="    live = self._assignment_for(tile_id)",
+       test="test_the_retirement_guard_is_asked_the_right_question",
+       why="two of the three callers hand in the LAUNCH SNAPSHOT, so "
+           "pins the editor accepted against the live class count are "
+           "retired the instant the run lands -- the record cleared, "
+           "the stamp REMOVED so a reopen cannot recover them, and the "
+           "sentence blaming the user's data"),
   dict(name="the-restyle-restamps-after-retiring", file=DIALOG,
        old="        if layer_now is not None:\n"
            "          fresh = self._assignment_for(tid)\n"

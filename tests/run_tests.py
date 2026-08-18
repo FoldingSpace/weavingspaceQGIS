@@ -10698,6 +10698,104 @@ def test_a_pin_set_during_a_run_is_not_lost():
   dlg.close()
 
 
+def test_the_retirement_guard_is_asked_the_right_question():
+  """Two ways `_retire_an_undrawable_pin` destroyed work it should keep.
+
+  Retirement exists for a pin THE DATA MOVED OUT FROM UNDER -- a column
+  retyped, a layer swapped -- and its own comment says so. Twice it was
+  asked a question that was not that one.
+
+  A COPY IS A CLAIM ABOUT THE LADDER, not about what the receiving
+  column supports, and `make_graduated_renderer` has carried that
+  carve-out since copying arrived. This site never learned it, and the
+  two disagreed invisibly because `_copy_classification` validates each
+  pin flag ALONE while this asks `pin_problem` about both TOGETHER: two
+  bounds each fine separately can leave nothing between them. So a
+  ladder copied onto a column with a hole in it was judged undrawable
+  and the WHOLE record popped -- copied breaks included -- the instant
+  it was copied. The copy reported success, the record was empty
+  immediately after, and the next Generate silently redrew that element
+  with the scheme's own breaks.
+
+  AND THE GUARD WAS HANDED THE LAUNCH SNAPSHOT. The rule that
+  everything the colour editor writes is re-read at the landing was
+  complete, and this stood IN FRONT of it: pins the editor had accepted
+  against the LIVE class count were judged against the count the run
+  was launched with. A GUARD THAT RUNS BEFORE A RE-READ MUST BE ASKED
+  WITH RE-READ VALUES TOO.
+
+  Regression: a copied classification was destroyed at the instant of copying, judged against the receiving column rather than reproduced; and pins accepted against the live class count were retired as the run landed, their stamp removed, with the message blaming the user's data.
+ [hunt]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(200)
+    dlg.table.cellWidget(0, 1).setCurrentText("v3")
+    dlg.table.cellWidget(1, 1).setCurrentText("v3")
+    _tick(200)
+    first, second = dlg.table.item(0, 0).text(), dlg.table.item(1, 0).text()
+    dlg.spacing_spin.setValue(1200)
+    _generate_and_wait(dlg)
+
+    source = dlg._classification_values("v3")
+    values = sorted(float(v) for v in source.uniqueValues(
+      source.fields().indexOf("v3")))
+
+    # ARM ONE: A COPIED LADDER whose OUTER bounds sit above everything
+    # the column holds, so `pin_problem` asked about the pair together
+    # refuses it -- which is exactly the question a copy must not be
+    # asked. Its interior breaks are what a copy reproduces.
+    ladder = {"breaks": [values[1], values[2], values[-2]],
+              "low": values[-1] + 1000.0, "high": values[-1] + 2000.0}
+    assert bridge.pin_problem(ladder["low"], ladder["high"], values, 5), (
+      "the fixture's copied bounds are drawable on their own, so the "
+      "question this arm is about is never put")
+    dlg._pinned_bounds.setdefault(first, {})["v3"] = dict(ladder)
+    dlg._apply_style_change()
+    _tick(600)
+    kept = dlg._pinned_bounds.get(first, {}).get("v3") or {}
+    assert kept.get("breaks"), (
+      f"the copied classification was destroyed at the instant of "
+      f"copying: the record is now {kept!r}. A copy reproduces a "
+      f"ladder; it is not a claim about what these values support")
+
+    # ARM TWO: A PIN ACCEPTED AGAINST THE LIVE ROW while a run is in
+    # flight. The class count is raised mid-run, so the launch
+    # snapshot and the live row disagree about how many boundaries the
+    # ladder has -- and the pins are legal only against the live one.
+    dlg.table.cellWidget(dlg._row_for_element(second), 3).setValue(3)
+    _tick(300)
+    dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.2)
+    dlg._generate()
+    assert dlg._task is not None, \
+      "no run is in flight, so the landing this arm is about never happens"
+    dlg.table.cellWidget(dlg._row_for_element(second), 3).setValue(5)
+    dlg._pinned_bounds.setdefault(second, {})["v3"] = {
+      "low": values[1], "high": values[-2]}
+    dlg._apply_style_change()
+    assert _settle(dlg, seconds=90)
+    _tick(400)
+    survived = dlg._pinned_bounds.get(second, {}).get("v3") or {}
+    assert survived.get("low") is not None \
+        and survived.get("high") is not None, (
+      f"pins the editor accepted against the live row were retired by "
+      f"the landing: the record is now {survived!r}. The guard was "
+      f"asked with the count the run was LAUNCHED with")
+    out = project.mapLayer(dlg._element_layer_ids[second])
+    assert "low" in (out.customProperty("weavingspace_quant_style") or ""), (
+      "the pins reached the record but the stamp went, so a reopened "
+      "project could not bring them back either")
+  finally:
+    dlg.close()
+
+
 def test_a_pin_survives_the_table_being_rebuilt():
   """A design change rebuilds every row 350 ms later; pins must ride it.
 
@@ -50359,6 +50457,8 @@ def main():
         test_the_release_notes_keep_their_categories)
   check("a pin set during a run is not lost",
         test_a_pin_set_during_a_run_is_not_lost)
+  check("the retirement guard is asked the right question",
+        test_the_retirement_guard_is_asked_the_right_question)
   check("a pin survives the table being rebuilt",
         test_a_pin_survives_the_table_being_rebuilt)
   check("pins hold against awkward columns",
