@@ -137,7 +137,7 @@ vanity metric, is described in
 [docs/MUTATION-TESTING.md](docs/MUTATION-TESTING.md). Releases go
 through `release.py`, which gates on the suite and writes a per-test
 report. The vendored library in `weavingspace_qgis/vendor/` is upstream
-v0.0.7.61 (commit 80e1dab), patched only to make matplotlib and scipy
+v0.0.7.61 (commit c0f109c), patched only to make matplotlib and scipy
 optional. The tiling catalogue in `catalog.py` mirrors the library's,
 and `build.py` produces the installable zip.
 

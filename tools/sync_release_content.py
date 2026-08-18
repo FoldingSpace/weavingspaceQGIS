@@ -230,7 +230,13 @@ def check_vendor_claims():
             "version is recorded rather than only described"]
   with open(stamp_path, encoding="utf-8") as handle:
     stamp = handle.read().strip()
+  # The stamp is written as "0.0.7.61 (c0f109c)" -- a version AND the
+  # commit it came from, because upstream does not always bump the
+  # version string when the code changes, which is the whole reason
+  # MAINTAINING.md tells a re-vendorer to record both.
   version = stamp.split()[0]
+  commit = re.search(r"\(([0-9a-f]{7,40})\)", stamp)
+  commit = commit.group(1) if commit else None
   problems = []
   for path in ("README.md", "MAINTAINING.md", "CLAUDE.md"):
     text = read(path)
@@ -240,6 +246,25 @@ def check_vendor_claims():
         problems.append(
           f"{path} says the vendored library is upstream {claim}, but "
           f"the vendoring tool recorded {version}")
+    # ...AND THE COMMIT, WHICH THIS NEVER COMPARED. `stamp.split()[0]`
+    # is the version alone, so the half of the stamp that exists
+    # BECAUSE the version can stay still while the code moves was the
+    # half nothing checked. README.md and MAINTAINING.md named commit
+    # 80e1dab from 2026-08-07 until 2026-08-18, eight days after the
+    # vendor moved to c0f109c and the stamp said so -- and this
+    # function, whose docstring promises exactly this comparison,
+    # reported success throughout.
+    #
+    # A GATE THAT CHECKS HALF OF WHAT IT NAMES IS WORSE THAN NO GATE,
+    # because the other half is then believed to be checked. Found by
+    # a hunt pointed at the prose rather than at the code, which is
+    # how a claim about a checker gets tested at all.
+    if commit:
+      for claim in set(re.findall(r"commit ([0-9a-f]{7,40})", text)):
+        if not (claim.startswith(commit) or commit.startswith(claim)):
+          problems.append(
+            f"{path} says the vendored library is at commit {claim}, "
+            f"but the vendoring tool recorded {commit}")
   return problems
 
 

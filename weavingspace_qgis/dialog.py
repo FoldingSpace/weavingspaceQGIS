@@ -488,6 +488,36 @@ def _striped_icon(colours, boxed=()):
   return QIcon(pixmap)
 
 
+def _dump(*parts):
+  """Print one diagnostic line when the dump flag is set.
+
+  Args:
+    *parts: whatever should appear on the line; each is stringified
+      and the lot joined with spaces.
+
+  Returns:
+    None, and nothing at all unless WEAVINGSPACE_ADOPT_DUMP is set in
+    the environment.
+
+  WHY THE PIECES ARRIVE SEPARATELY rather than as one formatted
+  sentence. `tools/text_review.py` collects every prose-looking string
+  literal in this package so a person can read it before it ships, and
+  a formatted diagnostic looks exactly like a sentence -- two of these
+  duly turned up in the review queue asking the maintainer to approve
+  "ADOPT {}: layer={} dialog={}". Widening the reviewer's filter to
+  exclude them would be the wrong lever, since that filter decides
+  what a human reads and this project has already lost three live
+  sentences to one that threw too much away. Short labels are not
+  prose, so nothing has to be excluded.
+
+  These dumps exist because reasoning about which rebuild writes a
+  record cost two reverted fixes; instrumenting it named the sequence
+  in one run. Kept behind the flag for the next investigation.
+  """
+  if os.environ.get("WEAVINGSPACE_ADOPT_DUMP"):
+    print(" ".join(str(part) for part in parts), flush=True)
+
+
 def _custom_swatch_icon(colours, boxed=()):
   """The swatch drawn while a ramp cell reads "Custom".
 
@@ -3952,8 +3982,7 @@ class WeavingSpaceDialog(QDialog):
       spin = self._row_opacity(row)
       wanted = int(self._opacity_choices[row_id])
       if spin.value() != wanted:
-        if os.environ.get("WEAVINGSPACE_ADOPT_DUMP"):
-          print(f"CELL  {row_id}: {spin.value()} -> {wanted}", flush=True)
+        _dump("CELL", row_id, spin.value(), ">", wanted)
         spin.blockSignals(True)
         spin.setValue(wanted)
         spin.blockSignals(False)
@@ -4431,9 +4460,7 @@ class WeavingSpaceDialog(QDialog):
       # except where the record has nothing.
       if prev is not None and "opacity" in prev \
           and tid not in self._opacity_choices:
-        if os.environ.get("WEAVINGSPACE_ADOPT_DUMP"):
-          print(f"PREV  {tid}: table={prev['opacity']} "
-                f"dialog=<none>", flush=True)
+        _dump("PREV", tid, "table=", prev["opacity"], "dialog=", "-")
         self._opacity_choices[tid] = prev["opacity"]
 
       if prev and prev.get("class_choice") is not None:
@@ -4584,10 +4611,9 @@ class WeavingSpaceDialog(QDialog):
     # branch cost a reverted fix on 2026-08-17: it says what the LAYER
     # is carrying beside what the dialog already believes, which is
     # the only pair that decides whether adoption fills anything in.
-    if os.environ.get("WEAVINGSPACE_ADOPT_DUMP"):
-      print(f"ADOPT {tile_id}: layer={round(layer.opacity() * 100)} "
-            f"dialog={self._opacity_choices.get(tile_id, '<none>')} "
-            f"replacing={self._project_is_being_replaced}", flush=True)
+    _dump("ADOPT", tile_id, "layer=", round(layer.opacity() * 100),
+          "dialog=", self._opacity_choices.get(tile_id, "-"),
+          "replacing=", self._project_is_being_replaced)
     # THE LAYER WINS WHILE A PROJECT IS BEING REPLACED, and only then.
     # "Fill in only where the dialog has nothing of its own" is right
     # within one project: a choice made since reopening must not be
@@ -5059,8 +5085,7 @@ class WeavingSpaceDialog(QDialog):
                    self._class_source_stamps, self._ramp_memory,
                    self._custom_swatch_cache):
       record.clear()
-    if os.environ.get("WEAVINGSPACE_ADOPT_DUMP"):
-      print("FORGET the last project", flush=True)
+    _dump("FORGET")
     # ...and say so until adoption has read the incoming project. The
     # clear alone is not enough because the TABLE survives it and
     # refills these records before adoption is asked; this marker is

@@ -271,7 +271,7 @@ Every targeted patch asserts on an exact anchor from upstream, so if a
 new version changed that code the script names the patch that needs a
 human decision instead of writing a silently broken vendor; the intent
 of each patch is documented in the script where you would fix it. The
-current vendor is upstream v0.0.7.61 at commit 80e1dab — note that
+current vendor is upstream v0.0.7.61 at commit c0f109c — note that
 upstream does not always bump the version string when code changes,
 so record the commit as well when re-vendoring.
 

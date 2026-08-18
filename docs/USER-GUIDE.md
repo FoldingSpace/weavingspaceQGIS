@@ -70,8 +70,9 @@ cheap.
 
 How many variables to map is a design question more than a technical
 one. Two to four supports genuine value-by-value reading. The catalogue
-runs to twenty and nothing stops you using them all, but at some point, the map stops being a table you look things up in and
-becomes a texture you scan for pattern and exception. That may be
+runs to twenty-six and nothing stops you using them all, but at some
+point the map stops being a table you look things up in and becomes a
+texture you scan for pattern and exception. That may be
 exactly what you want; it is better decided than discovered.
 
 If the final spacing is near the typical width of your polygons, areas
@@ -181,8 +182,10 @@ first and last classes take their colours, with the classes between
 spread evenly. The handles may meet but never cross. Narrowing the
 range is how you keep a sequential ramp out of its near-white end, or
 hold two elements to different stretches of the same ramp. For
-'Quant: Unclassed' the class list is a preview, faded and locked, and
-the range is the control. Reverse carries all of this along -- the
+'Quant: Unclassed' the class list is a preview, fifty faded steps
+rather than classes you recolour one at a time, but its ends are still
+yours. Pin either of them from the strip above the list or from the
+row's own Pin column; the two stay in step. Reverse carries all of this along -- the
 range mirrors and picked classes swap ends -- so flipping it twice
 costs nothing. The ramp cell reads Custom while any of it is in
 force, and choosing a ramp starts the element over, range and class
