@@ -3557,19 +3557,24 @@ MUTATIONS = [
            "the layer's stamp with it -- and tells the user their "
            "data has changed when the only thing that moved is the "
            "control they are holding"),
-  dict(name="no-route-lets-a-count-retire-a-pin", file=DIALOG,
-       old="    pins = (low is not None) + (high is not None)\n"
-           "    if not bridge.pin_problem(low, high, values, "
-           "max(asked, pins + 1),\n"
-           "                              record.get(\"breaks\")):\n"
-           "      return None",
-       new="    pins = (low is not None) + (high is not None)",
+  # REPLACED 2026-08-17, hours after it was written. The entry it
+  # supersedes mutated a re-ask in `_retire_an_undrawable_pin` that
+  # suppressed retirement on EVERY route while only the Classes
+  # spinner had been given a refusal -- so a count arriving by any
+  # other door left the record claiming bounds the map was not
+  # drawing, silently. The doors are guarded at the doors now, and
+  # this is the second one.
+  dict(name="a-restored-count-is-raised-to-fit-the-pins", file=DIALOG,
+       old="      if carried and int(k_spin.property(\"user_k\")) - 1 "
+           "< carried:",
+       new="      if False:",
        test="test_a_class_count_is_refused_rather_than_destroying_a_pin",
-       why="a count reaching this guard from anywhere but the spinner "
-           "-- a reopened project, a copied row, an Unclassed "
-           "excursion -- destroys the pins again, which is the same "
-           "defect arriving by the door the control's own refusal "
-           "does not cover"),
+       why="a count remembered from before the pins comes back through "
+           "_sync_row with signals blocked, so the spinner's refusal "
+           "never runs -- an excursion through Unclassed and back then "
+           "leaves two pins on a two-class ladder, and the row, the "
+           "colour editor and the saved project all claim bounds of 10 "
+           "and 60 over a map drawing 0/21/121"),
   dict(name="the-classes-spinner-does-not-eat-a-keystroke", file=DIALOG,
        old="      k_spin.setKeyboardTracking(False)",
        new="      k_spin.setKeyboardTracking(True)",

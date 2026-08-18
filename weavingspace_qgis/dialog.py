@@ -3833,6 +3833,32 @@ class WeavingSpaceDialog(QDialog):
       # a cell and a map come to disagree about the same number
       k_spin.setProperty(
         "user_k", min(int(k_spin.property("user_k") or 5), 20))
+      # A RESTORED COUNT IS RAISED TO CARRY THE ROW'S PINS, and told.
+      # (Maintainer's ruling, 2026-08-17, on a regression made earlier
+      # the same day.) The Classes spinner refuses a count too small
+      # for the pins in force -- but THIS site writes the spinner with
+      # signals BLOCKED, so `on_k` never runs, and every excursion that
+      # remembers a count comes back through here. Set Classes to 2,
+      # go to Unclassed where k is 50, pin both ends legally, come
+      # back to Quantiles: the remembered 2 returns and cannot hold two
+      # pins. The retirement guard then kept them anyway, so the row,
+      # the colour editor and the saved project all claimed bounds of
+      # 10 and 60 over a map drawing 0/21/121, with nothing said.
+      #
+      # Raising is the one sensible response and the dialog makes it
+      # rather than choosing between a user's two statements: the pins
+      # are a smaller and more durable statement than a class count
+      # they set before pinning, and this project already re-defaults
+      # a lost column and re-derives a spacing on the same rule --
+      # where an edit makes a setting untrue and there is exactly one
+      # sensible answer, make it and say so.
+      row_item_k = self.table.item(row, 0)
+      carried = self._pins_in_force(
+        row_item_k.text() if row_item_k is not None else "", var)
+      if carried and int(k_spin.property("user_k")) - 1 < carried:
+        k_spin.setProperty("user_k", min(carried + 1, 20))
+        self._report_quietly(bridge.pin_count_raised_message(
+          int(k_spin.property("user_k")), carried))
       k_spin.setValue(int(k_spin.property("user_k")))
       k_spin.setEnabled(True)
     elif mode == "Categorized" and var:
@@ -4569,6 +4595,26 @@ class WeavingSpaceDialog(QDialog):
       self._pinned_bounds.setdefault(tile_id, {}).setdefault(
         field, dict(stored_pins))
 
+  def _pins_in_force(self, tile_id, field):
+    """How many ends of this element's ladder the user has pinned.
+
+    Args:
+      tile_id: the element.
+      field: the column it carries; an empty name means no pins, since
+        the record is keyed by field as well as by element.
+
+    Returns:
+      0, 1 or 2. A count rather than the record itself, because both
+      callers want the same arithmetic -- a ladder of k classes has
+      k-1 boundaries and each pin names one -- and reading the record
+      twice is how two sites come to disagree about one number.
+    """
+    if not field:
+      return 0
+    record = self._pinned_bounds.get(tile_id, {}).get(field) or {}
+    return (record.get("low") is not None) + \
+        (record.get("high") is not None)
+
   def _class_count_refused(self, tile_id, count):
     """Why this class count cannot carry the element's pins, or None.
 
@@ -4693,27 +4739,21 @@ class WeavingSpaceDialog(QDialog):
     if not bridge.pin_problem(low, high, values, asked,
                               record.get("breaks")):
       return None
-    # A CLASS COUNT NEVER DESTROYS A PIN, and every route into this
-    # method has to know that, not just the spinner that now refuses.
-    # (Maintainer's ruling, 2026-08-17.) The Classes spinner reverts
-    # before it gets here, but the landing and `_restyle_only` reach
-    # this with whatever count the record holds -- and a count arriving
-    # from a reopened project, a copied row or an Unclassed excursion
-    # has never been anybody's live choice.
+    # THE COUNT IN FORCE IS ASKED, AND NOTHING SOFTENS IT HERE.
+    # This carried a re-ask with `max(asked, pins + 1)` for a few
+    # hours on 2026-08-17, meaning to keep the Classes spinner from
+    # destroying pins. It suppressed retirement on EVERY route while
+    # only ONE door had been given a refusal, so a count arriving with
+    # no control to refuse left the record and the layer stamp
+    # claiming bounds the map was not drawing, in silence -- which is
+    # worse than the loss it prevented, and is the exact harm row 28
+    # was about.
     #
-    # ASKED BY RE-ASKING RATHER THAN BY READING THE SENTENCE. Put the
-    # same question with a count that COULD carry the pins: if the
-    # objection goes away, the count was the whole of it. Raising the
-    # count cannot hide a data problem -- the middle check fires on
-    # `asked - pins > 0 and not middle`, so a larger count makes it
-    # more likely to fire, not less -- which is what makes this safe
-    # rather than merely convenient. Comparing the returned strings
-    # would work today and rot at the first rewording, and this
-    # project has paid for a transcribed sentence twice already.
-    pins = (low is not None) + (high is not None)
-    if not bridge.pin_problem(low, high, values, max(asked, pins + 1),
-                              record.get("breaks")):
-      return None
+    # TWO DOORS INTO ONE STATE, ONE GUARDED, IS WHERE THE NEXT ONE
+    # LIVES, and this was mine. The doors are guarded at the doors
+    # now: the spinner refuses, and `_sync_row` raises a restored
+    # count to one the pins fit. So a count reaching here really is
+    # undrawable, and retiring it with a sentence is right.
     # Clear the whole record for this field: the flags and any copied
     # boundary values go together, because what made them undrawable
     # was the column moving beneath all of them at once.

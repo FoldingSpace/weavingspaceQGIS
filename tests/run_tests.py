@@ -8562,27 +8562,58 @@ def test_a_class_count_is_refused_rather_than_destroying_a_pin():
       f"with keyboard tracking on the refusal fires on the leading "
       f"digit and eats the number a person typed")
 
-    # ARM FOUR: A COUNT THAT DID NOT COME FROM THE SPINNER. The
-    # refusal above guards the control, and the control is not the only
-    # way a small count reaches the retirement guard -- a reopened
-    # project, a copied row and an Unclassed excursion all write the
-    # count without anybody touching the spinner. Staged the way a
-    # restore does it, with signals blocked, so the handler that now
-    # refuses is deliberately not in the way.
+    # ARM FOUR: A COUNT RESTORED BY A STYLE EXCURSION, which is the
+    # door the spinner's refusal cannot reach. `_sync_row` writes the
+    # spinner with signals BLOCKED, so `on_k` never runs: set Classes
+    # to 2, go to Unclassed where k is fifty, pin both ends legally,
+    # come back, and the remembered 2 returns to a row carrying two
+    # pins.
+    #
+    # THIS ARM EXISTS BECAUSE THE FIRST FIX GOT IT WRONG. It answered
+    # by making the retirement guard ignore every count problem, which
+    # left the record and the layer stamp claiming bounds of 10 and 60
+    # over a map drawing 0/21/121, in silence -- a worse harm than the
+    # one it prevented. The count is RAISED to one the pins fit now,
+    # and said out loud (maintainer's ruling).
     spin.blockSignals(True)
     spin.setProperty("user_k", 2)
     spin.setValue(2)
     spin.blockSignals(False)
-    dlg._class_counts[tile_id] = 2
     del BAR_MESSAGES[:]
-    dlg._apply_style_change()
+    dlg.table.cellWidget(0, 2).setCurrentText("Quant: Unclassed")
     _tick(400)
+    dlg.table.cellWidget(0, 2).setCurrentText("Quant: Quantiles")
+    _tick(400)
+    dlg._apply_style_change()
+    _tick(500)
+    said = " ".join(m for _k, m in BAR_MESSAGES)
+    spin_now = dlg.table.cellWidget(0, 3)
     assert dlg._pinned_bounds.get(tile_id, {}).get("v3"), (
-      "a class count restored around the spinner still destroyed the "
-      "pins: the refusal guards the control, and every other route "
-      "into the retirement guard has to know the rule too")
+      "a count restored by a style excursion destroyed the pins: the "
+      "spinner's refusal cannot see this door, because _sync_row "
+      "writes it with signals blocked")
+    assert spin_now.value() >= 3, (
+      f"the restored count is {spin_now.value()}, which cannot carry "
+      f"two pinned ends -- it should have been raised to 3")
+    assert "raised" in said, \
+      f"the class count was changed without telling anybody: {said!r}"
+
+    # ...AND THE MAP MUST ACTUALLY DRAW THEM. The whole harm of the
+    # first fix was a record that claimed bounds the map ignored, so
+    # believing the record here would reproduce it.
+    out = project.mapLayer(dlg._element_layer_ids[tile_id])
+    ranges = out.renderer().ranges()
+    edges = [round(r.lowerValue(), 6) for r in ranges] + \
+        [round(ranges[-1].upperValue(), 6)]
+    claimed = dlg._pinned_bounds[tile_id]["v3"]
+    missing = [v for v in (claimed.get("low"), claimed.get("high"))
+               if v is not None and round(v, 6) not in edges]
+    assert not missing, (
+      f"the row claims pinned bounds {missing} that the map does not "
+      f"draw: it draws {edges}. A record outliving the drawing is the "
+      f"harm this arm exists for")
     assert stamped(), \
-      "the layer's stamp went with them, so a reopen cannot recover it"
+      "the layer's stamp went missing, so a reopen cannot recover it"
   finally:
     dlg.close()
 

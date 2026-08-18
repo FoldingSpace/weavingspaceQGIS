@@ -1381,6 +1381,30 @@ def pin_count_problem(low, high, asked: int):
           f"for more classes, or unpin one end.")
 
 
+def pin_count_raised_message(raised_to: int, pins: int) -> str:
+  """The notice when a class count is raised to carry pinned ends.
+
+  Args:
+    raised_to: the class count the row now holds.
+    pins: how many ends the user has pinned, 1 or 2.
+
+  Returns:
+    One sentence for the message bar. There is no None case: the
+    caller has already changed the count, and a count changed without
+    being asked for is exactly the thing that must be said out loud.
+
+  WHY A COUNT IS RAISED RATHER THAN PINS DROPPED (maintainer's ruling,
+  2026-08-17). A ladder of k classes has k-1 boundaries and each pin
+  names one, so a remembered count can come back too small for pins
+  set after it -- most easily by an excursion through Unclassed, where
+  k is fifty. The pins are the smaller and more durable statement, and
+  the alternative was a record claiming bounds the map does not draw.
+  """
+  ends = "pinned end" if pins == 1 else "pinned ends"
+  return (f"The class count has been raised to {raised_to} so the "
+          f"{ends} you set can be drawn.")
+
+
 def pin_problem(low, high, values, asked: int, breaks=None):
   """Why a pair of pinned bounds cannot be used, or None.
 
