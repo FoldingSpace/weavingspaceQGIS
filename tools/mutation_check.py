@@ -3141,6 +3141,48 @@ MUTATIONS = [
            "window of (0, 40) typing 60 keeps 6 and the element is "
            "recoloured and stamped from a ramp window nobody asked "
            "for"),
+  dict(name="the-landing-asks-the-live-row-not-the-snapshot",
+       file="weavingspace_qgis/dialog.py",
+       old="      live_mode = a.get(\"mode_raw\")\n"
+           "      live_row = self._assignment_for(tid)\n"
+           "      if live_row is not None:\n"
+           "        live_mode = live_row.get(\"mode_raw\")",
+       new="      live_mode = a.get(\"mode_raw\")",
+       test="test_a_style_pasted_mid_run_survives_the_landing",
+       why="deferral can begin WHILE a run is in flight, and the "
+           "launch snapshot still names a style -- so the landing "
+           "reads that as the user taking the element back and "
+           "re-seeds over a style they pasted a moment earlier, with "
+           "nothing said but the tile count"),
+  dict(name="a-graduated-dock-edit-reaches-the-file",
+       file="weavingspace_qgis/dialog.py",
+       old="      if self._last_path:\n"
+           "        bridge.embed_style(layer)\n"
+           "      return  # our own seeding, or an edit that changed no colour\n"
+           "    if len(expected) != len(actual):",
+       new="      return  # our own seeding, or an edit that changed no colour\n"
+           "    if len(expected) != len(actual):",
+       test="test_a_dock_edit_of_any_kind_reaches_the_exported_file",
+       why="a COLOUR comparison cannot see a retyped break or an "
+           "added stroke, so this guard returns before every embed "
+           "exit and the GeoPackage a colleague opens carries the "
+           "style from before the edit -- with Generate unable to "
+           "heal it, since the row never moved"),
+  dict(name="a-categorized-dock-edit-reaches-the-file",
+       file="weavingspace_qgis/dialog.py",
+       old="      if self._last_path:\n"
+           "        bridge.embed_style(layer)\n"
+           "      return  # our own seeding, or an edit that changed no colour\n"
+           "\n"
+           "    # a clean classify from a standard ramp?",
+       new="      return  # our own seeding, or an edit that changed no colour\n"
+           "\n"
+           "    # a clean classify from a standard ramp?",
+       test="test_a_dock_edit_of_any_kind_reaches_the_exported_file",
+       why="the categorized twin of the same guard, repaired hours "
+           "later than the graduated one and only because a hunt went "
+           "looking: a fill comparison cannot see a stroke, a legend "
+           "label or a deleted category"),
   dict(name="a-printed-bound-is-punctuated-by-the-locale",
        file="weavingspace_qgis/category_editor.py",
        old="    text = QLocale().toString(float(value), 'g', 10)",

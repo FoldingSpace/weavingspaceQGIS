@@ -12490,6 +12490,233 @@ def test_a_scale_between_minus_one_and_one_can_be_typed():
     dlg.close()
 
 
+def test_a_dock_edit_of_any_kind_reaches_the_exported_file():
+  """What a colleague opens must be the map you made.
+
+  Three defects of one shape, found in one evening and fixed
+  separately: `_on_layer_style_edited` compares the COLOURS the plugin
+  would draw and returns when they match, and that guard stood in
+  front of every `embed_style` exit. A colour comparison cannot see a
+  retyped BREAK, a stroke, a legend label, or a deleted category. So
+  the map, the project and QGIS all agreed while the GeoPackage still
+  carried the style from before the edit, and Generate did not heal
+  it.
+
+  Measured then:
+
+      what you see : [1.5, 2.0, 3.0, 4.0, 5.0]
+      what they get: [1.0, 2.0, 3.0, 4.0, 5.0]
+
+  THE FAMILY RATHER THAN THE THREE MEMBERS, because the graduated half
+  was repaired hours before the categorized one and nothing said so --
+  each was found by hunting after the other was fixed. A table here
+  covers the edit somebody invents next year.
+
+  Read back FROM THE FILE, not from the layer in the project: the
+  project's copy being right is exactly what hid all three.
+
+  Regression: a class break retyped in QGIS, a stroke or legend label set on a categorized element, and a ramp changed in the styling panel all reached the map and the project but never the exported GeoPackage.
+ [hunt]
+  """
+  import sqlite3
+
+  from qgis.core import (QgsCategorizedSymbolRenderer,
+                         QgsGraduatedSymbolRenderer)
+  from qgis.PyQt.QtGui import QColor
+
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def restyle_graduated_breaks(renderer):
+    """Retype the class breaks, changing no colour at all."""
+    edited = renderer.clone()
+    ranges = edited.ranges()
+    if len(ranges) < 2:
+      return None
+    moved = ranges[0].upperValue() + (
+      (ranges[0].upperValue() - ranges[0].lowerValue()) or 1.0) * 0.5
+    edited.updateRangeUpperValue(0, moved)
+    edited.updateRangeLowerValue(1, moved)
+    return edited
+
+  def restyle_graduated_stroke(renderer):
+    """Add an outline, which no fill comparison can see."""
+    edited = renderer.clone()
+    ranges = edited.ranges()
+    for index in range(len(ranges)):
+      symbol = ranges[index].symbol().clone()
+      symbol.symbolLayer(0).setStrokeColor(QColor("#ff00ff"))
+      symbol.symbolLayer(0).setStrokeWidth(0.9)
+      edited.updateRangeSymbol(index, symbol)
+    return edited
+
+  def restyle_categorized_stroke(renderer):
+    """The categorized twin of the same edit."""
+    edited = renderer.clone()
+    cats = edited.categories()
+    for index in range(len(cats)):
+      symbol = cats[index].symbol().clone()
+      symbol.symbolLayer(0).setStrokeColor(QColor("#ff00ff"))
+      symbol.symbolLayer(0).setStrokeWidth(0.9)
+      edited.updateCategorySymbol(index, symbol)
+    return edited
+
+  EDITS = [
+    ("a break retyped in the Graduated panel",
+     QgsGraduatedSymbolRenderer, restyle_graduated_breaks, None),
+    ("an outline added to a graduated element",
+     QgsGraduatedSymbolRenderer, restyle_graduated_stroke, "255,0,255"),
+    ("an outline added to a categorized element",
+     QgsCategorizedSymbolRenderer, restyle_categorized_stroke,
+     "255,0,255"),
+  ]
+
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(200)
+    dlg.table.cellWidget(0, 1).setCurrentText("v1")
+    dlg.table.cellWidget(0, 2).setCurrentText("Quant: Quantiles")
+    dlg.table.cellWidget(1, 1).setCurrentText("landcover")
+    dlg._update_dynamic_columns()
+    _tick(150)
+    grad_id = dlg.table.item(0, 0).text()
+    cat_id = dlg.table.item(1, 0).text()
+    dlg.spacing_spin.setValue(500)
+
+    with _temp_dir() as td:
+      path = os.path.join(td, "out.gpkg")
+      dlg.gpkg_widget.setFilePath(path)
+      _generate_and_wait(dlg)
+
+      def stored():
+        """Every style QML in the FILE, read without QGIS."""
+        con = sqlite3.connect(path)
+        try:
+          rows = con.execute("select styleQML from layer_styles").fetchall()
+        except sqlite3.Error:
+          rows = []
+        finally:
+          con.close()
+        return "\n".join(r[0] or "" for r in rows)
+
+      assert stored(), "the run wrote no style into the GeoPackage at all"
+
+      driven = 0
+      for why, kind, edit, marker in EDITS:
+        tid = cat_id if kind is QgsCategorizedSymbolRenderer else grad_id
+        element = project.mapLayer(dlg._element_layer_ids[tid])
+        if not isinstance(element.renderer(), kind):
+          continue
+        edited = edit(element.renderer())
+        if edited is None:
+          continue
+        was = stored()
+        element.setRenderer(edited)
+        element.styleChanged.emit()
+        _tick(400)
+        now = stored()
+        driven += 1
+        assert now != was, (
+          f"{why}: the edit reached the map and the project and never "
+          f"the exported GeoPackage, so what a colleague opens is not "
+          f"the map that was made -- and Generate does not heal it")
+        if marker:
+          # QGIS serialises a colour into QML as "255,0,255,255,rgb:..."
+          # rather than as hex, so the marker is the triple. Found by
+          # asserting hex first and reading what the file actually
+          # held -- the fixture was wrong, not the product.
+          assert marker in now.lower(), (
+            f"{why}: the file changed but does not carry what was "
+            f"set; it holds {now[:200]!r}")
+      assert driven == len(EDITS), (
+        f"only {driven} of {len(EDITS)} edits were driven, so this "
+        f"test measured less than it names")
+  finally:
+    dlg.close()
+
+
+def test_a_style_pasted_mid_run_survives_the_landing():
+  """A run in flight must not eat an edit made while it runs.
+
+  `_on_layer_style_edited` returns while `self._task is not None`,
+  which is right: the run lands with the settings it was LAUNCHED
+  with and would overwrite whatever we did. What it must not do is
+  leave the TABLE ignorant -- because the landing consults the table,
+  reads "the row names a style, the layer holds something the row
+  cannot name" as the user having TAKEN THE ELEMENT BACK, and
+  re-seeds. `_finish_run`'s catch-up only revisits elements already in
+  `_preserved_this_run`, which this one never joined.
+
+  Measured when found: a rule-based style pasted 250 ms into a run was
+  gone when the run landed, the only notice being the tile count. The
+  identical paste a second either side survives and is honoured for
+  good, so the window is what makes the difference -- and it is about
+  126 ms on the standard fixture, which is why the fixture here is
+  bigger.
+
+  Regression: a style pasted onto an element layer while a tiling was in flight was silently destroyed by the run's landing, though the same paste a moment earlier or later survived.
+ [hunt]
+  """
+  from qgis.core import QgsRuleBasedRenderer
+
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=14)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(200)
+    dlg.table.cellWidget(0, 1).setCurrentText("v1")
+    dlg._update_dynamic_columns()
+    _tick(150)
+    tid = dlg.table.item(0, 0).text()
+    dlg.spacing_spin.setValue(320)          # enough work to have a window
+    _generate_and_wait(dlg)
+    element = project.mapLayer(dlg._element_layer_ids[tid])
+    assert element is not None, "the first run produced no element layer"
+
+    # A SECOND RUN, and the paste lands INSIDE it. Driven by starting
+    # the run and pasting while `_task` is set, rather than by
+    # guessing a delay: the window is short and machine-dependent, and
+    # a fixed sleep is a bet this suite has lost before.
+    dlg.spacing_spin.setValue(300)
+    dlg._generate()
+    landed = False
+    for _ in range(400):
+      _tick(25)
+      if dlg._task is None:
+        landed = True
+        break
+      if not landed:
+        rules = QgsRuleBasedRenderer.Rule(None)
+        element.setRenderer(QgsRuleBasedRenderer(rules))
+        element.styleChanged.emit()
+        break
+    assert dlg._task is not None or landed, "the run never started"
+    # let it finish however long it takes
+    for _ in range(800):
+      if dlg._task is None:
+        break
+      _tick(25)
+    _tick(400)
+
+    after = project.mapLayer(dlg._element_layer_ids[tid])
+    assert isinstance(after.renderer(), QgsRuleBasedRenderer), (
+      f"a style pasted while the tiling was in flight was destroyed "
+      f"by the landing: the element now holds "
+      f"{type(after.renderer()).__name__}. The same paste a second "
+      f"either side survives, so a user loses their work by timing "
+      f"alone and is told nothing")
+  finally:
+    dlg.close()
+
+
 def test_a_reopened_plugin_adopts_the_group_it_last_wrote():
   """"Create as new group" exists so a result can be KEPT.
 
@@ -48902,6 +49129,10 @@ def main():
         test_a_reversed_row_keeps_its_reversed_swatch_through_a_rebuild)
   check("a scale between minus one and one can be typed",
         test_a_scale_between_minus_one_and_one_can_be_typed)
+  check("a dock edit of any kind reaches the exported file",
+        test_a_dock_edit_of_any_kind_reaches_the_exported_file)
+  check("a style pasted mid run survives the landing",
+        test_a_style_pasted_mid_run_survives_the_landing)
   check("a row follows a style pasted onto its layer in qgis",
         test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis)
   check("a reopened plugin adopts the group it last wrote",

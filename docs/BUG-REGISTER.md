@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-230 defect(s) with a regression test.
+232 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -71,6 +71,8 @@ there is no separate list to remember.
   guarded by `test_a_deferring_element_moved_to_words_still_draws`
 - **destroying the plugin dialog left a dangling pointer on the QApplication and a live styleChanged lambda on every output layer, so restyling an element layer afterwards crashed QGIS.**  
   guarded by `test_a_destroyed_dialog_cannot_be_reached_by_a_layer_it_made`
+- **a class break retyped in QGIS, a stroke or legend label set on a categorized element, and a ramp changed in the styling panel all reached the map and the project but never the exported GeoPackage.**  
+  guarded by `test_a_dock_edit_of_any_kind_reaches_the_exported_file`
 - **the no-data layer's style was embedded in the GeoPackage before its opacity was set, so an exported map drew those areas opaque.**  
   guarded by `test_a_geopackage_carries_the_no_data_opacity_it_was_given`
 - **a class recoloured in QGIS's styling dock was discarded when the plugin reopened, because the graduated adoption path stopped at the mere presence of a ramp name, while its categorized twin asked whether that ramp explained the colours.**  
@@ -119,6 +121,8 @@ there is no separate list to remember.
   guarded by `test_a_scale_between_minus_one_and_one_can_be_typed`
 - **negative scale factors were allowed on 2026-08-16 so that a pattern can be mirrored, which put ZERO inside the control's range for the first time. The library does not refuse a zero scale: `transform_scale(0, ...)` returns a unit collapsed to no area, and the failure surfaces much later inside `Tiling.__init__` as `numpy.linalg.LinAlgError: Singular matrix` -- reaching the user as a raw "Tiling failed" line about a matrix they never asked about.**  
   guarded by `test_a_scale_control_steps_over_zero`
+- **a style pasted onto an element layer while a tiling was in flight was silently destroyed by the run's landing, though the same paste a moment earlier or later survived.**  
+  guarded by `test_a_style_pasted_mid_run_survives_the_landing`
 - **an area whose value was NULL was not drawn at all, leaving a hole in the map that reads as absence rather than as missing data.**  
   guarded by `test_an_area_with_no_value_is_drawn_rather_than_left_as_a_hole`
 - **an element whose own tiles all fell on areas with no value was left unsplit and drew nothing, while its siblings drew and the plugin said it drew as no data.**  
@@ -509,7 +513,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 83
-- a bug hunt pointed in a named direction: 64
+- a bug hunt pointed in a named direction: 66
 - the mutation campaign: 16
 - reported by a user: 16
 - reading the code: 15

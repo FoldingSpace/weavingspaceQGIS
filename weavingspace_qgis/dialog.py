@@ -9916,8 +9916,28 @@ class WeavingSpaceDialog(QDialog):
       # row read Categorized, the map stayed rule-based through two
       # Generates, and the controls stayed inert because the element
       # was still, in fact, deferring.
+      # ASKED OF THE LIVE ROW, not of the launch snapshot, and the
+      # difference is a user's work. `a` is the assignment this run
+      # was LAUNCHED with; deferral can begin while it runs -- pasting
+      # a rule-based style onto an element is one keystroke -- and
+      # `_on_layer_style_edited` returns early during a run, refreshing
+      # the rows but never the snapshot. So the snapshot still named a
+      # style, this read that as the user TAKING THE ELEMENT BACK, and
+      # the landing re-seeded over the paste. Measured 2026-08-17: a
+      # style pasted 250 ms into a run was gone when it landed, the
+      # only notice being the tile count, while the same paste a
+      # second either side survived and was honoured for good.
+      #
+      # An earlier attempt at this fixed the ROWS and not the answer
+      # read here, and passed every neighbouring test while the hunt's
+      # own reproduction still failed -- which is the argument for
+      # running the reproduction rather than the neighbours.
+      live_mode = a.get("mode_raw")
+      live_row = self._assignment_for(tid)
+      if live_row is not None:
+        live_mode = live_row.get("mode_raw")
       reclaimed = (tid in old_renderers
-                   and a.get("mode_raw") != self.DEFERRING
+                   and live_mode != self.DEFERRING
                    and bridge.expressible_style(old_renderers[tid]) is None)
       # THE GATE, named because its TWIN needs the same answer. This
       # is what tells "kept because the user set it" from "kept
