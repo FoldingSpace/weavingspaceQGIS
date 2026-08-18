@@ -3380,6 +3380,19 @@ MUTATIONS = [
            "later than the graduated one and only because a hunt went "
            "looking: a fill comparison cannot see a stroke, a legend "
            "label or a deleted category"),
+  dict(name="the-vendor-gate-compares-the-commit",
+       file="tools/sync_release_content.py",
+       old="    if commit:\n"
+           "      for claim in set(re.findall(r\"commit ([0-9a-f]{7,40})\", text)):",
+       new="    if False:\n"
+           "      for claim in set(re.findall(r\"commit ([0-9a-f]{7,40})\", text)):",
+       test="test_the_documents_numbers_match_the_code",
+       why="the stamp records a version AND a commit precisely because "
+           "upstream does not always bump the version when the code "
+           "moves, and this gate compared the version alone -- so two "
+           "documents named a superseded commit for eight days while "
+           "the checker whose docstring promises that comparison "
+           "reported success every time"),
   dict(name="a-refusal-is-punctuated-by-the-locale", file=BRIDGE,
        old="  text = QLocale().toString(float(value), 'g', 6)",
        new="  text = f\"{float(value):.6g}\"",

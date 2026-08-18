@@ -32757,6 +32757,96 @@ def _argparse_long_flags(path):
   return accepted
 
 
+def test_the_documents_numbers_match_the_code():
+  """Numbers in prose rot, and nothing here was checking them.
+
+  `test_every_documented_command_still_exists` guards quoted PATHS
+  because a moved file only fails on a clean checkout. Numbers rot the
+  same way and more quietly: nobody re-reads a sentence to see whether
+  its figure is still true.
+
+  Two were found on 2026-08-17 by a hunt pointed at the prose, both
+  stale for a week or more. The user guide said the catalogue "runs to
+  twenty" when the ceiling had been 26 since 11 August. And README.md
+  and MAINTAINING.md named vendored commit 80e1dab from 7 August,
+  eight days after the vendoring tool recorded c0f109c -- while
+  `sync_release_content.check_vendor_claims`, whose docstring promises
+  exactly that comparison, split the stamp on whitespace and compared
+  the VERSION alone.
+
+  A GATE THAT CHECKS HALF OF WHAT IT NAMES IS WORSE THAN NO GATE,
+  because the other half is then believed to be checked. So this
+  guards the gate as well as the prose: it plants a wrong commit in a
+  copy of the text and requires the checker to object.
+
+  Regression: the user guide named an element ceiling six short of the real one, and two documents named a vendored commit the tool had superseded eight days earlier, past a gate that had never compared that half of the stamp.
+ [hunt]
+  """
+  import os
+  import re
+
+  from weavingspace_qgis import catalog
+  root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+  def read(name):
+    """One of the published documents, as text."""
+    with open(os.path.join(root, name), encoding="utf-8") as handle:
+      return handle.read()
+
+  # THE ELEMENT CEILING, spelled out in words as this voice spells
+  # small numbers, so the check reads the words rather than a digit.
+  words = {"twenty": 20, "twenty-one": 21, "twenty-two": 22,
+           "twenty-three": 23, "twenty-four": 24, "twenty-five": 25,
+           "twenty-six": 26, "thirty": 30, "fifty": 50}
+  guide = read("docs/USER-GUIDE.md")
+  claim = re.search(r"catalogue\s+runs to ([a-z-]+)", guide)
+  assert claim, \
+    "the user guide no longer states a catalogue ceiling at all, so " \
+    "this check has silently stopped checking anything"
+  stated = words.get(claim.group(1))
+  assert stated is not None, \
+    f"the guide states a ceiling this test cannot read: {claim.group(1)!r}"
+  assert stated == catalog.MAX_ELEMENTS, (
+    f"the user guide says the catalogue runs to {claim.group(1)} "
+    f"({stated}) and catalog.MAX_ELEMENTS is {catalog.MAX_ELEMENTS}")
+
+  # THE VENDORED COMMIT, and the gate that is supposed to compare it.
+  with open(os.path.join(root, "weavingspace_qgis", "vendor",
+                         "VENDOR-VERSION.txt"), encoding="utf-8") as handle:
+    stamp = handle.read().strip()
+  recorded = re.search(r"\(([0-9a-f]{7,40})\)", stamp)
+  assert recorded, \
+    f"the vendoring tool recorded no commit at all: {stamp!r}"
+  checked = 0
+  for name in ("README.md", "MAINTAINING.md"):
+    for said in set(re.findall(r"commit ([0-9a-f]{7,40})", read(name))):
+      assert said.startswith(recorded.group(1)) \
+          or recorded.group(1).startswith(said), (
+        f"{name} says the vendored library is at commit {said}, and "
+        f"the vendoring tool recorded {recorded.group(1)}")
+      checked += 1
+  assert checked >= 2, (
+    f"only {checked} vendored-commit claim(s) were found across the "
+    f"two documents, so this check is not reaching the prose it names")
+
+  # ...AND THE GATE ITSELF IS ASKED TO OBJECT, because a checker that
+  # compares half of what it names reports success either way.
+  import tools.sync_release_content as sync
+  planted = read("README.md").replace(
+    recorded.group(1), "0" * len(recorded.group(1)), 1)
+  real_read = sync.read
+  try:
+    sync.read = lambda name: (planted if name == "README.md"
+                              else real_read(name))
+    complaints = sync.check_vendor_claims()
+  finally:
+    sync.read = real_read
+  assert any("commit" in c for c in complaints), (
+    f"the vendored-commit gate accepted a commit the tool never "
+    f"recorded, so it is not comparing that half of the stamp: "
+    f"{complaints!r}")
+
+
 def test_every_documented_command_still_exists():
   """The maintenance documents' commands are real commands.
 
@@ -50901,6 +50991,8 @@ def main():
         test_a_release_needs_a_matching_candidate)
   check("the vendoring tool reproduces the current vendor",
         test_the_vendoring_tool_reproduces_the_current_vendor)
+  check("the documents' numbers match the code",
+        test_the_documents_numbers_match_the_code)
   check("every documented command still exists",
         test_every_documented_command_still_exists)
   check("the release refuses a tree it did not measure",
