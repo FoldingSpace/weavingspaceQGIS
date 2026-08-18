@@ -6436,7 +6436,25 @@ class WeavingSpaceDialog(QDialog):
     if not actual_bounds or len(actual_bounds) < 2:
       return
     mine = self._current_graduated_classes(assignment)
-    if mine and len(mine) == len(actual_bounds) and all(
+    # A CHANGED CLASS COUNT IS A RECLASSIFICATION, and this must not
+    # touch it. The handler below already leaves one alone -- "a
+    # reclassification the dialog has no record to reconcile against"
+    # -- and the signature rule preserves it. Falling through to
+    # adoption here instead DESTROYED it: a twelve-class classify from
+    # the dock was recorded, then the run landed with the plugin's own
+    # five classes, and adoption recorded THOSE over the user's
+    # twelve. Caught by test_a_dock_reclassification_lands_while_a_run
+    # _is_finishing on 2026-08-18, which is the guard that already
+    # existed for precisely this and which this fix had walked past.
+    #
+    # THE LESSON, since it is the second time in this method: a step
+    # inserted BEFORE existing handlers inherits none of their guards.
+    # Adoption had to sit before the COLOUR comparison, because an
+    # edit that moves only numbers changes no colour -- but that put
+    # it before the COUNT guard too, which it still needed.
+    if not mine or len(mine) != len(actual_bounds):
+      return
+    if all(
         abs(lo - a) < 1e-9 and abs(hi - b) < 1e-9
         for (lo, hi, _c), (a, b) in zip(mine, actual_bounds)):
       return  # the ladder we drew; nothing was retyped
