@@ -1771,6 +1771,30 @@ Confirmed with the user via an explicit design review:
   source's fifty never reaches `_class_counts`, which is the record
   that means CHOSEN.
 
+- **A GUARD THAT ASKS ABOUT ONE THING MUST NOT STAND IN FRONT OF AN
+  EXIT THAT IS ABOUT ANOTHER.** Three defects in one day, 2026-08-17,
+  all this shape, and each cost a user their work rather than a crash.
+  A COLOUR comparison at the head of `_graduated_layer_edited` stood in
+  front of every `embed_style` exit, so a break retyped in QGIS reached
+  the map, the project and the .qgz and never the GeoPackage a
+  colleague opens -- since 2026-08-10, and invisible because the map
+  was right. A "nothing nameable moved" test stood in front of the
+  same. And the in-flight gate in `_on_layer_style_edited` stood in
+  front of the TABLE learning that an element had begun deferring, so
+  the landing read that as the user taking the element back and
+  re-seeded it: a style pasted 250 ms into a run was destroyed, while
+  the same paste a second either side survived.
+  THE HABIT: at every early `return`, `continue` or `break`, name what
+  the guard is FOR and then read what lies below it. Where the two are
+  about different things, the exit belongs above the guard or the guard
+  needs narrowing. This is the twin of the entry above it -- inserting
+  a step BEFORE a handler can turn its opening guard from a
+  fall-through into a return, which is how one commit disabled another
+  five hours later without touching a line of it.
+  ALL THREE WERE FOUND BY HUNTS AND NONE BY THE SUITE, on a build that
+  had passed 481 tests, the gallery, the colourspace comparison and
+  both CI jobs. A gate measures whether known behaviour still holds.
+
 - **THE PLUGIN'S TABLE FOLLOWS THE LAYER'S RENDERER, AND THE SCOPE OF
   THAT IS THE WHOLE OF ITS SAFETY.** (Maintainer's ruling, 2026-08-17,
   on a field report against rc5: breaks retyped in QGIS's Symbology
