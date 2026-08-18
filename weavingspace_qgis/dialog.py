@@ -6405,6 +6405,57 @@ class WeavingSpaceDialog(QDialog):
       + ", ".join(moved) + ".")
     return True
 
+  def _adopt_dock_bounds(self, tile_id, assignment, actual_bounds):
+    """Take up class boundaries retyped in QGIS's Symbology panel.
+
+    Args:
+      tile_id: the element whose layer was edited.
+      assignment: its row, from ``_assignment_for``.
+      actual_bounds: ``[(lower, upper), ...]`` as the layer now holds
+        them, already read off a bound list.
+
+    Returns:
+      None. Records the ladder as pinned bounds when it diverges from
+      what this dialog would draw, so every reader of
+      ``_current_graduated_classes`` -- the editor, the swatch, the
+      table -- shows what QGIS is actually holding.
+
+    LEFT ALONE WHEN IT AGREES, which is the common case: the plugin
+    seeds the layer itself, so most styleChanged signals carry the
+    ladder we just wrote. Recording it then would pin every element
+    the moment it was drawn, freezing classifications nobody chose
+    and making the scheme dropdown a lie.
+
+    AND LEFT ALONE WHEN THE PIN RULES REFUSE IT. `pin_problem` is
+    asked exactly as the editor's own spin boxes ask it, so a ladder
+    QGIS will accept but this plugin cannot express is declined
+    rather than stored -- storing it would put the record and the map
+    into the disagreement this method exists to end.
+    """
+    field = assignment["var"]
+    if not actual_bounds or len(actual_bounds) < 2:
+      return
+    mine = self._current_graduated_classes(assignment)
+    if mine and len(mine) == len(actual_bounds) and all(
+        abs(lo - a) < 1e-9 and abs(hi - b) < 1e-9
+        for (lo, hi, _c), (a, b) in zip(mine, actual_bounds)):
+      return  # the ladder we drew; nothing was retyped
+    wanted = dict(self._pinned_bounds.get(tile_id, {}).get(field) or {})
+    wanted["breaks"] = [upper for _lower, upper in actual_bounds[:-1]]
+    wanted["low"] = actual_bounds[0][0]
+    wanted["high"] = actual_bounds[-1][1]
+    source = self._classification_values(field)
+    values = (source.uniqueValues(source.fields().indexOf(field))
+              if source is not None else [])
+    problem = bridge.pin_problem(
+      wanted.get("low"), wanted.get("high"), values,
+      len(actual_bounds), wanted.get("breaks"))
+    if problem:
+      self._report_quietly(problem)
+      return
+    self._pinned_bounds.setdefault(tile_id, {})[field] = wanted
+    self._custom_swatch_cache.pop(tile_id, None)
+
   def _graduated_layer_edited(self, layer, tile_id, renderer):
     """React to a styling-dock edit of a GRADUATED element layer.
 
@@ -6438,8 +6489,39 @@ class WeavingSpaceDialog(QDialog):
       return
     ranges = renderer.ranges()
     actual = [r.symbol().color().name() for r in ranges]
+    # BOUND FIRST, and read the numbers while the list is alive: range
+    # objects from ranges() are temporaries.
+    actual_bounds = [(r.lowerValue(), r.upperValue()) for r in ranges]
     if not actual:
       return
+    # ---- THE BOUNDARIES, BEFORE ANY COLOUR QUESTION IS ASKED
+    #
+    # Everything below this point is about COLOUR, and every exit it
+    # takes is guarded by a colour comparison -- so an edit that moved
+    # only the NUMBERS reached none of them. Reported against rc8 on
+    # 2026-08-18 with two screenshots: QGIS holding 0-10, 10-20,
+    # 20-30, 30-50, 50-80 while the plugin's editor showed its own
+    # 3.1-18.3, 18.3-33.5 and so on, the COLOURS IN BOTH IDENTICAL.
+    # "regardless of HOW I do it, changes to the Q symbology are not
+    # reflected in the plugin", which was exactly right: every route
+    # ended at the same missing path.
+    #
+    # WHY NOTHING DOWNSTREAM COULD HAVE SAVED IT. The editor, the
+    # swatch and the table all read `_current_graduated_classes`,
+    # which does not look at the layer's ranges at all -- it REBUILDS
+    # a renderer from this dialog's record. A break that exists only
+    # in the layer's renderer is therefore invisible to every reader,
+    # whatever the layer holds. Colour had an adoption path into the
+    # record and the bounds had none; this is that path.
+    #
+    # ADOPTED AS A COPIED LADDER, which already exists and is already
+    # proved: `pinned["breaks"]` short-circuits the classifier
+    # entirely, and `fitted_breaks` keeps every interior boundary
+    # exactly while fitting only the outer edges. The ends are pinned
+    # too, because a tester who types 0 and 80 over data running 3.1
+    # to 79.1 means those numbers -- fitting alone would hand back the
+    # extremes and quietly lose two of the five edits.
+    self._adopt_dock_bounds(tile_id, assignment, actual_bounds)
     # The count is compared against what the plugin would DRAW, below,
     # and not against the row's `k`. Those are two different numbers
     # whenever the column has fewer distinct values than the row asks
