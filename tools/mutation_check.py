@@ -3177,6 +3177,48 @@ MUTATIONS = [
            "at 1e12 and a rate of 4e-07 pinned at zero, both silently, "
            "because pin_problem is asked about the number the control "
            "produced and that number is inside the data"),
+  # THREE GUARDS THAT HAD A TEST AND NO ENTRY, written 2026-08-18.
+  # The ledger's OWES column called these `test`, which means the test
+  # exists and nothing has ever proved it fails when the behaviour it
+  # names is broken -- and this project's own measurement is that
+  # roughly one test in five, written that way, cannot fail at all.
+  dict(name="deferral-keeps-the-no-data-split", file=DIALOG,
+       old="    if mode in (\"Categorized\", \"Single colour\") or not mode:\n"
+           "      return False",
+       new="    if not mode:\n      return False",
+       test="test_a_deferring_element_keeps_its_no_data_layer",
+       why="a deferring element's mode reads 'Deferring to QGIS', which "
+           "is neither Categorized nor Single colour, so without this "
+           "the split is judged by a mode no branch below expects and "
+           "the element's missing-value areas stop being drawn -- "
+           "28,828 unpainted pixels of 490,000, holes in the map"),
+  dict(name="the-scale-boxes-do-not-eat-a-keystroke", file=DIALOG,
+       old="      box.setKeyboardTracking(False)\n"
+           "      box.valueChanged.connect(self._queue_preview)",
+       new="      box.setKeyboardTracking(True)\n"
+           "      box.valueChanged.connect(self._queue_preview)",
+       test="test_a_scale_between_minus_one_and_one_can_be_typed",
+       why="`_skip_zero_scale` rewrites the box it is watching, so with "
+           "tracking on it fires on the leading nought of -0.5, "
+           "announces a landing on zero and steps past it: a mirrored "
+           "design comes back UN-MIRRORED at a size that looks exactly "
+           "right, with nothing said"),
+  dict(name="the-printed-bounds-follow-the-pinned-ladder",
+       file="weavingspace_qgis/category_editor.py",
+       old="      for col, bound in enumerate(pair):\n"
+           "        cell = self.table.item(row, col + offset)\n"
+           "        if cell is not None:\n"
+           "          cell.setText(self._format_bound(bound))",
+       new="      for col, bound in enumerate(pair):\n"
+           "        pass  # mutation: the written cells keep their old text",
+       test="test_an_unclassed_row_pins_from_either_control",
+       why="pinning an end moves every boundary in the ladder, and the "
+           "class list goes on printing the numbers it held before -- "
+           "so the window a user pins from describes a classification "
+           "the map has stopped drawing. This is the entry that was "
+           "owed: a hunt deleted this whole loop and the test passed, "
+           "because its helper read the SPIN BOXES as well as the "
+           "written cells and any change satisfied it"),
   dict(name="a-pin-rewrites-the-cells-it-moved",
        file="weavingspace_qgis/category_editor.py",
        old="      for col, bound in enumerate(pair):\n"
