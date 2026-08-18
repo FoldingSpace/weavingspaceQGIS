@@ -77,52 +77,101 @@ def region_from(values):
 # which is why they are here rather than a spread of pretty numbers.
 # A smooth column is the case that always worked.
 def _even():
+  """A smooth spread from 3.1 to 79.1: the reported column's shape.
+
+  Returns:
+    One value per area.
+  """
   return [3.1 + (79.1 - 3.1) * k / 99 for k in range(100)]
 
 
 def _tied():
-  # four values, each worn by twenty-five areas: quantiles and equal
-  # intervals disagree hard, and k must reduce
+  """Four values worn by twenty-five areas each, so k must reduce
+  and quantiles disagree with equal intervals.
+
+  Returns:
+    One value per area.
+  """
   return [v for v in (10.0, 20.0, 30.0, 40.0) for _ in range(25)]
 
 
 def _skewed():
-  # most areas tiny, a few enormous: equal interval puts almost
-  # everything in the first class
+  """A cubic ramp: almost every area tiny, a few enormous, which
+  puts nearly the whole map in the first equal-interval class.
+
+  Returns:
+    One value per area.
+  """
   return [1.0 + (k ** 3) / 400.0 for k in range(100)]
 
 
 def _bimodal():
-  # an empty band in the middle, so some class wears nothing
+  """Two clumps with an empty band between them, so some class is
+  worn by nothing.
+
+  Returns:
+    One value per area.
+  """
   return [2.0 + k / 25.0 for k in range(50)] + \
          [70.0 + k / 25.0 for k in range(50)]
 
 
 def _with_gaps():
-  # a quarter of the areas hold no value at all
+  """A quarter of the areas hold no value, exercising the
+  missing-value split alongside the classification.
+
+  Returns:
+    One value per area.
+  """
   return [None if k % 4 == 0 else 3.1 + k * 0.75 for k in range(100)]
 
 
 def _constant():
-  # every area identical: k collapses to one, historically a crash
+  """Every area identical, which collapses to one class and has
+  crashed this plugin before.
+
+  Returns:
+    One value per area.
+  """
   return [7.0] * 100
 
 
 def _two_values():
-  # two distinct values against five classes: reduction territory
+  """Two distinct values against five classes: reduction territory.
+
+  Returns:
+    One value per area.
+  """
   return [5.0 if k % 2 else 95.0 for k in range(100)]
 
 
 def _negatives():
+  """A column spanning negative to positive, for sign handling.
+
+  Returns:
+    One value per area.
+  """
   return [-40.0 + k * 0.8 for k in range(100)]
 
 
 def _hairline():
-  # values differing in the sixth decimal: precision and formatting
+  """Values differing in the sixth decimal, for precision and
+  formatting. NOTE: these all round to 1.0 at the two places the
+  reader compares, so these cells show the route ran rather than
+  that it carried the right numbers.
+
+  Returns:
+    One value per area.
+  """
   return [1.0 + k * 1e-6 for k in range(100)]
 
 
 def _huge():
+  """Values around 1e9, where formatting and precision bite.
+
+  Returns:
+    One value per area.
+  """
   return [1.0e9 + k * 1.0e6 for k in range(100)]
 
 
@@ -228,6 +277,9 @@ def run_route(name, mutate, values):
     mutate: a callable taking a cloned renderer, mutating it in
       place, and returning (what_to_check, expected) or None when the
       fixture cannot stage it.
+    values: one value per area for the region this route runs against,
+      so the same edit can be tried on every awkward shape rather
+      than only on the smooth column that always worked.
 
   Returns:
     (name, "ok"/"FOLLOWED NOTHING"/..., detail) for the inventory.
