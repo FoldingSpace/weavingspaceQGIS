@@ -3314,6 +3314,31 @@ MUTATIONS = [
            "region under about ninety map units across, which reads as "
            "'any spacing works' and is a number the spacing box's own "
            "1e-6 minimum cannot even hold"),
+  dict(name="each-element-gets-its-own-legend-notice", file=DIALOG,
+       old="      if note is not None and note not in said:\n"
+           "        said.add(note)",
+       new="      if note is not None and field not in said:\n"
+           "        said.add(field)",
+       test="test_every_element_is_told_about_its_own_legend",
+       why="keying the dedup on the COLUMN was right while the notice "
+           "was about a column and wrong the moment it became per "
+           "element: one element reporting one empty class of five "
+           "silences its neighbour drawing twenty with two empty, "
+           "under a sentence quoting a class count that neighbour "
+           "does not have"),
+  dict(name="the-restyle-path-says-a-column-is-constant", file=DIALOG,
+       old="      if region_values and bridge.numeric_values_are_constant(\n"
+           "          region_values):\n"
+           "        note = bridge.constant_field_message(field)\n"
+           "      else:\n"
+           "        note = self._legend_size_note(field, a, tid)",
+       new="      note = self._legend_size_note(field, a, tid)",
+       test="test_every_element_is_told_about_its_own_legend",
+       why="a class-count change is symbology, so the restyle path is "
+           "the one that MEETS a constant column -- and "
+           "`_legend_size_note` returns None at one distinct value by "
+           "design, so without this the spinner reads 8 over a map "
+           "drawing one class and nothing whatever is said"),
   dict(name="emptiness-is-still-reported-in-words",
        file="weavingspace_qgis/dialog.py",
        old="    return bridge.empty_classes_message(field, len(unworn), asked)",

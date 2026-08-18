@@ -8432,11 +8432,44 @@ class WeavingSpaceDialog(QDialog):
           if self._last_path:
             bridge.embed_style(layer_now)
         self._report_quietly(retired)
-      if field in said:
-        continue
-      note = self._legend_size_note(field, a, tid)
-      if note is not None:
-        said.add(field)
+      # THE CONSTANT COLUMN IS ASKED HERE TOO, and this is the path
+      # that meets it. A class-count change is symbology, so it is
+      # answered by a restyle and never reaches the run's notices --
+      # yet `_legend_size_note` returns None at one distinct value,
+      # deliberately, because the constant sentence is that rule's
+      # n == 1 instance and lives in `constant_field_message`. So the
+      # restyle path said nothing at all: measured 2026-08-17 with the
+      # spinner reading 8 over a map drawing one class, and the only
+      # message was "restyled a". Asked in the same order and the same
+      # words as the run route, so the two cannot come to disagree.
+      constant_source = self._classification_values(field)
+      region_values = (
+        constant_source.uniqueValues(
+          constant_source.fields().indexOf(field))
+        if constant_source is not None else [])
+      if region_values and bridge.numeric_values_are_constant(
+          region_values):
+        note = bridge.constant_field_message(field)
+      else:
+        note = self._legend_size_note(field, a, tid)
+      # DEDUPED BY THE SENTENCE, NOT BY THE COLUMN. It was keyed on
+      # the field, on the reasoning that several elements may carry
+      # one column and one sentence about it is enough -- true until
+      # 2026-08-17, when this notice became PER ELEMENT and started
+      # measuring emptiness on the ladder each element actually draws.
+      # After that two elements on one column produce two DIFFERENT
+      # and equally true sentences, and keying on the field meant the
+      # first silenced the second: measured with one element at k=5
+      # reporting one empty class of five while its neighbour drew
+      # twenty classes with two empty and was never mentioned, under a
+      # sentence quoting a class count it does not have.
+      #
+      # Keying on the sentence keeps what the field key was FOR --
+      # elements that genuinely have nothing new to say are still
+      # silent -- without deciding for an element that its neighbour
+      # has spoken on its behalf.
+      if note is not None and note not in said:
+        said.add(note)
         self._report_quietly(note)
     self._last_run_sig = self._run_signature()
     # ...and the rows are re-asked here too, because this path answers

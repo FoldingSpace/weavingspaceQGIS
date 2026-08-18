@@ -8448,6 +8448,124 @@ def test_a_pin_that_cannot_be_drawn_is_refused():
     "question is what this rule exists to avoid"
 
 
+def test_every_element_is_told_about_its_own_legend():
+  """One element must not answer for another, and neither may be silent.
+
+  The restyle path is where a class-count change is MET -- moving the
+  Classes spinner is symbology, so it never reaches the run's notices
+  at all -- and two rules there were wrong in opposite directions.
+
+  DEDUPED BY THE COLUMN. That was right while the notice was about a
+  column: several elements carry one variable and one sentence about
+  it is enough. On 2026-08-17 the notice became PER ELEMENT, measuring
+  emptiness on the ladder each element actually draws, and the key was
+  not moved with it. Measured: one element at k=5 reported one empty
+  class of five and silenced its neighbour, which drew twenty classes
+  with two empty and was never mentioned -- under a sentence quoting a
+  class count it does not have.
+
+  AND THE CONSTANT COLUMN WAS NEVER ASKED. `_legend_size_note` returns
+  None at one distinct value deliberately, because that is the n == 1
+  instance of the same rule and its sentence lives in
+  `constant_field_message` -- which only the run route called. So the
+  spinner read 8 over a map drawing one class and the only message was
+  "restyled a".
+
+  THE CONTROL IS THE THIRD ARM. Keying on the sentence rather than on
+  the column has to keep what the column key was FOR: two elements
+  with nothing different to say are still said once.
+
+  Regression: on the restyle path one element's empty-class notice silenced every other element carrying the same column, and a column holding a single value was never reported at all.
+ [hunt]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  project.addMapLayer(make_region_layer(n=12))
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.table.cellWidget(0, 1).setCurrentText("v3")
+    dlg.table.cellWidget(1, 1).setCurrentText("v3")
+    _tick(200)
+    dlg.spacing_spin.setValue(1200)
+    _generate_and_wait(dlg)
+    first, second = dlg.table.item(0, 0).text(), dlg.table.item(1, 0).text()
+
+    def empty_by_hand(tid):
+      """Which classes no tile of this element falls into, counted here.
+
+      Read off the element's OWN layer -- its renderer's ranges walked
+      against its features -- rather than through the dialog's helper,
+      so the expectation does not come from the code under test.
+      """
+      out = project.mapLayer(dlg._element_layer_ids[tid])
+      ranges = out.renderer().ranges()
+      field = "v3"
+      index = out.fields().indexOf(field)
+      worn = set()
+      for feature in out.getFeatures():
+        value = feature.attributes()[index]
+        if value is None:
+          continue
+        for position, band in enumerate(ranges):
+          if band.lowerValue() <= float(value) <= band.upperValue():
+            worn.add(position)
+            break
+      return [i for i in range(len(ranges)) if i not in worn]
+
+    # ARM ONE: two elements on one column, told apart.
+    dlg.table.cellWidget(dlg._row_for_element(second), 3).setValue(20)
+    _tick(300)
+    del BAR_MESSAGES[:]
+    dlg._apply_style_change()
+    _tick(600)
+    said = [m for _k, m in BAR_MESSAGES]
+    gaps_first, gaps_second = empty_by_hand(first), empty_by_hand(second)
+    assert gaps_second, (
+      f"the fixture left the second element with no empty classes, so "
+      f"it has nothing to be silenced about: {gaps_second}")
+    assert any("20 classes" in m for m in said), (
+      f"the element drawing twenty classes, {len(gaps_second)} of them "
+      f"empty, was never mentioned. Said: {said!r}")
+    if gaps_first:
+      assert any(" 5 classes" in m for m in said), (
+        f"the element drawing five classes was silenced instead. "
+        f"Said: {said!r}")
+
+    # ARM TWO: a constant column, met on the restyle path.
+    flat = make_region_layer(n=12)
+    index = flat.fields().indexOf("v3")
+    flat.startEditing()
+    for feature in flat.getFeatures():
+      flat.changeAttributeValue(feature.id(), index, 7.0)
+    assert flat.commitChanges(), "the fixture could not flatten its column"
+    project.addMapLayer(flat)
+    dlg.layer_combo.setLayer(flat)
+    _tick(400)
+    dlg.table.cellWidget(0, 1).setCurrentText("v3")
+    _tick(200)
+    _generate_and_wait(dlg)
+    del BAR_MESSAGES[:]
+    dlg.table.cellWidget(0, 3).setValue(8)
+    _tick(300)
+    dlg._apply_style_change()
+    _tick(600)
+    said = [m for _k, m in BAR_MESSAGES]
+    wanted = bridge.constant_field_message("v3")
+    assert any(wanted in m for m in said), (
+      f"a column holding one value everywhere was never reported on "
+      f"the path that meets a class-count change. Said: {said!r}")
+
+    # ARM THREE, THE CONTROL: one sentence, said once.
+    same = [m for m in said if wanted in m]
+    assert len(same) == 1, (
+      f"the same sentence was said {len(same)} times, so keying on it "
+      f"has stopped deduplicating anything: {said!r}")
+  finally:
+    dlg.close()
+
+
 def test_a_pin_outranks_the_one_value_collapse():
   """Both doors into a pinned ladder draw the same ladder.
 
@@ -49789,6 +49907,8 @@ def main():
         test_a_pinned_class_bound_reaches_the_map)
   check("a pin that cannot be drawn is refused",
         test_a_pin_that_cannot_be_drawn_is_refused)
+  check("every element is told about its own legend",
+        test_every_element_is_told_about_its_own_legend)
   check("a pin outranks the one-value collapse",
         test_a_pin_outranks_the_one_value_collapse)
   check("a class count is refused rather than destroying a pin",
