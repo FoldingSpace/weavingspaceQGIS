@@ -5626,7 +5626,33 @@ class WeavingSpaceDialog(QDialog):
     if expected is None:
       return  # the region layer or its field has gone; nothing to judge
     if all(expected.get(key) == colour for key, colour in actual.items()):
-      return  # our own seeding, or an edit that changed nothing
+      # THE CATEGORIZED TWIN of the guard repaired in the graduated
+      # path the same evening, and the twin is the lesson rather than
+      # the fix. A FILL comparison cannot see a stroke, a legend label
+      # or a deleted category -- so a user who adds outlines, retypes a
+      # label or removes a class in QGIS's Symbology panel had the map,
+      # the project and QGIS all agreeing while the GeoPackage a
+      # colleague opens went on drawing the style from before the edit.
+      # Generate did not heal it.
+      #
+      # MEASURED 2026-08-17, both sides in one probe run, which is what
+      # made the sentence unarguable: a stroke added to a categorized
+      # element gave 0 embeds and an unchanged file, while a break
+      # retyped on a graduated one in the SAME run gave 1 embed and a
+      # changed file. Read back two ways -- sqlite on
+      # `layer_styles.styleQML` with no QGIS involved, and a cold
+      # `QgsVectorLayer` with `loadDefaultStyle()` in a cleared
+      # project. Deleting a category left the map drawing four and the
+      # file declaring five.
+      #
+      # WHEN A GUARD OF THIS SHAPE IS FIXED, THE FIRST PLACE TO LOOK IS
+      # THE SAME GUARD IN THE SIBLING RENDERER PATH. This project has
+      # written down twice that a rule naming one of a pair gets read
+      # as a rule about one of a pair; the graduated repair was made
+      # hours before this one and never looked five hundred lines up.
+      if self._last_path:
+        bridge.embed_style(layer)
+      return  # our own seeding, or an edit that changed no colour
 
     # a clean classify from a standard ramp? Only without an imported
     # class source -- while a file governs the classes, a dock

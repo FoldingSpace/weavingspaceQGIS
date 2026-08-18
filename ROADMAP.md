@@ -180,39 +180,61 @@ ABOUT ANOTHER. A colour comparison in front of the file write; a
 in front of the table learning what it is about to be asked. Ask what
 a guard is FOR before deciding what it may skip.
 
-### OUTSTANDING: four of today's eight fixes carry no guard
+### OUTSTANDING: three defects found and not yet fixed
 
-**A BUG WITHOUT A REGRESSION TEST IS NOT FIXED**, which is this
-project's oldest rule about its own suite, and four of the eight
-repairs made on 2026-08-17 do not yet have one. They were written late,
-under a run of hunt reports, and each was verified only by the
-neighbouring tests continuing to pass -- which is exactly the state
-docs/TESTING.md calls "a test that passes is not a test that works",
-one level up.
+Reported by hunts late on 2026-08-17, each reproduced by at least two
+independent routes. NONE is fixed.
 
-Named, so none is lost:
+**The Ramp Display Range's two percent boxes eat typed digits.** Each
+box's range is clamped by the OTHER's current value so the two cannot
+cross, and a QSpinBox refuses the keystroke that would take its text
+past its maximum, keeping what it already accepted. From (0, 40),
+typing 60 into the lower box gives **6**: the element is recoloured
+from a stretch of ramp nobody asked for AND stamped on the layer, so
+it survives the save. Measured against `quant_class_colours`, four of
+five colours differ. Dragging the SLIDER to the same window works, so
+the window is expressible and only typing it is not -- which is this
+window's own rule ("A CONTROL MUST BE ABLE TO REPRESENT ITS DOMAIN")
+failing on the sibling control. `category_editor.py:1418`, `:1424`,
+re-applied at `:1510` and `:1537`. Since 0ec8ecc, 2026-08-10. The
+existing test at `run_tests.py:21356` drives it with `setValue`, which
+is why nothing failed.
 
-- **the decimals floor of three.** Nothing asserts that Rotate can hold
-  22.5, so the sweep could be re-tightened tomorrow and nothing would
-  say. It wants a table test over every dialog box: type a value one
-  step finer than the box's own step and require it back.
-- **the spacing advice under a comma-decimal locale.** The existing
-  test now composes its expectation through QLocale, which stops it
-  ROTTING, but nothing drives the keyboard under de_DE -- and the
-  defect was invisible to `setValue`, which is all
-  `test_the_plugin_in_another_locale` does.
-- **a retyped break reaching the GeoPackage.** The fix embeds on the
-  colour guard's way out; nothing opens the file and checks. The hunt's
-  own probe read `layer_styles.styleQML` with sqlite, which is the
-  shape the test should take.
-- **a style pasted mid-run surviving the landing.** Nothing stages the
-  paste inside the in-flight window. The hunt measured that window at
-  126 ms on the n=4 fixture, so the test needs a fixture large enough
-  to have one.
+**The follow branch ignores the row's Reverse.** The trial renderer at
+`dialog.py:6081-6085` omits `reverse`, though `_current_graduated_
+classes` passes it. A FORWARD ramp set in QGIS therefore "matches" a
+row whose Reverse is on, the plugin announces that it now follows the
+ramp, and the next unrelated edit -- asking for six classes -- redraws
+the element reversed, in the project and in the file. Fix is one
+argument: pass `assignment.get("reverse", False)`. Since 0ec8ecc.
 
-Each needs its catalogue entry too, and each entry proved by breaking
-the fix and watching the test fail. Until then the eight are eight
-repairs and four guarantees.
+**`_restyle_only` stamps the layer before retiring an undrawable pin**,
+the reverse of `_add_output_layers`, whose comment says the order is
+the whole point; and its `field in said` dedup skips a second
+element's pin retirement entirely. `dialog.py:7885` and `:7924`.
+Narrow, and NOT reproduced -- the hunt that saw it did not claim it.
+
+### OUTSTANDING: five of today's twelve fixes carry no guard
+
+**A BUG WITHOUT A REGRESSION TEST IS NOT FIXED.** Five repairs made on
+2026-08-17 do not have one, each verified only by the neighbouring
+tests continuing to pass.
+
+- **a retyped break reaching the GeoPackage.** Read
+  `layer_styles.styleQML` with sqlite, as the hunt did.
+- **a style pasted mid-run surviving the landing.** The in-flight
+  window is about 126 ms on the n=4 fixture, so the fixture must be
+  bigger than that.
+- **a categorized dock edit reaching the exported file.** A test was
+  written for this and WITHDRAWN unfinished: it proved the file
+  changes but could not show the stroke it set in what it read back,
+  so it was measuring the wrong rows. The fix itself is corroborated
+  by two hunts independently. Finish the test rather than trusting
+  that.
+- **the class count reaching `_class_counts` as well as the spinner**
+  is guarded, but only inside the follow test; a rebuild-specific
+  case would be clearer.
+- **the deferral exit carrying a hand-mixed single colour.**
 
 ### Process items, which do not block a candidate
 
