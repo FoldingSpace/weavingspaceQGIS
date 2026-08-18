@@ -36,11 +36,32 @@ from weavingspace_qgis.dialog import WeavingSpaceDialog  # noqa: E402
 
 
 def _bounds_of(renderer):
+  """Every class boundary a renderer holds, rounded for printing.
+
+  Args:
+    renderer: a graduated renderer, from a layer or freshly built.
+
+  Returns:
+    [(lower, upper), ...] in class order.
+  """
   return [(round(r.lowerValue(), 3), round(r.upperValue(), 3))
           for r in renderer.ranges()]
 
 
 def arm(label, also_change_a_colour):
+  """One route from a dock edit to what the plugin then believes.
+
+  Args:
+    label: what to print this arm as.
+    also_change_a_colour: when true, move one class colour as well as
+      the two boundaries. That is the CONTROL: the existing guard
+      covers a change that moves colours, so if this arm fails too the
+      fault is not the colour comparison.
+
+  Returns:
+    True when the plugin's view matches what QGIS now holds, False
+    when it does not, or None when the fixture could not be staged.
+  """
   project = QgsProject.instance()
   project.clear()
   layer = rt.make_region_layer()
@@ -112,6 +133,11 @@ def arm(label, also_change_a_colour):
 
 
 def main():
+  """Run both arms and say what the pair means.
+
+  Returns:
+    0 always: this reports a measurement rather than gating anything.
+  """
   app = QgsApplication([], False)
   app.initQgis()
   print("\nRETYPED BREAKS IN THE DOCK -- does the plugin follow?\n")
