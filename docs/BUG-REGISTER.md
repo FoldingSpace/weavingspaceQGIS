@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-238 defect(s) with a regression test.
+239 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -125,6 +125,8 @@ there is no separate list to remember.
   guarded by `test_a_scale_between_minus_one_and_one_can_be_typed`
 - **negative scale factors were allowed on 2026-08-16 so that a pattern can be mirrored, which put ZERO inside the control's range for the first time. The library does not refuse a zero scale: `transform_scale(0, ...)` returns a unit collapsed to no area, and the failure surfaces much later inside `Tiling.__init__` as `numpy.linalg.LinAlgError: Singular matrix` -- reaching the user as a raw "Tiling failed" line about a matrix they never asked about.**  
   guarded by `test_a_scale_control_steps_over_zero`
+- **opening a saved project while the plugin window was open replaced every element's opacity with whatever that window happened to be showing, and one Generate wrote it into the file.**  
+  guarded by `test_a_second_project_does_not_take_the_first_ones_opacity`
 - **a style pasted onto an element layer while a tiling was in flight was silently destroyed by the run's landing, though the same paste a moment earlier or later survived.**  
   guarded by `test_a_style_pasted_mid_run_survives_the_landing`
 - **an area whose value was NULL was not drawn at all, leaving a hole in the map that reads as absence rather than as missing data.**  
@@ -525,7 +527,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 83
-- a bug hunt pointed in a named direction: 72
+- a bug hunt pointed in a named direction: 73
 - the mutation campaign: 16
 - reported by a user: 16
 - reading the code: 15

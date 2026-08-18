@@ -13815,6 +13815,133 @@ def test_the_design_view_paints_colours_the_map_contains():
   dlg.close()
 
 
+def test_a_second_project_does_not_take_the_first_ones_opacity():
+  """Opening a saved project must not repaint it from the one before.
+
+  Every per-element record in this dialog is keyed by TILE ID, and
+  tile ids repeat: element `a` of the project being opened is element
+  `a` of the project being closed as far as those records are
+  concerned. `_forget_the_last_project` empties them on `cleared`,
+  correctly -- and the TABLE survives that clear, so `_refresh_table`
+  read the outgoing project's cell widgets as `prev` and wrote their
+  numbers straight back in before adoption had read a thing.
+
+  Instrumented 2026-08-17 behind `WEAVINGSPACE_ADOPT_DUMP`, because
+  two earlier attempts at this were reverted for guessing. The trace
+  named every step: `FORGET`, then `PREV a: table=100 dialog=<none>`,
+  then `ADOPT a: layer=40 dialog=100` -- the user's 40 per cent found
+  on the incoming layer and declined because the dialog appeared to
+  hold a choice of its own. The table then showed 100 over a map drawn
+  at 40, and one Generate painted the 100 into the .qgz.
+
+  THREE THINGS HAD TO BE TRUE and each was separately wrong: adoption
+  outranks a record left over from the project being replaced; the
+  previous table fills a GAP in that record rather than overruling it;
+  and the Opacity cell follows the record when the record moves under
+  it, having been created once and never updated.
+
+  THE CONTROL IS THE SECOND PROJECT'S OWN CHOICE. A deliberate 100 set
+  while the second map is open must survive its own rebuilds, or this
+  would pass by making adoption overrule everything.
+
+  Regression: opening a saved project while the plugin window was open replaced every element's opacity with whatever that window happened to be showing, and one Generate wrote it into the file.
+ [hunt]
+  """
+  import os
+
+  from qgis.core import QgsVectorFileWriter, QgsVectorLayer
+
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+
+  def region_on_disk(folder, name):
+    """A region layer as a FILE, since memory layers do not survive."""
+    path = os.path.join(folder, name)
+    options = QgsVectorFileWriter.SaveVectorOptions()
+    options.driverName = "GPKG"
+    options.layerName = "region"
+    QgsVectorFileWriter.writeAsVectorFormatV3(
+      _editable_region(), path, project.transformContext(), options)
+    made = QgsVectorLayer(f"{path}|layername=region", "region", "ogr")
+    assert made.isValid(), "the region did not survive being written"
+    project.addMapLayer(made)
+    return made
+
+  def drawn(tid):
+    """The element layer's own opacity as a percent, asked of the map."""
+    for found in project.mapLayers().values():
+      if found.customProperty("weavingspace_tile_id") == tid \
+          and not found.customProperty("weavingspace_no_data"):
+        return round(found.opacity() * 100)
+    return None
+
+  with _temp_dir() as folder:
+    layer = region_on_disk(folder, "one.gpkg")
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(300)
+      dlg.gpkg_widget.setFilePath(os.path.join(folder, "map_one.gpkg"))
+      dlg.spacing_spin.setValue(500)
+      dlg._generate()
+      assert _settle(dlg, seconds=90)
+      _tick(300)
+      tid = dlg.table.item(0, 0).text()
+
+      dlg.table.cellWidget(0, 6).setValue(40)
+      _tick(200)
+      dlg._generate()
+      assert _settle(dlg, seconds=90)
+      _tick(300)
+      assert drawn(tid) == 40, \
+        f"the fixture never faded the first map: it draws {drawn(tid)}"
+      one = os.path.join(folder, "one.qgz")
+      assert project.write(one), "the project would not save"
+
+      # File > New, and a SECOND map in the window nobody closed.
+      project.clear()
+      _tick(300)
+      two = region_on_disk(folder, "two.gpkg")
+      dlg.layer_combo.setLayer(two)
+      _tick(400)
+      dlg.gpkg_widget.setFilePath(os.path.join(folder, "map_two.gpkg"))
+      dlg.table.cellWidget(0, 6).setValue(100)
+      _tick(200)
+      dlg._generate()
+      assert _settle(dlg, seconds=90)
+      _tick(300)
+      # THE CONTROL: the second project's own choice, through a rebuild
+      # of its own. Nothing about adoption may undo this.
+      dlg.spacing_spin.setValue(520)
+      _tick(400)
+      assert dlg.table.cellWidget(0, 6).value() == 100, (
+        f"a rebuild inside the second project lost its own deliberate "
+        f"opacity: the cell reads "
+        f"{dlg.table.cellWidget(0, 6).value()}")
+
+      # File > Open, back to the first.
+      assert project.read(one), "project ONE would not reopen"
+      _tick(1500)
+      row = dlg._row_for_element(tid)
+      shown = dlg.table.cellWidget(row, 6).value()
+      assert drawn(tid) == 40, \
+        f"the reopened project's own layer is not at 40: {drawn(tid)}"
+      assert shown == 40, (
+        f"the table shows {shown} over a map drawn at {drawn(tid)}: the "
+        f"window is describing the project it just closed")
+
+      # ...and one Generate must not paint the wrong number into the file.
+      dlg._generate()
+      assert _settle(dlg, seconds=90)
+      _tick(300)
+      assert drawn(tid) == 40, (
+        f"one Generate repainted the reopened map at {drawn(tid)} per "
+        f"cent, destroying the 40 the user chose and saved")
+    finally:
+      dlg.close()
+
+
 def test_deferral_does_not_erase_the_work_behind_it():
   """Handing an element to QGIS must not throw away what you set here.
 
@@ -50025,6 +50152,8 @@ def main():
         test_the_design_view_paints_colours_the_map_contains)
   check("deferral keeps opacity and the twin's own styling",
         test_deferral_keeps_opacity_and_the_twins_own_styling)
+  check("a second project does not take the first one's opacity",
+        test_a_second_project_does_not_take_the_first_ones_opacity)
   check("deferral does not erase the work behind it",
         test_deferral_does_not_erase_the_work_behind_it)
   check("deferral survives a project round trip",

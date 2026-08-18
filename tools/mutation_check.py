@@ -2514,11 +2514,45 @@ MUTATIONS = [
            "a test standing either side of it is a boundary test rather "
            "than a pinned constant. Written from the idea list without "
            "knowing it would land on a known survivor"),
+  # THREE ENTRIES FOR ONE DEFECT, because three separate things had to
+  # be true and each was wrong on its own. Two earlier attempts at
+  # this were reverted for guessing; the trace behind
+  # WEAVINGSPACE_ADOPT_DUMP named all three.
+  dict(name="adoption-outranks-the-project-being-replaced", file=DIALOG,
+       old="    if self._project_is_being_replaced or \\\n"
+           "        tile_id not in self._opacity_choices:",
+       new="    if tile_id not in self._opacity_choices:",
+       test="test_a_second_project_does_not_take_the_first_ones_opacity",
+       why="tile ids repeat across projects, so 'fill in only where "
+           "the dialog has nothing' declines the incoming layer's own "
+           "opacity in favour of the outgoing project's -- the user's "
+           "40 per cent found and refused"),
+  dict(name="the-previous-table-only-fills-a-gap", file=DIALOG,
+       old="      if prev is not None and \"opacity\" in prev \\\n"
+           "          and tid not in self._opacity_choices:",
+       new="      if prev is not None and \"opacity\" in prev:",
+       test="test_a_second_project_does_not_take_the_first_ones_opacity",
+       why="writing the previous table back unconditionally makes the "
+           "WIDGETS the authority, and after a project is replaced "
+           "those widgets belong to the project that has gone: it put "
+           "100 back over the 40 adoption had just recovered"),
+  dict(name="the-opacity-cell-follows-its-record", file=DIALOG,
+       old="    elif row_id and row_id in self._opacity_choices:",
+       new="    elif False:",
+       test="test_a_second_project_does_not_take_the_first_ones_opacity",
+       why="the cell is CREATED and was never updated, which is "
+           "invisible while its own handler is the only writer -- so a "
+           "cell standing from the outgoing project went on showing "
+           "100 over a layer drawn at 40, and the table and the map "
+           "disagreed in silence"),
   dict(name="reopened-opacity-is-read-from-the-layer", file=DIALOG,
-       old="    if tile_id not in self._opacity_choices:\n"
-           "      self._opacity_choices[tile_id] = max(0, min(100, round(\n"
+       # RE-ANCHORED 2026-08-18: the condition above this gained the
+       # "or the project is being replaced" arm, so the old anchor's
+       # first line no longer exists. The behaviour it guards is the
+       # ASSIGNMENT, which is unchanged.
+       old="      self._opacity_choices[tile_id] = max(0, min(100, round(\n"
            "        layer.opacity() * 100)))",
-       new="    pass  # mutation: the dialog forgets the layer's opacity",
+       new="      pass  # mutation: the dialog forgets the layer's opacity",
        test="test_a_project_round_trip_changes_nothing_a_user_chose",
        why="QGIS persists layer opacity in the project, and until "
            "2026-08-13 the dialog never read it back: a reopened "

@@ -1196,6 +1196,9 @@ class WeavingSpaceDialog(QDialog):
     self._ramp_choices = {}
     self._reverse_choices = {}
     self._opacity_choices = {}
+    # True between `cleared` and the end of the adoption that
+    # follows it, so adoption can tell a choice from an echo.
+    self._project_is_being_replaced = False
     # Colours chosen by hand in the Categorical colour editor:
     # {tile_id: {field: {str(value): "#rrggbb"}}}. Keyed by FIELD as
     # well as element so that moving an element to another variable
@@ -3933,7 +3936,27 @@ class WeavingSpaceDialog(QDialog):
     if row_id and self._row_opacity(row) is None:
       self.table.setCellWidget(row, 6, self._make_opacity_spin(
         row_id, self._opacity_choices.get(row_id, 100)))
-
+    elif row_id and row_id in self._opacity_choices:
+      # ...AND IT FOLLOWS THE RECORD WHEN THE RECORD MOVES UNDER IT.
+      # The cell was CREATED and never updated, which is invisible
+      # while the only writer is the spin's own handler -- those two
+      # agree by construction. ADOPTION is the other writer: opening a
+      # saved project recovers each element's opacity off its layer,
+      # and a cell standing from the outgoing project went on showing
+      # 100 over a layer drawn at 40, with one Generate then painting
+      # the 100 into the .qgz.
+      #
+      # Signals blocked, or setting the cell right would fire the
+      # handler that writes the spin's value back into the record and
+      # undo the adoption this exists to show.
+      spin = self._row_opacity(row)
+      wanted = int(self._opacity_choices[row_id])
+      if spin.value() != wanted:
+        if os.environ.get("WEAVINGSPACE_ADOPT_DUMP"):
+          print(f"CELL  {row_id}: {spin.value()} -> {wanted}", flush=True)
+        spin.blockSignals(True)
+        spin.setValue(wanted)
+        spin.blockSignals(False)
     if ramp_combo is not None:
       ramp = ramp_combo.currentText()
       is_cat_ramp = ramp in bridge.CATEGORICAL_RAMPS
@@ -4389,7 +4412,28 @@ class WeavingSpaceDialog(QDialog):
         # test_a_reverse_tick_survives_a_rebuild_while_it_is_greyed.
         self._reverse_choices[tid] = bool(prev["reverse"]) \
             or self._reverse_choices.get(tid, False)
-      if prev is not None and "opacity" in prev:
+      # THE PREVIOUS TABLE FILLS A GAP; IT DOES NOT OVERRULE THE
+      # RECORD. `prev` is the assignment read off the rows as they
+      # stand, and it exists so a rebuild within one project does not
+      # lose a choice. It was written back unconditionally, which
+      # makes the WIDGETS the authority -- and after a project is
+      # replaced the widgets belong to the project that has gone.
+      #
+      # Instrumented 2026-08-17, and this is the line the trace named:
+      # `ADOPT a: layer=40 dialog=100 replacing=True` recovered the
+      # user's 40 off the incoming layer, and the very next
+      # `PREV a: table=100 dialog=40` put the outgoing project's 100
+      # back over it. One Generate then painted 100 into the .qgz.
+      #
+      # Filling only a GAP costs nothing within a project, because the
+      # spin's own handler writes the record on every change, so the
+      # two are in step by construction and this branch never fires
+      # except where the record has nothing.
+      if prev is not None and "opacity" in prev \
+          and tid not in self._opacity_choices:
+        if os.environ.get("WEAVINGSPACE_ADOPT_DUMP"):
+          print(f"PREV  {tid}: table={prev['opacity']} "
+                f"dialog=<none>", flush=True)
         self._opacity_choices[tid] = prev["opacity"]
 
       if prev and prev.get("class_choice") is not None:
@@ -4536,7 +4580,29 @@ class WeavingSpaceDialog(QDialog):
     # quietly undid a choice still visible in QGIS's own layer panel.
     # Only filled in where the dialog has nothing of its own, like
     # everything else here, so a choice made since reopening wins.
-    if tile_id not in self._opacity_choices:
+    # INSTRUMENT, behind an environment flag, kept because this exact
+    # branch cost a reverted fix on 2026-08-17: it says what the LAYER
+    # is carrying beside what the dialog already believes, which is
+    # the only pair that decides whether adoption fills anything in.
+    if os.environ.get("WEAVINGSPACE_ADOPT_DUMP"):
+      print(f"ADOPT {tile_id}: layer={round(layer.opacity() * 100)} "
+            f"dialog={self._opacity_choices.get(tile_id, '<none>')} "
+            f"replacing={self._project_is_being_replaced}", flush=True)
+    # THE LAYER WINS WHILE A PROJECT IS BEING REPLACED, and only then.
+    # "Fill in only where the dialog has nothing of its own" is right
+    # within one project: a choice made since reopening must not be
+    # overwritten. Across TWO projects it is wrong, because tile ids
+    # repeat -- element `a` of the incoming project is element `a` of
+    # the outgoing one as far as every record here is concerned.
+    #
+    # `_forget_the_last_project` empties those records, correctly, but
+    # `_refresh_table` runs between the clear and this call and refills
+    # them from the SURVIVING CELL WIDGETS, which still show the
+    # previous project's numbers. Instrumented 2026-08-17: `FORGET`,
+    # then `PREV a: table=100 dialog=<none>`, then `ADOPT a: layer=40
+    # dialog=100` -- the user's 40 found and declined.
+    if self._project_is_being_replaced or \
+        tile_id not in self._opacity_choices:
       self._opacity_choices[tile_id] = max(0, min(100, round(
         layer.opacity() * 100)))
     # THE ROW'S SYMBOLOGY, read off the renderer QGIS saved. Same
@@ -4993,6 +5059,35 @@ class WeavingSpaceDialog(QDialog):
                    self._class_source_stamps, self._ramp_memory,
                    self._custom_swatch_cache):
       record.clear()
+    if os.environ.get("WEAVINGSPACE_ADOPT_DUMP"):
+      print("FORGET the last project", flush=True)
+    # ...and say so until adoption has read the incoming project. The
+    # clear alone is not enough because the TABLE survives it and
+    # refills these records before adoption is asked; this marker is
+    # how adoption tells "the dialog holds a choice" from "the dialog
+    # holds an echo of the project being replaced".
+    self._project_is_being_replaced = True
+    # ...AND THE TABLE, WHICH IS ITSELF A RECORD KEYED BY TILE ID.
+    # Every dict above is emptied and the ROWS were left standing, so
+    # the next `_refresh_table` read the surviving cell widgets as
+    # `prev` and wrote their values straight back in -- before
+    # adoption had a chance to read the incoming project's layers.
+    # `setRowCount` does not destroy cell widgets, and the Opacity
+    # cell is CREATED only when absent, so a spin box from the
+    # previous project survived every clear this method performs.
+    #
+    # Measured 2026-08-17 with a dump inside both sites: on reopening
+    # a saved project with the dialog open, `FORGET` ran, then
+    # `PREV a: table=100 dialog=<none>` put 100 back, and adoption
+    # then reported `ADOPT a: layer=40 dialog=100` -- it had found the
+    # user's 40 per cent on the layer and declined it because the
+    # dialog appeared to hold something of its own. One Generate later
+    # the 100 was painted into the .qgz.
+    #
+    # THIS IS THE THIRD TIME THIS METHOD HAS BEEN FOUND INCOMPLETE,
+    # and the rule it keeps failing is its own: ENUMERATE WHAT A CLEAR
+    # SITE LEAVES, NOT WHAT IT CLEARS. The list above is long and
+    # convincing and the thing it omitted was not a dict at all.
     self._preserved_this_run = []
     # THE GROUP AND THE OUTPUT PATH GO TOO, and leaving them was the
     # larger half of this fault. `_group_name` survived, so
@@ -9283,6 +9378,14 @@ class WeavingSpaceDialog(QDialog):
         self._outline_layer_id = layer.id()
     if self._element_layer_ids or self._outline_layer_id:
       self._group_name = group.name()
+    # THE MARKER IS DROPPED HERE AND ONLY HERE. Everything between the
+    # `cleared` signal and this line belongs to the project being
+    # replaced; from here on, a value in these records is a choice
+    # somebody made in the project now open. Cleared unconditionally,
+    # including on the paths that adopt nothing, or a File > New with
+    # no output group to adopt would leave it standing and let a later
+    # adoption overwrite a live choice.
+    self._project_is_being_replaced = False
 
   def _remember_our_table(self, layer):
     """Record that this layer is reading a table this plugin wrote.
