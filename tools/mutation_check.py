@@ -3521,9 +3521,55 @@ MUTATIONS = [
        why="a pin at 10 over data that resumes at 14 leaves 10 to 14 "
            "in no class at all, so a value arriving there later paints "
            "as no data on a map that looks perfectly fine"),
+  # THE CLASS COUNT NEVER DESTROYS A PIN (maintainer's ruling,
+  # 2026-08-17). Three entries because the rule is kept in three
+  # places -- the control that refuses, the guard that must not
+  # retire, and the keyboard tracking the refusal makes necessary --
+  # and one anchor over any of them would report `caught` with the
+  # other two axes dead.
+  dict(name="a-class-count-refuses-instead-of-retiring", file=DIALOG,
+       old="          refusal = self._class_count_refused(tid_here, v) \\\n"
+           "              if tid_here else None",
+       new="          refusal = None",
+       test="test_a_class_count_is_refused_rather_than_destroying_a_pin",
+       why="the spinner accepts a count too small to carry the row's "
+           "pins, so the retirement guard pops the whole record and "
+           "the layer's stamp with it -- and tells the user their "
+           "data has changed when the only thing that moved is the "
+           "control they are holding"),
+  dict(name="no-route-lets-a-count-retire-a-pin", file=DIALOG,
+       old="    pins = (low is not None) + (high is not None)\n"
+           "    if not bridge.pin_problem(low, high, values, "
+           "max(asked, pins + 1),\n"
+           "                              record.get(\"breaks\")):\n"
+           "      return None",
+       new="    pins = (low is not None) + (high is not None)",
+       test="test_a_class_count_is_refused_rather_than_destroying_a_pin",
+       why="a count reaching this guard from anywhere but the spinner "
+           "-- a reopened project, a copied row, an Unclassed "
+           "excursion -- destroys the pins again, which is the same "
+           "defect arriving by the door the control's own refusal "
+           "does not cover"),
+  dict(name="the-classes-spinner-does-not-eat-a-keystroke", file=DIALOG,
+       old="      k_spin.setKeyboardTracking(False)",
+       new="      k_spin.setKeyboardTracking(True)",
+       test="test_a_class_count_is_refused_rather_than_destroying_a_pin",
+       why="the handler writes back to its own box, so a spinner asked "
+           "one keystroke at a time refuses the leading digit of 20 on "
+           "a doubly-pinned row and reverts the box under the person "
+           "typing -- the defect the refusal itself created, and "
+           "invisible to setValue"),
+  # RE-ANCHORED 2026-08-17, when the count rule moved out of
+  # `pin_problem` into `pin_count_problem` so that the Classes spinner
+  # could tell this refusal apart from the ones about the DATA. The
+  # standards check caught the orphan on the first run after the move,
+  # which is what it is for: an entry whose text has gone mutates
+  # nothing and reports nothing, and a clean exit reads exactly like
+  # success.
   dict(name="an-undrawable-pin-is-refused", file=BRIDGE,
-       old="  if pins and int(asked) - 1 < pins:",
-       new="  if False:  # mutation: accept what cannot be drawn",
+       old="  available = int(asked) - 1\n  if available >= pins:\n"
+           "    return None",
+       new="  available = int(asked) - 1\n  if True:\n    return None",
        test="test_a_pin_that_cannot_be_drawn_is_refused",
        why="a k-class ladder has k-1 boundaries, so two pins on a "
            "two-class row name two boundaries where there is one and "

@@ -1331,6 +1331,56 @@ def inset_collapse_message(declared: int, remaining: int,
           f"choose a coarser spacing.")
 
 
+def pin_count_problem(low, high, asked: int):
+  """Why a class COUNT cannot carry these pinned ends, or None.
+
+  Args:
+    low: the upper bound of the first class, set by hand, or None when
+      that end is not pinned.
+    high: the lower bound of the last class, or None.
+    asked: the class count the row asks for.
+
+  Returns:
+    A sentence for the message bar when the count is too small to hold
+    the pins that exist, or None when it can hold them. Nothing here
+    looks at the DATA, which is the whole reason it is separate.
+
+  WHY THIS IS ITS OWN FUNCTION, added 2026-08-17 with the maintainer's
+  ruling. Two callers need to tell this refusal apart from every other
+  one in `pin_problem`, and they need it for opposite reasons.
+
+  A ladder of k classes has k-1 boundaries and each pin names one, so
+  two pins on a two-class row name two boundaries where there is one:
+  measured, that draws 0-10 beside 60-121 with everything between
+  them in no class at all. It is refused rather than resolved, because
+  choosing which of the two typed numbers to honour is the kind of
+  guess this project's notices exist to avoid.
+
+  BUT IT IS A STATEMENT ABOUT THE CONTROL, NOT ABOUT THE DATA, and
+  that is what the ruling turns on. Every other refusal in
+  `pin_problem` says the map cannot be drawn from the values in front
+  of it; this one says the user has asked two controls for
+  incompatible things. So the Classes spinner refuses and reverts,
+  and `_retire_an_undrawable_pin` -- which exists for a pin THE DATA
+  MOVED OUT FROM UNDER -- leaves the record alone.
+  """
+  pins = (low is not None) + (high is not None)
+  if not pins:
+    return None
+  available = int(asked) - 1
+  if available >= pins:
+    return None
+  # The whole word is interpolated, never a word split across a
+  # placeholder. "boundar{}" reads as a typo to anybody meeting it
+  # in the text-review queue, which is where every sentence a user
+  # sees is read before it ships, and a reviewer should never have
+  # to reconstruct a word from a format string.
+  boundaries = "boundary" if available == 1 else "boundaries"
+  return (f"A {int(asked)}-class scheme has {available} "
+          f"{boundaries} to pin, so it cannot carry {pins}. Ask "
+          f"for more classes, or unpin one end.")
+
+
 def pin_problem(low, high, values, asked: int, breaks=None):
   """Why a pair of pinned bounds cannot be used, or None.
 
@@ -1417,18 +1467,9 @@ def pin_problem(low, high, values, asked: int, breaks=None):
   # between them in no class at all. Refused rather than resolved,
   # because choosing which of the two typed numbers to honour is the
   # kind of guess this project's notices exist to avoid.
-  pins = (low is not None) + (high is not None)
-  if pins and int(asked) - 1 < pins:
-    available = int(asked) - 1
-    # The whole word is interpolated, never a word split across a
-    # placeholder. "boundar{}" reads as a typo to anybody meeting it
-    # in the text-review queue, which is where every sentence a user
-    # sees is read before it ships, and a reviewer should never have
-    # to reconstruct a word from a format string.
-    boundaries = "boundary" if available == 1 else "boundaries"
-    return (f"A {int(asked)}-class scheme has {available} "
-            f"{boundaries} to pin, so it cannot carry {pins}. Ask "
-            f"for more classes, or unpin one end.")
+  counted = pin_count_problem(low, high, asked)
+  if counted:
+    return counted
   # A pin sitting on top of a COPIED ladder moves one of that ladder's
   # boundaries, and it must not cross its neighbour: the ladder would
   # stop being monotonic and a class would run backwards. Checked here

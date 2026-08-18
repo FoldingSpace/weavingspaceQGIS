@@ -4234,6 +4234,18 @@ class WeavingSpaceDialog(QDialog):
       # it from there — so the bug was invisible and waiting for
       # whoever reordered these two lines.
       k_spin.setRange(2, 20)
+      # ITS HANDLER WRITES BACK TO IT, so keyboard tracking must be
+      # off. `on_k` refuses a count that cannot carry the row's pins
+      # and puts the spinner back, and a validator is asked one
+      # keystroke at a time: typing 20 arrives as "2" first, which on a
+      # doubly-pinned row is refused and reverted, and the "0" then
+      # lands in a box the handler has just rewritten. This is the same
+      # family as `_skip_zero_scale` firing per keystroke and
+      # un-mirroring a design (2026-08-17), and it becomes a defect the
+      # moment a handler writes to its own box rather than when the box
+      # is created -- which is why it is being added in the same commit
+      # as that handler.
+      k_spin.setKeyboardTracking(False)
       # the previous assignments first (a rebuild inside one
       # session), then the element's own record, which is the only
       # thing that exists after a REOPEN, then the default
@@ -4264,6 +4276,37 @@ class WeavingSpaceDialog(QDialog):
 
       def on_k(v, sp=k_spin):
         if sp.isEnabled():
+          # THE COUNT IS REFUSED AND THE PINS ARE LEFT ALONE.
+          # (Maintainer's ruling, 2026-08-17.) Moving this spinner to a
+          # count too small to carry the row's pins used to let the
+          # change through, whereupon `_retire_an_undrawable_pin`
+          # popped the WHOLE record, removed the stamp so a reopen
+          # could not recover it, and told the user the bound "cannot
+          # be drawn from the values it holds now" -- blaming data that
+          # had not moved. Putting the spinner back did not bring the
+          # pins home. Measured 2026-08-17 by
+          # `tools/probes/pins_killed_by_the_class_count.py`.
+          #
+          # Refusing here is `pin_problem`'s own convention: a refused
+          # pin reverts its control and reports rather than being
+          # quietly clamped. It is also the copied-ladder carve-out two
+          # lines into `_retire_an_undrawable_pin` arriving from the
+          # other side -- that one already keeps a copied ladder
+          # through this very act, and says so, which left one handler
+          # giving opposite answers to the same question.
+          #
+          # The sentence is `pin_problem`'s own, which was composed for
+          # exactly this case and had never been shown to anybody.
+          tid_here = sp.property("tile_id")
+          refusal = self._class_count_refused(tid_here, v) \
+              if tid_here else None
+          if refusal:
+            previous = int(sp.property("user_k") or 5)
+            sp.blockSignals(True)
+            sp.setValue(previous)
+            sp.blockSignals(False)
+            self._report_quietly(refusal)
+            return
           sp.setProperty("user_k", v)
           # and against the element, so the count outlives the widget
           if sp.property("tile_id"):
@@ -4526,6 +4569,34 @@ class WeavingSpaceDialog(QDialog):
       self._pinned_bounds.setdefault(tile_id, {}).setdefault(
         field, dict(stored_pins))
 
+  def _class_count_refused(self, tile_id, count):
+    """Why this class count cannot carry the element's pins, or None.
+
+    Args:
+      tile_id: the element whose Classes spinner is being moved.
+      count: the count the spinner has just been moved to.
+
+    Returns:
+      One sentence for the message bar when the pins in force need
+      more boundaries than `count` provides, or None -- which is the
+      ordinary case, including every unpinned row. Nothing is changed
+      here; the caller reverts its own control.
+
+    Asked of the LIVE row rather than of any snapshot, because the
+    spinner is being moved right now and the pins it must respect are
+    whatever the colour editor has accepted by this moment. Reads the
+    data not at all: whether a count can carry two pins is arithmetic
+    about the ladder, and mixing the data into it is what made this
+    refusal look like a statement about the user's values.
+    """
+    row = self._assignment_for(tile_id)
+    field = (row or {}).get("var")
+    if not field:
+      return None
+    record = self._pinned_bounds.get(tile_id, {}).get(field) or {}
+    return bridge.pin_count_problem(
+      record.get("low"), record.get("high"), count)
+
   def _retire_an_undrawable_pin(self, field, assignment):
     """Drop a pin the data has moved out from under, and say so.
 
@@ -4618,8 +4689,29 @@ class WeavingSpaceDialog(QDialog):
     # was legal when it was made has not had that happen to it.
     if record.get("breaks"):
       return None
-    if not bridge.pin_problem(low, high, values,
-                              int(assignment.get("k", 5) or 5),
+    asked = int(assignment.get("k", 5) or 5)
+    if not bridge.pin_problem(low, high, values, asked,
+                              record.get("breaks")):
+      return None
+    # A CLASS COUNT NEVER DESTROYS A PIN, and every route into this
+    # method has to know that, not just the spinner that now refuses.
+    # (Maintainer's ruling, 2026-08-17.) The Classes spinner reverts
+    # before it gets here, but the landing and `_restyle_only` reach
+    # this with whatever count the record holds -- and a count arriving
+    # from a reopened project, a copied row or an Unclassed excursion
+    # has never been anybody's live choice.
+    #
+    # ASKED BY RE-ASKING RATHER THAN BY READING THE SENTENCE. Put the
+    # same question with a count that COULD carry the pins: if the
+    # objection goes away, the count was the whole of it. Raising the
+    # count cannot hide a data problem -- the middle check fires on
+    # `asked - pins > 0 and not middle`, so a larger count makes it
+    # more likely to fire, not less -- which is what makes this safe
+    # rather than merely convenient. Comparing the returned strings
+    # would work today and rot at the first rewording, and this
+    # project has paid for a transcribed sentence twice already.
+    pins = (low is not None) + (high is not None)
+    if not bridge.pin_problem(low, high, values, max(asked, pins + 1),
                               record.get("breaks")):
       return None
     # Clear the whole record for this field: the flags and any copied

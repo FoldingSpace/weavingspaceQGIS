@@ -8448,6 +8448,145 @@ def test_a_pin_that_cannot_be_drawn_is_refused():
     "question is what this rule exists to avoid"
 
 
+def test_a_class_count_is_refused_rather_than_destroying_a_pin():
+  """The user's own control is refused; their pins are left alone.
+
+  Moving the Classes spinner to 2 on a row with both ends pinned used
+  to let the change through, whereupon `_retire_an_undrawable_pin`
+  popped the WHOLE record, removed the stamp so a reopened project
+  could not recover it, and said the bound "cannot be drawn from the
+  values it holds now" -- blaming data that had not moved. Putting the
+  spinner back to 5 did not bring the pins home: the element drew the
+  scheme's own breaks from then on.
+
+  The same handler already answered the OPPOSITE way two lines away,
+  where a copied ladder meeting a new class count keeps its bounds on
+  the rule that a pin is a smaller and more durable statement than an
+  imported ladder. One act, one method, two answers.
+
+  THE MAINTAINER'S RULING, 2026-08-17: retirement is for a pin THE
+  DATA MOVED OUT FROM UNDER, and a class count is not that. Where the
+  thing that moved is a control the user is holding, refuse the
+  control -- which is `pin_problem`'s own convention, and its sentence
+  for this case already existed and had never been shown to anybody.
+
+  THE THIRD ARM IS THE ONE THE FIX CREATED. Refusing means the handler
+  now writes back to its own spinner, and a spinner is asked one
+  keystroke at a time: typing 20 arrives as "2" first, which on a
+  doubly-pinned row is exactly the refused value. Without keyboard
+  tracking off, the revert eats the number. Driven with QTest rather
+  than `setValue`, because `setValue` cannot see this at all.
+
+  Regression: moving the Classes spinner to a count too small for a row's pins destroyed both bounds, the layer's stamp and the saved copy, told the user their data had changed when it had not, and did not restore them when the count was put back.
+ [hunt]
+  """
+  from qgis.PyQt.QtCore import Qt as _Qt
+  from qgis.PyQt.QtTest import QTest
+
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  project.addMapLayer(make_region_layer(n=12))
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.table.cellWidget(0, 1).setCurrentText("v3")
+    _tick(200)
+    dlg.spacing_spin.setValue(1200)
+    _generate_and_wait(dlg)
+    tile_id = dlg.table.item(0, 0).text()
+
+    source = dlg._classification_values("v3")
+    values = sorted(float(v) for v in source.uniqueValues(
+      source.fields().indexOf("v3")))
+    low, high = values[1], values[-2]
+    assert bridge.pin_problem(low, high, values, 5, None) is None, \
+      "the fixture's own pins are not legal at k=5, so the act this " \
+      "test is about cannot be staged"
+    dlg._pinned_bounds.setdefault(tile_id, {})["v3"] = {
+      "low": low, "high": high}
+    dlg._apply_style_change()
+    _tick(400)
+
+    def stamped():
+      """The pin record written on the layer, which a reopen reads."""
+      import json
+      out = project.mapLayer(dlg._element_layer_ids[tile_id])
+      raw = out.customProperty("weavingspace_quant_style")
+      return json.loads(raw).get("pinned") if raw else None
+
+    assert stamped(), "the fixture never stamped the pins it set"
+    spin = dlg.table.cellWidget(0, 3)
+    assert spin is not None and spin.isEnabled(), \
+      "the graduated row has no live Classes spinner to move"
+
+    # ARM ONE: the count that cannot carry two pins is REFUSED.
+    del BAR_MESSAGES[:]
+    spin.setValue(2)
+    _tick(300)
+    said = " ".join(m for _k, m in BAR_MESSAGES)
+    assert spin.value() == 5, \
+      f"the refused count stuck: the spinner reads {spin.value()}"
+    assert dlg._pinned_bounds.get(tile_id, {}).get("v3"), \
+      "moving the Classes spinner destroyed the user's pinned bounds"
+    assert stamped(), \
+      "the layer's stamp was removed, so reopening the project cannot " \
+      "bring the pins back"
+    assert "cannot carry" in said, \
+      f"the user was not told the COUNT was refused; they were told: " \
+      f"{said!r}"
+    assert "values it holds now" not in said, \
+      f"the notice still blames the data, which has not moved: {said!r}"
+
+    # ARM TWO: and the map still draws the pinned ladder afterwards.
+    dlg._apply_style_change()
+    _tick(400)
+    out = project.mapLayer(dlg._element_layer_ids[tile_id])
+    ranges = out.renderer().ranges()
+    edges = [round(r.lowerValue(), 6) for r in ranges] + \
+        [round(ranges[-1].upperValue(), 6)]
+    assert round(low, 6) in edges and round(high, 6) in edges, \
+      f"the map stopped honouring the pins {low} and {high} after a " \
+      f"refused class count: it draws {edges}"
+
+    # ARM THREE: typing a count whose PREFIX is the refused one.
+    # "2" is refused on this row, and 20 is not, so a handler that
+    # rewrites its own box mid-edit swallows the second keystroke.
+    spin.lineEdit().selectAll()
+    QTest.keyClicks(spin.lineEdit(), "20")
+    QTest.keyClick(spin, _Qt.Key.Key_Return)
+    _tick(200)
+    assert spin.value() == 20, (
+      f"typing 20 into the Classes spinner left {spin.value()}. Its "
+      f"own handler refuses 2 on this row and writes the box back, so "
+      f"with keyboard tracking on the refusal fires on the leading "
+      f"digit and eats the number a person typed")
+
+    # ARM FOUR: A COUNT THAT DID NOT COME FROM THE SPINNER. The
+    # refusal above guards the control, and the control is not the only
+    # way a small count reaches the retirement guard -- a reopened
+    # project, a copied row and an Unclassed excursion all write the
+    # count without anybody touching the spinner. Staged the way a
+    # restore does it, with signals blocked, so the handler that now
+    # refuses is deliberately not in the way.
+    spin.blockSignals(True)
+    spin.setProperty("user_k", 2)
+    spin.setValue(2)
+    spin.blockSignals(False)
+    dlg._class_counts[tile_id] = 2
+    del BAR_MESSAGES[:]
+    dlg._apply_style_change()
+    _tick(400)
+    assert dlg._pinned_bounds.get(tile_id, {}).get("v3"), (
+      "a class count restored around the spinner still destroyed the "
+      "pins: the refusal guards the control, and every other route "
+      "into the retirement guard has to know the rule too")
+    assert stamped(), \
+      "the layer's stamp went with them, so a reopen cannot recover it"
+  finally:
+    dlg.close()
+
+
 def test_a_pin_survives_a_project_round_trip():
   """A pinned bound comes home, and the next Generate honours it.
 
@@ -49220,6 +49359,8 @@ def main():
         test_a_pinned_class_bound_reaches_the_map)
   check("a pin that cannot be drawn is refused",
         test_a_pin_that_cannot_be_drawn_is_refused)
+  check("a class count is refused rather than destroying a pin",
+        test_a_class_count_is_refused_rather_than_destroying_a_pin)
   check("a pin survives a project round trip",
         test_a_pin_survives_a_project_round_trip)
   check("a copied classification carries the whole row",
