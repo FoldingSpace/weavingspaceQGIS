@@ -260,16 +260,60 @@ def relabel(renderer):
   return ("label_at_0", "the lowest sort")
 
 
+def paste_a_foreign_style(renderer):
+  """Paste a whole style from elsewhere: a different ramp and count.
+
+  Args:
+    renderer: the element's own renderer, cloned; ignored, because a
+      paste replaces rather than edits.
+
+  Returns:
+    ("count", 3) -- what a pasted three-class style should leave.
+  """
+  return ("paste", 3)
+
+
+def pin_then_retype(renderer):
+  """A bound pinned in the plugin, then the ladder retyped in QGIS.
+
+  Args:
+    renderer: the element's cloned renderer, whose ladder is retyped.
+
+  Returns:
+    ("interior", ...) -- the retyped boundaries. WHICH SHOULD WIN is
+    the open question this cell exists to record rather than assert:
+    the edit is the later act and the pin is the earlier one, and
+    until somebody rules, this reports what happens instead of
+    demanding an answer.
+  """
+  typed = [0.0, 10.0, 20.0, 30.0, 50.0, 80.0]
+  ranges = renderer.ranges()
+  if len(ranges) != len(typed) - 1:
+    return None
+  for i in range(len(typed) - 1):
+    renderer.updateRangeLowerValue(i, typed[i])
+    renderer.updateRangeUpperValue(i, typed[i + 1])
+  return ("interior", typed[1:-1])
+
+
 ROUTES = [
   ("retype one boundary", retype_one),
   ("retype the whole ladder", retype_all),
   ("recolour one class", recolour_one),
   ("delete a class", delete_a_class),
   ("retype a legend label", relabel),
+  ("paste a foreign style", paste_a_foreign_style),
+  ("pin, then retype", pin_then_retype),
 ]
 
+# What happens AFTER the edit. Arrival and survival are different
+# promises, and this project's earlier defects lived in the second:
+# a change that reached the map and the table, and was gone by the
+# next Generate or the next reopen.
+AFTERMATHS = ["immediately", "after re-Generate"]
 
-def run_route(name, mutate, values):
+
+def run_route(name, mutate, values, aftermath):
   """Stage one edit and report whether the plugin followed it.
 
   Args:
@@ -280,6 +324,9 @@ def run_route(name, mutate, values):
     values: one value per area for the region this route runs against,
       so the same edit can be tried on every awkward shape rather
       than only on the smooth column that always worked.
+    aftermath: "immediately", or "after re-Generate" to re-tile once
+      the edit has landed and ask again -- arrival and survival being
+      different promises.
 
   Returns:
     (name, "ok"/"FOLLOWED NOTHING"/..., detail) for the inventory.
@@ -302,16 +349,54 @@ def run_route(name, mutate, values):
   rt._tick(200)
   element = project.mapLayer(dlg._element_layer_ids[tid])
 
+  # A PIN FIRST, for the route that needs one. Set through the record
+  # and re-applied, which is what the editor's own closure does; the
+  # closure itself is nested and not callable from here.
+  if name == "pin, then retype":
+    live = element.renderer().ranges()
+    if len(live) < 3:
+      dlg.close()
+      return (name, "SKIPPED", "too few classes to pin between")
+    dlg._pinned_bounds.setdefault(tid, {})["pct"] = {
+      "low": round(live[0].upperValue(), 3)}
+    dlg._apply_style_change()
+    rt._tick(200)
+    element = project.mapLayer(dlg._element_layer_ids[tid])
+
   renderer = element.renderer().clone()
   asked = mutate(renderer)
   if asked is None:
     dlg.close()
     return (name, "SKIPPED", "fixture could not stage it")
   what, expected = asked
+  if what == "paste":
+    # SHAPE-AWARE, because a pasted class count is a REQUEST and not a
+    # promise. A column cannot be cut into more classes than it has
+    # distinct values, so a constant column collapses a three-class
+    # paste to one BY DESIGN. Expecting three there reported the
+    # plugin's correct behaviour as a defect twice, which is the third
+    # false alarm this probe has authored -- after a segfault of its
+    # own making and a rounding mismatch with its own reader. A probe
+    # that cries wolf on a rotating subset of cells is worse than one
+    # that cries wolf always: it reads as flakiness.
+    distinct = len({v for v in values if v is not None})
+    expected = min(expected, distinct)
+    foreign = bridge.make_graduated_renderer(
+      element, "pct", "Blues", "Quantiles", 3, False,
+      classify_from=dlg._classification_values("pct"))
+    if foreign is None:
+      dlg.close()
+      return (name, "SKIPPED", "could not build a style to paste")
+    renderer = foreign
+    what = "count"
   element.setRenderer(renderer)
   element.styleChanged.emit()
   element.triggerRepaint()
   rt._tick(400)
+  if aftermath == "after re-Generate":
+    rt._generate_and_wait(dlg)
+    rt._tick(300)
+    element = project.mapLayer(dlg._element_layer_ids[tid])
 
   assignment = [a for a in dlg._assignments() if a["id"] == tid][0]
   classes = dlg._current_graduated_classes(assignment)
@@ -342,21 +427,23 @@ def main():
   print("\nWHAT A QGIS SYMBOLOGY EDIT REACHES\n")
   failures = []
   width = max(len(n) for n, _ in ROUTES)
+  cells = 0
   for shape, build in DATASETS:
     values = build()
-    print(f"  --- {shape} ---")
-    for name, fn in ROUTES:
-      try:
-        _n, verdict, detail = run_route(name, fn, values)
-      except Exception as exc:
-        verdict, detail = "RAISED", f"{type(exc).__name__}: {exc}"
-      print(f"    {name:{width}}  {verdict:14}  {detail}")
-      if verdict in ("NOT FOLLOWED", "RAISED"):
-        failures.append((shape, name, detail))
-  print(f"\n  {len(failures)} failing cell(s) "
-        f"of {len(DATASETS) * len(ROUTES)}")
-  for shape, name, detail in failures:
-    print(f"    {shape} / {name}: {detail}")
+    for aftermath in AFTERMATHS:
+      print(f"  --- {shape}, {aftermath} ---")
+      for name, fn in ROUTES:
+        cells += 1
+        try:
+          _n, verdict, detail = run_route(name, fn, values, aftermath)
+        except Exception as exc:
+          verdict, detail = "RAISED", f"{type(exc).__name__}: {exc}"
+        print(f"    {name:{width}}  {verdict:14}  {detail}")
+        if verdict in ("NOT FOLLOWED", "RAISED"):
+          failures.append((shape, aftermath, name, detail))
+  print(f"\n  {len(failures)} failing cell(s) of {cells}")
+  for shape, aftermath, name, detail in failures:
+    print(f"    {shape} / {aftermath} / {name}: {detail}")
   return 0
 
 
