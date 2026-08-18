@@ -12423,6 +12423,73 @@ def test_a_reversed_row_keeps_its_reversed_swatch_through_a_rebuild():
     dlg.close()
 
 
+def test_a_scale_between_minus_one_and_one_can_be_typed():
+  """A handler that rewrites its own box eats keystrokes too.
+
+  `_skip_zero_scale` moves a scale control off zero, because a scale
+  of zero collapses the tile unit and surfaces much later as a raw
+  `LinAlgError`. It watches `valueChanged` -- which, with Qt's default
+  keyboard tracking, fires on EVERY CHARACTER. So typing `-0.5`
+  announced a landing on zero after the leading nought, the handler
+  rewrote the box, the remaining `.5` landed in the middle of the
+  rewritten text, and the sign flipped.
+
+  MEASURED by tile centroids rather than by the box: from a mirrored
+  design, typing -0.5 silently UN-MIRRORED it, putting every variable
+  on the wrong side of the map at a size that looks exactly right. No
+  value between -1 and 1 could be typed at all.
+
+  A RANGE IS NOT THE ONLY THING THAT EATS A KEYSTROKE. The existing
+  guard drives `setValue` and `stepBy`, and its docstring says
+  "dragging or stepping" -- so typing was never in view, and both
+  passed throughout. This one types, character by character, through
+  the widget's own key handling.
+
+  Regression: typing a scale factor between -1 and 1 was mangled by the step-over-zero handler firing per keystroke, so a mirrored design was silently un-mirrored and every element drew on the wrong side of the map.
+ [hunt]
+  """
+  from qgis.PyQt.QtCore import Qt as _Qt
+  from qgis.PyQt.QtTest import QTest
+
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    box = dlg.mod_scale_x
+    assert box.minimum() < 0, \
+      "the scale control refuses negatives, so the mirrored case " \
+      "this test is about cannot arise"
+    checked = 0
+    for typed, wanted in (("-0.5", -0.5), ("0.25", 0.25),
+                          ("-1", -1.0), ("2", 2.0)):
+      if not (box.minimum() <= wanted <= box.maximum()):
+        continue
+      box.setValue(1.0)
+      box.lineEdit().selectAll()
+      QTest.keyClicks(box.lineEdit(), typed)
+      QTest.keyClick(box, _Qt.Key.Key_Return)
+      _tick(50)
+      checked += 1
+      assert abs(box.value() - wanted) < 1e-9, (
+        f"typing {typed!r} into the scale control left "
+        f"{box.value()!r}. A handler that rewrites this box while a "
+        f"person is still typing turns a mirrored design into an "
+        f"unmirrored one at a size that looks right")
+    assert checked >= 3, \
+      f"only {checked} values were actually typed"
+
+    # ...and zero is still stepped over, which is what the handler is
+    # FOR. Driven by its own route rather than by typing, since that
+    # is how somebody arrives at zero.
+    box.setValue(box.singleStep())
+    box.stepBy(-1)
+    _tick(50)
+    assert abs(box.value()) > 1e-12, (
+      f"the control settled on {box.value()!r}; a scale of zero "
+      f"collapses the unit and fails much later as a matrix error")
+  finally:
+    dlg.close()
+
+
 def test_a_reopened_plugin_adopts_the_group_it_last_wrote():
   """"Create as new group" exists so a result can be KEPT.
 
@@ -48833,6 +48900,8 @@ def main():
         test_a_deferring_element_keeps_its_no_data_layer)
   check("a reversed row keeps its reversed swatch through a rebuild",
         test_a_reversed_row_keeps_its_reversed_swatch_through_a_rebuild)
+  check("a scale between minus one and one can be typed",
+        test_a_scale_between_minus_one_and_one_can_be_typed)
   check("a row follows a style pasted onto its layer in qgis",
         test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis)
   check("a reopened plugin adopts the group it last wrote",

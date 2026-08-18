@@ -1,6 +1,9 @@
 # Hunt: controls that clamp each other (one-boundary)
 
-Frozen at 257b37d, re-frozen at 7482c9e when HEAD moved mid-hunt.
+Frozen at 257b37d, re-frozen at 7482c9e and again at 0299c77 when HEAD
+moved under the hunt twice. The finding reproduces unchanged at all
+three; `_skip_zero_scale`, `mod_scale_x/y` and their keyboardTracking
+are untouched by both intervening commits.
 Harness: `tools/hunt_probe.py --name clampmates`. Probes in the
 session scratchpad; the reproduction is kept beside this log as
 `hunt_clampmates_2026-08-17_repro.py`.

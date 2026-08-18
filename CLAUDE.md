@@ -1784,6 +1784,72 @@ Confirmed with the user via an explicit design review:
   source's fifty never reaches `_class_counts`, which is the record
   that means CHOSEN.
 
+- **A RANGE IS NOT THE ONLY THING THAT EATS A KEYSTROKE.** Four
+  defects on 2026-08-17 were controls silently refusing what a person
+  typed, and each was invisible to `setValue`, which clamps without
+  complaint. The mechanisms differ and the tell is identical:
+  a validator refusing a keystroke past `maximum` (the pinned-bound
+  box at 100x the data; the Ramp Display Range's two percent boxes,
+  each clamped by the OTHER's current value, so from a window of
+  (0, 40) typing 60 kept SIX); `decimals` lowered to tidy a display,
+  so Rotate at zero places turned 22.5 into 22; and a
+  `valueChanged` HANDLER THAT REWRITES ITS OWN BOX -- `_skip_zero_scale`
+  fired per keystroke because keyboard tracking was on, so typing
+  -0.5 announced a landing on zero after the leading nought and the
+  design came back UN-MIRRORED at a size that looks exactly right.
+  So: any box whose `valueChanged` is watched by something that
+  writes back to it needs `setKeyboardTracking(False)`; a no-crossing
+  rule between two boxes is enforced when the number is COMPLETE, not
+  by clamping ranges, because a validator is asked one keystroke at a
+  time and `6` is a prefix of `60`; and a control must be able to
+  represent its whole domain, which is where this rule started.
+  TEST BY TYPING. Every guard on every one of those four drove
+  `setValue` or `stepBy` and passed throughout; one docstring even
+  said "dragging or stepping", so typing was never in view.
+
+- **A REFRESH WITH ONE CALLER IS A REFRESH THAT ONLY WORKS ONCE.**
+  `_refresh_ramp_icons` redraws a row's ramp swatch in its own
+  direction and is called from exactly one place, the Reverse toggle;
+  `_make_ramp_combo` built every item forward. So the flip lasted
+  until the next rebuild -- and a Generate rebuilds, because adding
+  output layers makes the layer combo re-emit, as do a spacing
+  change, a family change and reopening the project. A user then read
+  a reversed element by a forward swatch and chose its next ramp from
+  a dropdown showing every ramp the wrong way round. Shipping since
+  v0.23.0. GREP THE CONSTRUCTOR AS WELL AS THE UPDATER, and ask what
+  rebuilds the widget.
+
+- **WHEN A FIX IS WRITTEN INTO TWO PATHS IN ONE COMMIT, DIFF THE TWO
+  HUNKS AGAINST EACH OTHER**, not each against its own neighbourhood.
+  2026-08-17: `_add_output_layers` retires an undrawable pin and THEN
+  stamps, saying at that line why ("the last moment before the value
+  is stamped"); `_restyle_only` stamped and then retired. Both calls
+  were born in one commit and the order was reversed on one side, so
+  the twin's own explanation sat fifteen hundred lines from the path
+  that got it wrong. The user was told the bound "has been
+  recalculated" while the retired number went onto the layer anyway,
+  so reopening the project restored a pin the row showed and the map
+  ignored.
+  A SECOND RULE FROM THE SAME BLOCK: **one dedup set must not gate
+  two different things.** `field in said` was filled by whether a
+  LEGEND NOTICE had fired for a column and it also gated the PIN
+  RETIREMENT, which is per element -- so an element's dead pin was
+  retired or kept according to what an earlier element had happened
+  to trigger. Same act, opposite answers, decided by something no
+  user can see.
+
+- **A GUARD THAT RUNS BEFORE A RE-READ MUST BE ASKED WITH RE-READ
+  VALUES TOO.** The rule that everything the colour editor writes is
+  re-read at the landing was complete and still lost a user's work:
+  `_retire_an_undrawable_pin` was handed the LAUNCH SNAPSHOT, so pins
+  the editor had accepted against the live class count were retired
+  as the run landed -- the stamp removed so a reopen could not
+  recover them, and the sentence blaming the user's data. The same
+  guard also judged a COPIED ladder against the receiving column,
+  which is a carve-out `make_graduated_renderer` has carried since
+  copying arrived: a copy is a claim about the ladder, not about what
+  these values support.
+
 - **A GUARD THAT ASKS ABOUT ONE THING MUST NOT STAND IN FRONT OF AN
   EXIT THAT IS ABOUT ANOTHER.** Three defects in one day, 2026-08-17,
   all this shape, and each cost a user their work rather than a crash.

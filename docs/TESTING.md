@@ -280,6 +280,49 @@ vary the fixture BEFORE trusting the green: the replacement sweeps
 five value sets across four schemes at three class counts and asserts
 the combination count actually ran.
 
+## TEST A CONTROL BY TYPING INTO IT, NOT BY `setValue`
+
+2026-08-17, four defects in one day, every one of them a control
+silently refusing what a person typed and every one invisible to the
+test that guarded it.
+
+`setValue` CLAMPS IN SILENCE. It never consults the validator, so it
+cannot see a range that refuses a keystroke, a `decimals` too low to
+hold the number, or a `valueChanged` handler rewriting the box while
+somebody is still typing. All four guards drove `setValue` or
+`stepBy`, all four passed throughout, and one docstring said in as
+many words "dragging or stepping" -- so typing was never in view.
+
+**HOW.** Walk the string character by character through the widget's
+own `validate`, and require the whole of it to survive:
+
+    kept = ""
+    for character in typed:
+      trial = kept + character
+      state, _fixed, _pos = box.validate(trial, len(trial))
+      if state in (QValidator.State.Acceptable,
+                   QValidator.State.Intermediate):
+        kept = trial
+    assert kept == typed
+
+Where a handler may rewrite the box mid-edit, that is not enough --
+`validate` does not run the handler. Use `QTest.keyClicks` on the
+line edit and a `Key_Return`, which is what a person does.
+
+**AND ASSERT THE NUMBER THE MAP IS BUILT FROM**, not the number in the
+box. The scale defect was found by reading tile centroids: the box and
+the map can agree with each other and both be wrong about what was
+typed.
+
+**THE FAMILY IS WORTH ONE TABLE TEST.** `test_every_number_box_holds_
+a_value_finer_than_its_step` walks every `QDoubleSpinBox` the dialog
+owns, so a control added next year is covered by somebody adding a
+widget rather than by somebody remembering. Its first draft demanded a
+value one order finer than each box's step -- STRICTER THAN THE
+MAINTAINER'S RULING of three decimal places -- and failed on a step of
+0.083. A test inventing a contract nobody agreed is the same fault as
+a test written around a defect, from the other side.
+
 ## THE SECOND TRIGGER: when a fix AND its test are in, hunt that ground again
 
 Stated as a step for the same reason as the one below it: the practice

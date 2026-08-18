@@ -180,45 +180,13 @@ ABOUT ANOTHER. A colour comparison in front of the file write; a
 in front of the table learning what it is about to be asked. Ask what
 a guard is FOR before deciding what it may skip.
 
-### OUTSTANDING: three defects found and not yet fixed
+### OUTSTANDING: guards owed for fixes made on 2026-08-17
 
-Reported by hunts late on 2026-08-17, each reproduced by at least two
-independent routes. NONE is fixed.
-
-**The Ramp Display Range's two percent boxes eat typed digits.** Each
-box's range is clamped by the OTHER's current value so the two cannot
-cross, and a QSpinBox refuses the keystroke that would take its text
-past its maximum, keeping what it already accepted. From (0, 40),
-typing 60 into the lower box gives **6**: the element is recoloured
-from a stretch of ramp nobody asked for AND stamped on the layer, so
-it survives the save. Measured against `quant_class_colours`, four of
-five colours differ. Dragging the SLIDER to the same window works, so
-the window is expressible and only typing it is not -- which is this
-window's own rule ("A CONTROL MUST BE ABLE TO REPRESENT ITS DOMAIN")
-failing on the sibling control. `category_editor.py:1418`, `:1424`,
-re-applied at `:1510` and `:1537`. Since 0ec8ecc, 2026-08-10. The
-existing test at `run_tests.py:21356` drives it with `setValue`, which
-is why nothing failed.
-
-**The follow branch ignores the row's Reverse.** The trial renderer at
-`dialog.py:6081-6085` omits `reverse`, though `_current_graduated_
-classes` passes it. A FORWARD ramp set in QGIS therefore "matches" a
-row whose Reverse is on, the plugin announces that it now follows the
-ramp, and the next unrelated edit -- asking for six classes -- redraws
-the element reversed, in the project and in the file. Fix is one
-argument: pass `assignment.get("reverse", False)`. Since 0ec8ecc.
-
-**`_restyle_only` stamps the layer before retiring an undrawable pin**,
-the reverse of `_add_output_layers`, whose comment says the order is
-the whole point; and its `field in said` dedup skips a second
-element's pin retirement entirely. `dialog.py:7885` and `:7924`.
-Narrow, and NOT reproduced -- the hunt that saw it did not claim it.
-
-### OUTSTANDING: five of today's twelve fixes carry no guard
-
-**A BUG WITHOUT A REGRESSION TEST IS NOT FIXED.** Five repairs made on
-2026-08-17 do not have one, each verified only by the neighbouring
-tests continuing to pass.
+**A BUG WITHOUT A REGRESSION TEST IS NOT FIXED.** Twenty-one defects
+were fixed on 2026-08-17; most carry a test and a proved catalogue
+entry, and these do not. Each was verified by its hunt's own
+reproduction and by the neighbouring tests continuing to pass, which
+is not the same thing.
 
 - **a retyped break reaching the GeoPackage.** Read
   `layer_styles.styleQML` with sqlite, as the hunt did.
@@ -226,15 +194,19 @@ tests continuing to pass.
   window is about 126 ms on the n=4 fixture, so the fixture must be
   bigger than that.
 - **a categorized dock edit reaching the exported file.** A test was
-  written for this and WITHDRAWN unfinished: it proved the file
-  changes but could not show the stroke it set in what it read back,
-  so it was measuring the wrong rows. The fix itself is corroborated
-  by two hunts independently. Finish the test rather than trusting
-  that.
-- **the class count reaching `_class_counts` as well as the spinner**
-  is guarded, but only inside the follow test; a rebuild-specific
-  case would be clearer.
-- **the deferral exit carrying a hand-mixed single colour.**
+  written and WITHDRAWN unfinished: it proved the file changes but
+  could not show the stroke it set in what it read back, so it was
+  reading the wrong rows. Two hunts corroborate the fix; finish the
+  test rather than trusting that.
+- **the deferral exit carrying a hand-mixed single colour**, and the
+  `touched` flag that stops the next rebuild discarding it.
+- **`_restyle_only` restamping a pin it has just retired**, and the
+  two dedup sets. `tools/probes/restyle_stamps_the_pin_it_retires.py`
+  is the reproduction and reads the `.qgz` as bytes.
+- **a copied ladder surviving the retirement guard**, and the guard
+  being asked with live rather than launch-snapshot values.
+- **the No Data split surviving deferral** has a test; its catalogue
+  entry is still owed.
 
 ### Process items, which do not block a candidate
 

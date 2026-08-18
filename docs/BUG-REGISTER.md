@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-229 defect(s) with a regression test.
+230 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -115,6 +115,8 @@ there is no separate list to remember.
   guarded by `test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis`
 - **a tiling still in flight when the project was replaced landed its layers into the incoming project, replacing that project's own output with memory layers tiled from the previous project's region -- and reported it as a successful run. `_forget_the_last_project` did not cancel the task and `_on_generated` never asked which project it was for.**  
   guarded by `test_a_run_in_flight_does_not_land_in_the_project_that_replaced_it`
+- **typing a scale factor between -1 and 1 was mangled by the step-over-zero handler firing per keystroke, so a mirrored design was silently un-mirrored and every element drew on the wrong side of the map.**  
+  guarded by `test_a_scale_between_minus_one_and_one_can_be_typed`
 - **negative scale factors were allowed on 2026-08-16 so that a pattern can be mirrored, which put ZERO inside the control's range for the first time. The library does not refuse a zero scale: `transform_scale(0, ...)` returns a unit collapsed to no area, and the failure surfaces much later inside `Tiling.__init__` as `numpy.linalg.LinAlgError: Singular matrix` -- reaching the user as a raw "Tiling failed" line about a matrix they never asked about.**  
   guarded by `test_a_scale_control_steps_over_zero`
 - **an area whose value was NULL was not drawn at all, leaving a hole in the map that reads as absence rather than as missing data.**  
@@ -507,7 +509,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 83
-- a bug hunt pointed in a named direction: 63
+- a bug hunt pointed in a named direction: 64
 - the mutation campaign: 16
 - reported by a user: 16
 - reading the code: 15

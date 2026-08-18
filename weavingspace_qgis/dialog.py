@@ -1744,6 +1744,30 @@ class WeavingSpaceDialog(QDialog):
       box.setSingleStep(step)
       box.setDecimals(max(_LEAST_FIGURES_DECIMALS,
                           3 if step < 1 else 1))
+      # ONE SIGNAL PER FINISHED EDIT, not one per keystroke, and this
+      # line is the whole of a defect that made a mirrored design
+      # impossible to type.
+      #
+      # `_skip_zero_scale` watches `valueChanged` and moves the box off
+      # zero, because a scale of zero collapses the unit and surfaces
+      # later as a raw LinAlgError. With keyboard tracking on -- Qt's
+      # default -- that signal fires on every character, so typing
+      # `-0.5` announced a landing on ZERO after the leading nought:
+      # the handler rewrote the box, the remaining `.5` landed in the
+      # middle of the rewritten text, and the sign flipped. Measured
+      # 2026-08-17 by reading tile centroids rather than the box: from
+      # a mirrored design, typing -0.5 silently UN-MIRRORED it, putting
+      # every variable on the wrong side of the map at a size that
+      # looks exactly right. No value between -1 and 1 could be typed
+      # at all; fourteen of fourteen missed.
+      #
+      # A RANGE IS NOT THE ONLY THING THAT EATS A KEYSTROKE. A handler
+      # that rewrites its own box does it too, and only real key
+      # events see it -- every guard on this control drives `setValue`
+      # or `stepBy`, and its docstring says "dragging or stepping",
+      # so typing was never in view. The class-bound box has carried
+      # this same line since it was written.
+      box.setKeyboardTracking(False)
       box.valueChanged.connect(self._queue_preview)
       return box
 
@@ -8101,18 +8125,56 @@ class WeavingSpaceDialog(QDialog):
     # all. Saying it on one path only is the twin asymmetry this
     # project has now paid for several times over. Deduplicated by
     # field, because several elements may carry the same column.
+    # TWO DEDUP SETS, NOT ONE, and conflating them made a retirement
+    # depend on something no user can see. `said` is about the LEGEND
+    # NOTICE -- several elements may carry one column and one sentence
+    # about it is enough. The pin retirement is per ELEMENT: each has
+    # its own record and its own stamp. Sharing the set meant an
+    # element's dead pin was retired or kept according to whether an
+    # EARLIER element had happened to raise a legend notice about the
+    # same column. Measured 2026-08-17: with the first element at k=20
+    # its notice fires and the second element keeps its dead pin in
+    # silence; at k=6 it does not fire and the second is retired and
+    # announced. Same act, opposite answers.
     said = set()
     for tid in changed:
       a = assignments[tid]
       field = a.get("var")
-      if not field or a.get("mode") != "Graduated" or field in said:
+      if not field or a.get("mode") != "Graduated":
         continue
       # the pin FIRST: retiring one changes how many classes the
       # legend note is about, so asking in the other order describes
       # a ladder that is about to stop existing
       retired = self._retire_an_undrawable_pin(field, a)
       if retired is not None:
+        # ...AND THE LAYER IS RESTAMPED, because this path stamps
+        # BEFORE it reaches here while its twin `_add_output_layers`
+        # retires first and stamps afterwards, saying at that line why
+        # ("the last moment before the value is stamped"). Both retire
+        # calls were written in ONE commit and the order was reversed
+        # on this side, so the twin's own explanation sat fifteen
+        # hundred lines from the path that got it wrong.
+        #
+        # The cost was not cosmetic: the user was told the bound "has
+        # been recalculated" while the retired number went onto the
+        # layer anyway, so reopening the saved project restored a pin
+        # the row displayed and the map ignored. Only this path can
+        # meet it -- a class-count change is symbology, so the
+        # run-landing twin never sees the case.
+        #
+        # WHEN A FIX IS WRITTEN INTO TWO PATHS IN ONE COMMIT, DIFF THE
+        # TWO HUNKS AGAINST EACH OTHER rather than each against its
+        # own neighbourhood.
+        layer_now = QgsProject.instance().mapLayer(
+          self._element_layer_ids.get(tid, ""))
+        if layer_now is not None:
+          fresh = self._assignment_for(tid)
+          self._stamp_category_colours(layer_now, fresh or a)
+          if self._last_path:
+            bridge.embed_style(layer_now)
         self._report_quietly(retired)
+      if field in said:
+        continue
       note = self._legend_size_note(field, a, tid)
       if note is not None:
         said.add(field)
