@@ -233,7 +233,7 @@ every class no tile wore until 2026-08-17, and since the maintainer
 ruled that mark out it is `empty_classes_message` that says so, in
 words, counted by `unworn_classes` from the ladder the map draws.
 That attribution read `few_values_message` for a day and was wrong:
-see the entry above on a removal justified by a claim nobody ran. And the orphan sweep is kept as a permanent
+the reasoning is at `bridge.unworn_classes` and in CLAUDE.md. And the orphan sweep is kept as a permanent
 invariant, since it caught two of the three attempts and is about any
 classification rather than about any one of them.
 
@@ -322,6 +322,96 @@ value one order finer than each box's step -- STRICTER THAN THE
 MAINTAINER'S RULING of three decimal places -- and failed on a step of
 0.083. A test inventing a contract nobody agreed is the same fault as
 a test written around a defect, from the other side.
+
+## A test can pass while registered nowhere
+
+2026-08-18, writing the last of thirteen owed guards. `tools/run_some.py`
+finds a test by FUNCTION NAME, walking the module rather than the
+registration list, so a test runs perfectly well without ever being
+handed to `check()`. The guard for the reversed-ramp defect ran green
+that way while the edit meant to register it had silently missed its
+anchor.
+
+A guard that no suite run executes is the quietest way for one to be
+worth nothing: it passes when you ask it directly, it appears in the
+file, and it is absent from every release. Nothing in the local loop
+would have said so -- `docs/TEST-MAP.md` is generated from the
+registrations, so it would simply not have listed it, and nobody reads
+a map to notice an absence.
+
+TWO HABITS, both cheap. When you add a test, assert the registration
+edit landed rather than assuming it -- a `replace` that matches
+nothing is silent, and every insert in this session's tooling asserts
+its own anchor for exactly that reason. And after adding a batch,
+compare the count of `def test_` against the count of `check(` before
+believing the batch is in.
+
+## Where a guard's expectation should come from, when the product is the
+## only thing that knows the answer
+
+Thirteen guards were written in one sitting on 2026-08-18, and the
+recurring difficulty was not what to assert but WHERE THE EXPECTED
+VALUE MAY COME FROM. Three answers earned their place, in descending
+preference.
+
+**From the fixture and the settings**, which is the standing rule.
+A pin of 6e-10 typed into a box must read back as 6e-10; a copied
+ladder's interior breaks must still be in the record. Nothing is asked
+of the code under test.
+
+**From a PROPERTY of the domain that holds whatever the code
+believes.** The reversed-ramp guard needed to know which way round a
+ladder runs, and every function that could tell it is downstream of
+the defect. A sequential ramp runs light to dark, so a forward ladder
+has its palest class FIRST -- read off the rendered colours, true
+whatever the plugin thinks, and usable as an oracle precisely because
+the plugin has no say in it.
+
+**From a second implementation the defect does not touch.** The design
+view's guard compares the preview against what the element's own
+RENDERER paints, built by `make_graduated_renderer` -- a different
+path from the one under test, so a disagreement is a defect by
+construction. Where the fix and the comparison share code, as the
+deferring arm did, that arm must fall back to the fixture's own
+colour instead.
+
+AND WHERE NONE OF THE THREE IS AVAILABLE, SAY SO RATHER THAN
+INVENTING ONE. The ledger carries a single row marked `prose` for a
+sentence about which controls a row shows: a test asserting the
+guide's wording would pin the WORDS rather than the truth, and would
+fail the next time somebody rewrote the sentence correctly. What
+guards it is the prose hunt that found it. An honest gap in a record
+is worth more than a guard that measures nothing.
+
+## Instrument WHICH rebuild writes the record, and the fourth attempt lands
+
+The opacity defect of 2026-08-13 took four attempts across two
+sessions, and the difference at the end was not cleverness. Three
+attempts reasoned about where a stale value came from -- a flag read
+in `_refresh_table`, a table cleared on project change, cell widgets
+removed -- and each was reverted, one after running ten minutes
+without reaching the case.
+
+The fourth began by adding three dumps behind
+`WEAVINGSPACE_ADOPT_DUMP`, in the clear, the rebuild and the adoption,
+and running the real thing. One run printed the whole sequence:
+
+    FORGET the last project
+    PREV  a: table=100 dialog=<none>
+    ADOPT a: layer=40 dialog=100
+
+The clear WORKS. The table survives it, refills the records from the
+outgoing project's cell widgets, and adoption then finds the user's
+value and declines it. No amount of reading would have ordered those
+three correctly, because the middle one is a rebuild nobody had
+thought to suspect.
+
+THE DUMPS ARE COMMITTED, behind the flag, and that is deliberate: the
+instrument that names one defect is the instrument that names the
+next, and this is the second time this project has recorded that
+lesson (the first was `WEAVINGSPACE_SWEEP_DUMP`, two minutes to write
+after a day of reconstructions). WHEN A FIX HAS BEEN REVERTED ONCE,
+STOP FIXING AND START MEASURING.
 
 ## THE SECOND TRIGGER: when a fix AND its test are in, hunt that ground again
 
@@ -823,7 +913,7 @@ that must hold between two runs (translating the region translates the
 map; doubling spacing quarters the tile count), and a state machine
 whose transitions are checked against the dialog's actual behaviour.
 
-## Finding your way around 9,000 lines
+## Finding your way around 51,000 lines
 
 The suite is one file. `docs/TEST-MAP.md` is its index, generated by
 `tools/test_map.py` from the suite itself and rebuilt at every
@@ -846,7 +936,7 @@ prose is true until somebody adds one.
 Two things the map is deliberately NOT. It is not a coverage report —
 `tools/coverage_report.py` says which lines ran. And it is not an
 argument for splitting the file: coverage of intent is not the same
-shape as file boundaries, and moving 130 functions risks silently
+shape as file boundaries, and moving 500-odd functions risks silently
 dropping one from the safety net that guards everything else. If the
 file is ever split, verify it by comparing the registered-name list
 and the pass/fail set before and after; they must match exactly.
@@ -1238,8 +1328,8 @@ docs/MUTATION-LOOP.md). Corrected 2026-08-13.
 **Before believing a survivor is a gap, count the call sites.**
 Deleting one of several redundant calls leaves the others to do the
 work, so no test can discriminate and none should be contorted into
-trying. `_update_layer_exclusions()` is called both in the constructor
-and after every run: deleting the constructor's call is invisible to
+trying. `_update_layer_exclusions()` is called from THREE places -- the
+constructor, project adoption, and after every run: deleting the constructor's call is invisible to
 any test that generates first, and visible only to a dialog opened on
 a project that already holds output. That distinction is the whole
 test. Where the second call site turns out to be genuinely redundant,

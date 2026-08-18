@@ -2814,8 +2814,10 @@ MUTATIONS = [
   # withdrawn on 2026-08-16. That entry guarded the class REDUCTION,
   # which cured the wrong-colour symptom by shortening the ladder --
   # and shortening re-samples the ramp, moving colours nobody chose.
-  # The nudge cures the same symptom without touching the ladder, so
-  # the guard moves with it.
+  # A NUDGE replaced it and was itself withdrawn hours later, so
+  # neither mechanism exists now: the symptom is left visible and
+  # reported in words by `empty_classes_message`. Kept as the reason
+  # this entry sits here rather than beside a reduction that is gone.
   dict(name="a-copy-carries-the-pin-flags", file=DIALOG,
        old='      if source_pins.get(end) is None:\n        continue',
        new='      if True:  # mutation: the flags stay behind\n        continue',

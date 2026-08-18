@@ -190,7 +190,8 @@ obligations: they exist so nobody pays twice for the same discovery.
   `git checkout -- docs/text-approved.json`. (User correction,
   2026-08-09, after the assistant approved its own five strings.)
 - **The standards are ENFORCED at release, not merely intended.**
-  `release.py` runs `tools/check_standards.py` before anything else,
+  `release.py` runs `tools/check_roadmap.py --merge` first and
+  `tools/check_standards.py` immediately after,
   and refuses to build a zip when it fails. It checks what this file
   says: every reachable function and class documented, functions of
   two or more arguments documenting them, no mutation markers left in
@@ -396,7 +397,7 @@ obligations: they exist so nobody pays twice for the same discovery.
   docs/PUBLISHING.md. (2026-08-11, after the first Linux run.)
 - **Do not re-run a gate the release is about to run.** The gates
   are ordered cheapest-first for exactly this reason: standards and
-  secrets take seconds, and the FUNCTIONAL SUITE IS THE THIRD STAGE,
+  secrets take seconds, and the FUNCTIONAL SUITE IS THE FOURTH STAGE,
   so a failing suite aborts a candidate about twenty-four minutes in
   having cost little more than the suite itself. Running that suite
   standalone "to be safe" beforehand therefore buys no earlier
@@ -1563,9 +1564,11 @@ Confirmed with the user via an explicit design review:
   five, all reading "7 - 7" in five different colours. The map was
   never wrong; the legend was, and the legend is what a reader trusts.
   `make_graduated_renderer` collapses to k=1 and the dialog reports
-  it. (User instruction, 2026-08-09.)
-  **THE GENERAL FORM WAS WITHDRAWN ON 2026-08-16 AND REPLACED BY A
-  NUDGE. Read this before the history below it.** Reducing k re-samples
+  it -- UNLESS the element is pinned, for which see the ruling below.
+  (User instruction, 2026-08-09.)
+  **THE GENERAL FORM WAS WITHDRAWN ON 2026-08-16, AND SO WAS THE
+  NUDGE THAT BRIEFLY REPLACED IT. Read this before the history below
+  it.** Reducing k re-samples
   the ramp: class i takes `ramp.color(i/(k-1))`, so a shorter ladder
   spreads its survivors across the whole ramp and every colour moves
   with nobody choosing to move it. Measured that day, five asked over
@@ -1575,22 +1578,24 @@ Confirmed with the user via an explicit design review:
   later re-colours every class -- which is the thing
   one-colour-one-meaning exists to forbid. The maintainer's rule is
   that an empty class is INVISIBLE, NOT DELETED.
-  What cures the original symptom instead is
-  `bridge._nudge_off_shared_bounds`: where the classifier has returned
-  DEGENERATE ranges, every finite-width range's upper bound moves down
-  by one unit in the last place. A value sitting on a shared boundary
-  then falls past the interval swallowing it into the degenerate range
-  that means exactly that value. On {1, 5, 9} at k=5 the values land
-  in classes 1, 3 and 5, the highest wears the darkest colour, and the
-  two empty classes are REAL numeric ranges -- so a value arriving
-  later from someone editing in QGIS lands in one and draws in its
-  colour. That last property is why an empty class was never given a
-  hatched SYMBOL: a hatch baked into a renderer is a snapshot of
-  emptiness that nothing refreshes, and it would go on hatching
-  features added later. The plugin's SWATCH marked them instead until
-  2026-08-17, when that mark went too (see below); the argument
-  against putting it in the renderer stands whatever the swatch does,
-  and is the one to reach for if anybody proposes it again.
+  WHAT CURED THE ORIGINAL SYMPTOM WAS TRIED AND IS ALSO GONE, and this
+  paragraph described it as current until 2026-08-18.
+  `bridge._nudge_off_shared_bounds` moved every finite-width range's
+  upper bound down by one unit in the last place where the classifier
+  had returned DEGENERATE ranges, so a value on a shared boundary fell
+  into the degenerate range that means exactly it. It was withdrawn
+  hours after the reduction was, in the same afternoon, and the
+  function no longer exists -- `unworn_classes` says "the experiment
+  is gone" at its own docstring. Measured 2026-08-18 on {10 x8, 20,
+  30} at k=5: three degenerate ranges, no bound moved, and 20 lands in
+  class 4. The three withdrawn attempts and what each taught are in
+  docs/TESTING.md under "Three ways to move a class boundary"; what
+  survives is that an empty class is INVISIBLE, NOT DELETED, and that
+  emptiness is reported in words.
+  A BINDING FILE THAT NAMES A DELETED FUNCTION IS WORSE THAN ONE THAT
+  SAYS NOTHING, because it is read as the current design and its
+  mechanism looked for. This one contradicted itself: the withdrawal
+  was already recorded four hundred lines above.
   IT IS SCOPED, and the scope is the whole safety of it: on ordinary
   data every range has width, nothing is degenerate, and no bound
   moves. Shrinking bounds generally would push any value sitting
@@ -1600,6 +1605,13 @@ Confirmed with the user via an explicit design review:
   (maintainer's ruling the same day): five ranges all reading "7 - 7"
   in five colours is a legend claiming variation the data lacks, and
   marking four of them would not cure that.
+  A PIN OUTRANKS IT (maintainer's ruling, 2026-08-17, ledger row 43).
+  Pinned bounds give a constant column REAL ranges, so the sentence
+  the collapse exists to prevent cannot be produced, and the two doors
+  into a pinned ladder had disagreed: a copied ladder of -5/10/25/40
+  drew five classes while the same bounds as pins drew one, silently,
+  with the pin accepted and stamped. `bridge.py` reads
+  `if distinct == 1 and not pinned_here`.
   The break values are otherwise QGIS's own, moved by an ulp its label
   formatter rounds away, so the legend still reads "1 - 5", the
   renderer is an ordinary graduated one, and pressing Classify
@@ -1781,7 +1793,10 @@ Confirmed with the user via an explicit design review:
   worked alone, and together the pin did nothing while the button
   stayed down and the number was stamped.
   TWO DOORS INTO ONE STATE, one guarded, is where the next one lives:
-  `pin_problem` refuses every pin on a constant column, a copy is not
+  `pin_problem` used to refuse every pin on a constant column -- it does
+  NOT since the out-of-data guard was lifted on 2026-08-17, and the
+  same stale sentence survives in the suite at the test that records
+  this lesson -- a copy is not
   guarded that way, and the colouring branch downstream had been
   written for the guarded door -- so a copied ladder on a one-value
   column drew flat placeholder grey.
@@ -1892,6 +1907,82 @@ Confirmed with the user via an explicit design review:
   ALL THREE WERE FOUND BY HUNTS AND NONE BY THE SUITE, on a build that
   had passed 481 tests, the gallery, the colourspace comparison and
   both CI jobs. A gate measures whether known behaviour still holds.
+
+- **A REPRODUCTION CAN STOP REPRODUCING BECAUSE A NEIGHBOURING RULE
+  CHANGED, AND THE DEFECT IS NOT DEAD -- ITS DOOR HAS MOVED.**
+  2026-08-18, writing the guard for `_restyle_only`. Its committed
+  probe reached pin retirement by moving the Classes spinner, and that
+  route had been REFUSED hours earlier when a class count stopped
+  being allowed to destroy a pin. Run as it stood, the probe now shows
+  nothing, and the obvious reading -- "this cannot happen any more" --
+  would have left two defects unguarded.
+  What still reached the code was a record holding bounds the data
+  cannot support, which is what a reopened project or a copied ladder
+  hands over. So the guard stages the RECORD rather than the control.
+  ASK WHICH DOOR THE PROBE USED AND WHETHER THAT DOOR IS STILL OPEN.
+  Where it has been closed, the question is which other doors reach
+  the same room, not whether the room still exists. A probe is
+  evidence about one route; it was never evidence about the whole of
+  a behaviour.
+
+- **CLEARING IS RIGHT WHEN THE USER LET SOMETHING GO, AND WRONG WHEN
+  THE PLUGIN MERELY STOPPED DECIDING.** (2026-08-18, three defects in
+  the deferral family.) `_stamp_category_colours` clears both stamped
+  records when there is nothing to record, which stops a layer
+  carrying stale choices and is correct. `_assignments` reports a
+  DEFERRING row with its picks and pins as None -- indistinguishable
+  at that site from a user who cleared everything -- so restyling an
+  element in QGIS erased its pinned bounds and hand-picked colours
+  from the saved project while the open window still showed them.
+  The same boundary was got wrong in the other direction twice more:
+  the landing took the OLD layer's opacity for a deferring element
+  when the Opacity cell stays live throughout, and
+  `_restyle_no_data_layer` repainted a deferring element's paired
+  layer when the landing carries that renderer across. Deferral means
+  the plugin stops deciding an element's SYMBOLOGY. It does not mean
+  the plugin stops deciding anything, and every rule about where that
+  line falls has now been wrong at least once.
+  THE TWO PATHS NEED DIFFERENT REPAIRS, and that is the part that
+  generalises: on a RESTYLE the layer survives, so the records are
+  left alone; on a RE-TILE the element gets a NEW layer, and leaving a
+  new layer alone means the records are never written at all, so they
+  must be CARRIED. Fixing one mends one route and the probe goes on
+  failing on the other.
+
+- **A GATE THAT CHECKS HALF OF WHAT IT NAMES IS WORSE THAN NO GATE**,
+  because the other half is then believed to be checked. 2026-08-18:
+  `sync_release_content.check_vendor_claims` promises in its own
+  docstring that "prose claims about the vendored library match the
+  recorded stamp", and did `stamp.split()[0]` -- the VERSION alone.
+  The stamp is written "0.0.7.61 (c0f109c)" precisely because upstream
+  does not always bump the version when the code moves, which is what
+  MAINTAINING.md tells a re-vendorer, so the half that exists FOR that
+  reason was the half nothing compared. Two documents named a
+  superseded commit for eight days past a green gate.
+  This is the sibling of "a rule that asserts its own enforcement must
+  BE enforced". When you write a checker, enumerate what its own
+  sentence promises and check each clause; and guard the gate itself,
+  as `test_the_documents_numbers_match_the_code` now does by planting
+  a wrong commit and requiring the checker to object.
+
+- **WHEN A FIX WIDENS A CALL SO IT STOPS IGNORING X AND Y, ENUMERATE
+  EVERY KEY OF THE RECORD THE CALLER COULD HAVE READ.** 2026-08-17 and
+  18: `_table_id_colours` built each element's preview colour from the
+  ramp NAME, and was wrong SIX TIMES -- a deferring element's layer,
+  the Ramp Display Range, the row's Reverse, hand-picked class and
+  category colours, a column with nothing to classify, and a constant
+  column that the renderer colours from the middle of the window.
+  Two were reported, a third was found by reading the line beside
+  them, and three more arrived afterwards from hunts. Each repair
+  added another condition to the same `elif`.
+  A HUNT NAMES WHAT IT MEASURED; IT IS NOT A CENSUS. Three of the six
+  colour keys `_assignments` carries were still unread after the
+  commit that was supposed to settle it. The rule that finally closed
+  the family was to stop enumerating: the preview READS WHAT THE MAP
+  DRAWS, and falls back to the row's records only before there is a
+  map. When one expression has been wrong three times, the question is
+  not which condition is missing but whether it should be asking the
+  question at all.
 
 - **THE PLUGIN'S TABLE FOLLOWS THE LAYER'S RENDERER, AND THE SCOPE OF
   THAT IS THE WHOLE OF ITS SAFETY.** (Maintainer's ruling, 2026-08-17,

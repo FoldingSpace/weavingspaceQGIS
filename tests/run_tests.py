@@ -12015,9 +12015,16 @@ def test_a_copied_ladder_on_one_value_still_wears_its_ramp():
   map reads as no data.
 
   Two doors into one state, one of them guarded. `pin_problem`
-  refuses every pin on a constant column, so the pin door never
-  delivers this; the copy door is not guarded that way, and the
-  branch downstream was sized for the guarded one.
+  refused every pin on a constant column when this was written, so the
+  pin door never delivered it; the copy door was not guarded that way,
+  and the branch downstream had been sized for the guarded one.
+  THAT ASYMMETRY IS GONE AND THE LESSON IS NOT. The out-of-data
+  refusal was lifted on 2026-08-17, and on 2026-08-18 a pin was ruled
+  to OUTRANK the one-value collapse, so both doors now deliver a
+  pinned ladder on a constant column and both are guarded --
+  `test_a_pin_outranks_the_one_value_collapse` holds the pair
+  together. What this test still guards is the downstream branch,
+  which must colour whatever arrives through either.
 
   Regression: copying a classification onto an element whose column holds a single value left every class but the first on the placeholder grey, so the element drew as flat no-data colour while its ramp cell named a ramp.
  [hunt]

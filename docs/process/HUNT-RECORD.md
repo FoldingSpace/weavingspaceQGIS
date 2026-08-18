@@ -567,6 +567,63 @@ COSTING MORE THAN IT KNOWS, and the rule against running two
 measurements at once applies to agents as much as to processes. Its
 question survives as a roadmap entry rather than as a loose end.
 
+## 2026-08-17 evening and 2026-08-18: the portfolio rule, tested
+
+Seven hunts in one round, partitioned by area AND shape, each told
+what its siblings covered. Twelve confirmed findings. The round is
+worth recording because it was the first chosen deliberately BY the
+portfolio rule rather than by what looked productive, and the rule's
+own prediction held.
+
+TWO WERE TRIGGERED RATHER THAN CHOSEN, and both paid immediately. A
+batch of tests written in haste found a DEAD AXIS in a guard committed
+an hour earlier: the window arm narrowed the display range to (0, 20),
+and with `lo` at zero the term it was meant to exercise is the
+identity, so the preview could forget the low end of the window
+entirely and every assertion passed. ZERO IS THE IDENTITY OF THE TERM
+THE FIXTURE WAS MEANT TO EXERCISE -- a fixture pinned to the origin of
+the quantity under test cannot show an error in it. The
+single-fixture hunt found a REGRESSION made that same afternoon, in
+the fix for the defect the previous round had reported.
+
+TWO WERE DIRECTIONS THIS RECORD LISTED AS NEVER TRIED, and both paid.
+
+**The specification itself** -- asking whether a settled decision is
+WRONG rather than looking for code that disobeys one -- found two
+rules giving opposite answers on one case: a constant column with
+pins, where the copy door drew five classes and the pin door
+collapsed to one, silently, with the stamp still claiming a pin. That
+is a kind no code-reading direction can find, because both sites obey
+their own rule perfectly. The maintainer ruled the same day.
+
+**The prose** -- the user guide and help text tested AS CLAIMS -- found
+three: a sentence describing a control the maintainer had moved the
+day before, a ceiling wrong by six for a week, and a vendored commit
+that a GATE had never once compared because it split the stamp on
+whitespace. The last is the most interesting: hunting prose found a
+defect in a CHECKER, which no amount of hunting code would have
+surfaced, because the checker's own docstring was the claim being
+tested.
+
+WHAT THE ROUND SAYS ABOUT AIM. Four of the twelve were in code written
+that same evening, including one regression of mine and one dead axis
+in a guard I had committed an hour earlier. Knowing the rate did not
+change the rate.
+
+TWO DIRECTIONS REMAIN UNTRIED after this round: cross-platform
+divergence, and performance-at-scale as a deliberate choice rather
+than forced by a red CI. A hunt was briefed for the first and
+cancelled before it reported.
+
+A NOTE ON RUNNING THEM. Every hunt in this round found HEAD had moved
+underneath it, some twice, and each said so in its report and
+re-measured against the current tip. That is the behaviour to ask for
+explicitly: tell a hunt to date every finding to a revision, because a
+finding dated to a commit can be re-checked and one that is not has to
+be re-derived from scratch. The same applies to documentation audits,
+where it was got wrong in this session -- an audit was launched at one
+commit and its document rewritten underneath it.
+
 ## Directions not yet tried
 
 Written down so they are a decision rather than an oversight:
@@ -579,7 +636,12 @@ Written down so they are a decision rather than an oversight:
   two backgrounds and opacity falls out per pixel without knowing any
   colour.
 - **Cross-platform divergence** — the first Linux run found a defect
-  invisible on any Mac. Nobody has hunted that seam deliberately.
+  invisible on any Mac. Nobody has hunted that seam deliberately. A
+  hunt was briefed for it on 2026-08-18 and cancelled before it
+  reported, so the direction is still untried; the brief is worth
+  reusing, and its cheapest arm is to run with
+  `QGIS_CUSTOM_CONFIG_PATH=$(mktemp -d)` and see what changes, since a
+  seeded profile has already hidden three faults here.
 - **The specification itself** — every hunt so far assumes the settled
   decisions are right and looks for code that fails them. None asks
   whether a settled decision is wrong.
@@ -588,8 +650,13 @@ Written down so they are a decision rather than an oversight:
   test. Found an uncached swatch redrawn 306,558 times in a single
   test. See "Reading the documents IS a direction" above for the
   technique, which is to diff call COUNTS between two revisions.
-- **The prose** — the user guide and help text make claims about
-  behaviour; nobody has tested those claims as claims.
+- ~~**The prose**~~ — TRIED 2026-08-18 and it paid, three findings
+  including a defect in a CHECKER whose own docstring was the claim
+  being tested. See the round above. Its lesson for next time, from
+  the hunt's own report: read the PREVIOUS outing's committed log
+  first, which had already ruled out two of its early candidates and
+  had checked tooltips for LENGTH while never asking whether one was
+  TRUE. That is where the ground still is.
 
 ## How to update this record
 
@@ -645,11 +712,19 @@ were this shape.
 
 **When one door into a state is guarded and another is not, check the
 unguarded door against every downstream guard sized for the guarded
-one.** `pin_problem` refuses every pin on a constant column, so no
-pin can put several classes on one value; a copy can, and the
-colouring branch downstream had been written for the guarded door. It
-left four of five classes on the placeholder grey they are built
-with, and the element drew as no data.
+one.** `pin_problem` refused every pin on a constant column when this
+was found, so no pin could put several classes on one value; a copy
+could, and the colouring branch downstream had been written for the
+guarded door. It left four of five classes on the placeholder grey
+they are built with, and the element drew as no data.
+
+BOTH DOORS ARE OPEN NOW, which is the better ending: the refusal was
+lifted on 2026-08-17 and a pin was ruled to outrank the one-value
+collapse on the 18th, so the asymmetry this entry is about no longer
+exists. The lesson survives it -- when one door is guarded and another
+is not, the downstream guard has been sized for one of them -- and it
+is worth noting that the fix was to open the guarded door rather than
+to guard the open one.
 
 **A hunt's OBSERVATIONS outrun its SEVERITY JUDGEMENTS, and its
 arithmetic is worth re-deriving.** Every claim reproduced here in

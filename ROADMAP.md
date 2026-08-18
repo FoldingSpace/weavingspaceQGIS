@@ -83,153 +83,103 @@ docs/PUBLISHING.md.
 
 ## 0.24.3 — next
 
-Work done straight on `pre-0.24.3rc1` rather than on a `for-` branch,
-because it is this version's work and not a parking place. Delete each
-entry as it lands.
+Worked straight on `pre-0.24.3rc1`. What follows is what the version
+DELIVERS, organised as a user meets it; the complete defect record,
+row by row with what each still owes, is
+`docs/process/defects-2026-08-17.md`.
 
-### Wanted
+### What it gives you
 
-Two entries were DELETED here on 2026-08-16 having landed, which is
-what this file asks for: the `test_adversarial_sequences` stall (four
-routes into a rebuild that a retired dialog kept open; 1,282 rebuilds
-down to 173, below v0.24.2's own 461) and both Windows failures (a
-notice assertion that had rotted against a reworded sentence, and a
-sampling window sized for this Mac). Each is guarded, and each guard
-was proved against the broken fix. The reasoning they produced is in
-CLAUDE.md and docs/TESTING.md, where it binds; a roadmap nobody prunes
-becomes a diary.
+**Areas with no value are drawn.** An area whose value is absent used
+to come out as a hole. So did one holding an infinity, which a
+classifier can no more place than a blank. Those areas are drawn now
+and told apart — no data, infinity and negative infinity each get
+their own colour, their own line in the legend, and their own entry in
+that element's colour editor. QGIS gains a second layer beside the
+element carrying them; the dialog still shows one element.
 
-FIXED 2026-08-17 and deleted from here: opening the plugin on a saved
-project silently replaced the saved map. Adoption already recovered
-the file from the adopted layers' own sources; the file widget was
-simply never told, and an empty widget is BOTH the condition that lets
-live update run and the condition that sends output to memory. One
-method, called after `_build_ui` and again on File > Open, makes the
-two records agree. Guarded by
-`test_reopening_a_saved_project_does_not_replace_its_map`, which
-stages it WITH LIVE UPDATE ON -- the setting every other adoption test
-disables and every user has -- and was proved by removing the call.
+**You can set the class bounds yourself.** The box holding the first
+or last class's inner bound is live whenever an element can carry a
+pin. Move it off the computed value and the bound is yours, with the
+classes between recomputed around it; move it back and it returns to
+being worked out for you. Bounds may sit outside the data — that is
+how one pair of limits can be given to several variables — and a
+bound that cannot be DRAWN is refused with the reason said.
 
-The first attempt at that fix silently did nothing, because it set the
-widget inside `_adopt_existing_group`, which runs BEFORE `_build_ui`
-in the constructor. The guard caught it, which is what a guard written
-before believing the fix is for.
+**A colour means the same thing everywhere.** An element is classed
+from the whole map's values rather than from its own tiles alone, so
+two elements set up alike can be read against each other. They could
+not before.
 
-THREE ENTRIES WERE DELETED HERE ON 2026-08-17 having been settled,
-which is what this file asks for. The group rename making a second
-group over the same tables: fixed through both doors, guarded by
-`test_a_renamed_group_is_still_the_group_the_next_run_replaces` and
-`test_a_renamed_group_is_adopted_when_the_plugin_reopens`, and the
-lookup now asks the layers rather than the name. The missing ramp
-raising from inside `make_categorized_renderer`: fixed on both twins,
-announced to the user, and the test that found it now installs the
-palette it names instead of relying on a seeded profile. And the
-stochastic hunt's seven-seed claim, which was JUDGED AND DID NOT
-REPRODUCE on any of seven deliberate routes -- the judgement, and the
-lesson about seed counts that came out of it, are in
-`docs/process/hunt-stochastic-2026-08-17.md` and the hunt record.
+**You can copy a classification** — classes, colours, pins and class
+count — from one element to another in the same window. Where the two
+carry different columns the ends are fitted to the receiving data, and
+a class its values cannot reach is kept rather than dropped, so the
+classification arrives whole.
 
-### What rc7 answered
+### What it puts right
 
-**Everything reported against rc5 by the maintainer and from the field
-has landed.** Four of those repairs are guarded and each guard was
-proved against its own broken fix; the four made later in the day are
-not yet, and that is the blocking entry below. Deleted from here as
-each did, which is what this file asks -- the reasoning that outlives
-them is in CLAUDE.md where it binds, in docs/TESTING.md where it is
-about tests, and at the code.
+Forty-six defects, found and fixed over 2026-08-17 and 18, every one
+with a regression test and a proved mutation-catalogue entry. Grouped
+by what a user would have hit:
 
-WHAT rc7 ANSWERED, in one paragraph so the shape is not lost: the
-plugin's table now FOLLOWS an element layer whose renderer somebody
-changed in QGIS -- the field, the style, the class count and the ramp
--- and defers only where the renderer is one no row can name, which was
-the maintainer's ruling between following, deferring and turning dock
-edits into pins. With it went the stale `disabled_by_deferring` mark
-that put a live spinner at a distinct-value count in front of the
-tester. Emptiness is reported in words again, measured on the ladder
-the map draws rather than predicted from a distinct-value count. The
-pinned-bound box holds what `pin_problem` will accept rather than a
-hundred times the element's own data, at both ends of the magnitude
-range. The spacing advice names a spacing that is actually accepted.
-And the guard for the Unclassed pins, which had a dead axis, compares
-written cells against the renderer and drives the strip's pin button.
+**Numbers you typed, quietly changed.** A class bound typed wider than
+the data was truncated (1200 kept 120) and the map drawn from the
+smaller number; a fine bound on a large column was rounded to a whole
+one; Rotate, Skew and both angle boxes refused decimals, so 22.5°
+became 22; a scale between −1 and 1 was mangled mid-keystroke, so
+−0.5 silently un-mirrored a design. Under a comma-decimal locale three
+separate sentences printed numbers their own boxes read differently.
 
-### Fixed after rc7 was published, so rc7 must be replaced
+**Work that disappeared.** A style pasted while a map was drawing was
+destroyed as it landed; a copied classification was destroyed at the
+instant of copying; pins set during a run were retired by a guard
+reading the count the run STARTED with; and restyling an element in
+QGIS erased its pinned bounds and hand-picked colours from the saved
+project while the window still showed them.
 
-**rc7 IS PUBLISHED AND CARRIES EVERY DEFECT IN THE LEDGER** -- the
-twenty-two fixed since and the four still open. The published build
-predates commit b4956cb, so it must be REPLACED rather than promoted.
-Do not send that link. The count moved four times in one evening,
-which is why this paragraph no longer states one:
-`docs/process/defects-2026-08-17.md` carries it, row by row. The
-eight named below were the first round, kept because the SHAPE they
-share is what the day was about.
+**Edits made in QGIS that never arrived.** Change an element's breaks,
+field, class count or ramp in the Symbology panel and the table went
+on describing the old map — and the next Generate wiped the change.
+A retyped break, a changed ramp, a stroke, a legend label and a
+deleted category each reached the map and the project but never the
+GeoPackage a colleague opens.
 
-What they were, in one line each, so the shape is not lost: the follow
-skipping the stamp-and-embed exits behind a colour guard; every
-Unclassed row warned its classes were empty; a far pin destroying a
-small one through the decimals; leaving deferral for a hand-mixed fill
-losing it; the significant-figures sweep lowering `decimals` to zero so
-a 22.5 degree rotation became 22; the spacing advice hand-formatted so
-a comma-decimal locale drew a map ten times too coarse in silence; a
-break retyped in QGIS never reaching the exported GeoPackage; and a
-style pasted mid-run destroyed by the run's landing.
+**A design view showing colours the map does not contain.** One
+expression was wrong six ways: a deferring element's layer, the Ramp
+Display Range, Reverse, hand-picked colours, a column with nothing to
+classify, and a constant column. It reads what the map draws now.
 
-THE SHAPE THAT RECURRED, three times in one day and worth the space:
-A GUARD THAT ASKS ABOUT ONE THING STANDING IN FRONT OF AN EXIT THAT IS
-ABOUT ANOTHER. A colour comparison in front of the file write; a
-"nothing nameable moved" test in front of the same; an in-flight gate
-in front of the table learning what it is about to be asked. Ask what
-a guard is FOR before deciding what it may skip.
-
-### The 2026-08-17 defect ledger
-
-**`docs/process/defects-2026-08-17.md` IS THE COMPLETE RECORD** of the
-twenty-six defects found that day: what each cost a user, where it
-lives, when it arrived, and an OWES column saying exactly which of
-test-and-catalogue-entry each still lacks. FOUR ARE STILL OPEN, with
-their reproductions named and, for one of them, an attempted fix that
-did not work and why not to repeat its shape.
-
-That file exists because this roadmap carries only what is
-OUTSTANDING, and `dev/state-of-play.md` is gitignored and rewritten
-every session -- so a defect that was found, fixed, and left without a
-guard had nowhere durable to live. Read the ledger first; the entry
-below is its OWES column restated.
+**Things you should have been told.** A class with no areas in it went
+unmentioned though four documents said otherwise; every Unclassed
+element was warned a third of its fifty steps were empty; and where
+two elements share a column, one element's notice silenced the other.
 
 ### Nothing outstanding
 
-DELETED HERE ON 2026-08-18, having landed, which is what this file
-asks for: the thirteen guards owed for the fixes of 2026-08-17. Every
-row of `docs/process/defects-2026-08-17.md` now carries a regression
-test AND a mutation catalogue entry proved to catch its removal, or is
-the single row honestly marked `prose` -- a sentence about which
-controls a row carries, where a test would pin the words rather than
-the truth, and what guards it is the prose hunt that found it.
-
-The ledger's OWES column is the record and is committed; this section
-was only ever its restatement, and two documents saying one thing is
-how they come to disagree. Check it rather than believing this
-paragraph:
+The thirteen guards owed for those fixes were written and proved on
+2026-08-18 and the entry listing them is DELETED, which is what this
+file asks. The ledger's OWES column is the record; check it rather
+than believing this paragraph:
 
     python3 -c "
     import re,pathlib
     txt=pathlib.Path('docs/process/defects-2026-08-17.md').read_text()
     rows=[l for l in txt.split('## The ledger')[1].splitlines()
-          if re.match(r'^\|\s*\d+\s*\|',l) and len(l.split('|'))==7]
+          if re.match(r'^\\|\\s*\\d+\\s*\\|',l) and len(l.split('|'))==7]
     print([(r.split('|')[1].strip(), r.split('|')[5].strip()) for r in rows
            if r.split('|')[5].strip() not in ('test + entry','prose')])"
 
-What that leaves for 0.24.3 is the candidate itself, and the process
-item below, which does not block one.
+The reasoning that outlives these fixes is in CLAUDE.md where it
+binds, in docs/TESTING.md where it is about tests, and at the code.
 
 ### Process items, which do not block a candidate
 
 **CONFIRM THE GHOST NUMBERS ON A REAL SCREEN.** Deferred until after
 the release by the maintainer, 2026-08-17, to be tested by the person
-who reported it. The cause is removed -- the Unclassed table is no
+who reported it. The cause is removed — the Unclassed table is no
 longer composited through a `QGraphicsOpacityEffect` and fades per
-item through the palette's disabled colour -- and guarded by
+item through the palette's disabled colour — and guarded by
 `test_the_unclassed_list_fades_without_a_graphics_effect` and the
 catalogue entry `the-unclassed-list-is-not-composited`. What no test
 here can say is whether the ghosts are GONE: they live in the window
@@ -385,6 +335,17 @@ folds case. That last part is now measured rather than argued: writing
 holding the second element's data, and both writes report success
 (2026-08-14). Going further means changing the weave string format
 upstream and in every stored design.
+
+UPSTREAM HAS SINCE DECIDED THE TILING HALF, 2026-08-18. `6926d65`
+supplies tile ids from `TILE_IDS = [a..z, aa, ab..zz]`, and its own
+message notes WeaveUnits remain single-character -- so the ceiling is
+no longer wholly upstream's decision, and what is left of this entry
+is the WEAVE STRING FORMAT alone. `c26dc70` also made ids
+case-sensitive in both TileUnit and WeaveUnit, which does not settle
+the GeoPackage collision recorded above and may sharpen it: a design
+using both `a` and `A` is now expressible upstream and still writes
+one table here. Read this beside the 0.24.4 entry that takes the
+vendor bump; neither is closed by the other.
 
 **Two conversations to have.** Whether the corrected large-plain-weave
 note was sent (`docs/process/upstream-note-large-plain-weaves.md`

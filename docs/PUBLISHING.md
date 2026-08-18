@@ -511,8 +511,19 @@ suite reads are in that list too, because
 failed twice on prose; a documentation edit really can break a test,
 and it is exactly the kind of change that feels as though it cannot.
 
-**A skip is honest or it does not happen.** Four stages' output is
-USED -- the testing report quotes the suite test by test -- so those
+THAT EXAMPLE NOW DESCRIBES NOTHING, and `release.py` says so at the
+map itself: the coverage stage left the release path and its entry
+left `STAGE_DEPENDS` with it. Kept here because the SHAPE is what the
+flag is for -- a change to machinery that retires one stage's answer
+and no other -- and because a document quietly dropping its own
+worked example loses the reason as well as the example. (Noted
+2026-08-18.)
+
+**A skip is honest or it does not happen.** Three stages' output is
+USED (four until the per-test coverage record left the release path;
+`skip_if_already_done`'s own docstring notes the sentence had only
+ever named three, and only three carry a `STAGE_DEPENDS` entry, so
+only three are skippable at all) -- the testing report quotes the suite test by test -- so those
 may only be skipped when the output survives in
 `reports/stage-logs/`, and the saved text is handed to the caller.
 A skip that returned nothing would produce a report describing
@@ -632,7 +643,12 @@ preserved, since those wheels belong to that machine and are not in
 the zip; everything else is replaced, so a file dropped from the
 plugin cannot linger in an installed copy and go on being imported.
 Restart QGIS or use Plugin Reloader afterwards — modules already
-imported stay imported. `--no-install` skips this.
+imported stay imported. Skipping the install is `build.py`'s
+`--no-install` rather than a flag on the command above:
+`release.py` declares only `--push`, `--resume` and `--rc`, and
+invokes `build.py` without forwarding anything, so
+`release.py --rc --no-install` is an argparse error. Corrected
+2026-08-18, having documented a flag the command could not take.
 
 To send the candidate to somebody else, attach the zip; they install
 it the same way as a release, through Plugins > Manage and Install
