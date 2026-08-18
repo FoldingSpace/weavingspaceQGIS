@@ -13484,28 +13484,48 @@ def test_the_design_view_paints_colours_the_map_contains():
     f"the ramp name alone lands at class {stale_at} too, so this " \
     f"fixture cannot tell a reversed preview from a forward one"
 
-  # ARM THREE: the Ramp Display Range, narrowed to the palest fifth.
-  # These are the lines the editor's own `range_changed` runs.
-  wide = dlg._table_id_colours()[graduated]
-  dlg._ramp_ranges[graduated] = (0, 20)
-  dlg._custom_swatch_cache.pop(graduated, None)
-  dlg._apply_style_change()
-  _tick(600)
-  drawn_by = project.mapLayer(dlg._element_layer_ids[graduated])
-  narrow = dlg._table_id_colours()[graduated]
-  assert wide != narrow, \
-    f"narrowing the display range did not move the preview: {wide} " \
-    f"then {narrow}"
-  step = class_step(drawn_by)
-  gap, was = from_the_map(narrow, drawn_by), \
-      from_the_map(naive_for(graduated), drawn_by)
-  assert gap <= step, \
-    f"the design view paints {narrow}, {gap}/255 from any colour the " \
-    f"map draws for this element, on a ladder whose widest step is " \
-    f"{step}"
-  assert was > gap, \
-    f"the windowed preview is no closer to the map than the ramp name " \
-    f"alone would put it ({gap} against {was}), so nothing was proved"
+  # ARM THREE: the Ramp Display Range. These are the lines the editor's
+  # own `range_changed` runs.
+  #
+  # TWO WINDOWS, AND THE SECOND ONE IS THE POINT. The first draft used
+  # (0, 20) alone -- the palest fifth, which is the case the hunt
+  # reported -- and a hunt pointed at THIS TEST an hour later found the
+  # axis dead: with `lo` at zero, `(lo + (hi - lo) * 0.65)` and
+  # `((hi - lo) * 0.65)` are the same number, so the preview could
+  # forget the low end of the window entirely and every assertion here
+  # still passed. Measured on (60, 100), where the same mutation puts
+  # the preview 110/255 from the map against a step of 38.
+  #
+  # A FIXTURE THAT CANNOT EXHIBIT THE CASE IS INVISIBLE IN A GREEN
+  # RESULT, and a window pinned to the origin is exactly that: zero is
+  # the identity of the term it was meant to exercise.
+  checked_windows = 0
+  for window in ((0, 20), (60, 100)):
+    wide = dlg._table_id_colours()[graduated]
+    dlg._ramp_ranges[graduated] = window
+    dlg._custom_swatch_cache.pop(graduated, None)
+    dlg._apply_style_change()
+    _tick(600)
+    drawn_by = project.mapLayer(dlg._element_layer_ids[graduated])
+    narrow = dlg._table_id_colours()[graduated]
+    assert wide != narrow, \
+      f"moving the display range to {window} did not move the " \
+      f"preview: {wide} then {narrow}"
+    step = class_step(drawn_by)
+    gap, was = from_the_map(narrow, drawn_by), \
+        from_the_map(naive_for(graduated), drawn_by)
+    assert gap <= step, \
+      f"with the display range at {window} the design view paints " \
+      f"{narrow}, {gap}/255 from any colour the map draws for this " \
+      f"element, on a ladder whose widest step is {step}"
+    assert was > gap, \
+      f"at {window} the windowed preview is no closer to the map than " \
+      f"the ramp name alone would put it ({gap} against {was}), so " \
+      f"nothing was proved"
+    checked_windows += 1
+  assert checked_windows == 2, \
+    f"only {checked_windows} display window(s) were driven, so the " \
+    f"low end of the range was never exercised"
 
   # ARM FOUR: HAND-PICKED CLASS COLOURS, which leave the ramp behind
   # altogether. The ramp cell already knows this -- it switches to
