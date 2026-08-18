@@ -6405,90 +6405,58 @@ class WeavingSpaceDialog(QDialog):
       + ", ".join(moved) + ".")
     return True
 
-  def _adopt_dock_bounds(self, tile_id, assignment, actual_bounds):
+  def _adopt_dock_bounds(self, tile_id, assignment, bounds, colours):
     """Take up class boundaries retyped in QGIS's Symbology panel.
 
     Args:
       tile_id: the element whose layer was edited.
       assignment: its row, from ``_assignment_for``.
-      actual_bounds: ``[(lower, upper), ...]`` as the layer now holds
-        them, already read off a bound list.
+      bounds: ``[(lower, upper), ...]`` as the layer now holds them.
+      colours: the layer's class colours, in the same order.
 
     Returns:
-      None. Records the ladder as pinned bounds when it diverges from
-      what this dialog would draw, so every reader of
+      None. Records the ladder as pinned bounds when a RETYPE moved
+      the numbers and nothing else, so every reader of
       ``_current_graduated_classes`` -- the editor, the swatch, the
-      table -- shows what QGIS is actually holding.
+      table -- shows what QGIS is holding rather than what this dialog
+      would compute.
 
-    LEFT ALONE WHEN IT AGREES, which is the common case: the plugin
-    seeds the layer itself, so most styleChanged signals carry the
-    ladder we just wrote. Recording it then would pin every element
-    the moment it was drawn, freezing classifications nobody chose
-    and making the scheme dropdown a lie.
-
-    AND LEFT ALONE WHEN THE PIN RULES REFUSE IT. `pin_problem` is
-    asked exactly as the editor's own spin boxes ask it, so a ladder
-    QGIS will accept but this plugin cannot express is declined
-    rather than stored -- storing it would put the record and the map
-    into the disagreement this method exists to end.
+    THE INTERIOR BOUNDARIES ONLY, with low/high cleared. Those two
+    pin the FIRST class's upper bound and the LAST class's lower
+    bound, not the ladder's outer edges; filling them from the edges
+    wrote 0 and 80 into the interior and produced a ladder running
+    backwards. The outer edges are the column's extremes, which is
+    the model: typing 0 - 10 over a column starting at 3.1 gives
+    (3.1, 10), the same areas in the same class.
     """
     field = assignment["var"]
-    if not actual_bounds or len(actual_bounds) < 2:
+    if not bounds or len(bounds) < 2:
       return
     mine = self._current_graduated_classes(assignment)
-    # A CHANGED CLASS COUNT IS A RECLASSIFICATION, and this must not
-    # touch it. The handler below already leaves one alone -- "a
-    # reclassification the dialog has no record to reconcile against"
-    # -- and the signature rule preserves it. Falling through to
-    # adoption here instead DESTROYED it: a twelve-class classify from
-    # the dock was recorded, then the run landed with the plugin's own
-    # five classes, and adoption recorded THOSE over the user's
-    # twelve. Caught by test_a_dock_reclassification_lands_while_a_run
-    # _is_finishing on 2026-08-18, which is the guard that already
-    # existed for precisely this and which this fix had walked past.
-    #
-    # THE LESSON, since it is the second time in this method: a step
-    # inserted BEFORE existing handlers inherits none of their guards.
-    # Adoption had to sit before the COLOUR comparison, because an
-    # edit that moves only numbers changes no colour -- but that put
-    # it before the COUNT guard too, which it still needed.
-    if not mine or len(mine) != len(actual_bounds):
+    # A CHANGED COUNT IS A RECLASSIFICATION, which this must not
+    # touch: the handler leaves one alone and the signature rule
+    # preserves it.
+    if not mine or len(mine) != len(bounds):
       return
-    if all(
-        abs(lo - a) < 1e-9 and abs(hi - b) < 1e-9
-        for (lo, hi, _c), (a, b) in zip(mine, actual_bounds)):
+    # ONLY WHEN THE COLOURS DID NOT MOVE, which is what separates a
+    # hand RETYPE from a dock CLASSIFY. Classify picks a ramp and
+    # rewrites both; the colour machinery already follows that and
+    # recomputes the breaks, so pinning them here freezes a ladder
+    # nobody chose.
+    if [c.lower() for _lo, _hi, c in mine] != [c.lower() for c in colours]:
+      return
+    if all(abs(lo - a) < 1e-9 and abs(hi - b) < 1e-9
+           for (lo, hi, _c), (a, b) in zip(mine, bounds)):
       return  # the ladder we drew; nothing was retyped
-    # THE INTERIOR BOUNDARIES ALONE, and "low"/"high" CLEARED rather
-    # than set. This is where the first attempt went wrong on
-    # 2026-08-18, and the failure named the model: given breaks
-    # [10, 20, 30, 50] with low=0 and high=80 the ladder came back as
-    # (3.1, 0) (0, 20) (20, 30) (30, 80) (80, 79.1) -- two classes
-    # running backwards, 20 and 30 surviving while 10 and 50 were
-    # replaced.
-    #
-    # WHICH SAYS WHAT low AND high ACTUALLY PIN: not the outer edges
-    # of the ladder but the FIRST class's upper bound and the LAST
-    # class's lower bound -- the two cells the editor makes editable,
-    # as its own spin boxes show. Setting them from the outer edges
-    # therefore overwrote the first and last interior boundaries with
-    # numbers meant for somewhere else entirely.
-    #
-    # So the outer edges are the column's extremes, always, and that
-    # is the model rather than a shortcoming. A tester who types
-    # 0 - 10 over a column starting at 3.1 gets (3.1, 10): the same
-    # areas in the same class, drawn identically, because no value
-    # lies between 0 and 3.1 to be classified differently.
     wanted = dict(self._pinned_bounds.get(tile_id, {}).get(field) or {})
-    wanted["breaks"] = [upper for _lower, upper in actual_bounds[:-1]]
+    wanted["breaks"] = [upper for _lower, upper in bounds[:-1]]
     wanted.pop("low", None)
     wanted.pop("high", None)
     source = self._classification_values(field)
     values = (source.uniqueValues(source.fields().indexOf(field))
               if source is not None else [])
-    problem = bridge.pin_problem(
-      None, None, values, len(actual_bounds), wanted.get("breaks"))
-    if problem:
-      self._report_quietly(problem)
+    if bridge.pin_problem(None, None, values, len(bounds),
+                          wanted.get("breaks")):
       return
     self._pinned_bounds.setdefault(tile_id, {})[field] = wanted
     self._custom_swatch_cache.pop(tile_id, None)
@@ -6526,39 +6494,8 @@ class WeavingSpaceDialog(QDialog):
       return
     ranges = renderer.ranges()
     actual = [r.symbol().color().name() for r in ranges]
-    # BOUND FIRST, and read the numbers while the list is alive: range
-    # objects from ranges() are temporaries.
-    actual_bounds = [(r.lowerValue(), r.upperValue()) for r in ranges]
     if not actual:
       return
-    # ---- THE BOUNDARIES, BEFORE ANY COLOUR QUESTION IS ASKED
-    #
-    # Everything below this point is about COLOUR, and every exit it
-    # takes is guarded by a colour comparison -- so an edit that moved
-    # only the NUMBERS reached none of them. Reported against rc8 on
-    # 2026-08-18 with two screenshots: QGIS holding 0-10, 10-20,
-    # 20-30, 30-50, 50-80 while the plugin's editor showed its own
-    # 3.1-18.3, 18.3-33.5 and so on, the COLOURS IN BOTH IDENTICAL.
-    # "regardless of HOW I do it, changes to the Q symbology are not
-    # reflected in the plugin", which was exactly right: every route
-    # ended at the same missing path.
-    #
-    # WHY NOTHING DOWNSTREAM COULD HAVE SAVED IT. The editor, the
-    # swatch and the table all read `_current_graduated_classes`,
-    # which does not look at the layer's ranges at all -- it REBUILDS
-    # a renderer from this dialog's record. A break that exists only
-    # in the layer's renderer is therefore invisible to every reader,
-    # whatever the layer holds. Colour had an adoption path into the
-    # record and the bounds had none; this is that path.
-    #
-    # ADOPTED AS A COPIED LADDER, which already exists and is already
-    # proved: `pinned["breaks"]` short-circuits the classifier
-    # entirely, and `fitted_breaks` keeps every interior boundary
-    # exactly while fitting only the outer edges. The ends are pinned
-    # too, because a tester who types 0 and 80 over data running 3.1
-    # to 79.1 means those numbers -- fitting alone would hand back the
-    # extremes and quietly lose two of the five edits.
-    self._adopt_dock_bounds(tile_id, assignment, actual_bounds)
     # The count is compared against what the plugin would DRAW, below,
     # and not against the row's `k`. Those are two different numbers
     # whenever the column has fewer distinct values than the row asks
@@ -6601,6 +6538,19 @@ class WeavingSpaceDialog(QDialog):
       # what a guard is FOR before deciding what it may skip.
       if self._last_path:
         bridge.embed_style(layer)
+      # A RETYPED BOUNDARY LANDS HERE, because moving a number moves
+      # no colour, and this is the only exit concluding that nothing
+      # else claimed the edit. LAST, and contained: this method runs
+      # inside a Qt signal handler where an exception is SWALLOWED,
+      # so anything added ahead of the work above can cancel it
+      # silently.
+      try:
+        live = renderer.ranges()
+        self._adopt_dock_bounds(
+          tile_id, assignment,
+          [(r.lowerValue(), r.upperValue()) for r in live], actual)
+      except Exception:
+        pass
       return  # our own seeding, or an edit that changed no colour
     if len(expected) != len(actual):
       # THE count guard, and the only one: the layer against what the
