@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-223 defect(s) with a regression test.
+225 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -119,6 +119,8 @@ there is no separate list to remember.
   guarded by `test_both_halves_of_an_element_fade_together`
 - **a mode change or a variable swap was answered by the restyle path, which cannot cut a no-data split, so the missing-value areas became holes again.**  
   guarded by `test_changing_to_a_graduated_style_cuts_the_split_it_needs`
+- **the significant-figures sweep lowered decimals to zero on the rotation, skew and angle boxes, so a half-degree value typed into them was silently rounded and the map was built from the rounded number.**  
+  guarded by `test_every_number_box_holds_a_value_finer_than_its_step`
 - **the missing-values notice counted NULLs only, so with two NULLs and four infinities among 144 areas it said "2 of 144" while the map drew nine no-data tiles across seven areas -- and on a column whose only unplaceable values were infinities it said nothing whatever. `_element_has_missing_values` had the same one-line scan, so the colour editor withheld its No data row on such a column. Both are the fifth and sixth readers of a predicate widened that morning.**  
   guarded by `test_every_reader_of_unplaceable_agrees_with_the_split`
 - **in icon mode an element with no icon for some areas was never reported, because the coverage count asks whether any element drew them. And then the count that replaced the silence read `_element_layer_ids` alone, so every gap in the column made every element look short by the number of gaps -- a notice naming all four elements while saying the others still drew those areas, which refutes itself. Measured 2026-08-16 on a 36-area region with one NULL: both halves sum to 36 of 36 on every element.**  
@@ -153,6 +155,8 @@ there is no separate list to remember.
   guarded by `test_the_removal_notice_survives_the_chooser_moving_first`
 - **a renderer changed in QGIS back to something the plugin can express left the row reading "Deferring to QGIS" with its controls disabled, and the next Generate overwrote the map.**  
   guarded by `test_the_row_follows_the_dock_back_out_of_deferring`
+- **the spacing a refusal advised was printed with hard-coded punctuation, so under a comma-decimal locale typing it back gave a number ten times larger and the map was drawn far too coarse with nothing said.**  
+  guarded by `test_the_spacing_advice_can_be_typed_back_in_any_locale`
 - **the opacity carried onto an element's no-data layer was collected unconditionally, so it outranked the row's spin box on every re-tile: fading an element to 40 and changing the spacing in the same round left its missing-value areas at full strength, in the project and in the exported GeoPackage, with the spinner reading 40. Measured 2026-08-16 by opening the tables cold in a cleared project: tiles_a at 0.4, tiles_a_no_data at 1.0. The regression arrived inside the fix for the opposite fault, made hours earlier the same day.**  
   guarded by `test_the_spinner_outranks_a_value_the_dialog_itself_wrote`
 - **an area whose value was an infinity was neither classed -- the breaks exclude non-finite values -- nor moved to the paired layer, so it was drawn as NOTHING. A hole, which is what this split exists to abolish. Measured 2026-08-16: sixteen tiles per element where symbolForFeature returned None, 0.000 of the area painted against 0.26 for a control. Both dependencies carry an infinity: SQLite stores it as REAL and OGR hands it back.**  
@@ -495,7 +499,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 83
-- a bug hunt pointed in a named direction: 57
+- a bug hunt pointed in a named direction: 59
 - the mutation campaign: 16
 - reported by a user: 16
 - reading the code: 15

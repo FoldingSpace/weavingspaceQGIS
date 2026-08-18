@@ -3097,6 +3097,26 @@ MUTATIONS = [
            "Classes cell is the leak that put a greyed 32 in front of "
            "the tester and clamped it to the 2-20 ceiling at the next "
            "rebuild, which is the 20 and 20 in their second screenshot"),
+  dict(name="a-number-box-keeps-three-decimals",
+       file="weavingspace_qgis/dialog.py",
+       old="      box.setDecimals(max(_LEAST_FIGURES_DECIMALS,\n"
+           "                          min(needed, max(0, 3 - digits))))",
+       new="      box.setDecimals(min(needed, max(0, 3 - digits)))",
+       test="test_every_number_box_holds_a_value_finer_than_its_step",
+       why="without the floor the sweep puts the rotation, skew and "
+           "angle boxes at ZERO decimals, so typing 22.5 into Rotate "
+           "swallows the 5 and the tile unit is built at 22 degrees "
+           "with nothing said -- decimals govern storage as well as "
+           "display"),
+  dict(name="the-advised-spacing-is-punctuated-by-the-locale",
+       file=BRIDGE,
+       old="  text = QLocale().toString(float(value), 'f', places)",
+       new="  text = f\"{value:,.{places}f}\"",
+       test="test_the_spacing_advice_can_be_typed_back_in_any_locale",
+       why="hand-built punctuation beside a spin box that parses "
+           "through QLocale means the plugin advises 23.4 and the box "
+           "takes 234, so a user who types what they are told draws a "
+           "map ten times too coarse and is told nothing"),
   dict(name="the-spacing-advice-is-rounded-the-safe-way",
        file=BRIDGE,
        old="  return _rounded_up_to_figures(spacing * scale, 3)",

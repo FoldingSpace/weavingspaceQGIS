@@ -11891,6 +11891,148 @@ def test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis():
   dlg.close()
 
 
+def test_every_number_box_holds_a_value_finer_than_its_step():
+  """A display rule must never decide what a box can HOLD.
+
+  `_limit_the_figures_on_show` sweeps every QDoubleSpinBox once at
+  construction to honour the maintainer's three-significant-figures
+  rule. It did so by lowering `decimals`, which governs display AND
+  input AND storage together -- so Rotate, Skew and both angle boxes
+  sat at ZERO decimals. Typing 22.5 into Rotate swallowed the 5, the
+  tile unit was built at 22 degrees vertex-for-vertex, and nothing was
+  said. 22.5 is the natural angle for an eight-fold design.
+
+  This project had already paid for that lesson the same morning, on
+  the spacing box, and written it into `widgets.TrimmedSpinBox`'s
+  docstring as the tempting and wrong fix. The repair keeps the
+  display rule by TRIMMING the text and floors the decimals at three.
+
+  TYPED THROUGH THE VALIDATOR, never `setValue`, which is the whole
+  reason the defect survived: `setValue` clamps silently and every
+  existing assertion about these boxes used it. The FAMILY rather than
+  the four boxes that were wrong, because a rule stated once covers
+  the control somebody adds next year.
+
+  Regression: the significant-figures sweep lowered decimals to zero on the rotation, skew and angle boxes, so a half-degree value typed into them was silently rounded and the map was built from the rounded number.
+ [hunt]
+  """
+  from qgis.PyQt.QtGui import QValidator
+  from qgis.PyQt.QtWidgets import QDoubleSpinBox
+
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    boxes = dlg.findChildren(QDoubleSpinBox)
+    assert len(boxes) >= 8, \
+      f"only {len(boxes)} number boxes found; the sweep this guards " \
+      f"walks every one, so a shrunken list means the test moved"
+
+    # THE RULE AS THE MAINTAINER STATED IT, 2026-08-17: at least three
+    # decimal places, whatever a box's own step suggests. Asserted over
+    # the FAMILY, so a control added next year is covered by somebody
+    # adding a widget rather than by somebody remembering.
+    #
+    # An earlier draft of this test demanded a value one order finer
+    # than each box's step, which is STRICTER THAN THE RULING and
+    # failed on a modifier box whose step is 0.083. That would have
+    # been a test inventing a contract nobody agreed -- the shape
+    # docs/TESTING.md calls writing a test around a defect, arriving
+    # from the opposite direction.
+    thin = [f"{b.objectName() or type(b).__name__} at {b.decimals()}"
+            for b in boxes if b.decimals() < 3]
+    assert not thin, (
+      "a number box offers fewer than three decimal places, and "
+      "`decimals` decides what a box can HOLD as well as what it "
+      "prints: " + "; ".join(thin))
+
+    # ...AND THE CASE THAT BROKE, driven through the validator rather
+    # than `setValue`, which clamps in silence and is why every
+    # existing assertion about these boxes walked past the defect.
+    cases = [(dlg.mod_rotate, "22.5", "a half-degree rotation, the "
+              "natural angle for an eight-fold design"),
+             (dlg.opt_offset_angle, "0.5", "half a degree of offset")]
+    driven = 0
+    for box, typed, why in cases:
+      if box.maximum() < float(typed):
+        continue
+      kept = ""
+      for character in typed:
+        trial = kept + character
+        state, _f, _p = box.validate(trial, len(trial))
+        if state in (QValidator.State.Acceptable,
+                     QValidator.State.Intermediate):
+          kept = trial
+      driven += 1
+      assert kept == typed, (
+        f"{why}: typing {typed!r} keeps only {kept!r} at "
+        f"{box.decimals()} decimals, so the unit is built from the "
+        f"rounded number with nothing said")
+      box.setValue(float(typed))
+      assert abs(box.value() - float(typed)) < 1e-9, (
+        f"{why}: the box accepted {typed!r} and stored {box.value()!r}")
+    assert driven == len(cases), \
+      f"only {driven} of {len(cases)} named cases were driven"
+  finally:
+    dlg.close()
+
+
+def test_the_spacing_advice_can_be_typed_back_in_any_locale():
+  """The number a refusal prints must survive being typed back.
+
+  The refusal names a spacing that will work. `spacing_in_words` built
+  that text by hand -- a full stop for the decimal point, a comma for
+  grouping -- beside a spin box that parses through QLocale. On a QGIS
+  whose numbers use a comma decimal point, which is most of Europe and
+  Latin America, the two disagreed: the message advised "23.4 map
+  units", the box took 234, and Generate then SUCCEEDED with no
+  message at ten times the advised spacing.
+
+  `test_the_plugin_in_another_locale` could not see it because it
+  calls `setValue`, which never goes through the validator. So this
+  drives the KEYBOARD, in a locale where the punctuation differs.
+
+  Regression: the spacing a refusal advised was printed with hard-coded punctuation, so under a comma-decimal locale typing it back gave a number ten times larger and the map was drawn far too coarse with nothing said.
+ [hunt]
+  """
+  from qgis.PyQt.QtCore import QLocale
+  from qgis.PyQt.QtGui import QValidator
+
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  was = QLocale()
+  try:
+    for name in ("de_DE", "en_NZ"):
+      QLocale.setDefault(QLocale(name))
+      dlg = WeavingSpaceDialog(iface=_Iface())
+      try:
+        box = dlg.spacing_spin
+        for value in (23.4, 1170.0, 2.21, 0.000174):
+          shown = bridge.spacing_in_words(value)
+          kept = ""
+          for character in shown:
+            trial = kept + character
+            state, _f, _p = box.validate(trial, len(trial))
+            if state in (QValidator.State.Acceptable,
+                         QValidator.State.Intermediate):
+              kept = trial
+          assert kept == shown, (
+            f"in {name} the plugin advises {shown!r} and the spacing "
+            f"box keeps only {kept!r} of it")
+          # ...and the number it ends up holding is the one advised
+          box.setValue(0.0)
+          box.lineEdit().setText(kept)
+          box.interpretText()
+          assert abs(box.value() - value) <= abs(value) * 1e-6, (
+            f"in {name} the plugin advises {shown!r} for {value!r} and "
+            f"the box reads it back as {box.value()!r} -- a user who "
+            f"types what they are told gets a different map")
+      finally:
+        dlg.close()
+  finally:
+    QLocale.setDefault(was)
+
+
 def test_a_reopened_plugin_adopts_the_group_it_last_wrote():
   """"Create as new group" exists so a result can be KEPT.
 
@@ -48289,6 +48431,10 @@ def main():
         test_a_pin_may_be_typed_far_outside_the_element_it_pins)
   check("a class no tile wears is said out loud",
         test_a_class_no_tile_wears_is_said_out_loud)
+  check("every number box holds a value finer than its step",
+        test_every_number_box_holds_a_value_finer_than_its_step)
+  check("the spacing advice can be typed back in any locale",
+        test_the_spacing_advice_can_be_typed_back_in_any_locale)
   check("a row follows a style pasted onto its layer in qgis",
         test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis)
   check("a reopened plugin adopts the group it last wrote",

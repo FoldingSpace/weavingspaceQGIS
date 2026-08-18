@@ -129,11 +129,12 @@ REPRODUCE on any of seven deliberate routes -- the judgement, and the
 lesson about seed counts that came out of it, are in
 `docs/process/hunt-stochastic-2026-08-17.md` and the hunt record.
 
-### Nothing outstanding
+### What rc7 answered
 
-**0.24.3 has nothing outstanding in code.** Everything reported against
-rc5 by the maintainer and from the field has landed, is guarded, and
-had its guard proved against its own broken fix. Deleted from here as
+**Everything reported against rc5 by the maintainer and from the field
+has landed.** Four of those repairs are guarded and each guard was
+proved against its own broken fix; the four made later in the day are
+not yet, and that is the blocking entry below. Deleted from here as
 each did, which is what this file asks -- the reasoning that outlives
 them is in CLAUDE.md where it binds, in docs/TESTING.md where it is
 about tests, and at the code.
@@ -178,6 +179,40 @@ ABOUT ANOTHER. A colour comparison in front of the file write; a
 "nothing nameable moved" test in front of the same; an in-flight gate
 in front of the table learning what it is about to be asked. Ask what
 a guard is FOR before deciding what it may skip.
+
+### OUTSTANDING: four of today's eight fixes carry no guard
+
+**A BUG WITHOUT A REGRESSION TEST IS NOT FIXED**, which is this
+project's oldest rule about its own suite, and four of the eight
+repairs made on 2026-08-17 do not yet have one. They were written late,
+under a run of hunt reports, and each was verified only by the
+neighbouring tests continuing to pass -- which is exactly the state
+docs/TESTING.md calls "a test that passes is not a test that works",
+one level up.
+
+Named, so none is lost:
+
+- **the decimals floor of three.** Nothing asserts that Rotate can hold
+  22.5, so the sweep could be re-tightened tomorrow and nothing would
+  say. It wants a table test over every dialog box: type a value one
+  step finer than the box's own step and require it back.
+- **the spacing advice under a comma-decimal locale.** The existing
+  test now composes its expectation through QLocale, which stops it
+  ROTTING, but nothing drives the keyboard under de_DE -- and the
+  defect was invisible to `setValue`, which is all
+  `test_the_plugin_in_another_locale` does.
+- **a retyped break reaching the GeoPackage.** The fix embeds on the
+  colour guard's way out; nothing opens the file and checks. The hunt's
+  own probe read `layer_styles.styleQML` with sqlite, which is the
+  shape the test should take.
+- **a style pasted mid-run surviving the landing.** Nothing stages the
+  paste inside the in-flight window. The hunt measured that window at
+  126 ms on the n=4 fixture, so the test needs a fixture large enough
+  to have one.
+
+Each needs its catalogue entry too, and each entry proved by breaking
+the fix and watching the test fail. Until then the eight are eight
+repairs and four guarantees.
 
 ### Process items, which do not block a candidate
 
