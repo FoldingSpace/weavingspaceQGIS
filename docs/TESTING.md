@@ -280,6 +280,106 @@ vary the fixture BEFORE trusting the green: the replacement sweeps
 five value sets across four schemes at three class counts and asserts
 the combination count actually ran.
 
+## THE SECOND TRIGGER: when a fix AND its test are in, hunt that ground again
+
+Stated as a step for the same reason as the one below it: the practice
+was demonstrated on 2026-08-17 and would otherwise have stayed an
+anecdote.
+
+**WHEN.** A defect has been fixed, its regression test written, and its
+catalogue entry proved. That is the moment the ground it sits on is
+most worth re-hunting -- not the fix itself, which now has a guard, but
+its NEIGHBOURHOOD.
+
+**WHY, measured.** On 2026-08-17 nine defects were fixed in an
+afternoon. Four were in code written that same afternoon, and THREE OF
+THOSE FOUR WERE INSIDE FIXES for defects the earlier hunts had just
+found. A repair is new code and deserves the same suspicion as any
+other: five of fourteen defects on 2026-08-16 were in fixes written
+hours earlier, including two in the fix for the defect a hunt had just
+reported.
+
+The other four that day were OLDER -- 10 August, 15 August, and two
+from that morning -- and every one surfaced because a hunt was pointed
+at the new work sitting beside them. Aimed at old code alone the same
+directions had returned little; aimed next to fresh work they returned
+defect after defect.
+
+**HOW, and the aiming is the whole of it.** Relaunch NEAR the fix, not
+ON it:
+
+- name the fixed defect in the brief and forbid re-reporting it, so
+  the hunt spends its budget on new ground;
+- keep the SHAPE and move the AREA, or keep the area and change the
+  shape -- the same shape in the same place finds the same thing;
+- ask what the fix itself might have broken. Two of 2026-08-17's
+  briefs carried an explicit check on the repair -- does the follow now
+  stamp twice, does the new decimals floor harm a finer control -- and
+  that is a question only somebody who knows the fix can ask;
+- give each hunt an explicit list of what its siblings cover, and tell
+  it to spend one line on an overlap rather than a report. Without
+  that, several hunts converge on the loudest defect and the round
+  returns one finding wearing six costumes.
+
+**WHEN TO STOP.** When a round returns nothing new twice over, or when
+the queue of claims waiting to be reproduced is longer than the day.
+The cost of hunting is not machine time; it is the judgement needed to
+reproduce every claim by a route the hunt did not use before believing
+it.
+
+## THE TRIGGER: point a hunt at a BATCH of new tests, per assertion
+
+Everything below this heading was already known and written down. What
+was missing was the moment at which somebody does it, so it read as a
+good idea and got skipped exactly when it was most needed -- which is
+what happened on 2026-08-17. This is that moment, stated as a step.
+
+**WHEN.** A batch of tests written in one sitting, especially alongside
+the fixes they guard. Three or more is a batch. The trigger fires on
+the SITTING, not on any one test.
+
+**WHAT IT IS NOT.** It is not a hunt per test, and it does not replace
+the mutation catalogue. Every test still gets its catalogue entry, and
+the entry is cheaper, faster and more reliable at the job it does:
+proving the test fails when the behaviour it names is broken. Every
+entry written on 2026-08-17 came back `caught`, and the catalogue took
+about a minute each.
+
+**WHAT THE CATALOGUE STRUCTURALLY CANNOT SEE**, which is the whole
+reason this exists. An entry breaks ONE behaviour; the test's primary
+assertion kills it; the entry reports `caught`. The second and third
+assertions in that test are never exercised. Measured here three times
+at roughly ONE IN FIVE OR SIX, and in all three rounds the dead axis
+sat inside a test whose primary axis was live and well aimed.
+2026-08-17 produced another: a pin test carried a passing catalogue
+entry AND survived deleting the whole cell-rewrite loop it was written
+to guard, because its helper read the spin boxes as well as the cells.
+
+**HOW.** Mutate PER ASSERTION rather than per test. For each assertion
+in the batch, break the narrowest thing it names and require that
+assertion to fail. What it finds is a DEAD AXIS, and the repair is
+usually an assertion that states its own premise or counts what it
+actually compared -- `assert matched, "nothing was compared"` before
+`assert not mismatches`.
+
+**THE FINDINGS NEED A HUNT'S DISCIPLINE, because an adversarial reader
+errs in both directions.** On 2026-08-17 a new guard demanded that
+every number box hold a value one order finer than its own step. That
+is STRICTER THAN THE MAINTAINER'S RULING of three decimal places, and
+it failed on a modifier box whose step is 0.083. A test inventing a
+contract nobody agreed is the same fault as a test written around a
+defect, arriving from the opposite side, and the tell is identical: an
+assertion failing on code nobody thinks is wrong. So reproduce by a
+route the hunt did not use, and check the contract being asserted is
+one somebody actually decided.
+
+**WHAT IT IS WORTH, honestly.** Test-hunting protects the suite;
+product-hunting protects the user. On 2026-08-17 nine product defects
+came out of hunts aimed at behaviour and none from anything aimed at
+tests. When there is only room for one, aim at the product. This
+trigger is for the case where a batch of tests has just been written
+fast and is about to be trusted.
+
 ## Tests written in haste, measured
 
 2026-08-16. Fourteen tests were written in one day alongside the fixes

@@ -3087,6 +3087,19 @@ MUTATIONS = [
            "signature the next restyle compares the layer against a row "
            "it has never seen and re-seeds the renderer it just "
            "followed, which is the damaging half of the same report"),
+  dict(name="a-followed-count-reaches-the-record-too",
+       file="weavingspace_qgis/dialog.py",
+       old="        self._class_counts[tile_id] = int(count)\n"
+           "        moved.append(f\"classes to {count}\")",
+       new="        moved.append(f\"classes to {count}\")",
+       test="test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis",
+       why="`_refresh_table` rebuilds a row's class count from "
+           "`_class_counts` before the previous assignment, so writing "
+           "the spinner alone leaves a followed count alive until the "
+           "first spacing nudge and then reverts it -- destroying at "
+           "the next Generate the classification the user set in "
+           "QGIS's own Symbology panel, which is the report the follow "
+           "exists to close"),
   dict(name="a-categorical-count-never-becomes-a-chosen-one",
        file="weavingspace_qgis/dialog.py",
        old="    if mode == \"Graduated\" and scheme != \"Unclassed\" \\\n"
@@ -3108,6 +3121,16 @@ MUTATIONS = [
            "swallows the 5 and the tile unit is built at 22 degrees "
            "with nothing said -- decimals govern storage as well as "
            "display"),
+  dict(name="a-printed-bound-is-punctuated-by-the-locale",
+       file="weavingspace_qgis/category_editor.py",
+       old="    text = QLocale().toString(float(value), 'g', 10)",
+       new="    text = f\"{float(value):.10g}\"",
+       test="test_a_bound_the_editor_prints_can_be_typed_into_its_own_box",
+       why="a hard-coded decimal point beside spin boxes that parse "
+           "through QLocale means the cell prints 4.052 and typing it "
+           "back pins 4052 -- accepted, drawn and stamped on the "
+           "layer, so a user copying the plugin's own number gets a "
+           "map a thousand times out and it survives a save"),
   dict(name="the-advised-spacing-is-punctuated-by-the-locale",
        file=BRIDGE,
        old="  text = QLocale().toString(float(value), 'f', places)",

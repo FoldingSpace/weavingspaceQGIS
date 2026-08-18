@@ -11888,6 +11888,29 @@ def test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis():
   assert len(after.ranges()) == 4, (
     f"Generate redrew the element with {len(after.ranges())} classes "
     f"where QGIS held four")
+
+  # ...AND IT MUST SURVIVE A TABLE REBUILD, which is where a control
+  # and the record behind it meet. `_refresh_table` reads
+  # `_class_counts` before the previous assignment, so a follow that
+  # wrote the spinner and not the record left the count alive until the
+  # first spacing nudge and then reverted it silently, destroying the
+  # classification at the next Generate. The spinner must be moved
+  # FIRST for the case to exist at all: `_class_counts` is only
+  # consulted when it is non-empty for this element.
+  counter = dlg.table.cellWidget(row, 3)
+  assert dlg._class_counts.get(tid) == 4, (
+    f"the row followed QGIS to four classes and the record behind the "
+    f"spinner says {dlg._class_counts.get(tid)!r}; a rebuild reads "
+    f"that record first")
+  dlg._refresh_table()
+  _tick(200)
+  row = dlg._row_for_element(tid)
+  counter = dlg.table.cellWidget(row, 3)
+  rebuilt = int(counter.property("user_k") or counter.value())
+  assert rebuilt == 4, (
+    f"after a table rebuild the row reads {rebuilt} classes where QGIS "
+    f"holds four, so the next Generate destroys the classification the "
+    f"user set in the Symbology panel")
   dlg.close()
 
 
@@ -12029,6 +12052,78 @@ def test_the_spacing_advice_can_be_typed_back_in_any_locale():
             f"types what they are told gets a different map")
       finally:
         dlg.close()
+  finally:
+    QLocale.setDefault(was)
+
+
+def test_a_bound_the_editor_prints_can_be_typed_into_its_own_box():
+  """A number printed beside a box must parse in that box.
+
+  The graduated colour editor prints each class bound into a read-only
+  cell and offers two spin boxes in the same table. `_format_bound`
+  built its text with `f"{value:.10g}"` -- a full stop, always -- while
+  the boxes parse through QLocale. On a comma-decimal QGIS the cell
+  read `4.052` and typing that into the box beside it gave FOUR
+  THOUSAND AND FIFTY-TWO, which was accepted, pinned, drawn, and
+  stamped on the layer so it survived a save. Every break moved and
+  the only notice was that one class of five was empty.
+
+  Typing the German `4,052` gave the right ladder, so the plugin was
+  punishing somebody for copying its own number back.
+
+  THE SAME FAULT AS THE SPACING ADVICE fixed hours earlier, which is
+  why this test asks the QUESTION rather than the site: take what the
+  editor prints, type it where the editor invites you to, and require
+  the number back. Anything else in this window that prints a number
+  beside a box is covered by construction.
+
+  Regression: the colour editor printed class bounds with a hard-coded decimal point beside spin boxes that parse through the locale, so under a comma-decimal locale copying a printed bound pinned a number a thousand times too large and stamped it on the layer.
+ [hunt]
+  """
+  from qgis.PyQt.QtCore import QLocale
+  from qgis.PyQt.QtGui import QValidator
+
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+
+  class _BoundsOnly(CategoryColourDialog):
+    """Enough of the editor for the two methods under test."""
+
+    def __init__(self, bounds):
+      self._bounds = bounds
+      self._defaults = None
+
+  was = QLocale()
+  try:
+    for name in ("de_DE", "en_NZ"):
+      QLocale.setDefault(QLocale(name))
+      ladder = [(0.5, 2.72), (2.72, 4.052), (4.052, 7.16),
+                (7.16, 9.5)]
+      holder = _BoundsOnly(ladder)
+      checked = 0
+      for _low, high in ladder[:-1]:
+        printed = CategoryColourDialog._format_bound(holder, high)
+        box = CategoryColourDialog._bound_box(holder, high)
+        kept = ""
+        for character in printed:
+          trial = kept + character
+          state, _f, _p = box.validate(trial, len(trial))
+          if state in (QValidator.State.Acceptable,
+                       QValidator.State.Intermediate):
+            kept = trial
+        assert kept == printed, (
+          f"in {name} the editor prints {printed!r} and the box beside "
+          f"it keeps only {kept!r}")
+        box.setValue(0.0)
+        box.lineEdit().setText(kept)
+        box.interpretText()
+        checked += 1
+        assert abs(box.value() - high) <= abs(high) * 1e-6, (
+          f"in {name} the editor prints {printed!r} for a bound of "
+          f"{high!r} and its own box reads that back as "
+          f"{box.value()!r} -- a user copying the printed number pins "
+          f"something else entirely, and it is stamped on the layer")
+      assert checked == len(ladder) - 1, \
+        f"only {checked} bounds were driven in {name}"
   finally:
     QLocale.setDefault(was)
 
@@ -48435,6 +48530,8 @@ def main():
         test_every_number_box_holds_a_value_finer_than_its_step)
   check("the spacing advice can be typed back in any locale",
         test_the_spacing_advice_can_be_typed_back_in_any_locale)
+  check("a bound the editor prints can be typed into its own box",
+        test_a_bound_the_editor_prints_can_be_typed_into_its_own_box)
   check("a row follows a style pasted onto its layer in qgis",
         test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis)
   check("a reopened plugin adopts the group it last wrote",

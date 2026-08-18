@@ -931,6 +931,19 @@ first, kept here so they are unmissable:
   release. Six tests written in one session were verified to pass,
   and most of them then failed to kill the very mutants they were
   written for.
+  **AND WHEN A BATCH OF TESTS IS WRITTEN IN ONE SITTING, POINT A HUNT
+  AT THE TESTS, MUTATING PER ASSERTION.** The catalogue proves a
+  test's PRIMARY axis and structurally cannot see the rest: it breaks
+  one behaviour, the first assertion kills it, and the entry reports
+  `caught` while the second and third axes sit dead. Measured here at
+  one in five or six, three rounds running, and every time inside a
+  test whose first assertion was live and well aimed. The trigger is
+  the SITTING rather than any one test, and the procedure -- including
+  how an adversarial reader gets it wrong in the other direction, by
+  demanding a contract nobody agreed -- is in docs/TESTING.md under
+  "THE TRIGGER". Added 2026-08-17 at the maintainer's asking, because
+  the practice was already written down twice and skipped both times
+  for want of a moment to do it.
 - The highest-value shape here is UI-against-library: drive the
   dialog, build the same map by calling weavingspace directly with
   what those settings MEAN, compare geometry element by element and

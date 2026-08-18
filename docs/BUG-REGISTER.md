@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-225 defect(s) with a regression test.
+226 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -45,6 +45,8 @@ there is no separate list to remember.
 
 ## Found by a bug hunt pointed in a named direction
 
+- **the colour editor printed class bounds with a hard-coded decimal point beside spin boxes that parse through the locale, so under a comma-decimal locale copying a printed bound pinned a number a thousand times too large and stamped it on the layer.**  
+  guarded by `test_a_bound_the_editor_prints_can_be_typed_into_its_own_box`
 - **the fix that made a hand-set paired renderer survive a Generate applied the carried renderer unconditionally, so a re-tile that produced a new kind of absence left those tiles unpainted, while elements that LOST a kind kept its legend entry. Measured 2026-08-16 by rendering each paired layer over a magenta ground: uncovered rows came back as the background while their neighbours drew #8c9fc7 and #dddddd.**  
   guarded by `test_a_carried_renderer_never_leaves_an_absence_unpainted`
 - **after the swatch hatching was removed nothing told a user a class was empty, though four documents and the approved changelog said something did.**  
@@ -499,7 +501,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 83
-- a bug hunt pointed in a named direction: 59
+- a bug hunt pointed in a named direction: 60
 - the mutation campaign: 16
 - reported by a user: 16
 - reading the code: 15

@@ -5887,6 +5887,34 @@ class WeavingSpaceDialog(QDialog):
         counter.setValue(count)
         counter.setProperty("user_k", count)
         counter.blockSignals(False)
+        # ...AND THE RECORD BEHIND THE CONTROL, which the widget alone
+        # is not. `_refresh_table` rebuilds a row's class count from
+        # `_class_counts` FIRST and falls back to the previous
+        # assignment only when that is empty -- so writing the spinner
+        # and not the record left the followed count alive until the
+        # first spacing nudge and then silently reverted, taking the
+        # user's classification with it at the next Generate. Exactly
+        # the field report the follow exists to close, reopened by a
+        # table rebuild.
+        #
+        # The COPY door twelve hundred lines down (`_sync_target_
+        # controls`) writes both, and has since it was written. The
+        # follow moved four things -- field, style, count, ramp -- and
+        # only the one with a second store came undone, because the
+        # other three have no record but the widget.
+        #
+        # GREP THE RECORD BEHIND A CONTROL, NOT THE CONTROL. A new
+        # mechanism that sets a widget has to ask what else claims to
+        # know that value, and a rebuild is where the two meet.
+        #
+        # `_class_counts` means "a count somebody CHOSE", and under
+        # the maintainer's ruling a count set in QGIS's own Symbology
+        # panel is chosen -- in a different window, by the same
+        # person. The guard above already keeps out the two counts
+        # that are NOT choices: Unclassed's fifty, fixed by the
+        # style's definition, and a categorized renderer's category
+        # count, which is a property of the data.
+        self._class_counts[tile_id] = int(count)
         moved.append(f"classes to {count}")
 
     # ---- the RAMP, where QGIS's own ramp answers to a name we offer

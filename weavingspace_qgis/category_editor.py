@@ -1282,7 +1282,32 @@ class CategoryColourDialog(QDialog):
       digits, so ordinary data prints exactly and only absurd
       magnitudes fall back to scientific notation.
     """
-    text = f"{float(value):.10g}"
+    # THE LOCALE'S PUNCTUATION, because the cell this fills sits in the
+    # same table as two spin boxes that PARSE through QLocale -- and a
+    # user reads a bound off one and types it into the other.
+    #
+    # MEASURED 2026-08-17 on a comma-decimal QGIS. The cell printed
+    # `4.052`; typing that into the box beside it gave FOUR THOUSAND
+    # AND FIFTY-TWO, which was accepted, pinned, drawn, and stamped on
+    # the layer, so it survived a save. Every break moved, the outer
+    # class went empty, and the only thing said was that one class of
+    # five was empty. Typing the German `4,052` gives the right ladder,
+    # so the plugin was punishing somebody for copying its own number.
+    #
+    # This is the SAME FAULT as the spacing advice fixed hours earlier,
+    # and the pair is the lesson: that repair cured one FUNCTION when
+    # what is wrong is a CLASS of them. The cheapest way to find the
+    # rest was to ask, of every printed number, which widget sits next
+    # to it. `bridge.coverage_message`, `icon_coverage_message` and
+    # `pin_problem`'s advice are the remaining family and are recorded
+    # in ROADMAP.md.
+    #
+    # Before 2026-08-17 the mis-scaled number was REFUSED, because a
+    # bound outside the data was; lifting that guard turned a refusal
+    # into a wrong map. A refusal lifted in one place changes what
+    # every silent fault downstream can do.
+    from qgis.PyQt.QtCore import QLocale
+    text = QLocale().toString(float(value), 'g', 10)
     # A negative zero can fall out of classification arithmetic and
     # reads as a typo; print it as the zero it is.
     return "0" if text == "-0" else text
