@@ -452,9 +452,9 @@ MUTATIONS = [
        # the `elif` this stood on is gone and only the one-value
        # carve-out remains. It is load-bearing on its own again, which
        # is why one branch is now enough where two were needed.
-       old='  if distinct == 1:\n    k = 1',
-       new='  if False:  # mutation: a constant column keeps its k\n    k = 1',
-       test="test_a_constant_column_draws_one_class_and_says_so",
+       old='  if distinct == 1 and not pinned_here:',
+              new='  if False:  # mutation: never collapse a constant column',
+              test="test_a_constant_column_draws_one_class_and_says_so",
        why='a column that is 7 everywhere gets five classes all reading 7 - 7 in five colours, a legend showing variation the data does not have. From 2026-08-14 to 2026-08-16 a second branch reduced k generally and delivered the same k=1 by another route, so this entry had to mutate both and said so; that branch is gone and this one stands alone.'),
   # TWO entries, because there are two signatures and they gate
   # different paths: _geometry_signature decides whether pressing
@@ -2698,8 +2698,8 @@ MUTATIONS = [
   # and this entry stays aimed at the one scheme that arrives here
   # with a class count already fixed.
   dict(name="constant-column-beats-unclassed-fifty", file=BRIDGE,
-       old='  if distinct == 1:\n    k = 1',
-       new='  if distinct == 1 and not unclassed:  # mutation: the collapse no\n    k = 1  # longer overrides the fifty Unclassed fixed',
+       old='  if distinct == 1 and not pinned_here:\n    k = 1',
+       new='  if distinct == 1 and not pinned_here and not unclassed:\n    k = 1  # mutation: the collapse no longer beats the fifty',
        test="test_unclassed_over_a_constant_column",
        why="Quant: Unclassed cuts fifty linear intervals, so over a "
            "column that is 7 everywhere the legend claims fifty grades "
@@ -3567,6 +3567,15 @@ MUTATIONS = [
   # which is what it is for: an entry whose text has gone mutates
   # nothing and reports nothing, and a clean exit reads exactly like
   # success.
+  dict(name="a-pin-outranks-the-one-value-collapse", file=BRIDGE,
+       old="  if distinct == 1 and not pinned_here:",
+       new="  if distinct == 1:",
+       test="test_a_pin_outranks_the_one_value_collapse",
+       why="a pinned bound on a column holding one value is accepted, "
+           "stamped and silently ignored, while the identical bounds "
+           "arriving as a copied classification draw five classes -- "
+           "two settled rules giving opposite answers according to "
+           "which control the user reached for"),
   dict(name="an-undrawable-pin-is-refused", file=BRIDGE,
        old="  available = int(asked) - 1\n  if available >= pins:\n"
            "    return None",

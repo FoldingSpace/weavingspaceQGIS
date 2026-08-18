@@ -8448,6 +8448,80 @@ def test_a_pin_that_cannot_be_drawn_is_refused():
     "question is what this rule exists to avoid"
 
 
+def test_a_pin_outranks_the_one_value_collapse():
+  """Both doors into a pinned ladder draw the same ladder.
+
+  A column holding one value everywhere collapses to a single class,
+  because five ranges all reading "7 - 7" in five colours is a legend
+  claiming variation the data lacks (maintainer's instruction,
+  2026-08-09). PINNED BOUNDS GIVE IT REAL RANGES, so that
+  justification cannot apply -- and until 2026-08-17 the collapse ran
+  anyway, on the pin door only.
+
+  Measured then, on a column of 7.0: a COPIED ladder of -5/10/25/40
+  drew five distinct classes while the same bounds set as PINS drew
+  one, with the pin accepted, its button down, `_pinned_bounds`
+  holding it and the layer stamped -- and nothing said. Two settled
+  rules, opposite answers, decided by which control the user reached
+  for.
+
+  The maintainer's ruling is that the pin wins. A pin is a person
+  choosing, which is the carve-out pinning already has from
+  one-colour-one-meaning, and it is the case the out-of-data guard was
+  relaxed for the same day: one pair of limits given to several
+  variables, some of which may hold a single value.
+
+  THE CONTROL MATTERS AS MUCH AS THE CASE. An unpinned constant column
+  must still collapse, or this test would be pinning the removal of a
+  rule rather than its exception.
+
+  Regression: a pinned bound on a column holding one value was accepted, stamped and silently ignored, while the identical bounds arriving as a copied classification drew five classes.
+ [hunt]
+  """
+  from qgis.core import (QgsFeature, QgsGeometry, QgsPointXY,
+                         QgsVectorLayer)
+
+  from weavingspace_qgis import bridge
+  layer = QgsVectorLayer(
+    "Polygon?crs=EPSG:3857&field=v:double", "flat", "memory")
+  provider = layer.dataProvider()
+  for i in range(6):
+    feature = QgsFeature(layer.fields())
+    feature.setAttribute("v", 7.0)
+    feature.setGeometry(QgsGeometry.fromPolygonXY(
+      [[QgsPointXY(i, 0), QgsPointXY(i + 1, 0), QgsPointXY(i + 1, 1),
+        QgsPointXY(i, 1), QgsPointXY(i, 0)]]))
+    provider.addFeature(feature)
+  layer.updateExtents()
+  QgsProject.instance().addMapLayer(layer)
+
+  def ladder(pinned):
+    """The (lower, upper) pairs a renderer built with these pins draws."""
+    renderer = bridge.make_graduated_renderer(
+      layer, "v", "Reds", "Equal intervals", 5, False, pinned=pinned)
+    return [(round(r.lowerValue(), 3), round(r.upperValue(), 3))
+            for r in renderer.ranges()]
+
+  # THE CONTROL FIRST: the collapse is a rule, not a bug.
+  bare = ladder(None)
+  assert len(bare) == 1, (
+    f"an unpinned constant column must still draw ONE class -- five "
+    f"ranges all reading 7 - 7 is the legend this rule exists to "
+    f"prevent -- and it drew {bare}")
+
+  copied = ladder({"breaks": [-5, 10, 25, 40], "low": -5, "high": 40})
+  pinned = ladder({"low": -5, "high": 40})
+  assert len(pinned) == 5, (
+    f"the pin door collapsed to {len(pinned)} class(es) on a constant "
+    f"column: {pinned}. The bounds give it real ranges, so the "
+    f"legend cannot be claiming variation the data lacks")
+  assert pinned == copied, (
+    f"the two doors into one pinned ladder disagree on a constant "
+    f"column: pins gave {pinned}, a copy gave {copied}")
+  assert pinned[0][0] == -5.0 and pinned[-1][-1] == 40.0, \
+    f"the pinned ends are not the ends of the ladder: {pinned}"
+
+
 def test_a_class_count_is_refused_rather_than_destroying_a_pin():
   """The user's own control is refused; their pins are left alone.
 
@@ -49473,6 +49547,8 @@ def main():
         test_a_pinned_class_bound_reaches_the_map)
   check("a pin that cannot be drawn is refused",
         test_a_pin_that_cannot_be_drawn_is_refused)
+  check("a pin outranks the one-value collapse",
+        test_a_pin_outranks_the_one_value_collapse)
   check("a class count is refused rather than destroying a pin",
         test_a_class_count_is_refused_rather_than_destroying_a_pin)
   check("a pin survives a project round trip",

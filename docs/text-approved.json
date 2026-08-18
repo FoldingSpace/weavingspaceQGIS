@@ -469,6 +469,11 @@
   "excerpt": "This QGIS installation is missing (or has outdated versions ",
   "where": "weavingspace_qgis/plugin.py"
  },
+ "4fa1791939e7d337": {
+  "approved": "2026-08-17",
+  "excerpt": "The class count has been raised to {} so the {} you set can ",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "50af5cd426307348": {
   "approved": "2026-08-08",
   "excerpt": "Use tileable as icon (one per map unit)",

@@ -2236,7 +2236,26 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   # whether it contains nulls.
   values = source.uniqueValues(index) if index >= 0 else set()
   distinct = distinct_numeric_count(values) if index >= 0 else 0
-  if distinct == 1:
+  # A PIN OVERRIDES THE COLLAPSE (maintainer's ruling, 2026-08-17).
+  # The collapse exists to stop a LEGEND claiming variation the data
+  # lacks -- five ranges all reading "7 - 7" in five colours. Pinned
+  # bounds give it real ranges, so that justification simply does not
+  # apply, and the sentence it was written about cannot be produced.
+  #
+  # It mattered because the two doors into a pinned ladder disagreed.
+  # Measured 2026-08-17 on a column holding 7.0 everywhere: a COPIED
+  # ladder of -5/10/25/40 drew five distinct classes, while the same
+  # bounds set as PINS drew one, with the pin accepted, the button
+  # down, `_pinned_bounds` holding it and the layer stamped -- and
+  # nothing said. A pin is a person choosing, which is the whole
+  # carve-out pinning already has from one-colour-one-meaning, and it
+  # is the case the out-of-data guard was relaxed for on the same day:
+  # one pair of limits given to several variables, some of which may
+  # be constant.
+  pinned_here = bool(pinned) and (
+    pinned.get("low") is not None or pinned.get("high") is not None
+    or pinned.get("breaks"))
+  if distinct == 1 and not pinned_here:
     k = 1
   # AND NOTHING ELSE IS REDUCED. Between 2026-08-14 and 2026-08-16
   # this went on to cut k down to the number of distinct values
