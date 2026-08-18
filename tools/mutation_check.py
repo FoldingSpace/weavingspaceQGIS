@@ -2996,6 +2996,34 @@ MUTATIONS = [
            "the reclaim test both seeding paths keep the renderer "
            "they are being asked to replace and the element can never "
            "be taken back"),
+  # TWO ARMS OF ONE ACT, taking an element back from QGIS with a plain
+  # fill: the colour has to travel and the mode has to last. Fixing
+  # either alone loses the fill, by a different door.
+  dict(name="the-deferral-exit-carries-the-fill", file=DIALOG,
+       old="                self._single_colours[item.text()] = "
+           "symbol.color().name()",
+       new="                pass  # mutation: the mixed colour is dropped",
+       test="test_taking_an_element_back_keeps_the_fill_you_mixed",
+       why="moving the row to Single colour changes the ASSIGNMENT, "
+           "which is the condition under which Generate re-seeds an "
+           "element -- so without the colour travelling with the "
+           "label, the plugin paints its own default over the fill "
+           "mixed in the dock: 1,764 interior pixels of #0b1e2d became "
+           "1,926 of #3c8bc2"),
+  dict(name="the-deferral-exit-marks-the-combo-touched", file=DIALOG,
+       old="        combo.setProperty(\"touched\", True)\n"
+           "        combo.setProperty(\"last_style\", label)\n"
+           "        combo.blockSignals(False)",
+       new="        combo.setProperty(\"last_style\", label)\n"
+           "        combo.blockSignals(False)",
+       test="test_taking_an_element_back_keeps_the_fill_you_mixed",
+       why="`_refresh_table` restores a row's style only where the "
+           "combo carries `touched`, so a style written here with "
+           "signals blocked survives until the first spacing nudge and "
+           "then reverts -- taking the user's plain fill with it at the "
+           "next Generate. The identical line had been added to "
+           "`_row_follows_the_renderer` hours earlier and this writer "
+           "of the same widget was never grepped for"),
   dict(name="a-variable-change-ends-deferral-in-the-row", file=DIALOG,
        old="    if mode_combo.currentText() == self.DEFERRING:\n"
            "      mode_combo.blockSignals(True)",

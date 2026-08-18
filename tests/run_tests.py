@@ -14280,6 +14280,103 @@ def test_deferral_keeps_opacity_and_the_twins_own_styling():
     dlg.close()
 
 
+def test_taking_an_element_back_keeps_the_fill_you_mixed():
+  """The row follows a hand-mixed fill, and keeps following it.
+
+  An element styled in QGIS defers. When somebody puts it back on
+  something the chooser can name, the row FOLLOWS -- and a plain
+  single symbol is the case where following can destroy the very thing
+  it is describing.
+
+  TWO DEFECTS, ONE ACT, and they arrive one after the other. Moving
+  the row to "Single colour" is right: the row should say what the map
+  is. But it CHANGES THE ASSIGNMENT, which is exactly the condition
+  under which Generate re-seeds an element, so the plugin drew its own
+  default over the fill the user had mixed in the dock. Measured
+  2026-08-17 in pixels: 1,764 interior pixels of #0b1e2d before, 1,926
+  of #3c8bc2 after, and #0b1e2d gone. The label was honest and the
+  record behind it was empty.
+
+  Then, with the colour carried across, the mode itself did not last.
+  `_refresh_table` restores a row's style only when the combo carries
+  `touched`, and this exit wrote the combo with signals blocked and
+  without it -- so the followed style survived until the first spacing
+  nudge and then reverted, taking the plain fill with it at the next
+  Generate. The identical line had been added to
+  `_row_follows_the_renderer` hours earlier: one writer of this combo
+  was taught and the other was never grepped for.
+
+  Regression: taking an element back from QGIS by mixing a plain fill there lost the fill to the plugin's own default, and the style the row had followed reverted at the next unrelated change.
+ [hunt]
+  """
+  from qgis.core import (QgsFillSymbol, QgsRuleBasedRenderer,
+                         QgsSingleSymbolRenderer)
+
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  MIXED = "#0b1e2d"
+  project = QgsProject.instance()
+  project.addMapLayer(make_region_layer(n=12))
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.table.cellWidget(0, 1).setCurrentText("v3")
+    _tick(200)
+    dlg.spacing_spin.setValue(1200)
+    _generate_and_wait(dlg)
+    tile_id = dlg.table.item(0, 0).text()
+
+    def fills():
+      """Every colour the element's own renderer paints, as hex."""
+      out = project.mapLayer(dlg._element_layer_ids[tile_id])
+      return ["#%02x%02x%02x" % rgb
+              for rgb in bridge.renderer_fill_colours(out)]
+
+    # Style it in QGIS with something no row can name, so it defers.
+    element = project.mapLayer(dlg._element_layer_ids[tile_id])
+    element.setRenderer(QgsRuleBasedRenderer(QgsRuleBasedRenderer.Rule(None)))
+    element.styleChanged.emit()
+    _tick(400)
+    assert dlg._element_is_deferring(tile_id), \
+      "the fixture never put the element into deferral"
+
+    # ...then take it back with a plain fill mixed by hand.
+    element.setRenderer(QgsSingleSymbolRenderer(
+      QgsFillSymbol.createSimple({"color": MIXED})))
+    element.styleChanged.emit()
+    _tick(500)
+    assert not dlg._element_is_deferring(tile_id), \
+      "the element is still deferring, so the row never followed and " \
+      "neither half of this test is being driven"
+    row = dlg._row_for_element(tile_id)
+    assert dlg.table.cellWidget(row, 2).currentText() == "Single colour", (
+      f"the row did not follow the plain fill: it reads "
+      f"{dlg.table.cellWidget(row, 2).currentText()!r}")
+
+    # HALF ONE: the fill survives a Generate that re-seeds the element.
+    _generate_and_wait(dlg)
+    assert MIXED in fills(), (
+      f"Generate painted the plugin's own colour over the fill mixed "
+      f"in QGIS: the element now draws {fills()}")
+
+    # HALF TWO: and the followed style survives an unrelated change.
+    # A spacing nudge rebuilds the table, which restores a row's mode
+    # only where the combo was marked as touched.
+    dlg.spacing_spin.setValue(1150)
+    _tick(500)
+    row = dlg._row_for_element(tile_id)
+    assert dlg.table.cellWidget(row, 2).currentText() == "Single colour", (
+      f"an unrelated change reverted the followed style to "
+      f"{dlg.table.cellWidget(row, 2).currentText()!r}, which the next "
+      f"Generate would draw over the user's fill")
+    _generate_and_wait(dlg)
+    assert MIXED in fills(), (
+      f"after the rebuild the element draws {fills()}, so the fill was "
+      f"lost by the second door rather than the first")
+  finally:
+    dlg.close()
+
+
 def test_deferral_survives_a_project_round_trip():
   """A reopened project asks the RENDERER, not a stamp.
 
@@ -50254,6 +50351,8 @@ def main():
         test_a_second_project_does_not_take_the_first_ones_opacity)
   check("deferral does not erase the work behind it",
         test_deferral_does_not_erase_the_work_behind_it)
+  check("taking an element back keeps the fill you mixed",
+        test_taking_an_element_back_keeps_the_fill_you_mixed)
   check("deferral survives a project round trip",
         test_deferral_survives_a_project_round_trip)
   check("a data-defined fill is drawn as an unknown",
