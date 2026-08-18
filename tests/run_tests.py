@@ -12437,6 +12437,102 @@ def test_the_spacing_advice_can_be_typed_back_in_any_locale():
     QLocale.setDefault(was)
 
 
+def test_a_refusal_names_a_number_the_box_beside_it_accepts():
+  """The third of one family, and the last to be guarded.
+
+  `bridge._trim` renders the numbers inside `pin_problem`'s refusals --
+  "the copied classes put the next break at 7.16" -- and printed a
+  hard-coded full stop while the Pin column's own box, three feet away
+  in the same window, parses through the locale. Under a
+  comma-decimal locale the refusal therefore names a number its own
+  neighbour reads as something else: 7,16 printed as "7.16", typed
+  back as 716.
+
+  A REFUSAL IS A STRONGER COPY PATH THAN A REPORT. The number in it is
+  the one a user must clear to get their map, so it is the number they
+  will retype, and `pin_problem` ACCEPTS 716 -- it is a perfectly
+  drawable bound. The ladder's last class then runs backwards, its
+  darkest colour is never used, and the only notice is word for word
+  what a correct ladder would produce.
+
+  THE FAMILY, and why this one waited: `spacing_in_words` and
+  `_format_bound` were found and guarded on 2026-08-17, both by
+  hunts. This is the third site and the sweep that settles it is not
+  "which strings hold numbers" but WHICH WIDGETS TAKE NUMBERS.
+
+  Regression: pin_problem's refusal printed its numbers with a hard-coded decimal point beside boxes that parse through the locale, so under a comma-decimal locale retyping the refused number pinned a value a hundred times out and the plugin accepted it.
+ [hunt]
+  """
+  from qgis.PyQt.QtCore import QLocale
+  from qgis.PyQt.QtGui import QValidator
+
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+
+  class _BoundsOnly(CategoryColourDialog):
+    """Enough of the editor to build one bound box."""
+
+    def __init__(self, bounds):
+      self._bounds = bounds
+      self._defaults = None
+
+  was = QLocale()
+  try:
+    checked = 0
+    for name in ("de_DE", "en_NZ"):
+      QLocale.setDefault(QLocale(name))
+      ladder = [1.0, 7.16, 21.0, 54.0, 110.0]
+      # A pin that CROSSES a copied ladder's next break, which is the
+      # refusal that quotes a number back at the user.
+      refusal = bridge.pin_problem(
+        30.0, None, [float(v) for v in range(0, 121)], 5, ladder)
+      assert refusal, \
+        "the fixture did not produce a refusal, so nothing quotes a " \
+        "number and this test cannot run"
+      # The sentence's own closing full stop is not part of its
+      # number, and under a comma-decimal locale a decimal point is
+      # not either -- so trim trailing separators rather than trying
+      # to write one pattern that knows which is which.
+      quoted = [n.rstrip(".,\u00a0\u202f")
+                for n in re.findall(r"[-+]?\d[\d.,\u00a0\u202f]*", refusal)]
+      quoted = [n for n in quoted if any(c.isdigit() for c in n)]
+      assert quoted, f"the refusal names no number at all: {refusal!r}"
+
+      box = CategoryColourDialog._bound_box(_BoundsOnly(
+        [(0.0, 7.16), (7.16, 110.0)]), 7.16)
+      for number in quoted:
+        kept = ""
+        for character in number:
+          trial = kept + character
+          state, _f, _p = box.validate(trial, len(trial))
+          if state in (QValidator.State.Acceptable,
+                       QValidator.State.Intermediate):
+            kept = trial
+        assert kept == number, (
+          f"in {name} the refusal says {refusal!r} and the bound box "
+          f"beside it keeps only {kept!r} of the number {number!r}")
+        box.setValue(0.0)
+        box.lineEdit().setText(kept)
+        box.interpretText()
+        # ...and it must read back as the SAME number, not merely be
+        # typeable. 7,16 punctuated as "7.16" is typeable and means
+        # 716, which is the whole defect.
+        wanted = QLocale().toDouble(number)
+        assert wanted[1], \
+          f"in {name} the locale itself cannot read {number!r} back"
+        assert abs(box.value() - wanted[0]) <= max(
+            abs(wanted[0]) * 1e-6, 1e-9), (
+          f"in {name} the refusal names {number!r} and its own box "
+          f"reads that back as {box.value()!r} -- a user clearing the "
+          f"refusal by typing the number in it pins something else, "
+          f"and pin_problem accepts it")
+        checked += 1
+    assert checked >= 2, \
+      f"only {checked} quoted number(s) were driven across two locales"
+  finally:
+    QLocale.setDefault(was)
+
+
 def test_a_bound_the_editor_prints_can_be_typed_into_its_own_box():
   """A number printed beside a box must parse in that box.
 
@@ -50120,6 +50216,8 @@ def main():
         test_every_number_box_holds_a_value_finer_than_its_step)
   check("the spacing advice can be typed back in any locale",
         test_the_spacing_advice_can_be_typed_back_in_any_locale)
+  check("a refusal names a number the box beside it accepts",
+        test_a_refusal_names_a_number_the_box_beside_it_accepts)
   check("a bound the editor prints can be typed into its own box",
         test_a_bound_the_editor_prints_can_be_typed_into_its_own_box)
   check("the display range keeps every digit a user types",

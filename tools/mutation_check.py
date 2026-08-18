@@ -3352,6 +3352,16 @@ MUTATIONS = [
            "later than the graduated one and only because a hunt went "
            "looking: a fill comparison cannot see a stroke, a legend "
            "label or a deleted category"),
+  dict(name="a-refusal-is-punctuated-by-the-locale", file=BRIDGE,
+       old="  text = QLocale().toString(float(value), 'g', 6)",
+       new="  text = f\"{float(value):.6g}\"",
+       test="test_a_refusal_names_a_number_the_box_beside_it_accepts",
+       why="a refusal is a stronger copy path than a report -- the "
+           "number in it is the one a user must clear to get their "
+           "map -- and a hard-coded decimal point beside a box that "
+           "parses through the locale means the plugin says 7.16 "
+           "where its own cell says 7,16, so retyping the refusal "
+           "pins 716, which pin_problem then ACCEPTS"),
   dict(name="a-printed-bound-is-punctuated-by-the-locale",
        file="weavingspace_qgis/category_editor.py",
        old="    text = QLocale().toString(float(value), 'g', 10)",
