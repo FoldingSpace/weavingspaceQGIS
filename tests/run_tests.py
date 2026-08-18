@@ -13460,6 +13460,34 @@ def test_the_design_view_paints_colours_the_map_contains():
   graduated = dlg.table.item(0, 0).text()
   deferring = dlg.table.item(1, 0).text()
   dlg.spacing_spin.setValue(1200)
+
+  # ARM ZERO: BEFORE THERE IS A MAP TO READ. Every arm below drives a
+  # generated element, and since the preview became one rule -- show
+  # what the map draws -- those arms all exercise the same line. The
+  # row's own records still answer until the first Generate, and that
+  # fallback keeps the ramp's direction and window because they are
+  # what the map WILL be drawn from. Without this arm nothing would
+  # cover them, which a catalogue entry would report as a survivor
+  # rather than as an untested path.
+  assert not dlg._element_layer_ids, \
+    "the fixture has already generated, so the pre-map fallback this " \
+    "arm is about cannot arise"
+  plain = dlg._table_id_colours()[graduated]
+  dlg._row_reverse(0).setChecked(True)
+  _tick(200)
+  flipped = dlg._table_id_colours()[graduated]
+  assert plain != flipped, \
+    f"before any map exists, ticking Reverse left the preview at " \
+    f"{plain}: the fallback is not reading the row's direction"
+  dlg._ramp_ranges[graduated] = (60, 100)
+  windowed = dlg._table_id_colours()[graduated]
+  assert windowed != flipped, \
+    f"before any map exists, narrowing the display range left the " \
+    f"preview at {flipped}: the fallback is not reading the window"
+  dlg._ramp_ranges.pop(graduated, None)
+  dlg._row_reverse(0).setChecked(False)
+  _tick(200)
+
   _generate_and_wait(dlg)
 
   # ARM ONE: restyled in QGIS, so the plugin no longer decides the

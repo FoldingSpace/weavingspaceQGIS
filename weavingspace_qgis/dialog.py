@@ -7624,63 +7624,45 @@ class WeavingSpaceDialog(QDialog):
       # at its one job. Measured 2026-08-13: preview #e7342a against a
       # map drawing (221, 221, 221). Guarded by
       # test_an_unassigned_element_previews_as_it_draws.
-      if not a["var"]:
-        base = bridge.NO_DATA_FILL
-      elif (self._element_is_deferring(a["id"])
-            or a.get("quant_colours") or a.get("category_colours")):
-        # THE COLOUR COMES OFF THE LAYER WHEREVER THE ROW NO LONGER
-        # DECIDES IT, and there are TWO such cases rather than the one
-        # this branch was written for. A DEFERRING element's colours
-        # belong to QGIS; a HAND-PICKED element's belong to the person
-        # who picked them. In both, the row's ramp describes a map that
-        # is not there.
-        #
-        # The hand-picked half is the OLDEST arm of this expression and
-        # has never worked. The ramp cell has known it from the start
-        # -- it switches to Custom, and says at that branch that
-        # "hand-picked colours really do leave the ramp behind" --
-        # while this function went on asking the ramp for its name.
-        # Measured 2026-08-17: five classes picked green, the preview
-        # painting #e7342a, 144/255 from anything the element wears,
-        # and 11,873 preview pixels of a colour the map has none of.
-        #
-        # FOUND BY A HUNT AN HOUR AFTER THE OTHER THREE WERE FIXED, and
-        # the lesson is worth more than the fix: when a change widens a
-        # call to stop it ignoring X and Y, enumerate every key of the
-        # record the caller COULD read, not the ones the report
-        # happened to name. Three of the six colour keys `_assignments`
-        # carries were still unread when that commit was written.
-        #
-        # For the deferring half, the reason is the one this branch
-        # arrived with, and the question is its ramp swatch's own:
-        # the plugin no longer decides those colours, and a preview
-        # built from the row's records shows colours the map does not
-        # have. `_ramp_cell_icon` grew this branch on 2026-08-15 and
-        # this function was not looked at, which is the shape this
-        # project keeps paying for -- when a rule names one of a pair,
-        # check the other.
-        #
-        # Measured 2026-08-17: after a restyle in QGIS's Symbology
-        # panel the map painted 30,316 pixels of #00aa44 and none of
-        # #3c8bc2, while the design view painted 15,470 of #3c8bc2 and
-        # none of #00aa44 -- 102/255 away from ANY colour the element
-        # draws.
-        base = self._drawn_preview_colour(a["id"]) or \
-            bridge.ramp_swatch_colour(
-                a["ramp"], bool(a.get("reverse", False)),
-                tuple(a.get("range_bounds", (0, 100))))
-      elif a["mode"] == "Single colour" and a.get("single_colour"):
-        base = a["single_colour"]
-      else:
-        # THE ROW'S OWN DIRECTION AND WINDOW, not the bare ramp. A
-        # reversed element wears the ramp backwards and a narrowed
-        # Ramp Display Range is what the map samples, so asking for
-        # the ramp alone previews an element in a colour it does not
-        # draw. `graduated_class_colours` has sampled the window since
-        # the range control arrived; this call had never heard of it.
-        base = bridge.ramp_swatch_colour(
-            a["ramp"], bool(a.get("reverse", False)),
-            tuple(a.get("range_bounds", (0, 100))))
+      # ONE RULE: THE PREVIEW SHOWS WHAT THE MAP DRAWS.
+      # (Maintainer's ruling, 2026-08-17, after this one expression
+      # was found wrong SIX TIMES IN ONE DAY -- a deferring element's
+      # layer, the Ramp Display Range, the row's Reverse, hand-picked
+      # class and category colours, a column with nothing to classify,
+      # and a constant column coloured from the middle of the window
+      # rather than at 65% along it.)
+      #
+      # Each of those was a branch reading the ROW where it should
+      # have read the MAP, and each was fixed separately by adding
+      # another condition to the same `elif`. Six arms is a rule
+      # nobody can hold in their head; asking the layer is one that
+      # cannot drift, because the thing being described is the thing
+      # being asked.
+      #
+      # THE FALLBACK IS FOR BEFORE THERE IS A MAP. `_drawn_preview_
+      # colour` answers None when the element has no layer yet, which
+      # is the ordinary state until the first Generate, and then the
+      # row's own records are all there is to go on. That path keeps
+      # the ramp's direction and window because they are what the map
+      # WILL be drawn from.
+      #
+      # A DATA-DEFINED FILL is deliberately left reading the base
+      # symbol, which is what QGIS itself shows for such a layer and
+      # what `renderer_fill_colours` returns. The ramp cell beside it
+      # draws an unknown, so the pair is honest taken together, and
+      # the design view has to paint every element something.
+      # (Maintainer's ruling the same day; recorded as a known limit
+      # rather than as a defect.)
+      base = self._drawn_preview_colour(a["id"])
+      if base is None:
+        if not a["var"]:
+          base = bridge.NO_DATA_FILL
+        elif a["mode"] == "Single colour" and a.get("single_colour"):
+          base = a["single_colour"]
+        else:
+          base = bridge.ramp_swatch_colour(
+              a["ramp"], bool(a.get("reverse", False)),
+              tuple(a.get("range_bounds", (0, 100))))
       opacity = max(self.PREVIEW_MIN_OPACITY, int(a.get("opacity", 100)))
       colour = QColor(base)
       colour.setAlpha(round(255 * opacity / 100))

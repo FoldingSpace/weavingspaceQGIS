@@ -2960,40 +2960,22 @@ MUTATIONS = [
   # the fourth arm of this expression an hour after the first three
   # were fixed: the branch now covers hand-picked colours as well as
   # deferral, so it needs an entry per arm.
-  dict(name="the-preview-reads-a-deferring-layer", file=DIALOG,
-       old="      elif (self._element_is_deferring(a[\"id\"])\n"
-           "            or a.get(\"quant_colours\") or "
-           "a.get(\"category_colours\")):",
-       new="      elif (False\n"
-           "            or a.get(\"quant_colours\") or "
-           "a.get(\"category_colours\")):",
+  # ONE RULE REPLACED SIX BRANCHES on 2026-08-17: the preview shows
+  # what the map draws. The two entries this supersedes -- a deferring
+  # layer and hand-picked colours -- were separate arms of an `elif`
+  # that no longer exists, and their behaviours are now the same line.
+  dict(name="the-preview-reads-the-map", file=DIALOG,
+       old="      base = self._drawn_preview_colour(a[\"id\"])",
+       new="      base = None",
        test="test_the_design_view_paints_colours_the_map_contains",
-       why="the design view goes back to painting a deferring element "
-           "in the plugin's own ramp: measured at 30,316 pixels of "
-           "#00aa44 on the map against 15,470 of #3c8bc2 in the "
-           "preview, so somebody judges whether their elements read as "
-           "distinct from colours neither of them wears"),
-  dict(name="the-preview-reads-hand-picked-colours", file=DIALOG,
-       old="      elif (self._element_is_deferring(a[\"id\"])\n"
-           "            or a.get(\"quant_colours\") or "
-           "a.get(\"category_colours\")):",
-       new="      elif (self._element_is_deferring(a[\"id\"])\n"
-           "            or False or False):",
-       test="test_the_design_view_paints_colours_the_map_contains",
-       why="an element whose class colours were all picked by hand is "
-           "previewed in the ramp it no longer wears -- measured at "
-           "144/255 from anything it draws, with the ramp cell beside "
-           "it already reading Custom, so the row and the picture "
-           "next to it describe two different maps"),
+       why="the design view goes back to describing the ROW instead of "
+           "the MAP, which was wrong six times in one day: a deferring "
+           "element at 102/255, a narrowed window at 142, hand-picked "
+           "colours at 144, a constant column at 53, plus the row's "
+           "Reverse and a column with nothing to classify"),
   dict(name="the-preview-follows-the-rows-direction", file=DIALOG,
-       old="        base = bridge.ramp_swatch_colour(\n"
-           "            a[\"ramp\"], bool(a.get(\"reverse\", False)),\n"
-           "            tuple(a.get(\"range_bounds\", (0, 100))))\n"
-           "      opacity = max(",
-       new="        base = bridge.ramp_swatch_colour(\n"
-           "            a[\"ramp\"], False,\n"
-           "            tuple(a.get(\"range_bounds\", (0, 100))))\n"
-           "      opacity = max(",
+       old="          base = bridge.ramp_swatch_colour(\n              a[\"ramp\"], bool(a.get(\"reverse\", False)),\n              tuple(a.get(\"range_bounds\", (0, 100))))",
+       new="          base = bridge.ramp_swatch_colour(\n              a[\"ramp\"], False,\n              tuple(a.get(\"range_bounds\", (0, 100))))",
        test="test_the_design_view_paints_colours_the_map_contains",
        why="a reversed element previews in the FORWARD ramp's colour, "
            "which on a diverging ramp is the opposite end -- the "
@@ -3001,14 +2983,8 @@ MUTATIONS = [
            "round underneath it, so it lands at the other end of the "
            "classes"),
   dict(name="the-preview-follows-the-display-window", file=DIALOG,
-       old="        base = bridge.ramp_swatch_colour(\n"
-           "            a[\"ramp\"], bool(a.get(\"reverse\", False)),\n"
-           "            tuple(a.get(\"range_bounds\", (0, 100))))\n"
-           "      opacity = max(",
-       new="        base = bridge.ramp_swatch_colour(\n"
-           "            a[\"ramp\"], bool(a.get(\"reverse\", False)),\n"
-           "            (0, 100))\n"
-           "      opacity = max(",
+       old="          base = bridge.ramp_swatch_colour(\n              a[\"ramp\"], bool(a.get(\"reverse\", False)),\n              tuple(a.get(\"range_bounds\", (0, 100))))",
+       new="          base = bridge.ramp_swatch_colour(\n              a[\"ramp\"], bool(a.get(\"reverse\", False)),\n              (0, 100))",
        test="test_the_design_view_paints_colours_the_map_contains",
        why="narrowing the Ramp Display Range moves every colour the "
            "map draws and none the preview draws: measured on Reds at "
