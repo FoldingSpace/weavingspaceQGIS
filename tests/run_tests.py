@@ -23226,8 +23226,9 @@ def test_a_customized_element_reads_custom():
   # the tooltip is the user's own wording, and the dropdown is
   # untouched: every ramp still listed, Custom still not among them
   assert combo.toolTip() == CUSTOM_RAMP_TOOLTIP
-  assert CUSTOM_RAMP_TOOLTIP == ("Colours set by hand or by a class "
-                                 "file. Choose a ramp to replace them.")
+  assert CUSTOM_RAMP_TOOLTIP == ("Hand-picked colours, a class file, or "
+                                 "a narrowed range. Choose a ramp to "
+                                 "replace them.")
   assert combo.findText("Custom") < 0
   assert [combo.itemText(i)
           for i in range(combo.count())] == names_before, \
@@ -30429,14 +30430,28 @@ def test_a_cancel_storm_leaves_a_usable_dialog():
 def test_bound_columns_format_sanely_in_any_locale():
   """_format_bound's contract, under a comma-decimal locale and abuse.
 
-  The contract as the method states it (read 2026-08-09): trailing
-  zeros trimmed, ten significant digits with scientific notation
-  beyond them, negative zero printed as the zero it is -- and, being
-  built on Python's own formatting rather than QLocale, the SAME
-  string whatever locale QGIS runs in. German is the locale under
-  test because its decimal comma is the classic corrupter of
-  numeric displays; the display path is exercised through a real
-  graduated editor, not only the method.
+  Trailing zeros trimmed, ten significant digits with scientific
+  notation beyond them, negative zero printed as the zero it is.
+
+  THE LOCALE CLAUSE WAS INVERTED ON 2026-08-17 and this test is the
+  record of it. It read, from 2026-08-09: built on Python's own
+  formatting rather than QLocale, therefore the SAME string whatever
+  locale QGIS runs in. That was measured wrong. The cell sits in the
+  same table as spin boxes that parse through QLocale, and a user
+  reads a bound off one and types it into the other -- so an ASCII
+  `4.052` under a comma-decimal locale came back as FOUR THOUSAND AND
+  FIFTY-TWO, which was accepted, pinned, drawn and stamped onto the
+  layer, surviving a save. Every break moved and the only thing said
+  was that one class of five was empty.
+
+  So the string now FOLLOWS the locale, and what this test holds is
+  the round trip: whatever the cell prints, the locale that printed
+  it must read the same number back. That is the property the defect
+  actually violated, and it is stronger than string equality, which
+  was satisfied throughout by the broken version. German is the
+  locale under test because its decimal comma is the classic
+  corrupter of numeric displays; the display path is exercised
+  through a real graduated editor, not only the method.
   """
   from qgis.PyQt.QtCore import QLocale
   from weavingspace_qgis.category_editor import CategoryColourDialog
@@ -30455,18 +30470,27 @@ def test_bound_columns_format_sanely_in_any_locale():
     try:
       cells = [editor.table.item(r, c).text()
                for r in (0, 1) for c in (0, 1)]
-      assert cells == expected, \
-        f"a German locale changed the bound columns: {cells}"
-      for text in cells:
-        assert "," not in text, \
-          f"{text!r} caught the locale's decimal comma"
+      assert cells == ["1e+15", "1e-07", "0", "12,5"], \
+        f"a German locale must reach the bound columns: {cells}"
       fmt = editor._format_bound
       assert fmt(40.0) == "40", "trailing zeros are trimmed"
-      assert fmt(12.50) == "12.5", "digits that differ are kept"
-      assert fmt(0.1 + 0.2) == "0.3", \
+      assert fmt(12.50) == "12,5", \
+        "the decimal separator is the locale's, so the box beside " \
+        "the cell parses what the cell shows"
+      assert fmt(0.1 + 0.2) == "0,3", \
         "float noise past ten significant digits is not printed"
-      assert [fmt(v) for v in values] == plain, \
-        "the same numbers print differently under another locale"
+      # THE ROUND TRIP, which is what the defect broke. Every cell
+      # must be readable by the locale that wrote it, and must come
+      # back as the number that went in.
+      for text, value in zip(cells, (values[0], values[1],
+                                     values[2], values[3])):
+        back, parsed = QLocale().toDouble(text)
+        assert parsed, \
+          f"the German locale printed {text!r} and cannot read it " \
+          f"back, so the spin box beside it would refuse it"
+        assert back == value or abs(back - value) <= abs(value) * 1e-9, \
+          f"{text!r} reads back as {back}, not the {value} it was " \
+          f"printed from"
     finally:
       editor.close()
   finally:
@@ -32631,6 +32655,11 @@ DOCUMENTED_COMMAND_DOCS = ["CLAUDE.md", "MAINTAINING.md", "README.md",
 
 
 _BARE_FLAG_CLAIMS = []
+# How far a bare flag may sit from the script it is attributed to.
+# Prose that discusses a flag it just quoted does so within a
+# paragraph; a flag thirty lines later belongs to whatever the page
+# moved on to.
+NEARBY_LINES = 12
 
 
 def _bare_flags(text):
@@ -32654,7 +32683,8 @@ def _bare_flags(text):
   words = text.strip().split()
   if not words or any(re.match(r"^[\w./-]+\.(py|sh)$", w) for w in words):
     return []
-  return [w.split("=", 1)[0] for w in words if w.startswith("--")]
+  return [w.split("=", 1)[0] for w in words
+          if w.startswith("--") and len(w) > 2]
 
 # What may stand in front of a script in a documented command: a bare
 # interpreter, a bundled or virtualenv one given by path, or a shell
@@ -32760,6 +32790,7 @@ def _documented_commands():
       script, flags = _command_parts(line)
       if script:
         found.append((relative, number, line, script, flags))
+        last_script[relative] = (script, number)
     for match in re.finditer(r"`([^`]+)`", text):
       span = match.group(1)
       if "\n\n" in span:
@@ -32770,14 +32801,24 @@ def _documented_commands():
       script, flags = _command_parts(span)
       if script:
         found.append((relative, line_number, span, script, flags))
-        last_script[relative] = script
+        last_script[relative] = (script, line_number)
         continue
       # ...and a flag quoted with no script beside it, attributed to
-      # the command the document last named.
+      # the command the document last named -- but ONLY while that
+      # command is still what the page is about.
+      #
+      # UNBOUNDED ATTRIBUTION IS WORSE THAN NONE, measured 2026-08-18:
+      # carrying the last script to the end of the file reported 31
+      # claims of which nearly all were git's and gh's -- `git merge
+      # --ff-only` blamed on coverage_per_test.py, `gh run list
+      # --branch` on check_standards.py -- because those commands name
+      # no .py file and so never displace the owner. A gate whose
+      # failures are mostly false is one people learn to silence.
       for bare in _bare_flags(span):
         owner = last_script.get(relative)
-        if owner:
-          _BARE_FLAG_CLAIMS.append((relative, line_number, bare, owner))
+        if owner and line_number - owner[1] <= NEARBY_LINES:
+          _BARE_FLAG_CLAIMS.append(
+              (relative, line_number, bare, owner[0]))
   return found
 
 
@@ -32994,6 +33035,51 @@ def test_every_documented_command_still_exists():
   assert "--not-a-real-flag" not in accepted, \
     "the flag reader accepts flags that do not exist, so every flag " \
     "check above passed for free"
+
+  # AND THE FLAGS QUOTED WITHOUT THEIR SCRIPT BESIDE THEM, which is how
+  # most of these documents actually read: a paragraph names release.py
+  # once and then discusses `--rc`, `--push` and `--dry-run` on their
+  # own for a page. Every one of those went unchecked while the count
+  # above looked healthy, so a flag renamed in the code stayed
+  # correct-looking in the prose that explains it. Attributed to the
+  # script the document last named, which is what a reader does too.
+  bare_wrong = []
+  for document, number, flag, owner in _BARE_FLAG_CLAIMS:
+    if not os.path.exists(os.path.join(ROOT, owner)):
+      continue
+    accepted_here = _argparse_long_flags(owner)
+    if accepted_here is None:
+      with open(os.path.join(ROOT, owner), encoding="utf-8") as handle:
+        known = handle.read()
+    else:
+      known = " ".join(accepted_here)
+    if flag not in known:
+      bare_wrong.append(f"{document}:{number} discusses {flag} as "
+                        f"{owner}'s, which does not accept it")
+  # REPORTED, NOT GATED, and the measurement is why. Attribution by
+  # proximity is approximate in a way the same-line check is not: with
+  # no bound it produced 31 claims of which nearly all were git's and
+  # gh's flags, and at twelve lines it produced ONE, which is also
+  # false -- PUBLISHING.md names ci_provision.py in a sentence saying
+  # it is NOT run, and the `--check` seven lines later is
+  # sync_release_content.py's. The prose is right and the guess is
+  # wrong, which is the whole difficulty: a document may name a script
+  # in order to talk about something else.
+  #
+  # So this half prints what it suspects and lets a person judge,
+  # while the same-line half above still GATES, because a flag quoted
+  # beside its own script needs no guessing. Do not promote this to an
+  # assertion without a soundly attributed owner -- the failure mode
+  # is a red suite on correct documentation, which is how a gate
+  # stops being read.
+  if bare_wrong:
+    print("NOTE: flags discussed near a script that does not accept "
+          "them, which may be the document's fault or this test's "
+          "attribution: " + "; ".join(bare_wrong))
+  assert len(_BARE_FLAG_CLAIMS) >= 5, \
+    f"only {len(_BARE_FLAG_CLAIMS)} bare flags were attributed, so " \
+    f"this half of the test barely ran -- either the documents stopped " \
+    f"discussing flags on their own or the attribution broke"
   print(f"  documented commands checked: {len(commands)} quotations, "
         f"{len(scripts)} scripts, {flags_checked} long flags")
 
@@ -34312,22 +34398,67 @@ def test_the_tile_estimate_is_honest_where_shapes_are_awkward():
   # beside the message parsed "23.4" as 234
   from qgis.PyQt.QtCore import QLocale
   def _local(text):
-    """The same digits, punctuated the way this QGIS punctuates."""
+    """The same digits, punctuated the way this QGIS punctuates.
+
+    WHICH CHARACTER GROUPS IS NOT THE WHOLE QUESTION -- whether the
+    locale groups AT ALL is the other half, and leaving it out cost a
+    CI round on 2026-08-18. Qt's C locale returns "," from
+    groupSeparator() while carrying OmitGroupSeparator, so a runner
+    with no LANG printed "1500" where this helper had built "1,500"
+    and the suite failed on correct code. The development Mac never
+    saw it because en_US groups.
+    """
     point = QLocale().decimalPoint()
     group = QLocale().groupSeparator()
+    if QLocale().numberOptions() & QLocale.NumberOption.OmitGroupSeparator:
+      group = ""
     return text.replace(".", "\x00").replace(",", group).replace("\x00", point)
 
+  # UNDER THREE LOCALES, not merely whichever one the machine has.
+  # This block read the ambient locale only, so the development Mac
+  # proved en_US and nothing else, and the C locale -- which is what a
+  # container with no LANG gets, i.e. CI -- went untested until it
+  # failed there on 2026-08-18. A test whose coverage depends on the
+  # machine it runs on is one that reports the machine, not the code.
+  saved_number_locale = QLocale()
+  try:
+    for locale in (saved_number_locale, QLocale.c(),
+                   QLocale(QLocale.Language.German)):
+      QLocale.setDefault(locale)
+      _check_spacing_printing(bridge, _local, locale.name())
+  finally:
+    QLocale.setDefault(saved_number_locale)
+  dlg.close()
+
+
+def _check_spacing_printing(bridge, _local, where):
+  """Every printed spacing, under whatever locale is in force.
+
+  Args:
+    bridge: the plugin's bridge module.
+    _local: the caller's punctuator, which reads QLocale at call time.
+    where: the locale's name, so a failure says which one broke.
+  """
+  from qgis.PyQt.QtCore import QLocale
   for value, plain in ((1.2150048, "1.22"), (0.00040001, "0.000401"),
                        (1500.0, "1,500"), (12.0, "12")):
     expected = _local(plain)
     printed = bridge.spacing_in_words(bridge._rounded_up_to_figures(value, 3))
     assert printed == expected, \
-      f"a spacing of {value!r} prints as {printed!r}, wanted {expected!r}"
-    assert float(printed.replace(",", "")) >= value, \
-      f"a spacing of {value!r} prints as {printed!r}, which is SMALLER " \
-      f"than the floor it stands for -- rounding a minimum down is how " \
-      f"advice becomes a contradiction"
-  dlg.close()
+      f"under {where}, a spacing of {value!r} prints as {printed!r}, " \
+      f"wanted {expected!r}"
+    # READ BACK THROUGH THE LOCALE THAT WROTE IT, never by stripping
+    # commas: under a comma-decimal QGIS "1,22" would strip to 122,
+    # and this assertion would pass a hundredfold error.
+    spoken_back, readable = QLocale().toDouble(printed)
+    assert readable, \
+      f"under {where}, a spacing of {value!r} prints as {printed!r}, " \
+      f"which the locale that printed it cannot read back, so the " \
+      f"spacing box would refuse the number just offered"
+    assert spoken_back >= value, \
+      f"under {where}, a spacing of {value!r} prints as {printed!r}, " \
+      f"which is SMALLER than the floor it stands for -- rounding a " \
+      f"minimum down is how advice becomes a contradiction"
 
 
 def _c2_corrupt_wheel_dir(folder, label, payload):
@@ -36038,6 +36169,60 @@ def test_two_projects_in_one_session():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_a_coverage_notice_quotes_a_spacing_the_box_accepts():
+  """Both coverage sentences punctuate their spacing for this QGIS.
+
+  These two are the last members of the family repaired on
+  2026-08-17. Each quotes the spacing a run actually used, and a
+  reader who wants fewer gaps types that number into the spacing box
+  beside the message -- so an ASCII "500.5" on a comma-decimal QGIS
+  is read as 5005, an order of magnitude coarser, and the advice
+  makes the map worse. The class bounds and the size-guard refusal
+  were fixed that day; a comment in category_editor.py named these
+  two as the remainder and said they were on the roadmap. They were
+  not on the roadmap, and they were still hand-built with
+  `f"{spacing:,.6f}"` when this was written on 2026-08-18.
+
+  The assertion is the ROUND TRIP rather than a spelling, for the
+  same reason as the bound columns: what matters is that the locale
+  which printed the number can read it back, and pinning "500,5"
+  would prove only that German was thought about.
+
+  Regression: both coverage notices hand-built their spacing with a full stop and a comma, so on a comma-decimal QGIS the number they told a user to type was read by the box beside them as a thousand times larger. [family-audit]
+  """
+  from qgis.PyQt.QtCore import QLocale
+  from weavingspace_qgis import bridge
+
+  saved = QLocale()
+  try:
+    for language, name in ((QLocale.Language.English, "English"),
+                           (QLocale.Language.German, "German")):
+      QLocale.setDefault(QLocale(language))
+      plain = bridge.coverage_message(3, 144, 500.5, "metres")
+      icons = bridge.icon_coverage_message({"a": 12}, 144, 500.5, "metres")
+      assert plain and icons, \
+        f"under {name} one of the coverage notices said nothing, so " \
+        f"there is no number to check"
+      for label, sentence in (("coverage", plain), ("icon", icons)):
+        quoted = sentence.split(" metres", 1)[0].replace("At ", "", 1)
+        back, readable = QLocale().toDouble(quoted)
+        assert readable, \
+          f"the {label} notice under {name} quotes {quoted!r}, which " \
+          f"that locale cannot read back, so the spacing box beside " \
+          f"the message would refuse the number it just showed"
+        assert abs(back - 500.5) < 1e-9, \
+          f"the {label} notice under {name} quotes {quoted!r}, which " \
+          f"reads back as {back} rather than the 500.5 the run used"
+    # and the C locale, which is what a container with no LANG gets:
+    # it omits grouping, so a hand-built comma would be wrong there too
+    QLocale.setDefault(QLocale.c())
+    assert bridge._spacing_text(1000.0) == "1000", \
+      f"under C the spacing reads {bridge._spacing_text(1000.0)!r}, " \
+      f"but that locale omits the group separator"
+  finally:
+    QLocale.setDefault(saved)
+
+
 def test_the_plugin_under_a_non_english_locale():
   """German decimals and an Arabic right-to-left layout.
 
@@ -36153,14 +36338,29 @@ def test_the_plugin_under_a_non_english_locale():
                     if editor.table.item(r, c) is not None]
           if not bounds:
             trouble.append(f"{name}: the editor showed no class bounds")
+          # THE BOUND FOLLOWS THE LOCALE, decided 2026-08-17 and
+          # measured: the cell sits in the same table as spin boxes
+          # that PARSE through QLocale, and a user reads a bound off
+          # one and types it into the other. An ASCII `4.052` under a
+          # comma-decimal locale was read back as FOUR THOUSAND AND
+          # FIFTY-TWO, accepted, pinned, drawn and saved. So a decimal
+          # comma and Arabic-Indic digits are now CORRECT here, and
+          # this arm no longer demands one spelling for every locale.
+          # What must hold instead: the locale that printed the bound
+          # can read its own number back, and the NUMBER is the same
+          # everywhere even though the string is not. Parsed here,
+          # under the locale in force, because the comparison below
+          # runs after it has been restored.
+          numbers = []
           for text in bounds:
-            if "," in text:
-              trouble.append(f"{name}: the bound {text!r} caught the "
-                             f"locale's decimal comma")
-            if arabic_digits.search(text):
-              trouble.append(f"{name}: the bound {text!r} is printed in "
-                             f"digits the rest of the dialog does not use")
-          seen.setdefault("bounds", []).append((name, bounds))
+            value, parsed = QLocale().toDouble(text)
+            if not parsed:
+              trouble.append(f"{name}: the bound {text!r} cannot be read "
+                             f"back by the locale that printed it, so "
+                             f"the box beside it would refuse the number "
+                             f"the cell is showing")
+            numbers.append(value if parsed else text)
+          seen.setdefault("bounds", []).append((name, numbers))
         finally:
           editor.close()
 
@@ -50736,6 +50936,8 @@ def main():
         test_a_project_that_already_has_forty_layers)
   check("two projects in one session",
         test_two_projects_in_one_session)
+  check("a coverage notice quotes a spacing the box accepts",
+        test_a_coverage_notice_quotes_a_spacing_the_box_accepts)
   check("the plugin under a non-English locale",
         test_the_plugin_under_a_non_english_locale)
   check("a read-only and a full-disk output path",

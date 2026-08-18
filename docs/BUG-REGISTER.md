@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-247 defect(s) with a regression test.
+248 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -23,6 +23,8 @@ there is no separate list to remember.
 
 ## Found by a family audit of the claims the software makes
 
+- **both coverage notices hand-built their spacing with a full stop and a comma, so on a comma-decimal QGIS the number they told a user to type was read by the box beside them as a thousand times larger.**  
+  guarded by `test_a_coverage_notice_quotes_a_spacing_the_box_accepts`
 - **the missing-values notice said "X of Y areas" while counting tiles; both numbers came from the tiled frame, so a 24-area layer could read "31 of 96 areas".**  
   guarded by `test_every_notice_describes_the_map_it_came_from`
 - **memory element layers shipped with no spatial index at all, and the first GeoPackage layer's provider cached "no index" from being opened while its siblings were still being written, so QGIS skipped index-assisted paths for exactly that element.**  
@@ -549,9 +551,9 @@ there is no separate list to remember.
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8
 - race and stress testing: 6
+- a family audit of the claims the software makes: 5
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5
-- a family audit of the claims the software makes: 4
 - the hostile data corpus: 4
 - a randomised differential sweep: 3
 - comparing rendered output against the reference in Lab space: 1

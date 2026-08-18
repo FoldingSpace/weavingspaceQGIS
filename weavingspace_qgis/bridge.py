@@ -1067,6 +1067,41 @@ def categorical_shift_message(field: str, previous: int | None,
           f"colours the same from one map to the next.")
 
 
+def _spacing_text(value: float) -> str:
+  """A spacing exactly as it was used, punctuated for this QGIS.
+
+  Args:
+    value: the spacing, in the region layer's own map units.
+
+  Returns:
+    The number to six decimal places with trailing zeros and any
+    naked decimal point removed -- "500.5", "1,000" -- through the
+    locale, so the decimal point and grouping are the ones the
+    spacing box beside the message parses.
+
+  THE LAST TWO MEMBERS OF A FAMILY, found 2026-08-18 and fixed here.
+  Both of these sentences quote a spacing a user retypes, and both
+  hand-built it as `f"{spacing:,.6f}"` -- a full stop for the point
+  and a comma for grouping, because that is what Python does. Under a
+  comma-decimal QGIS the sentence said `500.5` and the box beside it
+  read that as 5005, which is the same defect repaired in the spacing
+  advice and in the class-bound columns on 2026-08-17. The comment
+  recording that pair named these two as the remainder and said they
+  were on the roadmap; they were not, which is why they survived.
+
+  Not `spacing_in_words`, deliberately: that rounds to three
+  significant figures because it prints a FLOOR that must stay above
+  what it stands for, and rounding the spacing a run actually used
+  would misreport it.
+  """
+  from qgis.PyQt.QtCore import QLocale
+  locale = QLocale()
+  text = locale.toString(float(value), 'f', 6)
+  # the zeros are the tail of the decimal part, so stripping stops at
+  # the decimal point and the grouped zeros of "1,000" are safe
+  return text.rstrip("0").rstrip(locale.decimalPoint())
+
+
 def icon_coverage_message(short: dict, unit_count: int,
                           spacing: float, unit_label: str) -> str | None:
   """The warning coverage_message cannot give, for icon mode.
@@ -1099,7 +1134,7 @@ def icon_coverage_message(short: dict, unit_count: int,
   """
   if not short:
     return None
-  spacing_text = f"{spacing:,.6f}".rstrip("0").rstrip(".")
+  spacing_text = _spacing_text(spacing)
   worst = max(short.values())
   named = ", ".join(sorted(short))
   return (f"At {spacing_text} {unit_label} spacing, elements {named} "
@@ -1150,7 +1185,7 @@ def coverage_message(missing: int, unit_count: int, spacing: float,
   # resolution, so the number in the message is the number the user
   # typed. Rounding harder would print "0 m" for the fine spacings a
   # degree-based or very local CRS makes reasonable
-  spacing_text = f"{spacing:,.6f}".rstrip("0").rstrip(".")
+  spacing_text = _spacing_text(spacing)
   return (f"At {spacing_text} {unit_label} spacing, {missing:,} of "
           f"{unit_count:,} areas received no tiles and appear nowhere "
           f"on the map.")

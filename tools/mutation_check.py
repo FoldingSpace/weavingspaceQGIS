@@ -116,6 +116,25 @@ MUTATIONS = [
            "activated and NOT currentIndexChanged, so this handler is "
            "the only one that runs; a rebuild here replaces every cell "
            "widget while the user is still working the table"),
+  dict(name="a-coverage-spacing-never-follows-the-locale", file=BRIDGE,
+       # ANCHORED ON THE CONVERSION, not on the rstrip beside it: the
+       # trimming is the same in either version and a mutation of it
+       # would prove the trimming, which is not what this guards. What
+       # is at stake is WHOSE punctuation the number carries.
+       old="""  text = locale.toString(float(value), 'f', 6)""",
+       new="""  text = "{:,.6f}".format(float(value))""",
+       test="test_a_coverage_notice_quotes_a_spacing_the_box_accepts",
+       why="this is the hand-built formatting the fix replaced, and "
+           "it is invisible in English: a full stop for the point and "
+           "a comma for grouping is what a reader here expects, so "
+           "every test that pins a spelling passes. On a "
+           "comma-decimal QGIS the sentence then says 500.5 and the "
+           "spacing box beside it reads 5005, so a user who types the "
+           "number the plugin just showed gets a map ten times "
+           "coarser. The same mutation reached the class bounds and "
+           "the size-guard refusal and was repaired in both on "
+           "2026-08-17; these two sentences were named as the "
+           "remainder and missed"),
   dict(name="a-scale-of-zero-is-never-reachable", file=DIALOG,
        old="""    if value != 0:
       self._last_scale[box] = value

@@ -1480,3 +1480,36 @@ mutation score.
 **No unconditional modal dialogs on generation paths.** A QMessageBox
 blocks a headless run; one hung the suite for thirty-one minutes. The
 harness patches QMessageBox and the plugin reports quietly instead.
+
+**A test whose coverage depends on the machine it runs on reports the
+machine, not the code.** The size guard's printed-spacing block read
+the ambient `QLocale`, so the development Mac proved `en_US` and
+nothing else. A container with no `LANG` gets Qt's C locale, which
+returns `,` from `groupSeparator()` while carrying
+`OmitGroupSeparator` — so `1500` there against `1,500` here, and the
+suite failed on CI against correct code. The block now runs under the
+ambient locale, `QLocale.c()` and German in turn, and removing the
+one-line fix fails on the Mac rather than only on a runner. Ask of any
+test that reads an ambient setting — locale, timezone, encoding, DPI —
+which values it actually exercises, and name them.
+
+**Prove that your reproduction reproduces.** The first attempt at that
+one set `LC_ALL=C`, ran green, and looked like a fix confirmed. It was
+not: macOS QGIS takes `QLocale` from system preferences and never
+reads the environment, so the reproduction had exercised `en_US`
+twice. A fix whose "proof" is a run that could not have failed is an
+unproven fix with a receipt. Reproduce by forcing the thing itself —
+`QLocale.setDefault` — and confirm the broken version fails before
+believing the fixed one passes.
+
+**When an attribution is a guess, report rather than gate.** The
+documented-command check reads flags quoted without their script and
+attributes them to the script the document last named. Unbounded, that
+produced 31 findings of which nearly all were `git`'s and `gh`'s flags,
+since those commands name no `.py` file and so never displace the
+owner. Bounded to twelve lines it produced one, also false: a
+paragraph naming `ci_provision.py` to say it is NOT run, and a
+`--check` seven lines later belonging to another script. The same-line
+half still gates, because a flag quoted beside its own script needs no
+guessing. A gate whose failures are mostly false is one people learn
+to silence, and it takes the true failures with it.
