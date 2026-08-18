@@ -116,6 +116,29 @@ MUTATIONS = [
            "activated and NOT currentIndexChanged, so this handler is "
            "the only one that runs; a rebuild here replaces every cell "
            "widget while the user is still working the table"),
+  dict(name="a-retyped-break-never-reaches-the-record", file=DIALOG,
+       # ANCHORED ON THE CALL, not on the helper's body: what is at
+       # stake is that the adoption RUNS at all, and it must run
+       # before the colour comparison below, since an edit that moved
+       # only the numbers changes no colour and reaches none of the
+       # exits under it. Mutating inside the helper would prove some
+       # detail of how a ladder is recorded while leaving the actual
+       # defect -- nothing recorded, ever -- unguarded.
+       old="""    self._adopt_dock_bounds(tile_id, assignment, actual_bounds)""",
+       new="""    pass  # adoption removed""",
+       test="test_a_break_retyped_in_qgis_reaches_the_plugin",
+       why="this is rc8 exactly: every reader of a graduated element "
+           "-- the table, the colour editor, the swatch -- goes "
+           "through _current_graduated_classes, which REBUILDS a "
+           "renderer from the dialog's record and never reads the "
+           "layer's ranges. So a break retyped by hand in QGIS's "
+           "Symbology panel exists only in that layer's renderer and "
+           "is invisible everywhere, whatever QGIS is holding. The "
+           "tester reported it as 'regardless of HOW I do it, changes "
+           "to the Q symbology are not reflected in the plugin', "
+           "which was exact: colour had an adoption path into the "
+           "record and the bounds had none, so every route ended at "
+           "the same missing one"),
   dict(name="a-coverage-spacing-never-follows-the-locale", file=BRIDGE,
        # ANCHORED ON THE CONVERSION, not on the rstrip beside it: the
        # trimming is the same in either version and a mutation of it

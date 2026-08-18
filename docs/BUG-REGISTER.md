@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-248 defect(s) with a regression test.
+249 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -509,6 +509,8 @@ there is no separate list to remember.
 
 ## Found by reported by a user
 
+- **a class break retyped by hand in QGIS's Symbology panel never reached the plugin, whose table, colour editor and swatch all went on showing breaks it had computed itself, whatever QGIS held.**  
+  guarded by `test_a_break_retyped_in_qgis_reaches_the_plugin`
 - **a deferring element whose renderer set its fill from an expression got a swatch showing one colour, which the map did not have.**  
   guarded by `test_a_data_defined_fill_is_drawn_as_an_unknown`
 - **a deferring element's ramp cell went on naming a ramp, and its swatch did not follow the colours set in QGIS's styling panel.**  
@@ -546,8 +548,8 @@ there is no separate list to remember.
 
 - not written down at the time: 83
 - a bug hunt pointed in a named direction: 81
+- reported by a user: 17
 - the mutation campaign: 16
-- reported by a user: 16
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8
 - race and stress testing: 6

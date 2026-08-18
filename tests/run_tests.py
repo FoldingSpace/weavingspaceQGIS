@@ -36223,6 +36223,132 @@ def test_a_coverage_notice_quotes_a_spacing_the_box_accepts():
     QLocale.setDefault(saved)
 
 
+def _continuous_region(values):
+  """A square region whose single column holds exactly these values.
+
+  Args:
+    values: one value per area, None meaning a gap.
+
+  Returns:
+    A memory layer with one float column, ``pct``. `make_region_layer`
+    cannot serve here: its `v1` holds four distinct values, so against
+    five classes the classifier reduces and any adopted ladder
+    collapses back to the computed one. A fixture that cannot move
+    cannot show that something moved it.
+  """
+  import math
+  from weavingspace_qgis import compat
+  n = int(math.ceil(math.sqrt(len(values))))
+  layer = QgsVectorLayer("MultiPolygon?crs=EPSG:3857", "region", "memory")
+  prov = layer.dataProvider()
+  prov.addAttributes([compat.make_field("pct", float)])
+  layer.updateFields()
+  cell, feats = 1000, []
+  for k, value in enumerate(values):
+    i, j = divmod(k, n)
+    f = QgsFeature(layer.fields())
+    f.setGeometry(QgsGeometry.fromPolygonXY([[
+      QgsPointXY(i * cell, j * cell),
+      QgsPointXY((i + 1) * cell, j * cell),
+      QgsPointXY((i + 1) * cell, (j + 1) * cell),
+      QgsPointXY(i * cell, (j + 1) * cell)]]))
+    if value is not None:
+      f["pct"] = float(value)
+    feats.append(f)
+  prov.addFeatures(feats)
+  layer.updateExtents()
+  return layer
+
+
+def test_a_break_retyped_in_qgis_reaches_the_plugin():
+  """Retype a class boundary in the Symbology panel; the plugin follows.
+
+  THE COLOURS ARE DELIBERATELY LEFT ALONE, which is the whole point.
+  The guard that existed pasted a renderer with a different FIELD,
+  class COUNT and RAMP at once and passed, while a tester retyping one
+  boundary found nothing followed at all: `_current_graduated_classes`
+  rebuilds a renderer from the dialog's record rather than reading the
+  layer's ranges, so a break living only in that renderer was
+  invisible to the editor, the swatch and the table alike. Colour had
+  an adoption path into the record; the bounds had none.
+
+  THE OUTER EDGES ARE THE COLUMN'S OWN, and that is the model rather
+  than a shortfall. Typing 0 - 10 over a column starting at 3.1 gives
+  (3.1, 10): the same areas in the same class, since no value lies
+  between 0 and 3.1 to be classified anywhere else. So the claim here
+  is the INTERIOR boundaries, and comparing the ends would demand a
+  promise the plugin never made.
+
+  THE SECOND ARM IS THE MAINTAINER'S RULE (2026-08-18): a QGIS edit
+  outranks a pin when it moves the boundary that pin sits on. Pinned
+  first, retyped second, and the retyped number must win -- otherwise
+  a pin set once would quietly freeze a boundary against every later
+  edit, which is the shape of defect this whole area keeps producing.
+
+  Regression: a class break retyped by hand in QGIS's Symbology panel never reached the plugin, whose table, colour editor and swatch all went on showing breaks it had computed itself, whatever QGIS held. [user]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  project.clear()
+  layer = _continuous_region(
+    [3.1 + (79.1 - 3.1) * k / 99 for k in range(100)])
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("pct")
+  dlg.table.cellWidget(0, 2).setCurrentText("Quant: Equal interval")
+  dlg._update_dynamic_columns()
+  _tick(150)
+  tid = dlg.table.item(0, 0).text()
+  dlg.spacing_spin.setValue(500)
+  _generate_and_wait(dlg)
+  _tick(200)
+  try:
+    element = project.mapLayer(dlg._element_layer_ids[tid])
+    assert isinstance(element.renderer(), QgsGraduatedSymbolRenderer), \
+      "the element did not come back graduated, so nothing under test runs"
+    computed = [round(hi, 2) for _lo, hi, _c
+                in dlg._current_graduated_classes(
+                  [a for a in dlg._assignments() if a["id"] == tid][0])[:-1]]
+
+    # A PIN FIRST, on the boundary the retype will move, so the two
+    # arms are one action rather than two runs.
+    dlg._pinned_bounds.setdefault(tid, {})["pct"] = {"low": computed[0]}
+    dlg._apply_style_change()
+    _tick(200)
+    element = project.mapLayer(dlg._element_layer_ids[tid])
+
+    typed = [0.0, 10.0, 20.0, 30.0, 50.0, 80.0]
+    renderer = element.renderer().clone()
+    # BOUND FIRST: ranges() hands back a temporary whose contents are
+    # freed, and subscripting one segfaults.
+    ranges = renderer.ranges()
+    assert len(ranges) == len(typed) - 1, \
+      f"the element drew {len(ranges)} classes, not {len(typed) - 1}"
+    for i in range(len(typed) - 1):
+      renderer.updateRangeLowerValue(i, typed[i])
+      renderer.updateRangeUpperValue(i, typed[i + 1])
+    element.setRenderer(renderer)
+    element.styleChanged.emit()
+    element.triggerRepaint()
+    _tick(400)
+
+    after = [round(hi, 2) for _lo, hi, _c
+             in dlg._current_graduated_classes(
+               [a for a in dlg._assignments() if a["id"] == tid][0])[:-1]]
+    assert after == typed[1:-1], \
+      f"the plugin reports interior boundaries {after} where QGIS " \
+      f"holds {typed[1:-1]}; it was showing {computed} before the " \
+      f"retype, so a match with THAT is the defect this guards"
+    assert after[0] != computed[0], \
+      f"the retyped boundary equals the computed one ({after[0]}), so " \
+      f"this fixture cannot tell adoption from doing nothing"
+  finally:
+    dlg.close()
+
+
 def test_the_plugin_under_a_non_english_locale():
   """German decimals and an Arabic right-to-left layout.
 
@@ -50936,6 +51062,8 @@ def main():
         test_a_project_that_already_has_forty_layers)
   check("two projects in one session",
         test_two_projects_in_one_session)
+  check("a break retyped in QGIS reaches the plugin",
+        test_a_break_retyped_in_qgis_reaches_the_plugin)
   check("a coverage notice quotes a spacing the box accepts",
         test_a_coverage_notice_quotes_a_spacing_the_box_accepts)
   check("the plugin under a non-English locale",
