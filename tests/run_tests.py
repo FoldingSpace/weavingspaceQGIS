@@ -12128,6 +12128,194 @@ def test_a_bound_the_editor_prints_can_be_typed_into_its_own_box():
     QLocale.setDefault(was)
 
 
+def test_the_display_range_keeps_every_digit_a_user_types():
+  """A window the slider can reach, the boxes must let you type.
+
+  The Ramp Display Range has two percent boxes and a slider. Each box
+  took a bound from the OTHER's current value so the two could not
+  cross -- and a QSpinBox refuses the keystroke that would carry its
+  text past its maximum, keeping whatever it had already accepted. So
+  from a window of (0, 40), typing 60 into the lower box kept SIX. The
+  element was recoloured from a stretch of ramp nobody asked for and
+  stamped on the layer, so it survived the save; four of five colours
+  differed from the ones requested.
+
+  Dragging the slider to the same window worked, which is what makes
+  this a control defect rather than a policy: the window was
+  expressible and only typing it was not. That is this window's own
+  rule, A CONTROL MUST BE ABLE TO REPRESENT ITS DOMAIN, written down
+  when the pinned-bound box was found doing the same thing.
+
+  THE EXISTING TEST DROVE IT WITH `setValue`, which clamps in silence,
+  and is why nothing failed for a week. This one types.
+
+  Regression: the ramp display range's percent boxes clamped each other's range, so typing a lower bound above the current upper one kept only its leading digit and the element was recoloured and stamped from a ramp window nobody asked for.
+ [hunt]
+  """
+  from qgis.PyQt.QtGui import QValidator
+
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+
+  order = [str(i) for i in range(4)]
+  colours = {name: "#cccccc" for name in order}
+  editor = CategoryColourDialog(
+    "a", "v3", order, colours, lambda *a: None,
+    bounds=[(0.0, 1.0), (1.0, 2.0), (2.0, 3.0), (3.0, 4.0)],
+    range_bounds=(0, 40), ramp_name="Reds",
+    range_changed=lambda *a: None)
+  try:
+    def typed(box, text):
+      """What the box keeps when a person types this, character by
+      character."""
+      kept = ""
+      for character in text:
+        trial = kept + character
+        state, _f, _p = box.validate(trial, len(trial))
+        if state in (QValidator.State.Acceptable,
+                     QValidator.State.Intermediate):
+          kept = trial
+      return kept
+
+    # THE REPORTED CASE: the window starts at (0, 40), so 60 is past
+    # the upper end at the moment it is typed.
+    assert editor.upper_spin.value() == 40, \
+      f"the fixture opened at an upper bound of " \
+      f"{editor.upper_spin.value()}, so the case cannot arise"
+    kept = typed(editor.lower_spin, "60")
+    assert kept == "60", (
+      f"typing 60 into the lower percent box keeps only {kept!r} while "
+      f"the upper box sits at 40 -- the element is recoloured from a "
+      f"window nobody asked for, and stamped on the layer")
+
+    # ...and the mirror, on the other box
+    kept = typed(editor.upper_spin, "9")
+    assert kept == "9", (
+      f"typing 9 into the upper percent box keeps {kept!r} while the "
+      f"lower box sits above it")
+
+    # AND THE PAIR IS STILL ORDERED once the number is complete, which
+    # is what the clamping was for. A user who types a lower bound
+    # above the upper one gets the window they meant, widened rather
+    # than truncated.
+    editor.lower_spin.setValue(0)
+    editor.upper_spin.setValue(40)
+    editor.lower_spin.setValue(60)
+    editor._spin_changed(60)
+    lo, hi = editor.lower_spin.value(), editor.upper_spin.value()
+    assert lo <= hi, (
+      f"the boxes ended crossed at ({lo}, {hi}); the no-crossing rule "
+      f"was the whole point of the clamping this replaces")
+    assert {lo, hi} == {40, 60}, (
+      f"a lower bound of 60 typed over an upper of 40 gave ({lo}, "
+      f"{hi}); the two numbers the user has entered should both "
+      f"survive, in the order that makes a window")
+  finally:
+    editor.close()
+
+
+def test_a_deferring_element_keeps_its_no_data_layer():
+  """Who picks the colours does not decide which rows can be drawn.
+
+  An element whose column has gaps gets a paired layer carrying the
+  tiles a classifier cannot place, so "not known" is drawn as its own
+  colour instead of as a hole. Refine that element in QGIS's Symbology
+  panel and the row correctly reads "Deferring to QGIS" -- and
+  `_assignments` resolves its mode to that string, so
+  `_needs_a_no_data_split` tested `== "Graduated"`, answered False,
+  and the NEXT GENERATE DELETED THE PAIRED LAYER. The rows were folded
+  back onto an element whose renderer has no class for them and drew
+  as nothing.
+
+  Measured when it was found: 28,828 unpainted pixels of 490,000,
+  against zero for the identical fixture left alone, and the user told
+  nothing. That is the exact harm the paired layer exists to remove.
+
+  DEFERRAL IS ABOUT COLOUR; THE SPLIT IS ABOUT PLACEMENT, which is
+  geometry -- the signature comment beside the predicate says so. The
+  two arms differ only by the dock edit, because a single arm cannot
+  show that deferral is what makes the difference.
+
+  Regression: refining an element in QGIS's styling panel made the next Generate delete its No Data layer and fold those tiles back onto a renderer with no class for them, so areas with missing data drew as holes.
+ [hunt]
+  """
+  from qgis.core import QgsGraduatedSymbolRenderer
+
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def run_one(defer):
+    """One arm: build the map, optionally hand the element to QGIS."""
+    project = QgsProject.instance()
+    layer = make_region_layer(n=12)
+    # GAPS, PUT THERE DELIBERATELY. A fixture that cannot exhibit the
+    # case is invisible in a green result -- this project's most
+    # expensive test lesson -- and the first draft of this test skipped
+    # itself because `make_region_layer` holds no nulls.
+    index = layer.fields().indexOf("v1")
+    assert index >= 0, "the fixture lost the column this test needs"
+    layer.startEditing()
+    for offset, feature in enumerate(layer.getFeatures()):
+      if offset % 3 == 0:
+        layer.changeAttributeValue(feature.id(), index, None)
+    assert layer.commitChanges(), "could not stage the gaps"
+    project.addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(200)
+    dlg.table.cellWidget(0, 1).setCurrentText("v1")
+    field = "v1"
+    dlg.table.cellWidget(0, 2).setCurrentText("Quant: Quantiles")
+    _tick(150)
+    tid = dlg.table.item(0, 0).text()
+    dlg.spacing_spin.setValue(1200)
+    _generate_and_wait(dlg)
+    if defer:
+      element = project.mapLayer(dlg._element_layer_ids[tid])
+      handed = element.renderer().clone()
+      # a renderer no row can name, which is what deferral means
+      from qgis.core import QgsRuleBasedRenderer
+      rules = QgsRuleBasedRenderer.Rule(None)
+      base = QgsRuleBasedRenderer(rules)
+      element.setRenderer(base)
+      element.styleChanged.emit()
+      _tick(400)
+      del handed
+    _generate_and_wait(dlg)
+    twin = [lyr for lyr in project.mapLayers().values()
+            if lyr.customProperty("weavingspace_no_data")]
+    assignment = dlg._assignment_for(tid)
+    return dlg, tid, field, twin, assignment
+
+  # ARM ONE, the control: nothing handed over.
+  dlg, tid, field, twin_plain, plain = run_one(defer=False)
+  has_gaps = dlg._column_has_nulls(field)
+  dlg.close()
+  if not has_gaps:
+    # the fixture cannot exhibit the case; say so rather than pass
+    _skip_loudly("a deferring element keeps its no data layer",
+                 f"the fixture column {field!r} holds no gaps, so no "
+                 f"element is ever split and the case cannot arise")
+    return
+
+  assert twin_plain, \
+    "the control arm produced no paired layer, so the split this " \
+    "test is about never happened"
+
+  # ARM TWO: the same element, handed to QGIS in between.
+  dlg, tid, field, twin_defer, deferred = run_one(defer=True)
+  try:
+    assert deferred.get("mode") == dlg.DEFERRING, (
+      f"the element reads {deferred.get('mode')!r} rather than "
+      f"deferring, so the arm did not stage what it is about")
+    assert twin_defer, (
+      "handing an element to QGIS deleted its No Data layer at the "
+      "next Generate, so the tiles a classifier cannot place were "
+      "folded back onto a renderer with no class for them and draw "
+      "as holes -- which is what the paired layer exists to prevent")
+  finally:
+    dlg.close()
+
+
 def test_a_reopened_plugin_adopts_the_group_it_last_wrote():
   """"Create as new group" exists so a result can be KEPT.
 
@@ -48532,6 +48720,10 @@ def main():
         test_the_spacing_advice_can_be_typed_back_in_any_locale)
   check("a bound the editor prints can be typed into its own box",
         test_a_bound_the_editor_prints_can_be_typed_into_its_own_box)
+  check("the display range keeps every digit a user types",
+        test_the_display_range_keeps_every_digit_a_user_types)
+  check("a deferring element keeps its no data layer",
+        test_a_deferring_element_keeps_its_no_data_layer)
   check("a row follows a style pasted onto its layer in qgis",
         test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis)
   check("a reopened plugin adopts the group it last wrote",

@@ -1440,13 +1440,35 @@ class CategoryColourDialog(QDialog):
     # constant colour is a legitimate choice) but can never cross.
     self.lower_spin = QSpinBox(self)
     self.lower_spin.setSuffix("%")
-    self.lower_spin.setRange(0, hi)
+    # THE FULL RANGE, NOT THE OTHER BOX'S VALUE. Both boxes used to
+    # take a bound from the other's CURRENT value so the two could not
+    # cross -- and a QSpinBox refuses the keystroke that would carry
+    # its text past its maximum, keeping whatever it had accepted. So
+    # from a window of (0, 40), typing 60 into this box kept **6**:
+    # the element was recoloured from a stretch of ramp nobody asked
+    # for, stamped on the layer so it survived the save, and four of
+    # its five colours differed from the ones requested. Dragging the
+    # SLIDER to the same window worked, so the window was expressible
+    # and only typing it was not.
+    #
+    # A CONTROL MUST BE ABLE TO REPRESENT ITS DOMAIN, which is this
+    # window's own rule, written down after the pinned-bound box was
+    # found doing the same thing in miniature. The no-crossing
+    # intention was right and the mechanism was wrong: a validator
+    # cannot express "not past the other one" without eating digits,
+    # because it is asked one keystroke at a time and 6 is a prefix of
+    # 60. Measured 2026-08-17.
+    #
+    # So the boxes span the whole ramp and `_spin_changed` orders the
+    # pair once the number is complete, which is the only moment the
+    # comparison means anything.
+    self.lower_spin.setRange(0, 100)
     self.lower_spin.setValue(lo)
     self.lower_spin.setToolTip(
       "Lower end of the ramp stretch, as a percentage.")
     self.upper_spin = QSpinBox(self)
     self.upper_spin.setSuffix("%")
-    self.upper_spin.setRange(lo, 100)
+    self.upper_spin.setRange(0, 100)   # see the note on the lower box
     self.upper_spin.setValue(hi)
     self.upper_spin.setToolTip(
       "Upper end of the ramp stretch, as a percentage.")
@@ -1530,10 +1552,11 @@ class CategoryColourDialog(QDialog):
       return                      # an echo of our own update
     self._syncing = True
     try:
-      # Clamps first, then values: setting a value outside a box's
-      # current range would silently truncate it.
-      self.lower_spin.setMaximum(hi)
-      self.upper_spin.setMinimum(lo)
+      # No clamping any more -- both boxes span 0..100 and the
+      # slider cannot produce a crossed pair anyway. The comment that
+      # stood here said "setting a value outside a box's current range
+      # would silently truncate it", which was right about `setValue`
+      # and is the reason the TYPED case went unexamined for a week.
       self.lower_spin.setValue(lo)
       self.upper_spin.setValue(hi)
     finally:
@@ -1559,8 +1582,16 @@ class CategoryColourDialog(QDialog):
     try:
       lo = self.lower_spin.value()
       hi = self.upper_spin.value()
-      self.lower_spin.setMaximum(hi)
-      self.upper_spin.setMinimum(lo)
+      # ORDER THE PAIR HERE rather than by clamping the boxes'
+      # ranges, which ate typed digits. This runs after a value is
+      # complete -- on a finished edit or an arrow click -- so
+      # comparing the two finally means something. A user who types a
+      # lower bound above the upper one gets the window they clearly
+      # meant, widened rather than truncated, and can see it.
+      if lo > hi:
+        lo, hi = hi, lo
+        self.lower_spin.setValue(lo)
+        self.upper_spin.setValue(hi)
       self.range_slider.setRange(lo, hi)
     finally:
       self._syncing = False

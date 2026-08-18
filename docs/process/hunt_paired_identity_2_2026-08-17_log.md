@@ -72,3 +72,50 @@ NEXT:   the minimal reproduction (is a spacing change needed at all?)
         and the ordinary route into deferral, which is not a rule-based
         paste but a classification method QGIS offers and the plugin
         does not. Then `git log -S` for when it started.
+
+## 11:20:00  iteration 4  [perturbation]
+
+TRIED:  p_twin_defer3.py -- no spacing change at all, just Generate,
+        and two doors into deferral: the rule-based paste, and QGIS's
+        Standard Deviation classification method, which is two clicks
+        in the Symbology panel.
+
+RESULT: confirmed on both, and the spacing change is not needed. A
+        PLAIN Generate after the dock edit destroys the paired layer:
+        58 element tiles + 20 paired become 78 on the element layer,
+        20 of them unplaceable. On the Standard Deviation route the
+        surviving renderer is a plain QgsGraduatedSymbolRenderer,
+        which by this project's own measurement has no class for a
+        missing value at all -- so those 20 are guaranteed holes.
+        Note given: none, either time.
+
+NEXT:   date it, and re-run the whole thing as one clean two-arm
+        reproduction at whatever HEAD is by then.
+
+## 11:34:00  iteration 5  [logical]
+
+TRIED:  `git log -S` on `field_here = ...` and on the mode gate in
+        `_needs_a_no_data_split`; and on `DEFERRING` and
+        `split_out_the_no_data` for the two features' landing order.
+
+RESULT: confirmed. Deferral landed in e01896b (2026-08-15) and the No
+        Data split in dd112bf later the same day, so the split has
+        never known about deferral. NOT one of today's regressions,
+        which is worth saying plainly: today's work (the follow, the
+        mid-run deferral refresh, the embeds) neither caused it nor
+        touched it.
+
+## 11:52:00  iteration 6  [perturbation]
+
+TRIED:  `tools/probes/no_data_split_lost_on_deferral.py`, the whole
+        claim as one two-arm reproduction, re-frozen at 257b37d --
+        HEAD moved four times under this hunt (e2976b0, 413c186,
+        0c13aa7, d5aa26b, 257b37d) and none of those commits touches
+        `_needs_a_no_data_split`, `field_here` or `_add_no_data_layer`.
+
+RESULT: confirmed at 257b37d.
+        CONTROL: paired layer survives, 58 tiles, 0 unplaceable rows
+        on the element layer, 0 of 490,000 pixels unpainted.
+        DEFERRED: paired layer gone, 78 tiles, 20 unplaceable, 28,828
+        of 490,000 pixels (5.9%) unpainted, user told nothing.
+        `tools/check_standards.py` is green with the probe added.

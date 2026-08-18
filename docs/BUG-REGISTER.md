@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-226 defect(s) with a regression test.
+228 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -63,6 +63,8 @@ there is no separate list to remember.
   guarded by `test_a_copy_leaves_behind_a_pin_the_data_cannot_carry`
 - **a copy wrote the target's class count and ramp into the dialog's records without moving its controls, so the row's cell, its assignment and the map disagreed about how many classes were drawn.**  
   guarded by `test_a_copy_leaves_one_number_in_every_control`
+- **refining an element in QGIS's styling panel made the next Generate delete its No Data layer and fold those tiles back onto a renderer with no class for them, so areas with missing data drew as holes.**  
+  guarded by `test_a_deferring_element_keeps_its_no_data_layer`
 - **a Generate destroyed a renderer built in QGIS's styling panel for a deferring element, or kept one whose column the element no longer drew.**  
   guarded by `test_a_deferring_element_keeps_its_renderer_across_a_generate`
 - **an element styled in QGIS and then moved onto a text column was drawn by a graduated renderer over words, so every tile fell outside every class and the map painted nothing.**  
@@ -151,6 +153,8 @@ there is no separate list to remember.
   guarded by `test_the_colour_editor_opens_on_an_element_with_infinities`
 - **the constant-column notice counted the tiled output rather than the region layer, so a small area dropped at a coarse spacing produced "every area has the same value" beside a legend showing a range.**  
   guarded by `test_the_constant_notice_counts_the_users_areas`
+- **the ramp display range's percent boxes clamped each other's range, so typing a lower bound above the current upper one kept only its leading digit and the element was recoloured and stamped from a ramp window nobody asked for.**  
+  guarded by `test_the_display_range_keeps_every_digit_a_user_types`
 - **`distance` converts BOTH its arguments to CIELAB on every call, and the clash search compared every class of one element against every class of another -- so it did 2*k*k conversions where 2*k would do, at about twelve microseconds each. Measured: four categorized elements of 401 classes froze QGIS for 36.75s, of which 35.70s was here, on the GUI thread with the event loop dead; the tiling those colours belonged to took 1.05s. The live path paid it on every tweak.**  
   guarded by `test_the_legibility_check_agrees_with_its_own_distance`
 - **the notice that the region layer had been removed depended on which of two Qt handlers ran first, so it was silent on every CI runner while passing locally.**  
@@ -501,7 +505,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 83
-- a bug hunt pointed in a named direction: 60
+- a bug hunt pointed in a named direction: 62
 - the mutation campaign: 16
 - reported by a user: 16
 - reading the code: 15

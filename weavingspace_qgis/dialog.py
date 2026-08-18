@@ -4526,10 +4526,56 @@ class WeavingSpaceDialog(QDialog):
     low, high = record.get("low"), record.get("high")
     if low is None and high is None:
       return None
+    # THE LIVE CLASS COUNT, NEVER THE ONE THIS RUN WAS LAUNCHED WITH.
+    # Two of the three callers hand in the LAUNCH SNAPSHOT, so a user
+    # who raised the class count while a tiling was running and then
+    # pinned both ends -- which the editor accepted, because it asks
+    # the table -- had both bounds retired the instant the run landed:
+    # `pin_problem` refuses two pins when `asked - 1 < 2`, and the
+    # snapshot still said two. The record was cleared, the stamp was
+    # REMOVED so a reopen could not recover them, the two pin controls
+    # in the still-open window went on showing the numbers, and the
+    # sentence blamed the user's data. Measured 2026-08-17.
+    #
+    # This project's rule is that everything the colour editor writes
+    # must be RE-READ at the landing, and the re-read list was
+    # complete. The loss came from a guard standing IN FRONT of it,
+    # judging a fresh choice with a stale argument -- so the rule needs
+    # its other half: A GUARD THAT RUNS BEFORE A RE-READ MUST BE ASKED
+    # WITH RE-READ VALUES TOO.
+    live = self._assignment_for(tile_id)
+    if live is not None and live.get("var") == field:
+      assignment = live
     source = self._classification_values(field)
     if source is None:
       return None
     values = source.uniqueValues(source.fields().indexOf(field))
+    # A COPIED LADDER IS NOT JUDGED AGAINST THIS COLUMN, which is the
+    # carve-out `make_graduated_renderer` has carried since copying
+    # arrived and this site never learned. A copy is a claim about the
+    # LADDER -- reproduce that classification here -- rather than a
+    # claim about what these values support, which is the whole reason
+    # somebody copies one. bridge says so at its own guard and
+    # `test_a_pin_still_works_on_a_copied_ladder` holds it there.
+    #
+    # THE DISAGREEMENT WAS INVISIBLE AT BOTH CALL SITES, and that is
+    # the lesson: `_copy_classification` validates each pin flag
+    # ALONE, while this asks `pin_problem` about both TOGETHER. Two
+    # bounds that are each fine separately can leave nothing between
+    # them, so a ladder copied onto a column with a hole in it was
+    # judged undrawable and the WHOLE record popped -- copied breaks
+    # included -- the instant it was copied. Measured 2026-08-17: the
+    # copy reports success, the record is empty immediately after, the
+    # stamp writes `"pinned": {}`, and the next Generate silently
+    # redraws that element with the scheme's own breaks. Four of five
+    # boundaries differ.
+    #
+    # WHEN TWO SITES JUDGE ONE RECORD, CHECK THEY ASK THE JUDGE THE
+    # SAME QUESTION. Retirement is for a pin the DATA MOVED OUT FROM
+    # UNDER -- a column retyped or a layer swapped -- and a copy that
+    # was legal when it was made has not had that happen to it.
+    if record.get("breaks"):
+      return None
     if not bridge.pin_problem(low, high, values,
                               int(assignment.get("k", 5) or 5),
                               record.get("breaks")):
@@ -6104,10 +6150,28 @@ class WeavingSpaceDialog(QDialog):
 
     name = self._ramp_name_matching(renderer.sourceColorRamp())
     if name is not None and name not in bridge.CATEGORICAL_RAMPS:
+      # THE ROW'S REVERSE GOES IN, and leaving it out is how a forward
+      # ramp set in QGIS came to "match" a row whose Reverse switch is
+      # on. `_current_graduated_classes` passes it and this trial did
+      # not, so the two disagreed about what the row would draw: the
+      # plugin announced that the element now follows the named ramp,
+      # the map was forward, the row still claimed reversed -- and the
+      # next unrelated edit, asking for six classes, redrew the element
+      # end for end in the project AND in the file.
+      #
+      # A REVERSED RAMP MATCHES NO NAME IN THE LIBRARY, which is why
+      # this flag exists at all and why it keeps being dropped: every
+      # comparison that reasons about ramp NAMES rather than rendered
+      # COLOURS walks past it. Measured 2026-08-17. With the flag in,
+      # a genuine forward ramp no longer matches the reversed row and
+      # falls through to adoption as positional picks, so the cell
+      # reads Custom -- which is the settled answer for colours the
+      # row cannot name.
       trial = bridge.make_graduated_renderer(
         layer, assignment["var"], name, assignment.get("scheme",
                                                        "Quantiles"),
         assignment.get("k", 5), assignment.get("outline", False),
+        reverse=assignment.get("reverse", False),
         classify_from=self._classification_values(assignment["var"]))
       # hold the list; range temporaries dangle (the settled lesson)
       trial_colours = [r.symbol().color().name()
@@ -7063,6 +7127,29 @@ class WeavingSpaceDialog(QDialog):
               pass          # a colour we cannot read is not one to guess
         combo.blockSignals(True)
         combo.setCurrentText(label)
+        # TOUCHED, or the next rebuild throws this away -- and it is
+        # the same line, for the same reason, that
+        # `_row_follows_the_renderer` was given earlier the same day.
+        # I taught one writer of this combo and never grepped for the
+        # other. `_refresh_table` restores a row's mode only when
+        # `style_touched` is set and otherwise re-derives it from the
+        # variable's type, so a style written here with signals
+        # blocked survived until the first spacing nudge and then
+        # reverted -- taking with it, at the next Generate and in the
+        # exported file, the plain fill or the equal-interval breaks
+        # the user had just set in QGIS to take the element back.
+        #
+        # Measured 2026-08-17 in three arms: with no spacing nudge the
+        # fill survives; with one, the row goes from "Single colour" to
+        # "Quant: Quantiles" and the map and the file both follow, with
+        # nothing said; and without deferring first, the same nudge
+        # leaves the fill alone. So the rebuild is the difference and
+        # deferral is the door.
+        #
+        # WHEN A FIX ADDS A FLAG WRITE, GREP EVERY OTHER WRITER OF THE
+        # SAME WIDGET. The flag is a store, and it outranks the combo.
+        combo.setProperty("touched", True)
+        combo.setProperty("last_style", label)
         combo.blockSignals(False)
       if deferring:
         # THE RAMP CELL MUST NOT GO ON NAMING A RAMP. It read "Blues"
@@ -7412,10 +7499,35 @@ class WeavingSpaceDialog(QDialog):
       assignment: one row from `_assignments()`.
 
     Returns:
-      True when the element is drawn by a graduated renderer AND its
-      column has values a classifier cannot place. False otherwise,
-      including for every categorized or single-colour element, which
-      have their own catch-all and need no second layer.
+      True when the element's renderer may be unable to place some of
+      its rows AND the column has such rows. False for every
+      categorized or single-colour element, which have their own
+      catch-all and need no second layer.
+
+    A DEFERRING ELEMENT STILL NEEDS THE SPLIT, and forgetting that put
+    holes in real maps for two days. Deferral is about WHO PICKS THE
+    COLOURS; the split is about WHICH ROWS A RENDERER CAN PLACE, which
+    is geometry -- as the signature comment beside this says. But
+    `_assignments` resolves a deferring element's mode to
+    "Deferring to QGIS", so a test for `== "Graduated"` answered False
+    and the twin was retired.
+
+    MEASURED 2026-08-17, two arms of one fixture differing only by a
+    dock edit: with the element left alone, 58 tiles and ZERO of
+    490,000 pixels unpainted; after refining it in QGIS's Symbology
+    panel, the paired layer gone, the rows folded back onto an element
+    whose renderer has no class for them, and 28,828 PIXELS UNPAINTED
+    with nothing said. That is precisely the harm the No Data layer
+    was built to remove: honest "not known" became holes reading
+    "nothing is here".
+
+    So the question is asked of what the renderer can PLACE. A
+    categorized renderer has `addCategory` and therefore a catch-all,
+    so it never needs the split whoever styles it. Anything else --
+    graduated, or a renderer we have handed over and cannot inspect --
+    may not place a null, and an unpainted area is the wrong way to
+    fail: losing a custom fill is visible and undoable, a hole is
+    neither.
 
     IT IS IN THE GEOMETRY SIGNATURE, so it is asked on every debounce
     tick and must not cost a scan each time; `_column_has_nulls`
@@ -7423,7 +7535,8 @@ class WeavingSpaceDialog(QDialog):
     something that rescans the layer is a trap this project has
     already written down.
     """
-    if assignment.get("mode") != "Graduated":
+    mode = assignment.get("mode")
+    if mode in ("Categorized", "Single colour") or not mode:
       return False
     return self._column_has_nulls(assignment.get("var"))
 
@@ -9629,7 +9742,14 @@ class WeavingSpaceDialog(QDialog):
       # Only the GRADUATED path needs it. A categorized renderer has
       # `addCategory` and therefore its own catch-all, which this
       # plugin already builds and already lets a user colour.
-      field_here = a["var"] if a.get("mode") == "Graduated" else None
+      #
+      # ...AND A DEFERRING ELEMENT, which reads as neither. Asked the
+      # same question in the same words as `_needs_a_no_data_split`,
+      # because these two decide one thing between them and answering
+      # it twice is how they came to disagree: the predicate is in the
+      # geometry signature and this line does the splitting, so a run
+      # that promised a twin built none. Two doors, one state.
+      field_here = a["var"] if self._needs_a_no_data_split(a) else None
       drawable, absent = bridge.split_out_the_no_data(
         sub, field_here, column_has_values(field_here))
       mem = bridge.gdf_to_layer(drawable, display)
