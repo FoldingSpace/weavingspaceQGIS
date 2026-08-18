@@ -4435,6 +4435,40 @@ class WeavingSpaceDialog(QDialog):
     the .qgz as text, and this has to survive being read back by a
     future version without eval'ing whatever the file contains.
     """
+    # A DEFERRING ELEMENT'S RECORD IS LEFT ALONE, NEITHER WRITTEN NOR
+    # CLEARED. While the plugin is not deciding an element's symbology
+    # it has nothing to stamp -- and `_assignments` reports a
+    # deferring row with mode "Deferring to QGIS" and its picks and
+    # pins as None, which is INDISTINGUISHABLE HERE from a user who
+    # cleared everything. So both branches below took their else and
+    # removed the properties.
+    #
+    # Measured 2026-08-17, by both routes: pin an element and pick a
+    # class colour, restyle it in QGIS's Symbology panel, then either
+    # restyle or re-tile. The stamp is gone from the layer, gone from
+    # the .qgz read as bytes, and a reopened project brings back
+    # neither the bounds nor the colours -- while a control element
+    # beside it, pinned identically and not deferring, keeps both. The
+    # open window goes on showing the work the file no longer has,
+    # which is what makes it silent.
+    #
+    # CLEARING IS RIGHT WHEN THE USER LET SOMETHING GO and wrong when
+    # the plugin merely stopped deciding. Deferral is temporary by
+    # design -- the whole point is that an element can be taken back
+    # -- so the stamps are exactly what has to survive it. Asked of
+    # the RENDERER rather than of the row, because that is the single
+    # authority for this question and the row may not have caught up
+    # at the landing.
+    # ASKED OF THE LAYER IN HAND, not of `_element_is_deferring`,
+    # which looks the element up in `_element_layer_ids`. At the run
+    # LANDING that registry still names the layer this run is
+    # replacing, so the question would be put to the old object --
+    # measured, and it is why the first version of this guard mended
+    # the restyle route and left the landing untouched. The two call
+    # sites both have the right layer already; the registry is the
+    # only thing that does not agree with them.
+    if bridge.expressible_style(layer.renderer()) is None:
+      return
     picked = assignment.get("category_colours")
     if picked:
       layer.setCustomProperty(
@@ -9907,8 +9941,24 @@ class WeavingSpaceDialog(QDialog):
     old_no_data_renderers = {}
     old_no_data_subsets = {}
     old_subsets = {}
+    # ...AND THE STAMPS, which a DEFERRING element cannot rewrite for
+    # itself. `_stamp_category_colours` leaves a deferring element's
+    # records alone rather than clearing them, which is right on the
+    # restyle path where the layer survives -- but a re-tile hands the
+    # element a NEW layer, and leaving a new layer alone means the
+    # pinned bounds and hand-picked colours are simply never written.
+    # They travel here on exactly the terms the renderer and the
+    # opacity already travel on. (2026-08-17.)
+    old_stamps = {}
     for tid, lid in old_ids.items():
       old_layer = project.mapLayer(lid)
+      if old_layer is not None:
+        held = {name: old_layer.customProperty(name)
+                for name in ("weavingspace_category_colours",
+                             "weavingspace_quant_style")
+                if old_layer.customProperty(name)}
+        if held:
+          old_stamps[tid] = held
       if old_layer is not None and old_layer.renderer() is not None:
         old_renderers[tid] = old_layer.renderer().clone()
         # opacity lives on the layer, not the renderer, so it has to
@@ -10194,6 +10244,21 @@ class WeavingSpaceDialog(QDialog):
       # next Generate keeps them. The dialog's own dict lives only as
       # long as the session; the .qgz outlives it.
       self._stamp_category_colours(out, a)
+      # A DEFERRING ELEMENT'S STAMPS ARE PUT BACK, because the call
+      # above deliberately declines to write OR clear them and this
+      # layer is new. Without it a re-tile loses the pinned bounds and
+      # hand-picked colours of exactly the elements whose symbology
+      # the user has taken into their own hands -- measured 2026-08-17
+      # on both routes, with a control element beside it keeping both.
+      #
+      # AFTER the stamp call and BEFORE the GeoPackage write, which is
+      # the order the whole block already depends on: QGIS stores a
+      # layer's custom properties inside the style it saves, so a
+      # stamp restored after the embed would reach the project and not
+      # the file that leaves.
+      if bridge.expressible_style(out.renderer()) is None:
+        for name, value in (old_stamps.get(tid) or {}).items():
+          out.setCustomProperty(name, value)
       # the element this layer carries, so a dialog opened later in
       # the session can adopt the group instead of starting a rival
       # one (see _adopt_existing_group)

@@ -13697,6 +13697,123 @@ def test_the_design_view_paints_colours_the_map_contains():
   dlg.close()
 
 
+def test_deferral_does_not_erase_the_work_behind_it():
+  """Handing an element to QGIS must not throw away what you set here.
+
+  `_stamp_category_colours` clears both stamped records when there is
+  nothing to record, so a layer never carries stale choices from a
+  previous assignment. That is right -- and a DEFERRING element is
+  reported by `_assignments` with mode "Deferring to QGIS" and its
+  picks and pins as None, which at that site is INDISTINGUISHABLE from
+  a user who cleared everything. So both branches took their else and
+  removed the properties.
+
+  Measured 2026-08-17 by two routes: pin an element, pick a class
+  colour, restyle it in QGIS's Symbology panel, then either restyle or
+  re-tile. The stamp was gone from the layer, gone from the .qgz read
+  as bytes, and a reopened project brought back neither the bounds nor
+  the colours -- while a control element pinned identically and not
+  deferring kept both. The open window went on showing work the file
+  no longer had, which is what made it silent.
+
+  THE TWO ROUTES NEEDED DIFFERENT REPAIRS, and that is the part worth
+  keeping. On a restyle the layer SURVIVES, so the fix is to leave its
+  records alone. On a re-tile the element gets a NEW layer, and
+  leaving a new layer alone means the records are never written at all
+  -- so they have to be CARRIED, on the same terms the renderer and
+  the opacity already are. Fixing only the first mended the restyle
+  and left the landing untouched, which is why this test drives both.
+
+  Regression: restyling an element in QGIS's own panel erased its pinned bounds and hand-picked class colours from the saved project, on both the restyle and the re-tile paths, while the dialog went on showing them.
+ [hunt]
+  """
+  import json
+
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  project.addMapLayer(make_region_layer(n=12))
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.table.cellWidget(0, 1).setCurrentText("v3")
+    dlg.table.cellWidget(1, 1).setCurrentText("v3")
+    _tick(200)
+    dlg.spacing_spin.setValue(1200)
+    _generate_and_wait(dlg)
+    handed, control = dlg.table.item(0, 0).text(), dlg.table.item(1, 0).text()
+
+    source = dlg._classification_values("v3")
+    values = sorted(float(v) for v in source.uniqueValues(
+      source.fields().indexOf("v3")))
+    low, high = values[1], values[-2]
+    for tid in (handed, control):
+      dlg._pinned_bounds.setdefault(tid, {})["v3"] = {
+        "low": low, "high": high}
+      dlg._quant_colours.setdefault(tid, {})["v3"] = {"0": "#ff00ff"}
+    dlg._apply_style_change()
+    _tick(400)
+
+    def stamped(tid):
+      """The quant-style record on that element's CURRENT layer."""
+      out = project.mapLayer(dlg._element_layer_ids[tid])
+      raw = out.customProperty("weavingspace_quant_style") if out else None
+      return json.loads(raw) if raw else None
+
+    assert stamped(handed) and stamped(control), \
+      "the fixture never stamped the pins it set, so nothing can be lost"
+
+    # Hand ONE element to QGIS. The control stays the plugin's.
+    element = project.mapLayer(dlg._element_layer_ids[handed])
+    element.setRenderer(_rule_based_renderer("#00aa44"))
+    element.styleChanged.emit()
+    _tick(400)
+    assert dlg._element_is_deferring(handed), \
+      "the fixture did not put the element into deferral"
+
+    # ROUTE ONE: a restyle, where the layer survives.
+    other = dlg.table.cellWidget(dlg._row_for_element(control), 3)
+    other.setValue(7)
+    _tick(250)
+    before = dict(dlg._element_layer_ids)
+    dlg._generate()
+    assert _settle(dlg, seconds=90)
+    _tick(300)
+    assert before == dlg._element_layer_ids, \
+      "the fixture re-tiled where it meant to restyle, so route one " \
+      "was never driven"
+    kept = stamped(handed)
+    assert kept and kept.get("pinned"), (
+      f"a restyle erased the pinned bounds of the element handed to "
+      f"QGIS: its stamp is now {kept!r}")
+    assert kept.get("colours"), \
+      f"...and its hand-picked colours with them: {kept!r}"
+
+    # ROUTE TWO: a re-tile, where the element gets a NEW layer.
+    dlg.spacing_spin.setValue(1150)
+    _tick(250)
+    before = dict(dlg._element_layer_ids)
+    _generate_and_wait(dlg)
+    assert before != dlg._element_layer_ids, \
+      "the fixture restyled where it meant to re-tile, so route two " \
+      "was never driven"
+    carried = stamped(handed)
+    assert carried and carried.get("pinned"), (
+      f"a re-tile lost the pinned bounds of the element handed to "
+      f"QGIS: its new layer is stamped {carried!r}. The renderer is "
+      f"carried across; the record behind it has to travel too")
+    assert carried.get("colours"), \
+      f"...and its hand-picked colours with them: {carried!r}"
+
+    # AND THE CONTROL IS UNTOUCHED, or this would pass by never
+    # clearing anything, which is the behaviour the clear exists to
+    # prevent.
+    assert stamped(control), \
+      "the control element lost its own stamp, so the repair is not " \
+      "about deferral at all"
+  finally:
+    dlg.close()
+
+
 def test_deferral_survives_a_project_round_trip():
   """A reopened project asks the RENDERER, not a stamp.
 
@@ -49661,6 +49778,8 @@ def main():
         test_a_deferring_row_shows_the_colours_qgis_is_drawing)
   check("the design view paints colours the map contains",
         test_the_design_view_paints_colours_the_map_contains)
+  check("deferral does not erase the work behind it",
+        test_deferral_does_not_erase_the_work_behind_it)
   check("deferral survives a project round trip",
         test_deferral_survives_a_project_round_trip)
   check("a data-defined fill is drawn as an unknown",

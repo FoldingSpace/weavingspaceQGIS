@@ -2886,6 +2886,34 @@ MUTATIONS = [
        why="the window's rows describe a renderer that has just been "
            "replaced, and its controls apply immediately, so leaving "
            "it open invites an edit that lands on nothing"),
+  # TWO ENTRIES, BECAUSE THE TWO ROUTES NEEDED DIFFERENT REPAIRS and
+  # fixing the first left the second untouched. A restyle keeps the
+  # layer, so the records are LEFT ALONE; a re-tile hands the element
+  # a new layer, so they are CARRIED.
+  dict(name="deferral-leaves-the-stamp-alone", file=DIALOG,
+       old="    if bridge.expressible_style(layer.renderer()) is None:\n"
+           "      return\n"
+           "    picked = assignment.get(\"category_colours\")",
+       new="    picked = assignment.get(\"category_colours\")",
+       test="test_deferral_does_not_erase_the_work_behind_it",
+       why="a deferring element is reported with no picks and no pins, "
+           "which at this site is indistinguishable from a user who "
+           "cleared everything -- so restyling an element in QGIS "
+           "removes its pinned bounds and hand-picked colours from the "
+           "saved project while the open window still shows them"),
+  dict(name="deferral-carries-the-stamp-across-a-retile", file=DIALOG,
+       old="      if bridge.expressible_style(out.renderer()) is None:\n"
+           "        for name, value in (old_stamps.get(tid) or {}).items():\n"
+           "          out.setCustomProperty(name, value)",
+       new="      if False:\n"
+           "        for name, value in (old_stamps.get(tid) or {}).items():\n"
+           "          out.setCustomProperty(name, value)",
+       test="test_deferral_does_not_erase_the_work_behind_it",
+       why="a re-tile hands a deferring element a NEW layer, so "
+           "declining to write its records means they are never "
+           "written at all -- the renderer is carried across and the "
+           "record behind it is not, which loses the same work by the "
+           "other road"),
   dict(name="a-type-change-defers-to-qgis", file=DIALOG,
        old='    if now_deferring:\n      if not was_deferring:',
        new='    if False:\n      if not was_deferring:',

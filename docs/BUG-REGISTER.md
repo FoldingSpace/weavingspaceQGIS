@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-235 defect(s) with a regression test.
+236 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -135,6 +135,8 @@ there is no separate list to remember.
   guarded by `test_both_halves_of_an_element_fade_together`
 - **a mode change or a variable swap was answered by the restyle path, which cannot cut a no-data split, so the missing-value areas became holes again.**  
   guarded by `test_changing_to_a_graduated_style_cuts_the_split_it_needs`
+- **restyling an element in QGIS's own panel erased its pinned bounds and hand-picked class colours from the saved project, on both the restyle and the re-tile paths, while the dialog went on showing them.**  
+  guarded by `test_deferral_does_not_erase_the_work_behind_it`
 - **the significant-figures sweep lowered decimals to zero on the rotation, skew and angle boxes, so a half-degree value typed into them was silently rounded and the map was built from the rounded number.**  
   guarded by `test_every_number_box_holds_a_value_finer_than_its_step`
 - **the missing-values notice counted NULLs only, so with two NULLs and four infinities among 144 areas it said "2 of 144" while the map drew nine no-data tiles across seven areas -- and on a column whose only unplaceable values were infinities it said nothing whatever. `_element_has_missing_values` had the same one-line scan, so the colour editor withheld its No data row on such a column. Both are the fifth and sixth readers of a predicate widened that morning.**  
@@ -519,7 +521,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 83
-- a bug hunt pointed in a named direction: 69
+- a bug hunt pointed in a named direction: 70
 - the mutation campaign: 16
 - reported by a user: 16
 - reading the code: 15
