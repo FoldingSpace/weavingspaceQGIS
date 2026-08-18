@@ -560,6 +560,25 @@ def _pin_control(editor, which, where="any"):
   return wanted[0]
 
 
+def _ramp_icon_key(name, reverse):
+  """The cache key of the swatch the dialog would draw for this ramp.
+
+  Args:
+    name: the ramp's name in the QGIS style library.
+    reverse: whether to draw it in reverse.
+
+  Returns:
+    The QIcon's `cacheKey()`, or None when the ramp is unavailable.
+    Provenance rather than pixels: two icons built from the same ramp
+    in the same direction share a key, and a flipped one does not, so
+    a comparison here cannot be satisfied by two swatches that merely
+    look alike at swatch size.
+  """
+  from weavingspace_qgis.dialog import _ramp_icon
+  icon = _ramp_icon(name, reverse)
+  return icon.cacheKey() if icon is not None else None
+
+
 def make_region_layer(n=4, cell=1000, origin=(0, 0)):
   """A small synthetic region layer.
 
@@ -12312,6 +12331,94 @@ def test_a_deferring_element_keeps_its_no_data_layer():
       "next Generate, so the tiles a classifier cannot place were "
       "folded back onto a renderer with no class for them and draw "
       "as holes -- which is what the paired layer exists to prevent")
+  finally:
+    dlg.close()
+
+
+def test_a_reversed_row_keeps_its_reversed_swatch_through_a_rebuild():
+  """The swatch a user reads an element by must match the map.
+
+  Ticking Reverse flips the ramp cell's swatch, and
+  `_refresh_ramp_icons` does that correctly. It has exactly ONE
+  caller: the Reverse toggle itself. `_make_ramp_combo` drew every
+  item forward, so the flip lasted until the next rebuild -- and a
+  Generate rebuilds, because adding output layers makes the layer
+  combo re-emit. So do a spacing change, a family change, and
+  reopening the project.
+
+  The user then reads a reversed element by a forward swatch, and
+  picks its next ramp from a dropdown showing every ramp the wrong way
+  round. Present since v0.23.0.
+
+  A REFRESH WITH ONE CALLER IS A REFRESH THAT ONLY WORKS ONCE. The
+  test therefore rebuilds, which is the step the behaviour needs and
+  the one no existing test took.
+
+  Regression: a reversed element's ramp swatch went back to drawing forward at the next rebuild, so the picture a user chose ramps by was the mirror image of the map.
+ [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(200)
+    dlg.table.cellWidget(0, 1).setCurrentText("v1")
+    dlg.table.cellWidget(0, 2).setCurrentText("Quant: Quantiles")
+    dlg._update_dynamic_columns()
+    _tick(150)
+    tid = dlg.table.item(0, 0).text()
+    row = dlg._row_for_element(tid)
+
+    box = dlg._row_reverse(row)
+    assert box is not None and box.isEnabled(), \
+      "the fixture has no usable Reverse switch, so nothing is driven"
+    forward = dlg.table.cellWidget(row, 4).itemIcon(
+      dlg.table.cellWidget(row, 4).currentIndex()).cacheKey()
+    box.setChecked(True)
+    _tick(300)
+    flipped = dlg.table.cellWidget(row, 4).itemIcon(
+      dlg.table.cellWidget(row, 4).currentIndex()).cacheKey()
+    assert flipped != forward, \
+      "ticking Reverse did not change the ramp cell's swatch at all, " \
+      "so this test cannot see the rebuild losing it"
+
+    # THE REBUILD, which is the whole point. Driven through a real
+    # control rather than by calling _refresh_table, because a user
+    # has no such option.
+    dlg.spacing_spin.setValue(dlg.spacing_spin.value() + 100)
+    _tick(600)
+    row = dlg._row_for_element(tid)
+    assert dlg._reverse_choices.get(tid), \
+      "the rebuild lost the Reverse record itself, which is a " \
+      "different and larger defect than the one this names"
+    after = dlg.table.cellWidget(row, 4).itemIcon(
+      dlg.table.cellWidget(row, 4).currentIndex()).cacheKey()
+    assert after != forward, (
+      "after a rebuild the ramp cell draws the ramp FORWARD again "
+      "while the Reverse switch is still on and the map is still "
+      "reversed, so the swatch a user reads the element by -- and "
+      "picks their next ramp by -- is the mirror image of the map")
+
+    # ...and every item in the dropdown, not only the current one:
+    # the user chooses the NEXT ramp from those pictures.
+    combo = dlg.table.cellWidget(row, 4)
+    checked = 0
+    for index in range(min(combo.count(), 6)):
+      name = combo.itemText(index)
+      if not name or name == "Custom":
+        continue
+      want = _ramp_icon_key(name, True)
+      if want is None:
+        continue
+      checked += 1
+      assert combo.itemIcon(index).cacheKey() != _ramp_icon_key(name, False), (
+        f"the dropdown offers {name!r} drawn forward on a reversed "
+        f"row, so a ramp picked from that picture draws its mirror")
+    assert checked, "no dropdown item was actually compared"
   finally:
     dlg.close()
 
@@ -48724,6 +48831,8 @@ def main():
         test_the_display_range_keeps_every_digit_a_user_types)
   check("a deferring element keeps its no data layer",
         test_a_deferring_element_keeps_its_no_data_layer)
+  check("a reversed row keeps its reversed swatch through a rebuild",
+        test_a_reversed_row_keeps_its_reversed_swatch_through_a_rebuild)
   check("a row follows a style pasted onto its layer in qgis",
         test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis)
   check("a reopened plugin adopts the group it last wrote",

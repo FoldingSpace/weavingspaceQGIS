@@ -3663,8 +3663,26 @@ class WeavingSpaceDialog(QDialog):
     # platform's default icon size, and the ramp cannot be read
     ramp_combo.setIconSize(RAMP_SWATCH)
     ramp_combo.setProperty("tile_id", tile_id)
+    # THE ELEMENT'S OWN RECORD, not the row's Reverse widget, because
+    # this runs while the table is being BUILT and that widget may not
+    # exist yet. `_reverse_choices` is what survives a rebuild, which
+    # is the same reason the ramp itself is looked up by tile id.
+    reversed_here = bool(self._reverse_choices.get(tile_id, False))
     for name in self._ramp_names:
-      icon = _ramp_icon(name)
+      # IN THIS ELEMENT'S OWN DIRECTION, not always forward. The
+      # swatch is how a user reads an element and chooses its next
+      # ramp, and drawing it forward over a reversed map showed them
+      # the mirror image of what they had.
+      #
+      # `_refresh_ramp_icons` draws them correctly and has exactly ONE
+      # caller: the Reverse toggle. So the flip was right until the
+      # next rebuild -- and a Generate rebuilds, because adding output
+      # layers makes the layer combo re-emit; so do a spacing change, a
+      # family change and reopening the project. A REFRESH WITH ONE
+      # CALLER IS A REFRESH THAT ONLY WORKS ONCE: grep the CONSTRUCTOR
+      # as well as the updater, and ask what rebuilds the widget.
+      # Present since v0.23.0, found 2026-08-17.
+      icon = _ramp_icon(name, reversed_here)
       if icon is not None:
         ramp_combo.addItem(icon, name)
       else:

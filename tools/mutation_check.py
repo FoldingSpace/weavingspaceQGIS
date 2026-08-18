@@ -3121,6 +3121,26 @@ MUTATIONS = [
            "swallows the 5 and the tile unit is built at 22 degrees "
            "with nothing said -- decimals govern storage as well as "
            "display"),
+  dict(name="a-ramp-combo-is-built-in-the-rows-direction",
+       file="weavingspace_qgis/dialog.py",
+       old="      icon = _ramp_icon(name, reversed_here)",
+       new="      icon = _ramp_icon(name)",
+       test="test_a_reversed_row_keeps_its_reversed_swatch_through_a_rebuild",
+       why="drawing every item forward makes the flip last only until "
+           "the next rebuild -- and a Generate rebuilds -- so a "
+           "reversed element is read by a forward swatch and its next "
+           "ramp is chosen from a dropdown showing every ramp the "
+           "wrong way round"),
+  dict(name="the-display-range-boxes-do-not-clamp-each-other",
+       file="weavingspace_qgis/category_editor.py",
+       old="    self.lower_spin.setRange(0, 100)",
+       new="    self.lower_spin.setRange(0, hi)",
+       test="test_the_display_range_keeps_every_digit_a_user_types",
+       why="clamping one percent box by the other's current value "
+           "makes the validator eat every digit past it, so from a "
+           "window of (0, 40) typing 60 keeps 6 and the element is "
+           "recoloured and stamped from a ramp window nobody asked "
+           "for"),
   dict(name="a-printed-bound-is-punctuated-by-the-locale",
        file="weavingspace_qgis/category_editor.py",
        old="    text = QLocale().toString(float(value), 'g', 10)",

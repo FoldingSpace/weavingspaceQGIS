@@ -1425,8 +1425,29 @@ class _AlreadyClassified(Exception):
 
 
 def _trim(value: float) -> str:
-  """A number as a person would write it, with trailing zeros gone."""
-  text = f"{float(value):.6g}"
+  """A number as a person would write it, with trailing zeros gone.
+
+  PUNCTUATED BY THE LOCALE, because this feeds `pin_problem`'s
+  refusals -- and a refusal is a stronger copy path than a report: the
+  number in it is the one the user must clear to get their map. It
+  printed a hard-coded full stop while the Pin column's own cell,
+  three feet away in the same window, printed a comma, so the plugin
+  contradicted itself about one break.
+
+  MEASURED 2026-08-17 under de_DE. The cell says `7,16`; the refusal
+  says `7.16`; typing the refusal's spelling gives 716, which
+  `pin_problem` then ACCEPTS, drawing a ladder whose last class runs
+  backwards and whose darkest colour is never used. The only notice
+  is word for word what a correct ladder would produce.
+
+  The third member of this family found in one evening, after
+  `spacing_in_words` and `_format_bound`. The sweep that settles it is
+  not "which strings hold numbers" but WHICH WIDGETS TAKE NUMBERS --
+  there are two, the spacing box and the class bound, which collapses
+  a nine-site list to the ones that matter in one pass.
+  """
+  from qgis.PyQt.QtCore import QLocale
+  text = QLocale().toString(float(value), 'g', 6)
   return text
 
 
