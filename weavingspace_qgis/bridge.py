@@ -323,10 +323,51 @@ def missing_ramp_message(name: str) -> str:
           f"library.")
 
 
-def ramp_swatch_colour(name: str) -> str:
-  """Representative hex colour of a ramp, for the design preview."""
+def ramp_swatch_colour(name: str, reverse: bool = False,
+                       range_bounds: tuple = (0, 100)) -> str:
+  """Representative hex colour of a ramp, for the design preview.
+
+  Args:
+    name: the ramp as the row names it, resolved through ``get_ramp``
+      so that QGIS's meaning for the name wins.
+    reverse: whether the row's Reverse column is ticked. A reversed
+      element wears the ramp backwards, so the representative point is
+      a different colour; omitted, the ramp is read forwards.
+    range_bounds: the Ramp Display Range as (lo, hi) percentages. The
+      representative point is 65% along THAT WINDOW rather than along
+      the whole ramp, because the window is what the map samples.
+      (0, 100) is the whole ramp and is the default.
+
+  Returns:
+    A hex colour ("#rrggbb"), or "#c0c0c0" when the ramp cannot be
+    resolved -- a grey the preview can draw, rather than an exception
+    raised through a Qt slot.
+
+  WHY 0.65 AND NOT THE MIDDLE. One colour has to stand for a whole
+  ramp in the design view, and the middle of a sequential ramp is
+  usually too pale to judge one element against another. The figure is
+  a display choice and is deliberately the same one whatever the
+  window, so narrowing a window moves the point WITH the ramp instead
+  of re-centring it.
+
+  BOTH EXTRA ARGUMENTS WERE ADDED 2026-08-17, and each was a defect
+  rather than a nicety. Ignoring `reverse` drew a reversed element in
+  the forward ramp's colour, which on a diverging ramp is the opposite
+  end. Ignoring the window drew a narrowed element in a colour the map
+  no longer contains: measured on Reds narrowed to 0-20%, the preview
+  painted 15,460 pixels of #e7342a while the map painted none of it
+  and 8,692 of #fff5f0. The design view exists so somebody can judge
+  whether the elements read as distinct, which is exactly the
+  judgement a wrong colour makes for them.
+
+  The two remaining callers pass neither, and are right not to: both
+  seed the SINGLE-COLOUR button's starting colour, where there is no
+  classification to window and no direction to run backwards.
+  """
   try:
-    colour = get_ramp(name).color(0.65)
+    lo, hi = range_bounds
+    along = (lo + (hi - lo) * 0.65) / 100.0
+    colour = get_ramp(name, reverse).color(along)
     return colour.name()
   except Exception:
     return "#c0c0c0"

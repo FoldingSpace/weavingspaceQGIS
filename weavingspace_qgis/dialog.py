@@ -7419,6 +7419,40 @@ class WeavingSpaceDialog(QDialog):
       mode_combo.blockSignals(False)
       self._refresh_preview_colours()
 
+  def _deferring_preview_colour(self, tile_id):
+    """One colour standing for what QGIS draws a deferring element in.
+
+    Args:
+      tile_id: the element, used to find its own output layer.
+
+    Returns:
+      A hex colour ("#rrggbb") read off that element's own renderer,
+      or None when there is no layer yet or the renderer is of a kind
+      `renderer_fill_colours` cannot read. None means "cannot say",
+      and the caller answers it by falling back to the row's ramp
+      rather than by leaving a quarter of the design uncoloured.
+
+    Taken at the same 65% along the list of drawn colours that
+    `ramp_swatch_colour` takes along a ramp, so a deferring element
+    and a plugin-styled one are represented by the same convention.
+    The design view is a COMPARISON between elements, and two
+    conventions inside one picture would make that comparison say
+    something the map does not.
+    """
+    layer = QgsProject.instance().mapLayer(
+      self._element_layer_ids.get(tile_id) or "")
+    if layer is None:
+      return None
+    # `renderer_fill_colours` asks the RENDERER rather than the ramp,
+    # and falls through to the base class's own `symbols()` for the
+    # rule-based and other renderers deferring consists of -- which is
+    # the whole reason this can answer at all.
+    drawn = bridge.renderer_fill_colours(layer)
+    if not drawn:
+      return None
+    red, green, blue = drawn[round(0.65 * (len(drawn) - 1))]
+    return "#%02x%02x%02x" % (red, green, blue)
+
   PREVIEW_MIN_OPACITY = 40
 
   def _table_id_colours(self) -> dict:
@@ -7453,10 +7487,37 @@ class WeavingSpaceDialog(QDialog):
       # test_an_unassigned_element_previews_as_it_draws.
       if not a["var"]:
         base = bridge.NO_DATA_FILL
+      elif self._element_is_deferring(a["id"]):
+        # A DEFERRING ELEMENT'S COLOUR COMES OFF ITS LAYER, for the
+        # same reason and by the same question as its ramp swatch:
+        # the plugin no longer decides those colours, and a preview
+        # built from the row's records shows colours the map does not
+        # have. `_ramp_cell_icon` grew this branch on 2026-08-15 and
+        # this function was not looked at, which is the shape this
+        # project keeps paying for -- when a rule names one of a pair,
+        # check the other.
+        #
+        # Measured 2026-08-17: after a restyle in QGIS's Symbology
+        # panel the map painted 30,316 pixels of #00aa44 and none of
+        # #3c8bc2, while the design view painted 15,470 of #3c8bc2 and
+        # none of #00aa44 -- 102/255 away from ANY colour the element
+        # draws.
+        base = self._deferring_preview_colour(a["id"]) or \
+            bridge.ramp_swatch_colour(
+                a["ramp"], bool(a.get("reverse", False)),
+                tuple(a.get("range_bounds", (0, 100))))
       elif a["mode"] == "Single colour" and a.get("single_colour"):
         base = a["single_colour"]
       else:
-        base = bridge.ramp_swatch_colour(a["ramp"])
+        # THE ROW'S OWN DIRECTION AND WINDOW, not the bare ramp. A
+        # reversed element wears the ramp backwards and a narrowed
+        # Ramp Display Range is what the map samples, so asking for
+        # the ramp alone previews an element in a colour it does not
+        # draw. `graduated_class_colours` has sampled the window since
+        # the range control arrived; this call had never heard of it.
+        base = bridge.ramp_swatch_colour(
+            a["ramp"], bool(a.get("reverse", False)),
+            tuple(a.get("range_bounds", (0, 100))))
       opacity = max(self.PREVIEW_MIN_OPACITY, int(a.get("opacity", 100)))
       colour = QColor(base)
       colour.setAlpha(round(255 * opacity / 100))

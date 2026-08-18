@@ -13189,6 +13189,187 @@ def test_a_deferring_row_shows_the_colours_qgis_is_drawing():
   dlg.close()
 
 
+def test_the_design_view_paints_colours_the_map_contains():
+  """The preview stands for the map, and three things could stop it.
+
+  `_table_id_colours` built every element's preview colour from the
+  ROW's ramp NAME alone -- no deferring branch, no Ramp Display Range,
+  no Reverse -- while the map is drawn from all three. The design view
+  exists so somebody can judge whether the elements read as distinct
+  by colour and form before committing to a map, so a colour the map
+  does not contain makes that judgement for them, and makes it wrongly.
+
+  Measured 2026-08-17 in rendered PIXELS rather than records: after a
+  restyle in QGIS's Symbology panel the map painted 30,316 pixels of
+  #00aa44 and the design view none of it, painting instead 15,470 of a
+  #3c8bc2 the map did not hold -- 102/255 from any colour that element
+  draws. With Reds narrowed to its palest fifth the gap was 142/255.
+
+  THE FAMILY RATHER THAN THE TWO MEMBERS REPORTED. The third arm came
+  out of reading the function beside them: the call took no `reverse`
+  either, so a reversed element previewed in the forward ramp's
+  colour, which on a diverging ramp is the opposite end. Every arm is
+  one line in one expression, which is exactly the shape a hunt finds
+  and a suite does not.
+
+  WHERE EACH EXPECTATION COMES FROM, since a differential cannot see a
+  fault its expected side shares. The window and reverse arms compare
+  the preview against what the element's OWN RENDERER paints, built by
+  `make_graduated_renderer` -- a different path from the one under
+  test, so a disagreement is a defect by construction. The deferring
+  arm cannot use that, because the fix and `renderer_fill_colours`
+  share code, so it compares against the colour the FIXTURE set.
+
+  Regression: the design preview painted elements in colours the map does not contain -- a deferring element in the plugin's own ramp rather than the colours QGIS draws, and a narrowed display range or a ticked Reverse ignored entirely.
+ [hunt]
+  """
+  from qgis.PyQt.QtGui import QColor
+
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def apart(one, other):
+    """Largest per-channel gap between two colours, on 0..255."""
+    first, second = QColor(one), QColor(other)
+    return max(abs(first.red() - second.red()),
+               abs(first.green() - second.green()),
+               abs(first.blue() - second.blue()))
+
+  def from_the_map(shown, layer):
+    """How far a previewed colour sits from ANY colour the map paints."""
+    drawn = bridge.renderer_fill_colours(layer)
+    assert drawn, \
+      "the element's renderer paints nothing, so nothing was compared"
+    return min(apart(shown, "#%02x%02x%02x" % rgb) for rgb in drawn)
+
+  def class_step(layer):
+    """The widest gap between two ADJACENT classes the map draws.
+
+    The tolerance is taken from the fixture rather than chosen. One
+    colour stands for a whole ramp, and the map samples that ramp at k
+    points, so the representative point falls BETWEEN two samples by
+    construction and can be up to half a step from either. A test
+    demanding better would be inventing a contract nobody agreed --
+    which is how the first draft of this one failed at 38/255 on a
+    perfectly correct preview.
+    """
+    drawn = bridge.renderer_fill_colours(layer)
+    assert len(drawn) >= 2, \
+      f"the element draws {len(drawn)} class(es), so no step exists " \
+      f"and nothing was measured"
+    return max(apart("#%02x%02x%02x" % drawn[i],
+                     "#%02x%02x%02x" % drawn[i + 1])
+               for i in range(len(drawn) - 1))
+
+  def nearest_class(shown, layer):
+    """Which class of the drawn ladder a previewed colour is nearest.
+
+    A POSITION rather than a distance, and the reverse arm needs one:
+    reversing a ladder re-orders the same colours, so "how far from
+    any colour the map draws" is INVARIANT under it and can prove
+    nothing. What moves is which class wears which colour, so the
+    question has to be asked in the ladder's own order.
+    """
+    drawn = bridge.renderer_fill_colours(layer)
+    assert len(drawn) >= 2, \
+      f"the element draws {len(drawn)} class(es), so there is no " \
+      f"ladder position to read"
+    gaps = [apart(shown, "#%02x%02x%02x" % rgb) for rgb in drawn]
+    return gaps.index(min(gaps))
+
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  dlg.table.cellWidget(1, 1).setCurrentText("v3")
+  _tick(200)
+  graduated = dlg.table.item(0, 0).text()
+  deferring = dlg.table.item(1, 0).text()
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+
+  # ARM ONE: restyled in QGIS, so the plugin no longer decides the
+  # colours and the preview must read them off the layer.
+  element = project.mapLayer(dlg._element_layer_ids[deferring])
+  element.setRenderer(_rule_based_renderer("#00aa44"))
+  element.styleChanged.emit()
+  _tick(400)
+  assert dlg._element_is_deferring(deferring), \
+    "the fixture did not put the element into deferral, so the arm " \
+    "this is here to drive never ran"
+  shown = dlg._table_id_colours()[deferring]
+  assert apart(shown, "#00aa44") == 0, \
+    f"the design view paints {shown} for an element QGIS draws in " \
+    f"#00aa44, {apart(shown, '#00aa44')}/255 away"
+
+  # EACH ARM CARRIES ITS OWN CONTROL: the colour the defect produced
+  # is still one call away -- the ramp NAME with neither direction nor
+  # window -- so the test compares the fixed answer against the broken
+  # one on the same map rather than against a constant somebody chose.
+  def naive_for(tile_id):
+    """What the preview drew before it was told about the row."""
+    row = next(a for a in dlg._assignments() if a["id"] == tile_id)
+    return bridge.ramp_swatch_colour(row["ramp"])
+
+  # ARM TWO: Reverse, driven through its own control and then carried
+  # to the map by a Generate, so both sides really hold it. Asked as a
+  # LADDER POSITION, because reversing re-orders one set of colours and
+  # every distance-to-the-map measure is blind to that.
+  drawn_before = project.mapLayer(dlg._element_layer_ids[graduated])
+  forward = dlg._table_id_colours()[graduated]
+  was_at = nearest_class(forward, drawn_before)
+  reverse_box = dlg._row_reverse(0)
+  assert reverse_box is not None and reverse_box.isEnabled(), \
+    "the graduated row has no live Reverse control to drive"
+  reverse_box.setChecked(True)
+  _generate_and_wait(dlg)
+  drawn_by = project.mapLayer(dlg._element_layer_ids[graduated])
+  backward = dlg._table_id_colours()[graduated]
+  assert forward != backward, \
+    f"ticking Reverse did not move the preview at all: {forward}"
+  now_at = nearest_class(backward, drawn_by)
+  assert now_at == was_at, \
+    f"the preview stands 65% along the ramp, so it should keep its " \
+    f"place in the ladder when the ladder turns round: class " \
+    f"{was_at} became class {now_at}"
+  # THE CONTROL. Ignoring `reverse` leaves the preview on the colour it
+  # had, which the reversed ladder now wears at the OTHER end -- so
+  # the defect and the fix land at different positions, and this
+  # assertion is what tells them apart.
+  stale_at = nearest_class(naive_for(graduated), drawn_by)
+  assert stale_at != now_at, \
+    f"the ramp name alone lands at class {stale_at} too, so this " \
+    f"fixture cannot tell a reversed preview from a forward one"
+
+  # ARM THREE: the Ramp Display Range, narrowed to the palest fifth.
+  # These are the lines the editor's own `range_changed` runs.
+  wide = dlg._table_id_colours()[graduated]
+  dlg._ramp_ranges[graduated] = (0, 20)
+  dlg._custom_swatch_cache.pop(graduated, None)
+  dlg._apply_style_change()
+  _tick(600)
+  drawn_by = project.mapLayer(dlg._element_layer_ids[graduated])
+  narrow = dlg._table_id_colours()[graduated]
+  assert wide != narrow, \
+    f"narrowing the display range did not move the preview: {wide} " \
+    f"then {narrow}"
+  step = class_step(drawn_by)
+  gap, was = from_the_map(narrow, drawn_by), \
+      from_the_map(naive_for(graduated), drawn_by)
+  assert gap <= step, \
+    f"the design view paints {narrow}, {gap}/255 from any colour the " \
+    f"map draws for this element, on a ladder whose widest step is " \
+    f"{step}"
+  assert was > gap, \
+    f"the windowed preview is no closer to the map than the ramp name " \
+    f"alone would put it ({gap} against {was}), so nothing was proved"
+  dlg.close()
+
+
 def test_deferral_survives_a_project_round_trip():
   """A reopened project asks the RENDERER, not a stamp.
 
@@ -49147,6 +49328,8 @@ def main():
         test_a_deferring_element_keeps_its_renderer_across_a_generate)
   check("a deferring row shows the colours QGIS is drawing",
         test_a_deferring_row_shows_the_colours_qgis_is_drawing)
+  check("the design view paints colours the map contains",
+        test_the_design_view_paints_colours_the_map_contains)
   check("deferral survives a project round trip",
         test_deferral_survives_a_project_round_trip)
   check("a data-defined fill is drawn as an unknown",

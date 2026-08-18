@@ -2948,6 +2948,53 @@ MUTATIONS = [
            "colours, so a swatch built from its records shows colours "
            "the map does not have -- a control describing a map it "
            "will not draw"),
+  # THE THREE BELOW ARE THE SAME QUESTION ASKED OF THE DESIGN VIEW,
+  # and they are anchored here rather than beside the preview code so
+  # that the pair is visible: the entry above was written on
+  # 2026-08-15 for the ramp cell, and `_table_id_colours` was not
+  # looked at until a hunt measured it on 2026-08-17. Each arm is one
+  # argument in one expression, so each needs its own entry -- a
+  # single anchor covering the block would report `caught` while two
+  # of the three axes sat dead.
+  dict(name="the-preview-reads-a-deferring-layer", file=DIALOG,
+       old="      elif self._element_is_deferring(a[\"id\"]):",
+       new="      elif False:",
+       test="test_the_design_view_paints_colours_the_map_contains",
+       why="the design view goes back to painting a deferring element "
+           "in the plugin's own ramp: measured at 30,316 pixels of "
+           "#00aa44 on the map against 15,470 of #3c8bc2 in the "
+           "preview, so somebody judges whether their elements read as "
+           "distinct from colours neither of them wears"),
+  dict(name="the-preview-follows-the-rows-direction", file=DIALOG,
+       old="        base = bridge.ramp_swatch_colour(\n"
+           "            a[\"ramp\"], bool(a.get(\"reverse\", False)),\n"
+           "            tuple(a.get(\"range_bounds\", (0, 100))))\n"
+           "      opacity = max(",
+       new="        base = bridge.ramp_swatch_colour(\n"
+           "            a[\"ramp\"], False,\n"
+           "            tuple(a.get(\"range_bounds\", (0, 100))))\n"
+           "      opacity = max(",
+       test="test_the_design_view_paints_colours_the_map_contains",
+       why="a reversed element previews in the FORWARD ramp's colour, "
+           "which on a diverging ramp is the opposite end -- the "
+           "preview keeps the colour it had while the ladder turns "
+           "round underneath it, so it lands at the other end of the "
+           "classes"),
+  dict(name="the-preview-follows-the-display-window", file=DIALOG,
+       old="        base = bridge.ramp_swatch_colour(\n"
+           "            a[\"ramp\"], bool(a.get(\"reverse\", False)),\n"
+           "            tuple(a.get(\"range_bounds\", (0, 100))))\n"
+           "      opacity = max(",
+       new="        base = bridge.ramp_swatch_colour(\n"
+           "            a[\"ramp\"], bool(a.get(\"reverse\", False)),\n"
+           "            (0, 100))\n"
+           "      opacity = max(",
+       test="test_the_design_view_paints_colours_the_map_contains",
+       why="narrowing the Ramp Display Range moves every colour the "
+           "map draws and none the preview draws: measured on Reds at "
+           "0-20%, the design view painted 15,460 pixels of #e7342a "
+           "the map holds none of, 142/255 from anything that element "
+           "actually paints"),
   dict(name="the-signature-follows-the-column", file=DIALOG,
        old="            a.get(\"value_digest\"),",
        new="",

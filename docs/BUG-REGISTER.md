@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-232 defect(s) with a regression test.
+233 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -161,6 +161,8 @@ there is no separate list to remember.
   guarded by `test_the_colour_editor_opens_on_an_element_with_infinities`
 - **the constant-column notice counted the tiled output rather than the region layer, so a small area dropped at a coarse spacing produced "every area has the same value" beside a legend showing a range.**  
   guarded by `test_the_constant_notice_counts_the_users_areas`
+- **the design preview painted elements in colours the map does not contain -- a deferring element in the plugin's own ramp rather than the colours QGIS draws, and a narrowed display range or a ticked Reverse ignored entirely.**  
+  guarded by `test_the_design_view_paints_colours_the_map_contains`
 - **the ramp display range's percent boxes clamped each other's range, so typing a lower bound above the current upper one kept only its leading digit and the element was recoloured and stamped from a ramp window nobody asked for.**  
   guarded by `test_the_display_range_keeps_every_digit_a_user_types`
 - **`distance` converts BOTH its arguments to CIELAB on every call, and the clash search compared every class of one element against every class of another -- so it did 2*k*k conversions where 2*k would do, at about twelve microseconds each. Measured: four categorized elements of 401 classes froze QGIS for 36.75s, of which 35.70s was here, on the GUI thread with the event loop dead; the tiling those colours belonged to took 1.05s. The live path paid it on every tweak.**  
@@ -513,7 +515,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - not written down at the time: 83
-- a bug hunt pointed in a named direction: 66
+- a bug hunt pointed in a named direction: 67
 - the mutation campaign: 16
 - reported by a user: 16
 - reading the code: 15
