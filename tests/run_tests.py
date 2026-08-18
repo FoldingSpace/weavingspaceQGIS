@@ -13814,6 +13814,131 @@ def test_deferral_does_not_erase_the_work_behind_it():
     dlg.close()
 
 
+def test_deferral_keeps_opacity_and_the_twins_own_styling():
+  """Two more things that must survive handing an element to QGIS.
+
+  Deferral means the plugin stops deciding an element's SYMBOLOGY. It
+  does not mean the plugin stops deciding anything, and two rules got
+  that boundary wrong in opposite directions -- each written correctly
+  into one path and missing from its twin.
+
+  OPACITY STAYS LIVE while an element is deferring: `RENDERER_COLUMNS`
+  leaves the Opacity column out deliberately, and the restyle path
+  says so in as many words. The run-landing path folded deferral into
+  `kept_by_hand` and then took the OLD LAYER's opacity, so an element
+  faded to 30 per cent came back from a re-tile at full strength with
+  the table still reading 30. Measured 2026-08-17, against a control
+  element that was not deferring and came back at 0.3.
+
+  THE PAIRED NO DATA LAYER, the other way about. The landing carries
+  its renderer whenever the element is kept by hand, which protects
+  hand styling on it; the restyle path called `setRenderer`
+  unconditionally. So a twin hand-styled to #123456 survived a
+  RE-TILE and was destroyed by a RESTYLE, which is the more ordinary
+  act of the two. Its opacity still follows its element, because the
+  two layers are one element to a reader.
+
+  Regression: an opacity set on an element styled in QGIS was thrown away by the next re-tile, and hand styling on that element's missing-value layer was thrown away by the next restyle.
+ [hunt]
+  """
+  from qgis.core import (QgsFillSymbol, QgsRuleBasedRenderer,
+                         QgsSingleSymbolRenderer)
+
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  index = layer.fields().indexOf("v1")
+  layer.startEditing()
+  for offset, feature in enumerate(layer.getFeatures()):
+    if offset % 3 == 0:
+      layer.changeAttributeValue(feature.id(), index, None)
+  assert layer.commitChanges(), "the fixture could not stage its gaps"
+  project.addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(200)
+    dlg.table.cellWidget(0, 1).setCurrentText("v1")
+    dlg.table.cellWidget(1, 1).setCurrentText("v1")
+    dlg.table.cellWidget(0, 2).setCurrentText("Quant: Quantiles")
+    _tick(200)
+    handed = dlg.table.item(0, 0).text()
+    control = dlg.table.item(1, 0).text()
+    dlg.spacing_spin.setValue(1200)
+    _generate_and_wait(dlg)
+
+    element = project.mapLayer(dlg._element_layer_ids[handed])
+    element.setRenderer(QgsRuleBasedRenderer(QgsRuleBasedRenderer.Rule(None)))
+    element.styleChanged.emit()
+    _tick(400)
+    _generate_and_wait(dlg)
+    assert dlg._element_is_deferring(handed), \
+      "the fixture did not put the element into deferral"
+
+    twin_id = dlg._no_data_layer_ids.get(handed)
+    assert twin_id, \
+      "the fixture produced no paired layer, so half this test cannot run"
+    twin = project.mapLayer(twin_id)
+    twin.setRenderer(QgsSingleSymbolRenderer(
+      QgsFillSymbol.createSimple({"color": "#123456"})))
+    twin.styleChanged.emit()
+    _tick(300)
+
+    def fade(tid):
+      """The opacity the element's own layer is drawn at, 0..1."""
+      out = project.mapLayer(dlg._element_layer_ids[tid])
+      return round(out.opacity(), 3) if out is not None else None
+
+    def twin_fill():
+      """The paired layer's renderer class and its first fill colour."""
+      again = project.mapLayer(dlg._no_data_layer_ids.get(handed) or "")
+      if again is None:
+        return ("gone", [])
+      return (type(again.renderer()).__name__,
+              ["#%02x%02x%02x" % rgb
+               for rgb in bridge.renderer_fill_colours(again)])
+
+    # Set the opacity through the cell that stays live while deferring.
+    for tid in (handed, control):
+      spin = dlg.table.cellWidget(dlg._row_for_element(tid), 6)
+      assert spin is not None and spin.isEnabled(), \
+        f"{tid}: the Opacity cell is not live, so this cannot be driven"
+      spin.setValue(30)
+    _tick(400)
+
+    # ARM ONE: a RESTYLE, where both rules are already meant to hold.
+    dlg._apply_style_change()
+    _tick(500)
+    assert fade(handed) == 0.3, \
+      f"a restyle left the deferring element at {fade(handed)}"
+    kind, fills = twin_fill()
+    assert "#123456" in fills, (
+      f"a restyle destroyed the hand styling on the missing-value "
+      f"layer: it now draws {kind} {fills}")
+
+    # ARM TWO: a RE-TILE, the other path.
+    dlg.spacing_spin.setValue(1150)
+    _tick(250)
+    _generate_and_wait(dlg)
+    assert fade(handed) == 0.3, (
+      f"a re-tile threw away the opacity set on the deferring element: "
+      f"it is {fade(handed)} while the table still says 30")
+    kind, fills = twin_fill()
+    assert "#123456" in fills, (
+      f"a re-tile destroyed the hand styling on the missing-value "
+      f"layer: it now draws {kind} {fills}")
+
+    # AND THE CONTROL, which is not deferring, took the same number.
+    assert fade(control) == 0.3, \
+      f"the control element is at {fade(control)}, so the fixture is " \
+      f"not comparing deferral against anything"
+  finally:
+    dlg.close()
+
+
 def test_deferral_survives_a_project_round_trip():
   """A reopened project asks the RENDERER, not a stamp.
 
@@ -49778,6 +49903,8 @@ def main():
         test_a_deferring_row_shows_the_colours_qgis_is_drawing)
   check("the design view paints colours the map contains",
         test_the_design_view_paints_colours_the_map_contains)
+  check("deferral keeps opacity and the twin's own styling",
+        test_deferral_keeps_opacity_and_the_twins_own_styling)
   check("deferral does not erase the work behind it",
         test_deferral_does_not_erase_the_work_behind_it)
   check("deferral survives a project round trip",

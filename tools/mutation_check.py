@@ -2890,6 +2890,28 @@ MUTATIONS = [
   # fixing the first left the second untouched. A restyle keeps the
   # layer, so the records are LEFT ALONE; a re-tile hands the element
   # a new layer, so they are CARRIED.
+  dict(name="deferral-keeps-the-dialogs-opacity", file=DIALOG,
+       old="        if carried_while_deferring:\n"
+           "          out.setOpacity(max(0, min(100, a.get(\"opacity\", 100))) / 100.0)\n"
+           "        elif old_layer_opacity.get(tid) is not None:",
+       new="        if old_layer_opacity.get(tid) is not None:",
+       test="test_deferral_keeps_opacity_and_the_twins_own_styling",
+       why="the Opacity cell stays LIVE while an element defers, so "
+           "carrying the old layer's value at the landing overrides "
+           "the number the user just set: an element faded to 30 per "
+           "cent comes back from a re-tile at full strength with the "
+           "table still reading 30"),
+  dict(name="a-deferring-twin-keeps-its-own-styling", file=DIALOG,
+       old="    if not self._element_is_deferring(tile_id):\n"
+           "      colours, kinds = self._absence_colours_and_kinds(",
+       new="    if True:\n"
+           "      colours, kinds = self._absence_colours_and_kinds(",
+       test="test_deferral_keeps_opacity_and_the_twins_own_styling",
+       why="the run-landing path carries a paired layer's renderer "
+           "whenever its element is kept by hand, and this path "
+           "repainted it unconditionally -- so hand styling on a "
+           "missing-value layer survived a re-tile and was destroyed "
+           "by a restyle, which is the more ordinary act of the two"),
   dict(name="deferral-leaves-the-stamp-alone", file=DIALOG,
        old="    if bridge.expressible_style(layer.renderer()) is None:\n"
            "      return\n"

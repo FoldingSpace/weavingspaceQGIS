@@ -7909,11 +7909,30 @@ class WeavingSpaceDialog(QDialog):
     if layer is None:
       return
     field = assignment.get("var")
-    colours, kinds = self._absence_colours_and_kinds(tile_id, field, layer)
-    layer.setRenderer(bridge.make_no_data_renderer(
-      # the DICT even when empty: a bare string colours every kind
-      # alike, and each kind has its own default in ABSENCE_KINDS
-      colours, assignment.get("outline", False), kinds))
+    # A DEFERRING ELEMENT'S TWIN KEEPS ITS OWN STYLING, on the same
+    # terms the element does. The paired layer sits in the layer tree
+    # like any other, so a user can give it a hatch or a different
+    # grey in Layer Properties -- and the run-landing path already
+    # protects that, carrying `old_no_data_renderers[tid]` whenever
+    # the element is kept by hand, which includes every deferring one.
+    # This path called setRenderer unconditionally, so hand styling
+    # survived a RE-TILE and was destroyed by a RESTYLE, which is the
+    # more ordinary act of the two.
+    #
+    # Measured 2026-08-17: a twin hand-styled to #123456 came through
+    # a spacing change intact and came out of an opacity nudge as a
+    # categorized renderer painting #dddddd.
+    #
+    # OPACITY IS STILL SET BELOW, deliberately: it is the one control
+    # that stays live while deferring, and the two layers are one
+    # element to a reader, so they must fade together.
+    if not self._element_is_deferring(tile_id):
+      colours, kinds = self._absence_colours_and_kinds(
+        tile_id, field, layer)
+      layer.setRenderer(bridge.make_no_data_renderer(
+        # the DICT even when empty: a bare string colours every kind
+        # alike, and each kind has its own default in ABSENCE_KINDS
+        colours, assignment.get("outline", False), kinds))
     # the same opacity as its element: they are one element to a
     # reader, and two layers fading differently would say otherwise
     layer.setOpacity(max(0, min(100, assignment.get("opacity", 100))) / 100.0)
@@ -10221,7 +10240,24 @@ class WeavingSpaceDialog(QDialog):
         # be one the user set by hand in Layer Properties. Same promise
         # the renderer gets, and the reason opacity is a layer property
         # rather than something baked into the colours
-        if old_layer_opacity.get(tid) is not None:
+        # ...EXCEPT WHERE THE ELEMENT IS KEPT BECAUSE IT IS DEFERRING,
+        # where the dialog is still the authority for opacity. The
+        # Opacity cell stays LIVE while an element is deferring --
+        # `RENDERER_COLUMNS` leaves column 6 out deliberately, and the
+        # restyle twin says so in as many words: "it is the one
+        # control that stays live while deferring". Carrying the old
+        # layer's value here overrode the number the user had just
+        # set, and the table went on displaying it.
+        #
+        # Measured 2026-08-17: an element restyled in QGIS and faded
+        # to 30 per cent came back from a re-tile at 1.0 with the
+        # table still reading 30, while a control element that was not
+        # deferring came back at 0.3. The carry is right for an
+        # element the dialog has NOT changed, which is what its
+        # comment says; deferral is the case where the dialog has.
+        if carried_while_deferring:
+          out.setOpacity(max(0, min(100, a.get("opacity", 100))) / 100.0)
+        elif old_layer_opacity.get(tid) is not None:
           out.setOpacity(old_layer_opacity[tid])
       else:
         if a["mode"] == "Categorized" and a["var"]:

@@ -8,7 +8,11 @@ import importlib.util
 import os
 import sys
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
+# The repository root, which is two levels up now this probe lives
+# under tools/probes/ rather than in a hunt's own worktree. Taken from
+# the environment first so it can be pointed at a frozen copy.
+ROOT = os.environ.get("WEAVINGSPACE_REPO") or os.path.dirname(
+  os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.chdir(ROOT)
 sys.path.insert(0, ROOT)
 spec = importlib.util.spec_from_file_location(
