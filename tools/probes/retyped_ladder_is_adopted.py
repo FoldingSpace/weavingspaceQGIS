@@ -130,12 +130,22 @@ def arm(label, adopt):
     assignment = [a for a in dlg._assignments() if a["id"] == tid][0]
     after = [(round(lo, 2), round(hi, 2))
              for lo, hi, _c in dlg._current_graduated_classes(assignment)]
+    # THE INTERIOR BOUNDARIES ARE THE CLAIM. A ladder's outer edges
+    # are the column's own extremes in this plugin's model, so a
+    # tester who types 0 - 10 over a column starting at 3.1 gets
+    # (3.1, 10) -- the same areas in the same class, since nothing
+    # lies between 0 and 3.1 to be classified differently. Comparing
+    # the ends would be demanding a promise the model never made.
     wanted = [(TYPED[i], TYPED[i + 1]) for i in range(len(TYPED) - 1)]
+    interior_wanted = TYPED[1:-1]
+    interior_after = [hi for _lo, hi in after[:-1]]
     print(f"  {label}")
     print(f"    plugin drew        : {mine}")
     print(f"    retyped in QGIS    : {wanted}")
     print(f"    plugin NOW reports : {after}")
-    agrees = after == wanted
+    agrees = interior_after == interior_wanted
+    print(f"    interior wanted    : {interior_wanted}")
+    print(f"    interior reported  : {interior_after}")
     print(f"    FOLLOWS QGIS       : {agrees}")
     dlg.close()
     return agrees

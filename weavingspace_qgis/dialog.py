@@ -6440,16 +6440,35 @@ class WeavingSpaceDialog(QDialog):
         abs(lo - a) < 1e-9 and abs(hi - b) < 1e-9
         for (lo, hi, _c), (a, b) in zip(mine, actual_bounds)):
       return  # the ladder we drew; nothing was retyped
+    # THE INTERIOR BOUNDARIES ALONE, and "low"/"high" CLEARED rather
+    # than set. This is where the first attempt went wrong on
+    # 2026-08-18, and the failure named the model: given breaks
+    # [10, 20, 30, 50] with low=0 and high=80 the ladder came back as
+    # (3.1, 0) (0, 20) (20, 30) (30, 80) (80, 79.1) -- two classes
+    # running backwards, 20 and 30 surviving while 10 and 50 were
+    # replaced.
+    #
+    # WHICH SAYS WHAT low AND high ACTUALLY PIN: not the outer edges
+    # of the ladder but the FIRST class's upper bound and the LAST
+    # class's lower bound -- the two cells the editor makes editable,
+    # as its own spin boxes show. Setting them from the outer edges
+    # therefore overwrote the first and last interior boundaries with
+    # numbers meant for somewhere else entirely.
+    #
+    # So the outer edges are the column's extremes, always, and that
+    # is the model rather than a shortcoming. A tester who types
+    # 0 - 10 over a column starting at 3.1 gets (3.1, 10): the same
+    # areas in the same class, drawn identically, because no value
+    # lies between 0 and 3.1 to be classified differently.
     wanted = dict(self._pinned_bounds.get(tile_id, {}).get(field) or {})
     wanted["breaks"] = [upper for _lower, upper in actual_bounds[:-1]]
-    wanted["low"] = actual_bounds[0][0]
-    wanted["high"] = actual_bounds[-1][1]
+    wanted.pop("low", None)
+    wanted.pop("high", None)
     source = self._classification_values(field)
     values = (source.uniqueValues(source.fields().indexOf(field))
               if source is not None else [])
     problem = bridge.pin_problem(
-      wanted.get("low"), wanted.get("high"), values,
-      len(actual_bounds), wanted.get("breaks"))
+      None, None, values, len(actual_bounds), wanted.get("breaks"))
     if problem:
       self._report_quietly(problem)
       return
