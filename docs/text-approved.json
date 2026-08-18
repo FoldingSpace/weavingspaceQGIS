@@ -154,6 +154,11 @@
   "excerpt": "for a reader with protanopia",
   "where": "weavingspace_qgis/perception.py"
  },
+ "1280d2e7e0ddd272": {
+  "approved": "2026-08-18",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
  "12a6ca48f90b66c5": {
   "approved": "2026-08-09",
   "excerpt": "Stretch the pattern right-left.",

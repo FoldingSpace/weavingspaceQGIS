@@ -130,6 +130,56 @@ changelog=0.24.3 Areas with no value are drawn now rather than left
     several other layers is now noticed. Before, the dialog went on
     pointing at a layer that had gone, said nothing, and Generate
     did nothing at all.
+    Numbers you type: several boxes changed what you typed as you
+    typed it. A class bound wider than the element's own data was cut
+    down to fit, so typing 1200 gave you 120 and the map was drawn
+    from that, and a fine bound on a column of large numbers was
+    rounded away. Rotate, Skew and the two angle boxes took no
+    decimals at all, so 22.5 degrees became 22. A scale between minus
+    one and one was reduced as you typed, so -0.5 quietly un-mirrored
+    a design at a size that looked right. The two boxes of the Ramp
+    Display Range each clamped the other, so from a window of 0 to
+    40, typing 60 kept the 6. Each of those boxes now keeps what you
+    type.
+    In another language: on a computer that writes decimals with a
+    comma, three of the plugin's own sentences printed numbers its
+    own boxes then read differently. Following the spacing it advised
+    drew a map ten times coarser; copying a class bound it printed
+    pinned a number a thousand times out, and that number was
+    accepted and saved. Those sentences now punctuate a number the
+    way your computer punctuates it.
+    Work you have set: a style pasted onto an element while a map is
+    still drawing is no longer destroyed as that map lands, and
+    neither is a classification the instant you copy it. Restyle an
+    element in QGIS and its pinned bounds, its hand-picked colours,
+    its opacity and its missing-value layer's own styling now stay
+    with it; they used to leave the saved project while the window
+    went on showing them. A class count too small to carry the bounds
+    you pinned is refused, with the reason, rather than destroying
+    them. Where such a count comes back from a reopened project it is
+    raised to fit and you are told.
+    What a colleague opens: a class break retyped in QGIS, a ramp
+    changed there, a stroke, a legend label or a deleted category now
+    reach the exported GeoPackage as you make the edit. They reached
+    the map, the project and QGIS itself before, and stopped at the
+    file, where Generate could not heal them. It was hard to notice,
+    because the map was right.
+    The design view: the swatches in the data table are drawn from
+    the colours the map is drawing. They used to be drawn from the
+    ramp the row named, so an element restyled in QGIS, one whose
+    colours you picked by hand, one with its display range narrowed
+    and one with Reverse ticked were all previewed in colours the map
+    did not hold. The table is where you judge whether your elements
+    read as distinct from one another, and that judgement was being
+    made from the wrong picture.
+    Being told: a class no tile falls into is reported in words, and
+    counted on the ladder actually drawn. An element set to Unclassed
+    is no longer told that its fifty steps are empty. Drawing without
+    classes is what that style is for. Where two elements each carry
+    a column, both are now told about their own legend rather than
+    the first silencing the second, and a column holding a single
+    value says so whenever you change the class count, not only on
+    the first Generate.
     0.24.2 Bugfixes, one of them about not losing data.
     Your files: an existing .gpkg chosen as the output was rewritten
     whole, so every other table in it was lost, including the layer
