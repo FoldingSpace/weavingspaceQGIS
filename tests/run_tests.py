@@ -17727,6 +17727,79 @@ def test_a_candidate_number_is_never_reused():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_the_tenth_candidate_is_named_the_tenth():
+  """A candidate's dossier and receipt bear the zip's own number.
+
+  `next_candidate` counts artefacts and hands out the next number, and
+  the test above guards it. NAMING the candidate that has just been
+  built is the other half, and it was derived a second way: release.py
+  sorted `dist/weavingspace_qgis-*rc*.zip` and took the last entry.
+
+  Both halves of that were wrong and neither could show it until the
+  numbers reached two digits. The glob spans every VERSION, so a
+  0.25.0 candidate would have been named from a leftover 0.24.3 one.
+  And in TEXT order `rc10` sits between `rc1` and `rc2`, so `rc9` came
+  last: on 2026-08-19 the zip went out as 0.24.3rc10 while its dossier
+  and receipt were written as rc9, OVERWRITING the published rc9's own
+  artefacts. One name over two trees, which is precisely the harm the
+  numbering exists to prevent.
+
+  THE OLD ARITHMETIC IS COMPUTED HERE and required to disagree, so
+  this cannot become a test that passes because the code happens to
+  meet it. Nine candidates would satisfy both answers, which is why
+  the fixture goes to ten.
+
+  Regression: 2026-08-19. The tenth candidate's dossier and receipt were written as the ninth's, over the published ninth's own files. [suite]
+  """
+  import glob
+  import shutil
+  import tempfile
+  release = _release_module("release")
+  # THE MODULE release.py ITSELF WILL ASK, not a second copy of it.
+  # The first draft of this test patched `_release_module("build")`
+  # and watched `candidate_just_built` answer None, because
+  # `build_module()` was re-executing build.py per call and handing
+  # every caller its own instance. The premise was false, not the
+  # conclusion -- and the repair belonged in release.py.
+  build = release.build_module()
+  folder = tempfile.mkdtemp(prefix="weavingspace_dist_")
+  original = build.DIST
+  try:
+    build.DIST = folder
+    assert release.candidate_just_built("9.9.9") is None, \
+      "a version with no candidate at all was given a name anyway"
+
+    # TEN, because nine cannot tell the two answers apart
+    for number in range(1, 11):
+      open(os.path.join(folder,
+                        f"weavingspace_qgis-9.9.9rc{number}.zip"),
+           "w").close()
+    # ...and another version's, which the old glob also swept up
+    open(os.path.join(folder, "weavingspace_qgis-8.8.8rc7.zip"),
+         "w").close()
+
+    # what the sort-as-text derivation would have said, computed here
+    # rather than remembered
+    was = sorted(os.path.basename(path) for path in glob.glob(
+      os.path.join(folder, "weavingspace_qgis-*rc*.zip")))[-1]
+    was = was[len("weavingspace_qgis-"):-len(".zip")]
+    assert was != "9.9.9rc10", \
+      f"sorting the names as text already gives {was!r}, so this " \
+      f"fixture cannot show the defect and proves nothing"
+
+    label = release.candidate_just_built("9.9.9")
+    assert label == "9.9.9rc10", \
+      f"the tenth candidate is named {label!r}; text order would " \
+      f"have said {was!r}, and its dossier and receipt would have " \
+      f"been written over an earlier candidate's"
+    assert build.next_candidate("9.9.9") == 11, \
+      f"the next candidate is {build.next_candidate('9.9.9')}, so a " \
+      f"number would be handed out twice"
+  finally:
+    build.DIST = original
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_the_release_digest_watches_what_ships():
   """The fingerprint covers the artefact, and only the artefact.
 
@@ -54350,6 +54423,8 @@ def main():
         test_no_shard_waits_on_a_pipe_nobody_is_reading)
   check("a candidate number is never reused",
         test_a_candidate_number_is_never_reused)
+  check("the tenth candidate is named the tenth",
+        test_the_tenth_candidate_is_named_the_tenth)
   check("the release digest watches what ships",
         test_the_release_digest_watches_what_ships)
   check("a release needs a matching candidate",

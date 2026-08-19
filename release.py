@@ -1457,6 +1457,76 @@ def commit_and_tag(version, report_dir, push):
         "GitHub Pages build, usually within a minute")
 
 
+_BUILD = None                       # see build_module(), loaded once
+
+
+def build_module():
+  """`build.py`, imported so its rules can be asked rather than copied.
+
+  Returns:
+    The build module, loaded by path rather than by name because
+    release.py may be run from anywhere and `build` is a common name.
+
+  LOADED ONCE, and that is the difference between a seam and a wall.
+  Re-executing the file per call gave every caller its OWN module, so
+  one run held several copies of the rules and nothing outside could
+  steer any of them — the guard for the numbering below set `DIST` on
+  its own instance and watched this function answer from a different
+  one. A rule with several live copies is a rule nobody can ask a
+  question of.
+
+  ONE OWNER FOR TWO QUESTIONS THAT USED TO HAVE THREE ANSWERS: which
+  files ship (`shipped_files`, digested into the receipt) and how a
+  candidate is numbered (`latest_candidate`). The numbering was
+  re-derived here by sorting dist/ as TEXT, which put `rc10` between
+  `rc1` and `rc2` and named the tenth candidate's dossier and receipt
+  after the ninth. A rule with two implementations has two behaviours
+  the day one of them is wrong.
+  """
+  global _BUILD
+  if _BUILD is None:
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+      "build_rules", os.path.join(ROOT, "build.py"))
+    _BUILD = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(_BUILD)
+  return _BUILD
+
+
+def candidate_just_built(version):
+  """The label of the newest candidate of this version in dist/.
+
+  Args:
+    version: the declared version, e.g. "0.24.3".
+
+  Returns:
+    A label such as "0.24.3rc10", or None when this version has no
+    candidate at all — which is the caller's signal to write no
+    dossier and no receipt rather than to guess a name.
+
+  A FUNCTION RATHER THAN THREE LINES INSIDE `main`, because those
+  three lines were wrong for four months and nothing could reach them
+  to say so: naming the candidate happens in the middle of a
+  ninety-minute run, so the only way to test it was to build one.
+  It is `build.latest_candidate` and nothing else, since build.py is
+  where numbering lives.
+
+  WHAT IT REPLACED, kept because the shape recurs wherever names carry
+  numbers. It sorted `dist/weavingspace_qgis-*rc*.zip` as text and
+  took the last entry, which is wrong twice over: the glob spans every
+  VERSION, so a 0.25.0 candidate would have been named from a leftover
+  0.24.3 one; and in text order `rc10` sits between `rc1` and `rc2`,
+  so `rc9` came last. On 2026-08-19, the tenth candidate of 0.24.3 and
+  the first two-digit candidate this project has ever built, the zip
+  went out as `0.24.3rc10` while its dossier and receipt were written
+  as `rc9` — overwriting the published rc9's own artefacts and leaving
+  one name over two trees, which is the exact harm `next_candidate`
+  exists to prevent, arriving from the other end. Ledger row 25.
+  """
+  number = build_module().latest_candidate(version)
+  return None if number is None else f"{version}rc{number}"
+
+
 def tree_digest():
   """A fingerprint of exactly the files that would be shipped.
 
@@ -1471,13 +1541,8 @@ def tree_digest():
   comment in the test suite.
   """
   import hashlib
-  import importlib.util
-  spec = importlib.util.spec_from_file_location(
-    "build_rules", os.path.join(ROOT, "build.py"))
-  build_rules = importlib.util.module_from_spec(spec)
-  spec.loader.exec_module(build_rules)
   digest = hashlib.sha256()
-  for full, rel in build_rules.shipped_files():
+  for full, rel in build_module().shipped_files():
     digest.update(rel.encode("utf-8"))
     with open(full, "rb") as handle:
       digest.update(hashlib.sha256(handle.read()).digest())
@@ -1938,12 +2003,9 @@ def main():
     run("build release candidate",
         [sys.executable, "build.py", "--rc"], dict(os.environ))
     # Name the candidate that was just built, then write its dossier:
-    # the page the reviewer actually reads. Derived from the tree, so
-    # it cannot describe a different candidate than the one on disk.
-    built = sorted(glob.glob(os.path.join(ROOT, "dist",
-                                          "weavingspace_qgis-*rc*.zip")))
-    if built:
-      label = os.path.basename(built[-1])[len("weavingspace_qgis-"):-4]
+    # the page the reviewer actually reads.
+    label = candidate_just_built(version)
+    if label is not None:
       run("candidate dossier",
           [sys.executable, os.path.join("tools", "candidate_dossier.py"),
            label], dict(os.environ))

@@ -2118,6 +2118,25 @@ MUTATIONS = [
            "form of this defect by refilling the count with the four "
            "families that build everywhere, so the test looks past "
            "the count's existence to what is actually in it"),
+  dict(name="a-candidate-is-named-by-its-number", file=RELEASE,
+       # ANCHORED ON THE ASK, not on build.py's arithmetic: the fault
+       # was release.py deriving the number a SECOND way, and a
+       # catalogue entry standing on the helper would survive that
+       # coming back.
+       old="  number = build_module().latest_candidate(version)\n"
+           "  return None if number is None else f\"{version}rc{number}\"",
+       new="  import glob as _g\n"
+           "  built = sorted(_g.glob(os.path.join(\n"
+           "    ROOT, 'dist', 'weavingspace_qgis-*rc*.zip')))\n"
+           "  return (os.path.basename(built[-1])[len('weavingspace_qgis-'):-4]\n"
+           "          if built else None)",
+       test="test_the_tenth_candidate_is_named_the_tenth",
+       why="the mutation is the code this replaced, verbatim: sorting "
+           "dist/ as TEXT, where rc10 sits between rc1 and rc2, and "
+           "over every version at once. It named the tenth candidate's "
+           "dossier and receipt after the NINTH and wrote them over "
+           "the published rc9's own -- one name across two trees, "
+           "which is the harm the numbering exists to prevent"),
   dict(name="stage-log-says-it-is-running", file=RELEASE,
        old="  if capture:\n    # Stamp the stage log as IN PROGRESS",
        new="  if False:  # mutation: leave the old log in place\n"

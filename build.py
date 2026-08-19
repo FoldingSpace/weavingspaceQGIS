@@ -57,8 +57,22 @@ def next_candidate(version):
     confused by a gap in the sequence, and everybody is confused by
     two candidates with the same name.
     """
+    return max(candidate_numbers(version), default=0) + 1
+
+
+def candidate_numbers(version):
+    """Every candidate number of one version present in dist/.
+
+    Args:
+      version: the declared version, e.g. "0.24.3".
+
+    Returns:
+      A list of integers, unsorted and possibly empty. One owner for
+      what counts as an artefact and which version it belongs to, so
+      the two callers below cannot drift apart about either.
+    """
     if not os.path.isdir(DIST):
-        return 1
+        return []
     version_pattern = re.escape(version)
     patterns = (
         rf"weavingspace_qgis-{version_pattern}rc(\d+)\.zip$",
@@ -72,7 +86,34 @@ def next_candidate(version):
             if found:
                 used.append(int(found.group(1)))
                 break
-    return max(used, default=0) + 1
+    return used
+
+
+def latest_candidate(version):
+    """The highest candidate number this version has on disk.
+
+    Args:
+      version: the declared version, e.g. "0.24.3".
+
+    Returns:
+      An integer, or None when this version has no candidate at all.
+
+    WHY IT EXISTS, and the bug belongs at the line. release.py named
+    the candidate it had just built by sorting dist/ and taking the
+    last entry -- TEXT order, in which `rc10` sits between `rc1` and
+    `rc2`, so `rc9` came last. On 2026-08-19, the first two-digit
+    candidate this project has ever built, the zip was written as
+    0.24.3rc10 while its dossier and receipt were written as rc9,
+    OVERWRITING the genuine rc9 artefacts and putting one name over
+    two trees -- which is precisely what `next_candidate` above exists
+    to prevent, arriving from the other end. That glob was not scoped
+    to the version either, so a 0.25.0rc1 would have been named from a
+    leftover 0.24.3 candidate.
+    Numbers are numbers: compare them as numbers, and derive them
+    once.
+    """
+    used = candidate_numbers(version)
+    return max(used) if used else None
 
 
 def shipped_files():

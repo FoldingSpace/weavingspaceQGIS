@@ -2671,6 +2671,27 @@ genuinely independent third column and should be added then.
   alone: it drives the whole path at a size no fixture reaches, and
   what it finds need not be a time.
 
+- **A NAME THAT CARRIES A NUMBER IS SORTED AS TEXT, AND rc10 COMES
+  BEFORE rc2.** (2026-08-19, ledger row 25.) `release.py` named the
+  candidate it had just built by sorting `dist/weavingspace_qgis-*rc*.zip`
+  and taking the last entry. On the tenth candidate of 0.24.3 -- the
+  first two-digit candidate this project has ever built -- the zip went
+  out as `0.24.3rc10` while its dossier and receipt were written as
+  `rc9`, ON TOP OF the published rc9's own. One name over two trees,
+  which is precisely the harm `next_candidate` exists to prevent,
+  arriving from the end nobody was watching. The same glob spanned
+  every VERSION, so a 0.25.0 candidate would have been named from a
+  leftover 0.24.3 one.
+  THE DEEPER FAULT IS THAT THE FACT HAD TWO DERIVATIONS. `next_candidate`
+  parses the number and takes `max() + 1`, and was right the whole
+  time; naming re-derived the same fact in another file by another
+  route. A rule with two implementations has two behaviours the day
+  one of them is wrong, which this file already says about generated
+  documents and about `shipped_files()`. It is `build.latest_candidate`
+  now, beside its sibling and sharing what counts as an artefact.
+  AND A FIXTURE MUST REACH THE CASE: nine candidates satisfy both
+  derivations, so the guard stages TEN and computes what the text sort
+  would have said, requiring it to disagree.
 - **VERIFY AGAINST WHAT SHIPPED, NOT WHAT YOU WROTE.** The second pass
   at those notes was checked by reading the LIVE page back and
   measuring every line, not by inspecting the local file. Where a

@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-267 defect(s) with a regression test.
+268 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -349,6 +349,8 @@ there is no separate list to remember.
 
 - **2026-08-19. A style picked in the table left the row deaf to a rule-based renderer pasted onto its layer in QGIS, and the next Generate destroyed it.**  
   guarded by `test_a_style_picked_by_hand_still_follows_a_paste_in_qgis`
+- **2026-08-19. The tenth candidate's dossier and receipt were written as the ninth's, over the published ninth's own files.**  
+  guarded by `test_the_tenth_candidate_is_named_the_tenth`
 
 ## Found by driving the UI and rebuilding the same map from the library directly
 
@@ -597,5 +599,5 @@ there is no separate list to remember.
 - driving the UI and rebuilding the same map from the library directly: 5
 - the hostile data corpus: 4
 - a randomised differential sweep: 3
+- the functional suite, run whole: 2
 - comparing rendered output against the reference in Lab space: 1
-- the functional suite, run whole: 1
