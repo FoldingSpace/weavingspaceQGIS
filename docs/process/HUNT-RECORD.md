@@ -793,3 +793,63 @@ archive HEAD` copy, never the working tree, and stamps the commit it
 read in every claim -- otherwise a sibling's uncommitted fix reads
 exactly like a race, and an unfixed defect reads exactly like a fixed
 one.
+
+## 2026-08-18 — a tester's report, and what hunting my own fix cost
+
+Not a hunt round: one defect reported from outside, against rc8, with
+two screenshots. Recorded here because the shape of the investigation
+is worth more than the fix.
+
+**THE REPORT WAS EXACT AND THE SCREENSHOT DID THE WORK.** "Regardless
+of *how* I do it, changes to the Q symbology are not reflected in the
+plugin", with QGIS holding 0-10, 10-20, 20-30, 30-50, 50-80 while the
+plugin's editor showed 3.1-18.3, 18.3-33.5 and so on. THE COLOURS IN
+BOTH PANELS MATCHED. That single detail ruled out the whole family of
+"the plugin never heard the signal" explanations and pointed straight
+at a path that carries colour and not numbers. A screenshot showing
+what AGREES is as informative as one showing what differs.
+
+**FOUR DIAGNOSES, THREE WRONG, AND THE MOST CONVINCING WAS THE WORST.**
+The colour-comparison story was killed by my own control arm. The
+wrong-column story was killed by the tester in one look. The pin story
+accounted for EVERY measured number -- the exact top, the 6.6 at the
+bottom, a step that was not the span over five -- and was still false,
+because a premise was: 9.7 was the TILE layer's minimum and never the
+column's. A HYPOTHESIS THAT EXPLAINS ALL THE NUMBERS IS NOT CONFIRMED
+BY THAT WHEN ONE NUMBER IS A MISMEASUREMENT.
+
+**A SECOND REPORTED DEFECT WAS NOT ONE.** The plugin classifies from
+the SOURCE column while the tester was reading the TILE layer's
+statistics, and at that spacing the tiles miss areas. Closed as a
+design question -- source or tiles -- which is the maintainer's and is
+open. Recorded rather than deleted, because a ledger keeping only the
+surviving guess reads as though the answer was obvious.
+
+**THE FIX THEN BROKE AN OLDER GUARD, and bisection found it where
+reasoning could not.** An early `return` at successive points through
+the new code, the first turning PASS into FAIL holding the culprit:
+the STORE. Logging that one statement named what it wrote -- the
+plugin's own ladder, recorded as though a person had typed it. Four
+theories preceded this and each had been implemented.
+
+**TWO INSTRUMENTS LIED, and cost more than the defect.** `print()`
+inside a Qt signal handler goes nowhere under a capturing test, so an
+empty dump read as proof the code never ran when it ran every time.
+And a plain `python3` heredoc run AFTER sourcing the QGIS environment
+dies at bootstrap and applies NO edit, so two "bisect results" were
+the unmodified file. VERIFY THAT AN INSTRUMENT CAN REPORT AT ALL
+before trusting its silence.
+
+**THE COVERAGE SHARDS SEGFAULTED ONCE AND NOT ON RERUN.** Treated as
+mine until proven otherwise, which was right; it proved to be
+contention. The related inconsistency is real and unaddressed: the
+shards run on the same slow runners as the suite but declare no
+`WEAVINGSPACE_TEST_SLOWNESS`, so the job doing MORE work under tracing
+gets the SMALLER allowance -- CONTENTION 2.5 against the suite's 3.
+
+**WHAT REPLACED THE ONE-CASE GUARD.** A matrix: seven routes crossed
+with nine synthetic shapes crossed with two aftermaths, spine plus
+seeded rotation, 36 cells in 58 seconds, and 17 cells fail when the
+fix is removed. The guard it replaced changed field, class count and
+ramp TOGETHER and had passed for weeks. Written up in docs/TESTING.md
+as the default shape for testing a promise.

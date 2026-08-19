@@ -2447,3 +2447,24 @@ genuinely independent third column and should be added then.
   whether the renderer reflows. Check a release page NARROW -- a phone
   or a half-width window -- before believing it reads, exactly as the
   changelog is checked in both renderers.
+
+- **A CHECK THAT CAN ONLY CONFIRM IS NOT A CHECK.** Unwrapping the rc9
+  release notes, the script reported "unwrapped: 14 blocks" and I read
+  that as success -- but the number needed was how many were still
+  WRONG, and nine of eleven paragraphs had been skipped because they
+  open with bold and my list-item guard matched `*`. A count of things
+  PROCESSED says nothing about things FIXED. State the check as its
+  inverse -- show me anything still broken -- so a clean run is an
+  assertion rather than an absence. The same fault appears in tests as
+  a shape-blind expectation, and in probes as an empty log read as
+  proof.
+
+- **A LIST ITEM NEEDS THE SPACE.** `- `, `* `, `+ ` and `1. ` are
+  bullets; `**bold` is a paragraph. Guarding on the bare character
+  silently skipped most of a document.
+
+- **VERIFY AGAINST WHAT SHIPPED, NOT WHAT YOU WROTE.** The second pass
+  at those notes was checked by reading the LIVE page back and
+  measuring every line, not by inspecting the local file. Where a
+  publish step exists between the file and the reader, the reader's
+  copy is the only one that counts.

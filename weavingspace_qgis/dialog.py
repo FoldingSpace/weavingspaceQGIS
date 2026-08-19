@@ -6428,29 +6428,29 @@ class WeavingSpaceDialog(QDialog):
     backwards. The outer edges are the column's extremes, which is
     the model: typing 0 - 10 over a column starting at 3.1 gives
     (3.1, 10), the same areas in the same class.
+
+    AND ONLY AT REST, which is the whole of the rest of this method's
+    difficulty. A ladder read while the plugin is mid-work is not a
+    ladder anybody typed.
     """
-    # NEVER WHILE THIS DIALOG IS WRITING RENDERERS ITSELF.
-    # `_applying_style` exists for exactly this distinction -- the
-    # styleChanged watcher uses it to tell a QGIS-side edit from our
-    # own seeding -- and adoption was reading both as a person's work.
+    # THREE REST CONDITIONS, and all three are needed. Bracketed by
+    # bisection to the STORE below, after four theories were each
+    # implemented and each wrong -- returning immediately before the
+    # store made the failing guard pass while every check above it
+    # still ran, and logging the store then named what it wrote: five
+    # classes, breaks [1.0, 1.4, 2.6, 3.0], the plugin's OWN ladder on
+    # that fixture, recorded as though a person had typed it. Pinned,
+    # it was re-imposed when the next run landed, and a twelve-class
+    # reclassification made in the dock became five.
     #
-    # BRACKETED TO THIS ONE STATEMENT by bisection, after four wrong
-    # theories. Returning before the store made the failing test pass
-    # while every earlier guard still ran, and logging the store named
-    # what it wrote: five classes with breaks [1.0, 1.4, 2.6, 3.0] --
-    # the plugin's OWN ladder on this fixture, recorded as though a
-    # user had typed it. Pinned, it was then re-imposed when the next
-    # run landed, and a twelve-class reclassification made in the dock
-    # became five.
+    # `_applying_style` alone is NOT enough: it is not set during the
+    # mid-run re-examination that `_preserved_this_run` marks, which
+    # is exactly when this fired. During any of the three the record
+    # and the layer are transiently out of step.
     #
-    # A GETTER-SHAPED NAME IS NOT A GUARANTEE, either: the earlier
-    # theory that `_current_graduated_classes` was mutating the layer
-    # was wrong, but it is worth knowing it BUILDS a renderer rather
-    # than reading one.
-    # NOT WHILE THIS DIALOG IS WRITING RENDERERS, and NOT WHILE A RUN
-    # IS IN FLIGHT OR ITS LANDING IS STILL BEING RECONCILED. During a
-    # landing the record and the layer are transiently out of step, so
-    # what is on the layer is not what anybody typed.
+    # Guarded by test_a_dock_reclassification_lands_while_a_run_is
+    # _finishing, which is older than this method and was protecting
+    # real behaviour that must not be weakened to fit an addition.
     if getattr(self, "_applying_style", False):
       return
     if getattr(self, "_task", None) is not None:

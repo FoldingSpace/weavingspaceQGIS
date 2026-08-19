@@ -900,3 +900,31 @@ what a reviewer installed.
 bearing a number spends it — zip, dossier, receipt — so deleting one
 does not hand its number back.
 
+
+## Release bodies wrap; the changelog does not
+
+**A GITHUB RELEASE BODY PRESERVES SINGLE NEWLINES.** Notes hard-wrapped
+at the usual 72 columns therefore arrive as literal line breaks, and on
+a phone a sentence snaps mid-clause: "nothing is promoted," ending one
+line while `main` begins the next. The renderer is never allowed to
+wrap to the reader's width.
+
+So **write each paragraph of a release body as ONE long line**, and
+keep hard newlines only where the markup needs them -- headings, list
+items, tables, block quotes.
+
+**AND metadata.txt IS THE OPPOSITE, deliberately.** QGIS's plugin
+manager shows that text AS IT STANDS, so a long line runs off the
+panel and the entry must stay wrapped. Two surfaces, opposite rules,
+and the question that decides it is always whether the RENDERER
+REFLOWS. This is the same lesson as the one about a changelog shown by
+two renderers, arriving from the other side.
+
+**CHECK A RELEASE PAGE NARROW BEFORE BELIEVING IT READS** -- a phone,
+or a half-width window. Found on rc9, 2026-08-18, by a maintainer on a
+phone after I had looked only at a wide one.
+
+When fixing a published page, EDIT IT IN PLACE (`gh release edit
+--notes-file`) so the tag, the URL and the attachments are untouched,
+then read the live body back and measure it. A local file that looks
+right proves nothing about the page somebody opens.
