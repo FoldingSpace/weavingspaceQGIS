@@ -92,6 +92,7 @@ from .absence import (  # noqa: E402  (constants, read as such)
   NEG_INF_KEY,
   NO_DATA_FILL,
   NO_DATA_KEY,
+  OUTSIDE_RANGE_KEY,
   POS_INF_KEY,
 )
 
@@ -1931,14 +1932,16 @@ def unworn_classes(bounds, values):
   return [index for index in range(len(bounds)) if index not in worn]
 
 
-def fitted_breaks(breaks, smallest, largest):
+def fitted_breaks(breaks, smallest, largest, floor=None, ceiling=None):
   """A copied ladder of breaks, fitted to the receiving column.
 
   Args:
     breaks: the INTERIOR boundaries of the ladder being copied, in
-      order -- k-1 numbers for a k-class ladder. The outer edges are
-      not carried, being the data's own extremes by definition.
+      order -- k-1 numbers for a k-class ladder.
     smallest, largest: the receiving column's extremes.
+    floor: the outermost LOWER edge somebody actually set, or None to
+      take the column's own minimum. See below.
+    ceiling: the outermost UPPER edge likewise, or None.
 
   Returns:
     ``[(lower, upper), ...]``, one pair per class, contiguous, with
@@ -1972,11 +1975,41 @@ def fitted_breaks(breaks, smallest, largest):
   to reproduce a classification, and a silently shortened one does
   not. The emptiness is reported instead, by the swatch
   stripes no tile can use.
+
+  FLOOR AND CEILING, and why they only ever WIDEN. Added 2026-08-19,
+  after the tester retyped a ladder's ends in QGIS's Symbology panel
+  -- 0 for the bottom over a column starting at 3.1, 80 for the top
+  over one ending at 79.1 -- and watched both numbers replaced by the
+  column's own extremes. The interior boundaries were adopted and the
+  ends were not, because the record had nowhere to put them: "low"
+  and "high" name the first class's UPPER bound and the last class's
+  LOWER bound, which are the two cells the editor makes editable, and
+  neither is an outer edge.
+  The rule is the one the pinned path already uses a few lines above:
+  the outer edge is the FURTHER of what somebody set and the data's
+  own extreme. So a floor BELOW the minimum is honoured exactly, and
+  a floor ABOVE it widens back down to the data. That asymmetry is
+  deliberate rather than a shortcut -- a first class starting above
+  the column's minimum leaves every value beneath it in no class at
+  all, drawn as nothing, which `test_no_value_is_ever_orphaned_by_a_
+  classification` exists to forbid and which is a worse fault than
+  the one being fixed. A caller wanting the user told that their
+  number was widened must say so itself; this returns bounds.
+  A COPY passes neither, and that is the point of them being
+  arguments rather than something read from the record here: copying
+  a ladder ACROSS variables fits its ends to the receiving column by
+  the maintainer's own specification of 2026-08-14, while a ladder
+  adopted from QGIS keeps the ends a person typed. Same function,
+  two callers, one difference.
   """
   interior = [float(b) for b in (breaks or [])]
   if not interior:
     return None
   low, high = float(smallest), float(largest)
+  if floor is not None:
+    low = min(low, float(floor))
+  if ceiling is not None:
+    high = max(high, float(ceiling))
   bounds = [(min(low, interior[0]), interior[0])]
   for index in range(1, len(interior)):
     bounds.append((interior[index - 1], interior[index]))
@@ -2074,6 +2107,74 @@ def cannot_be_placed(value) -> bool:
     # is why neither was noticed by a scan looking for absence.
     return value != value or value in (float("inf"), float("-inf"))
   return False
+
+
+def absence_kind(value, floor=None, ceiling=None):
+  """WHICH kind of unplaceable a value is, asked in one place.
+
+  Args:
+    value: one attribute value, as QGIS hands it back.
+    floor: the lowest value this element draws, or None for no limit.
+      A value below it is excluded BY CHOICE rather than by its own
+      nature.
+    ceiling: the highest value this element draws, or None.
+
+  Returns:
+    One of the ABSENCE_KINDS keys, or None when the value can be
+    drawn in an ordinary class. Never raises: a value of a type that
+    cannot be compared with a limit is simply not excluded by it.
+
+  ONE OWNER, for the reason `cannot_be_placed` above has one and in
+  the same spirit -- that function answers WHETHER, this one answers
+  WHICH, and until 2026-08-19 the second question was answered in
+  THREE places that each enumerated the keys by hand: the split that
+  builds the paired layer, the per-kind value digest that decides
+  whether the data changed, and the colour editor's list of rows.
+  Three copies of one decision, in two files, and a fourth kind was
+  about to make all three wrong at once. The last time this record
+  gained a member, one twin was missed and the colour editor raised
+  IndexError on every column holding an infinity, so no colour on
+  that element was reachable at all.
+
+  THE ORDER IS THE RULING. A value's own nature is asked first and a
+  limit second, so an infinity excluded by a ceiling is reported as
+  an infinity: "outside the range" is a fact about the LIMITS, and
+  saying it of a value that could never have been drawn anyway would
+  blame the user's setting for the data's own shape.
+
+  LIMITS ARE OPTIONAL AND THE DEFAULT IS BLIND, which is what lets
+  the digest go on using this. That caller asks whether the DATA
+  moved, not what is drawn, and must give the same answer whatever
+  limits are in force -- otherwise moving a floor would read as the
+  column being retyped and force a re-tile nobody asked for.
+  """
+  if value is None or value == NULL or str(value) == "NULL":
+    return NO_DATA_KEY
+  if isinstance(value, float):
+    if value != value:                      # the only value unequal to itself
+      return NO_DATA_KEY
+    if value == float("inf"):
+      return POS_INF_KEY
+    if value == float("-inf"):
+      return NEG_INF_KEY
+  if floor is None and ceiling is None:
+    return None
+  try:
+    number = float(value)
+  except (TypeError, ValueError):
+    # text on a graduated element is refused long before here; if one
+    # ever arrives, a limit is not the thing that should reject it
+    return None
+  # INCLUSIVE AT BOTH ENDS, matching QGIS's own containment rule --
+  # a range holds `lower <= v <= upper`, so a value sitting exactly
+  # on the floor is drawn rather than excluded. Anything else would
+  # make the first class's own boundary value disappear, which is
+  # the orphaning this whole kind exists to prevent.
+  if floor is not None and number < float(floor):
+    return OUTSIDE_RANGE_KEY
+  if ceiling is not None and number > float(ceiling):
+    return OUTSIDE_RANGE_KEY
+  return None
 
 
 def quant_class_colours(ramp_name: str, reverse: bool, count: int,
@@ -2550,8 +2651,13 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   # software COMPUTES, and never overrules one a user imported.
   copied = None
   if pinned and pinned.get("breaks") and finite_values:
+    # "floor" and "ceiling" are the outer edges a person set, which a
+    # ladder adopted from QGIS carries and a copy does not; absent,
+    # fitted_breaks falls back to this column's own extremes, which
+    # is what every record written before 2026-08-19 holds.
     copied = fitted_breaks(pinned["breaks"], finite_values[0],
-                           finite_values[-1])
+                           finite_values[-1], pinned.get("floor"),
+                           pinned.get("ceiling"))
   if copied is not None:
     # A PIN ON TOP OF A COPY moves that end's boundary, and until
     # 2026-08-15 it did nothing at all: this branch read
@@ -3273,7 +3379,8 @@ def write_gpkg_layer(layer: QgsVectorLayer, path: str, layer_name: str,
   return out
 
 
-def split_out_the_no_data(frame, field, column_has_values=None):
+def split_out_the_no_data(frame, field, column_has_values=None,
+                          floor=None, ceiling=None):
   """Separate the rows a graduated renderer cannot draw.
 
   Args:
@@ -3286,6 +3393,11 @@ def split_out_the_no_data(frame, field, column_has_values=None):
       draw with, so an element whose own tiles are all missing must
       still be split, or it draws nothing at all. None (the default)
       keeps the older behaviour for callers that cannot say.
+    floor: the lowest value this element draws, or None. A value
+      below it leaves for the paired layer as OUTSIDE_RANGE_KEY --
+      excluded by somebody's choice rather than by its own nature.
+    ceiling: the highest, likewise. Both default to None, so every
+      caller that has no limits behaves exactly as before.
 
   Returns:
     A pair ``(drawable, absent)`` of frames: the rows whose value the
@@ -3341,6 +3453,22 @@ def split_out_the_no_data(frame, field, column_has_values=None):
   numeric = pd.to_numeric(values, errors="coerce")
   infinite = numeric.notna() & ~np.isfinite(numeric)
   missing = missing | infinite
+  # AND WHAT A LIMIT PUTS OUT OF BOUNDS, which is the third way a row
+  # can have no class and the only one that is a CHOICE. Added
+  # 2026-08-19 with floors and ceilings that may sit inside the data.
+  # Asked of the finite values only -- `numeric.notna() &
+  # np.isfinite` -- because a NULL compares False against any bound
+  # and an infinity is already caught above, and either would
+  # otherwise be relabelled by a limit that has nothing to say about
+  # it. The kinds are decided per row by `absence_kind`, whose order
+  # settles which name a doubly-unplaceable value gets; this mask only
+  # decides WHETHER a row leaves.
+  if floor is not None or ceiling is not None:
+    finite = numeric.notna() & np.isfinite(numeric)
+    if floor is not None:
+      missing = missing | (finite & (numeric < float(floor)))
+    if ceiling is not None:
+      missing = missing | (finite & (numeric > float(ceiling)))
   if not bool(missing.any()):
     return frame, None
   if bool(missing.all()) and not column_has_values:
@@ -3408,14 +3536,22 @@ def split_out_the_no_data(frame, field, column_has_values=None):
   # `isna()` and are meant to collapse, and an infinity is still an
   # infinity.
   gone = frame[missing].copy()
-  kind = []
-  for value in pd.to_numeric(gone[field], errors="coerce"):
-    if pd.isna(value):
-      kind.append(ABSENCE_VALUE[NO_DATA_KEY])
-    elif value > 0:
-      kind.append(ABSENCE_VALUE[POS_INF_KEY])
-    else:
-      kind.append(ABSENCE_VALUE[NEG_INF_KEY])
+  # ASKED THROUGH `absence_kind`, NOT ENUMERATED HERE. This loop named
+  # the three keys itself until 2026-08-19, as did the value digest
+  # and the colour editor's row list -- three copies of one decision
+  # in two files, which a fourth kind would have made wrong in all
+  # three at once. The helper also knows about the limits, which this
+  # loop could not: a value excluded by a floor is perfectly finite
+  # and `pd.isna` has nothing to say about it.
+  # The mask above and `absence_kind` must agree about which rows are
+  # here, and they are written separately -- one vectorised for speed
+  # on every run, one per value so three callers can share it. A None
+  # would mean they have drifted, and `ABSENCE_VALUE[None]` would
+  # raise from inside a render path and cost the whole map. So drift
+  # falls back to No data, which is drawable and honest about being a
+  # value nothing could place, rather than to an exception.
+  kind = [ABSENCE_VALUE[absence_kind(value, floor, ceiling) or NO_DATA_KEY]
+          for value in gone[field]]
   gone[ABSENCE_FIELD] = kind
   return frame[~missing], gone
 

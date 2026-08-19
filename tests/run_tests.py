@@ -35665,6 +35665,68 @@ def test_no_placeholder_fill_is_ever_a_clash():
     f"colour, so this act found something other than what it names"
 
 
+def test_the_absence_fills_are_told_apart():
+  """Each kind of unplaceable value must be readable AS a kind.
+
+  The sibling above keeps these fills OUT of the clash warning, since
+  every element paints the same placeholder and comparing them with
+  each other reports a clash in every design that has one. That is a
+  question about elements. This is the question about KINDS, and
+  nothing asked it until a fourth kind arrived: the legend offers
+  "no data", "negative infinity", "infinity" and "outside the range"
+  as four separate lines, and a reader who cannot tell two of those
+  swatches apart is being told a distinction the map does not
+  actually make. Missing and off-the-scale and excluded-on-purpose
+  are three different facts about an area.
+
+  Asked in the same colourspace and against the same bar the
+  legibility check uses, and under EVERY vision it models, because a
+  pair that separates for most readers and collapses under
+  deuteranopia is exactly the failure that check exists to find.
+
+  A TABLE OVER ABSENCE_KINDS, not a list of pairs, so a fifth kind is
+  covered by whoever adds it and by nobody else -- the same
+  construction the exclusion set uses, and for the same reason. The
+  count is asserted before the pairs are, since a loop over a tuple
+  that had somehow become empty would pass in silence.
+
+  Measured 2026-08-19 when "outside the range" was added: the worst
+  pair is 23.3 under deuteranopia, and it is one of the two that
+  shipped in 0.24.3 rather than the new one.
+  """
+  import itertools
+  from weavingspace_qgis import perception
+  from weavingspace_qgis.absence import ABSENCE_KINDS
+
+  assert len(ABSENCE_KINDS) >= 4, \
+    f"only {len(ABSENCE_KINDS)} absence kinds are defined, so this " \
+    f"test is comparing fewer things than it was written for"
+  fills = [(label, fill) for _key, _stored, label, fill in ABSENCE_KINDS]
+  assert len({fill.lower() for _l, fill in fills}) == len(fills), \
+    f"two absence kinds share a default fill: {fills!r} -- they are " \
+    f"separate lines in the legend and cannot be one colour"
+
+  compared, too_close = 0, []
+  for vision in perception.VISIONS:
+    for (label_a, fill_a), (label_b, fill_b) in itertools.combinations(
+        fills, 2):
+      apart = perception.distance(_rgb_of(fill_a), _rgb_of(fill_b),
+                                  vision=vision)
+      compared += 1
+      if apart < perception.CLASH_THRESHOLD:
+        too_close.append((vision, label_a, label_b, round(apart, 2)))
+  # STATE THE PREMISE. A guard that reports nothing is indistinguishable
+  # from a guard whose loops never ran, and this project has shipped
+  # both kinds; the count is what tells them apart.
+  assert compared == len(perception.VISIONS) * len(fills) * (len(fills) - 1) // 2, \
+    f"only {compared} pairs were compared across " \
+    f"{len(perception.VISIONS)} visions, so some combination was skipped"
+  assert not too_close, \
+    f"these placeholder fills are closer than the project's own bar " \
+    f"of Delta-E {perception.CLASH_THRESHOLD} and so read as one " \
+    f"kind in the legend: {too_close!r}"
+
+
 def _c3_choose(combo, text):
   """Pick an entry in a table combo the way a click does.
 
@@ -51247,6 +51309,8 @@ def main():
         test_the_no_data_grey_is_never_a_clash)
   check("no placeholder fill is ever a clash",
         test_no_placeholder_fill_is_ever_a_clash)
+  check("the absence fills are told apart",
+        test_the_absence_fills_are_told_apart)
   check("awkward layers are handled or declined",
         test_awkward_layers_are_handled_or_declined)
   check("hostile numbers are handled or declined",

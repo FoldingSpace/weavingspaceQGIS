@@ -1,10 +1,21 @@
 """The kinds of value a graduated renderer cannot place, named once.
 
-A choropleth draws a number by putting it in a class. Three sorts of
+A choropleth draws a number by putting it in a class. Four sorts of
 cell have no class to go in -- nothing was recorded, the value is
-below any finite value, or above any finite value -- so the tiles
-carrying them leave the element's own layer for its paired one, which
-is categorized on ``ABSENCE_FIELD`` to keep the three apart.
+below any finite value, above any finite value, or outside the limits
+somebody set for this element -- so the tiles carrying them leave the
+element's own layer for its paired one, which is categorized on
+``ABSENCE_FIELD`` to keep the four apart.
+
+THREE OF THE FOUR ARE FACTS ABOUT THE DATA AND THE FOURTH IS A
+CHOICE, which is the distinction to hold on to when reading anything
+below. Nothing recorded, and the two infinities, are properties of
+the value and would be true whatever anybody did. "Outside the range"
+is a property of the LIMITS, and exists only because a person set a
+floor or a ceiling inside their own data. That is why it takes
+precedence from the other direction: an infinity is still an
+infinity when a ceiling excludes it, so the value's own kind wins and
+this one is asked last.
 
 WHY THIS IS ITS OWN MODULE, which is the only surprising thing here.
 These constants were part of bridge.py, and bridge.py cannot be
@@ -32,16 +43,17 @@ NO_DATA_FILL = "#dddddd"
 # collide with rather than a readable word.
 NO_DATA_KEY = "\x00no-data"
 
-# THE THREE WAYS A VALUE CAN BE UNPLACEABLE, and they are not one
-# thing. A graduated renderer draws none of them, so all three leave
-# the element's own layer for its paired one -- but a reader is owed
-# the difference between "nobody recorded a value here" and "this area
+# THE WAYS A VALUE CAN BE UNPLACEABLE, and they are not one thing. A
+# graduated renderer draws none of them, so all of them leave the
+# element's own layer for its paired one -- but a reader is owed the
+# difference between "nobody recorded a value here" and "this area
 # is off the top of the scale", which on a choropleth is the
 # difference between missing and extreme. (Maintainer's instruction,
 # 2026-08-16.)
 #
-# WHY THREE AND NOT FOUR, which is the measurement that settled it. A
-# stored NaN is a fourth state QGIS itself holds apart from NULL --
+# NaN IS STILL NOT ONE OF THEM, which is the measurement that settled
+# the count at three for as long as they were all facts about the
+# data. A stored NaN is a state QGIS itself holds apart from NULL --
 # but writing one to a GeoPackage stores NULL (measured 2026-08-16
 # through QgsVectorFileWriter and read back with sqlite3), so the
 # category would be empty for anyone whose data came from a file,
@@ -56,6 +68,20 @@ NO_DATA_KEY = "\x00no-data"
 # drawn as nothing at all.
 POS_INF_KEY = "\x00+inf"
 NEG_INF_KEY = "\x00-inf"
+
+# A perfectly ordinary number that a FLOOR or a CEILING put out of
+# bounds. Added 2026-08-19 with limits that may sit inside the data:
+# before that an outer edge could only widen outward, so nothing was
+# ever excluded and this kind had nothing to hold.
+#
+# IT IS DRAWN, AND THAT IS THE WHOLE REASON IT EXISTS. Left to a
+# graduated renderer a value outside every range gets no symbol at
+# all, which on a map made of areas is a HOLE -- and a hole is
+# indistinguishable from a tiling gap and from a missing value, three
+# different facts wearing one appearance. 0.24.3 exists in large part
+# to stop absent values reading as absent places; excluding a value on
+# purpose must not reintroduce the same ambiguity by the back door.
+OUTSIDE_RANGE_KEY = "\x00outside-range"
 
 # The column the paired layer carries so its renderer can tell the
 # kinds apart. Named once here because the renderer categorizes on it
@@ -81,6 +107,22 @@ ABSENCE_KINDS = (
   # "off the bottom of the scale I chose".
   (NEG_INF_KEY, "neg-infinity", "negative infinity", "#8c9fc7"),
   (POS_INF_KEY, "pos-infinity", "infinity", "#c78c8c"),
+  # LAST IN THE TUPLE, AND THAT ORDER IS LOAD-BEARING TWICE. The
+  # legend is built in this order, so the kind that is a choice sits
+  # below the three that are facts; and the split asks the kinds in
+  # this order, so a value that is BOTH an infinity and outside a
+  # ceiling is reported as the infinity -- the value's own nature
+  # rather than the limit that happened to exclude it.
+  #
+  # The fill continues the construction of the two infinities, which
+  # are the same two channel values permuted (8c/9f/c7 and c7/8c/8c).
+  # This is the third permutation and is deliberately neither the
+  # no-data grey -- it is not missing -- nor either infinity's tint,
+  # which mean off-the-scale rather than out-of-bounds. Separation
+  # from the other three is measured by
+  # `test_the_absence_fills_are_told_apart`, in the same colourspace
+  # the legibility check uses, rather than judged by eye.
+  (OUTSIDE_RANGE_KEY, "outside-range", "outside the range", "#c7c78c"),
 )
 
 # Every DEFAULT placeholder fill, lowercased, as a set for testing

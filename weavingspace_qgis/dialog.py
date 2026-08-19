@@ -1194,6 +1194,11 @@ class WeavingSpaceDialog(QDialog):
     self._gpkg_tables_written = {}
     # {(layer id, column, data version): bool} -- see _column_has_nulls
     self._nulls_cache = {}
+    # {(layer id, column, data version, floor, ceiling): bool} -- see
+    # _limits_exclude_anything. Keyed on the LIMITS as well, because
+    # moving a floor must retire the answer without touching the data
+    # version, which is about the column changing underneath us.
+    self._limit_cache = {}
     # the watched layer's id, recorded by `_layers_going` while the
     # layer still exists, so the removal notice does not depend on
     # which of two Qt handlers runs first
@@ -1208,6 +1213,7 @@ class WeavingSpaceDialog(QDialog):
     # picked single colours, and last ramp names
     self._cat_count_cache = {}
     self._nulls_cache = {}
+    self._limit_cache = {}
     # one field's values, keyed by (layer, field, fingerprint) and
     # holding a single entry: the breaks are cut from these, and a
     # stale set would classify the map against data that has gone
@@ -2206,6 +2212,7 @@ class WeavingSpaceDialog(QDialog):
       return
     self._cat_count_cache = {}
     self._nulls_cache = {}
+    self._limit_cache = {}
     layer = self.layer_combo.currentLayer()
     # Hear the layer itself, not merely the fact that a different one
     # was chosen: a user editing in QGIS never touches this combo.
@@ -4734,8 +4741,15 @@ class WeavingSpaceDialog(QDialog):
     # reopening and wins.
     stored_pins = {}
     try:
+      # THIS WHITELIST IS THE RECORD'S REAL DEFINITION, and a key
+      # missing from it is dropped in SILENCE on every reopen -- the
+      # record in memory would be right all session and wrong the
+      # moment the project came back. "floor" and "ceiling" joined it
+      # on 2026-08-19 in the same commit that started writing them.
+      # When you widen this record, widen this line: it is the only
+      # place that decides what survives a save.
       for key, value in (stored.get("pinned") or {}).items():
-        if key in ("low", "high"):
+        if key in ("low", "high", "floor", "ceiling"):
           stored_pins[str(key)] = float(value)
         elif key == "breaks" and isinstance(value, (list, tuple)):
           stored_pins["breaks"] = [float(x) for x in value]
@@ -6480,6 +6494,28 @@ class WeavingSpaceDialog(QDialog):
     wanted["breaks"] = [upper for _lower, upper in bounds[:-1]]
     wanted.pop("low", None)
     wanted.pop("high", None)
+    # THE OUTER EDGES ARE ADOPTED TOO, and until 2026-08-19 they were
+    # not. Only the interior boundaries were taken, on the reasoning
+    # -- written into the ledger and wrong -- that a ladder's ends are
+    # the column's extremes by definition, so somebody typing 0 - 10
+    # over a column starting at 3.1 gets (3.1, 10) and "the same areas
+    # in the same class". That is true about which tile takes which
+    # colour and false about what the LEGEND SAYS, and the legend is
+    # what a reader trusts; this project has made exactly that
+    # distinction before, over a constant column drawing five
+    # identical ranges. It was also only ever an argument about the
+    # BOTTOM: the tester typed 80 for the top of a column ending at
+    # 79.1 and got 79.1 back, where nothing is even arguably
+    # unchanged.
+    #
+    # `fitted_breaks` widens outward only, so a floor above the
+    # column's minimum falls back to that minimum rather than
+    # orphaning every value beneath it. Both are recorded here
+    # regardless of which way they will be resolved, because this is
+    # the record of WHAT A PERSON LEFT ON THE LAYER; deciding what is
+    # drawable belongs at the drawing, not at the watching.
+    wanted["floor"] = float(bounds[0][0])
+    wanted["ceiling"] = float(bounds[-1][1])
     source = self._classification_values(field)
     values = (source.uniqueValues(source.fields().indexOf(field))
               if source is not None else [])
@@ -7204,6 +7240,14 @@ class WeavingSpaceDialog(QDialog):
         self._pinned_bounds.get(tile_id, {}).items()):
       if not record.get("breaks"):
         continue
+      # The outer edges go WITH the breaks rather than surviving like
+      # the pins. A floor and a ceiling adopted from a retyped ladder
+      # describe THAT ladder -- they were the ends of a particular set
+      # of boundaries at a particular count -- so a new class count
+      # retires them alongside the boundaries they bounded. A pin is
+      # the smaller and more durable statement and is what survives,
+      # which is this rule's whole shape (settled 2026-08-14, extended
+      # to the ends 2026-08-19).
       kept = {key: value for key, value in record.items()
               if key in ("low", "high")}
       if kept:
@@ -8061,7 +8105,73 @@ class WeavingSpaceDialog(QDialog):
     mode = assignment.get("mode")
     if mode in ("Categorized", "Single colour") or not mode:
       return False
+    # A LIMIT NEEDS THE SPLIT EVEN WHERE THE DATA IS PERFECT, which is
+    # the case this predicate could not see before 2026-08-19. A floor
+    # or a ceiling inside the data excludes ordinary finite values, and
+    # excluded rows go to the paired layer exactly as an absent one
+    # does -- so a column with no NULL and no infinity can still need a
+    # twin, and asking `_column_has_nulls` alone would answer no.
+    #
+    # THIS IS WHY THE PREDICATE, NOT THE SPLIT, IS THE THING TO WIDEN.
+    # It feeds the GEOMETRY SIGNATURE, so answering no here sends a
+    # limit change down `_restyle_only`, which can neither make nor
+    # unmake a paired layer: the exclusion would be recorded, believed
+    # and never drawn. That is the same door the infinities came
+    # through on 2026-08-16, described at length below.
+    if self._limits_exclude_anything(assignment):
+      return True
     return self._column_has_nulls(assignment.get("var"))
+
+  def _limits_exclude_anything(self, assignment):
+    """Whether this element's floor or ceiling puts a value out of bounds.
+
+    Args:
+      assignment: one element's row, read for its variable and its
+        pin record -- the record carries "floor" and "ceiling" when
+        somebody has set them, and neither key when they have not.
+
+    Returns:
+      True when the column holds at least one finite value the limits
+      exclude. False when there are no limits, no column, no region
+      layer to ask, or nothing outside them.
+
+    ASKED OF THE REGION, like every other question about what a column
+    holds, since breaks are cut once from the whole map and an element
+    that receives no tile on the excluded value still shares its
+    ladder. Cached on the column, the limits and `_data_version`,
+    because this sits in the geometry signature and is therefore asked
+    on every debounce tick -- widening a signature into something that
+    rescans the layer is a trap this project has already paid for.
+    """
+    record = assignment.get("pinned") or {}
+    floor, ceiling = record.get("floor"), record.get("ceiling")
+    if floor is None and ceiling is None:
+      return False
+    field = assignment.get("var")
+    if not field:
+      return False
+    layer = self.layer_combo.currentLayer()
+    if layer is None:
+      return False
+    key = (layer.id(), field, self._data_version, floor, ceiling)
+    cached = self._limit_cache.get(key)
+    if cached is not None:
+      return cached
+    index = layer.fields().indexOf(field)
+    if index < 0:
+      self._limit_cache[key] = False
+      return False
+    found = False
+    for feature in layer.getFeatures():
+      # `absence_kind` decides, so this cannot drift from what the
+      # split actually does with the same value -- which is the whole
+      # reason that helper exists.
+      if bridge.absence_kind(feature[field], floor,
+                             ceiling) == bridge.OUTSIDE_RANGE_KEY:
+        found = True
+        break
+    self._limit_cache[key] = found
+    return found
 
   def _column_has_nulls(self, field):
     """Whether the region layer has UNPLACEABLE values in one column.
@@ -10387,8 +10497,17 @@ class WeavingSpaceDialog(QDialog):
       # geometry signature and this line does the splitting, so a run
       # that promised a twin built none. Two doors, one state.
       field_here = a["var"] if self._needs_a_no_data_split(a) else None
+      # THE LIMITS ARE RE-READ HERE, not taken from the snapshot this
+      # run was launched with. Everything the colour editor writes is
+      # re-read at the landing -- the rule that has now been got wrong
+      # three times, over category colours, over class colours and
+      # over pins -- and a floor set while a run was in flight is the
+      # same case wearing new clothes. `_assignments` is asked afresh
+      # above, so `a` already carries the live record.
+      limits = (a.get("pinned") or {}) if field_here else {}
       drawable, absent = bridge.split_out_the_no_data(
-        sub, field_here, column_has_values(field_here))
+        sub, field_here, column_has_values(field_here),
+        limits.get("floor"), limits.get("ceiling"))
       mem = bridge.gdf_to_layer(drawable, display)
       if path:
         # THE FILE IS RECREATED ONLY IF IT DOES NOT EXIST, and that
