@@ -6589,6 +6589,33 @@ class WeavingSpaceDialog(QDialog):
       return
     self._pinned_bounds.setdefault(tile_id, {})[field] = wanted
     self._custom_swatch_cache.pop(tile_id, None)
+    # THE ROW HAS MOVED WITH NO SIGNAL, so record the signature
+    # against it as it now reads. The layer ALREADY WEARS this ladder
+    # -- that is what was just adopted -- so the element has nothing
+    # the dialog needs to impose, and leaving the old signature makes
+    # the next run read it as CHANGED and re-seed the very thing this
+    # followed. The four colour-adoption exits above each do this for
+    # the same reason and say so; this one is the bounds' twin and was
+    # written without it.
+    #
+    # MEASURED 2026-08-19, and it is why a twelve-class classify made
+    # in QGIS's dock came back as the plugin's five. Adopting a
+    # five-class retype put `breaks`, `floor` and `ceiling` into the
+    # record, which is term 14 of the signature; the landing compared
+    # a row carrying them against a signature recorded before they
+    # existed, found them different, and re-seeded over the twelve
+    # classes the user had made in the meantime. Bracketed by
+    # bisecting dialog.py against its last-good copy, then dumping
+    # the mismatching term.
+    #
+    # NOTHING IS REPAINTED HERE, deliberately: with live update off
+    # the map is not refreshed on its own, and what this restores is
+    # only that the landing stops CLOBBERING what a person left on the
+    # layer. (Maintainer's ruling, 2026-08-19: preserve, do not
+    # repaint.)
+    refreshed = self._assignment_for(tile_id)
+    if refreshed is not None:
+      self._last_signatures[tile_id] = self._signature(refreshed)
 
   def _replay_deferred_adoptions(self):
     """Adopt the dock edits that arrived while a run was in flight.

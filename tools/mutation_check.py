@@ -3756,6 +3756,30 @@ MUTATIONS = [
            "the landing; without this the rest conditions throw the "
            "edit away and the next re-seed writes the plugin's own "
            "ladder over what the user typed"),
+  dict(name="an-adopted-ladder-moves-the-row-signature", file=DIALOG,
+       # ANCHORED THROUGH THE NEXT `def`, because the three lines
+       # themselves are the idiom four other adoption exits use and
+       # the bare block matches in four places. What is at stake is
+       # that THIS exit records it: the bounds' twin of the colour
+       # adoptions, written without the line they all carry.
+       old="""    refreshed = self._assignment_for(tile_id)
+    if refreshed is not None:
+      self._last_signatures[tile_id] = self._signature(refreshed)
+
+  def _replay_deferred_adoptions(self):""",
+       new="""    pass  # mutation: leave the signature naming the old row
+
+  def _replay_deferred_adoptions(self):""",
+       test="test_a_dock_reclassification_lands_while_a_run_is_finishing",
+       why="adopting a retyped ladder puts breaks, floor and ceiling "
+           "into the record, which the signature carries -- so without "
+           "this the next landing compares a row holding them against "
+           "a signature recorded before they existed, reads the "
+           "element as CHANGED and re-seeds it. Measured 2026-08-19: a "
+           "twelve-class classify made in QGIS's dock while a run was "
+           "landing came back as the plugin's five, because a "
+           "five-class retype adopted a moment earlier had moved the "
+           "row and told nothing"),
   dict(name="a-limit-narrows-what-is-classified", file=BRIDGE,
        old='      clause += f\' AND "{field}" >= {float(floor):.17g}\'',
        new="      pass  # mutation: classify past the floor",
