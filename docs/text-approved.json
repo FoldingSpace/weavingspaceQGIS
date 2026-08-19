@@ -1199,6 +1199,11 @@
   "excerpt": "Warns when two elements use colours a reader may confuse.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "b50407830e47eb6e": {
+  "approved": "2026-08-19",
+  "excerpt": "The lowest value drawn ({}) leaves too few values above it f",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "b5453e83361a54d5": {
   "approved": "2026-08-16",
   "excerpt": "Trims the pattern to the region outline. The slowest step.",
@@ -1268,6 +1273,11 @@
   "approved": "2026-08-15",
   "excerpt": "The first class must end below where the last class begins.",
   "where": "weavingspace_qgis/bridge.py"
+ },
+ "c4bece54633725fb": {
+  "approved": "2026-08-19",
+  "excerpt": "The highest value drawn ({}) leaves too few values below it ",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "c50be55b73035ed7": {
   "approved": "2026-08-09",
