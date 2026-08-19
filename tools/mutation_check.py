@@ -3776,8 +3776,8 @@ MUTATIONS = [
            "table, the swatch and the editor all say otherwise -- "
            "caught in PIXELS here, against the library's own render"),
   dict(name="a-pin-decides-its-own-break", file=BRIDGE,
-       old="  if pins and copied is None:\n    _apply_pinned_bounds(",
-       new="  if False:\n    _apply_pinned_bounds(",
+       old="  if pins and copied is None:\n    # THE LADDER'S OUTER EDGE",
+       new="  if False:\n    # THE LADDER'S OUTER EDGE",
        test="test_a_pinned_class_bound_reaches_the_map",
        why="a bound set by hand must be the bound the map draws; "
            "without this the samples are filtered out of the "
