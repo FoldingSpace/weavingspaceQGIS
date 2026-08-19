@@ -2638,6 +2638,39 @@ genuinely independent third column and should be added then.
   bullets; `**bold` is a paragraph. Guarding on the bare character
   silently skipped most of a document.
 
+- **A GLOB IS HOW A LOG'S DATE GETS SKIPPED.** (2026-08-19, and the
+  THIRD time this project has read a stale log as current.) The rule
+  already written is that every excerpt from a log must be dated
+  before it is read. What defeats it in practice is
+  `grep reports/stage-logs/*.log`, which sweeps up every run there has
+  ever been: two failures from a stage log three days old were
+  reported as the current candidate's, and the candidate was in fact
+  clean. The run's own logs were sitting beside them under a
+  timestamped name.
+  SO NAME THE RUN, NEVER THE DIRECTORY. This project already keys
+  every log to its run for exactly this reason -- a timestamp and a
+  pid -- and that discipline is worth nothing if the reader globs.
+  When you go looking for a running job's output, build the pattern
+  from the job you started rather than from the folder it writes to,
+  and if you cannot say which run a line came from, you have not read
+  it yet.
+
+- **WHEN TWO THINGS SHOULD DRAW THE SAME MAP, COMPARE WHAT THEY DREW,
+  NOT WHAT THEY LOOK LIKE.** (2026-08-19, comparing the plugin against
+  the library on the maintainer's own data.) The two paint with
+  different colours by construction -- a two-colour matplotlib
+  colormap against seeded QGIS renderers -- so pixels would report a
+  difference that means nothing. Per-element TILE COUNTS mean
+  everything: 70,659 tiles both sides and the same number on every one
+  of twenty-three elements is the same map, and no oracle was needed
+  to say so.
+  AND THE COMPARISON ANSWERED A DIFFERENT QUESTION THAN IT WAS ASKED.
+  The question was how long each takes; the answer was that the plugin
+  would not draw it at all, because the size guard refused. A
+  performance question is worth asking of real data for that reason
+  alone: it drives the whole path at a size no fixture reaches, and
+  what it finds need not be a time.
+
 - **VERIFY AGAINST WHAT SHIPPED, NOT WHAT YOU WROTE.** The second pass
   at those notes was checked by reading the LIVE page back and
   measuring every line, not by inspecting the local file. Where a

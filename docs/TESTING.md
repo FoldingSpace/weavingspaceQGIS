@@ -1778,6 +1778,92 @@ and the confusing part is that both halves are telling the truth about
 different things. Keep the name on one line, and shorten the test's
 name if the line will not fit.
 
+## A FIXTURE BUILT TO EXPLOIT A BUG DIES WHEN THE BUG IS FIXED
+
+2026-08-19, and it is the cheerful version of a red suite. The size
+guard's boundary test stands on nine islands filling 5% of their own
+bounding box, and its own comment says why: the over-estimate that
+shape provoked was "exactly what makes the boundary affordable". When
+the guard stopped measuring a circle round the box, the estimate fell
+about tenfold, the boundary moved some three times finer, and the
+"ordinary" map the test draws at eight times the boundary became fine
+enough that tiles arrive near pixel-size. The gamut check sampled
+mostly antialiased blends and reported dE 25.6 against ramps the map
+was drawing perfectly.
+
+**DO NOT DERIVE A VIEWING PARAMETER FROM A REFUSAL BOUNDARY.** That is
+the transferable part. A spacing chosen to be legible and a spacing
+chosen to sit on a cap are answers to unrelated questions, and tying
+one to the other made a VISUAL check hostage to an ARITHMETIC change
+somewhere else entirely. The repair takes the viewing spacing from the
+dialog's own auto-fit -- legible by construction, and what a user
+meets on opening the layer -- and asserts it is coarser than the
+boundary, so "well inside the cap" cannot pass by accident.
+
+The general question to ask of any fixture: **what is it exploiting?**
+Where the answer is a behaviour somebody might one day improve, say so
+at the fixture, so the next person meets an explanation rather than a
+mystery.
+
+## When ONE notice becomes TWO, every test that filters on its wording
+## needs to know which
+
+Also 2026-08-19. Icon mode was given its own coverage sentence, on the
+ruling that "appear nowhere on the map" is FALSE of an area that has an
+icon drawn from its neighbour. An older test looked for the tiling
+wording in BOTH modes, found no notice in icon mode, read the count as
+zero, and reported six areas unaccounted for -- a failure that
+described nothing.
+
+This suite already knows to compose an expected sentence from the
+function the product uses rather than transcribing it. What today adds
+is that the function may now be a CHOICE of functions: the filter has
+to pick the same one the product picked, from the same condition. Where
+a message splits by mode, by platform or by data shape, a test that
+knows only one of them is a test that has quietly stopped covering the
+other.
+
+## The whole suite is where a core-path change gets verified, and the
+## numbers from today say why
+
+Two changes landed on paths nearly everything runs through -- the value
+cache every element's digest routes through, and the size estimate that
+gates every Generate and every live update. Each was proved by its own
+new guard, its catalogue entries and a handful of neighbouring tests:
+perhaps a dozen tests apiece, all green.
+
+The full suite then found two reds, neither of them reachable from any
+test aimed at either change, and neither a defect in the plugin: both
+were FIXTURES the changes had moved out from under. They had been red
+for several commits and nobody knew, because the suite had not been run
+since that morning.
+
+The rule this project already has -- verify a change to a core path
+with the whole suite, and accept that the candidate is where that
+happens -- is unchanged. What today supplies is the ratio: a dozen
+targeted tests apiece, zero of the actual breakage found.
+
+## MEASURE EVERY CANDIDATE FORMULA, ON MORE THAN ONE SHAPE
+
+The size guard needed a new way to estimate covered ground, and the
+first one written was measured 2% UNDER within the hour by the guard
+written beside it. Four models were then compared against what the
+library really draws, on two shapes chosen because a region is not one
+thing -- adjacent cells cut from a raster share edges needing no
+allowance, separated cells each carry their own:
+
+    model                     adjacent cells   separated cells
+    bounding-box edge              1.20x           0.98x  UNDER
+    each polygon's perimeter       6.25x           2.38x
+    dissolved boundary             1.28x           1.68x
+
+Only the third is generous on both. Any ONE of those rows, taken alone,
+would have justified a different answer -- and the first row is exactly
+what a single dense fixture would have shown. When an estimate stands
+on the shape of its input, the sweep crosses shapes or it proves
+nothing, which is the same argument this file already makes about
+magnitude.
+
 ## When an instrument disagrees with a hand-run, believe the hand-run
 
 2026-08-19. A guard proved VACUOUS by hand -- it drove a path the
