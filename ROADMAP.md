@@ -157,25 +157,33 @@ two elements share a column, one element's notice silenced the other.
 
 ### Outstanding
 
-**FINISH THE FLOORS AND CEILINGS.** No branch: it is all on
-`pre-0.24.3rc1`. `for-0.24.3/unclassed-edges` MERGED once its stated
-criteria were met -- the heavy-outline convention exists, and the
-three Unclassed guards were restated against it rather than deleted.
+**THE FLOORS AND CEILINGS ARE IN, AND SO ARE THEIR GUARDS.** The
+record, the arithmetic, the exclusion, the fourth kind of absence, the
+editor's four live boxes, the heavy outline, the clearing cross, the
+retired Pin column and the sampled matrix all landed, each with a
+registered test. Eighteen defects were found and closed across
+2026-08-19 alone, twelve of them by hunts aimed at this feature and at
+the seam where QGIS's own styling meets it; the record is
+`docs/process/defects-2026-08-19.md`, which is the thing to read
+rather than this paragraph.
 
-The record, the arithmetic, the exclusion, the fourth kind of absence,
-the editor's four live boxes and the outline are in and proved. WHAT
-IS STILL OWED:
+WHAT THIS VERSION STILL OWES, and it is short:
 
-Retiring the Pin column for the CLASSED styles, which Unclassed has
-already lost. A clear mark inside a cell that gives a bound back,
-beside typing the computed number back, which works. A SAMPLED MATRIX
-over the whole feature -- routes crossed with synthetic shapes chosen
-for failure modes, crossed with what happens next, a spine run every
-time and the rest sampled under a printed seed, per docs/TESTING.md --
-rather than a pile of single cases. A catalogue entry per behaviour,
-each watched CAUGHT. And the user guide, the help text and the
-changelog, which was approved for a much smaller release and needs
-re-reading against the whole diff rather than amending.
+**ONE SENTENCE AWAITING REVIEW.** The refusal at the door for a limit
+that would leave a pinned bound undrawable -- the other half of the
+maintainer's ruling of 2026-08-19, whose first half (retiring such a
+pin, with the reason said, on records that already hold one) is in.
+The code is written; two sentences sit in `docs/TEXT-REVIEW.md`.
+
+**A FULL SUITE THAT HAS SEEN ALL OF IT.** Fourteen fixes and eight
+guards have landed since the last complete run; the run started at
+`c2fb32e` was stopped unfinished for time.
+
+**FOUR CATALOGUE ENTRIES ARE UNJUDGEABLE**, which is honest reporting
+rather than a gap in the software: their tests pass on this machine
+and cannot pass inside the mutation sandbox. Row 18 carries the
+measurement and the first thing to eliminate, which is a disk at 99%
+with 589 MB of abandoned sandbox copies on it.
 
 **COPY TO: ALLOW SELECTION OF MULTIPLE TARGETS.** Asked for by the
 maintainer, 2026-08-19. "Copy to..." names one receiving element at a
@@ -236,6 +244,29 @@ Lower and Upper columns, offset by about a row, on scrolling.
 ## 0.24.4 — after this one
 
 ### Wanted
+
+**JUDGE THE QGIS 4.2.0 LAYER-TREE CRASH.** Deferred out of 0.24.3 by
+the maintainer on 2026-08-19; the evidence is row 5 of
+`docs/process/defects-2026-08-19.md`. A macOS crash report has QGIS
+4.2.0 dying on a right-click in the Layers panel with `EXC_BAD_ACCESS`
+reading address 0x8, and NO plugin frame anywhere in the stack -- no
+Python, nothing of ours, only QGIS's layer-tree view and Qt's Cocoa
+window code. Checked rather than assumed: nothing in the package
+references `contextMenu`, `layerTreeView` or `addCustomActionForLayer`,
+so the plugin contributes no action to that menu and cannot be
+building the QMenu that crashed.
+
+WHAT WOULD CHANGE THAT VERDICT, since "no frame" is evidence rather
+than proof, and all three need a person at a real QGIS session rather
+than a headless run -- which is why this is not candidate work: does
+it reproduce with the plugin uninstalled, on the same project; does it
+reproduce right-clicking a layer the plugin did NOT create; and does
+it happen only after the plugin has removed or replaced a group, which
+is when a layer-tree node could be stale.
+
+VERSION WORTH NOTING: 4.2.0, which nothing in CI covers -- the matrix
+runs 4.0.0, 4.0.3 and stable. The neighbouring 4.2.1 has segfaulted on
+this project once before, reading a GeoPackage.
 
 **TAKE THE UPSTREAM LIBRARY FROM 0.0.7.61 TO 0.0.7.89.** Checked
 2026-08-18 under the standing rule that upstream is compared before

@@ -8606,6 +8606,36 @@ class WeavingSpaceDialog(QDialog):
       return (f"The highest value drawn ({float(ceiling):g}) is at or "
               f"below the last class boundary ({max(inner):g}), which "
               f"would leave that class with nothing to hold.")
+    # ...AND THE PIN JUDGED AGAINST THE POOL THE LIMITS LEAVE, which
+    # is the other half of the maintainer's ruling of 2026-08-19: a
+    # pin is judged against the values the map is actually cut from,
+    # never the whole column, and the refusal belongs at the door.
+    # `_retire_an_undrawable_pin` carries the same question for records
+    # that already hold an undrawable pair; this stops new ones being
+    # made. Without it a floor of 38 under a pin at 40 was accepted by
+    # both guards and then dropped in silence inside `bridge`, leaving
+    # the record, the layer stamp and the saved project all claiming a
+    # pin the map does not draw.
+    low, high = record.get("low"), record.get("high")
+    field = (assignment or {}).get("var")
+    if (low is not None or high is not None) and field:
+      source = self._classification_values(field)
+      if source is not None:
+        values = source.uniqueValues(source.fields().indexOf(field))
+        left = [v for v in values
+                if bridge.absence_kind(v, floor, ceiling)
+                != bridge.OUTSIDE_RANGE_KEY]
+        asked = int((assignment or {}).get("k", 5) or 5)
+        if bridge.pin_problem(low, high, left, asked,
+                              record.get("breaks")):
+          pinned_at = low if low is not None else high
+          if floor is not None:
+            return (f"The lowest value drawn ({float(floor):g}) leaves "
+                    f"too few values above it for the class bound you "
+                    f"pinned at {float(pinned_at):g} to be drawn.")
+          return (f"The highest value drawn ({float(ceiling):g}) leaves "
+                  f"too few values below it for the class bound you "
+                  f"pinned at {float(pinned_at):g} to be drawn.")
     return None
 
   def _limits_exclude_anything(self, assignment):
