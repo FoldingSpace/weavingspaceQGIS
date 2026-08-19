@@ -1743,6 +1743,41 @@ landing is still being reconciled. During any of those the record and
 the layer are transiently out of step, and what sits on the layer is
 nobody's decision.
 
+## Two jobs that MUTATE one file must never run at once
+
+2026-08-19, and it is the tree-lock rule reaching further than it was
+written. This project already knows that background work locks the
+tree, and that rule was written about a READER meeting a writer: a
+suite or a sweep reading source while somebody edits it, which spoiled
+two measurements in one night. It is also about two WRITERS meeting
+each other, and that is worse, because both look like they worked.
+
+The shape here: a "prove it red" run and a per-assertion hunt each
+copy `dialog.py`, mutate it, run, and copy the file back. Launched
+together, the hunt took the OTHER job's already-mutated file as its
+"intact" copy, ran three probes against a tree neither of them meant,
+restored the mutation, and reported three verdicts in the usual
+format. Only its own `git diff --quiet` check, which said RESTORE
+FAILED, said anything was wrong.
+
+Two habits. Run mutating jobs SEQUENTIALLY, in one chain, however
+tempting the parallelism -- they are measurements beside measurements,
+which this project already forbids for census and suite. And have
+every such job assert its restoration, because that assertion is the
+only thing that distinguishes a collision from a clean run: the
+verdicts themselves are perfectly well-formed either way.
+
+## A catalogue entry's test name must be ONE string literal
+
+`tools/mutation_check.py` entries are read by `check_standards` with
+`ast`, which takes the first literal of an implicit concatenation. A
+name split for line length therefore concatenates correctly at RUN
+time -- so the entry proves `caught` and looks healthy -- while the
+standards check reports a test that does not exist. Found 2026-08-19,
+and the confusing part is that both halves are telling the truth about
+different things. Keep the name on one line, and shorten the test's
+name if the line will not fit.
+
 ## When an instrument disagrees with a hand-run, believe the hand-run
 
 2026-08-19. A guard proved VACUOUS by hand -- it drove a path the

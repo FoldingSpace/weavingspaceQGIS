@@ -577,7 +577,26 @@ So source the environment first, which exports `QGIS_PY`:
     env -u PYTHONHOME -u PYTHONPATH python3 tools/mutation_check.py --only <name>
 
 The tool now REFUSES to judge anything when the interpreter it would
-use cannot import qgis, and names the command above. It also runs each
+use cannot import qgis, and names the command above.
+
+THAT REFUSAL FIRED EVERY TIME FOR A DAY, and the reason is the same
+trap wearing the other face. `env -u PYTHONHOME` is right for the
+MODULE and fatal for the CHILD: the macOS cask's interpreter carries
+the paths of the machine it was built on and cannot start without a
+PYTHONHOME, so the guard's own probe -- inheriting the stripped
+environment -- reported that QGIS_PY had no QGIS when nobody had told
+it where its standard library lives. Found 2026-08-19 by meeting the
+refusal on a machine where the tests demonstrably ran.
+So `tools/macos_qgis_env.sh` exports the value TWICE, once as
+PYTHONHOME for whoever sources it and once as QGIS_PYTHONHOME for
+whoever must strip the first and hand it to a child, and
+`mutation_check.child_environment` puts it back for the probe and for
+every test it launches. A copy under a second name is not tidiness; it
+is the only thing that survives `env -u`.
+ASK OF ANY GUARD YOU ADD what it does when the thing it checks is
+fine and the CHECK is broken. This one could only refuse, which is
+the mirror of the fault it was written to fix -- that one could only
+confirm. It also runs each
 test unmutated once, cached per test name, and reports UNJUDGEABLE
 rather than a kill it cannot justify -- so an entry whose test cannot
 pass in that harness is never counted as a guard.

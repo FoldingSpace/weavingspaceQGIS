@@ -3,7 +3,7 @@ name: long-job-supervision
 description: Supervise work that outlasts a single turn — test suites, builds, training runs, migrations, batch jobs — so the machine stays busy, finished work gets picked up immediately, and a stuck job is caught in minutes rather than hours. Use this whenever you start something long in the background, whenever a user asks for periodic status updates or says "keep going without me", whenever you are about to write a watcher or poll loop, and whenever a job seems to be taking longer than it should. Also use it before reporting that something is "still running" — that claim is worth exactly as much as the reading behind it.
 derived_from:
   - path: docs/MUTATION-LOOP.md
-    sha256: a6fc64cf1654ce9fdf6c923f47c433218c16bb098fc521e5dd1491a598ef7217
+    sha256: b184b68dae09873f4bde0f615bcf4b9835723408fb8392e253d45bf673a334aa
 ---
 
 # Supervising work that outlasts a turn
@@ -61,6 +61,24 @@ catch yourself writing the sixth, that is the signal.
 The two failures are mirror images — one goes silent forever, the
 other repeats itself endlessly — and both leave you unable to tell
 what is happening now.
+
+## Two jobs that MUTATE one file must never run at once
+
+The tree-lock rule in this skill is written about a READER meeting a
+writer -- a suite or a sweep reading source while somebody edits it.
+2026-08-19 supplied the other case, and it is worse: two WRITERS
+meeting each other, because both look like they worked.
+
+A "prove it red" run and a per-assertion hunt each copied one source
+file, mutated it, ran, and copied it back. Launched together, the
+second took the first's already-mutated file as its "intact" copy, ran
+three probes against a tree neither meant, restored the mutation, and
+printed three well-formed verdicts. Only its own restoration check
+noticed.
+
+So: sequence mutating jobs, never parallelise them, and make every one
+of them ASSERT that it put the file back -- that assertion is the only
+thing that tells a collision from a clean run.
 
 ## Diagnosing a suspected stall
 
