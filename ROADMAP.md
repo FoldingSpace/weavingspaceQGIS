@@ -169,21 +169,16 @@ rather than this paragraph.
 
 WHAT THIS VERSION STILL OWES, and it is short:
 
-**ONE SENTENCE AWAITING REVIEW.** The refusal at the door for a limit
-that would leave a pinned bound undrawable -- the other half of the
-maintainer's ruling of 2026-08-19, whose first half (retiring such a
-pin, with the reason said, on records that already hold one) is in.
-The code is written; two sentences sit in `docs/TEXT-REVIEW.md`.
+ALL THREE THINGS THIS SECTION LISTED AS OWED ARE SETTLED. The sentence
+awaiting review is approved, along with twelve others; the four
+catalogue entries that read UNJUDGEABLE were re-judged under a
+corrected tool and all seventeen of the day's entries came back caught;
+and a standalone full suite is not owed at all, since `release.py --rc`
+runs it as its fourth gate and running it first buys no earlier warning.
 
-**A FULL SUITE THAT HAS SEEN ALL OF IT.** Fourteen fixes and eight
-guards have landed since the last complete run; the run started at
-`c2fb32e` was stopped unfinished for time.
-
-**FOUR CATALOGUE ENTRIES ARE UNJUDGEABLE**, which is honest reporting
-rather than a gap in the software: their tests pass on this machine
-and cannot pass inside the mutation sandbox. Row 18 carries the
-measurement and the first thing to eliminate, which is a disk at 99%
-with 589 MB of abandoned sandbox copies on it.
+WHAT REMAINS UNDER 0.24.3 IS ONE DECISION, below, and it is the
+maintainer's: build Copy-to-several-targets for this version, or move
+it to 0.24.4. Nothing else here is outstanding in code.
 
 **COPY TO: ALLOW SELECTION OF MULTIPLE TARGETS.** Asked for by the
 maintainer, 2026-08-19. "Copy to..." names one receiving element at a
@@ -199,13 +194,12 @@ already checks each pin flag against the RECEIVING column and leaves
 behind what that column cannot reach. A partial success reported as a
 success is the shape this project keeps meeting.
 
-**TWO THINGS REPORTED AGAINST rc9 AND NOT YET REPRODUCED**, both in
-`docs/process/defects-2026-08-19.md` with what to establish first: the
-tile-as-icon count check refusing a design that is fine, and
-twenty-three elements being extremely slow to work with. Neither is
-guessed at in that file, deliberately -- the second in particular has
-a precedent (306,558 swatch draws in one test) that would be very easy
-to assume and wrong to assume.
+**THE TWO rc9 REPORTS ARE SETTLED FOR THIS VERSION.** The tile-as-icon
+count check is row 3 of `docs/process/defects-2026-08-19.md` and is
+CLOSED with a test and a proved entry: both size gates asked the tiling
+estimator about a mode that puts one unit on each area. The slowness is
+row 4, and the maintainer's instruction is that it is NOT profiled
+until the next release, measuring call COUNTS rather than seconds.
 
 ### What this version has already closed
 
