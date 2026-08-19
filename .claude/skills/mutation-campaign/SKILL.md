@@ -3,7 +3,7 @@ name: mutation-campaign
 description: Run a mutation-testing campaign to measure and genuinely improve how good a test suite is — sampling mutants, triaging survivors, verifying that new tests actually fail, and deciding when a score can be defended. Use this whenever the user wants to know whether their tests are any good, asks about mutation testing or mutation score, says coverage looks high but they don't trust it, wants to raise a mutation score toward a target, or is writing tests to close gaps that a mutation tool found. Also use it when someone proposes to accept a surviving mutant as "equivalent", or asks how many mutants they need to sample — both are places where a campaign quietly turns into a vanity metric.
 derived_from:
   - path: docs/MUTATION-LOOP.md
-    sha256: 4bed1e0e2ba1e5b494fd1c7b15a871d0fef218ac2b4bb0025174281f6579c446
+    sha256: a6fc64cf1654ce9fdf6c923f47c433218c16bb098fc521e5dd1491a598ef7217
   - path: docs/MUTATION-TESTING.md
     sha256: 8db7b4333e61191cce6cc58c331dd6e6c6019c75bc08db61d68667341a7a693e
 ---
@@ -321,3 +321,28 @@ concurrently, each worker with its own copy and its own process:
 measured, six mutants took thirteen minutes serially and seven with
 three workers, with identical verdicts, though per-mutant times
 inflate 15–50% under contention.
+
+## Before any batch: prove the interpreter, not just the harness
+
+Source the QGIS environment first, so `QGIS_PY` is exported, and run
+the tools with `env -u PYTHONHOME -u PYTHONPATH python3`:
+
+    eval "$(bash tools/macos_qgis_env.sh 2>/dev/null \
+            | grep -E '^[A-Z_]+=' | sed 's/^/export /')"
+    export QT_QPA_PLATFORM=offscreen
+
+BOTH HALVES MATTER AND THEY PULL AGAINST EACH OTHER. The module must
+not inherit `PYTHONHOME`, or it dies at bootstrap. The TESTS it
+launches must run under QGIS's own Python, or they die at `import
+qgis.core`. Until 2026-08-19 `mutation_check` launched them with
+`sys.executable` and got the second wrong: every test failed at its
+first import, and a test that fails is scored `caught`, so the
+catalogue reported success for seventeen entries in a row -- including
+one whose test was later proved unable to fail by construction.
+
+It refuses to judge anything now when the interpreter cannot import
+qgis, and it runs each test unmutated once before believing a failure.
+Neither is a substitute for the habit: A CAMPAIGN'S FIRST BATCH IS A
+CONTROL. Run `--control` and confirm the harness reports something
+OTHER than success before spending a night on verdicts.
+

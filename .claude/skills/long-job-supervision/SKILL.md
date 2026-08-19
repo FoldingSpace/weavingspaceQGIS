@@ -3,7 +3,7 @@ name: long-job-supervision
 description: Supervise work that outlasts a single turn — test suites, builds, training runs, migrations, batch jobs — so the machine stays busy, finished work gets picked up immediately, and a stuck job is caught in minutes rather than hours. Use this whenever you start something long in the background, whenever a user asks for periodic status updates or says "keep going without me", whenever you are about to write a watcher or poll loop, and whenever a job seems to be taking longer than it should. Also use it before reporting that something is "still running" — that claim is worth exactly as much as the reading behind it.
 derived_from:
   - path: docs/MUTATION-LOOP.md
-    sha256: 4bed1e0e2ba1e5b494fd1c7b15a871d0fef218ac2b4bb0025174281f6579c446
+    sha256: a6fc64cf1654ce9fdf6c923f47c433218c16bb098fc521e5dd1491a598ef7217
 ---
 
 # Supervising work that outlasts a turn
@@ -368,3 +368,19 @@ directory, and whatever resource genuinely constrains your machine
 scarcity before you throttle on it). The rules — wait on the process, report
 change not state, CPU versus elapsed, fresh readings, chain the next
 stage — carry over unchanged.
+
+## Ask what the job reports when it cannot start at all
+
+A watcher catches a job that stops. It will not catch a job that runs
+to completion doing nothing, and that is the harder failure: on
+2026-08-19 a mutation catalogue judged seventeen entries with an
+interpreter that had no QGIS in it, so every test died at its first
+import and every entry was scored as a kill. Nothing stalled, nothing
+was silent, and every heartbeat looked healthy.
+
+So before leaving a long job alone, ask what it would PRINT if the
+thing it drives could not start. If that is indistinguishable from
+success, the supervision is fine and the job is worthless -- fix the
+job to refuse, or give it a control run whose expected answer is not
+success.
+
