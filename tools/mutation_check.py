@@ -3744,9 +3744,13 @@ MUTATIONS = [
            "element with no classes at all -- measured on a column of "
            "about 1e9 retyped to 0-80, five classes down to none"),
   dict(name="a-dock-edit-under-a-run-is-replayed", file=DIALOG,
-       old="      self._adoption_deferred[tile_id] = (\n"
-           "        dict(assignment), list(bounds), list(colours))",
-       new="      pass  # mutation: drop the edit instead of keeping it",
+       # RE-ANCHORED 2026-08-19: the capture gained a count guard, so
+       # only a genuine retype is deferred and a reclassification --
+       # which adoption refuses anyway -- is left to the signature
+       # rule that already preserves it.
+       old="        self._adoption_deferred[tile_id] = (\n"
+           "          dict(assignment), list(bounds), list(colours))",
+       new="        pass  # mutation: drop the edit instead of keeping it",
        test="test_a_qgis_symbology_edit_reaches_the_plugin_on_every_shape",
        why="a boundary retyped while a run is finishing must survive "
            "the landing; without this the rest conditions throw the "
