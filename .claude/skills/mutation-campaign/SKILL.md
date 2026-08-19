@@ -3,7 +3,7 @@ name: mutation-campaign
 description: Run a mutation-testing campaign to measure and genuinely improve how good a test suite is — sampling mutants, triaging survivors, verifying that new tests actually fail, and deciding when a score can be defended. Use this whenever the user wants to know whether their tests are any good, asks about mutation testing or mutation score, says coverage looks high but they don't trust it, wants to raise a mutation score toward a target, or is writing tests to close gaps that a mutation tool found. Also use it when someone proposes to accept a surviving mutant as "equivalent", or asks how many mutants they need to sample — both are places where a campaign quietly turns into a vanity metric.
 derived_from:
   - path: docs/MUTATION-LOOP.md
-    sha256: b184b68dae09873f4bde0f615bcf4b9835723408fb8392e253d45bf673a334aa
+    sha256: ddb93342723314717541d9319f9e216139b6b12e5ca29873c2fb4d058f7c9163
   - path: docs/MUTATION-TESTING.md
     sha256: 8db7b4333e61191cce6cc58c331dd6e6c6019c75bc08db61d68667341a7a693e
 ---
@@ -353,6 +353,17 @@ time as `QGIS_PYTHONHOME`, and `mutation_check.child_environment` puts
 it back for the probe and for every test launched. If you meet a
 REFUSAL on a machine where the tests demonstrably run, that is where
 to look.
+
+AND THE REMOTE WORKFLOW RUNS ON EVERY PRE-CANDIDATE PUSH, whatever
+three comments used to say. Its INCREMENTAL job is triggered by a
+`pre-*` push on purpose (2026-08-16), so a branch pushed for a
+candidate produces TWO GitHub runs: `tests`, which is the gate, and
+`mutation`, which is a work list. A watcher taking the newest run on
+the branch reads whichever finished first and will happily report the
+mutation run's red as the candidate's -- which happened on 2026-08-19.
+READ THE WORKFLOW NAME beside any conclusion before saying what
+failed, and remember that mutation red means "write some tests this
+week" rather than "the candidate is blocked".
 
 It refuses to judge anything now when the interpreter cannot import
 qgis, and it runs each test unmutated once before believing a failure.

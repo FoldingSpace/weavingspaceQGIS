@@ -154,10 +154,29 @@ the ref.
 Three properties of that workflow are deliberate and should not be
 tidied away.
 
-**It is a separate workflow, and it never runs on push.** These runs
+**It is a separate workflow, and its status is its own.** These runs
 answer "how good is the suite" and "has a refactor stopped an old
 test reaching what it names". Neither should colour a candidate's
 status, and neither should make anybody wait.
+
+THIS PARAGRAPH SAID "IT NEVER RUNS ON PUSH" UNTIL 2026-08-19, and that
+had been false since 2026-08-16, when the INCREMENTAL instrument was
+deliberately triggered on every `pre-*` push -- the question "would the
+suite have noticed what just changed" being worth asking of fresh work
+every time. The workflow's own header comment carried the same false
+sentence, fifteen lines above the trigger contradicting it.
+IT WAS FOUND THE WAY THESE THINGS ARE. A pre-candidate push produced a
+mutation run nobody expected; a watcher took the NEWEST run on the
+branch and reported its verdict as the candidate's; and asking GitHub
+directly showed TWO runs where the documents predicted one.
+WHAT DOES NOT CHANGE is everything the separation is for: the steps
+carry `continue-on-error`, the incremental guard is asked WITHOUT
+`--require`, nothing in the release path reads it, and a red here means
+"write some tests this week". SO A MUTATION RUN GOING RED ON A
+PRE-CANDIDATE PUSH IS NOT A BLOCKED CANDIDATE -- and anybody watching a
+branch must read the WORKFLOW NAME beside the conclusion before saying
+what failed. A watcher taking `--limit 1` reads whichever workflow
+finished last, which on a `pre-*` branch is the wrong one by design.
 
 **It REPORTS rather than gates.** The steps carry
 `continue-on-error`, and the incremental guard is asked WITHOUT

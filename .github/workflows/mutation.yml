@@ -9,8 +9,14 @@
 # the catalogue sweep is hours even sharded -- so it cannot share a
 # job with anything anybody waits for.
 #
-# Nothing here runs on push. It runs when somebody asks, which in
-# practice means a watcher on the maintainer's machine dispatching it
+# IT RUNS ON EVERY PRE-CANDIDATE PUSH, and on demand. The `on:` block
+# below says so and has since 2026-08-16; this comment said "nothing
+# here runs on push" until 2026-08-19, fifteen lines above the trigger
+# that contradicted it -- found when a pre-candidate push produced a
+# mutation run nobody expected. A file that argues with itself is read
+# from whichever end the reader started, so the header now agrees with
+# the trigger.
+# On demand means a watcher on the maintainer's machine dispatching it
 # and reporting back (docs/MUTATION-LOOP.md).
 #
 # Read the results as findings for the NEXT release, not as a verdict
@@ -291,7 +297,14 @@ jobs:
   # and "we found out".
   #
   # Either way it stays here rather than moving to tests.yml unless the
-  # experiment settles it, and it never runs on push.
+  # experiment settles it. THIS SAID "and it never runs on push" until
+  # 2026-08-19, which was the third copy of a sentence the `on:` block
+  # at the top of this file has contradicted since 2026-08-16: the
+  # INCREMENTAL job is triggered on every `pre-*` push deliberately.
+  # The GALLERY job below is dispatch-only, which is what this
+  # paragraph was really about, and saying it of the whole workflow is
+  # how one true statement about one job became a false one about all
+  # of them.
   # A CENSUS of one cost stratum, which is the piece of ground nobody
   # has ever measured. As of 2026-08-13 the pool holds 1,488 mutants a
   # test could notice; the census of 2026-08-12 ran the 316 covered by
