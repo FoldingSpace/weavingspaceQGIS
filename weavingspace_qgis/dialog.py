@@ -4863,7 +4863,29 @@ class WeavingSpaceDialog(QDialog):
     tile_id = str(assignment.get("id") or "")
     record = self._pinned_bounds.get(tile_id, {}).get(field) or {}
     low, high = record.get("low"), record.get("high")
-    if low is None and high is None:
+    # THE EDGES ARE ASKED TOO, and until 2026-08-19 they were not:
+    # this returned here whenever `low` and `high` were both absent,
+    # which is EXACTLY the record an adopted ladder writes -- `breaks`,
+    # `floor` and `ceiling`, and neither pin. So pin flags had a
+    # data-moved guard and edge values had none.
+    #
+    # WHAT THAT COST, measured that day by two hunts independently,
+    # one of them reading the exported GeoPackage with sqlite3: retype
+    # a ladder in QGIS's panel, then edit that column's values or
+    # point the plugin at a layer of another magnitude, and every area
+    # moved onto the paired layer as "outside the range". The element
+    # drew nothing, flat khaki, in silence; Generate could not heal it
+    # and the colour editor then refused to open, so no control named
+    # the ceiling doing it.
+    #
+    # A CHECK THAT RUNS ONCE AT THE MOMENT A RECORD IS WRITTEN IS NOT
+    # A GUARD ON THAT RECORD. `_adopt_dock_bounds` asks whether
+    # anything survives the limits, and asks it once. This is the site
+    # every caller already uses for "the data moved under this
+    # record", so the same question belongs here, re-asked.
+    limits = (record.get("floor") is not None
+              or record.get("ceiling") is not None)
+    if low is None and high is None and not limits:
       return None
     # THE LIVE CLASS COUNT, NEVER THE ONE THIS RUN WAS LAUNCHED WITH.
     # Two of the three callers hand in the LAUNCH SNAPSHOT, so a user
@@ -4913,6 +4935,27 @@ class WeavingSpaceDialog(QDialog):
     # SAME QUESTION. Retirement is for a pin the DATA MOVED OUT FROM
     # UNDER -- a column retyped or a layer swapped -- and a copy that
     # was legal when it was made has not had that happen to it.
+    # THE LIMITS FIRST, and BEFORE the copied-ladder carve-out below:
+    # an adopted ladder carries `breaks` and is exempt from having its
+    # PINS judged against this column, which is right and is not what
+    # this asks. Limits that exclude every value are not a claim about
+    # a ladder; they are a pair of numbers the data has moved out from
+    # under, and what they leave behind is an element that draws
+    # nothing at all.
+    if limits and not any(
+        bridge.absence_kind(value, record.get("floor"),
+                            record.get("ceiling"))
+        != bridge.OUTSIDE_RANGE_KEY
+        for value in values if not bridge.cannot_be_placed(value)):
+      record.pop("floor", None)
+      record.pop("ceiling", None)
+      if not record:
+        self._pinned_bounds.get(tile_id, {}).pop(field, None)
+      self._custom_swatch_cache.pop(tile_id, None)
+      return (f"The limits you set on '{field}' leave none of the "
+              f"values it holds now, so they have been dropped.")
+    if low is None and high is None:
+      return None
     if record.get("breaks"):
       return None
     asked = int(assignment.get("k", 5) or 5)
@@ -6374,6 +6417,23 @@ class WeavingSpaceDialog(QDialog):
         # style's definition, and a categorized renderer's category
         # count, which is a property of the data.
         self._class_counts[tile_id] = int(count)
+        # ...AND THE COPIED LADDER IS RELEASED, exactly as both table
+        # doors into this record do. A copy DEGRADES TO ITS PINS when
+        # the class count changes -- that is the settled rule, and it
+        # was enforced only at the doors a user opens inside the
+        # plugin. This is the door QGIS opens, added 2026-08-17
+        # without it, so a count set in the Symbology panel was
+        # accepted, announced ("classes to 8"), and then silently
+        # undone: `make_graduated_renderer` short-circuits on
+        # `pinned["breaks"]`, so the element went on drawing the five
+        # classes "Copy to..." had given it while the spinner read
+        # eight. Measured 2026-08-19 in rendered pixels, against a
+        # hand-pinned element beside it that survived the same edit.
+        #
+        # A RULE ENFORCED ONLY AT THE DOORS A USER OPENS INSIDE THE
+        # PLUGIN IS UNENFORCED AT THE DOOR QGIS OPENS. Grep every
+        # writer of the value a rule keys on, not only the handlers.
+        self._release_copied_breaks(tile_id, "a new class count")
         moved.append(f"classes to {count}")
 
     # ---- the RAMP, where QGIS's own ramp answers to a name we offer
@@ -6544,8 +6604,31 @@ class WeavingSpaceDialog(QDialog):
       return  # the ladder we drew; nothing was retyped
     wanted = dict(self._pinned_bounds.get(tile_id, {}).get(field) or {})
     wanted["breaks"] = [upper for _lower, upper in bounds[:-1]]
-    wanted.pop("low", None)
-    wanted.pop("high", None)
+    # A PIN THE ADOPTED LADDER STILL CARRIES IS KEPT, and until
+    # 2026-08-19 both were dropped unconditionally. `low` and `high`
+    # name boundaries BETWEEN classes, and adopting a ladder that
+    # happens to run through one of them says nothing about whether
+    # the person still means it: retyping some OTHER boundary in
+    # QGIS's panel left the pinned one exactly where it was and
+    # demoted it anyway. Nothing was said, and the harm arrived at the
+    # next thing the user did -- `_release_copied_breaks` keeps only
+    # `low`/`high`, so a class-count change then had nothing left to
+    # degrade to, wiped the record, and told them their classes "had
+    # been copied from another element", which had never happened.
+    #
+    # COMPARED AT THE BOX'S DISPLAYED PRECISION, for the reason the
+    # give-a-bound-back route already uses it: an edge of 3.0999999
+    # can never be matched exactly, and a rule nobody can satisfy is
+    # the same as no rule. Measured 2026-08-19, found by a hunt
+    # pointed at a pinned bound meeting each QGIS-side edit in turn.
+    edges = [round(float(upper), 6) for _lower, upper in bounds[:-1]]
+    for end in ("low", "high"):
+      here = wanted.get(end)
+      if here is None:
+        continue
+      if not any(abs(round(float(here), 6) - edge) < 1e-6
+                 for edge in edges):
+        wanted.pop(end, None)
     # THE OUTER EDGES ARE ADOPTED TOO, and until 2026-08-19 they were
     # not. Only the interior boundaries were taken, on the reasoning
     # -- written into the ledger and wrong -- that a ladder's ends are

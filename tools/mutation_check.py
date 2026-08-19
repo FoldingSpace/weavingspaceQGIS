@@ -3354,9 +3354,11 @@ MUTATIONS = [
            "followed, which is the damaging half of the same report"),
   dict(name="a-followed-count-reaches-the-record-too",
        file="weavingspace_qgis/dialog.py",
-       old="        self._class_counts[tile_id] = int(count)\n"
-           "        moved.append(f\"classes to {count}\")",
-       new="        moved.append(f\"classes to {count}\")",
+       # RE-ANCHORED 2026-08-19: the release of a copied ladder went in
+       # between these two lines, so the pair no longer sits together.
+       # Anchored on the WRITE alone, which is what this proves.
+       old="        self._class_counts[tile_id] = int(count)",
+       new="        pass  # mutation: write the spinner and not the record",
        test="test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis",
        why="`_refresh_table` rebuilds a row's class count from "
            "`_class_counts` before the previous assignment, so writing "
@@ -3822,6 +3824,55 @@ MUTATIONS = [
            "limited alike to 0-12 drew 0-1-2-3-4-12 and "
            "0-2.4-4.8-7.2-9.6-12, disagreeing everywhere between ends "
            "their legends agree on"),
+  dict(name="a-count-from-qgis-releases-a-copy", file=DIALOG,
+       old='        self._release_copied_breaks(tile_id, "a new class count")',
+       new="        pass  # mutation: keep the copied ladder",
+       test="test_a_count_set_in_qgis_releases_a_copied_ladder",
+       why="a copy degrades to its pins when the class count changes, "
+           "and both table doors into `_class_counts` say so. This is "
+           "the door QGIS opens: without it a count set in the "
+           "Symbology panel is accepted and announced, and then "
+           "silently undone, because the renderer builder "
+           "short-circuits on the copied breaks and draws the copy's "
+           "classes while the spinner reads the new number"),
+  dict(name="limits-are-re-asked-when-the-data-moves", file=DIALOG,
+       # ANCHORED ON THE TEST, not on the drop beneath it: what was
+       # missing is that the question is asked AT ALL on this path.
+       old="""    if limits and not any(
+        bridge.absence_kind(value, record.get("floor"),
+                            record.get("ceiling"))
+        != bridge.OUTSIDE_RANGE_KEY
+        for value in values if not bridge.cannot_be_placed(value)):""",
+       new="    if False:",
+       test="test_limits_the_data_moved_out_from_under_are_dropped",
+       why="pin flags have a data-moved guard and edge values had "
+           "none, because this method returned before looking whenever "
+           "low and high were both absent -- which is exactly the "
+           "record an adopted ladder writes. A ladder retyped in QGIS "
+           "and then met by an edit to that column put every area onto "
+           "the paired layer as 'outside the range', drew the element "
+           "flat in silence, and Generate could not heal it"),
+  dict(name="an-adopted-ladder-keeps-a-pin-it-still-carries", file=DIALOG,
+       # ANCHORED ON THE LOOP that decides, not on the comparison
+       # inside it: what is at stake is that a surviving pin is kept
+       # at all, which is the behaviour that was missing.
+       old="""    for end in ("low", "high"):
+      here = wanted.get(end)
+      if here is None:
+        continue
+      if not any(abs(round(float(here), 6) - edge) < 1e-6
+                 for edge in edges):
+        wanted.pop(end, None)""",
+       new="""    wanted.pop("low", None)
+    wanted.pop("high", None)""",
+       test="test_a_pin_survives_a_dock_edit_to_another_boundary",
+       why="a pin is a person saying this break is mine, and adopting "
+           "a ladder that still runs through it says nothing about "
+           "their having changed their mind. Dropping both ends "
+           "unconditionally demoted a pin whenever ANY other boundary "
+           "was retyped in QGIS -- silently, and then destructively at "
+           "the next class count change, which found nothing left to "
+           "degrade to and blamed a copy that never happened"),
   dict(name="a-limit-edit-is-announced-either-way", file=DIALOG,
        # ANCHORED ON THE GATE that decides whether anything is said,
        # not on either sentence: what is at stake is that the question
@@ -4230,6 +4281,47 @@ sys.exit(1 if rt.FAILED else 0)
 """
 
 
+BASELINE = {}
+BASELINE_OUTPUT = {}
+
+
+def test_passes_clean(name):
+  """Whether the named test passes with NO mutation applied.
+
+  Args:
+    name: the test function's name, as an entry's `test` field gives
+      it.
+
+  Returns:
+    True when it passes on the unmutated sandbox, False when it
+    fails, None when it hangs. Cached per name, so a catalogue with
+    many entries pointing at one test pays for one run.
+
+  WHY THIS EXISTS, and it is the reason to read the verdicts below
+  with it. A mutation is judged CAUGHT when its test FAILS -- and
+  until 2026-08-19 nothing established that the test PASSED first. A
+  test that fails in this runner for any other reason was therefore
+  reported as proof that a behaviour is guarded.
+
+  MEASURED THAT DAY, on a quiet machine so contention is not the
+  explanation: a guard that had been written round a call the product
+  now refuses -- so its comparison could not move whatever the
+  mutation did -- came back `caught` here, twice, while breaking the
+  same line by hand and running the same test through
+  `tools/run_some.py` gave PASS. The catalogue's whole promise is
+  that a green entry means a test can fail; an entry that cannot tell
+  those two apart makes the promise unfalsifiable.
+
+  THE RUNNER IS THE SAME ONE, deliberately: it is that runner's
+  answer, not another's, that the verdict is being read against.
+  """
+  if name not in BASELINE:
+    passed, output = run_test(name)
+    BASELINE[name] = passed
+    BASELINE_OUTPUT[name] = output
+  return BASELINE[name]
+
+
 def run_test(name):
   """True when the named test passes in a fresh interpreter."""
   code = RUNNER.format(root=BASE[0] or ROOT, test=name)
@@ -4371,7 +4463,7 @@ def main():
   BASE[0] = make_sandbox("catalogue")
   print(f"mutating a copy at {BASE[0]}\n")
 
-  survivors, hung = [], []
+  survivors, hung, unjudgeable = [], [], []
   print(f"Checking {len(catalogue)} mutations "
         f"(each should make its test FAIL)\n")
   for mutation in catalogue:
@@ -4417,9 +4509,45 @@ def main():
     else:
       verdict = ("HUNG" if passed is None
                  else "SURVIVED" if passed else "caught")
-    print(f"{verdict:>8}  {mutation['name']}  "
+      # ...AND A `caught` IS ONLY BELIEVED WHERE THE TEST PASSES
+      # CLEAN. Otherwise the entry proves nothing about the behaviour
+      # it names: the test was failing in this runner already, and the
+      # mutation is being credited with a failure it did not cause.
+      # UNJUDGEABLE rather than SURVIVED, because the behaviour may
+      # well be guarded and the fault is in the test or the harness --
+      # which is a different work item and must not be counted as a
+      # gap in the software.
+      if verdict == "caught" and test_passes_clean(mutation["test"]) \
+          is not True:
+        verdict = "UNJUDGEABLE"
+        output = (output or "") + (
+          "\n\nTHE TEST DOES NOT PASS ON UNMUTATED CODE in this "
+          "runner, so its failure says nothing about the mutation. "
+          "Fix the test, or the harness, before reading this entry.")
+    print(f"{verdict:>11}  {mutation['name']}  "
           f"[{mutation['test']}]  — {mutation['why']}")
-    if passed and (mutation.get("equivalent") or mutation.get("accepted")):
+    if verdict == "UNJUDGEABLE":
+      # THE BASELINE'S OWN OUTPUT, because "unjudgeable" without a
+      # reason is a second thing nobody can act on. This is the run
+      # that failed on clean code, so its message names what is
+      # actually wrong.
+      unjudgeable.append(mutation)
+      # THE CLEAN RUN IS NOT REPEATED HERE: `test_passes_clean` has
+      # already made it and cached both the verdict and the output.
+      # A first draft re-ran it, which doubled the cost of exactly the
+      # entries that are already costing somebody an investigation.
+      #
+      # THE OUTPUT IS OFTEN EMPTY TODAY, because the watchdog runs the
+      # child with `--quiet`. That is worth fixing and is not fixed
+      # here: the verdict is the load-bearing part, and printing a
+      # blank reason is better than printing a confident wrong one.
+      print("             the test does not pass on UNMUTATED code in "
+            "this runner, so nothing here is evidence about the "
+            "behaviour; the failure below is the CLEAN run's")
+      for line in (BASELINE_OUTPUT.get(mutation["test"]) or "").splitlines():
+        if line.strip():
+          print(f"             {line}")
+    elif passed and (mutation.get("equivalent") or mutation.get("accepted")):
       pass  # expected: nothing to catch, for two different reasons
     elif passed:
       survivors.append(mutation)
@@ -4450,9 +4578,20 @@ def main():
   # is expected to survive did not fail, which is not the same thing,
   # and a summary that calls it a kill is the kind of flattering count
   # this project keeps finding in its own instruments.
+  if unjudgeable:
+    # NEVER FOLDED INTO "caught". An entry whose test cannot pass on
+    # clean code says nothing about the software, and reporting it as
+    # a kill is how a catalogue comes to overstate what it holds.
+    print(f"\n{len(unjudgeable)} entr(y/ies) UNJUDGEABLE, because the "
+          f"test does not pass unmutated in this runner:")
+    for m in unjudgeable:
+      print(f"  {m['name']}  [{m['test']}]")
   expected = sum(1 for m in catalogue
                  if m.get("equivalent") or m.get("accepted"))
-  if expected:
+  if unjudgeable:
+    print(f"{len(catalogue) - len(unjudgeable)} of {len(catalogue)} "
+          f"judged; see above")
+  elif expected:
     print(f"all {len(catalogue) - expected} judgeable mutation(s) were "
           f"caught; {expected} expected to survive (equivalent or "
           f"accepted) and did")

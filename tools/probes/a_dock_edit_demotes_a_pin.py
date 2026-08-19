@@ -10,9 +10,14 @@ import math
 import os
 import sys
 
-ROOT = ("/private/tmp/claude-501/-Users-luke-claude-scratch/"
-        "9a569ef7-3f5e-4a44-8ecf-716f080f3573/scratchpad/hunts-0819c/"
-        "h-pinsclassify")
+# THE REPOSITORY THIS FILE LIVES IN, derived rather than written
+# down. It arrived from a hunt's worktree with that worktree's path
+# hard-coded, so running it from here measured the HUNT'S frozen tree
+# and reported on code this checkout had already moved past -- which
+# is exactly the trap of a probe that quietly answers a different
+# question. Every other probe here derives its root the same way.
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))))
 sys.path.insert(0, ROOT)
 spec = importlib.util.spec_from_file_location(
     "run_tests", os.path.join(ROOT, "tests", "run_tests.py"))

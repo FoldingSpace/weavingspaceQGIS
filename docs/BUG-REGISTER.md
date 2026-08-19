@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-257 defect(s) with a regression test.
+260 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -67,6 +67,8 @@ there is no separate list to remember.
   guarded by `test_a_copy_leaves_behind_a_pin_the_data_cannot_carry`
 - **a copy wrote the target's class count and ramp into the dialog's records without moving its controls, so the row's cell, its assignment and the map disagreed about how many classes were drawn.**  
   guarded by `test_a_copy_leaves_one_number_in_every_control`
+- **2026-08-19. Measured in rendered pixels against a hand-pinned element that survived the same edit: pinned 8 to 8, copied 8 to 5.**  
+  guarded by `test_a_count_set_in_qgis_releases_a_copied_ladder`
 - **refining an element in QGIS's styling panel made the next Generate delete its No Data layer and fold those tiles back onto a renderer with no class for them, so areas with missing data drew as holes.**  
   guarded by `test_a_deferring_element_keeps_its_no_data_layer`
 - **a Generate destroyed a renderer built in QGIS's styling panel for a deferring element, or kept one whose column the element no longer drew.**  
@@ -107,6 +109,8 @@ there is no separate list to remember.
   guarded by `test_a_pin_outranks_the_one_value_collapse`
 - **a pin set on an element carrying a copied classification was recorded, stamped and shown as set while the map ignored it, and then took effect later when the copy was released.**  
   guarded by `test_a_pin_still_works_on_a_copied_ladder`
+- **2026-08-19. Found by a hunt driving a pinned element through each QGIS-side symbology change one at a time.**  
+  guarded by `test_a_pin_survives_a_dock_edit_to_another_boundary`
 - **pin_problem correctly dropped an undrawable pin from the map while the record, the ramp cell's pinned box and the layer's `weavingspace_quant_style` stamp all still asserted it, and nothing was reported. Measured 2026-08-16: a low pinned at 7.0 on a column running 0-35, the column retyped to 5000-40000, the map's first class ending at 12000 and `_pinned_bounds` still holding 7.0. The comment in bridge said "the DIALOG reports the loss" and no such site existed.**  
   guarded by `test_a_pin_the_data_moved_under_is_released_and_said`
 - **the class-bound control had a fixed range and a fixed number of decimal places, so a bound typed on a column of large or very small values was silently replaced by a different number.**  
@@ -171,6 +175,8 @@ there is no separate list to remember.
   guarded by `test_icon_mode_says_when_an_element_has_no_icon_for_an_area`
 - **generating into a new group deleted the kept result's no-data layers, punching holes in the map the user had asked to keep.**  
   guarded by `test_keeping_a_result_keeps_both_halves_of_every_element`
+- **2026-08-19, found by two hunts independently, one of them reading the exported GeoPackage with sqlite3.**  
+  guarded by `test_limits_the_data_moved_out_from_under_are_dropped`
 - **the bound spin boxes were greyed until a pin was clicked, and moving one could not pin the bound it named.**  
   guarded by `test_moving_a_bound_off_its_computed_value_pins_it`
 - **the No data class had no control anywhere, so the colour of a missing-value area could not be chosen.**  
@@ -562,7 +568,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- a bug hunt pointed in a named direction: 86
+- a bug hunt pointed in a named direction: 89
 - not written down at the time: 84
 - reported by a user: 19
 - the mutation campaign: 16

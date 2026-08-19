@@ -50924,6 +50924,268 @@ def test_two_columns_with_one_pair_of_limits_draw_one_ladder():
     dlg.close()
 
 
+def test_a_count_set_in_qgis_releases_a_copied_ladder():
+  """A class count from QGIS degrades a copy, as one from the table does.
+
+  "A copy degrades to its pins" is settled: the copied boundary VALUES
+  were chosen for one class count, so a new count retires them and the
+  pins stay. Both table doors into `_class_counts` call
+  `_release_copied_breaks`; the door QGIS opens was added without it,
+  so a count set in the Symbology panel was accepted, announced, and
+  then silently undone -- `make_graduated_renderer` short-circuits on
+  the copied breaks, so the element went on drawing the copy's classes
+  while the spinner read the new number.
+
+  Regression: 2026-08-19. Measured in rendered pixels against a
+  hand-pinned element that survived the same edit: pinned 8 to 8,
+  copied 8 to 5. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = _few_values_layer(values=tuple(_shape_even()))
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(200)
+    for row in (0, 1):
+      dlg.table.cellWidget(row, 1).setCurrentText("v")
+      _tick(100)
+      dlg.table.cellWidget(row, 2).setCurrentText("Quant: Quantiles")
+      _tick(100)
+    dlg._update_dynamic_columns()
+    _tick(150)
+    source, target = (dlg.table.item(r, 0).text() for r in (0, 1))
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(200)
+
+    dlg._copy_classification(source, target)
+    _tick(400)
+    copied = dict(dlg._pinned_bounds.get(target, {}).get("v") or {})
+    assert copied.get("breaks"), \
+      f"nothing was copied ({copied}), so this case cannot show a " \
+      f"copy being released"
+
+    # THE COUNT ARRIVES FROM QGIS, which is the door under test: a
+    # renderer of a different class count, pasted onto the layer.
+    out = QgsProject.instance().mapLayer(dlg._element_layer_ids[target])
+    wanted_k = len(copied["breaks"]) + 3
+    dock = _classify_like_qgis(out, "Blues", wanted_k)
+    out.setRenderer(dock)
+    out.styleChanged.emit()
+    out.triggerRepaint()
+    _tick(900)
+    assert dlg._class_counts.get(target) == wanted_k, \
+      f"the count from QGIS was not followed at all " \
+      f"({dlg._class_counts.get(target)}), so nothing below is tested"
+    after = dict(dlg._pinned_bounds.get(target, {}).get("v") or {})
+    # THE COPIED LADDER SPECIFICALLY, not "any breaks at all". The
+    # dock's own Classify is adopted a moment later and writes breaks
+    # of its own, which is correct and is a different record; asking
+    # for an empty one reported that correct behaviour as the defect.
+    assert after.get("breaks") != copied.get("breaks"), \
+      f"a class count set in QGIS left the copied ladder in the " \
+      f"record ({after}), so the next Generate draws the copy's " \
+      f"classes over the count the user chose"
+
+    _generate_and_wait(dlg)
+    _tick(300)
+    drawn = QgsProject.instance().mapLayer(dlg._element_layer_ids[target])
+    spans = list(drawn.renderer().ranges())
+    assert len(spans) == wanted_k, \
+      f"the map came back with {len(spans)} classes where QGIS was " \
+      f"told {wanted_k}, so the count was accepted and then undone"
+  finally:
+    dlg.close()
+
+
+def test_limits_the_data_moved_out_from_under_are_dropped():
+  """Limits that exclude everything must not empty the element.
+
+  Pin flags have a data-moved guard: `_retire_an_undrawable_pin` is
+  asked at every landing. Edge VALUES had none, because that method
+  returned before looking whenever `low` and `high` were both absent
+  -- which is exactly the record an ADOPTED ladder writes. So a ladder
+  retyped in QGIS, followed by an edit to that column or a layer of
+  another magnitude, put every area onto the paired layer as "outside
+  the range" and drew the element flat, in silence, with Generate
+  unable to heal it.
+
+  THE RECORD IS STAGED, not the control, because what reaches the code
+  is a record holding limits the data no longer supports -- which is
+  what a reopened project or a column edited in QGIS hands over. A
+  probe reaching it through the control would be testing the control.
+
+  Regression: 2026-08-19, found by two hunts independently, one of
+  them reading the exported GeoPackage with sqlite3. [hunt]
+  """
+  dlg, _layer, tid = _quant_dialog(mode="Quant: Quantiles", k=5,
+                                   ramp="Reds", row=1)
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(200)
+    field = dlg._assignment_for(tid)["var"]
+    before = _class_hexes(dlg, tid)
+    assert len(before) > 1, "the element drew one colour before anything"
+
+    # AN ADOPTED LADDER'S SHAPE: breaks, floor and ceiling, and no
+    # pin -- with limits far above every value this column holds, as
+    # they would be after the data moved under them.
+    dlg._pinned_bounds.setdefault(tid, {})[field] = {
+      "breaks": [5000.0, 6000.0, 7000.0, 8000.0],
+      "floor": 4000.0, "ceiling": 9000.0}
+    del BAR_MESSAGES[:]
+    _generate_and_wait(dlg)
+    _tick(400)
+
+    kept = dict(dlg._pinned_bounds.get(tid, {}).get(field) or {})
+    assert kept.get("floor") is None and kept.get("ceiling") is None, \
+      f"limits excluding every value were kept ({kept}), so the " \
+      f"element goes on drawing nothing and Generate cannot heal it"
+    said = [text for _kind, text in BAR_MESSAGES]
+    assert any("limits" in text for text in said), \
+      f"the limits were dropped and nothing said so: {said}"
+    after = _class_hexes(dlg, tid)
+    assert len(after) > 1, \
+      f"the element still draws {after}, so it is on the map in name " \
+      f"only"
+    out = QgsProject.instance().mapLayer(dlg._element_layer_ids[tid])
+    assert out.featureCount() > 0, \
+      "every area left the element layer, which is the harm itself"
+  finally:
+    dlg.close()
+
+
+def _classify_like_qgis(target_layer, ramp_name, classes):
+  """What QGIS's Graduated panel builds when Classify is pressed.
+
+  Args:
+    target_layer: the layer being reclassified.
+    ramp_name: a ramp in QgsStyle, chosen in the panel's own combo.
+    classes: how many classes the panel's spinner asks for.
+
+  Returns:
+    A QgsGraduatedSymbolRenderer, built from QGIS's own API rather
+    than from the plugin's bridge on purpose: a test that asks the
+    plugin to construct the thing the plugin is then judged against
+    agrees with whatever the plugin does.
+  """
+  from qgis.core import (QgsGraduatedSymbolRenderer, QgsStyle, QgsSymbol)
+  from weavingspace_qgis import compat
+  renderer = QgsGraduatedSymbolRenderer("v")
+  renderer.setSourceSymbol(QgsSymbol.defaultSymbol(
+    target_layer.geometryType()))
+  renderer.setSourceColorRamp(QgsStyle.defaultStyle().colorRamp(ramp_name))
+  method = compat.classification_method("Quantiles")
+  if method is not None:
+    renderer.setClassificationMethod(method)
+  renderer.updateClasses(target_layer, classes)
+  return renderer
+
+
+def test_a_pin_survives_a_dock_edit_to_another_boundary():
+  """Retyping one boundary in QGIS must not demote a pin elsewhere.
+
+  A pin is a person saying "this break is mine", and adopting a ladder
+  that still runs through it says nothing about whether they have
+  changed their mind. Adoption dropped `low` and `high`
+  unconditionally, so retyping any OTHER boundary in QGIS's Symbology
+  panel demoted the pin in silence -- and because
+  `_release_copied_breaks` keeps only those two keys, the next class
+  count change then had nothing left to degrade to, wiped the record
+  and told the user their classes "had been copied from another
+  element", which had never happened.
+
+  THE COLUMN IS THE TESTER'S OWN SHAPE, spread from 3.1 to 79.1 across
+  a hundred areas, because adoption only fires where the retyped
+  ladder differs from the one the plugin would compute; a four-value
+  fixture cannot stage it and one was tried first.
+
+  Regression: 2026-08-19. Found by a hunt driving a pinned element
+  through each QGIS-side symbology change one at a time. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = _few_values_layer(values=tuple(_shape_even()))
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(200)
+    dlg.table.cellWidget(1, 1).setCurrentText("v")
+    _tick(100)
+    dlg.table.cellWidget(1, 2).setCurrentText("Quant: Quantiles")
+    _tick(150)
+    dlg._update_dynamic_columns()
+    _tick(150)
+    tid = dlg.table.item(1, 0).text()
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(200)
+
+    ladder = dlg._current_graduated_classes(dlg._assignment_for(tid))
+    assert len(ladder) >= 4, \
+      f"the element drew {len(ladder)} classes, too few to retype one " \
+      f"boundary while leaving another pinned"
+    pin_at = round(float(ladder[0][1]), 6)
+    dlg._pinned_bounds.setdefault(tid, {})["v"] = {"low": pin_at}
+    _generate_and_wait(dlg)
+    _tick(300)
+    assert (dlg._pinned_bounds.get(tid, {}).get("v") or {}).get("low") \
+        == pin_at, "the pin was not recorded, so nothing below is tested"
+
+    # ...and now a DIFFERENT boundary retyped in QGIS's panel, the
+    # pinned one left exactly where it is and no colour moved.
+    # A CLONE, SET BACK, AND `styleChanged` EMITTED, which is what
+    # QGIS's own panel does. Mutating the live renderer in place and
+    # calling `triggerRepaint` emits nothing the watcher listens for,
+    # so the edit reaches the map and no adoption is even attempted --
+    # the first draft of this test did that and its own premise
+    # assertion caught it.
+    out = QgsProject.instance().mapLayer(dlg._element_layer_ids[tid])
+    renderer = out.renderer().clone()
+    spans = list(renderer.ranges())
+    moved = spans[2].upperValue() + (
+      spans[2].upperValue() - spans[2].lowerValue()) * 0.3
+    renderer.updateRangeUpperValue(2, moved)
+    renderer.updateRangeLowerValue(3, moved)
+    out.setRenderer(renderer)
+    out.styleChanged.emit()
+    out.triggerRepaint()
+    _tick(900)
+    kept = dict(dlg._pinned_bounds.get(tid, {}).get("v") or {})
+    assert kept.get("breaks"), \
+      f"the retype was not adopted at all ({kept}), so this case " \
+      f"cannot show whether adoption keeps the pin"
+    assert kept.get("low") == pin_at, \
+      f"retyping a different boundary demoted the pin: the record " \
+      f"reads {kept}, and the pinned bound {pin_at} was left exactly " \
+      f"where it was on the layer"
+
+    # THE HARM LANDS AT THE NEXT THING THE USER DOES, so the count
+    # change is part of the case rather than a second test.
+    spinner = dlg.table.cellWidget(1, 3)
+    spinner.setValue(spinner.value() + 1)
+    spinner.editingFinished.emit()
+    _tick(900)
+    after = dict(dlg._pinned_bounds.get(tid, {}).get("v") or {})
+    assert after.get("low") == pin_at, \
+      f"a new class count after the dock edit wiped the pin: {after}"
+    _generate_and_wait(dlg)
+    _tick(300)
+    drawn = QgsProject.instance().mapLayer(dlg._element_layer_ids[tid])
+    edges = [round(r.lowerValue(), 6)
+             for r in list(drawn.renderer().ranges())]
+    assert any(abs(edge - pin_at) < 1e-6 for edge in edges), \
+      f"the map draws {edges} and no class begins at the pinned " \
+      f"{pin_at}, so the bound the user set is not on the map"
+  finally:
+    dlg.close()
+
+
 def test_a_limit_edit_that_draws_nothing_new_still_says_so():
   """Every limit edit is announced, in whichever direction it goes.
 
@@ -52904,6 +53166,12 @@ def main():
         test_a_dock_reclassification_lands_while_a_run_is_finishing)
   check("two columns with one pair of limits draw one ladder",
         test_two_columns_with_one_pair_of_limits_draw_one_ladder)
+  check("a count set in qgis releases a copied ladder",
+        test_a_count_set_in_qgis_releases_a_copied_ladder)
+  check("limits the data moved out from under are dropped",
+        test_limits_the_data_moved_out_from_under_are_dropped)
+  check("a pin survives a dock edit to another boundary",
+        test_a_pin_survives_a_dock_edit_to_another_boundary)
   check("a limit edit that draws nothing new still says so",
         test_a_limit_edit_that_draws_nothing_new_still_says_so)
   check("a limit keeps the colours the ramp gives",
