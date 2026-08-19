@@ -36595,7 +36595,15 @@ MATRIX_SHAPES = [
   ("two values", _shape_two_values), ("negatives", _shape_negatives),
   ("huge", _shape_huge),
 ]
-MATRIX_SPINE_SHAPES = ("even", "tied")
+# "huge" JOINED THE SPINE ON 2026-08-19, by the rule that any cell
+# which has ever failed is tested forever and the rotation only ever
+# covers ground with no known history. It failed the day the matrix
+# gained a magnitude axis: on a column of about 1e9, a ladder retyped
+# to 0-80 had its CEILING adopted, which excluded every value and left
+# the element with no classes where it had drawn five. Both spine
+# shapes live between 0 and 80, where that retype is sensible, so no
+# sample of them could ever have shown it.
+MATRIX_SPINE_SHAPES = ("even", "tied", "huge")
 MATRIX_TYPED = [0.0, 10.0, 20.0, 30.0, 50.0, 80.0]
 
 
@@ -36672,6 +36680,55 @@ def _route_pin_then_retype(renderer):
   return _route_retype_all(renderer)
 
 
+def _route_set_a_floor(renderer):
+  """Set a floor inside the data: values below it stop being drawn.
+
+  Staged by the cell runner, which holds the dialog; this only names
+  the route. The floor is a fact about the LIMITS rather than about
+  the renderer, so there is nothing to mutate on the clone.
+  """
+  return ("floor", None)
+
+
+def _route_set_a_ceiling(renderer):
+  """Set a ceiling inside the data, the mirror of the floor."""
+  return ("ceiling", None)
+
+
+def _route_floor_then_retype(renderer):
+  """Set a floor, THEN retype the ladder in QGIS.
+
+  The order that has broken this plugin repeatedly: a record set in
+  the plugin and then contradicted from the dock. The maintainer's
+  rule of 2026-08-18 is that a QGIS edit outranks a pin when it moves
+  the boundary that pin sits on, and the interior boundaries here are
+  QGIS's -- while the floor, which QGIS's ladder cannot express, must
+  survive.
+  """
+  return _route_retype_all(renderer)
+
+
+def _route_retype_then_floor(renderer):
+  """Retype the ladder in QGIS, THEN set a floor.
+
+  The same pair in the other order, which is a different question:
+  here the plugin must keep the boundaries it adopted while the limit
+  moves the edge. Arrival and survival are different promises, and so
+  are the two orders of one pair.
+  """
+  return _route_retype_all(renderer)
+
+
+def _route_copy_to_another_element(renderer):
+  """Copy this element's classification onto a second element.
+
+  Copy-paste of styles is named by the maintainer as one of the two
+  routes that has cost this project most, beside class boundaries.
+  Staged by the cell runner, which needs two rows and the dialog.
+  """
+  return ("copied", None)
+
+
 MATRIX_ROUTES = [
   ("retype one boundary", _route_retype_one),
   ("retype the whole ladder", _route_retype_all),
@@ -36680,19 +36737,59 @@ MATRIX_ROUTES = [
   ("retype a legend label", _route_relabel),
   ("paste a foreign style", _route_paste),
   ("pin, then retype", _route_pin_then_retype),
+  ("set a floor", _route_set_a_floor),
+  ("set a ceiling", _route_set_a_ceiling),
+  ("floor, then retype", _route_floor_then_retype),
+  ("retype, then floor", _route_retype_then_floor),
+  ("copy to another element", _route_copy_to_another_element),
 ]
-MATRIX_AFTERMATHS = ("immediately", "after re-Generate")
+# THE THIRD IS A RACE, added 2026-08-19 at the maintainer's asking.
+# QGIS is live and this dialog is not modal to it, so every edit here
+# can land while a run is finishing -- the moment that has destroyed a
+# pasted style, a copied ladder and a pin made mid-run, three separate
+# times. Arrival, survival and SURVIVING A LANDING are three different
+# promises.
+#
+# THE SPACE GROWS AND THE RUNTIME DOES NOT, which is the whole reason
+# a third value is affordable: the spine is bounded deliberately and
+# everything else is sampled, so a larger crossing costs nothing but a
+# larger pool to draw from.
+MATRIX_AFTERMATHS = ("immediately", "after re-Generate",
+                     "while a run is in flight")
+# The two the spine runs on every route, every time. The race is
+# exercised on its own smaller slice below rather than multiplying the
+# spine by half again.
+MATRIX_SPINE_AFTERMATHS = ("immediately", "after re-Generate")
+
+# THE FOURTH AXIS, added 2026-08-19. Unclassed stopped behaving like
+# the classed schemes that day -- it names a floor and a ceiling where
+# they name two pinned boundaries -- and a matrix that only ever ran
+# one scheme could not have seen that. Quantiles and Equal intervals
+# differ from each other too: the maintainer's rule that equal
+# intervals are cut from the pin rather than stretched to it applies
+# to one and not the other, so a route that behaves under quantiles
+# says nothing about the other.
+MATRIX_SCHEMES = ("Quant: Equal interval", "Quant: Quantiles",
+                  "Quant: Unclassed")
+MATRIX_SPINE_SCHEME = "Quant: Equal interval"
 
 
-def _matrix_cell(route, mutate, values, aftermath):
+def _matrix_cell(route, mutate, values, aftermath,
+                 scheme="Quant: Equal interval"):
   """Stage one edit on one shape and say whether the plugin followed.
 
   Args:
-    route: the route's name, which also selects the pin behaviour.
+    route: the route's name, which also selects the staging a cloned
+      renderer cannot express -- a pin, a limit, or a copy, each of
+      which needs the dialog rather than the renderer.
     mutate: takes a cloned renderer, mutates it, returns
       (what_to_check, expected) or None when it cannot be staged.
     values: one value per area for this shape.
     aftermath: "immediately", or "after re-Generate" to re-tile first.
+    scheme: the classification the row starts on, by the name the mode
+      chooser uses. Unclassed names a floor and a ceiling where the
+      classed schemes name two pinned boundaries, so a route can pass
+      under one and fail under another.
 
   Returns:
     (verdict, detail) where verdict is "ok", "SKIPPED" or a failure.
@@ -36709,7 +36806,7 @@ def _matrix_cell(route, mutate, values, aftermath):
     dlg.layer_combo.setLayer(layer)
     _tick(200)
     dlg.table.cellWidget(0, 1).setCurrentText("pct")
-    dlg.table.cellWidget(0, 2).setCurrentText("Quant: Equal interval")
+    dlg.table.cellWidget(0, 2).setCurrentText(scheme)
     dlg._update_dynamic_columns()
     _tick(150)
     tid = dlg.table.item(0, 0).text()
@@ -36730,28 +36827,159 @@ def _matrix_cell(route, mutate, values, aftermath):
       _tick(200)
       element = project.mapLayer(dlg._element_layer_ids[tid])
 
+    # LIMITS ARE SET BEFORE THE DOCK EDIT where the route says so,
+    # and that ORDER is the point of the two routes that carry it: a
+    # record set in the plugin and then contradicted from QGIS is the
+    # shape that has broken this plugin repeatedly.
+    live = element.renderer().ranges()
+    edges = [(r.lowerValue(), r.upperValue()) for r in live]
+    floor_at = ceiling_at = None
+    if route in ("set a floor", "floor, then retype"):
+      if len(edges) < 3:
+        return ("SKIPPED", "too few classes to put a floor inside")
+      # A FLOOR THAT CONTRADICTS THE LADDER ABOUT TO BE TYPED IS THE
+      # HARNESS'S OWN FAULT, not a defect. Taking it from the LIVE
+      # ladder put a floor near 1e9 on the "huge" shape and then
+      # retyped that element to a 0-80 ladder, leaving nothing on
+      # either side of the limit to draw -- the plugin correctly drew
+      # no classes and the cell called it a failure. Where a retype
+      # follows, the floor comes from the ladder the retype will
+      # write, so the two describe one map; where none follows, the
+      # live boundary is right and is what exercises exclusion.
+      floor_at = (MATRIX_TYPED[0] - 1.0 if route == "floor, then retype"
+                  else round(edges[0][1], 3))
+      dlg._pinned_bounds.setdefault(tid, {}).setdefault("pct", {})
+      dlg._pinned_bounds[tid]["pct"]["floor"] = floor_at
+      dlg._apply_style_change()
+      _generate_and_wait(dlg)
+      _tick(200)
+      element = project.mapLayer(dlg._element_layer_ids[tid])
+    if route == "set a ceiling":
+      if len(edges) < 3:
+        return ("SKIPPED", "too few classes to put a ceiling inside")
+      ceiling_at = round(edges[-1][0], 3)
+      dlg._pinned_bounds.setdefault(tid, {}).setdefault("pct", {})
+      dlg._pinned_bounds[tid]["pct"]["ceiling"] = ceiling_at
+      dlg._apply_style_change()
+      _generate_and_wait(dlg)
+      _tick(200)
+      element = project.mapLayer(dlg._element_layer_ids[tid])
+    if element is None or not hasattr(element.renderer(), "ranges"):
+      return ("SKIPPED", "the element stopped being graduated")
+
     renderer = element.renderer().clone()
     asked = mutate(renderer)
     if asked is None:
       return ("SKIPPED", "this shape cannot stage this route")
     what, expected = asked
+
+    # ROUTES WHOSE SUBJECT IS THE RECORD rather than the renderer.
+    # They stage no dock edit at all, or stage one AFTER a limit, so
+    # they answer here instead of falling through to the paste path.
+    if what == "floor":
+      after = dlg._current_graduated_classes(
+        [a for a in dlg._assignments() if a["id"] == tid][0])
+      if not after:
+        return ("NOT FOLLOWED", "the element drew no classes at all")
+      got = round(after[0][0], 3)
+      if abs(got - floor_at) < 1e-6:
+        return ("ok", "")
+      return ("NOT FOLLOWED",
+              f"the ladder starts at {got}, not at the floor {floor_at}")
+    if what == "ceiling":
+      after = dlg._current_graduated_classes(
+        [a for a in dlg._assignments() if a["id"] == tid][0])
+      if not after:
+        return ("NOT FOLLOWED", "the element drew no classes at all")
+      got = round(after[-1][1], 3)
+      if abs(got - ceiling_at) < 1e-6:
+        return ("ok", "")
+      return ("NOT FOLLOWED",
+              f"the ladder stops at {got}, not at the ceiling {ceiling_at}")
+    if what == "copied":
+      rows = dlg.table.rowCount()
+      if rows < 2:
+        return ("SKIPPED", "this design has only one element to copy to")
+      other = dlg.table.item(1, 0).text()
+      dlg.table.cellWidget(1, 1).setCurrentText("pct")
+      dlg.table.cellWidget(1, 2).setCurrentText(scheme)
+      dlg._update_dynamic_columns()
+      _tick(200)
+      mine = [(round(lo, 3), round(hi, 3)) for lo, hi, _c in
+              dlg._current_graduated_classes(
+                [a for a in dlg._assignments() if a["id"] == tid][0])]
+      if not hasattr(dlg, "_copy_classification"):
+        return ("SKIPPED", "no copy entry point to drive")
+      # Two arguments, source then target: the field is taken from the
+      # source's own assignment rather than passed, which is why both
+      # rows were put on "pct" above.
+      dlg._copy_classification(tid, other)
+      _tick(300)
+      if aftermath == "after re-Generate":
+        _generate_and_wait(dlg)
+        _tick(300)
+      theirs = [(round(lo, 3), round(hi, 3)) for lo, hi, _c in
+                dlg._current_graduated_classes(
+                  [a for a in dlg._assignments() if a["id"] == other][0])]
+      if theirs == mine:
+        return ("ok", "")
+      return ("NOT FOLLOWED",
+              f"the copy landed as {theirs}, not as the source's {mine}")
+
     if what == "paste":
       # A PASTED CLASS COUNT IS A REQUEST, not a promise: a column
       # cannot be cut into more classes than it has distinct values,
       # so a constant column collapses a three-class paste to one BY
       # DESIGN. Expecting three there reported correct behaviour as a
       # defect twice while this was a probe.
-      expected = min(expected, len({v for v in values if v is not None}))
+      # UNCLASSED IS EXEMPT FROM THE DISTINCT-VALUE REDUCTION, by the
+      # settled rule that its fifty steps reproduce a continuous ramp
+      # rather than a class count anybody chose -- so a paste of three
+      # onto a two-valued column draws three there and two under the
+      # classed schemes. Expecting the reduction everywhere reported
+      # correct behaviour as a defect.
+      # ...AND NOT WHEN THE PASTE SURVIVED A LANDING. A style pasted
+      # while a run is in flight is PRESERVED across it rather than
+      # re-seeded -- the settled promise that hand styling survives
+      # unless the element's assignment changed -- so the pasted count
+      # arrives intact and nothing recomputes it. The reduction
+      # governs breaks the software COMPUTES and never overrules one a
+      # person imported.
+      #
+      # THIRD HARNESS-AUTHORED FAILURE IN THIS MATRIX, counted here
+      # because a grid whose failures are mostly its own is one nobody
+      # acts on. The other two were a floor contradicting the ladder
+      # about to be typed, and this same expectation being blind to
+      # Unclassed.
+      if scheme != "Quant: Unclassed" and \
+          aftermath != "while a run is in flight":
+        expected = min(expected, len({v for v in values if v is not None}))
       foreign = bridge.make_graduated_renderer(
         element, "pct", "Blues", "Quantiles", 3, False,
         classify_from=dlg._classification_values("pct"))
       if foreign is None:
         return ("SKIPPED", "could not build a style to paste")
       renderer, what = foreign, "count"
+    if aftermath == "while a run is in flight":
+      # START ONE, THEN EDIT UNDER IT. The edit must land while the
+      # task is still going, or this cell is just "immediately" under
+      # another name -- so the run is asserted to be in flight rather
+      # than assumed, which is the premise this whole aftermath rests
+      # on.
+      dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.2)
+      dlg._generate()
+      if getattr(dlg, "_task", None) is None:
+        return ("SKIPPED", "no run was in flight, so this staged nothing")
     element.setRenderer(renderer)
     element.styleChanged.emit()
     element.triggerRepaint()
     _tick(400)
+    if aftermath == "while a run is in flight":
+      _settle(dlg)
+      _tick(400)
+      element = project.mapLayer(dlg._element_layer_ids[tid])
+      if element is None:
+        return ("NOT FOLLOWED", "the element vanished as the run landed")
     if aftermath == "after re-Generate":
       _generate_and_wait(dlg)
       _tick(300)
@@ -36801,25 +37029,75 @@ def test_a_qgis_symbology_edit_reaches_the_plugin_on_every_shape():
   seed = int(os.environ.get("WEAVINGSPACE_MATRIX_SEED", "20260818"))
   shapes = dict(MATRIX_SHAPES)
   cells = []
+  # THE SPINE: every ROUTE against the canonical shapes under both
+  # aftermaths, on the spine scheme. A route that stops being
+  # exercised is the quietest way to lose coverage, so no route is
+  # ever left to the sampler.
   for shape, _build in MATRIX_SHAPES:
-    for aftermath in MATRIX_AFTERMATHS:
+    for aftermath in MATRIX_SPINE_AFTERMATHS:
       for route, _fn in MATRIX_ROUTES:
-        spine = shape in MATRIX_SPINE_SHAPES
-        if full or spine:
-          cells.append((shape, aftermath, route))
+        if full or shape in MATRIX_SPINE_SHAPES:
+          cells.append((shape, aftermath, route, MATRIX_SPINE_SCHEME))
+  # EVERY ROUTE RACED ONCE, on one canonical shape. A race is where
+  # this plugin's characteristic defect lives, so no route is left to
+  # the sampler to reach by luck -- but crossing the race with every
+  # spine shape would multiply the spine by half again for ground that
+  # differs by timing rather than by data.
   if not full:
-    rest = [(sh, af, ro) for sh, _b in MATRIX_SHAPES
+    for route, _fn in MATRIX_ROUTES:
+      cells.append((MATRIX_SPINE_SHAPES[0], "while a run is in flight",
+                    route, MATRIX_SPINE_SCHEME))
+  # ...AND EVERY SCHEME, on the routes the maintainer named as having
+  # cost this project most: class boundaries and copy-paste. Unclassed
+  # names a floor where the classed schemes name a pinned boundary, so
+  # a scheme left to sampling could go a run without being asked at
+  # all.
+  if not full:
+    for scheme in MATRIX_SCHEMES:
+      if scheme == MATRIX_SPINE_SCHEME:
+        continue
+      for route in ("retype the whole ladder", "copy to another element",
+                    "set a floor", "floor, then retype"):
+        cells.append((MATRIX_SPINE_SHAPES[0], "immediately", route, scheme))
+    rest = [(sh, af, ro, sc) for sh, _b in MATRIX_SHAPES
             for af in MATRIX_AFTERMATHS for ro, _f in MATRIX_ROUTES
+            for sc in MATRIX_SCHEMES
             if sh not in MATRIX_SPINE_SHAPES]
-    cells += random.Random(seed).sample(rest, min(8, len(rest)))
+    cells += random.Random(seed).sample(rest, min(10, len(rest)))
+  else:
+    cells = [(sh, af, ro, sc) for sh, _b in MATRIX_SHAPES
+             for af in MATRIX_AFTERMATHS for ro, _f in MATRIX_ROUTES
+             for sc in MATRIX_SCHEMES]
 
   routes = dict(MATRIX_ROUTES)
-  trouble = []
-  for shape, aftermath, route in cells:
+  trouble, skipped, ran = [], {}, 0
+  for shape, aftermath, route, scheme in cells:
     verdict, detail = _matrix_cell(
-      route, routes[route], shapes[shape](), aftermath)
+      route, routes[route], shapes[shape](), aftermath, scheme)
+    if verdict == "SKIPPED":
+      skipped[route] = skipped.get(route, 0) + 1
+    else:
+      ran += 1
     if verdict not in ("ok", "SKIPPED"):
-      trouble.append(f"{shape} / {aftermath} / {route}: {detail}")
+      trouble.append(f"{shape} / {aftermath} / {route} / {scheme}: {detail}")
+
+  # NO SILENT CAPS. A skipped cell reads exactly like a passing one,
+  # and a route skipped in EVERY cell is an axis that never ran --
+  # which this project has shipped before, in a stochastic hunt whose
+  # GeoPackage invariant executed zero times while the run looked
+  # complete. So every route must have been exercised somewhere, and
+  # the count is asserted rather than trusted.
+  never_ran = [route for route, _fn in MATRIX_ROUTES
+               if skipped.get(route, 0) and
+               skipped[route] == sum(1 for c in cells if c[2] == route)]
+  assert not never_ran, (
+    f"these routes were SKIPPED in every cell they were drawn for, so "
+    f"the matrix reports nothing about them: {never_ran}. Skips by "
+    f"route: {skipped}")
+  assert ran >= len(cells) * 0.6, (
+    f"only {ran} of {len(cells)} cells actually staged anything; the "
+    f"rest skipped, so this grid is measuring far less than its size "
+    f"suggests. Skips by route: {skipped}")
   assert not trouble, (
     f"{len(trouble)} of {len(cells)} symbology cells did not reach the "
     f"plugin (seed {seed}; re-run with WEAVINGSPACE_MATRIX_SEED="

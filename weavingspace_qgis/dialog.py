@@ -1311,6 +1311,11 @@ class WeavingSpaceDialog(QDialog):
     # elements whose renderer the LAST run carried over unchanged;
     # _finish_run re-examines them for dock edits made mid-run
     self._preserved_this_run = []
+    # {tile_id: (assignment, bounds, colours)} -- dock edits that
+    # arrived while a run was in flight, replayed once it has landed.
+    # See _adopt_dock_bounds for why the numbers are kept rather than
+    # a note to look again.
+    self._adoption_deferred = {}
     # {tile_id: (key, QIcon)} -- the Custom-display swatch, cached
     # against everything that decides an element's colours, because
     # building one means constructing the real renderer against the
@@ -5152,6 +5157,11 @@ class WeavingSpaceDialog(QDialog):
     # SITE LEAVES, NOT WHAT IT CLEARS. The list above is long and
     # convincing and the thing it omitted was not a dict at all.
     self._preserved_this_run = []
+    # {tile_id: (assignment, bounds, colours)} -- dock edits that
+    # arrived while a run was in flight, replayed once it has landed.
+    # See _adopt_dock_bounds for why the numbers are kept rather than
+    # a note to look again.
+    self._adoption_deferred = {}
     # THE GROUP AND THE OUTPUT PATH GO TOO, and leaving them was the
     # larger half of this fault. `_group_name` survived, so
     # `_get_or_make_group` found the incoming project's group by name
@@ -6467,9 +6477,25 @@ class WeavingSpaceDialog(QDialog):
     # real behaviour that must not be weakened to fit an addition.
     if getattr(self, "_applying_style", False):
       return
-    if getattr(self, "_task", None) is not None:
-      return
-    if getattr(self, "_preserved_this_run", None):
+    # A RUN IN FLIGHT DEFERS THE ADOPTION; IT NO LONGER DISCARDS IT.
+    # The rest conditions are right and stay: what sits on the layer
+    # mid-landing is nobody's decision. But returning here THREW THE
+    # EDIT AWAY, so a boundary retyped while a run was finishing was
+    # gone when it landed -- which is the very shape the maintainer
+    # ruled on for a pasted style in 2026-08-17, and which the
+    # symbology matrix caught here on 2026-08-19 the day it gained a
+    # race axis.
+    #
+    # THE BOUNDS ARE KEPT, NOT THE INTENTION TO RE-READ THEM. The
+    # landing RE-SEEDS the element's renderer from the record, so
+    # asking the layer again afterwards would read the plugin's own
+    # ladder and adopt that -- the exact fault these guards exist to
+    # prevent, arriving by the other door. What a person typed is
+    # captured at the moment it arrives and applied once at rest.
+    if getattr(self, "_task", None) is not None or \
+        getattr(self, "_preserved_this_run", None):
+      self._adoption_deferred[tile_id] = (
+        dict(assignment), list(bounds), list(colours))
       return
     field = assignment["var"]
     if not bounds or len(bounds) < 2:
@@ -6519,11 +6545,72 @@ class WeavingSpaceDialog(QDialog):
     source = self._classification_values(field)
     values = (source.uniqueValues(source.fields().indexOf(field))
               if source is not None else [])
+    # A LADDER THAT EXCLUDES EVERY VALUE IS NOT A CLASSIFICATION, and
+    # adopting its ends blanks the map. Found by the symbology matrix
+    # on 2026-08-19, on a column of about 1e9 whose ladder was retyped
+    # to 0-80: the ceiling of 80 excluded all hundred values, the pool
+    # emptied, and the element came back with NO CLASSES AT ALL --
+    # where before the ends were adopted it drew five. The shape only
+    # surfaced because the matrix gained a magnitude axis; the spine
+    # shapes all live between 0 and about 80, where the same retype is
+    # perfectly sensible.
+    #
+    # THE INTERIOR BREAKS ARE STILL TAKEN. What is dropped is only the
+    # pair of edges, which then fall back to the column's own extremes
+    # exactly as they did before this feature -- so the tester's own
+    # report stays fixed and the map keeps its data. Somebody typing a
+    # ladder that misses their data has made a mistake rather than a
+    # request, and the honest answer is to follow what they typed as
+    # far as it can be drawn.
+    if any(bridge.absence_kind(v, wanted["floor"],
+                               wanted["ceiling"]) != bridge.OUTSIDE_RANGE_KEY
+           for v in values if not bridge.cannot_be_placed(v)):
+      pass                       # something survives the limits; keep them
+    else:
+      wanted.pop("floor", None)
+      wanted.pop("ceiling", None)
     if bridge.pin_problem(None, None, values, len(bounds),
                           wanted.get("breaks")):
       return
     self._pinned_bounds.setdefault(tile_id, {})[field] = wanted
     self._custom_swatch_cache.pop(tile_id, None)
+
+  def _replay_deferred_adoptions(self):
+    """Adopt the dock edits that arrived while a run was in flight.
+
+    Returns:
+      None. Each element's captured bounds are offered to
+      `_adopt_dock_bounds` once, and the store is emptied whatever the
+      outcome -- an edit that cannot be adopted now will not become
+      adoptable later, and keeping it would replay it after every
+      subsequent run.
+
+    WHY THE NUMBERS WERE CAPTURED rather than re-read: the landing
+    RE-SEEDS each element's renderer from the record, so by the time
+    this runs the layer holds the plugin's own ladder. Asking it again
+    would adopt that as though a person had typed it, which is the
+    fault the rest conditions exist to prevent -- reached by the other
+    door, and the reason a note-to-look-again would have been worse
+    than useless.
+
+    STILL AT REST, and asserted rather than assumed: if a further run
+    has started in the meantime, the guards inside `_adopt_dock_bounds`
+    put the edit back into the store and this returns having done
+    nothing, so the numbers survive to the next landing.
+    """
+    if _dialog_is_gone(self) or _live_dialog() is not self:
+      return
+    pending, self._adoption_deferred = self._adoption_deferred, {}
+    for tile_id, (assignment, bounds, colours) in pending.items():
+      try:
+        self._adopt_dock_bounds(tile_id, assignment, bounds, colours)
+      except Exception:
+        # An exception in one element must not cost the others theirs;
+        # this runs from a Qt timer, where a raise is swallowed and
+        # takes the rest of the loop with it.
+        continue
+    if pending:
+      self._apply_style_change()
 
   def _graduated_layer_edited(self, layer, tile_id, renderer):
     """React to a styling-dock edit of a GRADUATED element layer.
@@ -10165,6 +10252,21 @@ class WeavingSpaceDialog(QDialog):
             self._last_signatures.get(tid) == self._signature(assignment):
           self._on_layer_style_edited(lid, tid)
     self._preserved_this_run = []
+    # ...AND REPLAY THE DOCK EDITS THAT ARRIVED UNDER THE RUN, which
+    # is the one place `_adoption_deferred` is emptied by USE rather
+    # than by being thrown away. The other three sites clear it
+    # because the element is being rebuilt from scratch and a ladder
+    # typed against the old one means nothing.
+    #
+    # DEFERRED BY A TIMER, because `_task` is cleared only AFTER
+    # `_add_output_layers` -- a settled rule, so that a queued live
+    # run cannot start a second tiling underneath output building --
+    # and replaying here would meet the very guard that deferred
+    # these in the first place and defer them again, forever.
+    # singleShot(0) runs once this call stack has unwound and the
+    # plugin is genuinely at rest.
+    if self._adoption_deferred:
+      QTimer.singleShot(0, self._replay_deferred_adoptions)
     if self._live_pending:
       self._live_pending = False
       self._live_timer.start()
@@ -10548,6 +10650,11 @@ class WeavingSpaceDialog(QDialog):
     # _finish_run re-examines exactly these, because a dock edit made
     # mid-run rides across in that renderer with no record behind it
     self._preserved_this_run = []
+    # {tile_id: (assignment, bounds, colours)} -- dock edits that
+    # arrived while a run was in flight, replayed once it has landed.
+    # See _adopt_dock_bounds for why the numbers are kept rather than
+    # a note to look again.
+    self._adoption_deferred = {}
     for tid in tile_ids:
       a = by_id.get(tid, {"id": tid, "var": None, "mode": "Single colour",
                           "ramp": "Greys", "scheme": "Quantiles", "k": 5,

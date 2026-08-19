@@ -177,6 +177,28 @@ each watched CAUGHT. And the user guide, the help text and the
 changelog, which was approved for a much smaller release and needs
 re-reading against the whole diff rather than amending.
 
+**COPY TO: ALLOW SELECTION OF MULTIPLE TARGETS.** Asked for by the
+maintainer, 2026-08-19. "Copy to..." names one receiving element at a
+time, so giving four elements one classification is four trips through
+the same window. The record and the arithmetic already work per
+target -- `_copy_classification(source, target)` is called once per
+pair -- so this is the chooser and the loop around it rather than new
+semantics.
+
+WHAT MUST BE DECIDED WHEN IT IS BUILT: what happens when the copy
+succeeds for some targets and is refused for others, since a copy
+already checks each pin flag against the RECEIVING column and leaves
+behind what that column cannot reach. A partial success reported as a
+success is the shape this project keeps meeting.
+
+**TWO THINGS REPORTED AGAINST rc9 AND NOT YET REPRODUCED**, both in
+`docs/process/defects-2026-08-19.md` with what to establish first: the
+tile-as-icon count check refusing a design that is fine, and
+twenty-three elements being extremely slow to work with. Neither is
+guessed at in that file, deliberately -- the second in particular has
+a precedent (306,558 swatch draws in one test) that would be very easy
+to assume and wrong to assume.
+
 ### What this version has already closed
 
 The thirteen guards owed for those fixes were written and proved on
