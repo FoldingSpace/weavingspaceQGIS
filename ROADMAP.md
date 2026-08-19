@@ -155,7 +155,35 @@ unmentioned though four documents said otherwise; every Unclassed
 element was warned a third of its fifty steps were empty; and where
 two elements share a column, one element's notice silenced the other.
 
-### Nothing outstanding
+### Outstanding
+
+**FINISH THE FLOORS AND CEILINGS.** Branch
+`for-0.24.3/unclassed-edges`, and the rest of the work is on
+`pre-0.24.3rc1` already. The record, the arithmetic, the exclusion and
+the fourth kind of absence are in and proved; the editor can set and
+clear a floor and a ceiling. What is left is the presentation and its
+guards.
+
+WHAT MUST BE TRUE BEFORE THE BRANCH MERGES: the heavy-outline
+convention exists -- a bound box drawn with a heavy black outline when
+its number is a person's rather than a computed one, identically for a
+floor, a pin or a ceiling -- and the two Unclassed guards are restated
+against it. `test_an_unclassed_row_pins_from_either_control` and
+`test_two_pin_controls_agree_across_a_run_landing` both drive the pin
+BUTTON and compare its glyph pixels; they must read `_limit_boxes`
+rather than `_pin_widgets` and assert the outline instead. They are
+not to be deleted: the promise they carry, that an end named by two
+controls is named consistently, is exactly as true of the new design.
+
+ALSO STILL OWED, on the working branch rather than that one: retiring
+the Pin column for the CLASSED styles, the clear mark inside a cell
+that gives a bound back, the matrix cells and registered tests for
+everything above with each guard watched to fail, a catalogue entry
+per behaviour, and the user guide, help text and changelog. The
+changelog needs re-reading against the whole diff before promotion
+rather than amending -- it was approved for a much smaller release.
+
+### What this version has already closed
 
 The thirteen guards owed for those fixes were written and proved on
 2026-08-18 and the entry listing them is DELETED, which is what this
