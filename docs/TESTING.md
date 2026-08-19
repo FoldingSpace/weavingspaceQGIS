@@ -1742,3 +1742,36 @@ writing renderers, not while a run is in flight, and not while a
 landing is still being reconciled. During any of those the record and
 the layer are transiently out of step, and what sits on the layer is
 nobody's decision.
+
+## When an instrument disagrees with a hand-run, believe the hand-run
+
+2026-08-19. A guard proved VACUOUS by hand -- it drove a path the
+product now refuses, so its comparison could not move whatever the
+mutation did -- came back `caught` from the mutation catalogue, twice,
+on a quiet machine.
+
+THREE EXPLANATIONS WERE TRIED AND TWO WERE COMFORTABLE. Contention, ruled
+out by running it with nothing else on the machine. The disk, at 99%
+with 589 MB of abandoned sandbox copies, which died on its own
+arithmetic against a 926 GiB volume and changed nothing when cleared.
+The sandbox itself, ruled out by BUILDING ONE BY HAND and running the
+same test in it with the watchdog and its `--quiet` removed: 2.4
+seconds, passed.
+
+WHAT WAS LEFT WAS THE INTERPRETER, and it had been in plain sight:
+the tool launched tests with `sys.executable`, which under this
+project's own required invocation is the system python3, which has no
+QGIS. Every test died at its first import and every entry read
+`caught`.
+
+THE HABIT, and it is cheap: when a tool and a hand-run disagree, RUN
+THE TOOL'S INNER COMMAND YOURSELF with nothing suppressed. Every layer
+that hides output -- a `--quiet`, a watchdog, a captured subprocess --
+is a layer between you and the answer, and the diagnosis took four
+attempts only because each theory was about something more interesting
+than the command line actually being executed.
+
+AND THE COROLLARY FOR ANY HARNESS YOU WRITE: ask what it reports when
+the thing it drives cannot start. If that is indistinguishable from
+success, it can only confirm, and a check that can only confirm is not
+a check.

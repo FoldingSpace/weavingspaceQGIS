@@ -557,3 +557,27 @@ Per batch, expect eight to fifteen survivors early on, most of them
 real gaps rather than curiosities. Expect one or two of the tests you
 write to pass without discriminating; that is normal and is exactly
 what step 6 is for.
+
+## Run it with QGIS's Python, and it will stop you if you do not
+
+`tools/mutation_check.py` is invoked with `env -u PYTHONHOME -u
+PYTHONPATH python3`, because a plain `python3` that has inherited the
+QGIS environment dies at bootstrap. That is right for the MODULE and
+was wrong for the TESTS it launches: until 2026-08-19 it ran each one
+with `sys.executable`, which under that invocation is the system
+python3 -- an interpreter with no QGIS in it. Every test died at
+`import qgis.core`, and a test that fails is scored `caught`, so the
+catalogue reported success for seventeen entries in a row.
+
+So source the environment first, which exports `QGIS_PY`:
+
+    eval "$(bash tools/macos_qgis_env.sh 2>/dev/null \
+            | grep -E '^[A-Z_]+=' | sed 's/^/export /')"
+    export QT_QPA_PLATFORM=offscreen
+    env -u PYTHONHOME -u PYTHONPATH python3 tools/mutation_check.py --only <name>
+
+The tool now REFUSES to judge anything when the interpreter it would
+use cannot import qgis, and names the command above. It also runs each
+test unmutated once, cached per test name, and reports UNJUDGEABLE
+rather than a kill it cannot justify -- so an entry whose test cannot
+pass in that harness is never counted as a guard.

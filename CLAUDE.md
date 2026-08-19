@@ -552,6 +552,24 @@ obligations: they exist so nobody pays twice for the same discovery.
   Implemented 2026-08-12 and proved to fail by adding a harness the
   workflow does not name. When you write that something is enforced,
   open the checker in the same commit.
+- **A HARNESS THAT LAUNCHES A TEST MUST LAUNCH IT WITH AN INTERPRETER
+  THAT CAN RUN IT, AND MUST REFUSE OTHERWISE.** `mutation_check`
+  launched every test with `sys.executable` -- and this project's own
+  rule is to invoke that module as `env -u PYTHONHOME -u PYTHONPATH
+  python3`, because a plain python3 carrying the QGIS environment dies
+  at bootstrap. The interpreter that leaves you with is the SYSTEM
+  one, which has no QGIS, so every test died at `import qgis.core` and
+  a test that "failed" is scored CAUGHT. On 2026-08-19 the catalogue
+  therefore reported success for seventeen entries in a row, including
+  one whose test was later proved unable to fail by construction.
+  THE SHAPE IS THE ONE THIS FILE ALREADY NAMES TWICE: a check that can
+  only confirm is not a check. Ask of any harness what it does when
+  the thing it drives cannot start at all -- if the answer is
+  indistinguishable from success, that is the defect, whatever else is
+  true. The tool now resolves `QGIS_PY` and refuses to judge anything
+  when that interpreter cannot import qgis, naming the command that
+  fixes it. A harness that stops is worth more than one that reports,
+  because its verdicts get written down.
 - **A catalogue entry that matches nothing REPORTS nothing, which
   reads exactly like success.** Each entry in `tools/mutation_check.py`
   finds its `old` text in a source file and replaces it. When that
