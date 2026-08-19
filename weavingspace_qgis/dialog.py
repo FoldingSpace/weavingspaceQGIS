@@ -6494,8 +6494,23 @@ class WeavingSpaceDialog(QDialog):
     # captured at the moment it arrives and applied once at rest.
     if getattr(self, "_task", None) is not None or \
         getattr(self, "_preserved_this_run", None):
-      self._adoption_deferred[tile_id] = (
-        dict(assignment), list(bounds), list(colours))
+      # ONLY WHAT ADOPTION COULD EVER TAKE. A change to the class COUNT
+      # is a RECLASSIFICATION, which this method refuses further down
+      # and must not touch -- the signature rule preserves those. Yet
+      # capturing one here and replaying it made the map come back
+      # with the plugin's five classes where the dock had left twelve:
+      # the replay reached the element AFTER the landing had preserved
+      # it and reconciled it back down. Deferring work that would be
+      # refused anyway is not free; it is a second path to an element
+      # the first path had already settled.
+      #
+      # `mine` is not asked for here, deliberately, because it BUILDS a
+      # renderer and this runs inside a Qt slot on every dock edit. The
+      # cheap count is enough to tell a retype from a reclassification.
+      count = len(self._current_graduated_classes(assignment) or [])
+      if count and count == len(bounds):
+        self._adoption_deferred[tile_id] = (
+          dict(assignment), list(bounds), list(colours))
       return
     field = assignment["var"]
     if not bounds or len(bounds) < 2:
@@ -6609,17 +6624,40 @@ class WeavingSpaceDialog(QDialog):
         # this runs from a Qt timer, where a raise is swallowed and
         # takes the rest of the loop with it.
         continue
-    # NOT WHEN LIVE UPDATE IS OFF, which is a settled contract this
-    # broke twice over -- `race: restyle during a run` and `a ramp
-    # chosen during a run is not lost` both failed on it. With live
-    # update unticked the map is deliberately NOT refreshed on its
-    # own: the table and the map may disagree until the user asks, and
-    # what must hold is that the change is NOT LOST. The record
-    # carries the adopted bounds either way, so pressing Generate
-    # applies them; repainting from a timer is the plugin acting
-    # unasked, which is the one thing that switch forbids.
-    if pending:  # BISECT: guard removed
-      self._apply_style_change()
+    # PRESERVE, DO NOT REPAINT. (Maintainer's ruling, 2026-08-19.) Two
+    # settled contracts pull against each other here and this is the
+    # line that reconciles them. `race: restyle during a run` requires
+    # that with live update off the map is NOT refreshed on its own --
+    # the table and the map may disagree until the user asks. `a dock
+    # reclassification lands while a run is finishing` requires that a
+    # twelve-class classify made in the dock is still ON the map
+    # afterwards. Repainting satisfied the second and broke the first
+    # and `a ramp chosen during a run is not lost` with it; doing
+    # nothing did the reverse.
+    #
+    # NEITHER TEST ASKS FOR A REPAINT. What the second needs is that
+    # the landing does not CLOBBER what a person left on the layer,
+    # and the way this dialog already avoids that is by making the ROW
+    # FOLLOW the renderer -- after which the element no longer looks
+    # changed and nothing re-seeds it. That is precisely what the
+    # landing does for `_preserved_this_run` a few lines above, so
+    # these elements go through the same door rather than a second one
+    # invented for them.
+    #
+    # The canvas is untouched either way, which is what live update
+    # off means: the record carries the adopted bounds, and Generate
+    # applies them.
+    for tile_id in pending:
+      lid = self._element_layer_ids.get(tile_id)
+      if not lid:
+        continue
+      try:
+        self._on_layer_style_edited(lid, tile_id)
+      except Exception:
+        # One element's failure must not cost the others theirs: this
+        # runs from a Qt timer, where a raise is swallowed and takes
+        # the rest of the loop with it.
+        continue
 
   def _graduated_layer_edited(self, layer, tile_id, renderer):
     """React to a styling-dock edit of a GRADUATED element layer.
