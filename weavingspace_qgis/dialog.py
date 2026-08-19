@@ -7140,14 +7140,33 @@ class WeavingSpaceDialog(QDialog):
       # THE MAP DOES NOT MOVE -- which reads exactly like the control
       # not working. Measured 2026-08-19: a restated guard failed on
       # precisely this and four other explanations were killed first.
-      if which in ("floor", "ceiling") and value is not None \
-          and not self.live_check.isChecked() \
-          and self._limits_exclude_anything(
+      # THE GATE THAT TELLS AND THE GATE THAT ACTS MUST ASK THE SAME
+      # QUESTION, and for a day they did not. `_restyle_only` refuses
+      # ANY limit edit, because the geometry signature carries the
+      # floor and the ceiling as VALUES; this notice asked the
+      # narrower question of whether the limits currently exclude
+      # something. Every limit edit that stops excluding fell in the
+      # gap: lowering a floor, or clearing it, or setting a first one
+      # wide of the data, changed nothing on the map and said nothing
+      # either, which reads exactly like the control not working.
+      # Measured 2026-08-19 through the editor's own floor box, and
+      # found by a hunt pointed at what the morning's own signature
+      # fix had broken.
+      if which in ("floor", "ceiling") and not self.live_check.isChecked():
+        if self._limits_exclude_anything(
             self._assignment_for(tile_id) or {}):
-        self._report_quietly(
-          "Areas outside the limits stop being drawn on the next "
-          "Generate, since leaving them out changes which tiles the "
-          "map holds rather than only their colours.")
+          self._report_quietly(
+            "Areas outside the limits stop being drawn on the next "
+            "Generate, since leaving them out changes which tiles the "
+            "map holds rather than only their colours.")
+        else:
+          # THE OTHER DIRECTION, which the sentence above cannot cover
+          # honestly: widening a limit or giving it back does not stop
+          # areas being drawn, it starts them again.
+          self._report_quietly(
+            "Areas the old limits left out come back on the next "
+            "Generate, since which tiles the map holds is decided "
+            "when it is drawn rather than when it is coloured.")
       # ...and the LADDER back, not merely "not refused". A pin
       # recomputes every break between the pinned ones, and the window
       # was built with the ladder from before that, so it went on

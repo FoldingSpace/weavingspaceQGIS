@@ -3822,6 +3822,23 @@ MUTATIONS = [
            "limited alike to 0-12 drew 0-1-2-3-4-12 and "
            "0-2.4-4.8-7.2-9.6-12, disagreeing everywhere between ends "
            "their legends agree on"),
+  dict(name="a-limit-edit-is-announced-either-way", file=DIALOG,
+       # ANCHORED ON THE GATE that decides whether anything is said,
+       # not on either sentence: what is at stake is that the question
+       # asked here is the SAME one `_restyle_only` asks, and mutating
+       # a sentence would prove the wording instead.
+       old='      if which in ("floor", "ceiling") and not self.live_check.isChecked():',
+       new='      if which in ("floor", "ceiling") and value is not None \\\n          and not self.live_check.isChecked() \\\n          and self._limits_exclude_anything(\\\n            self._assignment_for(tile_id) or {}):',
+       test="test_a_limit_edit_that_draws_nothing_new_still_says_so",
+       why="`_restyle_only` refuses EVERY limit edit, since the "
+           "geometry signature carries the floor and ceiling as "
+           "values, so with live update off the map does not move "
+           "until the next Generate. Asked the narrower question -- "
+           "do the limits currently exclude anything -- the plugin "
+           "said nothing for every edit that stops excluding: a floor "
+           "set wide of the data, or lowered, or given back, changed "
+           "nothing and announced nothing, which reads exactly like "
+           "the control not working"),
   dict(name="a-limit-keeps-its-ramp-colours", file=BRIDGE,
        # ANCHORED ON THE GATE, not on the recolour it guards: the
        # recolour was always right and was simply never reached with a

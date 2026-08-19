@@ -50924,6 +50924,71 @@ def test_two_columns_with_one_pair_of_limits_draw_one_ladder():
     dlg.close()
 
 
+def test_a_limit_edit_that_draws_nothing_new_still_says_so():
+  """Every limit edit is announced, in whichever direction it goes.
+
+  A limit is a GEOMETRY change: the geometry signature carries the
+  floor and the ceiling as values, so `_restyle_only` refuses ANY
+  limit edit and the map does not move until the next Generate. With
+  live update off that is correct and it must be SAID, or the number
+  is accepted, the editor redraws around it, the map stays as it was,
+  and the control reads as broken.
+
+  BOTH DIRECTIONS, because one sentence cannot cover them: setting a
+  limit that excludes stops areas being drawn, and widening or
+  clearing one starts them again. The notice used to be gated on
+  whether the limits currently exclude anything, which is a narrower
+  question than the one `_restyle_only` asks, and every edit that
+  stopped excluding fell in the gap.
+
+  Regression: 2026-08-19, found by a hunt pointed at what that day's
+  own signature fix had broken -- a floor set wide of the data
+  changed nothing and said nothing. [hunt]
+  """
+  dlg, _layer, tid = _quant_dialog(mode="Quant: Quantiles", k=5,
+                                   ramp="Reds", row=1)
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(200)
+    editor = _open_quant_editor(dlg, 1)
+    try:
+      boxes = list(editor._limit_boxes.get("floor") or [])
+      assert boxes, "the editor offers no floor box, so nothing can be typed"
+      box = boxes[0]
+      # WIDE OF THE DATA, so nothing is excluded and the old gate --
+      # which asked whether the limits exclude anything -- would say
+      # nothing at all.
+      del BAR_MESSAGES[:]
+      box.setValue(-1000.0)
+      box.editingFinished.emit()
+      _tick(600)
+      said = [text for _kind, text in BAR_MESSAGES]
+      assert (dlg._pinned_bounds.get(tid, {}).get(
+        dlg._assignment_for(tid)["var"]) or {}).get("floor") == -1000.0, \
+        f"the floor was not recorded at all, so this case never " \
+        f"reached the question it names"
+      assert said, \
+        "a floor set wide of the data changed the map not at all and " \
+        "said nothing either, so the control reads as broken"
+
+      # ...and back again, which is the direction the one sentence
+      # cannot honestly cover.
+      del BAR_MESSAGES[:]
+      box.setValue(float(editor._default_bound("floor")))
+      box.editingFinished.emit()
+      _tick(600)
+      returned = [text for _kind, text in BAR_MESSAGES]
+      assert returned, \
+        "giving the floor back said nothing, though the areas it had " \
+        "left out do not come back until the next Generate"
+    finally:
+      editor.close()
+  finally:
+    dlg.close()
+
+
 def test_a_limit_keeps_the_colours_the_ramp_gives():
   """A floor or ceiling must not repaint the element.
 
@@ -50955,9 +51020,26 @@ def test_a_limit_keeps_the_colours_the_ramp_gives():
       f"could not show a repaint if there were one"
     field = dlg._assignment_for(tid)["var"]
     dlg._pinned_bounds.setdefault(tid, {})[field] = {"floor": -1000.0}
-    dlg._apply_style_change()
-    _tick(600)
+    # THROUGH A FULL RUN, and that is not a convenience. A limit is a
+    # GEOMETRY change, so `_apply_style_change` refuses it -- measured
+    # 2026-08-19: `_restyle_only` returns False, the layer keeps the
+    # renderer it already had, and this test's `after == before` then
+    # holds whatever the recolour gate does. It was written that way
+    # and was vacuous from its first run; found by a hunt pointed at
+    # what the morning's own signature fix had broken.
+    _generate_and_wait(dlg)
+    _tick(300)
     after = _class_hexes(dlg, tid)
+    # THE PREMISE, STATED: the element must actually have been
+    # re-seeded, or nothing below can have been exercised. A floor
+    # widens the ladder's low edge outward to itself, so the first
+    # class starting at -1000 is proof the limit reached the renderer.
+    out = QgsProject.instance().mapLayer(dlg._element_layer_ids[tid])
+    spans = list(out.renderer().ranges())
+    assert spans and round(spans[0].lowerValue(), 6) == -1000.0, \
+      f"the floor never reached the map -- the ladder starts at " \
+      f"{spans[0].lowerValue() if spans else None}, not -1000 -- so " \
+      f"this case did not exercise the recolour it names"
     assert len(set(after)) > 1, \
       f"a floor of -1000, which excludes nothing, repainted the " \
       f"element from {before} to {after}: every class is now the same " \
@@ -52822,6 +52904,8 @@ def main():
         test_a_dock_reclassification_lands_while_a_run_is_finishing)
   check("two columns with one pair of limits draw one ladder",
         test_two_columns_with_one_pair_of_limits_draw_one_ladder)
+  check("a limit edit that draws nothing new still says so",
+        test_a_limit_edit_that_draws_nothing_new_still_says_so)
   check("a limit keeps the colours the ramp gives",
         test_a_limit_keeps_the_colours_the_ramp_gives)
   check("a moved limit re-splits the tiles",

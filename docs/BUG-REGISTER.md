@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-256 defect(s) with a regression test.
+257 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -87,6 +87,8 @@ there is no separate list to remember.
   guarded by `test_a_graduated_dock_recolour_survives_the_plugin_being_shut`
 - **a renderer or filter set on an element's no-data layer in QGIS was destroyed by the next Generate, silently, while the same work on the element beside it survived and was reported. Found independently by two hunts on 2026-08-16; confirmed by reading layer_styles out of the exported GeoPackage, where tiles_a carried the hand-set colour and tiles_a_no_data carried the default.**  
   guarded by `test_a_hand_styled_no_data_layer_survives_a_re_tile`
+- **2026-08-19, found by a hunt pointed at what that day's own signature fix had broken -- a floor set wide of the data changed nothing and said nothing.**  
+  guarded by `test_a_limit_edit_that_draws_nothing_new_still_says_so`
 - **2026-08-19. Measured through the dialog on Reds: five classes from #fff5f0 to #67000d became five identical greys.**  
   guarded by `test_a_limit_keeps_the_colours_the_ramp_gives`
 - **2026-08-19. Found by three hunts at once, one of them in pixels: 4,394 of an element's paint gone, 27.5 per cent of it.**  
@@ -560,7 +562,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- a bug hunt pointed in a named direction: 85
+- a bug hunt pointed in a named direction: 86
 - not written down at the time: 84
 - reported by a user: 19
 - the mutation campaign: 16
