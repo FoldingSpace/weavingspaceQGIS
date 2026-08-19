@@ -1597,3 +1597,100 @@ green matrix that cannot go red is an expensive way to feel covered.
 **ANY CELL THAT EVER FAILS JOINS THE SPINE PERMANENTLY.** A regression
 seen once is tested forever; the rotation then only ever covers ground
 with no known history.
+
+## REACH FOR THE MATRIX FIRST when writing or improving a test
+
+**This is the default shape for any test about a BEHAVIOUR FAMILY, not
+a specialist technique.** Before writing a single-case test, ask
+whether the thing under test is one behaviour or a family of them.
+"Edit the symbology in QGIS and the plugin follows", "a project
+reopens as it was saved", "a number you type is the number used" are
+all families, and a family fails one member at a time. A single case
+passes for whichever member happens to be intact and tells you nothing
+about the rest.
+
+The shape, and it is cheap: enumerate the ATOMIC actions as routes,
+cross them with SYNTHETIC data shapes chosen for failure modes, and
+add an axis for WHAT HAPPENS NEXT. Run a spine of every route against
+two canonical shapes every time, sample the remainder under a printed
+seed, and keep the full crossing behind a flag. Measured on the
+symbology matrix: 36 cells in 58 seconds, against a suite whose
+slowest single test is 118.
+
+**When improving an EXISTING test, the same question applies with more
+force**, because a test that already passes is the most likely place
+for a hole to hide. The guard for the symbology promise pasted a
+renderer with a different field, class count AND ramp at once and had
+passed for weeks; a tester retyping one boundary found that nothing
+followed. Widening that test into a matrix is what turned one green
+tick into a 36-cell grid that fails 17 ways when the fix is removed.
+
+Signs you should be writing a matrix rather than a case:
+- the behaviour has a name a user would recognise as a promise;
+- you find yourself writing "and also" in the test's docstring;
+- the fixture has one shape and the production data has many;
+- the thing can be done more than one way in the UI;
+- arrival is easy to check and PERSISTENCE is the part you keep
+  meaning to get to.
+
+## Bisect by DISABLING, not by reasoning
+
+When a change breaks a test and the cause is not obvious after ONE
+hypothesis, stop reasoning and bracket it. Insert an early `return` at
+successive points through the new code and run the failing test at
+each: the first point that turns PASS into FAIL contains the culprit.
+On 2026-08-18 this bracketed a defect to a single statement -- the
+store -- after four separate theories had each been plausible, each
+been implemented, and each been wrong.
+
+The same method works one level up: to decide WHICH FILE is at fault,
+swap the whole file for its last-good version and re-run. That settled
+`dialog.py` versus `tests/run_tests.py` in a single run.
+
+**Then log what the culprit does, not what you think it does.** The
+store here wrote breaks `[1.0, 1.4, 2.6, 3.0]` -- the plugin's own
+ladder, recorded as though a user had typed it. No amount of reading
+would have produced that string.
+
+## Instrumentation that lies, and how it lied here
+
+**`print()` INSIDE A QT SIGNAL HANDLER GOES NOWHERE** under a test
+that captures output. A dump placed in the suspect method stayed empty
+through every failing run, which read as proof the method never ran; a
+later call-site bisect proved it ran every time. AN EMPTY LOG IS NOT
+EVIDENCE OF ABSENCE. Write to a FILE, and prove the file gets written
+in a case you know reaches the code.
+
+**A PLAIN `python3` HEREDOC RUN AFTER SOURCING THE QGIS ENVIRONMENT
+DIES AT BOOTSTRAP AND APPLIES NO EDIT.** `PYTHONHOME` points the
+system interpreter at QGIS's framework and it fails with
+`ModuleNotFoundError: No module named 'encodings'`. The test then runs
+the UNMODIFIED file and its result is fiction. Two bisect results were
+read as measurements before this was noticed. Use
+`env -u PYTHONHOME -u PYTHONPATH python3` for edits, or edit before
+sourcing. The same trap kills `release.py` and `mutation_check.py`.
+
+**AN ANCHOR THAT MATCHES TWICE APPLIES NOTHING.** The categorized and
+graduated handlers share identical text, and an edit anchored on the
+shared phrase asserted, failed, and left the file untouched while the
+run that followed reported a result. Assert the match count, and parse
+the file after every edit before running anything.
+
+## Two rules the fix itself produced
+
+**A GETTER-SHAPED NAME IS NOT A GETTER.**
+`_current_graduated_classes` reads like an accessor and BUILDS a
+renderer through `bridge.make_graduated_renderer`. Check what a method
+does before calling it from a signal handler.
+
+**WORK ADDED TO A SIGNAL HANDLER MUST NOT PRECEDE THE WORK ALREADY
+THERE.** An exception inside a Qt slot is swallowed, so anything
+inserted ahead of existing logic can cancel it silently and leave no
+trace. Add at the end, and contain your own failure.
+
+**AND ONLY RECORD WHAT A PERSON LEFT BEHIND.** A watcher that adopts
+state from a layer must run only at REST: not while the dialog is
+writing renderers, not while a run is in flight, and not while a
+landing is still being reconciled. During any of those the record and
+the layer are transiently out of step, and what sits on the layer is
+nobody's decision.

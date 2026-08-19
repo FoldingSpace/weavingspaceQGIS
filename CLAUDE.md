@@ -2376,3 +2376,58 @@ run, so the single reference column still speaks for both. Repeat
 this comparison at the next bump; if a release ever changes rendered
 behaviour while the app lags, a live browser capture becomes a
 genuinely independent third column and should be added then.
+
+- **A TEST FOR A PROMISE IS A MATRIX, NOT A CASE, and this is the
+  DEFAULT rather than a technique to reach for occasionally.** Where
+  the thing under test is a family of behaviours -- "edit the
+  symbology in QGIS and the plugin follows", "a number you type is the
+  number used" -- enumerate the atomic actions as ROUTES, cross them
+  with synthetic data SHAPES chosen for failure modes rather than
+  realism, and add an axis for what happens NEXT, because arrival and
+  survival are different promises. Run a spine of every route against
+  two canonical shapes every time, sample the rest under a printed
+  seed, keep the full crossing behind a flag, and report every failing
+  cell rather than the first. Measured 2026-08-18: 36 cells, 58
+  seconds, and 17 of them fail when the fix is removed. The guard this
+  replaced changed field, class count and ramp TOGETHER and had passed
+  for weeks while a retyped boundary reached nothing -- ONE COMPOUND
+  CHANGE IS NOT COVERAGE OF MANY SMALL ONES. Written up at length in
+  docs/TESTING.md; apply it when improving an existing test too, since
+  a test that already passes is where a hole hides best.
+
+- **WHEN A CHANGE BREAKS A TEST, BISECT BY DISABLING RATHER THAN BY
+  REASONING, after ONE hypothesis fails.** Insert an early `return` at
+  successive points through the new code; the first point that turns
+  PASS into FAIL contains the culprit. To decide which FILE is at
+  fault, swap the whole file for its last-good version. On 2026-08-18
+  this bracketed a defect to a single statement after four plausible
+  theories had each been implemented and each been wrong, and the
+  culprit's own log then named what it wrote -- the plugin's own
+  ladder, recorded as though a user had typed it.
+
+- **TWO OF THIS PROJECT'S INSTRUMENTS LIE, and both cost hours on
+  2026-08-18.** `print()` inside a Qt signal handler goes nowhere under
+  a test that captures output, so an empty dump read as proof the code
+  never ran when it ran every time -- AN EMPTY LOG IS NOT EVIDENCE OF
+  ABSENCE. And a plain `python3` heredoc run AFTER sourcing the QGIS
+  environment dies at bootstrap and applies NO edit, so the run that
+  follows measures the unmodified file and reports fiction; use
+  `env -u PYTHONHOME -u PYTHONPATH python3`, the same hazard that
+  kills `release.py` and `mutation_check.py`. Related: an anchor
+  matching TWICE applies nothing while the run still reports a result,
+  and the categorized and graduated handlers share identical text.
+  Assert the match count and parse the file after every edit.
+
+- **A WATCHER MAY ONLY ADOPT WHAT A PERSON LEFT BEHIND.** Anything
+  that reads state off a layer and records it must run at REST: not
+  while the dialog is writing renderers (`_applying_style`), not while
+  a run is in flight (`_task`), and not while a landing is still being
+  reconciled (`_preserved_this_run`). During any of those the record
+  and the layer are transiently out of step, and what sits on the
+  layer is nobody's decision. Adoption recorded the plugin's own
+  five-class ladder as a user's, pinned it, and a twelve-class
+  reclassification made in the dock became five. Also: a getter-shaped
+  name is not a getter -- `_current_graduated_classes` BUILDS a
+  renderer -- and work added to a signal handler must not precede the
+  work already there, since an exception in a Qt slot is swallowed and
+  takes the rest of the handler with it.
