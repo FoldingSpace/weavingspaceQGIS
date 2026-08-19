@@ -2988,7 +2988,29 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
     # `unworn_classes` already asks the right question and is what
     # the swatch used; ask it.
     first, last = 0, count - 1
-    if pins and copied is None:
+    # AN ADOPTED LADDER IS NOT A COPY, and until 2026-08-19 nothing
+    # could tell them apart: both write `pinned["breaks"]`, so both
+    # took the copy's exemption from this trim. They are different
+    # acts with different rules. A COPY reproduces ANOTHER element's
+    # classification and keeps whole, including classes this column
+    # cannot reach -- collapsing their colours drew a one-value column
+    # as two indistinguishable pairs, which is the shortened
+    # classification the keep-them rule exists to prevent. An ADOPTED
+    # ladder is THIS element's own, typed by a person against this
+    # element's data, and the maintainer's rule of 2026-08-17 governs
+    # it: the ramp spans the classes a tile can wear.
+    #
+    # `floor`/`ceiling` are what distinguish them, being written by
+    # adoption and never by a copy. Measured 2026-08-19: the tester's
+    # own ladder -- ends at 0 and 80 outside a column of 3.1 to 79.1 --
+    # produces NO artefact at all, every class worn, so this changes
+    # nothing for the case that prompted it. What it reaches is the
+    # ladder somebody types with a zero-width first class, which comes
+    # back (0, 0) unworn and would otherwise spend the ramp's palest
+    # shade on a class no tile can occupy.
+    adopted = bool(pinned) and (pinned.get("floor") is not None
+                                or pinned.get("ceiling") is not None)
+    if (pins or adopted or limits) and (copied is None or adopted):
       ranges = renderer.ranges()      # bound: a temporary frees its symbols
       edges = [(r.lowerValue(), r.upperValue()) for r in ranges]
       # BOTH CONDITIONS, and each rules out a wrong map the other
