@@ -9998,12 +9998,15 @@ def test_an_unclassed_row_pins_from_either_control():
     # checked immediately came back before the work was even queued
     # and read the previous map. Clear both boundaries, then wait.
     _tick(1200)
-    for _ in range(200):
-      if getattr(dlg, "_task", None) is None:
-        _tick(300)
-        return
-      _tick(100)
-    raise AssertionError("a run never finished after a limit was set")
+    # ...AND THEN GENERATE, because this fixture has live update OFF.
+    # A LIMIT IS A GEOMETRY CHANGE: excluding values moves tiles onto
+    # the paired layer, and `_restyle_only` can neither make nor unmake
+    # one, so a floor cannot be answered by a repaint the way a pin
+    # could. With live update off nothing re-runs on its own, which is
+    # what a user does next and what this must do to measure the map
+    # rather than the map before it.
+    _generate_and_wait(dlg)
+    _tick(300)
 
   def glyph(button):
     """The pin button's actual pixels, so a repaint can be required."""
@@ -10246,46 +10249,47 @@ def test_two_pin_controls_agree_across_a_run_landing():
   editor = opened.get("editor")
   assert editor is not None, "no colour editor opened"
   try:
-    pairs = list(editor._pin_widgets.get("low") or [])
-    assert len(pairs) == 2, \
-      f"the low end is named by {len(pairs)} control(s), not two"
-    in_table = [p for p in pairs if editor.table.isAncestorOf(p[1])]
-    outside = [p for p in pairs if p not in in_table]
+    boxes = list(editor._limit_boxes.get("floor") or [])
+    assert len(boxes) == 2, \
+      f"the floor is named by {len(boxes)} control(s), not two"
+    in_table = [b for b in boxes if editor.table.isAncestorOf(b)]
+    outside = [b for b in boxes if b not in in_table]
     assert in_table and outside, "expected one control in each place"
-    table_pin, table_box = in_table[0]
-    strip_pin, strip_box = outside[0]
+    table_box, strip_box = in_table[0], outside[0]
 
-    # A RUN IN FLIGHT, and the pin made while it is still going. This
-    # is the moment the landing used to destroy.
+    # A RUN IN FLIGHT, and the limit set while it is still going. This
+    # is the moment the landing used to destroy: everything the colour
+    # editor writes must be RE-READ as the run lands, and that rule has
+    # now been got wrong three times -- over category colours, over
+    # class colours, and over pins. A floor is the fourth thing that
+    # window writes, so it belongs under the same guard.
     dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.2)
     dlg._generate()
     assert dlg._task is not None, \
       "no run was in flight, so this test staged nothing"
     table_box.setValue(4.0)
-    table_pin.setChecked(True)
     _settle(dlg)
     _tick(400)
 
     held = dlg._pinned_bounds.get(tile_id, {}).get(field)
-    assert held == {"low": 4.0}, \
-      f"the run landed and the record holds {held!r}; a pin made " \
+    assert held == {"floor": 4.0}, \
+      f"the run landed and the record holds {held!r}; a floor set " \
       f"while a run was finishing was thrown away by it"
     out = project.mapLayer(dlg._element_layer_ids[tile_id])
     drawn = [(r.lowerValue(), r.upperValue())
              for r in out.renderer().ranges()]
-    assert drawn and abs(drawn[0][1] - 4.0) < 1e-9, \
-      f"the map's first class ends at {drawn[0][1] if drawn else None}, " \
-      f"not at the pin the user set mid-run"
+    assert drawn and abs(drawn[0][0] - 4.0) < 1e-9, \
+      f"the map's first class starts at {drawn[0][0] if drawn else None}, " \
+      f"not at the floor the user set mid-run"
 
     # ...and BOTH controls still describe that map.
-    for name, pin, box in (("table", table_pin, table_box),
-                           ("strip", strip_pin, strip_box)):
-      assert pin.isChecked(), \
-        f"the {name}'s pin reads unpinned over a map pinned at 4.0, " \
-        f"so clicking it would apply a number the map left behind"
+    for name, box in (("table", table_box), ("strip", strip_box)):
+      assert box.isMarked(), \
+        f"the {name}'s box reads unmarked over a map floored at 4.0, " \
+        f"so it claims the plugin computed a number a person set"
       assert abs(box.value() - 4.0) < 1e-9, \
         f"the {name}'s box shows {box.value()} where the map is " \
-        f"pinned at 4.0"
+        f"floored at 4.0"
   finally:
     editor.close()
     dlg.close()
@@ -10339,25 +10343,23 @@ def test_two_pin_controls_survive_qgis_moving_underneath():
     editor = opened.get("editor")
     assert editor is not None, "no colour editor opened"
 
-    pairs = list(editor._pin_widgets.get("low") or [])
-    assert len(pairs) == 2, \
-      f"the low end is named by {len(pairs)} control(s), not two, so " \
+    boxes = list(editor._limit_boxes.get("floor") or [])
+    assert len(boxes) == 2, \
+      f"the floor is named by {len(boxes)} control(s), not two, so " \
       f"this test stages nothing it claims to"
-    in_table = [q for q in pairs if editor.table.isAncestorOf(q[1])]
-    outside = [q for q in pairs if q not in in_table]
+    in_table = [b for b in boxes if editor.table.isAncestorOf(b)]
+    outside = [b for b in boxes if b not in in_table]
     assert in_table and outside, "expected one control in each place"
-    table_pin, table_box = in_table[0]
-    strip_pin, strip_box = outside[0]
+    table_box, strip_box = in_table[0], outside[0]
 
     def agreed(moment):
       """Both controls and the record describe one pin, or none."""
       held = (dlg._pinned_bounds.get(tile_id, {}) or {}).get(field) or {}
-      low = held.get("low")
-      for name, pin, box in (("table", table_pin, table_box),
-                             ("strip", strip_pin, strip_box)):
-        assert pin.isChecked() == (low is not None), \
+      low = held.get("floor")
+      for name, box in (("table", table_box), ("strip", strip_box)):
+        assert box.isMarked() == (low is not None), \
           f"{moment}: the {name}'s pin reads " \
-          f"{'pinned' if pin.isChecked() else 'unpinned'} where the " \
+          f"{'set' if box.isMarked() else 'unset'} where the " \
           f"record holds {held!r}"
         if low is not None:
           assert abs(box.value() - float(low)) < 1e-6, \
@@ -10392,9 +10394,9 @@ def test_two_pin_controls_survive_qgis_moving_underneath():
     assert acts == 4, f"only {acts} of 4 alternating edits were made"
     agreed("after alternating between the two controls")
     settled = (dlg._pinned_bounds.get(tile_id, {}) or {}).get(field) or {}
-    assert settled.get("low") is not None, \
+    assert settled.get("floor") is not None, \
       f"four edits left no pin at all: {settled!r}"
-    assert abs(float(settled["low"]) - steps[-1]) < 1e-6, \
+    assert abs(float(settled["floor"]) - steps[-1]) < 1e-6, \
       f"the last edit was {steps[-1]} and the record holds " \
       f"{settled!r}; an earlier act won, so the two controls raced"
 

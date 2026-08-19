@@ -6933,6 +6933,24 @@ class WeavingSpaceDialog(QDialog):
         self._pinned_bounds.get(tile_id, {}).pop(field, None)
       self._custom_swatch_cache.pop(tile_id, None)
       self._apply_style_change()
+      # A LIMIT THAT EXCLUDES CANNOT BE ANSWERED BY A REPAINT, and the
+      # user has to be told when that means waiting. Setting a floor
+      # or a ceiling inside the data moves tiles onto the paired
+      # layer, which `_restyle_only` can neither make nor unmake, so
+      # the change is GEOMETRY and needs a full run. With live update
+      # on, one is already queued and nothing needs saying. With it
+      # off, the number is accepted, the editor redraws around it, and
+      # THE MAP DOES NOT MOVE -- which reads exactly like the control
+      # not working. Measured 2026-08-19: a restated guard failed on
+      # precisely this and four other explanations were killed first.
+      if which in ("floor", "ceiling") and value is not None \
+          and not self.live_check.isChecked() \
+          and self._limits_exclude_anything(
+            self._assignment_for(tile_id) or {}):
+        self._report_quietly(
+          "Areas outside the limits stop being drawn on the next "
+          "Generate, since leaving them out changes which tiles the "
+          "map holds rather than only their colours.")
       # ...and the LADDER back, not merely "not refused". A pin
       # recomputes every break between the pinned ones, and the window
       # was built with the ladder from before that, so it went on
