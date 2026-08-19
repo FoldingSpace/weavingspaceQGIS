@@ -9981,6 +9981,30 @@ def test_an_unclassed_row_pins_from_either_control():
             f"{editor._format_bound(value)!r}")
     return matched, mismatches
 
+  def settle():
+    """Let the plugin finish, however it chose to answer.
+
+    A LIMIT CHANGES THE GEOMETRY SIGNATURE, because excluding values
+    moves tiles onto the paired layer and `_restyle_only` can neither
+    make nor unmake one. So setting a floor answers with a full
+    RE-TILE where setting a pin answered with a restyle, and a fixed
+    tick sized for the second is a bet the first loses -- this suite's
+    standing rule is to wait on the EVENT and keep a clock only to
+    catch a hang.
+    """
+    # THE DEBOUNCES FIRST, THEN THE RUN. Returning as soon as no task
+    # is in flight is a bet that one has already STARTED, and this
+    # dialog debounces at 350 ms and 900 ms -- so a settle that
+    # checked immediately came back before the work was even queued
+    # and read the previous map. Clear both boundaries, then wait.
+    _tick(1200)
+    for _ in range(200):
+      if getattr(dlg, "_task", None) is None:
+        _tick(300)
+        return
+      _tick(100)
+    raise AssertionError("a run never finished after a limit was set")
+
   def glyph(button):
     """The pin button's actual pixels, so a repaint can be required."""
     return button.grab().toImage()
@@ -10013,49 +10037,61 @@ def test_an_unclassed_row_pins_from_either_control():
   editor = opened.get("editor")
   assert editor is not None, "no colour editor opened, so nothing below ran"
   try:
-    assert editor._pin_column, \
-      "an Unclassed row still has no Pin column, which is the whole " \
-      "of what was reported"
-    pairs = editor._pin_widgets.get("low") or []
-    assert len(pairs) == 2, \
-      f"the low end is named by {len(pairs)} control(s); it should be " \
-      f"two -- the table's Pin column and the clamp strip"
+    # UNCLASSED NAMES ITS FLOOR AND CEILING, NOT TWO PINS.
+    # (Maintainer's instruction, 2026-08-19.) The Pin column is gone
+    # from this style: fifty equal steps have no class anybody chose,
+    # so a pin on the first of them names a boundary that means
+    # nothing, while a floor names exactly what the strip above has
+    # always CLAIMED to name -- it read "Ramp starts at" while driving
+    # the low pin, which is the first sliver's upper bound.
+    assert not editor._pin_widgets.get("low"), \
+      "an Unclassed row still offers a low PIN; this style names its " \
+      "floor and ceiling now"
+    boxes = list(editor._limit_boxes.get("floor") or [])
+    assert len(boxes) == 2, \
+      f"the floor is named by {len(boxes)} control(s); it should be " \
+      f"two -- the table's first row and the clamp strip"
 
     # WHICH IS WHICH, asked of the widget tree rather than of the
     # order they happen to be registered in: a list order is not a
     # fact about the interface, and this test is about two SPECIFIC
     # controls.
-    in_table = [p for p in pairs if editor.table.isAncestorOf(p[1])]
-    outside = [p for p in pairs if not editor.table.isAncestorOf(p[1])]
+    in_table = [b for b in boxes if editor.table.isAncestorOf(b)]
+    outside = [b for b in boxes if not editor.table.isAncestorOf(b)]
     assert len(in_table) == 1 and len(outside) == 1, \
       f"{len(in_table)} control(s) in the table and {len(outside)} " \
       f"outside it; expected one of each"
-    table_pin, table_box = in_table[0]
-    strip_pin, strip_box = outside[0]
+    table_box, strip_box = in_table[0], outside[0]
+    computed = editor._default_bound("floor")
+    assert computed is not None, \
+      "the editor computed no floor, so nothing below can tell a " \
+      "number somebody set from one the classification chose"
 
     before = ladder()
     assert before, "the element drew no classes, so nothing below means anything"
     shown_before = printed()
     assert shown_before, "the table printed no bounds at all"
-    strip_before = glyph(strip_pin)
+    strip_before = glyph(strip_box)
+    assert not strip_box.isMarked(), \
+      "the strip's box is marked before anything was set, so the mark " \
+      "says nothing about whether a number is a person's"
 
-    # (1) PIN FROM THE TABLE. The record, the map and the STRIP move.
+    # (1) SET IT FROM THE TABLE. The record, the map and the STRIP move.
     table_box.setValue(1.75)
-    table_pin.setChecked(True)           # emits toggled
-    _tick(500)
-    assert dlg._pinned_bounds.get(tile_id, {}).get(field) == {"low": 1.75}, \
-      f"pinning from the table recorded " \
+    settle()
+    assert dlg._pinned_bounds.get(tile_id, {}).get(field) == {"floor": 1.75}, \
+      f"setting the floor from the table recorded " \
       f"{dlg._pinned_bounds.get(tile_id, {}).get(field)!r}"
-    assert strip_pin.isChecked(), \
-      "the table's pin was set and the strip's pin still reads unpinned"
+    assert strip_box.isMarked(), \
+      "the table set the floor and the strip's box is still unmarked"
     assert abs(strip_box.value() - 1.75) < 1e-9, \
-      f"the strip's box shows {strip_box.value()} where the pin is 1.75"
+      f"the strip's box shows {strip_box.value()} where the floor is 1.75"
     after = ladder()
-    assert abs(after[0][1] - 1.75) < 1e-9, \
-      f"the map's first class ends at {after[0][1]}, not at the pin"
+    assert abs(after[0][0] - 1.75) < 1e-9, \
+      f"the map's first class starts at {after[0][0]}, not at the floor"
     assert printed() != shown_before, \
       "the editor's table prints the same bounds it did before the " \
-      "pin, so the window is showing a ladder the map has left behind"
+      "floor was set, so the window is showing a ladder the map has left behind"
     # ...AND THE WRITTEN CELLS AGAINST THE MAP, which is the axis the
     # line above cannot carry: `printed()` reads the spin boxes too,
     # so it stays true when the cell repaint is deleted outright.
@@ -10065,35 +10101,33 @@ def test_an_unclassed_row_pins_from_either_control():
       "assertion measured nothing at all"
     assert not wrong, \
       "the editor's table disagrees with the ladder the map draws " \
-      "after a pin from the Pin column: " + "; ".join(wrong)
-    assert glyph(strip_pin) != strip_before, \
-      "the strip's pin holds its old PIXELS after the table pinned " \
-      "the same end; isChecked() moving is not the same as the " \
-      "control repainting, and a hand-painted button needs update()"
+      "after a floor set from the table: " + "; ".join(wrong)
+    assert glyph(strip_box) != strip_before, \
+      "the strip's box holds its old PIXELS after the table set the " \
+      "same end; isMarked() moving is not the same as the control " \
+      "repainting, and a hand-painted mark needs update()"
 
-    # (1b) THE SAME BOX AGAIN, WHILE ALREADY PINNED. This is the case
-    # the first version of this test walked past, and a hunt found
-    # what it left: with the end already pinned, `_bound_moved` takes
-    # its `elif wants:` branch, which dropped the firing pair, so
-    # `_bound_edited` fell back to the FIRST registered control -- the
-    # clamp strip -- and applied that box's stale number. The Pin
-    # column took the first value typed and silently discarded every
-    # one after it.
+    # (1b) THE SAME BOX AGAIN, WHILE ALREADY SET. This is the case the
+    # pinned twin walked past until a hunt found what it left: with the
+    # end already set, the handler took a branch that dropped the
+    # firing control and fell back to the FIRST registered one -- the
+    # clamp strip -- applying that box's stale number. The table took
+    # the first value typed and silently discarded every one after it.
     #
     # The order matters and is the lesson: driving table-then-strip
-    # passes, because the table's first act is an unpinned-to-pinned
-    # transition that goes down the other branch. A second edit to the
-    # SAME control is what exposes it.
+    # passes, because the table's first act is an unset-to-set
+    # transition down the other branch. A second edit to the SAME
+    # control is what exposes it.
     table_box.setValue(1.9)
     table_box.editingFinished.emit()
-    _tick(500)
-    assert dlg._pinned_bounds.get(tile_id, {}).get(field) == {"low": 1.9}, \
+    settle()
+    assert dlg._pinned_bounds.get(tile_id, {}).get(field) == {"floor": 1.9}, \
       f"a second edit to the table's own box recorded " \
       f"{dlg._pinned_bounds.get(tile_id, {}).get(field)!r}, not 1.9; " \
       f"the number typed was discarded and another control's value " \
       f"applied in its place"
-    assert abs(ladder()[0][1] - 1.9) < 1e-9, \
-      f"the map's first class ends at {ladder()[0][1]}, not at the " \
+    assert abs(ladder()[0][0] - 1.9) < 1e-9, \
+      f"the map's first class starts at {ladder()[0][0]}, not at the " \
       f"second number typed"
     assert abs(strip_box.value() - 1.9) < 1e-9, \
       f"the strip's box shows {strip_box.value()} after the table was " \
@@ -10101,72 +10135,52 @@ def test_an_unclassed_row_pins_from_either_control():
 
     # (2) NOW MOVE IT FROM THE STRIP. Everything follows the other way.
     shown_after_table = printed()
+    table_before = glyph(table_box)
     strip_box.setValue(2.5)
     strip_box.editingFinished.emit()     # what leaving the box emits
-    _tick(500)
-    assert dlg._pinned_bounds.get(tile_id, {}).get(field) == {"low": 2.5}, \
+    settle()
+    assert dlg._pinned_bounds.get(tile_id, {}).get(field) == {"floor": 2.5}, \
       f"editing from the strip recorded " \
       f"{dlg._pinned_bounds.get(tile_id, {}).get(field)!r}"
     assert abs(table_box.value() - 2.5) < 1e-9, \
-      f"the table's box shows {table_box.value()} where the pin is 2.5; " \
-      f"a stale second copy is how a user clicks a pin that applies a " \
-      f"number the map left behind"
-    assert table_pin.isChecked(), \
-      "the strip set a pin and the table's pin reads unpinned"
-    assert abs(ladder()[0][1] - 2.5) < 1e-9, \
-      f"the map's first class ends at {ladder()[0][1]}, not at 2.5"
+      f"the table's box shows {table_box.value()} where the floor is " \
+      f"2.5; a stale second copy is how a user reads a number the map " \
+      f"left behind"
+    assert table_box.isMarked(), \
+      "the strip set the floor and the table's box reads unmarked"
+    assert abs(ladder()[0][0] - 2.5) < 1e-9, \
+      f"the map's first class starts at {ladder()[0][0]}, not at 2.5"
     assert printed() != shown_after_table, \
-      "the strip moved the pin and the table went on printing the " \
+      "the strip moved the floor and the table went on printing the " \
       "previous ladder"
     matched, wrong = agrees_with_the_map()
     assert matched, \
       "no written cell was compared against the renderer after the " \
-      "strip moved the pin"
+      "strip moved the floor"
     assert not wrong, \
       "the editor's table disagrees with the ladder the map draws " \
-      "after a pin from the clamp strip: " + "; ".join(wrong)
+      "after a floor set from the clamp strip: " + "; ".join(wrong)
 
-    # (2b) THE STRIP'S PIN BUTTON ITSELF, which no test had ever
-    # clicked -- every route above reaches the strip through its BOX.
-    # A wrong-pair bug in `_pin_toggled` would survive on this one,
-    # which is exactly the shape that produced
-    # `the-firing-control-is-the-one-that-is-read` the same day: a
-    # fallback for "nobody said which control fired" turns a missing
-    # argument into a plausible answer rather than a failure.
-    table_before = glyph(table_pin)
-    strip_pin.setChecked(False)          # unpin, from the strip's pin
-    _tick(500)
+    # (3) GIVING IT BACK travels too, or one control goes on claiming
+    # a limit the map no longer has. Typing the computed value back is
+    # the settled way to clear one -- the same idiom as returning a
+    # pinned bound to its computed number.
+    strip_mark_before = glyph(strip_box)
+    table_box.setValue(float(computed))
+    table_box.editingFinished.emit()
+    settle()
     assert not dlg._pinned_bounds.get(tile_id, {}).get(field), \
-      f"the strip's own pin button was cleared and the record still " \
-      f"holds {dlg._pinned_bounds.get(tile_id, {}).get(field)!r}"
-    assert not table_pin.isChecked(), \
-      "the strip's pin button unpinned the end and the table's pin " \
-      "still reads pinned"
-    assert glyph(table_pin) != table_before, \
-      "the table's pin holds its old PIXELS after the strip's own " \
-      "button cleared the same end"
-    strip_box.setValue(2.25)
-    strip_pin.setChecked(True)           # ...and back on, the same way
-    _tick(500)
-    assert dlg._pinned_bounds.get(tile_id, {}).get(field) == {"low": 2.25}, \
-      f"pinning from the strip's own button recorded " \
-      f"{dlg._pinned_bounds.get(tile_id, {}).get(field)!r}, not 2.25; " \
-      f"a handler that guesses which control fired reads the wrong box"
-    assert abs(table_box.value() - 2.25) < 1e-9, \
-      f"the table's box shows {table_box.value()} after the strip's " \
-      f"button pinned at 2.25"
-    assert abs(ladder()[0][1] - 2.25) < 1e-9, \
-      f"the map's first class ends at {ladder()[0][1]}, not at 2.25"
-
-    # (3) AND UNPINNING travels too, or one control goes on claiming a
-    # pin the map no longer has.
-    table_pin.setChecked(False)
-    _tick(500)
-    assert not dlg._pinned_bounds.get(tile_id, {}).get(field), \
-      f"unpinning left " \
+      f"typing the computed floor back left " \
       f"{dlg._pinned_bounds.get(tile_id, {}).get(field)!r} behind"
-    assert not strip_pin.isChecked(), \
-      "the table unpinned and the strip's pin still reads pinned"
+    assert not strip_box.isMarked(), \
+      "the floor was given back and the strip's box still reads as " \
+      "holding a number somebody set"
+    assert not table_box.isMarked(), \
+      "the floor was given back and the box it was typed into still " \
+      "reads as holding a number somebody set"
+    assert glyph(strip_box) != strip_mark_before, \
+      "the strip's box holds its old PIXELS after the floor was given " \
+      "back, so the mark was cleared in state and not on screen"
   finally:
     editor.close()
     dlg.close()
