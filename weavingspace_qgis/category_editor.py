@@ -478,12 +478,18 @@ class CategoryColourDialog(QDialog):
     # strip at once. Keyed by the end rather than by the control, so
     # a handler always knows which boundary it is being asked about.
     self._pin_widgets = {}
-    # {"floor"|"ceiling": box}. SEPARATE from `_pin_widgets` on
+    # {"floor"|"ceiling": [box, ...]}. SEPARATE from `_pin_widgets` on
     # purpose: an outer edge is a weaker statement than a pin, has no
     # button, and must never be counted by anything that asks how many
-    # ends are PINNED -- that count feeds the k arithmetic. One key
-    # each, since a ladder has one floor and one ceiling however many
-    # controls a future row gains.
+    # ends are PINNED -- that count feeds the k arithmetic.
+    #
+    # A LIST PER END, NOT ONE BOX, and this held a single box for
+    # about an hour on 2026-08-19 before the Unclassed strip needed
+    # one too. The pin registry learned the same lesson the hard way
+    # on 2026-08-17: holding ONE pair per end left a second builder's
+    # control wired, live, and applying the other's number. One piece
+    # of state, two descriptions, is the standing hazard in this
+    # window, and the answer is always a list plus a sync.
     self._limit_boxes = {}
     # What the scheme would compute for each end with NOTHING pinned,
     # as [(lower, upper), ...]. It is what makes a pin follow the
@@ -773,7 +779,7 @@ class CategoryColourDialog(QDialog):
     layout.addWidget(row)
 
   def _build_clamp_strip(self, layout, bounds):
-    """The Unclassed dress of the pins: two ends, above the table.
+    """Where an Unclassed ramp starts and stops, above the table.
 
     Args:
       layout: the window's vertical layout, to add the strip to.
@@ -782,35 +788,48 @@ class CategoryColourDialog(QDialog):
         rather than the ends of any class anybody chose.
 
     Returns:
-      None. Builds the same PinButton and bound box the classed table
-      builds, registered through the same `_register_pin` and driven
-      by the same handlers, so the two presentations cannot come to
-      mean different things. The wording is the difference: "Ramp
-      starts at" and "Ramp ends at" rather than a pin on a class,
-      because that is what fifty equal steps make of it.
+      None. Builds two bound boxes registered through
+      `_register_limit` and driven by the same handler the table's
+      outer cells use, so the two presentations cannot come to mean
+      different things.
 
-      SINCE 2026-08-17 THIS SITS BESIDE THE PIN COLUMN rather than
-      instead of it, on the maintainer's instruction: the column so
-      somebody who learned the pin there still finds it, the strip
-      because it says the thing better. `_sync_pin_controls` is what
-      stops the two disagreeing.
+    IT NAMES THE FLOOR AND THE CEILING NOW, AND ITS LABEL WAS WRONG
+    BEFORE. (Maintainer's instruction, 2026-08-19: for Unclassed,
+    just allow the floor and ceiling to be set.) This strip has said
+    "Ramp starts at" since it was written while driving the LOW PIN,
+    which is the first class's UPPER bound -- on fifty equal steps,
+    the ramp's start plus a fiftieth of the span. Near enough to look
+    right and not the same number. The floor IS where the ramp
+    starts, so the label and the control finally name one thing.
+
+    THAT RETIRES THE PINS FOR THIS STYLE, and it is a deliberate
+    reversal of the ruling of 2026-08-17 rather than a drift from it.
+    That ruling gave Unclassed a Pin column BESIDE this strip because
+    a user who had learnt pins elsewhere met fifty faded rows, found
+    no Pin column, and reported the feature missing -- the right call
+    then, when a pin was the only control this window had for an end.
+    It is not the right call now: the original objection to pinning
+    Unclassed, recorded when the strip was built, was that pinning
+    row 0 of fifty is a strange way to say "the ramp starts at 10".
+    There is a control that says exactly that now, so the strange one
+    goes. What made the earlier decision necessary was the absence of
+    this one.
     """
     strip = QWidget()
     row = QHBoxLayout(strip)
     row.setContentsMargins(0, 0, 0, 0)
-    for which, label in (("low", "Ramp starts at"),
-                         ("high", "Ramp ends at")):
-      lower, upper = bounds[0] if which == "low" else bounds[-1]
-      pin = PinButton()
-      pin.setChecked(self._pinned.get(which) is not None)
-      pin.setToolTip("Pin this end; the steps between are spread over "
-                     "what is left")
-      box = self._bound_box(upper if which == "low" else lower)
-      row.addWidget(pin, 0, Qt.AlignmentFlag.AlignVCenter)
+    for which, label in (("floor", "Ramp starts at"),
+                         ("ceiling", "Ramp ends at")):
+      lower, upper = bounds[0] if which == "floor" else bounds[-1]
+      box = self._bound_box(lower if which == "floor" else upper)
+      box.setToolTip(
+        "Where the ramp starts; values below are not drawn"
+        if which == "floor"
+        else "Where the ramp ends; values above are not drawn")
       row.addWidget(QLabel(label), 0, Qt.AlignmentFlag.AlignVCenter)
       row.addWidget(box, 0, Qt.AlignmentFlag.AlignVCenter)
       row.addSpacing(12)
-      self._register_pin(which, pin, box)
+      self._register_limit(which, box)
     row.addStretch(1)
     layout.addWidget(strip)
 
@@ -1024,6 +1043,18 @@ class CategoryColourDialog(QDialog):
       those rows becomes editable -- the outer edges belong to the
       data.
     """
+    # UNCLASSED GETS THE EDGES AND NOT THE PINS. (Maintainer's
+    # instruction, 2026-08-19.) Fifty equal steps have no class
+    # anybody chose, so a pin on the first of them names a boundary
+    # that means nothing to a reader, while a floor names exactly the
+    # thing the strip above has always claimed to name. The outer box
+    # is still installed below, so the end keeps two controls -- the
+    # strip and this row -- which is the part of the 2026-08-17 ruling
+    # that stands: a user learns a control in one place and looks for
+    # it there.
+    if self._locked:
+      self._install_limit_box(row, "floor" if which == "low" else "ceiling")
+      return
     lower, upper = self._bounds[row]
     pin = PinButton()
     pin.setChecked(self._pinned.get(which) is not None)
@@ -1081,11 +1112,62 @@ class CategoryColourDialog(QDialog):
     box.setToolTip("Where the ladder starts; values below are not drawn"
                    if which == "floor"
                    else "Where the ladder stops; values above are not drawn")
-    box.valueChanged.connect(lambda _v, w=which: self._limit_moved(w))
+    self._register_limit(which, box)
     self.table.setCellWidget(row, column, box)
-    self._limit_boxes[which] = box
 
-  def _limit_moved(self, which):
+  def _register_limit(self, which, box):
+    """Wire one outer-edge control and remember it.
+
+    Args:
+      which: "floor" or "ceiling".
+      box: the spin box naming that edge.
+
+    Returns:
+      None. The box joins `_limit_boxes[which]` and is connected to
+      `_limit_moved`, carrying ITSELF as the source so the handler
+      knows which control fired.
+
+    THE SOURCE TRAVELS, and the pin family learned why on 2026-08-17:
+    a handler that falls back to "the first registered control" reads
+    the strip's stale number when the table's box is what moved, and
+    silently discards every value typed after the first. A fallback
+    for "nobody said which" is exactly where a missing argument hides,
+    because it turns a bug into a plausible answer.
+    """
+    box.valueChanged.connect(
+      lambda _v, w=which, b=box: self._limit_moved(w, b))
+    self._limit_boxes.setdefault(which, []).append(box)
+
+  def _sync_limit_boxes(self, which, source=None):
+    """Move every other control naming this edge to the same number.
+
+    Args:
+      which: "floor" or "ceiling".
+      source: the box that fired, which is left alone -- it already
+        holds the value and writing to it mid-edit would fight the
+        person typing.
+
+    Returns:
+      None.
+
+    Signals are blocked while they move, or setting a control right
+    fires the handler that set it right -- the same reason
+    `_sync_pin_controls` blocks them, and the same reason the pins
+    hold a list rather than a single pair.
+    """
+    for box in self._limit_boxes.get(which, []):
+      if box is source:
+        continue
+      value = self._pinned.get(which)
+      if value is None:
+        value = self._default_bound(which)
+      if value is None:
+        continue
+      box.blockSignals(True)
+      box.setValue(float(value))
+      box.blockSignals(False)
+
+  def _limit_moved(self, which, source=None):
     """Follow an outer-edge box: off the computed edge is a limit.
 
     Args:
@@ -1110,7 +1192,7 @@ class CategoryColourDialog(QDialog):
     retyped exactly, and demanding that would leave the box with no
     way out but the clear mark.
     """
-    box = self._limit_boxes.get(which)
+    box = source or next(iter(self._limit_boxes.get(which, [])), None)
     if box is None:
       return
     default = self._default_bound(which)
@@ -1136,8 +1218,10 @@ class CategoryColourDialog(QDialog):
       return
     self._pinned[which] = value if wants else None
     # The ladder has moved -- a limit re-cuts every break inside it --
-    # so the rest of the window has to say so too.
+    # so the rest of the window has to say so too, and every OTHER
+    # control naming this edge moves with it.
     self._redraw_bounds(answer)
+    self._sync_limit_boxes(which, box)
 
   def _default_bound(self, which):
     """The number the scheme computes for one end with no pin on it.
