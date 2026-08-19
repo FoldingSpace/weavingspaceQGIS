@@ -54,6 +54,11 @@
   "excerpt": "This layer does not report its size, so live update cannot f",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "092bd95217c62864": {
+  "approved": "2026-08-19",
+  "excerpt": "The lowest value drawn ({}) is at or above the first class b",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "09a9aff61c42a70e": {
   "approved": "2026-08-12",
   "excerpt": "![Land use around the Great Lakes at six moments in time, dr",
@@ -209,6 +214,11 @@
   "excerpt": "Fill colour for this element",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "192eeeec9c7c6729": {
+  "approved": "2026-08-19",
+  "excerpt": "Areas outside the limits stop being drawn on the next Genera",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "19501fcca9657d5a": {
   "approved": "2026-08-08",
   "excerpt": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8",
@@ -218,6 +228,11 @@
   "approved": "2026-08-09",
   "excerpt": "Every element in a unit takes its data from the same area.",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "1b02d2763b609089": {
+  "approved": "2026-08-19",
+  "excerpt": "Where the ladder stops; values above are not drawn",
+  "where": "weavingspace_qgis/category_editor.py"
  },
  "1c2e89bbd04a4727": {
   "approved": "2026-08-08",
@@ -234,10 +249,20 @@
   "excerpt": "The polygon layer whose attributes will be mapped. A project",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "1e97d1edcb502c46": {
+  "approved": "2026-08-19",
+  "excerpt": "The highest value drawn ({}) is at or below the last class b",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "1ec5cc4444f6b486": {
   "approved": "2026-08-08",
   "excerpt": "<div class=\"plates\">\n  <div>\n    <img src=\"img/twill-weave.p",
   "where": "docs/index.html"
+ },
+ "2020ebaf6a837c09": {
+  "approved": "2026-08-19",
+  "excerpt": "Where the ramp starts; values below are not drawn",
+  "where": "weavingspace_qgis/category_editor.py"
  },
  "214448db90218df5": {
   "approved": "2026-08-09",
@@ -659,6 +684,11 @@
   "excerpt": "The plugin draws the same kinds of map from your own layers:",
   "where": "README.md"
  },
+ "675aa02b697445ad": {
+  "approved": "2026-08-19",
+  "excerpt": "The limits you set on '{}' leave none of the values it holds",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "678b01145f151372": {
   "approved": "2026-08-10",
   "excerpt": "The filter you had set on element '{}' could not be applied ",
@@ -733,6 +763,11 @@
   "approved": "2026-08-15",
   "excerpt": "'{}' has {} distinct value{} left between its pinned bounds,",
   "where": "weavingspace_qgis/bridge.py"
+ },
+ "722a21c7a6119ff8": {
+  "approved": "2026-08-19",
+  "excerpt": "Set this bound; moving it off the computed value makes it yo",
+  "where": "weavingspace_qgis/category_editor.py"
  },
  "73c0239ddfcb2822": {
   "approved": "2026-08-15",
@@ -859,10 +894,20 @@
   "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
   "where": "weavingspace_qgis/metadata.txt"
  },
+ "88d0044f0daebdd4": {
+  "approved": "2026-08-19",
+  "excerpt": "At {} {} spacing, {} of {} areas display an icon drawn from ",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "8973e1a24efe0feb": {
   "approved": "2026-08-09",
   "excerpt": "- Values come from your region layer, so you can set colours",
   "where": "docs/USER-GUIDE.md"
+ },
+ "8a1861ac1147771e": {
+  "approved": "2026-08-19",
+  "excerpt": "Areas the old limits left out come back on the next Generate",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "8a426e7dd6a4dc4a": {
   "approved": "2026-08-08",
@@ -1039,6 +1084,11 @@
   "excerpt": "Writing {} to {} failed: {}",
   "where": "weavingspace_qgis/bridge.py"
  },
+ "a497381aef2d1319": {
+  "approved": "2026-08-19",
+  "excerpt": "The lowest value drawn must be below the highest; {} is not ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "a4ab62b13bb210f5": {
   "approved": "2026-08-15",
   "excerpt": "The {} class bound must be a number.",
@@ -1199,6 +1249,11 @@
   "excerpt": "A {}-class scheme has {} {} to pin, so it cannot carry {}. A",
   "where": "weavingspace_qgis/bridge.py"
  },
+ "c00ebe99752bb704": {
+  "approved": "2026-08-19",
+  "excerpt": "Where the ladder starts; values below are not drawn",
+  "where": "weavingspace_qgis/category_editor.py"
+ },
  "c0cbfcfe8f73d116": {
   "approved": "2026-08-09",
   "excerpt": "Menlo, Consolas, 'DejaVu Sans Mono', monospace",
@@ -1337,6 +1392,11 @@
  "d8dd17888ea57759": {
   "approved": "2026-08-08",
   "excerpt": "Keeps whole units that touch the region, letting the pattern",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "d8fb754f8bebea18": {
+  "approved": "2026-08-19",
+  "excerpt": "Drawn as icons, this layer's {} areas ask for roughly {} til",
   "where": "weavingspace_qgis/dialog.py"
  },
  "da5ad31e5390269e": {
@@ -1513,6 +1573,11 @@
   "approved": "2026-08-09",
   "excerpt": "Colours set by hand or by a class file. Choose a ramp to rep",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "f0cba7b0896dc735": {
+  "approved": "2026-08-19",
+  "excerpt": "Where the ramp ends; values above are not drawn",
+  "where": "weavingspace_qgis/category_editor.py"
  },
  "f297bd31c128e7bf": {
   "approved": "2026-08-08",

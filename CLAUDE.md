@@ -106,6 +106,19 @@ obligations: they exist so nobody pays twice for the same discovery.
   after twenty of the thirty-six tooltips there were THEN had drifted
   to between nineteen
   and sixty-one words. (User instruction, 2026-08-09.)
+- **When writing about VISUALIZATION, say "display", never "wear".**
+  An area DISPLAYS an icon; a tile DISPLAYS a class colour. The
+  metaphor of a thing wearing its symbology had spread through this
+  project's own prose -- some fifty-odd uses across the package and
+  the binding documents -- and it reached the user exactly once, in
+  the icon-mode coverage notice written on 2026-08-19, which is where
+  the maintainer met it and ruled it out. It reads as ours rather than
+  as plain description, and a reader meeting "these areas wear an icon"
+  has to translate before they can act. (Maintainer's rule,
+  2026-08-19.) The existing internal uses are NOT swept: rewording a
+  phrase that appears inside settled-rule language in CLAUDE.md,
+  docs/TESTING.md and the generated documents is its own decision, and
+  the rule binds new prose from here.
 - **Canadian spelling in all user-facing text**: colour, colourmap,
   behaviour, and -ize verbs (symbolize, categorize, organize). Code
   identifiers that mirror a QGIS or matplotlib API keep that API's

@@ -1278,7 +1278,7 @@ def icon_misattribution_message(missing: int, unit_count: int,
     return None
   spacing_text = _spacing_text(spacing)
   return (f"At {spacing_text} {unit_label} spacing, {missing:,} of "
-          f"{unit_count:,} areas wear an icon drawn from a "
+          f"{unit_count:,} areas display an icon drawn from a "
           f"neighbouring area's value rather than their own.")
 
 
