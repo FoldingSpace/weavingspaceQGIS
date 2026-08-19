@@ -478,6 +478,13 @@ class CategoryColourDialog(QDialog):
     # strip at once. Keyed by the end rather than by the control, so
     # a handler always knows which boundary it is being asked about.
     self._pin_widgets = {}
+    # {"floor"|"ceiling": box}. SEPARATE from `_pin_widgets` on
+    # purpose: an outer edge is a weaker statement than a pin, has no
+    # button, and must never be counted by anything that asks how many
+    # ends are PINNED -- that count feeds the k arithmetic. One key
+    # each, since a ladder has one floor and one ceiling however many
+    # controls a future row gains.
+    self._limit_boxes = {}
     # What the scheme would compute for each end with NOTHING pinned,
     # as [(lower, upper), ...]. It is what makes a pin follow the
     # bound: moving a spin box away from this number IS pinning, and
@@ -1032,6 +1039,105 @@ class CategoryColourDialog(QDialog):
     self.table.setCellWidget(row, 0, holder)
     self.table.setCellWidget(row, column, box)
     self._register_pin(which, pin, box)
+    # ...AND THE OUTER EDGE OF THE SAME ROW, which is the other half
+    # of the ladder a person can now set. The first row's LOWER cell
+    # is the floor and the last class's UPPER is the ceiling: where
+    # the ladder starts and stops, as against the two boundaries a pin
+    # names. Installed from here because these are exactly the rows
+    # that have an outer edge -- a middle class has two computed
+    # boundaries and no edge at all.
+    self._install_limit_box(row, "floor" if which == "low" else "ceiling")
+
+  def _install_limit_box(self, row, which):
+    """Put an editable OUTER edge on the first or last class row.
+
+    Args:
+      row: the table row -- the first class's, or the last class's.
+      which: "floor" for where the ladder starts, "ceiling" for where
+        it stops.
+
+    Returns:
+      None. The box replaces the read-only cell holding that edge:
+      LOWER on the first row, UPPER on the last, which are the two
+      cells a pin deliberately leaves alone.
+
+    A WEAKER STATEMENT THAN A PIN, and the difference is why these
+    have their own registry rather than joining `_pin_widgets`. A pin
+    moves a boundary BETWEEN classes: it takes its class out of the
+    pool the scheme cuts from, so the middle is cut k-minus-pins ways,
+    it can cross the next boundary, and `pin_problem` can refuse it. A
+    floor moves the EDGE: it changes no boundary, removes no class,
+    and cannot be refused. Putting it in the pin registry would drop
+    it into `_pins_in_force`, which feeds that k arithmetic and must
+    stay 0, 1 or 2 -- one set gating two different things, which is a
+    fault this codebase has already paid for.
+    """
+    if not self._pins_offered or self._bounds is None:
+      return
+    lower, upper = self._bounds[row]
+    offset = 1 if self._pin_column else 0
+    column = offset + (0 if which == "floor" else 1)
+    box = self._bound_box(lower if which == "floor" else upper)
+    box.setToolTip("Where the ladder starts; values below are not drawn"
+                   if which == "floor"
+                   else "Where the ladder stops; values above are not drawn")
+    box.valueChanged.connect(lambda _v, w=which: self._limit_moved(w))
+    self.table.setCellWidget(row, column, box)
+    self._limit_boxes[which] = box
+
+  def _limit_moved(self, which):
+    """Follow an outer-edge box: off the computed edge is a limit.
+
+    Args:
+      which: "floor" or "ceiling".
+
+    Returns:
+      None. Reports through the same `pin_changed` callback the pins
+      use, so a limit reaches the dialog's record by the route
+      everything else in this window takes.
+
+    THE SAME IDIOM AS THE PINS, deliberately: the box is live at all
+    times, moving it off what the classification would compute makes
+    the edge yours, and putting it back gives it away again. A user
+    who has learnt one of these boxes has learnt all four.
+
+    The tolerance is half the box's own last digit, for the reason
+    the pinned twin gives: the number SHOWN is rounded to those
+    decimals, so an exact comparison would call the displayed default
+    "different" and set a limit nobody asked for. It is also what
+    makes typing the computed value back a real way to clear a limit
+    rather than a decorative one -- an edge of 3.0999999 can never be
+    retyped exactly, and demanding that would leave the box with no
+    way out but the clear mark.
+    """
+    box = self._limit_boxes.get(which)
+    if box is None:
+      return
+    default = self._default_bound(which)
+    if default is None:
+      return
+    try:
+      tolerance = 0.5 * (10.0 ** -box.decimals())
+    except Exception:
+      tolerance = 1e-9
+    value = float(box.value())
+    wants = abs(value - default) > tolerance
+    answer = (self._pin_changed(which, value if wants else None)
+              if self._pin_changed else None)
+    # A REFUSAL PUTS THE BOX BACK, exactly as the pinned twin does: a
+    # typed number is either honoured or visibly rejected, and never
+    # quietly turned into a different one. Anything else is the
+    # silently-eaten keystroke this project has now met five times.
+    if isinstance(answer, str):
+      previous = self._pinned.get(which)
+      box.blockSignals(True)
+      box.setValue(float(previous if previous is not None else default))
+      box.blockSignals(False)
+      return
+    self._pinned[which] = value if wants else None
+    # The ladder has moved -- a limit re-cuts every break inside it --
+    # so the rest of the window has to say so too.
+    self._redraw_bounds(answer)
 
   def _default_bound(self, which):
     """The number the scheme computes for one end with no pin on it.
@@ -1047,9 +1153,20 @@ class CategoryColourDialog(QDialog):
     """
     if not self._defaults:
       return None
+    # FOUR ENDS NOW, and the two new ones are the OUTER edges. "low"
+    # and "high" name boundaries BETWEEN classes -- the first class's
+    # upper and the last class's lower -- while "floor" and "ceiling"
+    # name where the ladder starts and stops. Reading them off the
+    # same computed ladder keeps all four answers consistent with each
+    # other and with the map, which is what makes "moved off the
+    # computed value" mean the same thing in every box.
+    picks = {"low": (0, 1), "high": (-1, 0),
+             "floor": (0, 0), "ceiling": (-1, 1)}
+    if which not in picks:
+      return None
+    row, half = picks[which]
     try:
-      return float(self._defaults[0][1] if which == "low"
-                   else self._defaults[-1][0])
+      return float(self._defaults[row][half])
     except (IndexError, TypeError, ValueError):
       return None
 

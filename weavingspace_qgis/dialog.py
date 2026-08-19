@@ -6913,6 +6913,17 @@ class WeavingSpaceDialog(QDialog):
       problem = bridge.pin_problem(
         wanted.get("low"), wanted.get("high"), values,
         assignment.get("k", 5), wanted.get("breaks"))
+      # `pin_problem` asks about the two PINS and has nothing to say
+      # about an outer edge, which can neither cross another boundary
+      # nor exhaust the middle. What a limit CAN do is swallow the
+      # ladder: a floor above the first class's own upper bound, or a
+      # ceiling below the last class's lower, leaves a class running
+      # backwards -- which QGIS accepts and then draws as nothing, the
+      # exact shape measured on 2026-08-17 when a pin below the
+      # smallest value built a reversed range. Refused with the reason
+      # said, in the terms of the control the person just moved.
+      if not problem:
+        problem = self._limit_problem(wanted, assignment)
       if problem:
         self._report_quietly(problem)
         return problem
@@ -8121,6 +8132,56 @@ class WeavingSpaceDialog(QDialog):
     if self._limits_exclude_anything(assignment):
       return True
     return self._column_has_nulls(assignment.get("var"))
+
+  def _limit_problem(self, record, assignment):
+    """Why this floor or ceiling cannot be drawn, or None.
+
+    Args:
+      record: the element's pin record as it WOULD be, with the new
+        limit already in it -- asked of the prospective record rather
+        than the stored one, so a refusal happens before anything is
+        kept.
+      assignment: that element's row, for the class count.
+
+    Returns:
+      A sentence for the user, or None when the limits are drawable.
+
+    ONLY WHAT CANNOT BE DRAWN IS REFUSED, which is the rule the
+    maintainer set for pins on 2026-08-17 and the reason the
+    out-of-data guard was lifted then: a limit outside the column
+    draws perfectly well and is the whole point of giving one pair to
+    several variables. What is refused here is a limit that crosses
+    the ladder's own interior -- a floor above the first class's upper
+    bound leaves that class running backwards, which QGIS accepts and
+    then paints as nothing.
+
+    Asked against the boundaries the record itself carries, since a
+    copied or adopted ladder names them exactly; where it names none,
+    there is nothing for a limit to cross and this says so.
+    """
+    floor, ceiling = record.get("floor"), record.get("ceiling")
+    if floor is None and ceiling is None:
+      return None
+    if floor is not None and ceiling is not None \
+        and float(floor) >= float(ceiling):
+      return ("The lowest value drawn must be below the highest; "
+              f"{float(floor):g} is not below {float(ceiling):g}.")
+    inner = [float(b) for b in (record.get("breaks") or [])]
+    for end, pin in (("low", record.get("low")),
+                     ("high", record.get("high"))):
+      if pin is not None:
+        inner.append(float(pin))
+    if not inner:
+      return None
+    if floor is not None and float(floor) >= min(inner):
+      return (f"The lowest value drawn ({float(floor):g}) is at or above "
+              f"the first class boundary ({min(inner):g}), which would "
+              f"leave that class with nothing to hold.")
+    if ceiling is not None and float(ceiling) <= max(inner):
+      return (f"The highest value drawn ({float(ceiling):g}) is at or "
+              f"below the last class boundary ({max(inner):g}), which "
+              f"would leave that class with nothing to hold.")
+    return None
 
   def _limits_exclude_anything(self, assignment):
     """Whether this element's floor or ceiling puts a value out of bounds.
