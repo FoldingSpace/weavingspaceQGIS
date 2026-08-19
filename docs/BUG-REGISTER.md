@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-264 defect(s) with a regression test.
+265 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -557,6 +557,8 @@ there is no separate list to remember.
   guarded by `test_colour_legibility_warnings_are_opt_in`
 - **a renderer type changed in QGIS while the colour editor was open left the window showing class bounds and colours for a renderer that had been replaced.**  
   guarded by `test_deferral_closes_the_colour_editor_under_it`
+- **`_classification_values` REPLACED its cache dict on every miss, so elements carrying different columns evicted each other and each rescanned the whole layer on every tick; twenty-three elements made the plugin unusable and the maintainer's colleague reported it as extreme slowness at any spacing.**  
+  guarded by `test_each_column_is_scanned_once_however_many_elements_carry_one`
 - **Equal intervals and Unclassed drew classes of unequal width whenever an end was pinned, because the intervals were cut from the column's own samples and the outermost class was then stretched to reach the pin -- so two variables given the same limits drew different ladders, which is the whole reason for giving them the same limits. Measured against 0.24.3rc5.**  
   guarded by `test_equal_intervals_stay_equal_under_a_pin`
 - **2026-08-19, the maintainer's report. Twenty-five areas and a four-element unit: the guard answered 208,521 where icon mode drew 100, so Generate was refused outright and live update had already paused itself.**  
@@ -578,7 +580,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 84
-- reported by a user: 21
+- reported by a user: 22
 - the mutation campaign: 16
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

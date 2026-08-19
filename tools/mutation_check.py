@@ -3948,6 +3948,24 @@ MUTATIONS = [
            "reopen. Nothing on a renderer records that a break was "
            "CHOSEN rather than computed, so the stamp is all a "
            "reopened project has"),
+  dict(name="the-value-cache-keeps-every-column", file=DIALOG,
+       old="""      self._values_cache = {
+        older: cached for older, cached in self._values_cache.items()
+        if older[0] == key[0] and older[2:] == key[2:]}
+      self._values_cache[key] = bridge.classification_source(
+        field_name, values)""",
+       new="""      self._values_cache = {
+        key: bridge.classification_source(field_name, values)}""",
+       test="test_each_column_is_scanned_once_however_many_elements_"
+            "carry_one",
+       why="replacing the dict evicts every OTHER column's entry, so "
+           "elements carrying different columns each rescan the whole "
+           "layer on every tick. Measured on the reporter's own data, "
+           "3,011 polygons and 23 columns: 46 scans per keystroke, "
+           "1,041,176 calls and 3.5 seconds of CPU against 119,352 "
+           "and 172 ms at 0.24.2, and one Generate at 62.7 seconds "
+           "against 2.5. It is the mutation that RESTORES the defect, "
+           "which is why the entry reads as it does"),
   dict(name="a-copy-carries-the-range-it-was-given", file=DIALOG,
        # ANCHORED ON THE CARRY, not on the refusal beside it: the
        # refusal is a separate claim with a separate entry below, and

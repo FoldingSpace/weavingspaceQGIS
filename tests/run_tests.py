@@ -37951,6 +37951,96 @@ def test_a_copy_carries_the_range_and_refuses_what_it_would_empty():
     _tick(50)
 
 
+
+def test_each_column_is_scanned_once_however_many_elements_carry_one():
+  """Several elements on several columns cost one scan each, not one per tick.
+
+  COUNTED, NOT TIMED. A profiler's overhead swamps the totals on this
+  path, and the last episode of this shape here had the self-time
+  ratio understating a threefold difference as 1.2x while the call
+  counts carried it exactly. So this counts calls to
+  `bridge.classification_source`, which is what follows every cache
+  miss and builds a fresh geometry-less layer.
+
+  THE SECOND TICK IS THE MEASUREMENT and the first is the premise.
+  Cold, every column must be scanned once, or the fixture is not
+  exercising the cache at all; warm, none may be scanned again.
+
+  ONE COLUMN CANNOT SHOW THIS, which is why the fixture carries
+  several. Measured 2026-08-19 with the cache holding a single entry:
+  one column costs zero warm scans whatever the code does, because
+  there is nothing to evict it; four columns cost FOUR, one per
+  element, on every tick forever. A test written on one column passes
+  today and would go on passing with the cache deleted outright.
+
+  WHAT IT COST A USER. Row 4 of docs/process/defects-2026-08-19.md:
+  twenty-three elements on the reporter's own data, 3,011 polygons and
+  23 columns, ran 46 scans per keystroke -- 1,041,176 calls and 3.5
+  seconds of CPU per tick against 119,352 and 172 ms at 0.24.2, with
+  one Generate at 62.7 seconds against 2.5. The suite could not see it
+  because its fixture is four elements over thirty-six features, a
+  factor of 481 with no change of shape.
+
+  Regression: `_classification_values` REPLACED its cache dict on every miss, so elements carrying different columns evicted each other and each rescanned the whole layer on every tick; twenty-three elements made the plugin unusable and the maintainer's colleague reported it as extreme slowness at any spacing. [user]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  project.clear()
+  names = [f"c{n}" for n in range(4)]
+  layer = _multi_column_region(
+    {name: [1.0 + (k + i) % 40 for k in range(100)]
+     for i, name in enumerate(names)})
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(200)
+    rows = min(dlg.table.rowCount(), len(names))
+    assert rows >= 3, \
+      f"this design offers {rows} elements and the fixture needs at " \
+      f"least three on DIFFERENT columns, or eviction cannot happen"
+    for row in range(rows):
+      dlg.table.cellWidget(row, 1).setCurrentText(names[row])
+      dlg.table.cellWidget(row, 2).setCurrentText("Quant: Equal intervals")
+    dlg._update_dynamic_columns()
+    _tick(200)
+
+    real = bridge.classification_source
+    tally = {"n": 0}
+
+    def counted(*args, **kwargs):
+      tally["n"] += 1
+      return real(*args, **kwargs)
+
+    # CLEARED, or the count cannot discriminate: a warm cache reads
+    # zero whether the code is right or not, and so would a tick that
+    # never asked anything at all.
+    dlg._values_cache = {}
+    bridge.classification_source = counted
+    try:
+      dlg._assignments()
+      cold = tally["n"]
+      dlg._assignments()
+      warm = tally["n"] - cold
+    finally:
+      bridge.classification_source = real
+
+    assert cold >= rows, \
+      f"the premise fails: {rows} elements on {rows} distinct columns " \
+      f"scanned {cold} times from cold, so this fixture is not " \
+      f"exercising the cache and the warm count below means nothing"
+    assert warm == 0, \
+      f"{rows} elements on {rows} distinct columns cost {warm} fresh " \
+      f"scans of {layer.featureCount()} features on a SECOND tick " \
+      f"with nothing changed. Each element evicts the last, so the " \
+      f"cost is elements times features on every keystroke"
+  finally:
+    dlg.close()
+    _tick(50)
+
+
 def test_a_break_retyped_in_qgis_reaches_the_plugin():
   """Retype a class boundary in the Symbology panel; the plugin follows.
 
@@ -53616,6 +53706,8 @@ def main():
         test_a_copy_reproduces_a_classification_on_every_target)
   check("a copy carries the range and refuses what it would empty",
         test_a_copy_carries_the_range_and_refuses_what_it_would_empty)
+  check("each column is scanned once however many elements carry one",
+        test_each_column_is_scanned_once_however_many_elements_carry_one)
   check("a break retyped in QGIS reaches the plugin",
         test_a_break_retyped_in_qgis_reaches_the_plugin)
   check("a coverage notice quotes a spacing the box accepts",

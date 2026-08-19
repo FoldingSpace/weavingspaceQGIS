@@ -185,39 +185,26 @@ and one fast test, with five proved catalogue entries; the two defects
 found on the way are rows 21 and 22 of
 `docs/process/defects-2026-08-19.md`.
 
-**WHAT NOW BLOCKS THIS VERSION IS A PERFORMANCE REGRESSION THIS
-VERSION INTRODUCED**, and it is the maintainer's call whether to fix
-it here or defer it. Ledger row 4 -- twenty-three elements being
-"extremely slow to work with" on the reporter's own data -- was
-measured on 2026-08-19 against that data (3,011 polygons, 23 REAL
-columns) and it is not a standing cost. It arrived after 0.24.2:
+**THE PERFORMANCE REGRESSION IS FIXED**, so nothing outstanding
+remains in code for 0.24.3. Ledger row 4 -- twenty-three elements
+"extremely slow to work with" -- was measured against the reporter's
+own data on 2026-08-19 and was a regression this version introduced,
+not a standing cost:
 
     calls per interactive tick   v0.24.0 122,066   v0.24.2 119,352
                                  HEAD  1,041,176
-    CPU per tick                 170.5 ms   172.1 ms   3,543.4 ms
     one Generate                 2.9 s      2.5 s      62.7 s
 
-`dialog._classification_values` is called 46 times per keystroke at 23
-elements, because `_assignments` asks `_value_digest` for every element
-and the cache holds ONE entry: twenty-three elements on twenty-three
-columns is a zero hit rate, so each one rescans 3,011 features and
-builds a fresh memory layer. The function exists at neither tag, so
-this is new code rather than an old cost meeting a big dataset.
-
-IT IS NOT ABOUT TILING. Held at 169 tiles and at 853, the four
-per-tick counts are identical to the digit, which is what the
-reporter's "even when the spacing is extremely coarse" was telling us.
-Nor is it grid-specific -- a hex design at 23 elements gives the same
-counts -- so the anthromes report is very likely this same fault.
-
-THE FIX IS SMALL AND MEASURED, and is NOT implemented: key the cache
-by (layer, field) for the current fingerprint rather than keeping one
-entry. Tried in a throwaway copy, it gives 70,228 calls per tick at
-72.6 ms and a 3.2 s Generate -- below 0.24.2 on three ticks of four.
-Its guard must COUNT those calls with elements on different columns; a
-one-column test passes today and would pass with the cache deleted.
-Full working, with every count and both profiles, is in the agent
-worktree at `dev/row4-profile-findings.md`.
+`_classification_values` REPLACED its cache dict on every miss, so
+twenty-three elements on twenty-three columns evicted each other and
+each rescanned all 3,011 features on every tick. It keeps one entry
+per column now, dropping only what the fingerprint or the data version
+has moved under, so the safety property that made it replace the dict
+is unchanged. Guarded by
+`test_each_column_is_scanned_once_however_many_elements_carry_one`,
+which counts scans on a warm tick over SEVERAL columns -- a
+one-column test reads zero whatever the code does -- and by a proved
+catalogue entry.
 
 **THE TWO rc9 REPORTS ARE SETTLED FOR THIS VERSION.** The tile-as-icon
 count check is row 3 of `docs/process/defects-2026-08-19.md` and is
