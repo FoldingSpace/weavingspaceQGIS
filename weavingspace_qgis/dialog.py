@@ -7919,7 +7919,32 @@ class WeavingSpaceDialog(QDialog):
         entry = model.item(index)
         if entry is not None:
           entry.setEnabled(deferring)
-      if deferring and combo.currentText() != self.DEFERRING:
+      # ...BUT NEVER OVER A STYLE THE USER HAS JUST PICKED. Picking a
+      # plugin style is how somebody takes an element BACK from QGIS,
+      # and `_add_output_layers` says at its own reclaim gate why a
+      # test on the LAYER cannot see that: the layer still holds the
+      # dock's renderer at the moment of the pick, because the
+      # re-seeding it triggers has not happened yet. So
+      # `_element_is_deferring` answers True, and this line quietly put
+      # the row back to "Deferring to QGIS" -- with signals blocked, so
+      # nothing noticed -- after which every path downstream correctly
+      # preserved the dock's renderer over the user's choice.
+      #
+      # MEASURED 2026-08-19 by dumping which rows read as deferring at
+      # every refresh: `[] -> ['c']` immediately after the pick, the
+      # row taken back within the same Generate. Red since `7a7d163`,
+      # which added a second route into this refresh at exactly the
+      # wrong moment; found by the first full suite run of the day and
+      # bisected over the 27 commits between rc9 and that one, after
+      # six other readings had each been measured and died.
+      #
+      # `style_touched` is the row's own statement that a person chose
+      # this, which is the same record `_refresh_table` trusts when it
+      # restores a mode. The row wins until the run re-seeds the layer,
+      # and after that the layer and the row agree anyway.
+      picked = bool(combo.property("touched"))
+      if deferring and combo.currentText() != self.DEFERRING \
+          and not picked:
         combo.blockSignals(True)
         combo.setCurrentText(self.DEFERRING)
         combo.blockSignals(False)

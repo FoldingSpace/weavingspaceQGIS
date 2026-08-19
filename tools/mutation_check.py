@@ -3854,6 +3854,24 @@ MUTATIONS = [
            "nothing, and the record, the layer stamp and the saved "
            "project all go on claiming a pin the map does not draw -- "
            "which a reopen restores"),
+  dict(name="a-picked-style-is-not-put-back-to-deferring", file=DIALOG,
+       # ANCHORED ON THE GUARD, which is the whole fix: the refresh
+       # itself is right and was simply asking the layer a question
+       # only the row can answer during the reclaim.
+       old="""      picked = bool(combo.property("touched"))
+      if deferring and combo.currentText() != self.DEFERRING \\
+          and not picked:""",
+       new="""      if deferring and combo.currentText() != self.DEFERRING:""",
+       test="test_integration_interleaved_session",
+       why="picking a plugin style is how somebody takes an element "
+           "back from QGIS, and the layer still holds the dock's "
+           "renderer at that moment because the re-seed has not "
+           "happened yet. Without the guard `_element_is_deferring` "
+           "answers True and the row is put back to 'Deferring to "
+           "QGIS' with signals blocked, after which every path "
+           "downstream correctly preserves the dock's renderer over "
+           "the user's choice -- the element cannot be taken back at "
+           "all"),
   dict(name="a-count-from-qgis-releases-a-copy", file=DIALOG,
        old='        self._release_copied_breaks(tile_id, "a new class count")',
        new="        pass  # mutation: keep the copied ladder",
