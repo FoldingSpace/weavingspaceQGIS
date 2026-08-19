@@ -47,6 +47,14 @@ HOW = {
                  "Lab space",
   "race": "race and stress testing",
   "integration": "a multi-step session test",
+  # Added 2026-08-19, the first time a defect was recorded as found
+  # this way rather than by an instrument aimed at it. The whole suite
+  # is not the same shape as any one test in it: what it catches is a
+  # change that moved something under a test written about something
+  # else, and three of those in one day were caught by PREMISE
+  # assertions refusing to report a vacuous pass. The vocabulary is
+  # open-ended for exactly this.
+  "suite": "the functional suite, run whole",
   "mutation": "the mutation campaign",
   "hostile-data": "the hostile data corpus",
   "family-audit": "a family audit of the claims the software makes",

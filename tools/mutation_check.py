@@ -3858,9 +3858,12 @@ MUTATIONS = [
   dict(name="a-picked-style-is-not-put-back-to-deferring", file=DIALOG,
        # ANCHORED ON THE GUARD, which is the whole fix: the refresh
        # itself is right and was simply asking the layer a question
-       # only the row can answer during the reclaim.
-       old="""      picked = bool(combo.property("touched"))
-      if deferring and combo.currentText() != self.DEFERRING \\
+       # only the row can answer during the reclaim. RE-ANCHORED
+       # 2026-08-19 when the guard stopped reading `style_touched`,
+       # a flag that is true for the rest of the session, and started
+       # reading `_picked_back`, which empties as soon as the layer
+       # agrees.
+       old="""      if deferring and combo.currentText() != self.DEFERRING \\
           and not picked:""",
        new="""      if deferring and combo.currentText() != self.DEFERRING:""",
        test="test_integration_interleaved_session",
@@ -3873,6 +3876,34 @@ MUTATIONS = [
            "downstream correctly preserves the dock's renderer over "
            "the user's choice -- the element cannot be taken back at "
            "all"),
+  dict(name="a-reclaim-is-recorded-not-inferred", file=DIALOG,
+       # THE WRITER, anchored apart from the reader above, because the
+       # pair is enforced by nothing but attention: one anchor covering
+       # both would survive whatever the tests do.
+       old="""    taken_back = mode_combo.property("tile_id")
+    if taken_back and self._element_is_deferring(taken_back):
+      self._picked_back.add(taken_back)""",
+       new="    pass  # mutation: infer the reclaim instead",
+       test="test_integration_interleaved_session",
+       why="nothing about the pair 'the row names a style, the layer "
+           "holds something unnameable' says which of the two moved "
+           "last, and that is the only question. Unrecorded, the "
+           "reclaim is indistinguishable from a paste in the styling "
+           "panel, so the refresh puts the row straight back to "
+           "'Deferring to QGIS' and an element styled in QGIS can "
+           "never be taken back"),
+  dict(name="a-dock-edit-outranks-an-earlier-pick", file=DIALOG,
+       old="""    if not self._applying_style \\
+        and self._element_layer_ids.get(tile_id) == layer_id:
+      self._picked_back.discard(tile_id)""",
+       new="    pass  # mutation: let the older pick stand",
+       test="test_a_style_picked_by_hand_still_follows_a_paste_in_qgis",
+       why="a claim on an element must die the moment the person says "
+           "something newer in QGIS. Left standing, a row whose style "
+           "had ever been picked by hand goes on naming that style "
+           "over a rule-based map, with every renderer control live, "
+           "and the next Generate reclaims the element and paints "
+           "over the work somebody did in the styling panel"),
   dict(name="a-count-from-qgis-releases-a-copy", file=DIALOG,
        old='        self._release_copied_breaks(tile_id, "a new class count")',
        new="        pass  # mutation: keep the copied ladder",

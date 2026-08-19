@@ -14070,6 +14070,118 @@ def test_a_renderer_the_row_cannot_name_defers_to_qgis():
   dlg.close()
 
 
+def test_a_style_picked_by_hand_still_follows_a_paste_in_qgis():
+  """One click before the paste must not deafen the row to it.
+
+  The test above drives the same rule-based paste onto a row nobody
+  has touched. THE DIFFERENCE HERE IS ONE CLICK BEFORE IT, and it is
+  the click most users make: choosing a scheme in the style column
+  marks that row as somebody's choice, for the rest of the session.
+
+  The first repair for ledger row 19 read exactly that mark. Picking a
+  plugin style is how a user takes an element BACK from QGIS, and at
+  the moment of the pick the layer still holds the dock's renderer,
+  so `_refresh_deferring_rows` was putting the row straight back to
+  "Deferring to QGIS" and the element could not be reclaimed at all.
+  The guard written for it asked `style_touched`, which is true for a
+  moment and then true forever -- so from the first hand-picked style
+  onward the row could never FOLLOW the dock again. It went on naming
+  a scheme over a rule-based map, with every renderer control live,
+  and the next Generate reclaimed the element and painted over the
+  work: the rc5 field report, arriving through a door its own repair
+  had opened.
+
+  So the harm is checked as well as the row: a Generate after the
+  paste must leave the dock's renderer alone.
+
+  Regression: 2026-08-19. A style picked in the table left the row deaf to a rule-based renderer pasted onto its layer in QGIS, and the next Generate destroyed it. [suite]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=12)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(1, 1).setCurrentText("v3")
+  _tick(150)
+  # THE ONE CLICK. `activated` is what a click emits and what marks
+  # the row as chosen; `setCurrentText` alone would leave the flag
+  # unset and the case would be the test above wearing a costume.
+  mode = dlg.table.cellWidget(1, 2)
+  mode.setCurrentText("Quant: Equal intervals")
+  mode.activated.emit(mode.currentIndex())
+  _tick(200)
+  assert bool(mode.property("touched")), \
+    "the style was not marked as chosen, so this is the untouched " \
+    "case the test above already covers"
+  tile_id = dlg.table.item(1, 0).text()
+  dlg.spacing_spin.setValue(1200)
+  _generate_and_wait(dlg)
+
+  element = project.mapLayer(dlg._element_layer_ids[tile_id])
+  element.setRenderer(_rule_based_renderer("#00aa44"))
+  element.styleChanged.emit()
+  _tick(400)
+  assert dlg.table.cellWidget(1, 2).currentText() == dlg.DEFERRING, \
+    f"the row goes on naming " \
+    f"{dlg.table.cellWidget(1, 2).currentText()!r} over a renderer no " \
+    f"row can express, because its style had once been picked by hand"
+  said = [text for _kind, text in BAR_MESSAGES if "styled in QGIS" in text]
+  assert said, "deferral began and nothing was said"
+
+  # ...AND THE HARM, which is what the row saying the wrong thing
+  # costs. The signature has moved by itself (the mode is now
+  # Deferring), so this Generate takes the restyle path -- the one
+  # that reads the row and re-seeds an element it believes the user
+  # has taken back.
+  _generate_and_wait(dlg)
+  after = project.mapLayer(dlg._element_layer_ids[tile_id])
+  assert type(after.renderer()).__name__ == "QgsRuleBasedRenderer", \
+    f"a Generate destroyed the renderer pasted in QGIS: " \
+    f"{type(after.renderer()).__name__}"
+
+  # ...AND THE USER CHANGING THEIR MIND, which is the case the claim
+  # has to DIE for and the only route that reaches it. Picking a style
+  # over a deferring element records "taken back", and with live
+  # update off nothing re-seeds until Generate -- measured 2026-08-19:
+  # the claim still stands 1.85 s later, because the map is
+  # deliberately not repainted on its own. So a second paste can land
+  # squarely inside that window, and it must win: the person has said
+  # something newer in QGIS than they said in the table.
+  changed = dlg.table.cellWidget(1, 2)
+  changed.setCurrentText("Quant: Equal intervals")
+  changed.activated.emit(changed.currentIndex())
+  _tick(200)
+  assert dlg.table.cellWidget(1, 2).currentText() != dlg.DEFERRING, \
+    "the pick did not take the element back, so nothing is claimed " \
+    "and the second paste below proves nothing"
+  again = project.mapLayer(dlg._element_layer_ids[tile_id])
+  again.setRenderer(_rule_based_renderer("#aa0044"))
+  again.styleChanged.emit()
+  _tick(400)
+  assert dlg.table.cellWidget(1, 2).currentText() == dlg.DEFERRING, \
+    f"a second style pasted in QGIS after a pick left the row " \
+    f"reading {dlg.table.cellWidget(1, 2).currentText()!r}, so the " \
+    f"older pick outlived the newer edit"
+
+  # ...and taking the element back still works, which is what row 19
+  # was about and what must not be traded away to fix this
+  taken = dlg.table.cellWidget(1, 2)
+  taken.setCurrentText("Quant: Equal intervals")
+  taken.activated.emit(taken.currentIndex())
+  _tick(400)
+  assert dlg.table.cellWidget(1, 2).currentText() != dlg.DEFERRING, \
+    "the row was put straight back to deferring, so an element " \
+    "styled in QGIS cannot be reclaimed"
+  _generate_and_wait(dlg)
+  back = project.mapLayer(dlg._element_layer_ids[tile_id])
+  assert type(back.renderer()).__name__ != "QgsRuleBasedRenderer", \
+    "the plugin did not take the element back after the user asked"
+  dlg.close()
+
+
 def test_a_deferring_element_keeps_its_renderer_across_a_generate():
   """Deferring means deferring, until the variable makes it meaningless.
 
@@ -51915,7 +52027,20 @@ def test_two_columns_with_one_pair_of_limits_draw_one_ladder():
     for row, column in ((0, "v1"), (1, "v3")):
       dlg.table.cellWidget(row, 1).setCurrentText(column)
       _tick(100)
-      dlg.table.cellWidget(row, 2).setCurrentText("Quant: Equal intervals")
+      # ACTIVATED, because that is what a click emits and it is what
+      # marks the style as somebody's CHOICE. `setCurrentText` alone
+      # moves the text and fires `currentIndexChanged`, never
+      # `activated`, so `_on_mode_chosen` does not run and
+      # `style_touched` stays false -- and `_refresh_table` re-derives
+      # an untouched row's mode from the variable's type. Measured
+      # 2026-08-19: without this the pick reads back correctly and
+      # then reverts to "Quant: Quantiles" at the first rebuild,
+      # which under a shard's extra debounces lands before the
+      # comparison. The premise below caught it rather than the
+      # comparison, which is what a premise is for.
+      mode = dlg.table.cellWidget(row, 2)
+      mode.setCurrentText("Quant: Equal intervals")
+      mode.activated.emit(mode.currentIndex())
       _tick(100)
     dlg._update_dynamic_columns()
     _tick(150)
@@ -52675,7 +52800,28 @@ def test_icon_mode_is_not_counted_as_a_tiling():
     dlg.opt_icons.setChecked(True)
     # FINE ENOUGH THAT THE TILING ESTIMATE PASSES THE HARD CEILING, or
     # the gate could not refuse and the case would prove nothing.
-    dlg.spacing_spin.setValue(28.0)
+    #
+    # DERIVED FROM THE CEILING RATHER THAN WRITTEN DOWN. A fixed 28.0
+    # stood here and cleared the ceiling by a quarter until the guard
+    # stopped covering a circle round the bounding box: the same
+    # region then estimated 132,748 where it had estimated 208,521,
+    # and the case became vacuous overnight. The estimate falls with
+    # the square of the spacing, so one measurement at any reference
+    # spacing says which spacing reaches a wanted count, and the
+    # premise below still checks the answer rather than trusting the
+    # arithmetic. (2026-08-19.)
+    reference = 28.0
+    dlg.spacing_spin.setValue(reference)
+    _tick(400)
+    assert dlg._unit is not None, "the dialog built no unit to ask about"
+
+    ext = dlg._extent_in_working_units(layer)
+    bounds = (ext.xMinimum(), ext.yMinimum(), ext.xMaximum(),
+              ext.yMaximum())
+    wanted_guess = 3 * bridge.MAX_TILES_HARD      # margin, not a floor
+    at_reference = bridge.estimate_tile_count_bounds(dlg._unit, bounds)
+    dlg.spacing_spin.setValue(
+      reference * math.sqrt(at_reference / wanted_guess))
     _tick(400)
     assert dlg._unit is not None, "the dialog built no unit to ask about"
 
@@ -52686,9 +52832,6 @@ def test_icon_mode_is_not_counted_as_a_tiling():
       f"icon mode draws one unit on each of {layer.featureCount()} " \
       f"areas, so the count is {wanted}"
 
-    ext = dlg._extent_in_working_units(layer)
-    bounds = (ext.xMinimum(), ext.yMinimum(), ext.xMaximum(),
-              ext.yMaximum())
     tiling_guess = bridge.estimate_tile_count_bounds(dlg._unit, bounds)
     assert tiling_guess > bridge.MAX_TILES_HARD, \
       f"the tiling estimate is only {tiling_guess:,}, under the " \
@@ -54093,6 +54236,8 @@ def main():
         test_a_retyped_column_reclassifies_the_map)
   check("a renderer the row cannot name defers to QGIS",
         test_a_renderer_the_row_cannot_name_defers_to_qgis)
+  check("a style picked by hand still follows a paste in QGIS",
+        test_a_style_picked_by_hand_still_follows_a_paste_in_qgis)
   check("a deferring element keeps its renderer across a generate",
         test_a_deferring_element_keeps_its_renderer_across_a_generate)
   check("a deferring row shows the colours QGIS is drawing",

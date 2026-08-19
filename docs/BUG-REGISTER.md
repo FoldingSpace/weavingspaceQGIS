@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-266 defect(s) with a regression test.
+267 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -345,6 +345,11 @@ there is no separate list to remember.
 - **a remote mutation run reported a clean zero against a tag its checkout could not see.**  
   guarded by `test_the_new_code_guard_refuses_a_baseline_it_cannot_find`
 
+## Found by the functional suite, run whole
+
+- **2026-08-19. A style picked in the table left the row deaf to a rule-based renderer pasted onto its layer in QGIS, and the next Generate destroyed it.**  
+  guarded by `test_a_style_picked_by_hand_still_follows_a_paste_in_qgis`
+
 ## Found by driving the UI and rebuilding the same map from the library directly
 
 - **every other check on this feature stopped at the renderer, one step short of the map.**  
@@ -593,3 +598,4 @@ there is no separate list to remember.
 - the hostile data corpus: 4
 - a randomised differential sweep: 3
 - comparing rendered output against the reference in Lab space: 1
+- the functional suite, run whole: 1

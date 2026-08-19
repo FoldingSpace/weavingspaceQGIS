@@ -1311,6 +1311,21 @@ class WeavingSpaceDialog(QDialog):
     # elements whose renderer the LAST run carried over unchanged;
     # _finish_run re-examines them for dock edits made mid-run
     self._preserved_this_run = []
+    # elements a user has just TAKEN BACK from QGIS: the row now names
+    # a plugin style and the layer has not been re-seeded yet, so it
+    # still holds the renderer somebody built in the styling panel.
+    # `_refresh_deferring_rows` must leave those rows alone, and must
+    # move every other row that reads as deferring.
+    #
+    # WHICH MOVED LAST IS THE WHOLE QUESTION, and nothing about the
+    # pair (row says a style, layer says something unnameable) can
+    # answer it: that pair is identical whether a person picked a
+    # style a moment ago or pasted a rule-based renderer a moment ago.
+    # So it is RECORDED here rather than inferred. Emptied per element
+    # as soon as the layer agrees, and dropped the instant a dock edit
+    # arrives for that element, because the layer has then moved after
+    # the pick.
+    self._picked_back = set()
     # {tile_id: (assignment, bounds, colours)} -- dock edits that
     # arrived while a run was in flight, replayed once it has landed.
     # See _adopt_dock_bounds for why the numbers are kept rather than
@@ -6054,6 +6069,20 @@ class WeavingSpaceDialog(QDialog):
       # because the layers do; without this gate both dialogs would
       # adopt the same dock edit and the user would be told twice
       return
+    # THE LAYER HAS MOVED, so it outranks any style picked in the
+    # table earlier: whatever the user last said about this element,
+    # they have just said something newer in QGIS. Dropping the claim
+    # here is what lets `_refresh_deferring_rows` below move the row
+    # to "Deferring to QGIS" -- without it a row whose style had ever
+    # been picked by hand went on naming that style over a rule-based
+    # map, and the next Generate reclaimed the element and painted
+    # over the work. `_applying_style` is excluded because that is the
+    # plugin writing the renderer rather than a person, and a run in
+    # flight is not: a rule-based style pasted 250 ms into a run is
+    # exactly the case `_add_output_layers` reads the live row for.
+    if not self._applying_style \
+        and self._element_layer_ids.get(tile_id) == layer_id:
+      self._picked_back.discard(tile_id)
     if self._applying_style or self._task is not None:
       # THE ROW STILL LEARNS IT IS DEFERRING, even mid-run, and that
       # one line is the difference between a style surviving and being
@@ -8307,11 +8336,22 @@ class WeavingSpaceDialog(QDialog):
       # bisected over the 27 commits between rc9 and that one, after
       # six other readings had each been measured and died.
       #
-      # `style_touched` is the row's own statement that a person chose
-      # this, which is the same record `_refresh_table` trusts when it
-      # restores a mode. The row wins until the run re-seeds the layer,
-      # and after that the layer and the row agree anyway.
-      picked = bool(combo.property("touched"))
+      # `_picked_back` is the record of that act, and it is a set of
+      # elements rather than a flag on the widget for a reason paid
+      # for the same day. The first fix here read `style_touched`,
+      # which means "somebody chose this row's mode" and stays true
+      # for the rest of the session -- so a row whose style had EVER
+      # been picked by hand could never afterwards follow a
+      # rule-based style pasted onto its layer in QGIS, and the next
+      # Generate reclaimed the element and painted over the user's
+      # work. That is the rc5 field report arriving by a new door.
+      # A STICKY FLAG CANNOT ANSWER A QUESTION ABOUT ORDER: the row
+      # wins only until the layer agrees or the layer moves again.
+      picked = item.text() in self._picked_back
+      if not deferring:
+        # the layer has caught up -- through the restyle the pick
+        # triggered, or a run's landing -- so the claim is spent
+        self._picked_back.discard(item.text())
       if deferring and combo.currentText() != self.DEFERRING \
           and not picked:
         combo.blockSignals(True)
@@ -8552,6 +8592,16 @@ class WeavingSpaceDialog(QDialog):
     an empty map.
     """
     mode_combo.setProperty("touched", True)
+    # TAKING AN ELEMENT BACK FROM QGIS, recorded here because this is
+    # the one moment it can be told apart from anything else. The
+    # layer still holds the renderer somebody built in the styling
+    # panel -- the re-seed this pick triggers has not run yet -- so
+    # from here until the layer agrees, the row is the authority on
+    # what this element is. See `_refresh_deferring_rows`, which is
+    # where a refresh would otherwise put the row straight back.
+    taken_back = mode_combo.property("tile_id")
+    if taken_back and self._element_is_deferring(taken_back):
+      self._picked_back.add(taken_back)
     var = var_combo.currentText()
     # A copied ladder was copied for a particular SCHEME as well as a
     # particular count, so choosing another retires its values -- and
