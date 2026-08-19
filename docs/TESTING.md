@@ -1633,6 +1633,54 @@ Signs you should be writing a matrix rather than a case:
 - arrival is easy to check and PERSISTENCE is the part you keep
   meaning to get to.
 
+## A matrix may balloon, because you are SAMPLING anyway
+
+2026-08-19, extending the symbology matrix from three axes to four at
+the maintainer's asking: interaction with QGIS -- class boundaries and
+copy-paste -- is where this plugin's defects come from, so cover it
+high-dimensionally.
+
+**THE SPACE IS FREE; ONLY THE SPINE AND THE SAMPLE COST.** Twelve
+routes, nine shapes, three aftermaths and three schemes is a crossing
+of nearly a thousand cells, and it runs in about two minutes, because
+the spine is bounded deliberately and everything else is drawn under a
+printed seed. Adding an axis multiplies the CROSSING and not the
+runtime. This is the argument for reaching for a new axis rather than
+economising on one: a magnitude axis added that day found a defect
+that had been unreachable for weeks.
+
+**PIN CELLS, NOT SHAPES.** The rule is that a cell which has ever
+failed is tested forever. Promoting its whole SHAPE to the spine cost
+twelve routes times two aftermaths -- twenty-four cells to pin what
+was really four -- and took the test from 58 seconds to 169, making it
+the most expensive in the suite. Four named cells took it back to 136.
+A rule about cells, applied to shapes, buys redundancy rather than
+coverage.
+
+**COUNT THE SKIPS, AND ASSERT THEM.** A skipped cell reads exactly
+like a passing one, and a route skipped in EVERY cell it was drawn for
+is an axis that never ran -- which this project shipped once already,
+in a hunt whose GeoPackage invariant executed zero times while the run
+looked complete. Assert that no route was skipped everywhere, and that
+most cells actually staged something.
+
+**KEEP THE TALLY OF THE HARNESS'S OWN FAILURES.** Four in one day
+here, each recorded at the line that fixes it: a floor contradicting
+the ladder about to be typed; a paste expectation blind to Unclassed,
+which is exempt from the distinct-value reduction; the same
+expectation blind to a style pasted MID-RUN being preserved rather
+than re-seeded; and a limit assertion blind to limits being INCLUSIVE,
+so a tied column whose bottom class is all exactly the floor excludes
+nothing and rightly does not move. A grid whose failures are mostly
+its own is one nobody acts on.
+
+**DRAW SAMPLES IN SEQUENCE, NOT IN A BATCH.** (Maintainer's
+correction, 2026-08-19.) After a fix, one draw; only if it is clean do
+you draw again; two clean in a row certifies. Launching two at once is
+not the same evidence -- a failure in the first has to RESET the
+count, and it cannot if the second was already running. Any change to
+the code or the harness resets it too.
+
 ## Bisect by DISABLING, not by reasoning
 
 When a change breaks a test and the cause is not obvious after ONE

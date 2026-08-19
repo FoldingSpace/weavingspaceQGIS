@@ -12,7 +12,14 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-08-17, when the stochastic hunt's seven-seed claim
+Last updated 2026-08-19, when a MATRIX rather than a hunt found three
+defects in a day -- two of them in ground the feature under
+construction had nothing to do with. The entry is under "2026-08-19"
+below; the short version is that adding an AXIS to an existing grid
+outperformed adding a hunt, and cost about two minutes of machine time
+because the grid samples.
+
+Before that, 2026-08-17, when the stochastic hunt's seven-seed claim
 was judged and did not reproduce; the lesson it left is under "What
 the record says", above the entry it corrects.
 
@@ -853,3 +860,41 @@ seeded rotation, 36 cells in 58 seconds, and 17 cells fail when the
 fix is removed. The guard it replaced changed field, class count and
 ramp TOGETHER and had passed for weeks. Written up in docs/TESTING.md
 as the default shape for testing a promise.
+
+
+## 2026-08-19 — a fourth axis found what no hunt was pointed at
+
+Not a hunt round. The maintainer asked for the symbology matrix to
+cover QGIS interaction high-dimensionally, on the grounds that class
+boundaries and copy-paste of styles are where this plugin's defects
+come from. Twelve routes, nine shapes, three aftermaths, three
+schemes.
+
+THREE DEFECTS, AND THE FEATURE BEING BUILT ACCOUNTED FOR NONE OF THEM.
+A ladder retyped far from the data adopted a ceiling that excluded
+every value and left the element with NO CLASSES where it had drawn
+five -- reachable only through the new MAGNITUDE axis, since both
+canonical shapes live between 0 and 80 where the same retype is
+sensible. A dock edit made while a run was finishing was silently
+thrown away, which is the rc9 fix rather than the new work, and is the
+shape the maintainer had already ruled on for a pasted style. And the
+guard for the tester's own report turned out to assert nothing about
+the thing that had been reported, which only the mutation catalogue
+could show.
+
+WHAT THIS SAYS ABOUT WHERE EFFORT GOES, beside the directions in the
+table above: an axis added to an existing grid is cheap in a way a
+hunt is not. The grid already knew how to stage an edit and read the
+result; the axis cost a parameter and about eighty seconds of runtime,
+and it reached ground no direction in this record was pointed at.
+Hunting still finds what nobody has thought of; a new axis finds what
+somebody thought of once and then only ever tested at one magnitude,
+one timing or one scheme.
+
+AND THE GRID AUTHORED FOUR OF ITS OWN FAILURES, counted in the source
+because a grid whose failures are mostly its own is one nobody acts
+on. Each was an expectation blind to something the software does on
+purpose -- Unclassed's exemption from the distinct-value reduction, a
+mid-run paste being preserved rather than re-seeded, limits being
+inclusive at their own value, and a floor contradicting the ladder
+about to be typed over it.

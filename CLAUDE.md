@@ -2432,6 +2432,82 @@ genuinely independent third column and should be added then.
   work already there, since an exception in a Qt slot is swallowed and
   takes the rest of the handler with it.
 
+- **CLASS BOUNDS: THE RECORD HOLDS FOUR ENDS, AND TWO OF THEM ARE
+  WEAKER THAN THE OTHER TWO.** (Maintainer's decisions, 2026-08-19.)
+  `pinned` gained `floor` and `ceiling` beside `low`, `high` and
+  `breaks`. `low` and `high` name BOUNDARIES BETWEEN CLASSES -- the
+  first class's upper and the last class's lower -- so each takes its
+  class out of the pool the scheme cuts from, can cross its
+  neighbour, and can be refused. `floor` and `ceiling` name the EDGES:
+  no boundary moves, no class leaves the pool, and nothing can be
+  refused for crossing. Keep them in separate registries. Putting an
+  edge into `_pins_in_force` would corrupt the `k` arithmetic, which
+  must stay 0, 1 or 2 -- one set gating two different things, which
+  this project has paid for before.
+  THE WHITELIST IN `_adopt_dock_bounds`'s RESTORE PATH IS THE
+  RECORD'S REAL DEFINITION. A key missing from it is dropped in
+  SILENCE on every reopen, so the record is right all session and
+  wrong the moment the project comes back. When you widen the record,
+  widen that line in the same commit.
+  A LADDER RETYPED IN QGIS KEEPS THE ENDS A PERSON TYPED. The 0.24.3
+  ledger argued the low end was harmless because the same areas fall
+  in the same class; that is true about colour and FALSE ABOUT WHAT
+  THE LEGEND SAYS, and it only ever considered the bottom. What is
+  dropped is the pair of edges when NOTHING survives them -- a ladder
+  retyped far from the data would otherwise adopt a ceiling that
+  excludes every value and leave the element with no classes at all.
+
+- **A LIMIT MAY EXCLUDE, AND WHAT IT EXCLUDES IS DRAWN.** A floor or
+  ceiling inside the data puts values out of bounds, and those areas
+  become a FOURTH KIND OF ABSENCE beside no data and the two
+  infinities: drawn, in a colour a user picks, with their own legend
+  line. Left to a graduated renderer an excluded value gets no symbol,
+  which on a map of areas is a HOLE -- indistinguishable from a tiling
+  gap and from a missing value, three facts wearing one appearance.
+  THREE OF THE FOUR KINDS ARE FACTS ABOUT THE DATA AND THE FOURTH IS A
+  CHOICE, which decides precedence: a value's own nature is asked
+  first, so an infinity excluded by a ceiling is reported as an
+  infinity. `bridge.absence_kind` is the one owner of that question;
+  it replaced three copies in two files that each enumerated the keys
+  by hand.
+  A LIMIT IS A GEOMETRY CHANGE, because excluding values moves tiles
+  onto the paired layer and `_restyle_only` can neither make nor
+  unmake one. So the split PREDICATE is what learns about limits, not
+  the split: it feeds the geometry signature, and answering no there
+  sends a limit change down the restyle path where the exclusion is
+  recorded, believed and never drawn.
+
+- **NO PIN COLUMN: A HEAVY OUTLINE ON THE BOX SAYS THE NUMBER IS
+  YOURS.** (Maintainer's instruction, 2026-08-19.) One convention for
+  all four ends rather than two, no table width, and nobody reading a
+  glyph at twelve pixels. A middle class simply has no spin box, which
+  says "you cannot set this" the way every other table does. A cross
+  inside the box gives a bound back, and typing the computed number
+  back does the same -- compared at the box's DISPLAYED precision, or
+  an edge of 3.0999999 can never be retyped and the second route is
+  decorative. Painted, not stylesheeted: a stylesheet border REPLACES
+  the platform frame rather than adding to it. Measured 47 dark pixels
+  unmarked against 533 marked; a mark nobody can see is a flag.
+  UNCLASSED NAMES ITS FLOOR AND CEILING, NOT TWO PINS, which reverses
+  part of the ruling of 2026-08-17 deliberately. That ruling gave
+  Unclassed a Pin column because a user met fifty faded rows and
+  reported the feature missing -- right when a pin was the only
+  control for an end. The original objection, that pinning row 0 of
+  fifty is a strange way to say "the ramp starts at 10", is answered
+  by a control that says exactly that. The strip's label had been
+  wrong since it was written: "Ramp starts at" drove the LOW PIN,
+  which on fifty steps is the ramp's start plus a fiftieth of the span.
+
+- **PRESERVE, DO NOT REPAINT.** (Maintainer's ruling, 2026-08-19.)
+  With live update off the map is deliberately NOT refreshed on its
+  own -- the table and the map may disagree until the user asks -- and
+  what must hold is that the change is NOT LOST. When a dock edit must
+  survive a landing, the answer is to stop the landing CLOBBERING it,
+  by making the row follow the renderer so nothing re-seeds; it is
+  never to repaint from a timer, which is the plugin acting unasked.
+  Reconcile through the door the landing already uses rather than a
+  second one invented for the case.
+
 - **A GITHUB RELEASE BODY PRESERVES SINGLE NEWLINES, so NEVER hard-wrap
   one.** Release notes written at the usual 72 columns arrive as
   literal line breaks, and on a phone that means a sentence broken
