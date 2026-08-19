@@ -102,9 +102,70 @@ class MarkableSpinBox(TrimmedSpinBox):
   cleared = pyqtSignal()
 
   def __init__(self, parent=None):
-    """Start unmarked, which is what a computed bound is."""
+    """Start unmarked, which is what a computed bound is.
+
+    THE LINE EDIT IS WATCHED, and that is what makes the cross
+    clickable at all. A QDoubleSpinBox is a composite: Qt puts a
+    QLineEdit inside it, and on every platform measured that child
+    starts at x=1 to x=3 and runs almost the full width -- so it
+    covers the cross entirely and takes the press, leaving
+    `mousePressEvent` on this widget never called for the one region
+    that needs it. Measured 2026-08-19: the line edit at (3, 3, 96,
+    20) over a cross at (5, 8, 10, 10), and `childAt` the cross's own
+    centre answering QLineEdit. The mark had been drawn since it was
+    written and had never once been clickable; the guard passed
+    because it handed the event straight to the box, which proves the
+    HANDLER works and not that anybody can reach it.
+    """
     super().__init__(parent)
     self._marked = False
+    edit = self.lineEdit()
+    if edit is not None:
+      edit.installEventFilter(self)
+
+  def eventFilter(self, watched, event):               # noqa: N802 (Qt API)
+    """Let a click on the cross through to this widget's own handler.
+
+    Args:
+      watched: the object the event was sent to; only this box's own
+        line edit is of interest.
+      event: the Qt event.
+
+    Returns:
+      True when the press landed on the cross, which consumes it so
+      the line edit never sees it and no text cursor is placed;
+      otherwise whatever the base class decides, so ordinary typing
+      and selection are untouched.
+    """
+    from qgis.PyQt.QtCore import QEvent
+    if self._marked and event.type() == QEvent.Type.MouseButtonPress \
+        and watched is self.lineEdit():
+      point = event.position().toPoint() \
+          if hasattr(event, "position") else event.pos()
+      # the child's coordinates are not this widget's, and the cross
+      # is measured in THIS widget's
+      here = watched.mapTo(self, point)
+      if self._clear_rect().adjusted(-3, -3, 3, 3).contains(here):
+        self.cleared.emit()
+        return True
+    return super().eventFilter(watched, event)
+
+  def _keep_the_text_clear(self):
+    """Reserve room at the left so digits do not sit under the cross.
+
+    Returns:
+      None. Sets the line edit's left text margin to the cross's own
+      width plus a little air while marked, and back to nothing when
+      not, so an unmarked box is laid out exactly as every other spin
+      box in the window. Margins move the TEXT and not the widget,
+      which is why the event filter above is still needed: the line
+      edit goes on covering these pixels whatever its margins say.
+    """
+    edit = self.lineEdit()
+    if edit is None:
+      return
+    room = self._clear_rect().right() + 3 if self._marked else 0
+    edit.setTextMargins(room, 0, 0, 0)
 
   def setMarked(self, marked):                         # noqa: N802 (Qt API)
     """Say whether this number is the user's rather than computed.
@@ -119,6 +180,7 @@ class MarkableSpinBox(TrimmedSpinBox):
     marked = bool(marked)
     if marked != self._marked:
       self._marked = marked
+      self._keep_the_text_clear()
       self.update()
 
   def isMarked(self):                                  # noqa: N802 (Qt API)

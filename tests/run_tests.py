@@ -9948,12 +9948,26 @@ def test_a_bound_can_be_given_back_from_every_control():
     return pairs[0][1] if pairs else None
 
   def click_the_cross(box):
-    """Click the clear mark the way a person does."""
-    point = QPointF(box._clear_rect().center())
-    QApplication.sendEvent(box, QMouseEvent(
-      QMouseEvent.Type.MouseButtonPress, point, point,
-      Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton,
-      Qt.KeyboardModifier.NoModifier))
+    """Click the clear mark the way a person does.
+
+    THROUGH `QTest.mouseClick`, WHICH LETS QT PICK THE RECEIVER, and
+    that is the whole point of this helper rather than a convenience.
+    It used to hand the event straight to the box with
+    `QApplication.sendEvent`, which proves the HANDLER works and not
+    that anybody can reach it -- and nobody could. A QDoubleSpinBox is
+    a composite: Qt puts a QLineEdit inside it, starting at x=1 to x=3
+    on every platform measured and covering the whole of the cross, so
+    a real press went to the child and only dropped a text cursor into
+    the number. Measured 2026-08-19 by a hunt: 0 of 8 controls
+    clickable, classed and Unclassed, table and strip, on a mark that
+    had been drawn since it was written and had never worked.
+
+    A test that dispatches past the widget that would have received
+    the event is a test of a route no user takes.
+    """
+    from qgis.PyQt.QtTest import QTest
+    QTest.mouseClick(box, Qt.MouseButton.LeftButton,
+                     Qt.KeyboardModifier(0), box._clear_rect().center())
 
   # EACH NUDGE COMES FROM THAT END'S OWN COMPUTED VALUE, not from a
   # number typed here. Absolute values were tried first and two cells

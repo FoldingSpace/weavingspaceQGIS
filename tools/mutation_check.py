@@ -44,6 +44,8 @@ COMPAT = "weavingspace_qgis/compat.py"
 PERCEPTION = "weavingspace_qgis/perception.py"
 EDITOR = "weavingspace_qgis/category_editor.py"
 WORKER = "weavingspace_qgis/worker.py"
+# The painted controls -- the marked bound box and its kin.
+WIDGETS = "weavingspace_qgis/widgets.py"
 # the release driver: not shipped, but it decides whether a candidate
 # exists at all, so its guards earn the same proof as the plugin's
 RELEASE = "release.py"
@@ -3786,6 +3788,24 @@ MUTATIONS = [
            "landing came back as the plugin's five, because a "
            "five-class retype adopted a moment earlier had moved the "
            "row and told nothing"),
+  dict(name="the-clearing-cross-can-be-clicked", file=WIDGETS,
+       # ANCHORED ON THE EVENT FILTER, which is the only thing that
+       # makes the mark reachable: `mousePressEvent` below it looks
+       # like the handler and is never called for these pixels, since
+       # the spin box's own QLineEdit covers them and takes the press.
+       old="""      here = watched.mapTo(self, point)
+      if self._clear_rect().adjusted(-3, -3, 3, 3).contains(here):
+        self.cleared.emit()
+        return True""",
+       new="      pass  # mutation: let the line edit swallow the click",
+       test="test_a_bound_can_be_given_back_from_every_control",
+       why="the cross inside a bound box is the only way to give a "
+           "bound back other than retyping the computed number, and "
+           "without this the click reaches the line edit instead and "
+           "merely drops a text cursor into the number. Measured "
+           "2026-08-19: 0 of 8 controls clickable, classed and "
+           "Unclassed, table and strip, on a mark drawn since the day "
+           "it was written"),
   dict(name="equal-intervals-cut-from-a-limit", file=BRIDGE,
        # ANCHORED ON THE GATE, which is where the fault was: the span
        # chain inside the branch already knew about floors and
