@@ -2548,13 +2548,36 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   # on being QGIS's, so the plugin cannot drift from the panel the
   # user opens next.
   low_pin = high_pin = None
+  floor = ceiling = None
   if pinned:
     low_pin = pinned.get("low")
     high_pin = pinned.get("high")
+    floor = pinned.get("floor")
+    ceiling = pinned.get("ceiling")
   finite_values = sorted(
     float(v) for v in values
     if v is not None and v != NULL and isinstance(v, (int, float))
     and math.isfinite(float(v)))
+  # NARROWED TWICE, AND THIS IS THE FIRST NARROWING. (Maintainer's
+  # specification, 2026-08-19.) The pool a scheme cuts from is the data
+  # BETWEEN the floor and the ceiling; the pins then narrow it again a
+  # few lines below. Doing it here rather than at each scheme means
+  # quantiles, Jenks and pretty breaks are all cut from the same pool
+  # without any of them being told about limits -- the dependency
+  # workaround rule, which is to hand QGIS different INPUT rather than
+  # reimplement four algorithms and invent new ways to disagree with
+  # the panel the user opens next.
+  #
+  # The excluded values are not merely ignored: they leave for the
+  # paired layer as OUTSIDE_RANGE_KEY, so they are drawn and labelled
+  # rather than becoming holes. `split_out_the_no_data` does that with
+  # the same two numbers, and `absence_kind` decides both, so the pool
+  # here and the tiles there cannot disagree about which side of a
+  # limit a value falls.
+  if floor is not None:
+    finite_values = [v for v in finite_values if v >= float(floor)]
+  if ceiling is not None:
+    finite_values = [v for v in finite_values if v <= float(ceiling)]
   if not finite_values:
     low_pin = high_pin = None
   # A PIN THE DATA CAN NO LONGER CARRY IS DROPPED, because QGIS is
@@ -2722,9 +2745,19 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   # over [a, b]" is a sentence, and the other three algorithms are not.
   even_middle = None
   if cuts_from_the_pin and copied is None:
+    # PIN, THEN LIMIT, THEN DATA. The span an equal-interval middle is
+    # cut over is the innermost thing somebody actually declared, and
+    # only falls back to the data when they declared nothing. A FLOOR
+    # belongs in that chain for the same reason a pin does: the rule
+    # exists so two columns given the same limits draw the SAME
+    # LADDER, and reading `finite_values[0]` where a floor is set
+    # would put each column's own smallest surviving value there
+    # instead, which is precisely the disagreement the rule forbids.
     span_low = (float(low_pin) if low_pin is not None
+                else float(floor) if floor is not None
                 else finite_values[0])
     span_high = (float(high_pin) if high_pin is not None
+                 else float(ceiling) if ceiling is not None
                  else finite_values[-1])
     # A pin can sit past the data on the far side -- a low pin of 40
     # over a column of 1..13 -- which leaves no span for a middle at
@@ -2746,11 +2779,39 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
     v is None or v == NULL or (isinstance(v, float)
                                and (v != v or abs(v) > FINITE))
     for v in values)
+  # THE LIMITS MUST OPEN THIS GATE TOO, and forgetting that is what
+  # made the first attempt at exclusion draw the unnarrowed ladder.
+  # Narrowing `finite_values` in Python narrows the PIN arithmetic and
+  # the equal-interval span, and nothing else: the ordinary path hands
+  # the whole thing to `renderer.updateClasses(source, k)`, so QGIS
+  # classifies whatever the source layer holds. Measured 2026-08-19 by
+  # a probe -- floor 20, ceiling 60 over a column of 3.1 to 79.1 sent
+  # 203 areas to the paired layer correctly AND drew the original
+  # 3.1-79.1 ladder over the 218 that remained.
+  #
+  # Correcting the INPUT is the same shape as the null workaround this
+  # clause already carries, and is why the limits are expressed as a
+  # subset rather than as arithmetic here: quantiles, Jenks and pretty
+  # breaks stay QGIS's own, so the plugin cannot drift from the panel
+  # the user opens next.
+  limits = floor is not None or ceiling is not None
   if (copied is None and even_middle is None and index >= 0
-      and (awkward or pins)):
+      and (awkward or pins or limits)):
     previous = source.subsetString()
     clause = (f'"{field}" IS NOT NULL AND "{field}" > {-FINITE:g} '
               f'AND "{field}" < {FINITE:g}')
+    # INCLUSIVE, where the pins below are exclusive, and the
+    # difference is not an oversight. A pin names a BOUNDARY between
+    # two classes, so the values sitting on it belong to the pinned
+    # class and must leave the pool the middle is cut from. A floor
+    # names the EDGE of what is drawn at all, and a value exactly on
+    # it is drawn -- the same rule `absence_kind` applies when
+    # deciding what to exclude, so the pool here and the tiles there
+    # cannot disagree about a value sitting exactly on a limit.
+    if floor is not None:
+      clause += f' AND "{field}" >= {float(floor):.17g}'
+    if ceiling is not None:
+      clause += f' AND "{field}" <= {float(ceiling):.17g}'
     if low_pin is not None:
       clause += f' AND "{field}" > {float(low_pin):.17g}'
     if high_pin is not None:
@@ -2782,9 +2843,44 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
     if restore is not None:
       source.setSubsetString(restore)
   if pins and copied is None:
-    _apply_pinned_bounds(renderer, low_pin, high_pin, finite_values[0],
-                         finite_values[-1], outline, method,
+    # THE LADDER'S OUTER EDGE IS THE LIMIT WHERE THERE IS ONE, not the
+    # smallest value that survived it. `finite_values` has already been
+    # narrowed to the limits above, so its ends are each column's own
+    # extreme WITHIN them -- and building the ladder from those would
+    # make two columns given one pair of limits start and stop at
+    # different numbers, which is the disagreement the whole feature
+    # exists to remove. Where nothing was declared these fall back to
+    # exactly what they were.
+    _apply_pinned_bounds(renderer, low_pin, high_pin,
+                         float(floor) if floor is not None
+                         else finite_values[0],
+                         float(ceiling) if ceiling is not None
+                         else finite_values[-1], outline, method,
                          wants_middle)
+  elif limits and copied is None:
+    # THE LADDER RUNS FROM THE FLOOR TO THE CEILING, EVEN WITH NO PIN,
+    # and this branch is what a probe found missing on 2026-08-19. The
+    # subset above narrows what QGIS classifies, so the cut is right;
+    # but QGIS puts its outermost edges at the extremes of what it was
+    # SHOWN, which are the surviving data's. Floor 20 and ceiling 60
+    # over a column of 3.1 to 79.1 gave a ladder of 20.7566 to
+    # 59.9081 -- correct classification, wrong ends, and two columns
+    # given one pair of limits would still have disagreed, which is
+    # the whole thing the limits are for.
+    #
+    # ONLY THE OUTERMOST EDGE MOVES, exactly as the pinned snap a few
+    # lines up moves only its own: the scheme's interior breaks are
+    # QGIS's and are untouched. And it is a SNAP rather than a
+    # rescale, so the classes keep the widths the scheme chose and no
+    # value changes class.
+    ranges = renderer.ranges()
+    edges = [(r.lowerValue(), r.upperValue()) for r in ranges]
+    if edges:
+      if floor is not None:
+        edges[0] = (float(floor), edges[0][1])
+      if ceiling is not None:
+        edges[-1] = (edges[-1][0], float(ceiling))
+      set_class_bounds(renderer, edges, outline, method)
   # A single class spans the whole ramp and QGIS colours it from the
   # ramp's START (measured, QGIS 4.0.3: one class on Reds comes back
   # #fff5f0, the ramp's 0.0 endpoint) -- for a sequential ramp that is
