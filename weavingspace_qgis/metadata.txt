@@ -104,6 +104,14 @@ changelog=0.24.3 You decide how your data is classed: which values are
     design about that axis and scale it by the size of the number.
     The up and down controls step through zero rather than stopping
     there.
+    Maps that were refused: the check on how many tiles a spacing asks
+    for measured the box around your areas rather than the areas
+    themselves, so a region that does not fill its own rectangle was
+    told it had asked for far more than it had. Coastlines, islands,
+    catchments and any scatter of places are all that shape. On one
+    dataset of three thousand areas the count came out eight times the
+    truth and the map was refused outright at a spacing that draws it
+    in a few seconds. The check counts the ground you are tiling now.
     Icons: a design drawing one tile unit on each of your areas is no
     longer refused as though it were a tiling of many thousands, and
     live update no longer stops following you for the same reason.

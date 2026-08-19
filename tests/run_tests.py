@@ -34463,10 +34463,15 @@ def test_the_tile_estimate_is_honest_where_shapes_are_awkward():
   The guard refuses a run before anything expensive happens, so its
   estimate decides two things a user feels: whether an honest map is
   refused, and whether a run that would exhaust memory inside GEOS is
-  attempted anyway. The estimate is computed from the region's
-  BOUNDING BOX -- a circle enclosing it, stepped across by the unit's
-  translation vectors -- which is exact for a rectangle and generous
-  for everything else.
+  attempted anyway. The estimate is computed from the GROUND THE
+  REGION COVERS -- its dissolved area, plus a strip one tile diagonal
+  wide round its dissolved boundary where the library's buffer puts
+  whole units -- divided by the area one prototile occupies.
+  IT USED TO COME FROM THE BOUNDING BOX, a circle enclosing it, and
+  that was changed on 2026-08-19 because it refused maps the library
+  draws: a region of two long islands filling 11.8% of that circle
+  estimated 8.3 times what was really tiled. The claim below is
+  unchanged by that and is the reason it survived the change.
 
   So the claim guarded here is one-sided and measured. The estimate
   must never be BELOW the tiles actually produced, in which case a
@@ -44602,15 +44607,17 @@ def _sparse_islands(span=20000.0, cell=1500.0, side=3):
   Returns:
     A memory layer in EPSG:3857 with one float attribute ``v1``.
 
-  The shape is chosen for what the SIZE GUARD does with it. The guard
-  estimates from the bounding BOX -- a circle enclosing it, stepped
-  across by the unit's translation vectors -- so a region occupying a
-  few per cent of its own box estimates one or two orders of magnitude
-  more tiles than it produces. That over-estimate is the guard's
-  documented, deliberately cautious behaviour (see
-  test_the_tile_estimate_is_honest_about_awkward_shapes, which pins
-  the ratio for three shapes). Here it is what makes the refusal
-  boundary reachable at all: a compact region at the boundary would
+  The shape is chosen for what the SIZE GUARD does with it. Until
+  2026-08-19 the guard estimated from the bounding BOX -- a circle
+  enclosing it -- so a region occupying a few per cent of its own box
+  estimated one or two orders of magnitude more tiles than it
+  produced, and this fixture was built to exploit exactly that. THE
+  GUARD MEASURES THE GROUND NOW, because that over-estimate was
+  refusing maps the library draws; the ratio it is allowed is pinned
+  by test_the_tile_estimate_is_honest_where_shapes_are_awkward, which
+  this docstring named wrongly for as long as it stood. What the shape
+  still does is make the refusal boundary reachable: a compact region
+  at the boundary would
   produce two hundred thousand real tiles, which is the very workload
   the guard exists to refuse.
   """

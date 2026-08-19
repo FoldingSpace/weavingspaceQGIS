@@ -112,7 +112,7 @@ colours alike.
 
 **`weavingspace_qgis/metadata.txt:39`**
 
-<!-- id:3dfd0b1a1d743499 -->
+<!-- id:98d776cb47e2e1ca -->
 ````
 ; Shown in the QGIS plugin manager. Keep the newest version first, and
 ; describe what a USER would notice rather than what changed in the code.
@@ -182,6 +182,14 @@ changelog=0.24.3 You decide how your data is classed: which values are
     design about that axis and scale it by the size of the number.
     The up and down controls step through zero rather than stopping
     there.
+    Maps that were refused: the check on how many tiles a spacing asks
+    for measured the box around your areas rather than the areas
+    themselves, so a region that does not fill its own rectangle was
+    told it had asked for far more than it had. Coastlines, islands,
+    catchments and any scatter of places are all that shape. On one
+    dataset of three thousand areas the count came out eight times the
+    truth and the map was refused outright at a spacing that draws it
+    in a few seconds. The check counts the ground you are tiling now.
     Icons: a design drawing one tile unit on each of your areas is no
     longer refused as though it were a tiling of many thousands, and
     live update no longer stops following you for the same reason.
@@ -358,37 +366,37 @@ changelog=0.24.3 You decide how your data is classed: which values are
 <!-- id:9884d7f82b5b56dd -->
 > Copy onto the ticked elements
 
-**`weavingspace_qgis/dialog.py:7386`** — in `_copy_classification_to_many`
+**`weavingspace_qgis/dialog.py:7420`** — in `_copy_classification_to_many`
 
 <!-- id:4403f9fa9c6b382f -->
 > That element has nothing to copy.
 
-**`weavingspace_qgis/dialog.py:7489`** — in `_copy_needs_a_generate`
+**`weavingspace_qgis/dialog.py:7523`** — in `_copy_needs_a_generate`
 
 <!-- id:878f3c96f240fd2d -->
 > The range travelled with them, so the map catches up at the next Generate: leaving areas out changes which tiles it holds rather than only their colour.
 
-**`weavingspace_qgis/dialog.py:7544`** — in `_copy_report`
+**`weavingspace_qgis/dialog.py:7578`** — in `_copy_report`
 
 <!-- id:1ada7fec08322029 -->
 > {} {} the classes from element '{}'.
 
-**`weavingspace_qgis/dialog.py:7676`** — in `_copy_onto_one`
+**`weavingspace_qgis/dialog.py:7710`** — in `_copy_onto_one`
 
 <!-- id:2de0564b4a42340a -->
 > has no variable to classify, so it was left out.
 
-**`weavingspace_qgis/dialog.py:7678`** — in `_copy_onto_one`
+**`weavingspace_qgis/dialog.py:7712`** — in `_copy_onto_one`
 
 <!-- id:9bec72df65d159e3 -->
 > have no variable to classify, so they were left out.
 
-**`weavingspace_qgis/dialog.py:7707`** — in `_copy_onto_one`
+**`weavingspace_qgis/dialog.py:7741`** — in `_copy_onto_one`
 
 <!-- id:ba369919fa429bc6 -->
 > holds no values inside the range {}, so it was left out.
 
-**`weavingspace_qgis/dialog.py:7709`** — in `_copy_onto_one`
+**`weavingspace_qgis/dialog.py:7743`** — in `_copy_onto_one`
 
 <!-- id:5293ccc139a3183e -->
 > hold no values inside the range {}, so they were left out.

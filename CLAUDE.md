@@ -2539,6 +2539,74 @@ genuinely independent third column and should be added then.
   Reconcile through the door the landing already uses rather than a
   second one invented for the case.
 
+- **A GUARD MEASURES THE GROUND, NOT THE BOX ROUND IT.** (2026-08-19,
+  ledger row 23, and it cost a colleague their map rather than a
+  little time.) The size guard estimated tiles from a CIRCLE enclosing
+  the region's bounding rectangle, while the library tiles that circle
+  and then CLIPS to the polygons. New Zealand is two long islands in a
+  rectangle that is mostly sea -- 11.8% of that circle -- so the guard
+  said 585,765 tiles where 70,659 were drawn and REFUSED a design the
+  library renders in five seconds.
+  FOUR MODELS WERE MEASURED against what is really drawn, because a
+  region is not one shape: adjacent cells cut from a raster share
+  edges needing no allowance, separated cells each carry their own.
+  The bounding-box edge came out 1.20x on the first and 0.98x -- UNDER
+  -- on the second; each polygon's own perimeter 6.25x and 2.38x; the
+  DISSOLVED boundary 1.28x and 1.68x. Only the last is generous on
+  both, and a guard that under-counts waves through a run that then
+  takes the machine.
+  THE GENERAL FORM, which reaches past this guard: a perimeter summed
+  per row is a property of HOW THE DATA WAS CUT INTO ROWS rather than
+  of the ground it covers, and so is a bounding box. When an estimate
+  stands on the shape of the input, ask whether it is standing on the
+  geometry or on the table.
+  AND ITS FIXTURES MUST BE SPARSE. Every region fixture in this suite
+  is a dense square, where the circle and the ground differ only by
+  pi/2 and any honest threshold accepts both -- which is why nothing
+  here ever caught it. The guard asserts its fixture IS sparse before
+  comparing anything, and computes what the old arithmetic would have
+  said, so its threshold cannot be one the current code merely happens
+  to meet.
+
+- **A CACHE OF ONE IS NO CACHE WHEN THERE ARE TWENTY-THREE OF
+  ANYTHING.** (2026-08-19, ledger row 4.) `_classification_values`
+  REPLACED its cache dict on every miss, on the sound reasoning that a
+  stale fingerprint's values must never sit there being wrong -- and
+  replacing it threw away every OTHER column's entry at the same time.
+  With one element that is free; with twenty-three elements on
+  twenty-three columns the hit rate is ZERO, so one keystroke rescanned
+  3,011 features twenty-three times. Measured on the reporter's own
+  data: 119,352 calls per tick at 0.24.2 against 1,041,176 at HEAD,
+  172 ms of CPU against 3,543, one Generate at 2.5s against 62.7.
+  THE SUITE COULD NOT SEE IT: four elements over thirty-six features
+  against twenty-three over three thousand is a factor of 481 with no
+  change of shape, so the cost was real all along and never large
+  enough to show. WHEN A FIX IS ABOUT STALENESS, ASK WHAT ELSE IT
+  DISCARDS -- the safety property here needed only that entries whose
+  fingerprint has moved go, not that everything go.
+  AND ITS GUARD COUNTS CALLS ACROSS SEVERAL COLUMNS. A one-column test
+  reads zero warm scans whatever the code does, since there is nothing
+  to evict it, and would pass with the cache deleted outright.
+
+- **A COPY REPRODUCES THE WHOLE CLASSIFICATION, AND THE RECORD GREW
+  UNDER IT.** (2026-08-19, ledger rows 21 and 22.) `_copy_classification`
+  built its record from breaks and pin flags and never read `floor` or
+  `ceiling`, then wrote that record WHOLESALE -- so a copy left the
+  source's range behind AND destroyed the target's. The case that
+  justified out-of-data bounds at all was giving one pair of limits to
+  several variables, and the control built for it could not do it.
+  WHEN A RECORD GAINS A KEY, GREP EVERY SITE THAT ENUMERATES ITS KEYS.
+  `_adopt_dock_bounds`'s restore whitelist was widened the same day and
+  is documented as "the record's real definition"; the copy was not,
+  and nothing pointed at it.
+  AND THE FIX MOVED THE COPY ONTO A PATH THAT REFUSES IT: a limit is a
+  GEOMETRY change, so `_restyle_only` declines the element -- and the
+  restyle is what writes the stamp. A copy of breaks alone came back
+  stamped and the identical copy carrying a range stamped nothing, so
+  it reached the map and would have died at the next reopen. WHEN A FIX
+  MOVES A CHANGE FROM ONE PATH ONTO ANOTHER, ASK WHAT THE OLD PATH WAS
+  DOING FOR IT BESIDES THE OBVIOUS.
+
 - **A GITHUB RELEASE BODY PRESERVES SINGLE NEWLINES, so NEVER hard-wrap
   one.** Release notes written at the usual 72 columns arrive as
   literal line breaks, and on a phone that means a sentence broken

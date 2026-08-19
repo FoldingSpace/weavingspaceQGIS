@@ -258,9 +258,22 @@ announces the day it is fixed.
 3. **Never provision numpy 2.x, never shadow a healthy QGIS package.**
    `deps.py` only extracts a wheel when the shipped package is missing
    or below the version floor, and only into the plugin's own `libs/`.
-4. **Generation must stay size-guarded.** Tile count grows with
-   1/spacing²; the estimate in `bridge.estimate_tile_count_bounds`
-   runs before every generation, including live updates.
+4. **Generation must stay size-guarded, and the guard measures the
+   GROUND rather than the extent.** Tile count grows with 1/spacing²,
+   and `bridge.estimate_tile_count_bounds` runs before every
+   generation, including live updates. What it divides by the
+   prototile's area is the region's DISSOLVED area plus a strip one
+   tile diagonal wide round its dissolved boundary — not a circle
+   enclosing the bounding box, which is what it used to be and which
+   refused maps the library draws: a region of two long islands
+   filling 11.8% of that circle estimated 8.3 times what was tiled,
+   and a user could not make their map at all (2026-08-19). The live
+   gate still asks from a layer extent alone, where assuming the
+   region fills its box is the most generous honest assumption; the
+   hard gate has geometry and dissolves it, at about 0.05s for 3,011
+   polygons. If you change one, change the other: a plugin that
+   refuses at one figure and advises a spacing derived from another
+   reads as contradicting itself.
 
 ## Updating the vendored weavingspace library
 
