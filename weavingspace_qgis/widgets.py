@@ -1,6 +1,6 @@
 """Small Qt widgets shared by the dialog and the colour editor.
 
-There is one of them, and it exists because two boxes in this plugin
+There are two, and the first exists because two boxes in this plugin
 need the same trick for the same reason. A `QDoubleSpinBox` shows a
 value with exactly `decimals` places, always, so a box wide enough for
 a rate of 4e-07 prints a round 500 as "500.000000" -- which is what a
@@ -67,3 +67,86 @@ class TrimmedSpinBox(QDoubleSpinBox):
     if point and point in shown:
       shown = shown.rstrip("0").rstrip(point)
     return shown
+
+
+class MarkableSpinBox(TrimmedSpinBox):
+  """A bound box that shows whether its number is a person's.
+
+  The class-bound boxes each hold a number that is either COMPUTED by
+  the classification or SET by the user, and a reader cannot tell
+  which from the number itself. A pin column said it for two of them
+  and said nothing about the ladder's outer edges; the maintainer's
+  instruction of 2026-08-19 replaced the column with a mark on the box
+  itself, identically for a floor, a pin or a ceiling, so one
+  convention covers all four and the table loses a column.
+
+  PAINTED, NOT STYLESHEETED, for the reason `PinButton` and
+  `ToggleSwitch` are painted: a stylesheet border on a
+  `QDoubleSpinBox` replaces the platform's own frame rather than
+  adding to it, so the box stops looking like the others on that
+  platform -- and this project has a standing rule against controls
+  whose appearance depends on a theme it has never relied on. Drawing
+  over the frame after Qt has drawn it is a few lines and looks the
+  same on every machine.
+
+  Args:
+    parent: the owning widget, as usual in Qt.
+  """
+
+  def __init__(self, parent=None):
+    """Start unmarked, which is what a computed bound is."""
+    super().__init__(parent)
+    self._marked = False
+
+  def setMarked(self, marked):                         # noqa: N802 (Qt API)
+    """Say whether this number is the user's rather than computed.
+
+    Args:
+      marked: True to draw the heavy outline, False for none.
+
+    Returns:
+      None. Repaints only when the state actually changes, so calling
+      this on every refresh costs nothing.
+    """
+    marked = bool(marked)
+    if marked != self._marked:
+      self._marked = marked
+      self.update()
+
+  def isMarked(self):                                  # noqa: N802 (Qt API)
+    """Whether the heavy outline is being drawn.
+
+    Returns:
+      True when this box is showing a number somebody set.
+    """
+    return self._marked
+
+  def paintEvent(self, event):                         # noqa: N802 (Qt API)
+    """Draw the box, then its mark on top.
+
+    Args:
+      event: the Qt paint event, passed through untouched.
+
+    Returns:
+      None.
+
+    The rectangle is inset by half the pen width so the stroke lands
+    INSIDE the widget: drawn on the frame itself, Qt clips the outer
+    half and the line reads thinner on one side than the other, which
+    is the kind of asymmetry that looks like a rendering fault rather
+    than a signal.
+    """
+    super().paintEvent(event)
+    if not self._marked:
+      return
+    from qgis.PyQt.QtCore import Qt as _Qt
+    from qgis.PyQt.QtGui import QPainter, QPen
+    painter = QPainter(self)
+    try:
+      pen = QPen(_Qt.GlobalColor.black)
+      pen.setWidth(2)
+      painter.setPen(pen)
+      painter.setBrush(_Qt.BrushStyle.NoBrush)
+      painter.drawRect(self.rect().adjusted(1, 1, -2, -2))
+    finally:
+      painter.end()
