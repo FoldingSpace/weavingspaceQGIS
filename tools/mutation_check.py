@@ -3725,6 +3725,41 @@ MUTATIONS = [
   # now requires an Unclassed end to be named by TWO LIMIT CONTROLS
   # that agree, which is the promise the column was serving, and
   # `an-unclassed-end-keeps-two-controls` below breaks that instead.
+  dict(name="a-retyped-ladder-keeps-its-ends", file=DIALOG,
+       old='    wanted["floor"] = float(bounds[0][0])',
+       new='    wanted["floor"] = wanted.get("floor")',
+       test="test_a_break_retyped_in_qgis_reaches_the_plugin",
+       why="a ladder retyped in QGIS keeps the ends a person typed; "
+           "without this they fall back to the column's own extremes, "
+           "so 0 typed over a column starting at 3.1 comes back 3.1 "
+           "and the legend describes numbers nobody chose"),
+  dict(name="a-ladder-that-excludes-everything-is-not-adopted",
+       file=DIALOG,
+       old="      wanted.pop(\"floor\", None)\n"
+           "      wanted.pop(\"ceiling\", None)",
+       new="      pass  # mutation: adopt the ends regardless",
+       test="test_a_qgis_symbology_edit_reaches_the_plugin_on_every_shape",
+       why="a ladder retyped far from the data would otherwise have "
+           "its ceiling adopted, excluding every value and leaving the "
+           "element with no classes at all -- measured on a column of "
+           "about 1e9 retyped to 0-80, five classes down to none"),
+  dict(name="a-dock-edit-under-a-run-is-replayed", file=DIALOG,
+       old="      self._adoption_deferred[tile_id] = (\n"
+           "        dict(assignment), list(bounds), list(colours))",
+       new="      pass  # mutation: drop the edit instead of keeping it",
+       test="test_a_qgis_symbology_edit_reaches_the_plugin_on_every_shape",
+       why="a boundary retyped while a run is finishing must survive "
+           "the landing; without this the rest conditions throw the "
+           "edit away and the next re-seed writes the plugin's own "
+           "ladder over what the user typed"),
+  dict(name="a-limit-narrows-what-is-classified", file=BRIDGE,
+       old='      clause += f\' AND "{field}" >= {float(floor):.17g}\'',
+       new="      pass  # mutation: classify past the floor",
+       test="test_a_qgis_symbology_edit_reaches_the_plugin_on_every_shape",
+       why="a floor must narrow the pool the scheme cuts from, or the "
+           "ladder is computed over values the map no longer draws -- "
+           "a legend describing areas that have left for the paired "
+           "layer"),
   dict(name="an-unclassed-end-keeps-two-controls", file=EDITOR,
        old="          if self._pins_offered:",
        new="          if self._pins_offered and not self._locked:",

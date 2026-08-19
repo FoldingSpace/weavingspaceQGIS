@@ -36848,6 +36848,13 @@ def _matrix_cell(route, mutate, values, aftermath,
       # live boundary is right and is what exercises exclusion.
       floor_at = (MATRIX_TYPED[0] - 1.0 if route == "floor, then retype"
                   else round(edges[0][1], 3))
+      # THE INTERIOR BEFORE THE LIMIT, so the verdict can require the
+      # scheme to have re-cut over the narrowed pool. Checking only
+      # where the ladder STARTS asks about the snap and nothing else --
+      # the catalogue entry `a-limit-narrows-what-is-classified`
+      # SURVIVED against exactly that, because deleting the floor from
+      # the subset string left the snap in place and the cell green.
+      before_interior = [round(hi, 3) for _lo, hi in edges[:-1]]
       dlg._pinned_bounds.setdefault(tid, {}).setdefault("pct", {})
       dlg._pinned_bounds[tid]["pct"]["floor"] = floor_at
       dlg._apply_style_change()
@@ -36882,10 +36889,31 @@ def _matrix_cell(route, mutate, values, aftermath,
       if not after:
         return ("NOT FOLLOWED", "the element drew no classes at all")
       got = round(after[0][0], 3)
-      if abs(got - floor_at) < 1e-6:
-        return ("ok", "")
-      return ("NOT FOLLOWED",
-              f"the ladder starts at {got}, not at the floor {floor_at}")
+      if abs(got - floor_at) >= 1e-6:
+        return ("NOT FOLLOWED",
+                f"the ladder starts at {got}, not at the floor {floor_at}")
+      # ...AND THE MIDDLE WAS RE-CUT OVER WHAT SURVIVES. A floor at
+      # the first boundary removes that class's worth of data, so an
+      # equal-interval or quantile middle cannot come back unchanged
+      # unless the pool was never narrowed.
+      now_interior = [round(hi, 3) for _lo, hi, _c in after[:-1]]
+      # ONLY WHERE THE FLOOR ACTUALLY EXCLUDED SOMETHING. A limit is
+      # INCLUSIVE at its own value, so on a heavily tied column whose
+      # bottom class is all exactly the floor, nothing leaves and the
+      # middle is rightly unchanged -- which this asserted as a defect
+      # on the "tied" shape until the premise was stated. Fourth
+      # harness-authored failure in this matrix, counted like the
+      # other three.
+      excluded = sum(1 for v in values
+                     if v is not None and isinstance(v, (int, float))
+                     and float(v) < floor_at)
+      if excluded and now_interior == before_interior:
+        return ("NOT FOLLOWED",
+                f"the interior breaks are unchanged at {now_interior} "
+                f"after a floor of {floor_at} removed the bottom class, "
+                f"so the scheme was cut over values the map no longer "
+                f"draws")
+      return ("ok", "")
     if what == "ceiling":
       after = dlg._current_graduated_classes(
         [a for a in dlg._assignments() if a["id"] == tid][0])
@@ -37190,6 +37218,30 @@ def test_a_break_retyped_in_qgis_reaches_the_plugin():
     assert after[0] != computed[0], \
       f"the retyped boundary equals the computed one ({after[0]}), so " \
       f"this fixture cannot tell adoption from doing nothing"
+
+    # ...AND THE ENDS, WHICH THIS TEST DELIBERATELY DID NOT ASSERT.
+    # It compared interior boundaries only, on the reasoning recorded
+    # in the 2026-08-18 ledger that a ladder's outer edges are the
+    # column's own extremes by definition -- so a tester typing 0 - 10
+    # over a column starting at 3.1 "gets the same areas in the same
+    # class". That was true about colour and false about what the
+    # LEGEND SAYS, it only ever considered the bottom, and the
+    # maintainer reversed it on 2026-08-19: the ends a person types
+    # are kept.
+    #
+    # THE CATALOGUE IS WHAT FOUND THE HOLE. The entry
+    # `a-retyped-ladder-keeps-its-ends` SURVIVED against this test,
+    # because a guard scoped to the interior cannot see an end however
+    # the model changes around it. When a rule is reversed, the test
+    # that encoded the old one has to be widened in the same breath.
+    whole = dlg._current_graduated_classes(
+      [a for a in dlg._assignments() if a["id"] == tid][0])
+    assert round(whole[0][0], 2) == typed[0], \
+      f"the ladder starts at {round(whole[0][0], 2)} where the tester " \
+      f"typed {typed[0]}; the outer edges are a person's now"
+    assert round(whole[-1][1], 2) == typed[-1], \
+      f"the ladder stops at {round(whole[-1][1], 2)} where the tester " \
+      f"typed {typed[-1]}"
   finally:
     dlg.close()
 
