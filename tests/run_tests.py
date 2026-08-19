@@ -50889,9 +50889,19 @@ def test_two_columns_with_one_pair_of_limits_draw_one_ladder():
     _tick(150)
     ids = [dlg.table.item(row, 0).text() for row in (0, 1)]
     for tid, column in zip(ids, ("v1", "v3")):
-      assert dlg._assignment_for(tid)["mode"] == "Graduated", \
-        f"element {tid} is not graduated, so the scheme under test " \
-        f"never runs and this case is vacuous"
+      # THE SCHEME, NOT MERELY "GRADUATED", which every Quant style
+      # answers. This asked the weaker question and passed a sharded
+      # run where the mode had not taken: the element stayed on
+      # Quantiles, where two columns SHOULD disagree, and the failure
+      # arrived at the comparison as though the fix were broken. A
+      # premise that cannot tell the fixture from the defect turns a
+      # harness fault into a false report about the product.
+      row_now = dlg._assignment_for(tid)
+      assert row_now["mode"] == "Graduated" \
+          and row_now.get("mode_raw") == "Quant: Equal intervals", \
+        f"element {tid} reads {row_now.get('mode_raw')!r}, not " \
+        f"'Quant: Equal intervals', so the scheme under test never " \
+        f"runs and this case is vacuous"
       dlg._pinned_bounds.setdefault(tid, {})[column] = {
         "floor": floor, "ceiling": ceiling}
     dlg.spacing_spin.setValue(500)
