@@ -45,7 +45,7 @@ from qgis.PyQt.QtWidgets import (QAbstractButton, QAbstractItemView,
                                  QTableWidgetItem, QVBoxLayout, QWidget)
 
 from . import bridge
-from .widgets import TrimmedSpinBox
+from .widgets import MarkableSpinBox, TrimmedSpinBox
 
 # What a pinned class bound may be, as a Qt spin box has to be told
 # something. `bridge.pin_problem` accepts ANY finite number -- the
@@ -673,6 +673,12 @@ class CategoryColourDialog(QDialog):
                                self._colour_button(value))
 
     self._size_columns()
+    # ...and say, on the way in, which of these numbers are already
+    # somebody's. A window that only marks a bound once it is EDITED
+    # would show a reopened project's own pins and limits as though
+    # the plugin had computed them, which is the whole distinction
+    # the mark exists to draw.
+    self._refresh_marks()
 
     if self._locked:
       # The Unclassed list is watched, not edited: the buttons are
@@ -933,7 +939,7 @@ class CategoryColourDialog(QDialog):
     measured = unpinned or edges
     span = ((max(measured) - min(measured)) if len(measured) > 1
             else magnitude)
-    box = TrimmedSpinBox()
+    box = MarkableSpinBox()
     # ...enough decimal places to separate values on THIS column, and
     # no more: nine significant places below the span, which gives 0
     # on a column of square metres and eleven on a column of rates
@@ -1138,6 +1144,37 @@ class CategoryColourDialog(QDialog):
       lambda _v, w=which, b=box: self._limit_moved(w, b))
     self._limit_boxes.setdefault(which, []).append(box)
 
+  def _refresh_marks(self):
+    """Mark every bound box whose number is a person's, not computed.
+
+    Returns:
+      None. Walks all four ends and sets each control's mark from the
+      RECORD, so two controls naming one end can never disagree about
+      whether it is set.
+
+    ONE OWNER, ASKED OF THE RECORD, and that is why this is a sweep
+    rather than a line at each site that changes something. The pin
+    column this replaces kept a checked state per control, and
+    `_sync_pin_controls` exists to stop those copies drifting -- a
+    mark derived from `self._pinned` has nothing to keep in step and
+    cannot drift at all. Cheap enough to call on every change: four
+    ends, at most two controls each.
+
+    `hasattr` rather than a type test, because the strip and the table
+    build their boxes through the same factory and a future control
+    that is not a MarkableSpinBox should be skipped rather than crash
+    the window it is drawn in.
+    """
+    for which in ("low", "high"):
+      for pair in self._pin_widgets.get(which, []):
+        box = pair[1]
+        if hasattr(box, "setMarked"):
+          box.setMarked(self._pinned.get(which) is not None)
+    for which in ("floor", "ceiling"):
+      for box in self._limit_boxes.get(which, []):
+        if hasattr(box, "setMarked"):
+          box.setMarked(self._pinned.get(which) is not None)
+
   def _sync_limit_boxes(self, which, source=None):
     """Move every other control naming this edge to the same number.
 
@@ -1222,6 +1259,7 @@ class CategoryColourDialog(QDialog):
     # control naming this edge moves with it.
     self._redraw_bounds(answer)
     self._sync_limit_boxes(which, box)
+    self._refresh_marks()
 
   def _default_bound(self, which):
     """The number the scheme computes for one end with no pin on it.
@@ -1402,6 +1440,7 @@ class CategoryColourDialog(QDialog):
     # the ladder the map now draws, so the window and the map agree
     self._redraw_bounds(answer)
     self._sync_pin_controls(which, pair)
+    self._refresh_marks()
 
   def _bound_edited(self, which, source=None):
     """Move a pinned bound to the number just typed.
@@ -1440,6 +1479,7 @@ class CategoryColourDialog(QDialog):
     # window must say so too
     self._redraw_bounds(answer)
     self._sync_pin_controls(which, pair)
+    self._refresh_marks()
 
   def _label_for(self, value) -> str:
     """The words one row shows in its left-hand column.
