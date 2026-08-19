@@ -1785,7 +1785,8 @@ MUTATIONS = [
            "from a timer into a dialog that believes the editor gone"),
   dict(name="spacing-suggestion-refuses-itself", file=BRIDGE,
        old="""  for _ in range(60):
-    if estimate_tile_count_bounds(unit, bounds, scale) <= MAX_TILES_HARD:
+    if estimate_tile_count_bounds(unit, bounds, scale, covered_area=area,
+                                  covered_edge=edge) <= MAX_TILES_HARD:
       break
     scale *= 1.02""",
        new="""  pass  # mutation: the inverse-square law has the last word""",
@@ -2710,8 +2711,8 @@ MUTATIONS = [
            "'Assign at least one variable' -- both true of something, "
            "neither about the control the user just moved"),
   dict(name="size-guard-estimate-bounds-the-count", file=BRIDGE,
-       old="  radius = math.hypot(w, h) / 2",
-       new="  radius = math.hypot(w, h) / 3  # mutation: under-estimate",
+       old="  covered = ground + edge * tile_diag + 4 * tile_diag * tile_diag",
+       new="  covered = (ground + edge * tile_diag) / 3  # mutation: under",
        test="test_size_guard",
        why="the guard's whole job is to be an UPPER bound on the tile "
            "count, and this radius sets it. A third instead of a half "
@@ -3948,6 +3949,28 @@ MUTATIONS = [
            "reopen. Nothing on a renderer records that a break was "
            "CHOSEN rather than computed, so the stamp is all a "
            "reopened project has"),
+  dict(name="the-size-guard-measures-ground", file=BRIDGE,
+       old="""    ground, edge = covered_area, covered_edge or 0.0""",
+       new="""    ground, edge = w * h, 2 * (w + h)""",
+       test="test_the_size_guard_measures_ground_not_the_bounding_box",
+       why="ignoring what the caller measured puts the estimate back "
+           "on the bounding rectangle, which knows nothing of a "
+           "region strung thinly across it. On a maintainer's own "
+           "data -- 3,011 areas filling 11.8% of the circle enclosing "
+           "them -- that estimated 585,765 tiles against 70,659 "
+           "drawn and REFUSED a map the library renders in five "
+           "seconds, so the user could not make it at all"),
+  dict(name="the-border-is-the-dissolved-edge", file=BRIDGE,
+       old="""    united = region_gdf.union_all()
+    return float(united.area), float(united.length)""",
+       new="""    return float(region_gdf.area.sum()), float(region_gdf.length.sum())""",
+       test="test_the_size_guard_measures_ground_not_the_bounding_box",
+       why="a region arrives as ROWS, and rows are how somebody cut "
+           "the data rather than a fact about the ground: summing "
+           "each polygon's perimeter counts every shared internal "
+           "edge twice. Measured at 6.25x what the library draws on "
+           "adjacent cells, which refuses maps outright, against "
+           "1.28x for the dissolved boundary"),
   dict(name="the-value-cache-keeps-every-column", file=DIALOG,
        old="""      self._values_cache = {
         older: cached for older, cached in self._values_cache.items()

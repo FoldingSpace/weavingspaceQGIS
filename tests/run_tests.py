@@ -38041,6 +38041,135 @@ def test_every_column_is_scanned_once_not_once_per_element():
     _tick(50)
 
 
+
+def _sparse_region(cells=200, cell=10000.0, span=40):
+  """A thin diagonal band of cells inside a large bounding rectangle.
+
+  Args:
+    cells: how many square cells to place.
+    cell: the side of each, in map units.
+    span: how many cell-widths across the bounding rectangle runs.
+
+  Returns:
+    A memory layer whose polygons occupy a small fraction of their own
+    extent. THE SHAPE IS THE POINT: real regions are like this --
+    two long islands, a river catchment, a coastal strip -- and the
+    suite's own fixtures are dense squares, which is exactly why
+    nothing here ever caught an estimator that measured the extent
+    instead of the ground.
+  """
+  from weavingspace_qgis import compat
+  layer = QgsVectorLayer("MultiPolygon?crs=EPSG:3857", "sparse", "memory")
+  prov = layer.dataProvider()
+  prov.addAttributes([compat.make_field("v", float)])
+  layer.updateFields()
+  feats = []
+  for k in range(cells):
+    # ...walking the diagonal, so the extent is `span` cells wide and
+    # `span` tall while only `cells` of them are occupied
+    i = (k * span) // cells
+    j = k % span
+    f = QgsFeature(layer.fields())
+    x, y = i * cell, j * cell
+    f.setGeometry(QgsGeometry.fromPolygonXY([[
+      QgsPointXY(x, y), QgsPointXY(x + cell, y),
+      QgsPointXY(x + cell, y + cell), QgsPointXY(x, y + cell)]]))
+    f["v"] = float(k % 7)
+    feats.append(f)
+  prov.addFeatures(feats)
+  layer.updateExtents()
+  return layer
+
+
+def test_the_size_guard_measures_ground_not_the_bounding_box():
+  """The tile estimate follows the region's AREA, not its extent.
+
+  WHAT IT COST A USER, and it is the reason this is a refusal rather
+  than a slowness. The maintainer's colleague reported that a design
+  over 3,011 areas could not be drawn at all: the plugin answered "a
+  spacing this small asks for roughly 585,765 tiles" and declined,
+  while the same design through the library rendered 70,659 tiles in
+  about five seconds. Ledger row 23, measured 2026-08-19 on their own
+  data, which occupies 11.8% of the circle enclosing it -- two long
+  islands inside a rectangle that is mostly sea.
+
+  THE OLD ESTIMATE COVERED A CIRCLE ENCLOSING THE BOUNDING RECTANGLE.
+  A circle round a rectangle is already pi/2 times its area at best
+  and worse when the rectangle is long; over a region occupying a
+  fraction of its own extent the two compound, and the library then
+  CLIPS to the polygons so none of that empty ground becomes tiles.
+
+  THE FIXTURE MUST BE SPARSE OR THIS PROVES NOTHING. On a region that
+  fills its extent the old and new estimates differ by about pi/2,
+  which any loose threshold would accept -- so a dense fixture passes
+  today AND passes with the fix reverted. The premise is asserted
+  before the comparison for exactly that reason, which is the habit
+  this project reaches for whenever a test's answer depends on the
+  shape of its data.
+
+  IT ASKS THE LIBRARY, not another estimate: the expected side is the
+  number of tiles `Tiling` really produces, so a disagreement is a
+  defect by construction and no threshold is being tuned to taste.
+
+  Regression: the size guard measured a circle enclosing the region's bounding box rather than the ground the region covers, so a sparse region -- which most real data is -- was refused at a spacing the library tiles happily; a colleague of the maintainer could not draw their map at all. [user]
+  """
+  from weavingspace import Tiling
+  from weavingspace_qgis import bridge
+  project = QgsProject.instance()
+  project.clear()
+  layer = _sparse_region()
+  project.addMapLayer(layer)
+  region = bridge.layer_to_gdf(layer, ["v"])
+
+  b = region.total_bounds
+  extent = (b[2] - b[0]) * (b[3] - b[1])
+  ground = float(region.area.sum())
+  fill = ground / extent
+  assert fill < 0.25, (
+    f"the premise fails: this region fills {fill:.0%} of its own "
+    f"extent, and on a full one the old bounding-circle estimate and "
+    f"the new area one differ by about pi/2 -- which any honest "
+    f"threshold accepts, so the cell could not tell them apart")
+
+  from weavingspace import TileUnit
+  unit = TileUnit(tiling_type="hex-slice", n=4, spacing=5000.0,
+                  crs=region.crs)
+
+  estimate = bridge.estimate_tile_count(unit, region)
+  drawn = len(Tiling(unit, region).get_tiled_map(
+      join_on_prototiles=False, retain_tileables=False,
+      ragged_edges=True).map)
+  assert drawn > 0, "the library drew nothing, so there is no yardstick"
+
+  # GENEROUS BUT NOT ABSURD, in that order. A guard must never
+  # UNDER-count, or it waves through a run that then takes the
+  # machine; and an estimate several times the truth is what refuses
+  # maps that are perfectly fine.
+  assert estimate >= drawn, (
+    f"the estimate is {estimate:,} against {drawn:,} really drawn, so "
+    f"the guard would let through more than it believes")
+  assert estimate <= 2 * drawn, (
+    f"the estimate is {estimate:,} against {drawn:,} really drawn "
+    f"({estimate / drawn:.1f}x) on a region filling {fill:.0%} of its "
+    f"extent. Measuring the extent rather than the ground is what "
+    f"refused a user's map at a spacing the library tiles happily")
+
+  # ...AND THE OLD ARITHMETIC IS SHOWN TO FAIL THIS CELL, so the
+  # threshold above is not merely one the current code happens to
+  # meet. Computed here rather than remembered, from the same unit.
+  tb = unit.tiles.total_bounds
+  diag = math.hypot(tb[2] - tb[0], tb[3] - tb[1])
+  v = unit.get_vectors()
+  det = abs(v[0][0] * v[1][1] - v[0][1] * v[1][0])
+  w, h = (b[2] - b[0]) + 2 * diag, (b[3] - b[1]) + 2 * diag
+  circle = math.pi * (math.hypot(w, h) / 2) ** 2
+  was = int(circle / det * max(len(unit.tiles), 1))
+  assert was > 2 * drawn, (
+    f"the bounding-circle estimate would have given {was:,} against "
+    f"{drawn:,} drawn, which passes the threshold above -- so this "
+    f"cell cannot tell the two estimators apart and proves nothing")
+
+
 def test_a_break_retyped_in_qgis_reaches_the_plugin():
   """Retype a class boundary in the Symbology panel; the plugin follows.
 
@@ -53708,6 +53837,8 @@ def main():
         test_a_copy_carries_the_range_and_refuses_what_it_would_empty)
   check("each column is scanned once however many elements carry one",
         test_every_column_is_scanned_once_not_once_per_element)
+  check("the size guard measures ground, not the bounding box",
+        test_the_size_guard_measures_ground_not_the_bounding_box)
   check("a break retyped in QGIS reaches the plugin",
         test_a_break_retyped_in_qgis_reaches_the_plugin)
   check("a coverage notice quotes a spacing the box accepts",

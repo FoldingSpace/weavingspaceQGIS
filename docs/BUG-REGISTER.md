@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-265 defect(s) with a regression test.
+266 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -571,6 +571,8 @@ there is no separate list to remember.
   guarded by `test_the_plugin_opened_before_the_data_still_works`
 - **a class bound pinned outside its column left the outermost class empty, and the ramp was spread across it -- so the palest and darkest shades were drawn on classes no tile could wear and the map used only the middle of the ramp.**  
   guarded by `test_the_ramp_spans_the_classes_a_tile_can_wear`
+- **the size guard measured a circle enclosing the region's bounding box rather than the ground the region covers, so a sparse region -- which most real data is -- was refused at a spacing the library tiles happily; a colleague of the maintainer could not draw their map at all.**  
+  guarded by `test_the_size_guard_measures_ground_not_the_bounding_box`
 - **the table drew Qt's row-number gutter beside the tile ids, which the user reported as a messy second numbering.**  
   guarded by `test_the_table_headers_read_as_designed`
 - **the Unclassed colour editor faded its table with a QGraphicsOpacityEffect, which composites offscreen while the table scrolls by blitting, so previously-painted class bounds stayed visible behind the current ones. Reported with a screenshot against 0.24.3rc5.**  
@@ -580,7 +582,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 84
-- reported by a user: 22
+- reported by a user: 23
 - the mutation campaign: 16
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

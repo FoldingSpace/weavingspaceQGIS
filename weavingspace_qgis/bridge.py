@@ -603,30 +603,84 @@ def estimate_icon_count(unit, areas: int) -> int:
   return int(max(int(areas or 0), 0) * max(len(unit.tiles), 1))
 
 
+def dissolved_extent(region_gdf):
+  """The area and boundary length of a region taken as ONE shape.
+
+  Args:
+    region_gdf: the region being tiled.
+
+  Returns:
+    (area, boundary length) of the dissolved geometry, or the plain
+    per-row sums when the dissolve is unavailable -- a fallback that
+    over-counts shared edges and so errs toward refusing, which is the
+    safe direction for a guard and is announced by nothing, because
+    there is nothing a user could do about it.
+
+  WHY DISSOLVED. A region arrives as rows, and rows are how somebody
+  cut the data rather than a fact about the ground: 3,011 adjacent
+  raster cells have 3,011 perimeters and one outline. Summing the
+  perimeters counts every shared internal edge twice and estimated
+  6.25x what the library draws, which refuses maps outright; taking
+  the bounding box instead knows nothing of cells strung thinly across
+  it and came out 2% UNDER. The dissolved boundary is the ground's own
+  edge and was measured generous on both shapes.
+  """
+  try:
+    united = region_gdf.union_all()
+    return float(united.area), float(united.length)
+  except Exception:
+    # geopandas versions differ on the name of this, and a region can
+    # hold geometry shapely declines to union; a guard that raises is
+    # worse than one that is a little too cautious
+    return float(region_gdf.area.sum()), float(region_gdf.length.sum())
+
+
 def estimate_tile_count(unit, region_gdf) -> int:
   """Estimate how many tiles a Tiling over this region would create.
 
   Args:
     unit: the tile unit (TileUnit or WeaveUnit) about to be tiled.
-    region_gdf: the region, used only for its total bounds.
+    region_gdf: the region. Its total bounds give the border term and
+      its AREA gives the rest -- see below, because reading only the
+      bounds is what made this refuse maps the library draws.
 
   Returns:
-    An estimated tile count, at or above the true one. Cheap enough
-    to call on every keystroke, which is the point: the guards decide
-    whether to run at all before anything expensive happens.
+    An estimated tile count, at or above the true one. This form
+    DISSOLVES the region, so it is the one the hard gate asks once per
+    Generate; the live gate asks `estimate_tile_count_bounds` from a
+    layer extent, which needs no geometry and can be asked on every
+    keystroke. Measured 2026-08-19: dissolving 3,011 polygons costs
+    about 0.05s, which a Generate can carry and a debounce cannot.
+
+  IT ASKS ABOUT THE REGION'S AREA, NOT ITS BOUNDING BOX. The library
+  covers a circle enclosing the bounds and then CLIPS to the polygons,
+  so where the data is sparse inside its own extent -- which most real
+  data is -- the circle is mostly empty and the old estimate counted
+  tiles that are never made. Measured 2026-08-19 on a maintainer's own
+  dataset of 3,011 areas, which occupy 11.8% of the circle enclosing
+  them: the estimate said 585,765 against 70,659 actually drawn, an
+  overshoot of 8.3x, and the plugin REFUSED a map the same design
+  renders through the library in about six seconds.
+  `region_gdf.area.sum()` costs one pass over geometry that is already
+  in memory.
   """
-  return estimate_tile_count_bounds(unit, tuple(region_gdf.total_bounds))
+  area, edge = dissolved_extent(region_gdf)
+  return estimate_tile_count_bounds(
+    unit, tuple(region_gdf.total_bounds),
+    covered_area=area, covered_edge=edge)
 
 
-def estimate_tile_count_bounds(unit, b, scale: float = 1.0) -> int:
+def estimate_tile_count_bounds(unit, b, scale: float = 1.0,
+                               covered_area: float | None = None,
+                               covered_edge: float | None = None) -> int:
   """Estimate the tile count from a bounds tuple rather than a frame.
 
-  Mirrors _TileGrid's geometry: the library covers a circle enclosing
-  the region's bounding rectangle (buffered by one tile diagonal, so
-  edge units are complete), then steps across it with the unit's two
-  translation vectors. The number of prototile positions is therefore
-  the circle's area divided by the area of the parallelogram those
-  vectors span, and each position contributes one tile per element.
+  The library steps across the region with the unit's two translation
+  vectors and then CLIPS the result to the polygons, so the tiles that
+  survive are the ones over ground the region actually occupies. The
+  number of prototile positions is therefore the covered area divided
+  by the area of the parallelogram those vectors span, and each
+  position contributes one tile per element.
 
   Args:
     unit: the tile unit; its tiles and translation vectors are read.
@@ -641,22 +695,67 @@ def estimate_tile_count_bounds(unit, b, scale: float = 1.0) -> int:
       lets min_reasonable_spacing check a suggestion against this
       same estimator instead of trusting an inverse-square law that
       ignores the border term.
+    covered_area: the area of the region's DISSOLVED geometry, where
+      the caller has geometry to ask. Omitted, this assumes the region
+      fills its bounding rectangle, which is the most generous thing a
+      caller holding nothing but an extent can honestly assume.
+    covered_edge: the length of that dissolved boundary, which decides
+      the border strip. Passed apart from the area rather than folded
+      into it because the strip's WIDTH is one tile diagonal and the
+      diagonal moves with ``scale`` -- a caller pre-multiplying them
+      would hand min_reasonable_spacing a border sized for a spacing
+      it is no longer considering.
 
   Returns:
     An estimated tile count; MAX_TILES_HARD + 1 when the vectors are
     degenerate (a unit that does not tile the plane), so a broken
     design is refused rather than attempted.
+
+  IT USED TO COVER A CIRCLE ENCLOSING THE RECTANGLE, and that is what
+  made it refuse maps the library draws. A circle enclosing a
+  rectangle is already pi/2 times its area at best and much worse when
+  the rectangle is long; over a region that occupies a fraction of its
+  own extent the two compound. Measured 2026-08-19 on 3,011 areas
+  filling 11.8% of that circle: 585,765 estimated against 70,659
+  drawn.
+  THE BORDER TERM IS THE DISSOLVED BOUNDARY, and getting there took
+  four candidates measured against what the library really draws --
+  because a region is not one shape. Adjacent cells (a raster grid
+  cut into rows) share edges that need no allowance at all; separated
+  cells (a scatter of islands) each carry their own. Measured
+  2026-08-19 on both:
+
+      model                 adjacent cells    separated cells
+      bounding-box edge          1.20x            0.98x  UNDER
+      each polygon's perimeter   6.25x            2.38x
+      DISSOLVED boundary         1.28x            1.68x
+
+  Only the last is generous on both, and a guard that UNDER-counts
+  waves through a run that then takes the machine. Each polygon's own
+  perimeter double-counts every shared internal edge and refuses maps
+  outright; the bounding box knows nothing of cells strung across it
+  and was measured 2% under, by a guard written the same hour. A
+  perimeter summed per row is a property of how the data was cut into
+  rows rather than of the ground it covers; the dissolved one is the
+  ground's own edge.
   """
   tb = unit.tiles.total_bounds
   tile_diag = math.hypot(tb[2] - tb[0], tb[3] - tb[1]) * scale
-  w = (b[2] - b[0]) + 2 * tile_diag
-  h = (b[3] - b[1]) + 2 * tile_diag
-  radius = math.hypot(w, h) / 2
+  w = b[2] - b[0]
+  h = b[3] - b[1]
   v = unit.get_vectors()
   det = abs(v[0][0] * v[1][1] - v[0][1] * v[1][0]) * scale * scale
   if det <= 0:
     return MAX_TILES_HARD + 1
-  n_prototiles = math.pi * radius * radius / det
+  # THE GROUND, AND THE STRIP ROUND ITS EDGE where the library's
+  # buffer puts whole prototiles. With no geometry to ask, the most
+  # generous honest assumption is that the region FILLS its extent.
+  if covered_area is None:
+    ground, edge = w * h, 2 * (w + h)
+  else:
+    ground, edge = covered_area, covered_edge or 0.0
+  covered = ground + edge * tile_diag + 4 * tile_diag * tile_diag
+  n_prototiles = covered / det
   estimate = n_prototiles * max(len(unit.tiles), 1)
   # A layer with no CRS gives infinite bounds once reprojection is
   # attempted, and int(inf) raises OverflowError -- which reached the
@@ -701,8 +800,18 @@ def min_reasonable_spacing(unit, region_gdf, spacing: float) -> float:
   # itself has the last word, widening until it agrees.
   scale = math.sqrt(est / MAX_TILES_HARD)
   bounds = tuple(region_gdf.total_bounds)
+  # THE SAME QUESTION THE REFUSAL ASKS, which means the same covered
+  # area. Once the estimator learned to read the region's area rather
+  # than a circle round its bounds, a loop still passing bounds alone
+  # would be widening the spacing against a DIFFERENT and much larger
+  # number -- so the plugin would refuse at one figure and advise a
+  # spacing derived from another. Two sites judging one thing must ask
+  # the judge the same question; this project has paid for that at
+  # `pin_problem` and again at the limits.
+  area, edge = dissolved_extent(region_gdf)
   for _ in range(60):
-    if estimate_tile_count_bounds(unit, bounds, scale) <= MAX_TILES_HARD:
+    if estimate_tile_count_bounds(unit, bounds, scale, covered_area=area,
+                                  covered_edge=edge) <= MAX_TILES_HARD:
       break
     scale *= 1.02
   # ROUNDED UP, NOT RETURNED RAW, and this is the second half of the
