@@ -192,6 +192,18 @@ fi
 echo "QGIS_APP=$APP"
 echo "QGIS_PY=$CHOSEN_PY"
 [ -n "$CHOSEN_HOME" ] && echo "PYTHONHOME=$CHOSEN_HOME"
+# ...AND THE SAME VALUE UNDER A SECOND NAME, which is not tidiness.
+# `tools/mutation_check.py` must be run as `env -u PYTHONHOME -u
+# PYTHONPATH python3`, since a plain python3 carrying this environment
+# dies at bootstrap -- yet the QGIS interpreter it LAUNCHES cannot
+# start without a PYTHONHOME, the cask's build carrying the paths of
+# the machine it was built on. So the value has to survive being
+# stripped, and a copy under a name `env -u` does not name is the only
+# thing that does. Found 2026-08-19: the interpreter guard added that
+# day probed with the stripped environment and so refused every time,
+# reporting that QGIS_PY could not import qgis when the truth was that
+# nobody had told it where its own standard library lives.
+[ -n "$CHOSEN_HOME" ] && echo "QGIS_PYTHONHOME=$CHOSEN_HOME"
 [ -d "$PROJ" ] && echo "PROJ_LIB=$PROJ"
 [ -d "$GDAL_DIR" ] && echo "GDAL_DATA=$GDAL_DIR"
 [ -d "$PREFIX" ] && echo "QGIS_PREFIX_PATH=$PREFIX"

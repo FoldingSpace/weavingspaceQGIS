@@ -43,6 +43,14 @@ from qgis.PyQt.QtWidgets import (QAbstractButton, QAbstractItemView,
                                  QHBoxLayout, QHeaderView, QLabel,
                                  QPushButton, QSpinBox, QTableWidget,
                                  QTableWidgetItem, QVBoxLayout, QWidget)
+# QGIS's OWN multi-select combo, and the reason for preferring it over
+# a hand-rolled checkable model is this project's standing default:
+# where QGIS already models a thing, its model wins. It draws the
+# checked items as its own summary text, keeps its popup open while
+# ticks are made, and behaves the way the rest of QGIS's interface
+# behaves, which a bespoke one would have to be taught one habit at a
+# time. Present since QGIS 3 and verified here on 4.0.3.
+from qgis.gui import QgsCheckableComboBox
 
 from . import bridge
 from .widgets import MarkableSpinBox, TrimmedSpinBox
@@ -419,12 +427,16 @@ class CategoryColourDialog(QDialog):
       bound. None or an empty dict means neither end is pinned.
     copy_targets: the other elements this one's classification may be
       copied to, as [(tile_id, label)] in table order. Empty means no
-      dropdown is built at all -- an element with no sibling to copy
+      chooser is built at all -- an element with no sibling to copy
       to should not be offered a control that can do nothing.
-    copy_to: callback(tile_id) -> message or None. Called when a
-      target is chosen; a message means it refused. The dropdown
-      returns to reading "Copy to..." either way, so it never sits
-      showing a completed action as though it were a state.
+    copy_to: callback(list of tile_ids) -> message or None. Called
+      when Copy is pressed, with every element ticked at that moment;
+      a message means NOTHING was copied, and the dialog has already
+      said so. A PARTIAL copy returns None and names the elements it
+      left out in its own notice, because a partial success reported
+      as a success is the shape this project keeps meeting. The ticks
+      are cleared either way, so the control never sits showing a
+      completed action as though it were a state.
     pin_changed: callback(which, value) -> a refusal MESSAGE, or the
       ladder the map now draws as ``[(lower, upper), ...]``, where
       ``which`` is "low" or "high" and ``value`` is a float or None
@@ -758,48 +770,76 @@ class CategoryColourDialog(QDialog):
     self.setFixedSize(self.sizeHint())
 
   def _build_copy_row(self, layout, targets, copy_to):
-    """The "Copy to..." dropdown, above everything else in the window.
+    """The "Copy to" chooser, above everything else in the window.
 
     Args:
       layout: the window's vertical layout.
       targets: [(tile_id, label)] for the elements this one may be
         copied to, in table order.
-      copy_to: callback(tile_id) -> message or None; a message means
-        the copy was refused and is already on the note line.
+      copy_to: callback(list of tile_ids) -> message or None. A
+        message means NOTHING was copied, and the dialog has already
+        put it on the note line; a partial copy returns None and says
+        which targets were left out in its own notice.
 
     Returns:
-      None. The dropdown's first entry is the prompt "Copy to..." and
-      carries no data, so choosing it does nothing; picking a target
-      copies at once and the box returns to the prompt. It never sits
-      showing a target as though the element were somehow bound to
-      it: a copy is an act, not a state, and a control that remembers
-      an act reads as a setting nobody set.
+      None. Builds a checkable dropdown and a Copy button beside it.
+      Nothing happens until the button is pressed, and the ticks are
+      cleared afterwards, so the control never sits showing a target
+      as though this element were somehow bound to it: a copy is an
+      act, not a state, and a control that remembers an act reads as
+      a setting nobody set.
+
+    SEVERAL TARGETS AT ONCE, from 2026-08-19 at the maintainer's
+    asking. Naming one element at a time made giving four elements one
+    classification four trips through this window -- and the case that
+    justified letting a class bound sit outside the data at all was
+    handing ONE PAIR OF LIMITS TO SEVERAL VARIABLES, which is this act
+    exactly. The arithmetic never needed changing; the chooser did.
+
+    WHY A BUTTON RATHER THAN COPYING WHEN THE POPUP CLOSES. Ticking is
+    a selection and copying is an act, and this window's own rule is
+    that a copy is an act. Without the button the act would happen on
+    a click-away, which is the one gesture a person makes when they
+    have changed their mind.
+
+    THE TICKS ARE CLEARED whether the copy was taken, refused, or
+    partly both. Leaving them would make the next press repeat a copy
+    somebody has already made, onto elements they have since edited.
     """
     row = QWidget()
     line = QHBoxLayout(row)
     line.setContentsMargins(0, 0, 0, 0)
-    box = QComboBox()
-    box.addItem("Copy to...", None)
+    box = QgsCheckableComboBox()
+    # The summary line when nothing is ticked. It doubles as the
+    # label, which is why there is no separate QLabel: the control
+    # says what it is until it has something to say instead.
+    box.setDefaultText("Copy to...")
     for tile_id, label in targets:
       box.addItem(label, tile_id)
-    box.setToolTip("Send this element's classes, colours, pins and "
-                   "class count to another element")
+    box.setToolTip("Send this element's classes, colours, bounds and "
+                   "class count to other elements")
 
-    def chosen(index):
-      target = box.itemData(index)
-      if target is None:
+    button = QPushButton("Copy")
+    button.setToolTip("Copy onto the ticked elements")
+
+    def pressed():
+      # THE IDS, NOT THE LABELS. A label carries the element's current
+      # variable ("b - v2") for the reader's sake, and a variable is a
+      # thing that changes while this window is open, so matching on
+      # one would copy onto the wrong element or onto none.
+      wanted = [box.itemData(index) for index in range(box.count())
+                if box.itemCheckState(index) == Qt.CheckState.Checked]
+      if not wanted:
         return
-      copy_to(target)
-      # back to the prompt whether it was taken or refused, without
-      # re-entering this handler
-      box.blockSignals(True)
-      box.setCurrentIndex(0)
-      box.blockSignals(False)
+      copy_to(wanted)
+      box.deselectAllOptions()
 
-    box.activated.connect(chosen)
+    button.clicked.connect(pressed)
     line.addWidget(box, 0, Qt.AlignmentFlag.AlignVCenter)
+    line.addWidget(button, 0, Qt.AlignmentFlag.AlignVCenter)
     line.addStretch(1)
     self._copy_box = box
+    self._copy_button = button
     layout.addWidget(row)
 
   def _build_clamp_strip(self, layout, bounds):

@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-262 defect(s) with a regression test.
+264 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -533,6 +533,10 @@ there is no separate list to remember.
 
 - **a class break retyped by hand in QGIS's Symbology panel never reached the plugin, whose table, colour editor and swatch all went on showing breaks it had computed itself, whatever QGIS held.**  
   guarded by `test_a_break_retyped_in_qgis_reaches_the_plugin`
+- **a copy carried no floor and no ceiling and destroyed the target's, so one pair of limits could not be given to several variables; and once it did carry them it went unstamped, because the restyle path that writes the stamp correctly declines a geometry change.**  
+  guarded by `test_a_copy_carries_the_range_and_refuses_what_it_would_empty`
+- **a copy carried the class breaks, colours, pins and count and NOT the floor and ceiling, so the one thing the range feature was asked for -- giving one pair of limits to several variables -- could not be done by the control built for it, and a copy destroyed whatever range its target already had.**  
+  guarded by `test_a_copy_reproduces_a_classification_on_every_target`
 - **a deferring element whose renderer set its fill from an expression got a swatch showing one colour, which the map did not have.**  
   guarded by `test_a_data_defined_fill_is_drawn_as_an_unknown`
 - **a deferring element's ramp cell went on naming a ramp, and its swatch did not follow the colours set in QGIS's styling panel.**  
@@ -574,7 +578,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 84
-- reported by a user: 19
+- reported by a user: 21
 - the mutation campaign: 16
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

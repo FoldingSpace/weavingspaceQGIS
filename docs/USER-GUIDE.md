@@ -170,14 +170,45 @@ standard categorical ramps simply moves the ramp cell to that ramp.
 ### Class colours and the display range
 
 Quantitative elements open the same window. Each class is listed with
-its lower and upper bounds and the colour it draws in. A class
-keeps its colour even as the breaks move underneath it, and the
-first and last class's inner bound is yours to set: type into it and
-that break is pinned, with the classes between recomputed around
-it. Changing
-the break method or the number of classes starts the colours over,
-since the classes they were picked for no longer exist, and the plugin
-says how many it dropped.
+its lower and upper bounds and the colour it draws in. A class keeps
+its colour even as the breaks move underneath it.
+
+The first class and the last carry boxes you can type into; the
+classes between them carry none, their breaks always being worked out
+for you. On the first class you set where the ramp starts and where
+that class ends, and on the last, where it begins and where the ramp
+stops. Type a number into any of the four and it is yours, with the
+classes around it recomputed; a heavy outline round the box says which
+of the numbers in front of you are your own rather than the plugin's.
+A cross inside the box gives one back, and typing the computed number
+in again does the same. A bound that cannot be drawn is refused and
+the reason said, rather than quietly turned into a different number.
+
+Where the ramp starts and stops are the two that reach outside the
+data. Set either inside your own values and the areas beyond it stop
+being classed: they are drawn in a colour you choose, with their own
+line in the legend, rather than left as gaps in the pattern. Set them
+outside the data and nothing is excluded, which is how two elements
+carrying different columns can be held to one scale and read against
+each other. Leaving areas out changes which tiles the map holds rather
+than only their colour, so the map catches up at the next Generate.
+
+Changing the break method or the number of classes starts the colours
+over, since the classes they were picked for no longer exist, and the
+plugin says how many it dropped.
+
+### Copying a classification to other elements
+
+*Copy to* at the top of the window sends this element's classes,
+colours, bounds and class count to other elements. Tick as many as you
+want and press Copy. Where an element carries a different column its
+ends are fitted to that column's own data, and a class its values
+cannot reach is kept rather than dropped, so the classification
+arrives whole; a pinned bound the receiving column cannot reach is
+left behind and you are told. An element holding no values at all
+inside the range you set is left out, and named, since the copy would
+leave it with nothing to draw. What each element gave up to make room
+is reported too.
 
 Above the list sits the Ramp Display Range: the ramp with two handles
 and two percentage boxes beneath it, choosing where along the ramp the
@@ -187,11 +218,12 @@ range is how you keep a sequential ramp out of its near-white end, or
 hold two elements to different stretches of the same ramp. For
 'Quant: Unclassed' the class list is a preview, fifty faded steps
 rather than classes you recolour one at a time, but its ends are still
-yours. Pin either of them from the strip above the list or from the
-row's own Pin column; the two stay in step. Reverse carries all of this along -- the
+yours: a strip above the list says where the ramp starts and where it
+ends, which is the same pair of numbers the first and last rows carry
+in the classed styles. Reverse carries all of this along -- the
 range mirrors and picked classes swap ends -- so flipping it twice
-costs nothing. A pinned bound is not Custom: its colours are still the
-ramp's, so the cell goes on naming the ramp and boxes the pinned end.
+costs nothing. A bound you set is not Custom: its colours are still the
+ramp's, so the cell goes on naming the ramp and boxes the bound.
 The cell reads Custom while hand-picked colours or a narrowed range are
 in force, and choosing a ramp starts the element over, range and class
 colours alike.

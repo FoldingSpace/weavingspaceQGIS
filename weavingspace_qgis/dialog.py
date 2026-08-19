@@ -4942,11 +4942,14 @@ class WeavingSpaceDialog(QDialog):
     # a ladder; they are a pair of numbers the data has moved out from
     # under, and what they leave behind is an element that draws
     # nothing at all.
-    if limits and not any(
-        bridge.absence_kind(value, record.get("floor"),
-                            record.get("ceiling"))
-        != bridge.OUTSIDE_RANGE_KEY
-        for value in values if not bridge.cannot_be_placed(value)):
+    # ASKED THROUGH `bridge.limits_leave_nothing`, which the COPY path
+    # also asks before it writes a source's limits onto a target. The
+    # test was written out by hand here first and would have been
+    # written out a second time there; two spellings of one judgement
+    # is how a copy comes to write limits this site then drops, and
+    # this project has already paid for that at `pin_problem`.
+    if limits and bridge.limits_leave_nothing(
+        values, record.get("floor"), record.get("ceiling")):
       record.pop("floor", None)
       record.pop("ceiling", None)
       if not record:
@@ -7319,7 +7322,8 @@ class WeavingSpaceDialog(QDialog):
       pinned=self._pinned_bounds.get(tile_id, {}).get(field),
       pin_changed=pin_changed,
       copy_targets=self._copy_targets(tile_id),
-      copy_to=lambda target: self._copy_classification(tile_id, target))
+      copy_to=lambda targets: self._copy_classification_to_many(
+        tile_id, targets))
     # HELD while it is open, and only for the length of exec(), so
     # deferral beginning underneath can close it. QGIS stays live
     # while this window is modal to the plugin dialog, so a user
@@ -7337,12 +7341,270 @@ class WeavingSpaceDialog(QDialog):
 
     Args:
       source_id: the element whose editor is open.
-      target_id: the element to copy onto.
+      target_id: the single element to copy onto.
 
     Returns:
-      A message when the copy was REFUSED, or None when it was made.
-      Refusals are rare: a target that has since lost its variable,
-      or a source with no classes to send.
+      A message when the copy was REFUSED, or None when it was made,
+      which is the contract this had when a copy could name only one
+      target. Kept exactly, because a dozen tests and several
+      catalogue entries drive it: the loop, the single repaint and the
+      composed notice all live in `_copy_classification_to_many`, and
+      this is that function with a list of one.
+    """
+    return self._copy_classification_to_many(source_id, [target_id])
+
+  def _copy_classification_to_many(self, source_id, target_ids):
+    """Send one element's classification to several others at once.
+
+    Args:
+      source_id: the element whose editor is open.
+      target_ids: the elements to copy onto, in the order the chooser
+        offered them. A list of one is the ordinary single copy.
+
+    Returns:
+      None when at least one target took the copy, or a message when
+      NONE did -- either because the source has nothing to send, or
+      because every target refused. The message is also put on the
+      note line here rather than left to the caller: the editor
+      discards what this returns, so a refusal returned and not
+      reported was a refusal nobody saw.
+
+    ONE REPAINT AND ONE NOTICE FOR THE WHOLE ACT. Copying onto four
+    elements is one thing a person did, so it restyles once and says
+    one thing; the alternative is four repaints and four bar messages,
+    which on a table of twenty-three elements is also the slowness
+    this project has open against it.
+
+    A PARTIAL SUCCESS IS NEVER REPORTED AS A SUCCESS. (Maintainer's
+    ruling, 2026-08-19, and it is the shape this project keeps
+    meeting.) Each target is judged alone; the ones that can take the
+    copy do; and the notice names the elements that took it and then
+    each that did not, with its own reason. Never a bare count.
+    """
+    source = self._assignment_for(source_id)
+    if source is None:
+      return self._say_and_return("That element has nothing to copy.")
+    classes = self._current_graduated_classes(source)
+    if not classes:
+      return self._say_and_return("This element has no classes to copy.")
+    # the INTERIOR boundaries: the outer edges belong to whichever
+    # column receives them, which is what fitted_breaks decides
+    interior = [upper for _lo, upper, _c in classes[:-1]]
+    if not interior:
+      return self._say_and_return("A single class has no breaks to copy.")
+
+    taken, refused, notes = [], [], []
+    for target_id in target_ids:
+      outcome = self._copy_onto_one(source_id, source, classes,
+                                    interior, target_id)
+      if outcome["refusal"]:
+        refused.append((target_id, outcome["refusal"]))
+        continue
+      taken.append(target_id)
+      if outcome["lost"]:
+        notes.append((target_id, outcome["lost"]))
+      if outcome["left_behind"]:
+        notes.append((None, outcome["left_behind"]))
+
+    # ONE COMPOSER FOR BOTH OUTCOMES, and the first draft had two. The
+    # all-refused arm joined the reasons with a space, so three
+    # targets sharing one reason produced that sentence three times,
+    # each without a subject -- measured by a probe before any guard
+    # was written for this. A second composer for the unhappy path is
+    # how the unhappy path comes to read worse than the happy one.
+    message = self._copy_report(source_id, taken, refused, notes)
+    if not taken:
+      # nothing was written, so nothing needs repainting; the reasons
+      # are the whole of what the user has to act on
+      return self._say_and_return(message)
+    self._apply_style_change()
+    self._stamp_what_was_copied(taken)
+    self._report_quietly(message + self._copy_needs_a_generate(source_id))
+    return None
+
+  def _stamp_what_was_copied(self, taken):
+    """Put each copied record onto its own layer, whatever the restyle did.
+
+    Args:
+      taken: the elements that received the copy.
+
+    Returns:
+      None. Writes `weavingspace_quant_style` through the same method
+      the restyle and the landing use, so there is one spelling of
+      what a stamp contains rather than two.
+
+    IT EXISTS BECAUSE CARRYING LIMITS MOVED THE COPY ONTO A PATH THAT
+    REFUSES IT. A floor or a ceiling is a GEOMETRY change -- excluding
+    values moves tiles onto the paired layer, which `_restyle_only`
+    can neither make nor unmake -- so once a copy carries the range,
+    the restyle correctly declines the element AND the stamp, which
+    the restyle is what writes. Measured 2026-08-19: a copy of breaks
+    alone came back stamped, and the identical copy carrying a floor
+    and a ceiling wrote the record and stamped nothing, so the copy
+    reached the map and died at the next reopen.
+    THAT IS LEDGER ROW 9 ARRIVING BY A NEW DOOR, and the door was one
+    I opened the same afternoon. Nothing on a renderer records that a
+    break was CHOSEN rather than computed, so the stamp is all a
+    reopened project has.
+    Stamping unconditionally rather than only where the restyle
+    declined is deliberate: the two cases are told apart by a
+    signature comparison fifteen hundred lines away, and a fix that
+    has to predict that comparison is a fix that breaks when it moves.
+    Writing the same JSON twice costs nothing.
+    """
+    project = QgsProject.instance()
+    for tile_id in taken:
+      layer = project.mapLayer(self._element_layer_ids.get(tile_id) or "")
+      if layer is None:
+        continue
+      refreshed = self._assignment_for(tile_id)
+      if refreshed is not None:
+        self._stamp_category_colours(layer, refreshed)
+
+  def _copy_needs_a_generate(self, source_id):
+    """Say so when the copy cannot reach the map until Generate.
+
+    Args:
+      source_id: the element the classification came from, whose
+        record decides whether limits travelled at all.
+
+    Returns:
+      A sentence to append to the copy's notice, or "" when the map is
+      already showing the result.
+
+    THE SAME HARM AS LEDGER ROW 12, from a new direction. Once the
+    limits are in the geometry signature, a copy carrying them is a
+    re-tile rather than a repaint, so with live update off the map
+    does not move until the user asks. Saying nothing there reads
+    exactly like the control not working, which is the harm the notice
+    beside `pin_changed` exists to prevent -- and a copy is the
+    quieter case of the two, since the row's numbers all change while
+    the map stays where it was.
+    """
+    source = self._assignment_for(source_id)
+    record = (self._pinned_bounds.get(source_id, {}).get(
+      (source or {}).get("var")) or {}) if source else {}
+    if record.get("floor") is None and record.get("ceiling") is None:
+      return ""
+    return (" The range travelled with them, so the map catches up at "
+            "the next Generate: leaving areas out changes which tiles "
+            "it holds rather than only their colour.")
+
+  def _say_and_return(self, message):
+    """Put a copy's refusal on the note line and hand it back.
+
+    Args:
+      message: the sentence explaining why nothing was copied.
+
+    Returns:
+      That same message, so the caller can return it unchanged.
+
+    IT EXISTS BECAUSE A RETURNED REFUSAL WAS A SILENT ONE. The colour
+    editor calls the copy through a lambda and discards what comes
+    back, and every refusal here used to be a bare `return "..."`, so
+    a user who asked for a copy the plugin would not make was told
+    nothing at all. It was nearly unreachable while `_copy_targets`
+    filtered out everything that could refuse; carrying limits makes
+    it reachable, since a range can empty a column the chooser was
+    perfectly right to offer.
+    """
+    self._report_quietly(message)
+    return message
+
+  def _copy_report(self, source_id, taken, refused, notes):
+    """What to say about a copy, however many elements it touched.
+
+    Args:
+      source_id: the element the classification came from.
+      taken: the elements that took the copy, in the order tried.
+      refused: [(tile_id, why)] for the elements that could not, where
+        `why` is a (singular, plural) pair so that several elements
+        refused for ONE reason are named in one sentence rather than
+        given that sentence each.
+      notes: [(tile_id or None, phrases)] -- what each element gave
+        up, and any bound left behind, which already names its own
+        elements and so carries None.
+
+    Returns:
+      The whole message, ready for the bar. The single-target wording
+      is preserved to the comma, since it is what several tests read
+      and what every user of this control has met until today.
+    """
+    if len(taken) == 1 and not refused:
+      lost = [phrases for tid, phrases in notes if tid == taken[0]]
+      behind = "".join(phrase for tid, phrase in notes if tid is None)
+      return (f"Element '{taken[0]}' now uses the classes from element "
+              f"'{source_id}'"
+              + (f", replacing {' and '.join(lost[0])}." if lost else ".")
+              + behind)
+
+    parts = []
+    if taken:
+      verb = "now uses" if len(taken) == 1 else "now use"
+      parts.append(f"{self._name_them(taken)} {verb} the classes from "
+                   f"element '{source_id}'.")
+    elif refused:
+      parts.append("Nothing was copied.")
+    for tile_id, phrases in notes:
+      if tile_id is None:
+        parts.append(phrases.strip())
+      else:
+        parts.append(f"Element '{tile_id}' gave up "
+                     f"{' and '.join(phrases)}.")
+    # ...the refusals GROUPED BY REASON, so three elements a single
+    # range excludes are named together. Repeating one sentence per
+    # element reads as three separate problems and buries the one that
+    # is actually there.
+    grouped = {}
+    for tile_id, why in refused:
+      grouped.setdefault(why, []).append(tile_id)
+    for why, ids in grouped.items():
+      singular, plural = why
+      parts.append(f"{self._name_them(ids)} "
+                   f"{singular if len(ids) == 1 else plural}")
+    return " ".join(parts)
+
+  @staticmethod
+  def _name_them(ids):
+    """Elements named the way a person would say them.
+
+    Args:
+      ids: the tile ids, in the order they should be read.
+
+    Returns:
+      "Element 'b'", "Elements 'b' and 'c'", or "Elements 'b', 'c' and
+      'd'", capitalised because every caller starts a sentence with
+      it. No Oxford comma: this project's prose is Canadian on that
+      point as on its spelling.
+    """
+    quoted = [f"'{tile_id}'" for tile_id in ids]
+    word = "Element" if len(quoted) == 1 else "Elements"
+    if len(quoted) <= 2:
+      return f"{word} {' and '.join(quoted)}"
+    return f"{word} {', '.join(quoted[:-1])} and {quoted[-1]}"
+
+  def _copy_onto_one(self, source_id, source, classes, interior,
+                     target_id):
+    """Write one source's classification onto one target.
+
+    Args:
+      source_id: the element the classification came from.
+      source: that element's row of `_assignments`, already read.
+      classes: its (lower, upper, colour) triples, already computed.
+      interior: its interior boundaries, already computed.
+      target_id: the element receiving them.
+
+    Returns:
+      {"refusal": a sentence or None, "lost": [phrases], "left_behind":
+      a sentence or ""}. It REPAINTS NOTHING and SAYS NOTHING: the
+      caller restyles once for the whole act and composes one notice,
+      so that copying onto four elements is not four repaints and four
+      messages.
+
+    NOTHING IS TOUCHED ON A REFUSED TARGET, which is why every check
+    happens before the first write. The style used to be put on the
+    row first, and a refusal after that point would have left the
+    target on the source's style with none of its numbers.
 
     WHAT TRAVELS: the class breaks, the colours, the class count, the
     style (so an Unclassed source makes its target Unclassed, which
@@ -7353,6 +7615,28 @@ class WeavingSpaceDialog(QDialog):
     hand-set and neither end pinned, so its swatch draws no box.
     Collapsing the two would make every copy look fully pinned and
     leave "unpin" with nothing coherent to do (settled 2026-08-14).
+
+    AND THE FLOOR AND THE CEILING, added 2026-08-19 with the chooser
+    that names several targets. They had never travelled, and the
+    record was written wholesale, so a copy both failed to bring the
+    source's range and destroyed whatever range the target had. That
+    is a defect rather than a gap: a copy claims to reproduce a
+    classification, and since 2026-08-19 the ladder's outer edges are
+    part of one. It also mattered more than it looked, because the
+    case that justified letting a bound sit outside the data at all
+    was giving ONE PAIR OF LIMITS TO SEVERAL VARIABLES -- which is
+    this act, and which the copy could not do.
+
+    An edge is NOT checked the way a pin is, and the asymmetry is the
+    rule rather than an oversight: a limit outside the receiving
+    column draws perfectly well, its outer class simply going
+    undisplayed, and refusing it would undo the ruling of 2026-08-17.
+    The ONE thing refused is a range that leaves the receiving column
+    with no drawable value at all, since that is an element with no
+    classes, drawing flat, with no control on the row naming the
+    number that did it. Asked through `bridge.limits_leave_nothing`,
+    the same function `_retire_an_undrawable_pin` asks, so the copy
+    cannot write limits the next reconciliation silently drops.
 
     TWO THINGS DO NOT TRAVEL, both added 2026-08-15 after a hunt.
     A pin flag is CHECKED against the receiving column first, because
@@ -7365,6 +7649,13 @@ class WeavingSpaceDialog(QDialog):
     means CHOSEN -- written there, it was clamped to twenty at the
     next rebuild and replaced a count the user had picked.
 
+    THE PIN IS JUDGED AGAINST THE POOL THE LIMITS LEAVE, which is the
+    maintainer's ruling of 2026-08-19 arriving at a third door. Rows
+    13 fixed it at the two sites that then existed; carrying limits
+    through a copy opens another, and asking the un-narrowed question
+    here would put a pin in the record that the map does not draw and
+    that the next retirement pass drops without a word.
+
     The receiving element's own extremes fit the ends, in
     bridge.fitted_breaks; classes its data cannot reach are KEPT
     rather than dropped, because a copy reproduces a classification
@@ -7375,21 +7666,51 @@ class WeavingSpaceDialog(QDialog):
     What was replaced is REPORTED rather than asked about, which is
     how every other loss in this plugin is handled.
     """
-    source = self._assignment_for(source_id)
     target = self._assignment_for(target_id)
-    if source is None or target is None or not target.get("var"):
-      return "That element has no variable to classify."
-    classes = self._current_graduated_classes(source)
-    if not classes:
-      return "This element has no classes to copy."
-    # the INTERIOR boundaries: the outer edges belong to whichever
-    # column receives them, which is what fitted_breaks decides
-    interior = [upper for _lo, upper, _c in classes[:-1]]
-    if not interior:
-      return "A single class has no breaks to copy."
+    if target is None or not target.get("var"):
+      # A REFUSAL IS A (singular, plural) PAIR, so `_copy_report` can
+      # name several elements refused for ONE reason in one sentence.
+      # Each half is a clause completing "Element 'b' ..." rather than
+      # a whole sentence, since the composer supplies the subject and
+      # a reason with its own subject cannot be grouped.
+      return {"refusal": ("has no variable to classify, so it was "
+                          "left out.",
+                          "have no variable to classify, so they were "
+                          "left out."),
+              "lost": [], "left_behind": ""}
+    field = target["var"]
+
+    # EVERY JUDGEMENT BEFORE THE FIRST WRITE, so a refused target is
+    # left exactly as it was. The style used to be put on the row
+    # before the record was built, which was safe only while nothing
+    # after that point could refuse.
+    target_source = self._classification_values(field)
+    target_values = (
+      target_source.uniqueValues(target_source.fields().indexOf(field))
+      if target_source is not None else [])
+
+    source_record = self._pinned_bounds.get(source_id, {}).get(
+      source.get("var")) or {}
+    floor = source_record.get("floor")
+    ceiling = source_record.get("ceiling")
+    if bridge.limits_leave_nothing(target_values, floor, ceiling):
+      # NAMED IN TERMS OF THE RANGE, because that is the thing the
+      # user can move. "This element cannot take the copy" would be
+      # true and useless: the range is on the SOURCE, so the fix is
+      # over there rather than on the element being complained about.
+      if floor is not None and ceiling is not None:
+        shown = f"{float(floor):g} to {float(ceiling):g}"
+      elif floor is not None:
+        shown = f"starting at {float(floor):g}"
+      else:
+        shown = f"ending at {float(ceiling):g}"
+      return {"refusal": (f"holds no values inside the range {shown}, "
+                          f"so it was left out.",
+                          f"hold no values inside the range {shown}, "
+                          f"so they were left out."),
+              "lost": [], "left_behind": ""}
 
     # ...what the target is about to lose, named before it goes
-    field = target["var"]
     lost = []
     if self._quant_colours.get(target_id, {}).get(field):
       lost.append("its hand-picked colours")
@@ -7410,12 +7731,20 @@ class WeavingSpaceDialog(QDialog):
     # reported success and changed nothing on the map.
     self._copy_style_to_row(target_id, source.get("mode_raw"))
     record = {"breaks": [float(b) for b in interior]}
-    # the FLAGS, copied as flags: which ends the source had pinned,
-    # not merely that its breaks are now hand-set
-    source_pins = self._pinned_bounds.get(source_id, {}).get(
-      source.get("var")) or {}
-    # ...each flag CHECKED against the receiving column, because a pin
-    # is a claim about this element's own data and the copy is the
+    # THE OUTER EDGES, carried whole and unchecked. A floor or ceiling
+    # names where the ramp starts and stops; it moves no boundary,
+    # takes no class out of the pool the scheme cuts from, and cannot
+    # be refused for crossing anything -- which is why it lives in its
+    # own registry rather than joining the pins. Out of the receiving
+    # column's own range is FINE and is the whole point: that is how
+    # one pair of limits comes to mean the same numbers on several
+    # maps. The only range this refuses was refused above, before
+    # anything was written.
+    for edge in ("floor", "ceiling"):
+      if source_record.get(edge) is not None:
+        record[edge] = float(source_record[edge])
+    # ...each PIN FLAG checked against the receiving column, because a
+    # pin is a claim about this element's own data and the copy is the
     # only route by which one could arrive unexamined. The pin path
     # puts every typed bound through pin_problem first; this path did
     # not, so copying between elements carrying different variables
@@ -7427,18 +7756,25 @@ class WeavingSpaceDialog(QDialog):
     # bound for this element's data. A dropped flag simply means the
     # copy no longer degrades to a pin: a later class count or scheme
     # retires it entirely and the element classifies its own values.
-    target_source = self._classification_values(field)
-    target_values = (
-      target_source.uniqueValues(target_source.fields().indexOf(field))
-      if target_source is not None else [])
+    #
+    # AGAINST THE POOL THE LIMITS LEAVE, never the whole column.
+    # (Maintainer's ruling, 2026-08-19, ledger row 13.) That ruling
+    # brought two sites into step; carrying the limits through a copy
+    # opens a third, and asking the un-narrowed question here would
+    # accept a pin the map does not draw and that the next retirement
+    # pass drops in silence -- which is exactly the harm row 13 was.
+    judged = [value for value in target_values
+              if bridge.absence_kind(value, record.get("floor"),
+                                     record.get("ceiling"))
+              != bridge.OUTSIDE_RANGE_KEY]
     dropped = []
     for end in ("low", "high"):
-      if source_pins.get(end) is None:
+      if source_record.get(end) is None:
         continue
-      wanted = float(source_pins[end])
+      wanted = float(source_record[end])
       trial = {"low": None, "high": None}
       trial[end] = wanted
-      if bridge.pin_problem(trial["low"], trial["high"], target_values,
+      if bridge.pin_problem(trial["low"], trial["high"], judged,
                             source.get("k", 5)):
         dropped.append(end)
         continue
@@ -7493,13 +7829,12 @@ class WeavingSpaceDialog(QDialog):
       None if unclassed_source else len(classes),
       source.get("ramp"), bool(source.get("reverse")))
     self._custom_swatch_cache.pop(target_id, None)
-    self._apply_style_change()
-    self._report_quietly(
-      f"Element '{target_id}' now uses the classes from element "
-      f"'{source_id}'"
-      + (f", replacing {' and '.join(lost)}." if lost else ".")
-      + left_behind)
-    return None
+    # NO REPAINT AND NO NOTICE HERE. Both belong to the whole act
+    # rather than to one target of it, so the caller restyles once and
+    # composes one sentence; doing either per target turns a copy onto
+    # four elements into four repaints and four bar messages, of which
+    # the reader sees only the last.
+    return {"refusal": None, "lost": lost, "left_behind": left_behind}
 
   def _sync_target_controls(self, tile_id, classes, ramp, reverse):
     """Put a copy's target row's own controls where the copy left it.

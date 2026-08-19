@@ -37188,6 +37188,769 @@ def test_a_qgis_symbology_edit_reaches_the_plugin_on_every_shape():
     "\n  " + "\n  ".join(trouble))
 
 
+
+# ---- THE COPY MATRIX: sources x target shapes x target state x
+# ---- fan-out x what happens next.
+#
+# A DIFFERENT PROMISE FROM THE SYMBOLOGY MATRIX, which is why this is
+# its own grid rather than a fifth axis on that one. That one's routes
+# are all edits made in QGIS and its promise is "the plugin follows";
+# this one's promise is "a copy reproduces the source's whole
+# classification on every element it is given, and says truthfully
+# what it did". Crossing them would make every cell carry two promises
+# and would double a spine already trimmed twice for cost.
+#
+# THE SPACE IS FREE AND ONLY THE SPINE COSTS. Eight sources, ten
+# target shapes, seven target states, three fan-outs and four
+# aftermaths is a crossing of several thousand; the spine is bounded
+# deliberately and everything else is drawn under a printed seed.
+def _multi_column_region(columns):
+  """A square region carrying one float column per entry.
+
+  Args:
+    columns: {name: [value per area]}, every list the same length,
+      None meaning that area holds no value. The names become the
+      layer's fields in the order given, which is the order the
+      dialog's variable chooser will offer them.
+
+  Returns:
+    A memory layer. `_continuous_region` gives ONE column and cannot
+    serve here: a copy is between two elements carrying DIFFERENT
+    columns, and a matrix whose source and target always share a
+    column could never show a bound being fitted, refused or left
+    behind. `make_region_layer` cannot serve either, for the reason
+    recorded at `_continuous_region` -- its four distinct values
+    collapse against five classes, so nothing can be shown to move.
+  """
+  import math
+  from weavingspace_qgis import compat
+  names = list(columns)
+  length = len(columns[names[0]])
+  assert all(len(v) == length for v in columns.values()), \
+    "every column must give one value per area"
+  n = int(math.ceil(math.sqrt(length)))
+  layer = QgsVectorLayer("MultiPolygon?crs=EPSG:3857", "region", "memory")
+  prov = layer.dataProvider()
+  prov.addAttributes([compat.make_field(name, float) for name in names])
+  layer.updateFields()
+  cell, feats = 1000, []
+  for k in range(length):
+    i, j = divmod(k, n)
+    f = QgsFeature(layer.fields())
+    f.setGeometry(QgsGeometry.fromPolygonXY([[
+      QgsPointXY(i * cell, j * cell),
+      QgsPointXY((i + 1) * cell, j * cell),
+      QgsPointXY((i + 1) * cell, (j + 1) * cell),
+      QgsPointXY(i * cell, (j + 1) * cell)]]))
+    for name in names:
+      value = columns[name][k]
+      if value is not None:
+        f[name] = float(value)
+    feats.append(f)
+  prov.addFeatures(feats)
+  layer.updateExtents()
+  return layer
+
+
+# THE SOURCE AXIS: what the copy is being asked to carry. Each is a
+# thing somebody actually sets up, and each has a different record
+# behind it -- pins alone, limits alone, both, an adopted ladder with
+# no pin flags at all, and a ladder that arrived by an earlier copy.
+COPY_SOURCES = ("plain", "low pinned", "both pinned", "limits",
+                "pins and limits", "adopted ladder", "unclassed",
+                "re-copied")
+
+# THE TARGET STATE AXIS: what is being overwritten. A copy destroys
+# what it lands on, and the notice is supposed to say what went.
+COPY_TARGET_STATES = ("untouched", "hand-picked colours", "own pins",
+                      "own limits", "another count", "another scheme")
+
+COPY_FAN_OUTS = ("one", "two", "every eligible")
+COPY_AFTERMATHS = ("immediately", "after re-Generate", "after a reopen",
+                   "while a run is in flight")
+
+# The spine runs every SOURCE against two canonical target shapes at
+# both bounded fan-outs; the sampler reaches the rest.
+COPY_SPINE_SHAPES = ("even", "tied")
+COPY_SPINE_AFTERMATHS = ("immediately", "after re-Generate")
+
+# CELLS WITH A HISTORY, PINNED ONE BY ONE rather than by promoting
+# their whole shape -- the rule this project learned when promoting a
+# shape cost twenty-four cells to pin what was really four.
+# ...in the CELL'S OWN ORDER, which is (source, target shape, target
+# state, fan-out, aftermath). The first draft of this list was written
+# shape-first, matching how the sentences above read rather than how
+# the driver unpacks them, and it died on a KeyError at the first
+# pinned cell. Harness fault, counted: a grid whose failures are
+# mostly its own is a grid nobody acts on.
+COPY_PINNED_CELLS = [
+  # the range that empties a receiving column: the refusal arm, and
+  # the reason the partial-success wording exists at all
+  ("limits", "two values", "untouched", "every eligible", "immediately"),
+  # an adopted ladder carries breaks AND edges and no pin flags, which
+  # is the record a QGIS retype leaves and the one the copy forgot
+  ("adopted ladder", "even", "own pins", "two", "after re-Generate"),
+  # limits onto a column of another magnitude, which is the case the
+  # whole feature was asked for
+  ("limits", "huge", "untouched", "two", "immediately"),
+  # a copy made while a map is drawing, the moment this editor's state
+  # has been destroyed before
+  ("pins and limits", "even", "hand-picked colours", "two",
+   "while a run is in flight"),
+]
+
+
+def _copy_matrix_setup(dlg, layer, source_shape, target_shapes, scheme):
+  """Point the first elements at the columns this cell needs.
+
+  Args:
+    dlg: a dialog already holding the region layer.
+    layer: that layer, for its field names.
+    source_shape: the name of the column the SOURCE element takes.
+    target_shapes: the columns the following elements take, in order.
+    scheme: the Style entry every row starts on.
+
+  Returns:
+    (source_tile_id, [target_tile_ids]) or None when the design has
+    too few elements to stage this cell. Returning None rather than
+    asserting is deliberate: the caller counts skips and asserts that
+    no axis was skipped everywhere, which is what stops a silently
+    unstageable cell reading exactly like a passing one.
+  """
+  wanted = [source_shape] + list(target_shapes)
+  if dlg.table.rowCount() < len(wanted):
+    return None
+  ids = []
+  for row, column in enumerate(wanted):
+    chooser = dlg.table.cellWidget(row, 1)
+    style = dlg.table.cellWidget(row, 2)
+    if chooser is None or style is None:
+      return None
+    chooser.setCurrentText(column)
+    style.setCurrentText(scheme)
+    ids.append(dlg.table.item(row, 0).text())
+  dlg._update_dynamic_columns()
+  _tick(150)
+  return ids[0], ids[1:]
+
+
+def _copy_stage_source(dlg, source_id, field, source_kind, ladder):
+  """Put the source element into the state this cell names.
+
+  Args:
+    dlg: the dialog.
+    source_id: the element the copy will come from.
+    field: the column it carries.
+    source_kind: one of COPY_SOURCES.
+    ladder: the classes it currently draws, as (lower, upper) pairs.
+
+  Returns:
+    The record written, or None when this shape cannot carry it --
+    a column with two classes has no interior boundary to pin, and
+    saying so is better than pinning the edge and calling it a pin.
+
+  THE RECORD IS WRITTEN DIRECTLY rather than through the editor, and
+  that is a deliberate limit of this grid rather than an oversight:
+  the editor's own controls are guarded by the tests that drive them,
+  and staging six source shapes through a modal window would make
+  every cell cost a window. What this measures is the COPY.
+  """
+  if len(ladder) < 3:
+    return None
+  record = {}
+  low_at = round(ladder[0][1], 3)
+  high_at = round(ladder[-1][0], 3)
+  floor_at = round(ladder[0][0], 3)
+  ceiling_at = round(ladder[-1][1], 3)
+  if source_kind in ("low pinned", "both pinned", "pins and limits"):
+    record["low"] = low_at
+  if source_kind in ("both pinned", "pins and limits"):
+    record["high"] = high_at
+  if source_kind in ("limits", "pins and limits"):
+    # INSIDE THE DATA, so the limits really exclude something. A
+    # floor at the column's own minimum excludes nothing and the cell
+    # would report correct behaviour whatever the copy did.
+    record["floor"] = round(ladder[0][1], 3)
+    record["ceiling"] = ceiling_at
+  if source_kind == "adopted ladder":
+    # what a ladder retyped in QGIS's Symbology panel leaves: interior
+    # boundaries and two edges, and NO pin flags at all
+    record["breaks"] = [round(upper, 3) for _lo, upper in ladder[:-1]]
+    record["floor"] = floor_at
+    record["ceiling"] = ceiling_at
+  if not record:
+    return {}
+  dlg._pinned_bounds.setdefault(source_id, {})[field] = record
+  dlg._apply_style_change()
+  _tick(200)
+  return record
+
+
+def _copy_stage_target(dlg, target_id, field, state, ladder):
+  """Give a receiving element something to lose.
+
+  Args:
+    dlg: the dialog.
+    target_id: the element about to be copied onto.
+    field: the column it carries.
+    state: one of COPY_TARGET_STATES.
+    ladder: the classes it currently draws.
+
+  Returns:
+    A short description of what was staged, or "" when this state
+    could not be staged on this shape.
+  """
+  if state == "untouched":
+    return "untouched"
+  if state == "hand-picked colours":
+    dlg._quant_colours.setdefault(target_id, {})[field] = {"0": "#123456"}
+    return "hand-picked colours"
+  if state == "own pins" and len(ladder) >= 3:
+    dlg._pinned_bounds.setdefault(target_id, {})[field] = {
+      "low": round(ladder[0][1], 3)}
+    return "own pins"
+  if state == "own limits" and len(ladder) >= 3:
+    dlg._pinned_bounds.setdefault(target_id, {})[field] = {
+      "floor": round(ladder[0][0], 3),
+      "ceiling": round(ladder[-1][1], 3)}
+    return "own limits"
+  if state == "another count":
+    row = dlg._row_for_element(target_id)
+    spin = dlg.table.cellWidget(row, 3) if row is not None else None
+    if spin is not None and hasattr(spin, "setValue"):
+      spin.setValue(min(spin.value() + 2, 20))
+      _tick(120)
+      return "another count"
+  if state == "another scheme":
+    row = dlg._row_for_element(target_id)
+    style = dlg.table.cellWidget(row, 2) if row is not None else None
+    if style is not None:
+      style.setCurrentText("Quant: Quantiles")
+      _tick(120)
+      return "another scheme"
+  return ""
+
+
+def _copy_matrix_cell(source_kind, target_shape, target_state, fan_out,
+                      aftermath, scheme="Quant: Equal intervals"):
+  """Stage one copy and say whether it arrived whole and said so.
+
+  Args:
+    source_kind: one of COPY_SOURCES -- what the source carries.
+    target_shape: the name of the synthetic column every target takes.
+    target_state: one of COPY_TARGET_STATES -- what is overwritten.
+    fan_out: "one", "two" or "every eligible".
+    aftermath: one of COPY_AFTERMATHS.
+    scheme: the Style every row starts on.
+
+  Returns:
+    (verdict, detail) where verdict is "ok", "SKIPPED" or a failure
+    naming what was wanted against what was got.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  shapes = dict(MATRIX_SHAPES)
+  project = QgsProject.instance()
+  project.clear()
+  # ONE COLUMN FOR THE SOURCE AND ONE FOR THE TARGETS, deliberately
+  # DIFFERENT, since a copy between two elements carrying one column
+  # can never show a bound being fitted, refused or left behind.
+  columns = {"src": shapes["even"](), "tgt": shapes[target_shape]()}
+  layer = _multi_column_region(columns)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(200)
+    wanted_targets = {"one": 1, "two": 2}.get(fan_out, 3)
+    placed = _copy_matrix_setup(dlg, layer, "src",
+                                ["tgt"] * wanted_targets, scheme)
+    if placed is None:
+      return ("SKIPPED", "the design has too few elements for this fan-out")
+    source_id, target_ids = placed
+    if source_kind == "unclassed":
+      style = dlg.table.cellWidget(dlg._row_for_element(source_id), 2)
+      style.setCurrentText("Quant: Unclassed")
+      dlg._update_dynamic_columns()
+      _tick(150)
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(200)
+
+    def ladder_of(tile_id):
+      """The classes an element's own layer currently draws."""
+      element = project.mapLayer(dlg._element_layer_ids.get(tile_id) or "")
+      renderer = element.renderer() if element is not None else None
+      if renderer is None or not hasattr(renderer, "ranges"):
+        return []
+      live = renderer.ranges()
+      return [(r.lowerValue(), r.upperValue()) for r in live]
+
+    source_ladder = ladder_of(source_id)
+    if len(source_ladder) < 3:
+      return ("SKIPPED", "the source did not come back with a ladder")
+
+    # THE SOURCE'S STATE, and a source that cannot carry it is a skip
+    # rather than a pass -- an unstageable cell that returns "ok" is
+    # the shape this project has shipped before.
+    if source_kind == "re-copied":
+      # a ladder that ARRIVED by an earlier copy, which is a different
+      # record from one somebody pinned: values with no pin flags
+      if not target_ids:
+        return ("SKIPPED", "nothing to copy from first")
+      if dlg._copy_classification(source_id, target_ids[0]) is not None:
+        return ("SKIPPED", "the priming copy was refused")
+      _tick(200)
+      source_id, target_ids = target_ids[0], (
+        [source_id] + target_ids[1:])
+      source_ladder = ladder_of(source_id)
+      if len(source_ladder) < 3:
+        return ("SKIPPED", "the primed source has no ladder")
+    else:
+      staged = _copy_stage_source(
+        dlg, source_id, dlg._assignment_for(source_id)["var"],
+        source_kind, source_ladder)
+      if staged is None:
+        return ("SKIPPED", "this shape cannot carry that source state")
+
+    source_field = dlg._assignment_for(source_id)["var"]
+    source_record = dict(
+      dlg._pinned_bounds.get(source_id, {}).get(source_field) or {})
+    wanted_edges = (source_record.get("floor"),
+                    source_record.get("ceiling"))
+
+    # ...and what each target is about to lose
+    staged_states = 0
+    for target_id in target_ids:
+      if _copy_stage_target(dlg, target_id,
+                            dlg._assignment_for(target_id)["var"],
+                            target_state, ladder_of(target_id)):
+        staged_states += 1
+    if target_state != "untouched" and not staged_states:
+      return ("SKIPPED", f"no target could be put in state {target_state}")
+
+    before = {t: dict(dlg._pinned_bounds.get(t, {}).get(
+      dlg._assignment_for(t)["var"]) or {}) for t in target_ids}
+
+    if aftermath == "while a run is in flight":
+      dlg._generate()
+      _tick(120)
+
+    del BAR_MESSAGES[:]
+    returned = dlg._copy_classification_to_many(source_id, target_ids)
+    _tick(300)
+    waited = 0
+    while dlg._task is not None and waited < 60000:
+      _tick(200)
+      waited += 200
+    _tick(300)
+    said = [text for _kind, text in BAR_MESSAGES]
+    return _copy_matrix_verdict(
+      dlg, project, source_id, target_ids, before, wanted_edges,
+      returned, said, aftermath, ladder_of)
+  finally:
+    dlg.close()
+    _tick(50)
+
+
+def _copy_matrix_verdict(dlg, project, source_id, target_ids, before,
+                         wanted_edges, returned, said, aftermath,
+                         ladder_of):
+  """Read what the copy did, and say what is wrong with it.
+
+  Args:
+    dlg: the dialog, after the copy.
+    project: the QgsProject, for the element layers.
+    source_id: the element the classification came from.
+    target_ids: every element the copy was given.
+    before: {tile_id: its pin record before the copy}.
+    wanted_edges: the (floor, ceiling) the source carried, either or
+      both of which may be None.
+    returned: what `_copy_classification_to_many` returned.
+    said: the message-bar texts raised by the whole act.
+    aftermath: what to do before reading, from COPY_AFTERMATHS.
+    ladder_of: reads an element's drawn classes, from the caller.
+
+  Returns:
+    (verdict, detail). Every axis states its own premise, because an
+    assertion that cannot fail is worth nothing and this grid has
+    five of them.
+  """
+  taken, refused = [], []
+  for target_id in target_ids:
+    field = dlg._assignment_for(target_id)["var"]
+    record = dict(dlg._pinned_bounds.get(target_id, {}).get(field) or {})
+    (refused if record == before[target_id] else taken).append(target_id)
+
+  # PREMISE FIRST. A cell in which nothing was copied and nothing was
+  # refused has measured nothing whatever, and would read as a pass.
+  if not taken and not refused:
+    return ("no target was either copied onto or left alone, so this "
+            "cell staged nothing", "")
+  if returned is not None and taken:
+    return (f"something was copied and yet a refusal came back: "
+            f"{returned!r}", "")
+
+  # AXIS ONE: ONE NOTICE FOR THE WHOLE ACT -- one notice ABOUT THE
+  # COPY, which is not the same as one notice on the bar. The first
+  # draft counted everything the bar received and failed nine cells,
+  # every one of them because the restyle the copy triggers raises its
+  # own perfectly correct sentences: how many tiles were drawn, which
+  # elements were restyled, that a column leaves a class empty, that a
+  # quarter of the areas hold no value. Harness fault, counted, and
+  # the shape docs/TESTING.md names -- a grid whose failures are
+  # mostly its own is a grid nobody acts on.
+  # ...RECOGNISED BY EITHER ARM. The first draft matched only the
+  # success sentence, so every all-refused cell reported zero notices
+  # about a copy that had in fact said exactly the right thing.
+  # Harness fault, counted: three now, and every one of them a
+  # question asked slightly wrong rather than a defect in the plugin.
+  mine = [text for text in said
+          if "the classes from element" in text
+          or "Nothing was copied." in text]
+  if len(mine) != 1:
+    return (f"{len(mine)} notices about the copy, wanted exactly one. "
+            f"The bar received: {said}", "")
+  notice = mine[0]
+
+  # AXIS TWO: THE NOTICE NAMES EVERYBODY. A partial success reported
+  # as a success is the shape this project keeps meeting, so a refused
+  # element going unnamed is a failure of the same kind.
+  for target_id in taken + refused:
+    if f"'{target_id}'" not in notice:
+      role = "took the copy" if target_id in taken else "was left out"
+      return (f"element '{target_id}' {role} and the notice never "
+              f"names it: {notice!r}", "")
+
+  # AXIS THREE: A REFUSED TARGET IS UNTOUCHED, in its controls as well
+  # as its record -- every judgement is supposed to happen before the
+  # first write.
+  for target_id in refused:
+    row = dlg._row_for_element(target_id)
+    spin = dlg.table.cellWidget(row, 3) if row is not None else None
+    if dlg._quant_colours.get(target_id, {}).get(
+        dlg._assignment_for(target_id)["var"]):
+      return (f"refused element '{target_id}' was given the source's "
+              f"colours anyway", "")
+    if spin is not None and dlg._class_counts.get(target_id) not in (
+        None, spin.value()):
+      return (f"refused element '{target_id}' has a class count "
+              f"{dlg._class_counts.get(target_id)} its spinner does not "
+              f"show ({spin.value()})", "")
+
+  if not taken:
+    return ("ok", "every target refused, and said so")
+
+  # THE AFTERMATH, before anything about the copy is believed to have
+  # SURVIVED. Arrival and survival are different promises.
+  if aftermath == "after re-Generate":
+    _generate_and_wait(dlg)
+    _tick(250)
+  elif aftermath == "after a reopen":
+    # ...through the LAYER's own stamp, which is all a reopened
+    # project has: nothing on a renderer records that a break was
+    # chosen rather than computed.
+    for target_id in taken:
+      element = project.mapLayer(dlg._element_layer_ids.get(target_id) or "")
+      if element is None:
+        return (f"element '{target_id}' has no layer to carry a stamp", "")
+      if not element.customProperty("weavingspace_quant_style"):
+        return (f"element '{target_id}' took the copy and was never "
+                f"stamped, so a reopen would lose it", "")
+
+  # AXIS FOUR: THE RANGE TRAVELLED. This is the whole reason the
+  # feature exists -- one pair of limits given to several variables --
+  # and it is asked only where the source actually had one, or the
+  # assertion could not fail.
+  if any(edge is not None for edge in wanted_edges):
+    for target_id in taken:
+      field = dlg._assignment_for(target_id)["var"]
+      record = dlg._pinned_bounds.get(target_id, {}).get(field) or {}
+      got = (record.get("floor"), record.get("ceiling"))
+      if got != wanted_edges:
+        return (f"element '{target_id}' was copied onto and its range "
+                f"is {got}, wanted {wanted_edges}", "")
+
+  # AXIS FIVE: THE MAP AGREES WITH THE RECORD. A record nothing draws
+  # is the failure this whole area keeps producing, so the element's
+  # own renderer is asked rather than the dialog's dictionaries.
+  #
+  # ...ONCE THE MAP HAS BEEN GIVEN THE CHANCE, which is the premise
+  # this axis needs and did not state. A copy that carries a floor or
+  # ceiling is a GEOMETRY change, so `_restyle_only` declines it and
+  # the map deliberately does not move until Generate -- the plugin
+  # says so in the copy's own notice. Reading the renderer before then
+  # measured the ladder from BEFORE the copy and reported correct
+  # behaviour as a defect, on a constant column where that ladder is
+  # one class. Harness fault, counted: the fourth, and the only one of
+  # the four that was a real question rather than a typo, since it was
+  # assuming the restyle serves a copy when the whole point of the
+  # change under test is that it no longer can.
+  if any(edge is not None for edge in wanted_edges):
+    _generate_and_wait(dlg)
+    _tick(250)
+  source_classes = len(ladder_of(source_id))
+  for target_id in taken:
+    drawn = len(ladder_of(target_id))
+    if not drawn:
+      return (f"element '{target_id}' took the copy and draws no "
+              f"classes at all", "")
+    if drawn != source_classes:
+      return (f"element '{target_id}' draws {drawn} classes where the "
+              f"source draws {source_classes}", "")
+  return ("ok", f"{len(taken)} took it, {len(refused)} refused")
+
+
+def test_a_copy_reproduces_a_classification_on_every_target():
+  """Copy a classification to several elements, across shapes and states.
+
+  THE PROMISE IS A FAMILY, not a behaviour: "a copy reproduces the
+  source's whole classification on every element it is given, and says
+  truthfully what it did". A family fails one member at a time, and a
+  single case passes for whichever member happens to be intact. Five
+  axes, because each has broken something here: what the SOURCE
+  carries, what SHAPE the receiving column is, what STATE is being
+  overwritten, how many targets at once, and what happens NEXT.
+
+  WHAT IT IS FOR, in the maintainer's terms. Naming one element at a
+  time made giving four elements one classification four trips through
+  the colour editor -- and the case that justified letting a class
+  bound sit outside the data at all was handing ONE PAIR OF LIMITS TO
+  SEVERAL VARIABLES, which is exactly this act and which the copy
+  could not do, because the floor and the ceiling had never travelled
+  at all.
+
+  SPINE PLUS ROTATION. Every SOURCE runs against two canonical target
+  shapes at both bounded fan-outs every time, so no source can go
+  unexercised; four cells with a history are pinned individually; the
+  rest are sampled under a seed the failure message prints, and the
+  full crossing is available with WEAVINGSPACE_COPY_MATRIX_FULL=1.
+
+  EVERY FAILING CELL IS REPORTED, not the first. "Copying sometimes
+  goes wrong" is not actionable; a named list of source, shape, state,
+  fan-out and aftermath is a work list.
+
+  Regression: a copy carried the class breaks, colours, pins and count and NOT the floor and ceiling, so the one thing the range feature was asked for -- giving one pair of limits to several variables -- could not be done by the control built for it, and a copy destroyed whatever range its target already had. [user]
+  """
+  import os
+  import random
+  full = os.environ.get("WEAVINGSPACE_COPY_MATRIX_FULL") == "1"
+  seed = int(os.environ.get("WEAVINGSPACE_COPY_MATRIX_SEED", "20260819"))
+  shape_names = [name for name, _build in MATRIX_SHAPES]
+  cells = []
+  # THE SPINE: every source, on the canonical shapes, at the two
+  # bounded fan-outs, under both settled aftermaths.
+  for source_kind in COPY_SOURCES:
+    for shape in COPY_SPINE_SHAPES:
+      for fan_out in ("one", "two"):
+        cells.append((source_kind, shape, "untouched", fan_out,
+                      COPY_SPINE_AFTERMATHS[0]))
+    cells.append((source_kind, COPY_SPINE_SHAPES[0], "untouched", "two",
+                  COPY_SPINE_AFTERMATHS[1]))
+  # ...every TARGET STATE reached at least once, since a state nobody
+  # stages is a column of the grid that never ran.
+  for state in COPY_TARGET_STATES:
+    cells.append(("pins and limits", COPY_SPINE_SHAPES[0], state, "two",
+                  "immediately"))
+  if not full:
+    cells += list(COPY_PINNED_CELLS)
+    rest = [(src, sh, st, fan, af)
+            for src in COPY_SOURCES for sh in shape_names
+            for st in COPY_TARGET_STATES for fan in COPY_FAN_OUTS
+            for af in COPY_AFTERMATHS
+            if sh not in COPY_SPINE_SHAPES]
+    cells += random.Random(seed).sample(rest, min(12, len(rest)))
+  else:
+    cells = [(src, sh, st, fan, af)
+             for src in COPY_SOURCES for sh in shape_names
+             for st in COPY_TARGET_STATES for fan in COPY_FAN_OUTS
+             for af in COPY_AFTERMATHS]
+
+  trouble, skipped, ran = [], {}, 0
+  for source_kind, shape, state, fan_out, aftermath in cells:
+    verdict, detail = _copy_matrix_cell(source_kind, shape, state,
+                                        fan_out, aftermath)
+    if verdict == "SKIPPED":
+      skipped[source_kind] = skipped.get(source_kind, 0) + 1
+    else:
+      ran += 1
+    if verdict not in ("ok", "SKIPPED"):
+      trouble.append(f"{source_kind} / {shape} / {state} / {fan_out} / "
+                     f"{aftermath}: {verdict}")
+
+  # COUNT THE SKIPS AND ASSERT THEM. A skipped cell reads exactly like
+  # a passing one, and a source skipped in EVERY cell it was drawn for
+  # is an axis that never ran -- which this project has shipped once
+  # already, in a hunt whose GeoPackage invariant executed zero times
+  # while the run looked complete.
+  never_ran = [source_kind for source_kind in COPY_SOURCES
+               if skipped.get(source_kind, 0) and
+               skipped[source_kind] == sum(1 for c in cells
+                                           if c[0] == source_kind)]
+  assert not never_ran, (
+    f"these sources were SKIPPED in every cell drawn for them, so the "
+    f"matrix reports nothing about them: {never_ran}. Skips by source: "
+    f"{skipped}")
+  assert ran >= len(cells) * 0.6, (
+    f"only {ran} of {len(cells)} copy cells staged anything; the rest "
+    f"skipped, so this grid measures far less than its size suggests. "
+    f"Skips by source: {skipped}")
+  assert not trouble, (
+    f"{len(trouble)} of {len(cells)} copy cells did not reproduce the "
+    f"classification (seed {seed}; re-run with "
+    f"WEAVINGSPACE_COPY_MATRIX_SEED={seed}, or "
+    f"WEAVINGSPACE_COPY_MATRIX_FULL=1 for the whole crossing):"
+    "\n  " + "\n  ".join(trouble))
+
+
+
+def test_a_copy_carries_the_range_and_refuses_what_it_would_empty():
+  """One copy, two targets: one takes the range, one cannot and is told.
+
+  THE THREE CLAIMS THE COPY MAKES ABOUT A RANGE, in one cheap test.
+  The matrix beside it crosses them against nine column shapes, seven
+  target states and four aftermaths and costs about ten minutes; this
+  costs seconds, which is what lets the mutation catalogue re-judge
+  the claims rather than quietly stop re-judging them. An entry is a
+  promise that breaking the code makes a named test fail, and an entry
+  nobody can afford to run is an entry nobody runs.
+
+  ONE: THE RANGE TRAVELS. A copy carries the source's floor and
+  ceiling as well as its breaks, colours, pins and count. It never did
+  until 2026-08-19, so the case that justified letting a bound sit
+  outside the data -- giving one pair of limits to several variables,
+  which is how a colour comes to mean the same number on every map --
+  could not be done by the control built for it.
+
+  TWO: A TARGET THE RANGE WOULD EMPTY IS REFUSED, ALONE, AND NAMED.
+  A range leaving a column no drawable value gives that element no
+  classes: it draws flat and no control on its row names the number
+  that did it. Everything else is copied anyway, and the notice says
+  both -- a partial success reported as a success is the shape this
+  project keeps meeting.
+
+  THREE: IT IS STAMPED. A limit is a geometry change, so once a copy
+  carries one `_restyle_only` declines the element -- and the restyle
+  is what writes `weavingspace_quant_style`. Nothing on a renderer
+  records that a break was CHOSEN rather than computed, so without the
+  stamp the copy reaches the map and dies at the next reopen.
+
+  Regression: a copy carried no floor and no ceiling and destroyed the target's, so one pair of limits could not be given to several variables; and once it did carry them it went unstamped, because the restyle path that writes the stamp correctly declines a geometry change. [user]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  project.clear()
+  # ONE COLUMN THE RANGE COVERS AND ONE ENTIRELY OUTSIDE IT, which is
+  # what makes the refusal reachable at all. A fixture whose columns
+  # all sit inside the range could never show a target being left out.
+  layer = _multi_column_region({
+    "inside": [1.0 + k for k in range(100)],
+    "outside": [500.0 + k for k in range(100)],
+  })
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(200)
+    assert dlg.table.rowCount() >= 3, \
+      f"this design offers {dlg.table.rowCount()} elements and the test " \
+      f"needs three: a source, a target that can take the range, and " \
+      f"one it would empty"
+    for row, column in enumerate(("inside", "inside", "outside")):
+      dlg.table.cellWidget(row, 1).setCurrentText(column)
+      dlg.table.cellWidget(row, 2).setCurrentText("Quant: Equal intervals")
+    dlg._update_dynamic_columns()
+    _tick(150)
+    source, keeper, victim = (dlg.table.item(r, 0).text() for r in range(3))
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(200)
+
+    # A RANGE INSIDE THE SOURCE'S OWN DATA, so it really excludes, and
+    # entirely below the other column, so that one has nothing left.
+    dlg._pinned_bounds.setdefault(source, {})["inside"] = {
+      "floor": 10.0, "ceiling": 90.0}
+    dlg._apply_style_change()
+    _tick(200)
+    before = dict(dlg._pinned_bounds.get(victim, {}).get("outside") or {})
+
+    del BAR_MESSAGES[:]
+    returned = dlg._copy_classification_to_many(source, [keeper, victim])
+    _tick(400)
+    said = " ".join(text for _kind, text in BAR_MESSAGES)
+    assert returned is None, \
+      f"one target could take the copy, so it should not have been " \
+      f"refused outright: {returned!r}"
+
+    # ONE: the range travelled
+    got = dlg._pinned_bounds.get(keeper, {}).get("inside") or {}
+    assert (got.get("floor"), got.get("ceiling")) == (10.0, 90.0), \
+      f"element {keeper!r} took the copy and its range is " \
+      f"{(got.get('floor'), got.get('ceiling'))}, wanted (10.0, 90.0)"
+    assert got.get("breaks"), \
+      f"the ladder did not travel either, so this measures nothing " \
+      f"about the range in particular: {got}"
+
+    # TWO: the other was refused, untouched, and named
+    after = dict(dlg._pinned_bounds.get(victim, {}).get("outside") or {})
+    assert after == before, \
+      f"element {victim!r} holds nothing inside 10 to 90 and was " \
+      f"changed anyway: {before} -> {after}"
+    assert f"'{victim}'" in said and "left out" in said, \
+      f"element {victim!r} was left out and the notice never says so: " \
+      f"{said!r}"
+    assert f"'{keeper}'" in said, \
+      f"element {keeper!r} took the copy and the notice never names " \
+      f"it, so a partial copy reads as a plain refusal: {said!r}"
+
+    # THREE: the stamp, which the declining restyle no longer writes
+    element = project.mapLayer(dlg._element_layer_ids.get(keeper) or "")
+    assert element is not None, \
+      f"element {keeper!r} has no layer, so the stamp cannot be asked for"
+    stamped = element.customProperty("weavingspace_quant_style")
+    assert stamped, \
+      f"element {keeper!r} took a copy carrying a range and was never " \
+      f"stamped, so a reopen would recompute over it in silence"
+    assert "floor" in str(stamped) and "ceiling" in str(stamped), \
+      f"the stamp is there and does not carry the range: {stamped!r}"
+
+    # FOUR: A PIN IS JUDGED AGAINST THE POOL THE LIMITS LEAVE.
+    # (Maintainer's ruling, 2026-08-19, ledger row 13, arriving here
+    # through a third door.) A pin of 95 has values above it in the
+    # whole column and NONE inside a range of 10 to 90, so the two
+    # questions give opposite answers and the cell discriminates.
+    # Asking the un-narrowed one accepts a pin the map cannot draw,
+    # which the record and the stamp then claim and the next
+    # retirement pass drops without a word.
+    from weavingspace_qgis import bridge
+    whole = [float(v) for v in range(1, 101)]
+    narrowed = [v for v in whole if 10.0 <= v <= 90.0]
+    assert not bridge.pin_problem(95.0, None, whole, 5), \
+      "the premise fails: 95 is undrawable against the WHOLE column " \
+      "too, so this arm cannot tell the two questions apart"
+    assert bridge.pin_problem(95.0, None, narrowed, 5), \
+      "the premise fails: 95 is drawable against the narrowed pool " \
+      "as well, so this arm cannot tell the two questions apart"
+
+    dlg._pinned_bounds[source]["inside"] = {
+      "low": 95.0, "floor": 10.0, "ceiling": 90.0}
+    del BAR_MESSAGES[:]
+    dlg._copy_classification_to_many(source, [keeper])
+    _tick(400)
+    said = " ".join(text for _kind, text in BAR_MESSAGES)
+    landed = dlg._pinned_bounds.get(keeper, {}).get("inside") or {}
+    assert landed.get("low") is None, \
+      f"a pin of 95 cannot be drawn from the values a range of 10 to " \
+      f"90 leaves, and the copy wrote it onto {keeper!r} anyway: " \
+      f"{landed}"
+    assert "left behind" in said, \
+      f"the pin was left behind and the notice never says so: {said!r}"
+  finally:
+    dlg.close()
+    _tick(50)
+
+
 def test_a_break_retyped_in_qgis_reaches_the_plugin():
   """Retype a class boundary in the Symbology panel; the plugin follows.
 
@@ -52849,6 +53612,10 @@ def main():
         test_two_projects_in_one_session)
   check("a QGIS symbology edit reaches the plugin on every shape",
         test_a_qgis_symbology_edit_reaches_the_plugin_on_every_shape)
+  check("a copy reproduces a classification on every target",
+        test_a_copy_reproduces_a_classification_on_every_target)
+  check("a copy carries the range and refuses what it would empty",
+        test_a_copy_carries_the_range_and_refuses_what_it_would_empty)
   check("a break retyped in QGIS reaches the plugin",
         test_a_break_retyped_in_qgis_reaches_the_plugin)
   check("a coverage notice quotes a spacing the box accepts",

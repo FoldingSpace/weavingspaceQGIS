@@ -2878,7 +2878,7 @@ MUTATIONS = [
   # reported in words by `empty_classes_message`. Kept as the reason
   # this entry sits here rather than beside a reduction that is gone.
   dict(name="a-copy-carries-the-pin-flags", file=DIALOG,
-       old='      if source_pins.get(end) is None:\n        continue',
+       old='      if source_record.get(end) is None:\n        continue',
        new='      if True:  # mutation: the flags stay behind\n        continue',
        test="test_a_copied_classification_carries_the_whole_row",
        why="the pin FLAG is a different statement from the boundary "
@@ -3651,7 +3651,7 @@ MUTATIONS = [
            "just closed lands on the project just opened, where the "
            "plugin itself refuses that number when typed"),
   dict(name="a-copied-pin-is-checked-against-its-new-data", file=DIALOG,
-       old="""      if bridge.pin_problem(trial["low"], trial["high"], target_values,
+       old="""      if bridge.pin_problem(trial["low"], trial["high"], judged,
                             source.get("k", 5)):""",
        new="""      if False:""",
        test="test_a_copy_leaves_behind_a_pin_the_data_cannot_carry",
@@ -3886,11 +3886,8 @@ MUTATIONS = [
   dict(name="limits-are-re-asked-when-the-data-moves", file=DIALOG,
        # ANCHORED ON THE TEST, not on the drop beneath it: what was
        # missing is that the question is asked AT ALL on this path.
-       old="""    if limits and not any(
-        bridge.absence_kind(value, record.get("floor"),
-                            record.get("ceiling"))
-        != bridge.OUTSIDE_RANGE_KEY
-        for value in values if not bridge.cannot_be_placed(value)):""",
+       old="""    if limits and bridge.limits_leave_nothing(
+        values, record.get("floor"), record.get("ceiling")):""",
        new="    if False:",
        test="test_limits_the_data_moved_out_from_under_are_dropped",
        why="pin flags have a data-moved guard and edge values had "
@@ -3938,6 +3935,81 @@ MUTATIONS = [
            "set wide of the data, or lowered, or given back, changed "
            "nothing and announced nothing, which reads exactly like "
            "the control not working"),
+  dict(name="a-copy-that-carries-a-range-is-still-stamped", file=DIALOG,
+       old="    self._stamp_what_was_copied(taken)",
+       new="    pass  # mutation: leave the stamp to the restyle",
+       test="test_a_copy_carries_the_range_and_refuses_what_it_would_empty",
+       why="a limit is a GEOMETRY change, so once a copy carries the "
+           "range `_restyle_only` correctly declines the element -- "
+           "and the restyle is what writes the stamp. Measured "
+           "2026-08-19: a copy of breaks alone came back stamped and "
+           "the identical copy carrying a floor and ceiling stamped "
+           "nothing, so the copy reached the map and died at the next "
+           "reopen. Nothing on a renderer records that a break was "
+           "CHOSEN rather than computed, so the stamp is all a "
+           "reopened project has"),
+  dict(name="a-copy-carries-the-range-it-was-given", file=DIALOG,
+       # ANCHORED ON THE CARRY, not on the refusal beside it: the
+       # refusal is a separate claim with a separate entry below, and
+       # one anchor covering both would report caught whichever of the
+       # two the test actually noticed.
+       old="""    for edge in ("floor", "ceiling"):
+      if source_record.get(edge) is not None:
+        record[edge] = float(source_record[edge])""",
+       new="""    for edge in ():
+      if source_record.get(edge) is not None:
+        record[edge] = float(source_record[edge])""",
+       test="test_a_copy_carries_the_range_and_refuses_what_it_would_empty",
+       why="a copy claims to reproduce a classification, and since "
+           "floors and ceilings arrived the ladder's outer edges are "
+           "part of one. Without this loop the copy leaves the "
+           "source's range behind AND destroys the target's, so the "
+           "one thing the range feature was asked for -- giving one "
+           "pair of limits to several variables, which is how a "
+           "colour comes to mean the same number on every map -- "
+           "cannot be done by the control built for it"),
+  dict(name="a-copy-refuses-a-target-the-range-empties", file=DIALOG,
+       old="    if bridge.limits_leave_nothing(target_values, floor, ceiling):",
+       new="    if False and bridge.limits_leave_nothing("
+           "target_values, floor, ceiling):",
+       test="test_a_copy_carries_the_range_and_refuses_what_it_would_empty",
+       why="a range that leaves a receiving column no drawable value "
+           "at all gives that element NO CLASSES: it draws flat, and "
+           "no control on its row names the number that did it. It is "
+           "the one thing a limit must never be allowed to do, and it "
+           "is the only ground on which a copy refuses a target -- an "
+           "out-of-data limit draws perfectly well and is the point"),
+  dict(name="a-copy-judges-a-pin-by-the-narrowed-pool", file=DIALOG,
+       # THE THIRD DOOR onto the ruling of 2026-08-19. Rows 13 brought
+       # two sites into step; carrying limits through a copy opened
+       # another, so this anchors the narrowing that keeps all three
+       # asking the judge one question.
+       old="""    judged = [value for value in target_values
+              if bridge.absence_kind(value, record.get("floor"),
+                                     record.get("ceiling"))
+              != bridge.OUTSIDE_RANGE_KEY]""",
+       new="    judged = list(target_values)",
+       test="test_a_copy_carries_the_range_and_refuses_what_it_would_empty",
+       why="a pin is judged against the pool the map is actually cut "
+           "from, narrowed by the floor and ceiling, never the whole "
+           "column (maintainer's ruling, ledger row 13). Asking the "
+           "un-narrowed question here accepts a pin the map does not "
+           "draw, which the record and the layer stamp then claim and "
+           "the next retirement pass drops without a word"),
+  dict(name="a-partial-copy-names-what-it-left-out", file=DIALOG,
+       old="""    for why, ids in grouped.items():
+      singular, plural = why
+      parts.append(f"{self._name_them(ids)} "
+                   f"{singular if len(ids) == 1 else plural}")""",
+       new="""    for why, ids in grouped.items():
+      singular, plural = why""",
+       test="test_a_copy_carries_the_range_and_refuses_what_it_would_empty",
+       why="a partial success reported as a success is the shape this "
+           "project keeps meeting, and with several targets it is "
+           "reachable in one press: without this the notice names the "
+           "elements that took the copy and says nothing whatever "
+           "about the ones that could not, so a user reads a plain "
+           "success over a map where two elements never changed"),
   dict(name="a-limit-keeps-its-ramp-colours", file=BRIDGE,
        # ANCHORED ON THE GATE, not on the recolour it guards: the
        # recolour was always right and was simply never reached with a
@@ -4366,6 +4438,41 @@ def test_interpreter():
   return os.environ.get("QGIS_PY") or sys.executable
 
 
+def child_environment():
+  """The environment a QGIS interpreter needs, rebuilt for a child.
+
+  Returns:
+    A copy of this process's environment with `PYTHONHOME` put back
+    from `QGIS_PYTHONHOME` where the launcher saved it, so a child
+    running `QGIS_PY` can find its own standard library.
+
+  THE DOCUMENTED INVOCATION STRIPS EXACTLY WHAT THE CHILD NEEDS, and
+  that is the whole reason this exists. This module must be run as
+  `env -u PYTHONHOME -u PYTHONPATH python3`, because a plain python3
+  carrying the QGIS environment dies at bootstrap -- but the QGIS
+  interpreter this module LAUNCHES cannot start WITHOUT a PYTHONHOME,
+  the cask's build carrying the paths of the machine it was built on.
+  So the fix of 2026-08-19, which made the module resolve `QGIS_PY`
+  and refuse when it cannot import qgis, refused every time: its
+  probe inherited the stripped environment and the interpreter never
+  started. Measured 2026-08-19: "Could not find platform independent
+  libraries <prefix>", PYTHONHOME not set.
+  `tools/macos_qgis_env.sh` therefore exports the value twice, once
+  as `PYTHONHOME` for whoever sources it and once as
+  `QGIS_PYTHONHOME` for whoever must strip the first and hand it to a
+  child. A copy under a second name is not tidy; it is the only thing
+  that survives `env -u`.
+  Falling through when neither is set is deliberate: on Linux and
+  Windows the interpreter starts without a PYTHONHOME at all, and
+  inventing one there would be its own class of failure.
+  """
+  environment = dict(os.environ)
+  saved = environment.get("QGIS_PYTHONHOME")
+  if saved:
+    environment["PYTHONHOME"] = saved
+  return environment
+
+
 def require_a_usable_interpreter():
   """Refuse to judge anything unless the tests can actually import QGIS.
 
@@ -4376,7 +4483,8 @@ def require_a_usable_interpreter():
   """
   python = test_interpreter()
   probe = subprocess.run(
-    [python, "-c", "import qgis.core"], capture_output=True, text=True)
+    [python, "-c", "import qgis.core"], capture_output=True, text=True,
+    env=child_environment())
   if probe.returncode == 0:
     return
   sys.exit(
@@ -4440,7 +4548,8 @@ def run_test(name):
     result = subprocess.run(
       [python, watchdog, "--stall", "45", "--timeout", "420",
        "--quiet", "--", python, "-c", code],
-      cwd=BASE[0] or ROOT, capture_output=True, text=True, timeout=600)
+      cwd=BASE[0] or ROOT, capture_output=True, text=True, timeout=600,
+      env=child_environment())
     if result.returncode in (124, 125):
       raise subprocess.TimeoutExpired(cmd="mutation", timeout=420,
                                       output=result.stdout)

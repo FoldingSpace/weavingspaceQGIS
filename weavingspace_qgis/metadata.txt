@@ -45,32 +45,50 @@ server=False
 ; wants to know what moved reads on. One text serving both is how a
 ; changelog becomes a list nobody finishes.
 ; (Maintainer's instruction, 2026-08-13.)
-changelog=0.24.3 Areas with no value are drawn now rather than left
-    as gaps in the map. A colour can also mean the same thing
-    everywhere it appears, and you can set the class bounds yourself
-    where the automatic ones do not suit.
+changelog=0.24.3 You decide how your data is classed: which values are
+    drawn at all, where the first and last classes end, and what
+    becomes of the areas left out.
+    The range drawn: an element's ladder has four ends you can set
+    rather than two. The lowest and the highest values drawn say where
+    the ramp starts and stops, so two elements given the same pair
+    share a scale, and under Equal intervals or Unclassed they are cut
+    into exactly the same classes. Bring either end inside your own
+    data and the areas beyond it stop being classed: they are drawn in
+    a colour you choose, with their own line in the legend, rather
+    than left as gaps in the pattern. Leaving areas out changes which
+    tiles the map holds rather than only their colour, so the map
+    catches up at the next Generate and you are told so. An element
+    set to Unclassed names where its ramp starts and ends in a strip
+    above the class list.
     Missing values: an area whose value is absent used to come out as
     a hole in the map. So did one holding an infinity, which a
     classifier can no more place than a blank. Those areas are drawn
-    now, and told apart: no data, infinity, and negative infinity
-    each get their own colour and their own line in the legend,
-    and each sits in that element's colour editor to be changed. QGIS
-    gains a second layer beside the element carrying those areas,
-    while the dialog still shows one element.
-    Class bounds: the box holding the first or last class's inner
-    bound is live whenever that element can carry a pin. Move it off
-    the value the classification worked out and the bound is yours,
-    with the classes between recomputed around it; move it back and
-    the break returns to being worked out for you. Classes whose
-    breaks are always computed are hatched in the pin column. Bounds
-    that cannot be drawn are refused and the reason said, rather than
-    quietly turned into different numbers.
-    Copying: send one element's classes, colours, pins and class count
-    to another from the same window. Where the two carry different
+    now, and told apart: no data, infinity, negative infinity and the
+    values your own range leaves out each get their own colour and
+    their own line in the legend, and each sits in that element's
+    colour editor to be changed. QGIS gains a second layer beside the
+    element carrying those areas, while the dialog still shows one
+    element.
+    Class bounds: the first class and the last carry editable boxes,
+    and the classes between them carry none, their breaks always being
+    worked out for you. Move a bound off the value the classification
+    arrived at and that bound is yours, with the classes around it
+    recomputed; a heavy outline round the box says which of the
+    numbers in front of you are your own. A cross inside the box gives
+    one back, and typing the computed number in again does the same.
+    Bounds that cannot be drawn are refused and the reason said,
+    rather than quietly turned into different numbers.
+    Copying: send one element's classes, colours, bounds and class
+    count to as many other elements as you like, from the same window.
+    Tick them and press Copy. The range travels with the rest, so
+    holding several variables to one scale is one act rather than one
+    trip through the window each. Where two elements carry different
     columns the ends are fitted to the receiving data, and any class
     its values cannot reach is kept rather than dropped, so the
-    classification arrives whole. A pin the receiving column cannot
-    reach is left behind rather than carried, and said.
+    classification arrives whole. A bound the receiving column cannot
+    reach is left behind rather than carried, and said; an element
+    holding no values at all inside the range is left out, and named,
+    since the copy would leave it nothing to draw.
     Colour: an element is now classed from the whole map's values
     rather than from its own tiles alone, so two elements you have set
     up alike can be read against each other. They could not before:
@@ -86,9 +104,20 @@ changelog=0.24.3 Areas with no value are drawn now rather than left
     design about that axis and scale it by the size of the number.
     The up and down controls step through zero rather than stopping
     there.
-    Icons: you are told when an element has no icon for some of your
-    areas, and which elements those are. Nothing was said before,
-    because the other elements still drew those areas.
+    Icons: a design drawing one tile unit on each of your areas is no
+    longer refused as though it were a tiling of many thousands, and
+    live update no longer stops following you for the same reason.
+    Both checks had counted what a tiling would draw, so a hundred
+    icons came out as two hundred thousand tiles, and the advice to
+    try a coarser spacing was wrong besides: spacing decides how large
+    an icon is drawn rather than how many there are. Where areas of
+    very different size sit side by side an icon can be drawn from a
+    neighbouring area's value rather than its own, and you are told
+    that; it used to be reported as areas missing from the map, which
+    sent you looking for holes that were not there. You are also told
+    when an element has no icon for some of your areas, and which
+    elements those are. Nothing was said before, because the other
+    elements still drew those areas.
     Speed: the optional warning about colours a reader may not be
     able to separate used to hold QGIS still for half a minute on a
     map of many classes. It answers in under two seconds.
@@ -96,7 +125,7 @@ changelog=0.24.3 Areas with no value are drawn now rather than left
     back reversed, naming the ramp you chose rather than reading as
     custom colours. A class you recoloured in QGIS's Layer Styling
     panel comes back too, where the next Generate used to paint over
-    it.
+    it, and so does a ladder you retyped there.
     Your files: asking for a result in a new group no longer rewrites
     the output .gpkg from the beginning, which had been losing the
     tables your earlier runs wrote into it.
@@ -116,9 +145,12 @@ changelog=0.24.3 Areas with no value are drawn now rather than left
     and the plugin's table now follows it. Retype the class breaks,
     or copy a style from one element layer and paste it onto
     another, and the row comes to read the variable, the style, the
-    number of classes and the ramp that QGIS is holding. Until now
-    the row went on describing the map the plugin had last drawn,
-    and the next Generate replaced your work with it. Where the
+    number of classes and the ramp that QGIS is holding. The
+    boundaries you typed are kept as your own, the two outer ones
+    included, so the next Generate draws your ladder rather than
+    working one out again. Until now the row went on describing the
+    map the plugin had last drawn, and the next Generate replaced
+    your work with it. Where the
     renderer is something the dialog cannot describe at all, the
     Style reads "Deferring to QGIS" instead of naming a style that
     no longer decides the map: the renderer survives Generate, the

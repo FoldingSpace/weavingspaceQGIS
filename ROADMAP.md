@@ -176,23 +176,48 @@ corrected tool and all seventeen of the day's entries came back caught;
 and a standalone full suite is not owed at all, since `release.py --rc`
 runs it as its fourth gate and running it first buys no earlier warning.
 
-WHAT REMAINS UNDER 0.24.3 IS ONE DECISION, below, and it is the
-maintainer's: build Copy-to-several-targets for this version, or move
-it to 0.24.4. Nothing else here is outstanding in code.
+COPY-TO-SEVERAL-TARGETS IS BUILT and its entry is deleted. The
+chooser takes as many targets as you tick, the copy carries the floor
+and the ceiling it never carried before, a target the range would
+leave with nothing is refused alone and named, and one notice says
+what was copied and what was not. Guarded by a sixty-two-cell matrix
+and one fast test, with five proved catalogue entries; the two defects
+found on the way are rows 21 and 22 of
+`docs/process/defects-2026-08-19.md`.
 
-**COPY TO: ALLOW SELECTION OF MULTIPLE TARGETS.** Asked for by the
-maintainer, 2026-08-19. "Copy to..." names one receiving element at a
-time, so giving four elements one classification is four trips through
-the same window. The record and the arithmetic already work per
-target -- `_copy_classification(source, target)` is called once per
-pair -- so this is the chooser and the loop around it rather than new
-semantics.
+**WHAT NOW BLOCKS THIS VERSION IS A PERFORMANCE REGRESSION THIS
+VERSION INTRODUCED**, and it is the maintainer's call whether to fix
+it here or defer it. Ledger row 4 -- twenty-three elements being
+"extremely slow to work with" on the reporter's own data -- was
+measured on 2026-08-19 against that data (3,011 polygons, 23 REAL
+columns) and it is not a standing cost. It arrived after 0.24.2:
 
-WHAT MUST BE DECIDED WHEN IT IS BUILT: what happens when the copy
-succeeds for some targets and is refused for others, since a copy
-already checks each pin flag against the RECEIVING column and leaves
-behind what that column cannot reach. A partial success reported as a
-success is the shape this project keeps meeting.
+    calls per interactive tick   v0.24.0 122,066   v0.24.2 119,352
+                                 HEAD  1,041,176
+    CPU per tick                 170.5 ms   172.1 ms   3,543.4 ms
+    one Generate                 2.9 s      2.5 s      62.7 s
+
+`dialog._classification_values` is called 46 times per keystroke at 23
+elements, because `_assignments` asks `_value_digest` for every element
+and the cache holds ONE entry: twenty-three elements on twenty-three
+columns is a zero hit rate, so each one rescans 3,011 features and
+builds a fresh memory layer. The function exists at neither tag, so
+this is new code rather than an old cost meeting a big dataset.
+
+IT IS NOT ABOUT TILING. Held at 169 tiles and at 853, the four
+per-tick counts are identical to the digit, which is what the
+reporter's "even when the spacing is extremely coarse" was telling us.
+Nor is it grid-specific -- a hex design at 23 elements gives the same
+counts -- so the anthromes report is very likely this same fault.
+
+THE FIX IS SMALL AND MEASURED, and is NOT implemented: key the cache
+by (layer, field) for the current fingerprint rather than keeping one
+entry. Tried in a throwaway copy, it gives 70,228 calls per tick at
+72.6 ms and a 3.2 s Generate -- below 0.24.2 on three ticks of four.
+Its guard must COUNT those calls with elements on different columns; a
+one-column test passes today and would pass with the cache deleted.
+Full working, with every count and both profiles, is in the agent
+worktree at `dev/row4-profile-findings.md`.
 
 **THE TWO rc9 REPORTS ARE SETTLED FOR THIS VERSION.** The tile-as-icon
 count check is row 3 of `docs/process/defects-2026-08-19.md` and is
@@ -238,29 +263,6 @@ Lower and Upper columns, offset by about a row, on scrolling.
 ## 0.24.4 — after this one
 
 ### Wanted
-
-**JUDGE THE QGIS 4.2.0 LAYER-TREE CRASH.** Deferred out of 0.24.3 by
-the maintainer on 2026-08-19; the evidence is row 5 of
-`docs/process/defects-2026-08-19.md`. A macOS crash report has QGIS
-4.2.0 dying on a right-click in the Layers panel with `EXC_BAD_ACCESS`
-reading address 0x8, and NO plugin frame anywhere in the stack -- no
-Python, nothing of ours, only QGIS's layer-tree view and Qt's Cocoa
-window code. Checked rather than assumed: nothing in the package
-references `contextMenu`, `layerTreeView` or `addCustomActionForLayer`,
-so the plugin contributes no action to that menu and cannot be
-building the QMenu that crashed.
-
-WHAT WOULD CHANGE THAT VERDICT, since "no frame" is evidence rather
-than proof, and all three need a person at a real QGIS session rather
-than a headless run -- which is why this is not candidate work: does
-it reproduce with the plugin uninstalled, on the same project; does it
-reproduce right-clicking a layer the plugin did NOT create; and does
-it happen only after the plugin has removed or replaced a group, which
-is when a layer-tree node could be stale.
-
-VERSION WORTH NOTING: 4.2.0, which nothing in CI covers -- the matrix
-runs 4.0.0, 4.0.3 and stable. The neighbouring 4.2.1 has segfaulted on
-this project once before, reading a GeoPackage.
 
 **TAKE THE UPSTREAM LIBRARY FROM 0.0.7.61 TO 0.0.7.89.** Checked
 2026-08-18 under the standing rule that upstream is compared before

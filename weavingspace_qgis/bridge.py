@@ -2267,6 +2267,41 @@ def absence_kind(value, floor=None, ceiling=None):
   return None
 
 
+def limits_leave_nothing(values, floor=None, ceiling=None) -> bool:
+  """Would this floor and ceiling exclude every value a column holds?
+
+  Args:
+    values: that column's values, as QGIS hands them back. Values
+      that could never be drawn anyway -- nulls and the infinities --
+      are not counted, since an element made entirely of those has
+      nothing for a limit to exclude and is somebody else's problem.
+    floor: the lowest value drawn, or None for no floor.
+    ceiling: the highest value drawn, or None for no ceiling.
+
+  Returns:
+    True when no drawable value survives, which is the one thing a
+    limit must never be allowed to do: an element with no classes at
+    all draws flat and names nothing, and no control on the row says
+    which number did it. False when at least one value survives, and
+    False when there are no limits, since nothing has been excluded.
+
+  ONE OWNER, because two sites now ask this and they must ask it the
+  same way. `dialog._retire_an_undrawable_pin` asks it of a record a
+  reopened project or a QGIS-side retype handed over, and heals what
+  it finds; `dialog._copy_classification` asks it of a target BEFORE
+  copying, and refuses that target rather than healing it afterwards.
+  The two answers have to agree, or a copy would write limits the
+  next reconciliation silently drops. When two sites judge one
+  record, they ask the judge the same question -- a rule this project
+  has now paid for at `pin_problem` as well.
+  """
+  if floor is None and ceiling is None:
+    return False
+  return not any(
+    absence_kind(value, floor, ceiling) != OUTSIDE_RANGE_KEY
+    for value in values if not cannot_be_placed(value))
+
+
 def quant_class_colours(ramp_name: str, reverse: bool, count: int,
                         range_bounds: tuple = (0, 100)) -> list:
   """The colours a graduated element wears, for a given ramp and k.
