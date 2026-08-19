@@ -4333,6 +4333,63 @@ BASELINE = {}
 BASELINE_OUTPUT = {}
 
 
+def test_interpreter():
+  """The Python the tests must run under, which is QGIS's own.
+
+  Returns:
+    A path to an interpreter that can `import qgis`. `QGIS_PY` from the
+    environment when it is set -- `tools/macos_qgis_env.sh` exports it,
+    and the macOS CI job sources the same script -- and otherwise this
+    process's own interpreter.
+
+  WHY THIS EXISTS, and it invalidated a day's verdicts before anybody
+  looked. Every test was launched with `sys.executable`. This module is
+  invoked as `env -u PYTHONHOME -u PYTHONPATH python3`, because a plain
+  `python3` that has inherited the QGIS environment dies at bootstrap
+  -- a trap written down twice in CLAUDE.md -- and the interpreter that
+  leaves you with is the system one, which HAS NO QGIS. So every test
+  died at `import qgis.core`, exit 1, and a test that "failed" is
+  scored `caught`.
+
+  THE WHOLE CATALOGUE THEREFORE REPORTED SUCCESS FOR ANY ENTRY
+  WHATEVER, including entries whose behaviour was not guarded at all
+  and one whose test could not fail by construction. Measured
+  2026-08-19: `/Library/Developer/CommandLineTools/usr/bin/python3 -c
+  "import qgis.core"` gives ModuleNotFoundError, while the same test in
+  the same sandbox under QGIS's own Python passes in 2.4 seconds.
+
+  A CHECK THAT CAN ONLY CONFIRM IS NOT A CHECK -- this project's own
+  rule, and the catalogue was one: it could report `caught` and nothing
+  else. `require_a_usable_interpreter` below refuses to run rather than
+  producing verdicts nobody can trust.
+  """
+  return os.environ.get("QGIS_PY") or sys.executable
+
+
+def require_a_usable_interpreter():
+  """Refuse to judge anything unless the tests can actually import QGIS.
+
+  Returns:
+    None. Exits with a message naming the interpreter and how to fix
+    it, because a catalogue that runs and reports is worse than one
+    that refuses: its verdicts get written into a ledger.
+  """
+  python = test_interpreter()
+  probe = subprocess.run(
+    [python, "-c", "import qgis.core"], capture_output=True, text=True)
+  if probe.returncode == 0:
+    return
+  sys.exit(
+    f"REFUSING TO JUDGE: {python} cannot import qgis, so every test "
+    f"would die at its first import and every entry would be reported "
+    f"`caught` whatever the mutation did.\n\n"
+    f"Source the environment first, which exports QGIS_PY:\n"
+    f"  eval \"$(bash tools/macos_qgis_env.sh 2>/dev/null "
+    f"| grep -E '^[A-Z_]+=' | sed 's/^/export /')\"\n"
+    f"then run this module with `env -u PYTHONHOME -u PYTHONPATH "
+    f"python3`, which is still right for the module itself.")
+
+
 def test_passes_clean(name):
   """Whether the named test passes with NO mutation applied.
 
@@ -4379,9 +4436,10 @@ def run_test(name):
   # waiting out a timeout that tells us nothing about where.
   watchdog = os.path.join(BASE[0] or ROOT, "tools", "watchdog.py")
   try:
+    python = test_interpreter()
     result = subprocess.run(
-      [sys.executable, watchdog, "--stall", "45", "--timeout", "420",
-       "--quiet", "--", sys.executable, "-c", code],
+      [python, watchdog, "--stall", "45", "--timeout", "420",
+       "--quiet", "--", python, "-c", code],
       cwd=BASE[0] or ROOT, capture_output=True, text=True, timeout=600)
     if result.returncode in (124, 125):
       raise subprocess.TimeoutExpired(cmd="mutation", timeout=420,
@@ -4506,6 +4564,7 @@ def main():
   for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
     signal.signal(sig, restore)
 
+  require_a_usable_interpreter()
   sys.path.insert(0, HERE)
   from sandbox import discard, make_sandbox
   BASE[0] = make_sandbox("catalogue")
