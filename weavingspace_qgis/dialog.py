@@ -4959,7 +4959,24 @@ class WeavingSpaceDialog(QDialog):
     if record.get("breaks"):
       return None
     asked = int(assignment.get("k", 5) or 5)
-    if not bridge.pin_problem(low, high, values, asked,
+    # ASKED OF THE POOL THE MAP IS CUT FROM, not of the whole column.
+    # (Maintainer's ruling, 2026-08-19.) A floor or ceiling narrows
+    # what the scheme classifies, and `bridge` judges the pin against
+    # THAT pool -- so a pin the narrowed pool cannot carry was dropped
+    # there, silently, while this site asked the un-narrowed question,
+    # answered "fine", and said nothing. The record, the layer stamp
+    # and the saved project then all went on claiming a pin the map
+    # does not draw.
+    #
+    # THE TWO SITES NOW ASK THE JUDGE THE SAME QUESTION, which is this
+    # project's own rule for a record judged in two places. The limits
+    # stand and the pin is retired with the sentence below, the same
+    # one a pin the data moved out from under already gets.
+    judged = [v for v in values
+              if bridge.absence_kind(v, record.get("floor"),
+                                     record.get("ceiling"))
+              != bridge.OUTSIDE_RANGE_KEY]
+    if not bridge.pin_problem(low, high, judged, asked,
                               record.get("breaks")):
       return None
     # THE COUNT IN FORCE IS ASKED, AND NOTHING SOFTENS IT HERE.
@@ -4977,6 +4994,21 @@ class WeavingSpaceDialog(QDialog):
     # now: the spinner refuses, and `_sync_row` raises a restored
     # count to one the pins fit. So a count reaching here really is
     # undrawable, and retiring it with a sentence is right.
+    # ONLY THE PINS WHERE ONLY THE NARROWING REFUSED THEM.
+    # (Maintainer's ruling, 2026-08-19.) Where the pin is undrawable
+    # against the pool the LIMITS leave but drawable against the whole
+    # column, the limits are what made it so -- and the ruling is that
+    # THE LIMITS STAND AND THE PIN GOES. Taking the limits as well
+    # would undo a second thing the user set, which they were never
+    # asked about and would have to set again.
+    if not bridge.pin_problem(low, high, values, asked,
+                              record.get("breaks")):
+      record.pop("low", None)
+      record.pop("high", None)
+      self._custom_swatch_cache.pop(tile_id, None)
+      return (f"The class bound you set on '{field}' cannot be drawn "
+              f"from the values it holds now, so it has been "
+              f"recalculated.")
     # Clear the whole record for this field: the flags and any copied
     # boundary values go together, because what made them undrawable
     # was the column moving beneath all of them at once.

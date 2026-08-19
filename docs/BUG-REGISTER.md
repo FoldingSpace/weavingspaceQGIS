@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-260 defect(s) with a regression test.
+261 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -93,6 +93,8 @@ there is no separate list to remember.
   guarded by `test_a_limit_edit_that_draws_nothing_new_still_says_so`
 - **2026-08-19. Measured through the dialog on Reds: five classes from #fff5f0 to #67000d became five identical greys.**  
   guarded by `test_a_limit_keeps_the_colours_the_ramp_gives`
+- **2026-08-19, found by a hunt reading the saved project with zipfile. A floor of 38 under a pin at 40 leaves NO value between them on this column, which is what makes the pin undrawable.**  
+  guarded by `test_a_limit_that_refuses_a_pin_retires_the_pin_and_says_so`
 - **2026-08-19. Found by three hunts at once, one of them in pixels: 4,394 of an element's paint gone, 27.5 per cent of it.**  
   guarded by `test_a_moved_limit_re_splits_the_tiles`
 - **nothing described what a negative scale factor did to the map, so the only guard on the feature was that its spin box could reach negative numbers.**  
@@ -568,7 +570,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- a bug hunt pointed in a named direction: 89
+- a bug hunt pointed in a named direction: 90
 - not written down at the time: 84
 - reported by a user: 19
 - the mutation campaign: 16

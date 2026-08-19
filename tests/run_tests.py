@@ -50934,6 +50934,84 @@ def test_two_columns_with_one_pair_of_limits_draw_one_ladder():
     dlg.close()
 
 
+def test_a_limit_that_refuses_a_pin_retires_the_pin_and_says_so():
+  """When a limit and a pin cannot both be drawn, the limit stands.
+
+  A floor or ceiling narrows what the scheme classifies, and `bridge`
+  judges a pin against THAT pool -- so a pin the narrowed pool cannot
+  carry was dropped there, silently, while `_retire_an_undrawable_pin`
+  asked the un-narrowed question, answered "fine" and said nothing.
+  The record, the layer stamp and the saved project all went on
+  claiming a pin the map does not draw, which a reopen restored.
+
+  THE MAINTAINER'S RULING, 2026-08-19: the two sites ask the judge the
+  same question, and where the limits are what make a pin undrawable
+  THE LIMITS STAND AND THE PIN GOES, with the reason said -- the same
+  sentence a pin the data moved out from under already gets. Only the
+  pins are cleared, because taking the limits too would undo a second
+  thing the user set and was never asked about.
+
+  Regression: 2026-08-19, found by a hunt reading the saved project
+  with zipfile. A floor of 38 under a pin at 40 leaves NO value
+  between them on this column, which is what makes the pin
+  undrawable. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  pin_at, floor = 40.0, 38.0
+  layer = make_region_layer(n=12)
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(200)
+    dlg.table.cellWidget(1, 1).setCurrentText("v3")
+    _tick(100)
+    dlg.table.cellWidget(1, 2).setCurrentText("Quant: Quantiles")
+    _tick(150)
+    dlg._update_dynamic_columns()
+    _tick(150)
+    tid = dlg.table.item(1, 0).text()
+    dlg.spacing_spin.setValue(1200)
+
+    dlg._pinned_bounds.setdefault(tid, {})["v3"] = {"high": pin_at}
+    _generate_and_wait(dlg)
+    _tick(300)
+    out = QgsProject.instance().mapLayer(dlg._element_layer_ids[tid])
+    edges = [round(r.lowerValue(), 6) for r in list(out.renderer().ranges())]
+    assert any(abs(edge - pin_at) < 1e-6 for edge in edges), \
+      f"the pin alone did not reach the map ({edges}), so nothing " \
+      f"below is about a limit refusing it"
+
+    del BAR_MESSAGES[:]
+    dlg._pinned_bounds[tid]["v3"] = {"high": pin_at, "floor": floor}
+    _generate_and_wait(dlg)
+    _tick(400)
+
+    kept = dict(dlg._pinned_bounds.get(tid, {}).get("v3") or {})
+    assert kept.get("high") is None, \
+      f"the pin survived in the record ({kept}) while the map cannot " \
+      f"draw it, so a reopen restores a pin nothing honours"
+    assert kept.get("floor") == floor, \
+      f"the limit was taken away with the pin ({kept}); the ruling is " \
+      f"that the limits stand"
+    said = [text for _kind, text in BAR_MESSAGES]
+    assert any("class bound you set" in text for text in said), \
+      f"the pin was retired and nothing said so: {said}"
+    out = QgsProject.instance().mapLayer(dlg._element_layer_ids[tid])
+    spans = list(out.renderer().ranges())
+    assert spans and round(spans[0].lowerValue(), 6) == floor, \
+      f"the map runs from {spans[0].lowerValue() if spans else None}, " \
+      f"not from the floor that stood"
+    import json
+    raw = out.customProperty("weavingspace_quant_style")
+    stamped = (json.loads(raw).get("pinned") or {}) if raw else {}
+    assert stamped.get("high") is None and stamped.get("floor") == floor, \
+      f"the stamp says {stamped}, so a reopen disagrees with the map"
+  finally:
+    dlg.close()
+
+
 def test_a_count_set_in_qgis_releases_a_copied_ladder():
   """A class count from QGIS degrades a copy, as one from the table does.
 
@@ -53176,6 +53254,8 @@ def main():
         test_a_dock_reclassification_lands_while_a_run_is_finishing)
   check("two columns with one pair of limits draw one ladder",
         test_two_columns_with_one_pair_of_limits_draw_one_ladder)
+  check("a limit that refuses a pin retires the pin and says so",
+        test_a_limit_that_refuses_a_pin_retires_the_pin_and_says_so)
   check("a count set in qgis releases a copied ladder",
         test_a_count_set_in_qgis_releases_a_copied_ladder)
   check("limits the data moved out from under are dropped",

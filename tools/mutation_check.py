@@ -3824,6 +3824,23 @@ MUTATIONS = [
            "limited alike to 0-12 drew 0-1-2-3-4-12 and "
            "0-2.4-4.8-7.2-9.6-12, disagreeing everywhere between ends "
            "their legends agree on"),
+  dict(name="a-pin-is-judged-against-the-pool-the-map-uses", file=DIALOG,
+       # ANCHORED ON THE NARROWING, which is the whole of the fix: the
+       # judge and the call were both there already and were being
+       # asked about the wrong values.
+       old="""    judged = [v for v in values
+              if bridge.absence_kind(v, record.get("floor"),
+                                     record.get("ceiling"))
+              != bridge.OUTSIDE_RANGE_KEY]""",
+       new="    judged = list(values)",
+       test="test_a_limit_that_refuses_a_pin_retires_the_pin_and_says_so",
+       why="a floor or ceiling narrows what the scheme classifies and "
+           "bridge judges the pin against THAT pool, so a pin the "
+           "narrowed pool cannot carry is dropped there. Asked the "
+           "un-narrowed question this site answers 'fine' and says "
+           "nothing, and the record, the layer stamp and the saved "
+           "project all go on claiming a pin the map does not draw -- "
+           "which a reopen restores"),
   dict(name="a-count-from-qgis-releases-a-copy", file=DIALOG,
        old='        self._release_copied_breaks(tile_id, "a new class count")',
        new="        pass  # mutation: keep the copied ladder",
