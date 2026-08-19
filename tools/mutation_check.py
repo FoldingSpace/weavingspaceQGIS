@@ -2938,8 +2938,15 @@ MUTATIONS = [
        # which ran straight into `def _bound_edited` -- matched
        # nothing and reported nothing, which reads exactly like
        # success. Found by check_standards at push time.
+       # RE-ANCHORED AGAIN 2026-08-19, and by the same move: the mark
+       # sweep `_refresh_marks` was added after the sync when the Pin
+       # column's checked state was replaced by an outline on the box.
+       # TWICE NOW this entry has been broken by a line appended below
+       # its anchor, which is the argument for anchoring on the CALL
+       # being guarded rather than on the block that follows it.
        old="    self._redraw_bounds(answer)\n"
-           "    self._sync_pin_controls(which, pair)\n\n"
+           "    self._sync_pin_controls(which, pair)\n"
+           "    self._refresh_marks()\n\n"
            "  def _bound_edited",
        new="    pass\n\n  def _bound_edited",
        test="test_pinning_redraws_the_window_it_was_typed_into",

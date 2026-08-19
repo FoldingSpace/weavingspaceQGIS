@@ -1209,6 +1209,13 @@ class CategoryColourDialog(QDialog):
 
     Args:
       which: "floor" or "ceiling".
+      source: the box that fired, where an edge is named by more than
+        one control -- the table's outer cell and, on an Unclassed
+        row, the strip above it. Omitted, the first registered control
+        answers, which is right only where there is one. The pinned
+        family learned in 2026-08-17 what that fallback costs: it read
+        the strip's stale number when the table's box was what moved,
+        and silently discarded every value typed after the first.
 
     Returns:
       None. Reports through the same `pin_changed` callback the pins
