@@ -289,8 +289,11 @@ MUTATIONS = [
            "what lies beneath, until an unrelated restyle silently "
            "corrects it"),
   dict(name="the-no-data-split-is-geometry-not-style", file=DIALOG,
+       # RE-ANCHORED 2026-08-19: the term gained the limits as VALUES,
+       # so every entry standing on this tuple had to move with it.
        old="""      tuple((a["id"],
-             a.get("var") if self._needs_a_no_data_split(a) else None)
+             a.get("var") if self._needs_a_no_data_split(a) else None,
+             self._limits_key(a))
             for a in self._assignments()),""",
        new="""      (),""",
        test="test_changing_to_a_graduated_style_cuts_the_split_it_needs",
@@ -334,10 +337,15 @@ MUTATIONS = [
            "the file, and the map a user sends on draws its "
            "missing-value areas opaque over a faded element"),
   dict(name="the-split-term-carries-the-field", file=DIALOG,
+       # RE-ANCHORED 2026-08-19, with the limits term added: what this
+       # proves is unchanged -- the FIELD, not a yes/no -- so the
+       # mutation still coarsens only that half.
        old="""      tuple((a["id"],
-             a.get("var") if self._needs_a_no_data_split(a) else None)
+             a.get("var") if self._needs_a_no_data_split(a) else None,
+             self._limits_key(a))
             for a in self._assignments()),""",
-       new="""      tuple((a["id"], self._needs_a_no_data_split(a))
+       new="""      tuple((a["id"], self._needs_a_no_data_split(a),
+             self._limits_key(a))
             for a in self._assignments()),""",
        test="test_swapping_two_variables_re_cuts_both_splits",
        why="a boolean per element is invariant under a permutation, "
@@ -3757,19 +3765,17 @@ MUTATIONS = [
            "edit away and the next re-seed writes the plugin's own "
            "ladder over what the user typed"),
   dict(name="an-adopted-ladder-moves-the-row-signature", file=DIALOG,
-       # ANCHORED THROUGH THE NEXT `def`, because the three lines
-       # themselves are the idiom four other adoption exits use and
-       # the bare block matches in four places. What is at stake is
-       # that THIS exit records it: the bounds' twin of the colour
-       # adoptions, written without the line they all carry.
-       old="""    refreshed = self._assignment_for(tile_id)
-    if refreshed is not None:
-      self._last_signatures[tile_id] = self._signature(refreshed)
-
-  def _replay_deferred_adoptions(self):""",
-       new="""    pass  # mutation: leave the signature naming the old row
-
-  def _replay_deferred_adoptions(self):""",
+       # RE-ANCHORED 2026-08-19, hours after it was written, by the
+       # commit that gave this exit the stamp its four siblings carry:
+       # the anchor ran through the next `def`, and a `def` is exactly
+       # what stops following a line when something is inserted above
+       # it. Anchored on the CALL now, with the comment that follows
+       # it for uniqueness, since the bare block is an idiom matching
+       # in four places.
+       old="""      self._last_signatures[tile_id] = self._signature(refreshed)
+      # ...AND THE STAMP AND THE FILE, which this exit forgot, exactly""",
+       new="""      pass  # mutation: leave the signature naming the old row
+      # ...AND THE STAMP AND THE FILE, which this exit forgot, exactly""",
        test="test_a_dock_reclassification_lands_while_a_run_is_finishing",
        why="adopting a retyped ladder puts breaks, floor and ceiling "
            "into the record, which the signature carries -- so without "
@@ -3780,6 +3786,67 @@ MUTATIONS = [
            "landing came back as the plugin's five, because a "
            "five-class retype adopted a moment earlier had moved the "
            "row and told nothing"),
+  dict(name="a-limit-keeps-its-ramp-colours", file=BRIDGE,
+       # ANCHORED ON THE GATE, not on the recolour it guards: the
+       # recolour was always right and was simply never reached with a
+       # limit in force. Mutating inside it would prove the arithmetic
+       # while leaving the actual defect -- nothing recoloured at all
+       # -- unguarded.
+       old="  elif ((lo, hi) != (0, 100) or pins or limits) and count:",
+       new="  elif ((lo, hi) != (0, 100) or pins) and count:",
+       test="test_a_limit_keeps_the_colours_the_ramp_gives",
+       why="setting a limit rebuilds the ladder through "
+           "set_class_bounds, which builds every class with a "
+           "placeholder grey, and this recolour is the only thing "
+           "that ever gives them ramp colours. Without the term the "
+           "whole element drew #c0c0c0 -- five Reds classes became "
+           "five identical greys on a floor that excluded nothing "
+           "whatever, and on a map of areas that reads as no data"),
+  dict(name="a-moved-limit-moves-the-signature", file=DIALOG,
+       old="""      tuple((a["id"],
+             a.get("var") if self._needs_a_no_data_split(a) else None,
+             self._limits_key(a))
+            for a in self._assignments()),""",
+       new="""      tuple((a["id"],
+             a.get("var") if self._needs_a_no_data_split(a) else None)
+            for a in self._assignments()),""",
+       test="test_a_moved_limit_re_splits_the_tiles",
+       why="a limit is a geometry change, and the split predicate "
+           "answers yes for a floor of 1 and a floor of 2.5 alike. "
+           "Without the values the signature never moves, the restyle "
+           "path takes the change, and it can neither make nor unmake "
+           "a split -- so the areas a raised floor newly excludes stay "
+           "on the element layer with no class to place them and draw "
+           "as holes, while the notice says to press Generate"),
+  dict(name="an-adopted-ladder-is-stamped", file=DIALOG,
+       old="""      layer_now = QgsProject.instance().mapLayer(
+        self._element_layer_ids.get(tile_id) or "")
+      if layer_now is not None:
+        self._stamp_category_colours(layer_now, refreshed)
+        if self._last_path:
+          bridge.embed_style(layer_now)""",
+       new="      pass  # mutation: adopt without stamping",
+       test="test_an_adopted_ladder_is_stamped_for_a_reopen",
+       why="nothing on a renderer records that a break was CHOSEN "
+           "rather than computed, so this stamp is all a reopened "
+           "project has. The signature recorded three lines above -- "
+           "which is what stops the landing clobbering the ladder -- "
+           "also makes _restyle_only skip the element, so without the "
+           "stamp a Generate cannot heal what a reopen has lost"),
+  dict(name="icon-mode-counts-its-icons", file=DIALOG,
+       old="""    if as_icons:
+      est = bridge.estimate_icon_count(self._unit, len(region))
+    else:
+      est = bridge.estimate_tile_count(self._unit, region)""",
+       new="    est = bridge.estimate_tile_count(self._unit, region)",
+       test="test_icon_mode_is_not_counted_as_a_tiling",
+       why="the tiling estimate mirrors the library's grid and scales "
+           "with 1/spacing squared, while icon mode puts ONE unit on "
+           "each area and the spacing only decides how big it is "
+           "drawn. Asked the wrong question the guard answered 208,521 "
+           "for a design that draws 100, refused the run outright, and "
+           "advised a larger spacing, which would have drawn bigger "
+           "icons rather than fewer of them"),
   dict(name="a-limit-narrows-what-is-classified", file=BRIDGE,
        old='      clause += f\' AND "{field}" >= {float(floor):.17g}\'',
        new="      pass  # mutation: classify past the floor",

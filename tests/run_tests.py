@@ -50840,6 +50840,252 @@ def test_the_class_count_changes_under_an_open_quant_editor():
     dlg.close()
 
 
+def test_a_limit_keeps_the_colours_the_ramp_gives():
+  """A floor or ceiling must not repaint the element.
+
+  Setting a limit rebuilds the ladder through `bridge.set_class_bounds`
+  so the outer edges sit on the limits, and that helper builds every
+  class with a placeholder grey. Only the recolour below it ever gives
+  those classes their ramp colours, and its gate asked about the ramp
+  display window and about pins -- never about limits. So a floor with
+  the window left alone painted the WHOLE ELEMENT #c0c0c0, which on a
+  map of areas reads as no data.
+
+  THE FLOOR HERE EXCLUDES NOTHING, deliberately: at -1000 over a column
+  of small positives every value survives, so the only thing that can
+  have changed the colours is the limit's own path. A limit that
+  excluded rows would leave two explanations for one symptom.
+
+  Regression: 2026-08-19. Measured through the dialog on Reds: five
+  classes from #fff5f0 to #67000d became five identical greys. [hunt]
+  """
+  dlg, _layer, tid = _quant_dialog(mode="Quant: Quantiles", k=5,
+                                   ramp="Reds", row=1)
+  try:
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(200)
+    before = _class_hexes(dlg, tid)
+    assert len(set(before)) > 1, \
+      f"the element already draws one colour ({before}), so this case " \
+      f"could not show a repaint if there were one"
+    field = dlg._assignment_for(tid)["var"]
+    dlg._pinned_bounds.setdefault(tid, {})[field] = {"floor": -1000.0}
+    dlg._apply_style_change()
+    _tick(600)
+    after = _class_hexes(dlg, tid)
+    assert len(set(after)) > 1, \
+      f"a floor of -1000, which excludes nothing, repainted the " \
+      f"element from {before} to {after}: every class is now the same " \
+      f"colour, which on a map of areas reads as no data"
+    assert after == before, \
+      f"a floor that excludes nothing moved the colours from {before} " \
+      f"to {after}"
+  finally:
+    dlg.close()
+
+
+def test_a_moved_limit_re_splits_the_tiles():
+  """Raising a floor must move the newly excluded tiles across.
+
+  A limit is a GEOMETRY change: excluding a value moves its tiles onto
+  the paired layer, and `_restyle_only` can neither make nor unmake
+  one. The geometry signature carried the split as a yes/no, so a
+  floor raised from one value to another answered yes both times, the
+  signature never moved, the restyle path took the change, and the
+  areas the higher floor newly excluded stayed on the element layer
+  with no class to place them -- holes, while the notice said to press
+  Generate, which changed nothing.
+
+  ASKED OF THE LAYERS rather than of the renderer, so the measurement
+  does not share code with the thing it measures: the element and its
+  twin are counted, and the totals must add up both times.
+
+  Regression: 2026-08-19. Found by three hunts at once, one of them in
+  pixels: 4,394 of an element's paint gone, 27.5 per cent of it. [hunt]
+  """
+  dlg, _layer, tid = _quant_dialog(mode="Quant: Quantiles", k=5,
+                                   ramp="Reds", row=1)
+  try:
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(200)
+    field = dlg._assignment_for(tid)["var"]
+
+    def counted():
+      """(element features, paired features) as the layers report."""
+      project = QgsProject.instance()
+      element = project.mapLayer(dlg._element_layer_ids.get(tid) or "")
+      twin = project.mapLayer(dlg._no_data_layer_ids.get(tid) or "")
+      return (element.featureCount() if element is not None else 0,
+              twin.featureCount() if twin is not None else 0)
+
+    whole = sum(counted())
+    dlg._pinned_bounds.setdefault(tid, {})[field] = {"floor": 1.0}
+    _generate_and_wait(dlg)
+    _tick(300)
+    low = counted()
+    dlg._pinned_bounds[tid][field] = {"floor": 2.5}
+    _generate_and_wait(dlg)
+    _tick(300)
+    high = counted()
+
+    assert low[1] > 0, \
+      f"a floor of 1.0 excluded nothing ({low}), so raising it cannot " \
+      f"show anything and this case is vacuous"
+    assert high != low, \
+      f"raising the floor from 1.0 to 2.5 left the split exactly where " \
+      f"it was ({low} then {high}): the tiles the higher floor excludes " \
+      f"are still on the element layer, where its renderer has no class " \
+      f"for them and they draw as holes"
+    assert high[1] > low[1], \
+      f"a higher floor excluded FEWER tiles: {low} then {high}"
+    assert sum(high) == sum(low) == whole, \
+      f"tiles went missing rather than moving: {whole} before any " \
+      f"limit, {sum(low)} at floor 1.0, {sum(high)} at floor 2.5"
+  finally:
+    dlg.close()
+
+
+def test_an_adopted_ladder_is_stamped_for_a_reopen():
+  """A ladder retyped in QGIS must survive the project being reopened.
+
+  Nothing on a renderer records that a break was CHOSEN rather than
+  computed, so `weavingspace_quant_style` is the only thing a reopened
+  project has to go on. The four colour adoption exits stamp; the
+  bounds exit was written without it, so the map came back looking
+  right and the next Generate quietly recomputed the plugin's own
+  numbers. Recording the signature there -- which is what stops the
+  landing clobbering the ladder -- also makes `_restyle_only` skip the
+  element, so a Generate cannot heal what a reopen has lost.
+
+  Regression: 2026-08-19. Found by a hunt reading the saved project
+  with `zipfile` and the exported GeoPackage with `sqlite3`, neither
+  of which involves QGIS: the retyped ranges were in the file's QML
+  and the stamp appeared nowhere. [hunt]
+  """
+  import json
+  from qgis.core import (QgsGraduatedSymbolRenderer, QgsStyle, QgsSymbol)
+  from weavingspace_qgis import compat
+  dlg, _layer, tid = _quant_dialog(mode="Quant: Quantiles", k=5,
+                                   ramp="Reds", row=1)
+  try:
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(200)
+    out = QgsProject.instance().mapLayer(dlg._element_layer_ids[tid])
+    field = dlg._assignment_for(tid)["var"]
+
+    renderer = QgsGraduatedSymbolRenderer(field)
+    renderer.setSourceSymbol(QgsSymbol.defaultSymbol(out.geometryType()))
+    renderer.setSourceColorRamp(QgsStyle.defaultStyle().colorRamp("Reds"))
+    method = compat.classification_method("Quantiles")
+    if method is not None:
+      renderer.setClassificationMethod(method)
+    renderer.updateClasses(out, 5)
+    ranges = list(renderer.ranges())
+    edges = [(r.lowerValue(), r.upperValue()) for r in ranges]
+    # ONE BOUNDARY MOVED AND NO COLOUR, which is what adoption is for:
+    # a dock CLASSIFY rewrites both and is followed elsewhere.
+    edges[0] = (edges[0][0], edges[0][1] + 0.37)
+    edges[1] = (edges[0][1], edges[1][1])
+    for i, (lo, hi) in enumerate(edges):
+      renderer.updateRangeLowerValue(i, lo)
+      renderer.updateRangeUpperValue(i, hi)
+    out.setRenderer(renderer)
+    out.triggerRepaint()
+    _tick(600)
+
+    record = dict(dlg._pinned_bounds.get(tid, {}).get(field) or {})
+    assert record.get("breaks"), \
+      f"the retype was not adopted at all ({record}), so this case " \
+      f"cannot say anything about stamping it"
+    raw = out.customProperty("weavingspace_quant_style")
+    assert raw, \
+      f"the ladder was adopted as {sorted(record)} and nothing was " \
+      f"stamped on the layer, so reopening the project loses it and " \
+      f"the next Generate recomputes the plugin's own numbers"
+    stamped = json.loads(raw).get("pinned") or {}
+    assert stamped.get("breaks") == record.get("breaks"), \
+      f"the stamp carries {stamped.get('breaks')} where the record " \
+      f"holds {record.get('breaks')}"
+    for end in ("floor", "ceiling"):
+      assert (end in stamped) == (end in record), \
+        f"the record has {sorted(record)} and the stamp has " \
+        f"{sorted(stamped)}: {end} would not survive a reopen"
+  finally:
+    dlg.close()
+
+
+def test_icon_mode_is_not_counted_as_a_tiling():
+  """Drawing one tile unit per area must not be refused as a tiling.
+
+  Both size gates asked `estimate_tile_count`, which mirrors the
+  library's grid -- a circle over the region's bounds stepped by the
+  unit's translation vectors, so it scales with 1/spacing squared.
+  Icon mode does no tiling at all: one unit goes on each area, and the
+  spacing decides how BIG an icon is drawn. Neither gate was ever told
+  which mode it was in.
+
+  Regression: 2026-08-19, the maintainer's report. Twenty-five areas
+  and a four-element unit: the guard answered 208,521 where icon mode
+  drew 100, so Generate was refused outright and live update had
+  already paused itself. [user]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer(n=5, cell=1000.0)
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(200)
+    dlg.opt_icons.setChecked(True)
+    # FINE ENOUGH THAT THE TILING ESTIMATE PASSES THE HARD CEILING, or
+    # the gate could not refuse and the case would prove nothing.
+    dlg.spacing_spin.setValue(28.0)
+    _tick(400)
+    assert dlg._unit is not None, "the dialog built no unit to ask about"
+
+    elements = max(len(dlg._unit.tiles), 1)
+    wanted = layer.featureCount() * elements
+    assert bridge.estimate_icon_count(dlg._unit, layer.featureCount()) \
+        == wanted, \
+      f"icon mode draws one unit on each of {layer.featureCount()} " \
+      f"areas, so the count is {wanted}"
+
+    ext = dlg._extent_in_working_units(layer)
+    bounds = (ext.xMinimum(), ext.yMinimum(), ext.xMaximum(),
+              ext.yMaximum())
+    tiling_guess = bridge.estimate_tile_count_bounds(dlg._unit, bounds)
+    assert tiling_guess > bridge.MAX_TILES_HARD, \
+      f"the tiling estimate is only {tiling_guess:,}, under the " \
+      f"ceiling of {bridge.MAX_TILES_HARD:,}, so nothing here could " \
+      f"have been refused and this case is vacuous"
+
+    del MODALS[:]
+    dlg.live_check.setChecked(True)
+    dlg._maybe_live_generate()
+    _tick(300)
+    note = dlg.live_note.text()
+    dlg.live_check.setChecked(False)
+    _tick(200)
+    assert "paused" not in note, \
+      f"live update paused itself on a design of {wanted} tiles, " \
+      f"saying {note!r}"
+
+    _generate_and_wait(dlg)
+    _tick(300)
+    refusals = [text for kind, text in MODALS if kind == "critical"]
+    assert not refusals, \
+      f"Generate was refused on a design of {wanted} tiles: {refusals}"
+    assert dlg._element_layer_ids, \
+      "Generate produced no element layers at all"
+  finally:
+    dlg.close()
+
+
 def test_a_dock_reclassification_lands_while_a_run_is_finishing():
   """QGIS's own Classify, pressed while a tiling is in flight.
 
@@ -52490,6 +52736,14 @@ def main():
         test_the_class_count_changes_under_an_open_quant_editor)
   check("a dock reclassification lands while a run is finishing",
         test_a_dock_reclassification_lands_while_a_run_is_finishing)
+  check("a limit keeps the colours the ramp gives",
+        test_a_limit_keeps_the_colours_the_ramp_gives)
+  check("a moved limit re-splits the tiles",
+        test_a_moved_limit_re_splits_the_tiles)
+  check("an adopted ladder is stamped for a reopen",
+        test_an_adopted_ladder_is_stamped_for_a_reopen)
+  check("icon mode is not counted as a tiling",
+        test_icon_mode_is_not_counted_as_a_tiling)
   check("an element layer is deleted between a generate and a restyle",
         test_an_element_layer_is_deleted_between_a_generate_and_a_restyle)
   check("the output group is renamed while a run is in flight",

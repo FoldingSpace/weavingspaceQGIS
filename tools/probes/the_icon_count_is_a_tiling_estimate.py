@@ -105,21 +105,67 @@ def main():
   elements = max(len(unit.tiles), 1)
   print(f"areas               {areas}")
   print(f"elements in unit    {elements}")
-  print(f"guard estimates     {guard:,}")
+  print(f"tiling estimator    {guard:,}")
   print(f"icon mode draws     {drawn:,}")
-  print(f"hard ceiling        {bridge.MAX_TILES_HARD:,}")
-  print(f"confirm threshold   {bridge.MAX_TILES_CONFIRM:,}")
-  print(f"refused outright    {guard > bridge.MAX_TILES_HARD}")
-  print(f"asks 'are you sure' {guard > bridge.MAX_TILES_CONFIRM}")
-  print(f"live update paused  {guard > bridge.LIVE_UPDATE_MAX_TILES}")
 
-  if drawn and guard > 10 * drawn:
-    print(f"\nTHE GUARD IS ANSWERING ABOUT A TILING. It estimates "
-          f"{guard:,} where icon mode draws {drawn:,}, a factor of "
-          f"{guard / drawn:,.0f}. The spacing decides how big an icon "
-          f"is, not how many there are.")
+  # THE GATES THEMSELVES, which are the harm. The estimator's answer
+  # above is only the diagnosis: what a user meets is a refusal and a
+  # paused live update, so both are driven rather than inferred.
+  rt._no_modal_dialogs()
+  del rt.MODALS[:]
+  del rt.BAR_MESSAGES[:]
+
+  # THE LIVE GATE. Asked through the dialog's own handler rather than
+  # by reading the estimate, since what a user meets is the note line.
+  dlg.live_check.setChecked(True)
+  dlg._maybe_live_generate()
+  rt._tick(300)
+  note = dlg.live_note.text()
+  paused = "paused" in note
+  dlg.live_check.setChecked(False)
+  rt._tick(200)
+
+  # THE HARD GATE. Driven to completion, because "no task in flight"
+  # a moment after pressing Generate means either refused or finished
+  # and the two must not be confused -- a probe that returns is not a
+  # probe that measured.
+  del rt.MODALS[:]
+  del rt.BAR_MESSAGES[:]
+  for layer_id in list(dlg._element_layer_ids.values()):
+    project.removeMapLayer(layer_id)
+  dlg._element_layer_ids.clear()
+  rt._tick(100)
+  dlg._generate()
+  waited = 0
+  while dlg._task is not None and waited < 120000:
+    rt._tick(200)
+    waited += 200
+  rt._tick(300)
+  refusals = [text for kind, text in rt.MODALS if kind == "critical"]
+  made = len(dlg._element_layer_ids)
+
+  print(f"live note           {note!r}")
+  print(f"generate refused    {bool(refusals)}")
+  if refusals:
+    print(f"  said              {refusals[-1]!r}")
+  print(f"element layers made {made}")
+  print(f"bar said            {[t for _k, t in rt.BAR_MESSAGES][-1:]}")
+
+  faults = []
+  if paused:
+    faults.append(f"live update paused itself on a map of {drawn:,} "
+                  f"tiles: {note!r}")
+  if refusals:
+    faults.append(f"Generate was refused: {refusals[-1]!r}")
+  if not made:
+    faults.append("Generate produced no element layers at all")
+  if faults:
+    print("\nTHE GATES ARE ANSWERING ABOUT A TILING:")
+    for fault in faults:
+      print(f"  - {fault}")
     return 1
-  print("\nThe guard's answer is the right order for what is drawn.")
+  print(f"\nBoth gates let a {drawn:,}-tile icon design through, and it "
+        f"drew {made} element layers.")
   return 0
 
 

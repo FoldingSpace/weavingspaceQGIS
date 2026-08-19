@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-251 defect(s) with a regression test.
+255 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -87,6 +87,10 @@ there is no separate list to remember.
   guarded by `test_a_graduated_dock_recolour_survives_the_plugin_being_shut`
 - **a renderer or filter set on an element's no-data layer in QGIS was destroyed by the next Generate, silently, while the same work on the element beside it survived and was reported. Found independently by two hunts on 2026-08-16; confirmed by reading layer_styles out of the exported GeoPackage, where tiles_a carried the hand-set colour and tiles_a_no_data carried the default.**  
   guarded by `test_a_hand_styled_no_data_layer_survives_a_re_tile`
+- **2026-08-19. Measured through the dialog on Reds: five classes from #fff5f0 to #67000d became five identical greys.**  
+  guarded by `test_a_limit_keeps_the_colours_the_ramp_gives`
+- **2026-08-19. Found by three hunts at once, one of them in pixels: 4,394 of an element's paint gone, 27.5 per cent of it.**  
+  guarded by `test_a_moved_limit_re_splits_the_tiles`
 - **nothing described what a negative scale factor did to the map, so the only guard on the feature was that its spin box could reach negative numbers.**  
   guarded by `test_a_negative_scale_factor_mirrors_the_design`
 - **per-element records survived a project change, so pinned bounds, colours and class counts set in one project were applied to the next project opened in the same session.**  
@@ -139,6 +143,8 @@ there is no separate list to remember.
   guarded by `test_a_second_project_does_not_take_the_first_ones_opacity`
 - **a style pasted onto an element layer while a tiling was in flight was silently destroyed by the run's landing, though the same paste a moment earlier or later survived.**  
   guarded by `test_a_style_pasted_mid_run_survives_the_landing`
+- **2026-08-19. Found by a hunt reading the saved project with `zipfile` and the exported GeoPackage with `sqlite3`, neither of which involves QGIS: the retyped ranges were in the file's QML and the stamp appeared nowhere.**  
+  guarded by `test_an_adopted_ladder_is_stamped_for_a_reopen`
 - **an area whose value was NULL was not drawn at all, leaving a hole in the map that reads as absence rather than as missing data.**  
   guarded by `test_an_area_with_no_value_is_drawn_rather_than_left_as_a_hole`
 - **an element whose own tiles all fell on areas with no value was left unsplit and drew nothing, while its siblings drew and the plugin said it drew as no data.**  
@@ -535,6 +541,8 @@ there is no separate list to remember.
   guarded by `test_deferral_closes_the_colour_editor_under_it`
 - **Equal intervals and Unclassed drew classes of unequal width whenever an end was pinned, because the intervals were cut from the column's own samples and the outermost class was then stretched to reach the pin -- so two variables given the same limits drew different ladders, which is the whole reason for giving them the same limits. Measured against 0.24.3rc5.**  
   guarded by `test_equal_intervals_stay_equal_under_a_pin`
+- **2026-08-19, the maintainer's report. Twenty-five areas and a four-element unit: the guard answered 208,521 where icon mode drew 100, so Generate was refused outright and live update had already paused itself.**  
+  guarded by `test_icon_mode_is_not_counted_as_a_tiling`
 - **the coverage notice's count is checked against the areas actually absent from the output, in tiled and icon modes, after a field report that it disagreed with the map.**  
   guarded by `test_the_coverage_notice_counts_what_the_map_is_missing`
 - **the guard sampled a fixed 12 mutants whatever the diff; over a 1,700-line round that certified nearly nothing while reading as a passed gate.**  
@@ -550,9 +558,9 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
+- a bug hunt pointed in a named direction: 84
 - not written down at the time: 84
-- a bug hunt pointed in a named direction: 81
-- reported by a user: 18
+- reported by a user: 19
 - the mutation campaign: 16
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

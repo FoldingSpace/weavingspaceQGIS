@@ -3171,7 +3171,18 @@ class WeavingSpaceDialog(QDialog):
       return
     bounds = (ext.xMinimum(), ext.yMinimum(),
               ext.xMaximum(), ext.yMaximum())
-    est = bridge.estimate_tile_count_bounds(self._unit, bounds)
+    # ICON MODE IS NOT A TILING, and asking the tiling estimator about
+    # it paused live update on maps of a hundred tiles. One unit goes
+    # on each area, so the count is areas times elements and the
+    # spacing decides how BIG an icon is drawn rather than how many
+    # there are. Measured 2026-08-19: twenty-five areas and a
+    # four-element unit answered 103,914 against 100 actually drawn,
+    # which is five times this ceiling, so the map silently stopped
+    # following the user. Ledger row 3.
+    if self.opt_icons.isChecked():
+      est = bridge.estimate_icon_count(self._unit, layer.featureCount())
+    else:
+      est = bridge.estimate_tile_count_bounds(self._unit, bounds)
     if est > bridge.LIVE_UPDATE_MAX_TILES:
       self.live_note.setText(
         f"live update paused (about {est:,} tiles); press Generate")
@@ -6616,6 +6627,31 @@ class WeavingSpaceDialog(QDialog):
     refreshed = self._assignment_for(tile_id)
     if refreshed is not None:
       self._last_signatures[tile_id] = self._signature(refreshed)
+      # ...AND THE STAMP AND THE FILE, which this exit forgot, exactly
+      # as its four colour twins forgot them on 2026-08-17. Nothing on
+      # a renderer records that a break was CHOSEN rather than
+      # computed, so `weavingspace_quant_style` is the only thing a
+      # reopened project has to go on -- and the line above, which
+      # stops the landing clobbering the ladder, also makes
+      # `_restyle_only` skip this element, so a Generate cannot heal
+      # what a reopen has lost.
+      #
+      # MEASURED 2026-08-19, by a hunt reading the saved `.qgz` with
+      # `zipfile` and the exported GeoPackage with `sqlite3`, neither
+      # of which involves QGIS: the retyped ranges were in the file's
+      # QML and `weavingspace_quant_style` appeared nowhere. So the
+      # map came back looking right and the next Generate quietly
+      # recomputed the plugin's own numbers.
+      #
+      # THE EMBED IS REPEATED HERE ON PURPOSE. `_graduated_layer_edited`
+      # embeds on the way into this method, which is BEFORE the record
+      # and the stamp exist; a file written then cannot carry them.
+      layer_now = QgsProject.instance().mapLayer(
+        self._element_layer_ids.get(tile_id) or "")
+      if layer_now is not None:
+        self._stamp_category_colours(layer_now, refreshed)
+        if self._last_path:
+          bridge.embed_style(layer_now)
 
   def _replay_deferred_adoptions(self):
     """Adopt the dock edits that arrived while a run was in flight.
@@ -8237,8 +8273,25 @@ class WeavingSpaceDialog(QDialog):
       # The lesson generalises: when a fix widens a signature, ask
       # whether the new term is COARSER than the thing it stands for.
       # A boolean summarising a field cannot see the field move.
+      # AND THE LIMITS AS VALUES, for the same reason and by the same
+      # mistake made twice. `_needs_a_no_data_split` learned about
+      # floors and ceilings on 2026-08-18, which put them behind a
+      # YES/NO -- so raising a floor from 20 to 40 answered yes both
+      # times, the signature never moved, `_restyle_only` took the
+      # change, and it can neither make nor unmake a split. The areas
+      # the higher floor newly excludes stayed on the element layer
+      # with no class to place them and drew as HOLES, while the
+      # notice said to press Generate, which changed nothing. Worse on
+      # a column that already holds a null: the predicate is true
+      # before any limit exists, so even the FIRST limit was invisible.
+      # Measured 2026-08-19 by three hunts at once, one of them in
+      # pixels: 4,394 of the element's paint gone, 27.5 per cent.
+      # This is the paragraph above, repeated: a boolean summarising a
+      # field cannot see the field move, and neither can it see a
+      # number move. Carrying the numbers costs two dict lookups.
       tuple((a["id"],
-             a.get("var") if self._needs_a_no_data_split(a) else None)
+             a.get("var") if self._needs_a_no_data_split(a) else None,
+             self._limits_key(a))
             for a in self._assignments()),
       # What the layer HOLDS, not merely which layer it is. Without
       # this, deleting half the features left every term here
@@ -8248,6 +8301,40 @@ class WeavingSpaceDialog(QDialog):
       # demand and never marked as out of date.
       self._layer_fingerprint(), self._data_version,
     )
+
+  def _limits_key(self, assignment):
+    """This element's floor and ceiling, as the signature carries them.
+
+    Args:
+      assignment: one row from `_assignments()`, read for its element
+        id and its variable, which together key the pin record.
+
+    Returns:
+      ``(floor, ceiling)``, either of them None where the user has not
+      set that end. A plain tuple of numbers, because the geometry
+      signature is compared with ``==`` and must be hashable and
+      cheap: this is two dictionary lookups and no scan of the data,
+      which matters because the signature is asked on every debounce
+      tick.
+
+    WHY THE VALUES AND NOT A YES/NO. A limit is a geometry change --
+    excluding a value moves its tiles onto the paired layer, and
+    `_restyle_only` can neither make nor unmake one -- so the
+    signature has to notice a limit MOVING and not merely a limit
+    existing. Carried as a boolean it noticed neither: raising a floor
+    left the signature identical, and on a column that already holds a
+    null the answer was true before any limit was set at all.
+
+    THE LIMITS ARE CARRIED WHETHER OR NOT THEY CURRENTLY EXCLUDE
+    ANYTHING, deliberately. Asking whether they exclude would be a
+    second, more expensive question whose answer changes with the
+    data, and the cost of being wrong is not symmetric: a re-tile
+    nobody needed is a slower interaction, while a split that never
+    happens is an unpainted area, which reads as "nothing is here".
+    """
+    record = (self._pinned_bounds.get(assignment.get("id")) or {}).get(
+      assignment.get("var")) or {}
+    return (record.get("floor"), record.get("ceiling"))
 
   def _needs_a_no_data_split(self, assignment):
     """Whether this element's tiles must be split onto a second layer.
@@ -9373,17 +9460,41 @@ class WeavingSpaceDialog(QDialog):
     # cheap and slightly generous: refusing a map that would have
     # worked is a nuisance, but attempting one that exhausts memory
     # inside GEOS takes QGIS down with it
-    est = bridge.estimate_tile_count(self._unit, region)
+    # THE SAME QUESTION, ASKED THE RIGHT WAY IN ICON MODE. `as_icons`
+    # used to be read fifty lines below this gate, so the guard that
+    # decides whether the run happens at all had never heard of the
+    # mode -- and refused designs of a hundred tiles while advising a
+    # spacing that would only have drawn bigger icons. Read here
+    # instead, and passed down unchanged. Ledger row 3.
+    as_icons = self.opt_icons.isChecked()
+    if as_icons:
+      est = bridge.estimate_icon_count(self._unit, len(region))
+    else:
+      est = bridge.estimate_tile_count(self._unit, region)
     if est > bridge.MAX_TILES_HARD:
       if not live:
-        suggestion = bridge.min_reasonable_spacing(
-          self._unit, region, self.spacing_spin.value())
-        QMessageBox.critical(
-          self, "WeavingSpace",
-          f"A spacing this small asks for roughly {est:,} tiles. For this "
-          f"layer a spacing of about "
-          f"{bridge.spacing_in_words(suggestion)} map units or more will "
-          f"work.")
+        if as_icons:
+          # A DIFFERENT SENTENCE, because the remedy is different: in
+          # icon mode the count follows the number of areas and the
+          # elements in the tileable, and no spacing changes it. The
+          # advice below would send somebody to a control that cannot
+          # help them.
+          QMessageBox.critical(
+            self, "WeavingSpace",
+            f"Drawn as icons, this layer's {len(region):,} areas ask "
+            f"for roughly {est:,} tiles, which is more than the plugin "
+            f"will draw. Spacing will not help, since each area takes "
+            f"one tile unit however large it is drawn, so try a layer "
+            f"with fewer areas or a tileable with fewer elements.")
+        else:
+          suggestion = bridge.min_reasonable_spacing(
+            self._unit, region, self.spacing_spin.value())
+          QMessageBox.critical(
+            self, "WeavingSpace",
+            f"A spacing this small asks for roughly {est:,} tiles. For this "
+            f"layer a spacing of about "
+            f"{bridge.spacing_in_words(suggestion)} map units or more will "
+            f"work.")
       return
     if not live and est > bridge.MAX_TILES_CONFIRM:
       answer = QMessageBox.question(
@@ -9423,7 +9534,9 @@ class WeavingSpaceDialog(QDialog):
     # after run() has returned, so the write happens-before the read
     coverage = {"missing": None}
 
-    as_icons = self.opt_icons.isChecked()
+    # `as_icons` was read at the size guard above, deliberately: one
+    # read means the gate and the run cannot disagree about which mode
+    # this is.
     join_proto = self.opt_join_prototiles.isChecked()
     retain = self.opt_retain.isChecked()
     ragged = not self.opt_clip.isChecked()

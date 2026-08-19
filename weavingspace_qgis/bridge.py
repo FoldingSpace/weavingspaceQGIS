@@ -559,6 +559,42 @@ def gdf_to_layer(gdf, name: str) -> QgsVectorLayer:
 
 # ------------------------------------------------------------ size guard
 
+def estimate_icon_count(unit, areas: int) -> int:
+  """How many tiles ICON mode draws: one unit on each map area.
+
+  Args:
+    unit: the tile unit about to be placed; only its element count is
+      read.
+    areas: how many areas the region layer holds -- `featureCount()`
+      from a layer, or `len()` of a frame. A negative or missing count
+      is treated as none.
+
+  Returns:
+    The tile count exactly, since icon mode does no tiling at all:
+    `Tiling(unit, region, as_icons=True)` puts ONE unit on each area,
+    so the answer is areas times the elements in the unit and nothing
+    about the spacing enters it.
+
+  WHY THIS IS A SEPARATE FUNCTION rather than a flag on the estimator
+  beside it. `estimate_tile_count_bounds` answers a question about
+  GEOMETRY -- how many prototile positions fit inside a circle over
+  the region's bounds -- and its whole shape, the tile diagonal, the
+  translation vectors, the 1/spacing-squared scaling, is that
+  question. Icon mode asks a question about COUNTING, which shares no
+  term with it. Threading a boolean through would make one function
+  that computes two unrelated things and reads as though the second
+  were a special case of the first.
+
+  MEASURED 2026-08-19, which is why it exists: on twenty-five areas
+  with a four-element unit the tiling estimator answered 208,521
+  where icon mode drew 100. The hard gate refused the run outright and
+  advised a larger spacing, which in icon mode draws bigger icons
+  rather than fewer of them, and live update had already paused itself
+  for a map of a hundred tiles.
+  """
+  return int(max(int(areas or 0), 0) * max(len(unit.tiles), 1))
+
+
 def estimate_tile_count(unit, region_gdf) -> int:
   """Estimate how many tiles a Tiling over this region would create.
 
@@ -2919,7 +2955,25 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
     mid = quant_class_colours(ramp_name, reverse, 1, (lo, hi))
     if mid:
       renderer.updateRangeSymbol(0, _fill_symbol(mid[0], outline))
-  elif ((lo, hi) != (0, 100) or pins) and count:
+  elif ((lo, hi) != (0, 100) or pins or limits) and count:
+    # A LIMIT NEEDS THE RECOLOUR EXACTLY AS A PIN DOES, and this gate
+    # was not widened for one when floors and ceilings arrived on
+    # 2026-08-18. The branch above rebuilds the ladder through
+    # `set_class_bounds` to seat the outer edges on the limits, and
+    # that helper builds every class with the placeholder grey; the
+    # recolour below is the only thing that ever gives those classes
+    # their ramp colours. With a limit and no pin, and the display
+    # window left alone, neither of the other two terms was true, so
+    # nothing recoloured and the WHOLE ELEMENT DREW #c0c0c0 -- which
+    # on a map of areas reads as no data.
+    # Measured 2026-08-19 through the dialog, on a column of 1..31
+    # given a floor of -1000 that excludes nothing whatever: five
+    # Reds classes became five identical greys. Found by a hunt
+    # pointed at this limb beside its pin twin; the same commit had
+    # already added `limits` to the ramp-span trim thirty lines
+    # below, so the value reached the inner clause and not the gate
+    # standing in front of it.
+    #
     # the Ramp Display Range: first class at lo, last at hi, linear
     # between. Skipped at (0, 100) UNLESS a bound is pinned, because
     # QGIS's own colours already ARE this formula there and
