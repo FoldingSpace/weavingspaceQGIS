@@ -2689,10 +2689,25 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   # user declared. Reducing k there would hand two columns with
   # identical pins two different ladders, which is the one thing
   # setting the same limits on both is for.
-  cuts_from_the_pin = bool(
-    pins and wants_middle and scheme == "Equal intervals"
+  # A LIMIT OPENS THIS AS A PIN DOES, and it did not until 2026-08-19.
+  # The chain inside the branch this gates already reads "PIN, THEN
+  # LIMIT, THEN DATA" and says why in as many words -- the rule exists
+  # so two columns given the same limits draw the SAME LADDER -- but
+  # the gate in front of it asked for `pins` alone, so with limits and
+  # no pin the whole block was skipped and each column was cut over
+  # its own data. Measured that day through the dialog, two elements
+  # on different columns both limited to 0-12 at five classes: one
+  # drew 0-1-2-3-4-12 and the other 0-0-1.6-4-8-12, neither of them
+  # equal-width and the two disagreeing everywhere between the ends.
+  # Written out with `floor`/`ceiling` rather than the `limits` name
+  # because that is bound further down, where the subset clause needs
+  # it; binding it earlier would move a line three catalogue entries
+  # stand on for no gain.
+  cuts_from_the_ends = bool(
+    (pins or floor is not None or ceiling is not None)
+    and wants_middle and scheme == "Equal intervals"
     and finite_values and not (pinned or {}).get("breaks"))
-  if pins and wants_middle and not unclassed and not cuts_from_the_pin:
+  if pins and wants_middle and not unclassed and not cuts_from_the_ends:
     middle_values = [v for v in finite_values
                      if (low_pin is None or v > float(low_pin))
                      and (high_pin is None or v < float(high_pin))]
@@ -2780,7 +2795,7 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   # allows us to compute rather than hand to QGIS: "n equal intervals
   # over [a, b]" is a sentence, and the other three algorithms are not.
   even_middle = None
-  if cuts_from_the_pin and copied is None:
+  if cuts_from_the_ends and copied is None:
     # PIN, THEN LIMIT, THEN DATA. The span an equal-interval middle is
     # cut over is the innermost thing somebody actually declared, and
     # only falls back to the data when they declared nothing. A FLOOR

@@ -50840,6 +50840,76 @@ def test_the_class_count_changes_under_an_open_quant_editor():
     dlg.close()
 
 
+def test_two_columns_with_one_pair_of_limits_draw_one_ladder():
+  """Equal intervals are cut from the limits, not from each column.
+
+  Giving several variables ONE pair of limits is how a colour comes to
+  mean the same number on every map, and it is the reason floors and
+  ceilings exist. The rule was implemented for pins, and the chain
+  inside it reads "PIN, THEN LIMIT, THEN DATA" -- but the gate in
+  front of that chain asked for a pin alone, so with limits and no pin
+  the block was skipped and each column was cut over its own data.
+
+  TWO DIFFERENT COLUMNS, deliberately: one pair of limits given to one
+  column proves nothing, since a column agrees with itself.
+
+  Regression: 2026-08-19. Measured through the dialog at five classes
+  over 0-12: one element drew 0-1-2-3-4-12 and the other
+  0-2.4-4.8-7.2-9.6-12, disagreeing everywhere between the ends. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  floor, ceiling, k = 0.0, 12.0, 5
+  layer = make_region_layer(n=6)
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(200)
+    for row, column in ((0, "v1"), (1, "v3")):
+      dlg.table.cellWidget(row, 1).setCurrentText(column)
+      _tick(100)
+      dlg.table.cellWidget(row, 2).setCurrentText("Quant: Equal intervals")
+      _tick(100)
+    dlg._update_dynamic_columns()
+    _tick(150)
+    ids = [dlg.table.item(row, 0).text() for row in (0, 1)]
+    for tid, column in zip(ids, ("v1", "v3")):
+      assert dlg._assignment_for(tid)["mode"] == "Graduated", \
+        f"element {tid} is not graduated, so the scheme under test " \
+        f"never runs and this case is vacuous"
+      dlg._pinned_bounds.setdefault(tid, {})[column] = {
+        "floor": floor, "ceiling": ceiling}
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(300)
+
+    def ladder(tid):
+      """The class bounds one element's layer actually draws."""
+      out = QgsProject.instance().mapLayer(dlg._element_layer_ids[tid])
+      spans = list(out.renderer().ranges())
+      return [(round(r.lowerValue(), 4), round(r.upperValue(), 4))
+              for r in spans]
+
+    first, second = ladder(ids[0]), ladder(ids[1])
+    assert len(first) == len(second) == k, \
+      f"the two elements drew {len(first)} and {len(second)} classes, " \
+      f"not {k} each, so their ladders cannot be compared"
+    assert first == second, \
+      f"two columns given one pair of limits ({floor}, {ceiling}) drew " \
+      f"different ladders: {first} against {second}. One pair of " \
+      f"limits exists so a colour means the same number on both maps"
+    widths = {round(hi - lo, 6) for lo, hi in first}
+    assert len(widths) == 1, \
+      f"equal intervals over {floor}-{ceiling} gave widths {widths}, " \
+      f"so the classes are not equal after all"
+    assert (first[0][0], first[-1][1]) == (floor, ceiling), \
+      f"the ladder runs {first[0][0]} to {first[-1][1]}, not from the " \
+      f"floor to the ceiling it was given"
+  finally:
+    dlg.close()
+
+
 def test_a_limit_keeps_the_colours_the_ramp_gives():
   """A floor or ceiling must not repaint the element.
 
@@ -52736,6 +52806,8 @@ def main():
         test_the_class_count_changes_under_an_open_quant_editor)
   check("a dock reclassification lands while a run is finishing",
         test_a_dock_reclassification_lands_while_a_run_is_finishing)
+  check("two columns with one pair of limits draw one ladder",
+        test_two_columns_with_one_pair_of_limits_draw_one_ladder)
   check("a limit keeps the colours the ramp gives",
         test_a_limit_keeps_the_colours_the_ramp_gives)
   check("a moved limit re-splits the tiles",

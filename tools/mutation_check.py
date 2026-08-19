@@ -3705,7 +3705,7 @@ MUTATIONS = [
            "tells a user their map has fewer classes than it draws"),
   dict(name="the-reduction-sees-the-pinned-pool", file=BRIDGE,
        old="  if pins and wants_middle and not unclassed and not "
-           "cuts_from_the_pin:",
+           "cuts_from_the_ends:",
        new="  if False:",
        test="test_a_pin_leaves_no_class_for_a_tile_to_miss",
        why="a pin removes a class from the ladder AND its samples from "
@@ -3786,6 +3786,22 @@ MUTATIONS = [
            "landing came back as the plugin's five, because a "
            "five-class retype adopted a moment earlier had moved the "
            "row and told nothing"),
+  dict(name="equal-intervals-cut-from-a-limit", file=BRIDGE,
+       # ANCHORED ON THE GATE, which is where the fault was: the span
+       # chain inside the branch already knew about floors and
+       # ceilings and said so, and nothing ever reached it.
+       old="""  cuts_from_the_ends = bool(
+    (pins or floor is not None or ceiling is not None)""",
+       new="""  cuts_from_the_ends = bool(
+    (pins)""",
+       test="test_two_columns_with_one_pair_of_limits_draw_one_ladder",
+       why="giving several variables one pair of limits is how a "
+           "colour comes to mean the same number on every map, and is "
+           "the reason floors and ceilings exist. Without the term "
+           "each column is cut over its own data instead: two elements "
+           "limited alike to 0-12 drew 0-1-2-3-4-12 and "
+           "0-2.4-4.8-7.2-9.6-12, disagreeing everywhere between ends "
+           "their legends agree on"),
   dict(name="a-limit-keeps-its-ramp-colours", file=BRIDGE,
        # ANCHORED ON THE GATE, not on the recolour it guards: the
        # recolour was always right and was simply never reached with a
@@ -3898,7 +3914,7 @@ MUTATIONS = [
            "-- the map then draws from the middle of the ramp and a "
            "reader comparing two of them cannot tell"),
   dict(name="equal-intervals-are-cut-from-the-pin", file=BRIDGE,
-       old="  if cuts_from_the_pin and copied is None:",
+       old="  if cuts_from_the_ends and copied is None:",
        new="  if False:",
        test="test_equal_intervals_stay_equal_under_a_pin",
        why="without it the scheme cuts from the samples between the "
@@ -3907,8 +3923,11 @@ MUTATIONS = [
            "given the same limits draw different ladders -- which is "
            "the whole reason for giving them the same limits"),
   dict(name="the-reduction-lets-a-pinned-span-alone", file=BRIDGE,
+       # RE-ANCHORED 2026-08-19, with its two neighbours: the flag was
+       # renamed `cuts_from_the_ends` when a LIMIT was allowed to open
+       # it, the old name having stopped being true of what it decides.
        old="  if pins and wants_middle and not unclassed and not "
-           "cuts_from_the_pin:",
+           "cuts_from_the_ends:",
        new="  if pins and wants_middle and not unclassed:",
        test="test_equal_intervals_stay_equal_under_a_pin",
        why="cut from the pins, three classes over -5..40 are the same "

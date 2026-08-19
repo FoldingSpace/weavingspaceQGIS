@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-255 defect(s) with a regression test.
+256 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -213,6 +213,8 @@ there is no separate list to remember.
   guarded by `test_the_spinner_outranks_a_value_the_dialog_itself_wrote`
 - **an area whose value was an infinity was neither classed -- the breaks exclude non-finite values -- nor moved to the paired layer, so it was drawn as NOTHING. A hole, which is what this split exists to abolish. Measured 2026-08-16: sixteen tiles per element where symbolForFeature returned None, 0.000 of the area painted against 0.26 for a control. Both dependencies carry an infinity: SQLite stores it as REAL and OGR hands it back.**  
   guarded by `test_the_split_tells_the_kinds_of_absence_apart`
+- **2026-08-19. Measured through the dialog at five classes over 0-12: one element drew 0-1-2-3-4-12 and the other 0-2.4-4.8-7.2-9.6-12, disagreeing everywhere between the ends.**  
+  guarded by `test_two_columns_with_one_pair_of_limits_draw_one_ladder`
 - **the message bar told a user with twelve distinct values that their Unclassed element "draws as 12 classes, not 50" while the map drew fifty. `make_graduated_renderer` reduces only `if not unclassed` -- Unclassed reproduces a CONTINUOUS ramp, so its fifty steps are the shape of the reproduction rather than a class count anybody chose -- but `classes_the_map_will_draw` was never told the scheme and reduced anyway. Its own docstring claimed the two arithmetics were "kept beside it so the two cannot drift".**  
   guarded by `test_unclassed_never_announces_a_reduction`
 
@@ -558,7 +560,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- a bug hunt pointed in a named direction: 84
+- a bug hunt pointed in a named direction: 85
 - not written down at the time: 84
 - reported by a user: 19
 - the mutation campaign: 16
