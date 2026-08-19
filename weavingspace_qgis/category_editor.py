@@ -560,7 +560,18 @@ class CategoryColourDialog(QDialog):
     #
     # The cost is that one end is now named by TWO controls, and
     # everything below about keeping them in step is that cost.
-    self._pin_column = self._pins_offered
+    # NO PIN COLUMN, IN ANY STYLE. (Maintainer's instruction,
+    # 2026-08-19.) The column carried two things: a button for the
+    # two inner bounds, and hatching on the middle rows saying no pin
+    # could go there. The button is replaced by a heavy outline on the
+    # box itself, which says the same thing for all FOUR ends rather
+    # than two; and a middle class simply has no spin box, which says
+    # "you cannot set this" more conventionally than a texture users
+    # were measured not to recognise. The flag stays rather than being
+    # deleted because every column index in this window is written as
+    # `offset + n` against it, and a literal-by-literal removal is how
+    # a cell widget lands in the wrong column.
+    self._pin_column = False
     columns = 2 if self._bounds is None else 3
     if self._pin_column:
       columns += 1
@@ -658,15 +669,22 @@ class CategoryColourDialog(QDialog):
           # values, and reading "last row" as "last class" would have
           # given it the high pin -- a pin on something that has no
           # bound to pin.
-          if self._pin_column:
+          # GATED ON WHETHER PINS ARE OFFERED, not on whether a Pin
+          # COLUMN is drawn, and conflating those removed every
+          # editable bound the moment the column was retired. One is
+          # the feature, the other is how it used to be presented.
+          #
+          # A middle class gets NOTHING now, where it used to get
+          # hatching saying no pin could go there. It has no spin box,
+          # which says the same thing in the way every other table
+          # says it -- and the maintainer ruled on 2026-08-17 that the
+          # hatching confused more than it helped, users not being
+          # used to it.
+          if self._pins_offered:
             which = ("low" if row == 0 else
                      "high" if row == self._last_class_row else None)
             if which is not None:
               self._install_pin_row(row, which)
-            else:
-              # a middle class: its breaks are computed, and the cell
-              # says so rather than sitting empty and looking free
-              self.table.setCellWidget(row, 0, NoPinHere())
 
       # The colour button is the last column in either mode.
       self.table.setCellWidget(row, columns - 1,
@@ -1062,18 +1080,27 @@ class CategoryColourDialog(QDialog):
       self._install_limit_box(row, "floor" if which == "low" else "ceiling")
       return
     lower, upper = self._bounds[row]
+    # THE PIN BUTTON IS GONE FROM EVERY STYLE, not only Unclassed.
+    # (Maintainer's instruction, 2026-08-19: no pin column at all; a
+    # heavy outline on the box says the number is yours.) It is still
+    # CONSTRUCTED, unparented and unshown, because the registry holds
+    # (pin, box) pairs that a dozen handlers unpack and the sync path
+    # reads `pin.isChecked()` -- so the button goes on carrying the
+    # pinned state while the OUTLINE carries the appearance of it.
+    # Retiring the object as well is a separate change to a registry
+    # that has already produced a one-state-two-descriptions defect,
+    # and doing both at once is how that happens again.
     pin = PinButton()
     pin.setChecked(self._pinned.get(which) is not None)
-    pin.setToolTip("Pin this bound; the rest are computed around it")
     box = self._bound_box(upper if which == "low" else lower)
     box.setToolTip("Set this bound; moving it off the computed value "
-                   "pins it")
-    column = 2 if which == "low" else 1     # Upper on top, Lower below
-    holder = QWidget()
-    layout = QHBoxLayout(holder)
-    layout.setContentsMargins(0, 0, 0, 0)
-    layout.addWidget(pin, 0, Qt.AlignmentFlag.AlignCenter)
-    self.table.setCellWidget(row, 0, holder)
+                   "makes it yours")
+    # OFFSET-AWARE, and these were the literals 2 and 1 while a Pin
+    # column sat in front of them. With the column gone, Lower is 0
+    # and Upper is 1, and a hard-coded index would have put the low
+    # bound in the Colour cell.
+    offset = 1 if self._pin_column else 0
+    column = offset + (1 if which == "low" else 0)
     self.table.setCellWidget(row, column, box)
     self._register_pin(which, pin, box)
     # ...AND THE OUTER EDGE OF THE SAME ROW, which is the other half
