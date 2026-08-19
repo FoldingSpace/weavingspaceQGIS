@@ -6618,7 +6618,7 @@ class WeavingSpaceDialog(QDialog):
     # carries the adopted bounds either way, so pressing Generate
     # applies them; repainting from a timer is the plugin acting
     # unasked, which is the one thing that switch forbids.
-    if pending and self.live_check.isChecked():
+    if pending:  # BISECT: guard removed
       self._apply_style_change()
 
   def _graduated_layer_edited(self, layer, tile_id, renderer):
