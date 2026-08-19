@@ -557,10 +557,10 @@ there is no separate list to remember.
   guarded by `test_colour_legibility_warnings_are_opt_in`
 - **a renderer type changed in QGIS while the colour editor was open left the window showing class bounds and colours for a renderer that had been replaced.**  
   guarded by `test_deferral_closes_the_colour_editor_under_it`
-- **`_classification_values` REPLACED its cache dict on every miss, so elements carrying different columns evicted each other and each rescanned the whole layer on every tick; twenty-three elements made the plugin unusable and the maintainer's colleague reported it as extreme slowness at any spacing.**  
-  guarded by `test_each_column_is_scanned_once_however_many_elements_carry_one`
 - **Equal intervals and Unclassed drew classes of unequal width whenever an end was pinned, because the intervals were cut from the column's own samples and the outermost class was then stretched to reach the pin -- so two variables given the same limits drew different ladders, which is the whole reason for giving them the same limits. Measured against 0.24.3rc5.**  
   guarded by `test_equal_intervals_stay_equal_under_a_pin`
+- **`_classification_values` REPLACED its cache dict on every miss, so elements carrying different columns evicted each other and each rescanned the whole layer on every tick; twenty-three elements made the plugin unusable and the maintainer's colleague reported it as extreme slowness at any spacing.**  
+  guarded by `test_every_column_is_scanned_once_not_once_per_element`
 - **2026-08-19, the maintainer's report. Twenty-five areas and a four-element unit: the guard answered 208,521 where icon mode drew 100, so Generate was refused outright and live update had already paused itself.**  
   guarded by `test_icon_mode_is_not_counted_as_a_tiling`
 - **the coverage notice's count is checked against the areas actually absent from the output, in tiled and icon modes, after a field report that it disagreed with the map.**  

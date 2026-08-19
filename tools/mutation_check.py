@@ -3956,8 +3956,7 @@ MUTATIONS = [
         field_name, values)""",
        new="""      self._values_cache = {
         key: bridge.classification_source(field_name, values)}""",
-       test="test_each_column_is_scanned_once_however_many_elements_"
-            "carry_one",
+       test="test_every_column_is_scanned_once_not_once_per_element",
        why="replacing the dict evicts every OTHER column's entry, so "
            "elements carrying different columns each rescan the whole "
            "layer on every tick. Measured on the reporter's own data, "

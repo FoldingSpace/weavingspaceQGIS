@@ -37952,7 +37952,7 @@ def test_a_copy_carries_the_range_and_refuses_what_it_would_empty():
 
 
 
-def test_each_column_is_scanned_once_however_many_elements_carry_one():
+def test_every_column_is_scanned_once_not_once_per_element():
   """Several elements on several columns cost one scan each, not one per tick.
 
   COUNTED, NOT TIMED. A profiler's overhead swamps the totals on this
@@ -53707,7 +53707,7 @@ def main():
   check("a copy carries the range and refuses what it would empty",
         test_a_copy_carries_the_range_and_refuses_what_it_would_empty)
   check("each column is scanned once however many elements carry one",
-        test_each_column_is_scanned_once_however_many_elements_carry_one)
+        test_every_column_is_scanned_once_not_once_per_element)
   check("a break retyped in QGIS reaches the plugin",
         test_a_break_retyped_in_qgis_reaches_the_plugin)
   check("a coverage notice quotes a spacing the box accepts",
