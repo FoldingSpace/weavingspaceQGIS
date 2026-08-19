@@ -15486,7 +15486,7 @@ def test_the_coverage_notice_counts_what_the_map_is_missing():
 
   Regression: the coverage notice's count is checked against the areas actually absent from the output, in tiled and icon modes, after a field report that it disagreed with the map. [user]
   """
-  from weavingspace_qgis import compat
+  from weavingspace_qgis import bridge, compat
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
 
@@ -15539,8 +15539,21 @@ def test_the_coverage_notice_counts_what_the_map_is_missing():
                     if value is not None}
     missing = layer.featureCount() - len(present)
 
-    said = [text for _kind, text in BAR_MESSAGES
-            if "received no tiles" in text]
+    # THE SENTENCE DIFFERS BY MODE, and this looked for the tiling one
+    # in both until 2026-08-19. Ledger row 15: in icon mode every area
+    # DOES get an icon, so "appear nowhere on the map" would be false
+    # of them, and the maintainer ruled that the plugin says the true
+    # thing instead -- that the icon carries a neighbour's value. Both
+    # sentences are built on the SAME count, which is what this test
+    # is about, so what changed is which words carry it.
+    # COMPOSED FROM THE PRODUCT'S OWN FUNCTIONS rather than
+    # transcribed: a phrase copied into a test is a second copy of the
+    # wording with nothing keeping the two in step, which is how this
+    # suite lost an afternoon to a reworded notice once already.
+    mark = (bridge.icon_misattribution_message if as_icons
+            else bridge.coverage_message)(1, 2, 2000.0, "map unit")
+    tail = mark.split(" of ", 1)[1] if " of " in mark else mark
+    said = [text for _kind, text in BAR_MESSAGES if tail[-40:] in text]
     claimed = 0
     if said:
       numbers = re.findall(r"(\d[\d,]*) of ", said[-1])
@@ -44718,6 +44731,16 @@ def test_the_size_guard_at_its_refusal_boundary():
     f"hex-slice 12 and would otherwise measure whichever family the " \
     f"combo happened to be showing"
   dlg.family_combo.setCurrentText("hex-slice 12")
+  _tick(300)
+  # THE SPACING A USER MEETS, captured before the bisection below
+  # walks it anywhere. Auto-fitting sizes it from the layer's own
+  # extent, so it is legible by construction on whatever fixture this
+  # is -- which is what the visual check at the end needs, and what a
+  # multiple of the REFUSAL BOUNDARY turned out not to be.
+  auto_spacing = float(dlg.spacing_spin.value())
+  assert auto_spacing > 0, \
+    "the dialog offered no spacing, so there is nothing to draw an " \
+    "ordinary map at"
   dlg._rebuild_unit()
   _settle(dlg, seconds=30)
 
@@ -44769,11 +44792,31 @@ def test_the_size_guard_at_its_refusal_boundary():
   # this test checks visually, and it is also what the refusal at the
   # end must leave untouched: "the previous map stays" needs a
   # previous map to be a claim about anything.
-  ordinary = round(accepted * 8, 6)
+  # A SPACING THAT DRAWS A LEGIBLE MAP, chosen from the DIALOG's own
+  # auto-fit rather than as a multiple of the boundary. It was
+  # `accepted * 8` until 2026-08-19, and that broke when the size
+  # guard stopped measuring a circle round the bounding box: these
+  # islands fill 5% of their own box, so the estimate fell about
+  # tenfold, the boundary moved some three times finer, and eight
+  # times a much finer boundary is still fine enough that the tiles
+  # arrive near pixel-size. The gamut check then sampled mostly
+  # antialiased blends and reported dE 25.6 against ramps the map was
+  # drawing perfectly well.
+  # THE FIXTURE'S PREMISE MOVED, NOT THE PRODUCT, and the repair is to
+  # stop deriving a VIEWING spacing from a REFUSAL boundary: the two
+  # are unrelated, and tying them together made a visual check hostage
+  # to an arithmetic change elsewhere. What the ordinary run has to be
+  # is unremarkable and legible, which the auto-fitted spacing is by
+  # construction -- it is what a user meets on opening the layer.
+  ordinary = round(auto_spacing, 6)
   assert estimate_at(ordinary) < bridge.MAX_TILES_CONFIRM, \
     f"the ordinary spacing estimates {estimate_at(ordinary):,} tiles, " \
     f"past the {bridge.MAX_TILES_CONFIRM:,} at which the plugin stops " \
     f"to ask; this run is meant to be unremarkable"
+  assert ordinary > accepted, \
+    f"the ordinary spacing {ordinary:,.3f} is FINER than the refusal " \
+    f"boundary {accepted:,.3f}, so this run is not inside the cap at " \
+    f"all and the assertion above passed for the wrong reason"
   dlg.spacing_spin.setValue(ordinary)
   dlg._rebuild_unit()
   _settle(dlg, seconds=30)
