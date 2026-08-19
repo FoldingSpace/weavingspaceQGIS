@@ -3713,15 +3713,27 @@ MUTATIONS = [
            "the clamp strip -- so the Pin column's box takes the first "
            "number a user types and silently discards every one after "
            "it, applying the strip's stale value to the map"),
-  dict(name="unclassed-gets-the-pin-column-too", file=EDITOR,
-       old="    self._pin_column = self._pins_offered",
-       new="    self._pin_column = self._pins_offered and not self._locked",
+  # RETIRED 2026-08-19, NOT RE-ANCHORED, because the behaviour it
+  # guarded was deliberately reversed rather than moved. It required
+  # an Unclassed row to carry a Pin COLUMN; the maintainer's
+  # instruction that day removed the column from every style and gave
+  # every end a floor and a ceiling instead. An entry re-anchored onto
+  # code that no longer makes its claim would report `caught` about
+  # nothing, which is worse than the silence check_standards catches.
+  #
+  # WHAT REPLACED IT, so the ground is not left bare: the same test
+  # now requires an Unclassed end to be named by TWO LIMIT CONTROLS
+  # that agree, which is the promise the column was serving, and
+  # `an-unclassed-end-keeps-two-controls` below breaks that instead.
+  dict(name="an-unclassed-end-keeps-two-controls", file=EDITOR,
+       old="          if self._pins_offered:",
+       new="          if self._pins_offered and not self._locked:",
        test="test_an_unclassed_row_pins_from_either_control",
-       why="without it an Unclassed row has no Pin column, only the "
-           "clamp strip above the table -- which is exactly what was "
-           "reported as 'pins do not work on unclassed', because a "
-           "user who learned the pin as a column meets fifty faded "
-           "rows and concludes the feature is absent"),
+       why="without it an Unclassed row loses the editable bound in "
+           "its own table and is left with the clamp strip alone -- "
+           "which is what was reported as 'pins do not work on "
+           "unclassed', a user who learned the control in one place "
+           "meeting fifty rows that do not offer it"),
   dict(name="a-pin-click-moves-the-other-control", file=EDITOR,
        old="    # the ladder the map now draws, so the window and the "
            "map agree\n    self._redraw_bounds(answer)\n"
