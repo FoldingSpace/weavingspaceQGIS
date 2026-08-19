@@ -6609,7 +6609,16 @@ class WeavingSpaceDialog(QDialog):
         # this runs from a Qt timer, where a raise is swallowed and
         # takes the rest of the loop with it.
         continue
-    if pending:
+    # NOT WHEN LIVE UPDATE IS OFF, which is a settled contract this
+    # broke twice over -- `race: restyle during a run` and `a ramp
+    # chosen during a run is not lost` both failed on it. With live
+    # update unticked the map is deliberately NOT refreshed on its
+    # own: the table and the map may disagree until the user asks, and
+    # what must hold is that the change is NOT LOST. The record
+    # carries the adopted bounds either way, so pressing Generate
+    # applies them; repainting from a timer is the plugin acting
+    # unasked, which is the one thing that switch forbids.
+    if pending and self.live_check.isChecked():
       self._apply_style_change()
 
   def _graduated_layer_edited(self, layer, tile_id, renderer):

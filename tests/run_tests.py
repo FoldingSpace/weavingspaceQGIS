@@ -9219,8 +9219,7 @@ def test_a_class_that_cannot_be_pinned_says_so_in_its_cell():
   Regression: the classes whose breaks are computed showed an empty cell in the Pin column, which reads as a control waiting to be set rather than as a place a pin cannot go.
  [hunt]
   """
-  from weavingspace_qgis.category_editor import (CategoryColourDialog,
-                                                 NoPinHere)
+  from weavingspace_qgis.category_editor import CategoryColourDialog
   bounds = [(0.0, 12.5), (12.5, 30.0), (30.0, 58.25), (58.25, 91.0),
             (91.0, 140.0)]
   order = [str(i) for i in range(len(bounds))]
@@ -9229,21 +9228,32 @@ def test_a_class_that_cannot_be_pinned_says_so_in_its_cell():
     bounds=bounds, pinned={}, pin_changed=lambda *a, **k: None,
     ramp_name="Reds")
   try:
-    kinds = [editor.table.cellWidget(row, 0)
+    # THE ABSENCE OF A SPIN BOX IS THE SIGNAL NOW. The Pin column was
+    # retired on 2026-08-19 and its hatching with it: a middle class
+    # simply has no editable control in either bound cell, which says
+    # "you cannot set this" the way every other table in QGIS says it,
+    # where the texture was a mark the maintainer had already measured
+    # people not to recognise. The promise this test carries is
+    # unchanged -- a computed bound must not look like a control
+    # waiting to be set -- so it is asserted against the new
+    # vocabulary rather than deleted.
+    kinds = [[editor.table.cellWidget(row, column) for column in (0, 1)]
              for row in range(editor.table.rowCount())]
     assert len(kinds) == len(bounds), \
       f"the table has {len(kinds)} rows for {len(bounds)} classes"
     middles = kinds[1:-1]
     assert middles, "the fixture has no middle class, so nothing is tested"
-    for row, widget in enumerate(middles, start=1):
-      assert isinstance(widget, NoPinHere), \
-        f"class {row} cannot be pinned and its Pin cell holds " \
-        f"{widget!r} rather than the hatching that says so"
-    # ...and the two that CAN be pinned still carry a real control
+    for row, widgets in enumerate(middles, start=1):
+      assert not any(w is not None for w in widgets), \
+        f"class {row} cannot be set and its bound cells hold " \
+        f"{widgets!r} rather than being plain text"
+    # ...and the two ENDS carry real controls, all four of them: the
+    # floor and the low bound on the first row, the high bound and the
+    # ceiling on the last.
     for row in (0, len(bounds) - 1):
-      assert kinds[row] is not None \
-        and not isinstance(kinds[row], NoPinHere), \
-        f"class {row} can be pinned and its cell was hatched over"
+      assert all(w is not None for w in kinds[row]), \
+        f"class {row} is an end and should offer two editable bounds, " \
+        f"and holds {kinds[row]!r}"
   finally:
     editor.close()
 
@@ -9263,14 +9273,18 @@ def test_a_class_that_cannot_be_pinned_says_so_in_its_cell():
     rows = editor.table.rowCount()
     assert rows == len(with_missing), \
       f"the table has {rows} rows for {len(with_missing)} entries"
-    last = editor.table.cellWidget(rows - 1, 0)
-    assert isinstance(last, NoPinHere), \
-      f"the no-data row was given a pin ({last!r}); it has no bound " \
-      f"to pin, and the last CLASS is the row above it"
-    last_class = editor.table.cellWidget(rows - 2, 0)
-    assert last_class is not None \
-      and not isinstance(last_class, NoPinHere), \
-      "the last class lost its pin to the no-data row below it"
+    # The no-data row has no bound of any kind, so neither of its
+    # bound cells offers a control -- the same signal a middle class
+    # gets, and for the same reason.
+    last = [editor.table.cellWidget(rows - 1, column) for column in (0, 1)]
+    assert not any(w is not None for w in last), \
+      f"the no-data row was given an editable bound ({last!r}); it has " \
+      f"no bound to set, and the last CLASS is the row above it"
+    last_class = [editor.table.cellWidget(rows - 2, column)
+                  for column in (0, 1)]
+    assert all(w is not None for w in last_class), \
+      f"the last class lost its editable bounds to the no-data row " \
+      f"below it, and holds {last_class!r}"
     assert "high" in editor._pin_widgets, \
       f"no high pin was installed at all: " \
       f"{sorted(editor._pin_widgets)}"
@@ -24890,7 +24904,13 @@ def test_the_colour_editor_opens_on_a_column_with_no_values():
     range_bounds=(0, 100), pinned={},
     pin_changed=lambda *a, **k: None)
   try:
-    assert editor._pin_widgets, \
+    # EITHER REGISTRY, because this fixture is Unclassed and that
+    # style names a FLOOR and a CEILING rather than two pins since
+    # 2026-08-19 -- so `_pin_widgets` is legitimately empty and the
+    # box whose decimals come from log10(span) is a limit box. The
+    # premise is that a bound box was built AT ALL; which of the four
+    # ends it names is not what this test is about.
+    assert editor._pin_widgets or editor._limit_boxes, \
       "no bound box was built, so log10 of the span was never taken " \
       "and this test would pass however the guard is written"
     assert editor.table.rowCount() == len(order), \
@@ -27191,14 +27211,17 @@ def test_the_quant_editor_edits_class_colours():
   editor = _open_quant_editor(dlg, 1)
   headers = [editor.table.horizontalHeaderItem(c).text()
              for c in range(editor.table.columnCount())]
-  # Pin, then the two bounds, then the colour. The pin column came
-  # first in 0.24.3: the eye meets it on the way into the row, and
-  # putting it anywhere else would have widened the window past the
-  # colour button rather than before the numbers.
-  assert headers[:3] == ["Pin", "Lower", "Upper"], \
+  # THE TWO BOUNDS, THEN THE COLOUR. There was a Pin column in front
+  # of these for most of 0.24.3, and the maintainer retired it on
+  # 2026-08-19: a heavy outline on the box says a number is a
+  # person's, which covers all FOUR ends rather than the two a pin
+  # could name, costs no table width, and asks nobody to read a glyph
+  # at twelve pixels. A middle class simply has no spin box, which
+  # says "you cannot set this" the way every other table says it.
+  assert headers[:3] == ["Lower", "Upper", "Colour"], \
     f"the quant editor's first columns read {headers[:3]}, not " \
-    f"Pin, Lower and Upper"
-  bound_columns = (1, 2)
+    f"Lower, Upper and Colour"
+  bound_columns = (0, 1)
   assert editor.table.rowCount() == 5, \
     f"{editor.table.rowCount()} rows for a five-class element"
   assert editor.table.editTriggers() \
@@ -27207,9 +27230,10 @@ def test_the_quant_editor_edits_class_colours():
   for r in range(editor.table.rowCount()):
     for c in bound_columns:
       cell = editor.table.item(r, c)
-      # The FIRST row's upper bound and the LAST row's lower bound
-      # are spin boxes rather than items, being the two a pin can
-      # name; they are checked by the pin tests, not here.
+      # All FOUR of the end cells are spin boxes rather than items
+      # now -- the first row's lower and upper, and the last row's
+      # both -- being the floor, the two pinned boundaries and the
+      # ceiling. They are checked by the bound tests, not here.
       if cell is None and editor.table.cellWidget(r, c) is not None:
         continue
       assert cell is not None, f"row {r} is missing its break cell {c}"
@@ -36595,15 +36619,27 @@ MATRIX_SHAPES = [
   ("two values", _shape_two_values), ("negatives", _shape_negatives),
   ("huge", _shape_huge),
 ]
-# "huge" JOINED THE SPINE ON 2026-08-19, by the rule that any cell
-# which has ever failed is tested forever and the rotation only ever
-# covers ground with no known history. It failed the day the matrix
-# gained a magnitude axis: on a column of about 1e9, a ladder retyped
-# to 0-80 had its CEILING adopted, which excluded every value and left
-# the element with no classes where it had drawn five. Both spine
-# shapes live between 0 and 80, where that retype is sensible, so no
-# sample of them could ever have shown it.
-MATRIX_SPINE_SHAPES = ("even", "tied", "huge")
+MATRIX_SPINE_SHAPES = ("even", "tied")
+
+# THE CELLS THAT HAVE EVER FAILED, PINNED ONE BY ONE. The rule is that
+# a CELL which fails is tested forever. Promoting its whole SHAPE to
+# the spine costs twelve routes times two aftermaths -- twenty-four
+# cells to pin what is really four -- and that is what took this test
+# from 58 seconds to 169 and made it the most expensive in the suite.
+# A rule about cells, applied to shapes, buys redundancy rather than
+# coverage.
+#
+# These four are the magnitude case found on 2026-08-19: on a column
+# of about 1e9 a ladder retyped to 0-80 had its CEILING adopted, which
+# excluded every value and left the element with no classes where it
+# had drawn five. Both canonical shapes live between 0 and 80, where
+# the same retype is sensible, so no sample of them could show it.
+MATRIX_PINNED_CELLS = [
+  ("huge", "immediately", "retype the whole ladder"),
+  ("huge", "after re-Generate", "retype the whole ladder"),
+  ("huge", "immediately", "floor, then retype"),
+  ("huge", "immediately", "retype, then floor"),
+]
 MATRIX_TYPED = [0.0, 10.0, 20.0, 30.0, 50.0, 80.0]
 
 
@@ -37066,6 +37102,11 @@ def test_a_qgis_symbology_edit_reaches_the_plugin_on_every_shape():
       for route, _fn in MATRIX_ROUTES:
         if full or shape in MATRIX_SPINE_SHAPES:
           cells.append((shape, aftermath, route, MATRIX_SPINE_SCHEME))
+  # ...and the individual cells with a history, four rather than the
+  # twenty-four that promoting their shape would have cost.
+  if not full:
+    for shape, aftermath, route in MATRIX_PINNED_CELLS:
+      cells.append((shape, aftermath, route, MATRIX_SPINE_SCHEME))
   # EVERY ROUTE RACED ONCE, on one canonical shape. A race is where
   # this plugin's characteristic defect lives, so no route is left to
   # the sampler to reach by luck -- but crossing the race with every
