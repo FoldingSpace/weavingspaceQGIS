@@ -93,7 +93,16 @@ COLOUR_WIDTH = 120
 # Lower and Upper. Class breaks are numbers with the trailing zeros
 # trimmed, so they are short; this width holds seven digits and a
 # decimal point comfortably without widening the window for nothing.
-BOUND_WIDTH = 70
+# Wide enough for the number AND the clear mark at the same time. It
+# was 70, sized when the mark was drawn in pixels nobody could see:
+# once the mark became a real widget it took its width out of the line
+# edit's text margin, and "1.56" came back "1.5" with the last digit
+# elided. THE ROOM IS ALWAYS RESERVED, on marked and unmarked boxes
+# alike, because any bound can become a person's at any moment and a
+# column that widened on a pin would make the window jump under the
+# hand that pinned it. (Measured 2026-08-19, on the maintainer's
+# report that the number was "messed up".)
+BOUND_WIDTH = 92
 
 # How many rows are visible before the window scrolls. Beyond this a
 # scroll bar appears and the window stops growing: fifteen covers most

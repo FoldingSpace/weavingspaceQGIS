@@ -66,7 +66,7 @@ import math
 import os
 import traceback
 
-from qgis.PyQt.QtCore import QRectF, QSize, Qt, QTimer
+from qgis.PyQt.QtCore import QPointF, QRectF, QSize, Qt, QTimer
 from qgis.PyQt.QtGui import (
   QBrush, QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap)
 from qgis.PyQt.QtWidgets import (
@@ -434,12 +434,19 @@ def _striped_icon(colours, boxed=()):
       to right. At most SWATCH_STRIPES are drawn; an empty list gets
       one neutral grey stripe, so a cell never shows an empty icon
       that would read as a failure to draw.
-    boxed: which stripes carry a PINNED class bound, as indices into
-      the drawn stripes -- 0 for the first, -1 for the last. Each is
-      outlined, which is how the table says "this end is yours"
-      without the ramp cell having to claim the ramp is no longer the
-      ramp: a pin moves breaks, not colours (maintainer's decision,
-      2026-08-14).
+    boxed: which class EDGES carry a bound somebody set, as
+      `(index, side)` pairs -- index into the drawn stripes, 0 for the
+      first and -1 for the last, and side "left" or "right". Each gets
+      a heavy stroke down that edge, which is how the table says "this
+      end is yours" without the ramp cell having to claim the ramp is
+      no longer the ramp: a pin moves breaks, not colours
+      (maintainer's decision, 2026-08-14).
+      AN EDGE RATHER THAN THE WHOLE STRIPE since 2026-08-19, on the
+      maintainer's design: the record holds FOUR ends and a stripe has
+      one outline, so boxing conflated the floor with the low pin and
+      left the ceiling with nowhere to be drawn at all -- which is how
+      a ceiling somebody had set showed no mark whatever. Four ends,
+      four edges, and a class with both bounds set gets both sides.
 
   Returns:
     A QIcon of equal vertical stripes at RAMP_SWATCH size.
@@ -472,7 +479,7 @@ def _striped_icon(colours, boxed=()):
   # painted away by the stripe beside it. Drawn in the stripe's own
   # contrasting ink rather than a fixed colour, or the box would
   # vanish on a dark ramp and shout on a pale one.
-  for index in boxed:
+  for index, side in boxed:
     position = index if index >= 0 else len(shown) + index
     if not 0 <= position < len(shown):
       continue
@@ -482,8 +489,20 @@ def _striped_icon(colours, boxed=()):
     ink = QColor("#ffffff") if lightness < 128 else QColor("#000000")
     painter.setPen(QPen(ink, 2))
     painter.setBrush(Qt.BrushStyle.NoBrush)
-    painter.drawRect(QRectF(position * width + 1, 1, width - 2,
-                            RAMP_SWATCH.height() - 2))
+    # ONE EDGE, NOT THE WHOLE STRIPE (maintainer's design, 2026-08-19).
+    # A boxed stripe said "something about this class is yours" and
+    # made the reader work out which end; the edge says which. It also
+    # composes -- a class with both bounds set gets both sides -- and
+    # it is what let the ceiling be drawn at all, since the four ends
+    # map onto four edges and a stripe has only one outline.
+    #
+    # INSET BY ONE, because the outermost edges of the icon are the
+    # floor and the ceiling: a stroke on the very edge reads as the
+    # icon's own border rather than as a mark.
+    x = (position * width + 2.5) if side == "left" \
+        else ((position + 1) * width - 2.5)
+    painter.drawLine(QPointF(x, 1.0),
+                     QPointF(x, RAMP_SWATCH.height() - 1.0))
   painter.end()
   return QIcon(pixmap)
 
@@ -5909,13 +5928,27 @@ class WeavingSpaceDialog(QDialog):
         # whole of what the range selected
         step = (len(shades) - 1) / 7
         shades = [shades[round(j * step)] for j in range(8)]
-      # First stripe for a pinned low bound, last for a pinned high
-      # one. On Unclassed the fifty classes were sampled down to
-      # eight stripes just above, so the boxed stripe reads as "the
-      # low end" rather than literally class 0 of fifty -- which is
-      # what the pin means there anyway.
-      boxed = ([0] if pinned.get("low") is not None else []) + \
-              ([-1] if pinned.get("high") is not None else [])
+      # ALL FOUR ENDS, EACH ON ITS OWN EDGE. This read `low` and
+      # `high` alone until 2026-08-19 and the record had held four
+      # ends since that morning, so a floor or a CEILING somebody had
+      # set showed no mark at all -- reported by the maintainer, who
+      # had pinned the upper class's upper bound and found the swatch
+      # silent about it. The record grew and this site was not among
+      # the ones grepped, which is the shape ledger row 21 already
+      # names.
+      #
+      # The mapping is the ladder's own: the first class's LEFT edge
+      # is the floor and its RIGHT edge is the low pin; the last
+      # class's LEFT edge is the high pin and its RIGHT edge is the
+      # ceiling. On Unclassed the fifty classes were sampled down to
+      # eight stripes just above, so an edge reads as "the low end"
+      # rather than literally class 0 of fifty -- which is what the
+      # pin means there anyway.
+      boxed = [pair for pair, end in (((0, "left"), "floor"),
+                                      ((0, "right"), "low"),
+                                      ((-1, "left"), "high"),
+                                      ((-1, "right"), "ceiling"))
+               if pinned.get(end) is not None]
       icon = _custom_swatch_icon(shades, boxed)
       self._custom_swatch_cache[tile_id] = (key, icon)
       return icon
@@ -7088,6 +7121,32 @@ class WeavingSpaceDialog(QDialog):
             bridge.embed_style(layer)
         return
 
+    # THE LADDER FIRST, WHATEVER THE COLOURS DID. Adoption of BOUNDS
+    # used to happen at one exit only -- the one concluding that
+    # nothing else claimed the edit, which is to say that no colour
+    # had moved. A style PASTED from another element layer moves the
+    # breaks AND the colours, so it left by the door below and its
+    # ladder was never adopted: the receiving element lost the pin the
+    # sending one carried, silently, and the next Generate recomputed
+    # its own breaks over somebody's copied classification.
+    #
+    # THE SHAPE IS THE ONE THIS FILE NAMES THREE TIMES: a guard that
+    # asks about one thing standing in front of an exit that is about
+    # another. Whether a COLOUR changed cannot decide whether a BOUND
+    # was adopted. Reported by the maintainer against rc10, ledger row
+    # 30; measured by pasting a's renderer onto b and reading b's
+    # record, which stayed None.
+    #
+    # Contained for the same reason as its twin fifty lines above: an
+    # exception inside a Qt slot is swallowed and would take the
+    # colour adoption below with it.
+    try:
+      live = renderer.ranges()
+      self._adopt_dock_bounds(
+        tile_id, assignment,
+        [(one.lowerValue(), one.upperValue()) for one in live], actual)
+    except Exception:
+      pass
     # adopt the divergent classes as positional picks
     field = assignment["var"]
     record = self._quant_colours.setdefault(tile_id, {}) \

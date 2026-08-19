@@ -27,8 +27,8 @@ rather than from each other, which also keeps the import graph acyclic
 """
 from __future__ import annotations
 
-from qgis.PyQt.QtCore import pyqtSignal
-from qgis.PyQt.QtWidgets import QDoubleSpinBox
+from qgis.PyQt.QtCore import Qt, pyqtSignal
+from qgis.PyQt.QtWidgets import QDoubleSpinBox, QWidget
 
 
 class TrimmedSpinBox(QDoubleSpinBox):
@@ -68,6 +68,110 @@ class TrimmedSpinBox(QDoubleSpinBox):
     if point and point in shown:
       shown = shown.rstrip("0").rstrip(point)
     return shown
+
+
+# The SI prefixes, largest first, with the power each names. A bound
+# follows the data and the data spans twelve orders of magnitude, so a
+# column wide enough for 1023192923 is absurd for 1.56 and one sized
+# for 1.56 elides a billion. Writing 1.02G costs four characters and
+# says the same thing.
+SI_PREFIXES = ((1e24, "Y"), (1e21, "Z"), (1e18, "E"), (1e15, "P"),
+               (1e12, "T"), (1e9, "G"), (1e6, "M"), (1e3, "k"),
+               (1e-3, "m"), (1e-6, "µ"), (1e-9, "n"),
+               (1e-12, "p"), (1e-15, "f"), (1e-18, "a"),
+               (1e-21, "z"), (1e-24, "y"))
+
+# WHERE PLAIN DIGITS STOP EARNING THEIR ROOM. Between these two a
+# number reads perfectly well as itself and a prefix would be
+# affectation; outside them the digits stop fitting any column anybody
+# would want. 1e5 rather than 1e3 deliberately: 1500 is a number
+# people read, and "1.5k" for it would be the plugin being clever at a
+# reader's expense.
+SI_ABOVE = 1e5
+SI_BELOW = 1e-3
+
+
+class ClearMark(QWidget):
+  """The cross that gives a bound back, as a widget rather than paint.
+
+  A WIDGET BECAUSE PAINT COULD NOT BE SEEN. `MarkableSpinBox` drew
+  this cross in its own `paintEvent`, five pixels from its left edge,
+  which is inside the QLineEdit a QDoubleSpinBox puts there -- and Qt
+  paints a child AFTER its parent, so the line edit's own background
+  went over it every time. Measured 2026-08-19 on a marked box grabbed
+  offscreen: 721 dark pixels for the heavy outline and ZERO inside the
+  cross's own rectangle, on a mark that had been drawn since it was
+  written and had never once been visible.
+
+  The click was repaired that morning by watching the line edit, and
+  the paint was left underneath it: the fix took the half that had
+  been reported. A CHILD WIDGET ANSWERS BOTH AT ONCE -- it paints
+  above the line edit and it takes the press by ordinary hit-testing,
+  which is what a person's click does.
+
+  It fills itself with the palette's Base colour, the line edit's own
+  background, so the cross reads as sitting on the field rather than
+  on a patch of something else.
+
+  Args:
+    parent: the box this belongs to.
+  """
+
+  clicked = pyqtSignal()
+
+  def __init__(self, parent=None):
+    """Start hidden; the box shows this when its number becomes a
+    person's."""
+    super().__init__(parent)
+    self.setCursor(Qt.CursorShape.ArrowCursor)
+    self.setToolTip("Give this bound back to the classification")
+
+  def paintEvent(self, event):                         # noqa: N802 (Qt API)
+    """Draw the field behind, then the two strokes.
+
+    Args:
+      event: the Qt paint event, unused.
+
+    Returns:
+      None.
+    """
+    from qgis.PyQt.QtGui import QColor, QPainter, QPen
+    painter = QPainter(self)
+    try:
+      painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+      painter.fillRect(self.rect(), self.palette().base())
+      # RED, AND THE REASON IS LEGIBILITY RATHER THAN ALARM
+      # (maintainer's suggestion, 2026-08-19). Drawn in the same black
+      # as the heavy outline it sits inside, and two pixels from it,
+      # the left arm merges with the frame at this size: the mark was
+      # reported as having its leftmost fifth CLIPPED when measurement
+      # showed its ink whole and simply touching a line of the same
+      # colour. A different hue separates the two without moving
+      # either, and it also says "this undoes something", which is
+      # what the mark is for.
+      pen = QPen(QColor(178, 34, 34))
+      pen.setWidth(2)
+      painter.setPen(pen)
+      # inset by two, so the strokes do not touch the edges and the
+      # mark reads as a cross rather than as a filled square
+      box = self.rect().adjusted(2, 2, -2, -2)
+      painter.drawLine(box.topLeft(), box.bottomRight())
+      painter.drawLine(box.bottomLeft(), box.topRight())
+    finally:
+      painter.end()
+
+  def mousePressEvent(self, event):                    # noqa: N802 (Qt API)
+    """Announce the click and consume it.
+
+    Args:
+      event: the Qt mouse event.
+
+    Returns:
+      None. Consumed so the press never reaches the line edit beneath
+      and no text cursor is dropped into the number.
+    """
+    self.clicked.emit()
+    event.accept()
 
 
 class MarkableSpinBox(TrimmedSpinBox):
@@ -119,6 +223,18 @@ class MarkableSpinBox(TrimmedSpinBox):
     """
     super().__init__(parent)
     self._marked = False
+    # THE CROSS IS A CHILD, not paint. See `ClearMark`: drawn by this
+    # widget's own painter it landed under the line edit and was never
+    # visible on any build, while the event filter below made it
+    # clickable -- so the affordance worked and could not be found.
+    # A child paints above its sibling and takes the press itself.
+    self._cross = ClearMark(self)
+    self._cross.clicked.connect(self.cleared)
+    self._cross.hide()
+    # ...AND THE FILTER STAYS, narrowly. The child covers the cross's
+    # rectangle, so a press there reaches it and never the line edit;
+    # this is for the platform where a stacking order goes otherwise,
+    # where it costs one comparison and saves the affordance.
     edit = self.lineEdit()
     if edit is not None:
       edit.installEventFilter(self)
@@ -181,7 +297,39 @@ class MarkableSpinBox(TrimmedSpinBox):
     if marked != self._marked:
       self._marked = marked
       self._keep_the_text_clear()
+      self._place_the_cross()
       self.update()
+
+  def _place_the_cross(self):
+    """Put the clear mark where the geometry says, and on top.
+
+    Returns:
+      None. Shown only while marked, since an unmarked bound is the
+      classification's and there is nothing to give back.
+
+    RAISED EVERY TIME, not once at construction: a QAbstractSpinBox
+    rebuilds and re-stacks its line edit on a style change, and a
+    child that has fallen behind it is a cross nobody can see -- which
+    is the whole defect this widget exists to end.
+    """
+    self._cross.setGeometry(self._clear_rect())
+    self._cross.setVisible(self._marked)
+    if self._marked:
+      self._cross.raise_()
+
+  def resizeEvent(self, event):                        # noqa: N802 (Qt API)
+    """Keep the clear mark with the box as it changes size.
+
+    Args:
+      event: the Qt resize event, passed through untouched.
+
+    Returns:
+      None. `_clear_rect` is measured from the box's HEIGHT, so a row
+      that grows moves the mark, and a mark left at the old geometry
+      would sit off-centre or outside the frame.
+    """
+    super().resizeEvent(event)
+    self._place_the_cross()
 
   def isMarked(self):                                  # noqa: N802 (Qt API)
     """Whether the heavy outline is being drawn.
@@ -219,14 +367,12 @@ class MarkableSpinBox(TrimmedSpinBox):
       painter.setPen(pen)
       painter.setBrush(_Qt.BrushStyle.NoBrush)
       painter.drawRect(self.rect().adjusted(1, 1, -2, -2))
-      # ...and the cross that gives the bound back, drawn INSIDE the
-      # outline it belongs to. Same pen, so the two read as one mark
-      # rather than as a control somebody has added to the box.
-      cross = self._clear_rect()
-      pen.setWidth(1)
-      painter.setPen(pen)
-      painter.drawLine(cross.topLeft(), cross.bottomRight())
-      painter.drawLine(cross.bottomLeft(), cross.topRight())
+      # THE CROSS IS NOT DRAWN HERE, and it was until 2026-08-19. It
+      # belongs inside this outline and this is the wrong brush for
+      # it: the line edit covers those pixels and paints after us, so
+      # every stroke put here was painted over. `ClearMark` is a child
+      # widget instead. The outline stays, because it is drawn on the
+      # FRAME, which is the one part of the box no child covers.
     finally:
       painter.end()
 
@@ -246,9 +392,26 @@ class MarkableSpinBox(TrimmedSpinBox):
     one place and clickable in another.
     """
     from qgis.PyQt.QtCore import QRect
-    side = max(6, min(10, self.height() - 12))
+    # NINE, AND THE CEILING IS THE NUMBER'S. The mark takes its width
+    # out of the line edit's text margin, so every pixel it gains the
+    # number loses: at twelve, "1.56" came back "1.5" with the last
+    # digit elided in a column this editor really uses. A bound box
+    # that cannot show its bound is a worse fault than a small mark.
+    side = max(8, min(9, self.height() - 10))
     top = (self.height() - side) // 2
-    return QRect(5, top, side, side)
+    # CLEAR OF THE FRAME, not a fixed five pixels. The heavy outline is
+    # two pixels wide and is drawn one pixel in, so it occupies the
+    # first three or four columns; a mark starting at five sits two
+    # pixels from a line of its own weight, which is close enough that
+    # its left arm was reported as CLIPPED. Measured 2026-08-19: the
+    # outline in columns 0 to 3 and the strokes in 7 to 11, both whole.
+    # Asked of the style rather than assumed, since a frame is a
+    # platform's business and this project has been wrong about a
+    # hard-coded Qt geometry before.
+    from qgis.PyQt.QtWidgets import QStyle
+    frame = self.style().pixelMetric(
+      QStyle.PixelMetric.PM_DefaultFrameWidth, None, self)
+    return QRect(max(7, int(frame) + 5), top, side, side)
 
   def mousePressEvent(self, event):                    # noqa: N802 (Qt API)
     """Give the bound back when the cross is clicked.
