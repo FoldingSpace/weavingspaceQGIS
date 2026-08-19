@@ -2431,3 +2431,19 @@ genuinely independent third column and should be added then.
   renderer -- and work added to a signal handler must not precede the
   work already there, since an exception in a Qt slot is swallowed and
   takes the rest of the handler with it.
+
+- **A GITHUB RELEASE BODY PRESERVES SINGLE NEWLINES, so NEVER hard-wrap
+  one.** Release notes written at the usual 72 columns arrive as
+  literal line breaks, and on a phone that means a sentence broken
+  mid-clause -- "nothing is promoted," ending a line, `main` starting
+  the next -- because the renderer never gets to wrap to the viewport.
+  Write each paragraph as ONE long line and let the reader's width
+  decide; keep hard newlines only for headings and list items, which
+  need them. Seen on rc9, 2026-08-18, and fixed by unwrapping.
+  This is the SAME fault as the changelog's, from the other side: that
+  entry is hard-wrapped because QGIS's plugin manager shows metadata
+  text AS IT STANDS and would run a long line off the panel. TWO
+  SURFACES, OPPOSITE RULES, and the deciding question is always
+  whether the renderer reflows. Check a release page NARROW -- a phone
+  or a half-width window -- before believing it reads, exactly as the
+  changelog is checked in both renderers.
