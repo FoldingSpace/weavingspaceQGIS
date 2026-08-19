@@ -1236,6 +1236,52 @@ def coverage_message(missing: int, unit_count: int, spacing: float,
           f"on the map.")
 
 
+def icon_misattribution_message(missing: int, unit_count: int,
+                                spacing: float, unit_label: str):
+  """The same count, said truthfully for ICON mode.
+
+  Args:
+    missing: how many areas no tile drew its data from, exactly as
+      ``count_units_without_tiles`` returns it. The COUNT is right in
+      both modes; only what can honestly be said about it differs.
+    unit_count: how many areas the region layer holds altogether.
+    spacing: the spacing this run used, in the region's map units.
+    unit_label: what to call those units in the sentence.
+
+  Returns:
+    A sentence, or None when nothing was missed.
+
+  WHY A SECOND SENTENCE RATHER THAN A REWORDING. (Maintainer's ruling,
+  2026-08-19, on a question `coverage_message` above has carried as
+  OPEN in its own docstring since 2026-08-16.) The count asks whose
+  VALUE reached a tile. In ordinary tiling that coincides with
+  appearing on the map: an area whose data reached no tile has no tile
+  over it. In ICON MODE it does not -- one unit is placed on each
+  area, so an icon IS drawn, and the library gives each tile to the
+  area it overlaps most, which on adjacent areas of unequal size hands
+  a narrow area's icon the wide neighbour's number.
+
+  THE HARM DIFFERS IN KIND, which is why one sentence cannot serve
+  both. A reader told four areas are missing goes looking for holes,
+  finds none, and learns to distrust the warning; what is actually in
+  front of them is a wrong map that looks right, which is this
+  software's characteristic failure. Measured 2026-08-19 by a hunt: ten
+  touching rectangles of alternating width at a spacing of 2000, four
+  areas reached by no tile, every one of them covered and carrying a
+  neighbour's value.
+
+  THE JOIN ITSELF IS THE VENDORED LIBRARY'S, and the maintainer's
+  ruling is that the plugin answers it by telling the user rather than
+  by computing a placement of its own; nothing is sent upstream yet.
+  """
+  if missing <= 0:
+    return None
+  spacing_text = _spacing_text(spacing)
+  return (f"At {spacing_text} {unit_label} spacing, {missing:,} of "
+          f"{unit_count:,} areas wear an icon drawn from a "
+          f"neighbouring area's value rather than their own.")
+
+
 # ------------------------------------------------------- renderer seeding
 
 def _fill_symbol(colour: str, outline: bool) -> QgsFillSymbol:

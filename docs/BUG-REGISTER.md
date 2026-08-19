@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-261 defect(s) with a regression test.
+262 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -175,6 +175,8 @@ there is no separate list to remember.
   guarded by `test_every_reader_of_unplaceable_agrees_with_the_split`
 - **in icon mode an element with no icon for some areas was never reported, because the coverage count asks whether any element drew them. And then the count that replaced the silence read `_element_layer_ids` alone, so every gap in the column made every element look short by the number of gaps -- a notice naming all four elements while saying the others still drew those areas, which refutes itself. Measured 2026-08-16 on a 36-area region with one NULL: both halves sum to 36 of 36 on every element.**  
   guarded by `test_icon_mode_says_when_an_element_has_no_icon_for_an_area`
+- **2026-08-19. Ten rectangles alternating 200 and 4,000 units wide, icon mode at 2,000: four areas reached by no tile, every one of them covered.**  
+  guarded by `test_icon_mode_says_whose_value_an_icon_carries`
 - **generating into a new group deleted the kept result's no-data layers, punching holes in the map the user had asked to keep.**  
   guarded by `test_keeping_a_result_keeps_both_halves_of_every_element`
 - **2026-08-19, found by two hunts independently, one of them reading the exported GeoPackage with sqlite3.**  
@@ -570,7 +572,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- a bug hunt pointed in a named direction: 90
+- a bug hunt pointed in a named direction: 91
 - not written down at the time: 84
 - reported by a user: 19
 - the mutation campaign: 16

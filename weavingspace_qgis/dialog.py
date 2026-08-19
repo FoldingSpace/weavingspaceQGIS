@@ -9747,8 +9747,17 @@ class WeavingSpaceDialog(QDialog):
       # wiped a moment later. A run that failed, was cancelled, or
       # produced nothing at all has already said so more loudly
       if error is None and gdf is not None and len(gdf) > 0:
-        note = bridge.coverage_message(coverage["missing"], unit_count,
-                                       spacing_used, unit_label)
+        # ICON MODE GETS ITS OWN SENTENCE FOR THE SAME COUNT, because
+        # "appear nowhere on the map" is false there: one unit is
+        # placed on each area, so an icon IS drawn and what the count
+        # marks is an area whose icon carries a NEIGHBOUR'S value.
+        # (Maintainer's ruling, 2026-08-19, on a question the
+        # `coverage_message` docstring had carried as open since
+        # 2026-08-16.)
+        note = (bridge.icon_misattribution_message
+                if icons_at_launch else bridge.coverage_message)(
+                  coverage["missing"], unit_count, spacing_used,
+                  unit_label)
         if note is not None:
           self._report_quietly(note)
         # ...and in ICON MODE, the loss the map-wide count cannot

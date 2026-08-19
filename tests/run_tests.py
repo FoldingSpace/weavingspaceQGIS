@@ -50934,6 +50934,89 @@ def test_two_columns_with_one_pair_of_limits_draw_one_ladder():
     dlg.close()
 
 
+def test_icon_mode_says_whose_value_an_icon_carries():
+  """In icon mode the coverage notice must not claim areas are missing.
+
+  The count asks whose VALUE reached a tile. In ordinary tiling that
+  coincides with appearing on the map. In ICON MODE it does not: one
+  unit is placed on each area, so an icon IS drawn, and the library
+  gives each tile to the area it overlaps most -- which on adjacent
+  areas of unequal size hands a narrow area's icon its wide
+  neighbour's number.
+
+  A reader told four areas are missing goes looking for holes, finds
+  none, and learns to distrust the warning; what is in front of them
+  is a wrong map that looks right. (Maintainer's ruling, 2026-08-19,
+  on a question `bridge.coverage_message` had carried as open in its
+  own docstring since 2026-08-16.)
+
+  THE FIXTURE IS THE POINT: touching rectangles of WILDLY UNEQUAL
+  width. Every fixture tried before this had gaps or uniform sizes,
+  which is why the field report went unreproduced for three days.
+
+  Regression: 2026-08-19. Ten rectangles alternating 200 and 4,000
+  units wide, icon mode at 2,000: four areas reached by no tile, every
+  one of them covered. [hunt]
+  """
+  from weavingspace_qgis import bridge, compat
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = QgsVectorLayer("Polygon?crs=EPSG:2193", "strips", "memory")
+  provider = layer.dataProvider()
+  provider.addAttributes([compat.make_field("v", float)])
+  layer.updateFields()
+  feats, x = [], 0.0
+  for i in range(10):
+    width = 200.0 if i % 2 else 4000.0
+    ring = [QgsPointXY(x, 0.0), QgsPointXY(x + width, 0.0),
+            QgsPointXY(x + width, 4000.0), QgsPointXY(x, 4000.0)]
+    f = QgsFeature(layer.fields())
+    f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+    f["v"] = float(i)
+    feats.append(f)
+    x += width
+  provider.addFeatures(feats)
+  layer.updateExtents()
+  QgsProject.instance().addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(200)
+    dlg.table.cellWidget(0, 1).setCurrentText("v")
+    _tick(100)
+    dlg.opt_icons.setChecked(True)
+    dlg.spacing_spin.setValue(2000.0)
+    _tick(300)
+    del BAR_MESSAGES[:]
+    _generate_and_wait(dlg)
+    _tick(400)
+
+    said = [text for _kind, text in BAR_MESSAGES]
+    coverage = [t for t in said if "of 10 areas" in t]
+    assert coverage, \
+      f"no coverage notice fired at all, so this case cannot say " \
+      f"which sentence it used: {said}"
+    assert not any("appear nowhere on the map" in t for t in coverage), \
+      f"icon mode claimed areas appear nowhere while an icon is drawn " \
+      f"on every one of them: {coverage}"
+    assert any("neighbouring area's value" in t for t in coverage), \
+      f"the notice did not say whose value the icon carries: {coverage}"
+    # THE PREMISE THE SENTENCE RESTS ON: every area really is covered,
+    # or "appear nowhere" would have been the honest thing to say.
+    drawn = 0
+    for tid, lid in dlg._element_layer_ids.items():
+      element = QgsProject.instance().mapLayer(lid)
+      if element is not None:
+        drawn += element.featureCount()
+    assert drawn >= layer.featureCount(), \
+      f"only {drawn} tiles were drawn for {layer.featureCount()} " \
+      f"areas, so some areas may genuinely have no icon and the " \
+      f"sentence under test would be the wrong one"
+  finally:
+    dlg.close()
+
+
 def test_a_limit_that_refuses_a_pin_retires_the_pin_and_says_so():
   """When a limit and a pin cannot both be drawn, the limit stands.
 
@@ -53254,6 +53337,8 @@ def main():
         test_a_dock_reclassification_lands_while_a_run_is_finishing)
   check("two columns with one pair of limits draw one ladder",
         test_two_columns_with_one_pair_of_limits_draw_one_ladder)
+  check("icon mode says whose value an icon carries",
+        test_icon_mode_says_whose_value_an_icon_carries)
   check("a limit that refuses a pin retires the pin and says so",
         test_a_limit_that_refuses_a_pin_retires_the_pin_and_says_so)
   check("a count set in qgis releases a copied ladder",

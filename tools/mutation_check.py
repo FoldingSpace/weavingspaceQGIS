@@ -3824,6 +3824,19 @@ MUTATIONS = [
            "limited alike to 0-12 drew 0-1-2-3-4-12 and "
            "0-2.4-4.8-7.2-9.6-12, disagreeing everywhere between ends "
            "their legends agree on"),
+  dict(name="icon-mode-says-whose-value-an-icon-carries", file=DIALOG,
+       old="""        note = (bridge.icon_misattribution_message
+                if icons_at_launch else bridge.coverage_message)(""",
+       new="""        note = (bridge.coverage_message
+                if True else bridge.coverage_message)(""",
+       test="test_icon_mode_says_whose_value_an_icon_carries",
+       why="the count asks whose VALUE reached a tile, which in "
+           "ordinary tiling coincides with appearing on the map and in "
+           "ICON MODE does not: one unit goes on each area, so an icon "
+           "IS drawn and the area is wearing a neighbour's number. Told "
+           "four areas are missing, a reader goes looking for holes, "
+           "finds none, and learns to distrust the warning, while what "
+           "is in front of them is a wrong map that looks right"),
   dict(name="a-pin-is-judged-against-the-pool-the-map-uses", file=DIALOG,
        # ANCHORED ON THE NARROWING, which is the whole of the fix: the
        # judge and the call were both there already and were being
