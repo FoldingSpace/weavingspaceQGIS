@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-250 defect(s) with a regression test.
+251 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -340,6 +340,8 @@ there is no separate list to remember.
 
 ## Found by not written down at the time
 
+- **none yet; this guards the clear mark added in 0.24.3 rather than a defect that happened.**  
+  guarded by `test_a_bound_can_be_given_back_from_every_control`
 - **quant picks dropped by the run they were made during.**  
   guarded by `test_a_class_colour_picked_during_a_run_is_not_lost`
 - **a closed dialog re-armed itself from the region layer's signals and rewrote output the user had deleted.**  
@@ -548,7 +550,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- not written down at the time: 83
+- not written down at the time: 84
 - a bug hunt pointed in a named direction: 81
 - reported by a user: 18
 - the mutation campaign: 16

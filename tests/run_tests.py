@@ -9860,6 +9860,194 @@ def test_equal_intervals_stay_equal_under_a_pin():
     "name"
 
 
+def test_a_bound_can_be_given_back_from_every_control():
+  """All four ends, both ways of returning one to the classification.
+
+  A MATRIX AND NOT A CASE, because this is a family: four ends -- the
+  floor, the two pinned boundaries and the ceiling -- crossed with the
+  two ways a person clears one. Written as a case, it would pass for
+  whichever member happened to be intact, which is exactly how the
+  symbology promise came to be guarded by a test that moved three
+  things at once while a retyped boundary reached nothing.
+
+  THE TWO ROUTES ARE NOT ONE ROUTE. The CROSS inside the box is the
+  discoverable one; TYPING the computed number back is the one people
+  reach for without looking, and it is the only one available to
+  somebody who never notices the mark. They are wired to a single
+  handler deliberately, and this requires them to agree rather than
+  assuming they do -- a shared implementation is a reason to check the
+  pair, not a reason to skip it.
+
+  EACH CELL STATES ITS OWN PREMISE. A cell that cleared a bound which
+  was never set would pass while proving nothing, so every cell
+  asserts the bound IS set and the box IS marked before clearing it.
+  This suite's own record puts tests that cannot fail at about one in
+  five.
+
+  Reports every failing cell rather than the first: "some of them do
+  not work" is not a work list.
+
+  Regression: none yet; this guards the clear mark added in 0.24.3 rather than a defect that happened.
+ [unrecorded]
+  """
+  from qgis.PyQt.QtCore import QPointF, Qt
+  from qgis.PyQt.QtGui import QMouseEvent
+  from qgis.PyQt.QtWidgets import QApplication
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer(n=8)
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(400)
+  tile_id = dlg.table.item(0, 0).text()
+  field = dlg._assignment_for(tile_id).get("var")
+  _generate_and_wait(dlg)
+  _tick(200)
+
+  def open_editor():
+    """Open the quant colour editor without blocking on its modal loop."""
+    opened = {}
+
+    def catch(self, *_a, **_k):
+      opened["editor"] = self
+      return 0
+
+    real_exec = CategoryColourDialog.exec
+    CategoryColourDialog.exec = catch
+    try:
+      dlg._edit_quant_colours(tile_id, field, dlg._assignment_for(tile_id))
+    finally:
+      CategoryColourDialog.exec = real_exec
+    editor = opened.get("editor")
+    assert editor is not None, "no colour editor opened"
+    return editor
+
+  def control(editor, which):
+    """The box naming one end, wherever this style keeps it."""
+    if which in ("floor", "ceiling"):
+      found = list(editor._limit_boxes.get(which) or [])
+      return found[0] if found else None
+    pairs = list(editor._pin_widgets.get(which) or [])
+    return pairs[0][1] if pairs else None
+
+  def click_the_cross(box):
+    """Click the clear mark the way a person does."""
+    point = QPointF(box._clear_rect().center())
+    QApplication.sendEvent(box, QMouseEvent(
+      QMouseEvent.Type.MouseButtonPress, point, point,
+      Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton,
+      Qt.KeyboardModifier.NoModifier))
+
+  # EACH NUDGE COMES FROM THAT END'S OWN COMPUTED VALUE, not from a
+  # number typed here. Absolute values were tried first and two cells
+  # staged nothing: 12.0 happened to be a bound this fixture's low pin
+  # would not take, so the record stayed empty and the cell cleared
+  # something that had never been set. A fixture that cannot move
+  # cannot show that anything moved it, and the premise assertions are
+  # what caught it rather than a green run.
+  #
+  # The DIRECTIONS keep the ladder ordered: the outer edges move
+  # outward, the two pinned boundaries move inward by a fraction of a
+  # class, so none of them crosses a neighbour and gets refused for a
+  # reason this test is not about.
+  def nudged(editor, which, span):
+    """A value for this end that is certainly not the computed one.
+
+    Args:
+      editor: the open colour editor, asked for the end's computed
+        value so the nudge is relative to what this fixture actually
+        produced rather than to a number typed in a test.
+      which: "floor", "low", "high" or "ceiling".
+      span: the whole ladder's width, which sets the step -- a
+        fraction of the ladder rather than an absolute amount, so this
+        works on a column of rates and one of square metres alike.
+
+    Returns:
+      A float clear of the computed value by more than any box's
+      display tolerance, or None when the editor computed nothing.
+    """
+    base = editor._default_bound(which)
+    if base is None:
+      return None
+    step = max(abs(span) * 0.05, 1e-6)
+    return base - step * 2 if which == "floor" else \
+        base + step * 2 if which == "ceiling" else \
+        base + step if which == "low" else base - step
+
+  failures, checked = [], 0
+
+  for which in ("floor", "low", "high", "ceiling"):
+    for route in ("the cross", "typing it back"):
+      dlg._pinned_bounds.pop(tile_id, None)
+      editor = open_editor()
+      try:
+        box = control(editor, which)
+        if box is None:
+          failures.append(f"{which}: no control at all, so {route} "
+                          f"could not be tried")
+          continue
+        computed = editor._default_bound(which)
+        if computed is None:
+          failures.append(f"{which}: the editor computed no default, so "
+                          f"nothing can be given back to")
+          continue
+
+        edges = editor._defaults or []
+        span = (float(edges[-1][1]) - float(edges[0][0])) if edges else 1.0
+        target = nudged(editor, which, span)
+        if target is None:
+          failures.append(f"{which}: no computed value to nudge from")
+          continue
+        box.setValue(float(target))
+        box.editingFinished.emit()
+        _tick(600)
+        held = (dlg._pinned_bounds.get(tile_id, {}) or {}).get(field) or {}
+        if held.get(which) is None:
+          failures.append(f"{which} via {route}: setting the bound to "
+                          f"{target:g} (computed {computed:g}) recorded "
+                          f"{held!r}, so this cell cleared nothing")
+          continue
+        if hasattr(box, "isMarked") and not box.isMarked():
+          failures.append(f"{which} via {route}: the box is unmarked while "
+                          f"holding a number somebody set")
+          continue
+
+        if route == "the cross":
+          click_the_cross(box)
+        else:
+          box.setValue(float(computed))
+          box.editingFinished.emit()
+        _tick(600)
+        checked += 1
+
+        held = (dlg._pinned_bounds.get(tile_id, {}) or {}).get(field) or {}
+        if held.get(which) is not None:
+          failures.append(f"{which} via {route}: the record still holds "
+                          f"{held.get(which)!r} after it was given back")
+        if hasattr(box, "isMarked") and box.isMarked():
+          failures.append(f"{which} via {route}: the box still reads as "
+                          f"holding a number somebody set")
+      finally:
+        editor.close()
+
+  dlg.close()
+  # THE COUNT AND THE FAILURES IN ONE MESSAGE, and the failures first.
+  # Asserting the count alone reported "6 of 8 reached the clearing
+  # step" and threw away the two lines saying WHICH and WHY -- the
+  # exact shape this suite has a rule about: say what you found, not
+  # which assertion you reached.
+  report = "\n  ".join(failures) if failures else "(nothing reported)"
+  assert checked == 8, \
+    f"only {checked} of 8 cells actually reached the clearing step, so " \
+    f"this test measured less than it claims. What the cells said:\n" \
+    f"  {report}"
+  assert not failures, \
+    "a bound could not be given back:\n  " + "\n  ".join(failures)
+
+
 def test_an_unclassed_row_pins_from_either_control():
   """Two controls name one end, and neither may go stale.
 
@@ -51553,6 +51741,8 @@ def main():
         test_a_pin_may_sit_outside_the_data_it_classifies)
   check("equal intervals stay equal under a pin",
         test_equal_intervals_stay_equal_under_a_pin)
+  check("a bound can be given back from every control",
+        test_a_bound_can_be_given_back_from_every_control)
   check("an unclassed row pins from either control",
         test_an_unclassed_row_pins_from_either_control)
   check("two pin controls agree across a run landing",
