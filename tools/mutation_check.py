@@ -124,8 +124,10 @@ MUTATIONS = [
        # exits under it. Mutating inside the helper would prove some
        # detail of how a ladder is recorded while leaving the actual
        # defect -- nothing recorded, ever -- unguarded.
-       old="""    self._adopt_dock_bounds(tile_id, assignment, actual_bounds)""",
-       new="""    pass  # adoption removed""",
+       old="""        self._adopt_dock_bounds(
+          tile_id, assignment,
+          [(r.lowerValue(), r.upperValue()) for r in live], actual)""",
+       new="""        pass  # adoption removed""",
        test="test_a_break_retyped_in_qgis_reaches_the_plugin",
        why="this is rc8 exactly: every reader of a graduated element "
            "-- the table, the colour editor, the swatch -- goes "
@@ -3404,8 +3406,7 @@ MUTATIONS = [
        file="weavingspace_qgis/dialog.py",
        old="      if self._last_path:\n"
            "        bridge.embed_style(layer)\n"
-           "      return  # our own seeding, or an edit that changed no colour\n"
-           "    if len(expected) != len(actual):",
+           "      # A RETYPED BOUNDARY LANDS HERE, because moving a number moves",
        new="      return  # our own seeding, or an edit that changed no colour\n"
            "    if len(expected) != len(actual):",
        test="test_a_dock_edit_of_any_kind_reaches_the_exported_file",

@@ -6429,6 +6429,34 @@ class WeavingSpaceDialog(QDialog):
     the model: typing 0 - 10 over a column starting at 3.1 gives
     (3.1, 10), the same areas in the same class.
     """
+    # NEVER WHILE THIS DIALOG IS WRITING RENDERERS ITSELF.
+    # `_applying_style` exists for exactly this distinction -- the
+    # styleChanged watcher uses it to tell a QGIS-side edit from our
+    # own seeding -- and adoption was reading both as a person's work.
+    #
+    # BRACKETED TO THIS ONE STATEMENT by bisection, after four wrong
+    # theories. Returning before the store made the failing test pass
+    # while every earlier guard still ran, and logging the store named
+    # what it wrote: five classes with breaks [1.0, 1.4, 2.6, 3.0] --
+    # the plugin's OWN ladder on this fixture, recorded as though a
+    # user had typed it. Pinned, it was then re-imposed when the next
+    # run landed, and a twelve-class reclassification made in the dock
+    # became five.
+    #
+    # A GETTER-SHAPED NAME IS NOT A GUARANTEE, either: the earlier
+    # theory that `_current_graduated_classes` was mutating the layer
+    # was wrong, but it is worth knowing it BUILDS a renderer rather
+    # than reading one.
+    # NOT WHILE THIS DIALOG IS WRITING RENDERERS, and NOT WHILE A RUN
+    # IS IN FLIGHT OR ITS LANDING IS STILL BEING RECONCILED. During a
+    # landing the record and the layer are transiently out of step, so
+    # what is on the layer is not what anybody typed.
+    if getattr(self, "_applying_style", False):
+      return
+    if getattr(self, "_task", None) is not None:
+      return
+    if getattr(self, "_preserved_this_run", None):
+      return
     field = assignment["var"]
     if not bounds or len(bounds) < 2:
       return
