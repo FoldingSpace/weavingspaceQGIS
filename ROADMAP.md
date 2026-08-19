@@ -157,31 +157,25 @@ two elements share a column, one element's notice silenced the other.
 
 ### Outstanding
 
-**FINISH THE FLOORS AND CEILINGS.** Branch
-`for-0.24.3/unclassed-edges`, and the rest of the work is on
-`pre-0.24.3rc1` already. The record, the arithmetic, the exclusion and
-the fourth kind of absence are in and proved; the editor can set and
-clear a floor and a ceiling. What is left is the presentation and its
-guards.
+**FINISH THE FLOORS AND CEILINGS.** No branch: it is all on
+`pre-0.24.3rc1`. `for-0.24.3/unclassed-edges` MERGED once its stated
+criteria were met -- the heavy-outline convention exists, and the
+three Unclassed guards were restated against it rather than deleted.
 
-WHAT MUST BE TRUE BEFORE THE BRANCH MERGES: the heavy-outline
-convention exists -- a bound box drawn with a heavy black outline when
-its number is a person's rather than a computed one, identically for a
-floor, a pin or a ceiling -- and the two Unclassed guards are restated
-against it. `test_an_unclassed_row_pins_from_either_control` and
-`test_two_pin_controls_agree_across_a_run_landing` both drive the pin
-BUTTON and compare its glyph pixels; they must read `_limit_boxes`
-rather than `_pin_widgets` and assert the outline instead. They are
-not to be deleted: the promise they carry, that an end named by two
-controls is named consistently, is exactly as true of the new design.
+The record, the arithmetic, the exclusion, the fourth kind of absence,
+the editor's four live boxes and the outline are in and proved. WHAT
+IS STILL OWED:
 
-ALSO STILL OWED, on the working branch rather than that one: retiring
-the Pin column for the CLASSED styles, the clear mark inside a cell
-that gives a bound back, the matrix cells and registered tests for
-everything above with each guard watched to fail, a catalogue entry
-per behaviour, and the user guide, help text and changelog. The
-changelog needs re-reading against the whole diff before promotion
-rather than amending -- it was approved for a much smaller release.
+Retiring the Pin column for the CLASSED styles, which Unclassed has
+already lost. A clear mark inside a cell that gives a bound back,
+beside typing the computed number back, which works. A SAMPLED MATRIX
+over the whole feature -- routes crossed with synthetic shapes chosen
+for failure modes, crossed with what happens next, a spine run every
+time and the rest sampled under a printed seed, per docs/TESTING.md --
+rather than a pile of single cases. A catalogue entry per behaviour,
+each watched CAUGHT. And the user guide, the help text and the
+changelog, which was approved for a much smaller release and needs
+re-reading against the whole diff rather than amending.
 
 ### What this version has already closed
 
