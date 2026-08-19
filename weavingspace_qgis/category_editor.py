@@ -1014,6 +1014,12 @@ class CategoryColourDialog(QDialog):
     clickable, and applying the other control's number.
     """
     pair = (pin, box)
+    # The cross gives a PINNED bound back too, and by the same route:
+    # setting the box to the computed number is what `_bound_moved`
+    # already reads as unpinning, so the mark and the keyboard reach
+    # one handler rather than two.
+    if hasattr(box, "cleared"):
+      box.cleared.connect(lambda w=which, b=box: self._give_back(w, b))
     self._pin_widgets.setdefault(which, []).append(pair)
     pin.toggled.connect(
       lambda on, w=which, p=pair: self._pin_toggled(w, on, p))
@@ -1169,7 +1175,34 @@ class CategoryColourDialog(QDialog):
     """
     box.valueChanged.connect(
       lambda _v, w=which, b=box: self._limit_moved(w, b))
+    # THE CROSS GIVES IT BACK, through the same handler typing the
+    # computed number back goes through. Both routes exist because
+    # both are wanted -- the mark is the discoverable one and typing
+    # is the one somebody reaches for without looking -- and routing
+    # them together is what stops the two coming to mean slightly
+    # different things.
+    if hasattr(box, "cleared"):
+      box.cleared.connect(lambda w=which, b=box: self._give_back(w, b))
     self._limit_boxes.setdefault(which, []).append(box)
+
+  def _give_back(self, which, box):
+    """Return one bound to the number the classification computes.
+
+    Args:
+      which: "low", "high", "floor" or "ceiling".
+      box: the control the cross was clicked in.
+
+    Returns:
+      None. Sets the box to the computed value and lets the ordinary
+      handler notice, so giving a bound back is the same act as typing
+      that number into it -- one path, not two descriptions of one.
+    """
+    default = self._default_bound(which)
+    if default is None:
+      return
+    box.setValue(float(default))
+    if which in ("floor", "ceiling"):
+      self._limit_moved(which, box)
 
   def _refresh_marks(self):
     """Mark every bound box whose number is a person's, not computed.

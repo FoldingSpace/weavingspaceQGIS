@@ -27,6 +27,7 @@ rather than from each other, which also keeps the import graph acyclic
 """
 from __future__ import annotations
 
+from qgis.PyQt.QtCore import pyqtSignal
 from qgis.PyQt.QtWidgets import QDoubleSpinBox
 
 
@@ -93,6 +94,13 @@ class MarkableSpinBox(TrimmedSpinBox):
     parent: the owning widget, as usual in Qt.
   """
 
+  # Emitted when the cross inside the box is clicked. A SIGNAL rather
+  # than the widget restoring a value itself, because the number to go
+  # back to is the CLASSIFICATION's, which this widget has no way to
+  # know -- and a box that guessed would be a second description of a
+  # ladder the editor already holds.
+  cleared = pyqtSignal()
+
   def __init__(self, parent=None):
     """Start unmarked, which is what a computed bound is."""
     super().__init__(parent)
@@ -143,10 +151,61 @@ class MarkableSpinBox(TrimmedSpinBox):
     from qgis.PyQt.QtGui import QPainter, QPen
     painter = QPainter(self)
     try:
+      painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
       pen = QPen(_Qt.GlobalColor.black)
       pen.setWidth(2)
       painter.setPen(pen)
       painter.setBrush(_Qt.BrushStyle.NoBrush)
       painter.drawRect(self.rect().adjusted(1, 1, -2, -2))
+      # ...and the cross that gives the bound back, drawn INSIDE the
+      # outline it belongs to. Same pen, so the two read as one mark
+      # rather than as a control somebody has added to the box.
+      cross = self._clear_rect()
+      pen.setWidth(1)
+      painter.setPen(pen)
+      painter.drawLine(cross.topLeft(), cross.bottomRight())
+      painter.drawLine(cross.bottomLeft(), cross.topRight())
     finally:
       painter.end()
+
+  def _clear_rect(self):
+    """Where the cross is drawn, and where a click on it counts.
+
+    Returns:
+      A QRect inside the box's left edge, square, sized from the
+      widget's height so it scales with the row rather than being
+      pinned to one screen's pixels.
+
+    ON THE LEFT, DELIBERATELY. Qt puts the spin arrows against the
+    RIGHT edge, and a clear target sharing that side is a target
+    people hit by accident while stepping a number -- which on these
+    boxes throws away a bound somebody set. One geometry, read by the
+    painter and by the hit test alike, so the mark cannot be drawn in
+    one place and clickable in another.
+    """
+    from qgis.PyQt.QtCore import QRect
+    side = max(6, min(10, self.height() - 12))
+    top = (self.height() - side) // 2
+    return QRect(5, top, side, side)
+
+  def mousePressEvent(self, event):                    # noqa: N802 (Qt API)
+    """Give the bound back when the cross is clicked.
+
+    Args:
+      event: the Qt mouse event.
+
+    Returns:
+      None. Emits `cleared` and swallows the click when it landed on
+      the cross; otherwise the box behaves exactly as a spin box does.
+
+    Only while MARKED, because an unmarked box draws no cross and a
+    click there is somebody reaching for the text.
+    """
+    if self._marked:
+      position = event.position().toPoint() \
+          if hasattr(event, "position") else event.pos()
+      if self._clear_rect().adjusted(-3, -3, 3, 3).contains(position):
+        self.cleared.emit()
+        event.accept()
+        return
+    super().mousePressEvent(event)
