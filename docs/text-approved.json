@@ -59,6 +59,11 @@
   "excerpt": "The lowest value drawn ({}) is at or above the first class b",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "0954a52dd8096d69": {
+  "approved": "2026-08-19",
+  "excerpt": "Send this element's classes, colours, bounds and class count",
+  "where": "weavingspace_qgis/category_editor.py"
+ },
  "09a9aff61c42a70e": {
   "approved": "2026-08-12",
   "excerpt": "![Land use around the Great Lakes at six moments in time, dr",
@@ -224,6 +229,11 @@
   "excerpt": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8",
   "where": "docs/index.html"
  },
+ "1ada7fec08322029": {
+  "approved": "2026-08-19",
+  "excerpt": "{} {} the classes from element '{}'.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "1ae2efcfc2bc7fcb": {
   "approved": "2026-08-09",
   "excerpt": "Every element in a unit takes its data from the same area.",
@@ -307,6 +317,11 @@
  "2c0806533eebc62b": {
   "approved": "2026-08-15",
   "excerpt": "Stretch the pattern up-down; negative mirrors it.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "2de0564b4a42340a": {
+  "approved": "2026-08-19",
+  "excerpt": "has no variable to classify, so it was left out.",
   "where": "weavingspace_qgis/dialog.py"
  },
  "2e56920bc83e09c4": {
@@ -414,6 +429,11 @@
   "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
   "where": "weavingspace_qgis/metadata.txt"
  },
+ "4213e61f21636c4b": {
+  "approved": "2026-08-19",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
  "42562fd4c77de6c3": {
   "approved": "2026-08-08",
   "excerpt": "The weavingspace library failed to load: {}",
@@ -427,6 +447,11 @@
  "4386757262e57cf9": {
   "approved": "2026-08-08",
   "excerpt": "Pulls each repeating unit apart from its neighbours, showing",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "4403f9fa9c6b382f": {
+  "approved": "2026-08-19",
+  "excerpt": "That element has nothing to copy.",
   "where": "weavingspace_qgis/dialog.py"
  },
  "44d6e59a20996c5a": {
@@ -532,6 +557,11 @@
  "50af5cd426307348": {
   "approved": "2026-08-08",
   "excerpt": "Use tileable as icon (one per map unit)",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "5293ccc139a3183e": {
+  "approved": "2026-08-19",
+  "excerpt": "hold no values inside the range {}, so they were left out.",
   "where": "weavingspace_qgis/dialog.py"
  },
  "53997e95bb56f55c": {
@@ -688,6 +718,11 @@
   "approved": "2026-08-19",
   "excerpt": "The limits you set on '{}' leave none of the values it holds",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "677282000e9e74c9": {
+  "approved": "2026-08-19",
+  "excerpt": "Above the list sits the Ramp Display Range: the ramp with tw",
+  "where": "docs/USER-GUIDE.md"
  },
  "678b01145f151372": {
   "approved": "2026-08-10",
@@ -884,6 +919,11 @@
   "excerpt": "Send this element's classes, colours, pins and class count t",
   "where": "weavingspace_qgis/category_editor.py"
  },
+ "878f3c96f240fd2d": {
+  "approved": "2026-08-19",
+  "excerpt": "The range travelled with them, so the map catches up at the ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "887f012f004af6d1": {
   "approved": "2026-08-08",
   "excerpt": "Save to GeoPackage (empty = temporary layers)",
@@ -1014,10 +1054,25 @@
   "excerpt": "Lower end of the ramp stretch, as a percentage.",
   "where": "weavingspace_qgis/category_editor.py"
  },
+ "96f2e73735b75691": {
+  "approved": "2026-08-19",
+  "excerpt": "The first class and the last have boxes you can type into; t",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "972f75eb72bd2c86": {
+  "approved": "2026-08-19",
+  "excerpt": "Quantitative elements open the same window. Each class is li",
+  "where": "docs/USER-GUIDE.md"
+ },
  "976216d46fd63e10": {
   "approved": "2026-08-18",
   "excerpt": "Narrow the ramp's display range, and pin its ends",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "9884d7f82b5b56dd": {
+  "approved": "2026-08-19",
+  "excerpt": "Copy onto the ticked elements",
+  "where": "weavingspace_qgis/category_editor.py"
  },
  "98e7c7ce4e0397db": {
   "approved": "2026-08-08",
@@ -1042,6 +1097,11 @@
  "9bc197f228806dd1": {
   "approved": "2026-08-09",
   "excerpt": "The layer's coordinate system changed, so the spacing has be",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "9bec72df65d159e3": {
+  "approved": "2026-08-19",
+  "excerpt": "have no variable to classify, so they were left out.",
   "where": "weavingspace_qgis/dialog.py"
  },
  "9c04656b86c5a9cb": {
@@ -1139,6 +1199,11 @@
   "excerpt": "That layer's data is no longer available, so the map cannot ",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "a9e2c1b9ded5886a": {
+  "approved": "2026-08-19",
+  "excerpt": "Changing the break method or the number of classes starts th",
+  "where": "docs/USER-GUIDE.md"
+ },
  "aa2a80e206a7838e": {
   "approved": "2026-08-08",
   "excerpt": "The tile unit could not be built.",
@@ -1229,6 +1294,11 @@
   "excerpt": "The region layer was removed from the project, so the map no",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "ba369919fa429bc6": {
+  "approved": "2026-08-19",
+  "excerpt": "holds no values inside the range {}, so it was left out.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "ba4f79738e5c7d43": {
   "approved": "2026-08-13",
   "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
@@ -1243,6 +1313,11 @@
   "approved": "2026-08-16",
   "excerpt": "'{}' has {} distinct values left between its pinned bounds, ",
   "where": "weavingspace_qgis/bridge.py"
+ },
+ "bf322285adcb50ca": {
+  "approved": "2026-08-19",
+  "excerpt": "*Copy to* at the top of the window sends this element's clas",
+  "where": "docs/USER-GUIDE.md"
  },
  "bf717698d324fd5c": {
   "approved": "2026-08-08",
@@ -1554,6 +1629,11 @@
   "excerpt": "Could not re-open {} from {}",
   "where": "weavingspace_qgis/bridge.py"
  },
+ "ed4b581d5ef2dbfc": {
+  "approved": "2026-08-19",
+  "excerpt": "Where the ramp starts and stops are the two that reach outsi",
+  "where": "docs/USER-GUIDE.md"
+ },
  "ee0f50e2d3bb79f6": {
   "approved": "2026-08-08",
   "excerpt": "Trims the pattern to the region outline. The slowest step, a",
@@ -1608,6 +1688,11 @@
   "approved": "2026-08-08",
   "excerpt": "[MAINTAINING.md](MAINTAINING.md) holds the architecture map,",
   "where": "README.md"
+ },
+ "f4027954bb4c029f": {
+  "approved": "2026-08-19",
+  "excerpt": "### Copying a classification to other elements",
+  "where": "docs/USER-GUIDE.md"
  },
  "f483b57a36e374d8": {
   "approved": "2026-08-15",
