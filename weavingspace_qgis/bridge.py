@@ -570,7 +570,15 @@ def estimate_icon_count(unit, areas: int) -> int:
       is treated as none.
 
   Returns:
-    The tile count exactly, since icon mode does no tiling at all:
+    The tile count, exact for a TileUnit and generous for a WeaveUnit.
+    Measured 2026-08-19 over 55 tiling cases -- every family, n of 2,
+    3, 4 and 6, retain-complete-tileables on and off -- where it is
+    exact; a weave's own element count is what makes it over-count
+    there, by up to about thirty per cent. Generous is the safe
+    direction for a guard, and this docstring claimed "exactly" for
+    both until a hunt measured it.
+
+    The arithmetic is simply that icon mode does no tiling at all:
     `Tiling(unit, region, as_icons=True)` puts ONE unit on each area,
     so the answer is areas times the elements in the unit and nothing
     about the spacing enters it.
