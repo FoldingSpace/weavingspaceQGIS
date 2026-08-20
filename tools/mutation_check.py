@@ -2119,10 +2119,15 @@ MUTATIONS = [
            "families that build everywhere, so the test looks past "
            "the count's existence to what is actually in it"),
   dict(name="a-pasted-ladder-carries-its-pins", file=DIALOG,
+       # RE-ANCHORED 2026-08-19 when the block gained its edge guard:
+       # a pin is never adopted onto the ladder's own floor or
+       # ceiling, since that is a class of no width.
        old="""    if len(mine) == len(bounds) and edges:
-      if abs(edges[0] - float(mine[0][1])) > 1e-9:
+      if abs(edges[0] - float(mine[0][1])) > 1e-9 \\
+          and abs(edges[0] - floor_here) > 1e-9:
         wanted.setdefault("low", edges[0])
-      if abs(edges[-1] - float(mine[-1][0])) > 1e-9:
+      if abs(edges[-1] - float(mine[-1][0])) > 1e-9 \\
+          and abs(edges[-1] - ceiling_here) > 1e-9:
         wanted.setdefault("high", edges[-1])""",
        new="    pass  # mutation: an adopted ladder keeps nobody's name",
        test="test_a_style_pasted_between_elements_carries_its_pins",

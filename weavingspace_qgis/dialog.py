@@ -6812,10 +6812,25 @@ class WeavingSpaceDialog(QDialog):
     # put them, and pinning those would claim a decision nobody made.
     # `setdefault`, so a pin the loop above deliberately KEPT is never
     # overwritten by the same number arriving a second way.
+    # ...AND NEVER ONTO THE LADDER'S OWN EDGE. A `low` equal to the
+    # floor, or a `high` equal to the ceiling, makes a class of ZERO
+    # WIDTH -- which is not a classification anybody asked for, and
+    # which this project already records as able to bring QGIS down
+    # rather than raise: `deleteClass` on a one-class renderer
+    # segfaults. The maintainer met a segfault on rc11 adding a class
+    # in the styling panel, with `low: 0.0` sitting exactly on
+    # `floor: 0.0` in the dump immediately before it. Whether that is
+    # the cause is unproven; the guard is right either way, since an
+    # empty class is a thing to REPORT and never a thing to pin.
+    # Ledger row 33.
+    floor_here = float(wanted.get("floor", bounds[0][0]))
+    ceiling_here = float(wanted.get("ceiling", bounds[-1][1]))
     if len(mine) == len(bounds) and edges:
-      if abs(edges[0] - float(mine[0][1])) > 1e-9:
+      if abs(edges[0] - float(mine[0][1])) > 1e-9 \
+          and abs(edges[0] - floor_here) > 1e-9:
         wanted.setdefault("low", edges[0])
-      if abs(edges[-1] - float(mine[-1][0])) > 1e-9:
+      if abs(edges[-1] - float(mine[-1][0])) > 1e-9 \
+          and abs(edges[-1] - ceiling_here) > 1e-9:
         wanted.setdefault("high", edges[-1])
     source = self._classification_values(field)
     values = (source.uniqueValues(source.fields().indexOf(field))
