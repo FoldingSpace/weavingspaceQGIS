@@ -1681,6 +1681,51 @@ not the same evidence -- a failure in the first has to RESET the
 count, and it cannot if the second was already running. Any change to
 the code or the harness resets it too.
 
+## A MATRIX ASKS ABOUT RECORDS; ADD THE QUESTION ABOUT WHAT IS SEEN
+
+2026-08-19, and it is the sharpest thing the day taught. Three defects
+landed in one evening and the symbology matrix -- twelve routes, nine
+shapes, three aftermaths, three schemes, close to a thousand cells --
+caught none of them:
+
+- a clear mark drawn into pixels its own QLineEdit covers, so it had
+  never been visible on any build;
+- a ceiling somebody had set with no edge to draw a mark on, because
+  the swatch enumerated two of the record's four ends;
+- a bound of 1e9 elided out of a box sized for 1.56.
+
+THE CROSSING WAS NEVER THE PROBLEM. The routes were all there and all
+exercised: "paste a foreign style", "set a ceiling", "copy to another
+element". What the matrix could COMPLAIN about was the whole of the
+gap. Read its own vocabulary -- "took the copy and was never stamped",
+"its spinner does not show", "draws no classes at all" -- and every
+one is a record, a layer, a stamp or a notice. NOTHING IN IT EVER
+LOOKED AT A PICTURE, and nothing asked whether a number it could see
+could be typed back. A grid of a thousand cells cannot catch a mark
+nobody can see, because it never looks.
+
+**SO EVERY CELL NOW ASKS TWO MORE QUESTIONS**, and they ride the state
+the cell has already staged rather than needing an axis of their own:
+everything the record holds is MARKED where the user would look for
+it, and every number the record holds is DISPLAYED IN FULL and types
+back to itself through the control's own validator.
+`_unseen_or_untypable` is that check, called from the symbology
+matrix's passing exits and from the copy matrix's verdict.
+
+**WHAT BELONGS IN A CELL AND WHAT BELONGS IN ONE TEST.** The cell asks
+what varies with the cell -- these values, this shape, this route. The
+per-END distinctness of the four marks does not vary with the cell, so
+it is asserted once, in `test_the_swatch_marks_every_end_a_person_set`,
+and the matrix does not pay for it a thousand times.
+
+**THE GENERAL FORM, which is the part to carry to the next matrix:**
+ask what a cell is ALLOWED TO NOTICE before adding cells. An axis that
+crosses a question the verdict cannot ask is an axis that cannot fail.
+This project's characteristic defect is a wrong map that looks like a
+right one; its second characteristic defect is a control that is right
+and cannot be seen or reached, and only the first of those had ever
+been in a matrix's vocabulary.
+
 ## Bisect by DISABLING, not by reasoning
 
 When a change breaks a test and the cause is not obvious after ONE

@@ -5918,6 +5918,17 @@ class WeavingSpaceDialog(QDialog):
              # measured; delete it if that measurement says so.
              self._layer_fingerprint())
       cached = self._custom_swatch_cache.get(tile_id)
+      # THE CACHE IS THE ONE THING BETWEEN A CORRECT RECORD AND A
+      # STALE CELL, so it says which it did. A recolour made in QGIS
+      # was reported twice as reaching the map and not the window,
+      # while the CLASSES cell beside it updated instantly -- and both
+      # are written by `_sync_row` in one pass, so the hook fired and
+      # the row re-synced. If the key has not moved, this hands back
+      # yesterday's picture for good. Five reproductions failed
+      # because every path they drove popped this cache.
+      _dump("SWATCH", tile_id,
+            "hit" if (cached is not None and cached[0] == key) else "miss",
+            "picks=", picks, "pinned=", pinned)
       if cached is not None and cached[0] == key:
         return cached[1]
       shades = [colour for _lo, _hi, colour
@@ -6346,6 +6357,8 @@ class WeavingSpaceDialog(QDialog):
       if expected.get(key) != colour and record.get(key) != colour:
         record[key] = colour
         adopted += 1
+    _dump("ADOPTCOLOUR", tile_id, "adopted=", adopted,
+          "expected=", expected, "actual=", actual)
     if not adopted:
       return
     self._custom_swatch_cache.pop(tile_id, None)
@@ -7178,6 +7191,8 @@ class WeavingSpaceDialog(QDialog):
       if expected[index] != colour and record.get(str(index)) != colour:
         record[str(index)] = colour
         adopted += 1
+    _dump("ADOPTCOLOUR", tile_id, "adopted=", adopted,
+          "expected=", expected, "actual=", actual)
     if not adopted:
       return
     self._custom_swatch_cache.pop(tile_id, None)

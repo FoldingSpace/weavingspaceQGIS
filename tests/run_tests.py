@@ -10068,6 +10068,52 @@ def test_a_bound_can_be_given_back_from_every_control():
   # exact shape this suite has a rule about: say what you found, not
   # which assertion you reached.
   report = "\n  ".join(failures) if failures else "(nothing reported)"
+  # ...AND THE MARK IS ACTUALLY DRAWN, which nothing here asked until
+  # 2026-08-19. This test drove the CLICK and passed throughout on a
+  # cross that had never once been visible: it was painted by the spin
+  # box into pixels its own QLineEdit covers, and Qt paints a child
+  # after its parent. Measured then: 721 dark pixels for the heavy
+  # outline and ZERO inside the cross's own rectangle. A guard that
+  # proves the handler works proves nothing about whether anybody can
+  # reach it.
+  #
+  # IT MARKS A BOX ITSELF AND SAYS HOW MANY IT LOOKED AT. Two earlier
+  # drafts of this block were caught by the catalogue: the first hid
+  # and re-showed the mark to get a contrast, which CALLS `show()` and
+  # `raise_()` and so repaired the mutation on its way past; the
+  # second ran after the loop above had given every bound back, so no
+  # box was marked, the body never executed and the assertion was
+  # vacuous. A count is the cheapest defence against both.
+  unseen = []
+  looked = 0
+  for which in ("floor", "low", "high", "ceiling"):
+    box = control(editor, which)
+    base = editor._default_bound(which)
+    if box is None or base is None:
+      continue
+    step = (abs(base) or 1.0) * 0.1 * (1 if which in ("floor", "low") else -1)
+    box.setValue(float(base) + step)
+    _tick(120)
+    if not box.isMarked():
+      continue
+    looked += 1
+    rect = box._clear_rect()
+    shot = box.grab().toImage()
+    ink = sum(1 for y in range(shot.height())
+              for x in range(shot.width())
+              if rect.contains(x, y)
+              and (shot.pixelColor(x, y).red()
+                   + shot.pixelColor(x, y).green()
+                   + shot.pixelColor(x, y).blue()) / 3 < 140)
+    if ink < 6:
+      unseen.append(f"{which} ({ink} px)")
+  assert looked, \
+    "no box could be marked, so nothing here was looked at and this " \
+    "block proves nothing about whether the mark is visible"
+  assert not unseen, \
+    f"the mark that gives a bound back puts no ink on screen for " \
+    f"{unseen}, so nobody can find it however well the click works"
+
   assert checked == 8, \
     f"only {checked} of 8 cells actually reached the clearing step, so " \
     f"this test measured less than it claims. What the cells said:\n" \
@@ -37262,6 +37308,91 @@ MATRIX_SCHEMES = ("Quant: Equal interval", "Quant: Quantiles",
 MATRIX_SPINE_SCHEME = "Quant: Equal interval"
 
 
+def _unseen_or_untypable(dlg, tile_id):
+  """What this element's record holds that a person cannot see or retype.
+
+  Args:
+    dlg: the dialog, after whatever the cell staged.
+    tile_id: the element under test.
+
+  Returns:
+    A short complaint, or "" when everything the record holds is both
+    marked on the swatch and readable back out of a bound box.
+
+  WHY IT RIDES EVERY MATRIX CELL. The matrices already cross twelve
+  routes with nine shapes, and they caught nothing on 2026-08-19 when
+  three defects landed in a row -- a clear mark drawn under the widget
+  that covers it, a ceiling with no edge to draw on, and a bound of
+  1e9 elided out of its box. The crossing was never the problem: every
+  complaint a cell could make was about RECORDS, spinners, layers,
+  stamps and notices, and not one of them looked at a picture or asked
+  whether a number could be typed back. A grid of a thousand cells
+  cannot catch a mark nobody can see, because it never looks.
+
+  So this is the cheap half of that: it costs one swatch and a little
+  arithmetic per cell, rides the state the cell has already staged,
+  and turns three classes of defect from invisible into impossible.
+  The per-END distinctness of the four marks is asserted once, in
+  `test_the_swatch_marks_every_end_a_person_set`, rather than in every
+  cell -- a matrix should ask the questions that vary with the cell.
+  """
+  from weavingspace_qgis.widgets import MarkableSpinBox
+  from qgis.PyQt.QtGui import QValidator
+  assignment = dlg._assignment_for(tile_id)
+  if assignment is None:
+    return ""
+  field = assignment.get("var")
+  record = dict((dlg._pinned_bounds.get(tile_id, {}) or {}).get(field)
+                or {})
+  ends = [end for end in ("floor", "low", "high", "ceiling")
+          if record.get(end) is not None]
+  if not ends:
+    return ""
+
+  def stripes():
+    dlg._custom_swatch_cache.pop(tile_id, None)
+    icon = dlg._custom_swatch_for(tile_id, field)
+    from weavingspace_qgis import dialog as dialog_module
+    image = icon.pixmap(dialog_module.RAMP_SWATCH).toImage()
+    return tuple(image.pixelColor(x, image.height() // 2).name()
+                 for x in range(image.width()))
+
+  marked = stripes()
+  kept = dlg._pinned_bounds.get(tile_id, {}).pop(field, None)
+  plain = stripes()
+  if kept is not None:
+    dlg._pinned_bounds.setdefault(tile_id, {})[field] = kept
+  dlg._custom_swatch_cache.pop(tile_id, None)
+  if marked == plain:
+    return (f"the record holds {ends} and the swatch shows no mark "
+            f"for any of them")
+
+  # ...AND EVERY NUMBER IT HOLDS CAN BE READ BACK. Typed through the
+  # box's own validator, since `setValue` clamps in silence and cannot
+  # see a keystroke eaten.
+  box = MarkableSpinBox()
+  box.setRange(-1e13, 1e13)
+  box.setDecimals(6)
+  for end in ends:
+    value = float(record[end])
+    shown = box.textFromValue(value)
+    kept_text = ""
+    for character in shown:
+      trial = kept_text + character
+      state, _fixed, _at = box.validate(trial, len(trial))
+      if state in (QValidator.State.Acceptable,
+                   QValidator.State.Intermediate):
+        kept_text = trial
+    if kept_text != shown:
+      return (f"the {end} shows as {shown!r} and the box refuses it: "
+              f"only {kept_text!r} survives being typed")
+    read = box.valueFromText(shown)
+    if abs(read - value) > max(abs(value) * 5e-3, 1e-9):
+      return (f"the {end} shows as {shown!r}, which reads back as "
+              f"{read!r} rather than {value!r}")
+  return ""
+
+
 def _matrix_cell(route, mutate, values, aftermath,
                  scheme="Quant: Equal interval"):
   """Stage one edit on one shape and say whether the plugin followed.
@@ -37401,7 +37532,8 @@ def _matrix_cell(route, mutate, values, aftermath,
                 f"after a floor of {floor_at} removed the bottom class, "
                 f"so the scheme was cut over values the map no longer "
                 f"draws")
-      return ("ok", "")
+      unseen = _unseen_or_untypable(dlg, tid)
+      return ("NOT FOLLOWED", unseen) if unseen else ("ok", "")
     if what == "ceiling":
       after = dlg._current_graduated_classes(
         [a for a in dlg._assignments() if a["id"] == tid][0])
@@ -37409,7 +37541,8 @@ def _matrix_cell(route, mutate, values, aftermath,
         return ("NOT FOLLOWED", "the element drew no classes at all")
       got = round(after[-1][1], 3)
       if abs(got - ceiling_at) < 1e-6:
-        return ("ok", "")
+        unseen = _unseen_or_untypable(dlg, tid)
+      return ("NOT FOLLOWED", unseen) if unseen else ("ok", "")
       return ("NOT FOLLOWED",
               f"the ladder stops at {got}, not at the ceiling {ceiling_at}")
     if what == "copied":
@@ -37438,7 +37571,8 @@ def _matrix_cell(route, mutate, values, aftermath,
                 dlg._current_graduated_classes(
                   [a for a in dlg._assignments() if a["id"] == other][0])]
       if theirs == mine:
-        return ("ok", "")
+        unseen = _unseen_or_untypable(dlg, tid)
+      return ("NOT FOLLOWED", unseen) if unseen else ("ok", "")
       return ("NOT FOLLOWED",
               f"the copy landed as {theirs}, not as the source's {mine}")
 
@@ -37513,7 +37647,8 @@ def _matrix_cell(route, mutate, values, aftermath,
       live = element.renderer().ranges()
       got = [r.label() for r in live][0]
     if got == expected:
-      return ("ok", "")
+      unseen = _unseen_or_untypable(dlg, tid)
+      return ("NOT FOLLOWED", unseen) if unseen else ("ok", "")
     return ("NOT FOLLOWED", f"wanted {expected}, plugin has {got}")
   finally:
     dlg.close()
@@ -38136,6 +38271,9 @@ def _copy_matrix_verdict(dlg, project, source_id, target_ids, before,
     if drawn != source_classes:
       return (f"element '{target_id}' draws {drawn} classes where the "
               f"source draws {source_classes}", "")
+  unseen = _unseen_or_untypable(dlg, source_id)
+  if unseen:
+    return ("WRONG", unseen)
   return ("ok", f"{len(taken)} took it, {len(refused)} refused")
 
 

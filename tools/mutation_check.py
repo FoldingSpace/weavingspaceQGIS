@@ -2132,6 +2132,23 @@ MUTATIONS = [
            "no mark against the ends somebody set, and "
            "`_release_copied_breaks` -- which keeps only low and high "
            "-- has nothing to degrade to when the class count moves"),
+  dict(name="the-clear-mark-is-drawn-where-it-can-be-seen", file=WIDGETS,
+       # ANCHORED ON THE RAISE, which is the whole of it: a child that
+       # has fallen behind the line edit is painted over by it, which
+       # is what the cross did for its entire life as paint.
+       old="""    self._cross.setVisible(self._marked)
+    if self._marked:
+      self._cross.raise_()""",
+       new="    self._cross.setVisible(False)",
+       test="test_a_bound_can_be_given_back_from_every_control",
+       why="the cross that gives a bound back was painted by the spin "
+           "box into pixels its own QLineEdit occupies, and Qt paints "
+           "a child after its parent -- so it had never once been "
+           "visible on any build. Measured: 721 dark pixels for the "
+           "heavy outline and ZERO inside the cross's rectangle. The "
+           "click was repaired a day earlier and the paint left "
+           "underneath it, so the affordance worked and could not be "
+           "found"),
   dict(name="a-bound-shows-a-prefix-past-a-magnitude", file=WIDGETS,
        old="    if SI_BELOW <= size < SI_ABOVE:\n"
            "      return super().textFromValue(value)",

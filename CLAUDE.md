@@ -2426,6 +2426,21 @@ genuinely independent third column and should be added then.
   docs/TESTING.md; apply it when improving an existing test too, since
   a test that already passes is where a hole hides best.
 
+- **A MATRIX CATCHES ONLY WHAT ITS CELLS MAY COMPLAIN ABOUT.**
+  (2026-08-19.) The symbology matrix crosses twelve routes with nine
+  shapes, three aftermaths and three schemes, and it caught NONE of
+  three defects that landed in one evening -- an affordance drawn
+  under the widget that covers it, a ceiling with no edge to mark, a
+  bound of 1e9 elided out of its box. The routes were all exercised.
+  Every complaint a cell could make was about a RECORD, a layer, a
+  stamp or a notice; nothing in it ever looked at a picture or asked
+  whether a number could be typed back.
+  So before adding cells, ask what a cell is ALLOWED TO NOTICE: an
+  axis that crosses a question the verdict cannot ask is an axis that
+  cannot fail. Every cell now also asks that what the record holds is
+  MARKED where a user looks and DISPLAYED in full and typable back.
+  Full reasoning in docs/TESTING.md.
+
 - **WHEN A CHANGE BREAKS A TEST, BISECT BY DISABLING RATHER THAN BY
   REASONING, after ONE hypothesis fails.** Insert an early `return` at
   successive points through the new code; the first point that turns
