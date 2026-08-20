@@ -156,26 +156,26 @@ element was warned a third of its fifty steps were empty; and where
 two elements share a column, one element's notice silenced the other.
 
 ### Outstanding
-**ONE ROW IS STILL OPEN AND IT NEEDS A PERSON, NOT CODE.** Four
-defects were found against rc11 on the evening of 2026-08-19. Three
-are closed with a test and a proved catalogue entry each, on
-2026-08-20: row 32 (the availability guard read two stale answers and
-waved a moved file through), row 34 (the plugin adopted its own
-placeholder grey as a hand-pick) and row 33's missing guard (a pin
-adopted onto the ladder's own edge, which the fix had landed without a
-test of its own). The record is
+**Nothing outstanding in code for 0.24.3.** Five defects were found
+against rc11 and rc13 over 2026-08-19 and 20, and every one is closed
+with a registered test and a proved catalogue entry: rows 32 (the
+availability guard read two stale answers and waved a moved file
+through), 33 (a pin adopted onto the ladder's own edge), 34 (the
+plugin adopted its own placeholder grey as a hand-pick), the
+class-count adoption that recorded four colours nobody picked, and 28
+(an in-place recolour emits no style signal, so the plugin now hears
+the repaint that follows it). The record is
 `docs/process/defects-2026-08-19.md`, which is what to read rather
 than this paragraph.
 
-ROW 33's SEGFAULT IS GUARDED BUT UNPROVEN, and that is why this
-section does not yet say nothing outstanding. The zero-width class is
-the only credible mechanism and it can no longer be written; the
-second suspect, a dump, was ruled out on inspection rather than by
-running anything -- `_dump` prints plain Python and the swatch build
-is reached from table syncs, not from any `paintEvent`. WHAT WOULD
-CLOSE IT is one run by the person who met it. Nothing here can
-supply that, and whether to build a candidate before it arrives is the
-maintainer's call rather than this file's.
+ROW 33 WAS CLOSED ON A DECISION rather than a proof, and the ledger
+says so plainly. A differential on 2026-08-20 established that the
+degenerate ladder from the dump is reproducible and is now impossible
+-- and that NEITHER tree crashed, so the link between that state and
+the maintainer's segfault is unproven. What closed it: the only
+identified mechanism is gone, the second suspect was ruled out on
+mechanism, and a candidate is the instrument that settles the rest.
+Reopen on any recurrence.
 
 ROW 28 IS CLOSED IN CODE and awaits the same field run. It had two
 causes a day apart: the failed Generate (row 32), and underneath it a
