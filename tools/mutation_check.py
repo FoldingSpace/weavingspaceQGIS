@@ -603,10 +603,14 @@ MUTATIONS = [
            "colour somebody chose, and the element then defends that "
            "grey against its own ramp for good"),
   dict(name="a-moved-file-is-not-available-data", file=COMPAT,
+       # RE-ANCHORED 2026-08-20: the request now declines the geometry
+       # too, measured at 1.94 ms against 0.075 ms on a 200k-vertex
+       # first feature.
        old="""    if layer.featureCount() > 0:
       request = QgsFeatureRequest()
       request.setLimit(1)
       request.setNoAttributes()
+      request.setFlags(QgsFeatureRequest.Flag.NoGeometry)
       return next(layer.getFeatures(request), None) is not None
     return True""",
        new="""    return True  # mutation: believe the provider's stale yes""",
@@ -3626,8 +3630,12 @@ MUTATIONS = [
            "heal it, since the row never moved"),
   dict(name="a-categorized-dock-edit-reaches-the-file",
        file="weavingspace_qgis/dialog.py",
+       # RE-ANCHORED 2026-08-20: this exit now names itself in the
+       # dump before returning, so the two lines are no longer
+       # adjacent.
        old="      if self._last_path:\n"
            "        bridge.embed_style(layer)\n"
+           "      _dump(\"DROP\", tile_id, \"clean-classify\")\n"
            "      return  # our own seeding, or an edit that changed no colour\n"
            "\n"
            "    # a clean classify from a standard ramp?",

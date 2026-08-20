@@ -2822,3 +2822,65 @@ genuinely independent third column and should be added then.
   else. This is the fixture-that-cannot-move trap inside an
   instrument, and it is the sibling of the freed-temporary segfault
   this file already records about the same getters.
+
+- **ABSENT IS NOT MOVED: when a NEW guard reads an OLD record, ask
+  which paths leave that record deliberately empty.** (2026-08-20,
+  found by three hunts independently.) A guard added the day before
+  skipped an element whose row signature differed from
+  `_last_signatures` -- right in itself, since between a control
+  change and the restyle that answers it the layer is merely BEHIND.
+  It asked with `!= self._last_signatures.get(tile_id)`, and
+  `_adopt_existing_group` leaves that record EMPTY on purpose, saying
+  so in its own docstring: the dialog cannot know which assignments
+  produced layers it has only just met. So `.get()` answered None for
+  every adopted element, None never equals a real signature, and the
+  new route was shut in every REOPENED project -- the commonest
+  journey there is, and the one whose docstring promises hand styling
+  survives. A missing entry is the absence of evidence; reading it as
+  evidence of change inverts the guard exactly where the record is
+  emptiest. Ask of any `.get()` in a guard what an absent key MEANS,
+  and write the answer at the line.
+- **A GUARD COMPUTED AS A DELTA IS ARMED FOR ONE INVOCATION.**
+  (2026-08-20, ledger row 2, and it defeated a guard written the
+  previous day.) `count_moved` was measured across
+  `_row_follows_the_renderer` INSIDE ONE HANDLER CALL, to stop a class
+  added in QGIS having its shuffled colours adopted. It is true on the
+  signal carrying the change and FALSE on every signal after it,
+  because the follow has already brought the row up to date and there
+  is no delta left to see. Measured: a hand-picked colour survived the
+  class being added and, one bare repaint later, the record held four
+  colours with the user's displaced a class and three of the plugin's
+  own recorded as theirs, stamped into the project. THREE routes reach
+  the second pass -- a later repaint, a re-tile landing, and the
+  window-activation backstop added in the same commit as the guard.
+  So: when you add a guard that reads state the caller has just
+  changed, ENUMERATE EVERY ROUTE TO A SECOND PASS in that same commit,
+  and prefer a question the state can answer at any moment over one
+  that asks "did this change just now".
+  THE OBVIOUS DURABLE REPLACEMENT WAS TRIED AND WITHDRAWN the same
+  hour, and its shape is worth not repeating: comparing the ladder's
+  BOUNDS against what the row would draw is correct in the reported
+  case and over-reaches everywhere else, because once a class has been
+  added in the dock the ladder differs from ours PERMANENTLY and no
+  hand-pick would ever be adopted for that element again. What the
+  next attempt must settle first is a decision rather than a defect --
+  after somebody reclassifies an element in QGIS's own panel, WHOSE
+  LADDER IS IT? If theirs, the element should defer and positional
+  adoption should stop; if ours, the ladder we drew must be STORED
+  rather than derived, since deriving it is what both attempts got
+  wrong.
+- **WHEN A GUARD STARTS ANSWERING DIFFERENTLY, FOLLOW ITS RETURN VALUE
+  INTO EVERY TUPLE IT IS A MEMBER OF, not only into its callers.**
+  (2026-08-20, a regression from the previous day's own fix.)
+  `compat.layer_data_is_available` was corrected to answer False for a
+  moved file. That answer is also a term in `_layer_fingerprint`,
+  which is a term in `_geometry_signature` and a CACHE KEY -- so a
+  moved file made the fingerprint read `("unavailable",)`,
+  `_restyle_only` bailed, and `_apply_style_change` discarded the
+  refusal in silence: a colour picked after the source vanished was
+  recorded, never painted and never mentioned, where before it
+  repainted correctly because a restyle needs nothing from the region
+  layer. The hunt that found it reported that the questions its brief
+  actually asked -- the cost, the empty layer -- were both clean, and
+  the defect was two hops away. A guard's callers are the easy half;
+  the hard half is everywhere its ANSWER travels as data.

@@ -2035,3 +2035,67 @@ rotting the other way: it requires the stale answers to still be
 stale, so a future QGIS that starts reporting honestly fails this test
 and asks to be rewritten, rather than passing quietly while covering a
 case that can no longer arise.
+
+## A REPRODUCTION THAT CANNOT REACH THE CASE REPORTS GOOD NEWS
+
+2026-08-20, and it is the third face of a shape this file already
+carries twice.
+
+A hunt claimed that a second signal adopts colours a first correctly
+declined. The probe written to check it drove the edit, waited, fired
+a bare repaint, and read the record: clean. The claim looked wrong.
+
+It was the probe. The repaint landed 0.9 seconds after the edit, and
+the code under test drops a repaint arriving within ONE SECOND of a
+style signal for the same element -- an echo guard added the same day.
+The probe could not reach the case it was written for. The hunt's own
+probe waited 1.4 seconds and reproduced immediately; widening the gap
+turned one hand-picked colour into four, with the user's displaced a
+class.
+
+THE FAMILY, now four deep and each arriving in different clothes: a
+setup step that repairs the defect (`show()`, `reload()`); a fixture
+that cannot exhibit the case (a square that Douglas-Peucker will not
+simplify, a ceiling outside the data); a guard that runs where there
+is nothing to look at; and now a TIMING that falls inside a window the
+product deliberately ignores.
+
+**SO WHEN A PROBE DISAGREES WITH A CLAIM, SUSPECT THE PROBE FIRST**,
+and specifically ask what the code under test does with the timing,
+the ordering and the debounces you happened to choose. This dialog has
+four such windows now -- 350 ms preview, 900 ms live, 300 ms repaint
+drain, and a 1 s echo -- and a reproduction that lands inside one of
+them measures the window rather than the software.
+
+AND THE CHEAPEST CURE IS THE ONE THIS FILE ALREADY PRESCRIBES: assert
+the premise. A probe that checked "the second signal actually reached
+the handler" before reading the record would have failed loudly
+instead of passing quietly.
+
+## TWO DEAD AXES OUT OF TWENTY-SIX, AND BOTH WERE SUBSUMED
+
+The per-assertion hunt of 2026-08-20, at four tests written the day
+before, each already carrying a proved catalogue entry. Nineteen
+mutations; two assertions could not fail. Neither was a product fault
+and neither is the usual shape:
+
+- an assertion naming a REAL contract that this test cannot reach --
+  `assert dlg._task is None` guards against launching a run over a
+  dead layer, and survives deleting the guard, because the conversion
+  refuses that fixture unaided. A second line of defence behind a
+  first that is not under test here;
+- an assertion SUBSUMED BY A STRONGER ONE two lines below it, created
+  by strengthening the test: `assert not adopted_template` cannot be
+  the failing assertion once `assert not picks` sits beneath it.
+
+**THE SECOND IS THE INTERESTING ONE**, because strengthening a test is
+how it arrived. When you add a broader assertion, the narrower one
+above it may stop being able to fail -- so read what you have made
+redundant, and either delete it or move it where it still bites. A
+dead axis created by an improvement is still a dead axis.
+
+The rate, one in thirteen, is better than this project's standing one
+in five or six. That is not evidence the practice can be skipped: all
+four tests had been through the catalogue first, which proves the
+PRIMARY axis and structurally cannot see the rest, and both dead axes
+sat behind live primaries exactly as every previous round found.

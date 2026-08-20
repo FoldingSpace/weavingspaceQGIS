@@ -6136,7 +6136,22 @@ class WeavingSpaceDialog(QDialog):
         if assignment is None:
           _dump("REPAINT", tile_id, "no-row")
           continue
-        if self._signature(assignment) != self._last_signatures.get(tile_id):
+        # ...AND AN ABSENT RECORD IS NOT A ROW THAT MOVED. This read
+        # `!= self._last_signatures.get(tile_id)` until 2026-08-20,
+        # so a MISSING entry -- `None`, never equal to any real
+        # signature -- was read as "the row moved" and the element
+        # was skipped for good. `_adopt_existing_group` leaves that
+        # record EMPTY on purpose, saying so in its own docstring, on
+        # the reasoning that the dialog cannot know which assignments
+        # produced layers it has only just met. So every element of
+        # every REOPENED project took this branch: the repaint door
+        # was shut in exactly the session the same docstring promises
+        # that "hand styling still survives as before", and an
+        # in-place recolour was painted back to the ramp at the next
+        # Generate. Found by a hunt aimed at this pair of doors the
+        # day they were written.
+        recorded = self._last_signatures.get(tile_id)
+        if recorded is not None and self._signature(assignment) != recorded:
           # the ROW moved; a restyle is pending, not a dock edit
           _dump("REPAINT", tile_id, "row-moved")
           continue
@@ -6468,6 +6483,7 @@ class WeavingSpaceDialog(QDialog):
       # hours before this one and never looked five hundred lines up.
       if self._last_path:
         bridge.embed_style(layer)
+      _dump("DROP", tile_id, "clean-classify")
       return  # our own seeding, or an edit that changed no colour
 
     # a clean classify from a standard ramp? Only without an imported
@@ -7213,8 +7229,11 @@ class WeavingSpaceDialog(QDialog):
       count_moved: whether this edit changed HOW MANY classes the
         element has, measured by the caller on both sides of
         ``_row_follows_the_renderer``. Positional colours are not
-        adopted when it did; see the comment at that walk. Defaults
-        to False so a direct caller keeps the old behaviour.
+        adopted when it did. KNOWN INCOMPLETE, ledger row 2 of
+        2026-08-20: it is a DELTA, so it holds on the signal carrying
+        the change and on no signal after it, and three routes reach a
+        second pass. Defaults to False so a direct caller keeps the
+        old behaviour.
 
     Returns:
       None. The graduated mirror of the categorized watcher, settled
@@ -7305,8 +7324,10 @@ class WeavingSpaceDialog(QDialog):
           [(r.lowerValue(), r.upperValue()) for r in live], actual)
       except Exception:
         pass
+      _dump("DROP", tile_id, "clean-classify")
       return  # our own seeding, or an edit that changed no colour
     if len(expected) != len(actual):
+      _dump("DROP", tile_id, "count", len(expected), "vs", len(actual))
       # THE count guard, and the only one: the layer against what the
       # plugin would draw for this row. A CONSTANT column is
       # deliberately collapsed to one class here, while QGIS's own

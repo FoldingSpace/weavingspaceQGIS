@@ -12,7 +12,15 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-08-19, when a MATRIX rather than a hunt found three
+Last updated 2026-08-20, after a round of EIGHT hunts aimed at the
+previous day's repairs. Five confirmed defects; FOUR were in code
+written that day and THREE of those four were inside repairs for
+defects the same day had found. The entry is under "2026-08-20"
+below. The ratio has not improved with practice, which is the
+argument for aiming a round at fresh work as a matter of course
+rather than when somebody remembers.
+
+Before that, 2026-08-19, when a MATRIX rather than a hunt found three
 defects in a day -- two of them in ground the feature under
 construction had nothing to do with. The entry is under "2026-08-19"
 below; the short version is that adding an AXIS to an existing grid
@@ -207,10 +215,12 @@ nothing, so it is counted against the hunt, not for it.
 | --- | --- | ---: | ---: | --- |
 | **Backwards from harm** | "What would a user be furious to lose, and how could the software do that to them?" | 1 | 2 | Found the worst defect in the project's history on its first run. Its second claim — more classes than the column has values, so swatches appear that no tile uses — was confirmed and fixed on 2026-08-13 (evening), two probes later: the first errored, the second lacked a render context |
 | **Instruments audit** | "Does each tool actually enforce the rule it claims?" | 1 | 6+ | Found the catalogue certifying tests that never ran, and (2026-08-13, evening) a documented command — the coverage report — that could never write a report at all, because the suite exits through os._exit |
-| **Asymmetry / twins** | "What does this path do that its sibling does not?" | 5 | 9 | The most reliable code-reading direction here |
-| **Suite dead axes** | "Which tests cannot fail?" | 1 | 3 | Two dead tests plus an always-true assertion |
-| **Two stores of one fact** | "Which of these two records wins when they disagree?" | 3 | 4 | Yielded well; several claims needed narrowing on verification |
-| **Unreachable branches** | "Which guard's precondition nothing produces?" | 2 | 3 | Also caught a red suite nobody had noticed |
+| **Asymmetry / twins** | "What does this path do that its sibling does not?" | 7 | 11 | The most reliable code-reading direction here |
+| **Suite dead axes** | "Which tests cannot fail?" | 2 | 5 | Two dead tests plus an always-true assertion |
+| **A value added today** | "Which values written this week are read where the same reasoning applies twice?" | 1 | 1 | New 2026-08-20. Found a guard computed as a DELTA, so armed for one invocation only: correct on the signal carrying the change and false on every signal after it |
+| **A guard's return value downstream** | "This check now answers differently -- who else reads that answer?" | 1 | 1 | New 2026-08-20. The cheap questions the brief asked (cost, the empty layer) were both clean; the defect was two hops away, in what the new answer did as a member of a cache key and a signature tuple |
+| **Two stores of one fact** | "Which of these two records wins when they disagree?" | 4 | 5 | Yielded well; several claims needed narrowing on verification |
+| **Unreachable branches** | "Which guard's precondition nothing produces?" | 3 | 4 | Also caught a red suite nobody had noticed |
 | **One boundary but not another** | "Which crossing was not fixed alongside the ones that were?" | 3 | 5 | Strong on export/reopen. Two QML findings confirmed later: a file edited on disk never reaches the map, and a moved file is repainted away on the restyle path |
 | **Write-only state** | "What is written and read back by nobody?" | 2 | 2 | Also misjudged a real defect as harmless — see below |
 | **Preview against map** | "Do two renderings of one design agree?" | 1 | 1 | An unassigned element previewed in colour and drawn grey, confirmed and fixed. Its other claim — elements silently absent on dense designs — did NOT reproduce over ten configurations on 2026-08-13, and is counted against this direction |
@@ -898,3 +908,52 @@ purpose -- Unclassed's exemption from the distinct-value reduction, a
 mid-run paste being preserved rather than re-seeded, limits being
 inclusive at their own value, and a floor contradicting the ladder
 about to be typed over it.
+
+## 2026-08-20: eight hunts at the previous day's repairs
+
+Five confirmed defects. FOUR were in code written within the previous
+day, and THREE of those four were inside REPAIRS for defects that day
+had found. The full record, row by row with what each still owes, is
+`docs/process/defects-2026-08-20.md`.
+
+**THREE HUNTS CONVERGED ON ONE LINE**, from three different shapes:
+asymmetry between two doors into a handler, the journey of a recolour
+across boundaries, and two new stores of one fact. All three arrived
+at a guard that read a MISSING record as a CHANGED one, which shut the
+new repaint route in every reopened project. Convergence from
+unrelated directions is worth more than any single confirmation: it
+cannot be an artefact of one probe's fixture.
+
+**THE STRONGEST SINGLE ROUND SO FAR, AND THE REASON IS THE AIM.**
+Every direction here was pointed at code written in the previous
+twenty-four hours. The same directions aimed at old ground have
+returned little in this project's history — the table above records
+that — and the hypothesis this round supports is that the yield
+belongs to the AGE of the code rather than to the shape of the
+question.
+
+**A NEW DIRECTION THAT PAID, AND IT IS CHEAP TO REPEAT.** "This guard
+now answers differently — who else reads that answer?" The cheap
+questions its brief actually asked were both clean: the cost was flat,
+and a merely empty layer changed no branch. The defect was two hops
+downstream, where the new answer travelled as a member of a cache key
+and a signature tuple, and killed the restyle path in silence. When a
+guard's return value changes, follow it into every tuple it belongs
+to, not only into its callers.
+
+**AND ONE HUNT MEASURED ITS OWN NEGATIVE SPACE**, which is why the
+ledger can list what was ruled out: an empty layer, a feature count of
+-1, a subset string matching nothing, unfiltered cost at every size,
+and eight of nine drop branches. Those cost real time and are worth
+recording precisely so nobody spends it twice.
+
+**WHAT THE ROUND COST ME RATHER THAN THE MACHINE.** Every claim was
+reproduced by a route the hunt did not use before it was believed, and
+that queue is what ended the round — not the hunts, which were still
+running. Two of my own reproductions were wrong before they were
+right: one fired inside a one-second window added the same day, so it
+could not reach the case and reported good news; one blamed my own
+fixture for a real block, which cost one command to disprove. The
+verification queue is the limit on this method, exactly as the
+paragraph above on stopping says, and running eight at once does not
+raise throughput.

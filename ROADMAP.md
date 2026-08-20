@@ -156,7 +156,35 @@ element was warned a third of its fifty steps were empty; and where
 two elements share a column, one element's notice silenced the other.
 
 ### Outstanding
-**Nothing outstanding in code for 0.24.3.** Five defects were found
+**THREE DEFECTS ARE OPEN AGAINST rc15, AND ONE OF THEM IS IN THE
+CANDIDATE.** A round of eight hunts on 2026-08-20, aimed at the
+previous day's repairs, confirmed five defects; two are fixed and
+three are open. The record is `docs/process/defects-2026-08-20.md`,
+which is what to read rather than this paragraph.
+
+WHAT IS IN rc15: a guard against adopting colours QGIS shuffled holds
+for ONE SIGNAL ONLY, so a second reconciliation records a user's
+hand-picked colour displaced by a class and three of the plugin's own
+as theirs, stamped into the project file. Three routes reach it. rc15
+is a candidate rather than a release, so this is a reason not to
+promote it rather than an emergency -- but anybody testing rc15 should
+know that adding a class in QGIS's panel can cost them a colour.
+
+ALSO OPEN: the window-activation reconcile is a second route into that
+same harm and costs N-squared renderer reads per activation; and the
+previous day's availability fix regressed the restyle path, so a
+colour picked after a region layer's file has moved is recorded, never
+painted and never mentioned.
+
+THE FIRST OF THOSE NEEDS A DECISION BEFORE A FIX: after somebody
+reclassifies an element in QGIS's own panel, whose ladder is it? If
+theirs, the element should defer and positional colour adoption should
+stop; if ours, the ladder we drew has to be STORED rather than
+derived. Two attempts at deriving it have now failed in opposite
+directions.
+
+**What follows was true before that round, and its fixes stand.** Five
+defects were found
 against rc11 and rc13 over 2026-08-19 and 20, and every one is closed
 with a registered test and a proved catalogue entry: rows 32 (the
 availability guard read two stale answers and waved a moved file
