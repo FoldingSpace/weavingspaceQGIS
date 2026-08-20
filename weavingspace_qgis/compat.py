@@ -26,7 +26,8 @@ the old branch kept and its QGIS version noted.
 
 from __future__ import annotations
 
-from qgis.core import QgsField, QgsMapLayerProxyModel, QgsTask, QgsVectorFileWriter
+from qgis.core import (QgsFeatureRequest, QgsField, QgsMapLayerProxyModel,
+                       QgsTask, QgsVectorFileWriter)
 
 
 def make_field(name: str, python_type) -> QgsField:
@@ -157,6 +158,34 @@ def layer_data_is_available(layer) -> bool:
   no message in the log, QGIS simply gone. The provider's own
   isValid() is the honest answer and the only one that helps.
 
+  ...UNTIL SOMETHING RELOADS THE LAYER, WHICH NOBODY DOES. That
+  paragraph describes a layer AFTER `reload()`, and until 2026-08-20
+  those two checks were the whole of this function -- so the case it
+  names in its own Returns block, a file that has gone while the
+  layer still claims to be valid, was exactly the case it waved
+  through. Measured on QGIS 4.0.3, moving a GeoPackage out from under
+  an open layer:
+
+      before the move   isValid True   provider True    count 36   iterated 36
+      file moved away   isValid True   provider True    count 36   iterated  0
+      then reload()     isValid True   provider False   count -2   iterated  0
+
+  Every cheap answer is STALE on the middle row, including the count,
+  and nothing reloads a layer a user has not touched. A maintainer
+  duly met "The selected layer has no (non-empty) polygon features"
+  about a layer QGIS was still reporting as holding thirty-six of
+  them: this guard passed, `bridge.layer_to_gdf` iterated nothing,
+  and the refusal that reached them was about their DATA when the
+  fact was that their FILE had moved (ledger row 32).
+
+  So the honest question is whether a feature actually COMES BACK.
+  Asking for one is cheap on a live layer of any size and safe on a
+  dead one -- iterating a dead provider yields nothing and raises
+  nothing, where `extent()` takes QGIS down with it. A layer that
+  legitimately holds nothing is not unavailable, so the question is
+  only put where the layer CLAIMS to hold something: a positive count
+  and no feature back is data that has gone.
+
   It lives in compat because it reaches through to the data provider,
   and the relationship between a layer's validity and its provider's
   is exactly the sort of thing a QGIS release adjusts.
@@ -167,7 +196,17 @@ def layer_data_is_available(layer) -> bool:
     if not layer.isValid():
       return False
     provider = layer.dataProvider()
-    return provider is not None and provider.isValid()
+    if provider is None or not provider.isValid():
+      return False
+    # `setNoAttributes` keeps this to the geometry alone, and the
+    # limit keeps it to one feature: the question is whether the
+    # source answers at all, not what it says.
+    if layer.featureCount() > 0:
+      request = QgsFeatureRequest()
+      request.setLimit(1)
+      request.setNoAttributes()
+      return next(layer.getFeatures(request), None) is not None
+    return True
   except RuntimeError:
     # the C++ object has been deleted out from under the wrapper,
     # which is its own kind of unavailable

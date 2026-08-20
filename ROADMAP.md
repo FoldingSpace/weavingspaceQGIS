@@ -156,21 +156,30 @@ element was warned a third of its fifty steps were empty; and where
 two elements share a column, one element's notice silenced the other.
 
 ### Outstanding
-**FOUR DEFECTS ARE OPEN AGAINST rc11 AND ONE OF THEM IS A CRASH.**
-This section claimed a clear code slate for 0.24.3, and that was
-true until the evening of 2026-08-19, when field testing of the
-instrumentation build found four more. They are rows 32, 33, 28 and 34
-of `docs/process/defects-2026-08-19.md`, and the record there is what
-to read rather than this paragraph.
+**ONE ROW IS STILL OPEN AND IT NEEDS A PERSON, NOT CODE.** Four
+defects were found against rc11 on the evening of 2026-08-19. Three
+are closed with a test and a proved catalogue entry each, on
+2026-08-20: row 32 (the availability guard read two stale answers and
+waved a moved file through), row 34 (the plugin adopted its own
+placeholder grey as a hand-pick) and row 33's missing guard (a pin
+adopted onto the ladder's own edge, which the fix had landed without a
+test of its own). The record is
+`docs/process/defects-2026-08-19.md`, which is what to read rather
+than this paragraph.
 
-ROW 33 IS A SEGFAULT and blocks a candidate on its own. Two suspects,
-both introduced that evening: a pin adopted onto the ladder's own edge
-(guarded, cause unproven) and a dump printing from the swatch build on
-the painting path (not yet moved). ONE RUN DISCRIMINATES -- rc11 with
-`WEAVINGSPACE_ADOPT_DUMP` unset.
+ROW 33's SEGFAULT IS GUARDED BUT UNPROVEN, and that is why this
+section does not yet say nothing outstanding. The zero-width class is
+the only credible mechanism and it can no longer be written; the
+second suspect, a dump, was ruled out on inspection rather than by
+running anything -- `_dump` prints plain Python and the swatch build
+is reached from table syncs, not from any `paintEvent`. WHAT WOULD
+CLOSE IT is one run by the person who met it. Nothing here can
+supply that, and whether to build a candidate before it arrives is the
+maintainer's call rather than this file's.
 
-ROW 32 refuses a live layer after switching from one whose file moved,
-and ROW 28 is measured as downstream of it. Chase 32 first.
+ROW 28 waits on the same run. Its cause, row 32, is closed, so a
+Generate now succeeds in that session and the `styleChanged` watch is
+connected; the live recolour path itself is already guarded twice.
 
 
 **THE FLOORS AND CEILINGS ARE IN, AND SO ARE THEIR GUARDS.** The

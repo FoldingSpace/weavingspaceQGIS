@@ -18081,6 +18081,113 @@ def test_a_style_pasted_between_elements_carries_its_pins():
     dlg.close()
 
 
+def test_a_pin_is_never_adopted_onto_the_ladders_own_edge():
+  """A `low` on the floor is a class of no width, and QGIS may die of it.
+
+  The maintainer's QGIS segfaulted on rc11 after adding a class in the
+  styling panel, and the dump caught the record immediately before it:
+  ``floor: 0.0`` with ``low: 0.0`` sitting exactly on it, so the first
+  class ran 0.0 to 0.0. This project already records that a degenerate
+  ladder can bring QGIS down rather than raise -- ``deleteClass`` on a
+  one-class renderer segfaults outright, which the suite asserts
+  elsewhere as QGIS's own behaviour.
+
+  Whether that was the cause of the crash is still unproven and the
+  guard is right either way: an empty class is a thing this plugin
+  REPORTS in words, never a thing it pins. What it must not do is
+  write a boundary a person never chose onto the very edge of the
+  ladder and then defend it.
+
+  TWO ACTS, because a fix that simply stopped adopting ends would pass
+  the first on its own. An end landing ON the edge must be declined;
+  an end landing anywhere else must still be taken, which is the
+  behaviour the maintainer asked for when a pasted ladder carries its
+  pins.
+
+  Regression: 2026-08-19. The dock-bounds adoption pinned whatever the
+  first class's upper bound had become, including when that was
+  exactly the element's own floor, producing a zero-width class. [user]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=10)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    dlg.table.cellWidget(0, 1).setCurrentText("v1")
+    _tick(80)
+    mode = dlg.table.cellWidget(0, 2)
+    mode.setCurrentText("Quant: Equal intervals")
+    mode.activated.emit(mode.currentIndex())
+    _tick(80)
+    tid = dlg.table.item(0, 0).text()
+    field = dlg._assignment_for(tid)["var"]
+
+    # a FLOOR inside the data, which is a geometry change, so the map
+    # catches up at the next Generate rather than on a restyle
+    FLOOR = 2.0
+    dlg._pinned_bounds.setdefault(tid, {})[field] = {"floor": FLOOR}
+    dlg._apply_style_change()
+    _tick(200)
+    dlg.spacing_spin.setValue(700)
+    _generate_and_wait(dlg)
+    _tick(300)
+
+    out = project.mapLayer(dlg._element_layer_ids[tid])
+    spans = list(out.renderer().ranges())
+    assert len(spans) >= 3, \
+      f"the element drew {len(spans)} classes; this case needs a " \
+      f"ladder with an interior to retype"
+    assert abs(spans[0].lowerValue() - FLOOR) < 1e-6, \
+      f"the ladder does not start at the floor ({spans[0].lowerValue()} " \
+      f"against {FLOOR}), so putting a boundary ON the floor below " \
+      f"would not be putting it on the ladder's own edge"
+
+    # ---- act one: retype the first boundary DOWN onto the floor, so
+    # the first class has no width at all. That is the state the
+    # maintainer's dump caught.
+    edited = out.renderer().clone()
+    edited.updateRangeUpperValue(0, FLOOR)
+    edited.updateRangeLowerValue(1, FLOOR)
+    out.setRenderer(edited)
+    out.styleChanged.emit()
+    _tick(500)
+
+    landed = dlg._pinned_bounds.get(tid, {}).get(field) or {}
+    low = landed.get("low")
+    assert low is None or abs(float(low) - FLOOR) > 1e-9, \
+      f"a pin was adopted onto the ladder's own edge: low={low!r} " \
+      f"against floor={landed.get('floor')!r}. That names a class of " \
+      f"zero width, which this plugin reports in words and never pins"
+
+    # ---- act two: the positive twin. An end that moves somewhere the
+    # floor is NOT must still be adopted, or act one above would pass
+    # on an adoption that has simply been switched off.
+    ELSEWHERE = float(spans[1].upperValue())
+    assert abs(ELSEWHERE - FLOOR) > 1e-6, \
+      "the fixture's second boundary coincides with the floor, so " \
+      "this act cannot tell adoption from refusal"
+    again = out.renderer().clone()
+    again.updateRangeUpperValue(0, ELSEWHERE)
+    again.updateRangeLowerValue(1, ELSEWHERE)
+    out.setRenderer(again)
+    out.styleChanged.emit()
+    _tick(500)
+
+    landed = dlg._pinned_bounds.get(tid, {}).get(field) or {}
+    low = landed.get("low")
+    assert low is not None and abs(float(low) - ELSEWHERE) < 1e-6, \
+      f"an end retyped to {ELSEWHERE}, which is nowhere near the " \
+      f"floor, was NOT adopted as a pin (low={low!r}). The check " \
+      f"above therefore proves nothing: adoption is off entirely " \
+      f"rather than declining the edge"
+  finally:
+    dlg.close()
+
+
 def test_the_release_digest_watches_what_ships():
   """The fingerprint covers the artefact, and only the artefact.
 
@@ -28025,6 +28132,104 @@ def test_a_reverse_tick_survives_a_rebuild_while_it_is_greyed():
   assert back is not None and back.isEnabled() and back.isChecked(), \
     "the element got its ramp back and the switch came up unticked, " \
     "so the ramp runs the opposite way to what the user chose"
+  dlg.close()
+
+
+def test_a_class_added_in_qgis_is_not_a_colour_somebody_picked():
+  """QGIS clones OUR placeholder for a new class; nobody picked it.
+
+  ``make_graduated_renderer`` sets the renderer's source symbol to
+  ``#c0c0c0``, and QGIS's Symbology panel clones the source symbol for
+  a class the user ADDS. Measured on QGIS 4.0.3: adding a class to a
+  four-class Blues ladder inserts it at index 0 wearing that grey, so
+  the ladder reads grey, palest, pale, mid, darkest.
+
+  The colour adoption then compared the ladder against what the ramp
+  would draw, found the grey different, and wrote it into
+  ``_quant_colours`` as a hand-pick -- so the plugin defended its own
+  placeholder against the user's ramp for the life of the element. A
+  maintainer's dump showed exactly that, ``picks`` gaining
+  ``'0': '#c0c0c0'`` after a class was added in the panel: ledger
+  row 34.
+
+  TWO ACTS, and the second is what stops the first passing on
+  silence. Adding a class must record NOTHING, and a real recolour
+  through the same door must still be recorded -- otherwise a fix
+  that simply stopped adopting anything would pass here.
+
+  Regression: a class added in QGIS's styling panel arrived wearing
+  the plugin's own placeholder grey, and the colour adoption recorded
+  that grey as a colour the user had chosen. [user]
+  """
+  from qgis.core import QgsGraduatedSymbolRenderer
+  from qgis.PyQt.QtGui import QColor
+  project = QgsProject.instance()
+  dlg, layer, tid = _quant_dialog(ramp="Blues", k=4)
+  dlg.spacing_spin.setValue(500)
+  _generate_and_wait(dlg)
+  out = project.mapLayer(dlg._element_layer_ids[tid])
+  renderer = out.renderer()
+  assert isinstance(renderer, QgsGraduatedSymbolRenderer), \
+    f"the element did not come back graduated ({renderer!r}), so the " \
+    f"adoption path under test never runs"
+  source = renderer.sourceSymbol()
+  assert source is not None, \
+    "the renderer carries no source symbol, so QGIS has nothing to " \
+    "clone and this test cannot stage what it is about"
+  template = source.color().name()
+  before = len(renderer.ranges())
+
+  # ---- act one: add a class exactly as the panel's "+" does, by
+  # cloning the source symbol. Bind ranges() to a name before reading
+  # any symbol out of it: a temporary frees its contents.
+  edited = out.renderer().clone()
+  edited.addClass(edited.sourceSymbol().clone())
+  out.setRenderer(edited)
+  out.triggerRepaint()
+  _tick(400)
+
+  after = out.renderer().ranges()
+  assert len(after) == before + 1, \
+    f"the class was not added ({before} then {len(after)}), so " \
+    f"nothing here reproduces a user pressing + in the panel"
+  wearing = [i for i, one in enumerate(after)
+             if one.symbol().color().name() == template]
+  assert wearing, \
+    f"no class came back wearing the template {template}, so QGIS no " \
+    f"longer clones the source symbol and this test must be rewritten " \
+    f"rather than relaxed"
+
+  picks = dlg._quant_colours.get(tid, {}).get("v1", {})
+  adopted_template = {index: colour for index, colour in picks.items()
+                      if colour == template}
+  assert not adopted_template, \
+    f"the plugin recorded its own placeholder {template} as a colour " \
+    f"the user picked, at {sorted(adopted_template)}. QGIS copied " \
+    f"that grey from our source symbol; a watcher may only adopt " \
+    f"what a PERSON left behind"
+
+  # ---- act two: the positive twin, so act one cannot pass by the
+  # adoption having been switched off altogether. A real recolour
+  # through the very same door must still be recorded.
+  CHOSEN = "#204060"
+  again = out.renderer().clone()
+  ranges = again.ranges()
+  symbol = ranges[len(ranges) - 1].symbol().clone()
+  symbol.setColor(QColor(CHOSEN))
+  again.updateRangeSymbol(len(ranges) - 1, symbol)
+  out.setRenderer(again)
+  out.triggerRepaint()
+  _tick(400)
+
+  picks = dlg._quant_colours.get(tid, {}).get("v1", {})
+  assert CHOSEN in picks.values(), \
+    f"a class recoloured by hand to {CHOSEN} was NOT recorded, so " \
+    f"the check above passed on an adoption that records nothing at " \
+    f"all rather than on one that declines the template. Picks were " \
+    f"{picks!r}"
+  assert template not in picks.values(), \
+    f"the template {template} arrived alongside the real pick; " \
+    f"picks were {picks!r}"
   dlg.close()
 
 
@@ -39722,6 +39927,111 @@ def test_a_project_whose_region_layer_has_moved():
       f"the refused run disturbed the map already on screen: " \
       f"{before} became {after}"
     reopened.close()
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_layer_whose_file_moved_is_refused_before_it_is_read():
+  """The file goes while the layer is open, and NOTHING reloads it.
+
+  This is the sibling of test_a_project_whose_region_layer_has_moved
+  and it exists because that test calls ``second.reload()`` before it
+  asks anything -- which is the one act that makes QGIS tell the
+  truth, and the one act a user never performs. Between a file moving
+  and somebody noticing, an open GeoPackage layer goes on answering
+  isValid() True, dataProvider().isValid() True and featureCount()
+  with its LAST GOOD COUNT, while getFeatures() yields nothing at all.
+
+  A maintainer met the consequence against rc11 (ledger row 32): the
+  plugin refused with "The selected layer has no (non-empty) polygon
+  features" about a layer QGIS was still reporting as holding
+  thirty-six of them. The sentence sent them to look at their data,
+  and the fact was that their file had moved.
+
+  What is asserted is the whole chain: that the stale answers are
+  still stale, so this says so rather than passing quietly if a future
+  QGIS starts telling the truth; that the plugin's guard is no longer
+  fooled by them; and that the words the user MEETS name the file
+  rather than the data.
+
+  Regression: compat.layer_data_is_available checked isValid() and the
+  provider's isValid() and nothing else, so a layer whose file had
+  moved out from under it passed the guard and was refused far
+  downstream, in terms of the wrong thing. [user]
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis import compat
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  folder = tempfile.mkdtemp(prefix="weavingspace_moved_open_")
+  try:
+    region, region_path = _c3e_disk_region(folder)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(300)
+    assert [a["var"] for a in dlg._assignments() if a["var"]], \
+      "the table never took a variable, so the refusal below would " \
+      "be about an empty table rather than about a moved file"
+
+    try:
+      _move_file_aside(region_path,
+                       os.path.join(folder, "region-elsewhere.gpkg"))
+    except PermissionError:
+      # Windows will not rename a file the OGR provider holds open,
+      # and holding it open is the entire premise here -- releasing
+      # the provider first would destroy the very state under test.
+      # docs/TESTING.md records this platform limit and requires the
+      # skip to say which part went missing.
+      _skip_loudly(
+        "test_a_layer_whose_file_moved_is_refused_before_it_is_read",
+        "Windows will not rename a file the OGR provider holds open, "
+        "so a file cannot be moved out from under a LIVE layer here. "
+        "This case still runs on macOS and Linux, where the premise "
+        "is stageable.")
+      dlg.close()
+      return
+
+    # ---- the premise, stated rather than assumed. Every one of these
+    # is a STALE answer, and if a future QGIS starts answering
+    # honestly this test must be rewritten rather than relaxed: the
+    # guard below would then be covering a case that cannot arise.
+    assert region.isValid(), \
+      "QGIS now calls a layer whose file has moved invalid; this " \
+      "test was written for the case where it does not"
+    provider = region.dataProvider()
+    assert provider is not None and provider.isValid(), \
+      "the provider now admits the file has gone WITHOUT a reload; " \
+      "the defect this guards cannot arise, so rewrite rather than " \
+      "relax"
+    assert region.featureCount() > 0, \
+      f"the layer no longer claims features ({region.featureCount()}), " \
+      f"so nothing here reproduces a layer that lies about its data"
+    assert sum(1 for _ in region.getFeatures()) == 0, \
+      "the file moved and the features still arrive, so the move did " \
+      "not take and there is no corpse to decline"
+
+    # ---- the guard, which is the fix
+    assert not compat.layer_data_is_available(region), \
+      "a layer whose file has moved was reported AVAILABLE. Every " \
+      "cheap answer above is stale, so the only honest question is " \
+      "whether a feature actually comes back -- and none does"
+
+    # ---- and what the user is actually told, which is the harm
+    said = _c3e_declined(dlg)
+    assert dlg._task is None, \
+      "a run was launched over a layer whose data has gone; reading " \
+      "its extent is a segfault, not an error"
+    assert any("no longer available" in sentence for sentence in said), \
+      f"the refusal must name the FILE, not the data; the user was " \
+      f"told {said!r}"
+    assert not any("polygon features" in sentence for sentence in said), \
+      f"the user was told their layer has no polygon features about " \
+      f"a layer QGIS says holds {region.featureCount()}; that " \
+      f"sentence sends them to their data when their file has moved. " \
+      f"They were told {said!r}"
+    dlg.close()
   finally:
     QgsProject.instance().clear()
     shutil.rmtree(folder, ignore_errors=True)
@@ -54155,6 +54465,8 @@ def main():
         test_a_reverse_tick_survives_a_rebuild_while_it_is_greyed)
   check("Reverse permutes quant customization",
         test_reverse_permutes_quant_customization)
+  check("a class added in QGIS is not a colour somebody picked",
+        test_a_class_added_in_qgis_is_not_a_colour_somebody_picked)
   check("quant picks die when the ramp is asked anew",
         test_quant_picks_die_when_the_ramp_is_asked_anew)
   check("a QGIS-side graduated restyle reaches the dialog",
@@ -54416,6 +54728,8 @@ def main():
         test_a_project_saved_by_an_older_plugin_still_opens)
   check("a project whose region layer has moved",
         test_a_project_whose_region_layer_has_moved)
+  check("a layer whose file moved is refused before it is read",
+        test_a_layer_whose_file_moved_is_refused_before_it_is_read)
   check("a run started before a change lands after it",
         test_a_run_started_before_a_change_lands_after_it)
   check("removing the group leaves the project clean",
@@ -54804,6 +55118,8 @@ def main():
         test_the_swatch_marks_every_end_a_person_set)
   check("a style pasted between elements carries its pins",
         test_a_style_pasted_between_elements_carries_its_pins)
+  check("a pin is never adopted onto the ladder's own edge",
+        test_a_pin_is_never_adopted_onto_the_ladders_own_edge)
   check("the release digest watches what ships",
         test_the_release_digest_watches_what_ships)
   check("a release needs a matching candidate",

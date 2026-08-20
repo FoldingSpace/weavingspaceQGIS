@@ -6352,6 +6352,24 @@ class WeavingSpaceDialog(QDialog):
     field = assignment["var"]
     record = self._category_colours.setdefault(tile_id, {}) \
         .setdefault(field, {})
+    # NO TEMPLATE GUARD HERE, AND THAT IS MEASURED RATHER THAN
+    # OVERLOOKED. Its graduated twin declines to adopt a colour equal
+    # to the renderer's SOURCE SYMBOL, because QGIS clones that symbol
+    # for a class the user adds and the plugin was recording its own
+    # placeholder as somebody's decision (ledger row 34). The obvious
+    # next move is to write the same guard here, and it would be dead
+    # code: `make_categorized_renderer` sets no source symbol, so
+    # `sourceSymbol()` answers None on every categorized renderer this
+    # plugin builds -- measured on QGIS 4.0.3, 2026-08-20, on a
+    # six-category tab10 element. A guard that cannot fire is worse
+    # than none, since it reads as protection and would sit in the
+    # catalogue as an unkillable survivor forever.
+    #
+    # WHAT WOULD REOPEN IT: a QGIS release that gives the categorized
+    # renderer a source symbol, or this plugin setting one. Either
+    # makes a category added in the panel arrive wearing a template,
+    # and a new category has a new KEY, so `expected.get(key)` is None
+    # and the walk below would adopt it on sight.
     adopted = 0
     for key, colour in actual.items():
       if expected.get(key) != colour and record.get(key) != colour:
@@ -7201,8 +7219,33 @@ class WeavingSpaceDialog(QDialog):
     field = assignment["var"]
     record = self._quant_colours.setdefault(tile_id, {}) \
         .setdefault(field, {})
+    # ...BUT NEVER THE PLUGIN'S OWN TEMPLATE.
+    # `make_graduated_renderer` sets the renderer's SOURCE SYMBOL to a
+    # placeholder grey, and QGIS's Symbology panel clones that symbol
+    # for a class the user ADDS. Measured on QGIS 4.0.3: adding a
+    # class to a four-class Blues ladder inserts it AT INDEX 0 wearing
+    # #c0c0c0, so the ladder reads grey, palest, pale, mid, darkest.
+    # Nobody picked that grey -- QGIS copied it from us -- and
+    # recording it as a hand-pick made the plugin defend its own
+    # placeholder against the ramp for the life of the element. A
+    # watcher may only adopt what a PERSON left behind. The
+    # maintainer's dump showed exactly this, `picks` gaining
+    # '0': '#c0c0c0' after a class was added in the panel: ledger
+    # row 34.
+    #
+    # Bound to a name before it is read: a symbol reached through a
+    # temporary is freed under you, which this project has already
+    # paid for twice.
+    source = renderer.sourceSymbol()
+    template = source.color().name() if source is not None else None
     adopted = 0
     for index, colour in enumerate(actual):
+      # A user who genuinely wants the template's colour picks it on a
+      # class QGIS did not just create, and that pick is adopted by
+      # the next edit; what is declined here is a colour identical to
+      # the template on the very edit that clones it.
+      if colour == template:
+        continue
       if expected[index] != colour and record.get(str(index)) != colour:
         record[str(index)] = colour
         adopted += 1

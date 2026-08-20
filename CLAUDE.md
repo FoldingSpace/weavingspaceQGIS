@@ -2736,3 +2736,56 @@ genuinely independent third column and should be added then.
   measuring every line, not by inspecting the local file. Where a
   publish step exists between the file and the reader, the reader's
   copy is the only one that counts.
+
+- **A DEPENDENCY'S CHEAP ANSWER IS A CACHED ANSWER, AND A GUARD BUILT
+  ON ONE IS HONEST ONLY AFTER SOMETHING INVALIDATES IT.** (2026-08-20,
+  ledger row 32.) `compat.layer_data_is_available` asked a layer
+  whether it was valid and its provider whether it was valid, and its
+  own Returns block promised that caught "a layer whose file has been
+  deleted ... including the case where the layer itself still claims
+  to be valid". Measured on QGIS 4.0.3, moving a GeoPackage out from
+  under an open layer: isValid True, provider True, featureCount 36 --
+  and `getFeatures()` yielding NOTHING. Only after an explicit
+  `reload()` does the provider admit False and the count fall to -2,
+  and nothing reloads a layer a user has not touched. So the guard
+  passed, the run went on, and the refusal that reached the user was
+  about their DATA when the fact was that their FILE had moved.
+  THE HABIT: when a guard asks a dependency whether something is still
+  true, ask what would have to HAPPEN for that answer to be refreshed.
+  Where the answer is "somebody must act", the cheap question measures
+  the last time somebody acted, not the world. The honest question
+  here costs one feature: ask for it, and see whether it comes back.
+  This is the third appearance of "a gate that checks half of what it
+  names", and the first where the other half was a staleness rather
+  than a missing clause.
+- **AND ITS TEST HAD BEEN EXERCISING THE HONEST PATH ALL ALONG.** The
+  sibling guard called `reload()` in its own setup before asking
+  anything -- which is the one act that makes QGIS tell the truth, and
+  the one act a user never performs. A test whose SETUP repairs the
+  condition it is about passes forever; this project already knows
+  that shape from a visual guard that called `show()` on the thing the
+  mutation had hidden, and it arrives here wearing a data provider.
+  Read a test's arrangement for calls that would refresh, reset or
+  reopen the very thing under test.
+- **A FIX APPLIED TO A TWIN THAT DOES NOT HAVE THE FAULT IS DEAD CODE
+  THAT READS AS PROTECTION.** (2026-08-20, ledger row 34.) The rule
+  that a colour equal to the renderer's SOURCE SYMBOL is QGIS's clone
+  rather than somebody's decision is right on the graduated path, and
+  was written onto the categorized path in the same edit out of the
+  usual and correct suspicion about pairs. Measured,
+  `make_categorized_renderer` sets no source symbol at all, so that
+  guard could never fire: it would have sat in the catalogue as a
+  permanent survivor and in the source as a claim that a door was
+  watched. It was deleted and the measurement left at the site with
+  what would reopen it. THE PAIRS RULE CUTS BOTH WAYS -- check whether
+  the twin HAS the fault before giving it the fix, and when it does
+  not, say so where the next person will look for the symmetry.
+- **A GUARD THAT LANDS WITHOUT A TEST OF ITS OWN LOOKS GUARDED,
+  BECAUSE THE NEIGHBOUR IT RE-ANCHORED STILL PASSES.** The edge rule
+  for pinned bounds went in on 2026-08-19, correctly re-anchoring the
+  catalogue entry standing on the line it changed -- and that entry
+  proves ends are adopted AT ALL, not that they are kept off the
+  ladder's edge. The commit therefore read as fixed-and-guarded while
+  the new rule had nothing measuring it. When an edit re-anchors an
+  entry, ask what that entry actually asserts: re-anchoring keeps an
+  OLD claim true and never states the new one.

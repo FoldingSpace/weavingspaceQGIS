@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-271 defect(s) with a regression test.
+274 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -542,6 +542,8 @@ there is no separate list to remember.
 
 - **a class break retyped by hand in QGIS's Symbology panel never reached the plugin, whose table, colour editor and swatch all went on showing breaks it had computed itself, whatever QGIS held.**  
   guarded by `test_a_break_retyped_in_qgis_reaches_the_plugin`
+- **a class added in QGIS's styling panel arrived wearing the plugin's own placeholder grey, and the colour adoption recorded that grey as a colour the user had chosen.**  
+  guarded by `test_a_class_added_in_qgis_is_not_a_colour_somebody_picked`
 - **a copy carried no floor and no ceiling and destroyed the target's, so one pair of limits could not be given to several variables; and once it did carry them it went unstamped, because the restyle path that writes the stamp correctly declines a geometry change.**  
   guarded by `test_a_copy_carries_the_range_and_refuses_what_it_would_empty`
 - **a copy carried the class breaks, colours, pins and count and NOT the floor and ceiling, so the one thing the range feature was asked for -- giving one pair of limits to several variables -- could not be done by the control built for it, and a copy destroyed whatever range its target already had.**  
@@ -550,6 +552,10 @@ there is no separate list to remember.
   guarded by `test_a_data_defined_fill_is_drawn_as_an_unknown`
 - **a deferring element's ramp cell went on naming a ramp, and its swatch did not follow the colours set in QGIS's styling panel.**  
   guarded by `test_a_deferring_row_shows_the_colours_qgis_is_drawing`
+- **compat.layer_data_is_available checked isValid() and the provider's isValid() and nothing else, so a layer whose file had moved out from under it passed the guard and was refused far downstream, in terms of the wrong thing.**  
+  guarded by `test_a_layer_whose_file_moved_is_refused_before_it_is_read`
+- **2026-08-19. The dock-bounds adoption pinned whatever the first class's upper bound had become, including when that was exactly the element's own floor, producing a zero-width class.**  
+  guarded by `test_a_pin_is_never_adopted_onto_the_ladders_own_edge`
 - **a class bound outside the column's own range was refused, so a user could not give two variables the same limits and have a colour mean the same number on both. Relaxing the guard alone was not enough: `_apply_pinned_bounds` built the outer class from the column's own extreme, so a pin below the data made a range running backwards and the ladder snapped back to 1.0. Reported against 0.24.3rc5.**  
   guarded by `test_a_pin_may_sit_outside_the_data_it_classifies`
 - **editing an element's symbology in QGIS did not reach the plugin, and the guard that existed changed field, class count and ramp together -- so it could not show that a retyped boundary alone reached nothing.**  
@@ -595,7 +601,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 84
-- reported by a user: 25
+- reported by a user: 28
 - the mutation campaign: 16
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

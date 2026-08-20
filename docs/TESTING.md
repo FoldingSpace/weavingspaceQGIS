@@ -1999,3 +1999,39 @@ AND THE COROLLARY FOR ANY HARNESS YOU WRITE: ask what it reports when
 the thing it drives cannot start. If that is indistinguishable from
 success, it can only confirm, and a check that can only confirm is not
 a check.
+
+## A TEST WHOSE SETUP REFRESHES THE THING UNDER TEST PASSES FOREVER
+
+2026-08-20, and it is the data-provider face of a shape this file
+already records twice.
+
+`test_a_project_whose_region_layer_has_moved` covers a GeoPackage that
+goes while the layer is open, and it calls `second.reload()` before it
+asks a single question. That call is the ONE act that makes QGIS tell
+the truth about a moved file -- measured on 4.0.3, an open layer whose
+file has moved answers `isValid()` True, `dataProvider().isValid()`
+True and `featureCount()` with its last good number, and only after a
+reload does the provider admit False. It is also the one act a user
+never performs. So the test had been exercising the honest path for as
+long as it had existed, while the path a maintainer actually walks was
+uncovered, and the plugin duly refused a run in terms of the wrong
+thing (ledger row 32).
+
+THE FAMILY, now three deep and each arriving in different clothes: a
+visual guard that called `show()` and `raise_()` on the mark whose
+hiding was the mutation; a guard whose fixture gave every element all
+three kinds of absence, so the case it was written for could not
+arise; and this one, where a refresh call stands between the fixture
+and the question.
+
+**READ A TEST'S ARRANGEMENT FOR CALLS THAT REFRESH, RESET, REOPEN OR
+REPAIR.** A setup step is not neutral just because it comes before the
+assertions. Ask of each one whether the defect could survive it, and
+where it could not, that step IS the test's subject and has to move
+after the question or go.
+
+THE REPLACEMENT ASSERTS ITS OWN PREMISE, which is what stops it
+rotting the other way: it requires the stale answers to still be
+stale, so a future QGIS that starts reporting honestly fails this test
+and asks to be rewritten, rather than passing quietly while covering a
+case that can no longer arise.

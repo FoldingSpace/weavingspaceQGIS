@@ -373,3 +373,30 @@ say what it is and why in plain terms (what a renderer is, why signals
 are blocked, what a memory layer is), not just what the call does. The
 existing modules set the bar — match it. Line-by-line commentary is not
 the goal; explaining the QGIS-shaped reasoning is.
+
+## Asking a layer whether its data is still there
+
+`compat.layer_data_is_available` is the one place that answers this,
+and it must be asked BEFORE anything reads a layer's extent: on a
+GeoPackage whose file has gone, `extent()` takes QGIS down with no
+exception and nothing in the log.
+
+**The cheap answers are cached, and a moved file does not disturb
+them.** Measured on QGIS 4.0.3, moving a GeoPackage out from under an
+open layer:
+
+    before the move   isValid True   provider True    count 36   iterated 36
+    file moved away   isValid True   provider True    count 36   iterated  0
+    then reload()     isValid True   provider False   count -2   iterated  0
+
+Nothing reloads a layer a user has not touched, so between the file
+moving and somebody noticing, every cheap question answers as though
+the data were there. The function therefore asks for ONE FEATURE, with
+no attributes, wherever the layer claims to hold any: a positive count
+and nothing coming back is data that has gone. Iterating a dead
+provider is safe -- it yields nothing and raises nothing -- which is
+what makes this affordable where reading the extent is fatal.
+
+A layer that legitimately holds nothing is not unavailable, so the
+question is only put where the layer claims otherwise. If you add a
+caller, ask it here rather than reading `isValid()` yourself.

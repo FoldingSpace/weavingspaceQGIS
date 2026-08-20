@@ -548,6 +548,34 @@ MUTATIONS = [
        why="extent() on a layer whose file has been deleted segfaults "
            "QGIS outright: no exception, no traceback, nothing in the "
            "log. isValid() returns True and lies"),
+  dict(name="a-cloned-template-is-not-a-hand-pick", file=DIALOG,
+       old="""      if colour == template:
+        continue
+      if expected[index] != colour and record.get(str(index)) != colour:""",
+       new="""      if expected[index] != colour and record.get(str(index)) != colour:""",
+       test="test_a_class_added_in_qgis_is_not_a_colour_somebody_picked",
+       why="QGIS clones the renderer's source symbol for a class the "
+           "user ADDS in the Symbology panel, and this plugin sets "
+           "that symbol to a placeholder grey -- measured on QGIS "
+           "4.0.3, the new class lands at index 0 wearing #c0c0c0. "
+           "Adopting it records the plugin's own placeholder as a "
+           "colour somebody chose, and the element then defends that "
+           "grey against its own ramp for good"),
+  dict(name="a-moved-file-is-not-available-data", file=COMPAT,
+       old="""    if layer.featureCount() > 0:
+      request = QgsFeatureRequest()
+      request.setLimit(1)
+      request.setNoAttributes()
+      return next(layer.getFeatures(request), None) is not None
+    return True""",
+       new="""    return True  # mutation: believe the provider's stale yes""",
+       test="test_a_layer_whose_file_moved_is_refused_before_it_is_read",
+       why="a GeoPackage whose file moves under an open layer goes on "
+           "reporting isValid True, a valid provider and its last good "
+           "feature count, while getFeatures yields nothing. Believing "
+           "those answers sends the run on to layer_to_gdf, which "
+           "refuses in terms of the user's DATA when the fact is that "
+           "their FILE has moved"),
   dict(name="unobservable-layer-retiles", file=DIALOG,
        old="""    if self._data_is_unobservable():
       # A layer that will not say how many features it has may have""",
@@ -2118,6 +2146,21 @@ MUTATIONS = [
            "form of this defect by refilling the count with the four "
            "families that build everywhere, so the test looks past "
            "the count's existence to what is actually in it"),
+  dict(name="a-pin-is-never-adopted-onto-the-edge", file=DIALOG,
+       # NARROWER THAN ITS NEIGHBOUR BELOW ON PURPOSE: that entry
+       # removes the whole adoption, this one removes only the
+       # clause that keeps a pin off the ladder's own floor.
+       old=r"""      if abs(edges[0] - float(mine[0][1])) > 1e-9 \
+          and abs(edges[0] - floor_here) > 1e-9:""",
+       new="""      if abs(edges[0] - float(mine[0][1])) > 1e-9:""",
+       test="test_a_pin_is_never_adopted_onto_the_ladders_own_edge",
+       why="a low pin sitting exactly on the floor names a first "
+           "class of ZERO WIDTH. The maintainer's QGIS segfaulted "
+           "on rc11 after adding a class in the styling panel with "
+           "exactly that record in the dump, and this project "
+           "already holds that a degenerate ladder can bring QGIS "
+           "down rather than raise. An empty class is reported in "
+           "words and never pinned"),
   dict(name="a-pasted-ladder-carries-its-pins", file=DIALOG,
        # RE-ANCHORED 2026-08-19 when the block gained its edge guard:
        # a pin is never adopted onto the ladder's own floor or
