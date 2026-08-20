@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-274 defect(s) with a regression test.
+275 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -568,6 +568,8 @@ there is no separate list to remember.
   guarded by `test_a_style_pasted_between_elements_carries_its_pins`
 - **a subset string set by the user on an element layer was discarded at every regeneration, silently, while the hand styling beside it survived.**  
   guarded by `test_a_user_subset_survives_regeneration`
+- **a class recoloured in place in QGIS's styling panel reached the map and neither the row's swatch nor the colour editor, because styleChanged only fires on setRenderer and nothing else was connected.**  
+  guarded by `test_an_in_place_recolour_is_heard_through_its_repaint`
 - **an Unclassed row offered no Pin column, so the pins were reported as not working there at all. Reported against 0.24.3rc5.**  
   guarded by `test_an_unclassed_row_pins_from_either_control`
 - **the colour-separability warning fired unconditionally, on every map, whether or not anyone wanted that opinion; and later, with the box checked, every warning reached a real message bar TWICE, pushed immediately and again by the settled-dust send whose stash had been added for the note-line wipe without removing the push.**  
@@ -601,7 +603,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 84
-- reported by a user: 28
+- reported by a user: 29
 - the mutation campaign: 16
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

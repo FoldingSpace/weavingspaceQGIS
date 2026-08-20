@@ -27033,6 +27033,107 @@ def test_a_reopened_plugin_does_not_mistake_a_no_data_layer_for_its_element():
   again.close()
 
 
+def test_an_in_place_recolour_is_heard_through_its_repaint():
+  """A dock recolour that fires NO style signal still reaches the row.
+
+  Measured on QGIS 4.0.3 with the plugin out of the way: only
+  ``setRenderer`` emits ``styleChanged``/``rendererChanged``.
+  Recolouring a class's symbol IN PLACE -- which is what the styling
+  panel does for a plain colour edit -- emits neither, and the only
+  audible trace is the ``triggerRepaint()`` the dock calls afterwards,
+  which is also the only way the user's own canvas learns. A
+  maintainer recoloured a class three times over two days and watched
+  the map follow while the plugin sat still; adding a class reached it
+  because THAT action installs a whole renderer.
+
+  This test drives exactly that: the symbol edited on the live
+  renderer, no setRenderer, then triggerRepaint -- and requires the
+  colour to arrive in the plugin's record. THE PREMISE IS ASSERTED:
+  a styleChanged emission would mean the staging no longer reproduces
+  an in-place edit and the test must be rewritten, not relaxed.
+
+  And the echo rule is exercised in the same sitting: a setRenderer
+  edit fires styleChanged AND a repaint, and the repaint must not
+  deliver the same edit a second time at the drain -- the second pass
+  runs after the row has followed, when the count guard reads false,
+  and it adopted the displaced colours the first pass rightly
+  declined (measured here before the stamp existed).
+
+  Regression: a class recoloured in place in QGIS's styling panel
+  reached the map and neither the row's swatch nor the colour editor,
+  because styleChanged only fires on setRenderer and nothing else was
+  connected. [user]
+  """
+  from qgis.core import QgsGraduatedSymbolRenderer
+  from qgis.PyQt.QtGui import QColor
+  project = QgsProject.instance()
+  dlg, layer, tid = _quant_dialog(ramp="Blues", k=4)
+  dlg.spacing_spin.setValue(500)
+  _generate_and_wait(dlg)
+  out = project.mapLayer(dlg._element_layer_ids[tid])
+  renderer = out.renderer()
+  assert isinstance(renderer, QgsGraduatedSymbolRenderer), \
+    f"the element did not come back graduated ({renderer!r})"
+
+  heard = []
+  out.styleChanged.connect(lambda *_: heard.append("styleChanged"))
+
+  # ---- the reported case: edit the symbol IN PLACE, no setRenderer,
+  # then ask for the repaint the dock asks for. Through the
+  # renderer's OWN updateRangeSymbol, because `ranges()` hands back
+  # copies -- recolouring one of those changes nothing on the layer,
+  # which made the first draft of this test a fixture that could not
+  # move. The premise is asserted right after, as that lesson asks.
+  CHOSEN = "#204060"
+  ranges = renderer.ranges()
+  symbol = ranges[0].symbol().clone()
+  symbol.setColor(QColor(CHOSEN))
+  renderer.updateRangeSymbol(0, symbol)
+  live = out.renderer().ranges()
+  assert live[0].symbol().color().name() == CHOSEN, \
+    "the in-place edit never reached the layer's renderer, so there " \
+    "is nothing here for the plugin to miss"
+  out.triggerRepaint()
+  assert not heard, \
+    "styleChanged fired on an in-place edit, so QGIS now announces " \
+    "what this route exists to catch silently; rewrite this test " \
+    "around the new signal rather than relaxing it"
+  # the drain is debounced at 300 ms; let it run
+  _tick(600)
+
+  picks = dlg._quant_colours.get(tid, {}).get("v1", {})
+  assert CHOSEN in picks.values(), \
+    f"a class recoloured IN PLACE -- no styleChanged, only the " \
+    f"repaint the dock asks for -- never reached the plugin's " \
+    f"record. The map moved and the row did not, which is the " \
+    f"reported defect. Picks were {picks!r}"
+
+  # ---- the echo, in the same sitting: a setRenderer edit must be
+  # handled ONCE. Adding a class fires styleChanged (handled, adopts
+  # nothing) and then a repaint; a drain that re-delivers it runs
+  # after the row has followed and adopts the displaced ladder.
+  edited = out.renderer().clone()
+  edited.addClass(edited.sourceSymbol().clone())
+  out.setRenderer(edited)
+  out.triggerRepaint()
+  assert heard, \
+    "setRenderer no longer emits styleChanged, so the echo this " \
+    "half is about cannot arise; rewrite rather than relax"
+  _tick(600)
+
+  picks = dlg._quant_colours.get(tid, {}).get("v1", {})
+  displaced = {index: colour for index, colour in picks.items()
+               if colour != CHOSEN}
+  assert not displaced, \
+    f"the repaint echo of a heard setRenderer edit was delivered a " \
+    f"second time at the drain, after the row had followed the new " \
+    f"count, and adopted the displaced ladder as picks: {displaced!r}"
+  assert CHOSEN in picks.values(), \
+    f"the recolour adopted above was lost while the class add was " \
+    f"being declined; picks were {picks!r}"
+  dlg.close()
+
+
 def test_a_graduated_dock_recolour_survives_the_plugin_being_shut():
   """The same promise, with nobody listening at the time.
 
@@ -28207,6 +28308,18 @@ def test_a_class_added_in_qgis_is_not_a_colour_somebody_picked():
     f"the user picked, at {sorted(adopted_template)}. QGIS copied " \
     f"that grey from our source symbol; a watcher may only adopt " \
     f"what a PERSON left behind"
+  # ...AND NOT THE DISPLACED SURVIVORS EITHER, which is the larger
+  # half and was measured from a maintainer's dump on 2026-08-20.
+  # QGIS inserts the new class and every OTHER class keeps the colour
+  # it had, at a NEW index -- so the walk sees the plugin's own
+  # previous ramp sampling shifted by one, finds it "different from
+  # expected", and adopts four colours nobody chose. The element can
+  # then never follow its ramp again on those classes.
+  assert not picks, \
+    f"adding a class adopted {picks!r} as hand-picks. Those are the " \
+    f"plugin's own earlier ramp colours displaced by QGIS's " \
+    f"insertion, not anybody's choice: a class-count change is a " \
+    f"reclassification and no positional colour survives it"
 
   # ---- act two: the positive twin, so act one cannot pass by the
   # adoption having been switched off altogether. A real recolour
@@ -55345,6 +55458,8 @@ def main():
         test_a_geopackage_carries_the_no_data_opacity_it_was_given)
   check("a graduated dock recolour survives the plugin being shut",
         test_a_graduated_dock_recolour_survives_the_plugin_being_shut)
+  check("an in-place recolour is heard through its repaint",
+        test_an_in_place_recolour_is_heard_through_its_repaint)
   check("a negative scale factor mirrors the design",
         test_a_negative_scale_factor_mirrors_the_design)
   check("a project opened under an open dialog is taken over",

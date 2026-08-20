@@ -64,9 +64,10 @@ from __future__ import annotations
 import json
 import math
 import os
+import time
 import traceback
 
-from qgis.PyQt.QtCore import QPointF, QRectF, QSize, Qt, QTimer
+from qgis.PyQt.QtCore import QEvent, QPointF, QRectF, QSize, Qt, QTimer
 from qgis.PyQt.QtGui import (
   QBrush, QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap)
 from qgis.PyQt.QtWidgets import (
@@ -1345,6 +1346,24 @@ class WeavingSpaceDialog(QDialog):
     # arrives for that element, because the layer has then moved after
     # the pick.
     self._picked_back = set()
+    # {tile_id: layer_id} -- element layers whose repaintRequested has
+    # fired and not yet been reconciled. An in-place dock edit emits
+    # NO style signal (measured 2026-08-20; see _watch_element_layer),
+    # so the repaint the dock asks for afterwards is its only audible
+    # trace. A dict rather than a set so a queued entry still knows
+    # which layer it was about if the combo moves before the timer
+    # drains; the 300 ms coalesces a data edit's double fire and a
+    # dock drag's per-tick stream into one read.
+    self._repaint_pending = {}
+    self._repaint_timer = QTimer(self)
+    self._repaint_timer.setSingleShot(True)
+    self._repaint_timer.setInterval(300)
+    self._repaint_timer.timeout.connect(self._drain_repaint_reconcile)
+    # {tile_id: monotonic seconds} -- when a real styleChanged last
+    # arrived for the element, written by _on_style_signal and read by
+    # the repaint hook so a heard edit's repaint echo is not handled a
+    # second time at the drain.
+    self._style_signal_at = {}
     # {tile_id: (assignment, bounds, colours)} -- dock edits that
     # arrived while a run was in flight, replayed once it has landed.
     # See _adopt_dock_bounds for why the numbers are kept rather than
@@ -5995,7 +6014,164 @@ class WeavingSpaceDialog(QDialog):
     """
     layer.styleChanged.connect(
       lambda lid=layer.id(), tid=str(tile_id):
-        self._on_layer_style_edited(lid, tid))
+        self._on_style_signal(lid, tid))
+    # ...AND repaintRequested BESIDE IT, because styleChanged only
+    # fires on `setRenderer` and the styling dock does not always call
+    # that. Measured on QGIS 4.0.3 (2026-08-20, plugin out of the
+    # way): recolouring a class's symbol IN PLACE emits neither
+    # styleChanged nor rendererChanged -- and the dock then calls
+    # `triggerRepaint()`, which is the only way the canvas learns, and
+    # THAT emits repaintRequested. So the repaint is the one audible
+    # trace of an in-place edit. A maintainer recoloured a class,
+    # watched the map follow and the plugin sit still, three times
+    # over two days (ledger row 28); adding a class reached us because
+    # that action installs a whole renderer, which is what made the
+    # two look inconsistent.
+    #
+    # The REGION layer's repaintRequested stays deliberately
+    # unconnected -- there a repaint must not cause a re-tile, and
+    # that older rule is about that layer. Here the reaction is
+    # reading colours off a renderer, and the handler this feeds is
+    # idempotent (it adopts only divergence) and already gated against
+    # our own seeding (`_applying_style`) and runs in flight
+    # (`_task`). DEBOUNCED, because a single data edit fires it twice
+    # and a drag in the dock can fire it per tick; the set coalesces
+    # and the timer drains through the one handler everything else
+    # uses.
+    layer.repaintRequested.connect(
+      lambda *args, lid=layer.id(), tid=str(tile_id):
+        self._queue_repaint_reconcile(lid, tid))
+
+  def _on_style_signal(self, layer_id, tile_id):
+    """The styleChanged entry point, stamped so its echo is known.
+
+    Args:
+      layer_id: the element output layer whose style changed.
+      tile_id: the element it carries.
+
+    Returns:
+      None. Records WHEN a real styleChanged arrived for this element
+      and then runs the ordinary handler. The stamp exists for the
+      repaint hook beside it: a `setRenderer` edit emits styleChanged
+      AND asks for a repaint, so without it every heard edit was
+      handled twice -- once now and once at the drain, by which time
+      the row had already followed and the second pass adopted the
+      displaced colours the first had rightly declined. Monotonic,
+      because it is a duration; wall clock jumps with the machine.
+
+      NOT STAMPED while the plugin itself is writing renderers or a
+      run is landing: those signals are our own seeding, the handler
+      below gates them out, and stamping them left the repaint hook
+      deaf for a second after every landing.
+    """
+    if not self._applying_style and self._task is None:
+      self._style_signal_at[str(tile_id)] = time.monotonic()
+    self._on_layer_style_edited(layer_id, tile_id)
+
+  def _queue_repaint_reconcile(self, layer_id, tile_id):
+    """Note that an element layer asked to be repainted, and look later.
+
+    Args:
+      layer_id: the element output layer that fired repaintRequested.
+      tile_id: the element it carries.
+
+    Returns:
+      None. Records the pair and (re)starts the 300 ms drain timer.
+      Two kinds of repaint are dropped rather than queued. The
+      plugin's OWN: `_applying_style` is true exactly while the
+      dialog writes renderers, and queueing those would make every
+      restyle read its own output back a moment later. And the ECHO
+      of a heard edit: `setRenderer` emits styleChanged first and
+      asks for a repaint after, so a repaint arriving within a second
+      of a styleChanged for the same element is that edit's shadow,
+      already handled with fresher context than any drain would have.
+      What survives the two drops is precisely the in-place edit,
+      which emits nothing else.
+
+      The stamp is written only for an edit heard AT REST: the
+      plugin's own seeding fires styleChanged too, and stamping those
+      made this hook deaf for a second after every landing -- which is
+      exactly when a test, or a quick hand, recolours.
+    """
+    if _dialog_is_gone(self) or _live_dialog() is not self:
+      return
+    if self._applying_style:
+      _dump("REPAINT", tile_id, "own")
+      return
+    if time.monotonic() - self._style_signal_at.get(str(tile_id),
+                                                    -1e9) < 1.0:
+      _dump("REPAINT", tile_id, "echo")
+      return
+    _dump("REPAINT", tile_id, "queued")
+    self._repaint_pending[str(tile_id)] = layer_id
+    self._repaint_timer.start()
+
+  def _drain_repaint_reconcile(self):
+    """Reconcile every element whose layer asked for a repaint.
+
+    Returns:
+      None. Runs the one style-edit handler for each queued element,
+      which follows the row, adopts divergent colours, and stamps --
+      or defers, mid-run, exactly as a styleChanged arrival would.
+      Each element is contained on its own: this runs from a Qt
+      timer, where an exception is swallowed and would take the rest
+      of the queue with it.
+
+      AN ELEMENT WHOSE ROW HAS MOVED IS SKIPPED, and this is the
+      guard that keeps the drain honest. The handler reads the layer
+      as news and the row as the user's standing wishes; between a
+      control change and the restyle that answers it, the layer is
+      simply BEHIND, and reconciling then would adopt the plugin's
+      own outgoing style as somebody's picks. The row's signature
+      against `_last_signatures` -- what the layer was last seeded
+      from -- is the record of who moved: equal means only the layer
+      can have, which is exactly a dock edit.
+    """
+    if _dialog_is_gone(self) or _live_dialog() is not self:
+      return
+    pending, self._repaint_pending = self._repaint_pending, {}
+    for tile_id, layer_id in pending.items():
+      try:
+        assignment = self._assignment_for(tile_id)
+        if assignment is None:
+          _dump("REPAINT", tile_id, "no-row")
+          continue
+        if self._signature(assignment) != self._last_signatures.get(tile_id):
+          # the ROW moved; a restyle is pending, not a dock edit
+          _dump("REPAINT", tile_id, "row-moved")
+          continue
+        _dump("REPAINT", tile_id, "drain")
+        self._on_layer_style_edited(layer_id, tile_id)
+      except Exception:
+        continue
+
+  def changeEvent(self, event):
+    """React when the dialog becomes the active window again.
+
+    Args:
+      event: the QEvent Qt hands every widget; only ActivationChange
+        is acted on here, and only in the activating direction.
+
+    Returns:
+      None. Coming back to this window after working in QGIS's
+      styling panel is the moment a person expects the table to
+      describe what they just did -- and an in-place dock edit emits
+      no style signal at all (see _watch_element_layer), so the
+      repaint hook is the only LIVE route and this is its backstop:
+      a session where the repaint was missed (a signal dropped, a
+      route nobody has met yet) still reconciles the moment the user
+      looks. Queued through the same debounce so activation and a
+      trailing repaint coalesce into one read.
+    """
+    super().changeEvent(event)
+    if event.type() != QEvent.Type.ActivationChange or not self.isActiveWindow():
+      return
+    if _dialog_is_gone(self) or _live_dialog() is not self:
+      return
+    for tile_id, layer_id in self._element_layer_ids.items():
+      self._repaint_pending.setdefault(str(tile_id), layer_id)
+    if self._repaint_pending:
+      self._repaint_timer.start()
 
   def _ramp_match(self, ramp):
     """Name a colour ramp, allowing for one that has been reversed.
@@ -6101,9 +6277,11 @@ class WeavingSpaceDialog(QDialog):
       rule, and the ramp cell makes no claim a recolour could turn
       into a lie.
     """
+    _dump("HEARD", tile_id, "layer=", layer_id)
     if _dialog_is_gone(self):
       # the layer outlived this dialog and its lambda came
       # with it; there is nothing here to update
+      _dump("DROP", tile_id, "gone")
       return
     from qgis.core import (QgsCategorizedSymbolRenderer,
                            QgsGraduatedSymbolRenderer)
@@ -6112,6 +6290,7 @@ class WeavingSpaceDialog(QDialog):
       # a RETIRED instance's connections outlive its retirement,
       # because the layers do; without this gate both dialogs would
       # adopt the same dock edit and the user would be told twice
+      _dump("DROP", tile_id, "retired")
       return
     # THE LAYER HAS MOVED, so it outranks any style picked in the
     # table earlier: whatever the user last said about this element,
@@ -6155,9 +6334,14 @@ class WeavingSpaceDialog(QDialog):
       # It reads each layer and moves the chooser, which is exactly the
       # knowledge the landing is about to need.
       self._refresh_deferring_rows()
+      _dump("DROP", tile_id, "applying_style=", self._applying_style,
+            "task=", self._task is not None)
       return
     if self._element_layer_ids.get(tile_id) != layer_id:
-      return  # a stale connection from a layer since replaced
+      # a stale connection from a layer since replaced
+      _dump("DROP", tile_id, "stale-layer row=",
+            self._element_layer_ids.get(tile_id))
+      return
     # ...and BEFORE the two colour reactions below, the question of
     # whether a row can still name what this layer holds. A change of
     # renderer TYPE is not a recolour, and putting it through the
@@ -6197,9 +6381,11 @@ class WeavingSpaceDialog(QDialog):
         self._report_quietly(
           f"Element '{tile_id}' is now styled in QGIS, so its colours "
           f"are set in the Layer Styling panel.")
+      _dump("DROP", tile_id, "deferring")
       return
     layer = QgsProject.instance().mapLayer(layer_id)
     if layer is None:
+      _dump("DROP", tile_id, "no-layer")
       return
     renderer = layer.renderer()
     # THE ROW FOLLOWS THE LAYER FIRST, and everything below then runs
@@ -6217,10 +6403,22 @@ class WeavingSpaceDialog(QDialog):
     # stale those guards fired first and the edit was dropped on the
     # floor. Bringing the row up to date here makes them the
     # colour-refinement handlers they were always meant to be.
+    # ...AND THE COUNT IS READ ON BOTH SIDES OF IT, because bringing
+    # the row up to date DISARMS the colour handler's own guard
+    # against a reclassification. That guard is `len(expected) !=
+    # len(actual)`, and `expected` is built from the row -- so once
+    # the row has followed to six classes it matches the layer's six
+    # and the guard that exists to leave a count change alone cannot
+    # fire. Measured from a maintainer's dump on 2026-08-20. The
+    # follow is still right and still runs first; what it must also do
+    # is SAY that the count moved, so the handler below can decline
+    # the one thing that stops making sense when it does.
+    counted_before = self._class_counts.get(tile_id)
     self._row_follows_the_renderer(tile_id, renderer)
+    count_moved = self._class_counts.get(tile_id) != counted_before
     if isinstance(renderer, QgsGraduatedSymbolRenderer):
       # the graduated mirror of everything below (settled 2026-08-09)
-      self._graduated_layer_edited(layer, tile_id, renderer)
+      self._graduated_layer_edited(layer, tile_id, renderer, count_moved)
       return
     if not isinstance(renderer, QgsCategorizedSymbolRenderer):
       return
@@ -7004,13 +7202,19 @@ class WeavingSpaceDialog(QDialog):
         # the rest of the loop with it.
         continue
 
-  def _graduated_layer_edited(self, layer, tile_id, renderer):
+  def _graduated_layer_edited(self, layer, tile_id, renderer,
+                              count_moved=False):
     """React to a styling-dock edit of a GRADUATED element layer.
 
     Args:
       layer: the element output layer whose style changed.
       tile_id: the element it carries.
       renderer: its QgsGraduatedSymbolRenderer, already checked.
+      count_moved: whether this edit changed HOW MANY classes the
+        element has, measured by the caller on both sides of
+        ``_row_follows_the_renderer``. Positional colours are not
+        adopted when it did; see the comment at that walk. Defaults
+        to False so a direct caller keeps the old behaviour.
 
     Returns:
       None. The graduated mirror of the categorized watcher, settled
@@ -7032,12 +7236,19 @@ class WeavingSpaceDialog(QDialog):
     assignment = self._assignment_for(tile_id)
     if assignment is None or assignment["mode"] != "Graduated" \
         or not assignment["var"]:
+      _dump("DROP", tile_id, "not-graduated", 
+            None if assignment is None else assignment.get("mode"),
+            None if assignment is None else assignment.get("var"))
       return
     if renderer.classAttribute() != assignment["var"]:
+      _dump("DROP", tile_id, "field-mismatch layer=",
+            renderer.classAttribute(), "row=",
+            assignment["var"])
       return
     ranges = renderer.ranges()
     actual = [r.symbol().color().name() for r in ranges]
     if not actual:
+      _dump("DROP", tile_id, "no-classes")
       return
     # The count is compared against what the plugin would DRAW, below,
     # and not against the row's `k`. Those are two different numbers
@@ -7236,20 +7447,43 @@ class WeavingSpaceDialog(QDialog):
     # Bound to a name before it is read: a symbol reached through a
     # temporary is freed under you, which this project has already
     # paid for twice.
+    # ...AND NOTHING AT ALL WHEN THE DOCK CHANGED HOW MANY CLASSES
+    # THERE ARE. QGIS inserts the new class and every OTHER class
+    # keeps the colour it already had, which now sits at a different
+    # index -- so a positional walk sees the plugin's own previous
+    # ramp sampling displaced by one and adopts the lot as somebody's
+    # hand-picks. Measured from a maintainer's dump, 2026-08-20:
+    # adding a class to a five-class Reds element adopted FOUR
+    # colours nobody chose, after which the ramp could never govern
+    # those classes again.
+    #
+    # THIS FUNCTION ALREADY HAD A GUARD FOR IT AND THE GUARD CANNOT
+    # FIRE. `len(expected) != len(actual)` was written to leave a
+    # reclassification alone, and `expected` comes from the ROW --
+    # which `_row_follows_the_renderer` has just brought up to the
+    # layer's new count, by a deliberate ordering added 2026-08-17 to
+    # stop these handlers dropping dock edits on the floor. So the
+    # two lengths agree and the walk runs. Inserting a step BEFORE a
+    # handler turned its opening guard from a return into a
+    # fall-through, which is the twin of a trap this project already
+    # records from the other side. The caller measures the count on
+    # both sides of the follow and says so.
     source = renderer.sourceSymbol()
     template = source.color().name() if source is not None else None
     adopted = 0
-    for index, colour in enumerate(actual):
-      # A user who genuinely wants the template's colour picks it on a
-      # class QGIS did not just create, and that pick is adopted by
-      # the next edit; what is declined here is a colour identical to
-      # the template on the very edit that clones it.
-      if colour == template:
-        continue
-      if expected[index] != colour and record.get(str(index)) != colour:
-        record[str(index)] = colour
-        adopted += 1
+    if not count_moved:
+      for index, colour in enumerate(actual):
+        # A user who genuinely wants the template's colour picks it on
+        # a class QGIS did not just create, and that pick is adopted
+        # by the next edit; what is declined here is a colour
+        # identical to the template on the very edit that clones it.
+        if colour == template:
+          continue
+        if expected[index] != colour and record.get(str(index)) != colour:
+          record[str(index)] = colour
+          adopted += 1
     _dump("ADOPTCOLOUR", tile_id, "adopted=", adopted,
+          "count_moved=", count_moved,
           "expected=", expected, "actual=", actual)
     if not adopted:
       return
@@ -9701,6 +9935,19 @@ class WeavingSpaceDialog(QDialog):
     assignments = {a["id"]: a for a in self._assignments()}
     if set(assignments) != set(layers):
       return False
+
+    # NO RECONCILE HERE, AND THAT IS MEASURED RATHER THAN FORGOTTEN.
+    # The tempting third route for unheard dock edits was to adopt
+    # them at this point, just before the re-seed -- and it was
+    # written, and it failed its own neighbours' tests within the
+    # hour: at this moment the layer legitimately disagrees with the
+    # row BECAUSE THE USER JUST CHANGED THE ROW, and a reconcile
+    # cannot tell that from a dock edit, so it adopted the plugin's
+    # own not-yet-replaced style as hand-picks and the new ramp could
+    # never land (2026-08-20). What actually protects an unheard edit
+    # here is the rule this path has always had: an element whose ROW
+    # did not move is skipped as unchanged, so its layer -- dock edit
+    # and all -- is left alone.
 
     # Class sources are loaded once per distinct token, as a full run
     # does. A file that cannot be read leaves its element ALONE and is

@@ -254,6 +254,46 @@ made in exactly TWO places: when a run lands its layers
 (`_add_output_layers`) and when the plugin adopts a group from a
 reopened project (`_adopt_existing_group`).
 
+**AND THAT SIGNAL ONLY FIRES ON `setRenderer`, WHICH IS NOT EVERY
+EDIT.** This section used to say `styleChanged` is emitted "both when
+the styling dock installs a new renderer and when a symbol is edited
+in place". The second half is FALSE, measured on QGIS 4.0.3,
+2026-08-20, with the plugin out of the way:
+
+    setRenderer(clone)                            rendererChanged, styleChanged
+    addClass on the live renderer                 NOTHING
+    updateRangeSymbol on the live renderer        NOTHING
+    recolour a clone, then setRenderer            rendererChanged, styleChanged
+
+(An earlier version of that table carried a `symbol().setColor()` row.
+It was VACUOUS and is removed: `ranges()` hands back copies, so the
+probe recoloured a temporary and the renderer never changed -- the
+fixture-that-cannot-move trap, inside the measurement meant to settle
+this. `updateRangeSymbol` is the honest in-place row, and its edit was
+verified to reach the layer.)
+
+`repaintRequested` was connected for that measurement too and fired on
+none of the rows above by themselves. What DOES fire is the
+`triggerRepaint()` the styling dock calls after an in-place edit -- it
+is the only way the user's canvas learns, so it always follows -- and
+that emits `repaintRequested`. The dialog therefore connects
+`repaintRequested` on ELEMENT layers beside `styleChanged`, debounced,
+gated against the plugin's own repaints and against the echo of a
+heard `setRenderer` edit. The REGION layer's `repaintRequested` stays
+deliberately unconnected: there a repaint must not cause a re-tile,
+and that older rule is about that layer alone.
+
+This is why a maintainer could add a class and watch the plugin follow
+it, then recolour a class and watch nothing happen: the two actions
+take different routes inside QGIS's own panel. Ledger row 28, which
+had been read as a consequence of a failed Generate for a day, on
+evidence that was true of one session and not of the next.
+
+The consequence for anyone reading a dump: the plugin calls
+`_on_layer_style_edited` DIRECTLY in a couple of places as well as
+from the signal, so a `HEARD` line is not by itself evidence that
+QGIS told us anything.
+
 **So a session whose Generate has never succeeded hears nothing.** On
 2026-08-19 a maintainer reported a class recoloured in QGIS reaching
 the map and neither the plugin's swatch nor its colour editor. Six

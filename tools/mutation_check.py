@@ -548,11 +548,52 @@ MUTATIONS = [
        why="extent() on a layer whose file has been deleted segfaults "
            "QGIS outright: no exception, no traceback, nothing in the "
            "log. isValid() returns True and lies"),
+  dict(name="an-in-place-edit-is-heard-through-its-repaint",
+       file=DIALOG,
+       old="""    layer.repaintRequested.connect(
+      lambda *args, lid=layer.id(), tid=str(tile_id):
+        self._queue_repaint_reconcile(lid, tid))""",
+       new="""    pass  # mutation: only setRenderer edits are heard""",
+       test="test_an_in_place_recolour_is_heard_through_its_repaint",
+       why="recolouring a class IN PLACE emits no styleChanged and no "
+           "rendererChanged (measured, QGIS 4.0.3); the repaint the "
+           "dock asks for afterwards is the only audible trace. "
+           "Without this connection the map follows the edit and the "
+           "plugin never learns -- a maintainer met exactly that, "
+           "three times over two days"),
+  dict(name="a-heard-edits-echo-is-not-handled-twice", file=DIALOG,
+       old="""    if time.monotonic() - self._style_signal_at.get(str(tile_id),
+                                                    -1e9) < 1.0:""",
+       new="""    if time.monotonic() - self._style_signal_at.get(str(tile_id),
+                                                    -1e9) < 0.0:""",
+       test="test_an_in_place_recolour_is_heard_through_its_repaint",
+       why="a setRenderer edit emits styleChanged AND asks for a "
+           "repaint. Handled once at the signal and again at the "
+           "drain, the second pass runs after the row has followed "
+           "the new class count -- when the count guard reads false "
+           "-- and adopts the displaced ladder the first pass "
+           "rightly declined"),
+  dict(name="a-reclassification-adopts-no-colour", file=DIALOG,
+       old="""    if not count_moved:
+      for index, colour in enumerate(actual):""",
+       new="""    if True:  # mutation: adopt across a count change
+      for index, colour in enumerate(actual):""",
+       test="test_a_class_added_in_qgis_is_not_a_colour_somebody_picked",
+       why="QGIS inserts the added class and every OTHER class keeps "
+           "the colour it had, at a new index -- so a positional walk "
+           "sees the plugin's own earlier ramp sampling displaced by "
+           "one and adopts the lot. Measured from a maintainer's dump: "
+           "adding a class to a five-class Reds element adopted FOUR "
+           "colours nobody chose, after which the ramp could never "
+           "govern those classes again"),
   dict(name="a-cloned-template-is-not-a-hand-pick", file=DIALOG,
-       old="""      if colour == template:
-        continue
-      if expected[index] != colour and record.get(str(index)) != colour:""",
-       new="""      if expected[index] != colour and record.get(str(index)) != colour:""",
+       # RE-ANCHORED 2026-08-20: the walk moved a level in under
+       # `if not count_moved:`, so the old anchor's indentation no
+       # longer matched and the entry mutated nothing.
+       old="""        if colour == template:
+          continue
+        if expected[index] != colour and record.get(str(index)) != colour:""",
+       new="""        if expected[index] != colour and record.get(str(index)) != colour:""",
        test="test_a_class_added_in_qgis_is_not_a_colour_somebody_picked",
        why="QGIS clones the renderer's source symbol for a class the "
            "user ADDS in the Symbology panel, and this plugin sets "
@@ -1706,9 +1747,12 @@ MUTATIONS = [
            "scrollbar on a table is invisible in practice and the "
            "columns to its right go unfound (the settled layout rule)"),
   dict(name="dock-edits-never-arrive", file=DIALOG,
+       # RE-ANCHORED 2026-08-20: styleChanged now routes through
+       # _on_style_signal, which stamps the arrival so the repaint
+       # hook can tell a heard edit's echo from an in-place edit.
        old="""    layer.styleChanged.connect(
       lambda lid=layer.id(), tid=str(tile_id):
-        self._on_layer_style_edited(lid, tid))""",
+        self._on_style_signal(lid, tid))""",
        new="    pass  # mutation: QGIS-side restyles go unnoticed",
        test="test_qgis_side_restyles_reach_the_dialog",
        why="recolouring an element layer in QGIS's styling dock must "
@@ -3472,9 +3516,15 @@ MUTATIONS = [
            "being satisfied by boxes it already asserted directly"),
   dict(name="the-row-follows-the-layers-renderer",
        file="weavingspace_qgis/dialog.py",
+       # RE-ANCHORED 2026-08-20: the count is now read on both sides
+       # of this call, so the follow and the isinstance below are no
+       # longer adjacent. Anchored on the follow and the line that
+       # measures it, which is the pair that must stay together.
        old="    self._row_follows_the_renderer(tile_id, renderer)\n"
-           "    if isinstance(renderer, QgsGraduatedSymbolRenderer):",
-       new="    if isinstance(renderer, QgsGraduatedSymbolRenderer):",
+           "    count_moved = self._class_counts.get(tile_id) "
+           "!= counted_before",
+       new="    count_moved = self._class_counts.get(tile_id) "
+           "!= counted_before",
        test="test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis",
        why="without it the table goes on describing the map the plugin "
            "last drew: a break retyped in QGIS's Symbology panel or a "
