@@ -2118,6 +2118,47 @@ MUTATIONS = [
            "form of this defect by refilling the count with the four "
            "families that build everywhere, so the test looks past "
            "the count's existence to what is actually in it"),
+  dict(name="a-bound-shows-a-prefix-past-a-magnitude", file=WIDGETS,
+       old="    if SI_BELOW <= size < SI_ABOVE:\n"
+           "      return super().textFromValue(value)",
+       new="    if True:\n      return super().textFromValue(value)",
+       test="test_a_bound_is_readable_and_typable_at_every_magnitude",
+       why="a class bound follows the data across twelve orders of "
+           "magnitude, and every digit of 1023192923 in a column "
+           "sized for 1.56 is a bound the box cannot show: measured "
+           "at 38 pixels of overflow, with the last digits elided. "
+           "Without the prefix the number is unreadable and the "
+           "column has to be sized for a case nobody has yet"),
+  dict(name="a-prefixed-number-can-be-typed-back", file=WIDGETS,
+       old="""      if trimmed.endswith(prefixes):
+        state, _fixed, _at = super().validate(trimmed[:-1], position)
+        if state != QValidator.State.Invalid:
+          return QValidator.State.Acceptable, text, position""",
+       new="      pass  # mutation: refuse what the box itself displays",
+       test="test_a_bound_is_readable_and_typable_at_every_magnitude",
+       why="retyping the value a box DISPLAYS is one of the two ways "
+           "to give a bound back to the classification, and the other "
+           "is a mark that had never once been visible. A validator "
+           "that refuses its own display eats the keystroke in "
+           "silence, which is the family this project has met five "
+           "times and every one of them passed a guard driving "
+           "setValue"),
+  dict(name="every-end-a-person-set-is-marked", file=DIALOG,
+       old="""      boxed = [pair for pair, end in (((0, "left"), "floor"),
+                                      ((0, "right"), "low"),
+                                      ((-1, "left"), "high"),
+                                      ((-1, "right"), "ceiling"))
+               if pinned.get(end) is not None]""",
+       new="""      boxed = [pair for pair, end in (((0, "right"), "low"),
+                                      ((-1, "left"), "high"))
+               if pinned.get(end) is not None]""",
+       test="test_the_swatch_marks_every_end_a_person_set",
+       why="the mutation is the code this replaced: two of the "
+           "record's four ends. A floor or a CEILING somebody had set "
+           "drew nothing at all, so the swatch was silent about a "
+           "bound the person had chosen -- reported by the maintainer "
+           "against rc10, who had pinned an upper bound and found no "
+           "mark for it anywhere"),
   dict(name="a-candidate-is-named-by-its-number", file=RELEASE,
        # ANCHORED ON THE ASK, not on build.py's arithmetic: the fault
        # was release.py deriving the number a SECOND way, and a

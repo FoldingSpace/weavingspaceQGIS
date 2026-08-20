@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-268 defect(s) with a regression test.
+270 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -347,6 +347,8 @@ there is no separate list to remember.
 
 ## Found by the functional suite, run whole
 
+- **2026-08-19. A bound of 1e9 or 1e-6 was elided by a fixed-width column, and the first SI attempt printed an exponent with a prefix on it.**  
+  guarded by `test_a_bound_is_readable_and_typable_at_every_magnitude`
 - **2026-08-19. A style picked in the table left the row deaf to a rule-based renderer pasted onto its layer in QGIS, and the next Generate destroyed it.**  
   guarded by `test_a_style_picked_by_hand_still_follows_a_paste_in_qgis`
 - **2026-08-19. The tenth candidate's dossier and receipt were written as the ninth's, over the published ninth's own files.**  
@@ -580,6 +582,8 @@ there is no separate list to remember.
   guarded by `test_the_ramp_spans_the_classes_a_tile_can_wear`
 - **the size guard measured a circle enclosing the region's bounding box rather than the ground the region covers, so a sparse region -- which most real data is -- was refused at a spacing the library tiles happily; a colleague of the maintainer could not draw their map at all.**  
   guarded by `test_the_size_guard_measures_ground_not_the_bounding_box`
+- **2026-08-19. A ceiling somebody had set drew no mark on the ramp swatch, because the swatch enumerated two of the record's four ends.**  
+  guarded by `test_the_swatch_marks_every_end_a_person_set`
 - **the table drew Qt's row-number gutter beside the tile ids, which the user reported as a messy second numbering.**  
   guarded by `test_the_table_headers_read_as_designed`
 - **the Unclassed colour editor faded its table with a QGraphicsOpacityEffect, which composites offscreen while the table scrolls by blitting, so previously-painted class bounds stayed visible behind the current ones. Reported with a screenshot against 0.24.3rc5.**  
@@ -589,7 +593,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 84
-- reported by a user: 23
+- reported by a user: 24
 - the mutation campaign: 16
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8
@@ -599,5 +603,5 @@ there is no separate list to remember.
 - driving the UI and rebuilding the same map from the library directly: 5
 - the hostile data corpus: 4
 - a randomised differential sweep: 3
-- the functional suite, run whole: 2
+- the functional suite, run whole: 3
 - comparing rendered output against the reference in Lab space: 1

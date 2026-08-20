@@ -1351,12 +1351,8 @@ class CategoryColourDialog(QDialog):
     default = self._default_bound(which)
     if default is None:
       return
-    try:
-      tolerance = 0.5 * (10.0 ** -box.decimals())
-    except Exception:
-      tolerance = 1e-9
     value = float(box.value())
-    wants = abs(value - default) > tolerance
+    wants = not self._reads_as_computed(box, value, default)
     answer = (self._pin_changed(which, value if wants else None)
               if self._pin_changed else None)
     # A REFUSAL PUTS THE BOX BACK, exactly as the pinned twin does: a
@@ -1376,6 +1372,40 @@ class CategoryColourDialog(QDialog):
     self._redraw_bounds(answer)
     self._sync_limit_boxes(which, box)
     self._refresh_marks()
+
+  def _reads_as_computed(self, box, value, default):
+    """Is this number the computed one, as far as the box SHOWS?
+
+    Args:
+      box: the bound box the number came from.
+      value: what it now holds.
+      default: what the classification would compute for that end.
+
+    Returns:
+      True when the two are indistinguishable in the box's own
+      display, so moving between them is not a person setting
+      anything.
+
+    ASKED OF THE DISPLAY, NOT DERIVED FROM `decimals`. The rule was
+    always "compared at the box's DISPLAYED precision" -- an edge of
+    3.0999999 can never be retyped exactly, and demanding that would
+    leave the box with no way out but the clear mark. It was
+    IMPLEMENTED as half of the last decimal place, which was the same
+    thing right up until the box learned to show 999999 as "1M".
+    Retyping what you see would then have landed on 1000000, missed a
+    tolerance of 5e-7, and SET a bound where the user was giving one
+    back. Comparing the strings is the rule as stated, and it stays
+    true whatever the display does next. (2026-08-19.)
+    """
+    try:
+      return box.textFromValue(float(value)) \
+          == box.textFromValue(float(default))
+    except Exception:
+      try:
+        return abs(float(value) - float(default)) \
+            <= 0.5 * (10.0 ** -box.decimals())
+      except Exception:
+        return abs(float(value) - float(default)) <= 1e-9
 
   def _default_bound(self, which):
     """The number the scheme computes for one end with no pin on it.
@@ -1443,14 +1473,12 @@ class CategoryColourDialog(QDialog):
     default = self._default_bound(which)
     if default is None:
       return
-    # a tolerance of half the box's own last digit: the number shown
-    # is rounded to those decimals, so an exact comparison would call
-    # the displayed default "different" and pin it
-    try:
-      tolerance = 0.5 * (10.0 ** -box.decimals())
-    except Exception:
-      tolerance = 1e-9
-    wants = abs(float(box.value()) - default) > tolerance
+    # THE BOX'S OWN DISPLAY decides, not a tolerance derived from
+    # `decimals`: the number shown is rounded, so an exact comparison
+    # would call the displayed default "different" and pin it -- and
+    # since the box learned SI, "rounded" no longer means "to N
+    # decimal places". See `_reads_as_computed`.
+    wants = not self._reads_as_computed(box, box.value(), default)
     if wants != pin.isChecked():
       pin.blockSignals(True)
       pin.setChecked(wants)
@@ -1696,6 +1724,56 @@ class CategoryColourDialog(QDialog):
       button.setEnabled(False)
     return button
 
+  def _bound_column_width(self):
+    """Wide enough for the widest bound THIS element actually shows.
+
+    Returns:
+      A pixel width, never below BOUND_WIDTH.
+
+    SIZED FROM THE DATA, on the maintainer's decision of 2026-08-19,
+    because no fixed number serves twelve orders of magnitude: 92 held
+    "1.56" and elided "1023192923" by 38 pixels, and 130 would have
+    elided 1e12. The bounds are known when this window is built, so
+    the question can simply be asked rather than guessed at.
+    THE TEXT COMES FROM A REAL BOX, so it is measured exactly as it
+    will be drawn -- SI prefixes, trimmed zeros, the locale's decimal
+    point and all. Asking `str(value)` instead would measure a string
+    nobody ever sees.
+    The chrome -- the frame, the spin arrows and the clear mark's
+    reserved room -- is taken from that same box, since it is platform
+    business and this project has been wrong about a hard-coded Qt
+    geometry before.
+    """
+    from qgis.PyQt.QtGui import QFontMetrics
+    if not self._bounds:
+      return BOUND_WIDTH
+    box = None
+    for group in (self._pin_widgets, self._limit_boxes):
+      for entries in group.values():
+        for entry in entries:
+          box = entry[1] if isinstance(entry, tuple) else entry
+          if box is not None:
+            break
+        if box is not None:
+          break
+      if box is not None:
+        break
+    if box is None:
+      return BOUND_WIDTH
+    metrics = QFontMetrics(box.font())
+    widest = 0
+    for pair in self._bounds:
+      for value in pair:
+        try:
+          widest = max(widest, metrics.horizontalAdvance(
+            box.textFromValue(float(value))))
+        except (TypeError, ValueError):
+          continue
+    edit = box.lineEdit()
+    chrome = max(24, box.width() - edit.width()) if edit is not None else 24
+    mark = box._clear_rect().right() + 3
+    return max(BOUND_WIDTH, widest + chrome + mark + 8)
+
   def _size_columns(self):
     """Give the table exactly the size its contents need.
 
@@ -1724,7 +1802,8 @@ class CategoryColourDialog(QDialog):
     if self._bounds is None:
       column_widths = [VALUE_WIDTH, COLOUR_WIDTH]
     else:
-      column_widths = [BOUND_WIDTH, BOUND_WIDTH, COLOUR_WIDTH]
+      wide = self._bound_column_width()
+      column_widths = [wide, wide, COLOUR_WIDTH]
       if self._pin_column:
         # The pin column is exactly as wide as a pin plus breathing
         # room. This is the window widening the design predicted, and

@@ -17800,6 +17800,151 @@ def test_the_tenth_candidate_is_named_the_tenth():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_a_bound_is_readable_and_typable_at_every_magnitude():
+  """Whatever a bound box SHOWS, a person can type back.
+
+  A class bound follows the data, and this plugin's data spans twelve
+  orders of magnitude. A column wide enough for 1023192923 is absurd
+  for 1.56, and one sized for 1.56 elides a billion: measured
+  2026-08-19, the widest overflowed its box by 38 pixels. So the box
+  shows an SI prefix past 1e5 and below 1e-3 -- "1.02G", "400n" --
+  which is four characters instead of ten.
+
+  THAT MAKES THE VALIDATOR PART OF THE FEATURE, not a detail. Retyping
+  the value a box displays is one of the two documented ways to give a
+  bound back to the classification, and the other is a mark the
+  maintainer had never once been able to see. A display the box
+  refuses to read back would make the number a trap.
+
+  TYPED, NOT `setValue`. `setValue` clamps in silence and never
+  consults the validator, so it cannot see a keystroke being eaten --
+  which is how four controls shipped refusing what a person typed on
+  2026-08-17. Every string is walked character by character through
+  the widget's own `validate` and the whole of it must survive.
+
+  THE ROUNDING BOUNDARIES ARE IN THE TABLE DELIBERATELY. 999999 must
+  read "1M" rather than "1000k", and 999999999999 must not come back
+  as "1e+03G" -- an exponent wearing a prefix, which is what
+  `f"{x:.3g}"` produced and what this test caught.
+
+  Regression: 2026-08-19. A bound of 1e9 or 1e-6 was elided by a fixed-width column, and the first SI attempt printed an exponent with a prefix on it. [suite]
+  """
+  from qgis.PyQt.QtGui import QValidator
+  from weavingspace_qgis.widgets import MarkableSpinBox
+  box = MarkableSpinBox()
+  box.setRange(-1e13, 1e13)
+  box.setDecimals(6)
+  wanted = (1.56, 79.1, 0.5, 0.0, 45000.0, 99999.0, 100000.0,
+            123456.789, 999999.0, 1023192923.0, -1023192923.0,
+            999999999999.0, 0.000999, 0.000001, 0.0000004, -0.0000004,
+            1e-24)
+  faults = []
+  typed_back = 0
+  for value in wanted:
+    shown = box.textFromValue(value)
+    assert shown, f"the box showed nothing at all for {value!r}"
+    # NO EXPONENT, EVER: a prefix on top of one reads as neither
+    if "e" in shown.lower() and not shown.lower().endswith("e"):
+      faults.append(f"{value!r} shows {shown!r}, an exponent")
+    kept = ""
+    for character in shown:
+      trial = kept + character
+      state, _fixed, _at = box.validate(trial, len(trial))
+      if state in (QValidator.State.Acceptable,
+                   QValidator.State.Intermediate):
+        kept = trial
+    if kept != shown:
+      faults.append(f"{shown!r} loses keystrokes: only {kept!r} survives")
+      continue
+    typed_back += 1
+    read = box.valueFromText(shown)
+    if abs(read - value) > max(abs(value) * 5e-3, 1e-12):
+      faults.append(f"{shown!r} reads back as {read!r}, not {value!r}")
+  # ...and the count, so a table that silently stopped comparing
+  # cannot pass by having nothing to say
+  assert typed_back == len(wanted), \
+    f"only {typed_back} of {len(wanted)} values were typed back at " \
+    f"all, so this table stopped measuring before it finished"
+  assert not faults, "; ".join(faults)
+
+
+def test_the_swatch_marks_every_end_a_person_set():
+  """Four ends, four edges, and none of them silent.
+
+  The swatch built its marks from `low` and `high` alone while the
+  record had held four ends since that morning, so a floor or a
+  CEILING somebody had set drew nothing whatever -- which is how a
+  pinned upper bound showed no mark at all and was reported.
+
+  AN EDGE RATHER THAN A BOXED STRIPE is the maintainer's design: the
+  first class's left edge is the floor and its right edge is the low
+  pin, the last class's left edge is the high pin and its right edge
+  is the ceiling. It says WHICH bound is yours rather than only that
+  something in that class is, and it composes when both are set.
+
+  COUNTED, NOT EYEBALLED. Each end is drawn alone and compared with
+  the unmarked swatch, so an end that stops drawing fails here rather
+  than being noticed months later by somebody who pinned it. The
+  ceiling is the one that needs this most: its stroke sits at the
+  icon's outer edge, and at the first inset it vanished into the page
+  behind it while still changing the pixel count.
+
+  Regression: 2026-08-19. A ceiling somebody had set drew no mark on the ramp swatch, because the swatch enumerated two of the record's four ends. [user]
+  """
+  from weavingspace_qgis import dialog as dialog_module
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=10)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    tile_id = dlg.table.item(0, 0).text()
+    field = dlg._assignment_for(tile_id)["var"]
+    dlg.spacing_spin.setValue(700)
+    _generate_and_wait(dlg)
+    _tick(200)
+
+    def swatch_pixels():
+      """The row's own swatch, as the DIALOG builds it."""
+      dlg._custom_swatch_cache.pop(tile_id, None)
+      icon = dlg._custom_swatch_for(tile_id, field)
+      image = icon.pixmap(dialog_module.RAMP_SWATCH).toImage()
+      return tuple(
+        image.pixelColor(x, image.height() // 2).name()
+        for x in range(image.width()))
+
+    plain = swatch_pixels()
+    seen = {"(none set)": plain}
+    silent = []
+    # THROUGH THE DIALOG, NOT THE ICON BUILDER. The first version of
+    # this test handed the edge pairs to `_custom_swatch_icon` itself
+    # and passed with the dialog asking for only two of the four --
+    # the catalogue caught it SURVIVING. A mechanism with an undriven
+    # caller is a motionless axis, which this project has recorded
+    # before and just paid for again.
+    for end, number in (("floor", 0.5), ("low", 2.0),
+                        ("high", 7.0), ("ceiling", 9.5)):
+      dlg._pinned_bounds[tile_id] = {field: {end: number}}
+      marked = swatch_pixels()
+      if marked == plain:
+        silent.append(f"{end} draws no mark at all")
+      seen[end] = marked
+    dlg._pinned_bounds.pop(tile_id, None)
+    assert not silent, \
+      f"an end somebody set is invisible on the swatch: " \
+      f"{'; '.join(silent)}"
+    # ...AND THE FOUR ARE DISTINCT, or the mark says less than it
+    # claims: a reader must be able to tell which bound is theirs.
+    assert len(set(seen.values())) == len(seen), \
+      f"two of the four ends draw the same mark, so the swatch " \
+      f"cannot say which bound is yours"
+  finally:
+    dlg.close()
+
+
 def test_the_release_digest_watches_what_ships():
   """The fingerprint covers the artefact, and only the artefact.
 
@@ -54425,6 +54570,10 @@ def main():
         test_a_candidate_number_is_never_reused)
   check("the tenth candidate is named the tenth",
         test_the_tenth_candidate_is_named_the_tenth)
+  check("a bound is readable and typable at every magnitude",
+        test_a_bound_is_readable_and_typable_at_every_magnitude)
+  check("the swatch marks every end a person set",
+        test_the_swatch_marks_every_end_a_person_set)
   check("the release digest watches what ships",
         test_the_release_digest_watches_what_ships)
   check("a release needs a matching candidate",

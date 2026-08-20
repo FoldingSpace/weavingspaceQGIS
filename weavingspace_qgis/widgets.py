@@ -91,6 +91,37 @@ SI_ABOVE = 1e5
 SI_BELOW = 1e-3
 
 
+def _si_value(text, point="."):
+  """The number an SI-suffixed string names, or None if it is not one.
+
+  Args:
+    text: what the user typed, e.g. "1.02G" or "1µ" or "12".
+    point: the locale's decimal point, since the digits were shown
+      with it and will be typed with it.
+
+  Returns:
+    A float, or None when the string carries no SI prefix -- in which
+    case the caller falls through to Qt's own reading and the locale's
+    own rules, which is the whole reason this does not try to parse a
+    plain number itself.
+
+  A FUNCTION RATHER THAN A METHOD so the parsing has ONE owner: the
+  validator and the reader both ask it, and this project's record is
+  full of two descriptions of one rule drifting apart.
+  """
+  if not text:
+    return None
+  trimmed = text.strip()
+  for power, prefix in SI_PREFIXES:
+    if prefix and trimmed.endswith(prefix):
+      body = trimmed[:-len(prefix)].strip().replace(point, ".")
+      try:
+        return float(body) * power
+      except ValueError:
+        return None
+  return None
+
+
 class ClearMark(QWidget):
   """The cross that gives a bound back, as a widget rather than paint.
 
@@ -238,6 +269,113 @@ class MarkableSpinBox(TrimmedSpinBox):
     edit = self.lineEdit()
     if edit is not None:
       edit.installEventFilter(self)
+
+  def textFromValue(self, value):                      # noqa: N802 (Qt API)
+    """A bound as a reader wants it, with an SI prefix where it helps.
+
+    Args:
+      value: the number the box currently holds.
+
+    Returns:
+      The trimmed decimal form between SI_BELOW and SI_ABOVE, where a
+      number reads perfectly well as itself; outside that, three
+      significant figures and a prefix -- "1.02G" for 1023192923,
+      "1µ" for 0.000001. Zero is always "0".
+
+    DISPLAY ONLY, AND THAT IS THE WHOLE DISCIPLINE. It would be easy
+    to reach for `decimals` instead, and this project did once: that
+    setting governs display AND input AND storage together, so a box
+    at zero decimals cannot represent 500.5, and typing it gave 501
+    with the map drawn from the rounded number and nothing said. A
+    display rule belongs here, where it touches neither the stored
+    value nor the validator.
+
+    A BOUND FOLLOWS THE DATA ACROSS TWELVE ORDERS OF MAGNITUDE, which
+    is why a fixed column could not hold both 1.56 and 1023192923:
+    measured 2026-08-19, the widest overflowed its box by 38 pixels
+    and elided its last digits. Four characters say the same thing.
+    """
+    if value == 0:
+      return super().textFromValue(value)
+    size = abs(float(value))
+    if SI_BELOW <= size < SI_ABOVE:
+      return super().textFromValue(value)
+    for index, (power, prefix) in enumerate(SI_PREFIXES):
+      if size < power:
+        continue
+      scaled = float(value) / power
+      # THREE SIGNIFICANT FIGURES, WITHOUT `%g`. `f"{x:.3g}"` drops
+      # into exponent notation the moment the scaled value reaches
+      # 1000, and 999999999999 duly came out "1e+03G" -- an exponent
+      # wearing a prefix, which is neither readable nor typable.
+      # Measured 2026-08-19 by the typing sweep, which is what that
+      # sweep is for.
+      places = 2 if abs(scaled) < 10 else (1 if abs(scaled) < 100 else 0)
+      rounded = round(scaled, places)
+      # ...AND ROUNDING CAN STEP THE PREFIX. 999999999999 scales to
+      # 999.999999999 against G and rounds to 1000, which would print
+      # "1000G" where "1T" is the same number and one character
+      # shorter. Stepping up is exact, since the table is in
+      # thousands.
+      if abs(rounded) >= 1000 and index > 0:
+        power, prefix = SI_PREFIXES[index - 1]
+        scaled = float(value) / power
+        places = 2 if abs(scaled) < 10 else (1 if abs(scaled) < 100 else 0)
+        rounded = round(scaled, places)
+      shown = f"{rounded:.{places}f}"
+      if "." in shown:
+        shown = shown.rstrip("0").rstrip(".")
+      point = self.locale().decimalPoint()
+      if point and point != ".":
+        shown = shown.replace(".", point)
+      return shown + prefix
+    return super().textFromValue(value)
+
+  def valueFromText(self, text):                       # noqa: N802 (Qt API)
+    """Read back anything this box can show, prefix included.
+
+    Args:
+      text: what the user typed or what the box is displaying.
+
+    Returns:
+      The number it names.
+
+    A NUMBER YOU CAN SEE MUST BE A NUMBER YOU CAN TYPE. Showing
+    "1.02G" and refusing it would make the display a trap: retyping
+    the computed value is one of the two ways to give a bound back,
+    and it is the way that survives when the clear mark is missed.
+    """
+    return _si_value(text, self.locale().decimalPoint()) \
+        if _si_value(text, self.locale().decimalPoint()) is not None \
+        else super().valueFromText(text)
+
+  def validate(self, text, position):                  # noqa: N802 (Qt API)
+    """Accept an SI-suffixed number, and accept it while it is typed.
+
+    Args:
+      text: the candidate string.
+      position: the cursor position, returned untouched.
+
+    Returns:
+      Qt's `(state, text, position)` triple.
+
+    ASKED ONE KEYSTROKE AT A TIME, which is what makes this the third
+    method rather than a nicety: a validator sees "1", then "1.", then
+    "1.0", then "1.02", then "1.02G", and refusing any of them eats
+    the keystroke silently. This project has met that family five
+    times -- a range that refuses a digit, a `decimals` too low, a
+    handler rewriting the box mid-edit -- and every one of them passed
+    a guard that drove `setValue`.
+    """
+    from qgis.PyQt.QtGui import QValidator
+    if text:
+      trimmed = text.strip()
+      prefixes = tuple(prefix for _p, prefix in SI_PREFIXES)
+      if trimmed.endswith(prefixes):
+        state, _fixed, _at = super().validate(trimmed[:-1], position)
+        if state != QValidator.State.Invalid:
+          return QValidator.State.Acceptable, text, position
+    return super().validate(text, position)
 
   def eventFilter(self, watched, event):               # noqa: N802 (Qt API)
     """Let a click on the cross through to this widget's own handler.
