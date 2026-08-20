@@ -177,9 +177,14 @@ CLOSE IT is one run by the person who met it. Nothing here can
 supply that, and whether to build a candidate before it arrives is the
 maintainer's call rather than this file's.
 
-ROW 28 waits on the same run. Its cause, row 32, is closed, so a
-Generate now succeeds in that session and the `styleChanged` watch is
-connected; the live recolour path itself is already guarded twice.
+ROW 28 IS CLOSED IN CODE and awaits the same field run. It had two
+causes a day apart: the failed Generate (row 32), and underneath it a
+structural silence -- only `setRenderer` emits `styleChanged`, so a
+colour edited in place was invisible until the plugin learned to hear
+the `triggerRepaint()` the dock calls afterwards. Test with the
+premise asserted, four proved entries, and the measurement is in
+MAINTAINING.md. The rc14 confirmation is: recolour a class in the
+panel and watch the swatch follow within a moment.
 
 
 **THE FLOORS AND CEILINGS ARE IN, AND SO ARE THEIR GUARDS.** The

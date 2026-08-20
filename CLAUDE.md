@@ -2789,3 +2789,36 @@ genuinely independent third column and should be added then.
   the new rule had nothing measuring it. When an edit re-anchors an
   entry, ask what that entry actually asserts: re-anchoring keeps an
   OLD claim true and never states the new one.
+
+- **`styleChanged` FIRES ONLY ON `setRenderer`; AN EDIT MADE ON THE
+  LIVE RENDERER IS SILENT, AND ITS `triggerRepaint()` IS THE ONLY
+  TRACE.** (2026-08-20, ledger row 28, reported four times before it
+  was measured.) The styling panel installs a whole renderer for some
+  acts (adding a class, Classify, a paste) and edits the held renderer
+  in place for others (a plain colour change) -- so the plugin
+  followed the first kind and was structurally deaf to the second,
+  while MAINTAINING.md asserted the opposite in as many words. The
+  dock then calls `triggerRepaint()`, because the canvas has no other
+  way to learn, and THAT emits `repaintRequested`. Element layers now
+  listen to it, debounced, with three gates that each failed a test
+  before it existed: our own repaints (`_applying_style`), the echo of
+  a heard `setRenderer` edit (it fires both signals, and handling it
+  twice adopts the displaced ladder), and a row that has moved (the
+  layer is merely BEHIND a pending restyle, and reconciling then
+  adopts our own outgoing style as somebody's picks). The REGION
+  layer's `repaintRequested` stays unconnected -- that rule is about
+  re-tiling and is untouched. The general lesson: when a dependency's
+  signal is documented here as covering a family of edits, ask which
+  member of the family was actually measured; this one had been
+  measured only for the member that happens to announce itself.
+- **`ranges()` AND `categories()` HAND BACK COPIES, so editing one is
+  a NO-OP on the layer -- and a probe that does it measures nothing.**
+  (2026-08-20, twice in one hour: a signal probe's row and a guard's
+  first draft.) `ranges[0].symbol().setColor(...)` recoloured a
+  temporary; the renderer never changed; "no signal fired" was
+  reported about an edit that had not happened. Stage in-place edits
+  through the renderer's own `updateRangeSymbol`/`updateCategorySymbol`
+  and ASSERT the edit reached the layer before asserting anything
+  else. This is the fixture-that-cannot-move trap inside an
+  instrument, and it is the sibling of the freed-temporary segfault
+  this file already records about the same getters.
