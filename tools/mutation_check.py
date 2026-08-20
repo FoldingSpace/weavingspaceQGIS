@@ -2118,6 +2118,20 @@ MUTATIONS = [
            "form of this defect by refilling the count with the four "
            "families that build everywhere, so the test looks past "
            "the count's existence to what is actually in it"),
+  dict(name="a-pasted-ladder-carries-its-pins", file=DIALOG,
+       old="""    if len(mine) == len(bounds) and edges:
+      if abs(edges[0] - float(mine[0][1])) > 1e-9:
+        wanted.setdefault("low", edges[0])
+      if abs(edges[-1] - float(mine[-1][0])) > 1e-9:
+        wanted.setdefault("high", edges[-1])""",
+       new="    pass  # mutation: an adopted ladder keeps nobody's name",
+       test="test_a_style_pasted_between_elements_carries_its_pins",
+       why="a style pasted from one element layer onto another brings "
+           "every boundary and, without this, no statement that any "
+           "of them is a person's. The receiving element then shows "
+           "no mark against the ends somebody set, and "
+           "`_release_copied_breaks` -- which keeps only low and high "
+           "-- has nothing to degrade to when the class count moves"),
   dict(name="a-bound-shows-a-prefix-past-a-magnitude", file=WIDGETS,
        old="    if SI_BELOW <= size < SI_ABOVE:\n"
            "      return super().textFromValue(value)",

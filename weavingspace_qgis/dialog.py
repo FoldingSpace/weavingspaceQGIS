@@ -6782,6 +6782,28 @@ class WeavingSpaceDialog(QDialog):
     # drawable belongs at the drawing, not at the watching.
     wanted["floor"] = float(bounds[0][0])
     wanted["ceiling"] = float(bounds[-1][1])
+    # ...AND AN END THAT MOVED BECOMES A PIN (maintainer's decision,
+    # 2026-08-19). A ladder adopted from the dock used to be stored as
+    # `breaks` alone, with `low` and `high` kept only where they still
+    # coincided with an edge. That is right for a retype of some
+    # middle boundary and wrong for a style PASTED from another
+    # element: the receiving element took every number and no
+    # statement that any of them was a person's, so nothing marked
+    # them, `_release_copied_breaks` had nothing to degrade to, and a
+    # pin the sending element carried simply vanished. Reported by the
+    # maintainer against rc10; ledger row 30.
+    #
+    # ONLY WHERE THE END ACTUALLY MOVED, which is the narrower reading
+    # of "adopt the ends as pins too" and the better one: retyping a
+    # middle boundary leaves the outer two exactly where the plugin
+    # put them, and pinning those would claim a decision nobody made.
+    # `setdefault`, so a pin the loop above deliberately KEPT is never
+    # overwritten by the same number arriving a second way.
+    if len(mine) == len(bounds) and edges:
+      if abs(edges[0] - float(mine[0][1])) > 1e-9:
+        wanted.setdefault("low", edges[0])
+      if abs(edges[-1] - float(mine[-1][0])) > 1e-9:
+        wanted.setdefault("high", edges[-1])
     source = self._classification_values(field)
     values = (source.uniqueValues(source.fields().indexOf(field))
               if source is not None else [])

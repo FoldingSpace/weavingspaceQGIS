@@ -17945,6 +17945,96 @@ def test_the_swatch_marks_every_end_a_person_set():
     dlg.close()
 
 
+def test_a_style_pasted_between_elements_carries_its_pins():
+  """A copy through QGIS brings the ladder AND whose ladder it is.
+
+  Paste one element layer's style onto another and every boundary
+  crosses. Until 2026-08-19 nothing said any of them was a person's:
+  the adoption stored an anonymous `breaks` list and cleared `low` and
+  `high`, so the receiving element drew the right map while its record
+  had forgotten who chose it. No mark appeared against those ends, and
+  `_release_copied_breaks` -- which keeps only `low` and `high` -- had
+  nothing to degrade to when the class count later moved.
+
+  THE MAINTAINER'S DECISION, put to them because it is a design
+  question rather than a slip: an end that MOVED is adopted as a pin.
+  Only one that moved, since retyping a middle boundary leaves the
+  outer two where the plugin put them and pinning those would claim a
+  decision nobody made.
+
+  THE PREMISE IS ASSERTED FIRST, and it is the whole reason the
+  earlier attempt at this proved nothing: a ceiling set OUTSIDE the
+  column's range leaves the ladder exactly as it was, so the paste
+  carries nothing and "no pin arrived" is correct behaviour rather
+  than a defect. The two ladders must differ before anything else is
+  believed.
+
+  Regression: 2026-08-19. A style pasted between element layers in QGIS carried the boundaries but not the pins, so the receiving element could neither show them nor keep them. [user]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer(n=10)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    for row in (0, 1):
+      dlg.table.cellWidget(row, 1).setCurrentText("v1")
+      _tick(80)
+      mode = dlg.table.cellWidget(row, 2)
+      mode.setCurrentText("Quant: Equal intervals")
+      mode.activated.emit(mode.currentIndex())
+      _tick(80)
+    source = dlg.table.item(0, 0).text()
+    target = dlg.table.item(1, 0).text()
+    field = dlg._assignment_for(source)["var"]
+    dlg.spacing_spin.setValue(700)
+    _generate_and_wait(dlg)
+    _tick(200)
+
+    # A CEILING INSIDE THE DATA, so the ladder really moves. A limit is
+    # a GEOMETRY change, so the map catches up at the next Generate
+    # rather than on the restyle -- which is why this draws again.
+    dlg._pinned_bounds.setdefault(source, {})[field] = {"ceiling": 5.0}
+    dlg._apply_style_change()
+    _tick(200)
+    _generate_and_wait(dlg)
+    _tick(300)
+
+    def ladder_of(tile_id):
+      out = project.mapLayer(dlg._element_layer_ids[tile_id])
+      spans = list(out.renderer().ranges())
+      return [(round(one.lowerValue(), 6), round(one.upperValue(), 6))
+              for one in spans]
+
+    sending, receiving = ladder_of(source), ladder_of(target)
+    assert sending != receiving, \
+      f"both elements already draw {sending}, so a paste carries " \
+      f"nothing and this case cannot show whether a pin travels"
+
+    source_layer = project.mapLayer(dlg._element_layer_ids[source])
+    target_layer = project.mapLayer(dlg._element_layer_ids[target])
+    target_layer.setRenderer(source_layer.renderer().clone())
+    target_layer.styleChanged.emit()
+    _tick(500)
+
+    landed = dlg._pinned_bounds.get(target, {}).get(field) or {}
+    assert landed.get("breaks"), \
+      f"the paste carried no boundaries at all: {landed}"
+    missing = [end for end in ("low", "high", "floor", "ceiling")
+               if landed.get(end) is None]
+    assert not missing, \
+      f"the ladder crossed and {missing} did not, so the receiving " \
+      f"element cannot show or keep the bounds a person set: {landed}"
+    assert abs(float(landed["ceiling"]) - 5.0) < 1e-6, \
+      f"the ceiling arrived as {landed['ceiling']!r}, not the 5.0 " \
+      f"the sending element carried"
+  finally:
+    dlg.close()
+
+
 def test_the_release_digest_watches_what_ships():
   """The fingerprint covers the artefact, and only the artefact.
 
@@ -54574,6 +54664,8 @@ def main():
         test_a_bound_is_readable_and_typable_at_every_magnitude)
   check("the swatch marks every end a person set",
         test_the_swatch_marks_every_end_a_person_set)
+  check("a style pasted between elements carries its pins",
+        test_a_style_pasted_between_elements_carries_its_pins)
   check("the release digest watches what ships",
         test_the_release_digest_watches_what_ships)
   check("a release needs a matching candidate",

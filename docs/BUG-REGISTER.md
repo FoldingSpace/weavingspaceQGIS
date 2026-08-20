@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-270 defect(s) with a regression test.
+271 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -558,6 +558,8 @@ there is no separate list to remember.
   guarded by `test_a_renderer_the_row_cannot_name_defers_to_qgis`
 - **values retyped in QGIS left the map drawing the classification computed from the old values, with classes running past everything the layer now held.**  
   guarded by `test_a_retyped_column_reclassifies_the_map`
+- **2026-08-19. A style pasted between element layers in QGIS carried the boundaries but not the pins, so the receiving element could neither show them nor keep them.**  
+  guarded by `test_a_style_pasted_between_elements_carries_its_pins`
 - **a subset string set by the user on an element layer was discarded at every regeneration, silently, while the hand styling beside it survived.**  
   guarded by `test_a_user_subset_survives_regeneration`
 - **an Unclassed row offered no Pin column, so the pins were reported as not working there at all. Reported against 0.24.3rc5.**  
@@ -593,7 +595,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 84
-- reported by a user: 24
+- reported by a user: 25
 - the mutation campaign: 16
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8
