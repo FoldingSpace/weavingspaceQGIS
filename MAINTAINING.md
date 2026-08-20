@@ -246,6 +246,30 @@ the narrowest point, a comment at the fix saying when it can be
 removed, and a canary test asserting the upstream bug so the suite
 announces the day it is fixed.
 
+## What the plugin hears from QGIS, and when it hears nothing
+
+The dialog follows edits made in QGIS's own styling panel by
+connecting to each element layer's `styleChanged`. That connection is
+made in exactly TWO places: when a run lands its layers
+(`_add_output_layers`) and when the plugin adopts a group from a
+reopened project (`_adopt_existing_group`).
+
+**So a session whose Generate has never succeeded hears nothing.** On
+2026-08-19 a maintainer reported a class recoloured in QGIS reaching
+the map and neither the plugin's swatch nor its colour editor. Six
+reproductions on their own data all worked; what settled it was a dump
+from their session, which was EMPTY -- their Generate had failed, no
+run had landed, and no layer was watched. QGIS repainted the map
+because QGIS owns the layer, and the plugin was simply never told.
+
+Two things follow. When a dock edit appears not to reach the plugin,
+ask FIRST whether a run has landed in that session, because the answer
+is often that nothing is connected rather than that something is
+broken downstream. And when adding a third route by which element
+layers come into existence, connect the watch there too -- a layer the
+plugin holds but does not hear is worse than one it does not know
+about, since the table goes on describing a map that has moved.
+
 ## Invariants — do not break these
 
 1. **The worker thread never touches pyproj/PROJ.** QGIS uses the same

@@ -450,6 +450,18 @@ the signature, one because a family name that does not exist made the
 test skip itself behind a visibility guard, and one because it
 asserted an implementation detail that was legitimately true.
 
+**THE CATALOGUE'S REAL VALUE IS CATCHING YOUR OWN NEW GUARDS.** On
+2026-08-19 it caught THREE in one sitting, all written that evening to
+close defects a maintainer had just reported: one that repaired the
+mutation on its way past by calling `show()` and `raise_()`, one that
+ran where nothing was marked so its loop never executed, and one that
+drove the icon builder while the dialog asked for half of what it
+should. Each read exactly like a guard that works, each was written by
+somebody who had just measured the defect, and none of them would have
+been found by rereading. Prove every new entry the moment you write
+it, and treat a SURVIVED verdict on your own fresh guard as the normal
+case rather than a surprise.
+
 ## Integrity hazards, all of them observed here
 
 **Stale coverage.** The record decides which tests are offered the

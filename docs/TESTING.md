@@ -1726,6 +1726,64 @@ right one; its second characteristic defect is a control that is right
 and cannot be seen or reached, and only the first of those had ever
 been in a matrix's vocabulary.
 
+## THREE WAYS A GUARD FOR A VISUAL THING PASSES ON A BROKEN PRODUCT
+
+2026-08-19, all three in one sitting, all three caught by the mutation
+catalogue rather than by reading. They are worth knowing on sight,
+because a guard about PIXELS fails in ways a guard about records does
+not.
+
+**IT REPAIRS THE DEFECT ON ITS WAY PAST.** The first attempt at
+asserting the clear mark was drawn hid the mark and showed it again to
+get a before-and-after contrast -- and `show()` and `raise_()` are
+exactly what the mutation removed. The test mended the product, then
+measured the mended product, and reported success. ASK OF ANY SETUP
+STEP WHETHER IT WOULD UNDO THE BREAK YOU ARE LOOKING FOR.
+
+**IT HAS NOTHING TO LOOK AT.** Its replacement ran after the
+surrounding test had given every bound back, so no box was marked, the
+loop body never executed, and an empty `unseen` list asserted nothing
+at all. The repair is the cheapest one this file knows: COUNT WHAT YOU
+LOOKED AT and assert the count.
+
+**IT DRIVES THE MECHANISM AND NOT THE CALLER.** The swatch guard
+handed edge pairs straight to the icon builder, proving that the
+DRAWING works while the dialog went on asking for two ends of four. A
+unit-tested mechanism with an undriven caller is a motionless axis --
+this project already had that lesson from `unworn_classes`, and it
+recurred inside a test written to close a defect of exactly that kind.
+
+**THE COMMON CURE** is to drive the product and read the pixels, and
+to state the check as its inverse: not "the mark is drawn" but "name
+anything that draws nothing".
+
+## AN INSTRUMENT IN THE USER'S HANDS BEATS SIX REPRODUCTIONS IN YOURS
+
+The same evening, and it is the most useful hour of the day. A
+maintainer reported a class recoloured in QGIS reaching the map and
+neither the swatch nor the colour editor. SIX reproductions were built
+here -- live update on and off, the edit landing mid-run and at rest,
+against their OWN dataset -- and every one of them worked.
+
+What settled it was two dumps behind `WEAVINGSPACE_ADOPT_DUMP`, in the
+shipped source, and one run by the person holding the failure. The
+dump was EMPTY of both lines: the plugin had never been told. Its
+`styleChanged` hook is connected in exactly two places, a run landing
+and a group being adopted, and that session's Generate had failed, so
+nothing was watched.
+
+THE LESSON IS NOT "ADD LOGGING". It is that a reproduction which will
+not reproduce is a signal about the DIFFERENCE between the two
+sessions, and the cheapest way to find that difference is to measure
+the session that is actually broken. Budget the instrument early: it
+costs three lines and it is the only thing that can answer.
+
+AND AN EMPTY DUMP IS EVIDENCE ONLY WHEN THE DUMP IS KNOWN TO WORK.
+That one was trusted because other `_dump` lines appeared in the same
+terminal, and because both missing lines had been seen on this machine
+against the same data. Without those two facts it would have been the
+silent-log fault this file already records.
+
 ## Bisect by DISABLING, not by reasoning
 
 When a change breaks a test and the cause is not obvious after ONE

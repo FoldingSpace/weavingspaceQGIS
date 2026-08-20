@@ -3,7 +3,7 @@ name: mutation-campaign
 description: Run a mutation-testing campaign to measure and genuinely improve how good a test suite is — sampling mutants, triaging survivors, verifying that new tests actually fail, and deciding when a score can be defended. Use this whenever the user wants to know whether their tests are any good, asks about mutation testing or mutation score, says coverage looks high but they don't trust it, wants to raise a mutation score toward a target, or is writing tests to close gaps that a mutation tool found. Also use it when someone proposes to accept a surviving mutant as "equivalent", or asks how many mutants they need to sample — both are places where a campaign quietly turns into a vanity metric.
 derived_from:
   - path: docs/MUTATION-LOOP.md
-    sha256: ddb93342723314717541d9319f9e216139b6b12e5ca29873c2fb4d058f7c9163
+    sha256: 2a8b3a7aa8afdb50798bf5e44479c3df784bb4bb6942364101b41c10f45e1614
   - path: docs/MUTATION-TESTING.md
     sha256: 8db7b4333e61191cce6cc58c331dd6e6c6019c75bc08db61d68667341a7a693e
 ---
@@ -103,6 +103,19 @@ looking healthy, all found in one sweep:
 Count the call sites and read the named test before concluding the
 suite is weak. Five of thirteen survivors in that sweep were the
 first kind alone.
+
+**AND SUSPECT YOUR OWN NEWEST GUARD HARDEST.** The catalogue's most
+valuable catch is not an old test that has drifted; it is a guard
+written an hour ago to close a defect somebody just reported. Three
+were caught in one sitting on this project: one that repaired the
+mutation on its way past by calling the very methods it removed, one
+that ran at a moment when there was nothing to look at so its loop
+never executed, and one that drove a mechanism directly while the
+caller asked for half of what it should. Each read exactly like a
+guard that works, and each was written by somebody who had just
+measured the defect. Prove every entry the moment you write it, and
+treat SURVIVED on a fresh guard as the ordinary outcome rather than a
+surprise.
 
 ## Triaging a survivor
 

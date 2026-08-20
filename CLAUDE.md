@@ -2426,6 +2426,30 @@ genuinely independent third column and should be added then.
   docs/TESTING.md; apply it when improving an existing test too, since
   a test that already passes is where a hole hides best.
 
+- **A GUARD MUST NOT REPAIR WHAT IT MEASURES, NOR RUN WHERE THERE IS
+  NOTHING TO SEE.** (2026-08-19, three in one sitting, every one
+  caught by the catalogue rather than by reading.) A visual guard hid
+  and re-showed the mark to get a contrast -- calling the very methods
+  the mutation removed, so it mended the product and then measured the
+  mended product. Its replacement ran after the surrounding test had
+  given every bound back, so nothing was marked and the loop never
+  executed. A third handed edge pairs to the icon builder, proving the
+  DRAWING while the dialog asked for two ends of four. Drive the
+  product, read the pixels, COUNT WHAT YOU LOOKED AT, and state the
+  check as its inverse -- "name anything that draws nothing" rather
+  than "the mark is drawn". Full shapes in docs/TESTING.md.
+- **WHEN A REPRODUCTION WILL NOT REPRODUCE, MEASURE THE SESSION THAT
+  IS BROKEN.** (2026-08-19.) Six reproductions of a reported defect
+  were built here, against the reporter's own data, and every one
+  worked. Two dumps behind `WEAVINGSPACE_ADOPT_DUMP` and one run by
+  the person holding the failure answered it in a minute: the dump was
+  EMPTY, so the plugin had never been told, because that session's
+  Generate had failed and `styleChanged` is connected only when a run
+  lands or a group is adopted. A reproduction that will not reproduce
+  is a signal about the DIFFERENCE between two sessions; budget the
+  instrument early rather than a seventh attempt. An empty dump is
+  evidence only where the dump is known to fire -- here, because other
+  lines from the same function appeared in the same terminal.
 - **A MATRIX CATCHES ONLY WHAT ITS CELLS MAY COMPLAIN ABOUT.**
   (2026-08-19.) The symbology matrix crosses twelve routes with nine
   shapes, three aftermaths and three schemes, and it caught NONE of

@@ -156,6 +156,22 @@ element was warned a third of its fifty steps were empty; and where
 two elements share a column, one element's notice silenced the other.
 
 ### Outstanding
+**FOUR DEFECTS ARE OPEN AGAINST rc11 AND ONE OF THEM IS A CRASH.**
+This section claimed a clear code slate for 0.24.3, and that was
+true until the evening of 2026-08-19, when field testing of the
+instrumentation build found four more. They are rows 32, 33, 28 and 34
+of `docs/process/defects-2026-08-19.md`, and the record there is what
+to read rather than this paragraph.
+
+ROW 33 IS A SEGFAULT and blocks a candidate on its own. Two suspects,
+both introduced that evening: a pin adopted onto the ladder's own edge
+(guarded, cause unproven) and a dump printing from the swatch build on
+the painting path (not yet moved). ONE RUN DISCRIMINATES -- rc11 with
+`WEAVINGSPACE_ADOPT_DUMP` unset.
+
+ROW 32 refuses a live layer after switching from one whose file moved,
+and ROW 28 is measured as downstream of it. Chase 32 first.
+
 
 **THE FLOORS AND CEILINGS ARE IN, AND SO ARE THEIR GUARDS.** The
 record, the arithmetic, the exclusion, the fourth kind of absence, the
@@ -185,7 +201,7 @@ and one fast test, with five proved catalogue entries; the two defects
 found on the way are rows 21 and 22 of
 `docs/process/defects-2026-08-19.md`.
 
-**THE PERFORMANCE REGRESSION IS FIXED**, so nothing outstanding
+**THE PERFORMANCE REGRESSION IS FIXED.** That left no code owed
 remains in code for 0.24.3. Ledger row 4 -- twenty-three elements
 "extremely slow to work with" -- was measured against the reporter's
 own data on 2026-08-19 and was a regression this version introduced,
