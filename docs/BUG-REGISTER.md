@@ -539,8 +539,8 @@ there is no separate list to remember.
   guarded by `test_resuming_skips_only_what_still_holds`
 - **a design whose spacing implied millions of tiles was attempted rather than refused, and QGIS became unresponsive while it ran.**  
   guarded by `test_size_guard`
-- **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
-  guarded by `test_the_categorical_editor_offers_no_pin_and_no_copy`
+- **the Copy control was absent from the categorical half of the colour editor, so a scheme built value by value could not be sent anywhere.**  
+  guarded by `test_the_categorical_editor_offers_no_pin_but_does_copy`
 - **tests/run_tests.py gained os._exit at the end of main() on 2026-08-11, which skipped the write in tools/coverage_per_test.py; three sharded recorders ran the whole suite, wrote no file, and the rc5 candidate aborted 35 minutes in at the merge stage with "nothing to merge". The last good record was a day old, and the release would otherwise have measured mutants against it.**  
   guarded by `test_the_coverage_record_survives_the_suite_exiting`
 - **the design view drew a dark outline around every tile, which fights the colour comparison the view is for.**  

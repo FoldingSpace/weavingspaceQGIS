@@ -9181,16 +9181,37 @@ def test_a_copied_ladder_is_fitted_to_the_column_it_lands_on():
     f"{bridge.unworn_classes(same, covering)} over {covering}"
 
 
-def test_the_categorical_editor_offers_no_pin_and_no_copy():
-  """Neither control appears where it would mean nothing.
+def test_the_categorical_editor_offers_no_pin_but_does_copy():
+  """One control cannot appear here, and the other must.
 
-  A categorical element has values rather than class bounds, so there
-  is nothing to pin and no ladder to copy. The editor is ONE window
-  wearing three dresses, which is exactly the arrangement in which a
-  control leaks into the dress it does not belong to -- so the
-  absence is asserted rather than assumed.
+  A categorical element has VALUES rather than class bounds, so there
+  is nothing to pin. The editor is ONE window wearing three dresses,
+  which is exactly the arrangement in which a control leaks into the
+  dress it does not belong to, so the absence is asserted rather than
+  assumed.
 
-  Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
+  THE COPY HALF OF THIS TEST WAS REVERSED ON 2026-08-20, deliberately
+  and by the maintainer. It used to assert that NO Copy dropdown was
+  built here, reasoning that a copy sends class breaks an element
+  without classes cannot use. What a categorical copy sends is
+  COLOURS -- the style, the ramp, the Reverse, the colour chosen for
+  each value, the catch-all and the class source -- and a tester
+  reported the control simply missing. Two gates kept it off this
+  half: the editor built its Copy row only where GRADUATED bounds
+  existed, and the categorized call site passed neither the targets
+  nor the callback.
+
+  THE OLD ASSERTION DID NOT QUIETLY BEND. It failed, in the full
+  suite, on the first whole run after the ruling -- which is the
+  honest way for a contract to change, and the reason this project
+  runs the suite entire before a candidate rather than a subset aimed
+  at what it just wrote.
+
+  AND THE CONTROL STILL APPEARS ONLY WHERE IT MEANS SOMETHING, which
+  is what the original test was really about: an editor opened with
+  nowhere to copy TO builds no dropdown at all.
+
+  Regression: the Copy control was absent from the categorical half of the colour editor, so a scheme built value by value could not be sent anywhere.
  [unrecorded]
   """
   from weavingspace_qgis.category_editor import CategoryColourDialog
@@ -9209,11 +9230,32 @@ def test_the_categorical_editor_offers_no_pin_and_no_copy():
       f"the categorical editor's columns changed: {headers}"
     assert not getattr(editor, "_pin_widgets", {}), \
       "the categorical editor built pin controls it cannot use"
-    assert getattr(editor, "_copy_box", None) is None, \
-      "the categorical editor built a Copy to... dropdown, which " \
-      "would send class breaks an element without classes cannot use"
+    box = getattr(editor, "_copy_box", None)
+    assert box is not None, \
+      "the categorical editor built no Copy dropdown, so a scheme " \
+      "chosen value by value can be sent nowhere -- the control a " \
+      "tester reported missing on 2026-08-20"
+    assert getattr(editor, "_copy_button", None) is not None, \
+      "there is a dropdown and nothing to press"
+    offered = [box.itemData(i) for i in range(box.count())]
+    assert offered == ["b"], \
+      f"the dropdown offers {offered!r} rather than the one target " \
+      f"it was given"
   finally:
     editor.close()
+
+  # ...AND NOWHERE TO COPY TO MEANS NO CONTROL, which is the half of
+  # the original contract that survives: a window on a one-element
+  # design must not offer to send its colours to nobody.
+  alone = CategoryColourDialog(
+    "a", "landcover", order, colours, lambda *a: None,
+    pin_changed=lambda *a: None,
+    copy_targets=[], copy_to=lambda *a: None)
+  try:
+    assert getattr(alone, "_copy_box", None) is None, \
+      "the editor offers a Copy dropdown with no target in it"
+  finally:
+    alone.close()
 
 
 def test_a_class_that_cannot_be_pinned_says_so_in_its_cell():
@@ -56725,8 +56767,8 @@ def main():
         test_a_copied_classification_carries_the_whole_row)
   check("a copied ladder is fitted to the column it lands on",
         test_a_copied_ladder_is_fitted_to_the_column_it_lands_on)
-  check("the categorical editor offers no pin and no copy",
-        test_the_categorical_editor_offers_no_pin_and_no_copy)
+  check("the categorical editor offers no pin but does copy",
+        test_the_categorical_editor_offers_no_pin_but_does_copy)
   check("the pin shows which way it is set",
         test_the_pin_shows_which_way_it_is_set)
   check("a refused pin reverts and says so",
