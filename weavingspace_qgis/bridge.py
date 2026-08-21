@@ -1983,6 +1983,49 @@ def empty_classes_message(field: str, empty: int, asked: int):
           f"drawn.")
 
 
+def declined_colours_message(tile_id: str, declined: int):
+  """The notice for a dock colour the plugin would not take up.
+
+  Args:
+    tile_id: the element the colours sit on, as the table names it.
+    declined: how many of its classes wore a colour the plugin could
+      not attribute -- neither one it remembers painting nor QGIS's
+      own clone of the placeholder symbol.
+
+  Returns:
+    One sentence for the message bar, or None when nothing was
+    declined, so the caller can report unconditionally.
+
+  WHY A NOTICE AT ALL, settled by ``/grill-me`` on 2026-08-20. The
+  plugin adopts a dock colour only where it can positively attribute
+  the class: one it painted, now wearing something else. Where the
+  ladder has moved so far that no class can be matched -- or where
+  the element has no remembered ladder, which is what an element the
+  plugin has never drawn nor adopted looks like -- it declines. That
+  is the conservative half of the decision. This is the other half:
+  the loss is visible BEFORE the next Generate rather than after it,
+  which is the same habit that governs a ramp pick clearing a row's
+  hand-picks.
+
+  HOW OFTEN IT CAN FIRE decided the wording. Only a class whose
+  colour differs from the placeholder AND cannot be attributed
+  reaches here, so an ordinary session never sees it; a warning that
+  fires constantly is one people learn to ignore, which this project
+  has written down about three other instruments.
+  """
+  declined = int(declined)
+  if declined <= 0:
+    return None
+  # Singular where it costs nothing, for the reason the sibling above
+  # gives: "1 colours" reads as a fault in the plugin rather than as a
+  # fact about a map.
+  count = "one colour" if declined == 1 else f"{declined} colours"
+  it = "it" if declined == 1 else "them"
+  return (f"Element '{tile_id}' left {count} in QGIS alone, because it "
+          f"cannot tell your colours from its own on this ladder. Pick "
+          f"{it} in the colour editor to keep {it}.")
+
+
 def _apply_pinned_bounds(renderer, low, high, smallest, largest,
                          outline, method, wants_middle=True):
   """Put the pinned classes back around the computed middle.
@@ -3379,6 +3422,20 @@ def template_from_layer(source_layer) -> dict:
   if not mapping:
     raise ValueError("That layer's symbology defines no classes")
   return mapping
+
+
+# How many distinct values a categorical style may draw before the
+# plugin asks first. Nothing capped this until 2026-08-20: `n =
+# max(len(everywhere), 1)` a few hundred lines below takes whatever the
+# column holds, so a CONTINUOUS column drew one class, one legend line
+# and one swatch per value -- thousands of them on a real dataset, and
+# the likeliest cause of a maintainer's report that switching datasets
+# felt slow. ONE NUMBER FOR BOTH DOORS into that state (maintainer's
+# ruling, 2026-08-20): copying a categorical scheme onto an element,
+# and retaining one across a change of region dataset. A hundred is
+# already past what a legend can be read at; it is a "surely not"
+# threshold rather than a recommendation.
+MANY_CATEGORIES = 100
 
 
 def make_categorized_renderer(layer: QgsVectorLayer, field: str,

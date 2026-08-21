@@ -210,7 +210,9 @@ def _no_modal_dialogs():
       title = strings[0] if strings else ""
       message = strings[1] if len(strings) > 1 else ""
       MODALS.append((kind, (title + " " + message).strip()))
-      return default
+      # Read at CALL time, not captured when the shim is built, so a
+      # test can stage an answer after the patching has happened.
+      return MODAL_ANSWERS.get(kind, default)
     return shim
 
   QtWidgets.QMessageBox.critical = record(
@@ -224,6 +226,20 @@ def _no_modal_dialogs():
 
 
 MODALS = []
+
+# WHAT A BOX ANSWERS, WHERE A TEST NEEDS THE OTHER ANSWER.
+#
+# Every box answers itself so the suite cannot hang, and `question`
+# answered Yes to everything until 2026-08-20 -- which made the
+# REFUSAL arm of every question this plugin asks unreachable from the
+# suite. The code that runs when somebody declines had never once
+# executed. A test stages the other answer by kind, in a try/finally,
+# exactly as it lowers a threshold to stage a condition:
+#
+#     MODAL_ANSWERS["question"] = QMessageBox.StandardButton.No
+#
+# An absent key means the default, so no existing test changes.
+MODAL_ANSWERS = {}
 
 # Qt messages the harness swallowed, by kind, so that quietening
 # the log never becomes hiding something. Printed with the
@@ -24115,6 +24131,1269 @@ def test_a_customized_element_reads_custom():
   dlg.close()
 
 
+def test_a_ladder_somebody_else_cut_makes_the_scheme_cell_read_custom():
+  """The Style cell stops naming a scheme the map is not cut by.
+
+  WHAT IT IS ABOUT. An element whose class boundaries came from
+  somewhere other than its scheme -- retyped in QGIS's Symbology
+  panel, or copied whole from another element -- is no longer cut by
+  quantiles, and a cell still reading "Quant: Quantiles" is a control
+  lying about the map. Settled 2026-08-20: any stored `breaks` turns
+  the display on, from either door; pins alone leave it off, since the
+  scheme genuinely still cuts everything between them.
+
+  WHAT IT MUST NOT DO, and this is half the contract. "Custom" is
+  never an ITEM: every scheme stays selectable at all times, and the
+  underlying index stays on the last-picked scheme, so choosing one
+  reclassifies through the existing degrade-to-pins rule. A test that
+  only asked `showing_custom()` would pass on an implementation that
+  inserted an item and selected it, which is precisely the shape the
+  ramp cell's convention exists to avoid.
+
+  AND IT IS CHECKED ON SCREEN, not only in the record. This project
+  has shipped a mark drawn into pixels its own widget covered, so the
+  cell is grabbed and required to paint DIFFERENTLY from the scheme
+  name and to carry ink; the count of what was looked at is asserted,
+  because an empty loop reads exactly like a passing one.
+
+  Regression: the scheme cell went on naming a scheme after a ladder was retyped in QGIS or copied from another element, so the row described a classification the map no longer had. [mutation]
+  """
+  from qgis.PyQt.QtGui import QColor
+  project = QgsProject.instance()
+  dlg, layer, tid = _quant_dialog(mode="Quant: Quantiles", k=5)
+  try:
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(250)
+    field = dlg._assignment_for(tid)["var"]
+    row = dlg._row_for_element(tid)
+    mode_cell = dlg.table.cellWidget(row, 2)
+    assert hasattr(mode_cell, "showing_custom"), \
+      "the Style cell is not the combo that can display Custom, so " \
+      "nothing below measures the feature this test names"
+
+    scheme = mode_cell.currentText()
+    assert scheme.startswith("Quant:"), \
+      f"the fixture's row is not on a quantitative scheme: {scheme!r}"
+    assert not mode_cell.showing_custom(), \
+      "a freshly classified row already reads Custom, so this test " \
+      "cannot tell a stored ladder from the ordinary case"
+    named = mode_cell.grab().toImage()
+
+    def ink(image):
+      return sum(1 for y in range(image.height())
+                 for x in range(image.width())
+                 if (image.pixelColor(x, y).red()
+                     + image.pixelColor(x, y).green()
+                     + image.pixelColor(x, y).blue()) / 3 < 140)
+
+    assert ink(named) > 6, \
+      f"the cell paints almost nothing ({ink(named)} px) even while " \
+      f"naming {scheme!r}, so a pixel comparison below would mean " \
+      f"nothing"
+
+    # ---- DOOR ONE: a ladder retyped in QGIS's own panel.
+    out = project.mapLayer(dlg._element_layer_ids[tid])
+    spans = list(out.renderer().ranges())
+    assert len(spans) >= 3, \
+      f"the element drew {len(spans)} classes; this needs an interior"
+    edited = out.renderer().clone()
+    # EVERY INTERIOR BOUNDARY NUDGED OFF ITS COMPUTED PLACE. The first
+    # draft of this built a "round" ladder instead and staged the
+    # ladder ALREADY ON THE LAYER: this fixture's five values fall on
+    # integers, so quantiles, equal intervals and round numbers all
+    # agree, and `_adopt_dock_bounds` rightly answered "unchanged".
+    # A fixture that cannot move cannot show that something moved it,
+    # and the dump said so in one line where reading did not.
+    lowest, highest = spans[0].lowerValue(), spans[-1].upperValue()
+    span = highest - lowest
+    assert span > 0, \
+      f"the fixture's column is constant ({lowest} to {highest}), so " \
+      f"there is no ladder here to retype"
+    before_bounds = [round(r.lowerValue(), 6) for r in spans] + \
+                    [round(highest, 6)]
+    typed = [round(lowest, 6)] + \
+            [round(spans[i].upperValue() + span * 0.13, 6)
+             for i in range(len(spans) - 1)] + [round(highest, 6)]
+    assert typed != before_bounds, \
+      f"the ladder staged here IS the ladder already on the layer " \
+      f"({typed}), so nothing would be retyped and the adoption " \
+      f"would rightly decline as unchanged"
+    assert all(a < b for a, b in zip(typed, typed[1:])), \
+      f"the staged ladder does not increase: {typed}"
+    for index in range(len(spans)):
+      edited.updateRangeLowerValue(index, typed[index])
+      edited.updateRangeUpperValue(index, typed[index + 1])
+    after = edited.ranges()
+    assert [round(r.upperValue(), 6) for r in after] == typed[1:], \
+      "the staged retype did not reach the renderer, so what follows " \
+      "would measure an edit that never happened"
+    out.setRenderer(edited)
+    out.styleChanged.emit()
+    _tick(600)
+
+    stored = (dlg._pinned_bounds.get(tid, {}).get(field) or {})
+    assert stored.get("breaks"), \
+      f"a whole ladder retyped in QGIS was not stored as breaks " \
+      f"({stored!r}), so the cell has nothing to describe and the " \
+      f"assertions below would be about the wrong thing"
+    assert mode_cell.showing_custom(), \
+      f"the Style cell still reads {mode_cell.currentText()!r} after " \
+      f"the whole ladder was retyped in QGIS, so the row names a " \
+      f"scheme the map is no longer cut by"
+
+    custom = mode_cell.grab().toImage()
+    assert custom != named, \
+      "the Style cell paints exactly what it painted while naming " \
+      "the scheme, so nothing a user can see says the ladder is " \
+      "theirs -- the record moved and the screen did not"
+    assert ink(custom) > 6, \
+      f"the Custom display puts only {ink(custom)} px on screen"
+
+    # ...and the list is untouched, which is the other half.
+    assert mode_cell.findText("Custom") < 0, \
+      "Custom became an ITEM in the Style list; it is a display " \
+      "only, and an item would need a meaning of its own"
+    assert mode_cell.currentText() == scheme, \
+      f"the underlying index left {scheme!r} for " \
+      f"{mode_cell.currentText()!r}; it must stay on the last-picked " \
+      f"scheme so choosing one reclassifies"
+
+    # ---- and choosing a scheme takes it back, or the display would
+    # be a state nobody can leave.
+    mode_cell.setCurrentText(scheme)
+    mode_cell.activated.emit(mode_cell.currentIndex())
+    _tick(400)
+    # THE RECORD FIRST, THEN THE CELL, so the failure names which half
+    # is wrong. Choosing a scheme is what retires a stored ladder
+    # through the degrade-to-pins rule, exactly as re-choosing a ramp
+    # discards hand-picked colours -- and the display cannot be a
+    # state a user has no control to leave.
+    left = (dlg._pinned_bounds.get(tid, {}).get(field) or {})
+    assert not left.get("breaks"), \
+      f"choosing a scheme again left the retyped ladder in the " \
+      f"record ({left!r}), so the row goes on being cut by numbers " \
+      f"the user has just asked the scheme to replace"
+    # RE-FETCHED, never the widget from before: a rebuild replaces
+    # every cell widget, so the old one can go on painting Custom in
+    # a table nobody is looking at while the live cell is correct.
+    fresh_cell = dlg.table.cellWidget(dlg._row_for_element(tid), 2)
+    assert fresh_cell is not None and not fresh_cell.showing_custom(), \
+      "choosing a scheme again left the cell reading Custom, so the " \
+      "row cannot be given back to its scheme"
+
+    # ---- DOOR TWO, the negative twin: pins alone are NOT Custom.
+    # THE RECORD'S REAL SHAPE, which is five numeric keys and no
+    # nested anything: `low`, `high`, `floor`, `ceiling` and the
+    # `breaks` list. The first draft here invented a `pins` sub-dict
+    # and `_stamp_category_colours` duly raised TypeError on
+    # `float(value)` -- a test inventing a contract nobody agreed,
+    # arriving as a crash rather than as a wrong verdict.
+    dlg._pinned_bounds.setdefault(tid, {})[field] = {
+      "low": float(spans[0].upperValue())}
+    dlg._apply_style_change()
+    _tick(300)
+    assert not dlg.table.cellWidget(dlg._row_for_element(tid), 2).showing_custom(), \
+      "a row with ONE pinned end reads Custom, but the scheme still " \
+      "cuts every boundary between the pins; saying Custom there " \
+      "denies a scheme doing most of the work"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_reopened_project_still_hears_a_recolour_made_in_qgis():
+  """The commonest journey there is must not be the deaf one.
+
+  THE DEFECT, ledger row 1 of 2026-08-20, fixed the same day and
+  unguarded until now. The repaint route -- the only way an in-place
+  dock recolour reaches the plugin, since that edit emits no
+  `styleChanged` -- skipped any element whose row signature differed
+  from `_last_signatures`. That skip is right in itself: between a
+  control change and the restyle answering it, the layer is merely
+  BEHIND, and reconciling then adopts the plugin's own outgoing style
+  as somebody's picks.
+
+  WHAT WAS WRONG IS HOW IT ASKED. `_adopt_existing_group` leaves
+  `_last_signatures` EMPTY on purpose, saying so in its own docstring:
+  a dialog cannot know which assignments produced layers it has only
+  just met. So `.get()` answered None for every adopted element, None
+  never equals a real signature, and the route was shut in every
+  REOPENED project -- the journey whose docstring promises that hand
+  styling survives. ABSENT IS NOT MOVED.
+
+  THE PREMISE IS ASSERTED, because the whole defect lives in that
+  emptiness: if a future change starts filling `_last_signatures` at
+  adoption, this test is measuring something else and should be
+  rewritten rather than trusted.
+
+  Regression: a project reopened from a file heard no in-place dock recolour at all, because a guard read a deliberately empty record as evidence that the row had moved. [mutation]
+  """
+  import tempfile
+  from qgis.PyQt.QtGui import QColor
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="weavingspace_reopen_hears_")
+  try:
+    # A REGION ON DISK, because a memory layer cannot survive a
+    # project round trip: the first draft used the ordinary quant
+    # fixture and the reopened dialog came back with a region holding
+    # no values, so `_current_graduated_classes` answered with NO
+    # classes and the handler dropped the edit as `count 0 vs 5`.
+    # That is a fact about the fixture wearing the costume of a
+    # product defect, and the dump named it in one run.
+    region, _region_path = _c3e_disk_region(folder)
+    dlg = WeavingSpaceDialog(iface=None)
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(300)
+    tid = dlg.table.item(1, 0).text()
+    assignment = dlg._assignment_for(tid) or {}
+    field = assignment.get("var")
+    assert field, \
+      f"the table gave element {tid!r} no variable, so nothing below " \
+      f"classifies anything"
+    mode_cell = dlg.table.cellWidget(1, 2)
+    if not mode_cell.currentText().startswith("Quant:"):
+      mode_cell.setCurrentText("Quant: Quantiles")
+      mode_cell.activated.emit(mode_cell.currentIndex())
+      _tick(150)
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(250)
+    assert dlg._element_layer_ids, "no map was made"
+    dlg.close()
+    _tick(200)
+
+    _project_round_trip(folder)
+    _tick(300)
+    revived_region = next(
+      (l for l in project.mapLayers().values() if l.name() == "region"),
+      None)
+    assert revived_region is not None, \
+      "the region did not come back from the project file"
+
+    second = WeavingSpaceDialog(iface=None)
+    second.live_check.setChecked(False)
+    second.layer_combo.setLayer(revived_region)
+    _tick(500)
+    assert second._element_layer_ids.get(tid), \
+      f"the reopened dialog adopted no layer for element {tid!r}, so " \
+      f"there is nothing here that could hear anything"
+    # THE PREMISE: the record really is empty after an adoption.
+    assert not second._last_signatures, \
+      f"`_last_signatures` is no longer empty after adoption " \
+      f"({second._last_signatures!r}); the emptiness IS this defect, " \
+      f"so rewrite this test rather than trusting it"
+
+    out = project.mapLayer(second._element_layer_ids[tid])
+    assert out is not None, "the adopted layer is gone"
+    PICKED = "#00c8a0"
+    renderer = out.renderer()
+    rows = renderer.ranges()             # bound before subscripting
+    assert len(rows) >= 2, f"only {len(rows)} classes to recolour"
+    assert rows[1].symbol().color().name().lower() != PICKED, \
+      f"class 1 already draws {PICKED}"
+
+    # IN PLACE, which is what a plain colour change in the Symbology
+    # panel does: no `setRenderer`, so NO `styleChanged` -- measured on
+    # QGIS 4.0.3 and recorded in MAINTAINING.md. The dock then calls
+    # `triggerRepaint()` because the canvas has no other way to learn,
+    # and that repaint is the only trace there is.
+    symbol = rows[1].symbol().clone()
+    symbol.setColor(QColor(PICKED))
+    renderer.updateRangeSymbol(1, symbol)
+    reached = out.renderer().ranges()
+    assert reached[1].symbol().color().name().lower() == PICKED, \
+      "the in-place recolour did not reach the layer's own renderer"
+    out.triggerRepaint()
+    # past the repaint drain and the one-second echo window alike
+    _tick(1600)
+
+    picks = second._quant_colours.get(tid, {}).get(field, {})
+    assert PICKED in [str(c).lower() for c in picks.values()], \
+      f"a class recoloured in QGIS after the project was reopened " \
+      f"reached nobody: {picks!r}. That is the commonest journey " \
+      f"there is, and the repaint is the only trace an in-place edit " \
+      f"leaves"
+    second.close()
+  finally:
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_boundary_retyped_beside_a_recolour_is_still_recorded():
+  """Two edits in one visit are two edits, not one that cancels both.
+
+  THE DEFECT, ledger row 6 of 2026-08-20. `_graduated_layer_edited`
+  tells a hand RETYPE from a dock CLASSIFY by asking whether the
+  colours still match what the plugin would draw -- and that answer
+  gated the exit where boundaries are adopted. Retype a boundary AND
+  recolour a class in one visit and neither branch claims the edit:
+  the colour is taken up and the BOUNDARY IS NEVER RECORDED.
+
+  WHY IT HID. The element survives the next Generate by accident --
+  the colour adoption stamps `_last_signatures`, so `_restyle_only`
+  skips it and the layer keeps a ladder nothing recorded -- and dies
+  at the first act that legitimately re-seeds it. Measured in two
+  arms, each in its own process: retype alone stored
+  {'breaks': [0.0, 0.5, 2.0, 3.0]}, retype plus recolour stored {}.
+
+  ARRIVAL AND SURVIVAL. The record is checked as the edit lands, and
+  the ladder is checked again after a Generate, which is the act the
+  boundary used to die at.
+
+  Regression: retyping a class boundary and recolouring a class in one visit to QGIS's panel recorded the colour and lost the boundary, which then died at the next thing that re-seeded the element. [mutation]
+  """
+  from qgis.PyQt.QtGui import QColor
+  project = QgsProject.instance()
+  dlg, layer, tid = _quant_dialog(mode="Quant: Quantiles", k=5)
+  try:
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(250)
+    field = dlg._assignment_for(tid)["var"]
+    out = project.mapLayer(dlg._element_layer_ids[tid])
+    spans = list(out.renderer().ranges())
+    assert len(spans) >= 3, \
+      f"the element drew {len(spans)} classes; this needs an interior"
+
+    lowest, highest = spans[0].lowerValue(), spans[-1].upperValue()
+    span = highest - lowest
+    assert span > 0, "the fixture's column is constant"
+    before_bounds = [round(r.lowerValue(), 6) for r in spans] + \
+                    [round(highest, 6)]
+    typed = [round(lowest, 6)] + \
+            [round(spans[i].upperValue() + span * 0.13, 6)
+             for i in range(len(spans) - 1)] + [round(highest, 6)]
+    assert typed != before_bounds, \
+      f"the staged ladder IS the one on the layer ({typed}), so " \
+      f"nothing would be retyped"
+
+    PICKED = "#ff00ff"
+    edited = out.renderer().clone()
+    for index in range(len(spans)):
+      edited.updateRangeLowerValue(index, typed[index])
+      edited.updateRangeUpperValue(index, typed[index + 1])
+    # ...AND A COLOUR, in the same visit, through the renderer's own
+    # setter: `ranges()` hands back COPIES, so recolouring one edits a
+    # temporary and the renderer never changes.
+    staged = edited.ranges()
+    was = staged[1].symbol().color().name().lower()
+    assert was != PICKED, f"class 1 already draws {PICKED}"
+    symbol = staged[1].symbol().clone()
+    symbol.setColor(QColor(PICKED))
+    edited.updateRangeSymbol(1, symbol)
+
+    reached = edited.ranges()
+    assert [round(r.upperValue(), 6) for r in reached] == typed[1:], \
+      "the staged retype did not reach the renderer"
+    assert reached[1].symbol().color().name().lower() == PICKED, \
+      "the staged recolour did not reach the renderer"
+
+    out.setRenderer(edited)
+    out.styleChanged.emit()
+
+    # ---- READ ON THE FIRST PASS, with no event loop run in between,
+    # so nothing can rescue it. The first draft ticked 700 ms here and
+    # PASSED against the unbroken defect: the dump showed the first
+    # signal declining with `colours-moved` and a SECOND signal, echoed
+    # by the colour adoption, adopting the bounds afterwards. That is
+    # the "survives by accident" this row is about, and a guard that
+    # waits for the accident tests the accident.
+    stored = dict(dlg._pinned_bounds.get(tid, {}).get(field) or {})
+    breaks = [round(float(b), 6) for b in (stored.get("breaks") or [])]
+    assert breaks == typed[1:-1], \
+      f"the boundaries typed beside a recolour were not recorded by " \
+      f"the visit that typed them: {stored!r}. Two edits in one visit " \
+      f"are two edits; the colour question must not decide the " \
+      f"boundary exit, and a later echo is not the same promise"
+    _tick(700)
+
+    picks = dlg._quant_colours.get(tid, {}).get(field, {})
+    assert PICKED in [str(c).lower() for c in picks.values()], \
+      f"the colour picked in the same visit was lost as well: " \
+      f"{picks!r}. Recording one and dropping the other is what this " \
+      f"test is about, in whichever direction"
+
+    # ---- A SECOND ARM, WHERE NO ECHO CAN RESCUE IT, and it is the
+    # arm that can fail. The first one passes either way: the colour
+    # adoption stamps the layer and that re-emits, so a SECOND pass
+    # adopts the bounds a moment later and the record comes out right
+    # however the guard behaved. Proved by the catalogue, which
+    # reported the fix's own mutation as a SURVIVOR against the first
+    # arm alone.
+    #
+    # SO STAGE A COLOUR THE PLUGIN PAINTED ON ANOTHER CLASS of this
+    # same ladder -- which a person really does, moving a colour from
+    # one class to another. `_colour_is_ours` declines it, nothing is
+    # adopted, nothing stamps, and no second signal follows: whatever
+    # the visit records is all there is.
+    dlg._pinned_bounds.get(tid, {}).pop(field, None)
+    out2 = project.mapLayer(dlg._element_layer_ids[tid])
+    base = out2.renderer()
+    rows = base.ranges()                 # bound: a temporary frees them
+    assert len(rows) >= 4, f"only {len(rows)} classes to borrow from"
+    borrowed = rows[3].symbol().color().name().lower()
+    assert borrowed != rows[1].symbol().color().name().lower(), \
+      "classes 1 and 3 already draw the same colour, so borrowing one " \
+      "from the other stages no change at all"
+
+    again = [round(lowest, 6)] + \
+            [round(spans[i].upperValue() + span * 0.21, 6)
+             for i in range(len(spans) - 1)] + [round(highest, 6)]
+    assert again[1:-1] != typed[1:-1], \
+      "the second arm types the first arm's ladder, so it would prove " \
+      "nothing about this visit"
+    second = base.clone()
+    for index in range(len(rows)):
+      second.updateRangeLowerValue(index, again[index])
+      second.updateRangeUpperValue(index, again[index + 1])
+    staged_two = second.ranges()         # bound before subscripting
+    moved = staged_two[1].symbol().clone()
+    moved.setColor(QColor(borrowed))
+    second.updateRangeSymbol(1, moved)
+    check = second.ranges()
+    assert check[1].symbol().color().name().lower() == borrowed, \
+      "the borrowed colour did not reach the renderer"
+
+    out2.setRenderer(second)
+    out2.styleChanged.emit()
+
+    landed = dict(dlg._pinned_bounds.get(tid, {}).get(field) or {})
+    got = [round(float(b), 6) for b in (landed.get("breaks") or [])]
+    assert got == again[1:-1], \
+      f"a boundary typed beside a colour MOVED from another class was " \
+      f"not recorded: {landed!r} against {again[1:-1]}. Nothing is " \
+      f"adopted here and nothing stamps, so no second signal follows " \
+      f"-- what this visit records is all there is"
+    _tick(400)
+
+    # ---- SURVIVAL: the act the boundary used to die at.
+    dlg.spacing_spin.setValue(520)
+    _generate_and_wait(dlg)
+    _tick(300)
+    after = project.mapLayer(dlg._element_layer_ids[tid])
+    drawn = [round(r.upperValue(), 4) for r in after.renderer().ranges()]
+    wanted = [round(b, 4) for b in again[1:-1]]
+    assert all(any(abs(d - w) < 0.01 for d in drawn) for w in wanted), \
+      f"the next Generate drew {drawn} and lost the typed boundaries " \
+      f"{wanted}: the record arrived and did not survive"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_copy_asks_before_drawing_a_colour_for_every_value():
+  """A hundred swatches is a question, not a thing to discover.
+
+  Nothing capped the category count until 2026-08-20: bridge takes
+  `n = max(len(everywhere), 1)`, so a CONTINUOUS column receiving a
+  categorical scheme would be drawn with one class, one legend line
+  and one swatch per value -- thousands of them on real data, and the
+  likeliest cause of a report that switching datasets felt slow.
+
+  A QUESTION RATHER THAN A REFUSAL, on the maintainer's ruling: a
+  column of a hundred and twenty codes is a reasonable thing to
+  categorize and only the person looking at it knows whether their
+  legend can carry it. What is unreasonable is finding out by watching
+  QGIS draw them.
+
+  THE THRESHOLD IS LOWERED HERE rather than the fixture inflated. The
+  real number is a hundred, and a column with a hundred distinct
+  values means ten thousand polygons in this fixture family -- minutes
+  of tiling to prove an `if`. Staging the CONDITION is what this suite
+  does elsewhere (removing a palette to test the installer), and the
+  constant is restored in `finally` so no later test inherits it.
+
+  Regression: a categorical scheme could be copied onto a continuous column and drawn with one colour per value, thousands of them, with nothing asked first. [mutation]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+  from qgis.PyQt.QtCore import Qt
+  project = QgsProject.instance()
+  was = bridge.MANY_CATEGORIES
+  dlg, layer, tid = _categorical_dialog()
+  try:
+    field = dlg._assignment_for(tid)["var"]
+    targets = dlg._copy_targets(tid, categorical=True)
+    assert targets, "no target to copy onto"
+    target_id = targets[0][0]
+    their_field = dlg._assignment_for(target_id)["var"]
+    held = dlg._distinct_values(their_field)
+    assert held and held >= 2, \
+      f"the target's column holds {held!r} distinct values, so no " \
+      f"threshold below it can be crossed"
+    bridge.MANY_CATEGORIES = held - 1
+
+    _colours, order = dlg._current_category_colours(
+      dlg._assignment_for(tid))
+    dlg._category_colours.setdefault(tid, {}).setdefault(
+      field, {})[str(order[0])] = "#123456"
+
+    MODALS.clear()
+    editor = CategoryColourDialog(
+      tid, field, order, dict(_colours), lambda *a: None, dlg,
+      copy_targets=targets,
+      copy_to=lambda wanted: dlg._copy_categories_to_many(tid, wanted))
+    try:
+      box, button = editor._copy_box, editor._copy_button
+      where = [i for i in range(box.count())
+               if box.itemData(i) == target_id][0]
+      box.setItemCheckState(where, Qt.CheckState.Checked)
+      button.click()
+      _tick(300)
+    finally:
+      editor.close()
+
+    asked = [text for kind, text in MODALS if kind == "question"]
+    assert asked, \
+      f"copying onto a column of {held} distinct values asked " \
+      f"nothing, with the threshold at {bridge.MANY_CATEGORIES}; the " \
+      f"user finds out by watching QGIS draw a swatch for each"
+    assert str(held) in " ".join(asked) or f"{held:,}" in " ".join(asked), \
+      f"the question does not say HOW MANY values are involved, which " \
+      f"is the whole of what the reader needs to answer it: {asked!r}"
+    # ...AND THE ANSWER IS HONOURED. The harness answers Yes, so the
+    # copy must have gone through; a question that refuses whatever
+    # you say is not a question.
+    landed = dlg._category_colours.get(target_id, {}).get(their_field, {})
+    assert landed.get(str(order[0])) == "#123456", \
+      f"the user said yes and the copy did not happen: {landed!r}"
+
+    # ---- AND THE OTHER ANSWER, which nothing in this suite had ever
+    # run. The record is cleared first, or "nothing landed" would be
+    # unobservable: the Yes copy above has just written it.
+    from qgis.PyQt.QtWidgets import QMessageBox
+    dlg._category_colours.get(target_id, {}).pop(their_field, None)
+    MODALS.clear()
+    BAR_MESSAGES.clear()
+    dlg.live_note.setText("")
+    MODAL_ANSWERS["question"] = QMessageBox.StandardButton.No
+    dlg._copy_categories_to_many(tid, [target_id])
+    _tick(200)
+    assert [text for kind, text in MODALS if kind == "question"], \
+      "the second copy asked nothing, so the refusal arm was never " \
+      "reached and the Yes arm above is all this test proves"
+    after = dlg._category_colours.get(target_id, {}).get(their_field, {})
+    assert not after.get(str(order[0])), \
+      f"the user declined and the copy happened anyway: {after!r}"
+    said = (" ".join(text for _kind, text in BAR_MESSAGES)
+            + " " + dlg.live_note.text())
+    assert "left alone" in said, \
+      f"declining copied nothing and told the user nothing: {said!r}"
+  finally:
+    MODAL_ANSWERS.pop("question", None)
+    bridge.MANY_CATEGORIES = was
+    dlg.close()
+    project.clear()
+
+
+def make_other_region(n=4, cell=1000, origin=(0, 0)):
+  """A region layer whose columns share NO NAME with make_region_layer's.
+
+  Args:
+    n: grid side, so the layer holds n*n square polygons.
+    cell: each square's side in map units (EPSG:3857).
+    origin: (x, y) of the grid's lower-left corner.
+
+  Returns:
+    A memory layer named "other" carrying ``code`` (a small integer
+    that is genuinely categorical) and ``density`` (a float).
+
+  WHY IT EXISTS AT ALL. Every layer `make_region_layer` builds has the
+  same four columns, so pointing the region chooser at a second one of
+  those proves nothing about dropping a setup whose column has gone --
+  the column is still there, and the test would pass whatever the code
+  did. That is the fixture trap this case is written around.
+  """
+  from weavingspace_qgis import compat
+  layer = QgsVectorLayer("MultiPolygon?crs=EPSG:3857", "other", "memory")
+  prov = layer.dataProvider()
+  prov.addAttributes([compat.make_field("code", int),
+                      compat.make_field("density", float)])
+  layer.updateFields()
+  feats = []
+  for i in range(n):
+    for j in range(n):
+      f = QgsFeature(layer.fields())
+      ox, oy = origin
+      ring = [QgsPointXY(ox + i * cell, oy + j * cell),
+              QgsPointXY(ox + (i + 1) * cell, oy + j * cell),
+              QgsPointXY(ox + (i + 1) * cell, oy + (j + 1) * cell),
+              QgsPointXY(ox + i * cell, oy + (j + 1) * cell)]
+      f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+      f["code"], f["density"] = (i + j) % 3, float(i * j)
+      feats.append(f)
+  prov.addFeatures(feats)
+  layer.updateExtents()
+  return layer
+
+
+def make_region_with_a_continuous_landcover(n=6, cell=1000):
+  """A region carrying 'landcover' as a CONTINUOUS float.
+
+  Args:
+    n: grid side, so the layer holds n*n polygons and 'landcover'
+      takes n*n distinct values.
+    cell: each square's side in map units (EPSG:3857).
+
+  Returns:
+    A memory layer named "other" whose 'landcover' shares only its
+    NAME with make_region_layer's four-class text column.
+
+  THE POINT OF IT is the case the name rule deliberately RETAINS: a
+  setup is kept where the new dataset has a column of that name, and
+  nothing about the name says the values are the same kind of thing.
+  A scheme cut for four words meeting a column of thirty-six floats
+  is where the maintainer's colleague's report most likely lives.
+  """
+  from weavingspace_qgis import compat
+  layer = QgsVectorLayer("MultiPolygon?crs=EPSG:3857", "other", "memory")
+  prov = layer.dataProvider()
+  prov.addAttributes([compat.make_field("landcover", float),
+                      compat.make_field("density", float)])
+  layer.updateFields()
+  feats = []
+  for i in range(n):
+    for j in range(n):
+      f = QgsFeature(layer.fields())
+      ring = [QgsPointXY(i * cell, j * cell),
+              QgsPointXY((i + 1) * cell, j * cell),
+              QgsPointXY((i + 1) * cell, (j + 1) * cell),
+              QgsPointXY(i * cell, (j + 1) * cell)]
+      f.setGeometry(QgsGeometry.fromPolygonXY([ring]))
+      f["landcover"] = i * n + j + 0.5      # every value distinct
+      f["density"] = float(i)
+      feats.append(f)
+  prov.addFeatures(feats)
+  layer.updateExtents()
+  return layer
+
+
+def _pick_categorized(dlg, tile_id):
+  """Choose Categorized for an element the way a user chooses it.
+
+  Args:
+    dlg: the dialog holding the table.
+    tile_id: the element whose Style cell should be set.
+
+  Returns:
+    None. The row is left with the style MARKED AS THE USER'S, which
+    is the whole point of going through the combo's `activated` signal
+    rather than setting the text: `_refresh_table` restores a style
+    only when somebody chose it and otherwise re-derives one from the
+    column's type.
+
+  WHY EVERY DATASET-SWITCH TEST NEEDS THIS. Left to itself the plugin
+  re-derives the style on every rebuild, so a fixture that never
+  touches the chooser measures the re-derivation and never the
+  retention -- and retention is what a change of region dataset is
+  about. Two tests written on 2026-08-20 passed for exactly that
+  reason while a picked scheme rode onto the new data unasked.
+  """
+  row = [r for r in range(dlg.table.rowCount())
+         if dlg.table.item(r, 0) is not None
+         and dlg.table.item(r, 0).text() == tile_id]
+  assert row, f"no row carries element {tile_id!r}"
+  mode = dlg.table.cellWidget(row[0], 2)
+  assert mode is not None, f"row {row[0]} has no style chooser"
+  mode.setCurrentText("Categorized")
+  mode.activated.emit(mode.currentIndex())      # what a click sends
+  _tick(150)
+
+
+def test_a_column_that_keeps_its_name_and_changes_its_kind():
+  """Same name is not the same thing, and the plugin asks.
+
+  THE RULING keeps an element's setup where the new dataset has a
+  column of that NAME. Nothing about a name says the values are the
+  same kind of thing: "landcover" as four words in one dataset and as
+  a continuous float in the next is the case that rule retains, and a
+  categorical scheme cut for four values meeting thirty-six floats
+  would draw one colour, one legend line and one swatch for each.
+
+  ONE THRESHOLD FOR BOTH DOORS, per the maintainer:
+  `bridge.MANY_CATEGORIES` is the number the COPY asks above, and it
+  is the number this must ask above. It is lowered here, and the
+  fixture left alone, because a hundred distinct values in this
+  fixture family means ten thousand polygons and minutes of tiling to
+  prove an `if`.
+
+  BOTH ANSWERS ARE DRIVEN. A question whose refusal arm nobody has
+  run is a question that has been half written: the suite answered
+  every box Yes until 2026-08-20, so the code that runs when somebody
+  declines had never once executed here.
+
+  THE FIRST DRAFT OF THIS TEST PROVED NOTHING, and the reason is
+  written up in docs/TESTING.md. It staged the threshold AFTER the
+  switch it was meant to govern, and its fixture never marked the
+  style as the user's -- so the plugin re-derived a quantitative
+  style from the new column's type, the interesting assertion sat
+  behind an `if` that was false, and the green said only that
+  something had happened.
+
+  Regression: a categorical scheme picked by hand rode onto a column that had kept its name and changed to a continuous float, drawing a colour for every distinct value with nothing asked. [mutation]
+  """
+  from qgis.PyQt.QtWidgets import QMessageBox
+  from weavingspace_qgis import bridge
+  project = QgsProject.instance()
+  was = bridge.MANY_CATEGORIES
+  dlg, layer, tid = _categorical_dialog()
+  try:
+    _pick_categorized(dlg, tid)
+    mine = dlg._assignment_for(tid)
+    assert mine["var"] == "landcover", \
+      f"the fixture assigned {mine['var']!r}; this case is about the " \
+      f"column whose NAME survives into the next dataset"
+    assert mine.get("style_touched"), \
+      "the fixture did not mark the style as the user's, so nothing " \
+      "would be RETAINED here whatever the code did"
+
+    other = make_region_with_a_continuous_landcover()
+    project.addMapLayer(other)
+    assert "landcover" in [f.name() for f in other.fields()], \
+      "the second region lost the name this case is about"
+    # COUNTED OFF THE NEW LAYER, not through the dialog: the dialog is
+    # still pointed at the old data, where "landcover" is four words.
+    held = len({f["landcover"] for f in other.getFeatures()})
+    assert held > 4, \
+      f"the new 'landcover' holds {held} distinct values, which is " \
+      f"not the change of kind this test is about"
+    # THE CONDITION IS STAGED BEFORE THE ACT IT GOVERNS. Lowered after
+    # the switch, as this test first had it, the threshold governs
+    # nothing and the assertion below can never fire.
+    bridge.MANY_CATEGORIES = held - 1
+
+    MODALS.clear()
+    dlg.layer_combo.setLayer(other)
+    _tick(600)
+
+    asked = [text for kind, text in MODALS if kind == "question"]
+    assert asked, \
+      f"keeping a categorical scheme onto a 'landcover' of {held} " \
+      f"distinct floats asked nothing, with the threshold at " \
+      f"{bridge.MANY_CATEGORIES}: the user finds out by watching " \
+      f"QGIS draw a swatch for each"
+    assert str(held) in " ".join(asked) or f"{held:,}" in " ".join(asked), \
+      f"the question does not say HOW MANY values are involved, which " \
+      f"is the whole of what a reader needs to answer it: {asked!r}"
+    kept = dlg._assignment_for(tid) or {}
+    assert kept.get("var") == "landcover", \
+      f"the name rule says this setup is KEPT, and the element came " \
+      f"out on {kept.get('var')!r}"
+    assert kept.get("mode") == "Categorized", \
+      f"the harness answered yes and the scheme was dropped anyway " \
+      f"({kept.get('mode')!r}); a question that refuses whatever you " \
+      f"say is not a question"
+
+    # ---- AND THE OTHER ANSWER, which nothing had ever run. Back to
+    # the four words, pick the scheme again, and forward once more.
+    dlg.layer_combo.setLayer(layer)
+    _tick(600)
+    _pick_categorized(dlg, tid)
+    assert dlg._assignment_for(tid).get("mode") == "Categorized", \
+      "the element is not categorical again, so the second switch " \
+      "would retain nothing and this arm would prove nothing"
+    MODALS.clear()
+    BAR_MESSAGES.clear()
+    dlg.live_note.setText("")
+    MODAL_ANSWERS["question"] = QMessageBox.StandardButton.No
+    dlg.layer_combo.setLayer(other)
+    _tick(600)
+    assert [text for kind, text in MODALS if kind == "question"], \
+      "nothing was asked on the second pass, so the refusal arm was " \
+      "never reached"
+    after = dlg._assignment_for(tid) or {}
+    assert after.get("mode") != "Categorized", \
+      f"the user declined and the element went on drawing a colour " \
+      f"for each of {held} values ({after.get('mode_raw')!r})"
+    said = (" ".join(text for _kind, text in BAR_MESSAGES)
+            + " " + dlg.live_note.text())
+    assert "landcover" in said and (str(held) in said
+                                    or f"{held:,}" in said), \
+      f"declining changed the element's style and said nothing a " \
+      f"user could act on: {said!r}"
+  finally:
+    MODAL_ANSWERS.pop("question", None)
+    bridge.MANY_CATEGORIES = was
+    dlg.close()
+    project.clear()
+
+
+def test_a_new_region_drops_a_setup_whose_column_has_gone():
+  """A scheme cut for a column the new data lacks must not survive.
+
+  THE RULING (maintainer, 2026-08-20): changing the region layer KEEPS
+  an element's setup where the new dataset has a column of that NAME,
+  and drops it where it does not -- the element then auto-assigns to a
+  column the new layer HAS, exactly as the recovery rule of
+  2026-08-15 already says for a layer whose file has moved.
+
+  WHY IT WENT WRONG. Every per-element record is keyed by TILE ID,
+  which belongs to the DESIGN rather than to the data, so pointing the
+  chooser elsewhere cleared nothing at all. The variable re-defaulted
+  from the first day; the STYLE did not, so a categorical scheme cut
+  for four land-cover words came to rest on a column of areas in
+  square metres and drew a colour for each. Reported by a maintainer's
+  colleague, who saw a categorical scheme land on a numeric layer.
+
+  WHAT IS NOT DROPPED, and it is free rather than sloppy: the RECORDS
+  themselves, which are keyed by tile id AND FIELD, so a setup for a
+  column this dataset lacks sits idle and returns if the user switches
+  back. The ruling governs what stays ACTIVE.
+
+  Regression: pointing the region chooser at a dataset without an element's column left that element wearing the scheme cut for the column that had gone. [mutation]
+  """
+  project = QgsProject.instance()
+  dlg, layer, tid = _categorical_dialog()
+  try:
+    field = dlg._assignment_for(tid)["var"]
+    # PICKED, NOT INHERITED: see _pick_categorized. Without this the
+    # plugin re-derives the style from the new column's type and the
+    # test measures the re-derivation rather than the drop.
+    _pick_categorized(dlg, tid)
+    assert dlg._assignment_for(tid).get("style_touched"), \
+      "the fixture did not mark the style as the user's, so nothing " \
+      "would be retained here whatever the code did"
+
+    other = make_other_region()
+    project.addMapLayer(other)
+    # THE PREMISE, asserted: the new data really lacks that column, or
+    # this test measures nothing whatever the code does.
+    theirs = [f.name() for f in other.fields()]
+    assert field not in theirs, \
+      f"the second region carries {field!r} too ({theirs}), so " \
+      f"nothing here could be dropped and this would pass on a " \
+      f"fixture rather than on the software"
+
+    dlg.layer_combo.setLayer(other)
+    _tick(600)
+
+    now = dlg._assignment_for(tid) or {}
+    assert now.get("var") != field, \
+      f"element {tid!r} still claims {field!r} after the region was " \
+      f"changed to a dataset without it, so the map is drawn from a " \
+      f"column that is not there"
+    # ...AND IT LANDED SOMEWHERE REAL, unconditionally. Losing a column
+    # costs an element its variable and not its place on the map, so
+    # "it went blank" is a failure and not an escape -- and written as
+    # `if now.get("var")` this axis could pass by never running.
+    landed_on = now.get("var")
+    assert landed_on in theirs, \
+      f"element {tid!r} came out of the switch on {landed_on!r}, " \
+      f"which the new dataset does not carry; the recovery rule says " \
+      f"it auto-assigns to a column the new layer has"
+    # ...AND THE STYLE, which is what was actually reported. A scheme
+    # cut for one column says nothing about another, so the element
+    # must come out drawing what the plugin would derive for the
+    # column it landed on -- and no longer marked as somebody's pick,
+    # because the thing they picked it for has gone.
+    assert not now.get("style_touched"), \
+      f"element {tid!r} still carries the style as a user's choice " \
+      f"after the column it was chosen for left the data"
+    assert now.get("mode_raw") == dlg._plausible_mode(landed_on), \
+      f"element {tid!r} kept {now.get('mode_raw')!r} onto " \
+      f"{landed_on!r}, where the plugin would derive " \
+      f"{dlg._plausible_mode(landed_on)!r}: the scheme cut for " \
+      f"{field!r} rode onto data that never had that column"
+
+    # ...AND THE RECORD IS STILL THERE, waiting for a switch back.
+    kept = (dlg._category_colours.get(tid, {}) or {})
+    assert field in kept or not kept, \
+      f"the colours cut for {field!r} were destroyed rather than left " \
+      f"idle; they are keyed by field and cost nothing to keep"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_column_deleted_in_qgis_takes_its_scheme_with_it():
+  """The THIRD door into one ruling, and the only one that says a word.
+
+  A user deleting a column in QGIS's own attribute table costs the
+  elements using it their VARIABLE and not their place on the map: each
+  re-defaults to a surviving field and is told which one it landed on.
+  That much was right. What rode along was the STYLE -- a categorical
+  scheme picked by hand for four land-cover words, left standing on a
+  numeric column, drawing a colour for every distinct value it holds.
+
+  WHY THE SIBLING GUARDS CANNOT SEE IT. The other two doors are
+  answered in `_refresh_table`, which asks whether an element's
+  remembered column is still in the layer. `_adapt_to_the_layer` runs
+  FIRST and re-points the row at a column that is, so by the time the
+  table is rebuilt there is nothing left to notice. One ruling, three
+  doors, and the third needs its own answer.
+
+  AND THE NOTICE IS WHY IT MATTERS MORE HERE than at the other two: the
+  user is told their elements now show `v2`, so they have been given an
+  account of what changed, and the scheme quietly riding along is the
+  part that account leaves out.
+
+  Regression: deleting a column in QGIS re-pointed its elements at a surviving column and left them wearing the categorical scheme cut for the column that had gone. [mutation]
+  """
+  project = QgsProject.instance()
+  dlg, layer, tid = _categorical_dialog()
+  try:
+    _pick_categorized(dlg, tid)
+    field = dlg._assignment_for(tid)["var"]
+    assert dlg._assignment_for(tid).get("style_touched"), \
+      "the fixture did not mark the style as the user's, so nothing " \
+      "would be retained here whatever the code did"
+
+    index = layer.fields().indexOf(field)
+    assert index >= 0, f"the fixture layer has no {field!r} to delete"
+    layer.dataProvider().deleteAttributes([index])
+    layer.updateFields()
+    _tick(800)
+
+    now = dlg._assignment_for(tid) or {}
+    landed_on = now.get("var")
+    assert landed_on and landed_on != field, \
+      f"element {tid!r} came out on {landed_on!r} after {field!r} was " \
+      f"deleted; losing a column costs an element its variable and " \
+      f"not its place on the map"
+    assert not now.get("style_touched"), \
+      f"element {tid!r} still carries its style as a user's choice " \
+      f"after the column they chose it for was deleted"
+    assert now.get("mode_raw") == dlg._plausible_mode(landed_on), \
+      f"element {tid!r} kept {now.get('mode_raw')!r} onto " \
+      f"{landed_on!r}, where the plugin would derive " \
+      f"{dlg._plausible_mode(landed_on)!r}: the scheme cut for " \
+      f"{field!r} outlived the column it was cut for"
+    # ...and the user was told SOMETHING, which is what makes the
+    # silent half of this worth naming: they are given an account of
+    # the change and the scheme rode along outside it.
+    said = (" ".join(text for _kind, text in BAR_MESSAGES)
+            + " " + dlg.live_note.text())
+    assert field in said and landed_on in said, \
+      f"the re-default was not reported at all: {said!r}"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_categorical_scheme_copies_onto_another_element():
+  """The control exists, and it overwrites all but four things.
+
+  IT DID NOT EXIST AT ALL until 2026-08-20, kept off the categorical
+  half of the colour editor by two independent gates: the editor built
+  its Copy row only where GRADUATED class bounds existed, and the
+  categorized call site passed neither the targets nor the callback.
+  A tester reported it simply missing.
+
+  WHAT THE MAINTAINER RULED, and what this drives: the copy
+  OVERWRITES the target -- style, ramp, per-value colours, the
+  catch-all -- and FOUR things never travel. The VARIABLE, or the
+  target becomes a duplicate of the source and the map loses one of
+  the things it exists to compare. The OPACITY. The OUTLINE, which is
+  about tile edges rather than colour. And the records of the style
+  the row is NOT wearing, kept silently so a row switched back to a
+  quantitative style finds its work where it left it.
+
+  DRIVEN THROUGH THE CONTROL, not through the method: the editor is
+  built with exactly the arguments the dialog passes, a target is
+  ticked in its own chooser and its own button is pressed.
+
+  Regression: a categorical colour scheme could not be copied to another element at all, where the graduated one could. [mutation]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+  from qgis.PyQt.QtCore import Qt
+  project = QgsProject.instance()
+  dlg, layer, tid = _categorical_dialog()
+  try:
+    field = dlg._assignment_for(tid)["var"]
+    targets = dlg._copy_targets(tid, categorical=True)
+    assert targets, \
+      "the categorical editor is offered no targets at all, so the " \
+      "control below has nothing to copy onto"
+    target_id = targets[0][0]
+    before = dlg._assignment_for(target_id)
+    their_field = before["var"]
+    assert their_field and their_field != field, \
+      f"source and target carry the same column ({field!r}), so this " \
+      f"cannot show that the VARIABLE stays put"
+
+    # what must survive, staged so each is visibly different
+    dlg._pinned_bounds.setdefault(target_id, {})[their_field] = {
+      "low": 7.0}
+    their_opacity = before.get("opacity")
+    their_outline = before.get("outline")
+
+    # the source's scheme, catch-all included
+    _colours, order = dlg._current_category_colours(
+      dlg._assignment_for(tid))
+    assert order, "the source element has no values to colour"
+    picks = dlg._category_colours.setdefault(tid, {}).setdefault(field, {})
+    picks[str(order[0])] = "#123456"
+    picks[bridge.NO_DATA_KEY] = "#654321"
+
+    editor = CategoryColourDialog(
+      tid, field, order, dict(_colours), lambda *a: None, dlg,
+      copy_targets=targets,
+      copy_to=lambda wanted: dlg._copy_categories_to_many(tid, wanted))
+    try:
+      box = getattr(editor, "_copy_box", None)
+      button = getattr(editor, "_copy_button", None)
+      assert box is not None and button is not None, \
+        "the categorical colour editor still builds no Copy row, so " \
+        "the control a tester reported missing is still missing"
+      where = [i for i in range(box.count())
+               if box.itemData(i) == target_id]
+      assert where, f"{target_id!r} is not offered in the chooser"
+      box.setItemCheckState(where[0], Qt.CheckState.Checked)
+      button.click()
+      _tick(300)
+    finally:
+      editor.close()
+
+    landed = dlg._category_colours.get(target_id, {}).get(their_field, {})
+    assert landed.get(str(order[0])) == "#123456", \
+      f"the copied colour did not reach the target: {landed!r}"
+    assert landed.get(bridge.NO_DATA_KEY) == "#654321", \
+      f"the catch-all did not travel: {landed!r}"
+
+    after = dlg._assignment_for(target_id)
+    assert after["var"] == their_field, \
+      f"the copy carried the SOURCE'S variable onto the target " \
+      f"({after['var']!r} rather than {their_field!r}), so the map " \
+      f"has quietly lost one of the variables it compares"
+    assert after.get("opacity") == their_opacity, \
+      f"the copy changed the target's opacity, {their_opacity} to " \
+      f"{after.get('opacity')}"
+    assert after.get("outline") == their_outline, \
+      f"the copy changed the target's tile boundaries, " \
+      f"{their_outline} to {after.get('outline')}"
+    assert after["mode"] == "Categorized", \
+      f"the target was not switched to the copied style: " \
+      f"{after['mode']!r}"
+    kept = (dlg._pinned_bounds.get(target_id, {}).get(their_field) or {})
+    assert kept.get("low") == 7.0, \
+      f"the copy destroyed the target's pinned bound ({kept!r}), " \
+      f"which belongs to a style the row is not wearing and must be " \
+      f"waiting when it is switched back"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_copy_carries_a_class_source_the_target_has_not_met():
+  """The reference travels, or the two elements do not agree.
+
+  THE RULING (maintainer, 2026-08-20) is that a categorical copy takes
+  the class source WITH it, as a FILE REFERENCE, so the two elements
+  go on agreeing as that file changes -- at the accepted cost that a
+  moved file then costs two elements rather than one.
+
+  IT WAS WRITTEN AS A LOOKUP IN THE RECEIVING ROW'S OWN DROPDOWN, and
+  that dropdown EXISTS ONLY ON A CATEGORIZED ROW. Copying onto an
+  element that was quantitative a moment ago therefore wrote the token
+  into nothing at all: the colours arrived, the reference did not, and
+  the window showed two elements agreeing while their colours came
+  from different places. Nothing said anything.
+
+  THE TARGET IS QUANTITATIVE ON PURPOSE, and the absence of its
+  class-source cell is asserted rather than assumed -- on a fixture
+  where that cell already existed this test would pass whatever the
+  code did.
+
+  Regression: a categorical copy dropped the class source whenever the receiving row was not already categorized, because the cell it was written into does not exist until the row is. [mutation]
+  """
+  project = QgsProject.instance()
+  data = os.path.join(HERE, "data")
+  qml = os.path.join(data, "landcover.qml")
+  dlg, layer, tid = _categorical_dialog()
+  try:
+    targets = dlg._copy_targets(tid, categorical=True)
+    assert targets, "no target to copy onto"
+    target_id = targets[0][0]
+
+    # The source takes its colours from a file, chosen the way a user
+    # chooses one: the browse dialog cannot be driven headless, so the
+    # pool is seeded and the item picked from the dropdown.
+    dlg._browsed_qmls.append(qml)
+    dlg._update_dynamic_columns()
+    _tick(100)
+    token = "file:" + qml
+    row = dlg._row_for_element(tid)
+    mine = dlg.table.cellWidget(row, 7)
+    assert mine is not None, \
+      "the sending row has no class-source cell, so there is nothing " \
+      "here to travel"
+    where = mine.findData(token)
+    assert where >= 0, f"the browsed file is not on offer: {token!r}"
+    mine.setCurrentIndex(where)
+    mine.activated.emit(where)
+    _tick(150)
+    assert dlg._assignment_for(tid).get("class_source") == token, \
+      "the sending element does not report the class source, so the " \
+      "copy would have nothing to send"
+
+    # THE PREMISE THAT MAKES THIS TEST ABOUT ANYTHING: the receiving
+    # row is quantitative, so column 7 holds no widget at all.
+    their_row = dlg._row_for_element(target_id)
+    assert dlg._assignment_for(target_id).get("mode") != "Categorized", \
+      f"element {target_id!r} is already categorical, so this test " \
+      f"cannot show what happens to a row that is not"
+    assert dlg.table.cellWidget(their_row, 7) is None, \
+      "the receiving row already carries a class-source cell, so the " \
+      "case this test is about cannot arise on it"
+
+    dlg._copy_categories_to_many(tid, [target_id])
+    _tick(200)
+
+    landed = (dlg._assignment_for(target_id) or {}).get("class_source")
+    assert landed == token, \
+      f"the copy left element {target_id!r} on {landed!r} rather than " \
+      f"the source's {token!r}, so the two elements draw their " \
+      f"colours from different places while the window says they agree"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_recolouring_the_catch_all_alone_is_not_a_new_ramp():
+  """The "no data" colour is a pick, not evidence of a classify.
+
+  THE DEFECT, ledger row 5 of 2026-08-20 and present since
+  `0ec8ecc` on 2026-08-10. The categorized style handler decides
+  whether a dock edit is a clean Classify from a standard ramp by
+  building the renderer that ramp would give and comparing colours --
+  and it dropped `NO_DATA_KEY` from BOTH sides before comparing. So an
+  edit that touched ONLY the catch-all still compared equal, the
+  handler took the FOLLOW branch, told the user the element "now
+  follows" a ramp nobody had chosen, cleared their picks, and repainted
+  those areas the default grey at the next Generate.
+
+  WHY THE CATCH-ALL BELONGS IN THE COMPARISON. It is a colour a reader
+  sees, often over a large area where a join left gaps, and the colour
+  editor offers it deliberately. A clean Classify leaves it alone, so
+  including it costs the follow branch nothing; a recolour moves it,
+  which is exactly the difference the two branches exist to tell apart.
+
+  ARRIVAL AND SURVIVAL, because they are different promises: the pick
+  is checked as it lands AND after a re-Generate, which is where this
+  project's older defects of this shape have lived.
+
+  THE SURVIVAL AXIS HAS NO CATALOGUE ENTRY, and that is a measurement
+  rather than an omission. TWO INDEPENDENT MECHANISMS deliver the
+  colour across a re-Generate: the landing CARRIES the old renderer
+  where the element's assignment has not changed, and where it does
+  not, `make_categorized_renderer` rebuilds the catch-all from the
+  record this test has just asserted. Each was mutated alone on
+  2026-08-20 and this test went on passing, because the other answered.
+  Broken TOGETHER it fails at once, on the survival assertion, saying
+  "the next Generate repainted the catch-all [#dddddd] instead of
+  keeping #7d26cd" -- so the axis is live and redundantly implemented,
+  which is not the same as dead. A one-line entry would be a permanent
+  survivor claiming a gap that is not there.
+
+  Regression: recolouring only the "no data" catch-all in QGIS read as a clean classify, so the plugin announced a ramp nobody chose, discarded the colour, and repainted those areas grey at the next Generate. [mutation]
+  """
+  from qgis.PyQt.QtGui import QColor
+  from weavingspace_qgis import bridge
+  project = QgsProject.instance()
+  dlg, layer, tid = _categorical_dialog()
+  try:
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(250)
+    field = dlg._assignment_for(tid)["var"]
+    out = project.mapLayer(dlg._element_layer_ids[tid])
+    assert out is not None, "no output layer, so nothing below runs"
+    renderer = out.renderer()
+    assert hasattr(renderer, "categories"), \
+      f"the element is not drawn by a categorized renderer: {renderer!r}"
+
+    cats = renderer.categories()          # bound: a temporary frees them
+    catch_all = [index for index, category in enumerate(cats)
+                 if category.value() is None]
+    assert catch_all, \
+      "this element carries no catch-all class, so the case this " \
+      "test is about cannot arise on it"
+    index = catch_all[0]
+    was = cats[index].symbol().color().name()
+    PICKED = "#7d26cd"
+    assert was.lower() != PICKED, \
+      f"the catch-all already draws {PICKED}, so recolouring it to " \
+      f"that stages nothing"
+
+    # THROUGH `updateCategorySymbol`, because `categories()` hands back
+    # COPIES: recolouring one of those edits a temporary and the
+    # renderer never changes -- the fixture-that-cannot-move trap,
+    # which this suite has met inside its own instruments twice.
+    edited = renderer.clone()
+    # BOUND, then subscripted. `edited.categories()[index].symbol()`
+    # reads memory the temporary list has already released -- the trap
+    # this project has now paid for FOUR times, and the fourth was in
+    # the block whose own comment warns about the copies half of it.
+    staged = edited.categories()
+    symbol = staged[index].symbol().clone()
+    symbol.setColor(QColor(PICKED))
+    edited.updateCategorySymbol(index, symbol)
+    reached = edited.categories()
+    assert reached[index].symbol().color().name().lower() == PICKED, \
+      "the staged recolour did not reach the renderer"
+    # ...and NOTHING ELSE moved, which is what makes this a catch-all
+    # edit rather than a classify.
+    others_before = [c.symbol().color().name().lower() for c in cats
+                     if c.value() is not None]
+    others_after = [c.symbol().color().name().lower() for c in reached
+                    if c.value() is not None]
+    assert others_before == others_after, \
+      f"the staged edit moved a named category too, so it is not the " \
+      f"catch-all-only case: {others_before} then {others_after}"
+
+    # THE CHANNEL IS PROVED BEFORE SILENCE ON IT IS ASSERTED. This
+    # fixture builds its dialog with `iface=None`, where
+    # `_report_quietly` writes to the note line and NOT to the message
+    # bar -- so reading BAR_MESSAGES alone would have been an
+    # assertion that could never fail, which is the dead axis this
+    # suite finds in roughly one test in five.
+    dlg._report_quietly("probe: does a notice land where this reads")
+    landed = (" ".join(text for _kind, text in BAR_MESSAGES)
+              + " " + dlg.live_note.text())
+    assert "probe:" in landed, \
+      f"a notice raised by hand does not appear where this test " \
+      f"reads ({landed!r}), so asserting silence there would prove " \
+      f"nothing whatever"
+    BAR_MESSAGES.clear()
+    dlg.live_note.setText("")
+
+    out.setRenderer(edited)
+    out.styleChanged.emit()
+    _tick(600)
+
+    said = (" ".join(text for _kind, text in BAR_MESSAGES)
+            + " " + dlg.live_note.text()).lower()
+    assert "now follows" not in said, \
+      f"recolouring the catch-all was announced as the element " \
+      f"following a ramp: {said!r}. Nobody chose a ramp, and the " \
+      f"sentence is how the user learns their picks were discarded"
+
+    picks = (dlg._category_colours.get(tid, {}).get(field) or {})
+    assert picks.get(bridge.NO_DATA_KEY, "").lower() == PICKED, \
+      f"the catch-all colour was not recorded as a hand-pick: " \
+      f"{picks!r}. It is the one class whose colour the editor offers " \
+      f"and the map draws over the gaps"
+
+    # ---- SURVIVAL: the next run must not repaint it grey.
+    dlg.spacing_spin.setValue(520)
+    _generate_and_wait(dlg)
+    _tick(300)
+    after = project.mapLayer(dlg._element_layer_ids[tid])
+    drawn = after.renderer().categories()
+    kept = [c.symbol().color().name().lower() for c in drawn
+            if c.value() is None]
+    assert kept and kept[0] == PICKED, \
+      f"the next Generate repainted the catch-all {kept!r} instead of " \
+      f"keeping {PICKED}, so the colour arrived and did not survive"
+  finally:
+    dlg.close()
+    project.clear()
+
+
 def test_custom_follows_the_field_and_the_source():
   """Two consequences of the Custom rule, and the class-source case.
 
@@ -28301,13 +29580,16 @@ def test_a_class_added_in_qgis_is_not_a_colour_somebody_picked():
     f"rather than relaxed"
 
   picks = dlg._quant_colours.get(tid, {}).get("v1", {})
-  adopted_template = {index: colour for index, colour in picks.items()
-                      if colour == template}
-  assert not adopted_template, \
-    f"the plugin recorded its own placeholder {template} as a colour " \
-    f"the user picked, at {sorted(adopted_template)}. QGIS copied " \
-    f"that grey from our source symbol; a watcher may only adopt " \
-    f"what a PERSON left behind"
+  # THE PLACEHOLDER-GREY ASSERTION USED TO STAND HERE and could not
+  # fail: `assert not picks` below is strictly stronger at this point,
+  # so nothing could make the narrower one the failing line. It was
+  # created by strengthening this test, which is how a dead axis
+  # usually arrives -- read what you have made redundant.
+  # The grey is still guarded, where picks are NOT empty and the
+  # question therefore has two answers:
+  # test_a_second_reconciliation_adopts_no_colour_the_plugin_painted
+  # keeps a hand-picked colour on the ladder, adds a class in the
+  # dock, and requires the placeholder to stay out of the record.
   # ...AND NOT THE DISPLACED SURVIVORS EITHER, which is the larger
   # half and was measured from a maintainer's dump on 2026-08-20.
   # QGIS inserts the new class and every OTHER class keeps the colour
@@ -28344,6 +29626,343 @@ def test_a_class_added_in_qgis_is_not_a_colour_somebody_picked():
     f"the template {template} arrived alongside the real pick; " \
     f"picks were {picks!r}"
   dlg.close()
+
+
+def test_a_second_reconciliation_adopts_no_colour_the_plugin_painted():
+  """A later repaint does not claim our own ladder as somebody's picks.
+
+  THE USER STORY. Hand-pick one class's colour in the plugin's editor,
+  then add a class in QGIS's Symbology panel. QGIS inserts the new
+  class and every OTHER class keeps the colour it had, at a new index.
+  Nothing should be adopted: the displaced colours are the plugin's
+  own, moved by QGIS rather than chosen by anybody.
+
+  WHY A SECOND PASS AND NOT THE FIRST. The first repair for this
+  measured a `count_moved` DELTA across `_row_follows_the_renderer`
+  inside one handler call. That is true on the signal carrying the
+  change and FALSE on every signal after it, because the follow has
+  already brought the row up to date. So the first pass declined
+  correctly and the second adopted four colours nobody chose.
+
+  THE TIMING IS PART OF THE TEST. The dialog drops a repaint arriving
+  within ONE SECOND of a style signal for the same element, so a probe
+  that fires its second repaint sooner measures that echo window
+  rather than the software and reports good news. This waits past it,
+  and asserts the wait was long enough by requiring the ladder to be
+  the one the dock left.
+
+  AND IT DELIBERATELY REACHES THE DUPLICATE-BOUNDS CASE. `addClass`
+  inserts a degenerate (0.0, 0.0) class, and this fixture's first real
+  class is ALSO (0.0, 0.0) -- so two classes share bounds, which is
+  what the first draft of `_colour_is_ours` got wrong by returning on
+  the first match it found. The premise is asserted rather than
+  assumed, since a fixture without the collision would pass whatever
+  the code did.
+
+  Regression: a guard computed as a delta was armed for one invocation, so a second repaint after a class was added in QGIS recorded four of the plugin's own ramp colours as the user's hand-picks, stamped into the project. [mutation]
+  """
+  from qgis.core import QgsGraduatedSymbolRenderer
+  from qgis.PyQt.QtGui import QColor
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  dlg._update_dynamic_columns()
+  _tick(100)
+  tid = dlg.table.item(0, 0).text()
+  dlg.spacing_spin.setValue(500)
+  _generate_and_wait(dlg)
+
+  out = project.mapLayer(dlg._element_layer_ids[tid])
+  assert isinstance(out.renderer(), QgsGraduatedSymbolRenderer), \
+    f"row 0 was mapped to a numeric field and did not come back " \
+    f"graduated ({out.renderer()!r}), so nothing below runs"
+  remembered = (dlg._painted_ladders.get(tid) or {}).get("v1") or []
+  assert remembered, \
+    "the plugin recorded no ladder for an element it had just painted, " \
+    "so every colour below would read as unattributable for that " \
+    "reason rather than because of the behaviour under test"
+
+  # A HAND-PICK, staged through the renderer's own updater because
+  # ranges() hands back COPIES and editing one is a no-op on the layer.
+  before = out.renderer()
+  rows = before.ranges()
+  target = min(2, len(rows) - 1)
+  symbol = rows[target].symbol().clone()
+  symbol.setColor(QColor("#ff00ff"))
+  edited = before.clone()
+  edited.updateRangeSymbol(target, symbol)
+  out.setRenderer(edited)
+  _tick(400)
+  picks = dict((dlg._quant_colours.get(tid) or {}).get("v1") or {})
+  assert "#ff00ff" in [v.lower() for v in picks.values()], \
+    f"the hand-pick was never adopted, so the case this test is about " \
+    f"was never staged: {picks!r}"
+
+  # ADD A CLASS, the way the Symbology panel's green + does: it hands
+  # the SOURCE SYMBOL to addClass, which is why the new class arrives
+  # wearing the plugin's placeholder grey.
+  live = out.renderer().clone()
+  live.addClass(live.sourceSymbol().clone())
+  out.setRenderer(live)
+  _tick(400)
+
+  after_rows = out.renderer().ranges()
+  bounds = [(r.lowerValue(), r.upperValue()) for r in after_rows]
+  assert len(bounds) == len(rows) + 1, \
+    f"the class was not added, so the reclassification this test is " \
+    f"about never happened: {len(rows)} -> {len(bounds)}"
+  assert len(set(bounds)) < len(bounds), \
+    f"this fixture's ladder holds no two classes with the SAME bounds, " \
+    f"so the duplicate-bounds case is out of reach and a lookup that " \
+    f"stops at its first match would pass: {bounds!r}"
+
+  # THE SECOND PASS, outside the echo window the dialog keeps.
+  _tick(1400)
+  out.triggerRepaint()
+  _tick(600)
+
+  final = dict((dlg._quant_colours.get(tid) or {}).get("v1") or {})
+  strays = {k: v for k, v in final.items() if v.lower() != "#ff00ff"}
+  assert not strays, \
+    f"a second reconciliation recorded {len(strays)} colour(s) the " \
+    f"plugin had painted itself as somebody's hand-picks: {strays!r}. " \
+    f"The ladder on the layer is " \
+    f"{[r.symbol().color().name() for r in out.renderer().ranges()]!r} " \
+    f"and the plugin remembers painting " \
+    f"{(dlg._painted_ladders.get(tid) or {}).get('v1')!r}"
+  assert "#ff00ff" in [v.lower() for v in final.values()], \
+    f"the hand-pick itself was lost across the reclassification: {final!r}"
+
+
+def test_a_colour_on_a_ladder_we_never_saw_is_declined_and_named():
+  """With no record of what we drew, a dock colour is left alone.
+
+  THE DECISION THIS GUARDS, settled by /grill-me on 2026-08-20. The
+  plugin adopts a dock colour only where it can positively attribute
+  the class. Where it has NO record of the element's ladder it
+  declines -- and says so, because a loss a user cannot see is a loss
+  they meet at the next Generate instead.
+
+  ABSENT IS NOT UNCHANGED, and that is the whole of why this test
+  exists separately from its neighbour. An empty record is the state a
+  reopened project would be in if adoption did not fill it, and the
+  previous day's defect in this same family was a guard reading a
+  deliberately-empty record as evidence of change. Reading it the
+  other way -- as "nothing moved, adopt away" -- is the same mistake
+  mirrored, and would record a whole ladder as somebody's picks.
+
+  Regression: the painted-ladder store had no stated meaning for an absent entry, and either reading of it silently mis-attributes every colour on the element. [mutation]
+  """
+  from qgis.core import QgsGraduatedSymbolRenderer
+  from qgis.PyQt.QtGui import QColor
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(200)
+  dlg.table.cellWidget(0, 1).setCurrentText("v1")
+  dlg._update_dynamic_columns()
+  _tick(100)
+  tid = dlg.table.item(0, 0).text()
+  dlg.spacing_spin.setValue(500)
+  _generate_and_wait(dlg)
+
+  out = project.mapLayer(dlg._element_layer_ids[tid])
+  assert isinstance(out.renderer(), QgsGraduatedSymbolRenderer), \
+    "row 0 did not come back graduated, so nothing below runs"
+
+  # FORGET the ladder, which is the state an element the plugin has
+  # neither painted nor adopted would be in.
+  dlg._painted_ladders.pop(tid, None)
+  assert not (dlg._painted_ladders.get(tid) or {}).get("v1"), \
+    "the record was not cleared, so this test is about nothing"
+  BAR_MESSAGES.clear()
+
+  before = out.renderer()
+  rows = before.ranges()
+  edited = before.clone()
+  symbol = rows[0].symbol().clone()
+  symbol.setColor(QColor("#204060"))
+  edited.updateRangeSymbol(0, symbol)
+  out.setRenderer(edited)
+  _tick(600)
+
+  now = [r.symbol().color().name().lower() for r in out.renderer().ranges()]
+  assert "#204060" in now, \
+    f"the recolour never reached the layer, so nothing was staged: {now!r}"
+  picks = dict((dlg._quant_colours.get(tid) or {}).get("v1") or {})
+  assert "#204060" not in [v.lower() for v in picks.values()], \
+    f"a colour was adopted from a ladder the plugin has no record of " \
+    f"having painted: {picks!r}"
+
+  # ...AND THE USER IS TOLD. Composed from the product's own function
+  # rather than transcribed, so rewording moves the test with it.
+  #
+  # THE COUNT IS EVERY CLASS IT CANNOT ACCOUNT FOR, not the one that
+  # moved, and that is the honest contract rather than a convenient
+  # one: with no record the plugin does not KNOW which class changed,
+  # so it declines all of them and says how many. An earlier draft of
+  # this test demanded "one", which is a contract nobody agreed and
+  # which the product rightly failed. Derived from the fixture here
+  # rather than written as a literal, so a ladder of a different
+  # length does not silently make this assert nothing.
+  template = out.renderer().sourceSymbol()
+  placeholder = None if template is None else template.color().name().lower()
+  declinable = [c for c in now if c != placeholder]
+  assert declinable, \
+    f"every class wears the placeholder, so nothing could be declined " \
+    f"and this assertion is vacuous: {now!r}"
+  wanted = bridge.declined_colours_message(tid, len(declinable))
+  assert wanted, "the product composes no sentence for a declined colour"
+  said = " ".join(str(m) for m in BAR_MESSAGES)
+  assert wanted in said, \
+    f"nothing told the user a colour had been left alone. Wanted " \
+    f"{wanted!r}; the bar carried {list(BAR_MESSAGES)!r}"
+
+
+def test_a_colour_picked_after_the_file_moved_still_reaches_the_map():
+  """A restyle needs nothing from the region layer, so it must run.
+
+  THE REGRESSION THIS GUARDS, ledger row 4 of 2026-08-20. The row-32
+  fix taught `compat.layer_data_is_available` to answer False for a
+  moved file, correctly. That answer was also a TERM in
+  `_layer_fingerprint`, which is a term in `_geometry_signature` -- so
+  a moved file made the signature change, a changed geometry signature
+  means "re-tile", `_restyle_only` declined, and `_apply_style_change`
+  discarded the refusal without a word. A colour picked after the
+  source vanished was recorded, never painted and never mentioned.
+
+  WHY THE RESTYLE IS RIGHT TO RUN. It re-seeds renderers on tiles that
+  ALREADY EXIST. Nothing on that path reads the region layer, which is
+  exactly why this worked before the fix. What must still refuse is a
+  RUN, and `_generate` asks `layer_data_is_available` for itself.
+
+  THE FIXTURE KEEPS THE LAYER OPEN, deliberately: no reopen, no
+  reload. Those are the acts that make QGIS admit the file has gone,
+  and a user performs neither -- which is the whole of ledger row 32.
+
+  Regression: a guard corrected to answer False for a moved file had that answer travel into a signature, so a colour picked afterwards was recorded, never drawn and never mentioned. [mutation]
+  """
+  import tempfile
+  from weavingspace_qgis import bridge, compat
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="weavingspace_restyle_moved_")
+  try:
+    region, region_path = _c3e_disk_region(folder)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(300)
+    dlg.spacing_spin.setValue(600)
+    _generate_and_wait(dlg)
+    _tick(250)
+    assert dlg._element_layer_ids, "no map was made, so nothing below runs"
+    # LIVE UPDATE ON, from here. With it off the map is deliberately
+    # NOT refreshed on its own -- "preserve, do not repaint", the
+    # maintainer's ruling of 2026-08-19 -- so a test expecting a ramp
+    # pick to reach the map with it off would be demanding that the
+    # software get it wrong. The first draft of this test did exactly
+    # that.
+    dlg.live_check.setChecked(True)
+    _tick(200)
+
+    tid = sorted(dlg._element_layer_ids)[0]
+    out = project.mapLayer(dlg._element_layer_ids[tid])
+    before = bridge.renderer_fill_colours(out)
+    assert before, f"element {tid} draws no colours to compare: {before!r}"
+
+    try:
+      _move_file_aside(region_path,
+                       os.path.join(folder, "region-elsewhere.gpkg"))
+    except OSError as exc:
+      _skip_loudly(
+        "a colour picked after the file moved still reaches the map",
+        f"this platform will not move a GeoPackage another handle "
+        f"holds, so the state under test cannot exist here: {exc}")
+      return
+    _tick(200)
+
+    # THE PREMISE: the plugin must actually believe the data is gone.
+    # Without this the test could pass on a file that never moved.
+    assert not compat.layer_data_is_available(region), \
+      "the plugin still reads this layer as available, so the case " \
+      "this test is about was never staged"
+
+    # ...AND THE CHEAP ANSWERS ARE STILL STALE, which is why no user
+    # ever notices. If a future QGIS starts telling the truth here,
+    # this test should be rewritten rather than quietly passing.
+    assert region.isValid(), \
+      "QGIS now reports a moved layer invalid without a reload; the " \
+      "premise of ledger row 32 has changed and this needs rewriting"
+
+    row = 0
+    ramp_cell = dlg.table.cellWidget(row, 4)
+    assert ramp_cell is not None, "no ramp cell to drive"
+    # A SEQUENTIAL RAMP, because a graduated row auto-swaps a
+    # qualitative palette away again -- so picking one would test the
+    # swap rather than the restyle, and the first draft of this test
+    # duly picked "Accent" and read a correct refusal as the defect.
+    choices = [ramp_cell.itemText(i) for i in range(ramp_cell.count())
+               if ramp_cell.itemText(i) != ramp_cell.currentText()
+               and ramp_cell.itemText(i) not in bridge.CATEGORICAL_RAMPS]
+    assert choices, "the ramp cell offers no sequential alternative to pick"
+    index = ramp_cell.findText(choices[0])
+    ramp_cell.setCurrentIndex(index)
+    ramp_cell.activated.emit(index)
+    # PAST THE STYLE DEBOUNCE, not merely past the event loop. The
+    # restyle is queued rather than immediate, and a 600 ms wait
+    # measured the debounce instead of the software -- which is the
+    # reproduction-cannot-reach-the-case shape this suite records
+    # four times over. The dialog's longest interval is 900 ms.
+    _tick(1600)
+
+    after = bridge.renderer_fill_colours(
+      project.mapLayer(dlg._element_layer_ids[tid]))
+    assert after != before, \
+      f"the ramp was changed to {choices[0]!r} after the region " \
+      f"layer's file moved, and the element's colours did not move: " \
+      f"{before!r} then {after!r}. A restyle re-seeds tiles that " \
+      f"already exist and needs nothing from the region layer, so a " \
+      f"vanished source must not read as a changed design."
+
+    # THE OTHER DOOR, measured rather than assumed. Two doors into one
+    # state, one of them guarded, is where this project's next defect
+    # usually lives -- and here the twin is SOUND: `_generate` puts its
+    # restyle fast path ABOVE its own availability check, so a button
+    # press was never blocked. Giving it the same repair would be dead
+    # code that reads as protection, which is why the fix is at the
+    # live gate alone. This act is what entitles anybody to say so.
+    dlg.live_check.setChecked(False)
+    _tick(200)
+    third = [text for text in choices if text != choices[0]]
+    assert third, "the ramp cell offers no second alternative to pick"
+    index = ramp_cell.findText(third[0])
+    ramp_cell.setCurrentIndex(index)
+    ramp_cell.activated.emit(index)
+    _tick(200)
+    _generate_and_wait(dlg)
+    _tick(250)
+    pressed = bridge.renderer_fill_colours(
+      project.mapLayer(dlg._element_layer_ids[tid]))
+    assert pressed != after, \
+      f"pressing Generate after the file moved left the element on " \
+      f"{after!r} though the ramp had been changed to {third[0]!r}. " \
+      f"The button's own path restyles before it asks whether the " \
+      f"source is readable, so this door was never blocked and must " \
+      f"not become blocked."
+  finally:
+    project.clear()
 
 
 def test_reverse_permutes_quant_customization():
@@ -38149,7 +39768,7 @@ def _multi_column_region(columns):
 # no pin flags at all, and a ladder that arrived by an earlier copy.
 COPY_SOURCES = ("plain", "low pinned", "both pinned", "limits",
                 "pins and limits", "adopted ladder", "unclassed",
-                "re-copied")
+                "re-copied", "categorical")
 
 # THE TARGET STATE AXIS: what is being overwritten. A copy destroys
 # what it lands on, and the notice is supposed to say what went.
@@ -38263,6 +39882,31 @@ def _copy_stage_source(dlg, source_id, field, source_kind, ladder):
     # would report correct behaviour whatever the copy did.
     record["floor"] = round(ladder[0][1], 3)
     record["ceiling"] = ceiling_at
+  if source_kind == "categorical":
+    # A CATEGORICAL SOURCE CARRIES NO LADDER RECORD AT ALL, which is
+    # why it needs a branch here rather than another key: what travels
+    # is the per-VALUE colour map, and `_pinned_bounds` stays empty.
+    # The row is switched to Categorized through its own chooser so
+    # the assignment really says so, and one value is hand-picked
+    # along with the catch-all, since those are the two halves the
+    # maintainer ruled must travel together.
+    row = dlg._row_for_element(source_id)
+    style = dlg.table.cellWidget(row, 2) if row is not None else None
+    if style is None or style.findText("Categorized") < 0:
+      return None
+    style.setCurrentText("Categorized")
+    style.activated.emit(style.currentIndex())
+    _tick(150)
+    colours, order = dlg._current_category_colours(
+      dlg._assignment_for(source_id))
+    if not order:
+      return None
+    from weavingspace_qgis import bridge as _bridge
+    picks = dlg._category_colours.setdefault(source_id, {}) \
+        .setdefault(field, {})
+    picks[str(order[0])] = "#123456"
+    picks[_bridge.NO_DATA_KEY] = "#654321"
+    return dict(picks)
   if source_kind == "adopted ladder":
     # what a ladder retyped in QGIS's Symbology panel leaves: interior
     # boundaries and two edges, and NO pin flags at all
@@ -38428,7 +40072,15 @@ def _copy_matrix_cell(source_kind, target_shape, target_state, fan_out,
       _tick(120)
 
     del BAR_MESSAGES[:]
-    returned = dlg._copy_classification_to_many(source_id, target_ids)
+    # TWO DRIVERS, because they send different things: a ladder and a
+    # per-value colour map. Routing a categorical source through the
+    # graduated driver would ask `_current_graduated_classes` for
+    # classes a categorized row does not have, and the cell would
+    # report "nothing to copy" as though the feature were missing.
+    if source_kind == "categorical":
+      returned = dlg._copy_categories_to_many(source_id, target_ids)
+    else:
+      returned = dlg._copy_classification_to_many(source_id, target_ids)
     _tick(300)
     waited = 0
     while dlg._task is not None and waited < 60000:
@@ -38438,7 +40090,7 @@ def _copy_matrix_cell(source_kind, target_shape, target_state, fan_out,
     said = [text for _kind, text in BAR_MESSAGES]
     return _copy_matrix_verdict(
       dlg, project, source_id, target_ids, before, wanted_edges,
-      returned, said, aftermath, ladder_of)
+      returned, said, aftermath, ladder_of, source_kind)
   finally:
     dlg.close()
     _tick(50)
@@ -38446,7 +40098,7 @@ def _copy_matrix_cell(source_kind, target_shape, target_state, fan_out,
 
 def _copy_matrix_verdict(dlg, project, source_id, target_ids, before,
                          wanted_edges, returned, said, aftermath,
-                         ladder_of):
+                         ladder_of, source_kind="plain"):
   """Read what the copy did, and say what is wrong with it.
 
   Args:
@@ -38461,6 +40113,10 @@ def _copy_matrix_verdict(dlg, project, source_id, target_ids, before,
     said: the message-bar texts raised by the whole act.
     aftermath: what to do before reading, from COPY_AFTERMATHS.
     ladder_of: reads an element's drawn classes, from the caller.
+    source_kind: which of COPY_SOURCES this cell sent. A CATEGORICAL
+      source is judged on the per-value colours it carried rather
+      than on a ladder, since it has none; everything else falls to
+      the ladder arm below, which is what this function was.
 
   Returns:
     (verdict, detail). Every axis states its own premise, because an
@@ -38481,6 +40137,40 @@ def _copy_matrix_verdict(dlg, project, source_id, target_ids, before,
   if returned is not None and taken:
     return (f"something was copied and yet a refusal came back: "
             f"{returned!r}", "")
+
+  # A CATEGORICAL SOURCE IS JUDGED ON THE COLOURS IT CARRIED, and
+  # returns here rather than falling through. Everything below reads
+  # LADDERS -- breaks, pins, floor and ceiling, class counts -- and a
+  # categorized element has none of them, so the ladder arm would fail
+  # every categorical cell for the harness's own reason, which is the
+  # fault this grid already counts four of.
+  if source_kind == "categorical":
+    from weavingspace_qgis import bridge as _bridge
+    sent = dict((dlg._category_colours.get(source_id, {})
+                 .get(dlg._assignment_for(source_id)["var"]) or {}))
+    if not sent:
+      return ("the categorical source carried no colours at all, so "
+              "this cell staged nothing", "")
+    trouble = []
+    for target_id in taken:
+      their = dlg._assignment_for(target_id)
+      landed = dict((dlg._category_colours.get(target_id, {})
+                     .get(their["var"]) or {}))
+      missing = [key for key, colour in sent.items()
+                 if landed.get(key) != colour]
+      if missing:
+        trouble.append(f"'{target_id}' did not take {missing}")
+      if their.get("mode") != "Categorized":
+        trouble.append(f"'{target_id}' still draws as "
+                       f"{their.get('mode')!r}")
+      # AND THE ONE THAT WOULD COST A MAP: the variable never travels.
+      if their.get("var") == dlg._assignment_for(source_id).get("var"):
+        trouble.append(f"'{target_id}' took the source's variable, so "
+                       f"the map has lost one")
+    if trouble:
+      return ("; ".join(trouble), "")
+    return ("ok", f"{len(taken)} took the colours, "
+                  f"{len(refused)} refused")
 
   # AXIS ONE: ONE NOTICE FOR THE WHOLE ACT -- one notice ABOUT THE
   # COPY, which is not the same as one notice on the bar. The first
@@ -40133,9 +41823,17 @@ def test_a_layer_whose_file_moved_is_refused_before_it_is_read():
 
     # ---- and what the user is actually told, which is the harm
     said = _c3e_declined(dlg)
-    assert dlg._task is None, \
-      "a run was launched over a layer whose data has gone; reading " \
-      "its extent is a segfault, not an error"
+    # NO `assert dlg._task is None` HERE, deliberately, and its absence
+    # is the repair rather than an omission. It names a real contract
+    # -- no run may be launched over a layer whose extent would
+    # segfault -- and this test CANNOT REACH it: `layer_to_gdf`
+    # refuses this fixture unaided, so the assertion held with the
+    # availability guard's own `return` deleted. A second line of
+    # defence behind a first that is not under test here.
+    # What the guard uniquely does is reached below instead: it
+    # refuses in terms of the FILE where the fallback refuses in terms
+    # of the DATA, and those two sentences are the whole observable
+    # difference between the guard being there and not.
     assert any("no longer available" in sentence for sentence in said), \
       f"the refusal must name the FILE, not the data; the user was " \
       f"told {said!r}"
@@ -54580,6 +56278,32 @@ def main():
         test_reverse_permutes_quant_customization)
   check("a class added in QGIS is not a colour somebody picked",
         test_a_class_added_in_qgis_is_not_a_colour_somebody_picked)
+  check("a second reconciliation adopts no colour the plugin painted",
+        test_a_second_reconciliation_adopts_no_colour_the_plugin_painted)
+  check("a colour on a ladder we never saw is declined and named",
+        test_a_colour_on_a_ladder_we_never_saw_is_declined_and_named)
+  check("a colour picked after the file moved still reaches the map",
+        test_a_colour_picked_after_the_file_moved_still_reaches_the_map)
+  check("a ladder somebody else cut makes the scheme cell read custom",
+        test_a_ladder_somebody_else_cut_makes_the_scheme_cell_read_custom)
+  check("recolouring the catch-all alone is not a new ramp",
+        test_recolouring_the_catch_all_alone_is_not_a_new_ramp)
+  check("a categorical scheme copies onto another element",
+        test_a_categorical_scheme_copies_onto_another_element)
+  check("a copy carries a class source the target has not met",
+        test_a_copy_carries_a_class_source_the_target_has_not_met)
+  check("a new region drops a setup whose column has gone",
+        test_a_new_region_drops_a_setup_whose_column_has_gone)
+  check("a column deleted in qgis takes its scheme with it",
+        test_a_column_deleted_in_qgis_takes_its_scheme_with_it)
+  check("a column that keeps its name and changes its kind",
+        test_a_column_that_keeps_its_name_and_changes_its_kind)
+  check("a copy asks before drawing a colour for every value",
+        test_a_copy_asks_before_drawing_a_colour_for_every_value)
+  check("a boundary retyped beside a recolour is still recorded",
+        test_a_boundary_retyped_beside_a_recolour_is_still_recorded)
+  check("a reopened project still hears a recolour made in qgis",
+        test_a_reopened_project_still_hears_a_recolour_made_in_qgis)
   check("quant picks die when the ramp is asked anew",
         test_quant_picks_die_when_the_ramp_is_asked_anew)
   check("a QGIS-side graduated restyle reaches the dialog",

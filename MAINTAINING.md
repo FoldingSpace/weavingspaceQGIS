@@ -200,6 +200,16 @@ them, because polling somebody's endpoint unattended is not a thing to
 do behind their back. A layer with QGIS's own auto-refresh enabled is
 followed, since switching that on is the user saying the data moves.
 
+**AND WHAT RE-DEFAULTS TAKES ITS STYLE WITH IT.** An element whose
+column has gone re-points at a surviving field, and since 2026-08-20 it
+also gives up the style somebody had chosen: a scheme cut for one
+column says nothing about another, and a categorical one meeting a
+numeric column draws a colour for every distinct value. The rule is
+written at three places because three routes reach it -- the chooser
+pointed at a new dataset, a column that keeps its name and changes its
+kind, and `_adapt_to_the_layer` here, which re-points the row before
+the table is rebuilt and is therefore invisible to the other two.
+
 When adding a setting that depends on the layer's CONTENTS rather than
 on the dialog's controls, it belongs in the fingerprint. When adding
 one that depends on the controls, it belongs in the signature beside
@@ -440,3 +450,52 @@ what makes this affordable where reading the extent is fatal.
 A layer that legitimately holds nothing is not unavailable, so the
 question is only put where the layer claims otherwise. If you add a
 caller, ask it here rather than reading `isValid()` yourself.
+
+**AND ITS ANSWER MUST NOT TRAVEL INTO A SIGNATURE.** Corrected
+2026-08-20, a regression from the fix above. `_layer_fingerprint`
+answered `("unavailable",)` for a moved file, which is a DIFFERENT
+value, so the geometry signature moved -- and a changed geometry
+signature means "re-tile", which is the one thing that cannot be done
+from data that has gone. The restyle path declined and the refusal was
+discarded in silence.
+
+"The source has gone" is not "the design you asked for is different".
+The fingerprint therefore answers with the LAST READING TAKEN WHILE
+THE DATA WAS THERE, kept per layer id in `_last_good_fingerprint`; it
+cannot simply skip the question, because `extent()` on a dead source
+segfaults QGIS, so standing still is the honest answer available. The
+refusal belongs where a RUN is launched, which asks
+`layer_data_is_available` for itself.
+
+**AND THAT WAS HALF THE FIX.** Two places launch a run, and the
+second one refuses a REPAINT as well. `_maybe_live_generate` holds ten
+gates, of which the sixth is this same availability question, and a
+debounced tick never reaches `_generate` at all -- so a ramp picked
+after the file moved was still not drawn, and the user was told "That
+layer's data is no longer available, so the map cannot be updated",
+which is false: a restyle re-seeds renderers on tiles that already
+exist and reads nothing from the region layer. That gate now tries
+`_restyle_only()` before refusing, and refuses only the tiling.
+Nothing may fall THROUGH it -- `_extent_in_working_units` is a few
+lines below and would read the dead extent -- so the repaint is
+attempted at the gate rather than after it.
+
+`_generate`'s own check needed nothing: its restyle fast path already
+sits ABOVE it, so a button press was never blocked. That asymmetry is
+deliberate and is guarded, by
+`the-button-restyles-before-it-asks-about-the-source`, which reverses
+the order and requires a test to notice.
+
+TEN GATES, AND EACH NOW NAMES ITSELF behind
+`WEAVINGSPACE_ADOPT_DUMP`: `LIVE-GATE source-gone`, `LIVE-GATE
+too-many-tiles`, and so on. Live update stopping without saying why
+has cost this project two diagnoses -- the icon-mode estimate of
+2026-08-19 and this one -- and the dump answered the second in one
+run, after the site had been named wrongly by reading in four
+documents at once.
+
+The general form, which is the reason this paragraph exists at all:
+when a guard starts answering differently, follow its return value
+into every TUPLE it is a member of, not only into its callers. And
+when you name the SITE of a defect, measure it: a location reasoned
+out of the source reads exactly like a location that was proved.

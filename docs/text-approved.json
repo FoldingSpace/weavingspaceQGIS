@@ -674,6 +674,11 @@
   "excerpt": "No ramp knows that forest should be green. An \"Edit colours\"",
   "where": "docs/USER-GUIDE.md"
  },
+ "625a23dbf8a12b8d": {
+  "approved": "2026-08-20",
+  "excerpt": "Element '{}' left {} in QGIS alone, because it cannot tell y",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "64028974e0430a30": {
   "approved": "2026-08-12",
   "excerpt": "no candidate versions for {}",
@@ -919,6 +924,11 @@
   "excerpt": "Send this element's classes, colours, pins and class count t",
   "where": "weavingspace_qgis/category_editor.py"
  },
+ "85afcf10fd5b64a4": {
+  "approved": "2026-08-20",
+  "excerpt": "'{}' holds {} distinct values in this layer, so {} {} it as ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "878f3c96f240fd2d": {
   "approved": "2026-08-19",
   "excerpt": "The range travelled with them, so the map catches up at the ",
@@ -957,6 +967,11 @@
  "8a624c52ad8ce1bd": {
   "approved": "2026-08-09",
   "excerpt": "Choose class colours, or narrow the ramp's display range",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "8a99fe1f98d8bf19": {
+  "approved": "2026-08-20",
+  "excerpt": "'{}' holds {} distinct values. Draw a colour for each?",
   "where": "weavingspace_qgis/dialog.py"
  },
  "8ad335e8aa4ad916": {
@@ -1114,6 +1129,11 @@
   "excerpt": "Element '{}' was styled in QGIS, and changing its variable m",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "9d8dc500b34d3e08": {
+  "approved": "2026-08-20",
+  "excerpt": "Element '{}' kept {} {} for values '{}' does not have.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "9e471b0afdf7f1d1": {
   "approved": "2026-08-08",
   "excerpt": "<p>This is experimental research software and should be trea",
@@ -1244,6 +1264,11 @@
   "excerpt": "That layer's data is no longer available, so a spacing canno",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "af288029043dc3f4": {
+  "approved": "2026-08-20",
+  "excerpt": "Element '{}' took the colours but not the class source, whic",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "af8378b340dbf545": {
   "approved": "2026-08-08",
   "excerpt": "We welcome your examples, questions, and reports of anything",
@@ -1262,6 +1287,11 @@
  "b1b77731c4877a51": {
   "approved": "2026-08-09",
   "excerpt": "Warns when two elements use colours a reader may confuse.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "b4518dcfb8cc1738": {
+  "approved": "2026-08-20",
+  "excerpt": "kept {} colours for values '{}' does not have",
   "where": "weavingspace_qgis/dialog.py"
  },
  "b50407830e47eb6e": {
@@ -1449,6 +1479,11 @@
   "excerpt": "<figure>\n  <img src=\"img/paper-fig2-anthropogenic-biomes.png",
   "where": "docs/index.html"
  },
+ "d44ec15b8461f449": {
+  "approved": "2026-08-20",
+  "excerpt": "has no variable to colour; assign one first",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "d4651cbc03e95c23": {
   "approved": "2026-08-08",
   "excerpt": "Begin with the data: one polygon layer, in the projected CRS",
@@ -1603,6 +1638,11 @@
   "approved": "2026-08-08",
   "excerpt": "<h1>WeavingSpace: tiled and woven maps in QGIS</h1>\n<p class",
   "where": "docs/index.html"
+ },
+ "e90d3a35a8c15034": {
+  "approved": "2026-08-20",
+  "excerpt": "have no variable to colour; assign one first",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "e992f02b6b48802a": {
   "approved": "2026-08-08",

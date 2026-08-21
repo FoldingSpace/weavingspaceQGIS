@@ -156,120 +156,28 @@ element was warned a third of its fifty steps were empty; and where
 two elements share a column, one element's notice silenced the other.
 
 ### Outstanding
-**THREE DEFECTS ARE OPEN AGAINST rc15, AND ONE OF THEM IS IN THE
-CANDIDATE.** A round of eight hunts on 2026-08-20, aimed at the
-previous day's repairs, confirmed five defects; two are fixed and
-three are open. The record is `docs/process/defects-2026-08-20.md`,
-which is what to read rather than this paragraph.
 
-WHAT IS IN rc15: a guard against adopting colours QGIS shuffled holds
-for ONE SIGNAL ONLY, so a second reconciliation records a user's
-hand-picked colour displaced by a class and three of the plugin's own
-as theirs, stamped into the project file. Three routes reach it. rc15
-is a candidate rather than a release, so this is a reason not to
-promote it rather than an emergency -- but anybody testing rc15 should
-know that adding a class in QGIS's panel can cost them a colour.
+**NOTHING OUTSTANDING.** Everything 0.24.3 owed in code is in, each
+piece with a registered test and a catalogue entry somebody has
+watched fail. The two entries that stood here on the evening of
+2026-08-20 -- the categorical copy's remaining owings and the
+dataset-switch rule -- were closed that night, the second of them
+after the ground recorded as measured sound turned out to be broken at
+three doors. The record is `docs/process/defects-2026-08-20.md`, which
+is what to read rather than a paragraph here.
 
-ALSO OPEN: the window-activation reconcile is a second route into that
-same harm and costs N-squared renderer reads per activation; and the
-previous day's availability fix regressed the restyle path, so a
-colour picked after a region layer's file has moved is recorded, never
-painted and never mentioned.
-
-THE FIRST OF THOSE NEEDS A DECISION BEFORE A FIX: after somebody
-reclassifies an element in QGIS's own panel, whose ladder is it? If
-theirs, the element should defer and positional colour adoption should
-stop; if ours, the ladder we drew has to be STORED rather than
-derived. Two attempts at deriving it have now failed in opposite
-directions.
-
-**What follows was true before that round, and its fixes stand.** Five
-defects were found
-against rc11 and rc13 over 2026-08-19 and 20, and every one is closed
-with a registered test and a proved catalogue entry: rows 32 (the
-availability guard read two stale answers and waved a moved file
-through), 33 (a pin adopted onto the ladder's own edge), 34 (the
-plugin adopted its own placeholder grey as a hand-pick), the
-class-count adoption that recorded four colours nobody picked, and 28
-(an in-place recolour emits no style signal, so the plugin now hears
-the repaint that follows it). The record is
-`docs/process/defects-2026-08-19.md`, which is what to read rather
-than this paragraph.
-
-ROW 33 WAS CLOSED ON A DECISION rather than a proof, and the ledger
-says so plainly. A differential on 2026-08-20 established that the
-degenerate ladder from the dump is reproducible and is now impossible
--- and that NEITHER tree crashed, so the link between that state and
-the maintainer's segfault is unproven. What closed it: the only
-identified mechanism is gone, the second suspect was ruled out on
-mechanism, and a candidate is the instrument that settles the rest.
-Reopen on any recurrence.
-
-ROW 28 IS CLOSED IN CODE and awaits the same field run. It had two
-causes a day apart: the failed Generate (row 32), and underneath it a
-structural silence -- only `setRenderer` emits `styleChanged`, so a
-colour edited in place was invisible until the plugin learned to hear
-the `triggerRepaint()` the dock calls afterwards. Test with the
-premise asserted, four proved entries, and the measurement is in
-MAINTAINING.md. The rc14 confirmation is: recolour a class in the
+TWO THINGS ARE CLOSED IN CODE AND AWAIT A FIELD RUN, which is not work
+owed. Row 33 was closed on a DECISION rather than a proof: the
+degenerate ladder is reproducible and now impossible, but neither tree
+crashed, so the link to the maintainer's segfault is unproven and any
+recurrence reopens it. Row 28 -- an in-place recolour emitting no
+style signal -- is closed with four proved entries and the measurement
+in MAINTAINING.md; the confirmation is to recolour a class in QGIS's
 panel and watch the swatch follow within a moment.
 
-
-**THE FLOORS AND CEILINGS ARE IN, AND SO ARE THEIR GUARDS.** The
-record, the arithmetic, the exclusion, the fourth kind of absence, the
-editor's four live boxes, the heavy outline, the clearing cross, the
-retired Pin column and the sampled matrix all landed, each with a
-registered test. Eighteen defects were found and closed across
-2026-08-19 alone, twelve of them by hunts aimed at this feature and at
-the seam where QGIS's own styling meets it; the record is
-`docs/process/defects-2026-08-19.md`, which is the thing to read
-rather than this paragraph.
-
-WHAT THIS VERSION STILL OWES, and it is short:
-
-ALL THREE THINGS THIS SECTION LISTED AS OWED ARE SETTLED. The sentence
-awaiting review is approved, along with twelve others; the four
-catalogue entries that read UNJUDGEABLE were re-judged under a
-corrected tool and all seventeen of the day's entries came back caught;
-and a standalone full suite is not owed at all, since `release.py --rc`
-runs it as its fourth gate and running it first buys no earlier warning.
-
-COPY-TO-SEVERAL-TARGETS IS BUILT and its entry is deleted. The
-chooser takes as many targets as you tick, the copy carries the floor
-and the ceiling it never carried before, a target the range would
-leave with nothing is refused alone and named, and one notice says
-what was copied and what was not. Guarded by a sixty-two-cell matrix
-and one fast test, with five proved catalogue entries; the two defects
-found on the way are rows 21 and 22 of
-`docs/process/defects-2026-08-19.md`.
-
-**THE PERFORMANCE REGRESSION IS FIXED.** That left no code owed
-remains in code for 0.24.3. Ledger row 4 -- twenty-three elements
-"extremely slow to work with" -- was measured against the reporter's
-own data on 2026-08-19 and was a regression this version introduced,
-not a standing cost:
-
-    calls per interactive tick   v0.24.0 122,066   v0.24.2 119,352
-                                 HEAD  1,041,176
-    one Generate                 2.9 s      2.5 s      62.7 s
-
-`_classification_values` REPLACED its cache dict on every miss, so
-twenty-three elements on twenty-three columns evicted each other and
-each rescanned all 3,011 features on every tick. It keeps one entry
-per column now, dropping only what the fingerprint or the data version
-has moved under, so the safety property that made it replace the dict
-is unchanged. Guarded by
-`test_each_column_is_scanned_once_however_many_elements_carry_one`,
-which counts scans on a warm tick over SEVERAL columns -- a
-one-column test reads zero whatever the code does -- and by a proved
-catalogue entry.
-
-**THE TWO rc9 REPORTS ARE SETTLED FOR THIS VERSION.** The tile-as-icon
-count check is row 3 of `docs/process/defects-2026-08-19.md` and is
-CLOSED with a test and a proved entry: both size gates asked the tiling
-estimator about a mode that puts one unit on each area. The slowness is
-row 4, and the maintainer's instruction is that it is NOT profiled
-until the next release, measuring call COUNTS rather than seconds.
+WHAT A TESTER MEETS ON rc15, the published candidate, predates all of
+that: adding a class in QGIS's own panel can cost them a colour. The
+cure ships in the next candidate.
 
 ### What this version has already closed
 

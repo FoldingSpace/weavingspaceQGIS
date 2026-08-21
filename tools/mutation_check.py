@@ -570,14 +570,53 @@ MUTATIONS = [
        why="a setRenderer edit emits styleChanged AND asks for a "
            "repaint. Handled once at the signal and again at the "
            "drain, the second pass runs after the row has followed "
-           "the new class count -- when the count guard reads false "
-           "-- and adopts the displaced ladder the first pass "
-           "rightly declined"),
+           "the new class count, so anything that reasoned from the "
+           "row rather than from what the plugin PAINTED read the "
+           "second pass as a fresh edit and adopted the displaced "
+           "ladder the first pass rightly declined"),
+  dict(name="a-ladder-may-hold-two-classes-at-one-bound", file=DIALOG,
+       old="""    if at_these_bounds:
+      return here in at_these_bounds""",
+       new="""    if at_these_bounds:
+      return here == at_these_bounds[0]  # mutation: first match only""",
+       test="test_a_second_reconciliation_adopts_no_colour_the_plugin_painted",
+       why="a ladder may hold SEVERAL classes with identical bounds -- a "
+           "constant column, a tied column, {1,5,9} at k=5 -- and QGIS's "
+           "addClass inserts a degenerate (0.0, 0.0) class that collides "
+           "with a first real class of the same bounds. Stopping at the "
+           "first match compares the plugin's own colour against the "
+           "placeholder grey sharing those bounds, calls it changed, and "
+           "adopts it. Measured 2026-08-20 against this function's own "
+           "first draft, which four passing tests did not see"),
+  dict(name="an-unknown-ladder-is-not-an-unchanged-one", file=DIALOG,
+       old="""    known = (self._painted_ladders.get(tile_id) or {}).get(field)
+    if not known:
+      return None""",
+       new="""    known = (self._painted_ladders.get(tile_id) or {}).get(field)
+    if not known:
+      return False  # mutation: absent means theirs""",
+       test="test_a_colour_on_a_ladder_we_never_saw_is_declined_and_named",
+       why="an ABSENT record means the plugin has never seen this "
+           "element's ladder, which is not the same as the ladder not "
+           "having moved. Reading it as 'theirs' records the whole "
+           "ladder as somebody's hand-picks; reading it as 'ours' "
+           "throws away every real pick. The previous day's defect in "
+           "this same family was a guard reading a deliberately-empty "
+           "record as evidence of CHANGE, and this is that mistake "
+           "mirrored"),
   dict(name="a-reclassification-adopts-no-colour", file=DIALOG,
-       old="""    if not count_moved:
-      for index, colour in enumerate(actual):""",
-       new="""    if True:  # mutation: adopt across a count change
-      for index, colour in enumerate(actual):""",
+       # RE-ANCHORED 2026-08-20, the second time in one day. The first
+       # re-anchoring stood on `if not count_moved:`, a DELTA armed for
+       # one invocation; that flag is gone and the question is now
+       # asked of `_painted_ladders`, which can answer at any moment.
+       # Mutating the "this colour is ours" arm makes every colour the
+       # plugin itself painted read as somebody's hand-pick.
+       old="""      if ours:
+        continue
+      if record.get(str(index)) != colour:""",
+       new="""      if False:  # mutation: adopt the plugin's own colours
+        continue
+      if record.get(str(index)) != colour:""",
        test="test_a_class_added_in_qgis_is_not_a_colour_somebody_picked",
        why="QGIS inserts the added class and every OTHER class keeps "
            "the colour it had, at a new index -- so a positional walk "
@@ -587,13 +626,15 @@ MUTATIONS = [
            "colours nobody chose, after which the ramp could never "
            "govern those classes again"),
   dict(name="a-cloned-template-is-not-a-hand-pick", file=DIALOG,
-       # RE-ANCHORED 2026-08-20: the walk moved a level in under
-       # `if not count_moved:`, so the old anchor's indentation no
-       # longer matched and the entry mutated nothing.
-       old="""        if colour == template:
-          continue
-        if expected[index] != colour and record.get(str(index)) != colour:""",
-       new="""        if expected[index] != colour and record.get(str(index)) != colour:""",
+       # RE-ANCHORED TWICE ON 2026-08-20. First the walk moved a level
+       # in under `if not count_moved:`; then that flag was deleted and
+       # the walk was rewritten to iterate the renderer's own ranges,
+       # so the indentation moved back out and `expected[index]` is no
+       # longer read at all. Anchored now on the template check itself.
+       old="""      if colour == template:
+        continue
+      ours = self._colour_is_ours(""",
+       new="""      ours = self._colour_is_ours(""",
        test="test_a_class_added_in_qgis_is_not_a_colour_somebody_picked",
        why="QGIS clones the renderer's source symbol for a class the "
            "user ADDS in the Symbology panel, and this plugin sets "
@@ -621,6 +662,299 @@ MUTATIONS = [
            "those answers sends the run on to layer_to_gdf, which "
            "refuses in terms of the user's DATA when the fact is that "
            "their FILE has moved"),
+  dict(name="an-absent-signature-is-not-a-moved-row", file=DIALOG,
+       old="""        recorded = self._last_signatures.get(tile_id)
+        if recorded is not None and self._signature(assignment) != recorded:""",
+       new="""        if self._signature(assignment) != self._last_signatures.get(
+            tile_id):  # mutation: absent reads as moved""",
+       test="test_a_reopened_project_still_hears_a_recolour_made_in_qgis",
+       why="`_adopt_existing_group` leaves `_last_signatures` EMPTY on "
+           "purpose, because a dialog cannot know which assignments "
+           "produced layers it has only just met. Asked with `.get()` "
+           "alone, None never equals a real signature, so the repaint "
+           "route -- the only way an in-place dock recolour reaches "
+           "the plugin -- is shut in every REOPENED project, which is "
+           "the commonest journey there is. Ledger row 1"),
+  dict(name="the-copy-row-is-built-for-categorical-elements-too", file=EDITOR,
+       old="""    if copy_targets and copy_to is not None:
+      self._build_copy_row(layout, copy_targets, copy_to)""",
+       new="""    if bounds is not None and copy_targets and copy_to is not None:
+      self._build_copy_row(layout, copy_targets, copy_to)""",
+       test="test_a_categorical_scheme_copies_onto_another_element",
+       why="`bounds` are the GRADUATED class bounds, so gating the "
+           "Copy row on them kept the control off the categorical half "
+           "of the editor entirely -- which is how a tester came to "
+           "report categorical copying as simply missing"),
+  dict(name="a-copy-asks-before-a-colour-per-value", file=DIALOG,
+       old="""      if count is not None and count > bridge.MANY_CATEGORIES \\
+          and not self._many_categories_is_wanted(their_field, count):""",
+       new="""      if False:  # mutation: draw a swatch per value, unasked""",
+       test="test_a_copy_asks_before_drawing_a_colour_for_every_value",
+       why="nothing caps the category count -- bridge takes "
+           "`n = max(len(everywhere), 1)` -- so a categorical scheme "
+           "copied onto a CONTINUOUS column is drawn with one class, "
+           "one legend line and one swatch per value. On real data "
+           "that is thousands, and the user finds out by watching QGIS "
+           "do it. The maintainer ruled it a question rather than a "
+           "refusal, on one threshold shared with the dataset switch"),
+  dict(name="a-lost-column-still-costs-its-element-a-variable", file=DIALOG,
+       old="""      elif preferred:
+        var_combo.setCurrentText(preferred[row % len(preferred)])""",
+       new="""      elif False:  # mutation: a lost column leaves the row blank
+        var_combo.setCurrentText(preferred[row % len(preferred)])""",
+       test="test_a_new_region_drops_a_setup_whose_column_has_gone",
+       why="losing a column costs an element its VARIABLE and not its "
+           "place on the map: left blank it draws as flat fill, so "
+           "changing dataset would quietly cost the map two of its "
+           "four variables. The recovery rule of 2026-08-15 says it "
+           "auto-assigns to a column the new layer HAS"),
+  dict(name="a-scheme-does-not-outlive-the-column-it-was-cut-for",
+       file=DIALOG,
+       # AIMED AT THE THIRD DOOR, deliberately. The same rule is
+       # written at three places -- two in `_refresh_table` and this
+       # one -- and the two there are each SUFFICIENT, because a change
+       # of region dataset rebuilds the table twice and the second pass
+       # reads what the first left. Mutating either of those survives
+       # with every observable correct, which is a fact about the fix
+       # rather than about the guard. This door has one implementation
+       # and one line, so it is the one an entry can hold.
+       old="""      if mode_cell is not None and mode_cell.property("touched") \\
+          and mode_cell.findText(instead) >= 0:""",
+       new="""      if False and mode_cell is not None \\
+          and mode_cell.findText(instead) >= 0:  # mutation: keep it""",
+       test="test_a_column_deleted_in_qgis_takes_its_scheme_with_it",
+       why="the maintainer's ruling of 2026-08-20 is that a setup is "
+           "KEPT where the data still has a column of that name and "
+           "DROPPED where it does not. The variable re-defaulted from "
+           "the first day and the STYLE rode along, so a categorical "
+           "scheme cut for four land-cover words came to rest on a "
+           "numeric column and drew a colour for each -- the "
+           "colleague's report. Here the user is even TOLD their "
+           "elements moved to another column, so the scheme riding "
+           "along is what that account leaves out"),
+  dict(name="a-dropped-scheme-is-no-longer-somebodys-pick", file=DIALOG,
+       old="""      mode_combo.setProperty(
+        "touched", bool(prev and prev.get("style_touched")
+                        and not column_gone))""",
+       new="""      mode_combo.setProperty(
+        "touched", bool(prev and prev.get("style_touched")))""",
+       test="test_a_new_region_drops_a_setup_whose_column_has_gone",
+       why="the flag means somebody chose this style rather than the "
+           "plugin deriving it, and what they chose it for has gone. "
+           "Left set, the next rebuild restores a scheme nobody has "
+           "chosen for the column now in force -- the same defect "
+           "arriving one rebuild later"),
+  dict(name="a-change-of-dataset-asks-about-what-it-keeps", file=DIALOG,
+       old="""    if switched:
+      self._settle_retained_schemes()""",
+       new="""    if False:  # mutation: a change of dataset asks nothing
+      self._settle_retained_schemes()""",
+       test="test_a_column_that_keeps_its_name_and_changes_its_kind",
+       why="the second door into 'too many categories', and it shares "
+           "its number with the copy on the maintainer's ruling. A "
+           "column keeping its NAME keeps its element's setup, and "
+           "nothing about a name says the values are the same kind of "
+           "thing: four words become thirty-six floats and the map is "
+           "drawn with a swatch for each, unasked"),
+  dict(name="the-answer-to-that-question-is-read", file=DIALOG,
+       old="""      if self._many_categories_is_wanted(field, count):
+        continue""",
+       new="""      if True:  # mutation: ask, then ignore the answer
+        continue""",
+       test="test_a_column_that_keeps_its_name_and_changes_its_kind",
+       why="a question that does the same thing whatever you answer is "
+           "worse than no question, because it reads as consent. The "
+           "refusal arm here had never once executed before "
+           "2026-08-20: the suite answered every box Yes"),
+  dict(name="a-refused-copy-is-a-copy-that-did-not-happen", file=DIALOG,
+       old="""        refused.append((target_id, ("was left alone", "were left alone")))
+        continue""",
+       new="""        refused.append((target_id, ("was left alone", "were left alone")))
+        pass  # mutation: report the refusal and copy anyway""",
+       test="test_a_copy_asks_before_drawing_a_colour_for_every_value",
+       why="the report saying an element was left alone while the copy "
+           "went onto it is the worst of both: the user is told their "
+           "refusal was honoured and the map is drawn with a colour "
+           "for every value regardless"),
+  dict(name="a-copy-lands-on-a-row-that-can-hold-it", file=DIALOG,
+       old="""      self._sync_row(row)
+    ramp_cell = self.table.cellWidget(row, 4)""",
+       new="""      pass  # mutation: leave the receiving row as it was
+    ramp_cell = self.table.cellWidget(row, 4)""",
+       test="test_a_copy_carries_a_class_source_the_target_has_not_met",
+       why="the class-source cell exists ONLY on a categorized row, so "
+           "a target that was quantitative a moment ago has no widget "
+           "in column 7 and the token was written into nothing. The "
+           "colours arrive, the reference does not, and the window "
+           "shows two elements agreeing while their colours come from "
+           "different places"),
+  dict(name="a-copy-never-carries-the-variable", file=DIALOG,
+       old="""    their_field = target["var"]
+    if picks:""",
+       new="""    their_field = source["var"]  # mutation: carry the variable
+    if picks:""",
+       test="test_a_categorical_scheme_copies_onto_another_element",
+       why="carrying the source's column would make the target a "
+           "DUPLICATE of the source, so a map whose whole purpose is "
+           "reading several variables against each other would quietly "
+           "lose one. The maintainer named this as the record that "
+           "must never travel, ahead of opacity"),
+  dict(name="a-partial-recolour-is-not-a-classify", file=DIALOG,
+       old="""    if ours != theirs and all(a != b for a, b in zip(ours, theirs)):""",
+       new="""    if ours != theirs:  # mutation: any moved colour blocks the bounds""",
+       test="test_a_boundary_retyped_beside_a_recolour_is_still_recorded",
+       why="a Classify picks a ramp and rewrites EVERY class, so "
+           "demanding that no colour moved is right about it and wrong "
+           "about the visit where somebody retypes a boundary and "
+           "recolours a class. That satisfies neither branch and the "
+           "boundary is never recorded by the visit that typed it "
+           "(ledger row 6)"),
+  dict(name="custom-is-a-display-and-never-an-item", file=DIALOG,
+       # BOTH THIS AND ITS SIBLING BELOW ANCHOR ON THE SAME TWO LINES,
+       # which is fine because a mutation is applied one at a time --
+       # and necessary, because the two assertions they prove name
+       # different halves of one design decision.
+       old="""    self._custom = bool(on)
+    self.update()""",
+       new="""    self._custom = bool(on)
+    if on and self.findText("Custom") < 0:
+      self.addItem("Custom")  # mutation: make it a real item
+    self.update()""",
+       test="test_a_ladder_somebody_else_cut_makes_the_scheme_cell_read_custom",
+       why="an item a user could choose would need a meaning of its "
+           "own, and adding one is the obvious implementation somebody "
+           "reaches for. The list is how every scheme stays selectable "
+           "at all times, which is an explicit user requirement"),
+  dict(name="the-scheme-cell-keeps-its-index-under-custom", file=DIALOG,
+       old="""    self._custom = bool(on)
+    self.update()""",
+       new="""    self._custom = bool(on)
+    if on:
+      self.setCurrentIndex(-1)  # mutation: leave the scheme behind
+    self.update()""",
+       test="test_a_ladder_somebody_else_cut_makes_the_scheme_cell_read_custom",
+       why="the index stays on the last-picked scheme so that choosing "
+           "one RECLASSIFIES and retires the stored ladder through the "
+           "degrade-to-pins rule. Left on nothing, the row cannot be "
+           "given back to a scheme at all"),
+  dict(name="the-custom-scheme-display-reaches-the-screen", file=DIALOG,
+       # THE PIXEL AXIS, entered separately because `showing_custom()`
+       # and "the cell paints differently" are two claims, and the
+       # first is proved by another entry. This project has shipped a
+       # mark drawn into pixels its own widget covered, so a flag that
+       # never becomes ink deserves a mutation of its own.
+       #
+       # THE ANCHOR DELIBERATELY DOES NOT END ON A QUOTE. The first
+       # draft ended `option.currentText = "Custom"` inside a triple-
+       # quoted string, so the four quotes ran together and the
+       # catalogue would not parse -- caught by running it, 2026-08-20.
+       old="""    option.currentText = "Custom"
+    painter.drawComplexControl(QStyle.ComplexControl.CC_ComboBox, option)""",
+       new="""    painter.drawComplexControl(QStyle.ComplexControl.CC_ComboBox, option)""",
+       test="test_a_ladder_somebody_else_cut_makes_the_scheme_cell_read_custom",
+       why="the cell can hold the Custom state and go on PAINTING the "
+           "scheme name, which is the whole of what a user sees. The "
+           "row then reads as cut by quantiles while the map is cut by "
+           "numbers somebody typed, and nothing on screen says so"),
+  dict(name="the-catch-all-is-adopted-like-any-other-class", file=DIALOG,
+       # THE SECOND AXIS of the same test, and it needs its own entry:
+       # the entry below breaks the FOLLOW branch, whose harm is the
+       # sentence, and the sentence assertion fires FIRST -- so the
+       # record assertion is masked and would be proved by nothing.
+       # Per-assertion, 2026-08-20.
+       old="""    for key, colour in actual.items():
+      if expected.get(key) != colour and record.get(key) != colour:""",
+       new="""    for key, colour in actual.items():
+      if key == bridge.NO_DATA_KEY:
+        continue  # mutation: adopt every class but the catch-all
+      if expected.get(key) != colour and record.get(key) != colour:""",
+       test="test_recolouring_the_catch_all_alone_is_not_a_new_ramp",
+       why="the catch-all is a class like any other once the handler "
+           "has decided this was not a Classify: skipping it in the "
+           "adopt walk loses the one colour the user actually changed, "
+           "silently, while every sentence and every other class stays "
+           "correct"),
+  dict(name="a-catch-all-recolour-is-not-a-classify", file=DIALOG,
+       old="""      catch_all_moved = (here is not None and ours is not None
+                         and here.lower() != ours.lower())""",
+       new="""      catch_all_moved = False  # mutation: drop the catch-all again""",
+       test="test_recolouring_the_catch_all_alone_is_not_a_new_ramp",
+       why="the catch-all is a colour a reader sees, often over the "
+           "gaps a join left, and the editor offers it deliberately. "
+           "Dropped from the comparison, an edit touching only that "
+           "class compares EQUAL to a clean Classify from a ramp: the "
+           "handler tells the user the element now follows a ramp "
+           "nobody chose, clears their picks, and repaints those "
+           "areas the default grey at the next Generate. Ledger row 5, "
+           "shipping since 2026-08-10"),
+  dict(name="an-adopted-ladder-tells-the-row-it-is-custom", file=DIALOG,
+       old="""    try:
+      row = self._row_for_element(tile_id)
+      if row is not None and row >= 0:
+        self._sync_row(row)
+    except Exception:
+      pass
+
+  def _replay_deferred_adoptions(self):""",
+       new="""    pass  # mutation: leave the row describing the old scheme
+
+  def _replay_deferred_adoptions(self):""",
+       test="test_a_ladder_somebody_else_cut_makes_the_scheme_cell_read_custom",
+       why="the Style cell reads Custom while a stored ladder is in "
+           "force, and it is decided in `_sync_row`, whose only "
+           "callers are the dynamic-column pass and the deferral "
+           "refresh. A ladder retyped in QGIS reaches neither, so the "
+           "record held somebody else's boundaries while the cell went "
+           "on naming the scheme the map was no longer cut by"),
+  dict(name="a-retired-ladder-gives-the-scheme-cell-back", file=DIALOG,
+       old="""      try:
+        row = self._row_for_element(tile_id)
+        if row is not None and row >= 0:
+          self._sync_row(row)
+      except Exception:
+        pass""",
+       new="""      pass  # mutation: leave the cell reading Custom""",
+       test="test_a_ladder_somebody_else_cut_makes_the_scheme_cell_read_custom",
+       why="the TWIN of the entry above, at the other end of the same "
+           "record. Choosing a scheme retires the stored ladder, and "
+           "without this the cell goes on reading Custom -- a state "
+           "with no control left to leave it by, since the scheme the "
+           "user would press is the one they just pressed. It cannot "
+           "live in the caller: `_on_mode_chosen` and `_queue_live` "
+           "share one signal, so the sync can run BEFORE the "
+           "retirement it is about to describe"),
+  dict(name="a-vanished-source-still-repaints-on-the-live-path", file=DIALOG,
+       old="""      if self._restyle_only():
+        _dump("LIVE-GATE", "restyled-without-the-source")
+        return""",
+       # THE ORDER OF THE OPERANDS IS THE WHOLE MUTATION. Written
+       # `self._restyle_only() and False` this SURVIVED: Python
+       # evaluates left to right, so the restyle still ran and still
+       # repainted, and only the `return` was skipped. A mutation
+       # whose side effect survives it breaks nothing the test can
+       # see. Short-circuit ahead of the call.
+       new="""      if False and self._restyle_only():  # mutation: refuse it too
+        _dump("LIVE-GATE", "restyled-without-the-source")
+        return""",
+       test="test_a_colour_picked_after_the_file_moved_still_reaches_the_map",
+       why="the availability gate is about TILING, and a restyle "
+           "re-seeds renderers on tiles that already exist. Left as a "
+           "bare refusal it stands in front of the repaint exit, so a "
+           "colour picked after the region layer's file moved is "
+           "recorded, never drawn, and explained by a sentence about "
+           "the user's DATA when the fact is about their FILE"),
+  dict(name="the-button-restyles-before-it-asks-about-the-source", file=DIALOG,
+       old="""    if not live and self._restyle_only():
+      return  # the button pressed after a style change: instant""",
+       new="""    if not live and False and self._restyle_only():
+      return  # mutation: ask about the source first""",
+       test="test_a_colour_picked_after_the_file_moved_still_reaches_the_map",
+       why="the TWIN of the entry above, and the reason it needed no "
+           "repair: `_generate` puts its restyle fast path ABOVE its "
+           "own availability check, so a button press after a moved "
+           "file repaints where a live tick did not. Reversing that "
+           "order gives the button the defect the live gate had, and "
+           "the second act of that test is what notices"),
   dict(name="unobservable-layer-retiles", file=DIALOG,
        old="""    if self._data_is_unobservable():
       # A layer that will not say how many features it has may have""",
@@ -3520,15 +3854,13 @@ MUTATIONS = [
            "being satisfied by boxes it already asserted directly"),
   dict(name="the-row-follows-the-layers-renderer",
        file="weavingspace_qgis/dialog.py",
-       # RE-ANCHORED 2026-08-20: the count is now read on both sides
-       # of this call, so the follow and the isinstance below are no
-       # longer adjacent. Anchored on the follow and the line that
-       # measures it, which is the pair that must stay together.
+       # RE-ANCHORED TWICE ON 2026-08-20. The count was briefly read on
+       # both sides of this call, which separated the follow from the
+       # isinstance below; deleting that delta put them back together,
+       # so the anchor returns to the pair it had before.
        old="    self._row_follows_the_renderer(tile_id, renderer)\n"
-           "    count_moved = self._class_counts.get(tile_id) "
-           "!= counted_before",
-       new="    count_moved = self._class_counts.get(tile_id) "
-           "!= counted_before",
+           "    if isinstance(renderer, QgsGraduatedSymbolRenderer):",
+       new="    if isinstance(renderer, QgsGraduatedSymbolRenderer):",
        test="test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis",
        why="without it the table goes on describing the map the plugin "
            "last drew: a break retyped in QGIS's Symbology panel or a "

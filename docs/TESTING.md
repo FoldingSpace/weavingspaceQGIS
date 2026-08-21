@@ -2099,3 +2099,236 @@ in five or six. That is not evidence the practice can be skipped: all
 four tests had been through the catalogue first, which proves the
 PRIMARY axis and structurally cannot see the rest, and both dead axes
 sat behind live primaries exactly as every previous round found.
+
+## FOUR WRONG HYPOTHESES ABOUT MY OWN TEST BEFORE THE PRODUCT WAS IN
+## QUESTION
+
+2026-08-20, writing a guard for a moved region layer. This file
+already says to bisect by disabling rather than reasoning after ONE
+hypothesis fails. Four failed, each plausible, each costing a run:
+
+- a missing `bridge` import -- a real fault in the test, and the only
+  one of the four that announced itself honestly;
+- a 600 ms wait, blamed on the style debounce. Widening it to 1600 ms
+  changed nothing;
+- the ramp picked was **Accent**, a qualitative palette, and a
+  graduated row auto-swaps those away. The test was measuring a
+  correct refusal;
+- live update was OFF, where "preserve, do not repaint" means the map
+  is CORRECT not to move. The test was demanding that the software get
+  it wrong, which is a shape this file already names.
+
+Only then did the measurements name the real site, and it was not
+where the ledger had put it: `_restyle_only()` called by hand
+repainted perfectly, while the route to it never arrived.
+
+**AND THE SITE WRITTEN DOWN NEXT WAS ALSO WRONG.** This section said
+for a day that `_generate`'s availability check stands in front of the
+restyle fast path and refuses silently on a live run. Both halves are
+false. A debounced tick never reaches `_generate`: `_maybe_live_
+generate` holds ten gates of its own and the sixth asks the same
+question. And it is not silent -- it says the map cannot be updated,
+which is worse than saying nothing, because the sentence is false and
+sends the reader to their data.
+
+What settled it was one dump line per gate, run once:
+
+    LIVE-GATE source-gone
+
+**THE LESSON IS NOT "TEST FIXTURES ARE HARD".** It is that each of the
+four was a question about the HARNESS, and answering them one at a
+time is exactly the reasoning the bisect rule exists to replace. A
+probe that says which gate returned would have cost one run and
+answered all four at once -- and that is what finally did.
+
+**AND A SITE NAMED BY READING IS A HYPOTHESIS.** The wrong location
+travelled into four binding documents in a single documentation round
+before anything measured it, where it reads exactly like a location
+somebody proved. The rule that follows is the bisect rule wearing
+different clothes: when you write down WHERE a defect is, say how you
+know -- and if the answer is "I read the code", spend the one run.
+
+## A JUDGEMENT BEHIND AN `if` IS A GREEN THAT SAYS NOTHING
+
+2026-08-20, twice within the hour, in two tests written by the same
+hand minutes apart. Both wrote the interesting assertion inside a
+conditional -- "if the element kept the column AND is still
+categorical, then require the question" -- and both PASSED without the
+branch ever executing, because the fixture's columns held a handful of
+values and the condition was false.
+
+**A CONDITIONAL ASSERTION IS AN ASSERTION THAT MAY NOT EXIST.** It
+reads like coverage, it costs a line, and its green is indistinguishable
+from a green where the case never arose. This file already carries the
+shape twice -- a guard that runs where there is nothing to look at, and
+a fixture that cannot exhibit its case -- and this is the same fault
+arriving through control flow rather than through data.
+
+**TWO CURES, AND USE BOTH.** Count what you looked at and assert the
+count, which is the cheapest guard this project knows. And make at
+least ONE assertion unconditional, so a cell always says something:
+here it became "the element came out on a column the new dataset
+actually carries", which holds whichever branch the plugin took.
+
+**AND WHERE THE CONDITION IS A THRESHOLD, STAGE THE CONDITION.** Both
+of these needed a column with more distinct values than
+`bridge.MANY_CATEGORIES`, which in this fixture family means ten
+thousand polygons and minutes of tiling to prove an `if`. Lowering the
+constant for the length of the test and restoring it in `finally` is
+the same move as removing a palette to test the installer: it stages
+the case rather than inflating the fixture.
+
+## A TEST WITH NO CATALOGUE ENTRY IS A TEST YOU BELIEVE
+
+Also 2026-08-20. Two registered tests landed that day guarding
+behaviour believed to be ALREADY CORRECT -- the dataset-switch rules,
+recorded as found sound rather than broken -- so there was no fix to
+break and no entry was written. Nobody had watched either fail.
+
+That is a different thing from a test that has been proved, and the
+suite cannot tell them apart: both are green lines in the same list.
+Where a test guards ground that was already sound, the entry has to be
+aimed at the MACHINERY it depends on, or the test is a statement of
+belief with a passing tick beside it.
+
+**AND SITTING DOWN TO WRITE THOSE ENTRIES IS WHAT FOUND THE DEFECT.**
+Neither test was guarding sound ground. Both were vacuous, for the
+reason in the section below, and the behaviour they named was broken
+at three doors while three binding documents said it had been
+measured. So the rule is stronger than it looked when it was written:
+an unproved test is not merely unproved, it is a test whose PREMISE
+nobody has checked either -- and the cheapest way to check the premise
+is to try to kill it.
+
+## A FIXTURE THAT LETS THE PLUGIN DERIVE THE THING UNDER TEST
+
+2026-08-20, and it is the fixture-that-cannot-move trap wearing new
+clothes. Two tests guarded the rule that a change of region dataset
+KEEPS an element's setup where the new data has a column of that name
+and DROPS it where it does not. Both passed. Both were vacuous, and
+the defect they were written for was live the whole time: a
+categorical scheme a user had picked rode onto a column of areas in
+square metres and drew a colour for each.
+
+The fixture assigned a variable and never touched the STYLE chooser.
+`_refresh_table` restores a style only where somebody chose it and
+otherwise RE-DERIVES one from the column's type -- so on every switch
+the plugin recomputed a quantitative style for the new numeric column,
+which is the right answer arrived at for a reason that has nothing to
+do with the rule. Nothing was retained, so nothing could be wrongly
+retained.
+
+**ASK WHAT YOUR FIXTURE LEAVES TO A DEFAULT.** A test about RETAINING
+something must first make that something worth retaining, and the way
+to do it is to drive the control a user drives -- here `activated` on
+the style combo, which is what marks the choice as theirs. A setting
+the product would arrive at by itself is invisible in a green result,
+exactly like a fixture whose values cannot move.
+
+**AND THE TELL WAS IN THE TEST ALREADY.** Both had written their
+interesting assertion behind an `if`, which is the section above, and
+both `if`s were false for this same reason. A conditional assertion
+and a fixture that cannot exhibit its case are two faces of one fault:
+the test never reached the question it names.
+
+## A GUARD MAY BE WRITTEN TWICE, AND THEN NEITHER HALF CAN BE KILLED
+
+Also 2026-08-20, found by the catalogue within the hour. Two entries
+written that night SURVIVED, and neither was reporting a weak test.
+
+The rule that a dropped setup takes its style with it was written at
+BOTH places `_refresh_table` touches it: the branch restoring a
+remembered style, and the flag recording that style as somebody's
+choice. Each is sufficient alone, because a change of region dataset
+rebuilds the table TWICE -- once from the chooser and once from the
+queued settle -- and the second pass reads what the first left. So a
+mutation of either half is invisible: the other answers one rebuild
+later and every observable comes out right.
+
+The catch-all colour's SURVIVAL across a re-Generate is the same shape
+through different machinery. The landing CARRIES the old renderer
+where the element's assignment has not changed, and where it does not,
+the renderer is rebuilt from the record. Each was mutated alone and
+the test went on passing; broken TOGETHER it failed at once, naming
+the grey it had been repainted. Redundant is not dead.
+
+**WHEN AN ENTRY SURVIVES, ASK WHETHER THE BEHAVIOUR HAS TWO
+IMPLEMENTATIONS BEFORE ASKING WHETHER THE TEST IS WEAK.** The reflex
+is to strengthen the test, and here there was nothing to strengthen.
+Break every route AT ONCE: if the test fails, the axis is live and
+redundantly held, and the honest record is a note at the test rather
+than an entry that can only ever be red. If it passes, the assertion
+is the problem after all.
+
+**AND THE SURVIVOR STILL EARNED ITS KEEP**, which is the part worth
+carrying: asking why one could not be killed is what turned up the
+THIRD door into the same ruling -- a column deleted in QGIS, where
+`_adapt_to_the_layer` re-points the row before the rebuild can notice
+anything is missing. That door has one implementation, one line, and
+an entry that catches.
+
+## AN ENTRY PER AXIS, NOT PER TEST -- AND READ WHICH ASSERTION FIRED
+
+2026-08-20, the per-assertion round at three tests written that day.
+This file already says the catalogue proves a test's PRIMARY axis and
+structurally cannot see the rest. What this round adds is the remedy,
+which costs one entry each and is worth the minute.
+
+**THE MASKING IS ORDINARY, NOT EXCEPTIONAL.** The catch-all test
+carries three axes: the wrong SENTENCE, the lost RECORD, and the
+colour's SURVIVAL across a re-tile. Under the one mutation that
+matters -- the fix removed -- the sentence assertion fires FIRST and
+the other two are never reached. The entry reported `caught` and
+exactly one axis was proved.
+
+**SO WRITE AN ENTRY FOR EACH AXIS, AIMED AT THE NARROWEST THING THAT
+ASSERTION NAMES.** Skipping the catch-all in the ADOPT walk leaves
+every sentence correct and loses the one colour the user changed, so
+it proves the record axis and nothing else. Painting the scheme name
+while the Custom flag is set leaves the flag correct and puts no ink
+on screen, so it proves the pixel axis. Each is a one-line mutation.
+
+**AND RUN THE MUTATION BY HAND ONCE, TO SEE WHICH LINE FIRES.** The
+catalogue reports `caught` without saying where, so a masked axis is
+invisible in its output. A single run printing the failing assertion
+is what turned "this test is guarded" into "one of its three axes is
+guarded".
+
+**WHAT STAYS UNPROVEN SHOULD BE SAID.** The survival axis here is
+still masked by the record axis, and is written down as unproven
+rather than counted as guarded: a guard nobody has watched fail is a
+guard nobody should count.
+
+**AND "NO ONE-LINE MUTATION REACHES IT" IS USUALLY WRONG.** The two
+list-integrity assertions on the scheme cell were recorded as
+unreachable for about an hour -- that "Custom" never becomes an ITEM,
+and that the index stays on the last-picked scheme. Both have an
+obvious one-liner, and both are the implementation somebody would
+plausibly have written instead: `addItem("Custom")` when the flag goes
+on, and `setCurrentIndex(-1)` beside it. Each proved its assertion
+first time. Before recording an axis as unprovable, try writing the
+WRONG implementation rather than a mutation of the right one.
+
+## A GUARD'S OWN FIRST DRAFT IS WHERE THE NEXT DEFECT IS
+
+Also 2026-08-20. A fix for a real defect shipped with four passing
+tests around it, and the fix itself was wrong: a lookup by class
+BOUNDS returned on the first match, and a ladder may hold several
+classes with identical bounds -- a constant column, a tied column,
+`{1, 5, 9}` at k=5. QGIS's `addClass` then inserts another degenerate
+`(0.0, 0.0)` class, which collides with any fixture whose first real
+class is also degenerate, so the plugin's own colour was compared
+against a placeholder grey and adopted as somebody's hand-pick.
+
+The four tests could not see it because every one of them asked about
+the RECORD after the fact, and the record was consistent with either
+answer. What found it was PRINTING THE STORE at each stage and reading
+it -- the same instrument-the-code prescription this file already
+carries, reached only after the tests had said everything was fine.
+
+**COUNT THE DEGENERATE CASE INTO ANY FIXTURE THAT INDEXES BY VALUE.**
+Bounds, breaks, category values: wherever a lookup keys on something
+the data can repeat, the fixture must contain a repeat, and the test
+must ASSERT it does. This one now requires `len(set(bounds)) <
+len(bounds)` before it draws any conclusion, so a fixture without the
+collision fails loudly instead of passing vacuously.

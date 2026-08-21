@@ -545,7 +545,14 @@ class CategoryColourDialog(QDialog):
     # range section: it acts on the whole of what this window shows,
     # so it reads as a heading rather than as one more control among
     # the classes.
-    if bounds is not None and copy_targets and copy_to is not None:
+    # NOT GATED ON `bounds`, which is what kept this control off the
+    # categorical half of the editor entirely -- `bounds` are the
+    # GRADUATED class bounds and a categorized element has none, so
+    # even a call site offering the callback got no row. The copy row
+    # is about the whole of what this window shows, and both dresses
+    # show something copyable. (Maintainer's instruction, 2026-08-20:
+    # categorical copying is supposed to work like graduated's.)
+    if copy_targets and copy_to is not None:
       self._build_copy_row(layout, copy_targets, copy_to)
     if range_bounds is not None:
       self._build_range_section(layout, range_bounds)

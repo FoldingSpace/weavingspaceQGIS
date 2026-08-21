@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-275 defect(s) with a regression test.
+288 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -245,16 +245,40 @@ there is no separate list to remember.
 
 ## Found by the mutation campaign
 
+- **retyping a class boundary and recolouring a class in one visit to QGIS's panel recorded the colour and lost the boundary, which then died at the next thing that re-seeded the element.**  
+  guarded by `test_a_boundary_retyped_beside_a_recolour_is_still_recorded`
+- **a categorical colour scheme could not be copied to another element at all, where the graduated one could.**  
+  guarded by `test_a_categorical_scheme_copies_onto_another_element`
+- **the painted-ladder store had no stated meaning for an absent entry, and either reading of it silently mis-attributes every colour on the element.**  
+  guarded by `test_a_colour_on_a_ladder_we_never_saw_is_declined_and_named`
+- **a guard corrected to answer False for a moved file had that answer travel into a signature, so a colour picked afterwards was recorded, never drawn and never mentioned.**  
+  guarded by `test_a_colour_picked_after_the_file_moved_still_reaches_the_map`
 - **refilling the variable choosers seeded every element's remembered single colour, so an unrelated column added in QGIS changed every signature and the next Generate discarded the user's own styling.**  
   guarded by `test_a_column_appearing_in_qgis_keeps_hand_styling`
+- **deleting a column in QGIS re-pointed its elements at a surviving column and left them wearing the categorical scheme cut for the column that had gone.**  
+  guarded by `test_a_column_deleted_in_qgis_takes_its_scheme_with_it`
+- **a categorical scheme picked by hand rode onto a column that had kept its name and changed to a continuous float, drawing a colour for every distinct value with nothing asked.**  
+  guarded by `test_a_column_that_keeps_its_name_and_changes_its_kind`
+- **a categorical scheme could be copied onto a continuous column and drawn with one colour per value, thousands of them, with nothing asked first.**  
+  guarded by `test_a_copy_asks_before_drawing_a_colour_for_every_value`
+- **a categorical copy dropped the class source whenever the receiving row was not already categorized, because the cell it was written into does not exist until the row is.**  
+  guarded by `test_a_copy_carries_a_class_source_the_target_has_not_met`
 - **an automatic mutant flipped the colours-agree comparison at dialog.py:3345 and twenty covering tests noticed nothing, because not one of them looked at what the user was told.**  
   guarded by `test_a_dock_edit_that_changes_no_colour_is_announced_as_nothing`
 - **the signature stamped after adopting a dock recolour was never checked, so the lookup that finds the element could be broken without any test failing.**  
   guarded by `test_a_dock_refinement_survives_the_next_restyle`
 - **the categorized adoption path got a test and its graduated twin, five identical lines away, still had none.**  
   guarded by `test_a_graduated_dock_refinement_survives_the_next_restyle`
+- **the scheme cell went on naming a scheme after a ladder was retyped in QGIS or copied from another element, so the row described a classification the map no longer had.**  
+  guarded by `test_a_ladder_somebody_else_cut_makes_the_scheme_cell_read_custom`
+- **pointing the region chooser at a dataset without an element's column left that element wearing the scheme cut for the column that had gone.**  
+  guarded by `test_a_new_region_drops_a_setup_whose_column_has_gone`
 - **the installer skipped names case-insensitively while the lookup matched exactly, so four palettes were silently unavailable on any QGIS that spells them differently.**  
   guarded by `test_a_palette_is_usable_whatever_case_qgis_spells_it`
+- **a project reopened from a file heard no in-place dock recolour at all, because a guard read a deliberately empty record as evidence that the row had moved.**  
+  guarded by `test_a_reopened_project_still_hears_a_recolour_made_in_qgis`
+- **a guard computed as a delta was armed for one invocation, so a second repaint after a class was added in QGIS recorded four of the plugin's own ramp colours as the user's hand-picks, stamped into the project.**  
+  guarded by `test_a_second_reconciliation_adopts_no_colour_the_plugin_painted`
 - **an automatic mutant moved the sampling divisor and one covering test noticed nothing, because nothing looked at where the swatch ended.**  
   guarded by `test_an_unclassed_swatch_reaches_both_ends_of_its_ramp`
 - **control ranges and steps were unasserted as a class; a mutation batch moved one and the suite was silent.**  
@@ -267,6 +291,8 @@ there is no separate list to remember.
   guarded by `test_every_design_control_is_reachable`
 - **only the existence of installed palettes was checked, never the colours they run between.**  
   guarded by `test_installed_palettes_span_their_declared_colours`
+- **recolouring only the "no data" catch-all in QGIS read as a clean classify, so the plugin announced a ramp nobody chose, discarded the colour, and repainted those areas grey at the next Generate.**  
+  guarded by `test_recolouring_the_catch_all_alone_is_not_a_new_ramp`
 - **reversing a qualitative palette was a no-op, with the switch still reading as ticked.**  
   guarded by `test_reverse_runs_a_qualitative_palette_backwards`
 - **the categorized renderer recorded no source colour ramp, so a clean ramp applied in QGIS's dock was adopted as hand-picks instead of replacing them, and QGIS's own panel showed no ramp at all.**  
@@ -603,8 +629,8 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 84
+- the mutation campaign: 29
 - reported by a user: 29
-- the mutation campaign: 16
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8
 - race and stress testing: 6

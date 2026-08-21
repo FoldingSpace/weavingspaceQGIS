@@ -67,7 +67,7 @@ import os
 import time
 import traceback
 
-from qgis.PyQt.QtCore import QEvent, QPointF, QRectF, QSize, Qt, QTimer
+from qgis.PyQt.QtCore import QPointF, QRectF, QSize, Qt, QTimer
 from qgis.PyQt.QtGui import (
   QBrush, QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap)
 from qgis.PyQt.QtWidgets import (
@@ -596,6 +596,77 @@ class SpacingSpinBox(TrimmedSpinBox):
   have to learn about locales separately. This class keeps only what
   is about SPACING; the shared behaviour is documented where it lives.
   """
+
+
+class ModeCombo(QComboBox):
+  """The style chooser, able to DISPLAY "Custom" without listing it.
+
+  An element whose class boundaries came from somewhere other than its
+  scheme shows "Custom" in this cell, because a scheme name would be a
+  control lying about the map: the ladder QGIS is drawing was not cut
+  by quantiles, however the row still reads "Quant: Quantiles".
+
+  THE CONVENTION IS ITS SIBLING'S, deliberately. ``RampCombo`` solved
+  this once for colour and the answer is the same here: only the
+  CLOSED combo's painting is overridden, so the popup list, the model,
+  the current index and every signal are untouched. "Custom" is never
+  an ITEM -- every scheme stays selectable at all times, which is an
+  explicit user requirement for the ramp cell and holds here for the
+  same reason -- and the underlying index stays on the last-picked
+  scheme, so choosing one reclassifies and retires the stored ladder
+  through the existing degrade-to-pins rule.
+
+  WHEN IT IS ON: whenever the pinned record holds `breaks`, a whole
+  ladder somebody else decided, from EITHER door -- a boundary
+  retyped in QGIS's Symbology panel, or Copy classification from
+  another element. One record, one description (maintainer's
+  decision, 2026-08-20).
+
+  WHEN IT IS OFF: pins alone. A `low` or `high` pin takes one class
+  out of the pool and the scheme genuinely still cuts the rest, so
+  saying Custom would deny a scheme that is doing most of the work;
+  `floor` and `ceiling` move no boundary at all.
+
+  Args:
+    parent: the owning widget, as usual in Qt.
+  """
+
+  def __init__(self, parent=None):
+    super().__init__(parent)
+    self._custom = False
+
+  def set_custom_display(self, on):
+    """Show or clear the Custom display.
+
+    Args:
+      on: True to paint "Custom" over the closed combo, False to go
+        back to painting whatever scheme is selected.
+
+    Returns:
+      None. Repaints unconditionally, since the same state reached
+      twice must still reach the screen.
+    """
+    self._custom = bool(on)
+    self.update()
+
+  def showing_custom(self) -> bool:
+    """Whether the closed combo currently reads Custom."""
+    return self._custom
+
+  def paintEvent(self, event):  # noqa: N802 (Qt API)
+    """Qt calls this to draw the CLOSED combo; the popup draws its own
+    items and is never affected. The text is swapped inside the style
+    option Qt was about to draw anyway, so platform styling, the focus
+    ring and the drop-down arrow all stay native."""
+    if not self._custom:
+      super().paintEvent(event)
+      return
+    painter = QStylePainter(self)
+    option = QStyleOptionComboBox()
+    self.initStyleOption(option)
+    option.currentText = "Custom"
+    painter.drawComplexControl(QStyle.ComplexControl.CC_ComboBox, option)
+    painter.drawControl(QStyle.ControlElement.CE_ComboBoxLabel, option)
 
 
 class RampCombo(QComboBox):
@@ -1269,6 +1340,65 @@ class WeavingSpaceDialog(QDialog):
     # a variable away and back restores the work, exactly as the
     # categorical picks do.
     self._quant_colours = {}
+    # THE LADDER THE PLUGIN LAST PAINTED, {tile_id: {field: [(lower,
+    # upper, "#rrggbb"), ...]}}. Settled by /grill-me on 2026-08-20,
+    # replacing a guard computed as a DELTA that was armed for one
+    # invocation only (ledger row 2 of that day).
+    #
+    # WHAT IT IS FOR. When QGIS hands a ladder back, the plugin has to
+    # say of each class whether the colour on it is ONE WE PUT THERE
+    # or one a person chose, and it cannot ask by index: adding a
+    # class renumbers every class above it, so a positional walk sees
+    # the plugin's own ramp displaced by one and adopts the lot as
+    # somebody's hand-picks. DERIVING what we would draw now cannot
+    # answer it either -- once the dock has changed the ladder, what
+    # we would draw now is not what we drew then, which is how the
+    # first durable attempt over-reached and was withdrawn.
+    #
+    # WHAT MAKES IT ANSWERABLE, measured on QGIS 4.0.3, 2026-08-20:
+    # `addClass` inserts a degenerate (0.0, 0.0) class at index 0
+    # wearing the source symbol's grey, and EVERY SURVIVING CLASS
+    # KEEPS ITS BOUNDS BIT FOR BIT. So a colour can be matched back to
+    # the class it was painted on, exactly, with no tolerance at all.
+    #
+    # WRITTEN at the three places the plugin can honestly say it knows
+    # the ladder -- when it seeds a renderer (both paths), when it
+    # adopts a group whose layers it has only just met, and at the end
+    # of a dock edit it has finished attributing. NEVER on a follow:
+    # the follow brings the ROW up to the layer and runs BEFORE
+    # attribution, so refreshing there would record the dock's ladder
+    # as ours and declare every colour on it our own.
+    #
+    # NOT STAMPED, deliberately. A reopened project re-derives it at
+    # adoption from the layer in front of it, which is exactly what
+    # the baseline means -- "the ladder as we last understood it" --
+    # and it keeps the record out of `weavingspace_quant_style`, whose
+    # restore whitelist is the shape this project has already been bitten
+    # by twice. An ABSENT entry therefore means "we have never seen
+    # this element's ladder", which is not the same as "it has not
+    # moved" and is read that way at every site.
+    self._painted_ladders = {}
+    # {layer id: the last fingerprint taken while that layer's data
+    # was READABLE}. Ledger row 4 of 2026-08-20, a regression from the
+    # row-32 fix. `_layer_fingerprint` must not call `extent()` on a
+    # layer whose source has gone -- that segfaults QGIS outright --
+    # so it used to answer `("unavailable",)`, and THAT answer travels
+    # into `_geometry_signature`. A changed geometry signature means
+    # "re-tile", which is the one thing that cannot be done from data
+    # that has gone: `_restyle_only` declined and the refusal was
+    # discarded in silence, so a colour picked after the file moved
+    # was recorded, never painted and never mentioned.
+    #
+    # "The source has gone" is NOT "the design you asked for is
+    # different", and folding the two together made every reader of
+    # that signature treat a moved file as a design change. Answering
+    # with the last good reading keeps the signature still, so the
+    # restyle runs -- correctly, since it re-seeds renderers on tiles
+    # that already exist and needs nothing whatever from the region
+    # layer. The RUN still refuses, through `_generate`'s own direct
+    # call to `compat.layer_data_is_available`, which is where the
+    # refusal belongs and where the moved-file wording already lives.
+    self._last_good_fingerprint = {}
     # Class bounds a person set, {tile_id: {field: {"low": float,
     # "high": float}}}. Keyed by field as well as element, like the
     # hand-picked colours, so switching a variable away and back
@@ -2272,6 +2402,14 @@ class WeavingSpaceDialog(QDialog):
     self._nulls_cache = {}
     self._limit_cache = {}
     layer = self.layer_combo.currentLayer()
+    # CAPTURED BEFORE `_watch_layer` MOVES IT. One dataset being
+    # swapped for another is not the same act as choosing the first
+    # one: only the swap can RETAIN a setup made for other data, which
+    # is what `_settle_retained_schemes` below asks about. Reading
+    # `_watched_layer` after the watch is rearmed would answer about
+    # the layer we have just adopted.
+    switched = (layer is not None and self._watched_layer is not None
+                and layer is not self._watched_layer)
     # Hear the layer itself, not merely the fact that a different one
     # was chosen: a user editing in QGIS never touches this combo.
     if layer is not self._watched_layer:
@@ -2304,6 +2442,12 @@ class WeavingSpaceDialog(QDialog):
     # (synchronously, not on the preview debounce), and queue the
     # automatic first render
     self._rebuild_unit()
+    # ...and the table now standing there is asked whether a scheme it
+    # kept still makes sense on the new data. It runs AFTER the rebuild
+    # because it reads the rows that rebuild produced, and only on a
+    # swap, so nothing is asked of somebody choosing their first layer.
+    if switched:
+      self._settle_retained_schemes()
     self._queue_live()
     # ...AND AGAIN ONCE THE COMBO HAS SETTLED. QgsMapLayerComboBox
     # emits layerChanged as the project's layer list churns, and it
@@ -2653,9 +2797,21 @@ class WeavingSpaceDialog(QDialog):
       return None
     if not compat.layer_data_is_available(layer):
       # The source is gone -- a deleted file, a dropped connection.
-      # Reading extent() here would segfault QGIS outright, so the
-      # fingerprint says "unavailable" and lets the callers refuse.
-      return ("unavailable",)
+      # Reading extent() here would segfault QGIS outright, so nothing
+      # below this line may run.
+      #
+      # ANSWER WITH THE LAST GOOD READING rather than with a sentinel.
+      # A sentinel is a DIFFERENT value, so it moves the geometry
+      # signature, so the restyle path reads a vanished file as a
+      # changed design and declines -- silently. Standing still is the
+      # honest answer here: nothing about what the user asked for has
+      # changed, only whether it can be read, and that is a question
+      # `_generate` asks for itself before it tiles anything.
+      #
+      # The fallback stays `("unavailable",)` for a layer we never got
+      # to read at all, which is the safe default and the behaviour
+      # this replaced.
+      return self._last_good_fingerprint.get(layer.id(), ("unavailable",))
     count = layer.featureCount()
     if count < 0:
       # The provider does not know yet. Remote sources -- WFS, OGC API
@@ -2673,7 +2829,7 @@ class WeavingSpaceDialog(QDialog):
       # continuously -- across a network, with nobody watching.
       count = None
     ext = layer.extent()
-    return (
+    fingerprint = (
       count,
       # An EMPTY layer has no extent, and QGIS says so with DBL_MAX
       # sentinels rather than with zeros -- so `round()` on the width
@@ -2694,6 +2850,12 @@ class WeavingSpaceDialog(QDialog):
       tuple(f.name() for f in layer.fields()),
       layer.crs().authid(),
     )
+    # THE LAST READING TAKEN WHILE THE DATA WAS THERE, kept per layer
+    # id so switching the chooser cannot hand one layer's history to
+    # another. This is the only place a good reading is produced, so
+    # it is the only place that records one.
+    self._last_good_fingerprint[layer.id()] = fingerprint
+    return fingerprint
 
   def _data_is_unobservable(self) -> bool:
     """Whether this layer can change without the plugin being able to tell.
@@ -2961,6 +3123,26 @@ class WeavingSpaceDialog(QDialog):
       combo.blockSignals(True)
       combo.setCurrentText(now)
       combo.blockSignals(False)
+      # ...AND THE STYLE GOES WITH THE COLUMN, which is the same ruling
+      # as a change of region dataset and a THIRD door into it. The
+      # other two are answered in `_refresh_table`, which asks whether
+      # the element's remembered column is still in the layer -- and
+      # cannot see this one, because the loop above has just re-pointed
+      # the row at a column that IS. Measured 2026-08-20: deleting
+      # 'landcover' in QGIS moved the element to a numeric 'v2' and
+      # left the categorical scheme on it, so the map drew a colour for
+      # every distinct value while the notice below said only that the
+      # variable had changed.
+      mode_cell = self.table.cellWidget(row, 2)
+      instead = self._plausible_mode(now)
+      if mode_cell is not None and mode_cell.property("touched") \
+          and mode_cell.findText(instead) >= 0:
+        mode_cell.blockSignals(True)
+        mode_cell.setCurrentText(instead)
+        mode_cell.blockSignals(False)
+        mode_cell.setProperty("touched", False)
+        mode_cell.setProperty("last_style", instead)
+        self._sync_row(row)
       moved.append((was, now))
       # THE PICKS ARE KEPT, exactly as the graduated ones are. This
       # used to pop the categorical record for the vanished field,
@@ -3177,23 +3359,51 @@ class WeavingSpaceDialog(QDialog):
     render needs no button press; choosing a layer is enough.
     """
     if self._closed:
+      _dump("LIVE-GATE", "closed")
       return          # a shut window draws nothing
     self.live_note.setText("")
     if not self.live_check.isChecked():
+      _dump("LIVE-GATE", "live-update-off")
       return
     if self.gpkg_widget.filePath().strip() or \
         self.opt_new_group.isChecked():
+      _dump("LIVE-GATE", "gpkg-or-new-group")
       return
     if self._task is not None:
       self._live_pending = True
+      _dump("LIVE-GATE", "run-in-flight")
       return
     layer = self.layer_combo.currentLayer()
     if layer is None or self._unit is None:
+      _dump("LIVE-GATE", "no-layer-or-unit")
       return
     if not compat_layer_available(self, layer):
+      _dump("LIVE-GATE", "source-gone")
       # Same crash, reached from the live path -- and reachable long
       # before any of this session's changes: live update on, the file
       # deleted underneath, and QGIS is gone with no diagnostic.
+      #
+      # BUT THIS GUARD IS ABOUT TILING, AND THE EXIT BELOW IT IS ABOUT
+      # PAINTING. A restyle re-seeds renderers on tiles that already
+      # exist; it reads nothing from the region layer, which is
+      # exactly why picking a ramp after the file moved worked
+      # perfectly before the source ever came into question. Left as a
+      # bare refusal this stood in front of that exit, so a colour
+      # picked afterwards was recorded, never drawn, and explained by
+      # a sentence about the DATA when the fact was about the FILE
+      # (ledger row 4 of 2026-08-20). The rule it broke is one this
+      # project already had: a guard that asks about one thing must
+      # not stand in front of an exit that is about another.
+      #
+      # Nothing below this may read the layer -- `extent()` on a dead
+      # source segfaults QGIS -- so the restyle is tried HERE rather
+      # than by falling through. `_restyle_only` asks
+      # `layer_data_is_available` for itself, through
+      # `_layer_fingerprint`, and answers with the last good reading
+      # instead of touching the extent.
+      if self._restyle_only():
+        _dump("LIVE-GATE", "restyled-without-the-source")
+        return
       if not self._said_source_gone:
         self._said_source_gone = True
         self._report_quietly(
@@ -3201,6 +3411,7 @@ class WeavingSpaceDialog(QDialog):
           "cannot be updated.")
       return
     if self._data_is_unobservable():
+      _dump("LIVE-GATE", "unobservable")
       # Live update works by noticing that something changed. This
       # layer will not say, so the only way to keep up would be to
       # re-tile on every tick -- which for a remote source means
@@ -3214,6 +3425,7 @@ class WeavingSpaceDialog(QDialog):
           "cannot follow it. Press Generate to redraw.")
       return
     if not any(a["var"] for a in self._assignments()):
+      _dump("LIVE-GATE", "no-variable")
       return
     # THE EXTENT THE TILING WILL ACTUALLY SEE. This scaled degrees by
     # a flat 111,000, which understates a high-latitude map by up to
@@ -3221,6 +3433,7 @@ class WeavingSpaceDialog(QDialog):
     # this gate exists to enforce.
     ext = self._extent_in_working_units(layer)
     if ext is None:
+      _dump("LIVE-GATE", "no-extent")
       return
     bounds = (ext.xMinimum(), ext.yMinimum(),
               ext.xMaximum(), ext.yMaximum())
@@ -3239,12 +3452,16 @@ class WeavingSpaceDialog(QDialog):
     if est > bridge.LIVE_UPDATE_MAX_TILES:
       self.live_note.setText(
         f"live update paused (about {est:,} tiles); press Generate")
+      _dump("LIVE-GATE", "too-many-tiles")
       return
     if self._run_signature() == self._last_run_sig and \
         QgsProject.instance().layerTreeRoot().findGroup(
           self._group_name or "") is not None:
+      _dump("LIVE-GATE", "same-signature")
       return  # nothing changed since the last run
+    _dump("LIVE-GATE", "reached-restyle")
     if self._restyle_only():
+      _dump("LIVE-GATE", "restyled")
       return  # only the colours changed: done already, no tiling
     self._generate(live=True)
 
@@ -4250,6 +4467,18 @@ class WeavingSpaceDialog(QDialog):
       # the ramp behind.
       pinned = (self._pinned_bounds.get(row_tid, {}).get(var)
                 if mode == "Graduated" and var and row_tid else None)
+      # THE SCHEME CELL ANSWERS A DIFFERENT QUESTION FROM THE RAMP
+      # CELL, and the two are decided together here so they cannot
+      # drift. The ramp cell asks whether the COLOURS are still the
+      # ramp's; this asks whether the BOUNDARIES are still the
+      # scheme's. A stored `breaks` ladder means they are not --
+      # somebody retyped them in QGIS's panel, or copied a whole
+      # classification across -- so the cell stops naming a scheme
+      # the map is no longer cut by. Pins alone leave it naming the
+      # scheme, since the scheme still cuts everything between them.
+      mode_cell = self.table.cellWidget(row, 2)
+      if mode_cell is not None and hasattr(mode_cell, "set_custom_display"):
+        mode_cell.set_custom_display(bool((pinned or {}).get("breaks")))
       if show_custom:
         ramp_cell.set_custom_display(
           self._custom_swatch_for(row_tid, var))
@@ -4406,18 +4635,36 @@ class WeavingSpaceDialog(QDialog):
         self._refresh_preview_colours)
       self.table.setCellWidget(row, 1, var_combo)
 
-      mode_combo = QComboBox()
+      mode_combo = ModeCombo()
       mode_combo.addItems(self.MODES)
       mode_combo.setToolTip(
         "How this element is symbolized; adjustable later in the "
         "Layer Styling panel.")
       mode_combo.setCurrentText(self._plausible_mode(
         var_combo.currentText()))
+      # A STYLE SOMEBODY CHOSE IS RESTORED, UNLESS ITS COLUMN HAS GONE.
+      # The maintainer's ruling of 2026-08-20 on a change of region
+      # dataset is that a setup is KEPT where the new data has a column
+      # of that name and DROPPED where it does not -- and the scheme is
+      # half of that setup. Until this line the variable re-defaulted
+      # while the scheme rode along, so a categorical style cut for four
+      # land-cover words landed on a column of areas in square metres
+      # and drew a colour for each. That is the report this rule exists
+      # for, and both registered tests missed it because their fixtures
+      # never touched the style, leaving the plugin to re-derive it.
+      #
+      # THE FIELDLESS BUILD IS EXCLUDED, for the reason recorded at the
+      # end of this method: a table built when the chooser had not
+      # settled has no fields at all, and reading that as "every column
+      # has gone" would throw away every style in the window.
+      column_gone = bool(fields) and prev is not None \
+          and prev.get("var") is not None and prev["var"] not in fields
       if prev and prev.get("mode_raw") in self.MODES \
-          and prev.get("style_touched"):
+          and prev.get("style_touched") and not column_gone:
         mode_combo.setCurrentText(prev["mode_raw"])
       mode_combo.setProperty(
-        "touched", bool(prev and prev.get("style_touched")))
+        "touched", bool(prev and prev.get("style_touched")
+                        and not column_gone))
       mode_combo.setProperty("tile_id", tid)
       # the baseline the scheme-change destruction compares against;
       # kept current in _on_mode_chosen
@@ -5863,6 +6110,118 @@ class WeavingSpaceDialog(QDialog):
     return [(r.lowerValue(), r.upperValue(), r.symbol().color().name())
             for r in renderer.ranges()]
 
+  def _remember_painted_ladder(self, layer, tile_id):
+    """Record the graduated ladder this layer is now wearing as OURS.
+
+    Args:
+      layer: the element output layer, just painted by the plugin (or
+        just met, on adoption).
+      tile_id: the element it carries.
+
+    THE FIELD COMES OFF THE RENDERER, not off the row, and that is
+    deliberate: the ladder belongs to whatever column the renderer
+    actually classifies, the row can be mid-follow, and adoption has
+    no row to consult at all. One source, so the two cannot disagree.
+
+    Returns:
+      None. Writes ``_painted_ladders[tile_id][field]`` as
+      ``[(lower, upper, "#rrggbb"), ...]`` read straight off the
+      layer's renderer, which is the only honest source: what we
+      MEANT to paint and what QGIS actually holds can differ wherever
+      a classifier reduced, snapped or collapsed something.
+
+    CALL THIS WHEREVER THE PLUGIN PAINTS, and nowhere else. The three
+    places are both ``seed_renderer`` sites and group adoption; a
+    fourth painting path added later must call it too, or that
+    element's dock edits will all read as unattributable and be
+    declined. Never call it from ``_row_follows_the_renderer``: the
+    follow runs BEFORE attribution and moves the row rather than the
+    layer, so refreshing there would record whatever the dock left as
+    our own and silently disarm the whole mechanism.
+    """
+    # imported here rather than at module scope, as its two siblings
+    # in this file already are
+    from qgis.core import QgsGraduatedSymbolRenderer
+    if layer is None or not tile_id:
+      return
+    renderer = layer.renderer()
+    if not isinstance(renderer, QgsGraduatedSymbolRenderer):
+      return
+    field = renderer.classAttribute()
+    if not field:
+      return
+    # Bound to a name before it is subscripted: a range reached
+    # through a temporary is freed under you, which this project has
+    # now paid for three times -- most recently in the very probe
+    # written to measure this defect.
+    rows = renderer.ranges()
+    ladder = [(one.lowerValue(), one.upperValue(),
+               one.symbol().color().name().lower()) for one in rows]
+    if ladder:
+      self._painted_ladders.setdefault(str(tile_id), {})[field] = ladder
+
+  def _colour_is_ours(self, tile_id, field, lower, upper, colour):
+    """Did the PLUGIN put this colour on this class, or did a person?
+
+    Args:
+      tile_id: the element being judged.
+      field: the column its ladder classifies.
+      lower: the class's lower bound, as the layer holds it now.
+      upper: its upper bound.
+      colour: the colour it is wearing now, "#rrggbb".
+
+    Returns:
+      True when this colour is one the plugin painted, False when it
+      is a person's, and None when there is NO RECORD of this
+      element's ladder at all -- which is not the same answer and must
+      not be collapsed into either. A caller meeting None knows only
+      that it cannot say.
+
+    TWO QUESTIONS, and both are needed. The first is by BOUNDS: this
+    class is one we painted and still wears the colour we gave it.
+    That is exact -- measured 2026-08-20, a class surviving an insert
+    keeps its bounds bit for bit -- and it is what recognises a class
+    QGIS merely renumbered.
+
+    The second is by VALUE: the colour is one the stored ladder used
+    somewhere. That is what carries a RETYPE, where every bound moves
+    at once and no class can be matched by position, while the colours
+    on them are still every one of them ours.
+
+    THE ACCEPTED RESIDUAL (maintainer's decision, 2026-08-20): a
+    person who deliberately picks a colour the ladder already uses
+    elsewhere -- to make two classes read as one -- is judged to be
+    us, and their pick is declined. It is declined OUT LOUD, by the
+    notice the caller composes, rather than silently; and the colour
+    editor remains the unambiguous way to say it. Widening this to
+    catch that case would mean giving up the retype, which is the far
+    commoner act.
+    """
+    known = (self._painted_ladders.get(tile_id) or {}).get(field)
+    if not known:
+      return None
+    here = colour.lower()
+    # EVERY CLASS AT THESE BOUNDS, not the first one found. A ladder
+    # may hold SEVERAL classes with identical bounds and this project
+    # meets them constantly: a constant column, a tied column, and
+    # `{1, 5, 9}` at k=5, which returns three degenerate ranges. QGIS's
+    # own `addClass` then inserts a (0.0, 0.0) class, so on a fixture
+    # whose first real class is also (0.0, 0.0) the two collide.
+    #
+    # Measured 2026-08-20 against this very function's first draft,
+    # which returned on the first match: the plugin's own #fff5f0 was
+    # compared against the placeholder grey sharing its bounds, judged
+    # changed, and adopted as a hand-pick. Four passing tests did not
+    # see it; driving the product and printing the store did.
+    at_these_bounds = [was for low, high, was in known
+                       if abs(low - lower) < 1e-9 and abs(high - upper) < 1e-9]
+    if at_these_bounds:
+      return here in at_these_bounds
+    # No class of ours ever had these bounds, so every bound has moved
+    # -- which is what a RETYPE looks like. Fall back to asking whether
+    # the colour is one we used anywhere on this ladder.
+    return any(was == here for _low, _high, was in known)
+
   def _custom_swatch_for(self, tile_id, field):
     """The swatch for one element's Custom display.
 
@@ -6160,34 +6519,6 @@ class WeavingSpaceDialog(QDialog):
       except Exception:
         continue
 
-  def changeEvent(self, event):
-    """React when the dialog becomes the active window again.
-
-    Args:
-      event: the QEvent Qt hands every widget; only ActivationChange
-        is acted on here, and only in the activating direction.
-
-    Returns:
-      None. Coming back to this window after working in QGIS's
-      styling panel is the moment a person expects the table to
-      describe what they just did -- and an in-place dock edit emits
-      no style signal at all (see _watch_element_layer), so the
-      repaint hook is the only LIVE route and this is its backstop:
-      a session where the repaint was missed (a signal dropped, a
-      route nobody has met yet) still reconciles the moment the user
-      looks. Queued through the same debounce so activation and a
-      trailing repaint coalesce into one read.
-    """
-    super().changeEvent(event)
-    if event.type() != QEvent.Type.ActivationChange or not self.isActiveWindow():
-      return
-    if _dialog_is_gone(self) or _live_dialog() is not self:
-      return
-    for tile_id, layer_id in self._element_layer_ids.items():
-      self._repaint_pending.setdefault(str(tile_id), layer_id)
-    if self._repaint_pending:
-      self._repaint_timer.start()
-
   def _ramp_match(self, ramp):
     """Name a colour ramp, allowing for one that has been reversed.
 
@@ -6418,22 +6749,21 @@ class WeavingSpaceDialog(QDialog):
     # stale those guards fired first and the edit was dropped on the
     # floor. Bringing the row up to date here makes them the
     # colour-refinement handlers they were always meant to be.
-    # ...AND THE COUNT IS READ ON BOTH SIDES OF IT, because bringing
-    # the row up to date DISARMS the colour handler's own guard
-    # against a reclassification. That guard is `len(expected) !=
-    # len(actual)`, and `expected` is built from the row -- so once
-    # the row has followed to six classes it matches the layer's six
-    # and the guard that exists to leave a count change alone cannot
-    # fire. Measured from a maintainer's dump on 2026-08-20. The
-    # follow is still right and still runs first; what it must also do
-    # is SAY that the count moved, so the handler below can decline
-    # the one thing that stops making sense when it does.
-    counted_before = self._class_counts.get(tile_id)
+    # ...AND THE COLOUR HANDLER BELOW NO LONGER NEEDS TO BE TOLD WHAT
+    # THIS DID. Bringing the row up to date disarms that handler's own
+    # count guard -- `len(expected) != len(actual)`, where `expected`
+    # is built from the ROW, so once the row has followed to six
+    # classes it matches the layer's six. The first repair passed a
+    # `count_moved` flag measured on both sides of this call, and that
+    # flag was a DELTA: true on the signal carrying the change and
+    # false on every signal after it, with three routes to a second
+    # pass (ledger row 2 of 2026-08-20). It is gone. The handler now
+    # asks a question the state can answer at ANY moment -- is this
+    # colour one we painted -- against `_painted_ladders`.
     self._row_follows_the_renderer(tile_id, renderer)
-    count_moved = self._class_counts.get(tile_id) != counted_before
     if isinstance(renderer, QgsGraduatedSymbolRenderer):
       # the graduated mirror of everything below (settled 2026-08-09)
-      self._graduated_layer_edited(layer, tile_id, renderer, count_moved)
+      self._graduated_layer_edited(layer, tile_id, renderer)
       return
     if not isinstance(renderer, QgsCategorizedSymbolRenderer):
       return
@@ -6504,7 +6834,33 @@ class WeavingSpaceDialog(QDialog):
         for c in trial.categories() if c.value() is not None}
       dock_colours = {key: colour for key, colour in actual.items()
                       if key != bridge.NO_DATA_KEY}
-      if dock_colours == trial_colours:
+      # THE CATCH-ALL IS ASKED ABOUT TOO, and dropping it from BOTH
+      # sides is ledger row 5, shipping since 2026-08-10. It was
+      # dropped for a real reason -- `trial` is built from the ramp
+      # alone and its catch-all is the plugin's default, which says
+      # nothing about a ramp -- but the effect was that an edit
+      # touching ONLY the catch-all compared EQUAL to a clean
+      # Classify. The handler then announced that the element "now
+      # follows" a ramp nobody had chosen, cleared the user's picks,
+      # and repainted those areas the default grey at the next
+      # Generate.
+      #
+      # ASKED AGAINST `expected` RATHER THAN AGAINST `trial`, because
+      # the question is not what the RAMP would put there -- the ramp
+      # has no opinion about the catch-all -- but whether this class
+      # is still drawing what THIS ELEMENT would draw, default or
+      # earlier pick alike. A clean Classify leaves it alone, so the
+      # follow branch loses nothing; a recolour moves it, which is
+      # exactly the difference these two branches exist to tell apart.
+      #
+      # Unknown on either side does not block the follow: absence of
+      # evidence is not evidence of a pick, which is a mistake this
+      # project made in the other direction three days ago.
+      here = actual.get(bridge.NO_DATA_KEY)
+      ours = expected.get(bridge.NO_DATA_KEY)
+      catch_all_moved = (here is not None and ours is not None
+                         and here.lower() != ours.lower())
+      if dock_colours == trial_colours and not catch_all_moved:
         # cleared here as well as in the combo handler, because when
         # the dock re-applied the ramp the dialog already names,
         # setCurrentText below fires no signal and the picks would
@@ -6923,6 +7279,7 @@ class WeavingSpaceDialog(QDialog):
     # _finishing, which is older than this method and was protecting
     # real behaviour that must not be weakened to fit an addition.
     if getattr(self, "_applying_style", False):
+      _dump("BOUNDS", tile_id, "applying-style")
       return
     # A RUN IN FLIGHT DEFERS THE ADOPTION; IT NO LONGER DISCARDS IT.
     # The rest conditions are right and stay: what sits on the layer
@@ -6958,28 +7315,70 @@ class WeavingSpaceDialog(QDialog):
       if count and count == len(bounds):
         self._adoption_deferred[tile_id] = (
           dict(assignment), list(bounds), list(colours))
+      _dump("BOUNDS", tile_id, "in-flight, deferred=",
+            tile_id in self._adoption_deferred)
       return
     field = assignment["var"]
     if not bounds or len(bounds) < 2:
+      _dump("BOUNDS", tile_id, "too-few", len(bounds or ()))
       return
     mine = self._current_graduated_classes(assignment)
     # A CHANGED COUNT IS A RECLASSIFICATION, which this must not
     # touch: the handler leaves one alone and the signature rule
     # preserves it.
     if not mine or len(mine) != len(bounds):
+      _dump("BOUNDS", tile_id, "count", len(mine or ()), "vs",
+            len(bounds))
       return
     # ONLY WHEN THE COLOURS DID NOT MOVE, which is what separates a
     # hand RETYPE from a dock CLASSIFY. Classify picks a ramp and
     # rewrites both; the colour machinery already follows that and
     # recomputes the breaks, so pinning them here freezes a ladder
     # nobody chose.
-    if [c.lower() for _lo, _hi, c in mine] != [c.lower() for c in colours]:
+    ours = [c.lower() for _lo, _hi, c in mine]
+    theirs = [c.lower() for c in colours]
+    if ours != theirs and all(a != b for a, b in zip(ours, theirs)):
+      # A WHOLESALE REPAINT IS A CLASSIFY; A PARTIAL ONE IS SOMEBODY'S
+      # HAND. The guard used to demand that NO colour had moved, which
+      # is right about a Classify -- it picks a ramp and rewrites every
+      # class -- and wrong about the visit where a person retypes a
+      # boundary AND recolours a class. That satisfied neither branch,
+      # so the boundary was never recorded here (ledger row 6).
+      #
+      # WHAT IT STILL REFUSES is unchanged: a ramp chosen in the dock
+      # moves every class, so the ladder it computed is not pinned and
+      # the colour machinery goes on recomputing the breaks. What it
+      # now allows is the case where SOME classes still wear the
+      # colours the plugin painted, which no Classify produces.
+      #
+      # THE COST, said plainly: recolouring every class one at a time
+      # in a single visit reads as a Classify and its boundaries are
+      # not adopted. That is the honest edge of a two-way question,
+      # and it fails towards not pinning a ladder nobody chose.
+      #
+      # WHY IT MATTERED EVEN THOUGH THE BOUNDARY SURVIVED. Measured
+      # 2026-08-20 with the gate dumps: the first signal declined here
+      # and a SECOND, echoed by the colour adoption's own stamping,
+      # adopted the bounds a moment later. So the record was right by
+      # an accident of ordering -- which is the very shape this ledger
+      # row exists to name, arriving in the repair rather than in the
+      # bug. A promise kept by an echo is not kept.
+      # HYPHENATED, like every other gate label here. Written as
+      # "classify: every colour moved" it read as a SENTENCE to
+      # `text_review.py`, which collects prose-looking literals, and
+      # duly arrived in the maintainer's review queue -- a diagnostic
+      # asking to be approved as user-facing text. The `_dump`
+      # docstring already says short labels are not prose; the fix is
+      # to write a label, not to widen the collector's filter.
+      _dump("BOUNDS", tile_id, "classify-every-colour-moved")
       return
     if all(abs(lo - a) < 1e-9 and abs(hi - b) < 1e-9
            for (lo, hi, _c), (a, b) in zip(mine, bounds)):
+      _dump("BOUNDS", tile_id, "unchanged")
       return  # the ladder we drew; nothing was retyped
     wanted = dict(self._pinned_bounds.get(tile_id, {}).get(field) or {})
     wanted["breaks"] = [upper for _lower, upper in bounds[:-1]]
+    _dump("BOUNDS", tile_id, "adopting", wanted["breaks"])
     # A PIN THE ADOPTED LADDER STILL CARRIES IS KEPT, and until
     # 2026-08-19 both were dropped unconditionally. `low` and `high`
     # name boundaries BETWEEN classes, and adopting a ladder that
@@ -7148,6 +7547,24 @@ class WeavingSpaceDialog(QDialog):
         self._stamp_category_colours(layer_now, refreshed)
         if self._last_path:
           bridge.embed_style(layer_now)
+    # ...AND THE ROW IS TOLD, which is what makes the Style cell read
+    # Custom. That cell is decided in `_sync_row`, whose callers are
+    # the dynamic-column pass (reached from `_queue_live`) and the
+    # deferral refresh -- neither of which a dock edit goes anywhere
+    # near. So the record held a ladder somebody else cut while the
+    # cell went on naming the scheme: a UNIT-TESTED MECHANISM WITH AN
+    # UNDRIVEN CALLER, which is a motionless axis and a shape this
+    # project has met before at `unworn_classes`.
+    #
+    # LAST, and contained. This runs inside a Qt slot where an
+    # exception is swallowed, so anything placed ahead of the record
+    # and the stamp above could cancel them with no trace.
+    try:
+      row = self._row_for_element(tile_id)
+      if row is not None and row >= 0:
+        self._sync_row(row)
+    except Exception:
+      pass
 
   def _replay_deferred_adoptions(self):
     """Adopt the dock edits that arrived while a run was in flight.
@@ -7218,22 +7635,13 @@ class WeavingSpaceDialog(QDialog):
         # the rest of the loop with it.
         continue
 
-  def _graduated_layer_edited(self, layer, tile_id, renderer,
-                              count_moved=False):
+  def _graduated_layer_edited(self, layer, tile_id, renderer):
     """React to a styling-dock edit of a GRADUATED element layer.
 
     Args:
       layer: the element output layer whose style changed.
       tile_id: the element it carries.
       renderer: its QgsGraduatedSymbolRenderer, already checked.
-      count_moved: whether this edit changed HOW MANY classes the
-        element has, measured by the caller on both sides of
-        ``_row_follows_the_renderer``. Positional colours are not
-        adopted when it did. KNOWN INCOMPLETE, ledger row 2 of
-        2026-08-20: it is a DELTA, so it holds on the signal carrying
-        the change and on no signal after it, and three routes reach a
-        second pass. Defaults to False so a direct caller keeps the
-        old behaviour.
 
     Returns:
       None. The graduated mirror of the categorized watcher, settled
@@ -7324,6 +7732,12 @@ class WeavingSpaceDialog(QDialog):
           [(r.lowerValue(), r.upperValue()) for r in live], actual)
       except Exception:
         pass
+      # THE LAYER NOW WEARS A LADDER WE ARE CALLING OURS, so it
+      # becomes the baseline the next dock edit is judged against.
+      # This exit is reached for our own seeding AND for a clean
+      # Classify from a named ramp, and in both cases the plugin has
+      # just agreed that what is on the layer is what it would draw.
+      self._remember_painted_ladder(layer, tile_id)
       _dump("DROP", tile_id, "clean-classify")
       return  # our own seeding, or an edit that changed no colour
     if len(expected) != len(actual):
@@ -7492,21 +7906,46 @@ class WeavingSpaceDialog(QDialog):
     source = renderer.sourceSymbol()
     template = source.color().name() if source is not None else None
     adopted = 0
-    if not count_moved:
-      for index, colour in enumerate(actual):
-        # A user who genuinely wants the template's colour picks it on
-        # a class QGIS did not just create, and that pick is adopted
-        # by the next edit; what is declined here is a colour
-        # identical to the template on the very edit that clones it.
-        if colour == template:
-          continue
-        if expected[index] != colour and record.get(str(index)) != colour:
-          record[str(index)] = colour
-          adopted += 1
+    unattributable = 0
+    # THE WALK ASKS THE STORE, NOT THE INDEX. Bound to a name before
+    # it is subscripted, for the reason recorded three times in this
+    # project: a range reached through a temporary is freed under you.
+    rows = renderer.ranges()
+    for index, one in enumerate(rows):
+      colour = one.symbol().color().name()
+      # A user who genuinely wants the template's colour picks it on
+      # a class QGIS did not just create, and that pick is adopted
+      # by the next edit; what is declined here is a colour
+      # identical to the template on the very edit that clones it.
+      if colour == template:
+        continue
+      ours = self._colour_is_ours(
+        tile_id, field, one.lowerValue(), one.upperValue(), colour)
+      if ours is None:
+        # NO RECORD OF THIS ELEMENT'S LADDER AT ALL, which is not the
+        # same as "unchanged" and is not read as either. Declining is
+        # the conservative half of the maintainer's decision of
+        # 2026-08-20, and the notice below is the other half: the loss
+        # is visible before the next Generate rather than after it.
+        unattributable += 1
+        continue
+      if ours:
+        continue
+      if record.get(str(index)) != colour:
+        record[str(index)] = colour
+        adopted += 1
     _dump("ADOPTCOLOUR", tile_id, "adopted=", adopted,
-          "count_moved=", count_moved,
+          "unattributable=", unattributable,
+          "known=", len((self._painted_ladders.get(tile_id) or {}).get(field)
+                        or []),
           "expected=", expected, "actual=", actual)
+    if unattributable:
+      self._report_quietly(
+        bridge.declined_colours_message(tile_id, unattributable))
     if not adopted:
+      # nothing was taken up, but the ladder in front of us is still
+      # what we now understand this element to be wearing
+      self._remember_painted_ladder(layer, tile_id)
       return
     self._custom_swatch_cache.pop(tile_id, None)
     # the layer already wears these colours; recording the signature
@@ -7534,6 +7973,11 @@ class WeavingSpaceDialog(QDialog):
     self._report_quietly(
       f"Element '{tile_id}' keeps the {adopted} colour(s) set in "
       f"QGIS; its ramp cell now reads Custom.")
+    # LAST, and after the record has been written: the adopted colours
+    # are now part of what this element is understood to be wearing,
+    # so a second signal carrying the same ladder finds nothing new
+    # rather than adopting it again.
+    self._remember_painted_ladder(layer, tile_id)
     self._refresh_preview_colours()
 
   def _template_for(self, token):
@@ -7600,8 +8044,11 @@ class WeavingSpaceDialog(QDialog):
           .setdefault(field, {})[str(value)] = colour
       self._apply_style_change()
 
-    editor = CategoryColourDialog(tile_id, field, order, colours,
-                                  picked, self)
+    editor = CategoryColourDialog(
+      tile_id, field, order, colours, picked, self,
+      copy_targets=self._copy_targets(tile_id, categorical=True),
+      copy_to=lambda targets: self._copy_categories_to_many(
+        tile_id, targets))
     # HELD while it is open, and only for the length of exec(), so
     # deferral beginning underneath can close it. QGIS stays live
     # while this window is modal to the plugin dialog, so a user
@@ -7824,6 +8271,362 @@ class WeavingSpaceDialog(QDialog):
       this is that function with a list of one.
     """
     return self._copy_classification_to_many(source_id, [target_id])
+
+  def _distinct_values(self, field):
+    """How many distinct values a column holds, or None when unknown.
+
+    Args:
+      field: the column name to count.
+
+    Returns:
+      An int, or None when no layer can answer -- in which case no
+      caller may refuse anything, since absence of evidence is not
+      evidence of a large number.
+
+    Asked of `_classification_values`, which is the geometry-less
+    scratch layer the whole map is classified from, so this counts the
+    values a categorical style would actually DRAW rather than the
+    ones one element's tiles happen to carry.
+    """
+    source = self._classification_values(field)
+    if source is None:
+      return None
+    try:
+      return len(source.uniqueValues(source.fields().indexOf(field)))
+    except Exception:
+      return None
+
+  def _many_categories_is_wanted(self, field, count):
+    """Ask before drawing one colour for every value of a large column.
+
+    Args:
+      field: the receiving column, named in the question.
+      count: how many distinct values it holds.
+
+    Returns:
+      True when the user says draw it anyway, False when they decline.
+
+    WHY THIS IS A QUESTION AND NOT A REFUSAL. A column of a hundred
+    and twenty codes is a perfectly reasonable thing to categorize,
+    and only the person looking at it knows whether their legend can
+    carry it. What is NOT reasonable is finding out by watching QGIS
+    draw three thousand swatches, which is what happened before this
+    existed.
+
+    A MODAL IS ALLOWED HERE, where the generation paths forbid one:
+    this is reached from a copy somebody asked for, inside a window
+    that is already modal to the dialog, so nothing is blocked that
+    was not already waiting on them.
+    """
+    from qgis.PyQt.QtWidgets import QMessageBox
+    answer = QMessageBox.question(
+      self, "WeavingSpace",
+      f"'{field}' holds {count:,} distinct values. Draw a colour for "
+      f"each?")
+    return answer == QMessageBox.StandardButton.Yes
+
+  def _settle_retained_schemes(self):
+    """Ask about a categorical scheme kept across a change of dataset.
+
+    Returns:
+      None. Elements whose retained scheme the user declines are moved
+      to a style the new column can honestly carry, and the change is
+      reported.
+
+    THE SECOND DOOR INTO "TOO MANY CATEGORIES", and it shares its
+    number with the first (`bridge.MANY_CATEGORIES`, asked by the copy)
+    on the maintainer's ruling of 2026-08-20: one thing to explain and
+    one thing to guard. A column that keeps its NAME across a change of
+    region dataset keeps its element's setup -- and nothing about a
+    name says the values are the same kind of thing, so a scheme cut
+    for four words can meet three thousand floats and draw a colour,
+    a legend line and a swatch for each.
+
+    ONLY A SCHEME SOMEBODY CHOSE IS ASKED ABOUT. Where the plugin
+    picked the style itself, `_refresh_table` has already re-derived it
+    from the new column's type and there is nothing to retain; asking
+    then would be asking about the plugin's own choice. So this is
+    narrow by construction, which is what keeps a question from
+    becoming a thing people click through.
+
+    A MODAL IS ALLOWED HERE for the same reason it is allowed on the
+    copy: the user has just picked a layer, so nothing is blocked that
+    was not already waiting on them, and no generation path runs
+    through this.
+    """
+    fields = self._layer_fields()
+    if not fields:
+      return
+    # Grouped by COLUMN, because the question and the answer are both
+    # about the column: two elements retaining a scheme on one field
+    # are one question, and they take the same fallback.
+    wanted = {}
+    for row in range(self.table.rowCount()):
+      identifier = self.table.item(row, 0)
+      mode_cell = self.table.cellWidget(row, 2)
+      var_cell = self.table.cellWidget(row, 1)
+      if identifier is None or mode_cell is None or var_cell is None:
+        continue
+      if not mode_cell.property("touched"):
+        continue
+      if mode_cell.currentText() != "Categorized":
+        continue
+      field = var_cell.currentText()
+      if not field or field not in fields:
+        continue
+      wanted.setdefault(field, []).append((row, identifier.text()))
+    for field, rows in wanted.items():
+      count = self._distinct_values(field)
+      if count is None or count <= bridge.MANY_CATEGORIES:
+        continue
+      if self._many_categories_is_wanted(field, count):
+        continue
+      # DECLINED: the element must not be left drawing what they just
+      # refused. A numeric column falls back to its plausible style,
+      # which is a graduated one; a TEXT column has no quantitative
+      # answer -- one never stands on a text field -- so the honest
+      # fallback there is a single fill, which is the other way of
+      # saying "not a colour for every value".
+      instead = self._plausible_mode(field)
+      if instead == "Categorized":
+        instead = "Single colour"
+      moved = []
+      for row, tile_id in rows:
+        mode_cell = self.table.cellWidget(row, 2)
+        if mode_cell is None or mode_cell.findText(instead) < 0:
+          continue
+        mode_cell.blockSignals(True)
+        mode_cell.setCurrentText(instead)
+        mode_cell.blockSignals(False)
+        mode_cell.setProperty("touched", False)
+        mode_cell.setProperty("last_style", instead)
+        # EVERY row that moved, not the first: the class-source cell
+        # and the Classes spinner belong to the style, so a row left
+        # unsynced goes on offering controls for a scheme it no
+        # longer carries.
+        self._sync_row(row)
+        moved.append(tile_id)
+      if moved:
+        self._report_quietly(
+          f"'{field}' holds {count:,} distinct values in this layer, "
+          f"so {self._name_them(moved).lower()} "
+          f"{'shows' if len(moved) == 1 else 'show'} it as "
+          f"{instead} rather than a colour for each value.")
+
+  def _copy_categories_to_many(self, source_id, target_ids):
+    """Send one element's CATEGORICAL scheme to several others.
+
+    Args:
+      source_id: the element whose editor is open.
+      target_ids: the elements to copy onto, in the order the chooser
+        offered them. A list of one is the ordinary single copy.
+
+    Returns:
+      None when at least one target took the copy, or a message when
+      none did. As with the graduated twin, the message is put on the
+      note line here, because the editor discards what this returns.
+
+    WHAT TRAVELS, and it is the maintainer's ruling of 2026-08-20: the
+    copy OVERWRITES the target -- its style, its ramp, its Reverse, its
+    per-value colours including the catch-all, and its class source,
+    which travels as a FILE REFERENCE so the two elements go on
+    agreeing as that file changes.
+
+    WHAT NEVER TRAVELS, four things:
+
+    * the VARIABLE. Carrying it would make the target a duplicate of
+      the source, and a map whose whole purpose is reading several
+      variables against each other would quietly lose one.
+    * the OPACITY, as through every other change of scheme.
+    * the OUTLINE, which decides whether tile EDGES are drawn and is
+      not a colour.
+    * the records of the style the row is NOT wearing -- pinned
+      bounds, breaks, floor, ceiling, the remembered class count, the
+      single colour. Kept, and kept SILENTLY, so a row switched back
+      to a quantitative style finds its work where it left it.
+
+    VALUES THE RECEIVING COLUMN DOES NOT HOLD ARE KEPT rather than
+    dropped, on the same reasoning the graduated copy already uses: a
+    copy reproduces a classification, and a silently shortened one
+    does not. `make_categorized_renderer` builds the classes from the
+    target's OWN values and applies an override where the value
+    matches, so a colour for a value this column lacks simply waits.
+    THE CASE THIS IS REALLY FOR is a column typed numeric that is
+    genuinely categorical -- land-cover codes and the like -- where
+    the colours land because the record keys on the value as text.
+
+    AND IT ASKS FIRST above `bridge.MANY_CATEGORIES` distinct values,
+    because a continuous column would otherwise be drawn with one
+    colour, one legend line and one swatch per value.
+    """
+    source = self._assignment_for(source_id)
+    if source is None or not source.get("var"):
+      return self._say_and_return("That element has nothing to copy.")
+    field = source["var"]
+    picks = dict((self._category_colours.get(source_id, {})
+                  .get(field) or {}))
+    taken, refused, notes = [], [], []
+    for target_id in target_ids:
+      target = self._assignment_for(target_id)
+      if target is None or not target.get("var"):
+        refused.append((
+          target_id,
+          ("has no variable to colour; assign one first",
+           "have no variable to colour; assign one first")))
+        continue
+      their_field = target["var"]
+      count = self._distinct_values(their_field)
+      if count is not None and count > bridge.MANY_CATEGORIES \
+          and not self._many_categories_is_wanted(their_field, count):
+        refused.append((target_id, ("was left alone", "were left alone")))
+        continue
+      unsent = self._write_categorical_style(
+        target_id, target, source, picks)
+      taken.append(target_id)
+      if unsent:
+        notes.append((None, unsent))
+      missing = [value for value in picks
+                 if value != bridge.NO_DATA_KEY
+                 and not self._column_holds(their_field, value)]
+      if missing:
+        # A WHOLE CLAUSE NEEDS ITS OWN SENTENCE. The maintainer's
+        # wording -- "kept N colours for values 'x' does not have" --
+        # has its own verb, so slotting it into the frames the
+        # GRADUATED copy uses for noun phrases produced "Element 'b'
+        # gave up kept 5 colours..." on every copy that lost a value.
+        # Measured on the composed message, 2026-08-20; the `None`
+        # note is the mechanism that already exists for a sentence
+        # naming its own element.
+        notes.append((None,
+                      f" Element '{target_id}' kept {len(missing)} "
+                      f"{'colour' if len(missing) == 1 else 'colours'} "
+                      f"for values '{their_field}' does not have."))
+
+    message = self._copy_report(source_id, taken, refused, notes)
+    if not taken:
+      return self._say_and_return(message)
+    self._apply_style_change()
+    self._report_quietly(message)
+    return None
+
+  def _column_holds(self, field, value):
+    """Whether a column carries this value, compared as TEXT.
+
+    Args:
+      field: the column to look in.
+      value: the value key from a colour record, already a string.
+
+    Returns:
+      True when the column holds it, False when it does not, and True
+      when nothing can answer -- an unknown must not be reported to
+      the user as a value that failed to travel.
+
+    COMPARED AS TEXT because that is how the record is keyed:
+    `_category_colours` stores `str(value)`, which is exactly why a
+    numeric column of category CODES receives a categorical copy
+    perfectly well while a continuous one receives almost none of it.
+    """
+    source = self._classification_values(field)
+    if source is None:
+      return True
+    try:
+      held = source.uniqueValues(source.fields().indexOf(field))
+    except Exception:
+      return True
+    return str(value) in {str(one) for one in held}
+
+  def _write_categorical_style(self, target_id, target, source, picks):
+    """Put the source's categorical scheme onto one target's row.
+
+    Args:
+      target_id: the element receiving the copy.
+      target: its assignment dict, for the variable this must not touch.
+      source: the sending element's assignment.
+      picks: the per-value colours to write, catch-all included.
+
+    Returns:
+      None. Writes the RECORD and the ROW; the caller repaints once
+      for the whole act.
+
+    THE ROW IS MARKED AS TOUCHED, or the next rebuild throws the style
+    away: `_refresh_table` restores a mode only when `style_touched` is
+    set and otherwise re-derives it from the variable's type. That is
+    not a fudge to get past a guard -- the flag means somebody chose
+    this rather than the plugin guessing, and somebody did.
+    """
+    their_field = target["var"]
+    if picks:
+      self._category_colours.setdefault(target_id, {})[their_field] = \
+          dict(picks)
+    self._custom_swatch_cache.pop(target_id, None)
+    row = self._row_for_element(target_id)
+    if row is None or row < 0:
+      return
+    mode_cell = self.table.cellWidget(row, 2)
+    if mode_cell is not None and hasattr(mode_cell, "findText") \
+        and mode_cell.findText("Categorized") >= 0:
+      mode_cell.blockSignals(True)
+      mode_cell.setCurrentText("Categorized")
+      mode_cell.blockSignals(False)
+      mode_cell.setProperty("touched", True)
+      mode_cell.setProperty("last_style", "Categorized")
+      # ...AND THE ROW IS BROUGHT INTO LINE BEFORE ANYTHING ELSE IS
+      # WRITTEN INTO IT. The class-source cell EXISTS ONLY ON A
+      # CATEGORIZED ROW, so a target that was quantitative a moment
+      # ago has no widget in column 7 -- and the class source, which
+      # the maintainer's ruling says travels, was written into `None`
+      # and lost without a word. The sync also swaps the ramp combo
+      # between the quantitative and categorical families, which is
+      # why it belongs above the ramp rather than below it.
+      self._sync_row(row)
+    ramp_cell = self.table.cellWidget(row, 4)
+    wanted = source.get("ramp")
+    if ramp_cell is not None and wanted and hasattr(ramp_cell, "findText") \
+        and ramp_cell.findText(wanted) >= 0:
+      ramp_cell.blockSignals(True)
+      ramp_cell.setCurrentText(wanted)
+      ramp_cell.blockSignals(False)
+    switch = self._row_reverse(row)
+    if switch is not None:
+      switch.blockSignals(True)
+      switch.setChecked(bool(source.get("reverse")))
+      switch.blockSignals(False)
+    # THE CLASS SOURCE TRAVELS AS A REFERENCE, which is what makes the
+    # copy reproduce colours a FILE governs (maintainer's ruling,
+    # 2026-08-20). The cost is accepted and worth knowing: both
+    # elements now depend on that one file, so if it moves, two lose
+    # their colours rather than one.
+    token = source.get("class_source")
+    file_cell = self.table.cellWidget(row, 7)
+    if token and file_cell is not None and hasattr(file_cell, "findData"):
+      # A FIRST DRAFT ALSO OFFERED THE TOKEN HERE when the receiving
+      # combo had never heard of it, on the theory that a project
+      # reopened tomorrow would hand over a file nobody browsed in this
+      # session. MEASURED 2026-08-20, that state cannot arise: the six
+      # custom properties read back off a layer are output, tile_id,
+      # category_colours, quant_style, no_data and outline, and NONE of
+      # them is the class source -- so `_class_choices` is only ever
+      # written from a widget, and every row's list is built from the
+      # same session-wide pool. Given the fix, it would have been dead
+      # code reading as protection. It becomes real the day a class
+      # source is stamped and restored; the `else` below is what stays,
+      # because a `layer:` token whose layer has left the project is
+      # reachable now.
+      where = file_cell.findData(token)
+      if where >= 0:
+        file_cell.blockSignals(True)
+        file_cell.setCurrentIndex(where)
+        file_cell.blockSignals(False)
+        self._class_choices[target_id] = token
+      else:
+        # A `layer:` token whose layer has left the project, or whose
+        # renderer is no longer categorized: there is nothing to point
+        # at, and the target keeps the source it had. Said rather than
+        # swallowed -- the colours arrived and the reference did not,
+        # so the two elements will drift the moment that file changes.
+        return (f" Element '{target_id}' took the colours but not the "
+                f"class source, which is no longer offered here.")
+    return None
 
   def _copy_classification_to_many(self, source_id, target_ids):
     """Send one element's classification to several others at once.
@@ -8426,17 +9229,40 @@ class WeavingSpaceDialog(QDialog):
         f"Element '{tile_id}' had classes copied from another element, "
         f"and {because} recomputes them"
         + (". Its pinned bounds are kept." if kept else "."))
+      # ...AND THE ROW IS TOLD, at the ONE site that retires a ladder,
+      # rather than at each of the three that call it. The Style cell
+      # reads "Custom" while `breaks` are in force and is decided in
+      # `_sync_row`, whose callers are the dynamic-column pass and the
+      # deferral refresh -- so retiring the record left the cell
+      # saying the ladder was somebody's when it had just been given
+      # back to the scheme, a state with no control to leave it by.
+      #
+      # ORDERING IS WHY THIS CANNOT LIVE IN THE CALLER. `_on_mode_chosen`
+      # and `_queue_live` are both connected to the same `activated`
+      # signal, so the sync can run BEFORE the retirement and read the
+      # record it is about to change. At the owner of the record, the
+      # two cannot be out of order.
+      try:
+        row = self._row_for_element(tile_id)
+        if row is not None and row >= 0:
+          self._sync_row(row)
+      except Exception:
+        pass
 
-  def _copy_targets(self, source_id):
+  def _copy_targets(self, source_id, categorical=False):
     """The elements this one's classification may be copied to.
 
     Args:
       source_id: the element whose editor is open.
+      categorical: True when the scheme being sent is a CATEGORICAL
+        one, which overwrites the target's style outright and so may
+        go to an element drawn any way at all. False -- the default --
+        for a graduated copy, which sends a class ladder and therefore
+        offers only the elements a ladder means something to.
 
     Returns:
       [(tile_id, label)] in table order: every OTHER element carrying
-      a variable and drawn by a quantitative style, categorized rows
-      excluded because a class ladder means nothing to them. An
+      a variable, filtered by `categorical` as above. An
       element with no variable is left out too, having no column to
       classify. Empty when there is nobody to copy to, and the editor
       then builds no dropdown at all rather than offering a control
@@ -8447,7 +9273,12 @@ class WeavingSpaceDialog(QDialog):
       tile_id = assignment.get("id")
       if tile_id == source_id or not assignment.get("var"):
         continue
-      if assignment.get("mode") != "Graduated":
+      # A CATEGORICAL COPY OVERWRITES THE TARGET'S STYLE, so every
+      # element carrying a variable is a candidate whatever it is drawn
+      # as now; a graduated copy sends a class LADDER, which means
+      # nothing to a categorized row, so that half keeps its filter.
+      # (Maintainer's ruling, 2026-08-20.)
+      if not categorical and assignment.get("mode") != "Graduated":
         continue
       targets.append((tile_id, f"{tile_id} \u2013 {assignment['var']}"))
     return targets
@@ -10051,6 +10882,11 @@ class WeavingSpaceDialog(QDialog):
             layer, a, templates.get(a.get("class_source")),
             self._classification_values(a.get("var")) if a.get("var")
             else None)
+          # WE JUST PAINTED IT, so this ladder is the baseline every
+          # later dock edit is judged against. Read back off the layer
+          # rather than from `a`, because a classifier can reduce,
+          # snap or collapse what we asked for.
+          self._remember_painted_ladder(layer, a["id"])
         # this element changed in the dialog, so its opacity is ours to
         # set; an element whose signature matched is skipped entirely
         # above, which is what leaves a hand-set opacity alone
@@ -11001,6 +11837,25 @@ class WeavingSpaceDialog(QDialog):
         self._element_layer_ids[str(tid)] = layer.id()
         # a project saved with hand-picked colours brings them back
         self._adopt_category_colours(layer, str(tid))
+        # THE LADDER IN FRONT OF US IS THE BASELINE, and this is the
+        # third and last place the plugin may say it knows one. It
+        # did not paint this layer -- it has only just met it -- but
+        # "what we last understood the ladder to be" is exactly what
+        # the record means, and on a reopen that is whatever the
+        # project came back holding.
+        #
+        # WITHOUT THIS LINE EVERY REOPENED PROJECT WOULD READ AS
+        # UNATTRIBUTABLE, and the colour judgement declines what it
+        # cannot attribute -- so no dock recolour would ever be taken
+        # up again after a reopen, which is the commonest journey
+        # there is. That is the shape recorded two lines above about
+        # `_last_signatures`, which is left empty on purpose here and
+        # was read as evidence of change by a guard written the day
+        # before (ledger row 1 of 2026-08-20). The difference is that
+        # this record CAN be filled honestly from the layer, where a
+        # signature cannot: the dialog still does not know which
+        # assignment produced this ladder, but it does not need to.
+        self._remember_painted_ladder(layer, str(tid))
         # adopted layers are watched like freshly made ones, so a
         # styling-dock edit reaches the dialog here too
         self._watch_element_layer(layer, str(tid))
@@ -12083,6 +12938,12 @@ class WeavingSpaceDialog(QDialog):
           out, a, templates.get(a.get("class_source")),
           self._classification_values(a.get("var")) if a.get("var")
           else None)
+        # the landing's half of the same baseline; see the twin in
+        # `_restyle_only`, and note that the two are DELIBERATELY
+        # separate calls rather than one shared helper wrapping
+        # seed_renderer, because the two paths differ in what they do
+        # to a DEFERRING element and a wrapper would hide that
+        self._remember_painted_ladder(out, a["id"])
         # re-seeded, so the dialog is the authority for this element's
         # whole appearance this run, opacity included
         out.setOpacity(max(0, min(100, a.get("opacity", 100))) / 100.0)

@@ -1300,6 +1300,27 @@ renderer, found by a hunt hours after the carry-over was written.)
   not the current state, and reporting it as though it were is how a
   green summary gets written over a red run.
 
+- **A FALLBACK THAT APPENDS INSTEAD OF REPLACING, AND THE FIFTEENTH
+  WATCHER FAULT.** 2026-08-20: a nagging watcher was written to exit
+  when its work list emptied, and it read the count as `left=$(grep -c
+  . "$LIST" || echo 0)`. `grep -c` PRINTS `0` and EXITS 1 when nothing
+  matches, so the guard meant for an unreadable file fired on the
+  ordinary empty one and the substitution captured `0\n0`. `[ "$left"
+  -eq 0 ]` then errors on a two-line string rather than being false,
+  the exit branch never ran, and the loop went on emitting `0 still
+  owed ... keep working` -- a line contradicting itself, which is the
+  worst kind, because it reads as a bug in the reader.
+  THE SHAPE, past shell: a fallback written with `||` runs when the
+  command FAILS, not when it produces nothing, and a command that
+  prints a perfectly good answer while exiting non-zero defeats it by
+  adding to the output rather than replacing it. Ask of any `|| echo
+  <default>` whether the command it guards can both succeed at
+  printing and fail at exiting. And measure the empty case: one line
+  in a terminal showed `left=[0\n0]` where an hour of reading had
+  shown nothing.
+  The rule this joins is already written above -- keep a watcher
+  trivially simple, and prefer re-deriving the whole state each pass.
+  This one was fourteen lines long and still found a new road.
 - A watcher that REPEATS itself misleads as badly as one that goes
   silent: a monitor grepping a whole log each pass re-reported the
   same historical failure every 45 seconds as though it were news,
@@ -1550,6 +1571,76 @@ Confirmed with the user via an explicit design review:
   joins the list. It was found by the maintainer asking whether the
   new features had been tested for races, which is worth more than
   the fix.
+- **A CATEGORICAL SCHEME COPIES LIKE A GRADUATED ONE, AND IT
+  OVERWRITES.** (Maintainer's rulings, 2026-08-20, after a tester
+  reported the control simply missing: it was kept off the categorical
+  half by two gates, the editor building its Copy row only where
+  GRADUATED bounds exist and the categorized call site passing neither
+  the targets nor the callback.) The copy takes the style, the ramp,
+  the Reverse, the per-value colours, the catch-all and the class
+  source, which travels as a FILE REFERENCE so the two elements go on
+  agreeing -- accepting that a moved file then costs two elements
+  rather than one.
+  FOUR THINGS NEVER TRAVEL, and the first is the only one that would
+  cost a map. THE VARIABLE: carrying it makes the target a duplicate
+  of the source, and a map whose whole purpose is reading several
+  variables against each other quietly loses one. THE OPACITY, as
+  through every other change of scheme. THE OUTLINE, which decides
+  whether tile EDGES are drawn and is not a colour. And THE RECORDS OF
+  THE STYLE THE ROW IS NOT WEARING -- pinned bounds, breaks, floor,
+  ceiling, the remembered class count, the single colour -- kept, and
+  kept SILENTLY, so a row switched back to a quantitative style finds
+  its work where it left it.
+  VALUES THE RECEIVING COLUMN DOES NOT HOLD ARE KEPT rather than
+  dropped, on the graduated precedent that a copy reproduces a
+  classification and a silently shortened one does not. THE CASE IT IS
+  REALLY FOR is a column typed numeric that is genuinely categorical
+  -- land-cover codes and the like -- where the colours land because
+  `_category_colours` keys on the value as TEXT.
+- **ONE THRESHOLD FOR "TOO MANY CATEGORIES", AND BOTH DOORS ASK IT.**
+  (Same day.) Nothing capped the count: `bridge.py` takes
+  `n = max(len(everywhere), 1)`, so a categorical style on a
+  CONTINUOUS column draws one class, one legend line and one swatch
+  per value -- thousands on real data, and the likeliest cause of a
+  report that switching datasets felt slow. `bridge.MANY_CATEGORIES`
+  is a hundred, and it is a QUESTION rather than a refusal: a column
+  of a hundred and twenty codes is a reasonable thing to categorize
+  and only the person looking at it knows whether their legend can
+  carry it. Two doors reach that state -- copying a scheme onto an
+  element, and retaining one across a change of region dataset -- and
+  they share the number so there is one thing to explain and one thing
+  to guard.
+- **A NEW REGION DATASET: THE RULE IS THE COLUMN NAME.** (Same day.)
+  Changing the region layer KEEPS an element's setup where the new
+  data has a column of that name and DROPS it where it does not, the
+  element then auto-assigning as the recovery rule of 2026-08-15
+  already says for a layer whose file has moved. The records
+  themselves are left alone, which is free rather than sloppy: they
+  are keyed by tile id AND FIELD, so a setup for an absent column sits
+  idle and returns if the user switches back. The ruling governs what
+  stays ACTIVE, not what is remembered.
+  RECORDED HERE AS MEASURED SOUND, AND MEASURED BROKEN HOURS LATER, at
+  every door. The two tests written that afternoon passed and both were
+  VACUOUS: their fixture assigned a variable and never touched the
+  STYLE chooser, so `_refresh_table` re-derived a quantitative style
+  from the new column's type on every switch and nothing was ever
+  RETAINED to be wrongly retained. Driven the way a user drives it --
+  the style picked through the combo, which is what marks it as
+  theirs -- a categorical scheme cut for four land-cover words came to
+  rest on a column of areas in square metres and drew a colour for
+  each. That is the colleague's report, live while three documents said
+  the ground had been measured.
+  THERE ARE THREE DOORS, not two, and the third is the one that speaks:
+  a column DELETED in QGIS re-points its elements at a surviving column
+  and TELLS the user so, which is right, while the scheme rode along
+  outside that account. `_adapt_to_the_layer` re-defaults the row
+  before the table is rebuilt, so the guard in `_refresh_table` cannot
+  see it -- one ruling, three doors, and the third needs its own
+  answer. All three are closed and each carries a registered test.
+  WHAT THE EARLIER READING GOT RIGHT is the shape of its own
+  correction: a fixture that leaves the plugin to DERIVE the thing
+  under test measures the derivation. Written up in docs/TESTING.md
+  beside the conditional-assertion fault it arrived with.
 - **A BLANK THE PLUGIN IMPOSED IS NOT A CHOICE THE USER MADE.** An
   element left on "---" stays unassigned through rebuilds, because
   cycling a default back in would undo a deliberate switching-off. But
@@ -2170,9 +2261,13 @@ Confirmed with the user via an explicit design review:
   vertex moved inside the bounding box). Where an edit makes a setting
   untrue AND there is exactly one sensible response, the dialog makes
   it and says so: an element whose column has gone RE-DEFAULTS to a
-  surviving field (losing a column costs an element its variable, not
-  its place on the map — unassigned draws as flat fill, so a deletion
-  in QGIS would quietly cost the map two of its four variables), a
+  surviving field AND GIVES UP THE STYLE SOMEBODY CHOSE FOR IT (losing
+  a column costs an element its variable, not its place on the map --
+  unassigned draws as flat fill, so a deletion in QGIS would quietly
+  cost the map two of its four variables; and a scheme cut for one
+  column says nothing about another, so a categorical one left standing
+  on a numeric column draws a colour for every distinct value, which is
+  ledger row 9 of 2026-08-20), a
   column added in QGIS is offered straight away, the spacing is
   re-derived when the CRS changes, and the region layer being removed
   is reported rather than silently emptying the chooser. What it does
@@ -2862,13 +2957,62 @@ genuinely independent third column and should be added then.
   BOUNDS against what the row would draw is correct in the reported
   case and over-reaches everywhere else, because once a class has been
   added in the dock the ladder differs from ours PERMANENTLY and no
-  hand-pick would ever be adopted for that element again. What the
-  next attempt must settle first is a decision rather than a defect --
-  after somebody reclassifies an element in QGIS's own panel, WHOSE
-  LADDER IS IT? If theirs, the element should defer and positional
-  adoption should stop; if ours, the ladder we drew must be STORED
-  rather than derived, since deriving it is what both attempts got
-  wrong.
+  hand-pick would ever be adopted for that element again.
+  **SETTLED BY `/grill-me` THE SAME DAY, and the first thing the
+  grilling did was reject the question.** The ledger asked whose
+  LADDER it is, offering "theirs, so the element defers" against
+  "ours, so store it". Those are not peers: deferral is INFERRED
+  afresh from `bridge.expressible_style`, never stored, on a
+  maintainer's condition of 2026-08-15, and a six-class graduated
+  ladder is perfectly expressible -- so nothing about a
+  reclassification makes an element defer, and taking that limb would
+  have overturned that rule AND the follow ruling of 2026-08-17.
+  The live question was narrower: not whose ladder, but which COLOURS
+  on it the plugin put there. The maintainer chose the narrow reading.
+  **THE PLUGIN NOW STORES THE LADDER IT PAINTED**, in
+  `dialog._painted_ladders`, and asks of each class whether the colour
+  is one of its own -- a question the state can answer at ANY moment,
+  which is what a delta could not do. Written wherever the plugin
+  paints and at group adoption; NEVER on a follow, which runs before
+  attribution and would record the dock's ladder as ours. Not stamped:
+  a reopened project re-derives its baseline from the layer, which
+  keeps the record out of the restore whitelist. An ABSENT entry means
+  "never seen" and DECLINES, which is neither "ours" nor "theirs".
+  WHAT MAKES IT ANSWERABLE IS A MEASUREMENT: on QGIS 4.0.3, `addClass`
+  inserts a degenerate `(0.0, 0.0)` class at index 0 wearing the
+  source symbol's grey, and EVERY SURVIVING CLASS KEEPS ITS BOUNDS BIT
+  FOR BIT. So a colour can be matched back to the class it was painted
+  on exactly, with no tolerance.
+- **A LADDER MAY HOLD SEVERAL CLASSES WITH IDENTICAL BOUNDS, so a
+  lookup by bounds must not stop at the first match.** (2026-08-20,
+  and it was a defect in the fix above, caught within the hour.) A
+  constant column, a tied column and `{1, 5, 9}` at k=5 all produce
+  degenerate ranges, and `addClass` then inserts another `(0.0, 0.0)`
+  class -- which collides with any fixture whose first real class is
+  also degenerate. Returning on the first match compared the plugin's
+  own colour against the placeholder grey sharing its bounds, called
+  it changed, and adopted it. FOUR PASSING TESTS DID NOT SEE IT; what
+  found it was driving the product and PRINTING THE RECORD at each
+  stage, which is this project's own prescription and was still not
+  the first thing tried. Guarded by
+  `a-ladder-may-hold-two-classes-at-one-bound`.
+- **WHEN CI TIMINGS MOVE, COMPARE THE SUSPECT ON A MACHINE YOU
+  CONTROL BEFORE BELIEVING THE ORDERING.** (2026-08-20.) Windows ran
+  89 minutes against a 53-59 minute history; the largest grower was
+  2.6x; and it was the one test that most exercises the path a fix
+  landed the same day had opened. Every piece fitted. Measured
+  locally, sequentially, in clean worktrees: 151s before against 147s
+  after. The fix costs nothing. The tell was in the CI data all along
+  -- several tests SHRANK in the same run, one by 57 seconds, and a
+  uniform slowdown does not do that.
+  TWO HABITS. Six minutes of local measurement beat a conclusion that
+  would have sent somebody optimising a path that is not slow, or
+  narrowing a repaint route doing exactly what it should. And RECORD
+  THE HYPOTHESIS BEFORE THE VERDICT LANDS: written afterwards it would
+  have been fitted to whatever number turned up, and writing it first
+  is what made it falsifiable. The Windows job's own variance is worth
+  knowing if a ceiling is ever sized against it: 53 to 89 minutes on
+  near-identical trees, a 68% spread, far wider than the Linux legs.
 - **WHEN A GUARD STARTS ANSWERING DIFFERENTLY, FOLLOW ITS RETURN VALUE
   INTO EVERY TUPLE IT IS A MEMBER OF, not only into its callers.**
   (2026-08-20, a regression from the previous day's own fix.)
@@ -2884,3 +3028,27 @@ genuinely independent third column and should be added then.
   actually asked -- the cost, the empty layer -- were both clean, and
   the defect was two hops away. A guard's callers are the easy half;
   the hard half is everywhere its ANSWER travels as data.
+  **AND THE FINGERPRINT WAS ONLY HALF OF IT.** Fixed, the ramp still
+  did not reach the map, because `_maybe_live_generate` asks the same
+  availability question at its sixth gate and returned in front of its
+  own repaint exit -- the guard-about-one-thing-in-front-of-an-exit-
+  about-another shape, for the fourth time in this file. It refuses
+  the TILING now and tries `_restyle_only()` first; nothing may fall
+  through it, since `_extent_in_working_units` sits a few lines below
+  and a dead extent segfaults QGIS. `_generate`'s own check needed
+  NOTHING -- its fast path is already above it -- so the twin was
+  measured and left alone rather than given a symmetrical repair, and
+  a catalogue entry reverses its order so the asymmetry is guarded
+  rather than remembered.
+- **A SITE NAMED BY READING IS A HYPOTHESIS, AND IT READS EXACTLY LIKE
+  ONE SOMEBODY PROVED.** (2026-08-20, the same defect.) Where that
+  refusal lived was worked out from the source, written into the
+  handover, and copied from there into ROADMAP.md, MAINTAINING.md and
+  docs/TESTING.md in one documentation round -- all four naming
+  `_generate`, which a debounced tick never reaches, and all four
+  calling the refusal silent when it says a sentence that is false.
+  One dump line at each of that path's ten gates answered it in a
+  single run. So: when you write down WHERE a defect is, say how you
+  know; and where a path can refuse for ten reasons, make each one
+  NAME ITSELF -- live update pausing without saying why has cost this
+  project two diagnoses now.
