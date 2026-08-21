@@ -650,7 +650,29 @@ invokes `build.py` without forwarding anything, so
 `release.py --rc --no-install` is an argparse error. Corrected
 2026-08-18, having documented a flag the command could not take.
 
-To send the candidate to somebody else, attach the zip; they install
+## Publishing a candidate
+
+Every candidate goes to GitHub as a PRE-RELEASE, and has since ten of
+them had gone out by hand:
+
+```bash
+python3 tools/publish_candidate.py --notes dist/CANDIDATE-<label>.notes.md
+```
+
+That tags `v<version>rcN` on the candidate's own commit, creates a
+release titled `<version>rcN — release candidate` marked pre-release,
+and attaches the zip, the testing report and the comparison PDF. It
+refuses without a receipt matching the tree, on a tag already taken,
+while CI on that commit is not green, or without notes saying what
+changed since the last candidate. `--dry-run` prints the body it would
+publish; `--despite-ci <reason>` publishes past a red or unfinished CI
+and prints the reason in the release itself.
+
+A pre-release never becomes Latest, so `main` and the project page go
+on describing the last real version. Promotion is still `release.py`,
+still from `main`, and still the maintainer's call.
+
+To send the candidate to somebody else directly, attach the zip; they install
 it the same way as a release, through Plugins > Manage and Install
 Plugins... > Install from ZIP.
 

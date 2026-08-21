@@ -18354,6 +18354,181 @@ def test_a_release_needs_a_matching_candidate():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_a_candidate_is_published_only_when_it_is_gated():
+  """Four refusals, each one a hand-published candidate's near miss.
+
+  Ten candidates went to GitHub before anything wrote the procedure
+  down, every one of them by somebody remembering four things at two
+  in the morning. `tools/publish_candidate.py` is those four things,
+  and this drives each refusal rather than trusting that it is there.
+
+  THE FIVE: a receipt that no longer matches the tree, so only a GATED
+  candidate can be published; a tag already taken, since a candidate
+  number is spent by anything bearing it; CI on that commit not green,
+  because the body SAYS it is; no notes, because a candidate nobody
+  described is a candidate nobody knows what to test; and a candidate
+  that cannot say which COMMIT it was built from.
+
+  THAT LAST ONE WAS ADDED BY THIS TEST CATCHING ITS OWN TOOL. The
+  first draft took the commit from `HEAD`, which is right for exactly
+  as long as nobody commits again -- and the very next commit would
+  have published a body telling a tester to check out a tree that was
+  never measured. Reading it from the dossier made this test fail
+  within the minute, on a fixture that had no dossier, which is the
+  cheapest kind of review there is.
+
+  NOTHING IS PUBLISHED BY THIS TEST. Every outward call -- git, gh --
+  goes through the module's own `run`, which is replaced here by a
+  stub that answers from a table and records what it was asked. The
+  success case runs with `--dry-run`, so the last thing it proves is
+  the BODY, not a release.
+
+  Regression: none yet; this guards a procedure made standard on 2026-08-21 after ten candidates were published by hand.
+ [unrecorded]
+  """
+  import importlib.util
+  import io as _io
+  import json as _json
+  import subprocess
+  import tempfile
+  spec = importlib.util.spec_from_file_location(
+    "publish_candidate",
+    os.path.join(HERE, "..", "tools", "publish_candidate.py"))
+  publish = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(publish)
+
+  folder = tempfile.mkdtemp()
+  os.makedirs(os.path.join(folder, "dist"))
+  os.makedirs(os.path.join(folder, "reports", "v9.9.9"))
+  # A report with numbers this test can recognise in the body, so the
+  # last assertion is about what a reader sees rather than about the
+  # tool having run.
+  report = os.path.join(folder, "reports", "v9.9.9", "testing-report.md")
+  _io.open(report, "w", encoding="utf-8").write(
+    "# Testing report\n\n## Functional suite (tests/run_tests.py)\n\n"
+    + "".join(f"- **PASS** test number {i}  [0.0s]\n" for i in range(7))
+    + "\n## Visual gallery (tests/visual_tests.py)\n\n"
+    + "".join(f"- **PASS** case {i}  [0.0s]\n" for i in range(3)))
+  for name in ("visual-comparison.pdf",):
+    _io.open(os.path.join(folder, "reports", "v9.9.9", name),
+             "w").write("x")
+  _io.open(os.path.join(folder, "dist",
+                        "weavingspace_qgis-9.9.9rc1.zip"), "w").write("x")
+  receipt = os.path.join(folder, "dist", "CANDIDATE-9.9.9rc1.receipt.json")
+  _io.open(receipt, "w", encoding="utf-8").write(
+    _json.dumps({"label": "9.9.9rc1", "tree": "MATCHING", "version": "9.9.9"}))
+  notes = os.path.join(folder, "notes.md")
+  _io.open(notes, "w", encoding="utf-8").write("## What changed\n\nA thing.")
+  # The dossier is where the COMMIT comes from, deliberately rather
+  # than HEAD: they agree at the moment a candidate is built and part
+  # company at the next commit, and a tester who checks out the sha in
+  # the body must land on the tree that was measured.
+  dossier = os.path.join(folder, "dist", "CANDIDATE-9.9.9rc1.md")
+  _io.open(dossier, "w", encoding="utf-8").write(
+    "# Release candidate 9.9.9rc1\n\nbuilt from commit `abc1234`\n")
+
+  publish.ROOT = folder
+  publish.tree_digest = lambda: "MATCHING"
+  asked = []
+
+  def stub(*args, **kwargs):
+    """Answer git and gh from a table, and record the question."""
+    asked.append(args)
+    out, code = "", 0
+    if args[:2] == ("git", "rev-parse") and "--verify" in args:
+      code = 0 if state["tag_taken"] else 1
+    elif args[:2] == ("git", "rev-parse"):
+      out = "abc1234\n"
+    elif args[:2] == ("git", "status"):
+      out = ""
+    elif args[:3] == ("gh", "release", "view"):
+      code = 1
+    elif args[:3] == ("gh", "run", "list"):
+      out = _json.dumps(state["runs"])
+    elif args[:3] == ("gh", "release", "create"):
+      out = "https://example.invalid/release"
+    return subprocess.CompletedProcess(list(args), code, out, "")
+
+  publish.run = stub
+  green = [{"headSha": "abc1234def", "status": "completed",
+            "conclusion": "success", "databaseId": 1,
+            "workflowName": "tests"}]
+  state = {"tag_taken": False, "runs": green}
+
+  def attempt(*extra):
+    """Run main() with these arguments and return what it printed."""
+    import contextlib
+    argv = sys.argv
+    sys.argv = ["publish_candidate.py", "--label", "9.9.9rc1"] + list(extra)
+    buffer = _io.StringIO()
+    try:
+      with contextlib.redirect_stdout(buffer):
+        code = publish.main()
+    finally:
+      sys.argv = argv
+    return code, buffer.getvalue()
+
+  refusals = 0
+
+  # 1. a receipt that no longer describes this tree
+  publish.tree_digest = lambda: "SOMETHING ELSE"
+  code, said = attempt("--notes", notes)
+  assert code == 1 and "shipped files have changed" in said, \
+    f"an ungated candidate was not refused: {said!r}"
+  refusals += 1
+  publish.tree_digest = lambda: "MATCHING"
+
+  # 2. a candidate number that is already spent
+  state["tag_taken"] = True
+  code, said = attempt("--notes", notes)
+  assert code == 1 and "never reused" in said, \
+    f"a taken candidate number was not refused: {said!r}"
+  refusals += 1
+  state["tag_taken"] = False
+
+  # 3. CI that has not finished, and the override that names itself
+  state["runs"] = [dict(green[0], status="in_progress", conclusion=None)]
+  code, said = attempt("--notes", notes)
+  assert code == 1 and "still running" in said, \
+    f"an unfinished CI was not refused: {said!r}"
+  refusals += 1
+  code, said = attempt("--notes", notes, "--dry-run",
+                       "--despite-ci", "the mac leg is stuck again")
+  assert code == 0 and "the mac leg is stuck again" in said, \
+    f"the override did not put its reason in the body: {said!r}"
+  state["runs"] = green
+
+  # 4. no notes at all
+  code, said = attempt()
+  assert code == 1 and "--notes" in said, \
+    f"a candidate with nothing said about it was not refused: {said!r}"
+  refusals += 1
+
+  # 5. a candidate that cannot say which commit it came from
+  os.rename(dossier, dossier + ".hidden")
+  code, said = attempt("--notes", notes)
+  assert code == 1 and "which commit" in said, \
+    f"a candidate that cannot name its own commit was not refused: " \
+    f"{said!r}"
+  refusals += 1
+  os.rename(dossier + ".hidden", dossier)
+
+  assert refusals == 5, f"only {refusals} refusals were exercised"
+
+  # ...and what a reader would see. The counts are READ off the
+  # report, so a body that says seven and three is a body nobody
+  # typed numbers into.
+  code, said = attempt("--notes", notes, "--dry-run")
+  assert code == 0, f"a gated candidate was refused: {said!r}"
+  assert "**Not a release**" in said, "the body does not say what it is"
+  assert "7 of 7" in said and "3 of 3" in said, \
+    f"the gate numbers were not read off the report: {said!r}"
+  assert "--prerelease" not in said and "9.9.9rc1" in said, \
+    "the dry run does not name the candidate"
+  assert not [a for a in asked if a[:3] == ("gh", "release", "create")], \
+    "a dry run tried to create a release"
+
+
 def test_the_release_watchdog_measures_the_whole_tree():
   """CPU is summed over a process and everything it starts.
 
@@ -57003,6 +57178,8 @@ def main():
         test_the_release_digest_watches_what_ships)
   check("a release needs a matching candidate",
         test_a_release_needs_a_matching_candidate)
+  check("a candidate is published only when it is gated",
+        test_a_candidate_is_published_only_when_it_is_gated)
   check("the vendoring tool reproduces the current vendor",
         test_the_vendoring_tool_reproduces_the_current_vendor)
   check("the documents' numbers match the code",

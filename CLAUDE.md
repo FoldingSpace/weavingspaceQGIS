@@ -216,6 +216,38 @@ obligations: they exist so nobody pays twice for the same discovery.
   intentions do not survive a long session. When a rule genuinely
   should change, change it in the checker deliberately — do not
   weaken it to make a release pass.
+- **EVERY CANDIDATE IS PUBLISHED TO GITHUB AS A PRE-RELEASE, and that
+  is part of the process rather than a separate permission.**
+  (Maintainer's instruction, 2026-08-21, making standard what had been
+  done by hand ten times.) A candidate that passes every gate is
+  published with `python3 tools/publish_candidate.py --notes <file>`:
+  a tag `v<version>rc<N>` on the candidate's own commit, a release
+  titled `<version>rcN — release candidate`, marked PRE-RELEASE so it
+  never becomes Latest and never displaces a real version, carrying
+  the three things a tester needs -- the zip they install, the
+  per-test report, and the colourspace comparison PDF.
+  THIS DOES NOT LOOSEN THE RULE BELOW IT. Publishing a RELEASE --
+  tagging on `main`, making something Latest -- remains the
+  maintainer's explicit call, and `release.py` still refuses anywhere
+  but `main`. What changed is that a CANDIDATE, which promotes
+  nothing and leaves `main` untouched, no longer waits on a second
+  permission: testers cannot test what has not been sent to them, and
+  the ten that went out before this were each published by somebody
+  remembering to.
+  THE TOOL REFUSES rather than guesses, and each refusal is one of the
+  ten hand-published candidates' chances to go wrong: no receipt
+  matching the tree, so only a GATED candidate can be published; a tag
+  already taken, since a candidate number is spent by anything bearing
+  it; CI on that exact commit not green, because the body SAYS it is
+  and a body claiming a verdict nobody read is worse than one that
+  says nothing (override with `--despite-ci <reason>`, which prints
+  the reason IN the release); and no notes, because a candidate
+  nobody described is a candidate nobody knows what to test.
+  THE NUMBERS IN THE BODY ARE READ, not typed: the suite and gallery
+  counts come out of the testing report, and the CI sentence out of
+  `gh`. Guarded by `test_a_candidate_is_published_only_when_it_is_
+  gated`.
+
 - **The pre-candidate push is PART of the release process, not a
   separate permission.** Once the tree is ready, the sequence runs
   without asking: merge, regenerate the derived documents, secrets
