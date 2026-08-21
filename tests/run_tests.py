@@ -18438,7 +18438,13 @@ def test_a_candidate_is_published_only_when_it_is_gated():
     if args[:2] == ("git", "rev-parse") and "--verify" in args:
       code = 0 if state["tag_taken"] else 1
     elif args[:2] == ("git", "rev-parse"):
-      out = "abc1234\n"
+      # A SHORT sha where the dossier is read, and a FULL one when the
+      # tool expands it. GitHub rejects a short target outright -- HTTP
+      # 422, met on the first candidate this tool published -- so the
+      # stub answers as git does and the assertion below requires the
+      # forty characters to reach `gh`.
+      out = ("abc1234" if args[-1] == "--short"
+             else "abc1234" + "0" * 33) + "\n"
     elif args[:2] == ("git", "status"):
       out = ""
     elif args[:3] == ("gh", "release", "view"):
@@ -18527,6 +18533,18 @@ def test_a_candidate_is_published_only_when_it_is_gated():
     "the dry run does not name the candidate"
   assert not [a for a in asked if a[:3] == ("gh", "release", "create")], \
     "a dry run tried to create a release"
+
+  # ...and the real call names a FULL commit, because GitHub refuses a
+  # short one and the refusal arrives as an HTTP 422 nobody can read.
+  state["runs"] = green
+  code, said = attempt("--notes", notes)
+  assert code == 0, f"a gated candidate was refused at the last step: {said!r}"
+  created = [a for a in asked if a[:3] == ("gh", "release", "create")]
+  assert created, "nothing was published"
+  target = created[-1][created[-1].index("--target") + 1]
+  assert len(target) == 40, \
+    f"the release was targeted at {target!r}, which GitHub rejects: it " \
+    f"takes a branch or a full commit and nothing shorter"
 
 
 def test_the_release_watchdog_measures_the_whole_tree():

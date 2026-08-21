@@ -238,6 +238,17 @@ def main():
           f"from, and HEAD is not an answer to that question; rebuild "
           f"it with release.py --rc")
     return 1
+  # ...EXPANDED TO ALL FORTY CHARACTERS for GitHub, which rejects a
+  # short one outright: `Release.target_commitish is invalid`, HTTP
+  # 422, measured 2026-08-21 on the first candidate this tool
+  # published. Every hand-published candidate before it carried a full
+  # sha because `gh` was handed one. The BODY still shows the short
+  # form, which is what a person reads and types.
+  full = run("git", "rev-parse", sha).stdout.strip()
+  if len(full) != 40:
+    print(f"git cannot resolve {sha} to a commit in this checkout; the "
+          f"candidate names a tree that is not here")
+    return 1
   dirty = run("git", "status", "--porcelain").stdout.strip()
 
   # ---- the body says CI is green, so ASK rather than claim.
@@ -282,7 +293,7 @@ def main():
     return 0
 
   made = run("gh", "release", "create", tag, *assets,
-             "--repo", REPO, "--target", sha, "--prerelease",
+             "--repo", REPO, "--target", full, "--prerelease",
              "--title", f"{label} — release candidate",
              "--notes", body)
   if made.returncode != 0:
