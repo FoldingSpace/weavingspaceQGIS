@@ -2691,7 +2691,10 @@ CONTROL_DEFAULTS = {
   # spin boxes: (default, minimum, maximum, step)
   "spacing_spin": (1000.0, 1e-06, 1e12, 1.0),
   "shells_spin": (1, 0, 4, 1),
-  "mod_rotate": (0.0, -90.0, 90.0, 1.0),
+  # A FULL TURN EITHER WAY since 2026-08-25, at the maintainer's
+  # request and measured first: every angle from -360 to 360 builds a
+  # valid unit of the same element count and area.
+  "mod_rotate": (0.0, -360.0, 360.0, 1.0),
   # NEGATIVE SCALES MIRROR, allowed 2026-08-16 at a user's request and
   # measured first: transform_scale is a plain GeoSeries.scale, so -1
   # reflects exactly and the whole chain to the GeoPackage survives it.

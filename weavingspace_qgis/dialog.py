@@ -2053,7 +2053,17 @@ class WeavingSpaceDialog(QDialog):
       row.addWidget(b)
       mform.addRow(label, row)
 
-    self.mod_rotate = spin(-90, 90, 0, 1)
+    # A FULL TURN EITHER WAY (maintainer's request, 2026-08-25). It
+    # was -90..90, which is enough to reach every DISTINCT pattern --
+    # a tiling repeats -- but a person turning a design does not think
+    # in equivalence classes, and a range that stops at 90 refuses the
+    # obvious 180 and makes the control feel broken. Measured before
+    # widening, as the negative scales were: 0, 45, 90, 91, 135, 180,
+    # 270, 359, 360 and their negatives all build a valid unit with
+    # the same element count and area, so nothing downstream needed a
+    # guard. The tooltip's 15-75 degrees stays: it is advice about
+    # what reads well on two-direction weaves, not a bound.
+    self.mod_rotate = spin(-360, 360, 0, 1)
     self.mod_rotate.setToolTip(
       "Turn the whole pattern; 15–75° usually suits two-direction "
       "weaves.")
