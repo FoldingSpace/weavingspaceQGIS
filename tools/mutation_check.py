@@ -697,6 +697,24 @@ MUTATIONS = [
            "that is thousands, and the user finds out by watching QGIS "
            "do it. The maintainer ruled it a question rather than a "
            "refusal, on one threshold shared with the dataset switch"),
+  dict(name="a-first-real-choice-is-not-a-change-of-dataset", file=DIALOG,
+       old="""    switched_from_work = switched and self._landed_this_session""",
+       new="""    switched_from_work = switched""",
+       test="test_a_project_that_already_has_forty_layers",
+       why="a dialog opened in a busy project lands on whatever layer "
+           "the chooser offers first, and without the landed clause the "
+           "user's first real pick read as a switch away from data they "
+           "never chose: the fresh-group flag built a rival beside the "
+           "adopted group. Found by the full suite on the rulings' "
+           "first whole run"),
+  dict(name="a-landing-is-what-makes-a-dataset-this-sessions-work",
+       file=DIALOG,
+       old="""    self._landed_this_session = True""",
+       new="""    pass  # mutation: no landing ever counts""",
+       test="test_a_change_of_dataset_starts_a_new_file_and_a_new_group",
+       why="with the set-site gone every switch is a first choice "
+           "forever: the path never clears and B's landing replaces "
+           "A's result -- the two harms the rulings started from"),
   dict(name="a-short-dataset-gets-a-question-not-a-shared-column",
        file=DIALOG,
        old="""    if 2 <= len(usable) < elements:""",

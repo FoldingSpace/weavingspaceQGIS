@@ -1334,6 +1334,10 @@ class WeavingSpaceDialog(QDialog):
     # first Generate after a change of dataset builds a FRESH group,
     # so B's map never replaces A's result in the project.
     self._fresh_group_for_new_data = False
+    # True once a run has LANDED in this dialog session. It is the
+    # second half of what makes a layer change a change of DATASET:
+    # see the switched_from_work comment in _on_layer_changed.
+    self._landed_this_session = False
     # True between `cleared` and the end of the adoption that
     # follows it, so adoption can tell a choice from an echo.
     self._project_is_being_replaced = False
@@ -2421,6 +2425,23 @@ class WeavingSpaceDialog(QDialog):
     # the layer we have just adopted.
     switched = (layer is not None and self._watched_layer is not None
                 and layer is not self._watched_layer)
+    # ...AND ONLY LEAVING A DATASET THIS SESSION HAS BUILT FROM IS A
+    # CHANGE OF DATASET. The full suite drew this boundary on the
+    # first whole run of the seven rulings, with three cases the plain
+    # `switched` got wrong, and ONE CLAUSE covers all three. A
+    # RECOVERY is not a switch -- reopening a project whose region
+    # file has MOVED and pointing at live data re-finds the same work
+    # -- because a reopened session has not landed anything yet. A
+    # COMBO AUTO-LANDING in a busy project is not a dataset the user
+    # chose, for the same reason. And a PRE-GENERATE FIDDLE is a
+    # first choice: nothing is built, so there is nothing to protect.
+    # A liveness clause on the OUTGOING layer was tried beside this
+    # one and deleted when its catalogue entry could only survive:
+    # every measured journey is decided by the landing alone, and in
+    # the one it would change -- land a run, lose the source file,
+    # pick new data -- protecting the landed result is the rulings'
+    # own answer.
+    switched_from_work = switched and self._landed_this_session
     # Hear the layer itself, not merely the fact that a different one
     # was chosen: a user editing in QGIS never touches this combo.
     if layer is not self._watched_layer:
@@ -2456,7 +2477,7 @@ class WeavingSpaceDialog(QDialog):
     # path, the fresh-group flag and the design-floor question all
     # precede the rebuild, because a Yes to that question changes what
     # the rebuild builds.
-    if switched:
+    if switched_from_work:
       self._begin_new_dataset(layer)
     self._rebuild_unit()
     # ...and the table now standing there is asked whether a scheme it
@@ -13346,6 +13367,10 @@ class WeavingSpaceDialog(QDialog):
           bridge.drop_gpkg_layer(path, name)
       self._gpkg_tables_written[key] = current
     self._last_path = path
+    # A LANDING IS WHAT MAKES A DATASET THIS SESSION'S WORK: from here
+    # a change of region layer is a change of dataset, with everything
+    # _begin_new_dataset does. Before it, a switch is a first choice.
+    self._landed_this_session = True
     # what this run DREW, not what the table says now (see the note
     # where these are captured, in _generate)
     self._last_run_sig = (run_sig if run_sig is not None

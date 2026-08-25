@@ -25530,6 +25530,13 @@ def test_a_dataset_that_cannot_fill_the_design_asks_first():
   for reply, wants_recompose in ((QMessageBox.StandardButton.Yes, True),
                                  (QMessageBox.StandardButton.No, False)):
     dlg, layer, tid1 = _categorical_dialog()
+    # A RUN LANDS FIRST, because a pre-generate switch is a FIRST
+    # CHOICE by the gate's definition (switched_from_work): the
+    # question protects a session's work, and until a landing there
+    # is none. The suite's first whole run drew that boundary.
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(250)
     MODAL_ANSWERS["question"] = reply
     try:
       before_n = dlg.n_combo.currentText()
@@ -45119,8 +45126,20 @@ def test_switching_region_layer_counts_as_a_change():
   mapped_before = {a["id"] for a in dlg._assignments() if a["var"]}
   assert mapped_before, "no element was mapped before the switch, so "\
     "the check below would prove nothing"
-  dlg.layer_combo.setLayer(other)
-  _tick(600)
+  # TWO usable columns against FOUR elements crosses the design floor
+  # (ruling 5 of 2026-08-21), and a run has landed, so the switch is a
+  # change of dataset and the plugin ASKS. The harness's default Yes
+  # would recompose to two elements -- evaporating c and d, whose
+  # re-pointing is this test's whole axis -- so the answer is staged
+  # as No: the design is kept and the columns are shared, which is
+  # exactly the behaviour this test has always asserted.
+  from qgis.PyQt.QtWidgets import QMessageBox
+  MODAL_ANSWERS["question"] = QMessageBox.StandardButton.No
+  try:
+    dlg.layer_combo.setLayer(other)
+    _tick(600)
+  finally:
+    MODAL_ANSWERS.pop("question", None)
   columns = {f.name() for f in other.fields()}
   now = {a["id"]: a["var"] for a in dlg._assignments()}
   for tid in mapped_before:

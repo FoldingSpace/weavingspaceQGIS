@@ -1723,6 +1723,24 @@ Confirmed with the user via an explicit design review:
   A MODAL JOINS THE LAYER-CHANGE PATH with ruling 5, where the
   threshold question set the precedent; the no-modal rule guards
   GENERATION paths and is untouched.
+  WHAT COUNTS AS "A CHANGE OF DATASET" WAS DRAWN BY THE FULL SUITE on
+  the rulings' first whole run, which failed three tests the targeted
+  runs had all passed: leaving a dataset THIS SESSION HAS BUILT FROM.
+  One clause, and it covers all three failures. A recovery is not a
+  switch -- reopening a project whose region file moved and pointing
+  at live data re-finds the same work -- because a reopened session
+  has not landed anything yet. A combo AUTO-LANDING in a busy project
+  is not a dataset the user chose, for the same reason. And a
+  pre-generate fiddle is a first choice: nothing is built, so there
+  is nothing to protect. A SECOND CLAUSE WAS TRIED AND DELETED:
+  liveness of the outgoing layer, whose catalogue entry could only
+  survive, since every measured journey is decided by the landing
+  alone -- and in the one it would change, land a run then lose the
+  source then pick new data, protecting the landed result is what the
+  rulings ask anyway. `switched_from_work` in `_on_layer_changed` is
+  the one place the boundary lives; the retained-scheme question
+  deliberately stays on the plain switch, because it is about what
+  the TABLE carries rather than about protecting output.
 
 - **A BLANK THE PLUGIN IMPOSED IS NOT A CHOICE THE USER MADE.** An
   element left on "---" stays unassigned through rebuilds, because
