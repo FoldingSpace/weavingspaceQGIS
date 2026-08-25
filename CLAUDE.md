@@ -1304,6 +1304,18 @@ renderer, found by a hunt hours after the carry-over was written.)
   widgets that QGIS re-fires -- add `if _dialog_is_gone(self) or
   _live_dialog() is not self: return`, and grep for the other routes
   into the same handler before believing you have them all.
+- **A GATE WHOSE EXIT NOBODY BRANCHES ON IS NOT A GATE EITHER, and
+  the second visit pushed.** 2026-08-25: `check_standards; echo; 
+  check_before_push; echo; git commit && git push` -- both gates
+  printed their failures, both echoes exited 0, and the commit chained
+  off the ECHO. A tree the push gate had just called CI-red reached
+  the public branch one command after the words appeared on screen,
+  which is the 2026-08-15 fault with the pipe replaced by a
+  semicolon. The failure was an orphaned anchor, fixed forward in the
+  next commit; the rule is the same one, stated wider: capture the
+  gate's OWN exit and branch on it (`STD=$?; [ "$STD" -ne 0 ] &&
+  stop`) in the same script that would commit -- reading the words is
+  not a gate, and neither is printing the number.
 - **A GATE PIPED INTO ANYTHING IS NOT A GATE.** `check_before_push |
   tail -2` returns TAIL's exit status, so a shell `&&` after it fires
   whatever the gate said. That is how a tree failing the standards

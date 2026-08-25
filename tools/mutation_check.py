@@ -837,8 +837,10 @@ MUTATIONS = [
            "2026-08-21)"),
   dict(name="a-switch-detaches-the-group", file=DIALOG,
        old="""    self._fresh_group_for_new_data = True
+    _dump("SWITCH", "fresh-group-armed")
     if layer is None:""",
        new="""    self._fresh_group_for_new_data = False  # mutation: land in A's group
+    _dump("SWITCH", "fresh-group-armed")
     if layer is None:""",
        test="test_a_change_of_dataset_starts_a_new_file_and_a_new_group",
        why="the memory-mode switch is the case the flag exists for: "
