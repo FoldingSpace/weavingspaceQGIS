@@ -291,10 +291,11 @@ MUTATIONS = [
            "what lies beneath, until an unrelated restyle silently "
            "corrects it"),
   dict(name="the-no-data-split-is-geometry-not-style", file=DIALOG,
-       # RE-ANCHORED 2026-08-19: the term gained the limits as VALUES,
-       # so every entry standing on this tuple had to move with it.
-       old="""      tuple((a["id"],
-             a.get("var") if self._needs_a_no_data_split(a) else None,
+       # RE-ANCHORED 2026-08-19, when the term gained the limits as
+       # VALUES, and again on 2026-08-25 when it gained the element's
+       # own variable: every entry standing on this tuple moves with
+       # it, which is what a shared anchor costs.
+       old="""      tuple((a["id"], a.get("var"), self._needs_a_no_data_split(a),
              self._limits_key(a))
             for a in self._assignments()),""",
        new="""      (),""",
@@ -338,23 +339,24 @@ MUTATIONS = [
            "so an opacity set afterwards reaches the project and not "
            "the file, and the map a user sends on draws its "
            "missing-value areas opaque over a faded element"),
-  dict(name="the-split-term-carries-the-field", file=DIALOG,
-       # RE-ANCHORED 2026-08-19, with the limits term added: what this
-       # proves is unchanged -- the FIELD, not a yes/no -- so the
-       # mutation still coarsens only that half.
-       old="""      tuple((a["id"],
-             a.get("var") if self._needs_a_no_data_split(a) else None,
-             self._limits_key(a))
-            for a in self._assignments()),""",
-       new="""      tuple((a["id"], self._needs_a_no_data_split(a),
-             self._limits_key(a))
-            for a in self._assignments()),""",
-       test="test_swapping_two_variables_re_cuts_both_splits",
-       why="a boolean per element is invariant under a permutation, "
-           "so swapping the variables of two elements whose columns "
-           "both have gaps leaves the signature still and each "
-           "element holding the split cut for the other field -- "
-           "values drawn as no data and gaps drawn as nothing"),
+  # `the-split-term-carries-the-field` STOOD HERE AND WAS DELETED ON
+  # 2026-08-25, WITH THE CODE IT GUARDED. It proved that the split
+  # term carried the FIELD rather than a yes/no, because a boolean per
+  # element is INVARIANT UNDER A PERMUTATION -- swap two elements'
+  # variables and every boolean stays True. That was true until the
+  # signature gained the element's own VARIABLE as a term of its own,
+  # which it had to when ruling 6 trimmed each element table to the
+  # column it displays. With the variable carried directly, a
+  # permutation is visible whatever the split term says, so the entry
+  # could only ever SURVIVE.
+  #
+  # The honest answer was to simplify rather than to defend: the term
+  # is `_needs_a_no_data_split(a)` again, a plain boolean, and
+  # `(id, var, bool, limits)` carries exactly what
+  # `(id, var, field-or-None, limits)` did. Same shape as the
+  # `_deriving_spacing` deletion earlier the same day -- when an entry
+  # survives, ask whether the behaviour has two implementations before
+  # asking whether the test is weak.
   dict(name="a-sign-guard-is-not-a-finiteness-guard", file=EDITOR,
        old="""    places = (9 - int(math.floor(math.log10(span)))
               if math.isfinite(span) and span > 0 else 6)""",
@@ -2319,7 +2321,11 @@ MUTATIONS = [
   # doubling as a spatial-index test (which has its own entry,
   # memory-layers-lose-their-index).
   dict(name='gpkg-fid-collision', file=BRIDGE,
-       old='  options.layerOptions = ["FID=weavingspace_fid", "SPATIAL_INDEX=YES"]',
+       # RE-ANCHORED 2026-08-25: the column's name is a constant now,
+       # because a region read back out of one of our own files
+       # arrives carrying it and the dialog has to know not to offer
+       # it. The claim is unchanged.
+       old='  options.layerOptions = [f"FID={GPKG_FID_COLUMN}", "SPATIAL_INDEX=YES"]',
        new='  options.layerOptions = ["SPATIAL_INDEX=YES"]'
            '  # mutation: let an fid attribute collide with the key',
        test='test_gpkg_fid_attribute',
@@ -4953,12 +4959,13 @@ MUTATIONS = [
            "five identical greys on a floor that excluded nothing "
            "whatever, and on a map of areas that reads as no data"),
   dict(name="a-moved-limit-moves-the-signature", file=DIALOG,
-       old="""      tuple((a["id"],
-             a.get("var") if self._needs_a_no_data_split(a) else None,
+       # RE-ANCHORED 2026-08-25: the term gained the element's own
+       # variable, because trimming made a PERMUTATION a geometry
+       # change and a set could not see one. The claim is unchanged.
+       old="""      tuple((a["id"], a.get("var"), self._needs_a_no_data_split(a),
              self._limits_key(a))
             for a in self._assignments()),""",
-       new="""      tuple((a["id"],
-             a.get("var") if self._needs_a_no_data_split(a) else None)
+       new="""      tuple((a["id"], a.get("var"), self._needs_a_no_data_split(a))
             for a in self._assignments()),""",
        test="test_a_moved_limit_re_splits_the_tiles",
        why="a limit is a geometry change, and the split predicate "
@@ -5482,6 +5489,58 @@ MUTATIONS = [
            "design looks stale and the drop removes the map it has "
            "just made -- the worst direction for a mistake in a "
            "routine whose whole job is deleting things"),
+  # THE RESUMABLE FILE, ruling 5. Four axes: the record reaching the
+  # file, the version refusal, the source found by reference, and
+  # embedding staying an opt-in.
+  dict(name="a-saved-map-carries-its-state", file=DIALOG,
+       old="""      bridge.write_working_state(path, resumable)""",
+       new="""      pass  # mutation: the file keeps no record of its design""",
+       test="test_a_saved_map_can_be_opened_and_carried_on",
+       why="without it a finished map can be looked at and not carried "
+           "on with: the file holds tables and styles and nothing "
+           "about the design that produced them, so a demo re-tiles "
+           "from scratch and a colleague receives a result they cannot "
+           "continue"),
+  dict(name="a-forward-incompatible-file-is-refused", file=DIALOG,
+       old="""    if not isinstance(version, int) or version > WORKING_STATE_VERSION:
+      # FORWARD-INCOMPATIBLE, REFUSED WHOLE.""",
+       new="""    if False:  # mutation: read a newer record as far as it goes
+      # FORWARD-INCOMPATIBLE, REFUSED WHOLE.""",
+       test="test_a_saved_map_can_be_opened_and_carried_on",
+       why="half-reading a record from a later build restores a design "
+           "nobody chose while looking exactly like a design somebody "
+           "did, which is this software's characteristic failure "
+           "wearing a file format"),
+  dict(name="a-resumed-map-finds-its-source-by-reference", file=DIALOG,
+       old="""      found = QgsVectorLayer(wanted, os.path.basename(str(wanted)), "ogr")
+      if found.isValid():""",
+       new="""      found = QgsVectorLayer(wanted, "x", "ogr")
+      if False:  # mutation: never load the recorded source""",
+       test="test_a_saved_map_can_be_opened_and_carried_on",
+       why="the whole of ruling 5's default is that the source comes "
+           "back BY REFERENCE, which is also what makes ruling 6's "
+           "trimming safe -- a resumed map that cannot reach its data "
+           "can be looked at and never redrawn"),
+  dict(name="an-embedded-source-is-an-opt-in", file=DIALOG,
+       old="""    if box is None or not box.isChecked() or not path:
+      return False""",
+       new="""    if box is None or not path:  # mutation: always embed
+      return False""",
+       test="test_a_saved_map_can_be_opened_and_carried_on",
+       why="embedding by default puts somebody's data inside every map "
+           "of it, which is ruling 8's concern arriving at a different "
+           "boundary, and makes every file as large as its source"),
+  dict(name="our-own-key-is-not-somebodys-variable", file=DIALOG,
+       old="""    return [f.name() for f in layer.fields()
+            if f.name() != bridge.GPKG_FID_COLUMN]""",
+       new="""    return [f.name() for f in layer.fields()]  # mutation""",
+       test="test_a_saved_map_can_be_opened_and_carried_on",
+       why="a region read back from one of our own GeoPackages carries "
+           "`weavingspace_fid`, our primary key. It is numeric and not "
+           "in the id-like list, so the default picker took it, the "
+           "run named a table for it, and the write failed outright -- "
+           "16 of 61 features and the whole landing lost. Measured "
+           "2026-08-25 on the resume path that made it reachable"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a

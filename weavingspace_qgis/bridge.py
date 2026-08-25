@@ -3765,6 +3765,88 @@ def seed_renderer(layer: QgsVectorLayer, assignment: dict,
 
 # ------------------------------------------------------------ GPKG output
 
+WORKING_STATE_METADATA = "WEAVINGSPACE_STATE"
+REGION_TABLE_NAME = "weavingspace_region"
+
+# The GeoPackage primary key this plugin writes, named so it cannot
+# collide with a user column called `fid`. Named here rather than
+# spelled at the writer alone, because a region layer read back out of
+# one of our own files arrives CARRYING it, and the dialog has to know
+# not to offer its own key as somebody's variable.
+GPKG_FID_COLUMN = "weavingspace_fid"
+
+
+def write_working_state(path: str, record: dict) -> bool:
+  """Put a map's working state into the GeoPackage that holds it.
+
+  Args:
+    path: the .gpkg this run wrote.
+    record: the working state, as `_capture_working_state` built it.
+
+  Returns:
+    True when it was written, False when it could not be. A failure
+    costs the RESUME and nothing else -- the map, its styles and its
+    tables are already in the file -- so it is reported rather than
+    raised, on the same reasoning as the group stamp.
+
+  WRITTEN AS FILE-LEVEL METADATA, and the alternative was measured
+  before this was chosen. A custom property on every output layer
+  would have ridden the `embed_style` path that already round-trips,
+  and it would have put the same record into the file N times and
+  entered the shipped-layer contract, where every property has to be
+  documented and defended. GeoPackage metadata is one record, in the
+  format's own `gpkg_metadata` table, and it belongs to the FILE,
+  which is what the record is about.
+
+  MEASURED ON GDAL 3.12.0, 2026-08-25: written through
+  `gdal.OpenEx(path, OF_UPDATE)`, read back identically from a cold
+  open, and still there after another table was created in the same
+  file -- which matters, because a run replaces tables one at a time
+  and a later write must not take the record with it.
+  """
+  from osgeo import gdal
+  try:
+    handle = gdal.OpenEx(path, gdal.OF_UPDATE)
+    if handle is None:
+      return False
+    handle.SetMetadataItem(WORKING_STATE_METADATA, json.dumps(record))
+    handle = None
+    return True
+  except Exception:
+    return False
+
+
+def read_working_state(path: str):
+  """The working state a GeoPackage carries, or None.
+
+  Args:
+    path: a .gpkg somebody is asking the plugin to resume.
+
+  Returns:
+    The record as a dict, or None where the file has none, cannot be
+    opened, or holds something that is not a JSON object. Deciding
+    what to do about a record from a NEWER version is the caller's
+    business, not this function's: the version is in the dict and the
+    dialog is where a person can be told.
+  """
+  from osgeo import gdal
+  try:
+    handle = gdal.OpenEx(path)
+    if handle is None:
+      return None
+    raw = handle.GetMetadataItem(WORKING_STATE_METADATA)
+    handle = None
+  except Exception:
+    return None
+  if not raw:
+    return None
+  try:
+    record = json.loads(raw)
+  except Exception:
+    return None
+  return record if isinstance(record, dict) else None
+
+
 def element_table_name(tile_id: str, variable, taken=()) -> str:
   """The GeoPackage table name for one element's tiles.
 
@@ -3873,7 +3955,7 @@ def write_gpkg_layer(layer: QgsVectorLayer, path: str, layer_name: str,
   # SPATIAL_INDEX is GDAL's GeoPackage default already; named here so
   # the R-tree the interactive map depends on cannot vanish behind a
   # changed default, and so the intent is visible beside the FID fix
-  options.layerOptions = ["FID=weavingspace_fid", "SPATIAL_INDEX=YES"]
+  options.layerOptions = [f"FID={GPKG_FID_COLUMN}", "SPATIAL_INDEX=YES"]
   options.actionOnExistingFile = (
     compat.writer_overwrite_file() if first
     else compat.writer_overwrite_layer())

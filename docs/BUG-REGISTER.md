@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-309 defect(s) with a regression test.
+310 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -295,6 +295,8 @@ there is no separate list to remember.
   guarded by `test_a_reopened_project_reaches_its_own_colours_and_pins`
 - **a project reopened from a file heard no in-place dock recolour at all, because a guard read a deliberately empty record as evidence that the row had moved.**  
   guarded by `test_a_reopened_project_still_hears_a_recolour_made_in_qgis`
+- **a finished map could be looked at but not carried on with: the GeoPackage held tables and styles and nothing about the design that produced them, so a demo had to re-tile from scratch and a colleague received a result they could not continue.**  
+  guarded by `test_a_saved_map_can_be_opened_and_carried_on`
 - **a guard computed as a delta was armed for one invocation, so a second repaint after a class was added in QGIS recorded four of the plugin's own ramp colours as the user's hand-picks, stamped into the project.**  
   guarded by `test_a_second_reconciliation_adopts_no_colour_the_plugin_painted`
 - **a spacing a person typed was destroyed by a round trip through another dataset -- 137 typed, another layer chosen, and 500 on return with nothing said -- because auto-spacing re-derived once per newly chosen layer id and a return counts as new.**  
@@ -671,7 +673,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
-- the mutation campaign: 46
+- the mutation campaign: 47
 - reported by a user: 29
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

@@ -4452,7 +4452,20 @@ def test_staggered_actions_during_a_run():
     if chosen.name() != "a different region":
       return (f"the region ended as {chosen.name()!r}, not the layer "
               f"chosen during the run")
-    if not dlg._element_layer_ids:
+    # ASKED OF THE PROJECT, not of the dialog's record, and the change
+    # is deliberate. What must hold is that a mid-run switch does not
+    # cost the user the map -- and a map is a project artefact. Since
+    # ruling 1 of 2026-08-25 the dialog stops CLAIMING a group when
+    # the chosen dataset has none of its own, which is exactly this
+    # journey: the run was launched on the first dataset and landed in
+    # its group, and the chooser now names the second. The layers are
+    # untouched; what emptied is the dialog's record of which group it
+    # is working on, and reading that as "no output" would demand the
+    # dialog go on claiming a map this dataset's next run will not
+    # land in.
+    drawn = [layer for layer in QgsProject.instance().mapLayers().values()
+             if layer.customProperty("weavingspace_tile_id")]
+    if not drawn:
       return "no output after switching the region layer mid-run"
     return None
 
@@ -26063,9 +26076,10 @@ def test_keeping_a_result_keeps_its_file_however_it_was_kept():
     dlg.spacing_spin.setValue(500)
     _generate_and_wait(dlg)
     _tick(400)
-    kept_count = tiles_in("tiles_a")
+    element_a = table_of_element(dlg, "a")
+    kept_count = tiles_in(element_a)
     assert kept_count, \
-      f"the kept file holds no tiles_a to protect ({kept_count})"
+      f"the kept file holds no {element_a!r} to protect ({kept_count})"
 
     dlg.group_combo.setCurrentIndex(dlg.group_combo.count() - 1)
     dlg.group_combo.activated.emit(dlg.group_combo.count() - 1)
@@ -26078,10 +26092,10 @@ def test_keeping_a_result_keeps_its_file_however_it_was_kept():
     _generate_and_wait(dlg)
     _tick(400)
     warned_new = any("overwrite" in text.lower() for _kind, text in MODALS)
-    now = tiles_in("tiles_a")
+    now = tiles_in(element_a)
     assert warned_new or now == kept_count, \
       f"choosing 'create new' kept the group in the panel and rewrote " \
-      f"the file it draws from without a word: tiles_a held " \
+      f"the file it draws from without a word: {element_a} held " \
       f"{kept_count} features and now holds {now}, so the kept copy " \
       f"is quietly showing the new map"
   finally:
@@ -28306,7 +28320,7 @@ def test_a_geopackage_carries_the_no_data_opacity_it_was_given():
     assert fresh.isValid(), \
       f"the no-data table is not in the file: {twin}"
     fresh.loadDefaultStyle()
-    element = QgsVectorLayer(f"{path}|layername=tiles_{tid}",
+    element = QgsVectorLayer(f"{path}|layername={table_of_element(dlg, tid)}",
                              "cold element", "ogr")
     assert element.isValid(), "the element table is not in the file"
     element.loadDefaultStyle()
@@ -47102,6 +47116,255 @@ def test_an_element_table_carries_only_what_it_displays():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_a_saved_map_can_be_opened_and_carried_on():
+  """One you made earlier, without the project that made it.
+
+  RULING 5 OF 2026-08-25: the GeoPackage is RESUMABLE, the source
+  comes back BY REFERENCE, and embedding the source is an explicit
+  opt-in for a file somebody else is meant to carry on with. It is the
+  roadmap's "read in one I made earlier", and it is what makes ruling
+  6's trimming safe -- with the source recoverable, switching an
+  element's variable re-tiles rather than reading a column carried
+  along just in case.
+
+  FOUR LEGS, because the promise has four parts that fail separately:
+  the record reaches the file at all; a whole session can be resumed
+  from it with the source found by reference; a record from a NEWER
+  build is refused whole rather than half-read; and a recorded column
+  the data no longer has is treated exactly as a deleted column is,
+  which is machinery that already exists and must not be reinvented.
+  The fifth leg is the opt-in: with the source embedded, the map
+  resumes even when the original file has gone.
+
+  THE REGION IS FILE-BACKED THROUGHOUT, deliberately. A memory layer's
+  `source()` encodes its FIELDS, so deleting a column changes the
+  string that by-reference recovery matches on -- which would make the
+  fourth leg pass for a reason that has nothing to do with the rule.
+
+  Regression: a finished map could be looked at but not carried on with: the GeoPackage held tables and styles and nothing about the design that produced them, so a demo had to re-tile from scratch and a colleague received a result they could not continue. [mutation]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="weavingspace_resume_")
+  region_path = os.path.join(folder, "region.gpkg")
+  map_path = os.path.join(folder, "map.gpkg")
+  shared_path = os.path.join(folder, "shared.gpkg")
+  problems, checked = [], 0
+
+  def cell(what, condition, detail):
+    """One part of the resume promise.
+
+    Args:
+      what: how the cell names itself in a failure.
+      condition: True when the promise held.
+      detail: what was seen, quoted when it did not.
+
+    Returns:
+      None; appends to `problems` and counts into `checked`.
+    """
+    nonlocal checked
+    checked += 1
+    if not condition:
+      problems.append(f"{what}: {detail}")
+
+  def write_region(columns):
+    """Put a region layer on disk holding exactly these columns."""
+    memory = make_region_layer(n=4, cell=1000)
+    frame = bridge.layer_to_gdf(memory, columns)
+    written = bridge.write_gpkg_layer(
+      bridge.gdf_to_layer(frame, "region"), region_path, "region",
+      first=True)
+    assert written is not None and written.isValid(), \
+      "the fixture could not write a region to disk"
+    return written
+
+  def said(dlg):
+    return " ".join(text for _kind, text in BAR_MESSAGES) + " " + \
+      dlg.live_note.text()
+
+  dlg = None
+  try:
+    # ---- LEG ONE: a map is made and the file carries its state
+    region = write_region(["v1", "v2", "v3"])
+    project.addMapLayer(region)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    dlg.n_combo.setCurrentText("3")
+    _tick(200)
+    families = [name for name, spec
+                in __import__("weavingspace_qgis.catalog",
+                              fromlist=["catalog"]).TILINGS_BY_N[3].items()
+                if spec["type"] == "tiling"]
+    wanted_family = families[1]
+    dlg.family_combo.setCurrentText(wanted_family)
+    _tick(200)
+    dlg.spacing_spin.setValue(540)
+    dlg.table.cellWidget(0, 1).setCurrentText("v3")
+    _tick(200)
+    dlg.gpkg_widget.setFilePath(map_path)
+    # CAPTURED AS A STRING, before anything clears the project. A
+    # layer's Python wrapper outlives its C++ object by exactly as
+    # long as it takes to ask it a question, and `project.clear()`
+    # below is what kills it.
+    region_source = region.source()
+    _generate_and_wait(dlg)
+    _tick(400)
+    assert dlg._element_layer_ids, "the run produced nothing to resume"
+
+    stored = bridge.read_working_state(map_path)
+    cell("the file carries a working state at all", bool(stored),
+         f"read_working_state gave {stored!r}")
+    cell("it carries a version stamp",
+         isinstance((stored or {}).get("version"), int),
+         f"version is {(stored or {}).get('version')!r}")
+    cell("the source is recorded BY REFERENCE",
+         (stored or {}).get("region") == region_source
+         and not (stored or {}).get("region_embedded"),
+         f"region {(stored or {}).get('region')!r}, embedded "
+         f"{(stored or {}).get('region_embedded')!r}")
+    cell("and the design that was tiled is in it",
+         (stored or {}).get("design", {}).get("spacing") == 540.0
+         and (stored or {}).get("design", {}).get("family")
+         == wanted_family,
+         f"{(stored or {}).get('design')}")
+    dlg.close()
+    project.clear()
+    _tick(300)
+
+    # ---- LEG TWO: a different session opens the file cold
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    _tick(300)
+    BAR_MESSAGES.clear()
+    opened = dlg._resume_from_gpkg(map_path)
+    _tick(700)
+    cell("a saved map opens", opened, f"the plugin said {said(dlg)!r}")
+    cell("its element layers come back",
+         len(dlg._element_layer_ids) == 3,
+         f"{sorted(dlg._element_layer_ids)}")
+    cell("its design comes back",
+         abs(dlg.spacing_spin.value() - 540.0) < 1e-9
+         and dlg.family_combo.currentText() == wanted_family,
+         f"spacing {dlg.spacing_spin.value()}, family "
+         f"{dlg.family_combo.currentText()!r}")
+    here = dlg.layer_combo.currentLayer()
+    cell("the source is found by reference",
+         here is not None and here.source() == region_source,
+         f"the region chooser holds "
+         f"{None if here is None else here.source()!r}")
+    cell("and the row that was mapped comes back on its column",
+         (dlg._assignment_for("a") or {}).get("var") == "v3",
+         f"{(dlg._assignment_for('a') or {}).get('var')!r}")
+    dlg.close()
+    project.clear()
+    _tick(300)
+
+    # ---- LEG THREE: a record from a NEWER build is refused whole
+    ahead = os.path.join(folder, "ahead.gpkg")
+    shutil.copyfile(map_path, ahead)
+    future = dict(stored or {})
+    future["version"] = 999
+    assert bridge.write_working_state(ahead, future), \
+      "the fixture could not stage a forward-incompatible file"
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    _tick(300)
+    BAR_MESSAGES.clear()
+    refused = dlg._resume_from_gpkg(ahead)
+    _tick(300)
+    told = said(dlg)
+    cell("a file from a newer build is refused", not refused, "it opened")
+    cell("and the refusal says why",
+         "newer version" in told.lower(),
+         f"the plugin said {told!r}")
+    cell("and nothing of it was half-applied",
+         not dlg._element_layer_ids,
+         f"{sorted(dlg._element_layer_ids)} were adopted anyway")
+    dlg.close()
+    project.clear()
+    _tick(300)
+
+    # ---- LEG FOUR: the recorded column is gone from the data
+    write_region(["v1", "v2"])          # v3 no longer exists
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    _tick(300)
+    BAR_MESSAGES.clear()
+    cell("a map whose column has gone still opens",
+         dlg._resume_from_gpkg(map_path), f"the plugin said {said(dlg)!r}")
+    _tick(700)
+    landed = (dlg._assignment_for("a") or {}).get("var")
+    fields = set(dlg._layer_fields())
+    cell("the element re-points at a column the data has",
+         landed is None or landed in fields,
+         f"element a came back on {landed!r} where the region holds "
+         f"{sorted(fields)}")
+    cell("and it did not come back on the column that has gone",
+         landed != "v3", f"element a still claims {landed!r}")
+    dlg.close()
+    project.clear()
+    _tick(300)
+
+    # ---- LEG FIVE: the opt-in, and a source that cannot be reached
+    region = write_region(["v1", "v2", "v3"])
+    project.addMapLayer(region)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    dlg.opt_embed_source.setChecked(True)
+    dlg.spacing_spin.setValue(560)
+    dlg.gpkg_widget.setFilePath(shared_path)
+    BAR_MESSAGES.clear()
+    _generate_and_wait(dlg)
+    _tick(400)
+    assert dlg._element_layer_ids, \
+      f"the embed run produced nothing, so the legs below are about " \
+      f"an empty file; the plugin said {said(dlg)!r}"
+    shared = bridge.read_working_state(shared_path)
+    cell("an embedded source is recorded as embedded",
+         bool((shared or {}).get("region_embedded")),
+         f"{(shared or {}).get('region_embedded')!r}; the file holds "
+         f"{shared and sorted(shared)}, and the plugin said "
+         f"{said(dlg)!r}")
+    dlg.close()
+    project.clear()
+    _tick(300)
+    # the original data goes away entirely, which is what a file sent
+    # to somebody else meets
+    os.remove(region_path)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    _tick(300)
+    BAR_MESSAGES.clear()
+    cell("a shared map opens with its source gone",
+         dlg._resume_from_gpkg(shared_path),
+         f"the plugin said {said(dlg)!r}")
+    _tick(700)
+    recovered = dlg.layer_combo.currentLayer()
+    cell("and the region comes from inside the file",
+         recovered is not None
+         and bridge.REGION_TABLE_NAME in recovered.source(),
+         f"the region chooser holds "
+         f"{None if recovered is None else recovered.source()!r}")
+
+    # four about the record, five about resuming it, three about the
+    # refusal, three about a column that has gone, two about the
+    # opt-in and the source that could not be reached
+    assert checked == 18, f"only {checked} cells were compared"
+    assert not problems, \
+      "a saved map could not be carried on with:\n  " + \
+      "\n  ".join(problems)
+  finally:
+    if dlg is not None:
+      dlg.close()
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_preview_draws_the_middle_of_the_patch():
   """With context shells on, the preview must include the CENTRE unit.
 
@@ -49579,12 +49842,13 @@ def test_a_restyle_arrives_while_the_geopackage_is_written():
 
     # the file a colleague receives must still open, layer by layer
     for tid in sorted(_element_layers(dlg)):
-      reopened = QgsVectorLayer(f"{path}|layername=tiles_{tid}",
+      table = table_of_element(dlg, tid)
+      reopened = QgsVectorLayer(f"{path}|layername={table}",
                                 f"check {tid}", "ogr")
       assert reopened.isValid(), \
-        f"tiles_{tid} does not open after the restyle raced the write"
+        f"{table} does not open after the restyle raced the write"
       assert reopened.featureCount() > 0, \
-        f"tiles_{tid} opens but is empty after the restyle raced the " \
+        f"{table} opens but is empty after the restyle raced the " \
         f"write"
 
     # ...and the ramp the user picked mid-write is not lost
@@ -56905,7 +57169,11 @@ def test_a_project_whose_output_geopackage_has_moved():
     project.clear()
     _tick(200)
     remade = _boundary_read_gpkg(out_path)
-    assert sorted(remade) == sorted(f"tiles_{t}" for t in written), \
+    # Compared as ELEMENTS: a table name carries the displayed
+    # variable since 2026-08-25, and the claim is about which elements
+    # the rebuilt file holds.
+    assert sorted(t for t in map(element_of_table, remade) if t) == \
+        sorted(written), \
       f"the rewritten file holds {sorted(remade)}, not {written}"
     for name, lyr in sorted(remade.items()):
       assert lyr.isValid() and lyr.featureCount() > 0, \
@@ -59076,6 +59344,8 @@ def main():
         test_the_output_group_chooser_binds_to_the_dataset)
   check("an element table carries only what it displays",
         test_an_element_table_carries_only_what_it_displays)
+  check("a saved map can be opened and carried on",
+        test_a_saved_map_can_be_opened_and_carried_on)
   check("the preview draws the middle of the patch",
         test_preview_draws_the_middle_of_the_patch)
   check("switching region layer counts as a change",

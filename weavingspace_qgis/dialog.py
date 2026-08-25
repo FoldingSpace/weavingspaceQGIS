@@ -2399,6 +2399,22 @@ class WeavingSpaceDialog(QDialog):
     out_form.addRow("Save to GeoPackage\n(empty = temporary layers)",
                     self.gpkg_widget)
     olayout.addLayout(out_form)
+    # THE SOURCE TRAVELS ONLY IF ASKED (ruling 5 of 2026-08-25). A
+    # saved map records where its data came from, which is enough to
+    # carry on with on the machine that made it; putting the data
+    # itself in is for a file somebody ELSE is meant to continue.
+    self.opt_embed_source = QCheckBox(
+      "Include the source data, so others can carry on with it")
+    self.opt_embed_source.setToolTip(
+      "Copies the region layer into the file, making it larger.")
+    olayout.addWidget(self.opt_embed_source)
+    resume_row = QHBoxLayout()
+    resume = QPushButton("Open a saved map...")
+    resume.setToolTip("Carry on with a map saved to a GeoPackage.")
+    resume.clicked.connect(self._resume_from_a_file)
+    resume_row.addWidget(resume)
+    resume_row.addStretch(1)
+    olayout.addLayout(resume_row)
     olayout.addStretch(1)
     tabs.addTab(opts_tab, "Map options")
 
@@ -3828,11 +3844,28 @@ class WeavingSpaceDialog(QDialog):
 
   def _layer_fields(self) -> list[str]:
     """Attribute (column) names of the region layer; ``fields()`` is
-    QGIS's schema accessor, analogous to a GeoDataFrame's columns."""
+    QGIS's schema accessor, analogous to a GeoDataFrame's columns.
+
+    OUR OWN PRIMARY KEY IS NOT ONE OF THEM. A GeoPackage this plugin
+    wrote carries `weavingspace_fid`, the key column named so it
+    cannot collide with a user column called fid -- and a region layer
+    read back out of such a file therefore arrives carrying it. That
+    is not the user's data and mapping it cannot mean anything, so it
+    is not offered.
+
+    MEASURED 2026-08-25, on the resume path that made it reachable: an
+    element defaulted onto `weavingspace_fid` (numeric, and not in the
+    id-like list, so the default picker took it), the run named its
+    table `tiles_a_weavingspace_fid`, and the write failed outright --
+    "UNIQUE constraint failed", because the writer sets that column as
+    the FID while the data now held one too. Sixteen of sixty-one
+    features written and the whole landing lost.
+    """
     layer = self.layer_combo.currentLayer()
     if layer is None:
       return []
-    return [f.name() for f in layer.fields()]
+    return [f.name() for f in layer.fields()
+            if f.name() != bridge.GPKG_FID_COLUMN]
 
   def _field_is_numeric(self, name: str) -> bool:
     """Whether a field holds numbers (drives the Quant/Categorized
@@ -6337,6 +6370,19 @@ class WeavingSpaceDialog(QDialog):
     self._new_group_chosen = False
     self._selecting_a_group = False
     self._restoring_assignments = None
+    # ...AND THE FACT THAT THIS SESSION HAS BUILT SOMETHING, which is
+    # about the PROJECT and not about the window. `_landed_this_session`
+    # means "there is work here to protect", and after File > Open
+    # there is not: whatever this dialog built belongs to the project
+    # being replaced. Left standing it made the incoming project's own
+    # output group look like a stranger's -- the dialog let go of the
+    # group it had just adopted and the next Generate built a rival
+    # beside the user's map. It also decides `switched_from_work`, so
+    # the same staleness would have read a first choice in the new
+    # project as a change of dataset. Found 2026-08-25 by the reopen
+    # journeys, and it is this method's own rule again: enumerate what
+    # a clear site LEAVES.
+    self._landed_this_session = False
     combo = getattr(self, "group_combo", None)
     if combo is not None:
       combo.blockSignals(True)
@@ -10905,8 +10951,25 @@ class WeavingSpaceDialog(QDialog):
       # This is the paragraph above, repeated: a boolean summarising a
       # field cannot see the field move, and neither can it see a
       # number move. Carrying the numbers costs two dict lookups.
-      tuple((a["id"],
-             a.get("var") if self._needs_a_no_data_split(a) else None,
+      # ...AND WHICH ELEMENT CARRIES WHICH VARIABLE, not merely which
+      # variables are mapped. The term above this one is the SET, and
+      # a set is invariant under a PERMUTATION -- swapping two
+      # elements' columns leaves it identical -- which was harmless
+      # while every element layer carried every mapped column: a
+      # restyle could re-seed element a onto b's column because the
+      # column was there. Ruling 6 of 2026-08-25 trims each element to
+      # the variable it displays, and that makes a permutation a
+      # GEOMETRY change: element a's layer now holds only v1, so
+      # re-seeding it onto v3 finds no field at all and QGIS hands
+      # back a single symbol. Measured the day the trim landed, by
+      # `test_metamorphic_variable_permutation`, which had passed
+      # since it was written.
+      #
+      # This is the third time this signature has been widened for the
+      # same reason, and the note beside the first two says it: a term
+      # coarser than the thing it stands for cannot see that thing
+      # move. A set could not see a permutation.
+      tuple((a["id"], a.get("var"), self._needs_a_no_data_split(a),
              self._limits_key(a))
             for a in self._assignments()),
       # What the layer HOLDS, not merely which layer it is. Without
@@ -13081,7 +13144,17 @@ class WeavingSpaceDialog(QDialog):
       self._refresh_group_combo()
       return False
     layer = self.layer_combo.currentLayer()
-    source = layer.source() if layer is not None else None
+    # AN EMPTY CHOOSER IS NOT A DATASET, which this dialog already
+    # settled once for the memory banks and had to learn again here.
+    # Removing the region layer empties the combo, and treating that
+    # as "this dataset has no group" made the dialog let go of the map
+    # it had already made -- while the layers sat in the project,
+    # unclaimed, so the next Generate built a rival beside them. The
+    # output is the user's map, not a view of the input.
+    if layer is None:
+      self._refresh_group_combo()
+      return False
+    source = layer.source()
     root = QgsProject.instance().layerTreeRoot()
     groups = self._our_groups(root)
     theirs = [entry for entry in groups if source and entry[2] == source]
@@ -13096,6 +13169,26 @@ class WeavingSpaceDialog(QDialog):
       # when NO group in the project carries a stamp, never when one
       # simply belongs to another dataset.
       theirs = groups
+    if not theirs and not self._landed_this_session:
+      # NOTHING HAS BEEN BUILT IN THIS SESSION, so ADOPTION'S ANSWER
+      # STANDS and the binding has nothing better to offer. This is
+      # the clause `switched_from_work` already draws for the same
+      # reason, arriving at a different control: a reopened session
+      # has not landed anything, so there is nothing to protect and
+      # no basis for overruling what adoption found.
+      #
+      # MEASURED, AND THE MEASUREMENT IS THE WHOLE REASON: a MEMORY
+      # layer's `source()` carries a uid that changes when the project
+      # is reopened, so a map made from one comes back stamped with a
+      # string that matches nothing. Six reopen journeys went red at
+      # once, the dialog letting go of the group it had just adopted
+      # and the next Generate building a rival beside the user's map.
+      # `weavingspace_region` was introduced because a source survives
+      # a reopen where a layer id does not -- true of a FILE, and not
+      # of memory. `_newest_output_group` makes the same allowance
+      # from the other side, for the output that predates the stamp.
+      self._refresh_group_combo()
+      return False
     if not theirs:
       # NOT WORKING ON ANY GROUP, and the dialog must say so rather
       # than go on displaying the last one. Leaving it attached would
@@ -13123,6 +13216,24 @@ class WeavingSpaceDialog(QDialog):
       self._refresh_group_combo()
       return False
     group = theirs[0][0]          # newest first, so this is ruling 3
+    # ALREADY WORKING ON IT MEANS DO NOTHING, and this is the clause
+    # that keeps the binding from undoing the user's own work.
+    # QgsMapLayerComboBox re-emits `layerChanged` whenever the
+    # project's layers churn -- which a run does twice -- so without
+    # it every landing was followed by the group's own record being
+    # applied back over the dialog, wiping whatever had been changed
+    # since. Measured 2026-08-25: a test swapped two elements'
+    # variables, generated, and the swap was gone by the time the
+    # renderers were read, one element left drawing a single symbol.
+    #
+    # ASKED OF THE LAYERS, like everything else here: a group is the
+    # one we are on when it holds a layer this dialog claims.
+    on_it = {child.layer().id() for child in group.children()
+             if getattr(child, "layer", lambda: None)() is not None}
+    if on_it & set(self._element_layer_ids.values()):
+      self._new_group_chosen = False
+      self._refresh_group_combo()
+      return False
     self._new_group_chosen = False
     record = self._read_working_state(group)
     self._take_over_group(group)
@@ -13488,6 +13599,222 @@ class WeavingSpaceDialog(QDialog):
       group.setCustomProperty(WORKING_STATE_PROPERTY, json.dumps(record))
     except Exception:
       _dump("STATE", "stamp-failed", traceback.format_exc(limit=3))
+
+  def _resume_from_a_file(self):
+    """Ask for a saved map and carry on with it.
+
+    Returns:
+      None. Puts a file chooser up, then hands the chosen path to
+      `_resume_from_gpkg`, which does the work and says what it found.
+
+    Separated from the work so the work can be tested without a modal:
+    the suite drives `_resume_from_gpkg` directly, and this method is
+    the two lines that cannot be driven headlessly.
+    """
+    from qgis.PyQt.QtWidgets import QFileDialog
+    path, _filter = QFileDialog.getOpenFileName(
+      self, "Open a saved map", "", "GeoPackage (*.gpkg)")
+    if path:
+      self._resume_from_gpkg(path)
+
+  def _resume_from_gpkg(self, path) -> bool:
+    """Carry on with a map saved to a GeoPackage.
+
+    Args:
+      path: the .gpkg to resume.
+
+    Returns:
+      True when the file's layers were loaded and its working state
+      applied; False when there was nothing to resume, in which case
+      the user has been told why.
+
+    RULING 5 OF 2026-08-25, and the roadmap's "one I made earlier":
+    point the plugin at a saved output GeoPackage -- WITHOUT the
+    project that made it -- and have it adopt the group the way a
+    reopened project is adopted. A demo can then open a finished
+    result instead of tiling one live.
+
+    NOTHING NEW IS INVENTED FOR THE STAMPS. Every output layer's
+    custom properties are saved INSIDE its embedded style, so
+    `loadDefaultStyle` brings back `weavingspace_output`,
+    `weavingspace_tile_id` and the rest -- which is exactly what
+    `test_an_exported_geopackage_is_still_recognised_as_our_own`
+    already proves. So the layers arrive stamped, adoption recognises
+    them on its own terms, and this method only has to put them in a
+    group and apply the record.
+
+    THE SOURCE COMES BACK BY REFERENCE unless it was embedded. If
+    neither can be reached, the design is still restored and the user
+    is told the data is missing: a map you can look at and cannot
+    re-tile is worth more than a refusal.
+    """
+    record = bridge.read_working_state(path)
+    if record is None:
+      self._report_quietly(
+        "That GeoPackage does not carry a saved map, so there is "
+        "nothing to carry on with. Add its layers in QGIS to look at "
+        "it.")
+      return False
+    version = record.get("version")
+    if not isinstance(version, int) or version > WORKING_STATE_VERSION:
+      # FORWARD-INCOMPATIBLE, REFUSED WHOLE. Taking the keys this
+      # build happens to recognise would restore a design nobody
+      # chose while looking exactly like a design somebody did.
+      self._report_quietly(
+        f"That map was saved by a newer version of the plugin "
+        f"(record {version}, this build reads {WORKING_STATE_VERSION}), "
+        "so it cannot be opened here. Update the plugin, or add its "
+        "layers in QGIS to look at the map.")
+      return False
+
+    project = QgsProject.instance()
+    from qgis.core import QgsVectorLayer
+    from osgeo import gdal
+    try:
+      handle = gdal.OpenEx(path)
+      tables = [handle.GetLayer(i).GetName()
+                for i in range(handle.GetLayerCount())]
+      handle = None
+    except Exception:
+      tables = []
+    wanted = [name for name in tables if name.startswith("tiles_")]
+    if not wanted:
+      self._report_quietly(
+        "That GeoPackage holds a saved map but none of its layers, so "
+        "there is nothing to draw.")
+      return False
+
+    root = project.layerTreeRoot()
+    name = GROUP_BASE_NAME
+    index = 1
+    while root.findGroup(name) is not None:
+      index += 1
+      name = f"{GROUP_BASE_NAME} {index}"
+    group = root.insertGroup(0, name)
+    loaded = 0
+    for table in sorted(wanted):
+      found = QgsVectorLayer(f"{path}|layername={table}", table, "ogr")
+      if not found.isValid():
+        continue
+      # the stamps ride inside the embedded style, so this is what
+      # makes the layer recognisably ours again
+      found.loadDefaultStyle()
+      project.addMapLayer(found, False)
+      group.addLayer(found)
+      loaded += 1
+    if not loaded:
+      root.removeChildNode(group)
+      self._report_quietly(
+        "None of that GeoPackage's layers would open, so the map "
+        "could not be brought back.")
+      return False
+
+    # THE SOURCE, by reference or from inside the file. Reached before
+    # the record is applied, because the assignment table cannot
+    # restore a variable to a column the region does not have.
+    self._recover_the_source(path, record)
+    self._selecting_a_group = True
+    try:
+      self._take_over_group(group)
+      self._apply_working_state(record)
+    finally:
+      self._selecting_a_group = False
+    self._last_path = path
+    self._refresh_group_combo()
+    self._report_quietly(
+      f"Opened the saved map from {os.path.basename(path)}: "
+      f"{loaded} element layers.")
+    return True
+
+  def _recover_the_source(self, path, record):
+    """Point the region chooser at the data a saved map was made from.
+
+    Args:
+      path: the GeoPackage being resumed.
+      record: its working state, read for "region" and for whether
+        the source was embedded.
+
+    Returns:
+      None. Selects a layer already in the project where one matches,
+      loads the recorded source where it can be reached, falls back to
+      the copy inside the file where one was embedded, and says so
+      when none of the three works.
+
+    A LAYER ALREADY OPEN IS PREFERRED over loading a second copy of
+    the same file, because two layers on one source is how a project
+    ends up with the plugin pointed at one and the user editing the
+    other.
+    """
+    from qgis.core import QgsVectorLayer
+    project = QgsProject.instance()
+    wanted = record.get("region")
+    if wanted:
+      for layer in project.mapLayers().values():
+        try:
+          same = layer.source() == wanted
+        except Exception:
+          continue
+        if same:
+          self.layer_combo.setLayer(layer)
+          return
+      found = QgsVectorLayer(wanted, os.path.basename(str(wanted)), "ogr")
+      if found.isValid():
+        project.addMapLayer(found)
+        self.layer_combo.setLayer(found)
+        return
+    if record.get("region_embedded"):
+      inside = QgsVectorLayer(
+        f"{path}|layername={bridge.REGION_TABLE_NAME}",
+        "region (from the saved map)", "ogr")
+      if inside.isValid():
+        project.addMapLayer(inside)
+        self.layer_combo.setLayer(inside)
+        return
+    self._report_quietly(
+      "The data this map was made from could not be found, so it can "
+      "be looked at but not redrawn. Choose the region layer to carry "
+      "on.")
+
+  def _embed_source_into(self, path, source_layer) -> bool:
+    """Write the region's own data into the output file, if asked.
+
+    Args:
+      path: the output GeoPackage this run wrote.
+      source_layer: the region layer that was tiled.
+
+    Returns:
+      True when the source was written into the file, False otherwise
+      -- including when the box is unticked, which is the ordinary
+      case, and when the write failed, since a file that cannot carry
+      its source is still a perfectly good map.
+
+    AN EXPLICIT OPT-IN, and the default is by REFERENCE (ruling 5 of
+    2026-08-25). Two reasons, and the second is the one that decides
+    it. A file stays small: the region is usually far larger than the
+    tiles drawn from it. And a file stays PRIVATE -- somebody's data
+    is not smuggled along inside a map of it, which is the same
+    concern as ruling 8's, arriving at a different boundary. Making
+    portability a choice somebody makes is the shape this plugin
+    already uses for the dependency download.
+    """
+    box = getattr(self, "opt_embed_source", None)
+    if box is None or not box.isChecked() or not path:
+      return False
+    if source_layer is None:
+      return False
+    try:
+      frame = bridge.layer_to_gdf(
+        source_layer, [f.name() for f in source_layer.fields()])
+      written = bridge.write_gpkg_layer(
+        bridge.gdf_to_layer(frame, bridge.REGION_TABLE_NAME),
+        path, bridge.REGION_TABLE_NAME, first=False)
+      return written is not None and written.isValid()
+    except Exception:
+      # The map is already written; a source that would not embed
+      # costs the ability to resume this file on a machine that
+      # cannot reach the original, and nothing else.
+      _dump("STATE", "embed-failed", traceback.format_exc(limit=3))
+      return False
 
   def _read_working_state(self, group):
     """The working state a group carries, or None.
@@ -14169,6 +14496,36 @@ class WeavingSpaceDialog(QDialog):
                 if getattr(child, "layer", lambda: None)() is not None
                 and child.layer().customProperty("weavingspace_region")}
       theirs = bool(stamps) and region_source not in stamps
+      if theirs and self._adopted_group_unwritten:
+        # ...UNLESS THIS IS A RECOVERY, which the ruling of 2026-08-21
+        # already decided and this guard, written on the 24th, did not
+        # know about: "a recovery is not a switch -- reopening a
+        # project whose region file has MOVED and pointing at live
+        # data re-finds the same work". `_adopt_existing_group`'s own
+        # contract says the same thing from the other end: a group
+        # this dialog took over and has not yet written to is replaced
+        # by the first Generate whatever the output box says.
+        #
+        # SO THE OTHER DATASET HAS TO BE REACHABLE for its map to be
+        # somebody's work worth protecting. Where the stamped source
+        # is gone -- moved, deleted, on a disk that is not mounted --
+        # there is nothing to switch away FROM, and refusing to write
+        # leaves the user with a rival group beside the map they were
+        # recovering. Measured 2026-08-25: this test had been red on
+        # an unpushed branch since the guard landed.
+        #
+        # WHAT IT DOES NOT COVER, said plainly rather than left to be
+        # discovered: a project holding a map of data nobody loaded is
+        # indistinguishable from a recovery, and this treats it as
+        # one. That case is no longer invisible, which is what ruling 1
+        # bought -- the chooser NAMES the group a run will land in, so
+        # somebody can see the map they are about to replace.
+        from . import compat
+        theirs = any(
+          compat.layer_data_is_available(other)
+          for mark in stamps
+          for other in project.mapLayers().values()
+          if getattr(other, "source", lambda: None)() == mark)
     force_new = (self.opt_new_group.isChecked() or renamed_mid_run
                  or theirs
                  or self._new_group_chosen or (
@@ -14881,6 +15238,30 @@ class WeavingSpaceDialog(QDialog):
     # the ELEMENT half; the reasoning for that split is at
     # `_stamp_working_state`, beside the code that does it.
     self._stamp_working_state(group, launch_state)
+    # ...AND INTO THE FILE, which is what makes it RESUMABLE (ruling 5
+    # of 2026-08-25). The group's custom property persists with the
+    # PROJECT; a colleague receives the GeoPackage on its own, and the
+    # roadmap's "one I made earlier" is somebody opening a finished
+    # result without the project that made it.
+    #
+    # THE SOURCE COMES BACK BY REFERENCE. The record already carries
+    # the region's own source string, which every output layer has
+    # carried as `weavingspace_region` since 2026-08-24, so nothing
+    # extra is written for the ordinary case: the file stays small,
+    # and it stays private, since somebody else's copy of the data is
+    # not smuggled along with a map of it. EMBEDDING IS THE OPT-IN,
+    # for a file another person is meant to carry on with, which is
+    # the same shape as the dependency consent and as ruling 8's
+    # "sharing a ladder across files is an explicit act".
+    if path:
+      resumable = self._capture_working_state()
+      if isinstance(launch_state, dict):
+        for key in ("design", "output_path", "region"):
+          if key in launch_state:
+            resumable[key] = launch_state[key]
+      resumable["region_embedded"] = self._embed_source_into(
+        path, source_layer)
+      bridge.write_working_state(path, resumable)
     # ...and the chooser learns about a group this run may have just
     # made. Rebuilt rather than appended to, so a group the run
     # REPLACED, or one the user deleted while it ran, leaves the list
