@@ -25384,9 +25384,9 @@ def test_a_change_of_dataset_starts_a_new_file_and_a_new_group():
     third_ids = set(dlg._element_layer_ids.values())
     groups_named = [g.name() for g in
                     project.layerTreeRoot().findGroups()]
-    assert not dlg._fresh_group_for_new_data, \
-      "the fresh-group flag survived its landing, so EVERY later run " \
-      "would build a new group"
+    assert not dlg._new_group_chosen, \
+      "the create-new arming survived its landing, so EVERY later " \
+      "run would build a new group"
     assert first_layer_ids == {
       lid for lid in first_layer_ids if project.mapLayer(lid)}, \
       f"the third run destroyed the first dataset's layers " \
@@ -25442,9 +25442,10 @@ def test_a_dataset_that_leaves_the_project_is_still_a_dataset_left():
       f"the output path survived a dataset that LEFT the project " \
       f"({dlg.gpkg_widget.filePath()!r}); the next Generate would " \
       f"write over the file holding the previous dataset's map"
-    assert dlg._fresh_group_for_new_data, \
-      "the fresh-group flag did not arm, so the new dataset's map " \
-      "would replace the previous one's in the project"
+    assert dlg._new_group_chosen, \
+      "the chooser did not fall back to 'create new' for a dataset " \
+      "with no group of its own, so the new dataset's map would " \
+      "replace the previous one's in the project"
     # ...and the memory went with the dataset it belongs to, which is
     # the half that was already right and must stay so.
     live = set(dlg._layer_fields())
@@ -25921,6 +25922,66 @@ def test_keeping_a_result_keeps_its_file_however_it_was_kept():
     assert warned or set(before) <= set(after), \
       f"the run wrote into the kept result's file without warning: " \
       f"{before} became {after}"
+
+    # A FOURTH WAY TO KEEP A RESULT arrived with the output-group
+    # chooser on 2026-08-25: "Create new", chosen while working on a
+    # group of the CURRENT dataset. It is the one route the three
+    # above cannot stand in for, and the catalogue said so -- the
+    # entry for this guard SURVIVED once the chooser existed, because
+    # on every route this test drove, the group's own region stamps
+    # already answered "somebody else's" and the term under mutation
+    # had nothing left to decide. Here the stamps name THIS dataset,
+    # so the arming is the only thing that can protect the file.
+    def tiles_in(table):
+      """How many features one table of the kept file holds.
+
+      Args:
+        table: the GeoPackage table name to count.
+
+      Returns:
+        The feature count, or None where the file or the table has
+        gone. The COUNT and not the table NAME, because a rerun of the
+        SAME dataset writes the same table names -- so a names-only
+        comparison cannot tell a rewritten file from an untouched one,
+        and the first draft of this act passed either way.
+      """
+      handle = ogr.Open(path)
+      if handle is None:
+        return None
+      found = handle.GetLayerByName(table)
+      count = found.GetFeatureCount() if found is not None else None
+      handle = None
+      return count
+
+    dlg.layer_combo.setLayer(A)
+    _tick(900)
+    dlg.gpkg_widget.setFilePath(path)
+    _tick(200)
+    MODALS.clear()
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(400)
+    kept_count = tiles_in("tiles_a")
+    assert kept_count, \
+      f"the kept file holds no tiles_a to protect ({kept_count})"
+
+    dlg.group_combo.setCurrentIndex(dlg.group_combo.count() - 1)
+    dlg.group_combo.activated.emit(dlg.group_combo.count() - 1)
+    _tick(300)
+    assert dlg.group_combo.currentData() is None, \
+      "the last chooser entry is not 'create new', so this act stages " \
+      "nothing"
+    MODALS.clear()
+    dlg.spacing_spin.setValue(900)
+    _generate_and_wait(dlg)
+    _tick(400)
+    warned_new = any("overwrite" in text.lower() for _kind, text in MODALS)
+    now = tiles_in("tiles_a")
+    assert warned_new or now == kept_count, \
+      f"choosing 'create new' kept the group in the panel and rewrote " \
+      f"the file it draws from without a word: tiles_a held " \
+      f"{kept_count} features and now holds {now}, so the kept copy " \
+      f"is quietly showing the new map"
   finally:
     dlg.close()
     project.clear()
@@ -26497,13 +26558,14 @@ def _switch_matrix_cell(route, state, aftermath):
         if stray:
           return (f"absent-dataset fields readable in the active "
                   f"{label}", f"{element}: {sorted(stray)}")
-    if route == "pre-landing" and dlg._fresh_group_for_new_data:
-      return ("the fresh-group flag armed on a first choice",
-              "nothing was built, so there was nothing to protect")
+    if route == "pre-landing" and dlg._new_group_chosen \
+        and dlg._group_name:
+      return ("'create new' armed on a first choice with a group in "
+              "hand", "nothing was built, so there was nothing to protect")
     if route in ("plain", "same-schema", "shared-name") \
-        and not dlg._fresh_group_for_new_data:
-      return ("the fresh-group flag did not arm on a change of "
-              "dataset", route)
+        and not dlg._new_group_chosen:
+      return ("the chooser did not fall back to 'create new' for a "
+              "dataset with no group of its own", route)
 
     # ---- the AFTERMATH.
     if aftermath == "immediate":
@@ -26545,8 +26607,8 @@ def _switch_matrix_cell(route, state, aftermath):
         return ("the landing after a switch destroyed the previous "
                 "dataset's result",
                 f"{len(survivors)}/{len(first_layers)} survived")
-      if dlg._fresh_group_for_new_data:
-        return ("the fresh-group flag outlived its landing",
+      if dlg._new_group_chosen:
+        return ("the create-new arming outlived its landing",
                 "every later run would build another group")
     if aftermath == "return" and route == "plain":
       dlg.layer_combo.setLayer(A)
@@ -46171,6 +46233,468 @@ def test_a_spacing_a_person_typed_outlives_a_change_of_dataset():
     "\n  ".join(problems)
 
 
+def test_an_output_group_carries_the_whole_working_state():
+  """Choosing a group again gives back the map that group describes.
+
+  RULING 4 OF 2026-08-25 (CLAUDE.md, "THE OUTPUT GROUP IS THE UNIT OF
+  WORK"): the whole working state belongs to the group -- family,
+  kind, element count, spacing, modifiers, icon mode, and every
+  element's variable, style, ramp, Reverse, class count, class source,
+  colours, pins and opacity -- so that selecting a group RESTORES all
+  of it and nothing whatever is inferred. It is the direct answer to a
+  colleague's diagnosis that inferring this "is OK as far as it goes,
+  but it's too hard to be reliable and not produce weird seeming
+  behaviour relatively often".
+
+  A MATRIX RATHER THAN A CASE, because "the group remembers what you
+  were doing" is a promise made of many small members and a family
+  fails one member at a time. Each cell is one recorded thing; every
+  cell reports rather than the first failure stopping the rest, and
+  the count of cells is asserted.
+
+  EVERY CELL ASSERTS ITS OWN PREMISE FIRST -- that the value really did
+  move away before the restore was asked for. Without that a cell
+  whose "changed" value happened to equal its recorded one would pass
+  with the restore deleted, which is the fixture-that-cannot-move trap
+  this suite has paid for repeatedly, most recently on a preference
+  whose mutation fell back to the same column by accident.
+
+  THE FAMILY IS NOT THE FIRST ONE IN ITS LIST, deliberately.
+  `_on_n_changed` rebuilds the family list and leaves the FIRST entry
+  showing, so a record restored into the first family would be
+  indistinguishable from a record not restored at all.
+
+  AND THE RECORD MUST SURVIVE THE PROJECT CLOSING, which is the half
+  that makes the group worth storing it on rather than the dialog. The
+  last leg saves, clears, reopens, and reads the record back off the
+  reopened group.
+
+  Regression: the output group was remembered nowhere, so returning to a dataset gave back its colours and its pins and somebody else's design -- a probe measured a user's `grid 3` coming home as `hex-slice 3`, and a spacing of 137 they had typed coming home 500 with nothing said. [mutation]
+  """
+  from weavingspace_qgis import catalog
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+
+  def tilings(n):
+    return [name for name, spec in catalog.TILINGS_BY_N.get(n, {}).items()
+            if spec["type"] == "tiling"]
+
+  three, four = tilings(3), tilings(4)
+  assert len(three) > 1 and four, \
+    "the catalogue no longer offers what this fixture needs: several " \
+    "three-element tilings and at least one four-element one"
+  # NOT three[0]: see the docstring. The restore has to name this
+  # family rather than land on it.
+  kept_family, other_family = three[1], four[0]
+
+  layer = make_region_layer(n=4, cell=1000)
+  layer.setName("region for a working state")
+  project.addMapLayer(layer)
+  folder = tempfile.mkdtemp(prefix="weavingspace_state_")
+  gpkg = os.path.join(folder, "kept.gpkg")
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  problems, checked = [], 0
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+
+    # ---- the map this group is going to be about
+    dlg.n_combo.setCurrentText("3")
+    _tick(150)
+    dlg.family_combo.setCurrentText(kept_family)
+    _tick(200)
+    dlg.spacing_spin.setValue(520)
+    dlg.mod_rotate.setValue(17)
+    dlg.opt_icons.setChecked(True)
+    dlg.opt_tile_outlines.setChecked(True)
+    dlg.gpkg_widget.setFilePath(gpkg)
+    _tick(200)
+
+    dlg.table.cellWidget(0, 1).setCurrentText("v1")
+    _tick(150)
+    mode = dlg.table.cellWidget(0, 2)
+    kept_mode = "Quant: Equal intervals"
+    assert mode.findText(kept_mode) >= 0, \
+      f"the style chooser no longer offers {kept_mode!r}"
+    mode.setCurrentIndex(mode.findText(kept_mode))
+    mode.activated.emit(mode.currentIndex())    # what a click sends
+    _tick(200)
+    ramp_combo = dlg.table.cellWidget(0, 4)
+    choices = [ramp_combo.itemText(i) for i in range(ramp_combo.count())]
+    kept_ramp = next((r for r in ("Blues", "Greens", "Purples")
+                      if r in choices), None)
+    assert kept_ramp, \
+      f"none of the expected ramps is on offer; the combo holds " \
+      f"{choices[:6]}"
+    other_ramp = next((r for r in choices if r != kept_ramp), None)
+    ramp_combo.setCurrentText(kept_ramp)
+    _tick(150)
+    dlg.table.cellWidget(0, 3).setValue(7)
+    dlg.table.cellWidget(0, 6).setValue(60)
+    reverse = dlg._row_reverse(0)
+    assert reverse is not None and reverse.isEnabled(), \
+      "row 0 has no usable Reverse box, so that cell cannot be staged"
+    reverse.setChecked(True)
+    _tick(250)
+
+    wanted = {a["id"]: a for a in dlg._assignments()}["a"]
+    assert wanted["var"] == "v1" and wanted["k"] == 7 \
+        and wanted["opacity"] == 60 and wanted["reverse"], \
+      f"the fixture did not stage row a: {wanted}"
+
+    # RUN IT WITH A CHANGE ARRIVING MID-FLIGHT, because that is the
+    # only condition under which "the record describes the map that was
+    # TILED" can be told from "the record describes the controls". Read
+    # live at the landing, the 999 below would go into the record and
+    # the group would claim a design its own layers were not drawn at.
+    # Staged inside the completion handler rather than on a timer so
+    # the ordering is decided rather than raced: a fixture this small
+    # tiles in well under one event-loop turn.
+    loop = QEventLoop()
+    landed = dlg._on_generated
+
+    def while_it_lands(*a, **kw):
+      dlg.spacing_spin.setValue(999)     # belongs to the NEXT run
+      landed(*a, **kw)
+      loop.quit()
+
+    dlg._on_generated = while_it_lands
+    try:
+      dlg._generate()
+      assert dlg._task is not None, \
+        "no run was launched, so the mid-run change could not be staged"
+      QTimer.singleShot(120_000, loop.quit)
+      loop.exec()
+    finally:
+      dlg._on_generated = landed
+    assert abs(dlg.spacing_spin.value() - 999.0) < 1e-9, \
+      f"the mid-run spacing change did not stick (box reads " \
+      f"{dlg.spacing_spin.value()}), so the record cannot be tested " \
+      f"against it"
+
+    root = project.layerTreeRoot()
+    group = dlg._group_of_our_layers(root)
+    assert group is not None, "the run made no output group to record on"
+    stamped = dlg._read_working_state(group)
+    assert stamped, \
+      "the output group carries no working state at all, so every " \
+      "cell below is about a record that was never written"
+
+    # ---- now move everything away from it
+    dlg.n_combo.setCurrentText("4")
+    _tick(200)
+    dlg.family_combo.setCurrentText(other_family)
+    _tick(250)
+    dlg.spacing_spin.setValue(1234)
+    dlg.mod_rotate.setValue(0)
+    dlg.opt_icons.setChecked(False)
+    dlg.opt_tile_outlines.setChecked(False)
+    dlg.gpkg_widget.setFilePath("")
+    _tick(200)
+    dlg.table.cellWidget(0, 1).setCurrentText("v2")
+    _tick(150)
+    # MOVED TO ANOTHER GRADUATED SCHEME rather than to Categorized,
+    # and the first draft of this test used Categorized and reported
+    # itself vacuous on its first run. `k` carries a categorized row's
+    # REMEMBERED graduated count by design (see `_assignments`), and
+    # its spinner is disabled there -- so the class-count cell could
+    # not be moved away from 7 and would have passed with the whole
+    # restore deleted. Two graduated schemes exercise the style cell
+    # just as well and leave every other cell able to fail.
+    moved_mode = dlg.table.cellWidget(0, 2)
+    moved_mode.setCurrentIndex(moved_mode.findText("Quant: Quantiles"))
+    moved_mode.activated.emit(moved_mode.currentIndex())
+    _tick(200)
+    moved_ramp = dlg.table.cellWidget(0, 4)
+    if hasattr(moved_ramp, "setCurrentText"):
+      moved_ramp.setCurrentText(other_ramp)
+    dlg.table.cellWidget(0, 3).setValue(3)
+    dlg.table.cellWidget(0, 6).setValue(100)
+    moved_reverse = dlg._row_reverse(0)
+    if moved_reverse is not None:
+      moved_reverse.setChecked(False)
+    _tick(250)
+    before = {a["id"]: a for a in dlg._assignments()}
+
+    # ---- and ask the group for its map back
+    assert dlg._apply_working_state(stamped), \
+      "the dialog refused a record it had just written"
+    _tick(500)
+    after = {a["id"]: a for a in dlg._assignments()}
+    row_now = after.get("a", {})
+    row_before = before.get("a", {})
+
+    def cell(what, wanted_value, moved_value, got):
+      """One recorded thing: its premise, then its verdict.
+
+      Args:
+        what: how the cell names itself in a failure, e.g. "the family".
+        wanted_value: what the group recorded, and therefore what
+          choosing it again must give back.
+        moved_value: what the dialog was moved to before the restore
+          was asked for. Equal to wanted_value means the fixture never
+          staged the case, which is reported as a failure rather than
+          passed over: a cell that could not have failed is worse than
+          no cell, because it reads as coverage.
+        got: what the dialog holds after the restore.
+
+      Returns:
+        None; appends to `problems` and counts into `checked`, both of
+        which the caller asserts on once at the end so every cell
+        reports rather than the first failure hiding the rest.
+      """
+      nonlocal checked
+      checked += 1
+      if wanted_value == moved_value:
+        problems.append(
+          f"{what}: the fixture never moved it away from {wanted_value!r}, "
+          f"so this cell would pass with the restore deleted")
+        return
+      if got != wanted_value:
+        problems.append(
+          f"{what}: the group recorded {wanted_value!r}, the dialog was "
+          f"moved to {moved_value!r}, and choosing the group gave back "
+          f"{got!r}")
+
+    design = stamped.get("design", {})
+    cell("the element count", 3, 4, dlg.n_combo.currentData())
+    cell("the family", kept_family, other_family,
+         dlg.family_combo.currentText())
+    cell("the spacing", 520.0, 1234.0, dlg.spacing_spin.value())
+    cell("the rotation", 17.0, 0.0, dlg.mod_rotate.value())
+    cell("icon mode", True, False, dlg.opt_icons.isChecked())
+    cell("tile boundaries", True, False,
+         dlg.opt_tile_outlines.isChecked())
+    cell("the output path", gpkg, "", dlg.gpkg_widget.filePath())
+    cell("row a's variable", "v1", row_before.get("var"),
+         row_now.get("var"))
+    cell("row a's style", kept_mode, row_before.get("mode_raw"),
+         row_now.get("mode_raw"))
+    cell("row a's ramp", kept_ramp, row_before.get("ramp"),
+         row_now.get("ramp"))
+    cell("row a's class count", 7, row_before.get("k"), row_now.get("k"))
+    cell("row a's opacity", 60, row_before.get("opacity"),
+         row_now.get("opacity"))
+    cell("row a's Reverse", True, row_before.get("reverse"),
+         row_now.get("reverse"))
+    # The design half of the record must describe what was TILED, so
+    # it cannot have followed the controls while they were moved away.
+    checked += 1
+    if design.get("spacing") != 520.0:
+      problems.append(
+        f"the record's own design half reads spacing "
+        f"{design.get('spacing')!r} where the map was tiled at 520 and "
+        f"999 was typed while it ran: a group is claiming a design its "
+        f"own layers were not drawn at")
+
+    # ---- and it survives the project closing
+    saved = os.path.join(folder, "kept.qgz")
+    assert project.write(saved), "the project would not save"
+    project.clear()
+    _tick(200)
+    assert project.read(saved), "the project would not reopen"
+    _tick(500)
+    reopened = dlg._newest_output_group(project.layerTreeRoot())
+    checked += 1
+    if reopened is None:
+      problems.append(
+        "the reopened project holds no output group, so nothing could "
+        "carry a record across it")
+    else:
+      came_back = dlg._read_working_state(reopened)
+      if not came_back:
+        problems.append(
+          "the working state did not survive the project being saved "
+          "and reopened, which is the whole reason for storing it on "
+          "the group rather than on the dialog")
+      elif came_back.get("design") != design:
+        problems.append(
+          f"the record changed across a save and reopen: "
+          f"{came_back.get('design')} against {design}")
+
+    assert checked == 15, f"only {checked} cells were compared"
+    assert not problems, \
+      "the output group did not give back the map it describes:\n  " + \
+      "\n  ".join(problems)
+  finally:
+    dlg.close()
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_the_output_group_chooser_binds_to_the_dataset():
+  """The dropdown says which map a run will land in, and both ways round.
+
+  RULINGS 1, 2 AND 3 OF 2026-08-25 (CLAUDE.md). The dialog carries a
+  chooser of output groups beside the region chooser, with a "create
+  new" entry; dataset and group are bound SYMMETRICALLY, so choosing
+  either selects the other; and where a dataset owns several groups,
+  choosing it selects the most RECENT, read off the project's own
+  layer order rather than remembered.
+
+  WHY IT IS NOT A MEMORY FEATURE, which is the argument the test is
+  really guarding: the group already existed, already carried its
+  dataset in `weavingspace_region`, and was already being chosen on
+  every run by a rule the user could neither see nor override. What is
+  new is that the rule is on screen and can be overruled.
+
+  A MATRIX, and every cell reports rather than the first failure
+  hiding the rest. The count is asserted, because a journey this long
+  is exactly where a cell quietly stops being reached.
+
+  THE RENAME CELL IS THE ONE THAT MATTERS MOST for this project's own
+  history. A group's name is a LABEL: it is what the chooser shows and
+  must never be what the chooser looks a group up by. Renaming a group
+  in the layers panel is an ordinary act that has already cost this
+  plugin two defects.
+
+  Regression: no widget anywhere in the dialog named the output group, so a demo of several datasets in a row accumulated maps with nothing to say which one the next Generate would replace -- and A-B-A left one dataset owning two groups that nothing could tell apart. [mutation]
+  """
+  from weavingspace_qgis.dialog import NEW_GROUP_LABEL, WeavingSpaceDialog
+  project = QgsProject.instance()
+  A = make_region_layer(n=4, cell=1000)
+  A.setName("Aotearoa")
+  B = make_region_layer(n=4, cell=1000, origin=(900_000, 0))
+  B.setName("Bermuda")
+  project.addMapLayer(A)
+  project.addMapLayer(B)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  problems, checked = [], 0
+
+  def cell(what, condition, detail):
+    """One promise of the binding.
+
+    Args:
+      what: how the cell names itself in a failure.
+      condition: True when the promise held.
+      detail: what was actually seen, quoted when it did not.
+
+    Returns:
+      None; appends to `problems` and counts into `checked`.
+    """
+    nonlocal checked
+    checked += 1
+    if not condition:
+      problems.append(f"{what}: {detail}")
+
+  def labels():
+    return [dlg.group_combo.itemText(i)
+            for i in range(dlg.group_combo.count())]
+
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(A)
+    _tick(400)
+    cell("a dataset with no output of its own reads 'create new'",
+         dlg.group_combo.currentText() == NEW_GROUP_LABEL,
+         f"the chooser reads {dlg.group_combo.currentText()!r} of "
+         f"{labels()}")
+
+    dlg.spacing_spin.setValue(520)
+    _generate_and_wait(dlg)
+    _tick(400)
+    first = dlg._group_name
+    cell("the group a run made is selected afterwards",
+         dlg.group_combo.currentData() is not None
+         and first and first in dlg.group_combo.currentText(),
+         f"group {first!r} against chooser "
+         f"{dlg.group_combo.currentText()!r}")
+    cell("the chooser names the dataset as an attribute",
+         "Aotearoa" in dlg.group_combo.currentText(),
+         f"{dlg.group_combo.currentText()!r} says nothing about which "
+         f"dataset this map was made from")
+
+    # a SECOND group for the same dataset, which is what makes the
+    # recency tie-break a real question rather than a formality
+    dlg.opt_new_group.setChecked(True)
+    dlg.spacing_spin.setValue(560)
+    _generate_and_wait(dlg)
+    _tick(400)
+    dlg.opt_new_group.setChecked(False)
+    second = dlg._group_name
+    cell("'create as new group' really made a second one",
+         second and second != first,
+         f"both runs report {second!r}, so recency cannot be tested")
+
+    dlg.layer_combo.setLayer(B)
+    _tick(700)
+    cell("a second dataset with no output reads 'create new'",
+         dlg.group_combo.currentText() == NEW_GROUP_LABEL,
+         f"choosing a dataset with no group of its own left the "
+         f"chooser on {dlg.group_combo.currentText()!r}")
+    dlg.spacing_spin.setValue(700)
+    _generate_and_wait(dlg)
+    _tick(400)
+    b_group = dlg._group_name
+    cell("each dataset's run makes its own group",
+         b_group not in (first, second),
+         f"B's run landed in {b_group!r}, which is one of A's")
+
+    # ---- DATASET -> GROUP, with recency deciding between A's two
+    dlg.layer_combo.setLayer(A)
+    _tick(900)
+    cell("choosing a dataset selects one of its own groups",
+         dlg._group_name in (first, second),
+         f"choosing Aotearoa left the dialog on {dlg._group_name!r}, "
+         f"which belongs to Bermuda")
+    cell("recency decides where a dataset owns several groups",
+         dlg._group_name == second,
+         f"choosing Aotearoa selected {dlg._group_name!r} where "
+         f"{second!r} is the more recent")
+    cell("and the group it selected gave its design back",
+         abs(dlg.spacing_spin.value() - 560.0) < 1e-9,
+         f"the spacing reads {dlg.spacing_spin.value()} where the "
+         f"selected group was tiled at 560")
+
+    # ---- GROUP -> DATASET, the other half of the binding
+    wanted = next((i for i in range(dlg.group_combo.count())
+                   if b_group and b_group in dlg.group_combo.itemText(i)),
+                  -1)
+    cell("the other dataset's group is on offer",
+         wanted >= 0, f"{b_group!r} is not among {labels()}")
+    if wanted >= 0:
+      dlg.group_combo.setCurrentIndex(wanted)
+      dlg.group_combo.activated.emit(wanted)   # what a click sends
+      _tick(900)
+      here = dlg.layer_combo.currentLayer()
+      cell("choosing a group selects its dataset",
+           here is not None and here.id() == B.id(),
+           f"choosing Bermuda's group left the region chooser on "
+           f"{here.name() if here is not None else None!r}")
+      cell("and choosing a group restores what it was tiled at",
+           abs(dlg.spacing_spin.value() - 700.0) < 1e-9,
+           f"the spacing reads {dlg.spacing_spin.value()} where that "
+           f"group was tiled at 700")
+
+    # ---- A NAME IS A LABEL, NEVER AN IDENTITY
+    node = next((g for g in project.layerTreeRoot().findGroups()
+                 if g.name() == second), None)
+    cell("the renamed group could be found to rename",
+         node is not None, f"{second!r} is not in the layer tree")
+    if node is not None:
+      node.setName("Deprivation, woven")
+      dlg.layer_combo.setLayer(B)
+      _tick(700)
+      dlg.layer_combo.setLayer(A)
+      _tick(900)
+      cell("a renamed group is still the dataset's group",
+           any("Deprivation, woven" in text for text in labels()),
+           f"after a rename the chooser offers {labels()}")
+      cell("and the dialog is still working on it",
+           dlg._group_name == "Deprivation, woven",
+           f"the dialog holds {dlg._group_name!r}, so it lost the "
+           f"group the moment somebody renamed it")
+
+    assert checked == 15, f"only {checked} cells were compared"
+    assert not problems, \
+      "the output-group chooser did not keep its promises:\n  " + \
+      "\n  ".join(problems)
+  finally:
+    dlg.close()
+    project.clear()
+
+
 def test_preview_draws_the_middle_of_the_patch():
   """With context shells on, the preview must include the CENTRE unit.
 
@@ -58122,6 +58646,10 @@ def main():
         test_auto_spacing_offers_a_round_number)
   check("a spacing a person typed outlives a change of dataset",
         test_a_spacing_a_person_typed_outlives_a_change_of_dataset)
+  check("an output group carries the whole working state",
+        test_an_output_group_carries_the_whole_working_state)
+  check("the output group chooser binds to the dataset",
+        test_the_output_group_chooser_binds_to_the_dataset)
   check("the preview draws the middle of the patch",
         test_preview_draws_the_middle_of_the_patch)
   check("switching region layer counts as a change",

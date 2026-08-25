@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-306 defect(s) with a regression test.
+308 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -299,6 +299,8 @@ there is no separate list to remember.
   guarded by `test_a_second_reconciliation_adopts_no_colour_the_plugin_painted`
 - **a spacing a person typed was destroyed by a round trip through another dataset -- 137 typed, another layer chosen, and 500 on return with nothing said -- because auto-spacing re-derived once per newly chosen layer id and a return counts as new.**  
   guarded by `test_a_spacing_a_person_typed_outlives_a_change_of_dataset`
+- **the output group was remembered nowhere, so returning to a dataset gave back its colours and its pins and somebody else's design -- a probe measured a user's `grid 3` coming home as `hex-slice 3`, and a spacing of 137 they had typed coming home 500 with nothing said.**  
+  guarded by `test_an_output_group_carries_the_whole_working_state`
 - **an automatic mutant moved the sampling divisor and one covering test noticed nothing, because nothing looked at where the swatch ended.**  
   guarded by `test_an_unclassed_swatch_reaches_both_ends_of_its_ramp`
 - **control ranges and steps were unasserted as a class; a mutation batch moved one and the suite was silent.**  
@@ -323,6 +325,8 @@ there is no separate list to remember.
   guarded by `test_the_dock_reapplying_the_same_ramp_discards_the_hand_picks`
 - **a fifty-minute gate that could not be satisfied before the artefact shipped stopped four candidates' worth of work on a release whose plugin passed every test it was given.**  
   guarded by `test_the_new_code_mutation_guard_reports_rather_than_gates`
+- **no widget anywhere in the dialog named the output group, so a demo of several datasets in a row accumulated maps with nothing to say which one the next Generate would replace -- and A-B-A left one dataset owning two groups that nothing could tell apart.**  
+  guarded by `test_the_output_group_chooser_binds_to_the_dataset`
 - **the last of nine copies of the assignment lookup, and the only one whose result a user reads directly.**  
   guarded by `test_the_range_editor_repaints_with_its_own_elements_colours`
 - **release.py's watchdog measured wall clock, so a laptop asleep mid-release would have aborted a healthy run as hung. The same defect cost four verdicts in mutation batch 8 and was fixed there; release.py was written afterwards and repeated it.**  
@@ -665,7 +669,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
-- the mutation campaign: 43
+- the mutation campaign: 45
 - reported by a user: 29
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

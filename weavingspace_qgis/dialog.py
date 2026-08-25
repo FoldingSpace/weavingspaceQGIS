@@ -110,6 +110,120 @@ from .worker import TilingTask
 
 GROUP_BASE_NAME = "WeavingSpace tiles"
 
+# ---------------------------------------------------------------------
+# THE WORKING STATE: what an output group carries, so that CHOOSING a
+# group restores the map it describes instead of the dialog inferring
+# one. Ruling 4 of 2026-08-25 (CLAUDE.md, "THE OUTPUT GROUP IS THE UNIT
+# OF WORK"), settled by a grilling after a colleague drove the older
+# rules through a demo of several datasets in a row: three memory
+# scopes -- records kept per dataset, a design carried globally, a
+# group remembered nowhere -- answered one act in three different ways,
+# and none of the three was named anywhere on screen.
+#
+# THE TABLES BELOW ARE THE RECORD'S REAL DEFINITION, and capture and
+# restore read the SAME ones. That is the whole safety of it.
+# `_adopt_dock_bounds` keeps its record and its restore whitelist as
+# two separate enumerations, and a key added to the first and forgotten
+# from the second is dropped in SILENCE on every reopen -- so the
+# record is right all session and wrong the moment the project comes
+# back, which is how that one was got wrong once. One table cannot
+# drift from itself, so widening the record IS widening the whitelist.
+
+# The chooser's last entry, which is not a group but an instruction:
+# the next run builds one of its own. Shown last rather than first so
+# the groups that exist read as the ordinary case.
+NEW_GROUP_LABEL = "Create new"
+
+WORKING_STATE_PROPERTY = "weavingspace_working_state"
+
+# Bumped when the shape below changes in a way an older plugin could
+# not read. A record from a FUTURE version is refused whole rather than
+# half-read (`_read_working_state`), because a design restored with the
+# keys this version happens to recognise is a design nobody chose.
+WORKING_STATE_VERSION = 1
+
+# Each row is (record key, the dialog's attribute, how to read and
+# write it). CAPTURED FROM THE SAME SET `_geometry_signature` READS --
+# family, kind, element count, `_unit_kwargs`'s own controls, the seven
+# modifiers, the glyph box and the five map-option switches -- so the
+# record and the signature cannot come to describe different designs.
+# The one addition is `tile_outlines`, which reaches the signature
+# through every assignment's "outline" rather than on its own.
+#
+# ORDER IS LOAD-BEARING AT THE FRONT of this table and nowhere else:
+# the family list is REBUILT from the element count and the kind, so a
+# family written before them lands in a list that is about to be
+# replaced. `_apply_working_state` sets those three itself, in order,
+# and walks the rest of the table plainly.
+WORKING_STATE_DESIGN = (
+  ("n", "n_combo", "data"),
+  ("kind", "kind_combo", "text"),
+  ("family", "family_combo", "text"),
+  ("spacing", "spacing_spin", "number"),
+  ("offset", "opt_offset", "number"),
+  ("offset_angle", "opt_offset_angle", "number"),
+  ("point_angle", "opt_point_angle", "number"),
+  ("aspect", "opt_aspect", "number"),
+  ("over_under", "opt_over_under", "line"),
+  ("grid_rows", "opt_grid_rows", "number"),
+  ("grid_cols", "opt_grid_cols", "number"),
+  ("rotate", "mod_rotate", "number"),
+  ("scale_x", "mod_scale_x", "number"),
+  ("scale_y", "mod_scale_y", "number"),
+  ("skew_x", "mod_skew_x", "number"),
+  ("skew_y", "mod_skew_y", "number"),
+  ("prototile_inset", "mod_p_inset", "number"),
+  ("tile_inset", "mod_t_inset", "number"),
+  ("glyph", "mod_glyph", "checked"),
+  ("join_prototiles", "opt_join_prototiles", "checked"),
+  ("retain", "opt_retain", "checked"),
+  ("clip", "opt_clip", "checked"),
+  ("icons", "opt_icons", "checked"),
+  ("outlines", "opt_outlines", "checked"),
+  ("tile_outlines", "opt_tile_outlines", "checked"),
+)
+
+# WHAT EACH ELEMENT CARRIES, every key of it taken from
+# `_assignments()` -- "the ONE crossing point between widget state and
+# everything downstream" by its own docstring. Taking the record from
+# there rather than reading the table a second time means the group
+# remembers exactly what the run was built from.
+#
+# TWO KEYS OF `_assignments()` ARE DELIBERATELY ABSENT, and both are
+# facts about the DATA rather than choices somebody made:
+# `value_digest` summarises the column's values, and
+# `class_source_stamp` summarises what is inside a QML. Storing either
+# would freeze a reading of data that moves, and both are recomputed
+# from the live layer whenever they are wanted. `mode` is absent too,
+# since `_assignments` DERIVES it from `mode_raw` and the column's
+# type -- storing the derived form would restore "Categorized" onto a
+# row whose owner chose a quantitative scheme, which is the same
+# mistake `_refresh_table` records against shelving `prev["mode_raw"]`.
+WORKING_STATE_ELEMENT = (
+  "id", "var", "mode_raw", "scheme", "k", "ramp", "reverse",
+  "single_colour", "opacity", "class_source", "class_choice",
+  "quant_colours", "category_colours", "range_bounds", "pinned",
+  "style_touched",
+)
+
+# WHAT SITS AT THE EDGE OF "THE WHOLE WORKING STATE", written down
+# because the roadmap asked for the list explicitly and because the
+# next person will want to add something to it.
+#
+# THE RULE THAT DECIDES IT: the record holds what DESCRIBES THE MAP,
+# never what describes the session's working habits. A map has a
+# design, a symbology and a file it was written to; it does not have
+# an opinion about whether the preview redraws as you type.
+#
+# So the output path is IN -- it is where this group's map actually
+# went, and a resumed group that wrote somewhere else would overwrite
+# a stranger's file. Live update, the colour-legibility warning and
+# "Create as new group" are OUT: the first two are preferences about
+# how the dialog behaves while somebody works, and the third is an
+# instruction about the NEXT run rather than a property of this one.
+# The preview's context shells are out for the same reason.
+WORKING_STATE_EDGES = ("output_path", "region")
+
 
 def _plugin_version() -> str:
   """The installed version, read from metadata.txt (one source of truth)."""
@@ -1354,10 +1468,34 @@ class WeavingSpaceDialog(QDialog):
     # 3, and the class source going home wearing another dataset's
     # file through the same gap.
     self._scheme_just_reset = set()
-    # Armed by _begin_new_dataset, spent by the next landing: the
-    # first Generate after a change of dataset builds a FRESH group,
-    # so B's map never replaces A's result in the project.
-    self._fresh_group_for_new_data = False
+    # THE USER ASKED FOR A GROUP OF ITS OWN, by choosing "Create new"
+    # in the output-group chooser. Armed there, spent by the next
+    # landing, which then re-populates the chooser around the group it
+    # has just made.
+    #
+    # IT REPLACES `_fresh_group_for_new_data`, retired on 2026-08-25
+    # with ruling 1. That flag was armed by `_begin_new_dataset` so
+    # that the first Generate after a change of dataset could not land
+    # on the previous dataset's map -- a proxy for a fact nobody could
+    # see. Under the binding the fact is on screen: the chooser says
+    # which group a run will land in, and choosing a dataset selects
+    # its own most recent group, so B's map lands on B's group because
+    # that is what is selected rather than because a flag was set.
+    self._new_group_chosen = False
+    # True only while `_on_group_chosen` is moving the region chooser
+    # on the user's behalf. Choosing a group is RESUMING work, so the
+    # protections a change of dataset arms must not fire: they exist
+    # to stop B's map replacing A's result, which is answered here by
+    # which group is selected.
+    self._selecting_a_group = False
+    # The elements of a working state being restored, for exactly ONE
+    # rebuild. `_refresh_table` normally reads the table it is about
+    # to replace, which is the right answer for every other rebuild
+    # and precisely the wrong one here: restoring a group means the
+    # rows standing there belong to the map being left, not the map
+    # being returned to. Set by `_apply_working_state` and cleared by
+    # the rebuild that consumes it, so nothing can restore twice.
+    self._restoring_assignments = None
     # True once a run has LANDED in this dialog session. It is the
     # second half of what makes a layer change a change of DATASET:
     # see the switched_from_work comment in _on_layer_changed.
@@ -1886,6 +2024,19 @@ class WeavingSpaceDialog(QDialog):
       "lat-long datasets.")
     self.layer_combo.layerChanged.connect(self._on_layer_changed)
     form.addRow("Region layer", self.layer_combo)
+
+    # THE OUTPUT GROUP, CHOSEN RATHER THAN INFERRED (ruling 1 of
+    # 2026-08-25). It sits beside the region chooser because the two
+    # are bound: choosing either selects the other. This is not a
+    # memory feature -- the group is a QGIS-side artefact that already
+    # exists and already carries its dataset in `weavingspace_region`,
+    # and it was already being chosen on every run by a rule the user
+    # could neither see nor override.
+    self.group_combo = QComboBox()
+    self.group_combo.setToolTip(
+      "Which map to work on, or start another beside it.")
+    self.group_combo.activated.connect(self._on_group_chosen)
+    form.addRow("Working on", self.group_combo)
 
     self.n_combo = QComboBox()
     for n in self.N_CHOICES:
@@ -2564,7 +2715,21 @@ class WeavingSpaceDialog(QDialog):
     # path, the fresh-group flag and the design-floor question all
     # precede the rebuild, because a Yes to that question changes what
     # the rebuild builds.
-    if switched_from_work:
+    # THE DATASET SELECTS ITS GROUP (ruling 2), and that runs BEFORE
+    # the change-of-dataset housekeeping, because what it finds
+    # decides whether any of that housekeeping is still needed. A
+    # dataset with a group of its own is being RESUMED: its output
+    # path, its design and its symbology all come back together, so
+    # clearing the path and asking the design-floor question would be
+    # undoing the restore in the same breath as making it. A dataset
+    # with no group here is genuinely new work, and gets both.
+    #
+    # Skipped while `_on_group_chosen` is driving the chooser, or the
+    # two halves of the binding would call each other.
+    restored = False
+    if not self._selecting_a_group:
+      restored = self._bind_group_to_dataset()
+    if switched_from_work and not restored and not self._selecting_a_group:
       self._begin_new_dataset(layer)
     self._rebuild_unit()
     # ...and the table now standing there is asked whether a scheme it
@@ -2765,8 +2930,16 @@ class WeavingSpaceDialog(QDialog):
         "The GeoPackage path was cleared, so the dataset saved from "
         "your previous work isn't overwritten; choose a new path to "
         "save this one.")
-    self._fresh_group_for_new_data = True
-    _dump("SWITCH", "fresh-group-armed")
+    # THE FLAG THAT USED TO BE ARMED HERE IS RETIRED (ruling 1 of
+    # 2026-08-25). `_fresh_group_for_new_data` made the next Generate
+    # build a group of its own so the previous dataset's map survived,
+    # which was a proxy for a fact nobody could see. The fact is on
+    # screen now: `_bind_group_to_dataset` runs before this and has
+    # already selected either this dataset's own group or "Create
+    # new", and the run lands in whichever the chooser names. This
+    # method is only reached when there was no group to select, so
+    # "Create new" is what the user is looking at.
+    _dump("SWITCH", "no-group-for-this-dataset")
     if layer is None:
       return
     # The same id-like set _refresh_table skips when it picks
@@ -5127,7 +5300,16 @@ class WeavingSpaceDialog(QDialog):
     id_like = {"fid", "objectid", "id", "gid", "ogc_fid"}
     numeric = [f for f in fields if self._field_is_numeric(f)]
     preferred = [f for f in numeric if f.lower() not in id_like] or numeric
-    previous = self._assignments()
+    # A GROUP BEING RESTORED SPEAKS FOR THE TABLE, for this one
+    # rebuild. Everywhere else the previous ASSIGNMENTS are the right
+    # thing to carry forward; here they belong to the map being left,
+    # and reading them would put the outgoing design's variables and
+    # schemes onto the design being returned to. Consumed rather than
+    # read, so a second rebuild in the same breath -- which
+    # `_settle_layer_choice` can produce -- reads the rows this one
+    # has just written.
+    previous = self._restoring_assignments or self._assignments()
+    self._restoring_assignments = None
     prev_by_id = {a["id"]: a for a in previous}
     # THE MODE AS THE WIDGET HOLDS IT, captured before the loop starts
     # replacing cells. `_assignments` CORRECTS a quantitative style
@@ -6144,6 +6326,22 @@ class WeavingSpaceDialog(QDialog):
     self._dataset_memory.clear()
     self._memory_layer_id = None
     self._pending_outgoing_shelf = None
+    # ...AND WHAT THE OUTPUT-GROUP CHOOSER IS SHOWING, which is a
+    # record keyed on layer ids from the project being replaced. Left
+    # standing, its entries would name layers the incoming project has
+    # never heard of, and a handle that resolves to nothing is exactly
+    # the state `_on_group_chosen` has to rebuild its way out of. The
+    # rule this method keeps failing is its own -- enumerate what a
+    # clear site LEAVES -- so the new record joins it in the commit
+    # that adds it rather than in the one that finds it missing.
+    self._new_group_chosen = False
+    self._selecting_a_group = False
+    self._restoring_assignments = None
+    combo = getattr(self, "group_combo", None)
+    if combo is not None:
+      combo.blockSignals(True)
+      combo.clear()
+      combo.blockSignals(False)
     _dump("FORGET")
     # ...and say so until adoption has read the incoming project. The
     # clear alone is not enough because the TABLE survives it and
@@ -11625,6 +11823,17 @@ class WeavingSpaceDialog(QDialog):
     # still not touch. Measured 2026-08-15 by tracing which calls
     # actually fired.
     self._refresh_deferring_rows()
+    # ...AND THE GROUP'S RECORD FOLLOWS THE RESTYLE. A style-only
+    # change never reaches `_add_output_layers`, where the other stamp
+    # lives, so without this line a ramp or a class count chosen after
+    # the last re-tile was on the map and absent from the record --
+    # and choosing the group again would have handed back a symbology
+    # the user had moved on from. That asymmetry is the shape this
+    # project already knows from `_stamp_category_colours` and from
+    # the pin retirement, which is why it is being written in the same
+    # commit as the stamp it pairs with rather than found later.
+    self._stamp_working_state(
+      self._group_of_our_layers(QgsProject.instance().layerTreeRoot()))
     return True
 
   def _run_signature(self):
@@ -11890,7 +12099,7 @@ class WeavingSpaceDialog(QDialog):
     # was destroyed. So the question is the one the GROUP asks:
     # is this run keeping somebody else's result?
     keeping = self.opt_new_group.isChecked() \
-        or self._fresh_group_for_new_data
+        or self._new_group_chosen
     if not keeping and path_now:
       root_here = QgsProject.instance().layerTreeRoot()
       other = (self._group_of_our_layers(root_here)
@@ -12083,6 +12292,16 @@ class WeavingSpaceDialog(QDialog):
     # different one while it runs. map_unit_label reads the layer, so
     # it also has to happen here on the main thread
     spacing_used = self.spacing_spin.value()
+    # ...AND THE DESIGN THIS RUN IS ABOUT TO DRAW, for the record the
+    # group will carry. The stamp at the landing re-reads the ELEMENT
+    # half live, because hand-picked colours are settled policy to
+    # re-read there, but the DESIGN half must be the one that was
+    # tiled: a spacing typed while the tiling ran belongs to the next
+    # run, and a group whose record claimed a design its own layers
+    # were not drawn at would be a false statement stored in somebody
+    # else's project. Same reasoning, and the same shape, as the
+    # signatures a few lines above.
+    state_at_launch = self._capture_working_state()
     unit_label = bridge.map_unit_label(layer)
     # Asked of the LAYER, because layer_to_gdf has already dropped
     # these rows out of the frame: a geometry-less row cannot be
@@ -12096,7 +12315,8 @@ class WeavingSpaceDialog(QDialog):
       if gdf is not None and result_crs is not None:
         gdf.crs = result_crs  # reattach on the main thread (pyproj-safe)
       self._on_generated(gdf, error, family, layer, assignments, path,
-                         run_sig, geometry_sig, live, outlines_at_launch)
+                         run_sig, geometry_sig, live, outlines_at_launch,
+                         state_at_launch)
       # The coverage notice goes out AFTER _on_generated, never inside
       # it: that method's finally clears live_note, which is where
       # _report_quietly writes when there is no QGIS window (headless
@@ -12402,8 +12622,17 @@ class WeavingSpaceDialog(QDialog):
     self._update_layer_exclusions()
     self._on_layer_changed()
 
-  def _adopt_existing_group(self):
-    """Take over the output group this project already has, if any.
+  def _adopt_existing_group(self, group=None):
+    """Take over an output group this project already holds.
+
+    Args:
+      group: the group to adopt, or None to take the one a reopened
+        project should get -- `_newest_output_group`'s answer, which
+        prefers a group made from the chosen dataset and falls back to
+        recency. The argument exists so the output-group CHOOSER can
+        reach this same door: a group somebody picked and a group a
+        reopened project offers need the identical work done to them,
+        and writing that twice is how the two would come to disagree.
 
     Group tracking lives on the dialog instance, so without this a
     dialog opened later in a QGIS session (the plugin closed and
@@ -12422,7 +12651,8 @@ class WeavingSpaceDialog(QDialog):
     survives as before.
     """
     root = QgsProject.instance().layerTreeRoot()
-    group = self._newest_output_group(root)
+    if group is None:
+      group = self._newest_output_group(root)
     if group is None:
       return
     # Taken over rather than written by us, so the first Generate
@@ -12562,6 +12792,712 @@ class WeavingSpaceDialog(QDialog):
     # describes where the output actually IS rather than where the
     # dialog would put it next.
     self._last_path = path
+
+  def _our_groups(self, root):
+    """Every output group in the project, newest first.
+
+    Args:
+      root: the project's layer tree root.
+
+    Returns:
+      A list of (group node, handle, region source). The HANDLE is the
+      layer id of the first output layer in that group, and it is what
+      the chooser stores.
+
+    ASKED OF THE LAYERS, NEVER OF A NAME, which is this project's
+    settled rule and the reason `_newest_output_group` and
+    `_group_of_our_layers` were both rewritten in 2026-08-17: a group
+    is OURS when it holds a layer carrying our own custom property.
+    Renaming a group in the layers panel is an ordinary thing to do,
+    and a chooser keyed on the name would lose the group the moment
+    somebody did it. The name is still what is DISPLAYED -- a label is
+    exactly what you show a person, and never what you look them up by.
+
+    A LAYER ID IS THE HANDLE for the same reason. A group node has no
+    identity of its own that survives a Qt wrapper being rebuilt, and
+    a list rebuilt from the tree on every use cannot hold a stale one.
+
+    NEWEST FIRST, read off `root.children()`, which is ordered and is
+    how these groups are made: `_get_or_make_group` inserts at 0, so
+    each new group pushes the last one down. NOT recursive, so a group
+    somebody has nested inside a folder of their own is left alone --
+    the same choice, for the same reason, as `_newest_output_group`.
+    """
+    found = []
+    for node in root.children():
+      if not hasattr(node, "children"):
+        continue
+      ours = [child.layer() for child in node.children()
+              if getattr(child, "layer", lambda: None)() is not None
+              and (child.layer().customProperty("weavingspace_tile_id")
+                   or child.layer().customProperty("weavingspace_outline"))]
+      if not ours:
+        continue
+      stamps = [layer.customProperty("weavingspace_region")
+                for layer in ours
+                if layer.customProperty("weavingspace_region")]
+      found.append((node, ours[0].id(), stamps[0] if stamps else None))
+    return found
+
+  def _dataset_label(self, source):
+    """A readable name for the dataset a group was made from.
+
+    Args:
+      source: a layer source string, as stamped on every output layer,
+        or None for output made before the stamp existed.
+
+    Returns:
+      A short label for the chooser. The project's own layer NAME
+      where a layer with that source is still loaded, since that is
+      what the user sees everywhere else; otherwise the file's base
+      name, which at least says which file; otherwise None.
+
+    The colleague's request was a dropdown "selecting output group
+    with dataset as attribute", and this is that attribute. It is
+    deliberately cosmetic: nothing is ever looked up by it.
+    """
+    if not source:
+      return None
+    for layer in QgsProject.instance().mapLayers().values():
+      try:
+        if layer.source() == source:
+          return layer.name()
+      except Exception:
+        continue
+    stem = source.split("|", 1)[0]
+    base = os.path.basename(stem)
+    return base or None
+
+  def _refresh_group_combo(self):
+    """Rebuild the output-group chooser from the project as it stands.
+
+    Returns:
+      None. Lists every output group newest first, with a "create new"
+      entry at the end, and selects whichever group this dialog is
+      working on.
+
+    SIGNALS ARE BLOCKED THROUGHOUT, as `_sync_pin_controls` already
+    does: putting the dialog's own truth into a chooser is not
+    somebody choosing, and letting it read as one would fire the
+    handler that restores a whole working state -- over the very
+    session that was being described.
+
+    Rebuilt rather than patched, on every occasion the set of groups
+    can have moved: a run landing, a group adopted, a project read, a
+    layer removed. A list maintained incrementally would need a rule
+    for each of those, and this one has no state to go stale.
+    """
+    combo = getattr(self, "group_combo", None)
+    if combo is None:
+      return
+    root = QgsProject.instance().layerTreeRoot()
+    mine = self._group_of_our_layers(root)
+    blocked = combo.signalsBlocked()
+    combo.blockSignals(True)
+    try:
+      combo.clear()
+      chosen = -1
+      for group, handle, source in self._our_groups(root):
+        dataset = self._dataset_label(source)
+        label = group.name() if not dataset \
+            else f"{group.name()} — {dataset}"
+        combo.addItem(label, handle)
+        if mine is not None and group.name() == mine.name() \
+            and chosen < 0 and handle in {
+              child.layer().id() for child in mine.children()
+              if getattr(child, "layer", lambda: None)() is not None}:
+          chosen = combo.count() - 1
+      combo.addItem(NEW_GROUP_LABEL, None)
+      # "Create new" is the honest answer when this dialog is not
+      # working on any of the groups listed -- a fresh session, or one
+      # whose group the user has just deleted.
+      combo.setCurrentIndex(chosen if chosen >= 0 else combo.count() - 1)
+    finally:
+      combo.blockSignals(blocked)
+
+  def _group_for_handle(self, handle):
+    """The group node a chooser entry names, or None.
+
+    Args:
+      handle: a layer id stored against a chooser entry.
+
+    Returns:
+      The layer-tree group holding that layer, or None where the layer
+      has since been removed or dragged to the top level. Asked of the
+      tree every time rather than remembered, so a stale answer is not
+      possible.
+    """
+    if not handle:
+      return None
+    root = QgsProject.instance().layerTreeRoot()
+    node = root.findLayer(handle)
+    parent = node.parent() if node is not None else None
+    # The tree ROOT has no parent of its own, which is how a group
+    # under the root is told from the root itself; identity against
+    # `root` is unreliable, since PyQt hands back a fresh wrapper
+    # around the same C++ object.
+    if parent is not None and parent.parent() is not None:
+      return parent
+    return None
+
+  def _on_group_chosen(self, _index=0):
+    """Work on the output group the user just picked.
+
+    Args:
+      _index: the chooser's index, which Qt sends and this ignores --
+        the entry's DATA is the handle, and reading the index would
+        break the moment the list is rebuilt in a different order.
+
+    Returns:
+      None. "Create new" arms the next run to build a group of its
+      own; any other entry selects that group's dataset, takes the
+      group over, and restores the working state it carries.
+
+    THE ORDER IS FORCED. The dataset goes first, because the per-
+    dataset memory banks swap on it and because the assignment table
+    cannot restore a variable to a column the current layer does not
+    have. The group is taken over next, so the dialog's records point
+    at the layers being resumed rather than at the ones being left.
+    Only then is the record applied, over a table built from the right
+    fields.
+
+    `_selecting_a_group` IS WHAT STOPS THIS BEING READ AS A CHANGE OF
+    DATASET. Choosing a group is resuming work, not starting it: the
+    protections `_begin_new_dataset` arms -- clearing the output path,
+    demanding a fresh group, asking the design-floor question -- exist
+    so that B's map never lands on A's result, and under the binding
+    that is answered by WHICH GROUP IS SELECTED. Running them here
+    would clear the very output path the record is about to restore.
+    """
+    if _dialog_is_gone(self) or _live_dialog() is not self:
+      return
+    combo = getattr(self, "group_combo", None)
+    if combo is None:
+      return
+    handle = combo.currentData()
+    if handle is None:
+      # CREATE NEW: nothing moves now. The next run builds its own
+      # group, and the chooser re-populates around it at the landing.
+      self._new_group_chosen = True
+      return
+    group = self._group_for_handle(handle)
+    if group is None:
+      # The group has gone since the list was built. Rebuild rather
+      # than guess: a chooser offering something that is not there is
+      # worse than one that has just corrected itself.
+      self._refresh_group_combo()
+      return
+    self._new_group_chosen = False
+    record = self._read_working_state(group)
+    self._selecting_a_group = True
+    try:
+      wanted = (record or {}).get("region")
+      if wanted:
+        for layer in QgsProject.instance().mapLayers().values():
+          try:
+            same = layer.source() == wanted
+          except Exception:
+            continue
+          if same and layer is not self.layer_combo.currentLayer():
+            self.layer_combo.setLayer(layer)
+            break
+      self._take_over_group(group)
+      if record:
+        self._apply_working_state(record)
+      else:
+        # A group made before this version, or one whose record could
+        # not be read. Taking it over is still the right answer -- the
+        # next Generate replaces THIS map rather than somebody else's
+        # -- and the design simply stays where it is.
+        self._rebuild_unit()
+    finally:
+      self._selecting_a_group = False
+    self._refresh_group_combo()
+
+  def _bind_group_to_dataset(self) -> bool:
+    """Select the chosen dataset's own output group, and restore it.
+
+    Returns:
+      True when a group belonging to this dataset was found, taken
+      over and its working state applied; False when the dataset has
+      no group here, in which case the next run is armed to build one.
+
+    THE OTHER HALF OF THE SYMMETRIC BINDING (ruling 2 of 2026-08-25).
+    Choosing a group selects its dataset; choosing a dataset selects
+    its group. Neither direction is the "real" one, which is what
+    makes the pair predictable: whichever control the user touches,
+    both end up describing one map.
+
+    RECENCY IS THE TIE-BREAK where a dataset owns several groups
+    (ruling 3), and it is READ off the project's own layer order
+    rather than remembered. `_our_groups` returns newest first because
+    `_get_or_make_group` inserts at 0, so the first match is the most
+    recent. A fact about the project beats a guess about intent, and
+    it survives a reopen where a session record would not -- which
+    matters, because A-B-A has left one dataset owning two groups
+    since ruling 2 made a second group the ordinary result of a demo.
+
+    NO GROUP MEANS "CREATE NEW", and that is what retires
+    `_fresh_group_for_new_data`. The old flag existed so the first
+    Generate after a change of dataset could not land on the previous
+    dataset's map. Here that cannot happen for a better reason: the
+    run lands in the group the chooser NAMES, and a dataset with no
+    group of its own names none.
+    """
+    # NOT WHILE A RUN IS IN FLIGHT, and this is the project's own rule
+    # rather than a special case: anything that reads state off the
+    # layer tree and RECORDS it must run at REST, because during a run
+    # the record and the tree are transiently out of step and what
+    # sits there is nobody's decision.
+    #
+    # MEASURED THE DAY THIS WAS WRITTEN, by a test that had guarded the
+    # ground for weeks. Renaming the output group while a tiling runs
+    # is how a user keeps that result, and the landing spots it by
+    # comparing the group's name against the one it holds -- so taking
+    # the group over mid-run, which FOLLOWS the rename, erased the
+    # evidence the landing was about to read, and the next run took
+    # the keepsake apart. The route is ordinary rather than exotic:
+    # QgsMapLayerComboBox re-emits `layerChanged` whenever the
+    # project's layers churn, which a run does twice.
+    if self._task is not None:
+      self._refresh_group_combo()
+      return False
+    layer = self.layer_combo.currentLayer()
+    source = layer.source() if layer is not None else None
+    root = QgsProject.instance().layerTreeRoot()
+    groups = self._our_groups(root)
+    theirs = [entry for entry in groups if source and entry[2] == source]
+    if not theirs and groups and not any(entry[2] for entry in groups):
+      # OUTPUT FROM BEFORE THE REGION STAMP SAYS NOTHING about which
+      # dataset it came from, and refusing to bind to it would leave
+      # every project made by an older version permanently on "create
+      # new" -- so the next Generate would pile a second group beside
+      # the user's map instead of replacing it. `_newest_output_group`
+      # makes the same allowance for the same reason, and the
+      # condition is deliberately narrow: the fallback is taken only
+      # when NO group in the project carries a stamp, never when one
+      # simply belongs to another dataset.
+      theirs = groups
+    if not theirs:
+      # NOT WORKING ON ANY GROUP, and the dialog must say so rather
+      # than go on displaying the last one. Leaving it attached would
+      # make the chooser name a map this dataset's run will not land
+      # in, which is precisely the invisible rule ruling 1 replaces --
+      # and the records it keeps are the ones a run READS to decide
+      # what to remove.
+      self._detach_from_the_group()
+      self._new_group_chosen = True
+      self._refresh_group_combo()
+      return False
+    group = theirs[0][0]          # newest first, so this is ruling 3
+    self._new_group_chosen = False
+    record = self._read_working_state(group)
+    self._take_over_group(group)
+    if record:
+      self._apply_working_state(record)
+    self._refresh_group_combo()
+    return bool(record)
+
+  def _detach_from_the_group(self):
+    """Stop working on whatever output group this dialog last held.
+
+    Returns:
+      None. Empties the records that say which layers are ours, so
+      `_group_of_our_layers` answers None and the chooser falls back
+      to "create new".
+
+    IT REMOVES NOTHING FROM THE PROJECT. The group and its layers stay
+    exactly where they are; what changes is that this dialog no longer
+    claims them. That distinction is the whole of it -- these records
+    are what a landing reads as `old_ids` to decide what to REPLACE,
+    so a dialog still holding another dataset's layers while pointed
+    at new data is one Generate away from deleting somebody's map.
+
+    Shares its body with `_take_over_group`, which clears the same
+    records before adopting different ones: one list, so the two
+    cannot come to disagree about what "ours" consists of.
+    """
+    self._element_layer_ids = {}
+    self._no_data_layer_ids = {}
+    self._outline_layer_id = None
+    self._last_signatures = {}
+    self._group_name = None
+
+  def _take_over_group(self, group):
+    """Make an existing output group the one this dialog works on.
+
+    Args:
+      group: the layer-tree group to adopt.
+
+    Returns:
+      None. Clears the records that point at the group being LEFT,
+      then adopts this one through the same door a reopened project
+      uses.
+
+    THE CLEARING IS THE WHOLE OF THE SAFETY. `_element_layer_ids` and
+    its siblings are what the next run replaces, and adoption UPDATES
+    them rather than replacing them -- so without this the dialog
+    would believe it owned both groups' layers, and the next Generate
+    would remove the layers of a map the user had switched away from.
+    That is the paired-layer fault of 2026-08-16 arriving through a
+    new door, and it is being written in the same commit as the door.
+    """
+    self._detach_from_the_group()
+    self._group_name = group.name()
+    self._adopt_existing_group(group)
+
+  @staticmethod
+  def _read_control(widget, kind):
+    """One design control's value, in a form JSON can hold.
+
+    Args:
+      widget: the control named by a row of WORKING_STATE_DESIGN.
+      kind: that row's third member -- "text", "data", "number",
+        "checked" or "line".
+
+    Returns:
+      A str, int, float or bool. Nothing here returns a Qt object, so
+      the record serializes without a custom encoder.
+
+    Raises:
+      ValueError: for a kind the table should never contain. Raised
+        rather than ignored: the table is ours and static, so an
+        unknown kind is a typing mistake, and silently skipping the
+        control would drop it from the record without anything saying
+        so -- which is the exact failure the single-table design of
+        this record exists to prevent.
+    """
+    if kind == "text":
+      return widget.currentText()
+    if kind == "data":
+      return widget.currentData()
+    if kind == "number":
+      return widget.value()
+    if kind == "checked":
+      return bool(widget.isChecked())
+    if kind == "line":
+      return widget.text()
+    raise ValueError(f"working-state control kind {kind!r} is unknown")
+
+  @staticmethod
+  def _write_control(widget, kind, value):
+    """Put a recorded value back into its design control.
+
+    Args:
+      widget: the control named by a row of WORKING_STATE_DESIGN.
+      kind: that row's third member.
+      value: whatever `_read_control` produced, after a JSON round
+        trip.
+
+    Returns:
+      None. A "data" value the combo no longer offers is LEFT ALONE
+      rather than forced: the element counts on offer are ours and
+      fixed, so a miss means a record from another build, and moving
+      the chooser to something arbitrary would be worse than keeping
+      what is there.
+
+    THE NUMBER IS COERCED TO THE BOX'S OWN TYPE, which is not
+    fastidiousness. A QSpinBox holds an int and PyQt6 raises TypeError
+    on `setValue(5.0)`, and JSON gives back a float for anything that
+    was written with a decimal point -- so a grid row count restored
+    from a saved project would raise inside whatever slot was calling,
+    and an exception in a Qt slot is swallowed along with the rest of
+    the handler.
+    """
+    if kind == "text":
+      widget.setCurrentText("" if value is None else str(value))
+    elif kind == "data":
+      index = widget.findData(value)
+      if index >= 0:
+        widget.setCurrentIndex(index)
+    elif kind == "number":
+      widget.setValue(type(widget.value())(value))
+    elif kind == "checked":
+      widget.setChecked(bool(value))
+    elif kind == "line":
+      widget.setText("" if value is None else str(value))
+    else:
+      raise ValueError(f"working-state control kind {kind!r} is unknown")
+
+  def _capture_working_state(self) -> dict:
+    """The whole of the map this dialog currently describes.
+
+    Returns:
+      A plain dict, JSON-serializable, holding a version stamp, the
+      design, one entry per element, and the two edge facts
+      (WORKING_STATE_EDGES): where the output goes, and which dataset
+      it was made from.
+
+    Read straight off WORKING_STATE_DESIGN and `_assignments()`, so
+    this function has no list of its own to fall out of step with the
+    tables above. Capture and restore share those tables deliberately.
+    """
+    design = {}
+    for key, attribute, kind in WORKING_STATE_DESIGN:
+      widget = getattr(self, attribute, None)
+      # A control absent from a half-built dialog is skipped rather
+      # than recorded as None: restoring None into a spin box would
+      # be a value nobody chose, where an absent key simply leaves
+      # the control where it is.
+      if widget is not None:
+        design[key] = self._read_control(widget, kind)
+    elements = [{key: assignment.get(key)
+                 for key in WORKING_STATE_ELEMENT}
+                for assignment in self._assignments()]
+    layer = self.layer_combo.currentLayer()
+    return {
+      "version": WORKING_STATE_VERSION,
+      "design": design,
+      "elements": elements,
+      "output_path": self.gpkg_widget.filePath().strip() or None,
+      # THE SOURCE AND NOT THE LAYER ID, because an id is a fact about
+      # one QGIS session and a source survives the project being
+      # closed. It is the same string every output layer already
+      # carries as `weavingspace_region`.
+      "region": layer.source() if layer is not None else None,
+    }
+
+  def _apply_working_state(self, record) -> bool:
+    """Put a group's recorded map back into the dialog.
+
+    Args:
+      record: a dict from `_read_working_state`, or None.
+
+    Returns:
+      True when the dialog was moved, False when there was nothing
+      usable to apply.
+
+    EVERY CONTROL IS WRITTEN WITH SIGNALS BLOCKED, as
+    `_sync_pin_controls` already does, because setting a control right
+    would otherwise fire the handler that set it right -- and those
+    handlers rebuild the unit, queue a live run and destroy schemes.
+    The rebuild is done ONCE at the end instead, deliberately.
+
+    THE FAMILY IS SET IN THREE STEPS and not in one, because the
+    family list is not a fixed list: `_on_n_changed` REBUILDS it from
+    the element count and the kind, and `_on_family_changed` then
+    writes the catalogue's own default over the over-under pattern. So
+    the count and the kind go first, the list is rebuilt, the family is
+    chosen, its options are shown, and only THEN is the rest of the
+    table written -- so a recorded value always outranks a default
+    that arrived while it was being restored.
+
+    AND THE SIGNAL BLOCK IS RE-APPLIED after each of those calls.
+    `QObject.blockSignals` is a flag rather than a counter, and both
+    `_on_n_changed` and `_on_family_changed` block and UNBLOCK controls
+    of their own on the way past -- so an outer block that was set once
+    would be quietly cancelled by their inner release.
+    """
+    if not isinstance(record, dict):
+      return False
+    design = record.get("design") or {}
+    rows = {key: (attribute, kind)
+            for key, attribute, kind in WORKING_STATE_DESIGN}
+
+    def blocked(state):
+      for _key, attribute, _kind in WORKING_STATE_DESIGN:
+        widget = getattr(self, attribute, None)
+        if widget is not None:
+          widget.blockSignals(state)
+      self.gpkg_widget.blockSignals(state)
+
+    def write(key):
+      if key not in design or key not in rows:
+        return
+      attribute, kind = rows[key]
+      widget = getattr(self, attribute, None)
+      if widget is not None:
+        self._write_control(widget, kind, design[key])
+
+    blocked(True)
+    try:
+      write("n")
+      write("kind")
+      self._on_n_changed()          # rebuilds the family list
+      blocked(True)
+      write("family")
+      self._on_family_changed()     # shows this family's own options
+      blocked(True)
+      for key in design:
+        if key not in ("n", "kind", "family"):
+          write(key)
+      # THE OUTPUT PATH IS PART OF THE MAP, not of the session: see
+      # WORKING_STATE_EDGES. A resumed group that wrote somewhere else
+      # would put this map into a stranger's file.
+      path = record.get("output_path")
+      self.gpkg_widget.setFilePath(path or "")
+      # A SPACING THAT CAME OUT OF A RECORD IS THE USER'S, because
+      # somebody typed or accepted it when this group was made. Saying
+      # otherwise would let the next change of dataset re-derive over
+      # the number the group is being restored to show.
+      self._spacing_is_mine = True
+    finally:
+      blocked(False)
+
+    self._apply_element_records(record)
+    # The table is rebuilt ONCE, here, reading the record rather than
+    # the rows it is about to replace. See `_restoring_assignments`.
+    self._restoring_assignments = record.get("elements") or None
+    self._rebuild_unit()
+    return True
+
+  def _apply_element_records(self, record):
+    """Write a record's per-element choices into the dialog's own dicts.
+
+    Args:
+      record: the whole working state, read for its "elements" list and
+        for the "region" it was made from.
+
+    Returns:
+      None. Fills the element-keyed dicts `_refresh_table` restores
+      from, so the rebuild that follows finds every choice where it
+      normally looks. Nothing here touches a widget: the table is about
+      to be rebuilt from scratch.
+
+    THE VALUE-LADEN RECORDS ARE GATED ON THE DATASET, and that is
+    ruling 8 of 2026-08-24 composed with ruling 4 rather than
+    overruled by it. Hand-picked category colours are keyed by VALUE
+    STRINGS and a pin holds data-derived NUMBERS, so both carry one
+    dataset's content; restoring them onto another dataset would put
+    that content into a second map and a second GeoPackage. Under the
+    symmetric binding the two datasets agree on every ordinary
+    journey, so this comparison costs one string and fires only when
+    something has gone wrong -- a group whose source has moved, or a
+    record written by hand.
+
+    `quant_colours` is NOT gated: class colours are keyed by class
+    INDEX, so they carry a choice about position on a ladder and no
+    value from anybody's data.
+    """
+    elements = record.get("elements") or []
+    layer = self.layer_combo.currentLayer()
+    here = layer.source() if layer is not None else None
+    same_data = bool(here) and here == record.get("region")
+    for element in elements:
+      if not isinstance(element, dict):
+        continue
+      tid = element.get("id")
+      if not tid:
+        continue
+      var = element.get("var")
+      if element.get("ramp"):
+        self._ramp_choices[tid] = element["ramp"]
+      if element.get("single_colour"):
+        self._single_colours[tid] = element["single_colour"]
+      self._reverse_choices[tid] = bool(element.get("reverse"))
+      if element.get("opacity") is not None:
+        self._opacity_choices[tid] = int(element["opacity"])
+      self._class_choices[tid] = element.get("class_choice") or ""
+      # THE COUNT ONLY WHERE SOMEBODY CHOSE IT. `k` is 50 on an
+      # Unclassed row by the definition of that style rather than by
+      # anybody's decision, and `_class_counts` is the record that
+      # means CHOSEN -- writing the fifty into it is exactly what
+      # test_an_unclassed_excursion_leaves_the_count_alone guards
+      # against, arriving here by a new road.
+      if element.get("scheme") != "Unclassed" \
+          and element.get("k") is not None:
+        self._class_counts[tid] = int(element["k"])
+      window = element.get("range_bounds")
+      if window and tuple(window) != (0, 100):
+        self._ramp_ranges[tid] = tuple(window)
+      if element.get("quant_colours") and var:
+        self._quant_colours.setdefault(tid, {})[var] = \
+          dict(element["quant_colours"])
+      if not same_data:
+        continue
+      if element.get("pinned") and var:
+        self._pinned_bounds.setdefault(tid, {})[var] = \
+          dict(element["pinned"])
+      if element.get("category_colours") and var:
+        self._category_colours.setdefault(tid, {})[var] = \
+          dict(element["category_colours"])
+
+  def _stamp_working_state(self, group, launch_state=None):
+    """Record the working state on an output group.
+
+    Args:
+      group: the layer-tree group this run's output landed in, or None.
+      launch_state: the record captured when the run was LAUNCHED, or
+        None on the restyle path, where nothing was launched and the
+        controls have not moved since.
+
+    Returns:
+      None. Writes one JSON string to the group's own custom property,
+      which QGIS saves inside the `.qgz` -- so the record persists with
+      the project without this plugin owning a file of its own.
+
+    THE TWO HALVES COME FROM DIFFERENT MOMENTS, deliberately, and each
+    from the moment it is true. The DESIGN and the output path are the
+    launch snapshot: a spacing typed while the tiling ran belongs to
+    the next run, and a record claiming a design its own layers were
+    not drawn at would be a false statement stored in somebody's
+    project -- this software's characteristic failure wearing a custom
+    property. The ELEMENTS are re-read LIVE, because everything the
+    colour editors write is settled policy to re-read at the landing:
+    those windows stay usable during a run, and a colour chosen in
+    that window would otherwise be lost exactly as it once was from
+    the map itself.
+
+    A FAILURE HERE MUST NEVER COST A MAP. The group is perfectly
+    usable without a record; it simply cannot be resumed, and telling
+    somebody about a JSON error in the middle of making a map would be
+    noise they cannot act on. It goes to the dump instead, where the
+    next person diagnosing a group that will not restore will look.
+    """
+    if group is None:
+      return
+    try:
+      record = self._capture_working_state()
+      if isinstance(launch_state, dict):
+        for key in ("design", "output_path", "region"):
+          if key in launch_state:
+            record[key] = launch_state[key]
+      group.setCustomProperty(WORKING_STATE_PROPERTY, json.dumps(record))
+    except Exception:
+      _dump("STATE", "stamp-failed", traceback.format_exc(limit=3))
+
+  def _read_working_state(self, group):
+    """The working state a group carries, or None.
+
+    Args:
+      group: a layer-tree group, or None.
+
+    Returns:
+      The record as a dict, or None where the group has none, where
+      what it has cannot be read, or where it was written by a LATER
+      version of this plugin.
+
+    A FORWARD-INCOMPATIBLE RECORD IS REFUSED WHOLE, and the user is
+    told. Half-reading it -- taking the keys this build happens to
+    recognise and ignoring the rest -- would restore a design nobody
+    chose while looking exactly like a design somebody did, which is
+    this project's characteristic failure wearing a file format.
+    """
+    if group is None:
+      return None
+    try:
+      raw = group.customProperty(WORKING_STATE_PROPERTY)
+    except Exception:
+      return None
+    if not raw:
+      return None
+    try:
+      record = json.loads(raw)
+    except Exception:
+      _dump("STATE", "unreadable", group.name())
+      return None
+    if not isinstance(record, dict):
+      return None
+    version = record.get("version")
+    if not isinstance(version, int):
+      return None
+    if version > WORKING_STATE_VERSION:
+      self._report_quietly(
+        f"This map was saved by a newer version of the plugin "
+        f"(record {version}, this build reads {WORKING_STATE_VERSION}), "
+        "so its settings cannot be restored. The layers are unaffected.")
+      return None
+    return record
 
   def _newest_output_group(self, root):
     """The output group a reopened dialog should take over.
@@ -12765,7 +13701,7 @@ class WeavingSpaceDialog(QDialog):
 
   def _on_generated(self, gdf, error, family, source_layer, assignments,
                     path, run_sig=None, geometry_sig=None, live=False,
-                    outlines=None):
+                    outlines=None, launch_state=None):
     """Main-thread completion handler for every run, successful or not.
 
     Args:
@@ -12795,6 +13731,10 @@ class WeavingSpaceDialog(QDialog):
         geometry setting the LANDING acts on rather than the tiling,
         so reading it live there let a mid-run toggle cancel its own
         signature difference. None means read it now.
+      launch_state: the working state captured when this run was
+        launched, passed through to the landing so the record the
+        output group carries describes the design that was actually
+        tiled. None where no snapshot was taken.
 
     Returns:
       None; the project gains the layers, and the dialog returns to
@@ -12851,7 +13791,8 @@ class WeavingSpaceDialog(QDialog):
     QApplication.processEvents()  # let that text actually paint
     try:
       self._add_output_layers(gdf, family, source_layer, assignments,
-                              path, run_sig, geometry_sig, outlines)
+                              path, run_sig, geometry_sig, outlines,
+                              launch_state)
     except Exception as e:
       # The commonest way to land here is the user deleting the region
       # layer while the tiling ran: the result is fine, but there is
@@ -13008,7 +13949,7 @@ class WeavingSpaceDialog(QDialog):
 
   def _add_output_layers(self, gdf, family, source_layer, assignments,
                          path, run_sig=None, geometry_sig=None,
-                         outlines=None):
+                         outlines=None, launch_state=None):
     """Turn the tiled GeoDataFrame into the project's output layers.
 
     Args:
@@ -13043,6 +13984,12 @@ class WeavingSpaceDialog(QDialog):
         geometry setting the LANDING acts on rather than the tiling,
         which is what made reading it live a defect rather than a
         harmless shortcut.
+      launch_state: the working state captured at launch. Its DESIGN
+        half and output path go into the record this group carries,
+        because the group must describe the map its own layers hold;
+        the element half is re-read live. None means capture the whole
+        thing now, which is right for a caller that did not go through
+        the worker.
 
     Returns:
       None; the project is what changes. Afterwards
@@ -13191,7 +14138,7 @@ class WeavingSpaceDialog(QDialog):
       theirs = bool(stamps) and region_source not in stamps
     force_new = (self.opt_new_group.isChecked() or renamed_mid_run
                  or theirs
-                 or self._fresh_group_for_new_data or (
+                 or self._new_group_chosen or (
       not same_destination(path, self._last_path)
       and not adopted_and_no_file_named))
     # Spent the moment it is read: the group is this dialog's from
@@ -13200,7 +14147,7 @@ class WeavingSpaceDialog(QDialog):
     # after, so an exception on the way cannot leave it armed for a
     # later run that has no claim to it.
     self._adopted_group_unwritten = False
-    self._fresh_group_for_new_data = False
+    self._new_group_chosen = False
     group, created = self._get_or_make_group(force_new)
     group.setName(self._group_name)
 
@@ -13835,6 +14782,20 @@ class WeavingSpaceDialog(QDialog):
     self._last_geometry_sig = (geometry_sig if geometry_sig is not None
                                else self._geometry_signature())
     self._update_layer_exclusions()
+    # THE GROUP TAKES THE WORKING STATE WITH IT (ruling 4 of
+    # 2026-08-25). From here the group is the unit of work: choosing it
+    # again restores this design and this symbology rather than the
+    # dialog inferring them from three disagreeing scopes.
+    #
+    # The launch snapshot decides the DESIGN half and the live table
+    # the ELEMENT half; the reasoning for that split is at
+    # `_stamp_working_state`, beside the code that does it.
+    self._stamp_working_state(group, launch_state)
+    # ...and the chooser learns about a group this run may have just
+    # made. Rebuilt rather than appended to, so a group the run
+    # REPLACED, or one the user deleted while it ran, leaves the list
+    # in the same pass.
+    self._refresh_group_combo()
 
     # Are any two ELEMENTS' colours too close for a reader to
     # separate? Asked of the finished renderers, under ordinary vision

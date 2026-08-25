@@ -849,13 +849,19 @@ MUTATIONS = [
            "and the GeoPackage"),
   dict(name="keeping-a-result-keeps-its-file", file=DIALOG,
        old="""    keeping = self.opt_new_group.isChecked() \\
-        or self._fresh_group_for_new_data""",
+        or self._new_group_chosen""",
        new="""    keeping = self.opt_new_group.isChecked()  # mutation: the box alone""",
        test="test_keeping_a_result_keeps_its_file_however_it_was_kept",
-       why="three things keep a previous result and this guard asked "
-           "about one, so a change of dataset spared the GROUP and "
-           "wrote over the FILE it draws from -- tables rewritten, "
-           "others dropped, the panel looking right"),
+       why="four things now keep a previous result and this guard "
+           "asked about one, so a change of dataset spared the GROUP "
+           "and wrote over the FILE it draws from -- tables rewritten, "
+           "others dropped, the panel looking right. The fourth is the "
+           "chooser's 'create new', added 2026-08-25, and it is the "
+           "only route where the group's own region stamps cannot "
+           "answer: they name the current dataset, so the arming is "
+           "all that stands between the run and the kept file. This "
+           "entry SURVIVED the day the chooser landed, which is how "
+           "that gap was found"),
   dict(name="an-empty-chooser-does-not-forget-the-dataset", file=DIALOG,
        old="""    if layer is None:
       # AN EMPTY CHOOSER IS NOT A DATASET""",
@@ -940,22 +946,29 @@ MUTATIONS = [
            "path now clears on any change of region layer, same-schema "
            "included, and the clearing is announced (ruling 1 of "
            "2026-08-21)"),
-  dict(name="a-switch-detaches-the-group", file=DIALOG,
-       old="""    self._fresh_group_for_new_data = True
-    _dump("SWITCH", "fresh-group-armed")
-    if layer is None:""",
-       new="""    self._fresh_group_for_new_data = False  # mutation: land in A's group
-    _dump("SWITCH", "fresh-group-armed")
-    if layer is None:""",
-       test="test_a_change_of_dataset_starts_a_new_file_and_a_new_group",
-       why="the memory-mode switch is the case the flag exists for: "
-           "with no file in play both paths are empty, same_destination "
-           "answers True, and B's first landing would replace A's "
-           "result in the project. The flag routes it through the door "
-           "'Create as new group' already uses (ruling 2)"),
+  # `a-switch-detaches-the-group` STOOD HERE AND WAS DELETED ON
+  # 2026-08-25, when ruling 1 retired the flag it mutated. It was
+  # re-aimed first, at the binding's own answer for a dataset with no
+  # group -- and it SURVIVED, so the redundancy question was put the
+  # way this project's rules ask: break every route AT ONCE and see
+  # whether the test can still pass. It could. THREE mechanisms now
+  # keep a change of dataset out of the previous dataset's group, and
+  # they are not duplicates of each other -- they answer different
+  # questions and each is right on its own terms:
+  #
+  #   the CHOOSER falls back to "create new"   (a-dataset-with-no-group-claims-none)
+  #   the DIALOG detaches from the old group   (same entry, same line)
+  #   the LANDING refuses a group stamped for another dataset
+  #                                            (`theirs`, its own entry above)
+  #
+  # Each of those is separately guarded and separately caught. What
+  # cannot be guarded is the RULE they jointly implement, because no
+  # single line owns it -- which is precisely the shape this project
+  # already met with `_deriving_spacing`, and the honest record is a
+  # note rather than an entry that can only ever be red.
   dict(name="the-fresh-group-flag-is-spent-by-its-landing", file=DIALOG,
        old="""    self._adopted_group_unwritten = False
-    self._fresh_group_for_new_data = False""",
+    self._new_group_chosen = False""",
        new="""    self._adopted_group_unwritten = False
     pass  # mutation: the flag survives its landing""",
        test="test_a_change_of_dataset_starts_a_new_file_and_a_new_group",
@@ -4055,10 +4068,10 @@ MUTATIONS = [
        old="    force_new = (self.opt_new_group.isChecked() or "
            "renamed_mid_run\n"
            "                 or theirs\n"
-           "                 or self._fresh_group_for_new_data or (",
+           "                 or self._new_group_chosen or (",
        new="    force_new = (self.opt_new_group.isChecked()\n"
            "                 or theirs\n"
-           "                 or self._fresh_group_for_new_data or (",
+           "                 or self._new_group_chosen or (",
        test="test_the_output_group_is_renamed_while_a_run_is_in_flight",
        why="renaming the output group while a tiling runs is how a "
            "user keeps that result, exactly as 'Create as new group' "
@@ -5288,6 +5301,111 @@ MUTATIONS = [
            "it must give ownership back; without this the box stays "
            "'theirs' forever after one typed number and every later "
            "dataset keeps a spacing derived for a different one"),
+  # THE WORKING STATE, ONE ENTRY PER AXIS. The catalogue proves a
+  # test's PRIMARY assertion and structurally cannot see the rest, and
+  # this test carries several -- the design coming back, the elements
+  # coming back, and the record existing on the group at all. Each is
+  # aimed at the narrowest thing its own cells name.
+  dict(name="a-group-gives-back-its-design", file=DIALOG,
+       old="""      widget = getattr(self, attribute, None)
+      if widget is not None:
+        self._write_control(widget, kind, design[key])""",
+       new="""      widget = getattr(self, attribute, None)
+      if False:  # mutation: the design is recorded and never restored
+        self._write_control(widget, kind, design[key])""",
+       test="test_an_output_group_carries_the_whole_working_state",
+       why="ruling 4 of 2026-08-25: selecting a group must RESTORE its "
+           "design rather than leave the dialog inferring one. Without "
+           "the write the record is stamped faithfully and read back "
+           "faithfully and changes nothing on screen, which is the "
+           "hardest kind of dead feature to notice"),
+  dict(name="a-group-gives-back-its-elements", file=DIALOG,
+       old="""    previous = self._restoring_assignments or self._assignments()
+    self._restoring_assignments = None""",
+       new="""    previous = self._assignments()  # mutation: ignore the record
+    self._restoring_assignments = None""",
+       test="test_an_output_group_carries_the_whole_working_state",
+       why="the rebuild that answers a restore must read the RECORD "
+           "and not the rows it is about to replace; reading the table "
+           "carries the outgoing map's variables and schemes onto the "
+           "design being returned to, which is the exact incoherence "
+           "the ruling exists to remove"),
+  dict(name="a-landing-records-the-working-state", file=DIALOG,
+       old="""    self._stamp_working_state(group, launch_state)""",
+       new="""    pass  # mutation: the group is left with no record at all""",
+       test="test_an_output_group_carries_the_whole_working_state",
+       why="a group with no record cannot be resumed, and nothing on "
+           "screen says so: the dropdown would offer it and choosing "
+           "it would restore nothing"),
+  dict(name="the-record-describes-the-map-that-was-tiled", file=DIALOG,
+       old="""      if isinstance(launch_state, dict):
+        for key in ("design", "output_path", "region"):""",
+       new="""      if False:  # mutation: record the controls as they stand now
+        for key in ("design", "output_path", "region"):""",
+       test="test_an_output_group_carries_the_whole_working_state",
+       why="the design half must come from the launch snapshot. Read "
+           "live at the landing, a spacing typed while the tiling ran "
+           "goes into the record -- so the group claims a design its "
+           "own layers were not drawn at, which is a false statement "
+           "stored in somebody else's project"),
+  # THE CHOOSER AND THE BINDING, again one entry per axis. Rulings 1,
+  # 2 and 3 of 2026-08-25 are three separate promises and a single
+  # mutation would prove only whichever assertion fires first.
+  dict(name="a-dataset-selects-its-own-group", file=DIALOG,
+       old="""    theirs = [entry for entry in groups if source and entry[2] == source]""",
+       new="""    theirs = list(groups)  # mutation: any group will do""",
+       test="test_the_output_group_chooser_binds_to_the_dataset",
+       why="ruling 2: choosing a dataset must select a group made from "
+           "THAT dataset. Taking any group binds the dialog to another "
+           "dataset's map, and the next Generate replaces it -- which "
+           "is the harm the whole ruling exists to prevent, arriving "
+           "through the control that was meant to prevent it"),
+  dict(name="recency-decides-among-a-datasets-groups", file=DIALOG,
+       old="""    group = theirs[0][0]          # newest first, so this is ruling 3""",
+       new="""    group = theirs[-1][0]  # mutation: oldest wins""",
+       test="test_the_output_group_chooser_binds_to_the_dataset",
+       why="ruling 3: where a dataset owns several groups the most "
+           "RECENT is selected. A-B-A and 'create as new group' both "
+           "leave one dataset owning two, and picking the older one "
+           "restores a design the user moved on from and replaces the "
+           "map they were last working in"),
+  dict(name="choosing-a-group-selects-its-dataset", file=DIALOG,
+       old="""          if same and layer is not self.layer_combo.currentLayer():
+            self.layer_combo.setLayer(layer)""",
+       new="""          if False:  # mutation: the group does not move the dataset
+            self.layer_combo.setLayer(layer)""",
+       test="test_the_output_group_chooser_binds_to_the_dataset",
+       why="the binding is SYMMETRIC (ruling 2), and this is the half "
+           "that is easy to leave out. Without it a group can be "
+           "selected while the region chooser still names another "
+           "dataset, so the restored design would be tiled from data "
+           "it was never made for"),
+  dict(name="the-chooser-asks-the-layers-not-the-name", file=DIALOG,
+       old="""    found = []
+    for node in root.children():
+      if not hasattr(node, "children"):
+        continue""",
+       new="""    found = []
+    for node in root.children():
+      if not node.name().startswith(GROUP_BASE_NAME):  # mutation: by name
+        continue""",
+       test="test_the_output_group_chooser_binds_to_the_dataset",
+       why="a group's name is a LABEL and never an identity -- this "
+           "project has paid for that twice already, in adoption and "
+           "in the replace-in-place lookup. Keyed on the name, the "
+           "chooser loses a group the moment somebody renames it in "
+           "the layers panel, which is an ordinary thing to do"),
+  dict(name="a-dataset-with-no-group-claims-none", file=DIALOG,
+       old="""      self._detach_from_the_group()
+      self._new_group_chosen = True""",
+       new="""      pass  # mutation: go on claiming the last dataset's group
+      self._new_group_chosen = True""",
+       test="test_the_output_group_chooser_binds_to_the_dataset",
+       why="the chooser would name a map this dataset's run will not "
+           "land in, which is exactly the invisible rule ruling 1 "
+           "replaces -- and the records left standing are the ones a "
+           "landing reads to decide what to REMOVE, so the dialog "
+           "would be one Generate from deleting the other map"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a
