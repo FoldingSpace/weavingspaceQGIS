@@ -595,6 +595,59 @@ def _ramp_icon_key(name, reverse):
   return icon.cacheKey() if icon is not None else None
 
 
+def table_of_element(dlg, tile_id, suffix=""):
+  """The GeoPackage table one element's layer is reading from.
+
+  Args:
+    dlg: a dialog that has generated, still holding its output layers.
+    tile_id: the element to ask about.
+    suffix: "" for the element's own table, "_no_data" for its paired
+      layer, whose name is that one plus this.
+
+  Returns:
+    The table name, or None when that element has no file-backed
+    layer -- memory output, or a run that produced nothing.
+
+  READ OFF THE LAYER rather than rebuilt from the element id, which is
+  the point of having this at all. Ruling 6 of 2026-08-25 put the
+  displayed variable into the table name and sanitised it, so any test
+  spelling out ``tiles_<tid>`` is asserting the plugin's own naming
+  arithmetic instead of the behaviour it was written for -- and would
+  break on exactly the awkward column names worth testing.
+  """
+  layer_id = dlg._element_layer_ids.get(tile_id)
+  layer = QgsProject.instance().mapLayer(layer_id) if layer_id else None
+  source = layer.source() if layer is not None else ""
+  if "layername=" not in source:
+    return None
+  return source.split("layername=", 1)[1].split("|", 1)[0] + suffix
+
+
+def element_of_table(name):
+  """Which element an output GeoPackage table belongs to, or None.
+
+  Args:
+    name: a table name read out of an output GeoPackage.
+
+  Returns:
+    The element id ("a", "b", ...), or None for a table this plugin
+    did not write and for a paired no-data table -- which belongs to
+    an element but is not that element's own tiles, so a caller
+    comparing per-element output would otherwise judge the twin
+    against its element and report a difference that is the design.
+
+  BOTH SPELLINGS ARE RECOGNISED, and that is the point of having one
+  helper rather than a prefix strip in every test. Ruling 6 of
+  2026-08-25 put the displayed variable into the name, so a table is
+  ``tiles_a_v1`` now and was ``tiles_a`` before -- and the plugin goes
+  on reading files written under the old form, so a test that knew
+  only one spelling would quietly stop covering half of what ships.
+  """
+  if not name.startswith("tiles_") or name.endswith("_no_data"):
+    return None
+  return name[len("tiles_"):].split("_", 1)[0] or None
+
+
 def make_region_layer(n=4, cell=1000, origin=(0, 0)):
   """A small synthetic region layer.
 
@@ -5341,11 +5394,24 @@ def test_a_reopened_project_cannot_overwrite_yesterdays_geopackage():
 
   folder = tempfile.mkdtemp(prefix="weavingspace_gpkg_keep_")
   path = os.path.join(folder, "map.gpkg")
+  # {element: the table its layer reads}, filled by `remember_tables`
+  # after each run. Captured rather than spelled out because the name
+  # carries the displayed variable since 2026-08-25.
+  tables = {}
+
+  def remember_tables(dlg):
+    for tile in ("a", "b", "c", "d"):
+      found = table_of_element(dlg, tile)
+      if found:
+        tables[tile] = found
 
   def counts():
     found = {}
     for name in ("a", "b", "c", "d"):
-      lyr = QgsVectorLayer(f"{path}|layername=tiles_{name}", name, "ogr")
+      table = tables.get(name)
+      if not table:
+        continue
+      lyr = QgsVectorLayer(f"{path}|layername={table}", name, "ogr")
       if lyr.isValid():
         found[name] = lyr.featureCount()
     return found
@@ -5361,6 +5427,7 @@ def test_a_reopened_project_cannot_overwrite_yesterdays_geopackage():
     first.spacing_spin.setValue(700)
     _generate_and_wait(first)
     _tick(300)
+    remember_tables(first)
     before = counts()
     assert before, "nothing was written, so this test cannot run"
     first.close()
@@ -7452,9 +7519,23 @@ def test_a_geopackage_loses_the_elements_a_design_dropped():
     _generate_and_wait(dlg)
     _tick(400)
 
-    on_the_map = {f"tiles_{dlg.table.item(r, 0).text()}"
-                  for r in range(dlg.table.rowCount())
-                  if dlg.table.item(r, 0) is not None}
+    # READ OFF THE LAYERS, not rebuilt from the element ids. Since
+    # 2026-08-25 an element's table carries the variable it displays
+    # and is sanitised and de-collided, so spelling the name out here
+    # would make this test assert the plugin's arithmetic rather than
+    # its behaviour -- and would say `tiles_a` where the run wrote
+    # `tiles_a_v1`, reporting every table of the NEW design as an
+    # orphan of the old one.
+    on_the_map = set()
+    for lid in dlg._element_layer_ids.values():
+      live = QgsProject.instance().mapLayer(lid)
+      if live is None or "layername=" not in live.source():
+        continue
+      on_the_map.add(
+        live.source().split("layername=", 1)[1].split("|", 1)[0])
+    assert on_the_map, \
+      "no element layer names a table, so the comparison below has " \
+      "nothing to compare against"
     narrow = element_tables()
     assert len(narrow) < len(wide), \
       f"the design shrank from {len(wide)} elements and the file " \
@@ -11347,10 +11428,12 @@ def test_a_pinned_element_exports_and_reopens_from_a_geopackage():
              for r in project.mapLayer(
                dlg._element_layer_ids[tid]).renderer().ranges()]
     assert drawn[0][1] == 10.0, f"the pin never reached the map: {drawn}"
+    table = table_of_element(dlg, tid)
+    assert table, f"element {tid} is not reading from the file"
     dlg.close()
 
     # ...opened cold, the way a colleague would
-    reopened = QgsVectorLayer(f"{path}|layername=tiles_{tid}",
+    reopened = QgsVectorLayer(f"{path}|layername={table}",
                               "theirs", "ogr")
     assert reopened.isValid(), "the element layer is not in the GeoPackage"
     loaded, ok = reopened.loadDefaultStyle()
@@ -21320,12 +21403,17 @@ def test_an_exported_geopackage_is_still_recognised_as_our_own():
     live = project.mapLayer(dlg._element_layer_ids[tile_id])
     assert live.customProperty("weavingspace_output"), \
       "the live layer is unstamped, so the export cannot be tested"
+    # THE TABLE NAME IS READ OFF THE LAYER rather than spelled out.
+    # It carries the displayed variable since 2026-08-25 and is
+    # sanitised, so a literal here would assert the plugin's own
+    # arithmetic and would break on any column name worth testing.
+    table = live.source().split("layername=", 1)[1].split("|", 1)[0]
     dlg.close()
     project.clear()
     _tick(200)
 
     # a colleague -- or the same user tomorrow -- opens the file cold
-    fresh = QgsVectorLayer(f"{path}|layername=tiles_{tile_id}",
+    fresh = QgsVectorLayer(f"{path}|layername={table}",
                            "theirs", "ogr")
     assert fresh.isValid(), "the exported layer would not reopen"
     fresh.loadDefaultStyle()
@@ -21724,21 +21812,32 @@ def test_integration_gpkg_style_round_trip():
     a_colours = [r.symbol().color().name() for r in a_before.ranges()]
     b_colours = {str(c.value()): c.symbol().color().name()
                  for c in b_before.categories() if c.value()}
+    # EACH ELEMENT IS ASKED FOR ITS OWN COLUMN. Since ruling 6 of
+    # 2026-08-25 an element table carries the variable it displays and
+    # not the others, so asking element a for `landcover` -- which
+    # element b draws -- is asking for a column that is deliberately
+    # not there.
+    displayed = {a["id"]: a.get("var") for a in dlg._assignments()}
     before_layers = [
       bridge_module().gdf_to_layer(
         bridge_module().layer_to_gdf(
           QgsProject.instance().mapLayer(dlg._element_layer_ids[t]),
-          ["v1", "landcover"]), t)
+          [displayed[t]]), t)
       for t in ("a", "b")]
     for copy_layer, tid in zip(before_layers, ("a", "b")):
       copy_layer.setRenderer(QgsProject.instance().mapLayer(
         dlg._element_layer_ids[tid]).renderer().clone())
+    table_a = table_of_element(dlg, "a")
+    table_b = table_of_element(dlg, "b")
+    assert table_a and table_b, \
+      f"elements a and b are not reading from the file " \
+      f"({table_a!r}, {table_b!r})"
     # drop everything and reopen the file cold
     for lid in list(dlg._element_layer_ids.values()):
       QgsProject.instance().removeMapLayer(lid)
     dlg.close()
-    reloaded_a = QgsVectorLayer(f"{path}|layername=tiles_a", "a", "ogr")
-    reloaded_b = QgsVectorLayer(f"{path}|layername=tiles_b", "b", "ogr")
+    reloaded_a = QgsVectorLayer(f"{path}|layername={table_a}", "a", "ogr")
+    reloaded_b = QgsVectorLayer(f"{path}|layername={table_b}", "b", "ogr")
     assert reloaded_a.isValid() and reloaded_b.isValid()
     for lay in (reloaded_a, reloaded_b):
       lay.loadDefaultStyle()
@@ -23599,11 +23698,14 @@ def test_ui_library_categorical_to_gpkg():
     assert not (set(in_memory["b"]) & set(in_memory["a"])), \
       "different fields should not share class values here"
 
+    tables = {tid: table_of_element(dlg, tid) for tid in in_memory}
+    assert all(tables.values()), \
+      f"not every element is reading from the file: {tables}"
     for lid in list(dlg._element_layer_ids.values()):
       project.removeMapLayer(lid)
     dlg.close()
     for tid, expected_classes in in_memory.items():
-      reloaded = QgsVectorLayer(f"{path}|layername=tiles_{tid}", tid, "ogr")
+      reloaded = QgsVectorLayer(f"{path}|layername={tables[tid]}", tid, "ogr")
       assert reloaded.isValid()
       reloaded.loadDefaultStyle()
       renderer = reloaded.renderer()
@@ -25442,10 +25544,10 @@ def test_a_dataset_that_leaves_the_project_is_still_a_dataset_left():
       f"the output path survived a dataset that LEFT the project " \
       f"({dlg.gpkg_widget.filePath()!r}); the next Generate would " \
       f"write over the file holding the previous dataset's map"
-    assert dlg._new_group_chosen, \
-      "the chooser did not fall back to 'create new' for a dataset " \
-      "with no group of its own, so the new dataset's map would " \
-      "replace the previous one's in the project"
+    assert dlg._group_name is None, \
+      f"the dialog still claims the group {dlg._group_name!r} after " \
+      f"moving to a dataset with no group of its own, so the new " \
+      f"dataset's map would replace the previous one's in the project"
     # ...and the memory went with the dataset it belongs to, which is
     # the half that was already right and must stay so.
     live = set(dlg._layer_fields())
@@ -26558,14 +26660,10 @@ def _switch_matrix_cell(route, state, aftermath):
         if stray:
           return (f"absent-dataset fields readable in the active "
                   f"{label}", f"{element}: {sorted(stray)}")
-    if route == "pre-landing" and dlg._new_group_chosen \
-        and dlg._group_name:
-      return ("'create new' armed on a first choice with a group in "
-              "hand", "nothing was built, so there was nothing to protect")
     if route in ("plain", "same-schema", "shared-name") \
-        and not dlg._new_group_chosen:
-      return ("the chooser did not fall back to 'create new' for a "
-              "dataset with no group of its own", route)
+        and dlg._group_name:
+      return ("the dialog still claims a group after a change of "
+              "dataset", f"{route}: {dlg._group_name!r}")
 
     # ---- the AFTERMATH.
     if aftermath == "immediate":
@@ -26610,6 +26708,10 @@ def _switch_matrix_cell(route, state, aftermath):
       if dlg._new_group_chosen:
         return ("the create-new arming outlived its landing",
                 "every later run would build another group")
+      if not dlg._group_name:
+        return ("the landing left the dialog claiming no group",
+                "the chooser would offer 'create new' over a map that "
+                "had just been made")
     if aftermath == "return" and route == "plain":
       dlg.layer_combo.setLayer(A)
       _tick(600)
@@ -28198,10 +28300,11 @@ def test_a_geopackage_carries_the_no_data_opacity_it_was_given():
       "no paired layer, so this test is about nothing"
 
     # opened COLD from the file, the way a colleague would
-    fresh = QgsVectorLayer(f"{path}|layername=tiles_{tid}_no_data",
+    twin = table_of_element(dlg, tid, "_no_data")
+    fresh = QgsVectorLayer(f"{path}|layername={twin}",
                            "cold no data", "ogr")
     assert fresh.isValid(), \
-      f"the no-data table is not in the file: tiles_{tid}_no_data"
+      f"the no-data table is not in the file: {twin}"
     fresh.loadDefaultStyle()
     element = QgsVectorLayer(f"{path}|layername=tiles_{tid}",
                              "cold element", "ogr")
@@ -30575,10 +30678,12 @@ def test_element_opacity():
     path = os.path.join(td, "opacity.gpkg")
     dlg.gpkg_widget.setFilePath(path)
     _generate_and_wait(dlg)
+    table_a = table_of_element(dlg, "a")
+    assert table_a, "element a is not reading from the file"
     for lid in list(dlg._element_layer_ids.values()):
       project.removeMapLayer(lid)
     dlg.close()
-    reloaded = QgsVectorLayer(f"{path}|layername=tiles_a", "a", "ogr")
+    reloaded = QgsVectorLayer(f"{path}|layername={table_a}", "a", "ogr")
     assert reloaded.isValid()
     reloaded.loadDefaultStyle()
     assert abs(reloaded.opacity() - 0.4) < 1e-6, \
@@ -37847,7 +37952,7 @@ def test_the_geopackage_opens_cleanly_in_a_fresh_process():
     for tid, lid in dlg._element_layer_ids.items():
       out = project.mapLayer(lid)
       assert out is not None, f"element {tid!r} lost its layer"
-      expected[f"tiles_{tid}"] = dict(
+      expected[table_of_element(dlg, tid) or f"tiles_{tid}"] = dict(
         count=out.featureCount(),
         fields=[f.name() for f in out.fields()],
         renderer=type(out.renderer()).__name__,
@@ -38030,14 +38135,21 @@ def test_attribute_names_survive_the_round_trip():
     * "región", "水位", "with space", "select" and a 73-character
       name all survive into the .gpkg EXACTLY, and come back exactly
       on a cold reload. Nothing is truncated and nothing is renamed;
-    * "Area" and "area" together are refused by GDAL as the first
-      element is written. The plugin says so -- a modal naming the
-      column -- and adopts NOTHING, so there is no half-map claiming
-      to be the output. That is a legitimate outcome of the three
-      the campaign allows (kept exactly, renamed and said so, or
-      declined and said so); what must never happen is the fourth,
-      where one name is silently folded onto another and a column of
-      data disappears into its neighbour;
+    * "Area" and "area" together were refused by GDAL as the first
+      element was written, because both landed in one table. The
+      plugin said so -- a modal naming the column -- and adopted
+      NOTHING, so there was no half-map claiming to be the output.
+
+      RULING 6 OF 2026-08-25 RETIRED THAT CASE, and this is the
+      pleasant kind of change: an element table now carries only the
+      variable that element DISPLAYS, so "Area" and "area" go into
+      different tables and both survive intact. The requirement is
+      unchanged and simply met differently -- what must never happen
+      is that one name is silently folded onto another and a column
+      of data disappears into its neighbour. The refusal branch is
+      kept below rather than deleted, because a future GDAL or a
+      future design could put two such columns in one table again,
+      and a test that had forgotten the case would not notice;
     * memory output keeps both, the memory provider being
       case-sensitive.
 
@@ -38105,17 +38217,34 @@ def test_attribute_names_survive_the_round_trip():
     _tick(300)
     assert dlg._element_layer_ids, \
       "nothing was produced, so no name survived anything"
+    # ASKED PER ELEMENT SINCE 2026-08-25, and the question is sharper
+    # for it. Ruling 6 trims each element table to the variable it
+    # DISPLAYS, so "every awkward name reaches every element" stopped
+    # being true by design. What must hold instead is that each
+    # element carries ITS OWN name intact -- which is the same claim
+    # about drivers and encodings, aimed at the one column that is
+    # actually there -- and that between them the elements account for
+    # every awkward name, so a name lost to a rename cannot hide by
+    # simply being trimmed off the element that was checked.
+    accounted = set()
     for tid in dlg._element_layer_ids:
       names = field_names(dlg, tid)
       check_no_collision(names, f"element {tid}")
-      for wanted in awkward:
-        assert wanted in names, \
-          f"{wanted!r} did not reach element {tid}: {names}. A name " \
-          f"kept in some other form is only acceptable if the user " \
-          f"was told, and nothing was said"
-      assert len(names) == len(awkward) + len(structural), \
-        f"element {tid} carries {len(names)} attributes for " \
-        f"{len(awkward)} mapped ones plus {sorted(structural)}: {names}"
+      mine = (dlg._assignment_for(tid) or {}).get("var")
+      assert mine in awkward, \
+        f"element {tid} displays {mine!r}, which is not one of the " \
+        f"awkward names this test staged, so it cannot judge them"
+      assert mine in names, \
+        f"{mine!r} did not reach element {tid}: {names}. A name kept " \
+        f"in some other form is only acceptable if the user was " \
+        f"told, and nothing was said"
+      accounted.add(mine)
+      assert len(names) == 1 + len(structural), \
+        f"element {tid} carries {len(names)} attributes for its one " \
+        f"variable plus {sorted(structural)}: {names}"
+    assert accounted == set(awkward), \
+      f"the elements between them displayed {sorted(accounted)}, " \
+      f"leaving {sorted(set(awkward) - accounted)} untested"
 
     # and cold off the disk, which is where a driver-side rename
     # would finally show. The live layers are dropped first: they
@@ -38123,10 +38252,17 @@ def test_attribute_names_survive_the_round_trip():
     # this session already has is the weaker question
     first = sorted(dlg._element_layer_ids)[0]
     written = field_names(dlg, first)
+    # THE TABLE NAME IS READ OFF THE LAYER, not rebuilt from the
+    # element id. Since 2026-08-25 it carries the variable as well and
+    # is sanitised, so a test that spelled it out would be asserting
+    # its own arithmetic -- and these column names are chosen to be
+    # awkward precisely where sanitising bites.
+    live = project.mapLayer(dlg._element_layer_ids[first])
+    table = live.source().split("layername=", 1)[1].split("|", 1)[0]
     for lid in list(dlg._element_layer_ids.values()):
       project.removeMapLayer(lid)
     dlg.close()
-    reopened = QgsVectorLayer(f"{path}|layername=tiles_{first}",
+    reopened = QgsVectorLayer(f"{path}|layername={table}",
                               "cold", "ogr")
     assert reopened.isValid(), "the GeoPackage would not reopen"
     cold = [f.name() for f in reopened.fields()]
@@ -38151,12 +38287,23 @@ def test_attribute_names_survive_the_round_trip():
   _generate_and_wait(dlg)
   _tick(300)
   assert dlg._element_layer_ids, "the memory run produced nothing"
+  # BETWEEN THEM the elements must carry both spellings, and each must
+  # carry its own. Asking every element for both stopped being the
+  # question on 2026-08-25: an element carries the variable it
+  # displays, so demanding its neighbour's would be demanding the
+  # very column ruling 6 exists to leave out.
+  carried = set()
   for tid in dlg._element_layer_ids:
     names = field_names(dlg, tid)
     check_no_collision(names, f"memory element {tid}", fold=False)
-    assert "Area" in names and "area" in names, \
-      f"memory output lost one of two columns differing only in " \
-      f"case: {names}"
+    mine = (dlg._assignment_for(tid) or {}).get("var")
+    assert mine in names, \
+      f"memory element {tid} displays {mine!r} and does not carry " \
+      f"it: {names}"
+    carried.add(mine)
+  assert carried == set(pair), \
+    f"memory output kept {sorted(carried)} of {pair}: one of two " \
+    f"columns differing only in case went missing"
   dlg.close()
   project.clear()
 
@@ -38182,26 +38329,44 @@ def test_attribute_names_survive_the_round_trip():
   _map_every_name(dlg, pair)
   dlg.spacing_spin.setValue(700)
   QtWidgets.QMessageBox.critical = remember
+  # CAPTURED INSIDE THE FOLDER'S LIFETIME, and this is the half the
+  # test never had to get right before. `_temp_dir` calls
+  # `_release_layers_under` on its way out -- deliberately, so Windows
+  # can delete a file QGIS is holding -- so every output layer is gone
+  # from the project by the time the block closes. The old code read
+  # the layers afterwards, which was harmless only because the run was
+  # always REFUSED here and the branch was never taken. Ruling 6 of
+  # 2026-08-25 puts the two spellings in different tables, the write
+  # now succeeds, and the untaken branch turned out to have been
+  # measuring nothing at all.
+  captured = {}
   try:
     with _temp_dir() as folder:
       dlg.gpkg_widget.setFilePath(os.path.join(folder, "pair.gpkg"))
       BAR_MESSAGES.clear()
       _generate_and_wait(dlg)
       _tick(300)
+      for tid, layer_id in dlg._element_layer_ids.items():
+        if project.mapLayer(layer_id) is not None:
+          captured[tid] = (field_names(dlg, tid),
+                           (dlg._assignment_for(tid) or {}).get("var"))
   finally:
     QtWidgets.QMessageBox.critical = shim
 
   told = " ".join(said) + " " + dlg.live_note.text() + " " + \
     " ".join(text for _kind, text in BAR_MESSAGES)
-  if dlg._element_layer_ids:
-    # the branch this QGIS does not take: if a future GDAL accepts
-    # the pair, both names must be there in full
-    for tid in dlg._element_layer_ids:
-      names = field_names(dlg, tid)
+  if captured:
+    # both names must be there in full, one per element
+    in_file = set()
+    for tid, (names, mine) in sorted(captured.items()):
       check_no_collision(names, f"gpkg element {tid}", fold=False)
-      assert "Area" in names and "area" in names, \
-        f"a GeoPackage element kept only one of two columns " \
-        f"differing in case, and the user was told {told!r}: {names}"
+      assert mine in names, \
+        f"a GeoPackage element displaying {mine!r} does not carry " \
+        f"it, and the user was told {told!r}: {names}"
+      in_file.add(mine)
+    assert in_file == set(pair), \
+      f"the GeoPackage kept {sorted(in_file)} of {pair} across its " \
+      f"elements, and the user was told {told!r}"
   else:
     assert said, \
       "writing two columns differing only in case produced no map " \
@@ -38227,21 +38392,26 @@ def test_the_output_carries_no_working_state():
   Two rules, checked in BOTH output modes and again after a cold
   reload of the file:
 
-  1. the attributes are the mapped variables plus the tiling's own
-     ``tile_id`` and ``prototile_id``, plus ``weavingspace_fid``,
-     which is the GeoPackage's primary key under a name that cannot
-     collide with a user column called fid. Nothing else -- in
-     particular not ``ws_unit_id``, the column the plugin puts on the
-     REGION so it can count which areas won no tiles, which is
-     dropped again before the output is built. A new column here is
-     a change to what everybody downstream sees, and should be a
-     decision rather than a leak;
+  1. the attributes are THIS ELEMENT'S OWN mapped variable plus the
+     tiling's own ``tile_id`` and ``prototile_id``, plus
+     ``weavingspace_fid``, which is the GeoPackage's primary key under
+     a name that cannot collide with a user column called fid.
+     Nothing else -- in particular not ``ws_unit_id``, the column the
+     plugin puts on the REGION so it can count which areas won no
+     tiles, which is dropped again before the output is built, and
+     since 2026-08-25 not the OTHER elements' variables either.
+     A new column here is a change to what everybody downstream sees,
+     and should be a decision rather than a leak;
   2. every custom property whose name begins ``weavingspace`` is one
-     of the five that exist on purpose:
+     of the six that exist on purpose:
        weavingspace_output -- this layer came from the plugin, which
          is how it is kept out of the region chooser;
        weavingspace_tile_id -- which element it draws, which is how a
          later dialog adopts the group instead of starting a rival;
+       weavingspace_region -- the source of the dataset this map was
+         made from, which is how a landing refuses a group belonging
+         to another dataset and how the output-group chooser knows
+         which dataset each group is about;
        weavingspace_category_colours -- hand-picked categorical
          colours, so a reopened project still knows them;
        weavingspace_quant_style -- a graduated element's positional
@@ -38250,12 +38420,21 @@ def test_the_output_carries_no_working_state():
      Anything else fails, which is the point: a scratch property
      added in a hurry should not be able to ship unnoticed.
 
-  All five are made to appear here, or the second rule would be
+  All six are made to appear here, or the second rule would be
   satisfied by an empty set.
+
+  `weavingspace_region` WAS SHIPPING UNDOCUMENTED FOR A DAY, which is
+  this test doing its job late rather than not at all: it arrived on
+  2026-08-24 with the no-leakage ruling and this list was not widened
+  with it, so the branch carried a red test nothing had run. Found on
+  2026-08-25 and confirmed against the commit before that day's work,
+  so it is recorded as pre-existing rather than blamed on the change
+  that surfaced it.
   """
   from weavingspace_qgis import bridge
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   documented = {"weavingspace_output", "weavingspace_tile_id",
+                "weavingspace_region",
                 "weavingspace_category_colours",
                 "weavingspace_quant_style", "weavingspace_outline"}
   project = QgsProject.instance()
@@ -38285,8 +38464,19 @@ def test_the_output_carries_no_working_state():
       The set of weavingspace_* property names seen across every
       output layer, having already asserted the field rule on each.
     """
-    wanted = set(mapped) | structural | (
-      {"weavingspace_fid"} if expect_key else set())
+    # THE SET IS PER LAYER SINCE 2026-08-25, and the expectation moved
+    # deliberately rather than being relaxed to get a green run.
+    # Ruling 6 trims each element table to the variable it DISPLAYS
+    # plus the identifiers: a colleague measured 23 elements each
+    # carrying all 26 source attributes, which took an 800 KB dataset
+    # to a 19 MB GeoPackage, and a probe found a column deliberately
+    # named `secret_code` in all four tables of a map that never drew
+    # it. This test's subject is unchanged -- what a reader of the
+    # output SEES -- and the answer it now demands is strictly
+    # smaller, so it still fails on an addition and fails newly on a
+    # column that should have been trimmed.
+    key = {"weavingspace_fid"} if expect_key else set()
+    displays = {a["id"]: a.get("var") for a in dlg._assignments()}
     properties = set()
     layers = [project.mapLayer(lid)
               for lid in dlg._element_layer_ids.values()]
@@ -38304,10 +38494,19 @@ def test_the_output_carries_no_working_state():
         leaked = sorted(n for n in names if n.startswith("ws_"))
         assert not leaked, \
           f"internal columns reached {layer.name()!r}: {leaked}"
+        mine = displays.get(str(layer.customProperty(
+          "weavingspace_tile_id") or ""))
+        wanted = structural | key | ({mine} if mine else set())
+        assert mine, \
+          f"{layer.name()!r} carries no element id this dialog knows, " \
+          f"so its expected column set cannot be built and the " \
+          f"comparison below would prove nothing"
         assert names == wanted, \
           f"{layer.name()!r} ships attributes {sorted(names)}; the " \
-          f"public set is {sorted(wanted)}. An addition here is a " \
-          f"change to what every reader of this output sees"
+          f"public set for an element displaying {mine!r} is " \
+          f"{sorted(wanted)}. An addition here is a change to what " \
+          f"every reader of this output sees, and a variable belonging " \
+          f"to ANOTHER element is one this map never drew here"
       properties |= {k for k in layer.customPropertyKeys()
                      if k.startswith("weavingspace")}
     unknown = properties - documented
@@ -38371,16 +38570,24 @@ def test_the_output_carries_no_working_state():
       f"not every documented property appeared, so the unknown-" \
       f"property rule above was checked against a thin set: " \
       f"{sorted(seen)} is missing {sorted(documented - seen)}"
-    names = sorted(f"tiles_{t}" for t in dlg._element_layer_ids)
+    names = sorted(filter(None, (table_of_element(dlg, t)
+                                 for t in dlg._element_layer_ids)))
+    # captured while the dialog is still open, since the cold leg
+    # below asks what each table SHOULD hold and that depends on
+    # which variable its element displays
+    displays = {a["id"]: a.get("var") for a in dlg._assignments()}
     elsewhere = _read_gpkg_in_a_fresh_process(path, names, folder)
     for name, entry in elsewhere.items():
       assert entry["valid"], f"{name} did not reload: {entry}"
       leaked = sorted(n for n in entry["fields"] if n.startswith("ws_"))
       assert not leaked, \
         f"{name} carries internal columns on disk: {leaked}"
-      assert set(entry["fields"]) == set(mapped) | structural | {
-        "weavingspace_fid"}, \
-        f"{name} on disk holds {entry['fields']}"
+      mine = displays.get(element_of_table(name) or "")
+      assert set(entry["fields"]) == structural | {"weavingspace_fid"} | (
+          {mine} if mine else set()), \
+        f"{name} on disk holds {entry['fields']}, where an element " \
+        f"displaying {mine!r} should ship that column, the two " \
+        f"identifiers and the primary key and nothing else"
       unknown = {k for k in entry["properties"]
                  if k.startswith("weavingspace")} - documented
       assert not unknown, \
@@ -46695,6 +46902,206 @@ def test_the_output_group_chooser_binds_to_the_dataset():
     project.clear()
 
 
+def test_an_element_table_carries_only_what_it_displays():
+  """The file a colleague receives holds this map and nothing beside it.
+
+  RULING 6 OF 2026-08-25 (CLAUDE.md): element tables are trimmed to
+  the symbolised variable plus the identifiers, and named
+  ``tiles_<tid>_<variable>``.
+
+  WHAT IT IS FOR, in the two measurements that produced it. A
+  colleague reported 23 element layers each carrying all 26 source
+  attributes, which took an 800 KB dataset to a 19 MB GeoPackage. And
+  a probe wrote a four-column dataset out and read the file back with
+  OGR: four tables, each holding all four columns including one
+  deliberately named ``secret_code`` that no element ever displayed.
+  The file a user sends on carried attributes the map never drew.
+
+  AND WHY THE NAME CHANGED WITH IT. In the project the layers read
+  "a – v1", but the TABLE names were ``tiles_a``, so opening the file
+  directly -- which is what you do with a file somebody sent you --
+  showed "filename - tiles_a" and the variable was nowhere. The
+  maintainer met that on rc16.
+
+  TRIMMING IS ONLY SAFE BECAUSE THE SOURCE COMES BACK (ruling 5). The
+  colleague's argument for carrying every column was that a tiling may
+  be missing data in some variables, so the full set hedges against a
+  lossy encoding. With the region recoverable, switching a variable
+  RE-TILES rather than reading a column carried along just in case.
+
+  Regression: every element layer carried every mapped variable, so a shared GeoPackage shipped attributes the map never displayed and grew twenty-fold; and the table names said nothing about which variable each element drew. [mutation]
+  """
+  from osgeo import ogr
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  problems, checked = [], 0
+
+  def cell(what, condition, detail):
+    """One promise of the output contract.
+
+    Args:
+      what: how the cell names itself in a failure.
+      condition: True when the promise held.
+      detail: what was seen, quoted when it did not.
+
+    Returns:
+      None; appends to `problems` and counts into `checked`.
+    """
+    nonlocal checked
+    checked += 1
+    if not condition:
+      problems.append(f"{what}: {detail}")
+
+  # ---- the pure naming rules, which the dialog cannot all reach
+  cell("an unassigned element keeps the old bare name",
+       bridge.element_table_name("a", None) == "tiles_a",
+       bridge.element_table_name("a", None))
+  cell("a variable joins the name",
+       bridge.element_table_name("a", "v1") == "tiles_a_v1",
+       bridge.element_table_name("a", "v1"))
+  cell("punctuation and spaces are sanitised",
+       bridge.element_table_name("b", "rate (%) 2021")
+       == "tiles_b_rate_____2021",
+       bridge.element_table_name("b", "rate (%) 2021"))
+  cell("a name that sanitises to nothing falls back to the id",
+       bridge.element_table_name("c", "%%%") == "tiles_c",
+       bridge.element_table_name("c", "%%%"))
+  # A GEOPACKAGE FOLDS CASE -- writing tiles_a then tiles_A leaves ONE
+  # table holding the second element's data, with both writes
+  # reporting success (measured 2026-08-14). Element ids are single
+  # characters today, so two elements cannot produce the same base and
+  # the dialog CANNOT REACH this; it is stated as a unit fact because
+  # upstream 0.0.7.89 introduces doubled ids (aa, ab...), at which
+  # point "a" with variable "b_v1" and "a_b" with variable "v1" both
+  # want tiles_a_b_v1. Guarding it before it can happen costs one line.
+  cell("a case-folded collision is refused",
+       bridge.element_table_name("a", "V1", ("tiles_a_v1",))
+       == "tiles_a_V1_2",
+       bridge.element_table_name("a", "V1", ("tiles_a_v1",)))
+
+  folder = tempfile.mkdtemp(prefix="weavingspace_trim_")
+  path = os.path.join(folder, "shared.gpkg")
+  layer = _awkward_field_layer(["v1", "with space", "v3", "secret_code"])
+  layer.setName("region with a secret")
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.n_combo.setCurrentText("4")
+    _tick(200)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    # every element but the last carries one column; the last is left
+    # unassigned, so `secret_code` is displayed NOWHERE and must
+    # therefore appear nowhere
+    for row, name in enumerate(("v1", "with space", "v3")):
+      dlg.table.cellWidget(row, 1).setCurrentText(name)
+      _tick(120)
+    dlg.table.cellWidget(3, 1).setCurrentText("---")
+    _tick(250)
+    displayed = {a["id"]: a.get("var") for a in dlg._assignments()}
+    assert set(displayed.values()) == {"v1", "with space", "v3", None}, \
+      f"the fixture did not stage the elements it needs: {displayed}"
+
+    dlg.gpkg_widget.setFilePath(path)
+    dlg.spacing_spin.setValue(700)
+    _generate_and_wait(dlg)
+    _tick(400)
+    assert dlg._element_layer_ids, "the run produced no output"
+
+    identifiers = {"tile_id", "prototile_id", "weavingspace_fid"}
+    for tid, layer_id in sorted(dlg._element_layer_ids.items()):
+      out = project.mapLayer(layer_id)
+      cell(f"element {tid} kept its layer", out is not None, "gone")
+      if out is None:
+        continue
+      names = {f.name() for f in out.fields()}
+      mine = displayed.get(tid)
+      cell(f"element {tid} carries only what it displays",
+           names - identifiers == ({mine} if mine else set()),
+           f"{sorted(names)} for an element displaying {mine!r}")
+      table = table_of_element(dlg, tid)
+      cell(f"element {tid} is named for its variable",
+           table == bridge.element_table_name(tid, mine),
+           f"the table is {table!r}")
+
+    source = ogr.Open(path)
+    tables = sorted(source.GetLayer(i).GetName()
+                    for i in range(source.GetLayerCount()))
+    columns = {}
+    for index in range(source.GetLayerCount()):
+      found = source.GetLayer(index)
+      shape = found.GetLayerDefn()
+      columns[found.GetName()] = {
+        shape.GetFieldDefn(j).GetName()
+        for j in range(shape.GetFieldCount())}
+    source = None
+    cell("the shared file names its tables for their variables",
+         "tiles_a_v1" in tables and "tiles_b_with_space" in tables,
+         f"the file holds {tables}")
+    leaked = sorted(name for name, held in columns.items()
+                    if name.startswith("tiles_") and "secret_code" in held)
+    cell("a column no element displays reaches no table at all",
+         not leaked,
+         f"secret_code is in {leaked}, so the file a colleague opens "
+         f"carries data this map never drew")
+
+    # ---- A DESIGN THAT SHRINKS still loses its old tables, which is
+    # the stale-table drop following the new names rather than
+    # comparing them against a spelling nothing writes any more.
+    dlg.n_combo.setCurrentText("2")
+    _tick(200)
+    _generate_and_wait(dlg)
+    _tick(400)
+    source = ogr.Open(path)
+    after = sorted(n for n in (source.GetLayer(i).GetName()
+                               for i in range(source.GetLayerCount()))
+                   if n.startswith("tiles_"))
+    source = None
+    live = sorted(filter(None, (table_of_element(dlg, t)
+                                for t in dlg._element_layer_ids)))
+    cell("a design that shrank leaves no table behind",
+         after == live, f"the file holds {after} against a map of {live}")
+
+    # ---- AND AN OLD FILE IS STILL OURS. Adoption keys on the custom
+    # property rather than on the table name, and the record of what
+    # this dialog wrote parses whatever name it finds -- so a
+    # GeoPackage written by an earlier version, whose tables are the
+    # bare `tiles_<tid>`, is recognised and its stale tables can still
+    # be dropped. Staged rather than argued: the layer is built
+    # reading a table under the old name.
+    old_path = os.path.join(folder, "yesterday.gpkg")
+    older = bridge.write_gpkg_layer(
+      bridge.gdf_to_layer(
+        bridge.layer_to_gdf(layer, ["v1"]), "a – v1"),
+      old_path, "tiles_a", first=True)
+    assert older is not None and older.isValid(), \
+      "the fixture could not stage a file under the old naming"
+    older.setCustomProperty("weavingspace_tile_id", "a")
+    older.setCustomProperty("weavingspace_output", True)
+    dlg._gpkg_tables_written.clear()
+    dlg._remember_our_table(older)
+    claimed = set()
+    for held in dlg._gpkg_tables_written.values():
+      claimed |= held
+    cell("a table under the OLD name is still recognised as ours",
+         "tiles_a" in claimed,
+         f"the dialog claims {sorted(claimed)}, so an older file's "
+         f"tables could never be tidied")
+
+    # five naming rules, three cells for each of four elements, two
+    # about the file, one about a design that shrank, one about a file
+    # written under the old names
+    assert checked == 21, f"only {checked} cells were compared"
+    assert not problems, \
+      "the output contract was not kept:\n  " + "\n  ".join(problems)
+  finally:
+    dlg.close()
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_preview_draws_the_middle_of_the_patch():
   """With context shells on, the preview must include the CENTRE unit.
 
@@ -47326,8 +47733,8 @@ def test_a_geopackage_carries_the_same_colours_it_was_given():
     adrift, compared = [], 0
     for part in parts:
       name = part.name()
-      tile_id = name[len("tiles_"):] if name.startswith("tiles_") else name
-      if tile_id not in before:
+      tile_id = element_of_table(name)
+      if tile_id is None or tile_id not in before:
         continue
       lyr = QgsVectorLayer(f"{out_path}|layername={name}", name, "ogr")
       if not lyr.isValid():
@@ -55780,8 +56187,14 @@ def test_a_geopackage_path_with_spaces_and_accents_still_arrives():
       f"nothing at all could be read back from {out_path!r}; the file " \
       f"exists but holds no layers"
     trouble, compared = [], 0
+    # MATCHED BY ELEMENT, not by a name this test spells out: the
+    # table carries the displayed variable since 2026-08-25, and these
+    # paths and columns are chosen to be awkward precisely where
+    # sanitising bites.
+    by_element = {element_of_table(n): n for n in reopened
+                  if element_of_table(n)}
     for tile_id, (count, fills) in sorted(before.items()):
-      name = f"tiles_{tile_id}"
+      name = by_element.get(tile_id, f"tiles_{tile_id}")
       lyr = reopened.get(name)
       if lyr is None:
         trouble.append(
@@ -55812,7 +56225,7 @@ def test_a_geopackage_path_with_spaces_and_accents_still_arrives():
     # interior pixel must be a colour the ramps in force can make, so
     # a file that reopened as four grey rectangles cannot pass.
     visual_gamut("geopackage under an accented path",
-                 [reopened[f"tiles_{t}"] for t in sorted(before)], ramps)
+                 [reopened[by_element[t]] for t in sorted(before)], ramps)
   finally:
     project.clear()
     shutil.rmtree(root, ignore_errors=True)
@@ -55874,7 +56287,12 @@ def test_a_reopened_geopackage_is_written_into_again():
     project.clear()
     _tick(200)
     held = _boundary_read_gpkg(out_path)
-    assert sorted(held) == sorted(f"tiles_{t}" for t in first), \
+    # COMPARED AS ELEMENTS rather than as table names: the name
+    # carries the displayed variable since 2026-08-25, and what this
+    # test is about is which ELEMENTS came back, not how they are
+    # spelled inside the file.
+    assert sorted(t for t in map(element_of_table, held) if t) == \
+        sorted(first), \
       f"the exported file holds {sorted(held)}, not the elements the " \
       f"run wrote ({sorted(first)})"
     for name, lyr in held.items():
@@ -55918,13 +56336,19 @@ def test_a_reopened_geopackage_is_written_into_again():
     project.clear()
     _tick(200)
     final = _boundary_read_gpkg(out_path)
-    assert sorted(final) == sorted(f"tiles_{t}" for t in first), \
+    # Compared as ELEMENTS: a table name carries the displayed
+    # variable since 2026-08-25, and what must hold here is that the
+    # second run REPLACED the first's tables rather than adding to
+    # them -- a statement about which elements the file holds.
+    finally_held = {element_of_table(n): n for n in final
+                    if element_of_table(n)}
+    assert sorted(finally_held) == sorted(first), \
       f"after the second run the file holds {sorted(final)}: writing " \
       f"into an open GeoPackage must REPLACE the map, not accumulate " \
       f"attempts beside it"
     stale = []
     for tile_id, count in sorted(again.items()):
-      lyr = final[f"tiles_{tile_id}"]
+      lyr = final[finally_held[tile_id]]
       if not lyr.isValid():
         stale.append(f"{tile_id}: will not open after the rewrite")
       elif lyr.featureCount() != count:
@@ -58650,6 +59074,8 @@ def main():
         test_an_output_group_carries_the_whole_working_state)
   check("the output group chooser binds to the dataset",
         test_the_output_group_chooser_binds_to_the_dataset)
+  check("an element table carries only what it displays",
+        test_an_element_table_carries_only_what_it_displays)
   check("the preview draws the middle of the patch",
         test_preview_draws_the_middle_of_the_patch)
   check("switching region layer counts as a change",

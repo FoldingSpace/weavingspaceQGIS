@@ -11391,7 +11391,7 @@ class WeavingSpaceDialog(QDialog):
     return colours, {str(v) for v in layer.uniqueValues(index)}
 
   def _add_no_data_layer(self, assignment, tile_id, absent, group,
-                         project, path, hand_opacity=None,
+                         project, path, table_name=None, hand_opacity=None,
                          hand_renderer=None, hand_subset=None):
     """Draw one element's missing-value tiles as their own layer.
 
@@ -11404,6 +11404,14 @@ class WeavingSpaceDialog(QDialog):
       group: the output group this run is filling.
       project: the QgsProject the layer is registered with.
       path: the output GeoPackage, or falsy for memory output.
+      table_name: the table its ELEMENT was written to, which this
+        one's name is built from by adding "_no_data". Passed rather
+        than recomputed so the pair cannot come to disagree: the
+        element's name depends on the variable it displays and on
+        which names this run has already spent, and neither is
+        knowable from here. None falls back to the old bare
+        ``tiles_<tid>`` form, which is what a caller predating the
+        naming rule would produce.
       hand_opacity: the opacity the PREVIOUS paired layer carried, as
         a fraction, when the user had set it by hand in Layer
         Properties. None when there was none, in which case the row's
@@ -11448,9 +11456,9 @@ class WeavingSpaceDialog(QDialog):
       # its own table, named for the element it belongs to, so a
       # GeoPackage opened elsewhere carries the same two layers and
       # the stale-table drop below can recognise it as ours
-      written = bridge.write_gpkg_layer(layer, path,
-                                        f"tiles_{tile_id}_no_data",
-                                        first=False)
+      written = bridge.write_gpkg_layer(
+        layer, path, f"{table_name or f'tiles_{tile_id}'}_no_data",
+        first=False)
       if written is not None and written.isValid():
         layer = written
     # A RENDERER THE USER BUILT IN QGIS OUTRANKS OURS, on exactly the
@@ -12114,8 +12122,18 @@ class WeavingSpaceDialog(QDialog):
         keeping = bool(marks) and mine not in marks
     would_replace = []
     if not live and keeping and path_now:
-      would_replace = bridge.gpkg_tables_we_would_replace(
-        path_now, [f"tiles_{a['id']}" for a in self._assignments()])
+      # ASKED WITH THE NAMES THIS RUN WOULD WRITE, which since
+      # 2026-08-25 carry the variable each element displays. Asking
+      # with the bare `tiles_<id>` form would miss every table a
+      # current design writes, so the warning that keeps a result's
+      # file would go quiet exactly when the file is at risk.
+      planned, would_be = [], {}
+      for row in self._assignments():
+        name = bridge.element_table_name(row["id"], row.get("var"),
+                                         would_be.values())
+        would_be[row["id"]] = name
+        planned.append(name)
+      would_replace = bridge.gpkg_tables_we_would_replace(path_now, planned)
     if not live and keeping and path_now \
         and (would_replace
              or same_destination(path_now, self._last_path)):
@@ -13085,8 +13103,23 @@ class WeavingSpaceDialog(QDialog):
       # in, which is precisely the invisible rule ruling 1 replaces --
       # and the records it keeps are the ones a run READS to decide
       # what to remove.
+      # AND NOTHING IS ARMED HERE, which is a distinction the first
+      # build of this got wrong. `_new_group_chosen` means THE USER
+      # ASKED FOR A NEW GROUP -- a deliberate act, and the reason the
+      # file-overwrite warning fires -- while "this dataset has no
+      # group in this project" is not an act at all. Setting one flag
+      # for both put the warning in front of an ordinary journey:
+      # reopen a GeoPackage's layers loose in a project, point the
+      # plugin at the same file, and it refused the run saying "you
+      # asked to keep the previous result as its own group", which
+      # nobody had. One set gating two different things is a fault
+      # this project has paid for before.
+      #
+      # The detach is enough on its own: with no group claimed,
+      # `_get_or_make_group` finds none to reuse and makes one, and
+      # the chooser shows "create new" because that is what having no
+      # group looks like.
       self._detach_from_the_group()
-      self._new_group_chosen = True
       self._refresh_group_combo()
       return False
     group = theirs[0][0]          # newest first, so this is ruling 3
@@ -14358,6 +14391,16 @@ class WeavingSpaceDialog(QDialog):
 
     seen = {}
     first_gpkg_layer = True
+    # Which columns are DATA rather than identity, computed once for
+    # the run: every variable any element displays. A column outside
+    # this set is either the geometry or an identifier, and both stay
+    # on every element.
+    mapped_variables = {a["var"] for a in assignments if a.get("var")}
+    # The table names this run has already used, so `element_table_name`
+    # can refuse a collision. Kept per run rather than per file because
+    # one run writes into one file, and the names are decided before
+    # the file is touched.
+    tables_this_run = {}
     # EVERY SWATCH IS RETHOUGHT, because a run changes which values an
     # element's tiles carry and the cache key cannot see that. The
     # hatching in particular is a fact about the ELEMENT'S OWN LAYER:
@@ -14381,6 +14424,36 @@ class WeavingSpaceDialog(QDialog):
                           "outline": False})
       display = f"{tid} – {a['var']}" if a["var"] else f"{tid} (no data)"
       sub = gdf[gdf["tile_id"] == tid]
+      # TRIMMED TO WHAT THIS ELEMENT DISPLAYS (ruling 6 of
+      # 2026-08-25). The tiled frame carries every mapped variable on
+      # every row, so each element layer used to hold all of them: a
+      # colleague measured 23 elements each holding all 26 source
+      # attributes, which took an 800 KB dataset to a 19 MB
+      # GeoPackage, and a probe found a column deliberately named
+      # `secret_code` sitting in all four tables of a map that never
+      # displayed it. The file a user sends on carried attributes the
+      # map never drew.
+      #
+      # THE IDENTIFIERS STAY. `tile_id` and `prototile_id` say which
+      # element and which unit a tile belongs to -- they are what the
+      # map IS rather than what it shows -- and adoption, the stale
+      # table drop and anybody reading the file all expect them.
+      # Measured 2026-08-25: a run's element layers carry
+      # `weavingspace_fid`, `tile_id`, `prototile_id` and every mapped
+      # variable, of which only the last group is trimmed.
+      #
+      # IT IS ONLY SAFE BECAUSE THE SOURCE COMES BACK. The colleague's
+      # argument for carrying every column was that a tiling may be
+      # missing data in some variables, so the full set hedges against
+      # a lossy encoding. With the region recoverable by reference,
+      # switching an element's variable RE-TILES from the source --
+      # the set of mapped variables is a GEOMETRY change and always
+      # has been -- rather than reading a column carried along just in
+      # case. Rulings 5 and 6 close together or not at all.
+      if mapped_variables:
+        sub = sub[[column for column in sub.columns
+                   if column not in mapped_variables
+                   or column == a.get("var")]]
       # ROWS A GRADUATED RENDERER CANNOT PLACE COME OUT HERE.
       # QgsGraduatedSymbolRenderer has no class for a missing value --
       # no default, no-data, else or fallback symbol anywhere in its
@@ -14415,6 +14488,15 @@ class WeavingSpaceDialog(QDialog):
         sub, field_here, column_has_values(field_here),
         limits.get("floor"), limits.get("ceiling"))
       mem = bridge.gdf_to_layer(drawable, display)
+      # DECIDED FOR EVERY ELEMENT, not only the ones being written to
+      # a file. The paired no-data layer's name is built from this
+      # one, the stale-table drop compares against it, and memory-mode
+      # output that is later saved has to agree with what a file run
+      # would have produced -- so working it out inside `if path`
+      # would give two runs of one design two different answers.
+      table_name = bridge.element_table_name(tid, a.get("var"),
+                                             tables_this_run.values())
+      tables_this_run[tid] = table_name
       if path:
         # THE FILE IS RECREATED ONLY IF IT DOES NOT EXIST, and that
         # condition used to be `created` -- meaning the layer-tree
@@ -14439,7 +14521,7 @@ class WeavingSpaceDialog(QDialog):
         # tables is the job recreation was doing, done narrowly.
         # Measured 2026-08-13. Guarded by
         # test_a_generate_spares_the_rest_of_the_users_geopackage.
-        out = bridge.write_gpkg_layer(mem, path, f"tiles_{tid}",
+        out = bridge.write_gpkg_layer(mem, path, table_name,
                                       first=(first_gpkg_layer
                                              and not os.path.exists(path)))
         first_gpkg_layer = False
@@ -14641,7 +14723,7 @@ class WeavingSpaceDialog(QDialog):
       group.addLayer(out)
       if absent is not None and len(absent):
         self._add_no_data_layer(
-          a, tid, absent, group, project, path,
+          a, tid, absent, group, project, path, table_name,
           # ...through the SAME gate its element just went through.
           # Outside it, a value the dialog itself wrote last run reads
           # as a hand-set one and outranks the spin box the user just
@@ -14760,11 +14842,19 @@ class WeavingSpaceDialog(QDialog):
       # describing a design they abandoned, and nothing on screen says
       # so, because the group itself is correctly reused. Windows
       # produces the two spellings unaided.
+      # NAMED FROM WHAT THIS RUN ACTUALLY WROTE, since the variable
+      # joined the table name on 2026-08-25. Rebuilding the names from
+      # the element ids alone would say `tiles_a` where this run wrote
+      # `tiles_a_v1`, so every table of the new design would look
+      # stale and the drop would remove the map it had just made. The
+      # names are decided once, per element, and read back here.
       key = self._gpkg_key(path)
       written = self._gpkg_tables_written.get(key, set())
-      current = {f"tiles_{tid}" for tid in new_ids}
-      current |= {f"tiles_{tid}_no_data"
-                  for tid in self._no_data_layer_ids}
+      current = {tables_this_run[tid] for tid in new_ids
+                 if tid in tables_this_run}
+      current |= {f"{tables_this_run[tid]}_no_data"
+                  for tid in self._no_data_layer_ids
+                  if tid in tables_this_run}
       for stale in sorted(written):
         name = stale if stale.startswith("tiles_") else f"tiles_{stale}"
         if name not in current:

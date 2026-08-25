@@ -422,9 +422,13 @@ MUTATIONS = [
            "message bar announces a reduction the map never performs, "
            "which is the one thing these notices exist to prevent"),
   dict(name="the-file-not-the-memory-decides-an-overwrite", file=DIALOG,
-       old="""      would_replace = bridge.gpkg_tables_we_would_replace(
-        path_now, [f"tiles_{a['id']}" for a in self._assignments()])""",
-       new="""      would_replace = []""",
+       # RE-ANCHORED 2026-08-25: the names this run would write are
+       # built by `element_table_name` now, because they carry the
+       # displayed variable. The claim is unchanged -- the FILE
+       # decides whether a run would overwrite, not this session's
+       # memory -- and emptying the answer is still how it fails.
+       old="""      would_replace = bridge.gpkg_tables_we_would_replace(path_now, planned)""",
+       new="""      would_replace = []  # mutation: ask the file nothing""",
        # ONE LITERAL, however long: the standards check reads an
        # entry's test name from its FIRST string, so a name split
        # across two lines is read as a test that does not exist.
@@ -2273,8 +2277,13 @@ MUTATIONS = [
        new='      group.addLayer(outline_layer)  # mutation: buried at the bottom',
        test='test_integration_weave_and_icons',
        why='region outlines drawn on top of the elements'),
+  # RE-ANCHORED 2026-08-25: the name is worked out by
+  # `element_table_name` now rather than spelled at the call, so the
+  # mutation goes on what the writer is HANDED. The claim is
+  # unchanged -- every element gets its own table inside the file --
+  # and giving them all one name is still how it fails.
   dict(name='gpkg-layer-naming', file=DIALOG,
-       old='        out = bridge.write_gpkg_layer(mem, path, f"tiles_{tid}",',
+       old='        out = bridge.write_gpkg_layer(mem, path, table_name,',
        new='        out = bridge.write_gpkg_layer(mem, path, "tiles_x",',
        test='test_ui_library_categorical_to_gpkg',
        why='each element getting its own layer inside the GeoPackage'),
@@ -5397,15 +5406,82 @@ MUTATIONS = [
            "the layers panel, which is an ordinary thing to do"),
   dict(name="a-dataset-with-no-group-claims-none", file=DIALOG,
        old="""      self._detach_from_the_group()
-      self._new_group_chosen = True""",
+      self._refresh_group_combo()
+      return False""",
        new="""      pass  # mutation: go on claiming the last dataset's group
-      self._new_group_chosen = True""",
+      self._refresh_group_combo()
+      return False""",
        test="test_the_output_group_chooser_binds_to_the_dataset",
        why="the chooser would name a map this dataset's run will not "
            "land in, which is exactly the invisible rule ruling 1 "
            "replaces -- and the records left standing are the ones a "
            "landing reads to decide what to REMOVE, so the dialog "
            "would be one Generate from deleting the other map"),
+  # THE OUTPUT CONTRACT, ruling 6. Three axes: what a table HOLDS,
+  # what it is CALLED, and whether the record that tidies old tables
+  # follows the new names.
+  dict(name="an-element-table-is-trimmed-to-what-it-displays",
+       file=DIALOG,
+       old="""      if mapped_variables:
+        sub = sub[[column for column in sub.columns
+                   if column not in mapped_variables
+                   or column == a.get("var")]]""",
+       new="""      if False:  # mutation: every element carries every variable
+        sub = sub[[column for column in sub.columns
+                   if column not in mapped_variables
+                   or column == a.get("var")]]""",
+       test="test_an_element_table_carries_only_what_it_displays",
+       why="the file a user sends on carried attributes the map never "
+           "drew -- a probe found a column named secret_code in all "
+           "four tables of a map that displayed none of it, and a "
+           "colleague measured an 800 KB dataset becoming a 19 MB "
+           "GeoPackage because 23 elements each held all 26 columns"),
+  dict(name="a-table-is-named-for-the-variable-it-displays",
+       file=BRIDGE,
+       old="""    cleaned = cleaned.strip("_")
+    if cleaned:
+      base = f"{base}_{cleaned[:48]}\"""",
+       new="""    cleaned = cleaned.strip("_")
+    if False:  # mutation: the variable never reaches the name
+      base = f"{base}_{cleaned[:48]}\"""",
+       test="test_an_element_table_carries_only_what_it_displays",
+       why="opening the GeoPackage directly -- what you do with a file "
+           "somebody sent you -- showed 'filename - tiles_a' and the "
+           "variable was nowhere, which is where the maintainer met it "
+           "on rc16"),
+  dict(name="a-table-name-is-sanitised", file=BRIDGE,
+       old="""      character if character.isascii() and (character.isalnum()
+                                            or character == "_")
+      else "_" for character in str(variable))""",
+       new="""      character  # mutation: the column name goes in raw
+      for character in str(variable))""",
+       test="test_an_element_table_carries_only_what_it_displays",
+       why="a column name is the user's and a table name is sqlite's. "
+           "Real field names carry spaces, accents, brackets and the "
+           "occasional SQL keyword, and this suite already stages "
+           "'with space' and 'rate (%) 2021'"),
+  dict(name="a-table-name-collision-is-refused", file=BRIDGE,
+       old="""  suffix = 2
+  while f"{base}_{suffix}".lower() in folded:""",
+       new="""  return base  # mutation: let two elements share one table
+  suffix = 2
+  while f"{base}_{suffix}".lower() in folded:""",
+       test="test_an_element_table_carries_only_what_it_displays",
+       why="a GeoPackage FOLDS CASE: writing tiles_a and then tiles_A "
+           "leaves one table holding the second element's data, with "
+           "both writes reporting success (measured 2026-08-14). "
+           "Sanitising makes collisions likelier rather than rarer, "
+           "since 'rate %' and 'rate (%)' both become rate__"),
+  dict(name="the-stale-table-drop-follows-the-new-names", file=DIALOG,
+       old="""      current = {tables_this_run[tid] for tid in new_ids
+                 if tid in tables_this_run}""",
+       new="""      current = {f"tiles_{tid}" for tid in new_ids}  # mutation""",
+       test="test_an_element_table_carries_only_what_it_displays",
+       why="rebuilding the names from element ids alone says tiles_a "
+           "where the run wrote tiles_a_v1, so every table of the NEW "
+           "design looks stale and the drop removes the map it has "
+           "just made -- the worst direction for a mistake in a "
+           "routine whose whole job is deleting things"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a

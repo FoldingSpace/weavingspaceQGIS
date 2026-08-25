@@ -3765,6 +3765,67 @@ def seed_renderer(layer: QgsVectorLayer, assignment: dict,
 
 # ------------------------------------------------------------ GPKG output
 
+def element_table_name(tile_id: str, variable, taken=()) -> str:
+  """The GeoPackage table name for one element's tiles.
+
+  Args:
+    tile_id: the element's id ("a", "b", ...).
+    variable: the column that element displays, or None where it
+      carries none. An unassigned element keeps the OLD bare
+      ``tiles_<tid>`` name, which costs nothing and means the
+      commonest shape of an older file is still recognised on sight.
+    taken: names already used by this run. Compared CASE-FOLDED; see
+      below.
+
+  Returns:
+    A table name safe for a GeoPackage and unique within this run.
+
+  WHY THE VARIABLE IS IN THE NAME AT ALL (ruling 6 of 2026-08-25). In
+  the project the layers read "a – v1", but the TABLE names were
+  ``tiles_a``, so somebody opening the GeoPackage directly -- which is
+  what you do with a file a colleague sent you -- saw "filename -
+  tiles_a" and the variable was nowhere. The maintainer met that on
+  rc16.
+
+  SANITISED, because a column name is the user's and a table name is
+  sqlite's. Field names in real data carry spaces, accents, hyphens,
+  brackets and the occasional SQL keyword; anything outside
+  ``[A-Za-z0-9_]`` becomes an underscore, and the result is capped so
+  a long name cannot produce a table nothing can quote comfortably.
+
+  COLLISIONS ARE HANDLED CASE-INSENSITIVELY, and that is measured
+  rather than cautious: writing ``tiles_a`` and then ``tiles_A`` into
+  one GeoPackage leaves a SINGLE table holding the second element's
+  data, with both writes reporting success (2026-08-14). Sanitising
+  makes collisions likelier rather than rarer -- "rate %" and
+  "rate (%)" both become ``rate__`` -- so two elements displaying
+  differently-spelled columns must not silently become one table. The
+  suffix is appended rather than the name truncated further, because
+  a name that lost its tail would collide again.
+  """
+  base = f"tiles_{tile_id}"
+  if variable:
+    cleaned = "".join(
+      character if character.isascii() and (character.isalnum()
+                                            or character == "_")
+      else "_" for character in str(variable))
+    # A name that sanitised to nothing at all -- a column of pure
+    # punctuation, or one written in a script with no ASCII in it --
+    # would give every such element the same table. Falling back to
+    # the bare id keeps them distinct through the collision rule
+    # below rather than through a name nobody can read.
+    cleaned = cleaned.strip("_")
+    if cleaned:
+      base = f"{base}_{cleaned[:48]}"
+  folded = {name.lower() for name in taken}
+  if base.lower() not in folded:
+    return base
+  suffix = 2
+  while f"{base}_{suffix}".lower() in folded:
+    suffix += 1
+  return f"{base}_{suffix}"
+
+
 def write_gpkg_layer(layer: QgsVectorLayer, path: str, layer_name: str,
                      first: bool) -> QgsVectorLayer:
   """Write one layer into a GeoPackage and return the file-backed layer.

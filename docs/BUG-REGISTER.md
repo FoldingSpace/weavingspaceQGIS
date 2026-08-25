@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-308 defect(s) with a regression test.
+309 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -299,6 +299,8 @@ there is no separate list to remember.
   guarded by `test_a_second_reconciliation_adopts_no_colour_the_plugin_painted`
 - **a spacing a person typed was destroyed by a round trip through another dataset -- 137 typed, another layer chosen, and 500 on return with nothing said -- because auto-spacing re-derived once per newly chosen layer id and a return counts as new.**  
   guarded by `test_a_spacing_a_person_typed_outlives_a_change_of_dataset`
+- **every element layer carried every mapped variable, so a shared GeoPackage shipped attributes the map never displayed and grew twenty-fold; and the table names said nothing about which variable each element drew.**  
+  guarded by `test_an_element_table_carries_only_what_it_displays`
 - **the output group was remembered nowhere, so returning to a dataset gave back its colours and its pins and somebody else's design -- a probe measured a user's `grid 3` coming home as `hex-slice 3`, and a spacing of 137 they had typed coming home 500 with nothing said.**  
   guarded by `test_an_output_group_carries_the_whole_working_state`
 - **an automatic mutant moved the sampling divisor and one covering test noticed nothing, because nothing looked at where the swatch ended.**  
@@ -669,7 +671,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
-- the mutation campaign: 45
+- the mutation campaign: 46
 - reported by a user: 29
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8
