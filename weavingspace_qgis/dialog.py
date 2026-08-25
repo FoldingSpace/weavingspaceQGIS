@@ -2598,6 +2598,19 @@ class WeavingSpaceDialog(QDialog):
       bank = {"colours": {}, "pins": {}, "shelf": {}}
       if new_id is not None:
         self._dataset_memory[new_id] = bank
+    if old_id is None:
+      # RECORDS WRITTEN BEFORE ANY DATASET IDENTITY EXISTS belong to
+      # the FIRST dataset chosen. A reopened project's adoption reads
+      # the stamps into the views before the chooser settles, and
+      # rebinding to a fresh bank here silently discarded everything a
+      # saved project carried -- eleven round-trip tests went red on
+      # the banks' first full suite, every one with an empty record.
+      # MERGED rather than assigned, because the incoming bank may
+      # already exist from an earlier visit in this session.
+      for name, store in outgoing.items():
+        target = bank[name]
+        for tid, fields in store.items():
+          target.setdefault(tid, {}).update(fields)
     self._category_colours = bank["colours"]
     self._pinned_bounds = bank["pins"]
     self._scheme_memory = bank["shelf"]

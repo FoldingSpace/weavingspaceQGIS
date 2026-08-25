@@ -697,6 +697,20 @@ MUTATIONS = [
            "that is thousands, and the user finds out by watching QGIS "
            "do it. The maintainer ruled it a question rather than a "
            "refusal, on one threshold shared with the dataset switch"),
+  dict(name="orphan-records-belong-to-the-first-dataset-chosen",
+       file=DIALOG,
+       old="""      for name, store in outgoing.items():
+        target = bank[name]
+        for tid, fields in store.items():
+          target.setdefault(tid, {}).update(fields)""",
+       new="""      pass  # mutation: discard what adoption wrote before the swap""",
+       test="test_a_saved_project_brings_back_its_colours",
+       why="a reopened project's adoption reads the stamps into the "
+           "views before the chooser settles; rebinding to a fresh "
+           "bank without this merge silently discarded everything a "
+           "saved project carried. Eleven round-trip tests went red on "
+           "the banks' first full suite, every one with an empty "
+           "record -- the gate doing what a targeted run cannot"),
   dict(name="value-laden-records-never-cross-a-shared-name", file=DIALOG,
        old="""    self._category_colours = bank["colours"]
     self._pinned_bounds = bank["pins"]""",
