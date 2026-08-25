@@ -1,5 +1,4 @@
-"""
-MIT License
+"""MIT License.
 
 Copyright (c) 2021-26 David O'Sullivan & Luke Bergmann
 
@@ -95,7 +94,8 @@ class Tileable:
               ) -> None:
     for k, v in kwargs.items():
       if isinstance(v, str):
-        # make any string arguments lower case
+        # Make any string arguments lower case. Note: this means WeaveUnits can
+        # support 'only' 26 distinct tile_id values.
         self.__dict__[k] = v.lower()
       else:
         self.__dict__[k] = v
@@ -559,7 +559,7 @@ class Tileable:
       xa:float = 0.0,
       ya:float = 0.0,
       independent_of_tiling:bool = False,
-      rescale = True
+      rescale:bool = True
     ) -> "Tileable":
     """Transform tiling by skewing.
 
@@ -593,8 +593,7 @@ class Tileable:
       area_1 = result.prototile.geometry[0].area
       sf = np.sqrt(area_0 / area_1)
       return result.transform_scale(sf, sf, independent_of_tiling)
-    else:
-      return result
+    return result
 
 
   def _set_vectors_from_prototile(self) -> None:
@@ -628,11 +627,6 @@ class Tileable:
     self.vectors = vec_dict
 
 
-  def _get_mean_translation(self):
-    return np.mean(
-      [np.sqrt(dx ** 2 + dy ** 2) for (dx, dy) in self.get_vectors()])
-
-
   def plot(
       self,
       ax:plt.Axes = None,
@@ -648,7 +642,7 @@ class Tileable:
       r_alpha:float = 0.5,
       cmap:list[str]|str|None = None,
       figsize:tuple[float] = (8, 8),
-      **kwargs,                        # noqa: ANN003
+      **kwargs:dict,
     ) -> plt.Axes:
     """Plot Tileable on the supplied axis.
 
