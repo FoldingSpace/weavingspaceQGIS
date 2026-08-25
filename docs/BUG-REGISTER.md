@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-310 defect(s) with a regression test.
+311 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -337,6 +337,8 @@ there is no separate list to remember.
   guarded by `test_the_release_watchdog_ignores_a_sleeping_machine`
 - **the scheme shelf was not cleared with the project, so a scheme set aside in one project reappeared in the next.**  
   guarded by `test_the_shelf_does_not_survive_the_project_that_made_it`
+- **the size guard refused instead of asking, on a memory figure nothing measured; and two answers that were not sizes at all shared the refusal's value, so a design that does not tile the plane was reported as a spacing problem.**  
+  guarded by `test_the_size_guard_warns_where_it_used_to_refuse`
 - **hand-picked colours and pinned bounds carried to any dataset sharing a column name, putting one dataset's value strings and numbers into another's saved files.**  
   guarded by `test_value_laden_records_never_cross_a_shared_name`
 
@@ -673,7 +675,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
-- the mutation campaign: 47
+- the mutation campaign: 48
 - reported by a user: 29
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

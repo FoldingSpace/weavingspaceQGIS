@@ -47365,6 +47365,191 @@ def test_a_saved_map_can_be_opened_and_carried_on():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_the_size_guard_warns_where_it_used_to_refuse():
+  """A big map is a question; a broken design is still a refusal.
+
+  MAINTAINER'S RULING, 2026-08-25: "Warning not absolute. Find a
+  different approach to sentinel if appropriate." The size ceiling
+  refused a run outright above MAX_TILES_HARD, on a comment claiming
+  it would exhaust memory and kill QGIS -- a figure nothing in this
+  repository measures, and one the maintainer's own argument disposes
+  of: different machines have different maximums and different designs
+  have different needs at the same tile count. It had already been
+  wrong in the expensive direction, declining a map the library
+  renders in five seconds.
+
+  THE SENTINEL IS WHY IT COULD NOT SIMPLY SOFTEN, and that is the
+  half this test exists for. `MAX_TILES_HARD + 1` was also the answer
+  for two cases that are NOT about size: a unit whose vectors are
+  degenerate, so the design does not repeat across the plane, and an
+  estimate that comes back non-finite, which is what a layer with no
+  CRS produces. Left sharing a value with "very large", those became
+  things a user could click straight past -- and they had been
+  inheriting the too-many-tiles sentence, which told somebody to try a
+  larger spacing when no spacing helps either.
+
+  THE BANDS, ASKED OF THE FUNCTION THE PRODUCT USES so a rewording
+  moves the test with the product rather than against it.
+
+  Regression: the size guard refused instead of asking, on a memory figure nothing measured; and two answers that were not sizes at all shared the refusal's value, so a design that does not tile the plane was reported as a spacing problem. [mutation]
+  """
+  from weavingspace_qgis import bridge
+  problems, checked = [], 0
+
+  def cell(what, condition, detail):
+    """One promise of the guard.
+
+    Args:
+      what: how the cell names itself in a failure.
+      condition: True when the promise held.
+      detail: what was seen, quoted when it did not.
+
+    Returns:
+      None; appends to `problems` and counts into `checked`.
+    """
+    nonlocal checked
+    checked += 1
+    if not condition:
+      problems.append(f"{what}: {detail}")
+
+  # ---- the bands
+  for estimate, wanted in (
+      (0, "ok"),
+      (bridge.MAX_TILES_CONFIRM, "ok"),
+      (bridge.MAX_TILES_CONFIRM + 1, "ask"),
+      (bridge.MAX_TILES_HARD, "ask"),
+      (bridge.MAX_TILES_HARD + 1, "heavy"),
+      (bridge.UNTILEABLE, "refuse"),
+      (bridge.UNCOUNTABLE, "refuse")):
+    cell(f"{estimate:,} falls in the {wanted!r} band",
+         bridge.size_band(estimate) == wanted,
+         f"it reads {bridge.size_band(estimate)!r}")
+
+  # ---- a sentinel is never a quantity, and this is the property that
+  # keeps a gate somebody forgets to widen from waving one through:
+  # every ceiling in this plugin is compared with `est > ceiling`.
+  for name, sentinel in (("UNTILEABLE", bridge.UNTILEABLE),
+                         ("UNCOUNTABLE", bridge.UNCOUNTABLE)):
+    cell(f"{name} is not a size", not bridge.is_a_size(sentinel),
+         "is_a_size said it was")
+    cell(f"{name} cannot pass a ceiling comparison",
+         not (sentinel > bridge.LIVE_UPDATE_MAX_TILES
+              or sentinel > bridge.MAX_TILES_CONFIRM
+              or sentinel > bridge.MAX_TILES_HARD),
+         f"{sentinel} reads as larger than one of the ceilings")
+  cell("the two sentinels are told apart",
+       bridge.UNTILEABLE != bridge.UNCOUNTABLE,
+       "they share a value, so neither can have its own sentence")
+  cell("and they say different things",
+       bridge.untileable_message() != bridge.uncountable_message()
+       and "spacing" not in bridge.untileable_message().lower(),
+       f"{bridge.untileable_message()!r} against "
+       f"{bridge.uncountable_message()!r}")
+
+  # ---- the heavy question says what a refusal never said
+  heavy = bridge.heavy_tiles_question(500_000, "Try a coarser spacing.")
+  for wanted in ("memory", "stop responding", "save your project",
+                 "500,000", "Try a coarser spacing."):
+    cell(f"the heavy question says {wanted!r}", wanted in heavy,
+         f"it reads {heavy!r}")
+  cell("it asks rather than tells", heavy.rstrip().endswith("?"),
+       f"it reads {heavy!r}")
+  cell("it says MAY rather than WILL",
+       "may use all the memory" in heavy,
+       f"how much a machine can carry is a fact about that machine, "
+       f"and this plugin does not measure it: {heavy!r}")
+
+  # ---- a degenerate unit really does produce the sentinel, driven
+  # through the estimator rather than asserted about it
+  from weavingspace_qgis import catalog
+
+  class _Flat:
+    """A unit whose vectors are degenerate: it does not tile."""
+
+    class tiles:
+      total_bounds = (0.0, 0.0, 1.0, 1.0)
+
+      def __len__(self):
+        return 1
+
+    def get_vectors(self):
+      return ((1.0, 0.0), (2.0, 0.0))      # parallel: zero determinant
+
+  flat = _Flat()
+  flat.tiles = _Flat.tiles()
+  cell("a unit that does not tile answers UNTILEABLE",
+       bridge.estimate_tile_count_bounds(flat, (0.0, 0.0, 100.0, 100.0))
+       == bridge.UNTILEABLE,
+       f"it answered "
+       f"{bridge.estimate_tile_count_bounds(flat, (0, 0, 100, 100))!r}")
+  cell("an unmeasurable extent answers UNCOUNTABLE",
+       bridge.estimate_tile_count_bounds(
+         _a_square_unit(catalog), (0.0, 0.0, float("inf"), float("inf")))
+       == bridge.UNCOUNTABLE,
+       f"it answered "
+       f"{bridge.estimate_tile_count_bounds(_a_square_unit(catalog), (0.0, 0.0, float('inf'), float('inf')))!r}")
+
+  # ---- AND THE LIVE GATE, driven rather than reasoned about. This is
+  # the path where a sentinel read as a number does the most damage:
+  # both are NEGATIVE, so `est > LIVE_UPDATE_MAX_TILES` is False and a
+  # design that cannot be drawn sails straight through into a run that
+  # cannot draw it. The unit is staged directly because no catalogue
+  # family and no combination of modifiers produces degenerate vectors
+  # -- the controls that could are guarded -- and the gate's own
+  # question is what is under test rather than how one gets there.
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  region = make_region_layer()
+  project.addMapLayer(region)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    dlg.live_check.setChecked(True)
+    dlg._unit = flat
+    dlg.live_note.setText("")
+    dlg._maybe_live_generate()
+    _tick(200)
+    note = dlg.live_note.text()
+    cell("the live gate pauses on a design that cannot be drawn",
+         dlg._task is None,
+         "it launched a run for a unit that does not tile the plane")
+    cell("and its note carries no tile count at all",
+         "tiles" not in note.lower() and bool(note),
+         f"the note reads {note!r}, where a sentinel read as a number "
+         f"would eventually have printed 'about inf tiles'")
+  finally:
+    dlg.close()
+    project.clear()
+
+  # seven bands, four about each sentinel not being a quantity, two
+  # about the two sentinels differing, seven about the heavy question,
+  # two driving the estimator, and two driving the live gate
+  assert checked == 24, f"only {checked} cells were compared"
+  assert not problems, \
+    "the size guard did not keep its promises:\n  " + \
+    "\n  ".join(problems)
+
+
+def _a_square_unit(catalog):
+  """A plain tileable, for asking the estimator arithmetic questions.
+
+  Args:
+    catalog: the plugin's catalogue module, passed rather than
+      imported here so the caller's import is the only one.
+
+  Returns:
+    A unit built from the first four-element tiling in the catalogue,
+    looked up rather than typed: a family name written into a test is
+    how this suite once selected "star 6", which does not exist, and
+    silently skipped its own assertions.
+  """
+  families = [spec for spec in catalog.TILINGS_BY_N[4].values()
+              if spec["type"] == "tiling"]
+  assert families, "the catalogue offers no four-element tiling"
+  return catalog.make_unit(families[0], spacing=1000, crs=3857)
+
+
 def test_preview_draws_the_middle_of_the_patch():
   """With context shells on, the preview must include the CENTRE unit.
 
@@ -50236,12 +50421,22 @@ def _sparse_islands(span=20000.0, cell=1500.0, side=3):
 
 
 def test_the_size_guard_at_its_refusal_boundary():
-  """The finest spacing a user can type and still get a map, and the
-  next one down.
+  """The finest spacing a user can type unasked, and the next one down.
 
-  The guard refuses when the estimate exceeds MAX_TILES_HARD, and
+  THE BOUNDARY IS A BAND EDGE SINCE 2026-08-25, not a refusal. Past
+  MAX_TILES_HARD the plugin ASKS, in stronger words than the ordinary
+  confirm question and with the safe button as the default; it no
+  longer decides for the user. The maintainer's ruling was "Warning
+  not absolute", and the figure the refusal stood on is one nothing in
+  this repository measures -- different machines have different
+  maximums and different designs have different needs at the same tile
+  count. The test's NAME is left alone deliberately, so that anybody
+  searching this suite for the old contract finds the paragraph that
+  replaced it rather than nothing at all.
+
+  The band edge is where the estimate exceeds MAX_TILES_HARD, and
   every existing test of it stands a long way from that line: a
-  spacing of 1.0 estimating sixteen billion tiles proves the refusal
+  spacing of 1.0 estimating sixteen billion tiles proves the question
   fires, and proves nothing about WHERE it fires. An off-by-one in the
   comparison, or a truncation in the estimate, moves the boundary by
   one tile and no test that far out can see it.
@@ -50253,10 +50448,11 @@ def test_the_size_guard_at_its_refusal_boundary():
   through the DIALOG, because the guard's job is a decision a user
   meets, not an arithmetic result:
 
-  * at the accepted spacing the run STARTS, which is the decision
-    under test;
-  * one micro-step finer it is refused, the previous map is left
-    alone, and the message names a spacing that would work.
+  * at the accepted spacing the run STARTS unasked, which is the
+    decision under test;
+  * one micro-step finer the user is ASKED, in words that name what
+    may happen and what to do first; answering No leaves the previous
+    map alone, and the question names a spacing that would work.
 
   That last clause is the boundary's own trap, and it is a defect this
   project has already had once at the other end of the scale: the
@@ -50365,8 +50561,8 @@ def test_the_size_guard_at_its_refusal_boundary():
     f"not the cap itself ({bridge.MAX_TILES_HARD:,}); this test is " \
     f"standing near the boundary rather than on it"
   assert estimate_at(refused) == bridge.MAX_TILES_HARD + 1, \
-    f"the refusing side estimates {estimate_at(refused):,} tiles, " \
-    f"which is more than one tile past the cap " \
+    f"the heavy side estimates {estimate_at(refused):,} tiles, " \
+    f"which is more than one tile past the band boundary " \
     f"({bridge.MAX_TILES_HARD:,})"
 
   # ---- an ordinary map first, well inside the cap. It is the map
@@ -50464,7 +50660,24 @@ def test_the_size_guard_at_its_refusal_boundary():
   assert dict(dlg._element_layer_ids) == survivors, \
     "the cancelled run disturbed the map already on screen"
 
-  # ---- the refusing side: one micro-step finer
+  # ---- the HEAVY side: one micro-step finer.
+  #
+  # THE EXPECTATION MOVED ON 2026-08-25, deliberately, and this is
+  # what moved it. Past this boundary the plugin used to REFUSE,
+  # on a comment claiming the run would exhaust memory and kill QGIS
+  # -- a figure nothing in this repository measures. The maintainer
+  # ruled it a warning rather than an absolute ("Warning not
+  # absolute"), on the argument that different machines have different
+  # maximums and different designs have different needs at the same
+  # count; and the gate had already been wrong in the expensive
+  # direction, declining a map the library renders in five seconds.
+  #
+  # WHAT THIS TEST STILL HOLDS is everything the refusal got right,
+  # and one thing more. The user is asked rather than told; the
+  # question names the workable spacing, so somebody can act on it;
+  # answering NO leaves the previous map exactly as it was, which is
+  # what the refusal guaranteed; and the safe button is the default,
+  # so a stray Return cannot start it.
   MODALS.clear()
   dlg.spacing_spin.setValue(refused)
   assert dlg.spacing_spin.value() == refused, \
@@ -50476,20 +50689,37 @@ def test_the_size_guard_at_its_refusal_boundary():
     bridge.MAX_TILES_HARD + 1, \
     f"the dialog's unit estimates " \
     f"{bridge.estimate_tile_count(dlg._unit, region):,} tiles one step " \
-    f"below the boundary, not one past the cap"
-  dlg._generate()
-  _tick(300)
+    f"below the boundary, not one past it"
+  assert bridge.size_band(
+    bridge.estimate_tile_count(dlg._unit, region)) == "heavy", \
+    "one step past the boundary is not in the heavy band, so this " \
+    "leg is about a different question than it names"
+  from qgis.PyQt.QtWidgets import QMessageBox as _Box
+  MODAL_ANSWERS["question"] = _Box.StandardButton.No
+  try:
+    dlg._generate()
+    _tick(300)
+  finally:
+    MODAL_ANSWERS.pop("question", None)
   assert dlg._task is None, \
-    "a spacing one tile past the cap started a tiling; the guard " \
-    "exists to stop exactly this workload before it begins"
+    "saying No to the heavy-map question started a tiling anyway; " \
+    "the whole point of asking is that the answer decides"
   assert dict(dlg._element_layer_ids) == survivors, \
-    "the refused run disturbed the map already on screen; a refusal " \
-    "must leave the previous map alone"
+    "declining disturbed the map already on screen; the previous map " \
+    "must be left alone"
 
   told = [text for kind, text in MODALS if "spacing" in text.lower()]
   assert told, \
-    f"the run was refused in silence; the user saw {MODALS!r} and " \
+    f"the run was declined in silence; the user saw {MODALS!r} and " \
     f"is left with a Generate button that does nothing"
+  asked = [text for kind, text in MODALS if kind == "question"]
+  assert asked, \
+    f"the plugin decided for the user instead of asking: {MODALS!r}"
+  for wanted in ("memory", "stop responding", "save your project"):
+    assert wanted in asked[0].lower(), \
+      f"the heavy-map question does not say {wanted!r}, which is what " \
+      f"a refusal never said and is the reason for asking in stronger " \
+      f"words: {asked[0]!r}"
   # The suggestion, AS PRINTED. The message rounds to whole map
   # units, and at the boundary the true suggestion sits a fraction
   # above the spacing just refused -- so rounding down would print
@@ -50497,13 +50727,13 @@ def test_the_size_guard_at_its_refusal_boundary():
   # 2026-08-10 defect arriving at the other end of the scale.
   numbers = re.findall(r"about ([\d,]+(?:\.\d+)?) map units", told[0])
   assert numbers, \
-    f"the refusal names no spacing to try instead: {told[0]!r}"
+    f"the question names no spacing to try instead: {told[0]!r}"
   printed = float(numbers[0].replace(",", ""))
   assert estimate_at(printed) <= bridge.MAX_TILES_HARD, \
-    f"the refusal was for {refused:.6f} map units and advises " \
+    f"the question was for {refused:.6f} map units and advises " \
     f"{printed:,.0f}, which estimates {estimate_at(printed):,} tiles " \
-    f"against a cap of {bridge.MAX_TILES_HARD:,} and would be refused " \
-    f"in turn. The whole message read: {told[0]!r}"
+    f"against a boundary of {bridge.MAX_TILES_HARD:,} and would be " \
+    f"asked about in turn. The whole message read: {told[0]!r}"
   dlg.close()
 
 
@@ -58325,11 +58555,58 @@ def test_icon_mode_is_not_counted_as_a_tiling():
     tiling_guess = bridge.estimate_tile_count_bounds(dlg._unit, bounds)
     assert tiling_guess > bridge.MAX_TILES_HARD, \
       f"the tiling estimate is only {tiling_guess:,}, under the " \
-      f"ceiling of {bridge.MAX_TILES_HARD:,}, so nothing here could " \
-      f"have been refused and this case is vacuous"
+      f"band edge of {bridge.MAX_TILES_HARD:,}, so nothing here could " \
+      f"have been escalated and this case is vacuous"
+    # ...AND THE PREMISE IS ASKED WITH THE ESTIMATOR THE BUTTON USES.
+    # The line above asks the BOUNDS estimator, which assumes the
+    # region fills its extent; `_generate` asks the DISSOLVED one,
+    # whose answer is smaller. This case's whole subject is what
+    # Generate does, so a premise about the other estimator can be
+    # comfortably true while the dialog's own number sits below every
+    # band edge -- which is exactly what happened: the catalogue entry
+    # for this behaviour SURVIVED, because mistaking icon mode for a
+    # tiling raised no question at all. Found 2026-08-25 by re-judging
+    # the entry after the ceiling became a question.
+    as_a_tiling = bridge.estimate_tile_count(
+      dlg._unit, bridge.layer_to_gdf(layer, []))
+    assert bridge.size_band(as_a_tiling) != "ok", \
+      f"read as a tiling this design estimates {as_a_tiling:,}, which " \
+      f"falls in the {bridge.size_band(as_a_tiling)!r} band -- so " \
+      f"mistaking icon mode for a tiling would interrupt nobody and " \
+      f"this test could not tell the two apart"
 
+    # THE BUTTON FIRST, AND NOTHING DRAWN BEFORE IT. The live leg used
+    # to come first, and it drew the map: the explicit Generate that
+    # followed then found nothing changed, took its fast path, and
+    # never reached the size gate at all -- so this test could not see
+    # a gate that mistook icon mode for a tiling, and the catalogue
+    # entry for exactly that duly SURVIVED. A live run also skips the
+    # band question by design (`if not live`), which is the second
+    # reason the order matters. Found 2026-08-25 by re-judging the
+    # entry after the ceiling became a question.
     del MODALS[:]
+    _generate_and_wait(dlg)
+    _tick(300)
+    # ASKED OF EVERY MODAL, not only the refusing kind. Since
+    # 2026-08-25 too many tiles is a QUESTION rather than a refusal,
+    # so a guard that watched only for `critical` would let the
+    # mutation it exists to catch pass: mistaking icon mode for a
+    # tiling would put the heavy question up, the suite's shim would
+    # answer Yes, the run would go ahead and nothing would be red. A
+    # design of a hundred tiles must be drawn without a word.
+    interrupted = [f"{kind}: {text}" for kind, text in MODALS
+                   if kind in ("critical", "question")]
+    assert not interrupted, \
+      f"Generate was interrupted on a design of {wanted} tiles: " \
+      f"{interrupted}"
+    assert dlg._element_layer_ids, \
+      "Generate produced no element layers at all"
+
+    # ...and the live gate, which counts icons through its own copy of
+    # the same question and must not pause on a hundred tiles either.
     dlg.live_check.setChecked(True)
+    dlg.live_note.setText("")
+    dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.01)
     dlg._maybe_live_generate()
     _tick(300)
     note = dlg.live_note.text()
@@ -58338,14 +58615,6 @@ def test_icon_mode_is_not_counted_as_a_tiling():
     assert "paused" not in note, \
       f"live update paused itself on a design of {wanted} tiles, " \
       f"saying {note!r}"
-
-    _generate_and_wait(dlg)
-    _tick(300)
-    refusals = [text for kind, text in MODALS if kind == "critical"]
-    assert not refusals, \
-      f"Generate was refused on a design of {wanted} tiles: {refusals}"
-    assert dlg._element_layer_ids, \
-      "Generate produced no element layers at all"
   finally:
     dlg.close()
 
@@ -59346,6 +59615,8 @@ def main():
         test_an_element_table_carries_only_what_it_displays)
   check("a saved map can be opened and carried on",
         test_a_saved_map_can_be_opened_and_carried_on)
+  check("the size guard warns where it used to refuse",
+        test_the_size_guard_warns_where_it_used_to_refuse)
   check("the preview draws the middle of the patch",
         test_preview_draws_the_middle_of_the_patch)
   check("switching region layer counts as a change",

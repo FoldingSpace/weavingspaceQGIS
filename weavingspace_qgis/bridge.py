@@ -111,11 +111,22 @@ RAMP_TAG = "mapweaver"
 # responding when they changed layer.
 _RAMP_NAME_BY_LOWER = {}
 
-# tile-count guard rails (tile count grows as 1/spacing^2, so a small
-# spacing can innocently request millions of polygons): above HARD the
-# run is refused outright (it would exhaust memory inside GEOS and kill
-# QGIS), above CONFIRM a button press asks first, above LIVE the
-# debounced auto-regeneration pauses and waits for an explicit press
+# Tile-count guard rails. Tile count grows as 1/spacing^2, so a small
+# spacing can innocently request millions of polygons: above CONFIRM a
+# button press asks first, above HARD it asks in stronger words, and
+# above LIVE the debounced auto-regeneration pauses and waits for an
+# explicit press.
+#
+# HARD IS A BAND BOUNDARY, NOT A REFUSAL, since 2026-08-25.
+# (Maintainer's ruling: "Warning not absolute. Find a different
+# approach to sentinel if appropriate.") It used to refuse a run
+# outright on a comment claiming the run would exhaust memory and kill
+# QGIS -- a figure nothing in this repository measures, and one the
+# maintainer's own argument disposes of: different machines have
+# different maximums and different designs have different needs at the
+# same tile count. The gate had already been wrong in the expensive
+# direction, refusing a map the library renders in five seconds
+# (ledger row 23, 2026-08-19: 585,765 estimated against 70,659 drawn).
 MAX_TILES_HARD = 200_000
 # RAISED FROM 40,000 ON 2026-08-25, maintainer's ruling, in the same
 # breath as the rule that a spacing a person typed survives a change
@@ -126,6 +137,103 @@ MAX_TILES_HARD = 200_000
 # confirmation stops confirming anything.
 MAX_TILES_CONFIRM = 100_000
 LIVE_UPDATE_MAX_TILES = 20_000
+
+# THE TWO ANSWERS THAT ARE NOT TILE COUNTS, split off the size guard
+# on 2026-08-25 and the reason the ceiling could not simply soften.
+# `MAX_TILES_HARD + 1` used to stand for both of these as well as for
+# "very large", so the three could not be told apart -- and the moment
+# the ceiling becomes a question rather than a refusal, a design that
+# does not tile the plane becomes something a user can click straight
+# past. They are NEGATIVE deliberately: every gate in this plugin asks
+# `est > <some ceiling>`, so a sentinel that is smaller than every
+# ceiling can never be waved through by a comparison somebody forgot
+# to widen. It has to be handled explicitly or it does nothing at all.
+#
+# THEY ALSO HAD THE WRONG SENTENCES. Sharing a value with "too many
+# tiles" meant sharing its message: a unit that does not tile the
+# plane, and a layer with no CRS whose extent comes back infinite,
+# were both told to try a larger spacing, which cannot help either.
+UNTILEABLE = -1
+UNCOUNTABLE = -2
+
+
+def is_a_size(estimate) -> bool:
+  """Whether an estimate is a tile count rather than a refusal.
+
+  Args:
+    estimate: whatever `estimate_tile_count_bounds` or its callers
+      returned.
+
+  Returns:
+    True for an ordinary count. False for UNTILEABLE and UNCOUNTABLE,
+    which are facts about the design and the data rather than about
+    size, and which no band question may soften.
+  """
+  return isinstance(estimate, int) and estimate >= 0
+
+
+def size_band(estimate) -> str:
+  """Which band a tile-count estimate falls in.
+
+  Args:
+    estimate: a tile count, or one of the sentinels.
+
+  Returns:
+    One of "refuse" (not a size at all), "ok" (draw it), "ask" (past
+    the confirm gate) or "heavy" (past what used to be a refusal).
+
+  ONE QUESTION WHOSE WORDING ESCALATES, rather than two gates: the
+  maintainer's ruling of 2026-08-25 asked for a warning rather than an
+  absolute, and a second gate saying no at a second number is the
+  arrangement that was already wrong once.
+  """
+  if not is_a_size(estimate):
+    return "refuse"
+  if estimate > MAX_TILES_HARD:
+    return "heavy"
+  if estimate > MAX_TILES_CONFIRM:
+    return "ask"
+  return "ok"
+
+
+def many_tiles_question(estimate: int) -> str:
+  """The ordinary "this is a big one" question."""
+  return (f"This will generate roughly {estimate:,} tiles and may take "
+          "a while. Continue?")
+
+
+def heavy_tiles_question(estimate: int, advice: str) -> str:
+  """The same question in stronger words, past the old refusal.
+
+  Args:
+    estimate: the tile count.
+    advice: what the user can do about it -- the workable spacing, or
+      icon mode's own sentence, since spacing cannot help there.
+
+  Returns:
+    The question, which names what may happen and what to do first.
+    It says MAY rather than WILL, because how many tiles a machine can
+    carry is a fact about that machine and this plugin does not
+    measure it.
+  """
+  return (f"This will generate roughly {estimate:,} tiles. A map this "
+          f"large may use all the memory on this computer, and QGIS "
+          f"may stop responding while it is drawn, so save your "
+          f"project first. {advice} Continue anyway?")
+
+
+def untileable_message() -> str:
+  """Why a design with degenerate vectors cannot be drawn at all."""
+  return ("This design does not repeat across the plane, so there is "
+          "no map to draw. Choose another family, or undo the "
+          "modifiers that flattened it.")
+
+
+def uncountable_message() -> str:
+  """Why a layer whose extent cannot be measured cannot be tiled."""
+  return ("This layer's extent cannot be measured, so the pattern "
+          "cannot be placed on it. Give the layer a coordinate "
+          "reference system in its properties and try again.")
 
 
 # ------------------------------------------------------------------ ramps
@@ -714,9 +822,19 @@ def estimate_tile_count_bounds(unit, b, scale: float = 1.0,
       it is no longer considering.
 
   Returns:
-    An estimated tile count; MAX_TILES_HARD + 1 when the vectors are
-    degenerate (a unit that does not tile the plane), so a broken
-    design is refused rather than attempted.
+    An estimated tile count, or one of two SENTINELS that are not
+    counts at all: UNTILEABLE where the unit's vectors are degenerate,
+    so the design does not repeat across the plane, and UNCOUNTABLE
+    where the arithmetic comes back non-finite, which is what a layer
+    with no CRS produces once reprojection is attempted.
+
+    THEY USED TO BE `MAX_TILES_HARD + 1`, both of them, which made
+    them indistinguishable from "very large" -- so they inherited the
+    too-many-tiles sentence and told somebody to try a larger spacing,
+    which helps neither. It also meant the size ceiling could not
+    become a question without turning a broken design into something a
+    user clicks straight past. Split off 2026-08-25; see the constants
+    for why they are negative.
 
   IT USED TO COVER A CIRCLE ENCLOSING THE RECTANGLE, and that is what
   made it refuse maps the library draws. A circle enclosing a
@@ -753,7 +871,7 @@ def estimate_tile_count_bounds(unit, b, scale: float = 1.0,
   v = unit.get_vectors()
   det = abs(v[0][0] * v[1][1] - v[0][1] * v[1][0]) * scale * scale
   if det <= 0:
-    return MAX_TILES_HARD + 1
+    return UNTILEABLE
   # THE GROUND, AND THE STRIP ROUND ITS EDGE where the library's
   # buffer puts whole prototiles. With no geometry to ask, the most
   # generous honest assumption is that the region FILLS its extent.
@@ -771,7 +889,7 @@ def estimate_tile_count_bounds(unit, b, scale: float = 1.0,
   # many", which is exactly what the caller already knows how to
   # refuse.
   if not math.isfinite(estimate):
-    return MAX_TILES_HARD + 1
+    return UNCOUNTABLE
   return int(estimate)
 
 
@@ -794,7 +912,7 @@ def min_reasonable_spacing(unit, region_gdf, spacing: float) -> float:
     only what will not.
   """
   est = estimate_tile_count(unit, region_gdf)
-  if est <= MAX_TILES_HARD:
+  if not is_a_size(est) or est <= MAX_TILES_HARD:
     return spacing
   # The inverse-square law alone is not enough. Tile count grows as
   # 1/spacing^2 in the interior, but the estimate also buffers the
@@ -817,8 +935,16 @@ def min_reasonable_spacing(unit, region_gdf, spacing: float) -> float:
   # `pin_problem` and again at the limits.
   area, edge = dissolved_extent(region_gdf)
   for _ in range(60):
-    if estimate_tile_count_bounds(unit, bounds, scale, covered_area=area,
-                                  covered_edge=edge) <= MAX_TILES_HARD:
+    widened = estimate_tile_count_bounds(unit, bounds, scale,
+                                         covered_area=area,
+                                         covered_edge=edge)
+    # A SENTINEL ENDS THE SEARCH rather than widening forever: neither
+    # UNTILEABLE nor UNCOUNTABLE is a size, and no spacing changes
+    # either of them. Both are negative, so a bare `<= MAX_TILES_HARD`
+    # would have looked like agreement and stopped on the first pass
+    # with a number that means nothing -- the same reading-a-sentinel-
+    # as-a-quantity fault this split exists to end.
+    if not is_a_size(widened) or widened <= MAX_TILES_HARD:
       break
     scale *= 1.02
   # ROUNDED UP, NOT RETURNED RAW, and this is the second half of the

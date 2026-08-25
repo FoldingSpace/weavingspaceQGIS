@@ -2522,12 +2522,18 @@ MUTATIONS = [
            "synchronously at close, not vanish, and not fire later "
            "from a timer into a dialog that believes the editor gone"),
   dict(name="spacing-suggestion-refuses-itself", file=BRIDGE,
+       # RE-ANCHORED 2026-08-25: the loop learned to stop on a
+       # SENTINEL as well as on an acceptable count, since neither
+       # UNTILEABLE nor UNCOUNTABLE is a size and no spacing changes
+       # either. The claim is unchanged.
        old="""  for _ in range(60):
-    if estimate_tile_count_bounds(unit, bounds, scale, covered_area=area,
-                                  covered_edge=edge) <= MAX_TILES_HARD:
-      break
-    scale *= 1.02""",
-       new="""  pass  # mutation: the inverse-square law has the last word""",
+    widened = estimate_tile_count_bounds(unit, bounds, scale,
+                                         covered_area=area,
+                                         covered_edge=edge)""",
+       new="""  for _ in range(0):  # mutation: the inverse-square law decides
+    widened = estimate_tile_count_bounds(unit, bounds, scale,
+                                         covered_area=area,
+                                         covered_edge=edge)""",
        test="test_the_tile_estimate_is_honest_where_shapes_are_awkward",
        why="the refusal names a spacing that WOULD work; the "
            "inverse-square law alone ignores the estimate's border "
@@ -3649,16 +3655,21 @@ MUTATIONS = [
            "of a variable with one value, and every feature falls in "
            "class 0 -- the ramp's near-white end, which a reader takes "
            "for missing data rather than for one value"),
-  dict(name="size-guard-refuses-at-the-cap", file=DIALOG,
-       old="    if est > bridge.MAX_TILES_HARD:",
-       new="    if est >= bridge.MAX_TILES_HARD:  # mutation: refuse the cap",
+  # RE-ANCHORED 2026-08-25, from the dialog into `size_band`: the
+  # ceiling is a BAND EDGE now rather than a refusal, and the
+  # comparison that decides it moved with it. The claim is exactly
+  # what it was -- which side of the line the boundary falls on.
+  dict(name="size-guard-refuses-at-the-cap", file=BRIDGE,
+       old="""  if estimate > MAX_TILES_HARD:""",
+       new="""  if estimate >= MAX_TILES_HARD:  # mutation: escalate at the cap""",
        test="test_the_size_guard_at_its_refusal_boundary",
-       why="MAX_TILES_HARD is the largest tile count ALLOWED, not the "
-           "first one refused; one step either way and a design the "
-           "plugin promises to draw is declined, or one it cannot "
-           "survive is attempted. Every other test of this guard "
-           "stands orders of magnitude from the line and cannot see "
-           "which side of it the comparison falls"),
+       why="MAX_TILES_HARD is the largest tile count asked about in "
+           "the ORDINARY words, not the first one asked about in the "
+           "heavy ones; one step either way and a design the plugin "
+           "draws without comment is escalated, or one that may take "
+           "the machine is waved through mildly. Every other test of "
+           "this guard stands orders of magnitude from the line and "
+           "cannot see which side of it the comparison falls"),
   dict(name="unassigned-row-carries-no-field", file=DIALOG,
        old="""      var = var_combo.currentText()
       var = None if var == "---" else var
@@ -4365,9 +4376,20 @@ MUTATIONS = [
            "advice met the identical refusal"),
   dict(name="the-spacing-advice-keeps-its-magnitude",
        file="weavingspace_qgis/dialog.py",
-       old="          f\"{bridge.spacing_in_words(suggestion)} map units or more will \"",
-       new="          f\"{suggestion:,.0f} map units or more will \"",
-       test="test_the_tile_estimate_is_honest_where_shapes_are_awkward",
+       # RE-ANCHORED 2026-08-25: the refusal became a question whose
+       # wording escalates by band, and the advice moved into it. The
+       # claim is unchanged -- a spacing printed with no decimals says
+       # "0" on a small region.
+       old="          f\"A spacing of about {bridge.spacing_in_words(suggestion)} \"",
+       new="          f\"A spacing of about {suggestion:,.0f} \"",
+       # RE-AIMED 2026-08-25, and it should always have been aimed
+       # here: the entry mutates what the DIALOG prints, and the test
+       # it named asks `spacing_in_words` directly and never reads a
+       # message at all, so it could not see the mutation and this
+       # entry could only ever survive. The boundary test parses the
+       # number out of the sentence the user is shown and requires it
+       # to be a spacing that works, which is the claim.
+       test="test_the_size_guard_at_its_refusal_boundary",
        why="printing a spacing with no decimal places says '0' for any "
            "region under about ninety map units across, which reads as "
            "'any spacing works' and is a number the spacing box's own "
@@ -5541,6 +5563,51 @@ MUTATIONS = [
            "run named a table for it, and the write failed outright -- "
            "16 of 61 features and the whole landing lost. Measured "
            "2026-08-25 on the resume path that made it reachable"),
+  # THE SIZE GUARD, ruling of 2026-08-25. Three axes: the sentinels
+  # being told from sizes, the bands, and the heavy question saying
+  # what a refusal never said.
+  dict(name="a-sentinel-is-not-a-size", file=BRIDGE,
+       old="""  return isinstance(estimate, int) and estimate >= 0""",
+       new="""  return True  # mutation: read a sentinel as a tile count""",
+       test="test_the_size_guard_warns_where_it_used_to_refuse",
+       why="this is the whole reason the ceiling could not simply "
+           "soften. A unit that does not tile the plane and a layer "
+           "whose extent cannot be measured are facts rather than "
+           "quantities, and read as counts they become things a user "
+           "clicks straight past -- and are told to try a larger "
+           "spacing, which helps neither"),
+  dict(name="the-heavy-band-asks-rather-than-refuses", file=BRIDGE,
+       old="""  if estimate > MAX_TILES_HARD:
+    return "heavy\"""",
+       new="""  if estimate > MAX_TILES_HARD:
+    return "refuse"  # mutation: decide for the user again""",
+       test="test_the_size_guard_at_its_refusal_boundary",
+       why="the maintainer ruled the ceiling a warning rather than an "
+           "absolute: different machines have different maximums and "
+           "different designs have different needs at the same count. "
+           "As a refusal it had already declined a map the library "
+           "renders in five seconds"),
+  dict(name="the-heavy-question-says-what-it-may-cost", file=BRIDGE,
+       old="""  return (f"This will generate roughly {estimate:,} tiles. A map this "
+          f"large may use all the memory on this computer, and QGIS "
+          f"may stop responding while it is drawn, so save your "
+          f"project first. {advice} Continue anyway?")""",
+       new="""  return many_tiles_question(estimate)  # mutation: the mild wording""",
+       test="test_the_size_guard_warns_where_it_used_to_refuse",
+       why="past the old refusal the question has to say what a "
+           "refusal never said -- that this may exhaust memory, that "
+           "QGIS may stop responding, and to save the project first. "
+           "Without that the escalation is a number in a sentence "
+           "nobody reads differently"),
+  dict(name="the-live-gate-tells-a-sentinel-from-a-count", file=DIALOG,
+       old="""    if not bridge.is_a_size(est):""",
+       new="""    if False:  # mutation: hand a sentinel to the ceiling test""",
+       test="test_the_size_guard_warns_where_it_used_to_refuse",
+       why="both sentinels are NEGATIVE, so `est > LIVE_UPDATE_MAX_TILES` "
+           "is False for them: read as a number, a design that cannot "
+           "be drawn sails through the gate into a run that cannot "
+           "draw it, and the note the user sees is about a tile count "
+           "that does not exist"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a

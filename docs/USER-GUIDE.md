@@ -278,8 +278,13 @@ file if you are saving to disk.
 
 Tile counts grow with the square of the inverse spacing, so a small
 spacing over a large region asks for an enormous number of polygons.
-The plugin estimates the count first and declines runs that would
-exhaust memory, suggesting a workable spacing instead. Layer identities
+The plugin estimates the count first and asks before drawing a large
+one, suggesting a workable spacing; past a certain size it says so in
+stronger terms, since a map that large may use all the memory on your
+computer and leave QGIS unresponsive while it is drawn. The decision is
+yours either way. What it does refuse is a design that does not repeat
+across the plane at all, and a layer whose extent it cannot measure,
+neither of which any spacing would help. Layer identities
 change when you regenerate (the styling carries over), so layers placed
 in a print layout need re-picking afterwards. There is no tile-shaped
 legend yet; the layer panel lists each element's classes, and a legend

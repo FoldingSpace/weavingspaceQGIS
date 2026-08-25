@@ -4097,6 +4097,19 @@ class WeavingSpaceDialog(QDialog):
       est = bridge.estimate_icon_count(self._unit, layer.featureCount())
     else:
       est = bridge.estimate_tile_count_bounds(self._unit, bounds)
+    # A SENTINEL IS NOT A COUNT, and this gate has to say so first.
+    # Both sentinels are NEGATIVE, so `est > LIVE_UPDATE_MAX_TILES` is
+    # False for them: read as a number, a design that does not tile
+    # the plane would sail through the gate and be handed to a run
+    # that cannot draw it. The note has to be honest as well -- the
+    # roadmap asked that it never read "about inf tiles", which is
+    # what an unsplit sentinel would eventually have produced.
+    if not bridge.is_a_size(est):
+      self.live_note.setText(
+        "live update paused: this design cannot be drawn on this "
+        "layer; press Generate to see why")
+      _dump("LIVE-GATE", "not-a-size", est)
+      return
     if est > bridge.LIVE_UPDATE_MAX_TILES:
       self.live_note.setText(
         f"live update paused (about {est:,} tiles); press Generate")
@@ -12252,37 +12265,62 @@ class WeavingSpaceDialog(QDialog):
       est = bridge.estimate_icon_count(self._unit, len(region))
     else:
       est = bridge.estimate_tile_count(self._unit, region)
-    if est > bridge.MAX_TILES_HARD:
+    # ONE QUESTION, WHOSE WORDING ESCALATES BY BAND (maintainer's
+    # ruling, 2026-08-25: "Warning not absolute. Find a different
+    # approach to sentinel if appropriate."). What used to stand here
+    # were two gates: a refusal above MAX_TILES_HARD on a comment
+    # claiming the run would exhaust memory and kill QGIS, and a
+    # question above MAX_TILES_CONFIRM. The refusal had already been
+    # wrong in the expensive direction -- it declined a map the library
+    # renders in five seconds -- and the figure it stood on is one
+    # nothing here measures: different machines have different
+    # maximums, and different designs have different needs at the same
+    # count.
+    #
+    # WHAT IS KEPT is everything the refusal got right: the workable
+    # spacing it suggested, and icon mode's own sentence, since a
+    # spacing cannot help where each area takes one tile unit however
+    # large it is drawn. WHAT IS ADDED is what a refusal never said --
+    # that this may exhaust memory, that QGIS may stop responding, and
+    # to save the project first.
+    band = bridge.size_band(est)
+    if band == "refuse":
+      # NOT A SIZE AT ALL, and this is why the sentinel had to be
+      # split off before the ceiling could soften: a design that does
+      # not tile the plane, and a layer whose extent cannot be
+      # measured, are facts rather than quantities. No question may
+      # soften them, and each now says its own true thing instead of
+      # borrowing the too-many-tiles advice, which helped neither.
       if not live:
-        if as_icons:
-          # A DIFFERENT SENTENCE, because the remedy is different: in
-          # icon mode the count follows the number of areas and the
-          # elements in the tileable, and no spacing changes it. The
-          # advice below would send somebody to a control that cannot
-          # help them.
-          QMessageBox.critical(
-            self, "WeavingSpace",
-            f"Drawn as icons, this layer's {len(region):,} areas ask "
-            f"for roughly {est:,} tiles, which is more than the plugin "
-            f"will draw. Spacing will not help, since each area takes "
-            f"one tile unit however large it is drawn, so try a layer "
-            f"with fewer areas or a tileable with fewer elements.")
-        else:
-          suggestion = bridge.min_reasonable_spacing(
-            self._unit, region, self.spacing_spin.value())
-          QMessageBox.critical(
-            self, "WeavingSpace",
-            f"A spacing this small asks for roughly {est:,} tiles. For this "
-            f"layer a spacing of about "
-            f"{bridge.spacing_in_words(suggestion)} map units or more will "
-            f"work.")
+        QMessageBox.critical(
+          self, "WeavingSpace",
+          bridge.untileable_message() if est == bridge.UNTILEABLE
+          else bridge.uncountable_message())
       return
-    if not live and est > bridge.MAX_TILES_CONFIRM:
+    if not live and band in ("ask", "heavy"):
+      if band == "ask":
+        question = bridge.many_tiles_question(est)
+      elif as_icons:
+        question = bridge.heavy_tiles_question(
+          est,
+          f"Spacing will not help, since each of this layer's "
+          f"{len(region):,} areas takes one tile unit however large it "
+          f"is drawn; a layer with fewer areas or a tileable with "
+          f"fewer elements would.")
+      else:
+        suggestion = bridge.min_reasonable_spacing(
+          self._unit, region, self.spacing_spin.value())
+        question = bridge.heavy_tiles_question(
+          est,
+          f"A spacing of about {bridge.spacing_in_words(suggestion)} "
+          f"map units or more would keep it smaller.")
       answer = QMessageBox.question(
-        self, "WeavingSpace",
-        f"This will generate roughly {est:,} tiles and may take a "
-        "while. Continue?",
-        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        self, "WeavingSpace", question,
+        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        # THE SAFE BUTTON IS THE DEFAULT, on the dependency-consent
+        # precedent: a stray Return must not start something that may
+        # take the machine.
+        QMessageBox.StandardButton.No)
       if answer != QMessageBox.StandardButton.Yes:
         return
 
