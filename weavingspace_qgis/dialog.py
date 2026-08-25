@@ -2456,6 +2456,10 @@ class WeavingSpaceDialog(QDialog):
     # pick new data -- protecting the landed result is the rulings'
     # own answer.
     switched_from_work = switched and self._landed_this_session
+    if switched:
+      _dump("SWITCH", "boundary",
+            "change-of-dataset" if switched_from_work
+            else "first-choice", "landed=", self._landed_this_session)
     # The memory banks swap on ANY change of layer -- hygiene rather
     # than protection, so it is not gated on the landing: what belongs
     # to a dataset must never be readable while another is chosen.
@@ -2615,6 +2619,8 @@ class WeavingSpaceDialog(QDialog):
     self._pinned_bounds = bank["pins"]
     self._scheme_memory = bank["shelf"]
     self._memory_layer_id = new_id
+    _dump("SWAP", str(old_id)[:12], "->", str(new_id)[:12],
+          "banked" if old_id is not None else "no-outgoing")
     self._pending_outgoing_shelf = (outgoing["shelf"]
                                     if old_id is not None else None)
 
@@ -2650,11 +2656,13 @@ class WeavingSpaceDialog(QDialog):
       widget.blockSignals(True)
       widget.setFilePath("")
       widget.blockSignals(False)
+      _dump("SWITCH", "path-cleared")
       self._report_quietly(
         "The GeoPackage path was cleared, so the dataset saved from "
         "your previous work isn't overwritten; choose a new path to "
         "save this one.")
     self._fresh_group_for_new_data = True
+    _dump("SWITCH", "fresh-group-armed")
     if layer is None:
       return
     # The same id-like set _refresh_table skips when it picks

@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-295 defect(s) with a regression test.
+296 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -419,6 +419,8 @@ there is no separate list to remember.
   guarded by `test_a_copied_ladder_is_fitted_to_the_column_it_lands_on`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_copy_and_its_pins_survive_a_project_round_trip`
+- **none yet; this is the matrix the rulings of 2026-08-21 and 24 owed from the start.**  
+  guarded by `test_a_dataset_switch_keeps_its_promises_on_every_route`
 - **none yet; this guards the design-floor door added with the rulings of 2026-08-21.**  
   guarded by `test_a_dataset_that_cannot_fill_the_design_asks_first`
 - **none yet; this guards the no-leakage ruling of 2026-08-24 at the file boundary.**  
@@ -642,7 +644,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - a bug hunt pointed in a named direction: 91
-- not written down at the time: 87
+- not written down at the time: 88
 - the mutation campaign: 33
 - reported by a user: 29
 - reading the code: 15

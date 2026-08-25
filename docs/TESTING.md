@@ -1692,6 +1692,32 @@ not the same evidence -- a failure in the first has to RESET the
 count, and it cannot if the second was already running. Any change to
 the code or the harness resets it too.
 
+## THE SWITCH MATRIX, AND WHAT ITS FIRST RUN TAUGHT
+
+2026-08-25, built when the maintainer asked whether the day's changes
+were in the matrices, and they were not: the dataset-switch rulings
+had journey tests, one axis each, which is exactly the arrangement
+the matrix default exists to replace. Routes (plain, same-schema,
+shared-name, column-deleted, return, pre-landing, mid-run) crossed
+with staged state (derived, touched scheme, picks and pins, path set)
+crossed with aftermath (immediate, generate, return); a spine of
+every route against the two states with the most to lose, the plain
+route against everything, and a seeded sample of the rest. Cells
+report together, the count is asserted, and the mid-run cells assert
+their own premise -- a run still in flight at the switch -- rather
+than judging a different journey when the window is missed.
+
+**ITS FIRST RUN FOUND TWO BROKEN CELLS, AND THE ORACLE WAS WHAT WAS
+BROKEN.** Both were the column-deleted route failing the
+no-absent-fields invariant -- which is the no-leakage ruling's
+invariant, and that ruling is about OTHER datasets' fields. A field
+the SAME dataset just lost keeps its idle records by the settled
+renamed-column rule, so its return can restore them. The matrix
+forced the two rules to be stated with their boundary, which is worth
+as much as a defect: an invariant written broader than its ruling
+reads as coverage and is actually a false alarm waiting to teach
+somebody to ignore it.
+
 ## A MATRIX ASKS ABOUT RECORDS; ADD THE QUESTION ABOUT WHAT IS SEEN
 
 2026-08-19, and it is the sharpest thing the day taught. Three defects

@@ -25835,6 +25835,273 @@ def test_a_datasets_files_never_name_anothers_columns():
     project.clear()
 
 
+def _switch_matrix_cell(route, state, aftermath):
+  """Stage one journey of the dataset-switch matrix and judge it.
+
+  Args:
+    route: how the change of dataset arrives -- "plain" (no common
+      columns), "same-schema", "shared-name" (one column name in
+      common, different kind), "column-deleted" (the third door),
+      "return" (A-B-A), "pre-landing" (nothing built yet), "mid-run"
+      (the chooser moves while a run is tiling).
+    state: what exists before the route -- "derived" (nothing
+      touched), "touched-scheme", "picks-and-pins", "path-set".
+    aftermath: what happens next -- "immediate" (read the records),
+      "generate" (the landing), "return" (switch back and read).
+
+  Returns:
+    ("ok", detail) when every promise held, or (complaint, detail)
+    naming the first that did not. The INVARIANTS run in every cell
+    whatever the axes: no absent-dataset field is readable in the
+    active views, and the fresh-group flag is armed exactly when a
+    landed session leaves a live dataset.
+  """
+  from qgis.PyQt.QtWidgets import QMessageBox
+  project = QgsProject.instance()
+  project.clear()
+  BAR_MESSAGES.clear()
+  MODALS.clear()
+  dlg, A, tid1 = _categorical_dialog()
+  try:
+    tid0 = dlg.table.item(0, 0).text()
+    _tick(250)                       # drain the fixture's settle
+
+    # ---- the staged STATE, before any route runs.
+    chosen_ramp = None
+    if state in ("touched-scheme", "picks-and-pins", "path-set"):
+      _pick_categorized(dlg, tid1)
+    if state == "touched-scheme":
+      mode = dlg.table.cellWidget(0, 2)
+      mode.setCurrentText("Quant: Equal intervals")
+      mode.activated.emit(mode.currentIndex())
+      _tick(120)
+      dlg._ramp_choices[tid0] = "Set3"
+      dlg._reverse_choices[tid0] = True
+      dlg._class_counts[tid0] = 7
+    if state == "picks-and-pins":
+      dlg._category_colours.setdefault(tid1, {}).setdefault(
+        "landcover", {})["forest"] = "#123456"
+      dlg._pinned_bounds.setdefault(tid0, {})["v1"] = {"low": 1.5}
+    # a landing, so the switch protections arm -- except the route
+    # whose whole point is that nothing has been built yet
+    if route != "pre-landing":
+      dlg.spacing_spin.setValue(500)
+      _generate_and_wait(dlg)
+      _tick(250)
+    first_layers = set(dlg._element_layer_ids.values())
+    if state == "path-set":
+      dlg.gpkg_widget.setFilePath("/tmp/claude/matrix-first.gpkg")
+
+    # ---- the ROUTE.
+    fields_a = set(dlg._layer_fields())
+    if route == "plain" or route == "return":
+      other = make_other_region()
+    elif route == "same-schema":
+      other = make_region_layer(origin=(500000, 0))
+    elif route == "shared-name":
+      other = make_region_with_a_continuous_landcover()
+    elif route == "mid-run":
+      other = make_other_region()
+    else:
+      other = None
+    if route == "pre-landing":
+      other = make_other_region()
+
+    in_flight = None
+    if route == "column-deleted":
+      field = (dlg._assignment_for(tid1) or {}).get("var")
+      index = A.fields().indexOf(field)
+      if index < 0:
+        return ("the fixture lost the column this route deletes",
+                field)
+      A.dataProvider().deleteAttributes([index])
+      A.updateFields()
+      _tick(800)
+    else:
+      project.addMapLayer(other)
+      if route == "mid-run":
+        # a run slow enough to still be tiling at the switch, and the
+        # premise is ASSERTED: a cell that misses the window must say
+        # so rather than judge a different journey.
+        dlg.spacing_spin.setValue(28)
+        dlg.generate_btn.click()
+        _tick(60)
+        in_flight = dlg._task is not None
+        if not in_flight:
+          return ("the mid-run cell missed its window: the run "
+                  "landed before the switch, so this judged nothing",
+                  "raise the tile count")
+      if route == "shared-name":
+        MODAL_ANSWERS["question"] = QMessageBox.StandardButton.Yes
+      dlg.layer_combo.setLayer(other)
+      _tick(600)
+      MODAL_ANSWERS.pop("question", None)
+      if route == "mid-run":
+        for _ in range(120):
+          _tick(250)
+          if dlg._task is None:
+            break
+        _tick(400)
+    if route == "return":
+      dlg.layer_combo.setLayer(A)
+      _tick(600)
+
+    # ---- INVARIANTS, whatever the axes. The absent-field one holds
+    # on every route that CHANGES dataset; it deliberately exempts
+    # column-deleted, which is the SAME dataset losing a field --
+    # there the records stay idle by the settled rule of 2026-08-13
+    # (rename a column back and your colours return), and the shelf
+    # entry lives in this dataset's own bank so the field's return
+    # can restore it. The matrix's first run flagged exactly these
+    # two cells and taught the oracle the distinction.
+    live_fields = set(dlg._layer_fields())
+    for store, label in (() if route == "column-deleted" else
+                         ((dlg._category_colours, "colours"),
+                          (dlg._pinned_bounds, "pins"),
+                          (dlg._scheme_memory, "shelf"))):
+      for element, per_field in (store or {}).items():
+        stray = [f for f in per_field if f not in live_fields]
+        if stray:
+          return (f"absent-dataset fields readable in the active "
+                  f"{label}", f"{element}: {sorted(stray)}")
+    if route == "pre-landing" and dlg._fresh_group_for_new_data:
+      return ("the fresh-group flag armed on a first choice",
+              "nothing was built, so there was nothing to protect")
+    if route in ("plain", "same-schema", "shared-name") \
+        and not dlg._fresh_group_for_new_data:
+      return ("the fresh-group flag did not arm on a change of "
+              "dataset", route)
+
+    # ---- the AFTERMATH.
+    if aftermath == "immediate":
+      if route == "plain" and state == "touched-scheme":
+        now = dlg._assignment_for(tid0) or {}
+        if now.get("ramp") == "Set3" or now.get("reverse") \
+            or now.get("k") == 7:
+          return ("a dropped column left its scheme behind",
+                  f"{now.get('ramp')!r}/{now.get('reverse')}/"
+                  f"{now.get('k')}")
+      if route == "same-schema":
+        now = dlg._assignment_for(tid1) or {}
+        if now.get("var") != "landcover":
+          return ("keep-by-name failed on an identical schema",
+                  now.get("var"))
+        if state == "picks-and-pins" \
+            and (dlg._category_colours.get(tid1, {})
+                 .get("landcover")):
+          return ("value-laden records crossed a shared name",
+                  "the confidential-values leak")
+      if route == "column-deleted":
+        now = dlg._assignment_for(tid1) or {}
+        if now.get("style_touched") and state in (
+            "touched-scheme", "picks-and-pins", "path-set"):
+          return ("a deleted column left its scheme marked as chosen",
+                  now.get("mode_raw"))
+      if state == "path-set" and route in (
+          "plain", "same-schema", "shared-name") \
+          and dlg.gpkg_widget.filePath():
+        return ("the output path survived the switch",
+                dlg.gpkg_widget.filePath())
+    if aftermath == "generate" and route not in (
+        "column-deleted", "return"):
+      dlg.spacing_spin.setValue(520)
+      _generate_and_wait(dlg)
+      _tick(300)
+      survivors = {l for l in first_layers if project.mapLayer(l)}
+      if route != "pre-landing" and survivors != first_layers:
+        return ("the landing after a switch destroyed the previous "
+                "dataset's result",
+                f"{len(survivors)}/{len(first_layers)} survived")
+      if dlg._fresh_group_for_new_data:
+        return ("the fresh-group flag outlived its landing",
+                "every later run would build another group")
+    if aftermath == "return" and route == "plain":
+      dlg.layer_combo.setLayer(A)
+      _tick(600)
+      if state == "picks-and-pins":
+        pick = (dlg._category_colours.get(tid1, {})
+                .get("landcover") or {})
+        if pick.get("forest") != "#123456":
+          return ("the return did not restore the hand-pick",
+                  pick)
+      if state == "touched-scheme":
+        home = dlg._assignment_for(tid0) or {}
+        if home.get("ramp") != "Set3":
+          return ("the return did not restore the shelved ramp",
+                  home.get("ramp"))
+    return ("ok", f"{route}/{state}/{aftermath}"
+            + (f" in-flight={in_flight}" if in_flight is not None
+               else ""))
+  finally:
+    MODAL_ANSWERS.pop("question", None)
+    dlg.close()
+    project.clear()
+
+
+def test_a_dataset_switch_keeps_its_promises_on_every_route():
+  """The switch matrix: routes crossed with state crossed with what
+  happens next.
+
+  A TEST FOR A PROMISE IS A MATRIX, and the dataset-switch rulings
+  are a family of promises. The journey tests each drive one axis
+  well; what they structurally cannot do is notice a promise failing
+  on a route nobody paired it with -- which is how the mid-run switch
+  went undriven until the maintainer asked whether the changes were
+  in the matrices. Routes: plain, same-schema, shared-name,
+  column-deleted, return, pre-landing, mid-run. States: derived,
+  touched-scheme, picks-and-pins, path-set. Aftermaths: immediate,
+  generate, return.
+
+  THE SPINE runs every route against the two states with the most to
+  lose, plus the plain route against everything; a seeded sample
+  rotates through the rest. Every failing cell is reported, not the
+  first; the cell count is asserted so a silently skipped journey
+  cannot read as coverage.
+
+  Regression: none yet; this is the matrix the rulings of 2026-08-21 and 24 owed from the start.
+ [unrecorded]
+  """
+  import random
+  spine = []
+  for route in ("plain", "same-schema", "shared-name",
+                "column-deleted", "return", "pre-landing", "mid-run"):
+    spine.append((route, "touched-scheme", "immediate"))
+    spine.append((route, "picks-and-pins", "immediate"))
+  for state in ("derived", "touched-scheme", "picks-and-pins",
+                "path-set"):
+    spine.append(("plain", state, "immediate"))
+  spine.append(("plain", "picks-and-pins", "return"))
+  spine.append(("plain", "touched-scheme", "return"))
+  spine.append(("plain", "derived", "generate"))
+  spine.append(("same-schema", "path-set", "generate"))
+  spine.append(("mid-run", "touched-scheme", "generate"))
+  seed = int(os.environ.get("WEAVINGSPACE_MATRIX_SEED", "20260825"))
+  rng = random.Random(seed)
+  pool = [(r, s, a)
+          for r in ("plain", "same-schema", "shared-name")
+          for s in ("derived", "touched-scheme", "picks-and-pins",
+                    "path-set")
+          for a in ("immediate", "generate")
+          if (r, s, a) not in spine]
+  sampled = rng.sample(pool, 4)
+  cells = list(dict.fromkeys(spine + sampled))
+  complaints = []
+  ran = 0
+  for route, state, aftermath in cells:
+    verdict, detail = _switch_matrix_cell(route, state, aftermath)
+    ran += 1
+    if verdict != "ok":
+      complaints.append(f"{route}/{state}/{aftermath}: {verdict} "
+                        f"({detail})")
+  assert ran == len(cells) and ran >= 22, \
+    f"only {ran} cells ran of {len(cells)}; a matrix that skips " \
+    f"quietly reads as coverage"
+  assert not complaints, \
+    "the switch matrix found " + str(len(complaints)) + \
+    " broken cell(s) under seed " + str(seed) + ":\n  " + \
+    "\n  ".join(complaints)
+
+
 def test_a_categorical_scheme_copies_onto_another_element():
   """The control exists, and it overwrites all but four things.
 
@@ -57082,6 +57349,8 @@ def main():
         test_value_laden_records_never_cross_a_shared_name)
   check("a dataset's files never name another's columns",
         test_a_datasets_files_never_name_anothers_columns)
+  check("a dataset switch keeps its promises on every route",
+        test_a_dataset_switch_keeps_its_promises_on_every_route)
   check("a column that keeps its name and changes its kind",
         test_a_column_that_keeps_its_name_and_changes_its_kind)
   check("a copy asks before drawing a colour for every value",

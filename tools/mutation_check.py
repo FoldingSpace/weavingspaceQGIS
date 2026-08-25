@@ -697,6 +697,18 @@ MUTATIONS = [
            "that is thousands, and the user finds out by watching QGIS "
            "do it. The maintainer ruled it a question rather than a "
            "refusal, on one threshold shared with the dataset switch"),
+  dict(name="keep-by-name-is-what-a-switch-keeps", file=DIALOG,
+       old="""      if prev and prev["var"] in fields:
+        var_combo.setCurrentText(prev["var"])""",
+       new="""      if False:  # mutation: keep nothing by name
+        var_combo.setCurrentText(prev["var"])""",
+       test="test_a_dataset_switch_keeps_its_promises_on_every_route",
+       why="keep-by-name is the rule every other switch ruling is an "
+           "exception TO, and it had no entry of its own: an element "
+           "keeps its variable where the new data has a column of "
+           "that name. The matrix's same-schema cells are the guard, "
+           "which is fitting -- the matrix exists because journeys "
+           "tested one axis each"),
   dict(name="orphan-records-belong-to-the-first-dataset-chosen",
        file=DIALOG,
        old="""      for name, store in outgoing.items():
