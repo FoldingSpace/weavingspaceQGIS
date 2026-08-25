@@ -46038,6 +46038,139 @@ def test_auto_spacing_offers_a_round_number():
   assert _nice_number(0) == 1.0, "a degenerate extent must not divide by zero"
 
 
+def test_a_spacing_a_person_typed_outlives_a_change_of_dataset():
+  """Whose number is in the spacing box, across the journey that lost it.
+
+  THE RULING (maintainer, 2026-08-25): a spacing somebody TYPED
+  survives a change of region dataset, and one the plugin DERIVED is
+  still re-derived for the new data. Pressing Auto hands the choice
+  back, so the number becomes the plugin's again. What keeping a
+  number allows -- a floor plan's grain carried onto a country -- is
+  caught by the live gate and the confirm gate, which is where the
+  maintainer put the protection, rather than by overwriting what
+  somebody typed.
+
+  A FAMILY RATHER THAN A CASE, so it runs as a small matrix: three
+  ways a number gets into the box, crossed with the journey that used
+  to destroy it. Every cell is collected and reported together rather
+  than failing at the first, and the count of cells is asserted --
+  a loop that silently compared nothing is this project's commonest
+  vacuous pass.
+
+  THE THREE NUMBERS MUST DIFFER, and that premise is asserted before
+  anything is concluded. If A's derived spacing, B's derived spacing
+  and the typed one were not three distinct values, "kept" and
+  "re-derived" would be indistinguishable and this test would pass
+  with the guard deleted -- the fixture-that-cannot-move trap, which
+  bit this suite as recently as 2026-08-24 on a preference whose
+  mutation fell back to the same column by accident.
+
+  TYPED THROUGH THE LINE EDIT, not `setValue`, because `setValue` is
+  also how the plugin's own suggestion arrives: a test that used it
+  for the user's half would be asserting that a programmatic write
+  counts as somebody's choice, which is the opposite of the contract.
+
+  Regression: a spacing a person typed was destroyed by a round trip through another dataset -- 137 typed, another layer chosen, and 500 on return with nothing said -- because auto-spacing re-derived once per newly chosen layer id and a return counts as new. [mutation]
+  """
+  from qgis.PyQt.QtCore import Qt as _Qt
+  from qgis.PyQt.QtTest import QTest
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  typed_value = 137.0
+
+  def journey(typed, press_auto):
+    """Readings at each stage of A -> (type?) -> B -> A."""
+    A = make_region_layer(n=4, cell=1000)
+    A.setName("A")
+    B = make_region_layer(n=4, cell=4000, origin=(900_000, 0))
+    B.setName("B")
+    project.addMapLayer(A)
+    project.addMapLayer(B)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    try:
+      dlg.layer_combo.setLayer(A)
+      _tick(400)
+      derived_a = dlg.spacing_spin.value()
+      if typed is not None:
+        box = dlg.spacing_spin
+        box.lineEdit().selectAll()
+        QTest.keyClicks(box.lineEdit(), str(int(typed)))
+        QTest.keyClick(box, _Qt.Key.Key_Return)
+        _tick(100)
+      if press_auto:
+        # the Auto button's own handler, which is what the button calls
+        dlg._auto_spacing()
+        _tick(100)
+      on_a = dlg.spacing_spin.value()
+      dlg.layer_combo.setLayer(B)
+      _tick(800)
+      on_b = dlg.spacing_spin.value()
+      dlg.layer_combo.setLayer(A)
+      _tick(900)
+      return derived_a, on_a, on_b, dlg.spacing_spin.value()
+    finally:
+      dlg.close()
+      project.clear()
+
+  kept = journey(typed_value, False)
+  plain = journey(None, False)
+  handed_back = journey(typed_value, True)
+
+  derived_a, derived_b = plain[0], plain[2]
+  assert abs(derived_a - derived_b) > 1e-9, \
+    f"both datasets derive the same spacing ({derived_a}), so this " \
+    f"test cannot tell a kept number from a re-derived one and would " \
+    f"pass with the guard deleted"
+  for label, value in (("A's derived", derived_a), ("B's derived", derived_b)):
+    assert abs(typed_value - value) > 1e-9, \
+      f"the typed spacing {typed_value} equals {label} ({value}), so " \
+      f"keeping it and deriving it are indistinguishable here"
+  assert abs(kept[1] - typed_value) < 1e-9, \
+    f"typing {typed_value} into the box left {kept[1]}: the fixture " \
+    f"never staged the case, so every cell below is vacuous"
+
+  problems, checked = [], 0
+
+  checked += 1
+  if abs(kept[3] - typed_value) > 1e-9:
+    problems.append(
+      f"a spacing a person typed did not survive the round trip: "
+      f"typed {typed_value}, came home {kept[3]} "
+      f"(A derives {derived_a}, so the plugin's number won)")
+
+  checked += 1
+  if abs(kept[2] - typed_value) > 1e-9:
+    problems.append(
+      f"a typed spacing was not carried onto the new dataset: "
+      f"typed {typed_value}, read {kept[2]} on B")
+
+  checked += 1
+  if abs(plain[2] - derived_a) < 1e-9:
+    problems.append(
+      f"a spacing the PLUGIN derived was carried onto the new dataset "
+      f"({plain[2]}) instead of being re-derived for it: a number "
+      f"nobody chose says nothing about the new data")
+
+  checked += 1
+  if abs(plain[3] - derived_a) > 1e-9:
+    problems.append(
+      f"a derived spacing did not come back for its own dataset: "
+      f"expected {derived_a}, read {plain[3]}")
+
+  checked += 1
+  if abs(handed_back[2] - derived_b) > 1e-9:
+    problems.append(
+      f"pressing Auto did not hand the choice back: after Auto the "
+      f"next dataset read {handed_back[2]} rather than its own "
+      f"derived {derived_b}")
+
+  assert checked == 5, f"only {checked} cells were compared"
+  assert not problems, \
+    "the spacing box forgot whose number it holds:\n  " + \
+    "\n  ".join(problems)
+
+
 def test_preview_draws_the_middle_of_the_patch():
   """With context shells on, the preview must include the CENTRE unit.
 
@@ -57987,6 +58120,8 @@ def main():
         test_preview_colours_follow_the_variable)
   check("auto spacing offers a round number",
         test_auto_spacing_offers_a_round_number)
+  check("a spacing a person typed outlives a change of dataset",
+        test_a_spacing_a_person_typed_outlives_a_change_of_dataset)
   check("the preview draws the middle of the patch",
         test_preview_draws_the_middle_of_the_patch)
   check("switching region layer counts as a change",

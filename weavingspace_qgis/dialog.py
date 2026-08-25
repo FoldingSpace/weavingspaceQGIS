@@ -1610,6 +1610,16 @@ class WeavingSpaceDialog(QDialog):
     # which layer auto-spacing last ran for (it must run once per
     # newly chosen layer, never on the combo's spurious re-emissions)
     self._auto_spacing_layer = None
+    # WHOSE NUMBER IS IN THE SPACING BOX. True once somebody has typed
+    # or stepped one, False while it is whatever the plugin derived --
+    # and a typed number survives a change of dataset where a derived
+    # one is replaced (maintainer's ruling, 2026-08-25). Pressing Auto
+    # hands the choice back, so it clears. Set here rather than in
+    # _build_ui, which runs later: the spacing box connects its own
+    # handler, and an attribute that does not exist yet raises inside a
+    # Qt slot, where the exception is swallowed and takes the rest of
+    # the handler with it.
+    self._spacing_is_mine = False
     # (layer id, field names) the assignment table was last built
     # for, so a layer choice that lands after the signal can be
     # noticed. See _settle_layer_choice.
@@ -1908,6 +1918,10 @@ class WeavingSpaceDialog(QDialog):
       "The pattern's grain in map units. Try aiming near the typical polygon "
       "width.")
     self.spacing_spin.valueChanged.connect(self._queue_preview)
+    # ...and record whose number it now is, before the preview is
+    # queued or after, it makes no difference: both connections fire on
+    # the same signal and neither reads the other's work.
+    self.spacing_spin.valueChanged.connect(self._spacing_typed)
     spacing_row = QHBoxLayout()
     spacing_row.addWidget(self.spacing_spin)
     auto = QPushButton("Auto")
@@ -2520,9 +2534,29 @@ class WeavingSpaceDialog(QDialog):
     # derive spacing once per newly chosen layer; the combo re-emits
     # layerChanged whenever project layers shuffle (e.g. after every
     # generation), and that must not clobber a hand-set spacing
+    # ...AND A NUMBER A PERSON TYPED SURVIVES A CHANGE OF DATASET TOO.
+    # (Maintainer's ruling, 2026-08-25.) The guard above was written to
+    # protect a typed spacing from the combo's re-emissions, and it
+    # re-derived over that same spacing the moment the dataset really
+    # changed: a probe typed 137, worked on another layer, came back
+    # and read 500 -- the auto-derived figure, with nothing said.
+    # WHAT THE PLUGIN DERIVED IS STILL RE-DERIVED, which is the other
+    # half of the ruling: a number nobody chose says nothing about the
+    # new data, and without this a country-sized layer would keep a
+    # floor plan's grain and draw nothing anybody wants.
+    # The absurd cases this now allows are caught where the maintainer
+    # put them rather than by re-deriving: the live gate pauses and
+    # says so, and the confirm gate asks before an explicit run. A
+    # spacing carried onto a dataset in different units is the case
+    # that argument is really about.
+    # THE LAYER ID IS RECORDED EITHER WAY. Skipping the assignment
+    # when the spacing is the user's would leave the guard armed, and
+    # the combo's next re-emission would then derive over the very
+    # number this clause exists to keep.
     if layer is not None and layer.id() != self._auto_spacing_layer:
       self._auto_spacing_layer = layer.id()
-      self._auto_spacing()
+      if not self._spacing_is_mine:
+        self._auto_spacing()
     # populate the variable choosers the moment the layer is chosen
     # (synchronously, not on the preview debounce), and queue the
     # automatic first render
@@ -3568,15 +3602,56 @@ class WeavingSpaceDialog(QDialog):
       # here rather than at construction, where the box holds a
       # default that says nothing about anybody's data.
       suggested = _nice_number(dim / 15)
+      # THE NUMBER THIS WRITES IS THE PLUGIN'S, and the assignment
+      # BELOW the write is what says so. `setValue` emits
+      # `valueChanged` synchronously, so `_spacing_typed` runs first
+      # and marks the box as somebody's choice; clearing it afterwards
+      # is what corrects that. THE ORDER IS LOAD-BEARING -- moved above
+      # the write, every suggestion would look hand-typed and no
+      # dataset would ever get a spacing derived for it again.
+      # A `_deriving_spacing` guard stood here and was DELETED on
+      # 2026-08-25, when its catalogue entry could only SURVIVE: this
+      # is the only programmatic writer of the box (the construction
+      # default is set before the handler is connected), so the guard
+      # and the assignment did one job twice and mutating either
+      # changed nothing any test could see. Redundant is not free --
+      # it costs a permanent survivor in the catalogue and a reader
+      # who cannot tell which mechanism is the live one.
       self.spacing_spin.setValue(suggested)
+      # ...INCLUDING WHEN THE USER PRESSED Auto, which is the point of
+      # clearing it here rather than only on the layer-change path:
+      # asking for a suggestion is handing the choice back.
+      self._spacing_is_mine = False
     else:
       # No usable extent: a layer with no CRS, or an empty one. Leave
       # the spacing alone rather than guessing from a bad number, and
       # say so, because the user pressed a button and is owed an
-      # answer either way.
+      # answer either way. Ownership is left alone with it: nothing was
+      # written, so whoever's number is in the box is still theirs.
       self._report_quietly(
         "That layer has no usable extent, so a spacing cannot be "
         "suggested. Type a spacing instead.")
+
+  def _spacing_typed(self, _value):
+    """Record that the number in the spacing box is the user's own.
+
+    Args:
+      _value: the box's new value, which this does not read. The
+        handler is about WHO changed the spacing, never about what to.
+
+    Returns:
+      None. Sets `_spacing_is_mine`, which is what carries a typed
+      spacing across a change of dataset.
+
+    IT FIRES FOR THE PLUGIN'S OWN WRITE TOO, and that is deliberate
+    rather than overlooked. `_auto_spacing` clears the flag on the line
+    after its `setValue`, so a suggestion ends up marked as the
+    plugin's whichever order the signals run in. A second guard here
+    was written and removed the same day: two mechanisms for one rule
+    meant the catalogue could kill neither alone, which is a permanent
+    survivor rather than a guarded behaviour.
+    """
+    self._spacing_is_mine = True
 
   def _layer_fields(self) -> list[str]:
     """Attribute (column) names of the region layer; ``fields()`` is
@@ -6166,6 +6241,11 @@ class WeavingSpaceDialog(QDialog):
     # auto-spacing must run again for whatever layer is chosen next:
     # the id it remembers belongs to a project that no longer exists
     self._auto_spacing_layer = None
+    # ...and so does the claim that the number in the box is somebody's
+    # own. A spacing typed for the project being closed must not keep
+    # the next project's first dataset from getting a derived one,
+    # which is the same reasoning as the line above it.
+    self._spacing_is_mine = False
 
   def _adopt_row_symbology(self, layer, tile_id):
     """Read an adopted layer's ramp, class count and colours back.

@@ -214,6 +214,23 @@ writable to file while another is chosen. Value-laden records never
 cross a shared column name; the style (mode, ramp, Reverse, class
 count) keeps by name as it always has.
 
+**AND THAT CONTRACT IS BEING REPLACED RATHER THAN PATCHED.** Settled
+by a grilling on 2026-08-25, after a colleague drove the rules through
+a real demo of several datasets in a row: the OUTPUT GROUP becomes the
+unit of work, chosen from a dropdown beside the region chooser, bound
+symmetrically to the dataset, and carrying the whole working state so
+that selecting a group restores its design and its styling together.
+`_fresh_group_for_new_data` retires with it, because the protection it
+gave comes from which group is selected.
+THIS PARAGRAPH DESCRIBES A DECISION, NOT CODE THAT EXISTS YET. The
+rulings are in CLAUDE.md and the build order is in ROADMAP.md; a
+maintainer reading this before it lands should trust the two
+paragraphs above for how the plugin behaves today. The reason the
+replacement is worth its cost is one sentence of the report that
+prompted it: three scopes -- records kept per dataset, a design
+carried globally, a group remembered nowhere -- answer a single act in
+three different ways, and none of the three is named on screen.
+
 **AND WHAT RE-DEFAULTS TAKES ITS STYLE WITH IT.** An element whose
 column has gone re-points at a surviving field, and since 2026-08-20 it
 also gives up the style somebody had chosen: a scheme cut for one

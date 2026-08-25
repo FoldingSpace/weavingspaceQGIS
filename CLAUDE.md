@@ -971,6 +971,38 @@ about not paying twice for the same information. Measured on the
   the QGIS default is exactly the kind of decision to put to the user
   one question at a time, with the trade-off named, rather than
   settling it silently in either direction.
+- **TWO RELATIONSHIPS, AND ONLY ONE OF THEM MAKES PERSISTENCE A
+  DUTY.** (Maintainer's framing, 2026-08-25, offered while the
+  dataset-switch rules were being reopened, and it is the sharpest
+  thing said about them.) Much of this plugin's instinct to REMEMBER
+  comes from the one context where remembering is an obligation: the
+  boundary with QGIS. There the plugin is a guest in somebody else's
+  application, and what it holds is the user's own work -- hand
+  styling done in the dock, a group they renamed, the stamps in a
+  saved project, the tables in a GeoPackage a colleague will open.
+  Losing any of that DESTROYS something, and that is why "preserve, do
+  not repaint", the follow rules, adoption, and ruling 8's per-dataset
+  banks all lean the same way.
+  NONE OF THAT REASONING REACHES THE DIALOG'S OWN CONTROLS. What the
+  design chooser, the family list, the spacing box and the assignment
+  table carry from one act to the next is the plugin talking to its
+  user about the plugin, with no third party's work at stake:
+  forgetting there costs somebody a few clicks, never a map. So those
+  questions are settled on their own merits -- what makes the next
+  thirty seconds clear -- and a "we must never lose anything" argument
+  imported from the QGIS boundary is not evidence about them.
+  WHAT THIS DOES NOT SAY is that the dialog should forget. It says the
+  two questions are INDEPENDENT, and that an answer for one must be
+  argued rather than inherited from the other. On the settled side:
+  hand-picked colours, pinned bounds, everything stamped onto a layer
+  or written to a file, and the rule that a landing never writes over
+  a map made from another dataset. On the open side, as of this date:
+  whether the design travels a change of dataset, what a retained
+  scheme follows, what the design-floor question offers, and whether
+  "use tileable as icon" persists. The spacing was the first of the
+  open ones to be decided, and decided on its own merits rather than
+  by analogy -- a number a person TYPED survives, a number the plugin
+  DERIVED does not.
 
 ## Lessons learned here (do not relearn these the hard way)
 
@@ -1822,6 +1854,100 @@ Confirmed with the user via an explicit design review:
   the one place the boundary lives; the retained-scheme question
   deliberately stays on the plain switch, because it is about what
   the TABLE carries rather than about protecting output.
+
+- **THE OUTPUT GROUP IS THE UNIT OF WORK: THE RULINGS OF 2026-08-25.**
+  (Settled by a full grilling, on a colleague's report from a real
+  demo of several datasets in a row, and on a probe that measured
+  every claim in it. It COMPLETES the rulings above rather than
+  reversing them, and it retires some of their machinery.)
+  WHAT THE REPORT FOUND, and the probe confirmed on this branch: the
+  design travels a change of dataset intact, the value-laden records
+  are banked per dataset, and the output group is remembered nowhere
+  -- three scopes answering ONE act in three ways, none of them named
+  anywhere on screen. A-B-A leaves THREE groups, the first and third
+  stamped for the same dataset, so one dataset already owns two maps
+  with nothing to tell them apart. Returning to a dataset gives its
+  colours and pins back and somebody else's design. The colleague's
+  diagnosis is the sentence to keep: inferring all of this "is OK as
+  far as it goes, but it's too hard to be reliable and not produce
+  weird seeming behaviour relatively often".
+  1. THE DIALOG CARRIES A DROPDOWN OF OUTPUT GROUPS, on the first tab
+     beside the region chooser, with a "create new" entry. It is not a
+     memory feature: the group is a QGIS-side artefact that already
+     exists, already carries an identity in `weavingspace_region`, and
+     was already being chosen on every run by a rule the user could
+     neither see nor override.
+  2. DATASET AND GROUP ARE BOUND SYMMETRICALLY -- choosing either
+     selects the other. Built with signals blocked, as
+     `_sync_pin_controls` already does, or setting a control right
+     fires the handler that set it right.
+  3. WHERE A DATASET OWNS SEVERAL GROUPS, choosing it selects the most
+     RECENT, read off the project's own layer order rather than
+     remembered. A fact about the project beats a guess about intent,
+     and it survives a reopen where a session record would not.
+  4. THE WHOLE WORKING STATE BELONGS TO THE GROUP: family, kind,
+     element count, spacing, modifiers, icon mode, and every element's
+     variable, style, ramp, Reverse, class count, class source,
+     colours, pins and opacity. Selecting a group RESTORES all of it,
+     so nothing is inferred -- the direct answer to the diagnosis
+     above. Stored in the group's own custom properties, so it
+     persists with the project for free.
+     THE RESTORE WHITELIST IS THE RECORD'S REAL DEFINITION, exactly as
+     it is for `_adopt_dock_bounds`: a key missing from it is dropped
+     in SILENCE on every reopen, so the record is right all session
+     and wrong the moment the project comes back. Widen that list in
+     the same commit as the record, always.
+  5. THE GEOPACKAGE IS RESUMABLE, and the source comes back BY
+     REFERENCE -- the path is already recorded on every output layer
+     -- with EMBEDDING THE SOURCE as an explicit opt-in, for a file
+     somebody else is meant to carry on with. That keeps the ordinary
+     file small and private and makes portability a choice the user
+     makes, which is the same shape as the dependency consent and as
+     ruling 8's "sharing a ladder across files is an explicit act".
+  6. ELEMENT TABLES ARE TRIMMED to the symbolised variable plus the
+     identifiers, and named `tiles_<tid>_<variable>`. Adoption goes on
+     reading the old `tiles_<tid>`, because files and projects already
+     exist that use it. Names are sanitised and collisions handled: a
+     GeoPackage folds case, so `tiles_a` and `tiles_A` become one
+     table with both writes reporting success (measured 2026-08-14).
+     TRIMMING IS ONLY SAFE BECAUSE OF 5. The colleague's argument for
+     carrying every column was that a tiling may be missing data in
+     some variables, so the full set hedges a lossy encoding. With the
+     source recoverable, switching a variable RE-TILES from the source
+     rather than reading a column carried along just in case.
+  WHAT THIS RETIRES. `_fresh_group_for_new_data` goes: the protection
+  it gave comes from WHICH GROUP IS SELECTED now, not from arming a
+  flag. Much of the per-dataset bank's job goes with it, though not
+  all -- styling done before anything is generated has no group to
+  belong to yet. A group belongs to exactly one dataset, so per-group
+  is a NARROWER scope than ruling 8's per-dataset banks, and nothing
+  here weakens that ruling.
+  WHY IT DOES NOT REVERSE RULING 2. That ruling arms a fresh group on
+  a switch so the map of the dataset you LEFT survives. Under the
+  binding, A-generate-B-generate-back-to-A lands on A's own group and
+  replaces that map in place while B's is untouched -- which is what
+  the colleague asked for, and what ruling 2 was reaching for through
+  a proxy.
+  WHAT WAS REJECTED, recorded so nobody re-litigates it silently. The
+  colleague offered a genuine alternative -- REWIND TO ONE SHOT: work
+  on the current dataset, save it as now so it can be reloaded but not
+  resumed, and forget everything on an unsaved switch. It had the
+  strongest single argument in the room, that nine of the eleven
+  defects of 2026-08-25 were in exactly the machinery it deletes. It
+  was not taken because it costs the one behaviour the colleague
+  himself singled out as working (symbology coming back on a return)
+  and makes the several-datasets demo worse rather than better, which
+  is the session the whole report came from. THE MIDDLE OPTION was
+  also refused: keep inferring and mend the asymmetries by putting the
+  design in the per-dataset bank. It is much the cheapest, and it
+  fails on its own terms -- A-B-A would then move the design under the
+  user TWICE, where a design you SELECT never moves on its own.
+  AND THE PRINCIPLE THAT DECIDED IT is the one above, in "How we
+  decide things": persistence is a duty at the QGIS boundary and a
+  design question at the dialog's own controls. Every argument of the
+  form "but we would be destroying their work" was struck out of the
+  user-plugin half of this decision, because nothing of theirs is
+  destroyed there.
 
 - **A BLANK THE PLUGIN IMPOSED IS NOT A CHOICE THE USER MADE.** An
   element left on "---" stays unassigned through rebuilds, because

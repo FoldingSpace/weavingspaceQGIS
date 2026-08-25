@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-305 defect(s) with a regression test.
+306 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -297,6 +297,8 @@ there is no separate list to remember.
   guarded by `test_a_reopened_project_still_hears_a_recolour_made_in_qgis`
 - **a guard computed as a delta was armed for one invocation, so a second repaint after a class was added in QGIS recorded four of the plugin's own ramp colours as the user's hand-picks, stamped into the project.**  
   guarded by `test_a_second_reconciliation_adopts_no_colour_the_plugin_painted`
+- **a spacing a person typed was destroyed by a round trip through another dataset -- 137 typed, another layer chosen, and 500 on return with nothing said -- because auto-spacing re-derived once per newly chosen layer id and a return counts as new.**  
+  guarded by `test_a_spacing_a_person_typed_outlives_a_change_of_dataset`
 - **an automatic mutant moved the sampling divisor and one covering test noticed nothing, because nothing looked at where the swatch ended.**  
   guarded by `test_an_unclassed_swatch_reaches_both_ends_of_its_ramp`
 - **control ranges and steps were unasserted as a class; a mutation batch moved one and the suite was silent.**  
@@ -663,7 +665,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
-- the mutation campaign: 42
+- the mutation campaign: 43
 - reported by a user: 29
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

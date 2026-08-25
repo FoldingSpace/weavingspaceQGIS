@@ -5257,6 +5257,37 @@ MUTATIONS = [
        why="economy without invalidation is a STALE swatch: a ramp "
            "removed or renamed in the Style Manager keeps its old "
            "picture forever, silently, since nothing else redraws it"),
+  dict(name="a-typed-spacing-outlives-a-change-of-dataset", file=DIALOG,
+       old="""      if not self._spacing_is_mine:
+        self._auto_spacing()""",
+       new="""      if True:  # mutation: derive over the user's own number
+        self._auto_spacing()""",
+       test="test_a_spacing_a_person_typed_outlives_a_change_of_dataset",
+       why="this is the whole of the maintainer's ruling of "
+           "2026-08-25: without the guard a spacing somebody typed is "
+           "replaced by the auto-derived one the moment they choose "
+           "another dataset, which a probe measured as 137 typed and "
+           "500 on return, with nothing said"),
+  # A THIRD ENTRY STOOD HERE AND WAS DELETED ON 2026-08-25, with the
+  # code it guarded. `the-plugins-own-spacing-is-not-somebodys-choice`
+  # mutated a `_deriving_spacing` flag that stopped `_spacing_typed`
+  # claiming the plugin's own `setValue` -- and it SURVIVED, because
+  # `_auto_spacing` clears ownership on the line after the write
+  # regardless. Two mechanisms, one rule, and neither killable alone.
+  # The flag went; the assignment below is the single owner and is
+  # proved by `auto-hands-the-spacing-choice-back`, which mutates it.
+  dict(name="auto-hands-the-spacing-choice-back", file=DIALOG,
+       old="""      self._spacing_is_mine = False
+    else:
+      # No usable extent: a layer with no CRS, or an empty one. Leave""",
+       new="""      pass  # mutation: Auto keeps the number the user's
+    else:
+      # No usable extent: a layer with no CRS, or an empty one. Leave""",
+       test="test_a_spacing_a_person_typed_outlives_a_change_of_dataset",
+       why="pressing Auto is the user asking the plugin to choose, so "
+           "it must give ownership back; without this the box stays "
+           "'theirs' forever after one typed number and every later "
+           "dataset keeps a spacing derived for a different one"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a

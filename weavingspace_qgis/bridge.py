@@ -117,7 +117,14 @@ _RAMP_NAME_BY_LOWER = {}
 # QGIS), above CONFIRM a button press asks first, above LIVE the
 # debounced auto-regeneration pauses and waits for an explicit press
 MAX_TILES_HARD = 200_000
-MAX_TILES_CONFIRM = 40_000
+# RAISED FROM 40,000 ON 2026-08-25, maintainer's ruling, in the same
+# breath as the rule that a spacing a person typed survives a change
+# of dataset. The two belong together: keeping a typed number means
+# more runs arrive here large, and being asked at forty thousand --
+# which this plugin draws in seconds -- turns the question into
+# something people click through without reading, which is how a
+# confirmation stops confirming anything.
+MAX_TILES_CONFIRM = 100_000
 LIVE_UPDATE_MAX_TILES = 20_000
 
 
