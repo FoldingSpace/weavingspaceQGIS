@@ -105,7 +105,9 @@ changelog=0.24.3 You decide how your data is classed: which values are
     Design: the scale factors take negative values, which mirror the
     design about that axis and scale it by the size of the number.
     The up and down controls step through zero rather than stopping
-    there.
+    there. Rotation turns a full circle either way rather than
+    stopping at a quarter turn, so half a turn is one number rather
+    than a puzzle.
     Maps that were refused to be drawn: the check on how many tiles
     a spacing asks for measured the box around your areas rather
     than the areas themselves, so a region that does not fill its

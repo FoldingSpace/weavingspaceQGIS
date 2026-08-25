@@ -719,6 +719,11 @@
   "excerpt": "Where this element's class colours come from.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "66b16b4cbbe85a02": {
+  "approved": "2026-08-25",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
  "66e7bf00623a580e": {
   "approved": "2026-08-08",
   "excerpt": "The plugin draws the same kinds of map from your own layers:",
