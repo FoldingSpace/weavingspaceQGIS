@@ -1692,6 +1692,67 @@ not the same evidence -- a failure in the first has to RESET the
 count, and it cannot if the second was already running. Any change to
 the code or the harness resets it too.
 
+## A CLEANUP THAT WORKS BY SIDE EFFECT IS A CLEANUP NOBODY WROTE
+
+2026-08-25, and it is the best lesson of a night that found seven
+defects. `_forget_the_last_project` clears every field-keyed record
+when a project is replaced, and its list had been missing the scheme
+shelf since the shelf existed. A hunt LOOKED at that omission earlier
+the same night and ruled it benign -- correctly, and it measured why:
+the bank swap ran with None on a project replacement and emptied the
+view on its way past. Three hours later a fix elsewhere stopped the
+swap running on an empty chooser, and the omission became a leak, a
+scheme from the project you closed redrawing a column in the project
+you opened.
+
+**A LIST THAT IS WRONG BUT MASKED IS STILL WRONG.** When you find a
+record emptied by something other than the code that owns it, write
+the entry anyway, and say at the site that the other thing is not
+what keeps it true. The mask is not a defence; it is a countdown.
+
+**AND A RULED-OUT FINDING IS RULED OUT AGAINST A TREE.** This
+project's hunt briefs already ask what was ruled out and why. What
+this adds: a ruling-out is only as durable as the code it measured,
+so when a fix lands near ground a hunt cleared, the clearing is worth
+re-reading rather than trusting.
+
+## A RECORD IS NOT WHAT THE USER SEES, WHERE A PATH EDITS IN PLACE
+
+2026-08-25, found by a hunt an hour after the matrix, the tests and
+the entries had all agreed the code was right. `_adapt_to_the_layer`
+-- the door taken when a column is deleted in QGIS -- may not rebuild
+the table, because a rebuild mid-interaction is the race this project
+has already paid for. So it edits widgets in place. The fix for "a
+dropped column takes its whole scheme" shelved the RECORDS there and
+stopped, and every record-level check passed: the ramp record was
+popped, the count record was popped. The MAP still drew the old ramp,
+because `_assignments` reads the WIDGETS.
+
+**WHERE A PATH EDITS IN PLACE, THE WIDGETS ARE THE STATE.** Ask of
+any fix that clears a record whether the thing the user sees reads
+that record or the control. This project's own reading rule already
+says to drive the product and read the pixels; the sharper version is
+that a record and a widget are TWO STORES, and clearing one is
+half a fix.
+
+## A FIX THAT KEYS ON AN ABSENT RECORD MUST ENUMERATE EVERY ROUTE TO
+## THAT ABSENCE
+
+Also 2026-08-25, and it is the same night's most transferable line.
+The per-dataset banks merge records written before any dataset
+identity exists into the first bank, because a reopened project's
+adoption writes stamps before the chooser settles. `old_id is None`
+was written to mean exactly that. It also means "the plugin was
+opened before the data was loaded" -- a route nobody listed -- and on
+that route the branch filed one dataset's hand-picked colours, keyed
+by its own value strings, into the NEXT dataset's bank, its map and
+its saved project.
+
+The fix was one line at the other site that binds the identity. The
+lesson is the question that was not asked: when a branch fires on the
+ABSENCE of a record, enumerate every way the record can be absent,
+and write the list at the branch.
+
 ## THE SWITCH MATRIX, AND WHAT ITS FIRST RUN TAUGHT
 
 2026-08-25, built when the maintainer asked whether the day's changes

@@ -1344,6 +1344,16 @@ class WeavingSpaceDialog(QDialog):
     # to the dataset they were made ON: the rebuild runs after the
     # swap, so _shelve_scheme writes here when it is set.
     self._pending_outgoing_shelf = None
+    # Elements whose scheme was SHELVED and not yet rebuilt. Read and
+    # cleared by `_refresh_table`: a shelved scheme must not be
+    # refilled from the previous table, and the rebuild's own
+    # `column_gone` test cannot see door three, where
+    # `_adapt_to_the_layer` re-points the row at a surviving column
+    # BEFORE the rebuild runs. Two hunts found that door on
+    # 2026-08-25, keeping the ramp and the class count against ruling
+    # 3, and the class source going home wearing another dataset's
+    # file through the same gap.
+    self._scheme_just_reset = set()
     # Armed by _begin_new_dataset, spent by the next landing: the
     # first Generate after a change of dataset builds a FRESH group,
     # so B's map never replaces A's result in the project.
@@ -2437,8 +2447,19 @@ class WeavingSpaceDialog(QDialog):
     # is what `_settle_retained_schemes` below asks about. Reading
     # `_watched_layer` after the watch is rearmed would answer about
     # the layer we have just adopted.
-    switched = (layer is not None and self._watched_layer is not None
-                and layer is not self._watched_layer)
+    # THE DATASET IN FORCE, NOT THE WATCHED LAYER OBJECT. Asked of
+    # `_watched_layer`, this missed the route a hunt found on
+    # 2026-08-25: REMOVE the region layer from the project and choose
+    # another, and the removal has already nulled the watch -- so the
+    # next dataset read as a FIRST CHOICE, the output path was never
+    # cleared, and Generate wrote the new data over the GeoPackage
+    # holding the last one's map, unasked. The code disagreed with
+    # itself, since `_swap_dataset_memory` banked the old dataset on
+    # the same pass. `_memory_layer_id` is the identity of the dataset
+    # whose bank is open; a removal does not touch it, which is what
+    # makes it the honest answer to "which dataset is in force".
+    switched = (layer is not None and self._memory_layer_id is not None
+                and layer.id() != self._memory_layer_id)
     # ...AND ONLY LEAVING A DATASET THIS SESSION HAS BUILT FROM IS A
     # CHANGE OF DATASET. The full suite drew this boundary on the
     # first whole run of the seven rulings, with three cases the plain
@@ -2555,6 +2576,18 @@ class WeavingSpaceDialog(QDialog):
     if stamp == self._table_built_for:
       return
     self._table_built_for = stamp
+    # THE DATASET IN FORCE BINDS HERE TOO. This is the other route by
+    # which a layer becomes the chooser's -- the combo settling after
+    # the fact, which is how a plugin opened BEFORE the data gets its
+    # first dataset -- and it did not swap banks, so
+    # `_memory_layer_id` stayed None while the user worked. The next
+    # dataset they picked then took the pre-identity merge branch and
+    # inherited the first one's hand-picked colours, keyed by its
+    # value strings, into its map and its saved project. Found by a
+    # hunt, 2026-08-25, inside that merge's own first night: when a
+    # branch keys on "no identity yet", enumerate every route that
+    # reaches that state.
+    self._swap_dataset_memory(layer)
     self._rebuild_unit()
 
   def _swap_dataset_memory(self, layer):
@@ -2588,7 +2621,17 @@ class WeavingSpaceDialog(QDialog):
     home wearing a surviving name keeps it rather than consulting the
     shelf, the composition of two rulings rather than a third.
     """
-    new_id = layer.id() if layer is not None else None
+    if layer is None:
+      # AN EMPTY CHOOSER IS NOT A DATASET, and closing the bank here
+      # is what defeated the boundary fix above: removing the region
+      # layer empties the combo, this ran with None, banked the
+      # outgoing dataset and NULLED the identity -- so the next
+      # dataset arrived to find nothing in force and read as a first
+      # choice. Nothing can be read or written against no layer, so
+      # holding the bank open costs nothing and keeps the one record
+      # that remembers which dataset the session was working on.
+      return
+    new_id = layer.id()
     old_id = self._memory_layer_id
     if old_id == new_id:
       return
@@ -2623,6 +2666,7 @@ class WeavingSpaceDialog(QDialog):
           "banked" if old_id is not None else "no-outgoing")
     self._pending_outgoing_shelf = (outgoing["shelf"]
                                     if old_id is not None else None)
+    return
 
   def _begin_new_dataset(self, layer):
     """What a change of region dataset does before the table rebuilds.
@@ -3364,6 +3408,40 @@ class WeavingSpaceDialog(QDialog):
         mode_cell.setProperty("touched", False)
         mode_cell.setProperty("last_style", instead)
         self._sync_row(row)
+      if mode_cell is not None:
+        # ...AND THE CONTROLS THEMSELVES, for EVERY row whose column
+        # has gone rather than only one whose STYLE somebody chose.
+        # This sat inside the branch above for an hour on 2026-08-25
+        # and a hunt found the hole: `_shelve_scheme` pops the records
+        # for every dropped row, so a user who picked a RAMP and
+        # accepted the derived style lost it twice -- the ramp went on
+        # painting the replacement column, then flipped to a default
+        # at the next unrelated rebuild. This door edits the row IN
+        # PLACE and never rebuilds (the race-among-choosers rule), so
+        # the widgets ARE the state and clearing the records alone is
+        # half a fix.
+        fresh = self.DEFAULT_RAMPS[row % len(self.DEFAULT_RAMPS)]
+        ramp_cell = self.table.cellWidget(row, 4)
+        if ramp_cell is not None and hasattr(ramp_cell, "findText") \
+            and ramp_cell.findText(fresh) >= 0:
+          ramp_cell.blockSignals(True)
+          ramp_cell.setCurrentText(fresh)
+          ramp_cell.blockSignals(False)
+          if tid_here:
+            self._ramp_choices[tid_here] = fresh
+        k_cell = self.table.cellWidget(row, 3)
+        if k_cell is not None and hasattr(k_cell, "setValue"):
+          k_cell.blockSignals(True)
+          k_cell.setValue(5)
+          k_cell.setProperty("user_k", 5)
+          k_cell.blockSignals(False)
+        switch = self._row_reverse(row)
+        if switch is not None:
+          switch.blockSignals(True)
+          switch.setChecked(False)
+          switch.blockSignals(False)
+          if tid_here:
+            self._reverse_choices[tid_here] = False
       moved.append((was, now))
       # THE PICKS ARE KEPT, exactly as the graduated ones are. This
       # used to pop the categorical record for the vanished field,
@@ -4841,6 +4919,7 @@ class WeavingSpaceDialog(QDialog):
     # one its column belonged to. Filing it in the incoming bank would
     # put one dataset's column names inside another's memory, which is
     # the leakage the banks exist to prevent.
+    self._scheme_just_reset.add(tile_id)
     shelf = (self._pending_outgoing_shelf
              if self._pending_outgoing_shelf is not None
              else self._scheme_memory)
@@ -4988,7 +5067,8 @@ class WeavingSpaceDialog(QDialog):
       # the ramp, the tick and the count all came straight back. That
       # is ruling 3 of 2026-08-21 undone by the code that reads the
       # table it was rebuilding.
-      scheme_reset = column_gone and restored is None
+      scheme_reset = restored is None and (
+        column_gone or tid in self._scheme_just_reset)
       if restored is not None:
         if restored.get("mode_raw") in self.MODES \
             and restored.get("touched"):
@@ -5182,8 +5262,19 @@ class WeavingSpaceDialog(QDialog):
         _dump("PREV", tid, "table=", prev["opacity"], "dialog=", "-")
         self._opacity_choices[tid] = prev["opacity"]
 
-      if prev and prev.get("class_choice") is not None:
+      if prev and prev.get("class_choice") is not None \
+          and not scheme_reset:
         self._class_choices[tid] = prev["class_choice"]
+      # A SECOND WRITE OF THE RESTORED CLASS SOURCE STOOD HERE and was
+      # deleted the same night: `_unshelve_scheme` already puts it
+      # back into `_class_choices`, so with the guard above in place
+      # this could only ever repeat it. Its catalogue entry SURVIVED,
+      # which is how a redundant line announces itself -- the second
+      # time tonight, and the rule is the one this file already
+      # carries: prefer deleting a line that does not earn its keep to
+      # writing a test that defends it. The behaviour is guarded by
+      # test_a_class_source_comes_home_to_the_dataset_it_was_chosen_on
+      # through the guard above.
     # WAS THIS BUILD MADE WITHOUT ANY FIELDS? If so, the "---" it left
     # on every row is an artefact rather than a choice, and the next
     # build must apply its defaults instead of preserving it. A user
@@ -5192,6 +5283,10 @@ class WeavingSpaceDialog(QDialog):
     # stayed empty because the fieldless build looked like somebody
     # deliberately unassigning all four.
     self._fieldless_build = not fields
+    # Spent by the rebuild that answered it: a later rebuild has a
+    # scheme nobody just reset, and leaving this armed would strip a
+    # ramp the user chose after the switch.
+    self._scheme_just_reset = set()
     self._update_dynamic_columns()
     # ...and every fresh row is asked what its LAYER holds, because
     # the rows above were built from the dialog's records and a layer
@@ -5887,6 +5982,20 @@ class WeavingSpaceDialog(QDialog):
                    self._pinned_bounds, self._ramp_ranges,
                    self._class_counts, self._synced_modes,
                    self._class_source_stamps, self._ramp_memory,
+                   # THE SHELF, which this list omitted until
+                   # 2026-08-25. It was harmless only by accident: the
+                   # bank swap used to run with None on a project
+                   # replacement and empty the view on its way past,
+                   # and tonight's fix -- an empty chooser no longer
+                   # forgets the dataset -- removed that accident. A
+                   # hunt found the consequence within the hour: a
+                   # scheme shelved in the project you CLOSED merged
+                   # into the first bank of the project you opened, so
+                   # an element redrew a column from the old project,
+                   # wearing its ramp, and wrote it into the
+                   # GeoPackage. A cleanup that works by side effect
+                   # is a cleanup nobody has written down.
+                   self._scheme_memory,
                    self._custom_swatch_cache):
       record.clear()
     self._dataset_memory.clear()
@@ -12333,6 +12442,24 @@ class WeavingSpaceDialog(QDialog):
     `test_the_dialog_opens_quickly_in_a_crowded_project` stages with a
     decoy "WeavingSpace tiles 2" two levels down.
     """
+    # THE DATASET IN THE CHOOSER OUTRANKS RECENCY, and that is the
+    # 2026-08-25 half of this. Ruling 2 makes a second output group
+    # the ordinary result of a demo, so "newest" stopped meaning "the
+    # one this dialog is about": reopening a project holding maps of
+    # two datasets and choosing the FIRST adopted the SECOND's group
+    # and replaced its map at the next Generate -- two maps becoming
+    # one dataset twice. A group made from the chosen dataset is
+    # preferred; recency decides among those, and remains the whole
+    # answer for output that predates the stamp.
+    # ASKED THROUGH getattr, because adoption runs during
+    # CONSTRUCTION, before the chooser exists -- the first draft of
+    # this preference raised there, which is a Qt slot swallowing the
+    # rest of the handler. With no chooser there is no dataset to
+    # prefer, and recency is the whole answer, exactly as before.
+    combo = getattr(self, "layer_combo", None)
+    region = combo.currentLayer() if combo is not None else None
+    wanted = region.source() if region is not None else ""
+    fallback = None
     for node in root.children():
       # the root holds layers as well as groups; only a group can be
       # written into
@@ -12340,14 +12467,25 @@ class WeavingSpaceDialog(QDialog):
         continue
       # ...and it must actually hold output, or an empty leftover
       # would outrank the group carrying the user's map
-      carries = any(
-        getattr(child, "layer", lambda: None)() is not None
-        and (child.layer().customProperty("weavingspace_tile_id")
-             or child.layer().customProperty("weavingspace_outline"))
-        for child in node.children())
-      if carries:
+      ours = [child.layer() for child in node.children()
+              if getattr(child, "layer", lambda: None)() is not None
+              and (child.layer().customProperty("weavingspace_tile_id")
+                   or child.layer().customProperty(
+                     "weavingspace_outline"))]
+      if not ours:
+        continue
+      if fallback is None:
+        fallback = node
+      if not wanted:
+        continue
+      stamped = [layer.customProperty("weavingspace_region")
+                 for layer in ours]
+      if any(mark == wanted for mark in stamped):
         return node
-    return None
+    # Nothing was made from this dataset -- or nothing says so, which
+    # is what output from before the stamp looks like. The newest
+    # group is the older and still correct answer there.
+    return fallback
 
   def _group_of_our_layers(self, root):
     """The layer-tree group this dialog's own output is sitting in.
@@ -12848,7 +12986,38 @@ class WeavingSpaceDialog(QDialog):
     # empty, same_destination answers True, and B's memory-mode map
     # would replace A's in place -- the demo journey the ruling of
     # 2026-08-21 exists for.
+    # ...AND NEVER WRITE OVER A MAP MADE FROM ANOTHER DATASET. Ruling
+    # 2 makes a second output group the ordinary result of a demo, and
+    # ADOPTION RUNS AT CONSTRUCTION -- before the user has chosen
+    # anything -- so a reopened project holding maps of two datasets
+    # could adopt the wrong one and replace it at the next Generate.
+    # Found by a hunt starting from the user's losses, 2026-08-25:
+    # two maps became one dataset twice. Asked HERE rather than at
+    # adoption because this is the moment the answer is knowable: the
+    # chooser has settled and the layers carry their region stamp.
+    # Output from before the stamp carries none and is left to the
+    # older rules, which is what `not stamps` means below.
+    # Recorded on every layer this run lands (see the stamp below) AND
+    # read by the mismatch check immediately after. Defined HERE
+    # because that check came first and referenced it eighteen lines
+    # early: an UnboundLocalError inside the landing, swallowed, which
+    # showed up as a run that quietly reused the previous group. The
+    # rule this project already carries -- assert the postcondition,
+    # not just the anchor -- would have caught it; a probe did.
+    region_now = self.layer_combo.currentLayer()
+    region_source = region_now.source() if region_now is not None else ""
+    root_now = QgsProject.instance().layerTreeRoot()
+    candidate = (self._group_of_our_layers(root_now)
+                 or self._newest_output_group(root_now))
+    theirs = False
+    if candidate is not None and region_source:
+      stamps = {child.layer().customProperty("weavingspace_region")
+                for child in candidate.children()
+                if getattr(child, "layer", lambda: None)() is not None
+                and child.layer().customProperty("weavingspace_region")}
+      theirs = bool(stamps) and region_source not in stamps
     force_new = (self.opt_new_group.isChecked() or renamed_mid_run
+                 or theirs
                  or self._fresh_group_for_new_data or (
       not same_destination(path, self._last_path)
       and not adopted_and_no_file_named))
@@ -13323,6 +13492,18 @@ class WeavingSpaceDialog(QDialog):
       # the session can adopt the group instead of starting a rival
       # one (see _adopt_existing_group)
       out.setCustomProperty("weavingspace_tile_id", tid)
+      # ...AND WHICH DATASET MADE IT. Until 2026-08-25 nothing on a
+      # landed layer said, which was harmless while a session held one
+      # output group and became a real loss the moment ruling 2 made a
+      # SECOND group the ordinary case: adoption takes the newest
+      # group, so reopening a project with two maps and choosing the
+      # FIRST dataset adopted the SECOND dataset's group and replaced
+      # its map. Found by a hunt starting from the user's losses.
+      # The SOURCE rather than the layer id, because an id is a
+      # session's word for a layer and a source survives the file
+      # being loaded again tomorrow.
+      if region_source:
+        out.setCustomProperty("weavingspace_region", region_source)
       # The style goes into the GeoPackage LAST, and the order is the
       # whole point. QGIS stores a layer's custom properties inside
       # the style it saves, so embedding before the stamps above wrote

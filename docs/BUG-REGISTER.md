@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-296 defect(s) with a regression test.
+303 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -251,12 +251,16 @@ there is no separate list to remember.
   guarded by `test_a_categorical_scheme_copies_onto_another_element`
 - **changing the region dataset kept the output path and the group, so Generate overwrote a file and a result built from different data, without a word.**  
   guarded by `test_a_change_of_dataset_starts_a_new_file_and_a_new_group`
+- **a class source restored from the shelf was overwritten by the previous table's, so an element came home wearing another dataset's imported QML.**  
+  guarded by `test_a_class_source_comes_home_to_the_dataset_it_was_chosen_on`
 - **the painted-ladder store had no stated meaning for an absent entry, and either reading of it silently mis-attributes every colour on the element.**  
   guarded by `test_a_colour_on_a_ladder_we_never_saw_is_declined_and_named`
 - **a guard corrected to answer False for a moved file had that answer travel into a signature, so a colour picked afterwards was recorded, never drawn and never mentioned.**  
   guarded by `test_a_colour_picked_after_the_file_moved_still_reaches_the_map`
 - **refilling the variable choosers seeded every element's remembered single colour, so an unrelated column added in QGIS changed every signature and the next Generate discarded the user's own styling.**  
   guarded by `test_a_column_appearing_in_qgis_keeps_hand_styling`
+- **a column deleted in QGIS left its ramp and class count on the column its element re-defaulted to.**  
+  guarded by `test_a_column_deleted_in_qgis_takes_its_ramp_and_count_too`
 - **deleting a column in QGIS re-pointed its elements at a surviving column and left them wearing the categorical scheme cut for the column that had gone.**  
   guarded by `test_a_column_deleted_in_qgis_takes_its_scheme_with_it`
 - **a categorical scheme picked by hand rode onto a column that had kept its name and changed to a continuous float, drawing a colour for every distinct value with nothing asked.**  
@@ -265,16 +269,24 @@ there is no separate list to remember.
   guarded by `test_a_copy_asks_before_drawing_a_colour_for_every_value`
 - **a categorical copy dropped the class source whenever the receiving row was not already categorized, because the cell it was written into does not exist until the row is.**  
   guarded by `test_a_copy_carries_a_class_source_the_target_has_not_met`
+- **a dataset chosen after the dialog opened left its identity unbound, so the next dataset inherited its hand-picked colours -- one dataset's value strings drawn on another's map and saved into its project.**  
+  guarded by `test_a_dataset_chosen_after_the_dialog_opened_owns_its_own_colours`
+- **removing the region layer and choosing another skipped every change-of-dataset protection, so Generate overwrote the previous dataset's GeoPackage without a word.**  
+  guarded by `test_a_dataset_that_leaves_the_project_is_still_a_dataset_left`
 - **an automatic mutant flipped the colours-agree comparison at dialog.py:3345 and twenty covering tests noticed nothing, because not one of them looked at what the user was told.**  
   guarded by `test_a_dock_edit_that_changes_no_colour_is_announced_as_nothing`
 - **the signature stamped after adopting a dock recolour was never checked, so the lookup that finds the element could be broken without any test failing.**  
   guarded by `test_a_dock_refinement_survives_the_next_restyle`
 - **a dataset switch reset an element's mode and left its ramp, Reverse and class count standing, then restored a scheme filed under a corrected mode nobody chose.**  
   guarded by `test_a_dropped_column_takes_its_whole_scheme_and_the_shelf_returns_it`
+- **a ramp chosen on a row whose style was left derived rode a deleted column onto its replacement, then reverted at the next rebuild.**  
+  guarded by `test_a_dropped_columns_ramp_goes_even_when_the_style_was_derived`
 - **the categorized adoption path got a test and its graduated twin, five identical lines away, still had none.**  
   guarded by `test_a_graduated_dock_refinement_survives_the_next_restyle`
 - **the scheme cell went on naming a scheme after a ladder was retyped in QGIS or copied from another element, so the row described a classification the map no longer had.**  
   guarded by `test_a_ladder_somebody_else_cut_makes_the_scheme_cell_read_custom`
+- **generating after reopening a project that held maps of two datasets replaced the wrong dataset's map, silently.**  
+  guarded by `test_a_landing_never_writes_over_another_datasets_map`
 - **pointing the region chooser at a dataset without an element's column left that element wearing the scheme cut for the column that had gone.**  
   guarded by `test_a_new_region_drops_a_setup_whose_column_has_gone`
 - **the installer skipped names case-insensitively while the lookup matched exactly, so four palettes were silently unavailable on any QGIS that spells them differently.**  
@@ -309,6 +321,8 @@ there is no separate list to remember.
   guarded by `test_the_range_editor_repaints_with_its_own_elements_colours`
 - **release.py's watchdog measured wall clock, so a laptop asleep mid-release would have aborted a healthy run as hung. The same defect cost four verdicts in mutation batch 8 and was fixed there; release.py was written afterwards and repeated it.**  
   guarded by `test_the_release_watchdog_ignores_a_sleeping_machine`
+- **the scheme shelf was not cleared with the project, so a scheme set aside in one project reappeared in the next.**  
+  guarded by `test_the_shelf_does_not_survive_the_project_that_made_it`
 - **hand-picked colours and pinned bounds carried to any dataset sharing a column name, putting one dataset's value strings and numbers into another's saved files.**  
   guarded by `test_value_laden_records_never_cross_a_shared_name`
 
@@ -645,7 +659,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
-- the mutation campaign: 33
+- the mutation campaign: 40
 - reported by a user: 29
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

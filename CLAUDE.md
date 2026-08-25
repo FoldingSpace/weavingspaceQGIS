@@ -1778,6 +1778,32 @@ Confirmed with the user via an explicit design review:
      that comes home carrying a surviving column name keeps it rather
      than consulting the shelf, which is the composition of rulings 6
      and 7 rather than a new one.
+  A LANDING NEVER WRITES OVER A MAP MADE FROM ANOTHER DATASET, and
+  that is ruling 2 finishing the job it started. Making a second
+  output group the ordinary result of a demo left ADOPTION's older
+  assumption wrong -- it takes the newest group and runs at
+  construction, before the user has chosen anything -- so reopening a
+  project holding two datasets' maps and generating on the first
+  DELETED the second. Every output layer carries
+  `weavingspace_region` now (the region's source, which survives a
+  reopen where a layer id does not), and the landing refuses a group
+  whose stamps name another dataset. Output made before the stamp
+  carries none and keeps the older rules. When a ruling starts
+  producing a SECOND artefact by default, re-drive every path that
+  assumed one.
+  AND THE CHOOSER IS NOT THE ONLY DOOR. Two hunts of 2026-08-25
+  found the same defect from different directions: REMOVING the region
+  layer and picking another skipped every protection, so Generate
+  overwrote the previous dataset's GeoPackage unasked. `switched`
+  asked about the WATCHED LAYER OBJECT, which a removal nulls; and
+  the layer COUNT decided which of two routes ran, so the same act
+  answered differently in a project with two polygon layers and one
+  with three. It asks about the DATASET IN FORCE now
+  (`_memory_layer_id`), and the bank swap RETURNS on an empty chooser
+  rather than banking and forgetting -- the second fault, which hid
+  the first. When a rule is about "the thing in force", ask what NULLS
+  the record you are reading, and whether the answer is a user's act
+  or somebody else's cleanup.
   WHAT COUNTS AS "A CHANGE OF DATASET" WAS DRAWN BY THE FULL SUITE on
   the rulings' first whole run, which failed three tests the targeted
   runs had all passed: leaving a dataset THIS SESSION HAS BUILT FROM.

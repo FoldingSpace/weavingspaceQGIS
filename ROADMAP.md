@@ -169,6 +169,15 @@ and a judged catalogue entry; the changelog sentence is as the
 maintainer ruled it and the review queue is empty. rc17's number was
 spent by a superseded build, never published; the candidate carrying
 all of this is rc18.
+SIX HUNTS AFTER rc18 PUBLISHED FOUND SEVEN DEFECTS, every one in the
+day's own code and six of them inside its repairs; all seven are
+fixed here with tests and judged entries, so **rc18 is SUPERSEDED**
+and the next candidate carries the cures. Two of the seven were
+privacy leaks of the kind ruling 8 exists to prevent, reaching a
+saved project and a GeoPackage by different routes. The record is
+`docs/process/defects-2026-08-25.md`. THE HUNTS ARE STILL RUNNING as
+this is written, and a candidate should not go out while they are
+still finding things.
 
 ### What this version has already closed
 

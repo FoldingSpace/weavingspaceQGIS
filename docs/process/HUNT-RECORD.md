@@ -12,7 +12,32 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-08-20, after a round of EIGHT hunts aimed at the
+Last updated 2026-08-25, after TWO rounds totalling six hunts: SEVEN
+confirmed defects, and the second round is the argument for the
+second round. Four hunts found four; three hunts aimed at those four
+REPAIRS found three more, one of which the first round had examined
+and ruled BENIGN -- it went live because a fix removed the accident
+hiding it. Six of the seven were inside repairs. The round is in
+`defects-2026-08-25.md`; the second round's directions were the
+dataset identity (two-stores), door three's in-place edits
+(one-boundary), the reset flag (write-only) and the user's losses
+(asymmetry), and the losses hunt found the one that cost a finished
+map.
+
+Before that, the same day's FIRST round of four hunts: FOUR confirmed
+defects, four for four, every one in
+code written within hours and THREE of the four inside repairs for
+defects the same day had found. Two hunts converged INDEPENDENTLY on
+one defect from different directions, which is the strongest
+confirmation this method produces -- and the second hunt saw what the
+first could not, that a LAYER COUNT decided which of two code paths
+ran. The round is written up in `defects-2026-08-25.md`; the
+directions were the banks (two-stores), the boundary (asymmetry), the
+switch acts (one-boundary) and the shelf (write-only). The
+distribution has now held across four separate rounds, which is the
+argument for aiming at fresh work as a matter of course.
+
+Before that, 2026-08-20, after a round of EIGHT hunts aimed at the
 previous day's repairs. Five confirmed defects; FOUR were in code
 written that day and THREE of those four were inside repairs for
 defects the same day had found. The entry is under "2026-08-20"

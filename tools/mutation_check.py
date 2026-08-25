@@ -736,11 +736,11 @@ MUTATIONS = [
            "new dataset's files, which is the confidential-values leak "
            "the maintainer named when they ended the carve"),
   dict(name="the-banks-swap-on-a-change-of-layer", file=DIALOG,
-       old="""    new_id = layer.id() if layer is not None else None
+       old="""    new_id = layer.id()
     old_id = self._memory_layer_id
     if old_id == new_id:
       return""",
-       new="""    new_id = layer.id() if layer is not None else None
+       new="""    new_id = layer.id()
     old_id = self._memory_layer_id
     if True:  # mutation: never swap
       return""",
@@ -761,6 +761,86 @@ MUTATIONS = [
            "is filed inside the INCOMING dataset's bank: A's names in "
            "B's memory, and the A-B-A journey comes home to an empty "
            "shelf"),
+  dict(name="a-landing-never-writes-over-another-datasets-map",
+       file=DIALOG,
+       old="""      theirs = bool(stamps) and region_source not in stamps""",
+       new="""      theirs = False  # mutation: write into whatever group is there""",
+       test="test_a_landing_never_writes_over_another_datasets_map",
+       why="ruling 2 makes a second output group the ordinary result "
+           "of a demo, and adoption runs at CONSTRUCTION -- so a "
+           "reopened project holding two datasets' maps adopted the "
+           "newest and replaced it at the next Generate. A finished "
+           "map deleted to make room for one the user already had"),
+  dict(name="the-region-stamp-says-which-dataset-made-a-layer",
+       file=DIALOG,
+       old="""      if region_source:
+        out.setCustomProperty("weavingspace_region", region_source)""",
+       new="""      pass  # mutation: leave the layer silent about its dataset""",
+       test="test_a_landing_never_writes_over_another_datasets_map",
+       why="without the stamp nothing on a landed layer says which "
+           "dataset made it, so the check above has nothing to read "
+           "and the newest group is written into whatever it holds"),
+  dict(name="a-dropped-columns-ramp-goes-whoever-chose-the-style",
+       file=DIALOG,
+       old="""      if mode_cell is not None:
+        # ...AND THE CONTROLS THEMSELVES, for EVERY row whose column""",
+       new="""      if mode_cell is not None and mode_cell.property("touched"):
+        # ...AND THE CONTROLS THEMSELVES, for EVERY row whose column""",
+       test="test_a_dropped_columns_ramp_goes_even_when_the_style_was_derived",
+       why="the exact fault a hunt found an hour after this fix "
+           "landed: the widget reset sat inside the touched-only "
+           "branch while the records are popped for EVERY dropped "
+           "row, so a chosen ramp on a derived style was lost twice"),
+  dict(name="the-shelf-is-cleared-with-the-project", file=DIALOG,
+       old="""                   self._scheme_memory,
+                   self._custom_swatch_cache):""",
+       new="""                   self._custom_swatch_cache):""",
+       test="test_the_shelf_does_not_survive_the_project_that_made_it",
+       why="the shelf was missing from this list and only emptied by "
+           "the side effect of a swap-to-None; when that accident went "
+           "away, a scheme shelved in the project you CLOSED merged "
+           "into the next project's bank and redrew its column"),
+  dict(name="the-settle-binds-the-dataset-in-force", file=DIALOG,
+       old="""    self._swap_dataset_memory(layer)
+    self._rebuild_unit()""",
+       new="""    self._rebuild_unit()  # mutation: leave the identity unbound""",
+       test="test_a_dataset_chosen_after_the_dialog_opened_owns_its_own_colours",
+       why="a plugin opened BEFORE the data gets its first dataset "
+           "through the settling combo; without the swap the identity "
+           "stays unbound, and the next dataset takes the pre-identity "
+           "merge and inherits the first one's hand-picked colours -- "
+           "one dataset's value strings drawn on another's map and "
+           "written into its project"),
+  dict(name="door-three-moves-the-controls-not-just-the-records",
+       file=DIALOG,
+       old="""        fresh = self.DEFAULT_RAMPS[row % len(self.DEFAULT_RAMPS)]""",
+       new="""        fresh = None  # mutation: leave the widgets showing the old scheme""",
+       test="test_a_column_deleted_in_qgis_takes_its_ramp_and_count_too",
+       why="door three edits the row IN PLACE and never rebuilds, so "
+           "popping the records is not enough: `_assignments` reads "
+           "the WIDGETS, and the ramp and class count went on being "
+           "reported and drawn on the replacement column against "
+           "ruling 3"),
+  dict(name="a-removed-dataset-is-still-a-dataset-left", file=DIALOG,
+       old="""    switched = (layer is not None and self._memory_layer_id is not None
+                and layer.id() != self._memory_layer_id)""",
+       new="""    switched = (layer is not None and self._watched_layer is not None
+                and layer is not self._watched_layer)""",
+       test="test_a_dataset_that_leaves_the_project_is_still_a_dataset_left",
+       why="the exact code a hunt found broken on 2026-08-25: asked of "
+           "the WATCHED LAYER OBJECT, a removal nulls it and the next "
+           "dataset reads as a first choice, so Generate overwrites "
+           "the previous dataset's GeoPackage unasked"),
+  dict(name="an-empty-chooser-does-not-forget-the-dataset", file=DIALOG,
+       old="""    if layer is None:
+      # AN EMPTY CHOOSER IS NOT A DATASET""",
+       new="""    if False:  # mutation: bank and forget on an empty chooser
+      # AN EMPTY CHOOSER IS NOT A DATASET""",
+       test="test_a_dataset_that_leaves_the_project_is_still_a_dataset_left",
+       why="removing the layer empties the combo, so the handler runs "
+           "once with NO layer; banking there and nulling the identity "
+           "defeats the boundary before the next dataset arrives. This "
+           "is the second fault of that route, and it HID the first"),
   dict(name="a-first-real-choice-is-not-a-change-of-dataset", file=DIALOG,
        old="""    switched_from_work = switched and self._landed_this_session""",
        new="""    switched_from_work = switched""",
@@ -860,7 +940,8 @@ MUTATIONS = [
            "read, like the adopted-group flag beside it"),
   dict(name="a-dropped-scheme-is-not-refilled-from-the-old-table",
        file=DIALOG,
-       old="""      scheme_reset = column_gone and restored is None""",
+       old="""      scheme_reset = restored is None and (
+        column_gone or tid in self._scheme_just_reset)""",
        new="""      scheme_reset = False  # mutation: let prev refill the scheme""",
        test="test_a_dropped_column_takes_its_whole_scheme_and_the_shelf_returns_it",
        why="the shelve POPS the records, and three restores in the "
@@ -3950,8 +4031,10 @@ MUTATIONS = [
   dict(name="a-rename-during-a-run-keeps-the-group", file=DIALOG,
        old="    force_new = (self.opt_new_group.isChecked() or "
            "renamed_mid_run\n"
+           "                 or theirs\n"
            "                 or self._fresh_group_for_new_data or (",
        new="    force_new = (self.opt_new_group.isChecked()\n"
+           "                 or theirs\n"
            "                 or self._fresh_group_for_new_data or (",
        test="test_the_output_group_is_renamed_while_a_run_is_in_flight",
        why="renaming the output group while a tiling runs is how a "

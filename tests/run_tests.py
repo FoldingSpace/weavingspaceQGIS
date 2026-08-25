@@ -25393,6 +25393,416 @@ def test_a_change_of_dataset_starts_a_new_file_and_a_new_group():
     project.clear()
 
 
+def test_a_dataset_that_leaves_the_project_is_still_a_dataset_left():
+  """Removing the region layer must not defeat the switch protections.
+
+  FOUND BY A HUNT, 2026-08-25, aimed at the boundary's asymmetry. The
+  chooser is not the only way a dataset changes: REMOVE the region
+  layer from the project and pick another, and until this test the
+  plugin read the new one as a FIRST CHOICE -- no output path
+  cleared, no fresh group armed, no design-floor question. Generate
+  then wrote the new data over the GeoPackage holding the last
+  dataset's map, unasked, which is the harm the whole ruling exists to
+  prevent, arriving through the one door nobody had walked.
+
+  TWO FAULTS, ONE ROUTE, and the second hid the first. `switched`
+  asked whether the WATCHED LAYER OBJECT had changed, and a removal
+  nulls it. Corrected to ask about the DATASET IN FORCE
+  (`_memory_layer_id`), it still failed: removing the layer empties
+  the combo, so the handler runs once with NO layer, and the bank swap
+  banked the outgoing dataset and nulled the identity before the next
+  one arrived. An empty chooser is not a dataset; the swap now returns
+  on it and holds the bank open.
+
+  Regression: removing the region layer and choosing another skipped every change-of-dataset protection, so Generate overwrote the previous dataset's GeoPackage without a word. [mutation]
+  """
+  project = QgsProject.instance()
+  dlg, A, tid1 = _categorical_dialog()
+  try:
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(250)
+    dlg.gpkg_widget.setFilePath("/tmp/claude/left-the-project.gpkg")
+    assert dlg._landed_this_session, \
+      "no run landed, so a later switch would be a first choice and " \
+      "this test would judge the wrong thing"
+
+    # THE ROUTE: the dataset leaves the project entirely.
+    project.removeMapLayer(A.id())
+    _tick(400)
+    B = make_other_region()
+    project.addMapLayer(B)
+    dlg.layer_combo.setLayer(B)
+    _tick(700)
+
+    assert not dlg.gpkg_widget.filePath(), \
+      f"the output path survived a dataset that LEFT the project " \
+      f"({dlg.gpkg_widget.filePath()!r}); the next Generate would " \
+      f"write over the file holding the previous dataset's map"
+    assert dlg._fresh_group_for_new_data, \
+      "the fresh-group flag did not arm, so the new dataset's map " \
+      "would replace the previous one's in the project"
+    # ...and the memory went with the dataset it belongs to, which is
+    # the half that was already right and must stay so.
+    live = set(dlg._layer_fields())
+    for element, per_field in (dlg._scheme_memory or {}).items():
+      stray = [f for f in per_field if f not in live]
+      assert not stray, \
+        f"the removed dataset's column names are readable in the " \
+        f"new dataset's shelf: {element}: {sorted(stray)}"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_dataset_chosen_after_the_dialog_opened_owns_its_own_colours():
+  """The pre-identity merge fires for TWO routes, and one is a leak.
+
+  FOUND BY A HUNT, 2026-08-25, inside the merge's own first night. A
+  user who opens the plugin BEFORE loading data gets their first
+  dataset through `_settle_layer_choice` -- the combo landing after
+  the fact -- which rebuilt the table and never swapped banks. The
+  dataset identity therefore stayed unbound while they worked, and
+  the NEXT dataset they chose took the pre-identity merge branch and
+  inherited the first one's hand-picked colours: keyed by the first
+  dataset's own value strings, drawn on the second dataset's map, and
+  written into the second dataset's saved project.
+
+  THE MERGE ITSELF IS RIGHT and stays: a reopened project's adoption
+  writes stamps before the chooser settles, and those records belong
+  to the dataset being adopted. What was wrong is that a second route
+  reached "no identity yet". When a branch keys on the absence of a
+  record, enumerate every route that arrives there.
+
+  Regression: a dataset chosen after the dialog opened left its identity unbound, so the next dataset inherited its hand-picked colours -- one dataset's value strings drawn on another's map and saved into its project. [mutation]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  # THE PLUGIN OPENS FIRST, on an empty project: that is the route.
+  dlg = WeavingSpaceDialog(iface=None)
+  try:
+    dlg.live_check.setChecked(False)
+    _tick(200)
+    X = make_region_layer()
+    X.setName("X confidential")
+    project.addMapLayer(X)
+    _tick(600)
+    assert dlg.layer_combo.currentLayer() is not None, \
+      "the chooser never landed on the first dataset, so this test " \
+      "is not driving the route it names"
+    tid = dlg.table.item(1, 0).text()
+    row1 = dlg.table.cellWidget(1, 1)
+    row1.setCurrentText("landcover")
+    _tick(150)
+    dlg._category_colours.setdefault(tid, {}).setdefault(
+      "landcover", {})["forest"] = "#c0ffee"
+
+    Y = make_region_layer(origin=(700000, 0))
+    Y.setName("Y unrelated")
+    project.addMapLayer(Y)
+    dlg.layer_combo.setLayer(Y)
+    _tick(700)
+
+    carried = (dlg._category_colours.get(tid) or {}).get("landcover")
+    assert not carried, \
+      f"the first dataset's hand-picks were inherited by the second " \
+      f"({carried!r}); they are keyed by ITS value strings and would " \
+      f"be drawn and saved as though chosen for this data"
+    banked = ((dlg._dataset_memory.get(X.id()) or {})
+              .get("colours", {}).get(tid, {}).get("landcover", {}))
+    assert banked.get("forest") == "#c0ffee", \
+      f"the work was not banked under the dataset it was made on " \
+      f"({banked!r}): scoped must not mean lost"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_column_deleted_in_qgis_takes_its_ramp_and_count_too():
+  """Ruling 3 at the third door, driven through the controls.
+
+  FOUND BY A HUNT, 2026-08-25. Door three -- a column deleted in
+  QGIS's own attribute table -- edits the row IN PLACE and never
+  rebuilds, because the race-among-choosers rule forbids a rebuild
+  there. Shelving the records was therefore not enough: `_assignments`
+  reads the WIDGETS, so the ramp and the class count went on being
+  reported and drawn on the replacement column, against ruling 3's
+  "a dropped column takes its whole scheme".
+
+  THE REGISTERED TEST BESIDE THIS ONE CHECKS THE MODE and passed
+  throughout, which is why the hunt was needed: one axis of a promise
+  is not the promise.
+
+  Regression: a column deleted in QGIS left its ramp and class count on the column its element re-defaulted to. [mutation]
+  """
+  project = QgsProject.instance()
+  dlg, layer, tid = _categorical_dialog()
+  try:
+    _tick(250)
+    row = dlg._row_for_element(tid)
+    mode = dlg.table.cellWidget(row, 2)
+    mode.setCurrentText("Quant: Equal intervals")
+    mode.activated.emit(mode.currentIndex())
+    _tick(150)
+    row = dlg._row_for_element(tid)
+    ramp = dlg.table.cellWidget(row, 4)
+    wanted = ramp.findText("YlOrBr")
+    if wanted < 0:
+      wanted = (ramp.currentIndex() + 4) % max(ramp.count(), 1)
+    ramp.setCurrentIndex(wanted)
+    ramp.activated.emit(wanted)
+    _tick(120)
+    before = dlg._assignment_for(tid)
+    field = before["var"]
+    chosen_ramp = before["ramp"]
+    assert chosen_ramp, "the fixture staged no ramp to carry"
+
+    index = layer.fields().indexOf(field)
+    assert index >= 0, f"the fixture has no {field!r} to delete"
+    layer.dataProvider().deleteAttributes([index])
+    layer.updateFields()
+    _tick(900)
+
+    after = dlg._assignment_for(tid) or {}
+    landed = after.get("var")
+    assert landed and landed != field, \
+      f"the element did not re-default ({landed!r})"
+    assert after.get("ramp") != chosen_ramp, \
+      f"the ramp chosen for {field!r} rode onto {landed!r} " \
+      f"({after.get('ramp')!r}): a colour scale chosen for one " \
+      f"column's semantics goes on painting an unrelated one"
+    assert not after.get("reverse"), \
+      "the Reverse tick rode onto the replacement column"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_class_source_comes_home_to_the_dataset_it_was_chosen_on():
+  """An imported QML returns with its own dataset, not another's.
+
+  FOUND BY A HUNT, 2026-08-25, which read the MAP rather than the
+  record. The shelf restored the class source correctly and then
+  `_refresh_table` wrote the previous table's value straight back over
+  it, unguarded by the reset flag -- so an element coming home to its
+  own column drew with whatever file the other dataset had been using,
+  and the file the user chose for THIS data was gone from the session.
+
+  Regression: a class source restored from the shelf was overwritten by the previous table's, so an element came home wearing another dataset's imported QML. [mutation]
+  """
+  project = QgsProject.instance()
+  data = os.path.join(HERE, "data")
+  qml = os.path.join(data, "landcover.qml")
+  dlg, A, tid = _categorical_dialog()
+  try:
+    _tick(250)
+    dlg._browsed_qmls.append(qml)
+    dlg._update_dynamic_columns()
+    _tick(150)
+    row = dlg._row_for_element(tid)
+    cell = dlg.table.cellWidget(row, 7)
+    assert cell is not None, "the row offers no class source to choose"
+    where = cell.findData("file:" + qml)
+    assert where >= 0, "the browsed file is not on offer"
+    cell.setCurrentIndex(where)
+    cell.activated.emit(where)
+    _tick(200)
+    assert (dlg._assignment_for(tid) or {}).get("class_source") \
+        == "file:" + qml, "the fixture did not stage the class source"
+
+    B = make_other_region()      # no landcover at all: the shelf route
+    project.addMapLayer(B)
+    dlg.layer_combo.setLayer(B)
+    _tick(700)
+    dlg.layer_combo.setLayer(A)
+    _tick(700)
+
+    home = dlg._assignment_for(tid) or {}
+    assert home.get("var") == "landcover", \
+      f"the element did not come home to its column ({home.get('var')!r})"
+    assert home.get("class_source") == "file:" + qml, \
+      f"the element came home wearing {home.get('class_source')!r} " \
+      f"rather than the file chosen for this dataset"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_landing_never_writes_over_another_datasets_map():
+  """Two maps stay two maps, whichever one you generate next.
+
+  FOUND BY A HUNT, 2026-08-25, which started from the user's LOSSES
+  rather than from the code -- historically this project's
+  highest-yield direction, and it paid again. The journey is an
+  ordinary demo: dataset A, Generate; switch to B, Generate (two maps
+  side by side, which is ruling 2 working); close the plugin; reopen;
+  choose A; Generate. B's finished map was deleted and replaced by a
+  second copy of A's, silently. Two maps became one dataset twice.
+
+  WHY RULING 2 CREATED IT. Adoption takes the NEWEST output group and
+  runs at CONSTRUCTION, before the user has chosen anything -- which
+  was harmless while a session held one group and became a loss the
+  moment a second group was the ordinary result of a demo. Nothing on
+  a landed layer said which dataset had made it.
+
+  THE CURE IS AT THE LANDING, not at adoption, because that is the
+  moment the answer is knowable: the chooser has settled and the
+  layers carry a region stamp. A group whose stamps name a different
+  dataset is never written into; a fresh one is built beside it.
+  Output made before the stamp carries none and keeps the older
+  rules.
+
+  Regression: generating after reopening a project that held maps of two datasets replaced the wrong dataset's map, silently. [mutation]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  dlg, A, tid = _categorical_dialog()
+  try:
+    _tick(250)
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(250)
+    a_layers = set(dlg._element_layer_ids.values())
+    B = make_other_region()
+    project.addMapLayer(B)
+    dlg.layer_combo.setLayer(B)
+    _tick(700)
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(250)
+    b_layers = set(dlg._element_layer_ids.values())
+    assert a_layers and b_layers and a_layers.isdisjoint(b_layers), \
+      "the fixture did not produce two separate maps, so nothing " \
+      "here could be wrongly replaced"
+  finally:
+    dlg.close()
+  _tick(300)
+
+  # ...and a NEW dialog, as reopening the project gives you.
+  second = WeavingSpaceDialog(iface=None)
+  try:
+    second.live_check.setChecked(False)
+    second.layer_combo.setLayer(A)
+    _tick(800)
+    second.spacing_spin.setValue(510)
+    _generate_and_wait(second)
+    _tick(300)
+    alive = {lid for lid in b_layers if project.mapLayer(lid)}
+    assert alive == b_layers, \
+      f"generating on the FIRST dataset destroyed the SECOND " \
+      f"dataset's map ({len(alive)}/{len(b_layers)} layers left): a " \
+      f"finished map deleted to make room for one the user already had"
+  finally:
+    second.close()
+    project.clear()
+
+
+def test_a_dropped_columns_ramp_goes_even_when_the_style_was_derived():
+  """The reset is about the COLUMN, not about who chose the style.
+
+  FOUND BY A HUNT, 2026-08-25, an hour after the fix it corrects. Door
+  three's widget reset was written inside the branch that handles a
+  style somebody CHOSE, while `_shelve_scheme` pops the records for
+  EVERY row whose column has gone. So a user who picked a ramp and
+  left the plugin's derived style alone lost it twice: the ramp went
+  on painting the replacement column, and then flipped to a default at
+  the next unrelated rebuild -- one loss visible, one arriving later
+  for no reason the user could see.
+
+  Regression: a ramp chosen on a row whose style was left derived rode a deleted column onto its replacement, then reverted at the next rebuild. [mutation]
+  """
+  project = QgsProject.instance()
+  dlg, layer, tid = _categorical_dialog()
+  try:
+    _tick(250)
+    row = dlg._row_for_element(tid)
+    ramp = dlg.table.cellWidget(row, 4)
+    wanted = ramp.findText("PuRd")
+    if wanted < 0:
+      wanted = (ramp.currentIndex() + 5) % max(ramp.count(), 1)
+    ramp.setCurrentIndex(wanted)
+    ramp.activated.emit(wanted)
+    _tick(150)
+    before = dlg._assignment_for(tid)
+    field, chosen = before["var"], before["ramp"]
+    assert not before.get("style_touched"), \
+      "the fixture marked the style as chosen, which is the branch " \
+      "that already worked; this test is about the other one"
+
+    index = layer.fields().indexOf(field)
+    layer.dataProvider().deleteAttributes([index])
+    layer.updateFields()
+    _tick(900)
+    after = dlg._assignment_for(tid) or {}
+    assert after.get("ramp") != chosen, \
+      f"the ramp chosen for {field!r} rode onto " \
+      f"{after.get('var')!r} ({after.get('ramp')!r})"
+    # ...AND IT DOES NOT MOVE AGAIN. The second half of the loss was a
+    # later, unexplained flip: the records were popped while the
+    # widget kept the old ramp, so the next rebuild derived a
+    # different one.
+    settled = after.get("ramp")
+    dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.1)
+    _tick(700)
+    later = dlg._assignment_for(tid) or {}
+    assert later.get("ramp") == settled, \
+      f"the ramp changed again at an unrelated rebuild " \
+      f"({settled!r} then {later.get('ramp')!r}), which a user has " \
+      f"no way to explain"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_the_shelf_does_not_survive_the_project_that_made_it():
+  """A closed project's set-aside scheme reaches no other project.
+
+  FOUND BY A HUNT, 2026-08-25, within an hour of the change that
+  created it -- and the same omission had been examined and ruled
+  BENIGN earlier the same night, because the bank swap used to run
+  with None on a project replacement and empty the shelf on its way
+  past. Tonight's fix (an empty chooser no longer forgets the
+  dataset) removed that accident, and the omission became a leak: a
+  scheme shelved in the project you CLOSED merged into the first bank
+  of the project you opened, so an element redrew a column from the
+  old project, wearing its ramp, and wrote it into the GeoPackage.
+
+  A CLEANUP THAT WORKS BY SIDE EFFECT IS A CLEANUP NOBODY HAS WRITTEN
+  DOWN, which is the transferable half: when a clear list is missing
+  an entry and something else happens to empty it, the list is still
+  wrong and the day the something-else changes is the day it shows.
+
+  Regression: the scheme shelf was not cleared with the project, so a scheme set aside in one project reappeared in the next. [mutation]
+  """
+  project = QgsProject.instance()
+  dlg, A, tid = _categorical_dialog()
+  try:
+    _tick(250)
+    field = (dlg._assignment_for(tid) or {}).get("var")
+    assert field, "the fixture assigned no column to lose"
+    index = A.fields().indexOf(field)
+    layer_deleted = dlg._scheme_memory is not None
+    A.dataProvider().deleteAttributes([index])
+    A.updateFields()
+    _tick(800)
+    shelved = {t: sorted(f) for t, f in (dlg._scheme_memory or {}).items()}
+    assert any(shelved.values()), \
+      f"nothing was shelved by the deletion ({shelved}), so this " \
+      f"test would pass on an empty record rather than on the rule"
+
+    # WHAT FILE > OPEN DOES FIRST: the project is replaced.
+    project.clear()
+    _tick(500)
+    after = {t: sorted(f) for t, f in (dlg._scheme_memory or {}).items()}
+    assert not any(after.values()), \
+      f"the closed project's shelf survived into the next one " \
+      f"({after}): its column names, its ramp and its style would " \
+      f"reappear on whatever the next project holds"
+  finally:
+    dlg.close()
+    project.clear()
+
+
 def test_a_dropped_column_takes_its_whole_scheme_and_the_shelf_returns_it():
   """Ruling 3 and ruling 6 of 2026-08-21, driven as one journey.
 
@@ -57339,6 +57749,20 @@ def main():
         test_a_column_deleted_in_qgis_takes_its_scheme_with_it)
   check("a change of dataset starts a new file and a new group",
         test_a_change_of_dataset_starts_a_new_file_and_a_new_group)
+  check("a dataset that leaves the project is still a dataset left",
+        test_a_dataset_that_leaves_the_project_is_still_a_dataset_left)
+  check("a dataset chosen after the dialog opened owns its colours",
+        test_a_dataset_chosen_after_the_dialog_opened_owns_its_own_colours)
+  check("a column deleted in qgis takes its ramp and count too",
+        test_a_column_deleted_in_qgis_takes_its_ramp_and_count_too)
+  check("a class source comes home to the dataset it was chosen on",
+        test_a_class_source_comes_home_to_the_dataset_it_was_chosen_on)
+  check("a landing never writes over another dataset's map",
+        test_a_landing_never_writes_over_another_datasets_map)
+  check("a dropped column's ramp goes even when the style was derived",
+        test_a_dropped_columns_ramp_goes_even_when_the_style_was_derived)
+  check("the shelf does not survive the project that made it",
+        test_the_shelf_does_not_survive_the_project_that_made_it)
   check("a dropped column takes its whole scheme and it returns",
         test_a_dropped_column_takes_its_whole_scheme_and_the_shelf_returns_it)
   check("a dataset that cannot fill the design asks first",
