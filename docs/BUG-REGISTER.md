@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-289 defect(s) with a regression test.
+292 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -249,6 +249,8 @@ there is no separate list to remember.
   guarded by `test_a_boundary_retyped_beside_a_recolour_is_still_recorded`
 - **a categorical colour scheme could not be copied to another element at all, where the graduated one could.**  
   guarded by `test_a_categorical_scheme_copies_onto_another_element`
+- **changing the region dataset kept the output path and the group, so Generate overwrote a file and a result built from different data, without a word.**  
+  guarded by `test_a_change_of_dataset_starts_a_new_file_and_a_new_group`
 - **the painted-ladder store had no stated meaning for an absent entry, and either reading of it silently mis-attributes every colour on the element.**  
   guarded by `test_a_colour_on_a_ladder_we_never_saw_is_declined_and_named`
 - **a guard corrected to answer False for a moved file had that answer travel into a signature, so a colour picked afterwards was recorded, never drawn and never mentioned.**  
@@ -267,6 +269,8 @@ there is no separate list to remember.
   guarded by `test_a_dock_edit_that_changes_no_colour_is_announced_as_nothing`
 - **the signature stamped after adopting a dock recolour was never checked, so the lookup that finds the element could be broken without any test failing.**  
   guarded by `test_a_dock_refinement_survives_the_next_restyle`
+- **a dataset switch reset an element's mode and left its ramp, Reverse and class count standing, then restored a scheme filed under a corrected mode nobody chose.**  
+  guarded by `test_a_dropped_column_takes_its_whole_scheme_and_the_shelf_returns_it`
 - **the categorized adoption path got a test and its graduated twin, five identical lines away, still had none.**  
   guarded by `test_a_graduated_dock_refinement_survives_the_next_restyle`
 - **the scheme cell went on naming a scheme after a ladder was retyped in QGIS or copied from another element, so the row described a classification the map no longer had.**  
@@ -411,6 +415,8 @@ there is no separate list to remember.
   guarded by `test_a_copied_ladder_is_fitted_to_the_column_it_lands_on`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_a_copy_and_its_pins_survive_a_project_round_trip`
+- **none yet; this guards the design-floor door added with the rulings of 2026-08-21.**  
+  guarded by `test_a_dataset_that_cannot_fill_the_design_asks_first`
 - **a hand-picked colour the plugin reported as discarded was left on the layer, saved, and re-imposed on the map next session.**  
   guarded by `test_a_discarded_pick_does_not_come_back`
 - **five dock classes over a collapsed column indexed past the end of the dialog's one-class expectation, inside a renderer signal handler.**  
@@ -630,8 +636,8 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - a bug hunt pointed in a named direction: 91
-- not written down at the time: 85
-- the mutation campaign: 29
+- not written down at the time: 86
+- the mutation campaign: 31
 - reported by a user: 29
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

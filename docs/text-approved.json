@@ -229,6 +229,11 @@
   "excerpt": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8",
   "where": "docs/index.html"
  },
+ "1a6d7a4059f7cd87": {
+  "approved": "2026-08-24",
+  "excerpt": "The GeoPackage path was cleared, so the dataset saved from y",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "1ada7fec08322029": {
   "approved": "2026-08-19",
   "excerpt": "{} {} the classes from element '{}'.",
@@ -1189,6 +1194,11 @@
   "excerpt": "Number of classes for this element's Quant symbology; catego",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "a731bfc07a8c94dc": {
+  "approved": "2026-08-24",
+  "excerpt": "This layer seemingly has {} usable columns, and the design h",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "a7b69f13a9349cdd": {
   "approved": "2026-08-08",
   "excerpt": "Retain complete tileables at edges",
@@ -1553,6 +1563,11 @@
   "approved": "2026-08-08",
   "excerpt": "Save tiled map to GeoPackage",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "db6c7c54acc5a81a": {
+  "approved": "2026-08-24",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
  },
  "dba2b982a807c767": {
   "approved": "2026-08-09",

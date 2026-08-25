@@ -697,6 +697,118 @@ MUTATIONS = [
            "that is thousands, and the user finds out by watching QGIS "
            "do it. The maintainer ruled it a question rather than a "
            "refusal, on one threshold shared with the dataset switch"),
+  dict(name="a-short-dataset-gets-a-question-not-a-shared-column",
+       file=DIALOG,
+       old="""    if 2 <= len(usable) < elements:""",
+       new="""    if False:  # mutation: never ask about a short dataset""",
+       test="test_a_dataset_that_cannot_fill_the_design_asks_first",
+       why="fewer seemingly-usable columns than elements used to mean "
+           "two elements silently sharing one column; ruling 5 of "
+           "2026-08-21 makes it a question naming both numbers. The "
+           "hedge 'seemingly' is the maintainer's own wording, because "
+           "the usable-column count is a heuristic"),
+  dict(name="a-yes-to-the-design-floor-recomposes", file=DIALOG,
+       old="""      if answer == QMessageBox.StandardButton.Yes:
+        # Signals LIVE deliberately: the n chooser's own cascade is
+        # what repopulates the family list for the new count and picks
+        # its default, and driving that any other way would be a
+        # second implementation of the rule.
+        self.n_combo.setCurrentText(str(count))""",
+       new="""      if answer == QMessageBox.StandardButton.Yes:
+        pass  # mutation: agree, then do nothing""",
+       test="test_a_dataset_that_cannot_fill_the_design_asks_first",
+       why="a question whose Yes changes nothing taught the user that "
+           "the dialog's questions are decoration; the recompose goes "
+           "through the n chooser's own cascade so the family default "
+           "is the same rule the chooser applies"),
+  dict(name="a-no-to-the-design-floor-keeps-the-design", file=DIALOG,
+       old="""      answer = QMessageBox.question(
+        self, "WeavingSpace",
+        f"This layer seemingly has {count} usable columns, and the "
+        f"design has {elements} elements. Change to a design with "
+        f"{count} elements?")
+      if answer == QMessageBox.StandardButton.Yes:""",
+       new="""      answer = QMessageBox.question(
+        self, "WeavingSpace",
+        f"This layer seemingly has {count} usable columns, and the "
+        f"design has {elements} elements. Change to a design with "
+        f"{count} elements?")
+      if True:  # mutation: recompose whatever they answered""",
+       test="test_a_dataset_that_cannot_fill_the_design_asks_first",
+       why="declining must keep the design with columns shared, as "
+           "always -- recomposing on a No is consent theatre, and the "
+           "design is the one thing nothing could re-derive"),
+  dict(name="a-switch-clears-the-output-path", file=DIALOG,
+       old="""    widget = getattr(self, "gpkg_widget", None)
+    if widget is not None and widget.filePath():
+      widget.blockSignals(True)
+      widget.setFilePath("")""",
+       new="""    widget = getattr(self, "gpkg_widget", None)
+    if False:  # mutation: keep the path across the switch
+      widget.blockSignals(True)
+      widget.setFilePath("")""",
+       test="test_a_change_of_dataset_starts_a_new_file_and_a_new_group",
+       why="a colleague met B's map silently overwriting the GeoPackage "
+           "built from A -- a result on DISK, destroyed unasked. The "
+           "path now clears on any change of region layer, same-schema "
+           "included, and the clearing is announced (ruling 1 of "
+           "2026-08-21)"),
+  dict(name="a-switch-detaches-the-group", file=DIALOG,
+       old="""    self._fresh_group_for_new_data = True
+    if layer is None:""",
+       new="""    self._fresh_group_for_new_data = False  # mutation: land in A's group
+    if layer is None:""",
+       test="test_a_change_of_dataset_starts_a_new_file_and_a_new_group",
+       why="the memory-mode switch is the case the flag exists for: "
+           "with no file in play both paths are empty, same_destination "
+           "answers True, and B's first landing would replace A's "
+           "result in the project. The flag routes it through the door "
+           "'Create as new group' already uses (ruling 2)"),
+  dict(name="the-fresh-group-flag-is-spent-by-its-landing", file=DIALOG,
+       old="""    self._adopted_group_unwritten = False
+    self._fresh_group_for_new_data = False""",
+       new="""    self._adopted_group_unwritten = False
+    pass  # mutation: the flag survives its landing""",
+       test="test_a_change_of_dataset_starts_a_new_file_and_a_new_group",
+       why="left armed, EVERY later run builds another group: the demo "
+           "that switches once and then adjusts spacing five times "
+           "would leave six copies of the map. Spent the moment it is "
+           "read, like the adopted-group flag beside it"),
+  dict(name="a-dropped-scheme-is-not-refilled-from-the-old-table",
+       file=DIALOG,
+       old="""      scheme_reset = column_gone and restored is None""",
+       new="""      scheme_reset = False  # mutation: let prev refill the scheme""",
+       test="test_a_dropped_column_takes_its_whole_scheme_and_the_shelf_returns_it",
+       why="the shelve POPS the records, and three restores in the "
+           "rebuild fall back to the previous assignment exactly when "
+           "the record is empty -- the state the pop just created -- "
+           "so the ramp, the tick and the count all came straight "
+           "back. Measured on the fix's own first build, 2026-08-21"),
+  dict(name="the-shelf-captures-the-mode-the-widget-holds", file=DIALOG,
+       old="""      if column_gone:
+        self._shelve_scheme(tid, dict(prev, mode_raw=raw_modes.get(
+          tid, prev.get("mode_raw"))))""",
+       new="""      if column_gone:
+        self._shelve_scheme(tid, prev)  # mutation: trust _assignments""",
+       test="test_a_dropped_column_takes_its_whole_scheme_and_the_shelf_returns_it",
+       why="_assignments corrects a quantitative style on a non-numeric "
+           "column to Categorized, and a column the NEW layer merely "
+           "LACKS answers _field_is_numeric False exactly as text does "
+           "-- so every dropped quant scheme was filed as Categorized, "
+           "and the wrong mode greyed Reverse on the way back. Found by "
+           "three dump lines after reading named the wrong suspect"),
+  dict(name="an-element-returns-to-a-field-it-has-shown-before",
+       file=DIALOG,
+       old="""      elif remembered is not None:
+        var_combo.setCurrentText(remembered)""",
+       new="""      elif False:  # mutation: ignore the shelf when re-defaulting
+        var_combo.setCurrentText(remembered)""",
+       test="test_a_dropped_column_takes_its_whole_scheme_and_the_shelf_returns_it",
+       why="ruling 6 is that switching back RESTORES: the element "
+           "prefers a field it has shown before over the cycled "
+           "default, and that preference is what makes the A-B-A "
+           "demo return to its own work rather than to a plausible "
+           "stranger"),
   dict(name="a-lost-column-still-costs-its-element-a-variable", file=DIALOG,
        old="""      elif preferred:
         var_combo.setCurrentText(preferred[row % len(preferred)])""",
@@ -718,9 +830,9 @@ MUTATIONS = [
        # with every observable correct, which is a fact about the fix
        # rather than about the guard. This door has one implementation
        # and one line, so it is the one an entry can hold.
-       old="""      if mode_cell is not None and mode_cell.property("touched") \\
+       old="""      elif mode_cell is not None and mode_cell.property("touched") \\
           and mode_cell.findText(instead) >= 0:""",
-       new="""      if False and mode_cell is not None \\
+       new="""      elif False and mode_cell is not None \\
           and mode_cell.findText(instead) >= 0:  # mutation: keep it""",
        test="test_a_column_deleted_in_qgis_takes_its_scheme_with_it",
        why="the maintainer's ruling of 2026-08-20 is that a setup is "
@@ -733,11 +845,11 @@ MUTATIONS = [
            "elements moved to another column, so the scheme riding "
            "along is what that account leaves out"),
   dict(name="a-dropped-scheme-is-no-longer-somebodys-pick", file=DIALOG,
-       old="""      mode_combo.setProperty(
-        "touched", bool(prev and prev.get("style_touched")
-                        and not column_gone))""",
-       new="""      mode_combo.setProperty(
-        "touched", bool(prev and prev.get("style_touched")))""",
+       old="""        mode_combo.setProperty(
+          "touched", bool(prev and prev.get("style_touched")
+                          and not column_gone))""",
+       new="""        mode_combo.setProperty(
+          "touched", bool(prev and prev.get("style_touched")))""",
        test="test_a_new_region_drops_a_setup_whose_column_has_gone",
        why="the flag means somebody chose this style rather than the "
            "plugin deriving it, and what they chose it for has gone. "
@@ -3752,9 +3864,11 @@ MUTATIONS = [
            "itself, which lives in the backing store, so what it holds "
            "is that the mechanism is absent"),
   dict(name="a-rename-during-a-run-keeps-the-group", file=DIALOG,
-       old="    force_new = self.opt_new_group.isChecked() or "
-           "renamed_mid_run or (",
-       new="    force_new = self.opt_new_group.isChecked() or (",
+       old="    force_new = (self.opt_new_group.isChecked() or "
+           "renamed_mid_run\n"
+           "                 or self._fresh_group_for_new_data or (",
+       new="    force_new = (self.opt_new_group.isChecked()\n"
+           "                 or self._fresh_group_for_new_data or (",
        test="test_the_output_group_is_renamed_while_a_run_is_in_flight",
        why="renaming the output group while a tiling runs is how a "
            "user keeps that result, exactly as 'Create as new group' "

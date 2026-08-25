@@ -1673,6 +1673,57 @@ Confirmed with the user via an explicit design review:
   correction: a fixture that leaves the plugin to DERIVE the thing
   under test measures the derivation. Written up in docs/TESTING.md
   beside the conditional-assertion fault it arrived with.
+- **A CHANGE OF REGION DATASET: THE SEVEN RULINGS OF 2026-08-21.**
+  (Settled by a full grilling, on the maintainer's report that the
+  current model surprised its own designer during a demo of several
+  datasets in a row, plus a colleague's report of a saved file
+  silently overwritten. The proposal grilled was "reset everything,
+  carry symbology for variables in common"; made precise, most of it
+  converged on machinery already built the day before, and these
+  seven are what remained to decide.)
+  1. THE OUTPUT PATH CLEARS on any change of region layer --
+     same-schema included, because B's map written over A's file
+     destroys a result either way -- and the clearing is announced.
+     Re-generating the SAME dataset still overwrites in place, which
+     is the settled replace-in-place contract, untouched.
+  2. THE NEXT GENERATE AFTER A SWITCH BUILDS A FRESH GROUP, through
+     the same door "Create as new group" already uses. The previous
+     dataset's result stays in the project; a demo accumulates its
+     maps side by side. A-B-A makes a third group.
+  3. A DROPPED COLUMN TAKES ITS WHOLE SCHEME: mode, ramp, Reverse,
+     class count and class source all re-derive -- exactly the set a
+     COPY overwrites, so switching and copying agree about what a
+     scheme is. One partition, used twice.
+  4. OPACITY STAYS WITH THE ELEMENT, as through every other change of
+     scheme; the single colour becomes a record of an unworn style,
+     kept silently under the existing ruling.
+  5. THE DESIGN NEVER RESETS, WITH ONE DOOR: when the new dataset
+     SEEMINGLY cannot fill it -- fewer seemingly-usable columns
+     (non-identifier, text included) than elements -- the plugin ASKS,
+     naming both numbers and what Yes does ("Change to a design with 2
+     elements?"). Yes recomposes to that element count with its
+     default family, one column each; No keeps the design with
+     columns shared, as today. Modifiers survive either way. The
+     maintainer's wording rulings: the question says CONCRETELY what
+     it will do, and the column count is hedged ("seemingly"), because
+     the usable-column heuristic is a guess.
+  6. THE MEMORY IS KEPT AND WIDENED: everything the switch deactivates
+     is recorded by element AND field -- the hand-picks and pins
+     always were; the scheme limbs join them -- and switching back
+     restores it. What stays ACTIVE changes; what is REMEMBERED does
+     not. The scheme memory is session-scoped, unlike the stamped
+     colour records, which is an implementation choice to revisit if
+     a reopened project turns out to need it.
+  7. THE SAME-NAME CARVE-OUT STANDS AS BUILT: setups follow surviving
+     column names, and the hundred-values question guards a column
+     that keeps its name while changing its kind.
+  SEQUENCING: all of it into 0.24.3, as rc17, on the maintainer's
+  explicit choice over splitting or deferring -- accepting that scope
+  grows on a version whose candidate is out for feedback.
+  A MODAL JOINS THE LAYER-CHANGE PATH with ruling 5, where the
+  threshold question set the precedent; the no-modal rule guards
+  GENERATION paths and is untouched.
+
 - **A BLANK THE PLUGIN IMPOSED IS NOT A CHOICE THE USER MADE.** An
   element left on "---" stays unassigned through rebuilds, because
   cycling a default back in would undo a deliberate switching-off. But

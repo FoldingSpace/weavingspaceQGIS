@@ -157,7 +157,19 @@ two elements share a column, one element's notice silenced the other.
 
 ### Outstanding
 
-**NOTHING OUTSTANDING.** Everything 0.24.3 owed in code is in, each
+**NOTHING OUTSTANDING.** The dataset-switch rulings of 2026-08-21 —
+settled by a full grilling, recorded in CLAUDE.md — are built, and
+every piece carries a test somebody watched fail: the output path
+clears on a switch and the clearing is announced in the maintainer's
+own words; the first landing after a switch builds a fresh QGIS layer
+group; a dropped column takes its whole scheme, on the copy's own
+partition, while the element keeps its opacity; the shelf returns a
+scheme when its column comes back, and the re-default prefers a field
+the element has shown before; and a dataset that seemingly cannot
+fill the design asks before recomposing, both answers driven. Twelve
+catalogue entries judged and caught, three sentences through the
+maintainer's review, and the record of the two defects the first
+build carried is in docs/TESTING.md and the tests' own docstrings.
 piece with a registered test and a catalogue entry somebody has
 watched fail. The two entries that stood here on the evening of
 2026-08-20 -- the categorical copy's remaining owings and the
@@ -216,6 +228,29 @@ Lower and Upper columns, offset by about a row, on scrolling.
 ## 0.24.4 — after this one
 
 ### Wanted
+
+**A SAVED RESULT CARRIES EVERY COLUMN OF THE SOURCE DATA.**
+(Colleague's report, 2026-08-21, on the maintainer's own data: 23
+element layers each holding all 26 source attributes took an 800 KB
+dataset to a 19 MB GeoPackage.) Wanted: each element layer carries
+the variable it symbolizes plus the identifiers (tile id, and
+probably the prototile id), with the layer name saying which variable
+it displays. Decisions the maintainer owns before anyone builds it:
+exactly which columns survive; whether the layer NAME gains the
+variable (renaming is safe -- adoption keys on custom properties, and
+a name is a label here, never an identity); and whether the paired
+no-data layer needs anything beyond the element's own column. One
+fact that lowers the cost: the set of mapped variables is already a
+GEOMETRY change, so a variable switch re-tiles today regardless --
+trimming the columns takes nothing from the restyle fast path.
+
+**READ IN "ONE I MADE EARLIER".** (Same conversation.) Point the
+plugin at a saved output GeoPackage -- without the project that made
+it -- and have it adopt the group the way a reopened project is
+adopted, so a demo can open a finished result instead of tiling one
+live. Depends on the entry above: a trimmed output must still carry
+whatever adoption reads. The adoption machinery exists; what is new
+is reaching it from a file rather than from the project.
 
 **TAKE THE UPSTREAM LIBRARY FROM 0.0.7.61 TO 0.0.7.89.** Checked
 2026-08-18 under the standing rule that upstream is compared before

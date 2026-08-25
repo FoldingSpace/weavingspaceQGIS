@@ -25308,6 +25308,274 @@ def test_a_column_deleted_in_qgis_takes_its_scheme_with_it():
     project.clear()
 
 
+def test_a_change_of_dataset_starts_a_new_file_and_a_new_group():
+  """B's map must not land in A's file, nor in A's group.
+
+  THE FILE HALF is the colleague's report of 2026-08-21: with a
+  GeoPackage path set, pointing the chooser at a different dataset and
+  pressing Generate silently overwrote the file built from the first
+  one -- a result on DISK, destroyed unasked. The path now CLEARS on
+  any change of region layer, same-schema included, and the clearing
+  is announced; re-generating the SAME dataset still overwrites in
+  place, which is the settled replace-in-place contract.
+
+  THE GROUP HALF is the same ruling in the project: the first landing
+  after a switch builds a FRESH group through the door "Create as new
+  group" already uses, so a demo accumulates its maps side by side.
+  The memory-mode case is the one that needs the flag -- with no file
+  in play both paths are empty and `same_destination` answers True --
+  so that is the case staged here.
+
+  Regression: changing the region dataset kept the output path and the group, so Generate overwrote a file and a result built from different data, without a word. [mutation]
+  """
+  project = QgsProject.instance()
+  dlg, layer, tid = _categorical_dialog()
+  try:
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(250)
+    first_group = dlg._group_of_our_layers(project.layerTreeRoot())
+    assert first_group is not None, "no group landed, nothing to protect"
+    first_name = first_group.name()
+    first_layer_ids = set(dlg._element_layer_ids.values())
+    assert first_layer_ids, "the first run produced no element layers"
+
+    # The path, set as a user sets it, must not survive the switch.
+    dlg.gpkg_widget.setFilePath("/tmp/claude/first-result.gpkg")
+    dlg.live_note.setText("")
+    other = make_other_region()
+    project.addMapLayer(other)
+    dlg.layer_combo.setLayer(other)
+    _tick(600)
+    assert not dlg.gpkg_widget.filePath(), \
+      "the output path survived the change of dataset, so the next " \
+      "Generate would overwrite a file built from the previous one"
+    said = dlg.live_note.text()
+    assert "cleared" in said and "overwritten" in said, \
+      f"the clearing was not announced: {said!r}"
+
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(250)
+    second_group = dlg._group_of_our_layers(project.layerTreeRoot())
+    assert second_group is not None, "the second run landed no group"
+    # THE OLD RESULT STILL EXISTS, layers and all -- that is the whole
+    # of the ruling. Identity, not name: both groups may carry the
+    # same label, and a name is never an identity here.
+    survivors = {lid for lid in first_layer_ids
+                 if project.mapLayer(lid) is not None}
+    assert survivors == first_layer_ids, \
+      f"the switch cost the first dataset "\
+      f"{len(first_layer_ids) - len(survivors)} of its "\
+      f"{len(first_layer_ids)} element layers; B's landing must not " \
+      f"touch A's result"
+    assert set(dlg._element_layer_ids.values()).isdisjoint(
+      first_layer_ids), \
+      "the second run reused the first run's layers, so it landed in " \
+      "A's group rather than building fresh"
+    # ...and the flag is SPENT: a third run on the SAME dataset
+    # replaces in place, as it always has.
+    dlg.spacing_spin.setValue(520)
+    _generate_and_wait(dlg)
+    _tick(250)
+    third_ids = set(dlg._element_layer_ids.values())
+    groups_named = [g.name() for g in
+                    project.layerTreeRoot().findGroups()]
+    assert not dlg._fresh_group_for_new_data, \
+      "the fresh-group flag survived its landing, so EVERY later run " \
+      "would build a new group"
+    assert first_layer_ids == {
+      lid for lid in first_layer_ids if project.mapLayer(lid)}, \
+      f"the third run destroyed the first dataset's layers " \
+      f"({groups_named})"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_dropped_column_takes_its_whole_scheme_and_the_shelf_returns_it():
+  """Ruling 3 and ruling 6 of 2026-08-21, driven as one journey.
+
+  A DROPPED COLUMN TAKES ITS WHOLE SCHEME -- mode, ramp, Reverse,
+  class count -- which is exactly the set a COPY overwrites, so the
+  two acts agree about what a scheme is. The OPACITY stays with the
+  element, as through every other change of scheme. And the shelf
+  gives everything back when the element returns to data that has the
+  field: the A-B-A journey a demo actually makes.
+
+  THE FIRST BUILD OF THIS FIX FAILED TWICE, and both failures are
+  worth the fixture staging them. The shelve captured `mode_raw` from
+  `_assignments`, whose quant-on-text correction fires for a column
+  the layer merely LACKS, so every dropped quant scheme was filed as
+  "Categorized". And the reset did not hold: three restores in the
+  rebuild fall back to the previous assignment exactly when the
+  record is empty, which is the state the reset had just created, so
+  the ramp, the tick and the count all came straight back.
+
+  Regression: a dataset switch reset an element's mode and left its ramp, Reverse and class count standing, then restored a scheme filed under a corrected mode nobody chose. [mutation]
+  """
+  project = QgsProject.instance()
+  dlg, layer, tid1 = _categorical_dialog()
+  try:
+    tid0 = dlg.table.item(0, 0).text()
+    # THE CHOSEN FIELD MUST NOT BE THE CYCLED DEFAULT, or the return
+    # journey cannot tell preference from coincidence. The first build
+    # of this test staged its scheme on v1 -- which is exactly what
+    # cycling picks for row 0 -- and the catalogue entry aimed at the
+    # shelved-field preference SURVIVED, because the mutation landed
+    # on the same column by accident and restored the same scheme.
+    var_cell = dlg.table.cellWidget(0, 1)
+    var_cell.setCurrentText("v3")
+    _tick(100)
+    fields_a = dlg._layer_fields()
+    id_like = {"fid", "objectid", "id", "gid", "ogc_fid"}
+    numeric = [f for f in fields_a if dlg._field_is_numeric(f)]
+    cycled = ([f for f in numeric if f.lower() not in id_like]
+              or numeric)[0]
+    assert var_cell.currentText() != cycled, \
+      f"the fixture staged its scheme on {cycled!r}, the cycled " \
+      f"default for row 0, so the shelf preference could pass by " \
+      f"coincidence"
+    mode = dlg.table.cellWidget(0, 2)
+    mode.setCurrentText("Quant: Equal intervals")
+    mode.activated.emit(mode.currentIndex())
+    _tick(150)
+    ramp = dlg.table.cellWidget(0, 4)
+    ramp.setCurrentIndex((ramp.currentIndex() + 3) % max(ramp.count(), 1))
+    chosen_ramp = ramp.currentText()
+    dlg._ramp_choices[tid0] = chosen_ramp
+    dlg._reverse_choices[tid0] = True
+    dlg.table.cellWidget(0, 3).setValue(7)
+    dlg._class_counts[tid0] = 7
+    dlg.table.cellWidget(0, 6).setValue(40)
+    before = dlg._assignment_for(tid0)
+    assert before["style_touched"] and before["ramp"] == chosen_ramp, \
+      "the fixture failed to stage a chosen scheme, so nothing here " \
+      "could be reset or restored"
+    dropped_field = before["var"]
+
+    other = make_other_region()
+    project.addMapLayer(other)
+    dlg.layer_combo.setLayer(other)
+    _tick(600)
+    now = dlg._assignment_for(tid0)
+    landed_on = now.get("var")
+    assert landed_on and landed_on != dropped_field, \
+      f"element {tid0!r} still claims {dropped_field!r}"
+    # THE WHOLE SCHEME, counted axis by axis. Each of these rode
+    # through the switch before 2026-08-21.
+    assert now.get("mode_raw") == dlg._plausible_mode(landed_on), \
+      f"the mode survived: {now.get('mode_raw')!r}"
+    assert not now.get("style_touched"), "the touched flag survived"
+    assert now.get("ramp") != chosen_ramp, \
+      f"the ramp survived onto {landed_on!r}: a colour chosen for " \
+      f"{dropped_field!r}'s semantics goes on painting an unrelated " \
+      f"column"
+    assert not now.get("reverse"), "the Reverse tick survived"
+    assert now.get("k") != 7, f"the class count survived: {now.get('k')}"
+    # ...AND THE ELEMENT'S OWN RECORD DOES SURVIVE, which is ruling 4:
+    # the partition, not a blanket reset.
+    assert now.get("opacity") == 40, \
+      f"the opacity was reset with the scheme ({now.get('opacity')}); " \
+      f"it belongs to the element, as through every other change of " \
+      f"scheme"
+    shelf = dlg._scheme_memory.get(tid0, {})
+    assert dropped_field in shelf, \
+      f"nothing was shelved for {dropped_field!r}: {sorted(shelf)}"
+
+    # ---- and back. What was deactivated comes back into force.
+    dlg.layer_combo.setLayer(layer)
+    _tick(600)
+    home = dlg._assignment_for(tid0)
+    assert home.get("var") == dropped_field, \
+      f"the element did not return to {dropped_field!r} " \
+      f"({home.get('var')!r}), though the shelf held its scheme"
+    assert home.get("mode_raw") == "Quant: Equal intervals" \
+        and home.get("style_touched"), \
+      f"the scheme did not come back: {home.get('mode_raw')!r}, " \
+      f"touched={home.get('style_touched')}"
+    assert home.get("ramp") == chosen_ramp and home.get("reverse") \
+        and home.get("k") == 7 and home.get("opacity") == 40, \
+      f"the shelf returned a partial scheme: ramp={home.get('ramp')!r} " \
+      f"rev={home.get('reverse')} k={home.get('k')} " \
+      f"op={home.get('opacity')}"
+    assert dropped_field not in dlg._scheme_memory.get(tid0, {}), \
+      "the shelf kept a copy of a scheme that is back in force; a " \
+      "stale copy would return over the user's later edits"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_dataset_that_cannot_fill_the_design_asks_first():
+  """The design-floor question, with both answers driven.
+
+  THE RULING (2026-08-21): the design NEVER resets on a change of
+  dataset -- nothing could re-derive a weave family -- with one door:
+  when the new data SEEMINGLY cannot fill it, fewer seemingly-usable
+  columns than elements, the plugin asks before recomposing. The
+  maintainer set the wording: the question names both numbers and
+  says concretely what Yes does, and the count is hedged with
+  "seemingly" because the usable-column heuristic is a guess.
+
+  Yes recomposes to that element count through the n chooser's own
+  cascade, so the family list and its default are the same rule the
+  chooser applies. No keeps the design, columns shared, as always.
+
+  Regression: none yet; this guards the design-floor door added with the rulings of 2026-08-21.
+ [unrecorded]
+  """
+  from qgis.PyQt.QtWidgets import QMessageBox
+  project = QgsProject.instance()
+  for reply, wants_recompose in ((QMessageBox.StandardButton.Yes, True),
+                                 (QMessageBox.StandardButton.No, False)):
+    dlg, layer, tid1 = _categorical_dialog()
+    MODAL_ANSWERS["question"] = reply
+    try:
+      before_n = dlg.n_combo.currentText()
+      before_family = dlg.family_combo.currentText()
+      assert dlg.table.rowCount() == 4, \
+        "the fixture no longer builds a four-element design, so a " \
+        "two-column dataset cannot be short for it"
+      MODALS.clear()
+      other = make_other_region()      # code + density: two usable
+      project.addMapLayer(other)
+      dlg.layer_combo.setLayer(other)
+      _tick(700)
+      asked = [t for k, t in MODALS if k == "question"]
+      assert asked, "a two-column dataset met a four-element design " \
+                    "and nothing was asked"
+      q = asked[0]
+      assert "seemingly has 2 usable columns" in q \
+          and "4 elements" in q \
+          and "Change to a design with 2 elements?" in q, \
+        f"the question does not say what the maintainer ruled it " \
+        f"must: {q!r}"
+      if wants_recompose:
+        assert dlg.n_combo.currentText() == "2" \
+            and dlg.table.rowCount() == 2, \
+          f"the user said yes and the design was not recomposed " \
+          f"(n={dlg.n_combo.currentText()!r}, " \
+          f"rows={dlg.table.rowCount()})"
+        shown = {(dlg._assignment_for(dlg.table.item(r, 0).text())
+                  or {}).get("var")
+                 for r in range(dlg.table.rowCount())}
+        assert shown == {"code", "density"}, \
+          f"a recomposed design should show each usable column once, " \
+          f"not {sorted(shown)}"
+      else:
+        assert dlg.n_combo.currentText() == before_n \
+            and dlg.family_combo.currentText() == before_family \
+            and dlg.table.rowCount() == 4, \
+          "the user declined and the design changed anyway; a " \
+          "question that recomposes whatever you answer is consent " \
+          "theatre"
+    finally:
+      MODAL_ANSWERS.pop("question", None)
+      dlg.close()
+      project.clear()
+
+
 def test_a_categorical_scheme_copies_onto_another_element():
   """The control exists, and it overwrites all but four things.
 
@@ -56531,6 +56799,12 @@ def main():
         test_a_new_region_drops_a_setup_whose_column_has_gone)
   check("a column deleted in qgis takes its scheme with it",
         test_a_column_deleted_in_qgis_takes_its_scheme_with_it)
+  check("a change of dataset starts a new file and a new group",
+        test_a_change_of_dataset_starts_a_new_file_and_a_new_group)
+  check("a dropped column takes its whole scheme and it returns",
+        test_a_dropped_column_takes_its_whole_scheme_and_the_shelf_returns_it)
+  check("a dataset that cannot fill the design asks first",
+        test_a_dataset_that_cannot_fill_the_design_asks_first)
   check("a column that keeps its name and changes its kind",
         test_a_column_that_keeps_its_name_and_changes_its_kind)
   check("a copy asks before drawing a colour for every value",

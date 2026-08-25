@@ -1548,6 +1548,17 @@ any adopted ladder collapses back to the computed one. The fix could
 be neither proved nor disproved for an afternoon. Before trusting a
 green cell, ask whether that cell COULD have gone red.
 
+**A FIXTURE'S CHOICE MUST DIFFER FROM THE DEFAULT THE MUTATION
+FALLS BACK TO.** 2026-08-24: the entry proving that a re-defaulting
+element PREFERS a field it has shown before was mutated to ignore the
+preference -- and survived, because the fixture had staged its scheme
+on the very field the cycling default picks for that row, so the
+mutation landed on the same column by accident and restored the same
+scheme. Preference and coincidence were indistinguishable by
+construction. When a behaviour is "X wins over default Y", the
+fixture must stage an X that is NOT Y, and assert that premise so a
+refactor of the default cannot quietly restore the coincidence.
+
 **ARRIVAL AND SURVIVAL ARE DIFFERENT PROMISES**, so "what happens
 next" is an axis of its own: each edit is checked immediately AND
 after a re-Generate. This project's older defects lived in the second

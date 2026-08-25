@@ -132,6 +132,21 @@ changelog=0.24.3 You decide how your data is classed: which values are
     Speed: the optional warning about colours a reader may not be
     able to separate used to hold QGIS still for half a minute on a
     map of many classes. It answers in under two seconds.
+    Changing your data: pointing the region chooser at a different
+    dataset now starts the styling fresh where the content justifies
+    it. Each element keeps its variable and its style where the new
+    data has a column of that name, and otherwise takes a sensible
+    default for a column the new data does hold; the scheme, ramp,
+    class count and Reverse reset together, while the element's
+    opacity stays. No styling is permanently lost: what a switch in
+    dataset puts aside comes back when you return to data that has
+    the column. The saved-file path is cleared so the map you saved
+    from the previous dataset keeps its file, and the next dataset
+    appears in its own QGIS layer group rather than replacing the
+    last one. A dataset with fewer usable columns than the design
+    has elements asks before the design is changed, and a kept
+    categorical scheme meeting more than a hundred distinct values
+    asks before drawing a colour for each.
     Reopening a project: an element whose ramp you reversed comes
     back reversed, naming the ramp you chose rather than reading as
     custom colours. A class you recoloured in QGIS's Layer Styling

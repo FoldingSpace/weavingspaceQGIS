@@ -1323,6 +1323,17 @@ class WeavingSpaceDialog(QDialog):
     self._ramp_choices = {}
     self._reverse_choices = {}
     self._opacity_choices = {}
+    # The scheme SHELF: {tile_id: {field: the whole scheme}} for
+    # columns a dataset change dropped -- written by _shelve_scheme,
+    # read back by _unshelve_scheme when the element returns to data
+    # that has the field. Session-scoped, unlike the stamped colour
+    # records; the ruling (CLAUDE.md, 2026-08-21) says what stays
+    # ACTIVE changes and what is REMEMBERED does not.
+    self._scheme_memory = {}
+    # Armed by _begin_new_dataset, spent by the next landing: the
+    # first Generate after a change of dataset builds a FRESH group,
+    # so B's map never replaces A's result in the project.
+    self._fresh_group_for_new_data = False
     # True between `cleared` and the end of the adoption that
     # follows it, so adoption can tell a choice from an echo.
     self._project_is_being_replaced = False
@@ -2441,6 +2452,12 @@ class WeavingSpaceDialog(QDialog):
     # populate the variable choosers the moment the layer is chosen
     # (synchronously, not on the preview debounce), and queue the
     # automatic first render
+    # A CHANGE OF DATASET DOES ITS HOUSEKEEPING FIRST -- the output
+    # path, the fresh-group flag and the design-floor question all
+    # precede the rebuild, because a Yes to that question changes what
+    # the rebuild builds.
+    if switched:
+      self._begin_new_dataset(layer)
     self._rebuild_unit()
     # ...and the table now standing there is asked whether a scheme it
     # kept still makes sense on the new data. It runs AFTER the rebuild
@@ -2495,6 +2512,69 @@ class WeavingSpaceDialog(QDialog):
       return
     self._table_built_for = stamp
     self._rebuild_unit()
+
+  def _begin_new_dataset(self, layer):
+    """What a change of region dataset does before the table rebuilds.
+
+    Args:
+      layer: the newly chosen region layer.
+
+    Returns:
+      None. Three acts, all from the maintainer's rulings of
+      2026-08-21 (recorded in CLAUDE.md). The OUTPUT PATH is cleared:
+      B's map written over A's saved file destroys a result whether or
+      not the schemas match, so the clearing is unconditional on a
+      switch and announced -- re-generating the SAME dataset still
+      overwrites in place, which is the settled contract, untouched.
+      The NEXT RUN IS MARKED for a fresh group through the same door
+      "Create as new group" uses, so the previous dataset's result
+      stays in the project. And where the new data SEEMINGLY cannot
+      fill the design -- fewer seemingly-usable columns than elements
+      -- the plugin ASKS before recomposing, naming both numbers and
+      what Yes does. "Seemingly" is the maintainer's own hedge: the
+      usable-column count is a heuristic, not a fact.
+
+    A MODAL IS ALLOWED HERE: this is the layer-change path, where the
+    hundred-values question set the precedent, and no generation path
+    runs through it. The flag rather than the checkbox, because
+    ticking "Create as new group" would leave a control the user owns
+    showing a choice they did not make.
+    """
+    widget = getattr(self, "gpkg_widget", None)
+    if widget is not None and widget.filePath():
+      widget.blockSignals(True)
+      widget.setFilePath("")
+      widget.blockSignals(False)
+      self._report_quietly(
+        "The GeoPackage path was cleared, so the dataset saved from "
+        "your previous work isn't overwritten; choose a new path to "
+        "save this one.")
+    self._fresh_group_for_new_data = True
+    if layer is None:
+      return
+    # The same id-like set _refresh_table skips when it picks
+    # defaults: a column of row identifiers is offered, never counted.
+    fields = [f.name() for f in layer.fields()]
+    id_like = {"fid", "objectid", "id", "gid", "ogc_fid"}
+    usable = [f for f in fields if f.lower() not in id_like]
+    elements = len(self._tile_ids())
+    # Below TWO the question cannot be honoured -- the smallest design
+    # on offer has two elements -- so a one-column dataset keeps the
+    # design and shares the column, as always.
+    if 2 <= len(usable) < elements:
+      from qgis.PyQt.QtWidgets import QMessageBox
+      count = len(usable)
+      answer = QMessageBox.question(
+        self, "WeavingSpace",
+        f"This layer seemingly has {count} usable columns, and the "
+        f"design has {elements} elements. Change to a design with "
+        f"{count} elements?")
+      if answer == QMessageBox.StandardButton.Yes:
+        # Signals LIVE deliberately: the n chooser's own cascade is
+        # what repopulates the family list for the new count and picks
+        # its default, and driving that any other way would be a
+        # second implementation of the rule.
+        self.n_combo.setCurrentText(str(count))
 
   def _skip_zero_scale(self, box, value):
     """Step a scale control over zero rather than onto it.
@@ -3119,23 +3199,51 @@ class WeavingSpaceDialog(QDialog):
       if combo is None or was not in lost:
         continue
       identifier = self.table.item(row, 0)
-      now = preferred[row % len(preferred)] if preferred else "---"
-      combo.blockSignals(True)
-      combo.setCurrentText(now)
-      combo.blockSignals(False)
+      tid_here = identifier.text() if identifier else None
+      mode_cell = self.table.cellWidget(row, 2)
       # ...AND THE STYLE GOES WITH THE COLUMN, which is the same ruling
       # as a change of region dataset and a THIRD door into it. The
       # other two are answered in `_refresh_table`, which asks whether
       # the element's remembered column is still in the layer -- and
-      # cannot see this one, because the loop above has just re-pointed
-      # the row at a column that IS. Measured 2026-08-20: deleting
-      # 'landcover' in QGIS moved the element to a numeric 'v2' and
-      # left the categorical scheme on it, so the map drew a colour for
-      # every distinct value while the notice below said only that the
-      # variable had changed.
-      mode_cell = self.table.cellWidget(row, 2)
+      # cannot see this one, because this loop re-points the row at a
+      # column that IS. Measured 2026-08-20: deleting 'landcover' in
+      # QGIS moved the element to a numeric 'v2' and left the
+      # categorical scheme on it. Since 2026-08-21 the WHOLE scheme
+      # goes with the column, onto the shelf, and an element PREFERS a
+      # field it has shown before, bringing that field's scheme back.
+      # The seven rulings are in CLAUDE.md.
+      if tid_here and mode_cell is not None:
+        _dump("DOOR-3", tid_here, "sees", mode_cell.currentText())
+        self._shelve_scheme(tid_here, {
+          "var": was,
+          "mode_raw": mode_cell.currentText(),
+          "style_touched": bool(mode_cell.property("touched")),
+        })
+      remembered = None
+      if tid_here:
+        shelf = self._scheme_memory.get(tid_here, {})
+        held = [f for f in fields if f in shelf]
+        if held:
+          remembered = held[0]
+      now = remembered if remembered is not None else (
+        preferred[row % len(preferred)] if preferred else "---")
+      combo.blockSignals(True)
+      combo.setCurrentText(now)
+      combo.blockSignals(False)
+      restored = self._unshelve_scheme(tid_here, remembered) \
+          if tid_here and remembered is not None else None
       instead = self._plausible_mode(now)
-      if mode_cell is not None and mode_cell.property("touched") \
+      if restored is not None and mode_cell is not None:
+        back = restored.get("mode_raw") if restored.get("touched") \
+            else instead
+        if back in self.MODES and mode_cell.findText(back) >= 0:
+          mode_cell.blockSignals(True)
+          mode_cell.setCurrentText(back)
+          mode_cell.blockSignals(False)
+        mode_cell.setProperty("touched", bool(restored.get("touched")))
+        mode_cell.setProperty("last_style", mode_cell.currentText())
+        self._sync_row(row)
+      elif mode_cell is not None and mode_cell.property("touched") \
           and mode_cell.findText(instead) >= 0:
         mode_cell.blockSignals(True)
         mode_cell.setCurrentText(instead)
@@ -4589,6 +4697,73 @@ class WeavingSpaceDialog(QDialog):
       self.resize(min(MAX_WINDOW_WIDTH, self.width() + shortfall),
                   self.height())
 
+  def _shelve_scheme(self, tile_id, prev):
+    """Put an element's scheme on the shelf and take it out of force.
+
+    Args:
+      tile_id: the element whose column has gone.
+      prev: its assignment dict (or a dict shaped like one) from
+        before the change, naming the dropped field in ``var``, the
+        style in ``mode_raw`` and whether somebody chose it in
+        ``style_touched``.
+
+    Returns:
+      None. The shelf entry holds the WHOLE scheme -- mode, ramp,
+      Reverse, class count, class source and the per-mode ramp slots
+      -- which is exactly the set a COPY overwrites: the maintainer's
+      partition of 2026-08-20, applied to switching on 2026-08-21 so
+      the two acts agree about what a scheme is. What stays behind is
+      the element's own: the opacity, and the single colour, which is
+      an unworn-style record under the standing ruling. Hand-picked
+      colours and pinned bounds are already keyed by element AND
+      field, so they shelve themselves.
+    """
+    dropped = prev.get("var")
+    if not dropped:
+      return
+    _dump("SHELF", tile_id, "put", dropped, prev.get("mode_raw"),
+          "touched" if prev.get("style_touched") else "derived")
+    self._scheme_memory.setdefault(tile_id, {})[dropped] = {
+      "mode_raw": prev.get("mode_raw"),
+      "touched": bool(prev.get("style_touched")),
+      "ramp": self._ramp_choices.pop(tile_id, None),
+      "reverse": self._reverse_choices.pop(tile_id, None),
+      "k": self._class_counts.pop(tile_id, None),
+      "class_source": self._class_choices.pop(tile_id, None),
+      "ramp_slots": self._ramp_memory.pop(tile_id, None),
+    }
+    self._custom_swatch_cache.pop(tile_id, None)
+
+  def _unshelve_scheme(self, tile_id, field):
+    """Bring a shelved scheme back into force for a returning field.
+
+    Args:
+      tile_id: the element.
+      field: the column it is returning to.
+
+    Returns:
+      The shelf entry, with its records written back into force, or
+      None when nothing was shelved for that field. The entry is
+      REMOVED from the shelf: it is in force again, and a copy left
+      behind would go stale the moment the user edits anything.
+    """
+    entry = (self._scheme_memory.get(tile_id) or {}).pop(field, None)
+    if entry is None:
+      _dump("SHELF", tile_id, "miss", field)
+      return None
+    _dump("SHELF", tile_id, "take", field, entry.get("mode_raw"),
+          "touched" if entry.get("touched") else "derived")
+    for record, key in ((self._ramp_choices, "ramp"),
+                        (self._reverse_choices, "reverse"),
+                        (self._class_counts, "k"),
+                        (self._class_choices, "class_source")):
+      if entry.get(key) is not None:
+        record[tile_id] = entry[key]
+    if entry.get("ramp_slots"):
+      self._ramp_memory[tile_id] = entry["ramp_slots"]
+    self._custom_swatch_cache.pop(tile_id, None)
+    return entry
+
   def _refresh_table(self):
     """Rebuild the assignment table for the current unit and layer.
 
@@ -4611,6 +4786,23 @@ class WeavingSpaceDialog(QDialog):
     preferred = [f for f in numeric if f.lower() not in id_like] or numeric
     previous = self._assignments()
     prev_by_id = {a["id"]: a for a in previous}
+    # THE MODE AS THE WIDGET HOLDS IT, captured before the loop starts
+    # replacing cells. `_assignments` CORRECTS a quantitative style
+    # standing on a non-numeric column to Categorized -- right for the
+    # map, and wrong as a record of what somebody chose, because a
+    # column the NEW layer does not have answers `_field_is_numeric`
+    # False as surely as a text column does. Shelving `prev["mode_raw"]`
+    # therefore filed every dropped quant scheme as "Categorized", and
+    # the wrong mode then greyed the row's Reverse on the way back.
+    # Measured 2026-08-21 with three dump lines, after reading had
+    # named the wrong suspect.
+    raw_modes = {}
+    for existing in range(self.table.rowCount()):
+      cell = self.table.item(existing, 0)
+      widget = self.table.cellWidget(existing, 2)
+      if cell is not None and widget is not None \
+          and hasattr(widget, "currentText"):
+        raw_modes[cell.text()] = widget.currentText()
     self.table.setRowCount(len(ids))
     for row, tid in enumerate(ids):
       item = QTableWidgetItem(tid)
@@ -4621,6 +4813,26 @@ class WeavingSpaceDialog(QDialog):
       var_combo.addItem("---")
       var_combo.addItems(fields)
       prev = prev_by_id.get(tid)
+      # A DROPPED COLUMN TAKES ITS WHOLE SCHEME (the seven rulings of
+      # 2026-08-21, in CLAUDE.md; the mode-only form of 2026-08-20 is
+      # ledger row 9). Shelved rather than destroyed, keyed by the
+      # field it was cut for. THE FIELDLESS BUILD IS EXCLUDED, for the
+      # reason recorded at the end of this method.
+      column_gone = bool(fields) and prev is not None \
+          and prev.get("var") is not None and prev["var"] not in fields
+      if column_gone:
+        self._shelve_scheme(tid, dict(prev, mode_raw=raw_modes.get(
+          tid, prev.get("mode_raw"))))
+      # ...and an element PREFERS a field it has shown before: when
+      # the shelf holds a scheme for a column this dataset HAS -- the
+      # A-B-A journey -- the element returns to it, and the scheme
+      # comes back with it below.
+      remembered = None
+      if column_gone:
+        shelf = self._scheme_memory.get(tid, {})
+        held = [f for f in fields if f in shelf]
+        if held:
+          remembered = held[0]
       if prev and prev["var"] in fields:
         var_combo.setCurrentText(prev["var"])
       elif prev is not None and prev["var"] is None \
@@ -4629,6 +4841,8 @@ class WeavingSpaceDialog(QDialog):
         # default back in here would undo the user's choice on every
         # design change, and their map would grow an element they had
         # switched off
+      elif remembered is not None:
+        var_combo.setCurrentText(remembered)
       elif preferred:
         var_combo.setCurrentText(preferred[row % len(preferred)])
       var_combo.currentIndexChanged.connect(
@@ -4642,29 +4856,31 @@ class WeavingSpaceDialog(QDialog):
         "Layer Styling panel.")
       mode_combo.setCurrentText(self._plausible_mode(
         var_combo.currentText()))
-      # A STYLE SOMEBODY CHOSE IS RESTORED, UNLESS ITS COLUMN HAS GONE.
-      # The maintainer's ruling of 2026-08-20 on a change of region
-      # dataset is that a setup is KEPT where the new data has a column
-      # of that name and DROPPED where it does not -- and the scheme is
-      # half of that setup. Until this line the variable re-defaulted
-      # while the scheme rode along, so a categorical style cut for four
-      # land-cover words landed on a column of areas in square metres
-      # and drew a colour for each. That is the report this rule exists
-      # for, and both registered tests missed it because their fixtures
-      # never touched the style, leaving the plugin to re-derive it.
-      #
-      # THE FIELDLESS BUILD IS EXCLUDED, for the reason recorded at the
-      # end of this method: a table built when the chooser had not
-      # settled has no fields at all, and reading that as "every column
-      # has gone" would throw away every style in the window.
-      column_gone = bool(fields) and prev is not None \
-          and prev.get("var") is not None and prev["var"] not in fields
-      if prev and prev.get("mode_raw") in self.MODES \
+      # The scheme comes back with a remembered field, stays where the
+      # column survived, and is derived fresh everywhere else.
+      restored = self._unshelve_scheme(tid, remembered) \
+          if remembered is not None else None
+      # A SCHEME THE SWITCH RESET MUST NOT BE REFILLED FROM `prev`.
+      # The shelve above POPS the records, and three restores below
+      # fall back to the previous ASSIGNMENT when the record is
+      # empty -- which is exactly the state the pop just created, so
+      # the ramp, the tick and the count all came straight back. That
+      # is ruling 3 of 2026-08-21 undone by the code that reads the
+      # table it was rebuilding.
+      scheme_reset = column_gone and restored is None
+      if restored is not None:
+        if restored.get("mode_raw") in self.MODES \
+            and restored.get("touched"):
+          mode_combo.setCurrentText(restored["mode_raw"])
+        mode_combo.setProperty("touched", bool(restored.get("touched")))
+      elif prev and prev.get("mode_raw") in self.MODES \
           and prev.get("style_touched") and not column_gone:
         mode_combo.setCurrentText(prev["mode_raw"])
-      mode_combo.setProperty(
-        "touched", bool(prev and prev.get("style_touched")
-                        and not column_gone))
+        mode_combo.setProperty("touched", True)
+      else:
+        mode_combo.setProperty(
+          "touched", bool(prev and prev.get("style_touched")
+                          and not column_gone))
       mode_combo.setProperty("tile_id", tid)
       # the baseline the scheme-change destruction compares against;
       # kept current in _on_mode_chosen
@@ -4722,7 +4938,7 @@ class WeavingSpaceDialog(QDialog):
       # controls cannot express must not survive in a property.
       # Guarded by test_an_unclassed_excursion_leaves_the_count_alone.
       restored_k = self._class_counts.get(tid)
-      if not restored_k and prev and prev.get("k"):
+      if not restored_k and prev and prev.get("k") and not scheme_reset:
         restored_k = prev["k"]
       restored_k = max(2, min(int(restored_k or 5), 20))
       k_spin.setValue(restored_k)
@@ -4800,12 +5016,13 @@ class WeavingSpaceDialog(QDialog):
       # that follows a dock edit, so it is the authority.
       # Guarded by test_a_ramp_chosen_during_a_run_is_not_lost.
       wanted = self._ramp_choices.get(tid) \
-        or (prev.get("ramp") if prev else None) or default
+        or (None if scheme_reset else (prev.get("ramp") if prev else None)) \
+        or default
       self.table.setCellWidget(
         row, 4, self._make_ramp_combo(tid, wanted))
       if prev and prev.get("single_colour"):
         self._single_colours[tid] = prev["single_colour"]
-      if prev is not None and "reverse" in prev:
+      if prev is not None and "reverse" in prev and not scheme_reset:
         # The report may only ADD a tick, never remove one, and the
         # asymmetry is the point.
         # `_assignments` reports the SWITCH, and reports False while
@@ -9909,6 +10126,8 @@ class WeavingSpaceDialog(QDialog):
       self._refresh_preview_colours()
     elif mode_combo.currentText() in self.GRAD_SCHEMES and \
         var not in ("", "---") and not self._field_is_numeric(var):
+      _dump("FOLLOW-VAR", mode_combo.property("tile_id"),
+            "quant-on-text ->", "Categorized", "var=", var)
       mode_combo.blockSignals(True)
       mode_combo.setCurrentText("Categorized")
       mode_combo.blockSignals(False)
@@ -12500,15 +12719,22 @@ class WeavingSpaceDialog(QDialog):
       QgsProject.instance().layerTreeRoot())
     renamed_mid_run = (launched_as is not None and live_group is not None
                        and live_group.name() != launched_as)
-    force_new = self.opt_new_group.isChecked() or renamed_mid_run or (
+    # ...and the first landing after a change of dataset builds fresh
+    # whatever the paths say: with no file in play both paths are
+    # empty, same_destination answers True, and B's memory-mode map
+    # would replace A's in place -- the demo journey the ruling of
+    # 2026-08-21 exists for.
+    force_new = (self.opt_new_group.isChecked() or renamed_mid_run
+                 or self._fresh_group_for_new_data or (
       not same_destination(path, self._last_path)
-      and not adopted_and_no_file_named)
+      and not adopted_and_no_file_named))
     # Spent the moment it is read: the group is this dialog's from
     # here on, and a second run with a changed destination follows the
     # ordinary rule again. Cleared BEFORE the work below rather than
     # after, so an exception on the way cannot leave it armed for a
     # later run that has no claim to it.
     self._adopted_group_unwritten = False
+    self._fresh_group_for_new_data = False
     group, created = self._get_or_make_group(force_new)
     group.setName(self._group_name)
 
