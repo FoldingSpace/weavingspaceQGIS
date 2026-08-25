@@ -157,24 +157,18 @@ two elements share a column, one element's notice silenced the other.
 
 ### Outstanding
 
-**ONE SENTENCE, THEN rc18.** Everything 0.24.3 owes in code is built
-and proved. The seven dataset-switch rulings of 2026-08-21 (CLAUDE.md
-holds them as settled decisions) each carry a test somebody watched
-fail; the full suite then drew the BOUNDARY -- a change of dataset is
-leaving a dataset this session has built from, one clause, found when
-three tests failed that every targeted run had passed -- and the
-maintainer's privacy questions of 2026-08-24 added ruling 8: session
-memory lives in per-dataset banks, value-laden records (hand-picked
-colours keyed by value strings, pinned numbers) never cross a shared
-column name, and a test reads the GeoPackage's bytes to hold the file
-boundary. A carve for "variables in common" was built and ended the
-same day by the maintainer's own question about confidential values.
-rc17's number was spent by a superseded build, never published; the
-candidate carrying all of this is rc18. What remains: the
-maintainer's ruling on the changelog's reworded memory sentence, then
-gates, commit, push, CI, build, publish -- and a CI-only race in one
-test (a cell widget held across a tick) is fixed and rides the same
-commit.
+**NOTHING OUTSTANDING.** The dataset-switch work is complete: the
+seven rulings of 2026-08-21, the boundary the full suite drew (a
+change of dataset is leaving a dataset this session has built from),
+and ruling 8 of 2026-08-24 -- per-dataset memory banks, value-laden
+records never crossing a shared column name, the file boundary tested
+at the GeoPackage's own bytes, and the "variables in common" carve
+built and ended the same day by the maintainer's question about
+confidential values. Every piece carries a test somebody watched fail
+and a judged catalogue entry; the changelog sentence is as the
+maintainer ruled it and the review queue is empty. rc17's number was
+spent by a superseded build, never published; the candidate carrying
+all of this is rc18.
 
 ### What this version has already closed
 
