@@ -697,6 +697,44 @@ MUTATIONS = [
            "that is thousands, and the user finds out by watching QGIS "
            "do it. The maintainer ruled it a question rather than a "
            "refusal, on one threshold shared with the dataset switch"),
+  dict(name="value-laden-records-never-cross-a-shared-name", file=DIALOG,
+       old="""    self._category_colours = bank["colours"]
+    self._pinned_bounds = bank["pins"]""",
+       new="""    bank["colours"].update(outgoing["colours"])
+    self._category_colours = bank["colours"]  # mutation: reintroduce the carve, wholesale
+    self._pinned_bounds = bank["pins"]""",
+       test="test_value_laden_records_never_cross_a_shared_name",
+       why="the wrong implementation somebody would plausibly write: "
+           "carry the colours across the swap. Hand-picks are keyed by "
+           "VALUE STRINGS and the landing stamp writes them into the "
+           "new dataset's files, which is the confidential-values leak "
+           "the maintainer named when they ended the carve"),
+  dict(name="the-banks-swap-on-a-change-of-layer", file=DIALOG,
+       old="""    new_id = layer.id() if layer is not None else None
+    old_id = self._memory_layer_id
+    if old_id == new_id:
+      return""",
+       new="""    new_id = layer.id() if layer is not None else None
+    old_id = self._memory_layer_id
+    if True:  # mutation: never swap
+      return""",
+       test="test_one_datasets_memory_never_steers_another",
+       why="without the swap the field-keyed memory is one pool keyed "
+           "by bare column names, so a scheme, its value strings and "
+           "its pinned numbers made on one dataset reactivate on any "
+           "later dataset sharing a name -- the leakage the "
+           "maintainer's ruling of 2026-08-24 forbids"),
+  dict(name="a-dropped-scheme-files-under-its-own-dataset", file=DIALOG,
+       old="""    shelf = (self._pending_outgoing_shelf
+             if self._pending_outgoing_shelf is not None
+             else self._scheme_memory)""",
+       new="""    shelf = self._scheme_memory  # mutation: file under the incoming""",
+       test="test_a_dropped_column_takes_its_whole_scheme_and_the_shelf_returns_it",
+       why="the rebuild runs AFTER the banks swapped, so without the "
+           "pending pointer a dropped scheme -- column name and all -- "
+           "is filed inside the INCOMING dataset's bank: A's names in "
+           "B's memory, and the A-B-A journey comes home to an empty "
+           "shelf"),
   dict(name="a-first-real-choice-is-not-a-change-of-dataset", file=DIALOG,
        old="""    switched_from_work = switched and self._landed_this_session""",
        new="""    switched_from_work = switched""",

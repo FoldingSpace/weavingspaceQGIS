@@ -1330,6 +1330,20 @@ class WeavingSpaceDialog(QDialog):
     # records; the ruling (CLAUDE.md, 2026-08-21) says what stays
     # ACTIVE changes and what is REMEMBERED does not.
     self._scheme_memory = {}
+    # ...AND THE BANKS THE FIELD-KEYED VIEWS ARE SWAPPED THROUGH on a
+    # change of dataset (maintainer's ruling, 2026-08-24: NO residue
+    # of one dataset -- column names included -- may steer or reach
+    # another). {layer id: {"colours", "pins", "shelf"}}. The three
+    # field-keyed attributes -- _category_colours, _pinned_bounds,
+    # _scheme_memory -- are VIEWS into the current dataset's bank, and
+    # _swap_dataset_memory rebinds them. A re-added layer has a new id
+    # and forfeits its session memory: documented, not hidden.
+    self._dataset_memory = {}
+    self._memory_layer_id = None
+    # While a layer change is being answered, dropped schemes belong
+    # to the dataset they were made ON: the rebuild runs after the
+    # swap, so _shelve_scheme writes here when it is set.
+    self._pending_outgoing_shelf = None
     # Armed by _begin_new_dataset, spent by the next landing: the
     # first Generate after a change of dataset builds a FRESH group,
     # so B's map never replaces A's result in the project.
@@ -2442,6 +2456,10 @@ class WeavingSpaceDialog(QDialog):
     # pick new data -- protecting the landed result is the rulings'
     # own answer.
     switched_from_work = switched and self._landed_this_session
+    # The memory banks swap on ANY change of layer -- hygiene rather
+    # than protection, so it is not gated on the landing: what belongs
+    # to a dataset must never be readable while another is chosen.
+    self._swap_dataset_memory(layer)
     # Hear the layer itself, not merely the fact that a different one
     # was chosen: a user editing in QGIS never touches this combo.
     if layer is not self._watched_layer:
@@ -2486,6 +2504,7 @@ class WeavingSpaceDialog(QDialog):
     # swap, so nothing is asked of somebody choosing their first layer.
     if switched:
       self._settle_retained_schemes()
+    self._pending_outgoing_shelf = None
     self._queue_live()
     # ...AND AGAIN ONCE THE COMBO HAS SETTLED. QgsMapLayerComboBox
     # emits layerChanged as the project's layer list churns, and it
@@ -2533,6 +2552,58 @@ class WeavingSpaceDialog(QDialog):
       return
     self._table_built_for = stamp
     self._rebuild_unit()
+
+  def _swap_dataset_memory(self, layer):
+    """Bank the outgoing dataset's field-keyed memory, open the new one's.
+
+    Args:
+      layer: the region layer the chooser now holds, or None.
+
+    Returns:
+      None. The three field-keyed views -- hand-picked colours, pinned
+      bounds, the scheme shelf -- are rebound to the incoming layer's
+      bank, so nothing keyed by one dataset's COLUMN NAMES is readable
+      while another dataset is in the chooser (maintainer's ruling,
+      2026-08-24). Returning to a layer reopens its bank: the A-B-A
+      journey restores its work through here.
+
+    A CARVE WAS BUILT HERE AND REMOVED THE SAME DAY. It copied the
+    current field's hand-picked colours and pinned bounds across when
+    the new dataset shared the column name -- "carry the symbology for
+    variables in common" -- and the maintainer asked the question that
+    ended it: a categorical scheme on a confidential column would hand
+    its VALUE STRINGS to any dataset sharing the name, and the landing
+    stamp would write them into that dataset's .qgz and GeoPackage.
+    Nothing structural tells "same wards, next year" from "unrelated
+    data with a coincident name", and between those two, silence sides
+    with the confidential case. So: the STYLE keeps by name as it
+    always has -- mode, ramp, Reverse, class count carry no data --
+    and the value-laden records never cross; sharing a ladder across
+    files is an explicit act, not an ambient one. Keep-by-name still
+    outranks the bank for the element's COLUMN: an element arriving
+    home wearing a surviving name keeps it rather than consulting the
+    shelf, the composition of two rulings rather than a third.
+    """
+    new_id = layer.id() if layer is not None else None
+    old_id = self._memory_layer_id
+    if old_id == new_id:
+      return
+    outgoing = {"colours": self._category_colours,
+                "pins": self._pinned_bounds,
+                "shelf": self._scheme_memory}
+    if old_id is not None:
+      self._dataset_memory[old_id] = outgoing
+    bank = self._dataset_memory.get(new_id)
+    if bank is None:
+      bank = {"colours": {}, "pins": {}, "shelf": {}}
+      if new_id is not None:
+        self._dataset_memory[new_id] = bank
+    self._category_colours = bank["colours"]
+    self._pinned_bounds = bank["pins"]
+    self._scheme_memory = bank["shelf"]
+    self._memory_layer_id = new_id
+    self._pending_outgoing_shelf = (outgoing["shelf"]
+                                    if old_id is not None else None)
 
   def _begin_new_dataset(self, layer):
     """What a change of region dataset does before the table rebuilds.
@@ -4744,7 +4815,15 @@ class WeavingSpaceDialog(QDialog):
       return
     _dump("SHELF", tile_id, "put", dropped, prev.get("mode_raw"),
           "touched" if prev.get("style_touched") else "derived")
-    self._scheme_memory.setdefault(tile_id, {})[dropped] = {
+    # During a layer change the rebuild runs AFTER the banks swapped,
+    # so a dropped scheme is filed under the OUTGOING dataset -- the
+    # one its column belonged to. Filing it in the incoming bank would
+    # put one dataset's column names inside another's memory, which is
+    # the leakage the banks exist to prevent.
+    shelf = (self._pending_outgoing_shelf
+             if self._pending_outgoing_shelf is not None
+             else self._scheme_memory)
+    shelf.setdefault(tile_id, {})[dropped] = {
       "mode_raw": prev.get("mode_raw"),
       "touched": bool(prev.get("style_touched")),
       "ramp": self._ramp_choices.pop(tile_id, None),
@@ -5789,6 +5868,9 @@ class WeavingSpaceDialog(QDialog):
                    self._class_source_stamps, self._ramp_memory,
                    self._custom_swatch_cache):
       record.clear()
+    self._dataset_memory.clear()
+    self._memory_layer_id = None
+    self._pending_outgoing_shelf = None
     _dump("FORGET")
     # ...and say so until adoption has read the incoming project. The
     # clear alone is not enough because the TABLE survives it and

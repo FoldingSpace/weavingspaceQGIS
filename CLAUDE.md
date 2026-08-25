@@ -1353,6 +1353,19 @@ renderer, found by a hunt hours after the carry-over was written.)
   The rule this joins is already written above -- keep a watcher
   trivially simple, and prefer re-deriving the whole state each pass.
   This one was fourteen lines long and still found a new road.
+- **THIS MACHINE'S `/usr/bin/grep` IS ugrep, AND `-q` WITH `-v`
+  ANSWERS WRONGLY.** Measured 2026-08-24: `printf 'alpha\nbeta\n' |
+  grep -qv alpha` exits 1 though `-v` alone selects a line. A CI
+  watcher built its exit on `grep -qv completed` and declared two
+  workflows finished while five jobs ran. Count matches
+  (`grep -v ... | wc -l`) instead of trusting quiet mode's exit here.
+- **`nohup ... &` EXITS 0 AS THE LAUNCHER, and a report of that exit
+  describes the wrong process.** A five-test run "completed, exit 0"
+  with three verdicts printed: the notification was the launching
+  shell's, while the QGIS runner had minutes left. Wait on the
+  RUNNER'S pid (`until ! kill -0 $PID`), and read the summary line
+  before believing a verdict count -- no "N passed, M failed" means
+  nothing has finished, whatever exited.
 - A watcher that REPEATS itself misleads as badly as one that goes
   silent: a monitor grepping a whole log each pass re-reported the
   same historical failure every 45 seconds as though it were news,
@@ -1723,6 +1736,36 @@ Confirmed with the user via an explicit design review:
   A MODAL JOINS THE LAYER-CHANGE PATH with ruling 5, where the
   threshold question set the precedent; the no-modal rule guards
   GENERATION paths and is untouched.
+  8. NO RESIDUE OF ONE DATASET -- COLUMN NAMES INCLUDED -- MAY STEER
+     OR REACH ANOTHER. (Maintainer's ruling, 2026-08-24, widening a
+     question first asked about the shelf: "make sure there is no
+     leakage between datasets/gpkg -- leakage of column names, for
+     example".) The session's field-keyed memory -- hand-picked
+     colours, pinned bounds, the scheme shelf -- lives in PER-DATASET
+     BANKS keyed by layer id, swapped on any change of layer by
+     `_swap_dataset_memory`; the three attributes are views into the
+     current bank. A dropped scheme files under the dataset it was
+     made ON (the rebuild runs after the swap, hence the pending
+     pointer). A CARVE FOR "VARIABLES IN COMMON" WAS BUILT
+     AND ENDED THE SAME DAY by the maintainer's own question: a
+     categorical scheme's hand-picks are keyed by VALUE STRINGS and a
+     pin holds data-derived NUMBERS, so carrying them to a same-named
+     column would put one dataset's confidential values into another's
+     .qgz and GeoPackage through the landing stamp. Nothing tells
+     "same wards, next year" from "unrelated data with a coincident
+     name", so silence sides with the confidential case: the STYLE
+     keeps by name (mode, ramp, Reverse, class count -- choices, not
+     data) and VALUE-LADEN RECORDS NEVER CROSS; sharing a ladder
+     across files is an explicit act. Files were measured clean
+     (stamps carry only the displayed field) and are guarded AT THE
+     FILE: a test builds a second dataset SHARING the confidential
+     column's name and reads the GeoPackage's bytes, requiring none of
+     the first dataset's value strings or other column names. Consequences accepted and
+     documented: a re-added layer is a new identity and forfeits
+     session memory, and KEEP-BY-NAME OUTRANKS THE BANK -- an element
+     that comes home carrying a surviving column name keeps it rather
+     than consulting the shelf, which is the composition of rulings 6
+     and 7 rather than a new one.
   WHAT COUNTS AS "A CHANGE OF DATASET" WAS DRAWN BY THE FULL SUITE on
   the rulings' first whole run, which failed three tests the targeted
   runs had all passed: leaving a dataset THIS SESSION HAS BUILT FROM.

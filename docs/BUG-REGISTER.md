@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-292 defect(s) with a regression test.
+295 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -295,6 +295,8 @@ there is no separate list to remember.
   guarded by `test_every_design_control_is_reachable`
 - **only the existence of installed palettes was checked, never the colours they run between.**  
   guarded by `test_installed_palettes_span_their_declared_colours`
+- **session memory was keyed by bare column names, so a scheme, its value strings and its pinned numbers made on one dataset could reactivate on any later dataset sharing a column name.**  
+  guarded by `test_one_datasets_memory_never_steers_another`
 - **recolouring only the "no data" catch-all in QGIS read as a clean classify, so the plugin announced a ramp nobody chose, discarded the colour, and repainted those areas grey at the next Generate.**  
   guarded by `test_recolouring_the_catch_all_alone_is_not_a_new_ramp`
 - **reversing a qualitative palette was a no-op, with the switch still reading as ticked.**  
@@ -307,6 +309,8 @@ there is no separate list to remember.
   guarded by `test_the_range_editor_repaints_with_its_own_elements_colours`
 - **release.py's watchdog measured wall clock, so a laptop asleep mid-release would have aborted a healthy run as hung. The same defect cost four verdicts in mutation batch 8 and was fixed there; release.py was written afterwards and repeated it.**  
   guarded by `test_the_release_watchdog_ignores_a_sleeping_machine`
+- **hand-picked colours and pinned bounds carried to any dataset sharing a column name, putting one dataset's value strings and numbers into another's saved files.**  
+  guarded by `test_value_laden_records_never_cross_a_shared_name`
 
 ## Found by race and stress testing
 
@@ -417,6 +421,8 @@ there is no separate list to remember.
   guarded by `test_a_copy_and_its_pins_survive_a_project_round_trip`
 - **none yet; this guards the design-floor door added with the rulings of 2026-08-21.**  
   guarded by `test_a_dataset_that_cannot_fill_the_design_asks_first`
+- **none yet; this guards the no-leakage ruling of 2026-08-24 at the file boundary.**  
+  guarded by `test_a_datasets_files_never_name_anothers_columns`
 - **a hand-picked colour the plugin reported as discarded was left on the layer, saved, and re-imposed on the map next session.**  
   guarded by `test_a_discarded_pick_does_not_come_back`
 - **five dock classes over a collapsed column indexed past the end of the dialog's one-class expectation, inside a renderer signal handler.**  
@@ -636,8 +642,8 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - a bug hunt pointed in a named direction: 91
-- not written down at the time: 86
-- the mutation campaign: 31
+- not written down at the time: 87
+- the mutation campaign: 33
 - reported by a user: 29
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

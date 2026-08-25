@@ -139,8 +139,8 @@ changelog=0.24.3 You decide how your data is classed: which values are
     default for a column the new data does hold; the scheme, ramp,
     class count and Reverse reset together, while the element's
     opacity stays. No styling is permanently lost: what a switch in
-    dataset puts aside comes back when you return to data that has
-    the column. The saved-file path is cleared so the map you saved
+    dataset puts aside comes back when you return to that dataset.
+    The saved-file path is cleared so the map you saved
     from the previous dataset keeps its file, and the next dataset
     appears in its own QGIS layer group rather than replacing the
     last one. A dataset with fewer usable columns than the design

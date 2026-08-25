@@ -1154,6 +1154,11 @@
   "excerpt": "Tilings and weaves are both available, from the same catalog",
   "where": "README.md"
  },
+ "a234fd9294edf990": {
+  "approved": "2026-08-24",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
  "a3b0e2da1585b84c": {
   "approved": "2026-08-09",
   "excerpt": "'{}' has no classes to colour in this layer.",

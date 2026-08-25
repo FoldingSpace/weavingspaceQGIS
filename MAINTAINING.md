@@ -200,6 +200,20 @@ them, because polling somebody's endpoint unattended is not a thing to
 do behind their back. A layer with QGIS's own auto-refresh enabled is
 followed, since switching that on is the user saying the data moves.
 
+**A CHANGE OF DATASET HAS ITS OWN CONTRACT**, settled across
+2026-08-21 and 24 and recorded as rulings in CLAUDE.md. In brief for
+a maintainer: `switched_from_work` in `_on_layer_changed` decides
+what counts as one (leaving a dataset this session has BUILT from --
+a recovery, a combo auto-landing and a pre-generate fiddle are all
+first choices); `_begin_new_dataset` clears the output path, arms a
+fresh group and asks the design-floor question; and
+`_swap_dataset_memory` keeps every field-keyed record -- hand-picked
+colours, pinned bounds, the scheme shelf -- in PER-DATASET BANKS, so
+nothing keyed by one dataset's column names is readable, steering, or
+writable to file while another is chosen. Value-laden records never
+cross a shared column name; the style (mode, ramp, Reverse, class
+count) keeps by name as it always has.
+
 **AND WHAT RE-DEFAULTS TAKES ITS STYLE WITH IT.** An element whose
 column has gone re-points at a surviving field, and since 2026-08-20 it
 also gives up the style somebody had chosen: a scheme cut for one

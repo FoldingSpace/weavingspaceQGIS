@@ -25418,21 +25418,29 @@ def test_a_dropped_column_takes_its_whole_scheme_and_the_shelf_returns_it():
   dlg, layer, tid1 = _categorical_dialog()
   try:
     tid0 = dlg.table.item(0, 0).text()
+    # THE QUEUED SETTLE LANDS FIRST. The fixture's setLayer leaves
+    # _settle_layer_choice on a zero singleShot; on a slow machine it
+    # fires inside the ticks below, REBUILDS the table, and any cell
+    # widget held across that moment is a deleted C++ object -- which
+    # is exactly how this test died on all three CI legs while passing
+    # here. So the settle is drained first and every widget below is
+    # FETCHED FRESH after each tick, never held across one. The trap
+    # is already in CLAUDE.md's lessons; this is its second visit.
+    _tick(250)
     # THE CHOSEN FIELD MUST NOT BE THE CYCLED DEFAULT, or the return
     # journey cannot tell preference from coincidence. The first build
     # of this test staged its scheme on v1 -- which is exactly what
     # cycling picks for row 0 -- and the catalogue entry aimed at the
     # shelved-field preference SURVIVED, because the mutation landed
     # on the same column by accident and restored the same scheme.
-    var_cell = dlg.table.cellWidget(0, 1)
-    var_cell.setCurrentText("v3")
+    dlg.table.cellWidget(0, 1).setCurrentText("v3")
     _tick(100)
     fields_a = dlg._layer_fields()
     id_like = {"fid", "objectid", "id", "gid", "ogc_fid"}
     numeric = [f for f in fields_a if dlg._field_is_numeric(f)]
     cycled = ([f for f in numeric if f.lower() not in id_like]
               or numeric)[0]
-    assert var_cell.currentText() != cycled, \
+    assert dlg.table.cellWidget(0, 1).currentText() != cycled, \
       f"the fixture staged its scheme on {cycled!r}, the cycled " \
       f"default for row 0, so the shelf preference could pass by " \
       f"coincidence"
@@ -25479,9 +25487,19 @@ def test_a_dropped_column_takes_its_whole_scheme_and_the_shelf_returns_it():
       f"the opacity was reset with the scheme ({now.get('opacity')}); " \
       f"it belongs to the element, as through every other change of " \
       f"scheme"
-    shelf = dlg._scheme_memory.get(tid0, {})
-    assert dropped_field in shelf, \
-      f"nothing was shelved for {dropped_field!r}: {sorted(shelf)}"
+    # IN A'S BANK, not in the active view: since the no-leakage ruling
+    # of 2026-08-24 the shelf is per dataset, so while B is chosen the
+    # active view is B's (empty) shelf and A's scheme sits banked
+    # under A's layer id -- which is also asserted, because "not
+    # visible here" and "lost" read identically from the active view.
+    assert dropped_field not in (dlg._scheme_memory.get(tid0) or {}), \
+      f"A's column name {dropped_field!r} is readable in B's active " \
+      f"shelf, which is the leakage the banks exist to prevent"
+    banked = ((dlg._dataset_memory.get(layer.id()) or {})
+              .get("shelf", {}).get(tid0, {}))
+    assert dropped_field in banked, \
+      f"nothing was banked under A for {dropped_field!r}: " \
+      f"{sorted(banked)}"
 
     # ---- and back. What was deactivated comes back into force.
     dlg.layer_combo.setLayer(layer)
@@ -25581,6 +25599,240 @@ def test_a_dataset_that_cannot_fill_the_design_asks_first():
       MODAL_ANSWERS.pop("question", None)
       dlg.close()
       project.clear()
+
+
+def test_one_datasets_memory_never_steers_another():
+  """No residue of one dataset -- column names included -- reaches another.
+
+  THE RULING (maintainer, 2026-08-24, widening the shelf question):
+  make sure there is no leakage between datasets. The session's
+  field-keyed memory -- hand-picked colours, pinned bounds, the scheme
+  shelf -- is banked per dataset and swapped on a change of layer, so
+  nothing keyed by one dataset's column names is READABLE, let alone
+  steering, while another dataset is chosen. The sharp case is a THIRD
+  dataset that happens to share a column name with the first: under
+  name-keyed memory it would inherit the first's scheme and values.
+
+  WHAT THIS DOES NOT TEST: the A-B-A restore (its own test) and the
+  ruled carve for variables in common (its own test). Here every
+  assertion is about ABSENCE.
+
+  Regression: session memory was keyed by bare column names, so a scheme, its value strings and its pinned numbers made on one dataset could reactivate on any later dataset sharing a column name. [mutation]
+  """
+  project = QgsProject.instance()
+  dlg, A, tid1 = _categorical_dialog()
+  try:
+    tid0 = dlg.table.item(0, 0).text()
+    var0 = dlg.table.cellWidget(0, 1)
+    var0.setCurrentText("v3")
+    _tick(100)
+    mode = dlg.table.cellWidget(0, 2)
+    mode.setCurrentText("Quant: Equal intervals")
+    mode.activated.emit(mode.currentIndex())
+    _tick(100)
+    dlg._category_colours.setdefault(tid1, {}).setdefault(
+      "landcover", {})["forest"] = "#123456"
+    dlg._pinned_bounds.setdefault(tid1, {})["landcover"] = {"low": 1.5}
+
+    B = make_other_region()
+    project.addMapLayer(B)
+    dlg.layer_combo.setLayer(B)
+    _tick(600)
+    assert not dlg._category_colours.get(tid1), \
+      f"A's hand-picks are readable on B: " \
+      f"{dlg._category_colours.get(tid1)!r}"
+    assert not dlg._pinned_bounds.get(tid1), \
+      f"A's pinned numbers are readable on B: " \
+      f"{dlg._pinned_bounds.get(tid1)!r}"
+    banked = dlg._dataset_memory.get(A.id()) or {}
+    assert (banked.get("colours", {}).get(tid1, {})
+            .get("landcover", {}).get("forest")) == "#123456", \
+      "A's records were not banked under A; they are lost rather " \
+      "than scoped"
+
+    # THE SHARP CASE: C shares A's column NAMES and is different data.
+    C = make_region_layer(origin=(900000, 0))
+    C.setName("C same names")
+    project.addMapLayer(C)
+    dlg.layer_combo.setLayer(C)
+    _tick(600)
+    now = dlg._assignment_for(tid0) or {}
+    assert now.get("var") != "v3" or not now.get("style_touched"), \
+      f"element {tid0!r} came to C wearing A's touched v3 scheme " \
+      f"({now.get('mode_raw')!r}): one dataset's column names " \
+      f"steered another"
+    assert now.get("mode_raw") != "Quant: Equal intervals", \
+      f"A's scheme reactivated on C by name: {now.get('mode_raw')!r}"
+    assert "landcover" not in (dlg._category_colours.get(tid1) or {}), \
+      "A's value-keyed colours are readable on C, which shares only " \
+      "the column NAME"
+    shelf_fields = set()
+    for element, fields in (dlg._scheme_memory or {}).items():
+      shelf_fields |= set(fields)
+    assert "v3" not in shelf_fields and "landcover" not in shelf_fields, \
+      f"A's column names sit in C's active shelf: {sorted(shelf_fields)}"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_value_laden_records_never_cross_a_shared_name():
+  """A shared column name moves no value strings and no numbers.
+
+  THE MAINTAINER'S QUESTION THAT SETTLED IT (2026-08-24): "wouldn't a
+  categorically-symbolized attribute with confidential values leak to
+  the next dataset chosen if it had the same attribute name?" It
+  would have, through the carve this test's previous incarnation
+  guarded: hand-picked colours are keyed by VALUE STRINGS and pinned
+  bounds are data-derived NUMBERS, and the landing stamp writes the
+  current field's record into the new dataset's files. So the ruling:
+  the STYLE keeps by name -- mode, ramp, Reverse, class count carry no
+  data -- and the value-laden records never cross. Sharing a ladder
+  across files is an explicit act.
+
+  Regression: hand-picked colours and pinned bounds carried to any dataset sharing a column name, putting one dataset's value strings and numbers into another's saved files. [mutation]
+  """
+  project = QgsProject.instance()
+  dlg, A, tid1 = _categorical_dialog()
+  try:
+    dlg._category_colours.setdefault(tid1, {}).setdefault(
+      "landcover", {})["forest"] = "#123456"
+    dlg._pinned_bounds.setdefault(tid1, {})["landcover"] = {"low": 1.5}
+    before_mode = (dlg._assignment_for(tid1) or {}).get("mode")
+    A2 = make_region_layer(origin=(500000, 0))
+    A2.setName("A2 same schema")
+    project.addMapLayer(A2)
+    dlg.layer_combo.setLayer(A2)
+    _tick(600)
+    now = dlg._assignment_for(tid1) or {}
+    assert now.get("var") == "landcover" and now.get("mode") == before_mode, \
+      f"the STYLE did not keep by name (var={now.get('var')!r}, " \
+      f"mode={now.get('mode')!r}); the ruling narrows the carry to " \
+      f"style, it does not abolish it"
+    crossed = dlg._category_colours.get(tid1, {}).get("landcover")
+    assert not crossed, \
+      f"A's value-keyed colours crossed to a same-named column on " \
+      f"different data: {crossed!r} -- the confidential-values leak " \
+      f"the maintainer named"
+    pinned = dlg._pinned_bounds.get(tid1, {}).get("landcover")
+    assert not pinned, \
+      f"A's data-derived pin numbers crossed on the shared name: " \
+      f"{pinned!r}"
+    banked = (dlg._dataset_memory.get(A.id()) or {}).get("colours", {})
+    assert banked.get(tid1, {}).get("landcover", {}).get("forest") \
+        == "#123456", \
+      "A's records were not still banked under A; scoped is not lost"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_datasets_files_never_name_anothers_columns():
+  """The GeoPackage built from B holds not one byte of A's names.
+
+  THE "MAKE SURE" HALF of the 2026-08-24 ruling: beyond session
+  memory, nothing written to DISK for one dataset may carry another's
+  column names or values. The stamps were measured current-field-only
+  already; this drives the whole journey and reads the FILE, because
+  a measurement of the writer is not a measurement of the file.
+
+  Regression: none yet; this guards the no-leakage ruling of 2026-08-24 at the file boundary.
+ [unrecorded]
+  """
+  import tempfile
+  from weavingspace_qgis import compat
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp()
+  confidential = QgsVectorLayer(
+    "MultiPolygon?crs=EPSG:3857", "confidential source", "memory")
+  confidential.dataProvider().addAttributes([
+    compat.make_field("confidentialalpha", float),
+    compat.make_field("confidentialkind", str)])
+  confidential.updateFields()
+  feats = []
+  for i in range(4):
+    for j in range(4):
+      f = QgsFeature(confidential.fields())
+      f.setGeometry(QgsGeometry.fromWkt(
+        f"POLYGON(({i * 1000} {j * 1000}, {i * 1000 + 1000} {j * 1000}, "
+        f"{i * 1000 + 1000} {j * 1000 + 1000}, "
+        f"{i * 1000} {j * 1000 + 1000}, {i * 1000} {j * 1000}))"))
+      f["confidentialalpha"] = float(i * 4 + j)
+      f["confidentialkind"] = ["secreta", "secretb"][j % 2]
+      feats.append(f)
+  confidential.dataProvider().addFeatures(feats)
+  confidential.updateExtents()
+  project.addMapLayer(confidential)
+
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  dlg = WeavingSpaceDialog(iface=None)
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(confidential)
+    _tick(400)
+    dlg.spacing_spin.setValue(500)
+    # a hand-pick keyed by a confidential VALUE string, and a pin
+    row1 = dlg.table.cellWidget(1, 1)
+    if row1 is not None:
+      row1.setCurrentText("confidentialkind")
+      _tick(150)
+    tid1 = dlg.table.item(1, 0).text()
+    dlg._category_colours.setdefault(tid1, {}).setdefault(
+      "confidentialkind", {})["secreta"] = "#101010"
+    _generate_and_wait(dlg)
+    _tick(250)
+
+    # B SHARES THE CONFIDENTIAL COLUMN'S NAME, with its own harmless
+    # values -- the exact journey the maintainer named when they ended
+    # the carve: a shared name must not move value strings into this
+    # dataset's files.
+    B = make_other_region()
+    B.dataProvider().addAttributes([
+      compat.make_field("confidentialkind", str)])
+    B.updateFields()
+    kind_idx = B.fields().indexOf("confidentialkind")
+    B.startEditing()
+    for feat in B.getFeatures():
+      B.changeAttributeValue(feat.id(), kind_idx,
+                             ["open1", "open2"][feat.id() % 2])
+    B.commitChanges()
+    project.addMapLayer(B)
+    dlg.layer_combo.setLayer(B)
+    _tick(700)
+    row1b = dlg.table.cellWidget(1, 1)
+    if row1b is not None and hasattr(row1b, "setCurrentText"):
+      row1b.setCurrentText("confidentialkind")
+      _tick(150)
+    out_path = os.path.join(folder, "b-result.gpkg")
+    dlg.gpkg_widget.setFilePath(out_path)
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(400)
+    assert os.path.exists(out_path), "B's GeoPackage was never written"
+    blob = open(out_path, "rb").read()
+    # `confidentialkind` legitimately exists in B now -- the NAME is
+    # B's own. What must be absent is the OTHER dataset's residue:
+    # its value strings, and the column name B does not have.
+    for word in (b"confidentialalpha", b"secreta", b"secretb"):
+      assert word not in blob, \
+        f"{word!r} from the confidential dataset appears inside the " \
+        f"GeoPackage built from another dataset"
+    # ...and the stamps on B's own layers name only B's columns.
+    for lid in dlg._element_layer_ids.values():
+      out = project.mapLayer(lid)
+      if out is None:
+        continue
+      for key in out.customPropertyKeys():
+        if not str(key).startswith("weavingspace"):
+          continue
+        text = str(out.customProperty(key))
+        assert "confidentialalpha" not in text \
+            and "secret" not in text, \
+          f"stamp {key!r} on B's layer carries the other dataset's " \
+          f"names: {text[:120]!r}"
+  finally:
+    dlg.close()
+    project.clear()
 
 
 def test_a_categorical_scheme_copies_onto_another_element():
@@ -56824,6 +57076,12 @@ def main():
         test_a_dropped_column_takes_its_whole_scheme_and_the_shelf_returns_it)
   check("a dataset that cannot fill the design asks first",
         test_a_dataset_that_cannot_fill_the_design_asks_first)
+  check("one dataset's memory never steers another",
+        test_one_datasets_memory_never_steers_another)
+  check("value-laden records never cross a shared name",
+        test_value_laden_records_never_cross_a_shared_name)
+  check("a dataset's files never name another's columns",
+        test_a_datasets_files_never_name_anothers_columns)
   check("a column that keeps its name and changes its kind",
         test_a_column_that_keeps_its_name_and_changes_its_kind)
   check("a copy asks before drawing a colour for every value",

@@ -157,39 +157,24 @@ two elements share a column, one element's notice silenced the other.
 
 ### Outstanding
 
-**NOTHING OUTSTANDING.** The dataset-switch rulings of 2026-08-21 —
-settled by a full grilling, recorded in CLAUDE.md — are built, and
-every piece carries a test somebody watched fail: the output path
-clears on a switch and the clearing is announced in the maintainer's
-own words; the first landing after a switch builds a fresh QGIS layer
-group; a dropped column takes its whole scheme, on the copy's own
-partition, while the element keeps its opacity; the shelf returns a
-scheme when its column comes back, and the re-default prefers a field
-the element has shown before; and a dataset that seemingly cannot
-fill the design asks before recomposing, both answers driven. Twelve
-catalogue entries judged and caught, three sentences through the
-maintainer's review, and the record of the two defects the first
-build carried is in docs/TESTING.md and the tests' own docstrings.
-piece with a registered test and a catalogue entry somebody has
-watched fail. The two entries that stood here on the evening of
-2026-08-20 -- the categorical copy's remaining owings and the
-dataset-switch rule -- were closed that night, the second of them
-after the ground recorded as measured sound turned out to be broken at
-three doors. The record is `docs/process/defects-2026-08-20.md`, which
-is what to read rather than a paragraph here.
-
-TWO THINGS ARE CLOSED IN CODE AND AWAIT A FIELD RUN, which is not work
-owed. Row 33 was closed on a DECISION rather than a proof: the
-degenerate ladder is reproducible and now impossible, but neither tree
-crashed, so the link to the maintainer's segfault is unproven and any
-recurrence reopens it. Row 28 -- an in-place recolour emitting no
-style signal -- is closed with four proved entries and the measurement
-in MAINTAINING.md; the confirmation is to recolour a class in QGIS's
-panel and watch the swatch follow within a moment.
-
-WHAT A TESTER MEETS ON rc15, the published candidate, predates all of
-that: adding a class in QGIS's own panel can cost them a colour. The
-cure ships in the next candidate.
+**ONE SENTENCE, THEN rc18.** Everything 0.24.3 owes in code is built
+and proved. The seven dataset-switch rulings of 2026-08-21 (CLAUDE.md
+holds them as settled decisions) each carry a test somebody watched
+fail; the full suite then drew the BOUNDARY -- a change of dataset is
+leaving a dataset this session has built from, one clause, found when
+three tests failed that every targeted run had passed -- and the
+maintainer's privacy questions of 2026-08-24 added ruling 8: session
+memory lives in per-dataset banks, value-laden records (hand-picked
+colours keyed by value strings, pinned numbers) never cross a shared
+column name, and a test reads the GeoPackage's bytes to hold the file
+boundary. A carve for "variables in common" was built and ended the
+same day by the maintainer's own question about confidential values.
+rc17's number was spent by a superseded build, never published; the
+candidate carrying all of this is rc18. What remains: the
+maintainer's ruling on the changelog's reworded memory sentence, then
+gates, commit, push, CI, build, publish -- and a CI-only race in one
+test (a cell widget held across a tick) is fixed and rides the same
+commit.
 
 ### What this version has already closed
 
@@ -239,10 +224,34 @@ it displays. Decisions the maintainer owns before anyone builds it:
 exactly which columns survive; whether the layer NAME gains the
 variable (renaming is safe -- adoption keys on custom properties, and
 a name is a label here, never an identity); and whether the paired
-no-data layer needs anything beyond the element's own column. One
+no-data layer needs anything beyond the element's own column.
+THE MAINTAINER MET THE NAME HALF ON rc16 (2026-08-24): in the project
+the layers read "tileid - variablename", but the GeoPackage TABLE
+names are `tiles_<tid>`, so loading the file directly shows
+"filename - tiles_a" and the variable is nowhere. Renaming TABLES
+reaches further than renaming layers: `_gpkg_tables_written`, the
+stale-table cleanup's `tiles_{tid}` patterns, `drop_gpkg_layer` and
+adoption-by-file would all need to follow, which is why it belongs to
+this entry rather than to a quick fix. One
 fact that lowers the cost: the set of mapped variables is already a
 GEOMETRY change, so a variable switch re-tiles today regardless --
 trimming the columns takes nothing from the restyle fast path.
+
+**A NO-DATA TWIN REPORTED ON COMPLETE DATA.** (Maintainer, rc16,
+2026-08-24: the paired layer appears on the mosquito data though the
+variable has no missing values.) MEASURED SO FAR: the source is clean
+-- 3,011 features, no NULL, NaN or infinity in any column -- and the
+creation gate (`if absent is not None and len(absent)`) held in two
+read-only reproductions (4 and 23 elements, coarse spacing, default
+options): zero twins. The split runs over the TILED frame, so a tile
+the join hands no value is counted absent -- it would be a HOLE
+otherwise, the very thing the twin abolishes -- which is the likeliest
+route under the demo's own settings (icons mode or fine spacing).
+NEXT: reproduce with the maintainer's exact settings, or have them
+read the twin's feature count in QGIS -- features present means real
+join-missed tiles and the question becomes whether the LAYER'S NAME
+should say so ("no value at this spacing"), zero features means a
+gate defect nobody has manufactured yet.
 
 **READ IN "ONE I MADE EARLIER".** (Same conversation.) Point the
 plugin at a saved output GeoPackage -- without the project that made
