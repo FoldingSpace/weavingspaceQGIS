@@ -782,9 +782,10 @@ MUTATIONS = [
            "and the newest group is written into whatever it holds"),
   dict(name="a-dropped-columns-ramp-goes-whoever-chose-the-style",
        file=DIALOG,
-       old="""      if mode_cell is not None:
+       old="""      if mode_cell is not None and restored is None:
         # ...AND THE CONTROLS THEMSELVES, for EVERY row whose column""",
-       new="""      if mode_cell is not None and mode_cell.property("touched"):
+       new="""      if mode_cell is not None and restored is None \\
+          and mode_cell.property("touched"):
         # ...AND THE CONTROLS THEMSELVES, for EVERY row whose column""",
        test="test_a_dropped_columns_ramp_goes_even_when_the_style_was_derived",
        why="the exact fault a hunt found an hour after this fix "
@@ -831,6 +832,30 @@ MUTATIONS = [
            "the WATCHED LAYER OBJECT, a removal nulls it and the next "
            "dataset reads as a first choice, so Generate overwrites "
            "the previous dataset's GeoPackage unasked"),
+  dict(name="our-own-output-never-binds-the-dataset-identity",
+       file=DIALOG,
+       old="""    if layer is not None and (
+        layer.customProperty("weavingspace_output")
+        or self._project_is_being_replaced):
+      return""",
+       new="""    if False:  # mutation: let an output layer be the dataset
+      return""",
+       test="test_a_reopened_project_reaches_its_own_colours_and_pins",
+       why="on File > Open with the panel open the chooser binds to "
+           "one of our own output layers for an instant before "
+           "adoption runs; taking that as the dataset banked the "
+           "project's hand-picks and pins where nothing could reach "
+           "them, and the next Generate destroyed them in the .qgz "
+           "and the GeoPackage"),
+  dict(name="keeping-a-result-keeps-its-file", file=DIALOG,
+       old="""    keeping = self.opt_new_group.isChecked() \\
+        or self._fresh_group_for_new_data""",
+       new="""    keeping = self.opt_new_group.isChecked()  # mutation: the box alone""",
+       test="test_keeping_a_result_keeps_its_file_however_it_was_kept",
+       why="three things keep a previous result and this guard asked "
+           "about one, so a change of dataset spared the GROUP and "
+           "wrote over the FILE it draws from -- tables rewritten, "
+           "others dropped, the panel looking right"),
   dict(name="an-empty-chooser-does-not-forget-the-dataset", file=DIALOG,
        old="""    if layer is None:
       # AN EMPTY CHOOSER IS NOT A DATASET""",
@@ -995,10 +1020,8 @@ MUTATIONS = [
        # with every observable correct, which is a fact about the fix
        # rather than about the guard. This door has one implementation
        # and one line, so it is the one an entry can hold.
-       old="""      elif mode_cell is not None and mode_cell.property("touched") \\
-          and mode_cell.findText(instead) >= 0:""",
-       new="""      elif False and mode_cell is not None \\
-          and mode_cell.findText(instead) >= 0:  # mutation: keep it""",
+       old="""      elif mode_cell is not None and mode_cell.findText(instead) >= 0:""",
+       new="""      elif False:  # mutation: the style outlives its column""",
        test="test_a_column_deleted_in_qgis_takes_its_scheme_with_it",
        why="the maintainer's ruling of 2026-08-20 is that a setup is "
            "KEPT where the data still has a column of that name and "

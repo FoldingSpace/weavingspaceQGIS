@@ -25803,6 +25803,126 @@ def test_the_shelf_does_not_survive_the_project_that_made_it():
     project.clear()
 
 
+def test_a_reopened_project_reaches_its_own_colours_and_pins():
+  """File > Open under an open panel must not bind the wrong identity.
+
+  FOUND BY A HUNT, 2026-08-25, from the save-and-reopen direction. On
+  a project read with the plugin panel OPEN, the layer chooser binds
+  for an instant to one of the plugin's OWN OUTPUT LAYERS before
+  adoption runs. The bank swap took that as the dataset in force, so
+  the adopted project's hand-picked colours and pinned bounds were
+  filed under an output layer where nothing could reach them: the
+  colour editor offered the ramp default, and the next Generate
+  painted over the user's choices and wiped the stamp from the .qgz
+  AND the GeoPackage.
+
+  THE TWIN DOOR IS THE CONTROL. A freshly constructed dialog on the
+  identical file always came home correctly, which is what made this
+  a two-doors defect rather than a lost stamp: the file was never
+  wrong, only one route to it.
+
+  THE LESSON, which is the third of this night to take this shape:
+  when a branch keys on "no identity yet", ask what ELSE binds an
+  identity, not only which code paths call the branch.
+
+  Regression: reopening a project under an open plugin panel bound the dataset identity to one of the plugin's own output layers, so the project's hand-picked colours and pinned bounds were unreachable and the next Generate destroyed them. [mutation]
+  """
+  import tempfile
+  from qgis.core import QgsVectorFileWriter
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp()
+  saved = os.path.join(folder, "reopen-me.qgs")
+  dlg, layer, tid = _categorical_dialog()
+  try:
+    _tick(250)
+    field = (dlg._assignment_for(tid) or {}).get("var")
+    dlg._category_colours.setdefault(tid, {}).setdefault(
+      field, {})["forest"] = "#aa0000"
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(250)
+    assert project.write(saved), "the fixture could not save a project"
+
+    # THE ROUTE: the project is read again while this dialog lives.
+    project.clear()
+    _tick(300)
+    assert project.read(saved), "the fixture could not read it back"
+    _tick(900)
+
+    picks = (dlg._category_colours.get(tid) or {}).get(field) or {}
+    assert picks.get("forest") == "#aa0000", \
+      f"the reopened project's hand-picks are unreachable from the " \
+      f"open panel ({picks!r}); the editor would offer the ramp " \
+      f"default and the next Generate would destroy them"
+    bound = dlg._memory_layer_id
+    ours = project.mapLayer(bound) if bound else None
+    assert ours is None or not ours.customProperty("weavingspace_output"), \
+      f"the dataset identity bound to one of our own output layers " \
+      f"({bound!r}), which is never a dataset"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_keeping_a_result_keeps_its_file_however_it_was_kept():
+  """The panel and the GeoPackage are protected by one question.
+
+  FOUND BY A HUNT, 2026-08-25. Three things now keep a previous
+  result -- the "Create as new group" box, a change of dataset, and a
+  landing whose group was made from another dataset -- and the guard
+  that refuses to overwrite a kept result's FILE asked only about the
+  box. On the other routes the group was spared while the run wrote
+  into the same GeoPackage anyway: tables rewritten with the new
+  dataset's columns and others DROPPED, leaving the kept group
+  drawing dead layers under its own names. The layers panel looked
+  right and the file was gone.
+
+  Regression: keeping a previous result protected its group and not its GeoPackage, so a run wrote over the file the kept group draws from. [mutation]
+  """
+  import tempfile
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp()
+  path = os.path.join(folder, "kept.gpkg")
+  dlg, A, tid = _categorical_dialog()
+  try:
+    _tick(250)
+    dlg.gpkg_widget.setFilePath(path)
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(300)
+    assert os.path.exists(path), "the fixture wrote no GeoPackage"
+    from osgeo import ogr
+    source = ogr.Open(path)
+    before = sorted(source.GetLayer(i).GetName()
+                    for i in range(source.GetLayerCount()))
+    source = None
+    assert before, "the GeoPackage holds no tables to protect"
+
+    # A CHANGE OF DATASET keeps the previous result -- and the path is
+    # put back by hand here, as a reopened project's adoption does.
+    B = make_other_region()
+    project.addMapLayer(B)
+    dlg.layer_combo.setLayer(B)
+    _tick(700)
+    dlg.gpkg_widget.setFilePath(path)
+    MODALS.clear()
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(400)
+
+    source = ogr.Open(path)
+    after = sorted(source.GetLayer(i).GetName()
+                   for i in range(source.GetLayerCount())) if source else []
+    source = None
+    warned = any("overwrite" in text.lower() for _kind, text in MODALS)
+    assert warned or set(before) <= set(after), \
+      f"the run wrote into the kept result's file without warning: " \
+      f"{before} became {after}"
+  finally:
+    dlg.close()
+    project.clear()
+
+
 def test_a_dropped_column_takes_its_whole_scheme_and_the_shelf_returns_it():
   """Ruling 3 and ruling 6 of 2026-08-21, driven as one journey.
 
@@ -57763,6 +57883,10 @@ def main():
         test_a_dropped_columns_ramp_goes_even_when_the_style_was_derived)
   check("the shelf does not survive the project that made it",
         test_the_shelf_does_not_survive_the_project_that_made_it)
+  check("a reopened project reaches its own colours and pins",
+        test_a_reopened_project_reaches_its_own_colours_and_pins)
+  check("keeping a result keeps its file however it was kept",
+        test_keeping_a_result_keeps_its_file_however_it_was_kept)
   check("a dropped column takes its whole scheme and it returns",
         test_a_dropped_column_takes_its_whole_scheme_and_the_shelf_returns_it)
   check("a dataset that cannot fill the design asks first",

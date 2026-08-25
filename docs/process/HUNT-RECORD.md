@@ -12,7 +12,14 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-08-25, after TWO rounds totalling six hunts: SEVEN
+Last updated 2026-08-25, after THREE rounds totalling eight hunts:
+ELEVEN confirmed defects, nine of them inside the same day's repairs.
+THE CURVE DID NOT FLATTEN -- four defects, then three, then four --
+and every round aimed at the last round's fixes found something. That
+is the argument for not building a candidate while hunts are still
+running, which is now written into ROADMAP.md as well.
+
+Before that, after TWO rounds totalling six hunts: SEVEN
 confirmed defects, and the second round is the argument for the
 second round. Four hunts found four; three hunts aimed at those four
 REPAIRS found three more, one of which the first round had examined

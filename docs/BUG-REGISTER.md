@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-303 defect(s) with a regression test.
+305 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -291,6 +291,8 @@ there is no separate list to remember.
   guarded by `test_a_new_region_drops_a_setup_whose_column_has_gone`
 - **the installer skipped names case-insensitively while the lookup matched exactly, so four palettes were silently unavailable on any QGIS that spells them differently.**  
   guarded by `test_a_palette_is_usable_whatever_case_qgis_spells_it`
+- **reopening a project under an open plugin panel bound the dataset identity to one of the plugin's own output layers, so the project's hand-picked colours and pinned bounds were unreachable and the next Generate destroyed them.**  
+  guarded by `test_a_reopened_project_reaches_its_own_colours_and_pins`
 - **a project reopened from a file heard no in-place dock recolour at all, because a guard read a deliberately empty record as evidence that the row had moved.**  
   guarded by `test_a_reopened_project_still_hears_a_recolour_made_in_qgis`
 - **a guard computed as a delta was armed for one invocation, so a second repaint after a class was added in QGIS recorded four of the plugin's own ramp colours as the user's hand-picks, stamped into the project.**  
@@ -307,6 +309,8 @@ there is no separate list to remember.
   guarded by `test_every_design_control_is_reachable`
 - **only the existence of installed palettes was checked, never the colours they run between.**  
   guarded by `test_installed_palettes_span_their_declared_colours`
+- **keeping a previous result protected its group and not its GeoPackage, so a run wrote over the file the kept group draws from.**  
+  guarded by `test_keeping_a_result_keeps_its_file_however_it_was_kept`
 - **session memory was keyed by bare column names, so a scheme, its value strings and its pinned numbers made on one dataset could reactivate on any later dataset sharing a column name.**  
   guarded by `test_one_datasets_memory_never_steers_another`
 - **recolouring only the "no data" catch-all in QGIS read as a clean classify, so the plugin announced a ramp nobody chose, discarded the colour, and repainted those areas grey at the next Generate.**  
@@ -659,7 +663,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
-- the mutation campaign: 40
+- the mutation campaign: 42
 - reported by a user: 29
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

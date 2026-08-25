@@ -2621,6 +2621,22 @@ class WeavingSpaceDialog(QDialog):
     home wearing a surviving name keeps it rather than consulting the
     shelf, the composition of two rulings rather than a third.
     """
+    # OUR OWN OUTPUT IS NOT A DATASET EITHER, and neither is anything
+    # the chooser touches while a project is being read. On File >
+    # Open with the panel open, the combo binds one of the plugin's
+    # own output layers for an instant before adoption runs -- so the
+    # identity bound to THAT, the pre-identity merge never fired, and
+    # the adopted project's hand-picked colours and pinned bounds were
+    # banked under an output layer where nothing could reach them: the
+    # editor offered the ramp default and the next Generate painted
+    # over them and wiped the stamp from the .qgz and the GeoPackage.
+    # Found by a hunt, 2026-08-25. The lesson it left is the one to
+    # keep: when a branch keys on "no identity yet", ask what ELSE
+    # binds an identity, not only which code paths call the branch.
+    if layer is not None and (
+        layer.customProperty("weavingspace_output")
+        or self._project_is_being_replaced):
+      return
     if layer is None:
       # AN EMPTY CHOOSER IS NOT A DATASET, and closing the bank here
       # is what defeated the boundary fix above: removing the region
@@ -3400,16 +3416,58 @@ class WeavingSpaceDialog(QDialog):
         mode_cell.setProperty("touched", bool(restored.get("touched")))
         mode_cell.setProperty("last_style", mode_cell.currentText())
         self._sync_row(row)
-      elif mode_cell is not None and mode_cell.property("touched") \
-          and mode_cell.findText(instead) >= 0:
+        # ...AND THE CONTROLS COME HOME WITH IT. This door edits in
+        # place and never rebuilds, so restoring the RECORDS left the
+        # widgets showing whatever the element wore while its column
+        # was away: a hunt measured a map made with nine classes of
+        # YlOrBr coming home as five of Reds, and reading YlOrBr at
+        # nine one unrelated rebuild later -- three maps from one set
+        # of choices. Where a path edits in place, the widgets ARE the
+        # state, which is this block's second lesson of the night.
+        back_ramp = restored.get("ramp")
+        ramp_cell = self.table.cellWidget(row, 4)
+        if back_ramp and ramp_cell is not None \
+            and hasattr(ramp_cell, "findText") \
+            and ramp_cell.findText(back_ramp) >= 0:
+          ramp_cell.blockSignals(True)
+          ramp_cell.setCurrentText(back_ramp)
+          ramp_cell.blockSignals(False)
+        back_k = restored.get("k")
+        k_cell = self.table.cellWidget(row, 3)
+        if back_k and k_cell is not None and hasattr(k_cell, "setValue"):
+          k_cell.blockSignals(True)
+          k_cell.setValue(int(back_k))
+          k_cell.setProperty("user_k", int(back_k))
+          k_cell.blockSignals(False)
+        switch = self._row_reverse(row)
+        if switch is not None:
+          switch.blockSignals(True)
+          switch.setChecked(bool(restored.get("reverse")))
+          switch.blockSignals(False)
+      elif mode_cell is not None and mode_cell.findText(instead) >= 0:
+        # RE-DERIVED WHOEVER CHOSE IT. This required `touched` until a
+        # hunt read the MAP on 2026-08-25: a DERIVED categorical style
+        # on a deleted text column stayed categorical on the numeric
+        # column the element landed on, and Generate drew 37
+        # categories -- one legend line per value. The ruling is about
+        # the COLUMN going, not about who picked the style, and the
+        # widget reset below already worked that way; the two halves
+        # of one block disagreed.
         mode_cell.blockSignals(True)
         mode_cell.setCurrentText(instead)
         mode_cell.blockSignals(False)
         mode_cell.setProperty("touched", False)
         mode_cell.setProperty("last_style", instead)
         self._sync_row(row)
-      if mode_cell is not None:
+      if mode_cell is not None and restored is None:
         # ...AND THE CONTROLS THEMSELVES, for EVERY row whose column
+        # has gone AND NOTHING WAS RESTORED. That last clause is a
+        # regression this block caused within the hour of being
+        # widened: when the shelf hands a scheme back -- an element
+        # coming home to a column that has returned -- this ran a line
+        # later and overwrote it, so a map made with nine classes of
+        # YlOrBr came home as five of Reds, and one unrelated rebuild
+        # later read Reds at nine. Three maps from one set of choices.
         # has gone rather than only one whose STYLE somebody chose.
         # This sat inside the branch above for an hour on 2026-08-25
         # and a hunt found the hole: `_shelve_scheme` pops the records
@@ -11730,11 +11788,36 @@ class WeavingSpaceDialog(QDialog):
     # Measured 2026-08-16: 41/40/41/40 features became 113/112/113/112
     # with no warning and no modal. A file outlives a session, and a
     # guard on session state cannot protect one.
+    # KEEPING A RESULT IS KEEPING ITS FILE TOO, and this guard used to
+    # ask only whether the user had TICKED the box. Three other things
+    # now keep a previous result -- a change of dataset, a landing
+    # whose group was made from another dataset, and the fresh-group
+    # flag -- and on those routes the group was spared while the run
+    # wrote into the same GeoPackage anyway: a hunt measured tiles_a
+    # and tiles_b rewritten with the new dataset's columns and
+    # tiles_c/tiles_d DROPPED, leaving the kept group drawing dead
+    # layers under its own names. The panel was protected and the file
+    # was destroyed. So the question is the one the GROUP asks:
+    # is this run keeping somebody else's result?
+    keeping = self.opt_new_group.isChecked() \
+        or self._fresh_group_for_new_data
+    if not keeping and path_now:
+      root_here = QgsProject.instance().layerTreeRoot()
+      other = (self._group_of_our_layers(root_here)
+               or self._newest_output_group(root_here))
+      here = self.layer_combo.currentLayer()
+      mine = here.source() if here is not None else ""
+      if other is not None and mine:
+        marks = {child.layer().customProperty("weavingspace_region")
+                 for child in other.children()
+                 if getattr(child, "layer", lambda: None)() is not None
+                 and child.layer().customProperty("weavingspace_region")}
+        keeping = bool(marks) and mine not in marks
     would_replace = []
-    if not live and self.opt_new_group.isChecked() and path_now:
+    if not live and keeping and path_now:
       would_replace = bridge.gpkg_tables_we_would_replace(
         path_now, [f"tiles_{a['id']}" for a in self._assignments()])
-    if not live and self.opt_new_group.isChecked() and path_now \
+    if not live and keeping and path_now \
         and (would_replace
              or same_destination(path_now, self._last_path)):
       QMessageBox.warning(
