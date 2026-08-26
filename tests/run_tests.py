@@ -48392,6 +48392,434 @@ def test_a_map_is_filed_under_the_dataset_it_was_drawn_from():
     project.clear()
 
 
+def test_a_group_restores_its_own_state_and_no_one_elses():
+  """Choosing a group whose record is SILENT clears what was in force.
+
+  Ruling 4 of 2026-08-25 says the whole working state belongs to the
+  group and that selecting one RESTORES all of it, "so nothing is
+  inferred" -- which is the direct answer to a colleague's complaint
+  that the plugin was too hard to predict. A key written only when the
+  incoming record HAS it does exactly the opposite: it leaves the last
+  group's answer standing whenever this group says nothing, and
+  nothing else clears these. `_detach_from_the_group` empties the
+  layer ids and the signatures, and the per-dataset banks swap only on
+  a change of DATASET, where two groups of one dataset share a bank by
+  construction.
+
+  MEASURED 2026-08-26 AND FOUND BY THREE HUNTS THAT COULD NOT SEE EACH
+  OTHER, which is the strongest confirmation this project's method
+  produces. A class colour hand-picked on one group came out drawn on
+  another whose own record holds none -- and stamped onto the layer,
+  so it reached the saved project and the GeoPackage a colleague
+  opens. Driven: group two's first class read #ff00ff where the
+  control read the ramp's own #fff5f0.
+
+  ONE KEY WAS MENDED ALONE THE SAME DAY, and that is the shape worth
+  keeping. The ramp window was made assigned-always by a fix for a
+  different report; its six neighbours in the same loop were left as
+  they were, which is this project's "a guard added to one door
+  belongs at every door" arriving for the fifth time.
+
+  A CELL PER KEY, so a repair that mends one and forgets another
+  fails here by name rather than passing on the strength of its
+  neighbours -- the masking that a single catalogue entry cannot see.
+
+  WHAT IS PROVED AND WHAT IS NOT, said here rather than left to be
+  assumed, because a guard nobody has watched fail is a guard nobody
+  should count. TWO of the seven pops are proved to catch: the single
+  colour and the hand-picked class colours, each with its own entry.
+  The RAMP, the OPACITY and the CLASS COUNT are the same line-shape
+  and are NOT separately proved on this fixture, and the reason is a
+  fact about the record rather than a weakness here -- a quantitative
+  element's record always carries all three, since the capture writes
+  down what the element DRAWS and not only what somebody chose, so on
+  this journey the group's own answer is written over the intruder's
+  and the pop never decides anything. Proving those three needs a
+  fixture where an element wears a SINGLE COLOUR on one group and a
+  ramp on the other; that is worth building and has not been built.
+  The pins and the categorical colours ride the same clause as the
+  class colours and are covered by its entry.
+
+  Regression: every key of a group's working state except the ramp window was written only when the incoming record held one, so a ramp, a single colour, an opacity, a class count, a hand-picked class colour, a pinned bound or a categorical colour set on one output group stayed in force on another whose own record said it had none, and the next restyle painted and stamped it there. [mutation]
+  """
+  # The label is IMPORTED rather than transcribed, so a rewording
+  # moves this test with the product instead of against it.
+  from weavingspace_qgis.dialog import (NEW_GROUP_LABEL,
+                                        WeavingSpaceDialog)
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  problems, checked = [], 0
+
+  def cell(what, condition, detail):
+    """One key that must not survive into a silent group's turn.
+
+    Args:
+      what: how the cell names itself in a failure.
+      condition: True when the promise held.
+      detail: what was actually seen, quoted when it did not.
+
+    Returns:
+      None; appends to `problems` and counts into `checked`.
+    """
+    nonlocal checked
+    checked += 1
+    if not condition:
+      problems.append(f"{what}: {detail}")
+
+  def choose(name):
+    """Pick an output group the way a click does.
+
+    Args:
+      name: the group's name, matched on the part before any " — "
+        suffix and EXACTLY. A substring match once selected
+        "WeavingSpace tiles 2" when asked for "WeavingSpace tiles",
+        so a leg about an older group judged the newer one.
+
+    Returns:
+      True when the entry was found and activated. `activated` is the
+      signal a click sends; `setCurrentIndex` alone moves the display
+      and records nothing.
+    """
+    combo = dlg.group_combo
+    for i in range(combo.count()):
+      if combo.itemText(i).split(" — ")[0].strip() == name:
+        combo.setCurrentIndex(i)
+        combo.activated.emit(i)
+        _tick(700)
+        return True
+    return False
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(600)
+
+    # The PLAIN group first, so its record is the silent one. Making
+    # it second would mean staging the extras and then taking them
+    # away again, and a record that never held them is the state a
+    # user actually has.
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(400)
+    plain = dlg._group_name
+    tid = sorted(dlg._element_layer_ids)[0]
+    var = (dlg._assignment_for(tid) or {}).get("var")
+    cell("the plain group's element carries a variable",
+         bool(var), "no variable, so the field-keyed records below "
+                    "have nothing to key on")
+    # WHAT THIS GROUP'S OWN RECORD HOLDS, taken before anything is
+    # staged. The promise is not that these keys come back EMPTY --
+    # a quantitative element has a ramp, an opacity and a class count
+    # whether or not anybody chose them, and the record carries all
+    # three. The promise is that choosing this group gives back ITS
+    # answers. The first draft of this test asserted absence and duly
+    # failed on `Reds`, 100 and 5, which is the plugin being right;
+    # this project's own rule is to assert what must be true rather
+    # than the easiest observable nearby.
+    mine = {
+      "ramp": dlg._ramp_choices.get(tid),
+      "single": dlg._single_colours.get(tid),
+      "opacity": dlg._opacity_choices.get(tid),
+      "k": dlg._class_counts.get(tid),
+      "quant": dict(dlg._quant_colours.get(tid, {}).get(var) or {}),
+      "pins": dict(dlg._pinned_bounds.get(tid, {}).get(var) or {}),
+      "cats": dict(dlg._category_colours.get(tid, {}).get(var) or {}),
+    }
+
+    if not choose(NEW_GROUP_LABEL):
+      cell("the chooser offers 'create new'", False,
+           [dlg.group_combo.itemText(i)
+            for i in range(dlg.group_combo.count())])
+    else:
+      # THE RECORDS THE COLOUR EDITOR AND THE TABLE WRITE, staged
+      # directly. Driving each control would test the controls, which
+      # have their own guards; what is under test is whether a group's
+      # record can leave somebody else's answer standing, and these
+      # are exactly the dicts the editor writes into.
+      dlg._ramp_choices[tid] = "Blues"
+      dlg._single_colours[tid] = "#123456"
+      dlg._opacity_choices[tid] = 42
+      dlg._class_counts[tid] = 7
+      if var:
+        dlg._quant_colours.setdefault(tid, {})[var] = {"0": "#ff00ff"}
+        dlg._pinned_bounds.setdefault(tid, {})[var] = {"low": 1.5}
+        dlg._category_colours.setdefault(tid, {})[var] = {
+          "forest": "#010203"}
+      dlg.spacing_spin.setValue(520)
+      _generate_and_wait(dlg)
+      _tick(400)
+      loaded = dlg._group_name
+      cell("the second run made a group of its own",
+           loaded and loaded != plain,
+           f"both runs landed in {plain!r}, so nothing was staged")
+
+      # THE PREMISE, asserted rather than assumed: the extras must be
+      # in force NOW, or the assertions below pass on an empty room.
+      cell("the staged extras survived their own landing",
+           dlg._ramp_choices.get(tid) == "Blues"
+           and dlg._class_counts.get(tid) == 7,
+           f"ramp={dlg._ramp_choices.get(tid)!r} "
+           f"k={dlg._class_counts.get(tid)!r}")
+
+      if choose(plain):
+        # EVERY CELL COMPARES AGAINST THIS GROUP'S OWN ANSWER, and the
+        # staged value is quoted in the failure so a reader can see at
+        # once whether the leak or the restore is what went wrong.
+        # THESE FOUR ASK THAT THE OTHER GROUP'S ANSWER IS GONE, not
+        # that the dialog's dicts read exactly what they read before.
+        # A group's record captures the EFFECTIVE ramp and class count
+        # -- what the element actually draws -- whether or not anybody
+        # chose them, so restoring one writes values into the dicts
+        # that mean CHOSEN, which were empty while the style was
+        # merely derived. That asymmetry is older than this fix and is
+        # its own question; asserting equality here would pin it as
+        # contract by accident, which this file has been caught doing
+        # before. What must be true, and is the whole of the defect,
+        # is that nothing staged on the other group survives.
+        cell("the other group's ramp is gone",
+             dlg._ramp_choices.get(tid) != "Blues",
+             f"this group wears 'Blues', staged on the other one; its "
+             f"own record said {mine['ramp']!r}")
+        cell("the other group's single colour is gone",
+             dlg._single_colours.get(tid) != "#123456",
+             f"this group wears '#123456', staged on the other one")
+        cell("the other group's opacity is gone",
+             dlg._opacity_choices.get(tid) != 42,
+             "this group wears the opacity staged on the other one")
+        cell("the other group's class count is gone",
+             dlg._class_counts.get(tid) != 7,
+             "this group wears the class count staged on the other "
+             "one")
+        if var:
+          cell("the hand-picked class colours are this group's own",
+               dict(dlg._quant_colours.get(tid, {}).get(var) or {})
+               == mine["quant"],
+               f"{dlg._quant_colours.get(tid, {}).get(var)!r} where "
+               f"this group recorded {mine['quant']!r}")
+          cell("the pinned bounds are this group's own",
+               dict(dlg._pinned_bounds.get(tid, {}).get(var) or {})
+               == mine["pins"],
+               f"{dlg._pinned_bounds.get(tid, {}).get(var)!r} where "
+               f"this group recorded {mine['pins']!r}")
+          cell("the categorical colours are this group's own",
+               dict(dlg._category_colours.get(tid, {}).get(var) or {})
+               == mine["cats"],
+               f"{dlg._category_colours.get(tid, {}).get(var)!r} "
+               f"where this group recorded {mine['cats']!r}")
+      else:
+        cell("the plain group is still in the chooser", False,
+             [dlg.group_combo.itemText(i)
+              for i in range(dlg.group_combo.count())])
+
+    assert checked >= 8, \
+      f"only {checked} cells ran, so this test stopped short of the " \
+      f"keys it names"
+    assert not problems, \
+      "a group inherited state its own record does not hold:\n  " + \
+      "\n  ".join(f"{p}" for p in problems)
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_file_already_open_resumes_completely():
+  """Resuming a file whose layers are open does what the twin does.
+
+  `_resume_from_gpkg` has two branches. One loads the file's tables
+  into a new group; the other, added 2026-08-25 so that pointing at
+  one file twice cannot build a second map, takes over the group that
+  already holds them. The second was written from the first and
+  dropped what came after the take-over.
+
+  WHAT THAT COSTS, and both halves were driven on 2026-08-26 by two
+  hunts that could not see each other. The group is never given the
+  working state, so saving the project, reopening it and choosing that
+  group hands back the layers and none of the design -- the record
+  living in exactly one of the two places meant to hold it, which is
+  what the twin's own comment says at the line this branch omitted.
+  And the source is never recovered, so the region chooser stays on
+  whatever other dataset was selected while the plugin announces that
+  this map "is the one being worked on".
+
+  MEASURED, once the fixture was staged properly: the twin leaves
+  1,959 characters of record on the group and this branch left none.
+  An earlier attempt of mine reported the opposite, because its group
+  had been stamped by its own landing moments earlier -- a fixture
+  that cannot exhibit the case, which is the commonest way a probe
+  reports good news here.
+
+  Regression: resuming a GeoPackage whose layers were already in the project took the group over without stamping the working state onto it or recovering the source, so the design was lost at the next reopen and the region chooser was left pointing at another dataset. [mutation]
+  """
+  import tempfile
+  from weavingspace_qgis.dialog import (WORKING_STATE_PROPERTY,
+                                        WeavingSpaceDialog)
+  project = QgsProject.instance()
+  work = tempfile.mkdtemp(prefix="weavingspace_reopen_")
+  path = os.path.join(work, "map.gpkg")
+  layer = make_region_layer()
+  layer.setName("the data")
+  project.addMapLayer(layer)
+  problems, checked = [], 0
+
+  def cell(what, condition, detail):
+    """One thing the take-over branch owes.
+
+    Args:
+      what: how the cell names itself in a failure.
+      condition: True when the promise held.
+      detail: what was seen, quoted when it did not.
+
+    Returns:
+      None; appends to `problems` and counts into `checked`.
+    """
+    nonlocal checked
+    checked += 1
+    if not condition:
+      problems.append(f"{what}: {detail}")
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(600)
+    dlg.spacing_spin.setValue(540)
+    dlg.gpkg_widget.setFilePath(path)
+    _generate_and_wait(dlg)
+    _tick(400)
+
+    root = project.layerTreeRoot()
+    groups = list(root.findGroups())
+    cell("the run left one output group", len(groups) == 1,
+         [g.name() for g in groups])
+
+    # THE RECORD IS TAKEN OFF THE GROUP FIRST, and this is the whole
+    # of the fixture. The landing stamps the group it built, so a
+    # group standing here already carries the record whatever the
+    # resume does. A group holding a file's layers WITHOUT one is the
+    # ordinary state this branch exists for: somebody adds the tables
+    # to their project, or opens a project made before the record
+    # existed, and then points the plugin at the file.
+    for group in groups:
+      group.setCustomProperty(WORKING_STATE_PROPERTY, "")
+    _tick(200)
+    cell("the record could be cleared for the test",
+         not any(g.customProperty(WORKING_STATE_PROPERTY, "")
+                 for g in root.findGroups()),
+         "the record survived being cleared, so a stamp cannot be "
+         "told from a leftover")
+
+    # A SECOND DATASET, so "the source was recovered" is a real claim
+    # rather than a coincidence: the chooser is moved off the data the
+    # map was made from before the resume is asked for.
+    other = make_region_layer(origin=(900_000, 0))
+    other.setName("somewhere else")
+    project.addMapLayer(other)
+    dlg.layer_combo.setLayer(other)
+    _tick(600)
+
+    resumed = dlg._resume_from_gpkg(path)
+    _tick(800)
+    cell("the resume reported success", bool(resumed), resumed)
+
+    node = root.findGroup(dlg._group_name) if dlg._group_name else None
+    cell("the group carries the working state",
+         bool(node is not None
+              and node.customProperty(WORKING_STATE_PROPERTY, "")),
+         "the group holds no record, so a reopen would give back the "
+         "layers and none of the design")
+    cell("one file is still one map", len(root.findGroups()) == 1,
+         [g.name() for g in root.findGroups()])
+    current = dlg.layer_combo.currentLayer()
+    cell("the region chooser came back to the map's own data",
+         current is not None and current.id() == layer.id(),
+         f"the chooser holds "
+         f"{current.name() if current is not None else None!r}")
+
+    # AND THE PLUGIN MUST NOT OFFER ITS OWN OUTPUT AS A REGION, which
+    # construction, project-read and the run landing all ensure and
+    # this path did not: a resumed map's own tile layers were listed,
+    # one could be auto-selected, and the next Generate tiled the
+    # plugin's output and called it a success.
+    excepted = {lyr.id() for lyr in dlg.layer_combo.exceptedLayerList()}
+    ours = {lid for lid in dlg._element_layer_ids.values()}
+    cell("the resumed output is kept out of the region chooser",
+         ours and ours <= excepted,
+         f"{len(ours - excepted)} of this map's own layers are still "
+         f"on offer as a region")
+
+    assert checked >= 7, \
+      f"only {checked} cells ran, so this test stopped short"
+    assert not problems, \
+      "resuming an already-open file left something undone:\n  " + \
+      "\n  ".join(problems)
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_resume_keeps_its_output_off_the_region_list():
+  """The other resume branch owes the same exclusion, and paid it.
+
+  Written as its own test rather than a cell of the one above because
+  the two branches are reached by different journeys and this project
+  has been caught more than once mending one path of a pair and
+  reading the pair as done. Here the file's layers are NOT in the
+  project, so the resume loads them itself -- and having registered
+  element layers it must tell the region chooser to ignore them,
+  exactly as construction, project-read and the run landing do.
+
+  Regression: the resume path registered element layers without updating the region chooser's exclusions, so a resumed map's own tile layers were offered as region data and the next Generate tiled the plugin's own output. [mutation]
+  """
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  work = tempfile.mkdtemp(prefix="weavingspace_fresh_")
+  path = os.path.join(work, "map.gpkg")
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(600)
+    dlg.spacing_spin.setValue(540)
+    dlg.gpkg_widget.setFilePath(path)
+    _generate_and_wait(dlg)
+    _tick(400)
+
+    # Take the map away so the resume must LOAD it, which is the
+    # branch under test. The region layer stays, since a resume that
+    # cannot find its data is a different journey with its own rules.
+    root = project.layerTreeRoot()
+    for existing in list(project.mapLayers().values()):
+      if existing.id() != layer.id():
+        project.removeMapLayer(existing.id())
+    for group in list(root.findGroups()):
+      root.removeChildNode(group)
+    _tick(400)
+    assert not root.findGroups(), \
+      "the fixture could not clear the map, so the resume below " \
+      "would take the already-open branch instead"
+
+    assert dlg._resume_from_gpkg(path), \
+      "the resume declined a file it had just written"
+    _tick(800)
+
+    ours = set(dlg._element_layer_ids.values())
+    assert ours, "the resume produced no element layers to exclude"
+    excepted = {lyr.id() for lyr in dlg.layer_combo.exceptedLayerList()}
+    left = ours - excepted
+    assert not left, \
+      f"{len(left)} of the resumed map's own layers are offered as " \
+      f"region data, so the next Generate could tile the plugin's " \
+      f"own output and report it as a map"
+  finally:
+    dlg.close()
+    project.clear()
+
+
 def test_the_group_unit_rulings_hold_on_every_route():
   """The four boundaries the group-unit rulings cross, as one matrix.
 
@@ -60901,6 +61329,12 @@ def main():
         test_the_size_guard_warns_where_it_used_to_refuse)
   check("a map is filed under the dataset it was drawn from",
         test_a_map_is_filed_under_the_dataset_it_was_drawn_from)
+  check("a group restores its own state and no one else's",
+        test_a_group_restores_its_own_state_and_no_one_elses)
+  check("a file already open resumes completely",
+        test_a_file_already_open_resumes_completely)
+  check("a fresh resume keeps its output out of the region chooser",
+        test_a_resume_keeps_its_output_off_the_region_list)
   check("the group-unit rulings hold on every route",
         test_the_group_unit_rulings_hold_on_every_route)
   check("the preview draws the middle of the patch",

@@ -170,10 +170,18 @@ NEW_GROUP_LABEL = "Create new"
 # interaction, which at 350 is swallowed and at 150 starts work the
 # user is about to interrupt. On a machine where a rebuild is cheap
 # that costs nothing. Where it is expensive it is the "snappy feel
-# has gone" complaint made worse, and the cost scales with elements
-# times features -- which is exactly the ground the uncached-value
-# defect of 2026-08-19 lived on, 3,011 features rescanned 23 times
-# for one keystroke.
+# has gone" complaint made worse.
+# WHAT MAKES A REBUILD EXPENSIVE IS ELEMENTS AND FIELDS, NOT
+# FEATURES, and this comment said otherwise until it was measured on
+# 2026-08-26: one rebuild makes 30,529 primitive calls over sixteen
+# areas and 30,529 over three thousand -- identical. The number that
+# moves it is the design's element count crossed with the width of
+# the attribute table, and at twenty-six elements over a hundred
+# columns a rebuild cost 871 ms and armed this timer at its ceiling.
+# The earlier claim borrowed the shape of the uncached-value defect
+# of 2026-08-19, which really was about features (3,011 rescanned 23
+# times for one keystroke) and is a different mechanism on a
+# different path.
 #
 # SO THE WAIT IS AT LEAST AS LONG AS THE LAST REBUILD TOOK, floored at
 # PREVIEW_DEBOUNCE_MS and capped at PREVIEW_DEBOUNCE_CEILING_MS, which
@@ -13056,6 +13064,19 @@ class WeavingSpaceDialog(QDialog):
     each new group pushes the last one down. NOT recursive, so a group
     somebody has nested inside a folder of their own is left alone --
     the same choice, for the same reason, as `_newest_output_group`.
+
+    MAINTAINER'S RULING, 2026-08-26: NON-RECURSIVE IS FINE, and it is
+    recorded here with what it costs rather than only what it buys,
+    because a hunt raised it that day and the next one should not have
+    to. Nesting an output group inside a folder takes it out of every
+    reader that walks `root.children()`: the chooser stops listing it,
+    the one-file-is-one-map check in `_resume_from_gpkg` cannot see
+    it, so resuming that file builds a SECOND copy of the map beside
+    it, and a later run on the new copy drops tables the nested one is
+    still drawing from -- measured that day, `tiles_a_v1` removed from
+    the file while the tidied group went on pointing at it. "Left
+    alone" therefore means unmanaged rather than protected, which is
+    the honest reading and the one the ruling accepts.
     """
     found = []
     for node in root.children():
@@ -13745,13 +13766,39 @@ class WeavingSpaceDialog(QDialog):
       if not tid:
         continue
       var = element.get("var")
+      # ASSIGNED, NOT MERELY SET -- ALL OF THEM, and this loop is the
+      # reason to say it once here rather than at each line. Ruling 4
+      # of 2026-08-25 is that selecting a group RESTORES the whole
+      # working state "so nothing is inferred", and a key that is
+      # written only when the incoming record HAS it infers the last
+      # group's answer whenever this one is silent. Nothing else
+      # clears these: `_detach_from_the_group` empties the layer ids
+      # and the signatures and not this, and the per-dataset bank
+      # swaps only on a change of DATASET, where two groups of one
+      # dataset share a bank by construction.
+      # MEASURED 2026-08-26, driven through the chooser's own signal:
+      # a class colour hand-picked on one group came out drawn AND
+      # STAMPED on another whose own record holds none, so it reached
+      # the project file and the GeoPackage. Three hunts that could
+      # not see each other reported it from three directions, which is
+      # the strongest confirmation this method produces.
+      # The window above was mended alone on 2026-08-26; its
+      # neighbours are the same fault and were left standing, which is
+      # this file's own "a guard added to one door belongs at every
+      # door" wearing a fifth set of clothes.
       if element.get("ramp"):
         self._ramp_choices[tid] = element["ramp"]
+      else:
+        self._ramp_choices.pop(tid, None)
       if element.get("single_colour"):
         self._single_colours[tid] = element["single_colour"]
+      else:
+        self._single_colours.pop(tid, None)
       self._reverse_choices[tid] = bool(element.get("reverse"))
       if element.get("opacity") is not None:
         self._opacity_choices[tid] = int(element["opacity"])
+      else:
+        self._opacity_choices.pop(tid, None)
       self._class_choices[tid] = element.get("class_choice") or ""
       # THE COUNT ONLY WHERE SOMEBODY CHOSE IT. `k` is 50 on an
       # Unclassed row by the definition of that style rather than by
@@ -13762,6 +13809,12 @@ class WeavingSpaceDialog(QDialog):
       if element.get("scheme") != "Unclassed" \
           and element.get("k") is not None:
         self._class_counts[tid] = int(element["k"])
+      else:
+        # POPPED RATHER THAN WRITTEN, which keeps both promises at
+        # once: an Unclassed row's fifty never becomes a CHOSEN count,
+        # and a count chosen on the previous group does not survive
+        # into one whose record says nobody chose anything.
+        self._class_counts.pop(tid, None)
       # ASSIGNED, NOT MERELY SET, like the two siblings above it. This
       # wrote the window only when the incoming record held a narrowed
       # one, and nothing else clears the record -- `_detach_from_the_
@@ -13782,17 +13835,31 @@ class WeavingSpaceDialog(QDialog):
         self._ramp_ranges[tid] = tuple(window)
       else:
         self._ramp_ranges.pop(tid, None)
-      if element.get("quant_colours") and var:
-        self._quant_colours.setdefault(tid, {})[var] = \
-          dict(element["quant_colours"])
+      # THE VALUE-LADEN RECORDS ARE KEYED BY ELEMENT AND FIELD, so
+      # what is cleared is this element's entry for THIS variable and
+      # nothing else. Emptying the element outright would throw away
+      # the work that switching a variable away and back is meant to
+      # give back -- a colour picked for another column is not
+      # something this group's record says anything about.
+      if var:
+        if element.get("quant_colours"):
+          self._quant_colours.setdefault(tid, {})[var] = \
+            dict(element["quant_colours"])
+        else:
+          self._quant_colours.get(tid, {}).pop(var, None)
       if not same_data:
         continue
-      if element.get("pinned") and var:
-        self._pinned_bounds.setdefault(tid, {})[var] = \
-          dict(element["pinned"])
-      if element.get("category_colours") and var:
-        self._category_colours.setdefault(tid, {})[var] = \
-          dict(element["category_colours"])
+      if var:
+        if element.get("pinned"):
+          self._pinned_bounds.setdefault(tid, {})[var] = \
+            dict(element["pinned"])
+        else:
+          self._pinned_bounds.get(tid, {}).pop(var, None)
+        if element.get("category_colours"):
+          self._category_colours.setdefault(tid, {})[var] = \
+            dict(element["category_colours"])
+        else:
+          self._category_colours.get(tid, {}).pop(var, None)
 
   def _stamp_working_state(self, group, launch_state=None):
     """Record the working state on an output group.
@@ -13963,10 +14030,30 @@ class WeavingSpaceDialog(QDialog):
         self._apply_working_state(record)
       finally:
         self._selecting_a_group = False
+      # AND THE THREE THINGS THE TWIN DOES AFTER ITS TAKE-OVER, which
+      # this branch was written without. Two hunts found the omission
+      # independently on 2026-08-26 and it is the fault this project
+      # already names: when a fix adds a second branch, diff it
+      # against the branch it copied rather than against its own
+      # neighbourhood.
+      self._recover_the_source(path, record)
       self.gpkg_widget.blockSignals(True)
       self.gpkg_widget.setFilePath(path)
       self.gpkg_widget.blockSignals(False)
       self._last_path = path
+      # THE GROUP TAKES THE RECORD TOO, for the reason written at the
+      # twin: the file carries it and the group did not, so saving the
+      # project, reopening it and choosing that group gave back its
+      # layers and none of its design. Measured here: the twin leaves
+      # 1,959 characters on the group and this branch left none.
+      self._stamp_working_state(already)
+      # AND THE PLUGIN MUST NOT OFFER ITS OWN OUTPUT AS A REGION.
+      # Construction, project-read and the run landing all update the
+      # exclusions; this path registered element layers and did not,
+      # so after a resume the region chooser listed the map's own tile
+      # layers and could auto-select one -- and the next Generate
+      # tiled the plugin's output, reporting success.
+      self._update_layer_exclusions()
       self._refresh_group_combo()
       self._report_quietly(
         f"{os.path.basename(path)} is already open here, so its map "
@@ -14042,6 +14129,13 @@ class WeavingSpaceDialog(QDialog):
     # meant to hold it.
     self._stamp_working_state(
       self._group_of_our_layers(QgsProject.instance().layerTreeRoot()))
+    # THE SAME EXCLUSION THE OTHER BRANCH NEEDS, and for the same
+    # reason: this path has just registered element layers, and every
+    # other place that does so -- construction, project-read, the run
+    # landing -- tells the region chooser to ignore them. Without it
+    # the chooser offers the map's own tiles and the next Generate
+    # draws a map from the plugin's output.
+    self._update_layer_exclusions()
     self._refresh_group_combo()
     self._report_quietly(
       f"Opened the saved map from {os.path.basename(path)}: "

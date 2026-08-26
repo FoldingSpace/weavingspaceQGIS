@@ -934,6 +934,77 @@ MUTATIONS = [
            "record says the ramp runs end to end, and that group's "
            "classes took their colours from a stretch of ramp nobody "
            "chose for them"),
+  dict(name="a-silent-record-clears-what-the-last-group-chose",
+       file=DIALOG,
+       # AIMED AT THE SINGLE COLOUR RATHER THAN THE RAMP, and the
+       # reason is worth the line. A quantitative element's record
+       # always carries a ramp, an opacity and a class count -- the
+       # capture records what the element DRAWS, not only what
+       # somebody chose -- so on that fixture the ramp branch writes
+       # the group's own answer over the intruder and the pop is never
+       # what answers. Mutating it therefore proves nothing about the
+       # rule. The single colour is genuinely ABSENT from a
+       # quantitative element's record, so its pop is the one line the
+       # test can actually reach.
+       old="""      if element.get("single_colour"):
+        self._single_colours[tid] = element["single_colour"]
+      else:
+        self._single_colours.pop(tid, None)""",
+       new="""      if element.get("single_colour"):
+        self._single_colours[tid] = element["single_colour"]
+      # mutation: leave the last group's single colour standing""",
+       test="test_a_group_restores_its_own_state_and_no_one_elses",
+       why="the ramp window was made assigned-always on 2026-08-26 "
+           "and its six neighbours in the same loop were left "
+           "set-only, so a group whose own record is silent inherited "
+           "whatever the last one held. Ruling 4 is that selecting a "
+           "group restores the whole working state 'so nothing is "
+           "inferred', and three hunts that could not see each other "
+           "reported this from three directions in one evening"),
+  dict(name="a-pick-does-not-follow-you-to-another-group",
+       file=DIALOG,
+       old="""        else:
+          self._quant_colours.get(tid, {}).pop(var, None)""",
+       new="""        # mutation: keep the other group's hand-picked colours""",
+       test="test_a_group_restores_its_own_state_and_no_one_elses",
+       why="a class colour hand-picked on one output group came out "
+           "DRAWN on another whose own record holds none, and stamped "
+           "onto that map's layers -- so it reached the saved project "
+           "and the GeoPackage a colleague opens. Driven 2026-08-26: "
+           "#ff00ff where the control read the ramp's own #fff5f0. "
+           "This is the value-laden half, cleared per element AND "
+           "field so that switching a variable away and back still "
+           "gives a person their work back"),
+  dict(name="a-resumed-group-carries-the-design-it-resumed",
+       file=DIALOG,
+       old="""      self._stamp_working_state(already)""",
+       new="""      pass  # mutation: leave the group without its record""",
+       test="test_a_file_already_open_resumes_completely",
+       why="the take-over branch was written from the twin that loads "
+           "the file and dropped what came after it. The twin ends "
+           "with this call and says at that line why: the file "
+           "carries the record and the group did not, so saving the "
+           "project, reopening it and choosing that group gave back "
+           "its layers and none of its design. Measured: the twin "
+           "leaves 1,959 characters on the group and this branch "
+           "left none"),
+  dict(name="a-resume-never-offers-its-own-tiles-as-a-region",
+       file=DIALOG,
+       # ANCHORED ON THE COMMENT ABOVE THE CALL, because both branches
+       # now make this call and an anchor matching twice applies
+       # nothing while the run still reports a result.
+       old="""    # draws a map from the plugin's output.
+    self._update_layer_exclusions()""",
+       new="""    # draws a map from the plugin's output.
+    pass  # mutation: skip the exclusion on the loading branch""",
+       test="test_a_resume_keeps_its_output_off_the_region_list",
+       why="construction, project-read and the run landing all keep "
+           "the plugin's own output out of the region chooser, and "
+           "the resume path registered element layers without doing "
+           "so -- so a resumed map's own tile layers were offered as "
+           "region data, one could be auto-selected, and the next "
+           "Generate tiled the plugin's output into a new file and "
+           "reported it as a success. Read back through GDAL"),
   dict(name="an-explicit-group-choice-outlives-ordinary-churn",
        file=DIALOG,
        old="""    on_it = {child.layer().id()

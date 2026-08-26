@@ -2498,3 +2498,94 @@ the data can repeat, the fixture must contain a repeat, and the test
 must ASSERT it does. This one now requires `len(set(bounds)) <
 len(bounds)` before it draws any conclusion, so a fixture without the
 collision fails loudly instead of passing vacuously.
+
+## A RETIRED CONTRACT CAN GO ON PASSING BECAUSE THE ABSURD CASE FAILS FAST
+
+2026-08-26, and it cost the first candidate of this branch. The size
+ceiling stopped being a refusal on 2026-08-25 -- the maintainer ruled
+that a size is a question rather than a verdict -- and the work list
+item that went with it, "update the tests that assert a refusal and
+say why the expectation moved", was ticked. FOUR TESTS STILL ASSUMED A
+REFUSAL, and every one of them was green.
+
+**THE HARNESS SUPPLIED THE WRONG ARM.** `_no_modal_dialogs` answers
+`question` with **Yes** unless a test stages otherwise, so a suite that
+trips the size guard consents to the run on the user's behalf. Every
+one of those four tests was therefore driving the "go on" arm at
+spacings asking for 36,086,505 tiles and for
+36,000,000,086,453,551,104.
+
+**AND THE ABSURD ONE COLLAPSES FASTER THAN THE MERELY ENORMOUS ONE.**
+Measured that evening: declining either settles in 0.9 s; accepting the
+36-million-tile run had not settled in 93 s, while the 3.6e19 one dies
+almost at once. So the case chosen to be MOST extreme was the one that
+looked most like a guard working, and the moderate one -- the only one
+slow enough to outlast a ninety-second ceiling -- was the only one that
+ever went red. It went red on Linux and Windows and on neither Mac,
+which reads as a platform fault and is nothing of the kind.
+
+**THE SWEEP MISSED THEM BECAUSE THEY REACH THE GUARD SIDEWAYS.** The
+tests mended when the ruling landed were the ones a search for the
+refusal's own vocabulary turned up. These reach it through the SPACING
+BOX, and their prose talks about spin boxes and extremes. This is
+"targeted runs cannot find what they do not name" arriving in a place
+this file had not seen it: not a fix applied to some instances of a
+set, but an EXPECTATION left standing wherever the ruling's words do
+not appear.
+
+Three habits follow, and the first two are cheap.
+
+WHEN A RULING CHANGES WHAT A GUARD DOES, GREP FOR THE CONDITION RATHER
+THAN FOR THE VOCABULARY. Every test that can reach the band, whatever
+it calls it -- here, every test that sets a spacing small enough or a
+region large enough.
+
+ASK WHAT THE HARNESS ANSWERS ON YOUR BEHALF. A shim that must answer
+something answers the same thing every time, and that answer becomes an
+invisible fixture. `MODAL_ANSWERS` exists precisely so a test can stage
+the other arm, and a test that never stages one is asserting whatever
+the shim happens to prefer. The refusal arm of every question this
+plugin asks was unreachable from the suite until 2026-08-20 for the
+same reason.
+
+AND A TEST THAT WAITS ON AN IMPOSSIBLE JOB IS TIMING THE MACHINE. If a
+case can only pass when a run the user was warned about fails quickly
+enough, it is a performance budget wearing a guard's clothes. Stage the
+answer that stops the run, and let a separate test own the arithmetic.
+
+## AN ORACLE CAN BE GREEN BECAUSE OF THE DEFECT IT WILL LATER CATCH
+
+Same evening, the switch matrix's `mid-run/touched-scheme/generate`
+cell. It snapshots dataset A's element layers, launches a second run
+ON A, switches the chooser to B mid-tiling, waits for that run to land,
+generates on B, and requires the snapshot to survive.
+
+Driven stage by stage: the in-flight run REPLACES A's map in place --
+four new layers, same group, same region stamp -- which is the settled
+contract, and the Generate on B then builds its own group and leaves
+all four of A's alone. The protection the cell exists to check holds
+perfectly. The snapshot is simply older than a legitimate replacement,
+which is the oracle fault recorded above under "the harm must be
+measured where it would happen".
+
+WHAT MAKES IT WORTH ITS OWN ENTRY is why it was green before. Until the
+same day, `_add_output_layers` took `weavingspace_region` from the
+region CHOOSER as the run landed, so an A run landing under a B chooser
+stamped B, the landing's own refusal saw a group whose stamps
+disagreed, and it built a RIVAL group instead of replacing anything --
+so the snapshot survived. The cell was passing because of the very
+defect the branch had just fixed, and it went red the moment the code
+became correct.
+
+So: WHEN A FIX MAKES A LONG-PASSING TEST FAIL, ASK WHETHER THE TEST WAS
+STANDING ON THE DEFECT. This file already says to read such a failure
+as evidence about the world before assuming it is evidence about the
+change; the sharper version is that a green oracle may be measuring a
+side effect nobody chose, and the fix removes its footing rather than
+breaking it.
+
+AND THE REPAIRED CELL IS STRONGER THAN THE ONE IT REPLACES. Re-reading
+the set to protect after the in-flight landing, with the premise
+asserted -- the replacement produced as many layers as it took away --
+leaves a cell that would go red under the old stamp behaviour, where
+the version it replaces went green.

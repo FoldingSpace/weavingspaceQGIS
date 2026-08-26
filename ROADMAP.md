@@ -185,10 +185,15 @@ exactly one rebuild whatever the interval; shortening it does not do
 more work, it starts the same work sooner. What a longer wait really
 absorbs is a HESITATION of a few hundred milliseconds mid-interaction,
 and that costs something only where a rebuild is expensive. A
-rebuild's cost scales with elements times features, which is the
-ground the uncached-value defect of 2026-08-19 lived on -- 3,011
-features rescanned 23 times for one keystroke -- so the machines where
-a short flat wait would hurt are exactly the ones nobody here can
+rebuild's cost scales with elements times FIELDS -- corrected
+2026-08-26, having said "features" here and at the code until a hunt
+measured it: one rebuild makes 30,529 primitive calls over sixteen
+areas and 30,529 over three thousand, identical, while 26 elements
+over a hundred columns cost 871 ms. The earlier wording borrowed the
+shape of the uncached-value defect of 2026-08-19, which really was
+about features (3,011 rescanned 23 times for one keystroke) and is a
+different mechanism on a different path. Either way the machines
+where a short flat wait would hurt are the ones nobody here can
 measure.
 
 SO THE PREVIEW WAIT IS A FLOOR OF 150 ms, at least as long as the last

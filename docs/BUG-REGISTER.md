@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-315 defect(s) with a regression test.
+318 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -281,8 +281,12 @@ there is no separate list to remember.
   guarded by `test_a_dropped_column_takes_its_whole_scheme_and_the_shelf_returns_it`
 - **a ramp chosen on a row whose style was left derived rode a deleted column onto its replacement, then reverted at the next rebuild.**  
   guarded by `test_a_dropped_columns_ramp_goes_even_when_the_style_was_derived`
+- **resuming a GeoPackage whose layers were already in the project took the group over without stamping the working state onto it or recovering the source, so the design was lost at the next reopen and the region chooser was left pointing at another dataset.**  
+  guarded by `test_a_file_already_open_resumes_completely`
 - **the categorized adoption path got a test and its graduated twin, five identical lines away, still had none.**  
   guarded by `test_a_graduated_dock_refinement_survives_the_next_restyle`
+- **every key of a group's working state except the ramp window was written only when the incoming record held one, so a ramp, a single colour, an opacity, a class count, a hand-picked class colour, a pinned bound or a categorical colour set on one output group stayed in force on another whose own record said it had none, and the next restyle painted and stamped it there.**  
+  guarded by `test_a_group_restores_its_own_state_and_no_one_elses`
 - **the scheme cell went on naming a scheme after a ladder was retyped in QGIS or copied from another element, so the row described a classification the map no longer had.**  
   guarded by `test_a_ladder_somebody_else_cut_makes_the_scheme_cell_read_custom`
 - **generating after reopening a project that held maps of two datasets replaced the wrong dataset's map, silently.**  
@@ -297,6 +301,8 @@ there is no separate list to remember.
   guarded by `test_a_reopened_project_reaches_its_own_colours_and_pins`
 - **a project reopened from a file heard no in-place dock recolour at all, because a guard read a deliberately empty record as evidence that the row had moved.**  
   guarded by `test_a_reopened_project_still_hears_a_recolour_made_in_qgis`
+- **the resume path registered element layers without updating the region chooser's exclusions, so a resumed map's own tile layers were offered as region data and the next Generate tiled the plugin's own output.**  
+  guarded by `test_a_resume_keeps_its_output_off_the_region_list`
 - **a finished map could be looked at but not carried on with: the GeoPackage held tables and styles and nothing about the design that produced them, so a demo had to re-tile from scratch and a colleague received a result they could not continue.**  
   guarded by `test_a_saved_map_can_be_opened_and_carried_on`
 - **a guard computed as a delta was armed for one invocation, so a second repaint after a class was added in QGIS recorded four of the plugin's own ramp colours as the user's hand-picks, stamped into the project.**  
@@ -683,7 +689,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
-- the mutation campaign: 52
+- the mutation campaign: 55
 - reported by a user: 29
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8
