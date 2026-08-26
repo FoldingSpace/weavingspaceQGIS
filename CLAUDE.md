@@ -1973,6 +1973,34 @@ Confirmed with the user via an explicit design review:
   user-plugin half of this decision, because nothing of theirs is
   destroyed there.
 
+- **TWO RULINGS OF 2026-08-26, SETTLED BY GRILLING, on the leads two
+  hunt rounds corroborated.**
+  THE FILE SHOWS THE LIMIT OF WHAT IT CONTAINS. People redistribute
+  their work, and what they see in the GeoPackage must be the limit of
+  what is in it -- so work for fields the map does not display never
+  reaches the file. The PROJECT is the user's own and carries the
+  whole working memory home: each group-record element gains a `kept`
+  map (the other fields' pins and hand-picks, per field, this
+  dataset's fields only, so ruling 8 stands), which rides the .qgz
+  through the layer-tree node and never the GeoPackage. The seam that
+  makes the split possible: layer custom properties EMBED into the
+  file's saved styles, so the stamps stay one-field; the group record
+  does not embed, so it may widen; and the file's own record is
+  stripped through `_file_safe_state` at every write, guarded at the
+  helper so a new call site cannot forget. Consequence accepted and
+  documented: resuming from the GeoPackage without the project
+  restores the displayed design and never the unworn-field memory --
+  under the principle, correct rather than a loss. Saving alone wipes
+  no session memory, which was already true and is now stated.
+  AND THE SWITCH DOOR SPEAKS. A change of region dataset that
+  re-points elements whose chosen column the new data lacks announces
+  it in the deleted-column door's own sentence family, naming the NEW
+  layer -- at a switch it is the layer that moved, not the column. An
+  ordinary switch where every column survives by name stays quiet;
+  recovery and group selection stay silent, since a recovery is not a
+  switch. Ends the asymmetry where two doors into one loss differed
+  only in which of them said so.
+
 - **A GUARD ADDED TO ONE DOOR BELONGS AT EVERY DOOR INTO THE SAME
   ROOM.** (2026-08-25, and it is the sharpest thing the group-unit
   build taught.) A regression showed that taking a group over while a

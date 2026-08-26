@@ -19,6 +19,11 @@
   "excerpt": "<p>QGIS 4.x is required.</p>",
   "where": "docs/index.html"
  },
+ "03b36b2a9b2c92a4": {
+  "approved": "2026-08-26",
+  "excerpt": "{} is not in '{}', so the elements using it now show {} inst",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "03fdf9b6056d9a4a": {
   "approved": "2026-08-08",
   "excerpt": "The region layer was removed while the map was being made, s",
@@ -348,6 +353,11 @@
   "approved": "2026-08-16",
   "excerpt": "Quantitative elements open the same window. Each class is li",
   "where": "docs/USER-GUIDE.md"
+ },
+ "2f1020145a3311c0": {
+  "approved": "2026-08-26",
+  "excerpt": "{} is not in '{}', and there is nothing left to show in its ",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "302693fce18f3e49": {
   "approved": "2026-08-09",

@@ -62403,6 +62403,185 @@ def test_an_unreadable_source_keeps_the_map_at_the_landing():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_a_saved_project_keeps_the_other_fields_work():
+  """Work for a field not on show at the save survives the reopen.
+
+  In-session returns always restored it (the per-field memory); the
+  persistence writers held one field per element, so the same return
+  after a save and reopen came back empty -- indistinguishable from a
+  bug to the person it happens to. The maintainer's ruling of
+  2026-08-26 (the revisit ruling 6 anticipated): the PROJECT carries
+  the whole working memory home, through the group record's `kept`
+  map, while the GeoPackage stays displayed-field-only.
+
+  Regression: a pin or hand-picked colour made for one field died at every persistence boundary the moment the row was saved showing another field -- the group record and stamps carried the displayed field alone. Found by the oscillation-and-persistence hunt of 2026-08-26, the byte-grep of the .qgz as its second route; ruled the same day. [mutation]
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  folder = tempfile.mkdtemp(prefix="ws_kept_home_")
+  try:
+    dlg, disk, out = _a_disk_session(folder)
+    tid = dlg.table.item(0, 0).text()
+    # work for landcover (currently shown)... then the row moves on
+    dlg._category_colours.setdefault(tid, {})["landcover"] = {
+      "forest": "#aa0000"}
+    combo = dlg.table.cellWidget(0, 1)
+    index = combo.findText("v1")
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(300)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    assert dlg._category_colours.get(tid, {}).get("landcover"), \
+      "the session itself lost the kept work, so the boundary cannot " \
+      "be what this test measures"
+    saved = os.path.join(folder, "kept.qgz")
+    assert QgsProject.instance().write(saved), "the project would not save"
+    dlg.close()
+    QgsProject.instance().clear()
+    _tick(300)
+    assert QgsProject.instance().read(saved), "would not reopen"
+    _tick(400)
+    second = WeavingSpaceDialog(iface=_Iface())
+    _tick(2000)
+    _settle(second, seconds=60)
+    back = second._category_colours.get(tid, {}).get("landcover")
+    assert back and back.get("forest") == "#aa0000", \
+      f"the reopened project lost the other field's kept work: {back!r}"
+    second.close()
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_the_file_shows_the_limit_of_what_it_contains():
+  """The GeoPackage never carries work for fields it does not display.
+
+  The maintainer's principle, 2026-08-26: people redistribute their
+  work and must be able to assume that what they see in the file is
+  the limit of what is in it. The `kept` map -- value strings and
+  data-derived numbers for fields the map does not show -- rides the
+  .qgz only; `_file_safe_state` strips it at every file write. Read
+  as BYTES, the way ruling 8's own guard reads, so no reader's
+  politeness can hide a leak.
+
+  Regression: none yet -- this guards the boundary the `kept` map created the day it was born, because the file's record is written from the same capture and would otherwise inherit the key. [mutation]
+  """
+  import shutil
+  import tempfile
+  folder = tempfile.mkdtemp(prefix="ws_file_limit_")
+  try:
+    dlg, disk, out = _a_disk_session(folder)
+    tid = dlg.table.item(0, 0).text()
+    dlg._category_colours.setdefault(tid, {})["landcover"] = {
+      "forest": "#aa0000"}
+    combo = dlg.table.cellWidget(0, 1)
+    index = combo.findText("v1")
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(300)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    record = dlg._capture_working_state()
+    carried = any(e.get("kept") for e in record.get("elements") or [])
+    assert carried, \
+      "the capture holds no kept work, so the strip below has " \
+      "nothing to prove"
+    blob = open(out, "rb").read()
+    assert b"#aa0000" not in blob and b"aa0000" not in blob, \
+      "the GeoPackage carries a hand-pick for a field it does not " \
+      "display -- the file no longer shows the limit of what it " \
+      "contains"
+    assert b'"kept"' not in blob, \
+      "the file's record carries the kept map itself"
+    dlg.close()
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_dataset_switch_says_what_it_re_points():
+  """Switching datasets announces re-pointed variables, as its twin does.
+
+  Delete a column in QGIS and the plugin says so; switch to a dataset
+  lacking that column and the same loss happened in silence -- the
+  next map displaying variables nobody picked. The maintainer's
+  ruling, 2026-08-26: the switch door speaks, in the twin's sentence
+  family, naming the NEW layer because at a switch it is the layer
+  that moved. An ordinary switch where every column survives by name
+  stays quiet, which the second leg asserts.
+
+  Regression: a change of region dataset re-pointed elements whose chosen column the new data lacks and said nothing, while the deleted-column door announced the identical loss. Found by the notices hunt of 2026-08-26 driving the same loss through both doors; ruled the same day. [mutation]
+  """
+  import shutil
+  import tempfile
+  from qgis.core import QgsFeature, QgsGeometry, QgsPointXY
+  from weavingspace_qgis import compat
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  folder = tempfile.mkdtemp(prefix="ws_switch_says_")
+  try:
+    first = make_region_layer(n=5, cell=1000)
+    QgsProject.instance().addMapLayer(first)
+    # a second dataset that LACKS landcover, with different columns
+    other = QgsVectorLayer("MultiPolygon?crs=EPSG:3857", "wards", "memory")
+    prov = other.dataProvider()
+    prov.addAttributes([compat.make_field("w1", float),
+                        compat.make_field("w2", float)])
+    other.updateFields()
+    feats = []
+    for i in range(4):
+      for j in range(4):
+        f = QgsFeature(other.fields())
+        f.setGeometry(QgsGeometry.fromPolygonXY([[
+          QgsPointXY(i * 900, j * 900), QgsPointXY(i * 900 + 850, j * 900),
+          QgsPointXY(i * 900 + 850, j * 900 + 850),
+          QgsPointXY(i * 900, j * 900 + 850)]]))
+        f["w1"], f["w2"] = float(i), float(j)
+        feats.append(f)
+    prov.addFeatures(feats)
+    other.updateExtents()
+    QgsProject.instance().addMapLayer(other)
+
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.layer_combo.setLayer(first)
+    _tick(1000)
+    _settle(dlg, seconds=30)
+    combo = dlg.table.cellWidget(0, 1)
+    index = combo.findText("landcover")
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(300)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+
+    BAR_MESSAGES.clear()
+    dlg.layer_combo.setLayer(other)
+    _tick(1200)
+    _settle(dlg, seconds=30)
+    said = " ".join(m[1] for m in BAR_MESSAGES)
+    assert "landcover" in said and "is not in 'wards'" in said, \
+      f"the switch re-pointed a chosen variable and did not say so: " \
+      f"{said!r}"
+    # ...and the quiet leg: back to the first dataset, where landcover
+    # survives by name, nothing about re-pointing may be said
+    BAR_MESSAGES.clear()
+    dlg.layer_combo.setLayer(first)
+    _tick(1200)
+    _settle(dlg, seconds=30)
+    said = " ".join(m[1] for m in BAR_MESSAGES)
+    assert "is not in" not in said, \
+      f"a switch where every chosen column survives spoke anyway: " \
+      f"{said!r}"
+    dlg.close()
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def main():
   """Run every registered test and report what happened.
 
@@ -62772,6 +62951,12 @@ def main():
         test_retirement_closes_the_colour_editor)
   check("an unreadable source keeps the map at the landing",
         test_an_unreadable_source_keeps_the_map_at_the_landing)
+  check("a saved project keeps the other fields' work",
+        test_a_saved_project_keeps_the_other_fields_work)
+  check("the file shows the limit of what it contains",
+        test_the_file_shows_the_limit_of_what_it_contains)
+  check("a dataset switch says what it re-points",
+        test_a_dataset_switch_says_what_it_re_points)
   check("a class source follows the record under it",
         test_a_class_source_follows_the_record_under_it)
   check("the file carries the design the map is wearing",

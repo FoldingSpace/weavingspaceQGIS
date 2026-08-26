@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-337 defect(s) with a regression test.
+340 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -275,6 +275,8 @@ there is no separate list to remember.
   guarded by `test_a_copy_carries_a_class_source_the_target_has_not_met`
 - **a dataset chosen after the dialog opened left its identity unbound, so the next dataset inherited its hand-picked colours -- one dataset's value strings drawn on another's map and saved into its project.**  
   guarded by `test_a_dataset_chosen_after_the_dialog_opened_owns_its_own_colours`
+- **a change of region dataset re-pointed elements whose chosen column the new data lacks and said nothing, while the deleted-column door announced the identical loss. Found by the notices hunt of 2026-08-26 driving the same loss through both doors; ruled the same day.**  
+  guarded by `test_a_dataset_switch_says_what_it_re_points`
 - **removing the region layer and choosing another skipped every change-of-dataset protection, so Generate overwrote the previous dataset's GeoPackage without a word.**  
   guarded by `test_a_dataset_that_leaves_the_project_is_still_a_dataset_left`
 - **an automatic mutant flipped the colours-agree comparison at dialog.py:3345 and twenty covering tests noticed nothing, because not one of them looked at what the user was told.**  
@@ -323,6 +325,8 @@ there is no separate list to remember.
   guarded by `test_a_resume_keeps_its_output_off_the_region_list`
 - **a finished map could be looked at but not carried on with: the GeoPackage held tables and styles and nothing about the design that produced them, so a demo had to re-tile from scratch and a colleague received a result they could not continue.**  
   guarded by `test_a_saved_map_can_be_opened_and_carried_on`
+- **a pin or hand-picked colour made for one field died at every persistence boundary the moment the row was saved showing another field -- the group record and stamps carried the displayed field alone. Found by the oscillation-and-persistence hunt of 2026-08-26, the byte-grep of the .qgz as its second route; ruled the same day.**  
+  guarded by `test_a_saved_project_keeps_the_other_fields_work`
 - **a guard computed as a delta was armed for one invocation, so a second repaint after a class was added in QGIS recorded four of the plugin's own ramp colours as the user's hand-picks, stamped into the project.**  
   guarded by `test_a_second_reconciliation_adopts_no_colour_the_plugin_painted`
 - **a spacing a person typed was destroyed by a round trip through another dataset -- 137 typed, another layer chosen, and 500 on return with nothing said -- because auto-spacing re-derived once per newly chosen layer id and a return counts as new.**  
@@ -369,6 +373,8 @@ there is no separate list to remember.
   guarded by `test_the_dock_reapplying_the_same_ramp_discards_the_hand_picks`
 - **a restyle wrote the new design onto the group and into the layers' embedded styles but never into the GeoPackage's own working-state record, so a file opened elsewhere resumed the design from before the last style change.**  
   guarded by `test_the_file_carries_the_design_the_map_is_wearing`
+- **none yet -- this guards the boundary the `kept` map created the day it was born, because the file's record is written from the same capture and would otherwise inherit the key.**  
+  guarded by `test_the_file_shows_the_limit_of_what_it_contains`
 - **the output group was the unit of work in the rulings and in three separate mechanisms that had never been driven against each other -- and the first build of them broke six reopen journeys, let go of a map when the region layer was removed, and undid the user's own edits after every landing.**  
   guarded by `test_the_group_unit_rulings_hold_on_every_route`
 - **deleting the output GeoPackage and pressing Generate removed every element layer from the project and added none, silently, because the handle release recreated a zero-byte file and the landing read bare existence as "update the file". Found 2026-08-26 by the file-lifecycle census; the write's own moment measured first=False exists=True size=0.**  
@@ -727,7 +733,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
-- the mutation campaign: 74
+- the mutation campaign: 77
 - reported by a user: 29
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

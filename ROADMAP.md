@@ -170,26 +170,39 @@ two elements share a column, one element's notice silenced the other.
 
 ### Outstanding
 
-**THE THREE DEFECTS OF 2026-08-26 (NIGHT) ARE FIXED**, each with a
-registered test and a catalogue entry proved to catch; rows 18 to 20
-of `docs/process/defects-2026-08-26.md` carry the mechanisms and the
-fixes. The design lost on closing and reopening the plugin
-(`_restore_the_adopted_design`, at both doors, source recovered before
-the record is applied); the rival group forked by the first
-file-backed run after live update (maintainer's ruling: replace in
-place); and the map lost in silence when the output file is deleted
-(a zero-byte file recreated by the handle release counts as absent,
-not as a file to update). The file-lifecycle census then cleared
-deleted, moved-away, moved-away-and-back and replaced-by-empty alike
--- and moved-away-and-back is the exact journey of the Windows red,
-so THE NEXT CI RUN SAYS whether that four-for-four failure was this
-same defect. Until it answers, the Windows entry below stands.
+**THE NIGHT OF 2026-08-26 CLOSED EIGHTEEN DEFECT ROWS AND TWO
+RULINGS, all fixed, tested and entry-proved**; rows 18 to 38 of
+`docs/process/defects-2026-08-26.md` are the record, and the two new
+rulings bind from CLAUDE.md (the file shows the limit of what it
+contains, with the project carrying the whole working memory home;
+and the switch door speaks). What produced them: the consistency
+sweep, two eight-hunt rounds at iterative exploration and at the
+seams, a CI-caught regression of this session's own reopen fix, and
+a grilling that settled the two corroborated leads. Everything is
+committed through `cd07d89` and pushed.
 
-**Two leads and seven clearances** are recorded with the rows,
-including the four-corner check -- user, plugin, QGIS and the
-GeoPackage read as a colleague reads it -- which found every corner
-agreeing at every door driven. That is ground the next round need not
-walk.
+**WHAT IS OPEN, exactly:**
+
+*Two sentences await text review* -- the switch-door notice's pair
+("{columns} is not in '{layer}', so the elements using it now show
+{columns} instead." and its nothing-left variant) -- so
+`check_before_push` is deliberately red and the last local batch
+(rows 37-38 and these entries) is uncommitted until the maintainer
+approves.
+
+*One catalogue entry is anchored at the wrong sibling and says so:*
+`a-file-that-will-not-resume-says-so` was disambiguated onto the
+RESTYLE write site while its test drives the LANDING's -- it reports
+SURVIVED honestly. Re-aim it at the landing site (whose neighbouring
+lines differ) and re-prove; two minutes, left visible rather than
+done during a requested pause.
+
+*CI on `cd07d89` is in flight* -- mutation green, tests running with
+no job failed at the time of writing. This run answers two things:
+whether the branch is whole-tree green, and whether the Windows red
+(`a project whose output geopackage has moved`, four failures for
+four runs) died with the zero-byte-file fix, whose moved-away-and-back
+census journey it shares.
 
 **THE WINDOWS RED IS JUDGED, 2026-08-26 (night): IT IS REAL, THREE FOR
 THREE.** `a project whose output geopackage has moved` failed on

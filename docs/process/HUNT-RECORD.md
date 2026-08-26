@@ -455,6 +455,15 @@ failure a different mechanism quietly keeping the behaviour -- the
 full ladder is in the ledger, and its moral is that nothing in a
 hunt's reproduction is incidental until proven so.
 
+THE ROUND'S TWO RULING REQUESTS WERE GRILLED AND SETTLED THE SAME
+NIGHT (ledger rows 37-38, binding text in CLAUDE.md): the file shows
+the limit of what it contains while the project carries the whole
+working memory home, and the switch door speaks in its twin's
+sentence family. A hunt that ends in a RULING rather than a fix is a
+full-value outcome, and this round produced two -- both corroborated
+across two hunts before they were put to the maintainer, which is
+what made each a one-question decision.
+
 ## What a "direction" means
 
 A direction is not a place in the code. It is the QUESTION a hunt

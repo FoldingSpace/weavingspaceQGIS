@@ -881,9 +881,18 @@ MUTATIONS = [
            "the declaration and cleared a tree with a page of "
            "outstanding work under it"),
   dict(name="a-file-that-will-not-resume-says-so", file=DIALOG,
-       old="""      if not bridge.write_working_state(path, resumable):""",
-       new="""      bridge.write_working_state(path, resumable)
-      if False:  # mutation: drop the answer on the floor""",
+       # Anchored at the LANDING's write -- the site the named test
+       # drives. The write-then-report pair is contiguous only there;
+       # the restyle's twin write carries a comment between the two
+       # lines, which is what makes this anchor match exactly once.
+       # (An earlier anchor sat on the restyle site's neighbours and
+       # the entry honestly reported SURVIVED, since the test never
+       # reaches that site.)
+       old="""      if not bridge.write_working_state(path, self._file_safe_state(resumable)):
+        self._report_quietly(""",
+       new="""      bridge.write_working_state(path, self._file_safe_state(resumable))
+      if False:  # mutation: drop the answer on the floor
+        self._report_quietly(""",
        test="test_a_saved_map_can_be_opened_and_carried_on",
        why="`write_working_state`'s own Returns block promises that a "
            "failure 'is reported rather than raised', and nothing read "
@@ -1049,6 +1058,50 @@ MUTATIONS = [
            "its layers and none of its design. Measured: the twin "
            "leaves 1,959 characters on the group and this branch "
            "left none"),
+  dict(name="a-saved-project-keeps-the-other-fields-work",
+       file=DIALOG,
+       old="""      if kept:
+        element["kept"] = kept""",
+       new="""      pass  # mutation: the record carries the displayed field alone""",
+       test="test_a_saved_project_keeps_the_other_fields_work",
+       why="a pin or hand-pick made for one field died at every "
+           "persistence boundary the moment the row was saved showing "
+           "another -- in-session returns restored it, the reopened "
+           "project came back empty, and nothing on screen "
+           "distinguished the two journeys"),
+  dict(name="the-file-shows-the-limit-of-what-it-contains",
+       file=DIALOG,
+       # anchored on the HELPER rather than a call site: both file
+       # writes go through it, and mutating one call alone would leave
+       # the other keeping the behaviour alive (the ambiguous-anchor
+       # refusal caught exactly that on this entry's first draft)
+       old="""    safe = dict(record)
+    safe["elements"] = [
+      {key: value for key, value in element.items() if key != "kept"}
+      for element in (record.get("elements") or [])]
+    return safe""",
+       new="""    return record  # mutation: the file gets the whole record""",
+       test="test_the_file_shows_the_limit_of_what_it_contains",
+       why="the GeoPackage's record is written from the same capture "
+           "as the group's, so without the strip the kept map's value "
+           "strings for fields the map does not display reach the "
+           "file a colleague receives -- against the principle that "
+           "what a redistributed file shows is the limit of what it "
+           "contains"),
+  dict(name="a-dataset-switch-says-what-it-re-points",
+       file=DIALOG,
+       old="""        if landed:
+          self._report_quietly(
+            f"{', '.join(gone)} is not in '{where}', so the elements "
+            f"using it now show {', '.join(landed)} instead.")""",
+       new="""        if landed:
+          pass  # mutation: the switch door falls silent again""",
+       test="test_a_dataset_switch_says_what_it_re_points",
+       why="a change of region dataset re-pointed elements whose "
+           "chosen column the new data lacks and said nothing, while "
+           "the deleted-column door announced the identical loss -- "
+           "the next map displayed variables nobody picked, "
+           "unannounced"),
   dict(name="a-recoded-category-reaches-the-legend",
        file=DIALOG,
        old="""      words = {}
@@ -5971,7 +6024,7 @@ MUTATIONS = [
   # file, the version refusal, the source found by reference, and
   # embedding staying an opt-in.
   dict(name="a-saved-map-carries-its-state", file=DIALOG,
-       old="""      if not bridge.write_working_state(path, resumable):
+       old="""      if not bridge.write_working_state(path, self._file_safe_state(resumable)):
         self._report_quietly(""",
        new="""      if False:  # mutation: the file keeps no record of its design
         self._report_quietly(""",

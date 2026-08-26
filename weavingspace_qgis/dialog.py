@@ -285,6 +285,15 @@ WORKING_STATE_ELEMENT = (
   "single_colour", "opacity", "class_source", "class_choice",
   "quant_colours", "category_colours", "range_bounds", "pinned",
   "style_touched",
+  # "kept" joined on 2026-08-26, in the same commit as the code that
+  # writes and reads it: the OTHER fields' pins and hand-picks for
+  # this element, per field, so a saved PROJECT carries the whole
+  # working memory home (the revisit ruling 6 anticipated). It rides
+  # the .qgz through the layer-tree node and MUST NEVER reach the
+  # GeoPackage's record -- what a redistributed file shows is the
+  # limit of what it contains -- which `_file_safe_state` enforces at
+  # every file write.
+  "kept",
 )
 
 # WHAT SITS AT THE EDGE OF "THE WHOLE WORKING STATE", written down
@@ -2856,7 +2865,51 @@ class WeavingSpaceDialog(QDialog):
       restored = self._bind_group_to_dataset()
     if switched_from_work and not restored and not self._selecting_a_group:
       self._begin_new_dataset(layer)
+    # WHAT THE SWITCH IS ABOUT TO RE-POINT, so it can be SAID. The
+    # deleted-column door has announced this exact loss since it was
+    # written -- "v1 is no longer in the layer, so the elements using
+    # it now show v3 instead" -- while a change of dataset re-pointed
+    # the same chosen variables in silence, and the next map displayed
+    # variables nobody picked with nothing on screen to say so.
+    # (Maintainer's ruling, 2026-08-26: the switch door speaks, in the
+    # twin's sentence family, naming the NEW layer because at a switch
+    # it is the layer that moved rather than the column.) Snapshot
+    # before the rebuild, compare after: `_rebuild_unit` refreshes the
+    # table synchronously, so the re-derive has happened by the
+    # comparison. Recovery and a group selection stay silent -- a
+    # recovery is not a switch. Found by the notices hunt, 2026-08-26.
+    before_vars = {}
+    if switched and not self._selecting_a_group:
+      for row_index in range(self.table.rowCount()):
+        item = self.table.item(row_index, 0)
+        var_combo = self.table.cellWidget(row_index, 1)
+        if item is not None and var_combo is not None:
+          before_vars[item.text()] = var_combo.currentText()
     self._rebuild_unit()
+    if switched and not self._selecting_a_group and before_vars:
+      new_fields = {f.name() for f in layer.fields()} if layer else set()
+      moved = []
+      for row_index in range(self.table.rowCount()):
+        item = self.table.item(row_index, 0)
+        var_combo = self.table.cellWidget(row_index, 1)
+        if item is None or var_combo is None:
+          continue
+        was = before_vars.get(item.text())
+        now = var_combo.currentText()
+        if was and was != "---" and was not in new_fields and now != was:
+          moved.append((was, now))
+      if moved:
+        gone = sorted({was for was, _ in moved})
+        landed = sorted({now for _, now in moved if now != "---"})
+        where = layer.name() if layer is not None else "this layer"
+        if landed:
+          self._report_quietly(
+            f"{', '.join(gone)} is not in '{where}', so the elements "
+            f"using it now show {', '.join(landed)} instead.")
+        else:
+          self._report_quietly(
+            f"{', '.join(gone)} is not in '{where}', and there is "
+            f"nothing left to show in its place.")
     # ...and the table now standing there is asked whether a scheme it
     # kept still makes sense on the new data. It runs AFTER the rebuild
     # because it reads the rows that rebuild produced, and only on a
@@ -12256,7 +12309,7 @@ class WeavingSpaceDialog(QDialog):
       existing = bridge.read_working_state(path) or {}
       if "region_embedded" in existing:
         resumable["region_embedded"] = existing["region_embedded"]
-      if not bridge.write_working_state(path, resumable):
+      if not bridge.write_working_state(path, self._file_safe_state(resumable)):
         # The same sentence the landing uses, for the same reason: on
         # either path the map and its styles are in the file and only
         # the RESUME is lost, so a person meets one wording.
@@ -13987,6 +14040,35 @@ class WeavingSpaceDialog(QDialog):
         window = tuple(self._ramp_ranges.get(tid, (0, 100)))
         if window != (0, 100):
           element["range_bounds"] = list(window)
+      # ...AND THE OTHER FIELDS' KEPT WORK, so a saved PROJECT carries
+      # the whole working memory home (maintainer's ruling,
+      # 2026-08-26, the revisit ruling 6 anticipated). The flat keys
+      # above hold the DISPLAYED field; `kept` holds every other
+      # field's pins and hand-picks for this element, from the same
+      # per-dataset bank, so ruling 8 is untouched. The group record
+      # rides in the .qgz through the layer-tree node and never
+      # reaches the GeoPackage -- and the FILE'S record must never
+      # gain this key: what a redistributed file shows is the limit
+      # of what it contains, which is why every write_working_state
+      # call goes through `_file_safe_state`.
+      kept = {}
+      for field in (set(self._pinned_bounds.get(tid, {}))
+                    | set(self._quant_colours.get(tid, {}))
+                    | set(self._category_colours.get(tid, {}))):
+        if field == var or not field:
+          continue
+        entry = {}
+        if self._pinned_bounds.get(tid, {}).get(field):
+          entry["pinned"] = dict(self._pinned_bounds[tid][field])
+        if self._quant_colours.get(tid, {}).get(field):
+          entry["quant_colours"] = dict(self._quant_colours[tid][field])
+        if self._category_colours.get(tid, {}).get(field):
+          entry["category_colours"] = \
+            dict(self._category_colours[tid][field])
+        if entry:
+          kept[field] = entry
+      if kept:
+        element["kept"] = kept
     layer = self.layer_combo.currentLayer()
     return {
       "version": WORKING_STATE_VERSION,
@@ -13999,6 +14081,30 @@ class WeavingSpaceDialog(QDialog):
       # carries as `weavingspace_region`.
       "region": layer.source() if layer is not None else None,
     }
+
+  def _file_safe_state(self, record):
+    """A working-state record fit to leave the machine in a GeoPackage.
+
+    Args:
+      record: a dict from `_capture_working_state`, or None.
+
+    Returns:
+      A deep-enough copy with every element's `kept` map removed, or
+      None when the record was None. `kept` holds pins and hand-picked
+      colours -- value strings and data-derived numbers -- for fields
+      the map does NOT display, and the maintainer's ruling of
+      2026-08-26 is that what a redistributed file shows is the limit
+      of what it contains. The .qgz keeps the full record through the
+      group's own property; only the FILE is stripped, at every
+      write_working_state call, so a new call site cannot forget.
+    """
+    if not isinstance(record, dict):
+      return record
+    safe = dict(record)
+    safe["elements"] = [
+      {key: value for key, value in element.items() if key != "kept"}
+      for element in (record.get("elements") or [])]
+    return safe
 
   def _apply_working_state(self, record, keep_adopted=False) -> bool:
     """Put a group's recorded map back into the dialog.
@@ -14252,6 +14358,26 @@ class WeavingSpaceDialog(QDialog):
             dict(element["category_colours"])
         elif categorized and not keep_adopted:
           self._category_colours.get(tid, {}).pop(var, None)
+      # THE OTHER FIELDS' KEPT WORK comes back with the group, so a
+      # reopened project restores what an in-session return always
+      # has: pins and hand-picks for fields the row was not showing
+      # at the save (maintainer's ruling, 2026-08-26). Assign-only,
+      # deliberately: a record without the key is an OLD record, and
+      # clearing on its silence would re-open the absence-by-mode
+      # conflation row 14 closed. The displayed field's own records
+      # were handled above and are not repeated here.
+      for field, entry in (element.get("kept") or {}).items():
+        if not field or field == var:
+          continue
+        if entry.get("pinned"):
+          self._pinned_bounds.setdefault(tid, {})[field] = \
+            dict(entry["pinned"])
+        if entry.get("quant_colours"):
+          self._quant_colours.setdefault(tid, {})[field] = \
+            dict(entry["quant_colours"])
+        if entry.get("category_colours"):
+          self._category_colours.setdefault(tid, {})[field] = \
+            dict(entry["category_colours"])
 
   def _stamp_working_state(self, group, launch_state=None):
     """Record the working state on an output group.
@@ -16178,7 +16304,7 @@ class WeavingSpaceDialog(QDialog):
       # unconditional modal is forbidden, and the sentence has to be
       # something a person can act on: the map is fine, the file is
       # written, and it will open rather than resume.
-      if not bridge.write_working_state(path, resumable):
+      if not bridge.write_working_state(path, self._file_safe_state(resumable)):
         self._report_quietly(
           f"The map was saved to {os.path.basename(path)}, but its "
           f"design could not be written into the file, so opening it "

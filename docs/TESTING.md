@@ -2740,6 +2740,35 @@ before it means anything. This project already says a watcher must
 name what it watches; a probe reading a record is the same rule
 wearing different clothes.
 
+## NOTHING IN A HUNT'S REPRODUCTION IS INCIDENTAL UNTIL PROVEN SO
+
+2026-08-26 (night). One catalogue entry took FOUR fixtures before it
+could catch, and every failure was a different mechanism quietly
+keeping the behaviour the mutation was supposed to break: ramp
+defaults re-seeded are ramp defaults again, so the worn colours must
+DIFFER from what a re-seed would draw; the reconciliation drain had
+adopted the QML's colours as hand-picks, which are re-read at every
+landing and keep the map whatever the arm under test does, so the
+race's LOSING side had to be staged by emptying the record; and the
+unchanged-assignment carry kept the old renderer until a SECOND
+control moved the style signature -- the hunt's own journey had an
+opacity change in it, and the fixture had dropped it as incidental.
+
+The rule that survives the episode: when a fixture is built from a
+hunt's reproduction, carry EVERY act the hunt performed until each
+omission is proven harmless. A reproduction is a measured path
+through half a dozen interacting keepers, and the acts that look like
+scaffolding are usually the ones disabling a keeper the entry needs
+disabled.
+
+AND THE AMBIGUOUS-ANCHOR REFUSAL DID ITS JOB TWICE THE SAME NIGHT: an
+entry anchored on a call that two sites now share was refused rather
+than silently mutating the first -- once fixed by anchoring at the
+shared HELPER (which kills both sites' protection at one line), and
+once by widening the anchor with a neighbouring line unique to the
+site the test actually drives. Prefer the helper where one exists:
+a helper anchor cannot be split again by a third call site.
+
 ## WHEN A REPAIR GIVES ONE STORE A NEW WRITE, ENUMERATE EVERY STORE
 
 The last two findings of 2026-08-26 were the same shape as each other,
