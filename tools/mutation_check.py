@@ -922,7 +922,7 @@ MUTATIONS = [
            "last set to, so the widening a slow machine depends on "
            "never happens"),
   dict(name="a-ramp-window-belongs-to-its-own-group", file=DIALOG,
-       old="""      else:
+       old="""      elif graduated:
         self._ramp_ranges.pop(tid, None)""",
        new="""      # mutation: leave the last group's window in place""",
        test="test_the_output_group_chooser_binds_to_the_dataset",
@@ -963,7 +963,7 @@ MUTATIONS = [
            "reported this from three directions in one evening"),
   dict(name="a-pick-does-not-follow-you-to-another-group",
        file=DIALOG,
-       old="""        else:
+       old="""        elif graduated:
           self._quant_colours.get(tid, {}).pop(var, None)""",
        new="""        # mutation: keep the other group's hand-picked colours""",
        test="test_a_group_restores_its_own_state_and_no_one_elses",
@@ -975,6 +975,49 @@ MUTATIONS = [
            "This is the value-laden half, cleared per element AND "
            "field so that switching a variable away and back still "
            "gives a person their work back"),
+  dict(name="a-resume-recovers-the-data-its-map-was-made-from",
+       file=DIALOG,
+       # AIMED AT THE CALL'S ABSENCE RATHER THAN ITS POSITION, after
+       # three fixtures failed to make the REORDERING visible on this
+       # journey -- `_adopt_existing_group` restores variables and
+       # picks from the layers' own stamps, so on a journey where the
+       # map's own region layer is still in the project the late
+       # recovery is covered by accident. That cover is accidental and
+       # is written down as such at the test; the ORDER itself is
+       # guarded by the four hunt reproductions of 2026-08-26 rather
+       # than by this entry. Absence is the wrong implementation
+       # somebody would plausibly write, and it is the state this
+       # branch actually shipped in.
+       old="""      self._recover_the_source(path, record)
+      self._selecting_a_group = True""",
+       new="""      self._selecting_a_group = True""",
+       test="test_a_file_already_open_resumes_completely",
+       why="PRESENCE IS NOT ORDER. The call was added to this branch "
+           "on 2026-08-26 and put after the restore, where its twin "
+           "puts it before and says why at the line: a variable "
+           "cannot be restored to a column the region in force does "
+           "not have. Four hunts reached the consequences from four "
+           "directions within the hour -- every element re-derived "
+           "against the wrong dataset, `same_data` computed against "
+           "the stale chooser so pins and categorical colours were "
+           "skipped, and `_take_over_group` adopting the resumed "
+           "layers' stamps into the OTHER dataset's memory bank, "
+           "which is ruling 8's cross-dataset leak"),
+  dict(name="a-style-switch-is-not-consent-to-lose-a-pin",
+       file=DIALOG,
+       old="""        elif graduated:
+          self._pinned_bounds.get(tid, {}).pop(var, None)""",
+       new="""        else:
+          self._pinned_bounds.get(tid, {}).pop(var, None)""",
+       test="test_a_style_switch_is_not_consent_to_lose_a_pin",
+       why="`_assignments` reports the ramp window, the pins and the "
+           "hand-picked class colours as empty for any row NOT "
+           "WEARING GRADUATED, so a record is silent about them "
+           "whenever the element is merely on another style. "
+           "Clearing on that silence breaks the ruling of 2026-08-20 "
+           "that the records of the style a row is not wearing are "
+           "kept, and kept silently, so a row switched back finds its "
+           "work where it left it"),
   dict(name="a-resumed-group-carries-the-design-it-resumed",
        file=DIALOG,
        old="""      self._stamp_working_state(already)""",

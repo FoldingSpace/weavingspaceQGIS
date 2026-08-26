@@ -269,7 +269,19 @@ WORKING_STATE_DESIGN = (
 # row whose owner chose a quantitative scheme, which is the same
 # mistake `_refresh_table` records against shelving `prev["mode_raw"]`.
 WORKING_STATE_ELEMENT = (
-  "id", "var", "mode_raw", "scheme", "k", "ramp", "reverse",
+  # "mode" joined this list on 2026-08-26, in the same commit as the
+  # code that reads it, per the rule that THIS LIST IS THE RECORD'S
+  # REAL DEFINITION: a key missing from it is dropped in silence, and
+  # the restore then behaves as though the record never held it.
+  # It is here because CLEARING a record needs to know WHY the record
+  # is silent. `_assignments` reports pins, class colours and the ramp
+  # window as empty for any row not wearing Graduated, and categorical
+  # colours as empty for any row not wearing Categorized -- so silence
+  # means "another style" as often as it means "nobody chose one", and
+  # only the mode tells the two apart. Without it the clearing is
+  # inert, which is how it was found: two tests went red saying a
+  # record rode onto a group that never had one.
+  "id", "var", "mode", "mode_raw", "scheme", "k", "ramp", "reverse",
   "single_colour", "opacity", "class_source", "class_choice",
   "quant_colours", "category_colours", "range_bounds", "pinned",
   "style_touched",
@@ -13830,10 +13842,28 @@ class WeavingSpaceDialog(QDialog):
       # SOMEBODY NARROWED IT, exactly as `_class_counts` means somebody
       # CHOSE a count, and writing the default into it would make every
       # restored element look narrowed to every reader downstream.
+      # SILENCE HAS MORE THAN ONE CAUSE, AND ONLY ONE OF THEM IS A
+      # CHOICE. `_assignments` reports `pinned`, `quant_colours` and
+      # `range_bounds` as empty for any row NOT WEARING GRADUATED, and
+      # `category_colours` as empty for any row not wearing
+      # Categorized -- so a record is silent about them whenever the
+      # element is merely on another style, which is not the same
+      # claim as "this group has none". Clearing on that silence
+      # breaks the ruling of 2026-08-20 that THE RECORDS OF THE STYLE
+      # A ROW IS NOT WEARING are kept, and kept SILENTLY, so a row
+      # switched back finds its work where it left it.
+      # FOUND BY A HUNT AIMED AT THESE VERY POPS, hours after they
+      # were written: pin a bound, switch that element to categories,
+      # choose your own group, and the pin was gone from the record
+      # AND stamped absent on the layer, so a reopen could not bring
+      # it back. The morning's ramp-window fix had the same fault, and
+      # this is why "which reader made it silent" is the question.
+      graduated = element.get("mode") == "Graduated"
+      categorized = element.get("mode") == "Categorized"
       window = element.get("range_bounds")
       if window and tuple(window) != (0, 100):
         self._ramp_ranges[tid] = tuple(window)
-      else:
+      elif graduated:
         self._ramp_ranges.pop(tid, None)
       # THE VALUE-LADEN RECORDS ARE KEYED BY ELEMENT AND FIELD, so
       # what is cleared is this element's entry for THIS variable and
@@ -13845,7 +13875,7 @@ class WeavingSpaceDialog(QDialog):
         if element.get("quant_colours"):
           self._quant_colours.setdefault(tid, {})[var] = \
             dict(element["quant_colours"])
-        else:
+        elif graduated:
           self._quant_colours.get(tid, {}).pop(var, None)
       if not same_data:
         continue
@@ -13853,12 +13883,12 @@ class WeavingSpaceDialog(QDialog):
         if element.get("pinned"):
           self._pinned_bounds.setdefault(tid, {})[var] = \
             dict(element["pinned"])
-        else:
+        elif graduated:
           self._pinned_bounds.get(tid, {}).pop(var, None)
         if element.get("category_colours"):
           self._category_colours.setdefault(tid, {})[var] = \
             dict(element["category_colours"])
-        else:
+        elif categorized:
           self._category_colours.get(tid, {}).pop(var, None)
 
   def _stamp_working_state(self, group, launch_state=None):
@@ -14024,19 +14054,27 @@ class WeavingSpaceDialog(QDialog):
       # is a resume rather than a no-op -- and the design may have
       # moved since. What is not done again is the LOADING, because
       # the layers are already there.
+      # THE SOURCE COMES BACK FIRST, BEFORE THE DESIGN IS APPLIED, and
+      # the order is the whole of it. `_apply_working_state` restores
+      # each element's VARIABLE, and a variable can only be restored
+      # to a column the region layer in force actually has -- so with
+      # the chooser still on another dataset every element is
+      # auto-assigned a default instead, the table then describes a
+      # map the layers do not draw, and `_stamp_working_state` below
+      # writes that loss onto the group.
+      # THIS BRANCH HAD THE CALL AFTER THE RESTORE FOR AN HOUR, which
+      # is this project's own rule arriving again: when a fix is
+      # inserted into an existing sequence, check its ORDER against
+      # the twin rather than only that the line is present. The twin
+      # says why at its own call site; adding the call without
+      # reading that is how presence came to stand in for order.
+      self._recover_the_source(path, record)
       self._selecting_a_group = True
       try:
         self._take_over_group(already)
         self._apply_working_state(record)
       finally:
         self._selecting_a_group = False
-      # AND THE THREE THINGS THE TWIN DOES AFTER ITS TAKE-OVER, which
-      # this branch was written without. Two hunts found the omission
-      # independently on 2026-08-26 and it is the fault this project
-      # already names: when a fix adds a second branch, diff it
-      # against the branch it copied rather than against its own
-      # neighbourhood.
-      self._recover_the_source(path, record)
       self.gpkg_widget.blockSignals(True)
       self.gpkg_widget.setFilePath(path)
       self.gpkg_widget.blockSignals(False)

@@ -48603,11 +48603,22 @@ def test_a_group_restores_its_own_state_and_no_one_elses():
                == mine["pins"],
                f"{dlg._pinned_bounds.get(tid, {}).get(var)!r} where "
                f"this group recorded {mine['pins']!r}")
-          cell("the categorical colours are this group's own",
+          # THE CATEGORICAL COLOURS ARE KEPT, NOT CLEARED, and that is
+          # the settled ruling rather than a gap. This element wears a
+          # quantitative style, so `_assignments` reports its
+          # categorical colours as empty BY MODE -- the record is
+          # silent because the row is on another style, not because
+          # nobody chose anything. The ruling of 2026-08-20 is that
+          # the records of the style a row is NOT wearing are kept,
+          # and kept silently, so a row switched back finds its work
+          # where it left it. Clearing here would break that, which is
+          # what a hunt caught within the hour on 2026-08-26.
+          cell("the categorical colours of an unworn style survive",
                dict(dlg._category_colours.get(tid, {}).get(var) or {})
-               == mine["cats"],
-               f"{dlg._category_colours.get(tid, {}).get(var)!r} "
-               f"where this group recorded {mine['cats']!r}")
+               == {"forest": "#010203"},
+               f"{dlg._category_colours.get(tid, {}).get(var)!r} -- a "
+               f"record of a style this row is not wearing was "
+               f"cleared, against the ruling of 2026-08-20")
       else:
         cell("the plain group is still in the chooser", False,
              [dlg.group_combo.itemText(i)
@@ -48619,6 +48630,90 @@ def test_a_group_restores_its_own_state_and_no_one_elses():
     assert not problems, \
       "a group inherited state its own record does not hold:\n  " + \
       "\n  ".join(f"{p}" for p in problems)
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_style_switch_is_not_consent_to_lose_a_pin():
+  """A record silent BY MODE is not a record of a choice nobody made.
+
+  `_assignments` reports the pinned bounds, the hand-picked class
+  colours and the ramp window as empty for any row NOT WEARING
+  GRADUATED, and the categorical colours as empty for any row not
+  wearing Categorized. So a group's record is silent about them
+  whenever that element is merely on another style -- which is a
+  different claim from "this group has none", and the ruling of
+  2026-08-20 is explicit that THE RECORDS OF THE STYLE A ROW IS NOT
+  WEARING are kept, and kept silently, so a row switched back finds
+  its work where it left it.
+
+  THE CLEARING ADDED ON 2026-08-26 DID NOT KNOW THAT. It was written
+  to stop one group's answers riding onto another, which was a real
+  defect three hunts reported that evening -- and a hunt aimed at the
+  repair itself, hours later, found it reading a style switch as
+  consent: pin a bound, switch that element to categories, choose your
+  own group, and the pin was gone from the record and stamped ABSENT
+  on the layer, so reopening the project could not bring it back.
+
+  Regression: clearing a group's field-keyed records on a silent record destroyed a pinned bound belonging to an element that had merely been switched to another style, and stamped its absence onto the layer. [mutation]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(600)
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(400)
+    group = dlg._group_name
+    tid = sorted(dlg._element_layer_ids)[0]
+    var = (dlg._assignment_for(tid) or {}).get("var")
+    assert var, "the element carries no variable to key a pin on"
+
+    # A pin, then the element moved onto a style that cannot carry one.
+    dlg._pinned_bounds.setdefault(tid, {})[var] = {"low": 1.5}
+    row = next(r for r in range(dlg.table.rowCount())
+               if dlg.table.item(r, 0)
+               and dlg.table.item(r, 0).text() == tid)
+    mode = dlg.table.cellWidget(row, 2)
+    index = next((i for i in range(mode.count())
+                  if "Categor" in mode.itemText(i)), -1)
+    assert index >= 0, \
+      f"no categorical entry in the style chooser: " \
+      f"{[mode.itemText(i) for i in range(mode.count())]}"
+    mode.setCurrentIndex(index)
+    mode.activated.emit(index)
+    _tick(400)
+    _generate_and_wait(dlg)
+    _tick(400)
+    assert (dlg._assignment_for(tid) or {}).get("mode") != "Graduated", \
+      "the element is still graduated, so its record would carry the " \
+      "pin and this test would prove nothing"
+
+    combo = dlg.group_combo
+    picked = False
+    for i in range(combo.count()):
+      if combo.itemText(i).split(" — ")[0].strip() == group:
+        combo.setCurrentIndex(i)
+        combo.activated.emit(i)
+        _tick(700)
+        picked = True
+        break
+    assert picked, \
+      f"the group {group!r} is not in the chooser, so nothing was " \
+      f"selected and the clearing under test never ran"
+
+    kept = (dlg._pinned_bounds.get(tid, {}) or {}).get(var)
+    assert kept and kept.get("low") == 1.5, \
+      f"the pinned bound is {kept!r} after choosing the element's " \
+      f"own group. Its record is silent about pins only because the " \
+      f"row wears a categorical style now, and a record of the style " \
+      f"a row is not wearing is kept -- ruling of 2026-08-20"
   finally:
     dlg.close()
     project.clear()
@@ -48686,6 +48781,24 @@ def test_a_file_already_open_resumes_completely():
     _tick(600)
     dlg.spacing_spin.setValue(540)
     dlg.gpkg_widget.setFilePath(path)
+    # A DESIGN THE DEFAULT CYCLE WOULD NOT PRODUCE, or the whole
+    # question is unaskable: re-deriving the variables against another
+    # dataset is only visible where the derived answer differs from
+    # the recorded one, and a fixture left on its defaults lands on
+    # the right answer by accident. A hunt recorded exactly that about
+    # its own first fixture the same evening.
+    for row in range(dlg.table.rowCount()):
+      combo = dlg.table.cellWidget(row, 1)
+      if combo is not None:
+        combo.setCurrentText("v3" if row % 2 == 0 else "v2")
+    _tick(300)
+    staged = [dlg.table.cellWidget(r, 1).currentText()
+              for r in range(dlg.table.rowCount())
+              if dlg.table.cellWidget(r, 1) is not None]
+    cell("the fixture staged a design off the default cycle",
+         staged and staged != ["v1", "v2", "v3", "v1"][:len(staged)],
+         f"the rows read {staged}, which is what the plugin would "
+         f"have chosen anyway")
     _generate_and_wait(dlg)
     _tick(400)
 
@@ -48703,17 +48816,34 @@ def test_a_file_already_open_resumes_completely():
     # existed, and then points the plugin at the file.
     for group in groups:
       group.setCustomProperty(WORKING_STATE_PROPERTY, "")
+    # AND THE EXCLUSIONS ARE CLEARED FOR THE SAME REASON THE RECORD
+    # IS. This fixture generates in-session, so the landing has
+    # already told the region chooser to ignore these layers -- and
+    # the cell below asking that the resume does so would then pass
+    # with the resume's own call deleted, which a per-assertion hunt
+    # proved on 2026-08-26. The journey this branch exists for is a
+    # dialog that never landed them: somebody adds the tables to
+    # their project and points the plugin at the file.
+    dlg.layer_combo.setExceptedLayerList([])
     _tick(200)
+    cell("the exclusions could be cleared for the test",
+         not dlg.layer_combo.exceptedLayerList(),
+         "the chooser still excludes layers, so the cell below "
+         "cannot tell the resume's own call from the landing's")
     cell("the record could be cleared for the test",
          not any(g.customProperty(WORKING_STATE_PROPERTY, "")
                  for g in root.findGroups()),
          "the record survived being cleared, so a stamp cannot be "
          "told from a leftover")
 
-    # A SECOND DATASET, so "the source was recovered" is a real claim
-    # rather than a coincidence: the chooser is moved off the data the
-    # map was made from before the resume is asked for.
-    other = make_region_layer(origin=(900_000, 0))
+    # A SECOND DATASET WITH DIFFERENT COLUMN NAMES, so "the source was
+    # recovered" is a real claim rather than a coincidence. The first
+    # draft used another copy of the same fixture, whose columns are
+    # identical -- and a fixture whose second dataset shares column
+    # names cannot exhibit a dataset-gated loss at all, which is the
+    # trap a hunt named the same evening after ruling the defect out
+    # for exactly that reason.
+    other = make_other_region()
     other.setName("somewhere else")
     project.addMapLayer(other)
     dlg.layer_combo.setLayer(other)
@@ -48749,7 +48879,59 @@ def test_a_file_already_open_resumes_completely():
          f"{len(ours - excepted)} of this map's own layers are still "
          f"on offer as a region")
 
-    assert checked >= 7, \
+    # AND THE ORDER OF THE RECOVERY, which four hunts reached from
+    # four directions on 2026-08-26 and which no cell above can see.
+    # `_recover_the_source` must run BEFORE the design is applied.
+    # Put after it, as this branch had it for an hour, three things
+    # went wrong at once and each was reported separately: every
+    # element's VARIABLE was re-derived against the other dataset's
+    # columns, because the table cannot restore a variable to a column
+    # the region in force does not have; `same_data` was computed
+    # against the stale chooser, so pins and categorical colours were
+    # skipped entirely; and `_take_over_group` adopted the resumed
+    # layers' stamps while the bank still belonged to the OTHER
+    # dataset, putting this map's hand-picked value strings into that
+    # dataset's bank -- which is the cross-dataset leak ruling 8 of
+    # 2026-08-24 exists to prevent, and the worst of the three.
+    # The cells are outcomes rather than a check on call order,
+    # deliberately: a test that asserted the order would pass on a
+    # rearrangement that still lost the work.
+    variables = []
+    for row in range(dlg.table.rowCount()):
+      combo = dlg.table.cellWidget(row, 1)
+      variables.append(combo.currentText() if combo is not None
+                       else None)
+    # THE ORACLE IS THE FILE'S OWN RECORD, not "something is
+    # assigned". With the recovery late, every element is re-derived
+    # against the OTHER dataset's columns -- which are perfectly real
+    # columns, so a cell asking only that the rows are non-empty
+    # cannot tell a wrong variable from a lost one. That is how the
+    # first draft of this cell let the mutation survive.
+    from weavingspace_qgis import bridge
+    filed = bridge.read_working_state(path) or {}
+    wanted = [e.get("var") for e in (filed.get("elements") or [])
+              if e.get("var")]
+    cell("the file's record could be read back",
+         bool(wanted),
+         "the GeoPackage carries no element variables, so the "
+         "comparison below would prove nothing")
+    cell("the resumed design carries the file's own variables",
+         all(v in variables for v in wanted),
+         f"the table shows {variables} where the file says {wanted} "
+         f"-- the design was applied while the chooser was still on "
+         f"another dataset, so every element was re-derived against "
+         f"its columns")
+    theirs = set(other.fields().names()) - set(layer.fields().names())
+    stray = []
+    for store, label in ((dlg._category_colours, "colours"),
+                         (dlg._pinned_bounds, "pins")):
+      for element, per_field in (store or {}).items():
+        stray += [f"{label}:{element}:{f}" for f in per_field
+                  if f in theirs]
+    cell("no other dataset's fields are readable in the active bank",
+         not stray, stray)
+
+    assert checked >= 12, \
       f"only {checked} cells ran, so this test stopped short"
     assert not problems, \
       "resuming an already-open file left something undone:\n  " + \
@@ -61331,6 +61513,8 @@ def main():
         test_a_map_is_filed_under_the_dataset_it_was_drawn_from)
   check("a group restores its own state and no one else's",
         test_a_group_restores_its_own_state_and_no_one_elses)
+  check("a style switch is not consent to lose a pin",
+        test_a_style_switch_is_not_consent_to_lose_a_pin)
   check("a file already open resumes completely",
         test_a_file_already_open_resumes_completely)
   check("a fresh resume keeps its output out of the region chooser",
