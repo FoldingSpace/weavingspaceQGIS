@@ -4297,16 +4297,22 @@ def test_staggered_actions_during_a_run():
   Every other race test here fires its second action immediately, and
   immediately is one interleaving out of many — the one where the
   action lands before any debounce has fired. The dialog has two
-  debounces (preview at 350ms, live update at 900ms) and a task whose
-  completion does main-thread work of its own, so an action arriving
-  at 400ms meets a different state from one arriving at 0ms, and one
-  at 1,000ms meets a third.
+  debounces and a task whose completion does main-thread work of its
+  own, so an action arriving after the preview fires meets a different
+  state from one arriving at 0ms, and one arriving after the live
+  interval meets a third.
 
-  The delays below straddle both debounce boundaries deliberately
-  rather than being round numbers: before either fires, between them,
-  after both, and later still, when the run itself may already have
-  finished and the action is landing on the layer-adding that follows
-  it.
+  THE DELAYS ARE DERIVED FROM THE INTERVALS, never typed. They used to
+  be the literals [0, 200, 500, 1000, 1800], chosen to straddle a
+  preview at 350ms and a live interval at 900ms — so moving either
+  number would have left this sweep passing while quietly straddling
+  nothing, which is the axis-that-cannot-fail shape this suite has
+  paid for more than once. `PREVIEW_DEBOUNCE_MS` and
+  `LIVE_DEBOUNCE_MS` are the one home for those numbers now, and the
+  straddle is ASSERTED below rather than trusted: before either fires,
+  between them, after both, and later still, when the run itself may
+  already have finished and the action is landing on the layer-adding
+  that follows it.
 
   The invariant is the same at every delay and for every action: the
   dialog settles, Generate comes back, and the map that ends up on
@@ -4314,8 +4320,20 @@ def test_staggered_actions_during_a_run():
   survives simultaneous actions but loses an instruction issued half a
   second later has only moved the bug somewhere harder to find.
   """
-  from weavingspace_qgis.dialog import WeavingSpaceDialog
-  delays = [0, 200, 500, 1000, 1800]
+  from weavingspace_qgis.dialog import (LIVE_DEBOUNCE_MS,
+                                        PREVIEW_DEBOUNCE_MS,
+                                        WeavingSpaceDialog)
+  delays = [0,
+            PREVIEW_DEBOUNCE_MS // 2,           # before either fires
+            (PREVIEW_DEBOUNCE_MS + LIVE_DEBOUNCE_MS) // 2,   # between
+            LIVE_DEBOUNCE_MS + 100,             # after both
+            LIVE_DEBOUNCE_MS * 2]               # later still
+  assert delays[1] < PREVIEW_DEBOUNCE_MS \
+      and PREVIEW_DEBOUNCE_MS < delays[2] < LIVE_DEBOUNCE_MS \
+      and delays[3] > LIVE_DEBOUNCE_MS, \
+      f"the delays {delays} no longer straddle the debounces " \
+      f"({PREVIEW_DEBOUNCE_MS}, {LIVE_DEBOUNCE_MS}), so this sweep " \
+      f"exercises one interleaving while looking like four"
   trouble = []
 
   def run_case(label, delay, act, verify):

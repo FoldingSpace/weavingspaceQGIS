@@ -134,6 +134,38 @@ GROUP_BASE_NAME = "WeavingSpace tiles"
 # the groups that exist read as the ordinary case.
 NEW_GROUP_LABEL = "Create new"
 
+# THE TWO DEBOUNCES, AND THEY ARE WHAT A PERSON FEELS. Nudging a design
+# control schedules two pieces of work: the tile unit and the design
+# preview are rebuilt after PREVIEW_DEBOUNCE_MS of quiet, and with live
+# update on the MAP is re-tiled after LIVE_DEBOUNCE_MS. They guard very
+# different costs -- measured 2026-08-26 on a sixteen-polygon fixture, a
+# preview rebuild is about 20 ms of CPU and a live tick about 229 ms,
+# and on the maintainer's own three thousand areas a Generate is
+# seconds -- which is why they are two numbers and not one. Collapsing
+# them would either delay the feedback that says an input registered,
+# or launch real tilings at the preview's cadence.
+#
+# NAMED HERE BECAUSE THEY WERE WRITTEN IN SIX PLACES. The intervals had
+# no home: two `setInterval` calls, four docstrings and a stack of test
+# waits, all carrying the literal number, so changing one meant finding
+# the rest -- and the suite's staggered-action sweep chose its delays to
+# STRADDLE these boundaries, so a value moved without it would have
+# quietly stopped straddling anything while still passing. That sweep
+# derives its delays from these constants now.
+#
+# THE VALUES ARE A DESIGN QUESTION AND ARE THE MAINTAINER'S. The
+# measurement is that one nudge with live update on settles in about
+# 1,645 ms of which only 229 ms is work, so roughly 1.4 seconds is
+# deliberate delay -- which is what "the snappy interactive feel has
+# gone" describes. The recommendation on file is that the preview is
+# over-damped at 350 (it guards 20 ms, and about 120 ms already
+# coalesces a held-down spin button) while the live interval is
+# guarding something genuinely expensive and should move only if a
+# superseded run is cancelled sooner. Changing either is now one
+# number here.
+PREVIEW_DEBOUNCE_MS = 350
+LIVE_DEBOUNCE_MS = 900
+
 WORKING_STATE_PROPERTY = "weavingspace_working_state"
 
 # Bumped when the shape below changes in a way an older plugin could
@@ -1824,14 +1856,14 @@ class WeavingSpaceDialog(QDialog):
     self._adopt_existing_group()
     self._preview_timer = QTimer(self)
     self._preview_timer.setSingleShot(True)
-    self._preview_timer.setInterval(350)
+    self._preview_timer.setInterval(PREVIEW_DEBOUNCE_MS)
     self._preview_timer.timeout.connect(self._rebuild_unit)
     # live update: from the moment a layer and variables are in
     # place (no button press needed), setting changes regenerate the
     # map automatically (debounced, size-gated, no-op-skipping)
     self._live_timer = QTimer(self)
     self._live_timer.setSingleShot(True)
-    self._live_timer.setInterval(900)
+    self._live_timer.setInterval(LIVE_DEBOUNCE_MS)
     self._live_timer.timeout.connect(self._maybe_live_generate)
     self._live_pending = False
     # True once the window has been closed. A closed dialog

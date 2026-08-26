@@ -2454,7 +2454,7 @@ Confirmed with the user via an explicit design review:
   `sync_release_content.check_vendor_claims` promises in its own
   docstring that "prose claims about the vendored library match the
   recorded stamp", and did `stamp.split()[0]` -- the VERSION alone.
-  The stamp is written "0.0.7.61 (c0f109c)" precisely because upstream
+  The stamp is written "0.0.7.89 (bf1bbbf)" precisely because upstream
   does not always bump the version when the code moves, which is what
   MAINTAINING.md tells a re-vendorer, so the half that exists FOR that
   reason was the half nothing compared. Two documents named a
@@ -2751,7 +2751,7 @@ qgis.PyQt.QtWidgets (QGIS 4 shims it there). compat.py holds the QGIS
 ## The original library: its role and how to upgrade it
 
 The vendored `weavingspace_qgis/vendor/weavingspace/` (upstream
-v0.0.7.61) does ALL the mathematics and cartography — unit
+v0.0.7.89) does ALL the mathematics and cartography — unit
 construction, tiling geometries, weave matrices, transforms, and
 `Tiling.get_tiled_map()`'s grid/overlay/join. Plugin code never
 computes a tiling; it is the QGIS shell around that library
@@ -2866,20 +2866,29 @@ reference column IS both of the first two at once, because MapWeaver
 pins this same library version and draws through this same
 TiledMap.render call inside pyodide — a browser screenshot would
 re-photograph the identical code path with UI chrome added, so no
-separate column exists. CONDITION TO WATCH, re-checked 2026-08-09 (twice):
-the vendor is now 0.0.7.61 at upstream commit c0f109c while the app
-still pins 0.0.7.59. Relative to .59 the vendored code differs by
-MIT licence headers, comment blocks, the STRtree tileable filter
-(the optimisation this project offered upstream, output-identical
-over twenty configurations when offered), and a one-word bugfix in
-get_regularised_prototiles_background (prototile ids on the
-regularised-prototile frame — a path the plugin does not draw
-through). None of that changes what TiledMap.render paints for the
-gallery's cases, and the release gates re-measure the claim every
-run, so the single reference column still speaks for both. Repeat
-this comparison at the next bump; if a release ever changes rendered
-behaviour while the app lags, a live browser capture becomes a
-genuinely independent third column and should be added then.
+separate column exists. CONDITION TO WATCH, AND THE GAP HAS WIDENED:
+the vendor is 0.0.7.89 at upstream commit bf1bbbf since 2026-08-25,
+while the app still pins 0.0.7.59 — thirty versions rather than the
+two this paragraph used to describe. The earlier reading, kept
+because it is what the claim rested on: relative to .59 the vendor
+at 0.0.7.61 differed by MIT licence headers, comment blocks, the
+STRtree tileable filter (the optimisation this project offered
+upstream, output-identical over twenty configurations when offered),
+and a one-word bugfix in get_regularised_prototiles_background
+(prototile ids on the regularised-prototile frame — a path the plugin
+does not draw through), none of which changes what TiledMap.render
+paints for the gallery's cases.
+WHAT THE BUMP MEANS FOR THE CLAIM, said plainly rather than assumed:
+six of the twelve library modules changed behaviourally at 0.0.7.89,
+so the sentence "the reference column speaks for both" is now a
+claim about a thirty-version gap and is only as good as the
+colourspace comparison that re-measures it every run. That gate is
+against the VENDOR, which is the plugin's own reference and the right
+one; what it no longer speaks for with any confidence is the WEB APP.
+This is exactly the condition the paragraph named — a bump while the
+app lags — so a live browser capture is the honest third column from
+here, and the decision to add one is the maintainer's. Recorded
+2026-08-26.
 
 - **A TEST FOR A PROMISE IS A MATRIX, NOT A CASE, and this is the
   DEFAULT rather than a technique to reach for occasionally.** Where
