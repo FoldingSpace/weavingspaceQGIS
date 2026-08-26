@@ -1745,6 +1745,24 @@ class WeavingSpaceDialog(QDialog):
     # about to be lost is recorded while it is still true.
     QgsProject.instance().layersWillBeRemoved.connect(self._layers_going)
     QgsProject.instance().layersRemoved.connect(self._layers_removed)
+    # A GROUP RENAMED IN THE LAYERS PANEL IS STILL THE GROUP, and the
+    # CHOOSER has to say so. Renaming one is an ordinary act this
+    # plugin has already paid for twice, and ruling 1 of 2026-08-25
+    # rests on the chooser naming the map a run will land in -- so a
+    # chooser still showing the old name is the invisible rule
+    # arriving through the control that replaced it. Found by the
+    # four-axis matrix on its first run.
+    #
+    # THE ROOT HEARS A CHILD'S RENAME, measured on QGIS 4.0.3,
+    # 2026-08-25: renaming a group under the root emits `nameChanged`
+    # there. Connected through `getattr` like the layer watches, since
+    # the signal is QGIS's and a future release may move it; a missing
+    # signal should cost one refresh, not an exception. Gated like
+    # every other connection to something that outlives this dialog.
+    tree_root = QgsProject.instance().layerTreeRoot()
+    renamed = getattr(tree_root, "nameChanged", None)
+    if renamed is not None:
+      renamed.connect(self._a_group_was_renamed)
     # which layer auto-spacing last ran for (it must run once per
     # newly chosen layer, never on the combo's spurious re-emissions)
     self._auto_spacing_layer = None
@@ -13027,6 +13045,14 @@ class WeavingSpaceDialog(QDialog):
               if getattr(child, "layer", lambda: None)() is not None}:
           chosen = combo.count() - 1
       combo.addItem(NEW_GROUP_LABEL, None)
+      # ...AND "CREATE NEW" WINS WHERE IT IS ARMED, because the
+      # chooser's promise is where the NEXT RUN lands, not which
+      # group the dialog is restyling. Without this a rebuild put the
+      # present group's name back while the run still built a new one,
+      # so the control ruling 1 added to make the rule visible was
+      # itself saying something untrue.
+      if self._new_group_chosen:
+        chosen = combo.count() - 1
       # "Create new" is the honest answer when this dialog is not
       # working on any of the groups listed -- a fresh session, or one
       # whose group the user has just deleted.
@@ -13131,6 +13157,40 @@ class WeavingSpaceDialog(QDialog):
         self._rebuild_unit()
     finally:
       self._selecting_a_group = False
+    self._refresh_group_combo()
+
+  def _a_group_was_renamed(self, *_args):
+    """Keep the output-group chooser's labels true after a rename.
+
+    Args:
+      *_args: whatever QGIS sends with `nameChanged` -- the node and
+        the new name -- both ignored. The chooser is rebuilt from the
+        tree rather than patched, so which node moved does not matter,
+        and reading the arguments would tie this to a signature QGIS
+        is free to change.
+
+    Returns:
+      None. Rebuilds the chooser, and follows the rename in the
+      dialog's own record of the group's name so the two agree.
+
+    A NAME IS A LABEL, WHICH IS EXACTLY WHY THIS IS NEEDED. Nothing is
+    looked UP by the name -- the chooser keys on a layer id and the
+    group is found by asking the layers -- but the label is what the
+    user reads, and ruling 1 rests on the chooser naming the map a run
+    will land in. After a rename it named one that no longer existed.
+
+    GUARDED LIKE ITS SIBLINGS. This connects to the layer TREE, which
+    outlives the dialog: without the gate every dialog ever opened in
+    a session would rebuild its chooser on every rename anywhere,
+    which is the quadratic shape measured on 2026-08-16.
+    """
+    if _dialog_is_gone(self) or _live_dialog() is not self:
+      return
+    ours = self._group_of_our_layers(QgsProject.instance().layerTreeRoot())
+    if ours is not None:
+      # FOLLOW THE RENAME rather than undoing it, which is the rule
+      # `_get_or_make_group` already keeps: the user's name wins.
+      self._group_name = ours.name()
     self._refresh_group_combo()
 
   def _bind_group_to_dataset(self) -> bool:
@@ -13269,7 +13329,14 @@ class WeavingSpaceDialog(QDialog):
     on_it = {child.layer().id() for child in group.children()
              if getattr(child, "layer", lambda: None)() is not None}
     if on_it & set(self._element_layer_ids.values()):
-      self._new_group_chosen = False
+      # AND IT REALLY DOES NOTHING, the arming included. Clearing
+      # `_new_group_chosen` here silently revoked "create new": the
+      # user asks for a map of its own, the combo re-emits on the
+      # next churn of project layers -- which a run causes twice --
+      # and the arming is gone, so Generate overwrites the map they
+      # asked to keep. Found by a hunt the hour this branch was
+      # written; the branch's own comment says it is here to keep the
+      # binding from undoing the user's work, and it was undoing one.
       self._refresh_group_combo()
       return False
     self._new_group_chosen = False
@@ -13521,6 +13588,12 @@ class WeavingSpaceDialog(QDialog):
     # the rows it is about to replace. See `_restoring_assignments`.
     self._restoring_assignments = record.get("elements") or None
     self._rebuild_unit()
+    # SPENT WHETHER OR NOT THE REBUILD USED IT. `_rebuild_unit`
+    # returns early when there is no unit to build, and the record
+    # left armed would then seed the NEXT rebuild -- one belonging to
+    # a different design, or a different dataset. A record consumed
+    # by whatever happens next is worse than one that was dropped.
+    self._restoring_assignments = None
     return True
 
   def _apply_element_records(self, record):
@@ -13757,7 +13830,26 @@ class WeavingSpaceDialog(QDialog):
       self._apply_working_state(record)
     finally:
       self._selecting_a_group = False
+    # THE FILE BEING RESUMED IS THE OUTPUT FILE, whatever the record
+    # says. The record carries the path the map was WRITTEN to, and
+    # restoring that is right when the group is chosen inside its own
+    # project -- but a resumed file may be a copy, or the same file
+    # moved, and then the recorded path names somebody else's map.
+    # Found by a hunt: copy a saved map, resume the copy, press
+    # Generate, and the run overwrote the ORIGINAL while the copy sat
+    # stale beside it. The one the user pointed at is the one they
+    # mean.
+    self.gpkg_widget.blockSignals(True)
+    self.gpkg_widget.setFilePath(path)
+    self.gpkg_widget.blockSignals(False)
     self._last_path = path
+    # ...AND THE GROUP TAKES THE RECORD TOO. The file carries it and
+    # the group did not, so saving the project, reopening it and
+    # choosing the group gave back its layers and none of its design
+    # -- the record living in exactly one of the two places that were
+    # meant to hold it.
+    self._stamp_working_state(
+      self._group_of_our_layers(QgsProject.instance().layerTreeRoot()))
     self._refresh_group_combo()
     self._report_quietly(
       f"Opened the saved map from {os.path.basename(path)}: "

@@ -6662,11 +6662,32 @@ def test_every_numeric_input_at_its_limits():
         widget = getattr(dlg, name)
         widget.setValue(getattr(widget, end)())
         _tick(150)
-        dlg._generate()
-        if not _settle(dlg, seconds=90):
+        # THE SAFE ANSWER IS WHAT A USER MEETS, and this leg had to
+        # learn it on 2026-08-25. A spacing at its 1e-6 minimum asks
+        # for an astronomical number of tiles; the plugin used to
+        # REFUSE that outright and this loop measured the refusal.
+        # The maintainer ruled the ceiling a warning rather than an
+        # absolute, so it is a question now -- with No as the default
+        # button, which is exactly the answer this loop needs. The
+        # suite's shim says Yes unless told otherwise, so a run was
+        # duly started at 1e-6 and never settled.
+        #
+        # WHAT THIS LEG STILL HOLDS is what it always held: a value at
+        # the end of a range does not quietly become a different
+        # number, and nothing is attempted that nobody agreed to. What
+        # it gave up is the plugin deciding for the user, which is the
+        # ruling.
+        from qgis.PyQt.QtWidgets import QMessageBox as _Box
+        MODAL_ANSWERS["question"] = _Box.StandardButton.No
+        try:
+          dlg._generate()
+          settled = _settle(dlg, seconds=90)
+        finally:
+          MODAL_ANSWERS.pop("question", None)
+        if not settled:
           trouble.append(
             f"{label}: never settled. A value at the end of a range "
-            f"should be refused promptly, not attempted")
+            f"should be declined promptly, not attempted")
           continue
         _tick(150)
         made = bool(dlg._element_layer_ids)
@@ -47587,6 +47608,428 @@ def _a_square_unit(catalog):
   return catalog.make_unit(families[0], spacing=1000, crs=3857)
 
 
+def test_the_group_unit_rulings_hold_on_every_route():
+  """The four boundaries the group-unit rulings cross, as one matrix.
+
+  MAINTAINER'S INSTRUCTION, 2026-08-25, given with the go-ahead to
+  build the rulings: "matrix testing for all the sorts of edge cases
+  involving qgis-plugin and user-plugin and styling and dataset
+  choices". Those are the four axes, and they are the four this
+  version's defects came from.
+
+  WHY A MATRIX RATHER THAN CASES, which is this project's default and
+  not a technique reached for occasionally: "the group is the unit of
+  work" is a PROMISE made of many members, and a family fails one
+  member at a time. Every route below is an atomic act -- one thing a
+  user or QGIS does -- because a compound one passes for whichever
+  member happens to be intact, which is exactly how the symbology
+  promise passed for weeks while a retyped boundary reached nothing.
+
+  THE INVARIANTS ARE THE SAME ON EVERY CELL, and they are what the
+  rulings actually promise:
+
+    * the dialog claims ONE group, and it is the one the chooser
+      names -- ruling 1's whole point is that the rule is on screen;
+    * the group the chooser names holds the layers the dialog claims,
+      so the record and the tree cannot drift;
+    * no element carries a variable the current region does not have,
+      which is the settled column rule and the one a restore is most
+      likely to break;
+    * no value-laden record from another dataset is readable, which
+      is ruling 8 and the reason a restore gates hand-picks and pins
+      on the region matching;
+    * everything the record holds is SEEN and typable back, which no
+      matrix in this suite asked until 2026-08-19, when three defects
+      landed inside a thousand-cell grid that never looked at a
+      picture.
+
+  SPINE PLUS SAMPLE, under a PRINTED seed, because a full crossing
+  grows with every route until somebody skips it and a skipped guard
+  is worth nothing. Every route runs against the shape with the most
+  to lose, every time; the rest is drawn under a seed the failure
+  message prints, so anything it catches is reproducible.
+
+  Regression: the output group was the unit of work in the rulings and in three separate mechanisms that had never been driven against each other -- and the first build of them broke six reopen journeys, let go of a map when the region layer was removed, and undid the user's own edits after every landing. [mutation]
+  """
+  import random
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import NEW_GROUP_LABEL, WeavingSpaceDialog
+  project = QgsProject.instance()
+
+  # ---- the axes.
+  #
+  # ROUTES are atomic acts, grouped by the boundary they cross. The
+  # grouping is not decoration: a defect in this version's history
+  # belongs to exactly one of these four, and naming them is how a
+  # failure says which boundary moved.
+  ROUTES = [
+    # the QGIS-plugin boundary: things QGIS or the user does to the
+    # project, which the plugin must follow rather than own
+    ("qgis", "reopen"),
+    ("qgis", "rename-group"),
+    ("qgis", "remove-region"),
+    # the user-plugin boundary: the dialog's own controls
+    ("user", "pick-group"),
+    ("user", "create-new"),
+    ("user", "pick-dataset"),
+    ("user", "resume-file"),
+    # styling
+    ("style", "change-ramp"),
+    ("style", "change-scheme"),
+    # the choice of dataset
+    ("data", "same-schema"),
+    ("data", "column-gone"),
+  ]
+  # SHAPES are what is staged before the route runs, chosen for what
+  # each has to lose rather than for realism.
+  SHAPES = ["plain", "styled", "picks-and-pins", "saved"]
+  AFTERMATHS = ["immediate", "generate"]
+  # The shape with the most to lose, run against every route every
+  # time: hand-picked colours and pinned bounds are the value-laden
+  # records ruling 8 governs, and the ones a restore can leak.
+  SPINE_SHAPE = "picks-and-pins"
+
+  seed = int(os.environ.get("WEAVINGSPACE_MATRIX_SEED",
+                            random.randrange(1_000_000)))
+  drawn = random.Random(seed)
+  cells = [(boundary, route, SPINE_SHAPE, after)
+           for boundary, route in ROUTES for after in AFTERMATHS]
+  rest = [(boundary, route, shape, after)
+          for boundary, route in ROUTES
+          for shape in SHAPES if shape != SPINE_SHAPE
+          for after in AFTERMATHS]
+  drawn.shuffle(rest)
+  sample = int(os.environ.get("WEAVINGSPACE_MATRIX_SAMPLE", "14"))
+  full = os.environ.get("WEAVINGSPACE_MATRIX_FULL")
+  cells += rest if full else rest[:sample]
+
+  trouble, ran, staged, skipped = [], 0, 0, {}
+
+  def _fields(dlg):
+    return set(dlg._layer_fields())
+
+  def _claimed_group(dlg):
+    root = project.layerTreeRoot()
+    return dlg._group_of_our_layers(root)
+
+  def invariants(dlg, label, other_values, must_survive):
+    """Everything the rulings promise, asked of whatever is there now.
+
+    Args:
+      dlg: the dialog after the route and its aftermath.
+      label: how this cell names itself in a complaint.
+      other_values: value strings belonging to a dataset that is NOT
+        the one in force, which must be unreadable.
+      must_survive: {element: {key: value}} the route deliberately
+        changed and nothing since had any business undoing. Empty for
+        routes that RESTORE a map, where a different answer is the
+        point.
+
+    Returns:
+      A list of complaints, empty when the cell held.
+    """
+    found = []
+    for element, wanted in (must_survive or {}).items():
+      now = dlg._assignment_for(element) or {}
+      for key, value in wanted.items():
+        if now.get(key) != value:
+          found.append(
+            f"{label}: {key} was changed to {value!r} on element "
+            f"{element} and reads {now.get(key)!r} now -- something "
+            f"put the map's own record back over the user's change")
+    named = dlg.group_combo.currentText()
+    claimed = _claimed_group(dlg)
+    # WHAT THE CHOOSER PROMISES IS WHERE THE NEXT RUN LANDS, and the
+    # first draft of this invariant asked for more than that: it
+    # required the dialog to claim NOTHING whenever the chooser read
+    # "create new". It does not, and should not -- choosing "create
+    # new" arms the next run and leaves the present map alone, which
+    # is what a restyle still needs to repaint. So "create new" says
+    # nothing about the claim, and the thing worth asserting there is
+    # that the arming actually happened.
+    #
+    # That correction is the matrix earning its keep in the way this
+    # project's own record predicts: the switch matrix's first run
+    # found two broken cells and the ORACLE was what was broken, and
+    # an invariant written broader than its ruling reads as coverage
+    # while being a false alarm waiting to teach somebody to ignore it.
+    if named == NEW_GROUP_LABEL:
+      if not dlg._new_group_chosen and claimed is not None:
+        found.append(
+          f"{label}: the chooser reads 'create new' while nothing is "
+          f"armed to make one and the dialog holds "
+          f"{claimed.name()!r}")
+    elif claimed is None:
+      found.append(
+        f"{label}: the dialog claims no group while the chooser "
+        f"names {named!r}")
+    else:
+      if claimed.name() not in named:
+        found.append(
+          f"{label}: the dialog is working on {claimed.name()!r} and "
+          f"the chooser names {named!r}")
+      held = {child.layer().id() for child in claimed.children()
+              if getattr(child, "layer", lambda: None)() is not None}
+      ours = set(dlg._element_layer_ids.values())
+      if ours and not (ours & held):
+        found.append(
+          f"{label}: the dialog claims layers that are not in the "
+          f"group it says it is working on")
+    live = _fields(dlg)
+    if live:
+      astray = [a["var"] for a in dlg._assignments()
+                if a.get("var") and a["var"] not in live]
+      if astray:
+        found.append(
+          f"{label}: elements carry {sorted(set(astray))}, which the "
+          f"region in force does not have ({sorted(live)})")
+    if other_values:
+      for element, per_field in (dlg._category_colours or {}).items():
+        for field, picks in (per_field or {}).items():
+          leaked = sorted(set(picks) & other_values)
+          if leaked:
+            found.append(
+              f"{label}: another dataset's values {leaked} are "
+              f"readable on element {element} under {field!r}")
+    for tile_id in list(dlg._element_layer_ids)[:2]:
+      complaint = _unseen_or_untypable(dlg, tile_id)
+      if complaint:
+        found.append(f"{label}: {complaint}")
+    return found
+
+  def _still_wanted(dlg, tile_id, key):
+    """What the row came to read, where the group's record disagrees.
+
+    Args:
+      dlg: the dialog, just after the user's act.
+      tile_id: the element the act was aimed at.
+      key: the assignment key under test.
+
+    Returns:
+      {tile_id: {key: value}} when the row now reads something the
+      group's stored record does NOT, and {} otherwise.
+
+    READ BACK RATHER THAN ASSUMED, and the first draft did assume.
+    It stored what the test ASKED for, and a quantitative style asked
+    for on a text column is corrected to Categorized by a settled rule
+    -- so the cell demanded the software get it wrong, which is a
+    shape this suite already names. What must hold is that whatever
+    the row came to read is not undone afterwards.
+
+    AND ONLY WHERE THE RECORD DISAGREES, or the cell is vacuous: if
+    the stored record already holds this value, putting the record
+    back would change nothing and the cell could not fail.
+    """
+    now = (dlg._assignment_for(tile_id) or {}).get(key)
+    stored = dlg._read_working_state(
+      _claimed_group(dlg)) or {}
+    for element in stored.get("elements") or []:
+      if element.get("id") == tile_id and element.get(key) == now:
+        return {}
+    return {tile_id: {key: now}} if now is not None else {}
+
+  folder = tempfile.mkdtemp(prefix="weavingspace_matrix_")
+  try:
+    for boundary, route, shape, after in cells:
+      label = f"{boundary}/{route} [{shape}, {after}]"
+      project.clear()
+      _tick(120)
+      dlg = None
+      try:
+        A = make_region_layer(n=4, cell=1000)
+        A.setName("first dataset")
+        project.addMapLayer(A)
+        dlg = WeavingSpaceDialog(iface=_Iface())
+        dlg.live_check.setChecked(False)
+        dlg.layer_combo.setLayer(A)
+        _tick(350)
+        dlg.spacing_spin.setValue(700)
+        tid = dlg.table.item(0, 0).text()
+        secret = set()
+        # WHAT THE ROUTE DELIBERATELY CHANGED, which nothing afterwards
+        # may put back. Empty except on the styling routes: everywhere
+        # else the route either restores a map on purpose or changes
+        # nothing a record could revert. It was added on 2026-08-25
+        # after the matrix passed with the guard against re-applying a
+        # group's record on every combo re-emission REMOVED -- the
+        # crossing was there and no cell was allowed to notice that
+        # the user's own edit had been undone.
+        survives = {}
+
+        # ---- the SHAPE
+        if shape in ("styled", "picks-and-pins"):
+          combo = dlg.table.cellWidget(0, 2)
+          index = combo.findText("Categorized")
+          combo.setCurrentIndex(index)
+          combo.activated.emit(index)      # what a click sends
+          _tick(180)
+          dlg.table.cellWidget(0, 1).setCurrentText("landcover")
+          _tick(180)
+        if shape == "picks-and-pins":
+          dlg._category_colours.setdefault(tid, {})["landcover"] = {
+            "forest": "#123456"}
+          secret = {"forest"}
+          other = dlg.table.item(1, 0).text()
+          dlg._pinned_bounds.setdefault(other, {})["v1"] = {"low": 3.0}
+        path = os.path.join(folder, f"{boundary}_{route}_{shape}.gpkg")
+        if shape == "saved":
+          dlg.gpkg_widget.setFilePath(path)
+        _tick(200)
+        _generate_and_wait(dlg)
+        _tick(300)
+        if not dlg._element_layer_ids:
+          skipped[label] = "the staging run produced nothing"
+          continue
+        staged += 1
+
+        # ---- the ROUTE
+        if route == "reopen":
+          saved = os.path.join(folder, f"{boundary}_{route}_{shape}.qgz")
+          if not project.write(saved):
+            skipped[label] = "the project would not save"
+            continue
+          project.clear()
+          _tick(200)
+          if not project.read(saved):
+            skipped[label] = "the project would not reopen"
+            continue
+          _tick(500)
+        elif route == "rename-group":
+          node = _claimed_group(dlg)
+          if node is None:
+            skipped[label] = "no group to rename"
+            continue
+          node.setName("Deprivation, woven")
+          _tick(200)
+        elif route == "remove-region":
+          project.removeMapLayer(A.id())
+          _tick(400)
+        elif route in ("pick-group", "create-new"):
+          if route == "create-new":
+            last = dlg.group_combo.count() - 1
+            dlg.group_combo.setCurrentIndex(last)
+            dlg.group_combo.activated.emit(last)
+          else:
+            wanted = next(
+              (i for i in range(dlg.group_combo.count())
+               if dlg.group_combo.itemData(i) is not None), -1)
+            if wanted < 0:
+              skipped[label] = "no group on offer to pick"
+              continue
+            dlg.group_combo.setCurrentIndex(wanted)
+            dlg.group_combo.activated.emit(wanted)
+          _tick(500)
+        elif route == "pick-dataset":
+          B = make_region_layer(n=4, cell=1000, origin=(900_000, 0))
+          B.setName("second dataset")
+          project.addMapLayer(B)
+          dlg.layer_combo.setLayer(B)
+          _tick(700)
+        elif route == "resume-file":
+          if not os.path.exists(path):
+            saved_here = os.path.join(folder, f"resume_{shape}.gpkg")
+            dlg.gpkg_widget.setFilePath(saved_here)
+            _generate_and_wait(dlg)
+            _tick(300)
+            path = saved_here
+          project.clear()
+          _tick(200)
+          dlg.close()
+          dlg = WeavingSpaceDialog(iface=_Iface())
+          dlg.live_check.setChecked(False)
+          _tick(250)
+          if not dlg._resume_from_gpkg(path):
+            skipped[label] = "the saved map would not reopen"
+            continue
+          _tick(600)
+        elif route == "change-ramp":
+          ramp = dlg.table.cellWidget(0, 4)
+          if hasattr(ramp, "setCurrentText"):
+            choices = [ramp.itemText(i) for i in range(ramp.count())]
+            wanted = next((r for r in choices
+                           if r != ramp.currentText()), None)
+            if wanted is None:
+              skipped[label] = "only one ramp on offer"
+              continue
+            ramp.setCurrentText(wanted)
+          _tick(400)
+          survives = _still_wanted(dlg, tid, "ramp")
+        elif route == "change-scheme":
+          combo = dlg.table.cellWidget(0, 2)
+          wanted = next(
+            (combo.itemText(i) for i in range(combo.count())
+             if combo.itemText(i) != combo.currentText()
+             and "Defer" not in combo.itemText(i)), None)
+          if wanted is None:
+            skipped[label] = "only one style on offer"
+            continue
+          index = combo.findText(wanted)
+          combo.setCurrentIndex(index)
+          combo.activated.emit(index)
+          _tick(400)
+          survives = _still_wanted(dlg, tid, "mode_raw")
+        elif route in ("same-schema", "column-gone"):
+          if route == "same-schema":
+            twin = make_region_layer(n=4, cell=1000, origin=(900_000, 0))
+          else:
+            twin = _awkward_field_layer(["only_this", "and_this"])
+          twin.setName("the other dataset")
+          project.addMapLayer(twin)
+          dlg.layer_combo.setLayer(twin)
+          _tick(700)
+
+        # ---- the AFTERMATH
+        if after == "generate":
+          if dlg.layer_combo.currentLayer() is None:
+            skipped[label] = "no region to generate from after the route"
+            continue
+          if not [a for a in dlg._assignments() if a.get("var")]:
+            skipped[label] = "no variable assigned after the route"
+            continue
+          dlg.spacing_spin.setValue(760)
+          _generate_and_wait(dlg)
+          _tick(400)
+
+        ran += 1
+        # A dataset OTHER than the one in force must not be readable.
+        # Only asked where the route actually changed dataset, since
+        # otherwise "the other dataset" is the one we are on.
+        elsewhere = secret if route in (
+          "pick-dataset", "same-schema", "column-gone") else set()
+        trouble.extend(invariants(dlg, label, elsewhere, survives))
+      finally:
+        if dlg is not None:
+          dlg.close()
+        project.clear()
+        _tick(80)
+  finally:
+    shutil.rmtree(folder, ignore_errors=True)
+
+  # NO ROUTE MAY BE SKIPPED EVERYWHERE. A skipped cell reads exactly
+  # like a passing one, and a route skipped in every cell it was drawn
+  # for is an axis that never ran -- which this project shipped once
+  # already, in a hunt whose GeoPackage invariant executed zero times
+  # while the run looked complete.
+  attempted = {f"{b}/{r}" for b, r, _s, _a in cells}
+  reached = set()
+  for boundary, route, shape, after in cells:
+    if f"{boundary}/{route} [{shape}, {after}]" not in skipped:
+      reached.add(f"{boundary}/{route}")
+  never = sorted(attempted - reached)
+  assert not never, \
+    f"these routes were skipped in every cell they were drawn for, " \
+    f"so they never ran at all: {never}. Skipped for: " \
+    f"{ {k: v for k, v in skipped.items()} }"
+  assert ran >= len(cells) * 0.7, \
+    f"only {ran} of {len(cells)} cells reached their verdict; the " \
+    f"rest were skipped, and a matrix mostly made of skips is a " \
+    f"matrix nobody should read: {skipped}"
+  assert staged >= ran, "more cells were judged than were staged"
+  assert not trouble, \
+    f"the group-unit rulings did not hold (seed {seed}; re-run with " \
+    f"WEAVINGSPACE_MATRIX_SEED={seed}):\n  " + "\n  ".join(trouble[:12])
+
+
 def test_preview_draws_the_middle_of_the_patch():
   """With context shells on, the preview must include the CENTRE unit.
 
@@ -59654,6 +60097,8 @@ def main():
         test_a_saved_map_can_be_opened_and_carried_on)
   check("the size guard warns where it used to refuse",
         test_the_size_guard_warns_where_it_used_to_refuse)
+  check("the group-unit rulings hold on every route",
+        test_the_group_unit_rulings_hold_on_every_route)
   check("the preview draws the middle of the patch",
         test_preview_draws_the_middle_of_the_patch)
   check("switching region layer counts as a change",

@@ -240,6 +240,42 @@ changelog=0.24.3 You decide how your data is classed: which values are
     the first silencing the second, and a column holding a single
     value says so whenever you change the class count, not only on
     the first Generate.
+    Working on one map at a time: the dialog now names which map a
+    run will land in. A chooser beside the region layer lists the
+    groups of tiles you have made, each with the dataset it came
+    from, and choosing one brings that map's whole design back --
+    family, spacing, modifiers, and every element's variable, style,
+    ramp, class count and colours. Choosing a dataset selects its own
+    most recent map, and choosing a map selects the dataset it was
+    made from, so the two always describe the same thing. Create new
+    starts another beside it. Until now none of this was on screen:
+    which group a run replaced was worked out by a rule you could
+    neither see nor overrule, and coming back to a dataset gave you
+    its colours with somebody else's design.
+    Carrying on later: a map saved to a GeoPackage now remembers how
+    it was made. Open a saved map and the plugin brings back its
+    layers and its whole design, so you can pick the work up without
+    the project you made it in. Where the data it was drawn from is
+    still on your computer it is found again; tick Include the source
+    data if you are sending the file to somebody who does not have
+    it. A map saved by a newer version of the plugin is refused with
+    the reason said, rather than half read.
+    Smaller, clearer files: each element layer now carries the one
+    variable it displays rather than every variable on the map, and
+    its table inside the GeoPackage is named for that variable. One
+    shared dataset of 800 KB had been arriving as 19 MB, and a file
+    you sent on carried columns your map never drew.
+    Large maps: a spacing that asks for a great many tiles is now a
+    question rather than a refusal. Past a certain size the question
+    says so in stronger terms, since a map that large may use all the
+    memory on your computer and leave QGIS unresponsive while it is
+    drawn, and it still names a spacing that would work. The decision
+    is yours. What is still refused is a design that does not repeat
+    across the plane, and a layer whose extent cannot be measured --
+    neither of which any spacing would help, and both of which used
+    to be reported as though they were about spacing.
+    The pattern library: updated, bringing the tiling and weave
+    families up to date with the work behind them.
     0.24.2 Bugfixes, one of them about not losing data.
     Your files: an existing .gpkg chosen as the output was rewritten
     whole, so every other table in it was lost, including the layer

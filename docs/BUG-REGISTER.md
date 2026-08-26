@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-311 defect(s) with a regression test.
+312 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -327,6 +327,8 @@ there is no separate list to remember.
   guarded by `test_reverse_runs_a_qualitative_palette_backwards`
 - **the categorized renderer recorded no source colour ramp, so a clean ramp applied in QGIS's dock was adopted as hand-picks instead of replacing them, and QGIS's own panel showed no ramp at all.**  
   guarded by `test_the_dock_reapplying_the_same_ramp_discards_the_hand_picks`
+- **the output group was the unit of work in the rulings and in three separate mechanisms that had never been driven against each other -- and the first build of them broke six reopen journeys, let go of a map when the region layer was removed, and undid the user's own edits after every landing.**  
+  guarded by `test_the_group_unit_rulings_hold_on_every_route`
 - **a fifty-minute gate that could not be satisfied before the artefact shipped stopped four candidates' worth of work on a release whose plugin passed every test it was given.**  
   guarded by `test_the_new_code_mutation_guard_reports_rather_than_gates`
 - **no widget anywhere in the dialog named the output group, so a demo of several datasets in a row accumulated maps with nothing to say which one the next Generate would replace -- and A-B-A left one dataset owning two groups that nothing could tell apart.**  
@@ -675,7 +677,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
-- the mutation campaign: 48
+- the mutation campaign: 49
 - reported by a user: 29
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8
