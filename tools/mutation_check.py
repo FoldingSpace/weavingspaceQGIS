@@ -1064,6 +1064,44 @@ MUTATIONS = [
            "its layers and none of its design. Measured: the twin "
            "leaves 1,959 characters on the group and this branch "
            "left none"),
+  dict(name="reclassifying-spares-the-absence-colours",
+       file=DIALOG,
+       old="""      whole = self._quant_colours.get(tile_id, {}).pop(field, None)
+      if whole:
+        kept = {key: colour for key, colour in whole.items()
+                if not key.isdigit()}""",
+       new="""      whole = self._quant_colours.get(tile_id, {}).pop(field, None)
+      if whole:
+        kept = {}  # mutation: everything dies together""",
+       test="test_reclassifying_spares_the_absence_colours",
+       why="a class-count change destroyed a hand-picked No data "
+           "colour along with the positional picks it legitimately "
+           "retires -- the destruction rule predates the absence keys, "
+           "which name kinds of absence a class count says nothing "
+           "about (maintainer's ruling, 2026-08-26)"),
+  dict(name="a-graduated-copy-carries-the-catch-all",
+       file=DIALOG,
+       old="""      **{key: colour for key, colour in
+         (self._quant_colours.get(source_id, {}).get(field) or {}).items()
+         if not key.isdigit()},""",
+       new="""      # mutation: the copy moves positional colours alone""",
+       test="test_a_graduated_copy_carries_the_catch_all",
+       why="copying a graduated classification left the hand-picked "
+           "No data colour behind, so the target's twin drew default "
+           "grey where the categorical copy carries its catch-all by "
+           "the ruling of 2026-08-20 (extended to graduated "
+           "2026-08-26)"),
+  dict(name="a-ramp-twins-name-stays-the-users",
+       file=DIALOG,
+       old="""      names = ([prefer] + [n for n in self._ramp_names if n != prefer]
+               if prefer in self._ramp_names else self._ramp_names)""",
+       new="""      names = self._ramp_names  # mutation: iteration order decides""",
+       test="test_a_ramp_twins_name_does_not_move_under_the_user",
+       why="the shipped palettes hold byte-identical twins, so a dock "
+           "Apply with no change matched the renderer's ramp to "
+           "whichever twin the iteration reached first and silently "
+           "renamed the user's 'gray' to 'gist_gray' in the row, the "
+           "records and the next stamp"),
   dict(name="the-preview-learns-what-the-restyle-painted",
        file=DIALOG,
        old="""      self._refresh_preview_colours()

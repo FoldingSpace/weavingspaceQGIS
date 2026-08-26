@@ -7016,7 +7016,22 @@ class WeavingSpaceDialog(QDialog):
     field = var_combo.currentText() if var_combo else None
     discarded = None
     if field and field != "---":
-      discarded = self._quant_colours.get(tile_id, {}).pop(field, None)
+      # THE ABSENCE COLOURS SURVIVE. Reclassifying kills the
+      # POSITIONAL picks -- a colour chosen for class 3 of 5 means
+      # nothing on a ladder of 7 -- but the catch-all and infinity
+      # picks name kinds of ABSENCE, which a class count says nothing
+      # about, and they live in this same dict under non-digit keys
+      # only since 2026-08-15, after the destruction rule was written.
+      # (Maintainer's ruling, 2026-08-26, the same logic as the
+      # Reverse mirror's.) The notice counts only what actually died.
+      whole = self._quant_colours.get(tile_id, {}).pop(field, None)
+      if whole:
+        kept = {key: colour for key, colour in whole.items()
+                if not key.isdigit()}
+        discarded = {key: colour for key, colour in whole.items()
+                     if key.isdigit()}
+        if kept:
+          self._quant_colours.setdefault(tile_id, {})[field] = kept
     had_window = tuple(
       self._ramp_ranges.get(tile_id, (0, 100))) != (0, 100)
     if reset_range:
@@ -7575,13 +7590,23 @@ class WeavingSpaceDialog(QDialog):
       except Exception:
         continue
 
-  def _ramp_match(self, ramp):
+  def _ramp_match(self, ramp, prefer=None):
     """Name a colour ramp, allowing for one that has been reversed.
 
     Args:
       ramp: a QgsColorRamp taken from a renderer -- one QGIS restored
         from a project file, or one somebody built in the styling
         dock -- or None.
+      prefer: a ramp name to try FIRST in each pass, or None. The
+        shipped palettes contain byte-identical twins ('gray' and
+        'gist_gray', 'binary' and 'gist_yarg' -- equality measured in
+        palettes.json, 2026-08-26), so a ramp can match several names
+        equally and iteration order used to decide. A user who picked
+        'gray' and pressed Apply in the styling dock with no change
+        watched the row and the records silently rename it to
+        'gist_gray' -- no pixel ever differs, and the label must not
+        move under them (maintainer's ruling, 2026-08-26). Callers
+        that hold the row's current choice pass it here.
 
     Returns:
       ``(name, reversed)``: the name under which this ramp appears in
@@ -7612,18 +7637,27 @@ class WeavingSpaceDialog(QDialog):
     except Exception:
       return None, False
     for flipped in (False, True):
-      for name in self._ramp_names:
+      # the preferred name goes first WITHIN each pass, never across
+      # them: an exact match must still win before any reversed one,
+      # or a ramp equalling its own reverse would flip its tick
+      names = ([prefer] + [n for n in self._ramp_names if n != prefer]
+               if prefer in self._ramp_names else self._ramp_names)
+      for name in names:
         candidate = bridge.get_ramp(name, flipped)
         if candidate is not None and \
             (type(candidate).__name__, candidate.properties()) == wanted:
           return name, flipped
     return None, False
 
-  def _ramp_name_matching(self, ramp):
+  def _ramp_name_matching(self, ramp, prefer=None):
     """The QgsStyle name of a ramp drawn exactly as the library draws it.
 
     Args:
       ramp: a QgsColorRamp, or None.
+      prefer: a name to win ties among byte-identical twins, passed
+        straight through to `_ramp_match` -- the dock handlers hand in
+        the row's current choice so an Apply with no change cannot
+        rename it. Omitted, iteration order decides as before.
 
     Returns:
       The name under which an identical ramp appears in the ramp
@@ -7638,7 +7672,7 @@ class WeavingSpaceDialog(QDialog):
     fallback, which preserves the map exactly and reads Custom.
     Reopening asks the other question and calls `_ramp_match`.
     """
-    name, flipped = self._ramp_match(ramp)
+    name, flipped = self._ramp_match(ramp, prefer=prefer)
     return None if flipped else name
 
   def _on_layer_style_edited(self, layer_id, tile_id):
@@ -7880,7 +7914,9 @@ class WeavingSpaceDialog(QDialog):
     # so following one would snap the combo to a different ramp while
     # the layer wears the dock's colours: the very lie this handler
     # exists to prevent. Such an edit is adopted as Custom instead.
-    name = self._ramp_name_matching(renderer.sourceColorRamp())
+    name = self._ramp_name_matching(
+      renderer.sourceColorRamp(),
+      prefer=self._ramp_choices.get(tile_id))
     if name is not None and name in bridge.CATEGORICAL_RAMPS \
         and not assignment.get("class_source"):
       trial = bridge.make_categorized_renderer(
@@ -8227,7 +8263,8 @@ class WeavingSpaceDialog(QDialog):
     # ---- the RAMP, where QGIS's own ramp answers to a name we offer
     name = self._ramp_name_matching(
       renderer.sourceColorRamp()
-      if hasattr(renderer, "sourceColorRamp") else None)
+      if hasattr(renderer, "sourceColorRamp") else None,
+      prefer=self._ramp_choices.get(tile_id))
     ramp_cell = self.table.cellWidget(row, 4)
     if name is not None and ramp_cell is not None \
         and hasattr(ramp_cell, "findText") \
@@ -8814,7 +8851,9 @@ class WeavingSpaceDialog(QDialog):
       # test_a_dock_classify_on_a_constant_column_does_not_crash.
       return
 
-    name = self._ramp_name_matching(renderer.sourceColorRamp())
+    name = self._ramp_name_matching(
+      renderer.sourceColorRamp(),
+      prefer=self._ramp_choices.get(tile_id))
     if name is not None and name not in bridge.CATEGORICAL_RAMPS:
       # THE ROW'S REVERSE GOES IN, and leaving it out is how a forward
       # ramp set in QGIS came to "match" a row whose Reverse switch is
@@ -10128,8 +10167,19 @@ class WeavingSpaceDialog(QDialog):
     self._pinned_bounds.setdefault(target_id, {})[field] = record
 
     # the colours, positionally, which is what makes the row Custom
+    # -- AND THE CATCH-ALL WITH THEM. The categorical copy carries the
+    # catch-all by the ruling of 2026-08-20, and on 2026-08-26 the
+    # maintainer ruled the graduated copy behaves the same: a copy
+    # reproduces the classification's whole appearance, and the twin
+    # layer's No data colour is part of how the element looks. The
+    # absence picks live under non-digit keys beside the positional
+    # ones, so they ride the same dict.
     self._quant_colours.setdefault(target_id, {})[field] = {
-      str(index): colour for index, (_lo, _hi, colour) in enumerate(classes)}
+      **{key: colour for key, colour in
+         (self._quant_colours.get(source_id, {}).get(field) or {}).items()
+         if not key.isdigit()},
+      **{str(index): colour
+         for index, (_lo, _hi, colour) in enumerate(classes)}}
     # ...EXCEPT the fifty of an Unclassed source, which is fixed by
     # the definition of that style rather than chosen by anybody.
     # `_class_counts` means "chosen" -- the comment at the spinner

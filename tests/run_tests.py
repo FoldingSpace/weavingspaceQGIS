@@ -61866,6 +61866,181 @@ def test_reverse_carries_the_absence_colours():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_reclassifying_spares_the_absence_colours():
+  """A class-count change kills positional picks and not the catch-all.
+
+  Reclassification retires colours chosen for positions on a ladder
+  that no longer exists (settled 2026-08-09, announced). The catch-all
+  and infinity colours name kinds of ABSENCE, which a class count says
+  nothing about, so they survive -- and the notice counts only what
+  actually died. (Maintainer's ruling, 2026-08-26, extending the
+  destruction rule that predates the catch-all's arrival in this
+  dict.)
+
+  Regression: changing the class count (or scheme, or ramp) destroyed a hand-picked No data colour along with the positional picks, and the notice counted it as a "class colour" -- the destruction rule of 2026-08-09 predates the absence keys of 2026-08-15 and nobody had decided they join it. Found by the editor hunt of 2026-08-26; ruled 2026-08-26. [mutation]
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  folder = tempfile.mkdtemp(prefix="ws_absence_keep_")
+  try:
+    layer = make_region_layer(n=5, cell=1000)
+    QgsProject.instance().addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.layer_combo.setLayer(layer)
+    _tick(1000)
+    _settle(dlg, seconds=30)
+    combo = dlg.table.cellWidget(0, 1)
+    index = combo.findText("v1")
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(400)
+    tid = dlg.table.item(0, 0).text()
+    field = dlg.table.cellWidget(0, 1).currentText()
+    dlg._quant_colours.setdefault(tid, {})[field] = {
+      "1": "#112233", bridge_module().NO_DATA_KEY: "#7b3294"}
+    BAR_MESSAGES.clear()
+    spin = dlg.table.cellWidget(0, 3)
+    assert spin is not None and hasattr(spin, "setValue"), \
+      "row 0 has no class-count control, so the act cannot be staged"
+    spin.setValue(int(spin.value()) + 1)   # the reclassifying act
+    _tick(500)
+    after = dlg._quant_colours.get(tid, {}).get(field) or {}
+    assert after.get(bridge_module().NO_DATA_KEY) == "#7b3294", \
+      f"the class-count change destroyed the No data pick: {after!r}"
+    assert not any(key.isdigit() for key in after), \
+      f"the positional picks survived reclassification: {after!r} -- " \
+      f"the settled destruction stopped working while the absence " \
+      f"keys were being spared"
+    said = " ".join(m[1] for m in BAR_MESSAGES)
+    assert "1 class colour" in said, \
+      f"the notice did not count exactly the one positional pick " \
+      f"that died: {said!r}"
+    dlg.close()
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_graduated_copy_carries_the_catch_all():
+  """Copying a classification brings the No data colour with it.
+
+  The categorical copy carries the catch-all by the ruling of
+  2026-08-20; on 2026-08-26 the maintainer ruled the graduated copy
+  behaves the same -- a copy reproduces the classification's whole
+  appearance, and the twin layer's colour is part of it.
+
+  Regression: the graduated copy moved positional colours only (digit keys), so the hand-picked No data colour stayed behind and the target's twin drew default grey where the categorical copy carries its catch-all. Found by the editor hunt of 2026-08-26; ruled 2026-08-26. [mutation]
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  folder = tempfile.mkdtemp(prefix="ws_copy_catchall_")
+  try:
+    layer = make_region_layer(n=5, cell=1000)
+    QgsProject.instance().addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.layer_combo.setLayer(layer)
+    _tick(1000)
+    _settle(dlg, seconds=30)
+    for row, field in ((0, "v1"), (1, "v1")):
+      combo = dlg.table.cellWidget(row, 1)
+      index = combo.findText(field)
+      combo.setCurrentIndex(index)
+      combo.activated.emit(index)
+      _tick(300)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    source = dlg.table.item(0, 0).text()
+    target = dlg.table.item(1, 0).text()
+    dlg._quant_colours.setdefault(source, {})["v1"] = {
+      "0": "#101010", bridge_module().NO_DATA_KEY: "#7b3294"}
+    dlg._copy_classification(source, target)
+    _tick(400)
+    got = dlg._quant_colours.get(target, {}).get("v1") or {}
+    assert got.get(bridge_module().NO_DATA_KEY) == "#7b3294", \
+      f"the graduated copy left the catch-all behind: {got!r}"
+    assert any(key.isdigit() for key in got), \
+      "the copy brought no positional colours at all, so the " \
+      "catch-all check above proves nothing about a working copy"
+    dlg.close()
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_ramp_twins_name_does_not_move_under_the_user():
+  """A dock Apply never renames a ramp to its byte-identical twin.
+
+  The shipped palettes hold pairs drawing identically ('gray' and
+  'gist_gray'); the follow machinery matches a renderer's ramp back
+  to a NAME, and with several names matching equally, iteration order
+  used to decide -- so an Apply with no change renamed the user's
+  choice. The tie now goes to the name the row already holds.
+
+  The premise -- that the twins really are byte-identical -- is
+  asserted first, because if the palettes ever diverge this test's
+  subject disappears and it should say so rather than pass.
+
+  Regression: picking the ramp 'gray' and pressing Apply in QGIS's styling dock with no change silently renamed the row, the records and the next stamp to 'gist_gray' -- no pixel ever differs, and the label moved under the user. Found by the stochastic hunt of 2026-08-26 (seed 5001, shrunk); ruled 2026-08-26: the user's name wins the tie. [mutation]
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  bridge = bridge_module()
+  one = bridge.get_ramp("gray")
+  two = bridge.get_ramp("gist_gray")
+  if one is None or two is None:
+    print("  (gray/gist_gray are not both installed; premise gone)")
+    return
+  assert one.properties() == two.properties(), \
+    "the twins are no longer byte-identical, so the tie this test " \
+    "is about cannot arise -- re-decide it rather than deleting it"
+  folder = tempfile.mkdtemp(prefix="ws_twin_name_")
+  try:
+    layer = make_region_layer(n=5, cell=1000)
+    QgsProject.instance().addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.layer_combo.setLayer(layer)
+    _tick(1000)
+    _settle(dlg, seconds=30)
+    combo = dlg.table.cellWidget(0, 1)
+    index = combo.findText("v1")
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(300)
+    ramp = dlg.table.cellWidget(0, 4)
+    index = ramp.findText("gray")
+    assert index >= 0, "'gray' is not offered in the ramp dropdown"
+    ramp.setCurrentIndex(index)
+    ramp.activated.emit(index)
+    _tick(300)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    tid = dlg.table.item(0, 0).text()
+    assert dlg._ramp_choices.get(tid) == "gray", \
+      f"the fixture never recorded 'gray': {dlg._ramp_choices.get(tid)!r}"
+    lid = dlg._element_layer_ids.get(tid)
+    out = QgsProject.instance().mapLayer(lid)
+    # the dock's Apply: a whole renderer installed, changed nothing
+    out.setRenderer(out.renderer().clone())
+    out.triggerRepaint()
+    _tick(1700)                          # past the echo guard
+    _settle(dlg, seconds=30)
+    kept = dlg._ramp_choices.get(tid)
+    cell = dlg.table.cellWidget(0, 4)
+    shown = cell.currentText() if cell is not None else None
+    assert kept == "gray" and shown in ("gray", None), \
+      f"an Apply with no change renamed the ramp: record {kept!r}, " \
+      f"cell {shown!r} -- the label moved under the user"
+    dlg.close()
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def main():
   """Run every registered test and report what happened.
 
@@ -62219,6 +62394,12 @@ def main():
         test_a_pin_kept_silently_still_reaches_the_stores)
   check("Reverse carries the absence colours",
         test_reverse_carries_the_absence_colours)
+  check("reclassifying spares the absence colours",
+        test_reclassifying_spares_the_absence_colours)
+  check("a graduated copy carries the catch-all",
+        test_a_graduated_copy_carries_the_catch_all)
+  check("a ramp twin's name does not move under the user",
+        test_a_ramp_twins_name_does_not_move_under_the_user)
   check("a class source follows the record under it",
         test_a_class_source_follows_the_record_under_it)
   check("the file carries the design the map is wearing",

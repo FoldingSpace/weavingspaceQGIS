@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-329 defect(s) with a regression test.
+332 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -285,6 +285,8 @@ there is no separate list to remember.
   guarded by `test_a_dropped_columns_ramp_goes_even_when_the_style_was_derived`
 - **resuming a GeoPackage whose layers were already in the project took the group over without stamping the working state onto it or recovering the source, so the design was lost at the next reopen and the region chooser was left pointing at another dataset.**  
   guarded by `test_a_file_already_open_resumes_completely`
+- **the graduated copy moved positional colours only (digit keys), so the hand-picked No data colour stayed behind and the target's twin drew default grey where the categorical copy carries its catch-all. Found by the editor hunt of 2026-08-26; ruled 2026-08-26.**  
+  guarded by `test_a_graduated_copy_carries_the_catch_all`
 - **the categorized adoption path got a test and its graduated twin, five identical lines away, still had none.**  
   guarded by `test_a_graduated_dock_refinement_survives_the_next_restyle`
 - **every key of a group's working state except the ramp window was written only when the incoming record held one, so a ramp, a single colour, an opacity, a class count, a hand-picked class colour, a pinned bound or a categorical colour set on one output group stayed in force on another whose own record said it had none, and the next restyle painted and stamped it there.**  
@@ -303,6 +305,8 @@ there is no separate list to remember.
   guarded by `test_a_palette_is_usable_whatever_case_qgis_spells_it`
 - **`_stamp_category_colours` and the working-state capture both read the mode-filtered `_assignments`, which reports pins and picks empty for any row not wearing the mode that displays them -- so a pin made on one style died at the project boundary when the row generated wearing another, stamped absent-by-choice. Found by the shelf hunt of 2026-08-26; the two writers confirmed against each other.**  
   guarded by `test_a_pin_kept_silently_still_reaches_the_stores`
+- **picking the ramp 'gray' and pressing Apply in QGIS's styling dock with no change silently renamed the row, the records and the next stamp to 'gist_gray' -- no pixel ever differs, and the label moved under the user. Found by the stochastic hunt of 2026-08-26 (seed 5001, shrunk); ruled 2026-08-26: the user's name wins the tie.**  
+  guarded by `test_a_ramp_twins_name_does_not_move_under_the_user`
 - **closing the plugin window and opening it again (or reopening a saved project) reverted every hand-chosen variable, style, ramp and class count to the plugin's default cycle while the layers still drew the chosen design, and the next Generate then repainted the map to the wrong variables -- a categorical element re-tiled as a quantitative one. Found 2026-08-26 by the consistency sweep's boundary-crossing oracle.**  
   guarded by `test_a_reopened_dialog_wears_the_design_it_left`
 - **reopening a project under an open plugin panel bound the dataset identity to one of the plugin's own output layers, so the project's hand-picked colours and pinned bounds were unreachable and the next Generate destroyed them.**  
@@ -343,6 +347,8 @@ there is no separate list to remember.
   guarded by `test_one_datasets_memory_never_steers_another`
 - **an ordinary session -- live update draws, then the user chooses a GeoPackage and presses Generate -- left two output groups, the older holding four memory layers with a stale copy of the same map, offered in the group chooser for good. Found 2026-08-26 by the consistency sweep's baseline.**  
   guarded by `test_one_session_leaves_one_group`
+- **changing the class count (or scheme, or ramp) destroyed a hand-picked No data colour along with the positional picks, and the notice counted it as a "class colour" -- the destruction rule of 2026-08-09 predates the absence keys of 2026-08-15 and nobody had decided they join it. Found by the editor hunt of 2026-08-26; ruled 2026-08-26.**  
+  guarded by `test_reclassifying_spares_the_absence_colours`
 - **recolouring only the "no data" catch-all in QGIS read as a clean classify, so the plugin announced a ramp nobody chose, discarded the colour, and repainted those areas grey at the next Generate.**  
   guarded by `test_recolouring_the_catch_all_alone_is_not_a_new_ramp`
 - **`_mirror_quant_customization` rebuilt the picks dict keeping only digit keys, and since 2026-08-15 the catch-all and infinity picks live in that dict under non-digit keys -- so one Reverse click silently destroyed a hand-picked No data colour, and reversing back did not return it. Found by the editor hunt of 2026-08-26.**  
@@ -711,7 +717,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
-- the mutation campaign: 66
+- the mutation campaign: 69
 - reported by a user: 29
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8
