@@ -2222,7 +2222,7 @@ class WeavingSpaceDialog(QDialog):
     self.group_combo.setToolTip(
       "Which map to work on, or start another beside it.")
     self.group_combo.activated.connect(self._on_group_chosen)
-    form.addRow("Working on", self.group_combo)
+    form.addRow("QGIS Layer Group", self.group_combo)
 
     self.n_combo = QComboBox()
     for n in self.N_CHOICES:

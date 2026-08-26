@@ -44432,7 +44432,13 @@ def test_a_second_dialog_after_a_manual_cleanup():
   groups = _c3e_groups()
   assert len(groups) == 1, \
     f"a first run after a cleanup made {len(groups)} groups"
-  assert groups[0].name() == GROUP_BASE_NAME, \
+  # WHAT THIS IS ABOUT IS THE COUNTER, not the whole name: a first run
+  # after a cleanup must not be working around a name nothing is using
+  # ("WeavingSpace tiles 2" beside no "WeavingSpace tiles"). Since a
+  # group is named for its dataset the name carries more than the base,
+  # so the assertion states the rule rather than the string.
+  assert groups[0].name().startswith(GROUP_BASE_NAME) \
+      and not re.search(r"\s\d+$", groups[0].name()), \
     f"the group is called {groups[0].name()!r}; a first run should " \
     f"not be working around a name nothing is using"
   assert len(fresh._element_layer_ids) == 4, \
@@ -59768,9 +59774,18 @@ def test_a_project_and_its_geopackage_move_together():
         f"the moved project's output, not {written}; the next " \
         f"Generate would leave the old map behind and start a rival " \
         f"group beside it"
-      assert revived._group_name == GROUP_BASE_NAME, \
+      # ASKED OF THE PROJECT, not of a constant. What this cell is
+      # about is whether the revived dialog claims the group the moved
+      # project already holds; it said so by naming GROUP_BASE_NAME,
+      # which was the same thing until a group came to be named for
+      # its dataset (2026-08-26). The project's own group is the
+      # honest right-hand side, and it stays right whatever the naming
+      # convention does next.
+      held = [group.name()
+              for group in QgsProject.instance().layerTreeRoot().findGroups()]
+      assert revived._group_name in held, \
         f"the dialog claims group {revived._group_name!r} rather than " \
-        f"the one the moved project already holds"
+        f"one the moved project already holds ({held})"
       adopted = revived._category_colours.get(tile_id, {}).get(
         "landcover", {})
       assert adopted.get("forest") == "#ff00aa", \
