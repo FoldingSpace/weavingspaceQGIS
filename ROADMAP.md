@@ -172,6 +172,22 @@ two elements share a column, one element's notice silenced the other.
 
 There is nothing outstanding in code for 0.24.3.
 
+**ONE WINDOWS RED IS UNJUDGED, and it is a process item rather than a
+code one until somebody reads the second run.** On `ba255e7` every CI
+leg went green except Windows, which failed `a project whose output
+geopackage has moved` alone -- 573 passed, 1 failed, all four element
+layers "came back invalid again" after the output was re-pointed at
+the same path. It is not one of the three tests that morning fixed.
+It sits in the family docs/TESTING.md already documents: the OGR
+provider holds a GeoPackage open and Windows refuses to move a file
+under a live handle. Three sibling tests announce themselves with
+`_skip_loudly`, and the one that IS reachable works only because
+clearing the project first releases the handles. THIS TEST HAS NO SUCH
+TREATMENT, so it either needs the sibling's release or it is
+intermittent -- and the Windows legs on `d9fed9f` and `fa6c831` say
+which. Twice is real; once is a flake and gets recorded as one, since
+a red that means nothing is how a gate stops being read.
+
 **THE DEBOUNCES ARE DECIDED, 2026-08-26**, which was the last entry
 here. The maintainer's condition was to take the shorter preview wait
 "if the recommended option there is generally safe on different sorts

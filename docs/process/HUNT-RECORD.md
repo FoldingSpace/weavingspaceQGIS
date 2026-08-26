@@ -12,8 +12,51 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-08-26, when a FOURTH round's claims were finally
-judged. NINE CLAIMS, SIX CONFIRMED, THREE REFUTED -- and the three
+Last updated 2026-08-26 (night), after TWO MORE ROUNDS of eight hunts
+each -- the fifth and sixth this project has run, and between them the
+strongest evidence yet for the method and for its cost.
+
+ROUND FIVE: EIGHT HUNTS, SEVEN WITH FINDINGS, FOUR DISTINCT DEFECTS,
+aimed at seven fixes made the same morning. THREE hunts converged
+independently on one defect and TWO on another, from directions chosen
+before any of them had read the code. The one that found nothing was
+worth its place twice over: it established that the adaptive preview
+wait's widening is reachable from real state (871 ms at 26 elements
+over a hundred columns, arming the timer at its ceiling), which was an
+open question, and it caught a false claim in the project's own
+binding prose -- a rebuild's cost tracks elements and FIELDS, not
+features, measured at 30,529 primitive calls over sixteen areas and
+30,529 over three thousand.
+
+ROUND SIX, AN HOUR LATER, AIMED AT ROUND FIVE'S REPAIRS: EIGHT HUNTS,
+FIVE DEFECTS, and FOUR OF THE EIGHT ON ONE LINE. That line was a call
+added to a branch in round five's own repair and placed AFTER the
+restore where its twin puts it BEFORE. Four hunts reached four
+different consequences of it: every element's variable re-derived
+against the wrong dataset, the pins and categorical colours skipped
+outright, the group stamped with the loss, and -- the worst thing
+found all day -- one map's hand-picked value strings written into
+ANOTHER dataset's memory bank and its GeoPackage, which is ruling 8's
+cross-dataset leak. PRESENCE IS NOT ORDER, and no reading of "is the
+call there?" would have found it.
+
+SO THE CLAIM THAT A ROUND AIMED AT THE LAST ROUND'S REPAIRS ALWAYS
+FINDS SOMETHING NOW STANDS AT SIX FOR SIX, and round six is the
+sharpest case: the repairs were an hour old and had been driven,
+tested and given proved catalogue entries before it started.
+
+AND THE COST IS STILL THE JUDGEMENT, not the machine. Sixteen hunts in
+an evening produced roughly a dozen claims to reproduce, five of my
+own harness faults while reproducing them, and three catalogue entries
+that could not be made to catch on the first fixture. One of those
+three was never made to catch at all: the ORDER above is guarded by
+the hunts' own reproductions rather than by an entry, because adoption
+covers a late recovery by accident through the layer stamps -- an
+accidental cover, which this record already knows is a countdown
+rather than a defence.
+
+Before that, 2026-08-26 (day), when a FOURTH round's claims were
+finally judged. NINE CLAIMS, SIX CONFIRMED, THREE REFUTED -- and the three
 refutations are the entry worth reading, because this record's value
 depends on it being possible to look bad in.
 

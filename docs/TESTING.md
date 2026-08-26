@@ -2589,3 +2589,113 @@ the set to protect after the in-flight landing, with the premise
 asserted -- the replacement produced as many layers as it took away --
 leaves a cell that would go red under the old stamp behaviour, where
 the version it replaces went green.
+
+## PRESENCE IS NOT ORDER, AND A LATE CALL IS WORSE THAN A MISSING ONE
+
+2026-08-26, and four hunts of eight found it independently, which is
+the most this method has ever converged here.
+
+A branch was missing a call its twin makes. The repair added it -- and
+put it after the restore, where the twin puts it before and SAYS WHY
+AT ITS OWN CALL SITE: a variable cannot be restored to a column the
+region layer in force does not have. Four consequences followed, and
+each hunt found a different one: every element's variable re-derived
+against the wrong dataset, so the table described a map the layers did
+not draw; a `same_data` test computed against the stale chooser, so
+pins and categorical colours were skipped outright; the group then
+stamped with that loss; and an adoption running while the memory bank
+still belonged to the OTHER dataset, putting one map's hand-picked
+value strings into that dataset's bank and its file.
+
+**THE REPAIR TURNED VISIBLY WRONG INTO INVISIBLY WRONG**, which is a
+hunt's own phrase and the reason this has its own section. Before it,
+the chooser sat on the wrong dataset and a person could see that.
+After it, the recovery happened -- just too late to govern anything --
+and every symptom moved inside the records.
+
+This project already carries the rule ("when a fix is inserted into an
+existing sequence, check its ORDER against the twin, not merely that
+the line is present"). What this adds is the tell: WHEN A TWIN'S CALL
+SITE CARRIES A COMMENT, THE COMMENT IS USUALLY ABOUT THE POSITION. A
+repair that copies the call and not the comment has copied the half
+that does not encode the reasoning.
+
+**AND THE ENTRY FOR IT COULD NOT BE MADE TO CATCH.** Three fixtures
+were built to make the REORDERING visible and all three passed, since
+`_adopt_existing_group` restores variables and picks from the layers'
+own stamps -- so on any journey where the map's own region layer is
+still in the project, the late recovery is covered by accident. After
+three attempts the approach was wrong, not the constant: the entry is
+aimed at the call's ABSENCE instead, which is the state the branch
+actually shipped in, and the ORDER is recorded as guarded by the four
+reproductions rather than by the catalogue. Say which of the two you
+have when you write the entry. An accidental cover is a countdown.
+
+## SILENCE IN A RECORD HAS MORE THAN ONE CAUSE; ASK WHICH READER MADE IT
+
+Also 2026-08-26, and it is the other half of the same evening.
+
+A repair taught a restore to CLEAR a record when the incoming one is
+silent about it -- right, and the cure for a real defect three hunts
+had reported. But `_assignments` reports the pins, the hand-picked
+class colours and the ramp window as empty for any row NOT WEARING
+GRADUATED, and the categorical colours as empty for any row not
+wearing Categorized. So a record is silent about them whenever the
+element is merely on ANOTHER STYLE, which is not the same claim as
+"this group has none" -- and the clearing destroyed a pinned bound
+belonging to an element somebody had switched to categories, stamping
+its absence so that a reopen could not recover it.
+
+**BEFORE CLEARING ON AN ABSENCE, ASK WHAT MAKES THE RECORD ABSENT.**
+This file already says to ask what an absent key MEANS when a guard
+reads one; the sharper version, when you are about to DELETE on that
+absence, is to enumerate every reader that can produce it. Here there
+were two: a person who chose nothing, and a mode that cannot carry the
+thing at all.
+
+**AND THE FIX WAS INERT UNTIL THE WHITELIST KNEW ABOUT IT.** The
+clearing needed the element's MODE, and `mode` was not in
+`WORKING_STATE_ELEMENT` -- the list that is the record's real
+definition. A key missing from it is dropped in silence, so the gate
+read None, decided "not graduated", and cleared nothing at all. Two
+tests went red saying a record had ridden onto a group that never had
+one, which is how it was found. WIDEN THE WHITELIST IN THE SAME COMMIT
+AS THE CODE THAT READS IT -- this project has written that down twice
+before, about `_adopt_dock_bounds` and about the copy.
+
+## A FIXTURE ON ITS DEFAULTS LANDS ON THE RIGHT ANSWER BY ACCIDENT
+
+Three fixtures in a row failed to make a reordering visible on
+2026-08-26, and one reason recurred: the design under test was the one
+the plugin would have chosen anyway. Re-deriving an element's variable
+against a different dataset is only VISIBLE where the derived answer
+differs from the recorded one, and a fixture left on its defaults
+cannot tell the two apart. A hunt recorded exactly the same thing
+about its own first attempt the same evening.
+
+This is the fixture-that-cannot-move trap wearing the plainest clothes
+it has: ASK WHAT YOUR FIXTURE LEAVES TO A DEFAULT, and stage something
+the default cycle does not produce. Then assert that you did -- the
+premise is one line and it is what stops the fixture drifting back.
+
+## WHEN A REPAIR GIVES ONE STORE A NEW WRITE, ENUMERATE EVERY STORE
+
+The last two findings of 2026-08-26 were the same shape as each other,
+and it is the shape this project meets most often.
+
+A restyle was taught to write the GROUP's record, with a comment
+arguing exactly why. The FILE's record was given its write hours
+later, by a different commit, on the landing path alone -- so it
+inherited the very gap the first write had closed. The file's STYLES
+were updated by a restyle and its RECORD was not, so the file
+disagreed with itself and a colleague opening it resumed a design the
+user had abandoned.
+
+And a record restored by a group switch was read by nobody, because
+the WIDGET that `_assignments` reads was repopulated without being
+re-selected from it -- the fix its neighbour in the same table had
+been given eight days earlier.
+
+So: when you mend one store of a fact, list every store that already
+held it, and check each. The list is usually short and it is never
+empty; the second store is the one nobody is looking at.

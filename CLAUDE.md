@@ -2029,6 +2029,83 @@ Confirmed with the user via an explicit design review:
   declaration to still pass, since a gate nothing can satisfy is as
   useless as one anything can.
 
+- **PRESENCE IS NOT ORDER, AND A CALL PUT BACK IN THE WRONG PLACE IS
+  WORSE THAN ONE STILL MISSING.** (2026-08-26, and FOUR hunts of eight
+  found it independently -- the most this method has ever converged
+  here.) `_resume_from_gpkg`'s take-over branch was missing
+  `_recover_the_source`; the repair added it AFTER
+  `_apply_working_state`, where the twin calls it BEFORE and says why
+  at its own call site: a variable cannot be restored to a column the
+  region layer in force does not have.
+  FOUR CONSEQUENCES, one per hunt. Every element's variable re-derived
+  against the other dataset's columns, so the table described a map
+  the layers did not draw. `same_data` computed against the stale
+  chooser, so the pins and the categorical colours were skipped
+  outright and a pinned ladder came back re-derived. The group then
+  stamped with that loss. And `_take_over_group` adopting the resumed
+  layers' stamps while `_memory_layer_id` still named the OTHER
+  dataset, writing one map's hand-picked value strings into that
+  dataset's bank and its GeoPackage -- ruling 8's cross-dataset leak,
+  reached from a direction it was not written for.
+  THE REPAIR TURNED VISIBLY WRONG INTO INVISIBLY WRONG, which is one
+  hunt's phrase and the reason this is a rule rather than a ledger
+  row: before it, the chooser sat on the wrong dataset where a person
+  could see it; after it, every symptom moved inside the records.
+  THE TELL: WHEN A TWIN'S CALL SITE CARRIES A COMMENT, THAT COMMENT IS
+  USUALLY ABOUT THE POSITION. Copying the call and not the comment
+  copies the half that does not encode the reasoning. This file
+  already says to check a fix's ORDER against its twin rather than
+  merely that the line is present; what is new is that the check
+  survives being applied by somebody who knows the rule -- it was
+  broken here in the same hour by the same hand that had just quoted
+  it.
+
+- **BEFORE CLEARING ON AN ABSENCE, ASK WHAT MAKES THE RECORD ABSENT.**
+  (Same day, and it is the other half of the same evening.) A restore
+  was taught to CLEAR a record where the incoming one is silent about
+  it -- the cure for a real defect three hunts had reported, where one
+  output group's colours rode onto another. But `_assignments` reports
+  the pins, the hand-picked class colours and the ramp window as empty
+  for ANY ROW NOT WEARING GRADUATED, and the categorical colours as
+  empty for any row not wearing Categorized. So a record is silent
+  about them whenever the element is merely on another style, which is
+  not the same claim as "this group has none" -- and the clearing
+  destroyed a pinned bound belonging to an element somebody had
+  switched to categories, stamping its absence so a reopen could not
+  recover it. That is the ruling of 2026-08-20 broken by the fix for
+  a different one.
+  SO ENUMERATE THE READERS THAT CAN PRODUCE THE ABSENCE. Here there
+  were two: a person who chose nothing, and a mode that cannot carry
+  the thing at all. This file already asks what an absent key MEANS
+  when a guard READS one; deleting on that absence needs the same
+  question asked harder.
+  AND THE FIX WAS INERT UNTIL THE WHITELIST KNEW ABOUT IT.
+  `WORKING_STATE_ELEMENT` is the record's real definition, `mode` was
+  not in it, so the gate read None and cleared nothing whatever. Two
+  tests going red is how that was found. WIDEN THE WHITELIST IN THE
+  SAME COMMIT AS THE CODE THAT READS IT -- said here for the third
+  time, after `_adopt_dock_bounds` and the copy.
+
+- **WHEN A REPAIR GIVES ONE STORE A NEW WRITE, ENUMERATE EVERY STORE
+  THAT ALREADY HELD THAT FACT.** (Same day, the round's last two
+  findings, and the shape this project meets most often.) A restyle
+  was taught to write the GROUP's record, with a comment arguing
+  exactly why. The FILE's record was given its write hours later, by a
+  different commit, on the landing path alone -- so it inherited the
+  gap the first write had just closed: the file's STYLES were updated
+  by a restyle and its RECORD was not, and a colleague opening that
+  GeoPackage without the project resumed a design the user had
+  abandoned, their first Generate repainting the map back to it. The
+  file disagreed with itself.
+  AND THE SECOND STORE IS SOMETIMES A WIDGET. A class source restored
+  into `_class_choices` by a group switch was read by nobody, because
+  `_sync_row` repopulated the combo without re-selecting it from the
+  record -- and `_assignments` reads the WIDGET, so the next rebuild
+  wrote the stale answer back over the restore. Its neighbour in the
+  same table had been given that exact fix eight days earlier.
+  The list of stores is short and never empty. It is the one nobody is
+  looking at that costs the map.
+
 - **A RECORD ASSEMBLED FROM TWO MOMENTS MUST SAY WHICH MOMENT EACH
   FIELD CAME FROM.** (Same day.) The working state deliberately takes
   its DESIGN from the launch snapshot and its ELEMENTS live, and both
