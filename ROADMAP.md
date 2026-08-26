@@ -170,130 +170,30 @@ two elements share a column, one element's notice silenced the other.
 
 ### Outstanding
 
-**2026-08-26 CLOSED THIRTY-THREE DEFECT ROWS AND FOUR RULINGS**, all
-fixed, tested and entry-proved. Rows 18 to 53 of
-`docs/process/defects-2026-08-26.md` are the record; the rulings bind
-from CLAUDE.md -- the file shows the limit of what it contains with
-the project carrying the working memory home, the switch door speaks,
-the return leg restores the chosen variable, and the style follows
-the field. What produced them: the consistency sweep, four eight-hunt
-rounds (iterative exploration, the seams, and the bulletproofing
-round of doors/kept/switchdoor/livepreview/picksdict/seams/testbatch/
-harm), a CI-caught regression of this session's own, and two
-grillings. Committed and pushed through `ec45f44`.
+**Nothing outstanding.** Everything this version owed in code is
+built, tested and entry-proved, and the record of how lives where it
+binds rather than here: `docs/process/defects-2026-08-26.md` for the
+fifty-nine rows, CLAUDE.md for the five rulings of 2026-08-25 and
+2026-08-26, docs/TESTING.md for what the round cost to verify.
 
-THE ROUND THAT CLOSED IT was aimed by the maintainer at making the
-three previous days bulletproof in two senses at once -- each repair
-sound in itself, AND the original complaint resolved as a user
-experiences it. The harm-first hunt re-drove all five original
-complaints end to end and measured every one resolved; the other
-seven found fifteen further defects, thirteen of them inside the
-three-day window and five inside that window's own repairs.
+THE LAST THINGS TO CLOSE, in the order they closed. The Windows red
+of six CI rounds, diagnosed to its mechanism and fixed: a layer source
+is a path plus a provider tail, a project save respells the path half,
+and eight sites compared sources as raw strings. The four regressions
+round nine shipped, found by the whole suite rather than by any
+targeted run, three of them one mechanism -- a stamp taken away from a
+landing may carry only what a landing decided -- and the fourth a
+collision between two registered tests that the maintainer settled as
+the day's third ruling. The debounces, decided by measurement: the
+preview wait is a floor that widens to whatever a rebuild costs, and
+the live interval is unchanged for reasons recorded under "Later, or
+never". And the changelog, which gained three approved paragraphs for
+behaviours this version acquired after the entry was first approved.
 
-**WHAT IS OPEN, exactly:**
-
-*FOUR REGRESSIONS ROUND NINE SHIPPED ARE FIXED, 2026-08-26, and how
-they were found matters more than what they were.* The round was
-verified by targeted runs and broke four tests it did not run --
-including the commonest journey there is, opening the plugin in a
-project that already holds a map, where every row came up blank and
-Generate refused for want of a variable. The mutation workflow's
-coverage leg runs the whole suite and named them: green at `6d6ea2d`,
-red at `64cb0fa`. All four reproduced here on the first attempt.
-Three were one mechanism -- a stamp taken away from a landing writing
-the design, the output path and the region from the live controls --
-and the fourth was a collision between two registered tests, settled
-by the maintainer as the third ruling of 2026-08-26. Rows 55 to 58 of
-`docs/process/defects-2026-08-26.md`; the ruling binds from CLAUDE.md.
-
-*THE FULL LOCAL SUITE is the gate that has to answer next*, for the
-reason those four exist: a green subset is not a green suite, and this
-project believed one twice in a day.
-
-*Two changelog additions await the maintainer* before promotion --
-the switch door speaking, and a field's return wearing its own style
--- because both are user-visible behaviours the approved entry
-predates, and this project's rule is that a changelog approved before
-a behaviour change is stale by definition.
-
-*ONE CATALOGUE ENTRY WAS RETIRED WITH ITS REDUNDANCY DEMONSTRATED*:
-the categorical attribution walk is now written a second time by the
-ruling's own transfer, so breaking the walk alone changes nothing a
-test can see. Both routes broken together fail at the catch-all
-colour, so the axis is live and redundantly held; the measurement is
-recorded at the test.
-
-**THE WINDOWS RED IS DIAGNOSED AND FIXED, 2026-08-26.** `a project
-whose output geopackage has moved` failed alone on Windows for SIX CI
-rounds, and the cause was never on the platform: a layer source is a
-path plus `|layername=`, a project save respells the path half, and
-SEVEN sites compared sources with `==`. So a reopened project's own
-output group read as another dataset's, `keeping` turned True, and
-the keep-the-previous-result guard refused the ordinary recovery run
--- through a QMessageBox, which never reaches the message bar, so the
-user met a Generate that wrote nothing and said nothing. `same_source`
-is the one owner now, and ROW 54 of
-`docs/process/defects-2026-08-26.md` carries the full account with
-the probe output that named it.
-
-GUARDED WITHOUT WINDOWS, which is what makes it a fix rather than a
-hope: a symlink gives one file two names on any platform, so
-`test_one_dataset_spelt_two_ways_is_one_dataset` stages the exact
-condition here, asserts `samefile` as its premise, and requires the
-next Generate to replace its own map in place.
-
-THE SECOND WINDOWS RED -- rows 37's `a saved project keeps the other
-fields' work` -- is not yet separately diagnosed. It may share this
-cause, since it also turns on records compared across a project save;
-the probe stays aimed at both until CI says otherwise.
-
-**THE DEBOUNCES ARE DECIDED, 2026-08-26**, which was the last entry
-here. The maintainer's condition was to take the shorter preview wait
-"if the recommended option there is generally safe on different sorts
-of computers and load conditions" -- so the condition was CHECKED
-rather than assumed, and a flat number does not meet it.
-
-WHAT THE CHECK FOUND, because the obvious worry is the wrong one. The
-preview timer is SINGLE-SHOT and restarted by every change, so
-continuous input -- a held-down spin button, a dragged slider -- fires
-exactly one rebuild whatever the interval; shortening it does not do
-more work, it starts the same work sooner. What a longer wait really
-absorbs is a HESITATION of a few hundred milliseconds mid-interaction,
-and that costs something only where a rebuild is expensive. A
-rebuild's cost scales with elements times FIELDS -- corrected
-2026-08-26, having said "features" here and at the code until a hunt
-measured it: one rebuild makes 30,529 primitive calls over sixteen
-areas and 30,529 over three thousand, identical, while 26 elements
-over a hundred columns cost 871 ms. The earlier wording borrowed the
-shape of the uncached-value defect of 2026-08-19, which really was
-about features (3,011 rescanned 23 times for one keystroke) and is a
-different mechanism on a different path. Either way the machines
-where a short flat wait would hurt are the ones nobody here can
-measure.
-
-SO THE PREVIEW WAIT IS A FLOOR OF 150 ms, at least as long as the last
-rebuild actually took, capped at the 350 ms it was flat at before.
-Measured: a rebuild on the standard fixture costs 31 ms, so the wait
-is 150; stage a 220 ms rebuild and the wait is 220; stage a 900 ms one
-and it is 350, which is exactly what a user has today. A fast machine
-gets the snappier loop and a slow one is never worse off than it was.
-Guarded by `test_the_preview_wait_widens_for_a_slow_rebuild`, whose
-last two cells DRIVE the caller, and by two judged catalogue entries --
-one for the arithmetic and one for the timer actually being armed with
-its answer, since a unit-tested mechanism with an undriven caller is a
-motionless axis.
-
-THE LIVE INTERVAL IS UNCHANGED AT 900 ms, deliberately. It guards
-something genuinely expensive -- 229 ms on a sixteen-polygon fixture
-and seconds on three thousand areas -- and shortening it is only safe
-alongside cancelling a superseded run sooner, which is a change to the
-run lifecycle rather than to a number. That is recorded under "Later,
-or never" rather than left as a loose end.
-
-AND THE TWO STAY SEPARATE, which answers the second of the three
-questions this entry used to carry. The preview is what tells somebody
-their input registered; merging the two would either delay that to the
-live interval or launch real tilings at the preview's cadence.
+WHAT IS NOT IN CODE AND THEREFORE NOT HERE: the candidate's own gates,
+which measure this tree, and CI, which `publish_candidate.py` refuses
+to publish past. Neither is work owed; both are how the work is
+checked.
 
 ### What this version has already closed
 
