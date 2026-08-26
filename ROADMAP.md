@@ -412,11 +412,26 @@ options): zero twins. The split runs over the TILED frame, so a tile
 the join hands no value is counted absent -- it would be a HOLE
 otherwise, the very thing the twin abolishes -- which is the likeliest
 route under the demo's own settings (icons mode or fine spacing).
-NEXT: reproduce with the maintainer's exact settings, or have them
-read the twin's feature count in QGIS -- features present means real
-join-missed tiles and the question becomes whether the LAYER'S NAME
-should say so ("no value at this spacing"), zero features means a
-gate defect nobody has manufactured yet.
+THE HYPOTHESIS WAS MEASURED ON 2026-08-25 AND IS FALSE HERE. Fifteen
+configurations on data proved clean: a dense grid at four spacings
+from 2,000 down to 40 map units, icon mode coarse and fine, twelve
+hundred areas at a fine spacing, and the three awkward shapes this
+suite keeps for exactly this kind of question -- a donut, an L and a
+sparse archipelago -- each at two spacings and in icon mode. NOT ONE
+produced a twin. The route the entry guessed at is the one it can
+rule out: the library CLIPS its tiles to the region, so a tile that
+falls between areas is not a row with no value, it is not a row.
+
+SO WHAT REMAINS IS THE MAINTAINER'S, and it is now a smaller
+question than it was. Read the twin's FEATURE COUNT in QGIS on the
+mosquito map: features present means real join-missed tiles that
+nothing here can reproduce, and the question becomes whether the
+LAYER'S NAME should say so ("no value at this spacing"); zero
+features means a gate defect nobody has manufactured yet. Either way
+the answer is one number, and this entry cannot close without it.
+IT DOES NOT BLOCK A CANDIDATE: a paired layer that appears where
+nothing is missing is a puzzle rather than a wrong map, and no
+measurement available here reproduces it.
 
 **TAKE THE UPSTREAM LIBRARY FROM 0.0.7.61 TO 0.0.7.89.** Checked
 2026-08-18 under the standing rule that upstream is compared before
@@ -425,36 +440,45 @@ decision that day was to build rc8 on the current vendor and do this
 as its own piece of work, because a twenty-eight-version jump cannot
 be folded into a candidate whose gates are about to measure it.
 
-We vendor 0.0.7.61 at commit c0f109c. Upstream's head is 0.0.7.89 at
-ac69ca2, nine commits on, and it is BEHAVIOURAL rather than a licence
-bump: compared as syntax trees with docstrings stripped, seven of the
-ten library modules differ -- `_tiling_geometries.py`, `tile_map.py`,
-`tileable.py`, `topology.py`, `weave_unit.py`, `tiling_utils.py` and
-`symmetry.py`. Only `_loom.py`, `weave_matrices.py` and
-`_weave_grid.py` are comments alone.
+**TAKEN ON 2026-08-25**, and what follows is the record rather than
+the plan. The vendor is 0.0.7.89 at bf1bbbf -- past ac69ca2, which is
+where upstream stood when this entry was written. All five remaining
+patches (matplotlib and scipy made optional) re-applied on their
+exact anchors, none needing a decision.
 
-TWO OF THOSE COMMITS ARE ABOUT ELEMENT IDS, which is why this is not
-just housekeeping. `6926d65` supplies tile ids from
-`TILE_IDS = [a..z, aa, ab..zz]` and says WeaveUnits remain
-single-character; `c26dc70` makes ids case-sensitive in both TileUnit
-and WeaveUnit, so `a` and `A` are now different. Both bear on the
-entry under "Waiting on the upstream project" below, which has been
-blocked on exactly this — and the second one bears on the GeoPackage
-collision measured there, in a direction that could go either way.
-Read that entry beside this one before either is closed.
+COMPARED STRUCTURALLY FIRST, as the standing rule asks. Six of the
+twelve library modules differ behaviourally: `_tiling_geometries.py`,
+`symmetry.py`, `tile_map.py`, `tileable.py`, `tiling_utils.py`,
+`topology.py` and `weave_unit.py`. `_loom.py`, `_weave_grid.py` and
+`weave_matrices.py` are comments alone; `__init__.py` and
+`tile_unit.py` are identical. Nothing upstream that we do not carry.
 
-WHAT MUST BE TRUE BEFORE IT MERGES. The vendoring is a script rather
-than a project (`tools/vendor_weavingspace.py`, which re-applies the
-remaining patch family and refuses rather than writing a broken
-vendor), but the MEASUREMENT is the work: `tile_map.py` and
-`_tiling_geometries.py` have both moved, so the reference renderer
-this project compares its maps against has moved too. The visual
-gallery and the colourspace comparison must be read case by case
-rather than glanced at, and any change in them attributed to upstream
-deliberately rather than absorbed. The element-id ceiling of 26 in
-`catalog.MAX_ELEMENTS` is ours and is now guarded by
-`test_the_documents_numbers_match_the_code`; decide whether it moves,
-rather than letting it move by itself.
+AND ONE CLAIM IN THIS ENTRY WAS WRONG, which is worth keeping rather
+than quietly correcting. It said `c26dc70` "makes ids case-sensitive
+in both TileUnit and WeaveUnit, so `a` and `A` are now different" --
+read out of a commit message rather than measured. Measured against
+the vendor on 2026-08-25: `TILE_IDS` holds 702 ids, `a`..`z` then
+`aa`..`zz`, ALL LOWERCASE, and asking for 710 elements comes back
+with 702 silently. Capitals do not appear at all. This project's own
+rule applies to its own roadmap: a fact read out of a message is a
+hypothesis, and it reads exactly like one somebody proved.
+
+WHAT THAT SETTLES, and it is good news for the entry under "Waiting
+on the upstream project" below. Doubled lowercase ids survive a
+GeoPackage's case fold where capitals do not, so upstream has removed
+the case blocker for TILINGS entirely. What it has not removed is the
+WEAVE STRING FORMAT, where one character means one element and a
+two-character id has nowhere to go -- so `catalog.MAX_ELEMENTS` stays
+at 26, which is a DECISION and not a discovery: moving it means
+auditing everything that assumes an id is one character and living
+with a limit that differs by family, and nobody has asked for a
+twenty-seventh element. Both canaries fired on the bump, which is
+what canaries are for, and both were rewritten to what is true now
+rather than relaxed.
+
+WHAT THE MEASUREMENT FOUND: the functional suite, the visual gallery
+read case by case, and the colourspace comparison against the moved
+reference renderer. Recorded in the commit that carries them.
 
 **WHAT SHOULD THE DEBOUNCES BE?** Measured 2026-08-17 and recorded
 here because changing it would change the software, which is the line
@@ -580,13 +604,23 @@ users and stored verbatim in `catalog.py`. Upstream's code makes it
 concrete: the strand count is `len(ID)` and the ids are `list(IDs[i])`,
 so "ab" already means two strands, a then b.
 
-WHAT UPSTREAM SETTLED, 2026-08-18. weavingspace 0.0.7.89 supplies tile
-ids from `TILE_IDS = [a..z, aa..zz]`, used only in
-`_tiling_geometries`; `weave_unit.py` never touches it. So for TILINGS
-both blockers are off — upstream provides the ids, and doubled
-lowercase survives the GeoPackage. For WEAVES the format is still the
-obstacle, and changing it is upstream's decision rather than ours,
-which is why this entry stays in this section.
+WHAT UPSTREAM SETTLED, read on 2026-08-18 and MEASURED against the
+vendor on 2026-08-25 once the jump was taken. weavingspace 0.0.7.89
+supplies tile ids from `TILE_IDS = [a..z, aa..zz]`, used only in
+`_tiling_geometries`; `weave_unit.py` never touches it. Measured
+against the vendored copy: 702 ids, all lowercase, no capitals
+anywhere, and a request for 710 elements comes back with 702
+silently. So for TILINGS both blockers are off — upstream provides
+the ids, and doubled lowercase survives the GeoPackage. For WEAVES
+the format is still the obstacle, and changing it is upstream's
+decision rather than ours, which is why this entry stays in this
+section.
+
+AND THE READING THAT SAID IDS HAD BECOME CASE-SENSITIVE WAS WRONG.
+The 0.24.3 entry above carried it from a commit message, and it
+pointed the opposite way — toward capitals colliding. Measuring the
+vendor settled it. Kept here because this entry's own opening says
+compressing the reasoning is how it gets misremembered.
 
 WHAT WOULD MAKE IT OURS. Moving the ceiling for tilings alone is a
 decision, not a discovery, and the work is not the number: it is

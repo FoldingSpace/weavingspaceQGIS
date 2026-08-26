@@ -214,22 +214,47 @@ writable to file while another is chosen. Value-laden records never
 cross a shared column name; the style (mode, ramp, Reverse, class
 count) keeps by name as it always has.
 
-**AND THAT CONTRACT IS BEING REPLACED RATHER THAN PATCHED.** Settled
-by a grilling on 2026-08-25, after a colleague drove the rules through
-a real demo of several datasets in a row: the OUTPUT GROUP becomes the
-unit of work, chosen from a dropdown beside the region chooser, bound
-symmetrically to the dataset, and carrying the whole working state so
-that selecting a group restores its design and its styling together.
-`_fresh_group_for_new_data` retires with it, because the protection it
-gave comes from which group is selected.
-THIS PARAGRAPH DESCRIBES A DECISION, NOT CODE THAT EXISTS YET. The
-rulings are in CLAUDE.md and the build order is in ROADMAP.md; a
-maintainer reading this before it lands should trust the two
-paragraphs above for how the plugin behaves today. The reason the
-replacement is worth its cost is one sentence of the report that
-prompted it: three scopes -- records kept per dataset, a design
-carried globally, a group remembered nowhere -- answer a single act in
-three different ways, and none of the three is named on screen.
+**AND THAT CONTRACT WAS REPLACED RATHER THAN PATCHED, on 2026-08-25.**
+Settled by a grilling after a colleague drove the old rules through a
+real demo of several datasets in a row, and BUILT the same day, so the
+paragraphs above describe machinery that still exists while this one
+describes what now governs it.
+
+THE OUTPUT GROUP IS THE UNIT OF WORK. A chooser sits beside the region
+chooser naming which map a run will land in, with a "create new"
+entry; dataset and group are bound symmetrically, each selecting the
+other, with recency deciding where a dataset owns several groups; and
+the group carries the WHOLE WORKING STATE on its own custom property,
+so selecting it restores that design and that symbology together
+rather than the dialog inferring them. The GeoPackage carries the same
+record as file metadata, which makes a saved map resumable without the
+project that made it -- the source recovered by reference, embedding
+it an explicit opt-in -- and element tables are trimmed to the
+variable each element displays and named `tiles_<tid>_<variable>`.
+
+`_fresh_group_for_new_data` retired with it: the protection it gave
+comes from which group is SELECTED now, which is a fact on screen
+rather than a flag. What replaced it is narrower and means one thing
+-- `_new_group_chosen` is set only when somebody picks "create new" --
+and the first build conflated the two, which put a file-overwrite
+warning in front of an ordinary journey.
+
+The reason the replacement was worth its cost is one sentence of the
+report that prompted it: three scopes -- records kept per dataset, a
+design carried globally, a group remembered nowhere -- answered a
+single act in three different ways, and none of the three was named on
+screen. The rulings are in CLAUDE.md, where they bind.
+
+**AND THE SIZE GUARD ASKS RATHER THAN REFUSES.** (Same day.) Above
+`MAX_TILES_CONFIRM` a run is confirmed; above `MAX_TILES_HARD` the
+same question is put in stronger words -- this may use all the
+computer's memory, QGIS may stop responding, save your project first
+-- with the safe button as the default. Neither is a refusal any more.
+What IS refused is what is not a size at all: `UNTILEABLE`, a design
+whose vectors are degenerate, and `UNCOUNTABLE`, an extent that cannot
+be measured. Those two used to share the ceiling's value, which is why
+the ceiling could not soften until they were split off; they are
+negative, so a gate comparing `est > ceiling` cannot wave one through.
 
 **AND WHAT RE-DEFAULTS TAKES ITS STYLE WITH IT.** An element whose
 column has gone re-points at a surviving field, and since 2026-08-20 it
@@ -363,8 +388,10 @@ about, since the table goes on describing a map that has moved.
 3. **Never provision numpy 2.x, never shadow a healthy QGIS package.**
    `deps.py` only extracts a wheel when the shipped package is missing
    or below the version floor, and only into the plugin's own `libs/`.
-4. **Generation must stay size-guarded, and the guard measures the
-   GROUND rather than the extent.** Tile count grows with 1/spacing²,
+4. **Generation must stay size-guarded, the guard measures the GROUND
+   rather than the extent, and since 2026-08-25 it ASKS rather than
+   refuses — except for the two answers that are not sizes at all,
+   which no question may soften.** Tile count grows with 1/spacing²,
    and `bridge.estimate_tile_count_bounds` runs before every
    generation, including live updates. What it divides by the
    prototile's area is the region's DISSOLVED area plus a strip one

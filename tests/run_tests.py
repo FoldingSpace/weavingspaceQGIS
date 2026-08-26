@@ -1136,33 +1136,52 @@ def test_the_catalogue_offers_only_designs_that_build():
 
 
 def test_the_element_id_alphabet_still_limits_the_ceiling():
-  """Upstream still runs out of element ids at 52, silently.
+  """Upstream still runs out of element ids, silently, at 702.
 
-  A canary on upstream, not on us, and the number here is UPSTREAM's
-  52 rather than our own ceiling of 26 -- the two are different
-  limits for different reasons and this test owns the first. Element
-  ids come from string.ascii_letters, so a unit can carry at most 52
-  of them. Asking for more is not refused and does not raise: the id
+  A canary on upstream, not on us, and the number is UPSTREAM's
+  rather than our own ceiling of 26 -- the two are different limits
+  for different reasons and this test owns the first. Asking for more
+  than upstream can name is not refused and does not raise: the id
   list runs out while the geometry does not, pandas aligns the two,
-  and a request for 60 stripes comes back as 52 stripes covering part
-  of the prototile.
+  and the request comes back short, covering part of the prototile.
 
-  Our ceiling stops lower, at 26, because ids above that differ only
-  in case; that is a separate matter, guarded by
-  test_element_ids_survive_a_case_insensitive_path.
+  IT FIRED ON 2026-08-25 AND THAT WAS THE NEWS IT EXISTS FOR. The
+  number was 52 -- `string.ascii_letters`, so `a`..`z` then `A`..`Z`
+  -- and weavingspace 0.0.7.89 supplies ids from
+  `TILE_IDS = [a..z, aa..zz]` instead: 702 of them, ALL LOWERCASE.
+  Measured that day against the new vendor.
 
-  WHEN THIS TEST FAILS, upstream has changed how it names elements.
-  That is worth reading rather than patching: if the ids became
-  multi-character the weave string format changed with them, since a
-  weave names one element per character. Do NOT relax the assertion
-  to make the suite green -- it is reporting news, and relaxing it
-  would hide exactly the change it exists to announce.
+  WHAT THAT SETTLES, and it is worth reading rather than patching.
+  Two things blocked element ids past 26 here. Capitals collided on a
+  case-folding path -- a GeoPackage table, a filename on macOS or
+  Windows -- and doubled lowercase letters do not, so upstream has
+  removed that blocker for TILINGS entirely. What it has NOT removed
+  is the weave string format, in which one character means one element
+  ("abcdef-|ghijk-"), typed by users and stored verbatim in the
+  catalogue: a two-character id has nowhere to go there.
+
+  So `catalog.MAX_ELEMENTS` stays at 26, which is a DECISION rather
+  than a discovery -- moving it means auditing everything that assumes
+  an id is one character, and living with a limit that differs by
+  family. Nobody has asked for a twenty-seventh element.
+
+  WHEN THIS TEST FAILS AGAIN, upstream has changed how it names
+  elements again. Do NOT relax the assertion to make the suite green;
+  it is reporting news, and relaxing it would hide exactly the change
+  it exists to announce.
   """
   import contextlib
   import io
-  import string
+  from weavingspace_qgis.vendor.weavingspace import _tiling_geometries
   from weavingspace_qgis import catalog
-  upstream_ceiling = len(string.ascii_letters)      # 52, not ours
+  upstream_ceiling = len(_tiling_geometries.TILE_IDS)     # 702, not ours
+  assert upstream_ceiling == 702, \
+    f"upstream now offers {upstream_ceiling} element ids rather than " \
+    f"702; read what it does before touching either ceiling"
+  assert all(str(i).islower() for i in _tiling_geometries.TILE_IDS), \
+    "upstream's element ids are no longer all lowercase, so the " \
+    "case-folding collision this project caps at 26 to avoid may be " \
+    "back; read the list before touching MAX_ELEMENTS"
   over = upstream_ceiling + 8
   with contextlib.redirect_stdout(io.StringIO()):
     unit = catalog.make_unit(
@@ -1231,19 +1250,37 @@ def test_element_ids_survive_a_case_insensitive_path():
   assert checked == len(catalog.TILINGS_BY_N), \
     f"only {checked} counts were examined; the loop skipped some and " \
     f"the assertion above proves nothing about them"
-  # and prove the check BITES: one step past the ceiling must collide,
-  # or this test would pass on any cap at all
+  # PROVING THE CHECK BITES USED TO MEAN GOING ONE PAST THE CEILING,
+  # because element 27 was `A` beside element 1's `a`. It no longer
+  # does: weavingspace 0.0.7.89 names elements `a`..`z` then
+  # `aa`..`zz`, all lowercase, so nothing the catalogue can build
+  # collides under case folding any more, and a bite test written
+  # that way would be asserting a collision upstream has removed.
+  #
+  # SO THE BITE MOVED TO WHAT STILL BINDS. The reason MAX_ELEMENTS
+  # stops at 26 is now the WEAVE STRING FORMAT, in which one character
+  # means one element ("abcdef-|ghijk-") -- typed by users, stored
+  # verbatim in the catalogue, and unable to hold a two-character id.
+  # Staged rather than argued: one element past the ceiling really
+  # does produce an id that cannot be written into a strands code.
   with contextlib.redirect_stdout(io.StringIO()):
     too_many = catalog.make_unit(
       dict(type="tiling", tiling_type="stripes",
            n=catalog.MAX_ELEMENTS + 1), spacing=500, crs=3857)
   beyond = [str(i) for i in too_many.tiles.tile_id]
-  assert len({i.lower() for i in beyond}) < len(set(beyond)), \
-    f"one element past the ceiling, the ids {sorted(set(beyond))} are " \
-    f"still distinct without case. The cap is no longer where the " \
-    f"collision starts, so it is costing counts for nothing -- " \
-    f"re-measure before either raising or keeping it"
-
+  assert len(set(beyond)) == catalog.MAX_ELEMENTS + 1, \
+    f"one past the ceiling produced {len(set(beyond))} distinct ids, " \
+    f"so this bite test is not staging what it names: {sorted(set(beyond))}"
+  multi = sorted(i for i in set(beyond) if len(i) != 1)
+  assert multi, \
+    f"one element past the ceiling produced no multi-character id " \
+    f"({sorted(set(beyond))}), so the weave format's one-character " \
+    f"rule is not what caps this any more -- re-read why 26 is 26 " \
+    f"before moving it"
+  assert len(set(i.lower() for i in beyond)) == len(set(beyond)), \
+    f"ids past the ceiling collide under case folding again: " \
+    f"{sorted(set(beyond))}. That was upstream's old alphabet and it " \
+    f"would put one element's styling on another's layer"
 
 def test_the_table_copes_with_the_largest_element_count():
   """The dialog at 26 elements: 26 rows, and the layout rule holds.

@@ -1949,6 +1949,41 @@ Confirmed with the user via an explicit design review:
   user-plugin half of this decision, because nothing of theirs is
   destroyed there.
 
+- **THE SIZE GUARD ASKS; ONLY WHAT IS NOT A SIZE IS REFUSED.**
+  (Maintainer's ruling, 2026-08-25: "Warning not absolute. Find a
+  different approach to sentinel if appropriate.") Above
+  `MAX_TILES_CONFIRM` a run is confirmed in ordinary words; above
+  `MAX_TILES_HARD` the SAME question is put in stronger ones -- this
+  may use all the computer's memory, QGIS may stop responding, save
+  your project first -- with the safe button as the default, on the
+  dependency-consent precedent. One question whose wording escalates
+  by band, rather than two gates, because a second gate saying no at a
+  second number is the arrangement that was already wrong once.
+  WHAT THE REFUSAL STOOD ON was a comment claiming the run would
+  exhaust memory and kill QGIS: a figure NOTHING IN THIS REPOSITORY
+  MEASURES, and one the maintainer's own argument disposes of --
+  different machines have different maximums, and different designs
+  have different needs at the same tile count. It had already been
+  wrong in the expensive direction, refusing a map the library renders
+  in five seconds (ledger row 23, 2026-08-19).
+  THE SENTINEL IS WHY IT COULD NOT SIMPLY SOFTEN, and this is the part
+  that generalises. `MAX_TILES_HARD + 1` was ALSO the answer for two
+  cases that are not about size: a unit whose vectors are degenerate,
+  so the design does not repeat across the plane, and an estimate that
+  comes back non-finite, which is what a layer with no CRS produces.
+  Sharing a value meant sharing a SENTENCE -- both told somebody to
+  try a larger spacing, which helps neither -- and it meant that
+  softening the ceiling would turn a broken design into something a
+  user clicks straight past. They are `bridge.UNTILEABLE` and
+  `bridge.UNCOUNTABLE` now, NEGATIVE on purpose: every gate here asks
+  `est > <ceiling>`, so a sentinel smaller than every ceiling cannot
+  be waved through by a comparison somebody forgot to widen. It has to
+  be handled explicitly or it does nothing at all.
+  THE GENERAL FORM: when one value stands for several different
+  answers, softening the treatment of any of them softens all of them.
+  Ask what else shares a sentinel before changing what a threshold
+  means.
+
 - **A BLANK THE PLUGIN IMPOSED IS NOT A CHOICE THE USER MADE.** An
   element left on "---" stays unassigned through rebuilds, because
   cycling a default back in would undo a deliberate switching-off. But
