@@ -183,26 +183,27 @@ committed through `cd07d89` and pushed.
 
 **WHAT IS OPEN, exactly:**
 
-*Two sentences await text review* -- the switch-door notice's pair
-("{columns} is not in '{layer}', so the elements using it now show
-{columns} instead." and its nothing-left variant) -- so
-`check_before_push` is deliberately red and the last local batch
-(rows 37-38 and these entries) is uncommitted until the maintainer
-approves.
+*CI is in flight on two commits.* On `cd07d89` every job but Windows
+has answered green -- mutation, standards, three suites, three
+galleries, three installs and macOS -- and the Windows leg is the one
+carrying the question of whether the Windows red (`a project whose
+output geopackage has moved`, four failures for four runs) died with
+the zero-byte-file fix. On `118804e` (the rulings batch, pushed
+2026-08-26 after the sentences were approved) the mutation run fired
+on the push and the tests run had to be DISPATCHED by hand: GitHub
+created no ci.yml run for the push at all, four minutes and three
+queries later, with no concurrency stanza and no paths filter to
+explain it -- the mutation workflow fired from the same push. A
+watcher keyed to all three run ids is armed.
 
-*One catalogue entry is anchored at the wrong sibling and says so:*
-`a-file-that-will-not-resume-says-so` was disambiguated onto the
-RESTYLE write site while its test drives the LANDING's -- it reports
-SURVIVED honestly. Re-aim it at the landing site (whose neighbouring
-lines differ) and re-prove; two minutes, left visible rather than
-done during a requested pause.
-
-*CI on `cd07d89` is in flight* -- mutation green, tests running with
-no job failed at the time of writing. This run answers two things:
-whether the branch is whole-tree green, and whether the Windows red
-(`a project whose output geopackage has moved`, four failures for
-four runs) died with the zero-byte-file fix, whose moved-away-and-back
-census journey it shares.
+**CLOSED SINCE THE LIST ABOVE WAS FIRST WRITTEN, same day:** the two
+switch-door sentences were approved untouched and applied (`--approve`,
+queue now 0 of 310); the mis-anchored entry
+`a-file-that-will-not-resume-says-so` was re-aimed at the LANDING
+write its test drives -- the write-then-report pair is contiguous only
+there, which is what makes the anchor match exactly once -- and proves
+`caught`; and the whole batch (rows 37-38, tests, entries, documents)
+is committed and pushed as `118804e`.
 
 **THE WINDOWS RED IS JUDGED, 2026-08-26 (night): IT IS REAL, THREE FOR
 THREE.** `a project whose output geopackage has moved` failed on
