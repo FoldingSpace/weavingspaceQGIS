@@ -305,6 +305,8 @@ there is no separate list to remember.
   guarded by `test_a_group_restores_its_own_state_and_no_one_elses`
 - **opening a project with no plugin group under an open dialog left `_project_is_being_replaced` standing for the rest of the session -- the memory banks stayed inert, the dataset identity never bound, and one dataset's value-keyed hand-picks stayed live under the next, which is ruling 8's leak resurrected. Found by the doors hunt of round nine (2026-08-26).**  
   guarded by `test_a_groupless_project_drops_the_replacement_marker`
+- **a re-tile whose element named an unreadable class source kept the worn renderer (right), and the landing's re-examination then adopted those kept colours as hand-picks and stamped them -- so a template's colours became picks that outrank the template forever and restoring the edited file changed nothing. Found by the seams hunt of round nine (2026-08-26); the cure that followed recorded nothing at all, which cost the colours at the next run, and the two halves were settled together by the maintainer the same day.**  
+  guarded by `test_a_kept_scheme_is_held_rather_than_owned`
 - **the scheme cell went on naming a scheme after a ladder was retyped in QGIS or copied from another element, so the row described a classification the map no longer had.**  
   guarded by `test_a_ladder_somebody_else_cut_makes_the_scheme_cell_read_custom`
 - **generating after reopening a project that held maps of two datasets replaced the wrong dataset's map, silently.**  
@@ -401,8 +403,6 @@ there is no separate list to remember.
   guarded by `test_the_file_shows_the_limit_of_what_it_contains`
 - **the output group was the unit of work in the rulings and in three separate mechanisms that had never been driven against each other -- and the first build of them broke six reopen journeys, let go of a map when the region layer was removed, and undid the user's own edits after every landing.**  
   guarded by `test_the_group_unit_rulings_hold_on_every_route`
-- **a re-tile whose element named an unreadable class source kept the worn renderer (right), and the landing's re-examination then adopted those kept colours as hand-picks and stamped them -- so a template's colours became picks that outrank the template forever, and restoring the edited file changed nothing, on the landing path alone with the restyle twin behaving. Found by the seams hunt of round nine (2026-08-26).**  
-  guarded by `test_the_landing_does_not_adopt_its_own_carry`
 - **deleting the output GeoPackage and pressing Generate removed every element layer from the project and added none, silently, because the handle release recreated a zero-byte file and the landing read bare existence as "update the file". Found 2026-08-26 by the file-lifecycle census; the write's own moment measured first=False exists=True size=0.**  
   guarded by `test_the_map_survives_its_file_being_deleted`
 - **a fifty-minute gate that could not be satisfied before the artefact shipped stopped four candidates' worth of work on a release whose plugin passed every test it was given.**  

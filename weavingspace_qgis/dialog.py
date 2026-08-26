@@ -1648,6 +1648,16 @@ class WeavingSpaceDialog(QDialog):
     # that two fields sharing a value name ("other", "none", "1")
     # cannot silently colour each other.
     self._category_colours = {}
+    # ...AND WHICH OF THOSE THE PLUGIN WROTE ITSELF, because an
+    # element whose class-source file has gone keeps the colours it is
+    # drawing by having them RECORDED -- the record is what the next
+    # run, restyle and reopen read -- and those are not a person's
+    # picks. {tile_id: {field: {str(value): "#rrggbb"}}}, the same
+    # shape as the record it shadows, so the two can be compared entry
+    # by entry: a colour the user has changed since no longer matches
+    # and is left alone. (Maintainer's ruling, 2026-08-26: record
+    # them, but a restored file wins.)
+    self._kept_for_unreadable = {}
     # Graduated (quant) customization, settled 2026-08-09. Class
     # colours picked by hand are keyed POSITIONALLY -- {tile_id:
     # {field: {str(class index): "#rrggbb"}}} -- because a class has
@@ -2870,11 +2880,48 @@ class WeavingSpaceDialog(QDialog):
         # not yet moved.
         outgoing = QgsProject.instance().mapLayer(
           self._memory_layer_id or "")
-        self._stamp_working_state(
-          self._group_of_our_layers(QgsProject.instance().layerTreeRoot()),
-          launch_state=(
-            {"region": outgoing.source()} if outgoing is not None
-            else None))
+        # AND A DATASET THAT HAS GONE LEAVES NOTHING TO STAMP. When
+        # the outgoing layer has been REMOVED from the project rather
+        # than switched away from, the table in front of us is blank
+        # because the fields went with it -- a blank the plugin
+        # imposed, not a choice anybody made -- and this handler runs
+        # for every dialog whose combo re-emits, including one the
+        # user has closed. Stamping there wrote an empty variable and
+        # "Single colour" over every element of a perfectly good
+        # record, so the next dialog opened in that project met a
+        # table describing nothing and a Generate that refused for
+        # want of a variable, beside layers plainly drawn from v1.
+        # Measured 2026-08-26 (the record was intact through the close
+        # and the removal, and blank the moment another layer
+        # arrived); it is the reason `test_the_layer_changes_without_
+        # being_edited` went red on every platform at once.
+        group = self._group_of_our_layers(
+          QgsProject.instance().layerTreeRoot())
+        # ...AND THE GROUP HAS TO BE THAT DATASET'S OWN MAP.
+        # `_group_of_our_layers` answers "where this dialog's layers
+        # are", which is the group the last run LANDED in -- not
+        # necessarily the group of the dataset being left. Generate on
+        # A, switch to B, come back to A while that run lands, and the
+        # two are different groups: the stamp then wrote the dataset
+        # being left onto the OTHER dataset's map, so a group's record
+        # and its own layers disagreed about where the map came from --
+        # the single fact the landing's refusal to overwrite and the
+        # group binding both read. Ask the LAYERS, which is the
+        # authority for that question everywhere else here; output made
+        # before the stamp carries none and keeps the older rule.
+        stamps = [child.layer().customProperty("weavingspace_region")
+                  for child in (group.children() if group is not None
+                                else [])
+                  if getattr(child, "layer", lambda: None)() is not None
+                  and child.layer().customProperty("weavingspace_region")]
+        if outgoing is None:
+          _dump("SWITCH", "no-stamp-the-outgoing-dataset-is-gone")
+        elif stamps and not any(same_source(mark, outgoing.source())
+                                for mark in stamps):
+          _dump("SWITCH", "no-stamp-that-group-is-another-datasets")
+        else:
+          self._stamp_working_state(
+            group, launch_state={"region": outgoing.source()})
       except Exception:
         _dump("STATE", "switch-stamp-failed",
               traceback.format_exc(limit=3))
@@ -3136,14 +3183,20 @@ class WeavingSpaceDialog(QDialog):
     old_id = self._memory_layer_id
     if old_id == new_id:
       return
+    # THE KEPT-FOR-UNREADABLE SHADOW BANKS WITH THE RECORD IT SHADOWS.
+    # It holds VALUE STRINGS, so ruling 8 governs it exactly as it
+    # governs the hand-picks: left unbanked, a column name shared
+    # between two datasets would let one dataset's kept colours decide
+    # what is released from the other's record.
     outgoing = {"colours": self._category_colours,
                 "pins": self._pinned_bounds,
-                "shelf": self._scheme_memory}
+                "shelf": self._scheme_memory,
+                "kept": self._kept_for_unreadable}
     if old_id is not None:
       self._dataset_memory[old_id] = outgoing
     bank = self._dataset_memory.get(new_id)
     if bank is None:
-      bank = {"colours": {}, "pins": {}, "shelf": {}}
+      bank = {"colours": {}, "pins": {}, "shelf": {}, "kept": {}}
       if new_id is not None:
         self._dataset_memory[new_id] = bank
     if old_id is None:
@@ -3162,6 +3215,7 @@ class WeavingSpaceDialog(QDialog):
     self._category_colours = bank["colours"]
     self._pinned_bounds = bank["pins"]
     self._scheme_memory = bank["shelf"]
+    self._kept_for_unreadable = bank.setdefault("kept", {})
     self._memory_layer_id = new_id
     _dump("SWAP", str(old_id)[:12], "->", str(new_id)[:12],
           "banked" if old_id is not None else "no-outgoing")
@@ -6122,10 +6176,22 @@ class WeavingSpaceDialog(QDialog):
     picked = (assignment.get("category_colours")
               or self._category_colours.get(tid, {}).get(var or ""))
     if picked:
+      # WHICH OF THEM ARE ONLY HELD, and the stamp is the only place
+      # that can say so across a project boundary. Colours kept
+      # because a class-source file could not be read must survive a
+      # save -- they are what the map draws -- and must still give way
+      # when the file answers again; a reopened project that could not
+      # tell them from picks would go on drawing them over a scheme
+      # somebody had restored. Written as a list of the VALUES, so an
+      # older build reading this property simply ignores a key it does
+      # not know and behaves as it always did.
+      held = list((self._kept_for_unreadable.get(tid) or {}).get(
+        var or "") or {})
+      stamp = {"field": assignment["var"], "colours": picked}
+      if held:
+        stamp["kept"] = sorted(held)
       layer.setCustomProperty(
-        "weavingspace_category_colours",
-        json.dumps({"field": assignment["var"], "colours": picked},
-                   sort_keys=True))
+        "weavingspace_category_colours", json.dumps(stamp, sort_keys=True))
     else:
       layer.removeCustomProperty("weavingspace_category_colours")
     # the graduated customization travels the same way: positional
@@ -6309,6 +6375,20 @@ class WeavingSpaceDialog(QDialog):
           field, {})
         for key, value in colours.items():
           have.setdefault(key, value)
+        # ...AND WHICH OF THEM THE ELEMENT ONLY HOLDS, so a scheme
+        # file that answers again after the project is reopened takes
+        # its colours back exactly as it would have done in the
+        # session that saved them. A record written before this key
+        # existed simply has none, and those colours stay as picks --
+        # which is what that build recorded them as.
+        held = stored.get("kept")
+        if isinstance(held, list):
+          shadow = self._kept_for_unreadable.setdefault(
+            tile_id, {}).setdefault(field, {})
+          for key in held:
+            colour = colours.get(str(key))
+            if colour is not None and have.get(str(key)) == colour:
+              shadow.setdefault(str(key), colour)
     # and the graduated record, guarded the same way: an unreadable
     # property must never stop the dialog from opening
     raw = layer.customProperty("weavingspace_quant_style")
@@ -6814,6 +6894,12 @@ class WeavingSpaceDialog(QDialog):
                    # GeoPackage. A cleanup that works by side effect
                    # is a cleanup nobody has written down.
                    self._scheme_memory,
+                   # ...and the shadow of the hand-picks, joining the
+                   # list in the commit that adds it rather than in
+                   # the one that finds it missing. Left standing, it
+                   # would release colours in the INCOMING project
+                   # that were kept for a file the outgoing one named.
+                   self._kept_for_unreadable,
                    self._custom_swatch_cache):
       record.clear()
     self._dataset_memory.clear()
@@ -7171,6 +7257,115 @@ class WeavingSpaceDialog(QDialog):
       recovered[str(index)] = colour
     if recovered and (expected is not None or not named):
       self._quant_colours.setdefault(tile_id, {})[field] = recovered
+
+  def _own_the_colours_of_an_unreadable_source(self, layer, assignment):
+    """Record what a kept renderer draws, because its file has gone.
+
+    Args:
+      layer: the element's layer, already wearing the renderer kept
+        because its class-source file could not be read.
+      assignment: that element's row as `_assignments` reports it.
+
+    Returns:
+      None. Writes each category's colour into the element's own
+      record for its current field, and notes in
+      `_kept_for_unreadable` that it was written HERE rather than
+      chosen, so a file that can be read again takes the question
+      back. A value the element already holds a colour for is left
+      alone: that one is somebody's.
+
+    WHY THE RECORD RATHER THAN THE RENDERER. Keeping the renderer is
+    what stops the map repainting on the run in front of us; it is not
+    what keeps the colours. The record is what the next run, the next
+    restyle and the next reopen read, so colours held only on a
+    renderer survive exactly until one of those and the element then
+    falls back to automatic ones with nothing said. A missing file is
+    a reason to stop consulting the file, not a reason to repaint
+    somebody's map, and that has been the settled answer since the
+    case was first tested.
+
+    AND THEY ARE NOT PICKS FOREVER, which is the half round nine got
+    right and this one must not undo: recorded colours that outrank a
+    template mean restoring an edited scheme file changes nothing.
+    The shadow record is what tells the two apart; its twin,
+    `_release_colours_kept_for_an_unreadable_source`, hands the
+    question back. (Maintainer's ruling, 2026-08-26, on the two
+    registered tests that had come to demand opposite things.)
+    """
+    field = assignment.get("var")
+    if not field or assignment.get("mode") != "Categorized":
+      return
+    # A DEFERRING ELEMENT IS NOBODY'S TO RECORD. Deferral means the
+    # plugin has stopped deciding this element's symbology, and what
+    # sits on the layer then is the dock's work rather than a scheme
+    # file's -- recording it would make the plugin the author of
+    # somebody else's colours, which is the same fault as adopting a
+    # carry.
+    if assignment.get("mode_raw") == self.DEFERRING:
+      return
+    renderer = layer.renderer() if layer is not None else None
+    ask = getattr(renderer, "categories", None)
+    if ask is None:
+      return
+    # BOUND FIRST. A temporary list from a QGIS getter frees its
+    # contents, so `categories()[0].symbol()` reads released memory --
+    # once a segfault here, once a plausible wrong colour.
+    categories = ask()
+    tile_id = str(assignment.get("id"))
+    record = self._category_colours.setdefault(tile_id, {}).setdefault(
+      field, {})
+    shadow = self._kept_for_unreadable.setdefault(tile_id, {}).setdefault(
+      field, {})
+    for category in categories:
+      symbol = category.symbol()
+      if symbol is None:
+        continue
+      value = category.value()
+      # keyed as every other record here keys them, catch-all included
+      key = bridge.NO_DATA_KEY if value is None else str(value)
+      if key in record:
+        continue
+      colour = symbol.color().name()
+      record[key] = colour
+      shadow[key] = colour
+    if shadow:
+      _dump("KEPT", tile_id, field, "held=", len(shadow))
+
+  def _release_colours_kept_for_an_unreadable_source(self, assignment):
+    """Give the colours back to a class source that can be read again.
+
+    Args:
+      assignment: the element's row as `_assignments` reports it.
+
+    Returns:
+      None. Drops the entries this element's record only holds because
+      its file had gone -- and only those still wearing the colour
+      that was kept, since a colour the user has changed since is
+      theirs and stays.
+
+    This is the second half of the ruling above: the map keeps its
+    colours while the file is unreadable, and the file governs again
+    the moment it can be read. Without it, restoring an edited scheme
+    would change nothing on the map and the control would look broken.
+    """
+    field = assignment.get("var")
+    if not field:
+      return
+    tile_id = str(assignment.get("id"))
+    for_element = self._kept_for_unreadable.get(tile_id)
+    if not for_element:
+      return
+    shadow = for_element.pop(field, None)
+    if not shadow:
+      return
+    record = (self._category_colours.get(tile_id) or {}).get(field) or {}
+    given_back = 0
+    for key, colour in shadow.items():
+      if record.get(key) == colour:
+        record.pop(key, None)
+        given_back += 1
+    if given_back:
+      _dump("KEPT", tile_id, field, "released=", given_back)
 
   def _clear_category_colours(self, tile_id, because):
     """Forget an element's hand-picked colours for its current field.
@@ -12401,6 +12596,11 @@ class WeavingSpaceDialog(QDialog):
           # controls do nothing.
           pass
         else:
+          # released before the seeding reads the record, for the
+          # reason its twin gives at the landing: a held colour
+          # outranks a template, so a late release repaints the map
+          # with the colours the file had before it went away
+          self._release_colours_kept_for_an_unreadable_source(a)
           bridge.seed_renderer(
             layer, a, templates.get(a.get("class_source")),
             self._classification_values(a.get("var")) if a.get("var")
@@ -12410,6 +12610,13 @@ class WeavingSpaceDialog(QDialog):
           # rather than from `a`, because a classifier can reduce,
           # snap or collapse what we asked for.
           self._remember_painted_ladder(layer, a["id"])
+        # AN ELEMENT WHOSE CLASS SOURCE CANNOT BE READ OWNS WHAT IT
+        # DRAWS, the twin of the landing's own line and asked in the
+        # same place for the same reason: after the renderer is
+        # settled, so that every route to a kept renderer is covered
+        # rather than the one arm that names the file.
+        if a.get("class_source") in unreadable:
+          self._own_the_colours_of_an_unreadable_source(layer, a)
         # this element changed in the dialog, so its opacity is ours to
         # set; an element whose signature matched is skipped entirely
         # above, which is what leaves a hand-set opacity alone
@@ -14583,7 +14790,16 @@ class WeavingSpaceDialog(QDialog):
     elements = record.get("elements") or []
     layer = self.layer_combo.currentLayer()
     here = layer.source() if layer is not None else None
-    same_data = bool(here) and here == record.get("region")
+    # THROUGH `same_source`, AND THIS WAS THE EIGHTH SITE. The seven
+    # mended on 2026-08-26 all compared a STAMP with a stamp; this one
+    # compares the source of the layer in force with the region a
+    # SAVED RECORD names, which is the same question across the same
+    # boundary -- a project save respells the path half, so on Windows
+    # every reopened project answered False here and dropped the pins
+    # and the hand-picked colours the record was carrying home. Three
+    # Windows-only reds, one comparison. A string that carries a path
+    # inside it is a path, wherever the two halves came from.
+    same_data = bool(here) and same_source(here, record.get("region"))
     for element in elements:
       if not isinstance(element, dict):
         continue
@@ -14760,10 +14976,37 @@ class WeavingSpaceDialog(QDialog):
       return
     try:
       record = self._capture_working_state()
+      # THE MAP-SHAPED HALVES ARE CARRIED, NOT RE-DERIVED, and this is
+      # what makes a stamp taken away from a landing safe. Until
+      # 2026-08-26 the design, the output path and the region were
+      # re-read from the live controls whenever no launch snapshot was
+      # handed over -- which was true of the two writers round nine
+      # added, the switch-out stamp and the queued restamp, neither of
+      # which happens at a moment when the controls describe the map
+      # this group holds. Measured: move the design controls away from
+      # a landed group without generating, and one adopted dock edit
+      # was enough to leave the group claiming a family, an element
+      # count and a spacing its own layers were never drawn at; switch
+      # the region chooser, and the group was filed under a dataset it
+      # was not made from, which is the fact the landing's refusal and
+      # the group binding both read.
+      # So the previous record wins over a live reading, and only a
+      # LANDING -- which passes the snapshot the run was launched
+      # with -- may move these three. A group with no record yet still
+      # takes the live values, since there is nothing older to trust.
+      carried = self._read_working_state(group) or {}
       if isinstance(launch_state, dict):
-        for key in ("design", "output_path", "region"):
-          if key in launch_state:
-            record[key] = launch_state[key]
+        carried = {**carried, **launch_state}
+      for key in ("design",) + WORKING_STATE_EDGES:
+        if key in carried:
+          record[key] = carried[key]
+      # WHICH DATASET THIS RECORD NOW CLAIMS, and where that claim
+      # came from: the two questions any disagreement between a
+      # group's record and its layers comes down to.
+      _dump("STATE", "stamp", group.name(),
+            "region=", str(record.get("region"))[-26:],
+            "from=", "launch" if isinstance(launch_state, dict)
+            else ("carried" if carried else "live"))
       group.setCustomProperty(WORKING_STATE_PROPERTY, json.dumps(record))
     except Exception:
       _dump("STATE", "stamp-failed", traceback.format_exc(limit=3))
@@ -16457,6 +16700,13 @@ class WeavingSpaceDialog(QDialog):
           out.setRenderer(old_renderers[tid])
           self._preserved_this_run.append(tid)
         else:
+          # THE FILE ANSWERS AGAIN, so anything this element was
+          # holding on its behalf goes back BEFORE the seeding reads
+          # the record -- hand-picked colours outrank a template by
+          # design, so releasing afterwards would leave the seeding to
+          # paint the colours the file had before it went away and the
+          # restored file would look ignored.
+          self._release_colours_kept_for_an_unreadable_source(a)
           # the same values as the restyle path hands over, so an
           # element wears the same breaks whichever path drew it
           bridge.seed_renderer(
@@ -16472,6 +16722,19 @@ class WeavingSpaceDialog(QDialog):
         # re-seeded, so the dialog is the authority for this element's
         # whole appearance this run, opacity included
         out.setOpacity(max(0, min(100, a.get("opacity", 100))) / 100.0)
+      # AN ELEMENT WHOSE CLASS SOURCE CANNOT BE READ OWNS WHAT IT
+      # DRAWS, and this is asked AFTER the renderer is settled rather
+      # than inside the arm that keeps one, because TWO routes reach a
+      # kept renderer here: the unreadable-source arm, and the older
+      # promise that an element whose assignment has not changed keeps
+      # its styling. The first draft asked inside the arm alone, and
+      # the ordinary journey -- draw a map from a scheme file, move
+      # the file, change the spacing -- takes the other route, so it
+      # recorded nothing at all. The question the state can answer at
+      # any moment is whether this element's source is readable, which
+      # is what is asked here. (Maintainer's ruling, 2026-08-26.)
+      if a.get("class_source") in unreadable:
+        self._own_the_colours_of_an_unreadable_source(out, a)
       element_fills[tid] = bridge.renderer_fill_colours(out)
       out.setCustomProperty("weavingspace_output", True)
       # Hand-picked category colours travel with the layer, so a saved

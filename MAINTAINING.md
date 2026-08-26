@@ -439,6 +439,50 @@ dataset) rather than from the chooser, which already holds the new
 one. A run in flight is left to its landing, whose launch snapshot
 must win.
 
+## A group's record: which half comes from which moment
+
+The design, the output path and the region describe THE MAP THAT WAS
+DRAWN, so only a landing may move them: it passes the snapshot its run
+was launched with. Every other writer -- the switch-out stamp above,
+the queued restamp that follows an adopted dock edit -- carries those
+three forward from the record already on the group and re-reads only
+the ELEMENTS, which are live by design because the colour editors stay
+usable during a run.
+
+Until 2026-08-26 the three were re-derived from the live controls
+whenever no snapshot was handed over, which cost three defects in one
+day: a group claiming a design its own layers were never drawn at, a
+map filed under a dataset it was not made from, and a blank table
+written over a good record.
+
+Two conditions belong to the switch-out stamp on top of that, and both
+ask WHOSE state this is rather than when it was taken. A dataset that
+has been removed leaves nothing to stamp, because the table is blank
+only because its fields went with it. And the group has to be that
+dataset's own map, asked of the layers' `weavingspace_region` stamps:
+`_group_of_our_layers` answers where this dialog's layers are, which
+is the group the last run LANDED in and not necessarily the group of
+the dataset being left.
+
+## Colours kept for a file that has gone
+
+An element whose class source cannot be read keeps what it draws, and
+the record is how. `_own_the_colours_of_an_unreadable_source` writes
+the kept renderer's colours into the element's hand-picked record and
+notes them in `_kept_for_unreadable`, which shadows that record entry
+for entry, banks with it per dataset, and travels in the layer's stamp
+under `"kept"`. `_release_colours_kept_for_an_unreadable_source` gives
+them back the moment the file answers again, before anything is seeded
+-- a held colour outranks a template, so a late release would repaint
+the map with the colours the file had before it went away.
+
+Both are asked AFTER the renderer is settled rather than inside the
+arm that keeps one, because two routes reach a kept renderer: that arm
+and the older promise that an element whose assignment has not changed
+keeps its styling. The first draft asked inside the arm and the
+ordinary journey -- draw a map from a scheme file, move the file,
+change the spacing -- takes the other route.
+
 ## Invariants — do not break these
 
 1. **The worker thread never touches pyproj/PROJ.** QGIS uses the same

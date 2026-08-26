@@ -63009,14 +63009,27 @@ def test_a_resume_is_not_snatched_by_its_own_tail():
       # not the dataset the chooser happened to hold when recovery
       # failed
       if file_record_region:
-        from weavingspace_qgis.dialog import WORKING_STATE_PROPERTY
+        from weavingspace_qgis.dialog import (WORKING_STATE_PROPERTY,
+                                              same_source)
         root = project.layerTreeRoot()
         group = dlg._group_of_our_layers(root)
         held = (group.customProperty(WORKING_STATE_PROPERTY)
                 if group is not None else None)
-        assert held and file_record_region in str(held), \
+        # ASKED AS THE PLUGIN ASKS IT, not as a substring. A path
+        # written into a saved record comes back spelt however the
+        # writer spelt it -- on Windows with backslashes, escaped
+        # again by JSON -- so `region in str(record)` compares two
+        # spellings of one file and answers no. That is the defect
+        # this project spent six CI rounds on, reproduced inside the
+        # test that was checking for it.
+        recorded = None
+        try:
+          recorded = (json.loads(held) or {}).get("region") if held else None
+        except ValueError:
+          recorded = None
+        assert recorded and same_source(recorded, file_record_region), \
           f"the resumed group's record does not name the file's own " \
-          f"dataset ({str(held)[:200]!r})"
+          f"dataset ({recorded!r} against {file_record_region!r})"
     finally:
       dlg.close()
   finally:
@@ -63130,10 +63143,66 @@ def test_a_pickless_copy_clears_the_class_source():
     project.clear()
 
 
-def test_the_landing_does_not_adopt_its_own_carry():
-  """A renderer the plugin kept is never mistaken for a person's picks.
+def _drawn_by_value(layer) -> dict:
+  """What a categorized layer draws, keyed as the dialog keys it.
 
-  Regression: a re-tile whose element named an unreadable class source kept the worn renderer (right), and the landing's re-examination then adopted those kept colours as hand-picks and stamped them -- so a template's colours became picks that outrank the template forever, and restoring the edited file changed nothing, on the landing path alone with the restyle twin behaving. Found by the seams hunt of round nine (2026-08-26). [mutation]
+  Args:
+    layer: an element layer wearing a categorized renderer.
+
+  Returns:
+    {value: "#rrggbb"}, with the catch-all under `bridge.NO_DATA_KEY`
+    exactly as the dialog's own records key it -- `str(None)` is
+    "None", which compares equal to nothing on either side and once
+    reported a record as missing an entry it held.
+
+  The list is bound before it is walked: a temporary list from a QGIS
+  getter frees its contents, which this project has met as both a
+  segfault and a plausible wrong colour.
+  """
+  from weavingspace_qgis import bridge as _bridge
+  renderer = layer.renderer() if layer is not None else None
+  ask = getattr(renderer, "categories", None)
+  if ask is None:
+    return {}
+  categories = ask()
+  drawn = {}
+  for category in categories:
+    symbol = category.symbol()
+    if symbol is None:
+      continue
+    value = category.value()
+    key = _bridge.NO_DATA_KEY if value is None else str(value)
+    drawn[key] = symbol.color().name()
+  return drawn
+
+
+def test_a_kept_scheme_is_held_rather_than_owned():
+  """Colours kept for a missing file survive it, and give way when it returns.
+
+  THE MAINTAINER'S RULING OF 2026-08-26, which settled a collision
+  between two registered tests that had come to demand opposite
+  things of one journey. An element whose class-source file cannot be
+  read keeps the colours it is drawing, and it keeps them by having
+  them RECORDED: a renderer alone lasts until the next run, restyle
+  or reopen, and then the element falls back to automatic colours
+  with nothing said. So the record holds them -- and holds them as
+  HELD rather than as picks, so that a file which can be read again
+  governs its own colours once more. Recording them outright was the
+  older behaviour and it made restoring an edited scheme do nothing
+  at all; recording nothing was the newer one and it lost the map's
+  colours at the next reopen. Neither half is optional.
+
+  ONE AXIS HERE IS HELD REDUNDANTLY, and it is written down rather
+  than left as a permanent survivor. The categorical adoption walk
+  attributes each colour against `_painted_categories`, and the
+  ruling's own transfer now writes the same fact on this journey --
+  so breaking the attribution condition alone changes nothing this
+  test can see. Measured 2026-08-26 by breaking BOTH routes at once,
+  which fails at the catch-all colour: the axis is live, its entry
+  was retired, and this paragraph is what the catalogue would
+  otherwise have said.
+
+  Regression: a re-tile whose element named an unreadable class source kept the worn renderer (right), and the landing's re-examination then adopted those kept colours as hand-picks and stamped them -- so a template's colours became picks that outrank the template forever and restoring the edited file changed nothing. Found by the seams hunt of round nine (2026-08-26); the cure that followed recorded nothing at all, which cost the colours at the next run, and the two halves were settled together by the maintainer the same day. [mutation]
   """
   import shutil
   import tempfile
@@ -63177,8 +63246,7 @@ def test_the_landing_does_not_adopt_its_own_carry():
     _tick(300)
     _settle(dlg, seconds=60)
     lyr = project.mapLayer(dlg._element_layer_ids[tid])
-    worn = {str(c.value()): c.symbol().color().name()
-            for c in lyr.renderer().categories() if c.symbol()}
+    worn = _drawn_by_value(lyr)
     assert worn, "PREMISE: the first landing drew no categories"
     before = dict(dlg._category_colours.get(tid, {}).get(
       "landcover") or {})
@@ -63191,18 +63259,79 @@ def test_the_landing_does_not_adopt_its_own_carry():
     _tick(300)
     _settle(dlg, seconds=60)
     out = project.mapLayer(dlg._element_layer_ids[tid])
-    kept = {str(c.value()): c.symbol().color().name()
-            for c in out.renderer().categories() if c.symbol()}
+    kept = _drawn_by_value(out)
     shared = {v for v in worn if v in kept and worn[v] == kept[v]}
     assert shared, \
       "PREMISE: the landing did not keep the worn renderer, so the " \
       "arm under test never fired and adoption has nothing to adopt"
     after = dict(dlg._category_colours.get(tid, {}).get(
       "landcover") or {})
-    assert after == before, \
-      f"the landing adopted its own kept renderer as hand-picks: " \
-      f"{before!r} became {after!r} -- the carry outranks the " \
-      f"template from here on"
+    assert after != before, \
+      f"nothing was recorded when the file went away ({after!r}), so " \
+      f"the colours on this map live only until the next run"
+    missing = {value for value, colour in worn.items()
+               if after.get(value) != colour}
+    assert not missing, \
+      f"the record does not hold what the map draws for {missing!r}: " \
+      f"the record is what the next run, the next restyle and the " \
+      f"next reopen read"
+    held = dict((dlg._kept_for_unreadable.get(tid) or {}).get(
+      "landcover") or {})
+    assert held and set(held) <= set(after), \
+      f"the colours were recorded as though somebody had picked them " \
+      f"({held!r}); nothing then tells them from a person's work, and " \
+      f"a restored file could never take the question back"
+
+    # ---- AND THE PLUGIN IS CLOSED AND OPENED AGAIN, which users do
+    # constantly and which is where a session-only record would lose
+    # the distinction: the colours are stamped on the layer, so a
+    # fresh dialog adopts them, and unless the stamp also says which
+    # of them are merely HELD they come back indistinguishable from
+    # picks and the restored file below could never win.
+    dlg.close()
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(500)
+    recovered = dict((dlg._kept_for_unreadable.get(tid) or {}).get(
+      "landcover") or {})
+    assert recovered == held, \
+      f"opening the plugin again lost which colours are only held: " \
+      f"{recovered!r} against {held!r}"
+    adopted = dict(dlg._category_colours.get(tid, {}).get(
+      "landcover") or {})
+    assert set(held) <= set(adopted), \
+      f"the held colours did not survive the plugin being reopened " \
+      f"({adopted!r}), so the map they draw is one run from being lost"
+
+    # ---- AND THE FILE COMES BACK, EDITED, which is the half the
+    # record must not swallow. This is the harm the round-nine reading
+    # measured: colours held on a file's behalf that outrank the file
+    # make restoring it do nothing at all, and the control looks
+    # broken. Written back at the SAME path, so the class source the
+    # row names is the one that changed.
+    _write_class_qml(qml, [("forest", "#0a0b0c", "Forest"),
+                           ("water", "#0d0e0f", "Water"),
+                           ("urban", "#101112", "Urban"),
+                           ("crops", "#131415", "Crops")])
+    assert os.path.exists(qml), "PREMISE: the scheme was not restored"
+    _tick(300)
+    dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.25)
+    _tick(300)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    back = project.mapLayer(dlg._element_layer_ids[tid])
+    now = _drawn_by_value(back)
+    assert now.get("forest") == "#0a0b0c", \
+      f"the restored scheme did not reach the map ({now!r}): the " \
+      f"colours kept while it was missing outranked the file itself, " \
+      f"so putting it back changed nothing"
+    left = dict((dlg._kept_for_unreadable.get(tid) or {}).get(
+      "landcover") or {})
+    assert not left, \
+      f"the element is still holding colours on the file's behalf " \
+      f"({left!r}) although the file answers again"
   finally:
     dlg.close()
     project.clear()
@@ -63629,7 +63758,24 @@ def test_every_restyle_door_repaints_the_preview():
       old = str(dlg._table_id_colours()[tid]).lower()
       assert resting(dlg, tid) == old, \
         "ORACLE PREMISE: the preview does not hold the baseline colour"
-      os.rename(region_path, region_path + ".away")
+      # WINDOWS CANNOT STAGE THIS DOOR, and it says so rather than
+      # failing: the OGR provider holds the GeoPackage open, and
+      # Windows refuses to rename a file another handle has, so "the
+      # source went away while the layer was open" is a state that
+      # does not exist there. Releasing the provider first would
+      # destroy the very layer this door is about. Door one above ran
+      # in full, so the SKIP names which half went missing rather
+      # than letting the test read as wholly skipped -- the practice
+      # four older tests here already follow.
+      try:
+        os.rename(region_path, region_path + ".away")
+      except OSError as exc:
+        _skip_loudly(
+          "test_every_restyle_door_repaints_the_preview",
+          f"door two only: this platform will not move a GeoPackage "
+          f"out from under an open layer, so the source-gone restyle "
+          f"cannot be staged here ({exc}). Door one ran.")
+        return
       _tick(300)
       other = "Purples" if "#6a51a3" not in old else "Oranges"
       pick_ramp(dlg, row, other)
@@ -63870,6 +64016,30 @@ def test_one_dataset_spelt_two_ways_is_one_dataset():
     groups = [g.name() for g in project.layerTreeRoot().findGroups()]
     assert len(groups) == 1, \
       f"one dataset spelt two ways left two groups: {groups}"
+
+    # ---- AND THE RECORD A SAVED PROJECT CARRIES HOME, which is the
+    # EIGHTH site and the one the first sweep missed: the seven mended
+    # that day all compared a stamp with a stamp, while this compares
+    # the source of the layer in force with the region a saved record
+    # NAMES. Answering no there drops the pins and hand-picked colours
+    # the record is carrying for fields the map does not display --
+    # ruling 8's protection, refusing the very dataset it is meant to
+    # protect. Three Windows-only reds turned on it, and none of them
+    # could be reproduced on this machine until this leg staged the
+    # two spellings here.
+    dlg._pinned_bounds.clear()
+    field = next((f.name() for f in region.fields()
+                  if f.isNumeric()), region.fields().at(0).name())
+    dlg._apply_element_records(
+      {"region": spelt_another,
+       "elements": [{"id": "a", "var": field, "mode": "Graduated",
+                     "mode_raw": "Quant: Quantiles",
+                     "pinned": {"low": 2.5}}]})
+    restored = (dlg._pinned_bounds.get("a") or {}).get(field) or {}
+    assert restored.get("low") == 2.5, \
+      f"a record whose region is spelt the other way was read as " \
+      f"another dataset's, so the work it carries home was dropped " \
+      f"({restored!r}); this is the reopened project's own journey"
   finally:
     if dlg is not None:
       dlg.close()
@@ -65138,8 +65308,8 @@ def main():
         test_a_groupless_project_drops_the_replacement_marker)
   check("a pick-less copy clears the class source",
         test_a_pickless_copy_clears_the_class_source)
-  check("the landing does not adopt its own carry",
-        test_the_landing_does_not_adopt_its_own_carry)
+  check("a kept scheme is held rather than owned",
+        test_a_kept_scheme_is_held_rather_than_owned)
   check("a retired dialog's landing is discarded",
         test_a_retired_dialogs_landing_is_discarded)
   check("a dropped table takes its saved style with it",

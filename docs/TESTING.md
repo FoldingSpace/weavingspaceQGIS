@@ -2844,6 +2844,53 @@ a QMessageBox, which the suite's shim records in MODALS. Reading one
 store and concluding silence is harness fault eleven of this
 project's own ledger, met again.
 
+## A ROUND CAN PASS EVERY TEST IT WROTE AND BREAK FOUR IT DID NOT RUN
+
+2026-08-26, and it is the plainest measurement this file has of what a
+targeted run is worth. Round nine fixed fifteen defects, wrote a test
+for each, proved twenty catalogue entries, and was verified by running
+those tests and their neighbours. It shipped FOUR REGRESSIONS. The
+mutation workflow's coverage leg -- which runs the whole suite, for
+its own reasons -- named them: green at the commit before, red at the
+round's own commit, four tests, every one reproducible here on the
+first attempt.
+
+THE FOUR WERE NOT SUBTLE. Open the plugin in a project that already
+holds a map and every row came up blank, on "Single colour", beside
+layers plainly drawn from a column; Generate then refused for want of
+a variable. That is the commonest journey there is, and the round that
+broke it had eight hunts pointed at the same code.
+
+**A HUNT ASKS WHAT MIGHT BE BROKEN; THE SUITE ASKS WHAT IS.** Both
+rounds of hunts here were aimed at the fresh work and found real
+defects in it, which is what this file already promises they do. What
+neither can do is notice that a repair has broken a promise made
+somewhere else -- and neither can the catalogue, which proves the
+entry's own test.
+
+**AND A TEST NOBODY RUNS CAN BE CONTRADICTED WITHOUT ANYBODY
+NOTICING.** One of the four was a new test asserting the OPPOSITE of a
+registered one about the same journey: the round-nine test required a
+record to stay empty, the older test required it to be filled. Both
+were green in their own runs; nothing but the whole suite puts the two
+in the same room. When a fix changes what a record holds, grep the
+suite for other tests that read that record before writing a new one.
+
+## AN ENTRY CAN STOP CATCHING BECAUSE A RULING GAVE THE FACT A SECOND
+## WRITER
+
+Same day. The entry over the categorical attribution walk was proved
+`caught` when it was written, and survived a day later -- not because
+the test had weakened, but because the maintainer's ruling had added a
+deliberate second writer of the same fact, so breaking the walk alone
+changed nothing observable.
+
+The procedure this file already prescribes is what settled it: break
+every route AT ONCE. Both broken, the test fails, at the catch-all
+colour -- so the axis is live and REDUNDANTLY HELD. The entry was
+retired and the redundancy written at the test, which is the honest
+record, and better than an entry that can only ever be red.
+
 ## WHEN A REPAIR GIVES ONE STORE A NEW WRITE, ENUMERATE EVERY STORE
 
 The last two findings of 2026-08-26 were the same shape as each other,

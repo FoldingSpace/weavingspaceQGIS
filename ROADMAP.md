@@ -192,20 +192,36 @@ three-day window and five inside that window's own repairs.
 
 **WHAT IS OPEN, exactly:**
 
-*THE WINDOWS REDS, two, and they are the only thing between here and
-the rc.* Both are Windows-only; every other job on every platform is
-green. See the entry below for where the diagnosis stands.
+*FOUR REGRESSIONS ROUND NINE SHIPPED ARE FIXED, 2026-08-26, and how
+they were found matters more than what they were.* The round was
+verified by targeted runs and broke four tests it did not run --
+including the commonest journey there is, opening the plugin in a
+project that already holds a map, where every row came up blank and
+Generate refused for want of a variable. The mutation workflow's
+coverage leg runs the whole suite and named them: green at `6d6ea2d`,
+red at `64cb0fa`. All four reproduced here on the first attempt.
+Three were one mechanism -- a stamp taken away from a landing writing
+the design, the output path and the region from the live controls --
+and the fourth was a collision between two registered tests, settled
+by the maintainer as the third ruling of 2026-08-26. Rows 55 to 58 of
+`docs/process/defects-2026-08-26.md`; the ruling binds from CLAUDE.md.
 
-*CI is in flight* on `64cb0fa` (the round-nine batch) and `ec45f44`
-(the diagnosis instrumentation), with watchers on the run ids. Both
-carry the Windows question; `ec45f44` also carries the probe round
-that should name the mechanism.
+*THE FULL LOCAL SUITE is the gate that has to answer next*, for the
+reason those four exist: a green subset is not a green suite, and this
+project believed one twice in a day.
 
 *Two changelog additions await the maintainer* before promotion --
 the switch door speaking, and a field's return wearing its own style
 -- because both are user-visible behaviours the approved entry
 predates, and this project's rule is that a changelog approved before
 a behaviour change is stale by definition.
+
+*ONE CATALOGUE ENTRY WAS RETIRED WITH ITS REDUNDANCY DEMONSTRATED*:
+the categorical attribution walk is now written a second time by the
+ruling's own transfer, so breaking the walk alone changes nothing a
+test can see. Both routes broken together fail at the catch-all
+colour, so the axis is live and redundantly held; the measurement is
+recorded at the test.
 
 **THE WINDOWS RED IS DIAGNOSED AND FIXED, 2026-08-26.** `a project
 whose output geopackage has moved` failed alone on Windows for SIX CI

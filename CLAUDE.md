@@ -2026,6 +2026,70 @@ Confirmed with the user via an explicit design review:
   the reopened one did, so it was two rules colliding rather than a
   persistence fault.
 
+- **A THIRD RULING OF 2026-08-26: A KEPT SCHEME IS HELD, NOT OWNED.**
+  An element whose class-source file cannot be read keeps the colours
+  it is drawing, and it keeps them by having them RECORDED -- a
+  renderer alone lasts until the next run, restyle or reopen, and then
+  the element falls back to automatic colours with nothing said. They
+  are recorded as HELD rather than as picks: `_kept_for_unreadable`
+  shadows the hand-picked record entry for entry, banks with it under
+  ruling 8, and travels in the layer's own stamp so the plugin being
+  closed and opened again keeps the distinction. The moment the file
+  can be read again it takes its colours back, BEFORE anything is
+  seeded from them -- a held colour outranks a template, so a late
+  release repaints the map with the colours the file had before it
+  went away.
+  IT SETTLED A COLLISION BETWEEN TWO REGISTERED TESTS, which is why it
+  is a ruling and not a fix. One required the element to own those
+  colours ("a missing file is a reason to stop consulting the file,
+  not a reason to repaint somebody's map"); the other, written the day
+  before, required the record to stay empty, because colours that
+  outrank a template make restoring an edited scheme change nothing.
+  Both harms were real and measured. WHEN TWO SETTLED RULES GIVE ONE
+  ACT TWO ANSWERS, THE ANSWER IS USUALLY BOTH -- with the thing that
+  tells them apart written down.
+
+- **A STAMP TAKEN AWAY FROM A LANDING MAY CARRY ONLY WHAT A LANDING
+  DECIDED.** (2026-08-26, ledger rows 55-57, three regressions in one
+  mechanism.) `_stamp_working_state` takes the design, the output path
+  and the region from the launch snapshot when it is given one and
+  from the LIVE CONTROLS when it is not -- which was harmless while
+  landings were the only writers, and became three defects the day
+  round nine added two writers that never stand at a landing. Move the
+  design controls after a map lands and one adopted dock edit made the
+  group claim a design its layers were never drawn at; switch the
+  chooser and the group was filed under a dataset it was not made
+  from, which is the fact the landing's refusal and the group binding
+  both read. Those three keys are CARRIED from the record already on
+  the group now, and only a landing may move them.
+  TWO MORE CONDITIONS BELONG TO THE SWITCH-OUT STAMP ITSELF, and both
+  are about attribution rather than timing. A dataset that has been
+  REMOVED leaves nothing to stamp: the table is blank because its
+  fields went with it -- a blank the plugin imposed -- and this
+  handler runs for every dialog whose combo re-emits, including one
+  the user has closed, so it wrote that blank over a good record and
+  the next dialog opened in that project met a table describing
+  nothing. And the group must be the OUTGOING DATASET'S OWN MAP, asked
+  of the layers' stamps: `_group_of_our_layers` answers where this
+  dialog's layers are, which is where the last run landed.
+  ASK OF ANY WRITER THAT COPIES A RECORD: which moment is each field
+  about, and does this writer stand at that moment?
+
+- **A GREEN SUBSET IS NOT A GREEN SUITE, AND THIS PROJECT BELIEVED ONE
+  TWICE IN ONE DAY.** (2026-08-26.) Round nine was verified by
+  targeted runs -- every fix's own test, every neighbour anybody
+  thought of -- and shipped FOUR regressions, each one an ordinary
+  journey: open the plugin in a project that already holds a map and
+  every row came up blank with Generate refusing for want of a
+  variable. What found them was the mutation workflow's coverage leg,
+  which runs the WHOLE suite: green at `6d6ea2d`, red at `64cb0fa`,
+  four named tests, all four reproduced here on the first attempt.
+  The rule already written is that a change to a core path is verified
+  by the whole suite and that the candidate is where that happens.
+  What this adds is the failure mode when the rule is skipped: the
+  four survived a hunt round aimed at exactly that code, because a
+  hunt asks what MIGHT be broken and the suite asks what IS.
+
 - **A STRING THAT CARRIES A PATH INSIDE IT IS A PATH.** (2026-08-26,
   the Windows red of six CI rounds.) `same_destination` exists
   because one file has two spellings -- Windows short names, case
@@ -2039,6 +2103,14 @@ Confirmed with the user via an explicit design review:
   user met a Generate that wrote nothing and said nothing.
   `same_source` is the one owner now: file half through
   `same_destination`, tail case-folded.
+  AN EIGHTH SITE WAS FOUND THE SAME NIGHT, and how it survived the
+  sweep is the lesson. The seven were all a STAMP compared with a
+  STAMP; the eighth compares a stamp with the SOURCE OF THE LAYER IN
+  FORCE, in the gate that decides whether a saved record's pins and
+  hand-picked colours may come home. Same question, same boundary, a
+  different pair of operands -- so a search for the first shape found
+  nothing, and three Windows-only reds turned on it. WHEN YOU FIND A
+  FAMILY, SWEEP FOR THE QUESTION RATHER THAN FOR THE PHRASING.
   ASK OF ANY IDENTIFIER WHETHER A FILESYSTEM EVER TOUCHED IT. Where
   it did, the string that comes back is not the string that went
   out, and `==` is a bug waiting for the platform that shows it.

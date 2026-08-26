@@ -801,8 +801,8 @@ MUTATIONS = [
            "row, so a chosen ramp on a derived style was lost twice"),
   dict(name="the-shelf-is-cleared-with-the-project", file=DIALOG,
        old="""                   self._scheme_memory,
-                   self._custom_swatch_cache):""",
-       new="""                   self._custom_swatch_cache):""",
+                   # ...and the shadow of the hand-picks, joining the""",
+       new="""                   # ...and the shadow of the hand-picks, joining the""",
        test="test_the_shelf_does_not_survive_the_project_that_made_it",
        why="the shelf was missing from this list and only emptied by "
            "the side effect of a swap-to-None; when that accident went "
@@ -2504,9 +2504,7 @@ MUTATIONS = [
            "told which hand-picked colours it cost them"),
   dict(name="category-colours-stamped-on-layer", file=DIALOG,
        old="""      layer.setCustomProperty(
-        "weavingspace_category_colours",
-        json.dumps({"field": assignment["var"], "colours": picked},
-                   sort_keys=True))""",
+        "weavingspace_category_colours", json.dumps(stamp, sort_keys=True))""",
        new="""      pass  # mutation: nothing recorded for the project file""",
        test="test_hand_picked_colours_are_written_into_the_project",
        why="hand-picked colours outliving the session, so reopening a "
@@ -6267,20 +6265,61 @@ MUTATIONS = [
            "template-governed element claimed the elements now match "
            "while the template went on outranking the copied ramp on "
            "the map and in every record"),
-  dict(name="the-landing-adopts-only-what-a-person-left", file=DIALOG,
-       old="""        if painted is None or painted.get(key) == colour:
-          unattributable += 1
-          continue""",
-       new="""        if painted is None and False:
-          unattributable += 1
-          continue""",
-       test="test_the_landing_does_not_adopt_its_own_carry",
-       why="what the unreadable-source arm keeps is the plugin's own "
-           "previous seeding, nobody's decision -- and the "
-           "re-examination adopted it as hand-picks and stamped them, "
-           "so a template's colours became picks that outrank the "
-           "template forever and restoring the edited file changed "
-           "nothing, on the landing path alone"),
+  dict(name="a-saved-record-names-its-dataset-by-file", file=DIALOG,
+       old="""    same_data = bool(here) and same_source(here, record.get("region"))""",
+       new="""    same_data = bool(here) and here == record.get("region")""",
+       test="test_one_dataset_spelt_two_ways_is_one_dataset",
+       why="the gate that decides whether a saved record's pins and "
+           "hand-picked colours may be restored compared the live "
+           "layer's source with the region the record NAMES as raw "
+           "strings -- and a project save respells the path half, so "
+           "every reopened project on Windows read its own dataset as "
+           "somebody else's and dropped the work the record was "
+           "carrying home. The eighth site of the same family, missed "
+           "by a sweep that looked only at stamp-against-stamp "
+           "comparisons; three Windows-only reds turned on it"),
+  dict(name="an-unreadable-source-hands-its-colours-to-the-element",
+       file=DIALOG,
+       old="""      if a.get("class_source") in unreadable:
+        self._own_the_colours_of_an_unreadable_source(out, a)
+      element_fills[tid] = bridge.renderer_fill_colours(out)""",
+       new="""      if False:
+        self._own_the_colours_of_an_unreadable_source(out, a)
+      element_fills[tid] = bridge.renderer_fill_colours(out)""",
+       test="test_a_kept_scheme_is_held_rather_than_owned",
+       why="a renderer alone keeps the colours until the next run, "
+           "restyle or reopen and no further -- the record is what "
+           "those three read, so an element whose scheme file has "
+           "gone loses its colours at the first of them with nothing "
+           "said, which is what the maintainer's ruling of "
+           "2026-08-26 settled"),
+  dict(name="a-restored-source-takes-its-colours-back", file=DIALOG,
+       old="""    for key, colour in shadow.items():
+      if record.get(key) == colour:
+        record.pop(key, None)
+        given_back += 1""",
+       new="""    for key, colour in shadow.items():
+      if False:
+        record.pop(key, None)
+        given_back += 1""",
+       test="test_a_kept_scheme_is_held_rather_than_owned",
+       why="colours held while a scheme file was missing outrank a "
+           "template, so a file that can be read again would go on "
+           "being ignored: restoring an edited scheme changes "
+           "nothing on the map and the class-source control looks "
+           "broken -- the other half of the same ruling"),
+  dict(name="the-stamp-says-which-colours-are-only-held", file=DIALOG,
+       old="""      if held:
+        stamp["kept"] = sorted(held)""",
+       new="""      if False:
+        stamp["kept"] = sorted(held)""",
+       test="test_a_kept_scheme_is_held_rather_than_owned",
+       why="the stamp is the only place that can carry the "
+           "distinction across a project boundary, and the plugin "
+           "being closed and opened again is the commonest journey "
+           "there is: without it the held colours come back "
+           "indistinguishable from hand-picks and a restored file "
+           "can never take them back"),
   dict(name="a-retired-landing-is-discarded", file=DIALOG,
        old="""    if _dialog_is_gone(self) or _live_dialog() is not self:
       self._task = None
