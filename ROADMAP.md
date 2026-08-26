@@ -170,44 +170,26 @@ two elements share a column, one element's notice silenced the other.
 
 ### Outstanding
 
-**THREE DEFECTS FOUND ON 2026-08-26 (night) ARE UNFIXED, and the first
-is the one to read.** They came from a CONSISTENCY SWEEP rather than a
-hunt -- one oracle over many acts, argued and costed in
-docs/process/HUNT-RECORD.md -- and the full rows are 18 to 20 of
-`docs/process/defects-2026-08-26.md`.
+**THE THREE DEFECTS OF 2026-08-26 (NIGHT) ARE FIXED**, each with a
+registered test and a catalogue entry proved to catch; rows 18 to 20
+of `docs/process/defects-2026-08-26.md` carry the mechanisms and the
+fixes. The design lost on closing and reopening the plugin
+(`_restore_the_adopted_design`, at both doors, source recovered before
+the record is applied); the rival group forked by the first
+file-backed run after live update (maintainer's ruling: replace in
+place); and the map lost in silence when the output file is deleted
+(a zero-byte file recreated by the handle release counts as absent,
+not as a file to update). The file-lifecycle census then cleared
+deleted, moved-away, moved-away-and-back and replaced-by-empty alike
+-- and moved-away-and-back is the exact journey of the Windows red,
+so THE NEXT CI RUN SAYS whether that four-for-four failure was this
+same defect. Until it answers, the Windows entry below stands.
 
-CLOSING THE PLUGIN AND OPENING IT AGAIN LOSES THE WHOLE DESIGN. Same
-session, no save, no quit. Every hand-chosen variable, style, ramp and
-class count reverts to the plugin's default cycle while the layers go
-on drawing the map the person made and the GeoPackage goes on holding
-the right design -- so the table shows a confident wrong answer, and
-the next Generate writes it onto the map. Measured: a categorical
-land-cover element came back as a quantitative `v2` one, two of four
-elements destroyed. `_adopt_existing_group` takes over the group's
-LAYERS and never reads its RECORD, where `_on_group_chosen` reads it
-and applies it. It is against ruling 4 of 2026-08-25, and it is
-present at `4527dec`, so rc16, rc18 and rc19 all carry it.
-`tests/run_tests.py:32318` accommodates the loss in a comment written
-before that ruling, which is the evidence nobody re-decided it.
-
-ONE SESSION LEAVES TWO OUTPUT GROUPS. Live update draws a map, the
-user then chooses a GeoPackage, and the Generate builds a second group
-beside the first rather than replacing in place; the first survives as
-four memory layers holding a complete stale copy, it survives the
-save, and the chooser offers both for good under labels differing by
-one digit. What to do with the memory copy -- replace it, remove it,
-or leave it -- is a decision rather than a repair.
-
-DELETING THE OUTPUT FILE AND PRESSING GENERATE leaves the project
-showing only that stale copy, at the old spacing, while a file nothing
-reads from is written and nothing is said. Its site has not been found
-yet, and it is entangled with the entry above, so look for the site
-before the fix.
-
-**Two leads and seven clearances** are recorded with them, including
-the four-corner check -- user, plugin, QGIS and the GeoPackage read as
-a colleague reads it -- which found every corner agreeing at every
-door driven. That is ground the next round need not walk.
+**Two leads and seven clearances** are recorded with the rows,
+including the four-corner check -- user, plugin, QGIS and the
+GeoPackage read as a colleague reads it -- which found every corner
+agreeing at every door driven. That is ground the next round need not
+walk.
 
 **THE WINDOWS RED IS JUDGED, 2026-08-26 (night): IT IS REAL, THREE FOR
 THREE.** `a project whose output geopackage has moved` failed on

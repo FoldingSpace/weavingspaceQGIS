@@ -61372,6 +61372,200 @@ def test_integration_cancel_and_recover():
   dlg.close()
 
 
+def _a_disk_session(folder):
+  """A map made the way a person makes one: disk region, chosen
+  variable, GeoPackage output, a completed Generate.
+
+  Args:
+    folder: a temporary directory for the region and the output.
+
+  Returns:
+    (dialog, region layer, output path). The variable on row 0 is
+    CHOSEN through the signal a click sends rather than left to the
+    default cycle, because a design the plugin would derive by itself
+    cannot show a restore failing -- the fixture-on-its-defaults trap
+    this suite has already paid for three times.
+  """
+  from qgis.core import QgsVectorFileWriter
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  region = make_region_layer(n=5, cell=1000)
+  region_path = os.path.join(folder, "region.gpkg")
+  options = QgsVectorFileWriter.SaveVectorOptions()
+  options.driverName = "GPKG"
+  options.layerName = "region"
+  QgsVectorFileWriter.writeAsVectorFormatV3(
+    region, region_path, QgsProject.instance().transformContext(), options)
+  disk = QgsVectorLayer(f"{region_path}|layername=region", "region", "ogr")
+  assert disk.isValid(), "the region did not survive being written"
+  QgsProject.instance().addMapLayer(disk)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.layer_combo.setLayer(disk)
+  _tick(1000)
+  _settle(dlg, seconds=30)
+  combo = dlg.table.cellWidget(0, 1)
+  index = combo.findText("landcover")
+  assert index >= 0, "the fixture's categorical column is not on offer"
+  assert combo.currentText() != "landcover", \
+    "row 0 already sits on landcover, so a lost restore would be " \
+    "indistinguishable from the default cycle and this fixture " \
+    "cannot show the case"
+  combo.setCurrentIndex(index)
+  combo.activated.emit(index)          # what a click sends
+  _tick(400)
+  out = os.path.join(folder, "map.gpkg")
+  dlg.gpkg_widget.setFilePath(out)
+  _tick(300)
+  _generate_and_wait(dlg)
+  _tick(300)
+  _settle(dlg, seconds=60)
+  return dlg, disk, out
+
+
+def test_a_reopened_dialog_wears_the_design_it_left():
+  """Closing the plugin and opening it again keeps the design.
+
+  The commonest boundary there is -- the docstring of
+  `_adopt_existing_group` itself calls it something "users do
+  constantly" -- and until 2026-08-26 it lost the whole design:
+  adoption took over the group's LAYERS and never read its RECORD,
+  while `_on_group_chosen` read and applied it three lines apart. So
+  the table came back on the default cycle over layers still drawing
+  the map somebody had made, and the next Generate wrote the wrong
+  answer onto the map, turning a categorical land-cover element into
+  a quantitative one. Present in rc16, rc18 and rc19.
+
+  The oracle ends at the MAP, because that is the package's whole
+  promise: the reopened dialog's row 0 must say the chosen variable,
+  and a Generate pressed immediately -- which is what a person does --
+  must leave the layer DRAWING that variable rather than repainting
+  it to a wrongly-defaulted row.
+
+  Regression: closing the plugin window and opening it again (or reopening a saved project) reverted every hand-chosen variable, style, ramp and class count to the plugin's default cycle while the layers still drew the chosen design, and the next Generate then repainted the map to the wrong variables -- a categorical element re-tiled as a quantitative one. Found 2026-08-26 by the consistency sweep's boundary-crossing oracle. [mutation]
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  folder = tempfile.mkdtemp(prefix="ws_reopen_design_")
+  try:
+    dlg, disk, out = _a_disk_session(folder)
+    lid = dlg._element_layer_ids.get("a")
+    drawn = QgsProject.instance().mapLayer(lid)
+    assert drawn is not None and hasattr(drawn.renderer(), "classAttribute")
+    assert drawn.renderer().classAttribute() == "landcover", \
+      "the fixture never drew the chosen design, so nothing below " \
+      "could show it being lost"
+    dlg.close()
+    _tick(300)
+
+    second = WeavingSpaceDialog(iface=_Iface())
+    _tick(2000)
+    _settle(second, seconds=60)
+    row = second.table.cellWidget(0, 1)
+    assert row is not None and row.currentText() == "landcover", \
+      f"the reopened dialog's row 0 says " \
+      f"{row.currentText() if row else None!r} rather than the chosen " \
+      f"'landcover': the design was inferred rather than restored, " \
+      f"against ruling 4 of 2026-08-25"
+    # ...and the harm leg: a Generate must not repaint the map to a
+    # wrongly-defaulted row. Same journey a person takes.
+    _generate_and_wait(second)
+    _tick(300)
+    _settle(second, seconds=60)
+    lid = second._element_layer_ids.get("a")
+    after = QgsProject.instance().mapLayer(lid)
+    assert after is not None and hasattr(after.renderer(), "classAttribute")
+    assert after.renderer().classAttribute() == "landcover", \
+      f"the Generate after reopening repainted element a from " \
+      f"'landcover' to {after.renderer().classAttribute()!r}"
+    second.close()
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_one_session_leaves_one_group():
+  """Choosing a file after live update has drawn does not fork the map.
+
+  Live update writes MEMORY layers, which set no `_last_path`; the
+  landing's "did the destination change" comparison then read the
+  first file-backed run as a move and built a SECOND group, leaving
+  live update's provisional draft behind as a complete stale copy --
+  surviving the project save, with the chooser offering both under
+  labels differing by one digit. Against the settled rule that
+  Generate replaces in place and "Create as new group" is the only
+  route to a second group. Maintainer's ruling 2026-08-26: replace in
+  place, since the previous result IS this design's own draft.
+
+  Regression: an ordinary session -- live update draws, then the user chooses a GeoPackage and presses Generate -- left two output groups, the older holding four memory layers with a stale copy of the same map, offered in the group chooser for good. Found 2026-08-26 by the consistency sweep's baseline. [mutation]
+  """
+  import shutil
+  import tempfile
+  folder = tempfile.mkdtemp(prefix="ws_one_group_")
+  try:
+    dlg, disk, out = _a_disk_session(folder)
+    root = QgsProject.instance().layerTreeRoot()
+    ours = [c.name() for c in root.children()
+            if hasattr(c, "children")
+            and (c.customProperty("weavingspace_working_state")
+                 or any(getattr(k, "layer", lambda: None)() is not None
+                        and k.layer().customProperty("weavingspace_tile_id")
+                        for k in c.children()))]
+    assert len(ours) == 1, \
+      f"one session with one map left {len(ours)} output groups " \
+      f"({ours}): the older is live update's stale memory copy, and " \
+      f"the chooser will offer both for good"
+    dlg.close()
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_the_map_survives_its_file_being_deleted():
+  """A deleted output file costs a re-save, never the map.
+
+  Deleting the .gpkg in the Finder and pressing Generate used to lose
+  the whole map in silence: releasing the old layers' handles
+  RECREATES a zero-byte file at the path (closing a GeoPackage makes
+  sqlite touch it), the landing's bare existence test then chose
+  update mode, the writer died on a file that is not a GeoPackage,
+  and the exception was swallowed by the Qt slot -- old layers gone,
+  new ones never made, nothing said. The same family as the Windows
+  red `a project whose output geopackage has moved`, which failed
+  four CI runs for four.
+
+  Regression: deleting the output GeoPackage and pressing Generate removed every element layer from the project and added none, silently, because the handle release recreated a zero-byte file and the landing read bare existence as "update the file". Found 2026-08-26 by the file-lifecycle census; the write's own moment measured first=False exists=True size=0. [mutation]
+  """
+  import shutil
+  import tempfile
+  folder = tempfile.mkdtemp(prefix="ws_file_gone_")
+  try:
+    dlg, disk, out = _a_disk_session(folder)
+    assert dlg._element_layer_ids, "the fixture made no map"
+    os.remove(out)
+    assert not os.path.exists(out), "the fixture could not delete the file"
+    dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.3)
+    _tick(300)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    project = QgsProject.instance()
+    drawn = [l for l in project.mapLayers().values()
+             if l.customProperty("weavingspace_tile_id")]
+    assert drawn, \
+      "after the output file was deleted, a Generate left the project " \
+      "with no element layers at all -- the map vanished in silence"
+    for layer in drawn:
+      assert layer.featureCount() > 0, \
+        f"{layer.name()} came back with no features"
+      assert _reads_from(layer, out), \
+        f"{layer.name()} reads from {layer.source()!r} rather than the " \
+        f"rewritten file, so the map on screen is no longer being saved"
+    dlg.close()
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def main():
   """Run every registered test and report what happened.
 
@@ -61709,6 +61903,12 @@ def main():
         test_a_map_is_filed_under_the_dataset_it_was_drawn_from)
   check("a group restores its own state and no one else's",
         test_a_group_restores_its_own_state_and_no_one_elses)
+  check("a reopened dialog wears the design it left",
+        test_a_reopened_dialog_wears_the_design_it_left)
+  check("one session leaves one group",
+        test_one_session_leaves_one_group)
+  check("the map survives its file being deleted",
+        test_the_map_survives_its_file_being_deleted)
   check("a class source follows the record under it",
         test_a_class_source_follows_the_record_under_it)
   check("the file carries the design the map is wearing",

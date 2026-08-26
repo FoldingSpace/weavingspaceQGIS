@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-321 defect(s) with a regression test.
+324 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -299,6 +299,8 @@ there is no separate list to remember.
   guarded by `test_a_new_region_drops_a_setup_whose_column_has_gone`
 - **the installer skipped names case-insensitively while the lookup matched exactly, so four palettes were silently unavailable on any QGIS that spells them differently.**  
   guarded by `test_a_palette_is_usable_whatever_case_qgis_spells_it`
+- **closing the plugin window and opening it again (or reopening a saved project) reverted every hand-chosen variable, style, ramp and class count to the plugin's default cycle while the layers still drew the chosen design, and the next Generate then repainted the map to the wrong variables -- a categorical element re-tiled as a quantitative one. Found 2026-08-26 by the consistency sweep's boundary-crossing oracle.**  
+  guarded by `test_a_reopened_dialog_wears_the_design_it_left`
 - **reopening a project under an open plugin panel bound the dataset identity to one of the plugin's own output layers, so the project's hand-picked colours and pinned bounds were unreachable and the next Generate destroyed them.**  
   guarded by `test_a_reopened_project_reaches_its_own_colours_and_pins`
 - **a project reopened from a file heard no in-place dock recolour at all, because a guard read a deliberately empty record as evidence that the row had moved.**  
@@ -333,6 +335,8 @@ there is no separate list to remember.
   guarded by `test_keeping_a_result_keeps_its_file_however_it_was_kept`
 - **session memory was keyed by bare column names, so a scheme, its value strings and its pinned numbers made on one dataset could reactivate on any later dataset sharing a column name.**  
   guarded by `test_one_datasets_memory_never_steers_another`
+- **an ordinary session -- live update draws, then the user chooses a GeoPackage and presses Generate -- left two output groups, the older holding four memory layers with a stale copy of the same map, offered in the group chooser for good. Found 2026-08-26 by the consistency sweep's baseline.**  
+  guarded by `test_one_session_leaves_one_group`
 - **recolouring only the "no data" catch-all in QGIS read as a clean classify, so the plugin announced a ramp nobody chose, discarded the colour, and repainted those areas grey at the next Generate.**  
   guarded by `test_recolouring_the_catch_all_alone_is_not_a_new_ramp`
 - **reversing a qualitative palette was a no-op, with the switch still reading as ticked.**  
@@ -343,6 +347,8 @@ there is no separate list to remember.
   guarded by `test_the_file_carries_the_design_the_map_is_wearing`
 - **the output group was the unit of work in the rulings and in three separate mechanisms that had never been driven against each other -- and the first build of them broke six reopen journeys, let go of a map when the region layer was removed, and undid the user's own edits after every landing.**  
   guarded by `test_the_group_unit_rulings_hold_on_every_route`
+- **deleting the output GeoPackage and pressing Generate removed every element layer from the project and added none, silently, because the handle release recreated a zero-byte file and the landing read bare existence as "update the file". Found 2026-08-26 by the file-lifecycle census; the write's own moment measured first=False exists=True size=0.**  
+  guarded by `test_the_map_survives_its_file_being_deleted`
 - **a fifty-minute gate that could not be satisfied before the artefact shipped stopped four candidates' worth of work on a release whose plugin passed every test it was given.**  
   guarded by `test_the_new_code_mutation_guard_reports_rather_than_gates`
 - **no widget anywhere in the dialog named the output group, so a demo of several datasets in a row accumulated maps with nothing to say which one the next Generate would replace -- and A-B-A left one dataset owning two groups that nothing could tell apart.**  
@@ -695,7 +701,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
-- the mutation campaign: 58
+- the mutation campaign: 61
 - reported by a user: 29
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

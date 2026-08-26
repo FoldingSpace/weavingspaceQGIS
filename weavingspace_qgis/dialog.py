@@ -1944,6 +1944,11 @@ class WeavingSpaceDialog(QDialog):
     # automatic render
     self._on_n_changed()
     self._on_layer_changed()
+    # ...and LAST, the design of whatever group adoption took over.
+    # Last because it restores into widgets the two calls above build,
+    # and because it must be able to move the region chooser without
+    # `_on_layer_changed` then re-deriving over the top of it.
+    self._restore_the_adopted_design()
     # singleShot(0, fn) runs fn on the next event-loop pass, i.e. after
     # pending layout work; sizing any earlier reads stale geometry
     QTimer.singleShot(0, self._fit_to_design)
@@ -12926,6 +12931,10 @@ class WeavingSpaceDialog(QDialog):
     self._show_the_adopted_path()
     self._update_layer_exclusions()
     self._on_layer_changed()
+    # ...and the design too, in the same order the constructor uses.
+    # A project opened under a live dialog is the other door into the
+    # loss `_restore_the_adopted_design` describes.
+    self._restore_the_adopted_design()
 
   def _adopt_existing_group(self, group=None):
     """Take over an output group this project already holds.
@@ -12965,6 +12974,12 @@ class WeavingSpaceDialog(QDialog):
     # `_add_output_layers`; set here rather than at the call sites
     # because this is the one place that establishes the fact.
     self._adopted_group_unwritten = True
+    # WHICH GROUP WAS ADOPTED, so the DESIGN can be restored once the
+    # widgets exist. This method runs before `_build_ui` in the
+    # constructor, so it cannot apply a record itself; it remembers
+    # the node and `_restore_the_adopted_design` does the rest. See
+    # that method for what went wrong without it.
+    self._adopted_group = group
     project = QgsProject.instance()
     self._no_data_layer_ids = dict(
       self._no_data_layer_ids)
@@ -13336,6 +13351,74 @@ class WeavingSpaceDialog(QDialog):
         # next Generate replaces THIS map rather than somebody else's
         # -- and the design simply stays where it is.
         self._rebuild_unit()
+    finally:
+      self._selecting_a_group = False
+    self._refresh_group_combo()
+
+  def _restore_the_adopted_design(self):
+    """Put back the design of the group adoption has just taken over.
+
+    Returns:
+      None. When adoption found a group and that group carries a
+      working state, the dialog is brought to it -- the region layer
+      the map was made from, then every design control and every
+      element's row -- exactly as choosing that group in the chooser
+      does.
+
+    WHY THIS EXISTS, measured 2026-08-26 and shipping since 2026-08-25
+    (rc16, rc18, rc19). `_adopt_existing_group` took over a group's
+    LAYERS and never read its RECORD, while `_on_group_chosen` read it
+    and applied it three lines apart. So closing the plugin and
+    opening it again -- which that method's own docstring calls
+    something "users do constantly" -- brought back a table on the
+    plugin's DEFAULT cycle over layers still drawing the map somebody
+    had made: every hand-chosen variable, style, ramp and class count
+    gone from the row while the map and the GeoPackage still held
+    them. The next Generate then wrote the row's wrong answer onto the
+    map, turning a categorical land-cover element into a quantitative
+    one. Against ruling 4 of 2026-08-25, whose whole point is that
+    selecting a group restores the working state "so nothing is
+    inferred".
+    A GUARD -- OR A RESTORE -- ADDED TO ONE DOOR BELONGS AT EVERY DOOR
+    INTO THE SAME ROOM, which this file already records as the
+    sharpest thing the group-unit build taught.
+
+    THE ORDER IS THE WHOLE OF IT, and it is the lesson of the same
+    week: the region layer is recovered BEFORE the record is applied,
+    because a variable cannot be restored to a column the region in
+    force does not have. Putting the recovery after the restore is
+    what turned visibly wrong into invisibly wrong on 2026-08-26.
+
+    CALLED FROM TWO PLACES AND NOT FROM `_adopt_existing_group`
+    ITSELF. Adoption runs before `_build_ui` in the constructor, so
+    there are no widgets to restore into; and `_take_over_group` calls
+    adoption on the chooser's own path, where `_on_group_chosen`
+    applies the record itself and a second application here would be
+    redundant work on every group pick.
+    """
+    group = getattr(self, "_adopted_group", None)
+    if group is None:
+      return
+    record = self._read_working_state(group)
+    if not record:
+      # A group made before this version, or one whose record could
+      # not be read. Adoption alone is still right: the next Generate
+      # replaces THIS map rather than somebody else's, and the design
+      # simply stays where it is.
+      return
+    self._selecting_a_group = True
+    try:
+      wanted = record.get("region")
+      if wanted:
+        for layer in QgsProject.instance().mapLayers().values():
+          try:
+            same = layer.source() == wanted
+          except Exception:
+            continue
+          if same and layer is not self.layer_combo.currentLayer():
+            self.layer_combo.setLayer(layer)
+            break
+      self._apply_working_state(record)
     finally:
       self._selecting_a_group = False
     self._refresh_group_combo()
@@ -15061,11 +15144,30 @@ class WeavingSpaceDialog(QDialog):
           for mark in stamps
           for other in project.mapLayers().values()
           if getattr(other, "source", lambda: None)() == mark)
+    # A DESTINATION IS ONLY "CHANGED" IF THERE WAS ONE, and that
+    # clause is the difference between replacing a map and building a
+    # rival beside it. Live update writes MEMORY layers, which set no
+    # `_last_path`; so the moment somebody chose a GeoPackage, the
+    # comparison read "the destination moved" and the landing built a
+    # second group, leaving live update's four memory layers behind as
+    # a complete stale copy of the same map. Measured 2026-08-26: one
+    # session, one map, two groups -- surviving the project save, with
+    # the chooser offering both for good under labels differing by one
+    # digit. That is the colleague's own diagnosis of 2026-08-25 (one
+    # dataset owning two groups with nothing to tell them apart)
+    # arriving with no change of dataset at all, and against the
+    # settled rule that Generate replaces the previous result in place
+    # and "Create as new group" is the only route to a second.
+    # NOTHING OF THE USER'S IS LOST BY REPLACING: the previous result
+    # IS live update's own provisional draft of this same design, and
+    # anybody who wants it kept has the checkbox that says so.
+    # (Maintainer's ruling, 2026-08-26: replace in place.)
+    moved_the_output = (bool((self._last_path or "").strip())
+                        and not same_destination(path, self._last_path))
     force_new = (self.opt_new_group.isChecked() or renamed_mid_run
                  or theirs
                  or self._new_group_chosen or (
-      not same_destination(path, self._last_path)
-      and not adopted_and_no_file_named))
+      moved_the_output and not adopted_and_no_file_named))
     # Spent the moment it is read: the group is this dialog's from
     # here on, and a second run with a changed destination follows the
     # ordinary rule again. Cleared BEFORE the work below rather than
@@ -15413,9 +15515,26 @@ class WeavingSpaceDialog(QDialog):
         # tables is the job recreation was doing, done narrowly.
         # Measured 2026-08-13. Guarded by
         # test_a_generate_spares_the_rest_of_the_users_geopackage.
+        # "DOES THE FILE EXIST" IS NOT THE QUESTION -- "does it hold
+        # anything" is. When the output file has been deleted while
+        # its layers were open (a user tidying in the Finder, a moved
+        # file on Windows), the handle release above RECREATES a
+        # zero-byte file at the path: closing a GeoPackage makes
+        # sqlite touch it. Measured 2026-08-26: exists=False as the
+        # landing starts, exists=True size=0 at this line, so a bare
+        # existence test answered "update the file" and the writer
+        # died on a file that is not a GeoPackage -- taking the whole
+        # map with it, silently, since an exception in a Qt slot is
+        # swallowed. A zero-byte file holds nothing to preserve, so
+        # recreating it cannot cost anybody data; a NON-empty file
+        # keeps the update path, which is what protects a user's own
+        # tables in a shared GeoPackage.
+        empty_file = (os.path.exists(path)
+                      and os.path.getsize(path) == 0)
         out = bridge.write_gpkg_layer(mem, path, table_name,
                                       first=(first_gpkg_layer
-                                             and not os.path.exists(path)))
+                                             and (not os.path.exists(path)
+                                                  or empty_file)))
         first_gpkg_layer = False
       else:
         out = mem

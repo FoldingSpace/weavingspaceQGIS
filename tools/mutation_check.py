@@ -1064,6 +1064,42 @@ MUTATIONS = [
            "its layers and none of its design. Measured: the twin "
            "leaves 1,959 characters on the group and this branch "
            "left none"),
+  dict(name="a-reopened-dialog-wears-the-design-it-left",
+       file=DIALOG,
+       old="""    self._restore_the_adopted_design()
+    # singleShot(0, fn) runs fn on the next event-loop pass, i.e. after
+    # pending layout work; sizing any earlier reads stale geometry""",
+       new="""    pass  # mutation: the constructor adopts layers, not the design
+    # singleShot(0, fn) runs fn on the next event-loop pass, i.e. after
+    # pending layout work; sizing any earlier reads stale geometry""",
+       test="test_a_reopened_dialog_wears_the_design_it_left",
+       why="closing the plugin and opening it again -- the commonest "
+           "boundary there is -- reverted every hand-chosen variable, "
+           "style, ramp and class count to the default cycle while the "
+           "layers still drew the chosen design, and the next Generate "
+           "repainted the map to the wrong variables. Shipped in rc16, "
+           "rc18 and rc19"),
+  dict(name="one-session-leaves-one-group",
+       file=DIALOG,
+       old="""    moved_the_output = (bool((self._last_path or "").strip())
+                        and not same_destination(path, self._last_path))""",
+       new="""    moved_the_output = (
+      not same_destination(path, self._last_path))""",
+       test="test_one_session_leaves_one_group",
+       why="live update's memory output sets no _last_path, so a bare "
+           "destination comparison read the first file-backed run as a "
+           "move and built a rival group -- one map, two groups, the "
+           "older a stale memory copy the chooser offered for good"),
+  dict(name="a-zero-byte-file-is-not-a-geopackage",
+       file=DIALOG,
+       old="""        empty_file = (os.path.exists(path)
+                      and os.path.getsize(path) == 0)""",
+       new="""        empty_file = False  # mutation: bare existence decides""",
+       test="test_the_map_survives_its_file_being_deleted",
+       why="releasing the deleted file's handles recreates a zero-byte "
+           "file at the path, so a bare existence test chose update "
+           "mode, the writer died on a file that is not a GeoPackage, "
+           "and the swallowed exception cost the whole map in silence"),
   dict(name="a-resume-never-offers-its-own-tiles-as-a-region",
        file=DIALOG,
        # ANCHORED ON THE COMMENT ABOVE THE CALL, because both branches
@@ -2149,9 +2185,15 @@ MUTATIONS = [
            "under live update at all -- the editor and the table "
            "both showing it while the map goes on without it"),
   dict(name="existing-geopackage-is-never-recreated", file=DIALOG,
-       old="""                                      first=(first_gpkg_layer
-                                             and not os.path.exists(path)))""",
-       new="""                                      first=first_gpkg_layer)""",
+       # Re-anchored 2026-08-26 when the zero-byte-file fix widened
+       # this expression; the entry's claim is unchanged -- a file
+       # holding anything is never recreated.
+       old="""        out = bridge.write_gpkg_layer(mem, path, table_name,
+                                      first=(first_gpkg_layer
+                                             and (not os.path.exists(path)
+                                                  or empty_file)))""",
+       new="""        out = bridge.write_gpkg_layer(mem, path, table_name,
+                                      first=first_gpkg_layer)""",
        test="test_a_generate_spares_the_rest_of_the_users_geopackage",
        why="the plugin never destroying data it did not create. "
            "Recreating an existing GeoPackage wipes every other "
