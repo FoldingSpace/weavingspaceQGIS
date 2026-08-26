@@ -12734,6 +12734,7 @@ class WeavingSpaceDialog(QDialog):
     """
     if self._task is not None:
       self._live_pending = True  # one run at a time; rerun when done
+      _dump("GEN-GATE", "already-running", "live=", live)
       return
     if not live and self._restyle_only():
       # ...AND THE PREVIEW LEARNS WHAT WAS PAINTED, exactly as the
@@ -12746,9 +12747,11 @@ class WeavingSpaceDialog(QDialog):
       # (round nine): the promise has four doors, and this one and
       # the source-gone exit never had the pair the other two carry.
       self._refresh_preview_colours()
+      _dump("GEN-GATE", "restyled-instead")
       return  # the button pressed after a style change: instant
     layer = self.layer_combo.currentLayer()
     if layer is None:
+      _dump("GEN-GATE", "no-region-layer", "live=", live)
       if not live:
         QMessageBox.warning(self, "WeavingSpace", "Choose a region layer.")
       return
@@ -12763,6 +12766,7 @@ class WeavingSpaceDialog(QDialog):
     if self._unit is None:
       self._rebuild_unit()
     if self._unit is None:
+      _dump("GEN-GATE", "no-unit", "live=", live)
       if not live:
         QMessageBox.warning(self, "WeavingSpace",
                             "The tile unit could not be built.")
@@ -12786,6 +12790,7 @@ class WeavingSpaceDialog(QDialog):
       int(self.n_combo.currentData() or 0), len(self._tile_ids()),
       self.mod_t_inset.value()) if self.mod_t_inset.value() else None
     if collapse is not None:
+      _dump("GEN-GATE", "inset-collapse")
       if not live:
         QMessageBox.warning(self, "WeavingSpace", collapse)
       else:
@@ -12794,6 +12799,7 @@ class WeavingSpaceDialog(QDialog):
 
     assignments = self._assignments()
     if not any(a["var"] for a in assignments):
+      _dump("GEN-GATE", "no-variable", "live=", live)
       if not live:
         QMessageBox.warning(
           self, "WeavingSpace",
@@ -12850,6 +12856,17 @@ class WeavingSpaceDialog(QDialog):
     if not live and keeping and path_now \
         and (would_replace
              or same_destination(path_now, self._last_path)):
+      # THE WHOLE DECISION, not merely that it was taken. This exit
+      # refuses through a MODAL, so in a headless suite it leaves the
+      # message bar empty and reads as a Generate that did nothing --
+      # and which of its two terms fired is the question, since
+      # `same_destination` resolves Windows short names through
+      # realpath and a MOVED file is precisely when realpath cannot.
+      _dump("GEN-GATE", "would-overwrite-a-kept-result",
+            "keeping=", keeping, "would_replace=", would_replace,
+            "same_destination=",
+            same_destination(path_now, self._last_path),
+            "path_now=", path_now, "last_path=", self._last_path)
       QMessageBox.warning(
         self, "WeavingSpace",
         "You asked to keep the previous result as its own group, but "
@@ -12862,6 +12879,7 @@ class WeavingSpaceDialog(QDialog):
       # Reading from a layer whose source has gone is not merely an
       # error: extent() alone segfaults QGIS. Refuse while there is
       # still a plugin here to refuse with.
+      _dump("GEN-GATE", "source-gone", "live=", live)
       if not live:
         QMessageBox.critical(
           self, "WeavingSpace",

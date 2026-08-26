@@ -97,6 +97,13 @@ jobs:
         shell: cmd
         run: call "%QGIS_SHIM%" -u tools/ci_provision.py
 
+      # ROUND TWO OF THE DIAGNOSIS asks which EXIT from `_generate`
+      # takes the recovery run. Round one established that the run
+      # leaves no file, no layers and no message -- and the message
+      # bar being empty is itself a clue, since one of that method's
+      # eight exits refuses through a MODAL. Every exit names itself
+      # now, the keep-the-result guard prints its whole decision, and
+      # the failure block reads the modal store beside the bar.
       - name: The failing tests, and nothing else
         # Two Windows-only reds as of 6d6ea2d's round: the historic
         # moved-GeoPackage recovery, and rows 37's kept-work test,

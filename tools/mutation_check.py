@@ -6146,11 +6146,9 @@ MUTATIONS = [
            "target's own column imported a colour nobody chose, "
            "painted onto the twin and stamped into every file"),
   dict(name="the-button-restyle-repaints-the-preview", file=DIALOG,
-       old="""      # the source-gone exit never had the pair the other two carry.
-      self._refresh_preview_colours()
-      return  # the button pressed after a style change: instant""",
-       new="""      # the source-gone exit never had the pair the other two carry.
-      return  # the button pressed after a style change: instant""",
+       old="""      self._refresh_preview_colours()
+      _dump("GEN-GATE", "restyled-instead")""",
+       new="""      _dump("GEN-GATE", "restyled-instead")""",
        test="test_every_restyle_door_repaints_the_preview",
        why="with live update off nothing repaints the preview at pick "
            "time -- preserve, do not repaint -- so the Generate that "

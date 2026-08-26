@@ -59569,6 +59569,12 @@ def test_a_project_whose_output_geopackage_has_moved():
           f"group={revived._group_name!r} "
           f"path={revived.gpkg_widget.filePath()!r}"))
         found("the plugin said", lambda: repr(BAR_MESSAGES))
+        # ...AND WHAT IT PUT IN A MODAL. A refusal raised through
+        # QMessageBox never reaches the bar, so a run refused that
+        # way looks like a run that did nothing -- this project's
+        # own harness fault eleven, met again on a platform nobody
+        # here can drive.
+        found("the plugin asked", lambda: repr(MODALS))
       assert not trouble, \
         "after re-pointing the output at the same path the map is still " \
         "not there:\n  " + "\n  ".join(trouble)
