@@ -1957,10 +1957,27 @@ Confirmed with the user via an explicit design review:
   Two other methods reach the same work -- `_on_group_chosen` and
   `_resume_from_gpkg` -- and neither got it, because the fix was made
   where the failure was REPORTED rather than where the behaviour
-  lives. A hunt found it within the hour, working backwards from harm:
-  picking a group mid-run would repoint the records the landing reads
-  as `old_ids`, and the run would then remove the layers of the group
-  just switched TO.
+  lives. A hunt found the asymmetry within the hour, working backwards
+  from harm.
+  ITS PREDICTED HARM WAS MEASURED FALSE ON 2026-08-26, and correcting
+  that here matters more than the tidiness of the rule. The hunt
+  reasoned that picking a group mid-run would repoint the records the
+  landing reads as `old_ids` and that the run would then remove the
+  layers of the group just switched TO. The first half is true and the
+  second is not: driven both ways -- another dataset's group, and the
+  same dataset's other group, where the region stamps cannot tell them
+  apart -- every layer survived, because the landing's own refusal to
+  write over a map made from another dataset forces a new group and
+  empties `old_ids` on the way past. `tools/probes/a_group_chosen_mid_
+  run_deletes_its_map.py` is that measurement, and it is committed so
+  nobody re-derives it.
+  THE RULE IS UNTOUCHED BY THAT, and it is worth saying why rather
+  than quietly rewriting the entry. The asymmetry is real, and it is
+  held REDUNDANTLY rather than harmlessly -- exactly the state this
+  file records from the other side, where an omission ruled benign
+  went live three hours after a fix removed the accident that was
+  hiding it. A guard that is missing and currently costs nothing is a
+  countdown, not a defence.
   THE HABIT: when a guard goes in, grep for every caller of the thing
   it protects and ask which of them can be in the same state. This
   project already says the same about signals ("grep for the other
@@ -1969,20 +1986,77 @@ Confirmed with the user via an explicit design review:
   a fourth set of clothes, and the fourth time is the one that should
   make it a reflex.
 
+- **A HARM NAMED BY READING IS A HYPOTHESIS, EXACTLY LIKE A SITE.**
+  (2026-08-26, judging nine hunt claims.) This file already says that
+  a location reasoned out of the source reads exactly like one
+  somebody proved. Three of those nine described the code CORRECTLY --
+  a guard really was missing from two of three doors, an embedded
+  region really does load under a source string the gate can never
+  match, both measured -- and not one of them costs a user anything,
+  because in every case a second mechanism answers first.
+  THE TELL IS THAT THE CLAIM STOPS AT THE LINE. A guard is missing:
+  therefore what? Walk it to the end. Where the answer really is a map
+  deleted, driving it says so unmistakably -- four layers of one
+  dataset's tiles removed by a run on another, the same day. Where you
+  cannot reach a loss, the honest finding is that the behaviour is
+  HELD REDUNDANTLY, which names what would have to move before the
+  asymmetry starts costing something; this project has already watched
+  a masked omission go live three hours after the mask was removed.
+  AND CHECK THE CLAIM'S DIRECTION, not only its subject. The one
+  finding that mattered most was reported the wrong way round: a
+  record and a layer stamp disagreed about which dataset a map came
+  from, and the claim named the record as the wrong half where the
+  record was right. Following the reading rather than the measurement
+  would have moved the field that was already correct. Of one fact
+  written twice, ask which of the two writers had a REASON.
+
+- **A GATE CAN BE SATISFIED BY A SENTENCE DENYING IT.** (2026-08-26.)
+  `check_roadmap` is the first stage of every release and refuses a
+  candidate while the version's section lists work; it decided that by
+  searching for the words "nothing outstanding". The section carried,
+  honestly, "the reason this section does not yet say 'nothing
+  outstanding'" -- followed by a page of owed work -- and the gate read
+  the denial as the declaration and cleared the tree.
+  A QUOTED PHRASE IS A MENTION, NOT A STATEMENT, and stripping quoted
+  spans before looking is what keeps the phrase prose-first (the
+  reason it was chosen over a marker) while making it impossible to
+  satisfy by discussing it. The general form joins "a check that can
+  only confirm is not a check": when a gate reads PROSE for a
+  decision, ask what the document says ABOUT that prose, because a
+  file that explains its own conventions will quote them.
+  It had never had a test. It has one now, which plants the exact
+  sentence in all three quoting styles AND requires a plain
+  declaration to still pass, since a gate nothing can satisfy is as
+  useless as one anything can.
+
 - **A RECORD ASSEMBLED FROM TWO MOMENTS MUST SAY WHICH MOMENT EACH
   FIELD CAME FROM.** (Same day.) The working state deliberately takes
   its DESIGN from the launch snapshot and its ELEMENTS live, and both
-  halves are right for good reasons written at the code. What was not
-  thought through is that `region` travels with the design half -- so
-  a dataset changed mid-run files the NEW dataset's hand-picked
-  colours and pins under the OLD dataset's source, and the gate that
-  exists to stop value-laden records crossing datasets then waves them
-  straight through. Ruling 8's leak arriving through the record built
-  to prevent inference.
-  Ask of any record built from two readings: for each field, WHICH
-  reading is it about? A field that describes the DATA belongs with
-  the data's moment, and one that describes the DESIGN belongs with
-  the design's.
+  halves are right for good reasons written at the code.
+  MEASURED ON 2026-08-26, AND THE FAULT WAS THE OTHER WAY ROUND. This
+  entry said `region` travelled with the design half and therefore
+  filed a new dataset's hand-picked colours under the old dataset's
+  source. Driven -- switch the region layer mid-run, then read both
+  stores -- the RECORD was right: it takes `region` from the launch
+  snapshot, and the launch snapshot is what the tiles were drawn from.
+  What was wrong was the second, quieter writer of the same fact:
+  `_add_output_layers` read `weavingspace_region` off the region
+  CHOOSER as the run landed, so every output layer claimed whichever
+  dataset the user happened to be looking at. A's tiles came out
+  stamped as B's; the chooser then labelled A's map with B's name, the
+  binding handed that group to B, and the refusal whose whole job is
+  to stop a landing writing over another dataset's map read the same
+  wrong stamp and let a run on B replace it. Four of four layers
+  destroyed. It is asked of `source_layer` now -- the layer this run
+  tiled, which the landing has held as a parameter all along.
+  SO THE RULE STANDS AND ITS EVIDENCE IS DIFFERENT. Ask of any record
+  built from two readings: for each field, WHICH reading is it about?
+  A field that describes the DATA belongs with the data's moment, and
+  one that describes the DESIGN belongs with the design's. And where
+  one fact is written TWICE, ask which of the two writers has a
+  reason -- the hunt that reported this named the wrong half, and
+  following the reading rather than the measurement would have moved
+  the field that was already correct.
 
 - **THE SIZE GUARD ASKS; ONLY WHAT IS NOT A SIZE IS REFUSED.**
   (Maintainer's ruling, 2026-08-25: "Warning not absolute. Find a

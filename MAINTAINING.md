@@ -232,6 +232,19 @@ project that made it -- the source recovered by reference, embedding
 it an explicit opt-in -- and element tables are trimmed to the
 variable each element displays and named `tiles_<tid>_<variable>`.
 
+WHICH DATASET A MAP CAME FROM IS ASKED OF THE LAYER THAT WAS TILED.
+Every output layer carries `weavingspace_region`, and three rules read
+it: the chooser LABELS a group with it, the binding matches a
+dataset's groups by it, and the landing refuses to write over a group
+whose stamps name another dataset. The group's own working state
+carries the same fact a second time. Both now come from the LAUNCH
+moment -- the record from its snapshot, the stamp from `source_layer`,
+the layer this run tiled. Until 2026-08-26 the stamp was read live
+from the region chooser as the run landed, so switching the region
+layer mid-run filed one dataset's tiles under another and a later run
+on that other dataset destroyed them. When one fact is written twice,
+both writers take it from the same moment or the two will disagree.
+
 `_fresh_group_for_new_data` retired with it: the protection it gave
 comes from which group is SELECTED now, which is a fact on screen
 rather than a flag. What replaced it is narrower and means one thing

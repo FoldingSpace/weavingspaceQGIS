@@ -170,254 +170,115 @@ two elements share a column, one element's notice silenced the other.
 
 ### Outstanding
 
-WHAT IS BUILT, so the entries below are read against it. The
-dataset-switch machinery is complete: the seven rulings of
-2026-08-21, the boundary the full suite drew (a change of dataset is
-leaving a dataset this session has built from), and ruling 8 of
-2026-08-24 -- per-dataset memory banks, value-laden records never
-crossing a shared column name, the file boundary tested at the
-GeoPackage's own bytes, and the "variables in common" carve built and
-ended the same day by the maintainer's question about confidential
-values. Every piece carries a test somebody watched fail and a judged
-catalogue entry. rc17's number was spent by a superseded build, never
-published; rc18 carried all of it.
-EIGHT HUNTS AFTER rc18 PUBLISHED FOUND ELEVEN DEFECTS, every one in
-the day's own code and nine of them inside its repairs; all eleven are
-fixed here with tests and judged entries, so **rc18 is SUPERSEDED**
-and the next candidate carries the cures. Two were privacy leaks of
-the kind ruling 8 exists to prevent, reaching a saved project and a
-GeoPackage by different routes. The record is
-`docs/process/defects-2026-08-25.md`.
+**THE TWO DEBOUNCE VALUES, and they are the whole of it.** Everything
+around them is done. They are `PREVIEW_DEBOUNCE_MS` and
+`LIVE_DEBOUNCE_MS` now rather than a literal in six places; the
+staggered-action sweep derives its delays from them and ASSERTS that
+they still straddle both boundaries, which it could not before, since
+the literals had been chosen to straddle the old numbers and moving
+either would have left the sweep passing while exercising one
+interleaving; and the measurement sits at the constants.
 
-**AND THEN A COLLEAGUE DROVE THOSE RULES THROUGH A REAL DEMO AND THEY
-DID NOT COHERE.** (dos, 2026-08-25, across several messages; every
-claim re-measured here the same day by a probe rather than read out of
-the source.) Each ruling is right on its own terms. What the demo
-found is that they answer ONE ACT in three different ways and that
-none of the three is named anywhere on screen: value-laden records are
-remembered per dataset, the design is carried globally, and the output
-group is remembered nowhere.
-MEASURED ON THIS BRANCH, and these numbers are the ground the entries
-below stand on. The design travels a switch intact -- element count,
-family and "Use tileable as icon" all carried from A to B. A-B-A makes
-THREE output groups, of which the first and third carry the SAME
-dataset stamp, so one dataset already owns two maps with nothing to
-tell them apart. Coming home, the design does NOT return: it arrives
-as the DEFAULT family for the element count, which is neither the
-dataset's own earlier design nor the one carried in. The floor
-question's Yes takes that same default (a user's `grid 3` came home
-`hex-slice 3`). The hand-picked colours and pinned bounds DO come home.
-A hand-typed spacing does NOT, and says nothing about it (137.0 typed,
-500.0 on return). No widget in the dialog names the output group at
-all; the only channel is the transient note line, which on the
-measured run was occupied by an unrelated notice.
-THE COLLEAGUE'S OWN DIAGNOSIS, worth keeping in his words because it
-is the argument the design has to answer: inferring all of this "is OK
-as far as it goes, but it's too hard to be reliable and not produce
-weird seeming behaviour relatively often". And his own caution against
-his own proposal, which is the case for the smallest sufficient
-change: "who is using this other than us?!"
-THE MAINTAINER RULED, 2026-08-25, that EVERY item raised in that
-conversation is settled in THIS version -- not 0.24.4, not 0.25.0 --
-which is why the three entries below that used to sit under 0.24.4
-now sit here.
+WHAT WAS MEASURED, 2026-08-17 and again 2026-08-26: a user nudging a
+control with live update on waits about 1.7 seconds for the map to
+settle, of which roughly 225 ms is CPU. So about two thirds of the
+wait is deliberate delay. That is not a regression -- the interactive
+loop is measurably faster than v0.24.0 and the intervals are
+identical in both -- but it is what "the snappy interactive feel has
+gone" describes, and nobody has ever chosen those numbers against a
+measurement.
 
-**THE OUTPUT GROUP BECOMES THE UNIT OF WORK.** SETTLED BY A GRILLING
-ON 2026-08-25; the rulings themselves are in CLAUDE.md where they
-bind, and what follows is only what is left to BUILD. Six decisions:
-a dropdown of output groups on the first tab beside the region
-chooser, with a "create new" entry; dataset and group bound
-symmetrically, each selecting the other; recency as the tie-break
-where a dataset owns several groups, read off the project's layer
-order rather than remembered; the WHOLE WORKING STATE belonging to
-the group and restored by selecting it; the GeoPackage made
-resumable, with the source recovered BY REFERENCE and embedding it an
-explicit opt-in; and element tables trimmed to the symbolised
-variable and named `tiles_<tid>_<variable>`.
+THREE QUESTIONS, and they are design rather than defect. What should
+the two intervals be; should the preview and the live run share one
+debounce instead of firing at 350 and again at 900; and should a run
+about to be superseded be CANCELLED sooner than it is.
+`tools/probes/one_interaction.py` is the instrument and takes the
+tree to measure as an argument, so any two can be compared.
 
-**BUILT AND COMMITTED ON 2026-08-25**, so what follows is the record
-and the six numbered steps below are done. Seven commits, `18df97d`
-through `4527dec`: the working-state record on the group's own custom
-property; the chooser and the symmetric binding, with
-`_fresh_group_for_new_data` retired; element tables trimmed to the
-variable each displays and named `tiles_<tid>_<variable>`; the
-GeoPackage made resumable with the source by reference and embedding
-an opt-in; the size guard turned from a refusal into a banded
-question with its sentinels split off; and the upstream library taken
-to 0.0.7.89. Five tests, sixty-odd cells between them, and nineteen
-catalogue entries proved to catch, with three re-anchored, two
-re-aimed and two retired with their reasoning.
+THE RECOMMENDATION ON FILE, so this closes in one decision rather
+than a session. The preview is over-damped: it guards some 20 ms of
+work, and about 120 ms already coalesces a held-down spin button,
+which repeats around thirty times a second. The live interval guards
+something genuinely expensive -- 229 ms on a sixteen-polygon fixture
+and seconds on three thousand areas -- and should move only alongside
+the third question, which is what would make a shorter one safe. They
+should stay SEPARATE either way: the preview is what tells somebody
+their input registered, and merging the two either delays that to the
+live interval or launches real tilings at the preview's cadence.
 
-AND THE FOUR-AXIS MATRIX the maintainer asked for --
-`test_the_group_unit_rulings_hold_on_every_route` -- crossing the
-QGIS-plugin boundary, the user-plugin boundary, styling and the
-choice of dataset, with a spine, a seeded sample, every cell
-reporting, no route skipped everywhere, and proved red with either of
-two fixes removed.
-
-WHAT IS STILL OWED, and it is the reason this section does not yet
-say "nothing outstanding":
-
-**ELEVEN HUNT CLAIMS, NONE REPRODUCED.** Four hunts aimed at the
-sweep's own fresh work, which is where this project's record says the
-defects are. Two of them decide whether the rest matter: a MAP
-DELETED, because `_on_group_chosen` and `_resume_from_gpkg` lack the
-in-flight guard their twin carries, and VALUES CROSSING DATASETS,
-because `_stamp_working_state` takes `region` from the launch
-snapshot while reading `elements` live. A third was found
-independently by two hunts: embedding the source defeats the very
-gate that would let its pins and hand-picked colours through. The
-full list is in `dev/state-of-play.md` and in the work list; each
-must be reproduced by a route the hunt did not use before it is
-believed, and each confirmed one owes a test and a proved entry.
-
-**AND THE FIVE FIXES OF `4527dec` ARE UNTESTED**, said here rather
-than discovered later: each was verified by reading the code at the
-line a hunt named, and the suite has not run against them.
-
-THE STEPS, all done, kept for the order the dependencies forced:
-
-1. THE WORKING-STATE RECORD and its persistence in the group's custom
-   properties. Everything else reads it. Its RESTORE WHITELIST is the
-   record's real definition and is widened in the same commit as the
-   record -- a key missing from it is dropped in silence on every
-   reopen, which is how `_adopt_dock_bounds` was got wrong once.
-2. THE DROPDOWN, the symmetric binding and the recency tie-break,
-   retiring `_fresh_group_for_new_data` with them.
-3. TRIMMING, TABLE NAMING, and adoption still reading the old
-   `tiles_<tid>` so existing files and projects keep working. Names
-   sanitised, and case-folding collisions handled: a GeoPackage folds
-   `tiles_a` and `tiles_A` into one table with both writes reporting
-   success (measured 2026-08-14).
-4. THE FILE FORMAT: the record serialized into the GeoPackage with a
-   version stamp, the reference-or-embed choice, and the resume path.
-   TWO THINGS TO DECIDE AT THE CODE rather than in advance, both
-   recommended and neither yet ruled: refuse a forward-incompatible
-   file by version, and treat a recorded column the data no longer
-   has exactly as a deleted column is treated today, which is
-   machinery that already exists.
-5. WHAT "THE WHOLE WORKING STATE" INCLUDES AT THE EDGES -- the output
-   path, the live-update setting, the legibility warning. Write the
-   list down explicitly wherever it lands.
-
-AND THE MATRIX THAT PROVES IT (maintainer's instruction, same day):
-edge cases across all four of the axes this work crosses -- the
-QGIS-plugin boundary, the user-plugin boundary, styling, and the
-choice of dataset. Not a case per ruling: a crossing, with the spine
-run every time and the rest sampled under a printed seed, per the
-default in docs/TESTING.md.
-
-**THE SIZE GUARD WARNS RATHER THAN REFUSES. BUILT 2026-08-25**, in
-`72b0276`; what follows is the reasoning, kept because the entry is
-what a reader will find when they ask why a ceiling stopped refusing.
-The sentinels were split off FIRST, as this entry required, and are
-`bridge.UNTILEABLE` and `bridge.UNCOUNTABLE` -- negative, so no
-`est > ceiling` comparison can wave one through. (Maintainer's ruling,
-2026-08-25: "Warning not absolute. Find a different approach to
-sentinel if appropriate.") `MAX_TILES_HARD` refuses a run outright
-above 200,000 estimated tiles, on a comment claiming the run would
-exhaust memory and kill QGIS -- a figure NOTHING IN THIS REPOSITORY
-MEASURES, and one the maintainer's own argument disposes of: different
-machines have different maximums, and different designs have different
-needs at the same tile count. The gate has already been wrong in the
-expensive direction (ledger row 23, 2026-08-19: 585,765 estimated
-against 70,659 drawn, refusing a map the library renders in five
-seconds), and with the confirm gate raised to 100,000 the same day,
-the band from there to 200,000 is "asked and allowed" while above it
-is "refused however loudly you insist".
-WANTED: one question whose wording escalates by band rather than two
-gates, keeping what the refusal already gets right -- the workable
-spacing it suggests, and icon mode's different sentence, since spacing
-cannot help there -- and adding what a refusal never said: this may
-exhaust memory, QGIS may stop responding, save your project first.
-The safe button is the default, per the dependency-consent precedent.
-WHAT MUST BE TRUE BEFORE IT CLOSES, and it is the reason the ruling
-names the sentinel: `MAX_TILES_HARD + 1` is ALSO returned by
-`estimate_tile_count_bounds` for two cases that are not about size at
-all -- a unit whose vectors are degenerate, so the design does not
-tile the plane, and an estimate that comes back non-finite, which is
-how a layer with no CRS used to reach the user as an OverflowError.
-Those must stay refusals. So the ceiling cannot soften until the
-sentinel has its own mechanism, or a genuinely broken design becomes
-something a user can click straight past.
-
-**LANDED, so this entry records only what is left of it:** a spacing a
-person TYPED now survives a change of dataset while one the plugin
-DERIVED is still re-derived, and pressing Auto hands the choice back
-(maintainer's ruling, 2026-08-25, on a probe's measurement rather than
-a report -- 137 typed, 500 on return, with nothing said). Built,
-guarded by `test_a_spacing_a_person_typed_outlives_a_change_of_dataset`
-and two judged catalogue entries. NOTHING IS OUTSTANDING HERE; the
-line is kept only until the changelog sentence has been through review,
-and goes at that point.
-
-**A SAVED RESULT CARRIES EVERY COLUMN OF THE SOURCE DATA. BUILT
-2026-08-25**, in `c41c7c5`: each element table now carries the
-variable that element displays plus `tile_id` and `prototile_id`, and
-is named `tiles_<tid>_<variable>`, sanitised and de-collided. The
-decisions this entry left to the maintainer were taken as the ruling
-described them, and the entry is kept for the measurements underneath
-it. **A SAVED RESULT CARRIES EVERY COLUMN OF THE SOURCE DATA.**
-(Colleague's report, 2026-08-21, on the maintainer's own data: 23
-element layers each holding all 26 source attributes took an 800 KB
-dataset to a 19 MB GeoPackage. Moved here from 0.24.4 by the ruling
-above.) Wanted: each element layer carries the variable it symbolizes
-plus the identifiers (tile id, and probably the prototile id), with
-the layer name saying which variable it displays. Decisions the
-maintainer owns before anyone builds it: exactly which columns
-survive; whether the layer NAME gains the variable (renaming is safe
--- adoption keys on custom properties, and a name is a label here,
-never an identity); and whether the paired no-data layer needs
-anything beyond the element's own column.
-THE MAINTAINER MET THE NAME HALF ON rc16 (2026-08-24): in the project
-the layers read "tileid - variablename", but the GeoPackage TABLE
-names are `tiles_<tid>`, so loading the file directly shows
-"filename - tiles_a" and the variable is nowhere. Renaming TABLES
-reaches further than renaming layers: `_gpkg_tables_written`, the
-stale-table cleanup's `tiles_{tid}` patterns, `drop_gpkg_layer` and
-adoption-by-file would all need to follow, which is why it belongs to
-this entry rather than to a quick fix. One
-fact that lowers the cost: the set of mapped variables is already a
-GEOMETRY change, so a variable switch re-tiles today regardless --
-trimming the columns takes nothing from the restyle fast path.
-TWO THINGS ARRIVED ON 2026-08-25 AND BOTH BELONG HERE, because they
-pull in opposite directions and the decision needs them together. The
-colleague argued FOR the current behaviour: a given tiling may be
-missing data in some variables, so carrying the full set hedges
-against what is otherwise a lossy encoding, and while you are still
-working it makes switching variable cheap. Against it, a probe wrote a
-four-column dataset out and read the file back with OGR: four tables
-`tiles_a` to `tiles_d`, each carrying ALL FOUR source columns
-including one deliberately named `secret_code` that was never
-symbolized. So the file a user sends a colleague carries attributes
-the map never displayed. That is not ruling 8's cross-dataset leak,
-and it is the same family of concern.
-
-**READ IN "ONE I MADE EARLIER". BUILT 2026-08-25**, in `6ea58e8`:
-`_resume_from_gpkg` opens a saved map without the project that made
-it, the record travelling as GeoPackage file metadata. The colleague's
-second ask -- that the file carry the whole design so reading it back
-RESUMES the work rather than merely displaying it -- is what was
-built, so the two halves closed together as this entry required.
-(Same conversation; moved here from 0.24.4 by the ruling above.) Point the plugin at a saved output
-GeoPackage -- without the project that made it -- and have it adopt
-the group the way a reopened project is adopted, so a demo can open a
-finished result instead of tiling one live. Depends on the entry
-above: a trimmed output must still carry whatever adoption reads. The
-adoption machinery exists; what is new is reaching it from a file
-rather than from the project.
-AND THE COLLEAGUE ASKED FOR MORE THAN ADOPTION: that such a file carry
-the whole design as metadata, so reading it back RESUMES the work
-rather than merely displaying it. Whether that is in scope is the
-second half of the ownership decision above, and the two entries close
-together or not at all.
+Deciding the numbers, or DEFERRING this entry to a later version, are
+both legitimate and both the maintainer's. Changing either value is
+one line in `dialog.py`.
 
 ### What this version has already closed
 
-The thirteen guards owed for those fixes were written and proved on
-2026-08-18 and the entry listing them is DELETED, which is what this
-file asks. The ledger's OWES column is the record; check it rather
-than believing this paragraph:
+Entries are DELETED as they land, which is what keeps this file a
+statement of what is owed rather than a diary. What follows is the
+shortest record that leaves nothing unfindable: where the reasoning
+lives, and the measurements that live nowhere else.
+
+**THE DATASET-SWITCH CONTRACT.** The seven rulings of 2026-08-21, the
+boundary the full suite drew (a change of dataset is leaving a
+dataset this session has BUILT from), and ruling 8 of 2026-08-24 --
+per-dataset memory banks, value-laden records never crossing a shared
+column name, the file boundary tested at the GeoPackage's own bytes.
+The "variables in common" carve was built and ended the same day by
+the maintainer's own question about confidential values. rc17's
+number was spent by a superseded build and never published; rc18
+carried all of it. Eight hunts after rc18 found ELEVEN defects, every
+one in the day's own code and nine inside its repairs, two of them
+privacy leaks of exactly the kind ruling 8 exists to prevent -- so
+**rc18 is SUPERSEDED** and the next candidate carries the cures.
+Record: `docs/process/defects-2026-08-25.md`.
+
+**THE OUTPUT GROUP AS THE UNIT OF WORK.** Settled by a grilling on
+2026-08-25 after a colleague drove the rules above through a real
+demo of several datasets in a row and found they answer ONE ACT in
+three different ways, none of them named on screen. His diagnosis is
+the sentence the design had to answer, and it is quoted in CLAUDE.md
+where the six rulings bind: inferring all of this "is OK as far as it
+goes, but it's too hard to be reliable and not produce weird seeming
+behaviour relatively often". Built the same day in seven commits,
+`18df97d` through `4527dec`: the working-state record on the group's
+own custom property, the chooser and the symmetric binding with
+`_fresh_group_for_new_data` retired, element tables trimmed and named
+for their variable, the GeoPackage made resumable, the size guard
+turned from a refusal into a banded question with its sentinels split
+off, and the upstream library taken to 0.0.7.89. Guarded by five
+tests, the four-axis matrix
+`test_the_group_unit_rulings_hold_on_every_route`, and nineteen
+catalogue entries proved to catch.
+
+**AND ITS HUNT ROUND, JUDGED 2026-08-26.** Nine claims, six confirmed
+and fixed with tests and proved entries, three refuted -- each by
+driving the product rather than reading it, with the four probes
+committed under `tools/probes/`. The worst of the six: the region
+stamp was read off the CHOOSER as a run landed, so switching the
+region layer mid-run filed one dataset's tiles under another and a
+later run on that other dataset destroyed them.
+
+**MEASUREMENTS THAT LIVE NOWHERE ELSE.** The colleague's file: 23
+element layers each carrying all 26 source attributes took an 800 KB
+dataset to a 19 MB GeoPackage, which is what trimming answers. A probe
+wrote a four-column dataset out and read it back with OGR: four
+tables, each holding all four columns including one deliberately
+named `secret_code` that no element ever displayed -- not ruling 8's
+cross-dataset leak, and the same family of concern. And the maintainer
+met the naming half on rc16: in the project the layers read
+"tileid - variablename" while the TABLE names were `tiles_<tid>`, so
+opening the file directly showed "filename - tiles_a" and the
+variable was nowhere.
+
+**A SPACING A PERSON TYPED** now survives a change of dataset while
+one the plugin DERIVED is still re-derived, and pressing Auto hands
+the choice back. Measured rather than reported: 137 typed, 500 on
+return, with nothing said. Guarded by
+`test_a_spacing_a_person_typed_outlives_a_change_of_dataset` and two
+judged entries.
+
+**THE THIRTEEN GUARDS** owed for the fixes of 2026-08-17 were written
+and proved on the 18th. The ledger's OWES column is the record; check
+it rather than believing this paragraph:
 
     python3 -c "
     import re,pathlib
@@ -532,9 +393,17 @@ twenty-seventh element. Both canaries fired on the bump, which is
 what canaries are for, and both were rewritten to what is true now
 rather than relaxed.
 
-WHAT THE MEASUREMENT FOUND: the functional suite, the visual gallery
-read case by case, and the colourspace comparison against the moved
-reference renderer. Recorded in the commit that carries them.
+THE MEASUREMENT IS THE CANDIDATE'S, and this entry said otherwise
+until 2026-08-26. It read "recorded in the commit that carries them",
+naming a commit that was never made: the bump commit said the
+measurement would follow in its own, and nothing followed. The three
+things owed -- the functional suite, the visual gallery read case by
+case, and the colourspace comparison against the moved reference
+renderer -- are precisely the gates `release.py --rc` runs, so the
+candidate is where they happen rather than a commit somebody has to
+remember. Read the gallery case by case when it does: the reference
+renderer moved by twenty-eight versions, which is why this was held
+back in the first place.
 
 **WHAT SHOULD THE DEBOUNCES BE?** Measured 2026-08-17 and recorded
 here because changing it would change the software, which is the line

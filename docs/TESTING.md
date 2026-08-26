@@ -1692,6 +1692,72 @@ not the same evidence -- a failure in the first has to RESET the
 count, and it cannot if the second was already running. Any change to
 the code or the harness resets it too.
 
+## FIVE WAYS A PROBE OR A CELL FAILED TO REACH ITS OWN CASE IN ONE DAY
+
+2026-08-26, judging nine hunt claims. Every one of these reads exactly
+like a passing result, which is why they are listed together: the
+common shape is not carelessness but that a harness has no way of
+telling "the case did not arise" from "the case arose and was fine".
+
+**A FIXTURE THAT STAGES SOMETHING THE PRODUCT WOULD NEVER KEEP.** A
+probe pinned a class bound on a CATEGORICAL element. A pin names a
+class boundary, a categorical row has none, so the plugin correctly
+kept nothing -- and the absence afterwards read as a record the code
+had lost.
+
+**A KEY THE RECORD DOES NOT HAVE.** The same probe staged
+`low_pinned: True` beside the bound, on the reasonable belief that a
+per-end flag lives beside the value. It does not: `low` IS the pin,
+and `_pins_in_force` asks whether it is not None. The plugin dropped
+an invention and the drop read as a defect. BEFORE READING AN ABSENCE
+AS A LOSS, CHECK THE RECORD HAS THAT KEY AT ALL.
+
+**A SUBSTRING MATCH THAT PICKED THE WRONG THING.** A cell asked the
+chooser for the group named "WeavingSpace tiles" and got "WeavingSpace
+tiles 2", which contains it -- so a leg about whether an OLDER choice
+survives selected the newer one and then reported that a choice had
+not survived churn it never met. Where labels are built by
+concatenation, match the PART, not the whole.
+
+**TWO DRAFTS OF ONE CELL THAT COULD NOT REACH ITS CASE, and the
+catalogue caught both.** The cell needed the layer combo to re-emit
+`layerChanged`. Adding and removing a spare polygon layer does that
+when the project holds ONE dataset and does nothing when it holds
+two, so the first draft staged no re-emission at all. Driving a RUN
+instead cannot show it either, because the landing makes the chosen
+group the NEWEST in the tree, and the reading under test -- ask only
+about the newest group -- then answers correctly by accident. The
+cell drives the re-emission itself now, which is the mechanism the
+rule is about. TWO GREEN CELLS, TWO DIFFERENT REASONS THE CASE COULD
+NOT ARISE, and only the mutation entry could tell.
+
+**AND AN ORACLE THAT READ CORRECT BEHAVIOUR AS THE HARM.** A test
+captured a group's layer ids after its first route and asked at the
+end whether they had survived. The routes in between are the same
+dataset's own runs on the same group, and replacing that map in place
+is exactly what they are for. THE HARM MUST BE MEASURED WHERE IT
+WOULD HAPPEN, not from a snapshot taken before several legitimate
+replacements.
+
+## A HARM NAMED BY READING IS A HYPOTHESIS, EXACTLY LIKE A SITE
+
+Also 2026-08-26. This file and CLAUDE.md both already say that a SITE
+named by reading reads exactly like one somebody proved. Judging nine
+hunt claims produced the other half: three of them described the code
+CORRECTLY -- a guard really was missing from two of three doors, an
+embedded region really does load under a source string the gate can
+never match -- and not one of the three costs a user anything, because
+in every case a second mechanism answers first.
+
+The tell is that the claim stops at the line. A guard is missing:
+therefore what? Walk it. If the answer is a map deleted, drive it and
+watch the map go; this project confirmed exactly that for a different
+claim the same day, four layers of one dataset's tiles removed by a
+run on another. If you cannot reach a loss, the honest finding is
+that the behaviour is HELD REDUNDANTLY, which is a different and more
+useful sentence than "the claim was wrong" -- it names what would
+have to move before the asymmetry starts costing something.
+
 ## A CLEANUP THAT WORKS BY SIDE EFFECT IS A CLEANUP NOBODY WROTE
 
 2026-08-25, and it is the best lesson of a night that found seven

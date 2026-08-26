@@ -71,6 +71,43 @@ def says_it_is_clear(section: str) -> bool:
   return CLEAR in QUOTED.sub(" ", section).lower()
 
 
+def outstanding_entries(section: str):
+  """The bold entries a version still owes, and whether they are named.
+
+  Args:
+    section: the version's own slice of ROADMAP.md.
+
+  Returns:
+    A pair (named, entries). `named` is True when the section carries
+    a heading that says what is OWED, in which case `entries` holds
+    only the bold lines beneath it. Otherwise `named` is False and
+    `entries` is every bold line in the section, which the caller must
+    describe honestly rather than present as a list of debts.
+
+  A LIST THAT NAMES THE WRONG THINGS TEACHES PEOPLE TO SILENCE THE
+  GATE. This used to take every bold line in the section, and a
+  version's section opens with what it GIVES YOU and what it PUTS
+  RIGHT -- so a refusal listed five delivered features as work still
+  owed. That is the shape this project already names about a checker
+  whose failures are mostly false: the true ones go with them.
+
+  THE FILE'S OWN CONVENTION IS THE HEADING, so that is what is read
+  rather than a guess about wording. Where a section does not use one,
+  saying so beats pretending the list means something it does not.
+  """
+  chunks = re.split(r"^###\s+(.*)$", section, flags=re.M)
+  # chunks alternates: preamble, heading, body, heading, body...
+  owed = []
+  for index in range(1, len(chunks) - 1, 2):
+    if re.search(r"outstanding|still owed|owes", chunks[index], re.I):
+      owed.append(chunks[index + 1])
+  bold = lambda text: [line.strip() for line in text.splitlines()
+                       if line.strip().startswith("**")]
+  if owed:
+    return True, [item for body in owed for item in bold(body)]
+  return False, bold(section)
+
+
 def plugin_version():
   """The version a candidate would be built for, from metadata.txt.
 
@@ -227,11 +264,14 @@ def main():
       f"ROADMAP.md has no section for {version}. Every release says "
       f"what it owed, even when the answer is nothing.")
   elif not says_it_is_clear(section):
-    outstanding = [line.strip() for line in section.splitlines()
-                   if line.strip().startswith("**")]
+    named, whole = outstanding_entries(section)
     problems.append(
-      f"ROADMAP.md still lists work under {version}:\n"
-      + "\n".join(f"    {item}" for item in outstanding[:6])
+      (f"ROADMAP.md still lists work under {version}"
+       + (":" if named else ", though its section has no heading "
+                           "naming what is owed. Every bold entry in "
+                           "it, which may include what the version "
+                           "DELIVERS rather than what it owes:") + "\n")
+      + "\n".join(f"    {item}" for item in whole[:6])
       + f"\n    Do it, or move it to a later section -- deferring is "
         f"your decision and this tool will not make it. When the "
         f"section is genuinely clear, say so in it with the words "

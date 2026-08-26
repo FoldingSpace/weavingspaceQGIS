@@ -37417,7 +37417,29 @@ def test_the_roadmap_gate_reads_a_statement_not_a_mention():
        not gate.says_it_is_clear("**Something owed.** Not done yet."),
        "a section with no clearance phrase at all was cleared")
 
-  assert checked == 6, f"only {checked} cells were compared"
+  # ---- AND WHAT IT LISTS WHEN IT REFUSES
+  # A gate whose failures name the wrong things is one people learn to
+  # silence, and the true failures go with them. This listed EVERY
+  # bold line in the section -- and a version's section opens with
+  # what it GIVES YOU and what it PUTS RIGHT, so a refusal named five
+  # delivered features as work still owed.
+  shaped = ("### What it gives you\n\n**A delivered thing.** Prose.\n\n"
+            "### Outstanding\n\n**A real debt.** Prose.\n")
+  named, entries = gate.outstanding_entries(shaped)
+  cell("a section with an Outstanding heading is read from it",
+       named and entries == ["**A real debt.** Prose."],
+       f"named={named}, entries={entries!r} -- a delivered feature "
+       f"would be reported as work still owed")
+
+  flat = "**One thing.** Prose.\n\n**Another.** Prose.\n"
+  named, entries = gate.outstanding_entries(flat)
+  cell("a section with no such heading says so rather than guessing",
+       not named and len(entries) == 2,
+       f"named={named}, entries={entries!r}; without a heading the "
+       f"caller must describe the list honestly rather than present "
+       f"it as a list of debts")
+
+  assert checked == 8, f"only {checked} cells were compared"
   assert not problems, \
     "the roadmap gate can be satisfied by discussing it:\n  " + \
     "\n  ".join(problems)

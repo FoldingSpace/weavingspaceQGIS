@@ -12,7 +12,30 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-08-25, after THREE rounds totalling eight hunts:
+Last updated 2026-08-26, when a FOURTH round's claims were finally
+judged. NINE CLAIMS, SIX CONFIRMED, THREE REFUTED -- and the three
+refutations are the entry worth reading, because this record's value
+depends on it being possible to look bad in.
+
+WHAT A REFUTATION COSTS AND BUYS. Each of the three named a REAL
+asymmetry in the source: a guard genuinely missing from two of three
+doors, an embedded region genuinely loading under a source string the
+gate cannot match (measured), a chooser genuinely moved outside a
+flag. None of them costs a user anything, because in every case a
+second mechanism answers first. Judging them took about as long as
+judging the six that were real, which is the queue this record
+already names as the limit on the method.
+
+AND TWO OF THE THREE PAID FOR THEMSELVES ANYWAY. The probe written to
+refute the mid-run claim found the chooser MISLABELLING a group,
+which led directly to the worst of the six -- a map destroyed. The
+probe written to refute the embedding claim measured the gate
+answering DIFFERENT on the one journey embedding exists for: true,
+benign today, and precisely the shape this file records from the
+other side, where a fix removed the accident hiding a defect three
+hours later.
+
+Before that, 2026-08-25, after THREE rounds totalling eight hunts:
 ELEVEN confirmed defects, nine of them inside the same day's repairs.
 THE CURVE DID NOT FLATTEN -- four defects, then three, then four --
 and every round aimed at the last round's fixes found something. That
@@ -294,6 +317,28 @@ whose probe then errored before measuring anything, and a probe that
 proves nothing must not be filed as a confirmation.
 
 ## What the record says, so far
+
+**A CLAIM IS A HYPOTHESIS ABOUT A HARM, NOT ONLY ABOUT A LINE.**
+Added 2026-08-26, and it is the sharpest thing the verification queue
+has taught. This file already says that a hunt reports what it SAW
+and the maintainer decides severity; what the fourth round adds is
+that the two are separated by a whole journey. All three refuted
+claims described the code correctly. Each stopped at the line, where
+the harm is a deduction, and every one of those deductions was
+answered further down by a mechanism the reader had not walked to. So
+drive the journey to its END -- not to the guard that is missing, but
+to the map that would be lost -- and where you cannot reach a loss,
+say the mechanism is held redundantly rather than that the claim is
+wrong.
+
+**AND WHEN A CLAIM NAMES A DIRECTION, CHECK THE DIRECTION TOO.** The
+one confirmed claim that mattered most was reported with its
+direction REVERSED: a record and a layer stamp disagreed, and the
+hunt named the record as the wrong half where the record was right.
+Following the reading rather than the measurement would have moved
+the field that was already correct and left the leak untouched. The
+question that settled it -- of one fact written twice, which of the
+two writers had a REASON -- is worth asking of any two-stores finding.
 
 **Direction beats effort.** Eight hunts reading code forward found
 fourteen defects and none of them was the GeoPackage data loss, in
