@@ -5407,21 +5407,62 @@ def test_the_spacing_box_at_its_extremes():
   nothing about what the plugin does with the numbers at the ends of
   the range, which are 0.000001 and a million million.
 
-  The small end is the dangerous one and has a guard already: a
-  spacing far below the size of the region asks for astronomically
-  many tiles, and attempting it exhausts memory inside GEOS and takes
-  QGIS down. The guard must hold at the very bottom of the range, not
-  merely at the small values somebody thought to try by hand.
+  The small end is the dangerous one: a spacing far below the size of
+  the region asks for astronomically many tiles. THE GUARD THERE IS A
+  QUESTION RATHER THAN A REFUSAL, since the maintainer's ruling of
+  2026-08-25 -- above `MAX_TILES_HARD` the same question is put in
+  stronger words, with the safe button as the default. So what must
+  hold at the very bottom of the range is that the question is ASKED,
+  in words naming what it will cost, and that declining it stops the
+  run at once and leaves the button usable.
+
+  THIS TEST WENT ON ASSERTING THE OLD REFUSAL UNTIL 2026-08-26, and
+  the sweep that was meant to move every such expectation missed it --
+  the tests that assert a refusal were mended in the instances a
+  keyword search turned up, which is this project's own
+  targeted-runs-cannot-find-what-they-do-not-name lesson arriving
+  again. Nothing noticed, because the suite's message-box shim answers
+  `question` with Yes: the suite took the arm where the user says go
+  on, which at one metre is an attempt at 36 million tiles, and
+  whether that returns inside ninety seconds is a fact about the
+  MACHINE. Both Macs settled and all three Linux legs and Windows did
+  not, which is a red that means nothing. Measured that day on the
+  same fixture: the question reads "roughly 36,086,505 tiles", and
+  declining settles in 0.9 s where accepting had not settled in 93.
+
+  THE ACCEPTING ARM IS DELIBERATELY NOT DRIVEN HERE. Waiting on a run
+  the user has just been warned may take the machine is a performance
+  budget wearing a guard's clothes, and this test is about the ends of
+  the BOX. The bands themselves are covered by
+  `test_the_size_guard_warns_where_it_used_to_refuse`.
 
   The large end is the harmless-looking one: a single tile larger than
   the world. It has no reason to crash, and it must not silently
   produce nothing while looking like it worked.
   """
+  from qgis.PyQt.QtWidgets import QMessageBox
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   trouble = []
-  for label, spacing in [("the smallest spacing the box allows", 1e-6),
-                         ("a spacing larger than the world", 1e12),
-                         ("one metre, on a four-kilometre region", 1.0)]:
+  # The third element is the answer to STAGE, or None to leave the
+  # shim's default (Yes) in force. MEASURED 2026-08-26 on this
+  # fixture, because guessing which case reaches which band is how the
+  # first repair of this test was wrong: BOTH small spacings reach the
+  # question, at roughly 36,000,000,086,453,551,104 tiles and
+  # 36,086,505 respectively, and declining each settles in 0.9 s. The
+  # large spacing asks nothing at all and makes two layers, so staging
+  # an answer it never meets would say something untrue about what it
+  # exercises.
+  # WHY THE SMALLEST ONE USED TO PASS ON THE DEFAULT YES, since that
+  # is the thing to understand rather than to work around: a tiling of
+  # 3.6e19 tiles fails almost at once, where one of 36 million grinds
+  # past any ceiling. The absurd case died fast enough to look like a
+  # guard working.
+  for label, spacing, answer in [
+      ("the smallest spacing the box allows", 1e-6,
+       QMessageBox.StandardButton.No),
+      ("a spacing larger than the world", 1e12, None),
+      ("one metre, on a four-kilometre region", 1.0,
+       QMessageBox.StandardButton.No)]:
     project = QgsProject.instance()
     for existing in list(project.mapLayers().values()):
       project.removeMapLayer(existing.id())
@@ -5430,6 +5471,8 @@ def test_the_spacing_box_at_its_extremes():
     project.addMapLayer(layer)
     dlg = None
     try:
+      if answer is not None:
+        MODAL_ANSWERS["question"] = answer
       dlg = WeavingSpaceDialog(iface=None)
       dlg.live_check.setChecked(False)
       dlg.layer_combo.setLayer(layer)
@@ -5438,8 +5481,11 @@ def test_the_spacing_box_at_its_extremes():
       dlg._generate()
       if not _settle(dlg, seconds=90):
         trouble.append(
-          f"{label}: never settled. At this spacing the guard should "
-          f"refuse immediately rather than attempt the tiling")
+          f"{label}: never settled in 90s. Above MAX_TILES_HARD the "
+          f"guard ASKS rather than refuses, so the only thing that "
+          f"stops a run at this size is the answer, and this case "
+          f"answered "
+          f"{'No' if answer is not None else 'the default Yes'}")
         continue
       _tick(200)
       made = bool(dlg._element_layer_ids)
@@ -5448,9 +5494,27 @@ def test_the_spacing_box_at_its_extremes():
         trouble.append(f"{label}: no output and no explanation")
       if not dlg.generate_btn.isEnabled():
         trouble.append(f"{label}: Generate left disabled afterwards")
+      # The declining case carries the whole of what the bottom of the
+      # range now promises, so it says all three things rather than
+      # only that something happened.
+      if answer is not None:
+        asked = [text for kind, text in MODALS if kind == "question"]
+        if not asked:
+          trouble.append(
+            f"{label}: nothing was asked, so a run this size would "
+            f"have started with nobody consenting to it")
+        elif not any("tiles" in text for text in asked):
+          trouble.append(
+            f"{label}: the question never says what it will cost: "
+            f"{asked[0][:120]!r}")
+        if made:
+          trouble.append(
+            f"{label}: declining still produced "
+            f"{len(dlg._element_layer_ids)} element layer(s)")
     except Exception as exc:
       trouble.append(f"{label}: raised {type(exc).__name__}: {exc}")
     finally:
+      MODAL_ANSWERS.pop("question", None)
       if dlg is not None:
         dlg.close()
   assert not trouble, "the spacing box at its limits:\n  " + \
@@ -7433,11 +7497,18 @@ def test_a_large_region_is_handled():
 
   Every other test in this file runs on a handful of squares, and the
   guards those tests exercise are sized for national datasets: the
-  tile-count estimate, the confirmation threshold, the hard refusal
-  that exists because a small spacing on a big extent exhausts memory
-  inside GEOS and takes QGIS down. Checking a threshold of hundreds of
-  thousands against a nine-polygon fixture tests the arithmetic and
-  not the behaviour.
+  tile-count estimate, the confirmation threshold, and the escalated
+  question above it, which exists because a small spacing on a big
+  extent can exhaust memory inside GEOS and take QGIS down. Checking a
+  threshold of hundreds of thousands against a nine-polygon fixture
+  tests the arithmetic and not the behaviour.
+
+  THAT LAST GUARD WAS A REFUSAL UNTIL 2026-08-25, when the maintainer
+  ruled that a size is a question rather than a verdict -- different
+  machines have different maximums, and the refusal had already
+  declined a map the library renders in five seconds. What is still
+  refused outright is what is not a size at all: a design whose
+  vectors are degenerate, and an extent that cannot be measured.
 
   Three phases, along the two axes that scale independently. Tile
   count comes from extent over spacing and NOT from the polygon
@@ -7451,10 +7522,10 @@ def test_a_large_region_is_handled():
     a spacing asking for tens of thousands of tiles must also work,
       since that is what the confirmation threshold promises is
       merely slow rather than impossible;
-    a spacing asking for astronomically many must be REFUSED, and
-      refused promptly, rather than attempted and discovered to be
-      impossible somewhere inside a C++ library that takes the
-      application down with it.
+    a spacing asking for astronomically many must be QUESTIONED, and
+      declining must stop it promptly, rather than the run being
+      attempted and discovered to be impossible somewhere inside a
+      C++ library that takes the application down with it.
 
   The region is deliberately modest by real-world standards (2,500
   polygons; a census tract file is ten times that) because the point
@@ -7463,6 +7534,7 @@ def test_a_large_region_is_handled():
   not to measure this machine.
   """
   import time
+  from qgis.PyQt.QtWidgets import QMessageBox
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   from weavingspace_qgis import compat
 
@@ -7547,16 +7619,31 @@ def test_a_large_region_is_handled():
   assert dlg.generate_btn.isEnabled(), \
     "Generate left disabled after a large map"
 
-  # 3. and a fine spacing over the same region must be refused, fast.
-  # This is the guard that exists because attempting it exhausts
-  # memory inside GEOS and takes the application with it.
+  # 3. and a fine spacing over the same region must be STOPPED, fast.
+  # This used to read "must be refused" and to say the tiling should
+  # never be attempted. That was the contract until the maintainer's
+  # ruling of 2026-08-25, which turned the ceiling into a question
+  # whose safe button is the default -- so what stops a run this size
+  # is now the ANSWER, and the harness answers `question` with Yes
+  # unless a test stages otherwise.
+  # It went on passing on the Yes arm because a tiling of that many
+  # tiles fails almost at once, which looks exactly like a guard
+  # working. Its sibling at one metre does not fail fast, and that is
+  # what went red on four platforms on 2026-08-26. Staging the safe
+  # answer here makes this phase measure the thing it names rather
+  # than how quickly an absurd job collapses.
   MODALS.clear()
+  MODAL_ANSWERS["question"] = QMessageBox.StandardButton.No
   dlg.spacing_spin.setValue(0.5)
   began = time.time()
-  dlg._generate()
-  assert _settle(dlg, seconds=120), \
-    "a spacing of 0.5 over a 10 km region never settled; it should " \
-    "have been refused without the tiling ever being attempted"
+  try:
+    dlg._generate()
+    assert _settle(dlg, seconds=120), \
+      "a spacing of 0.5 over a 10 km region never settled, though " \
+      "the size question was answered No, which stops the run before " \
+      "any tiling is attempted"
+  finally:
+    MODAL_ANSWERS.pop("question", None)
   refusal = time.time() - began
   _tick(200)
   said = bool(dlg.live_note.text().strip()) or bool(MODALS)
@@ -26846,6 +26933,32 @@ def _switch_matrix_cell(route, state, aftermath):
           if dlg._task is None:
             break
         _tick(400)
+        # THE SNAPSHOT IS NOW OLDER THAN A LEGITIMATE REPLACEMENT.
+        # The run that was in flight was launched on A, into A's own
+        # group, so its landing REPLACES A's map in place -- the
+        # settled contract, and measured on 2026-08-26: four new
+        # layers in the same group carrying the same region stamp,
+        # and the Generate on B afterwards leaves all four alone.
+        # Judging the aftermath against the PRE-FLIGHT ids therefore
+        # reports that replacement as the harm, which is the oracle
+        # fault docs/TESTING.md records under "the harm must be
+        # measured where it would happen".
+        # It passed until 2026-08-26 because the landing used to take
+        # `weavingspace_region` from the region CHOOSER, so an A run
+        # landing under a B chooser stamped B, the landing's own
+        # refusal saw a group whose stamps disagreed, and it built a
+        # rival group instead of replacing anything. The cell was
+        # green for the reason the fix removed.
+        # THE PREMISE IS ASSERTED RATHER THAN ASSUMED, or this
+        # refresh would hide a real loss: the replacement must have
+        # produced as many layers as it took away.
+        replaced = set(dlg._element_layer_ids.values())
+        if len(replaced) != len(first_layers):
+          return ("the in-flight run's landing did not replace the "
+                  "map it was launched against",
+                  f"{len(first_layers)} layer(s) became "
+                  f"{len(replaced)}")
+        first_layers = replaced
     if route == "return":
       dlg.layer_combo.setLayer(A)
       _tick(600)
@@ -50187,6 +50300,24 @@ def test_a_class_count_at_either_end_of_its_range_reaches_the_map():
     mode.activated.emit(index)
     _tick(150)
     dlg.spacing_spin.setValue(400)
+    # LET THAT REBUILD LAND BEFORE ANY CELL WIDGET IS CAPTURED.
+    # Spacing is a geometry change, so it arms the preview timer, and
+    # `_rebuild_unit` calls `_refresh_table`, which replaces EVERY
+    # cell widget -- so a spinner fetched before this settles is a
+    # wrapper round a C++ object that is about to be destroyed.
+    # The window moved on 2026-08-26, when the preview debounce became
+    # a FLOOR of 150 ms widening to whatever the last rebuild cost
+    # rather than a flat 350. Measured on this fixture that day: the
+    # rebuild costs 23 ms, so the wait sits at its floor and the
+    # widget dies 181 ms after the spacing change -- inside the 200 ms
+    # tick below, where at 350 it had fallen safely outside.
+    # This is the test's timing, not the product's: a rebuild landing
+    # sooner after a design change lands FURTHER from a person's hand
+    # rather than nearer it, since nobody reaches a table cell in a
+    # sixth of a second.
+    assert _settle(dlg, seconds=10), \
+      "the rebuild the spacing change arms never landed, so every " \
+      "cell widget below would be captured mid-replacement"
 
     trouble = []
     last_layers = None
