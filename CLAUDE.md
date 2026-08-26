@@ -146,6 +146,30 @@ obligations: they exist so nobody pays twice for the same discovery.
   `--` means the fix rests on its hunt's reproduction alone, which is
   not what this project calls fixed.
 
+- **WHEN A ROUND OF HUNTS IS PROPOSED, THE CONSISTENCY SWEEP IS
+  PROPOSED BESIDE IT, WITH A REASON FOR CHOOSING ONE.** (Maintainer's
+  instruction, 2026-08-26: the creativity offered once must be on offer
+  again in the rc process, alongside the hunts rather than instead of
+  them.) Every rc round so far has reached for hunts by default, and
+  the record says that is right only when the ground is FRESH: 573,967
+  tokens bought one confirmed defect when a round was aimed at old
+  code, and four hunts of eight landed on one line when it was aimed
+  at new. A hunt samples the space by intuition and its real cost is
+  the verification queue, which runs in the maintainer's context.
+  THE ALTERNATIVE IS TO ENUMERATE WHAT HUNTS SAMPLE. This project's
+  defects are not evenly distributed over shapes -- most of one day's
+  ledger is ONE FACT HELD IN SEVERAL STORES, MENDED IN ONE -- and a
+  shape that recurs that reliably can be swept mechanically, by three
+  invariants that need no oracle and leave no claim to judge:
+  AGREEMENT (every store holding a fact agrees about it), COLLATERAL
+  (an act about one element moves no other), and RETURN (doing a thing
+  and undoing it comes back). One flag covers every kind of act: a
+  CONTROL act must change something, a BOUNDARY CROSSING -- closing
+  the plugin and opening it again, saving and reopening, choosing a
+  group -- must change nothing. Full argument, cost and first findings
+  in docs/process/HUNT-RECORD.md under "WHAT TO RUN INSTEAD OF A HUNT".
+  Hunts keep the directions that cannot pattern-match, which is what
+  the portfolio rule already reserves a third of a round for.
 - **Documentation standard**: all new code carries docstrings and
   section comments written for a weavingspace-literate, QGIS-naive
   maintainer — explain each QGIS/Qt concept at its point of use. This

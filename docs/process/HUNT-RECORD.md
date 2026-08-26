@@ -291,6 +291,113 @@ expensive in judgement — every claim must be reproduced before it is
 believed — and its yield depends almost entirely on the direction
 chosen, which is why this file exists.
 
+## WHAT TO RUN INSTEAD OF A HUNT, AND WHEN
+
+Added 2026-08-26 (night), and it belongs in this file rather than in
+docs/TESTING.md because it is a question about WHERE A ROUND'S TOKENS
+GO. Every rc process so far has answered "hunts", and hunts are not
+always the best answer. **When a round of hunts is proposed, propose
+the sweep beside it and say why one rather than the other.**
+
+THE ARGUMENT, from this file's own numbers. A hunt costs about 200,000
+tokens and SAMPLES the space by intuition, which is why four hunts of
+eight landed on one line on 2026-08-26 -- convergence is this method's
+strongest evidence and also its largest waste. The real cost is the
+verification queue, which runs in the maintainer's context rather than
+the hunt's. And the yield collapses on old ground: 573,967 tokens for
+ONE confirmed defect on 2026-08-15.
+
+Against that, the defects themselves are NOT evenly distributed over
+shapes. Most of the ledger of 2026-08-26 is one shape -- ONE FACT HELD
+IN SEVERAL STORES, MENDED IN ONE -- and CLAUDE.md now states it three
+times about three different whitelists. A shape that recurs that
+reliably can be ENUMERATED rather than hunted, and enumeration is
+where the economics invert: one build, no judgement queue, a
+reproduction attached to every failure, and it goes on catching the
+next instance for nothing.
+
+**THE CONSISTENCY SWEEP: ONE ORACLE, MANY ACTS.** A session is a
+sequence of acts, and they fall into three kinds this project has
+always tested separately -- dialog controls (a ramp, a class count, a
+spacing), QGIS-side acts (a renderer edited in the dock, a group
+renamed in the layers panel) and BOUNDARY CROSSINGS (closing the
+plugin and opening it again, saving and reopening, choosing a group,
+switching dataset). All three are judged by the same three invariants,
+none of which needs an oracle:
+
+  AGREEMENT   every store holding a fact agrees about it -- the row a
+              person reads, the renderer the map draws, the group's
+              own record, the record in the file a colleague opens;
+  COLLATERAL  an act about element X leaves every OTHER element's row
+              and ladder exactly as it was;
+  RETURN      doing a thing and undoing it comes back to where it
+              started, which is the commonest thing anybody does in a
+              dialog and which this project's rules already promise.
+
+ONE FLAG SEPARATES THE KINDS, and it is what lets one harness cover
+all of them. A CONTROL act must change something -- an act that
+changed nothing passes all three invariants while proving nothing,
+which is this project's standing trap. A BOUNDARY CROSSING must change
+NOTHING: closing a window and opening it again is not an edit, and
+neither is saving a file.
+
+WHAT IT COST AND WHAT IT FOUND, first outing. One evening to build,
+about seven minutes to run, no verification queue at all. Seven
+control acts passed all three invariants -- which is what makes its
+red trustworthy, since the same run demonstrates the instrument can
+answer either way -- and the boundary acts went red at once: closing
+the plugin and opening it again lost every hand-chosen variable,
+style, ramp and class count, while the map went on drawing the right
+thing and the file went on holding the right design. Three defects in
+all (rows 18 to 20 of `defects-2026-08-26.md`), in ground SIXTEEN
+HUNTS had finished reading an hour earlier.
+
+WHY IT REACHED WHAT THE HUNTS DID NOT, which is the whole argument for
+keeping both. The hunts were aimed at the day's own code and every one
+of them was aimed well -- rows 11 to 17 are all in it. The sweep's
+three are older, and they are reached by the most ORDINARY act there
+is rather than by an ingenious one. A hunt chooses where to look; a
+sweep enumerates what a person does. Neither subsumes the other, and
+the sweep is the cheaper of the two by a wide margin.
+
+**AND ITS FOUR-CORNER FORM FOUND NOTHING, WHICH IS WORTH RECORDING.**
+Asked at the maintainer's suggestion, the sweep was extended to the
+classic question here: a class break, a colour, a ramp or a variable
+changed at ONE corner, with four descriptions then required to agree
+-- the user's intent, the plugin's row, QGIS's own renderer, and the
+GEOPACKAGE read the way a colleague reads it, a fresh layer off the
+file with `loadDefaultStyle`. Four doors were driven: a ramp picked in
+the plugin, a class recoloured in the dock, a class bound retyped in
+the dock, and the DATA edited underneath through the buffer QGIS's
+attribute table uses. Every corner agreed at every door, immediately
+and after the next Generate. That is the family CLAUDE.md records
+failing at the fourth corner repeatedly -- "a retyped break, a changed
+ramp, a stroke, a legend label and a deleted category each reached the
+map and the project but never the GeoPackage" -- so a clean answer
+there is evidence the 2026-08-17 repairs held, and it is ground the
+next round need not walk.
+
+AND IT AUTHORS ITS OWN FAILURES, which are counted for the same reason
+a matrix's are: TEN of mine against three defects, listed in the
+ledger. Eight of the ten were probe faults this project has already
+written down -- a freed temporary answering `#000000`, a widget held
+across a rebuild, an oracle reading from a stale snapshot, a fixture
+that could not exhibit its case -- met again by somebody who had read
+those very entries the same evening. The lesson is not that the list
+should be longer. It is that ASSERTING THE PREMISE is the only thing
+that catches them: the data-edit door reported the map ignoring a
+change until the probe was made to check that the twelve values it
+multiplied by ten were not all zero, which they were.
+
+WHEN A HUNT IS STILL THE RIGHT ANSWER. When the ground is genuinely
+new, so there is no settled invariant to enumerate; and for the
+directions that cannot pattern-match at all -- backwards-from-harm and
+stochastic -- which the portfolio rule already reserves a third of any
+round for, and which found the worst defect in this project's history
+after eight code-reading rounds walked past it. The sweep finds
+DISAGREEMENTS between things that already exist. It cannot find a harm
+nobody has described.
+
 ## What a "direction" means
 
 A direction is not a place in the code. It is the QUESTION a hunt

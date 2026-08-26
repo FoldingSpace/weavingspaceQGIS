@@ -170,23 +170,75 @@ two elements share a column, one element's notice silenced the other.
 
 ### Outstanding
 
-There is nothing outstanding in code for 0.24.3.
+**THREE DEFECTS FOUND ON 2026-08-26 (night) ARE UNFIXED, and the first
+is the one to read.** They came from a CONSISTENCY SWEEP rather than a
+hunt -- one oracle over many acts, argued and costed in
+docs/process/HUNT-RECORD.md -- and the full rows are 18 to 20 of
+`docs/process/defects-2026-08-26.md`.
 
-**ONE WINDOWS RED IS UNJUDGED, and it is a process item rather than a
-code one until somebody reads the second run.** On `ba255e7` every CI
-leg went green except Windows, which failed `a project whose output
-geopackage has moved` alone -- 573 passed, 1 failed, all four element
-layers "came back invalid again" after the output was re-pointed at
-the same path. It is not one of the three tests that morning fixed.
-It sits in the family docs/TESTING.md already documents: the OGR
-provider holds a GeoPackage open and Windows refuses to move a file
-under a live handle. Three sibling tests announce themselves with
-`_skip_loudly`, and the one that IS reachable works only because
-clearing the project first releases the handles. THIS TEST HAS NO SUCH
-TREATMENT, so it either needs the sibling's release or it is
-intermittent -- and the Windows legs on `d9fed9f` and `fa6c831` say
-which. Twice is real; once is a flake and gets recorded as one, since
-a red that means nothing is how a gate stops being read.
+CLOSING THE PLUGIN AND OPENING IT AGAIN LOSES THE WHOLE DESIGN. Same
+session, no save, no quit. Every hand-chosen variable, style, ramp and
+class count reverts to the plugin's default cycle while the layers go
+on drawing the map the person made and the GeoPackage goes on holding
+the right design -- so the table shows a confident wrong answer, and
+the next Generate writes it onto the map. Measured: a categorical
+land-cover element came back as a quantitative `v2` one, two of four
+elements destroyed. `_adopt_existing_group` takes over the group's
+LAYERS and never reads its RECORD, where `_on_group_chosen` reads it
+and applies it. It is against ruling 4 of 2026-08-25, and it is
+present at `4527dec`, so rc16, rc18 and rc19 all carry it.
+`tests/run_tests.py:32318` accommodates the loss in a comment written
+before that ruling, which is the evidence nobody re-decided it.
+
+ONE SESSION LEAVES TWO OUTPUT GROUPS. Live update draws a map, the
+user then chooses a GeoPackage, and the Generate builds a second group
+beside the first rather than replacing in place; the first survives as
+four memory layers holding a complete stale copy, it survives the
+save, and the chooser offers both for good under labels differing by
+one digit. What to do with the memory copy -- replace it, remove it,
+or leave it -- is a decision rather than a repair.
+
+DELETING THE OUTPUT FILE AND PRESSING GENERATE leaves the project
+showing only that stale copy, at the old spacing, while a file nothing
+reads from is written and nothing is said. Its site has not been found
+yet, and it is entangled with the entry above, so look for the site
+before the fix.
+
+**Two leads and seven clearances** are recorded with them, including
+the four-corner check -- user, plugin, QGIS and the GeoPackage read as
+a colleague reads it -- which found every corner agreeing at every
+door driven. That is ground the next round need not walk.
+
+**THE WINDOWS RED IS JUDGED, 2026-08-26 (night): IT IS REAL, THREE FOR
+THREE.** `a project whose output geopackage has moved` failed on
+`ba255e7`, on `d9fed9f` and on `fa6c831`, each time alone (576 and 579
+passed, 1 failed) and each time with the identical message -- all four
+element layers "came back invalid again" after the output was
+re-pointed at the same path. The test the rule prescribed was "twice
+is real, once is a flake"; three settles it, and it is recorded here
+rather than in a log because a red nobody judges is how a gate stops
+being read.
+
+WHAT IT IS NOT. It is not one of the three tests the morning of the
+26th fixed, and it is not simply the Windows file-handle limit
+docs/TESTING.md documents: three SIBLING tests announce themselves
+with `_skip_loudly` because Windows cannot stage "the file went away
+while the layer was open" at all, and the one that IS reachable works
+because clearing the project first releases the handles, given a
+retry. This test has neither treatment, so the question is whether it
+needs the sibling's release or whether the PLUGIN fails to recover.
+
+AND IT HAS A MACOS TWIN, found the same night by the consistency
+sweep and recorded as row 20 of `docs/process/defects-2026-08-26.md`:
+delete the output GeoPackage and press Generate, and the file is
+rewritten while NOTHING in the project reads from it, the dialog's
+four element ids resolve to no layer, and the map left on screen is a
+stale copy at the old spacing. One is the file moving and coming back,
+the other the file going and being rewritten; both end with element
+layers that no longer reach their data. THEY SHOULD BE DIAGNOSED
+TOGETHER, and the Windows leg is the more useful of the two because it
+is deterministic. If they are one defect, the platform was not the
+cause -- it was the thing that stopped it being intermittent.
 
 **THE DEBOUNCES ARE DECIDED, 2026-08-26**, which was the last entry
 here. The maintainer's condition was to take the shorter preview wait

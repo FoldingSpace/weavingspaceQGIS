@@ -2678,6 +2678,68 @@ it has: ASK WHAT YOUR FIXTURE LEAVES TO A DEFAULT, and stage something
 the default cycle does not produce. Then assert that you did -- the
 premise is one line and it is what stops the fixture drifting back.
 
+## THE ORDINARY ACT IS A BETTER ROUTE TO A DEFECT THAN THE INGENIOUS ONE
+
+2026-08-26 (night), and it is the clearest thing the consistency sweep
+taught. Sixteen hunts had just finished on this tree, aimed with care
+at the code written that day, and they found eleven defects in it. An
+hour later a sweep that does nothing clever -- it closes the plugin
+window and opens it again -- found that every hand-chosen variable,
+style, ramp and class count was lost, and had been since 2026-08-25.
+
+THE ACT IS IN THE CODE'S OWN DOCSTRING. `_adopt_existing_group` says
+it exists for "a dialog opened later in a QGIS session (the plugin
+closed and reopened, which users do constantly)". Nothing was hidden;
+what was missing was somebody DOING it and then reading every store.
+
+**SO ENUMERATE WHAT A PERSON DOES, NOT WHAT A DEFECT MIGHT BE.** The
+shapes this project hunts for -- an asymmetry, two stores of one fact,
+a boundary crossed once -- are all questions about the CODE, and they
+are answered by reading it. The complementary question is a list of
+acts: open, close, reopen, save, choose, switch, delete, rename,
+press the button twice. It is short, it is finite, and every item on
+it is something the software promises to survive.
+
+**AND A BOUNDARY CROSSING IS AN ACT WITH THE INVARIANT REVERSED.** A
+control act must CHANGE something -- one that changed nothing passes
+every invariant while proving nothing. A crossing must change NOTHING:
+closing a window is not an edit, and neither is saving a file. That
+one flag is what let a single harness judge controls, QGIS-side edits
+and boundaries together, and the boundaries are where it went red.
+
+## A FIXTURE THAT MULTIPLIES ZERO BY TEN
+
+Same evening, and it is the plainest premise failure this file has.
+A probe asked whether the map follows when the DATA changes: it
+multiplied twelve values by ten, pressed Generate, and reported that
+the ladder had not moved. The twelve were the first twelve features,
+whose values are zero, so the column's maximum never changed and the
+map was right to stand still.
+
+The repair is one line -- read the column's maximum before and after
+and require it to have MOVED -- and it turned a reported defect into a
+clean result: the map follows the data exactly. THE RULE THIS PROJECT
+ALREADY HAS is that when a test mutates a fixture, it must assert the
+mutation changed something. What this adds is that the assertion has
+to be on the QUANTITY THE CODE READS. Twelve rows changed is a fact
+about the fixture; the maximum moving is a fact about what the
+classifier will see, and only the second one makes the case arise.
+
+## WHEN A DEFECT MAKES A LATER READING AMBIGUOUS, FIX THE READING FIRST
+
+Also that evening. A session was found to leave TWO output groups, one
+of them a stale memory copy. A separate probe then reported that the
+group's record held a class count of five where the row and the map
+said six -- and it was reading whichever group came last out of the
+layer tree, which was the stale one. Asked of the group the dialog
+says it is working in, all three agreed.
+
+So when one defect multiplies the things a reading could be ABOUT,
+every later measurement on that ground needs to name its subject
+before it means anything. This project already says a watcher must
+name what it watches; a probe reading a record is the same rule
+wearing different clothes.
+
 ## WHEN A REPAIR GIVES ONE STORE A NEW WRITE, ENUMERATE EVERY STORE
 
 The last two findings of 2026-08-26 were the same shape as each other,
