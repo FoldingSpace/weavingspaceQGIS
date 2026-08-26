@@ -264,6 +264,11 @@
   "excerpt": "The polygon layer whose attributes will be mapped. A project",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "1e79abd6c36d87b4": {
+  "approved": "2026-08-26",
+  "excerpt": "Opened the saved map from {}: {} element layers.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "1e97d1edcb502c46": {
   "approved": "2026-08-19",
   "excerpt": "The highest value drawn ({}) is at or below the last class b",
@@ -294,6 +299,11 @@
   "excerpt": "QGIS 4 or later is required.",
   "where": "README.md"
  },
+ "245219ecceab55db": {
+  "approved": "2026-08-26",
+  "excerpt": "Include the source data, so others can carry on with it",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "24846ab307fe8250": {
   "approved": "2026-08-18",
   "excerpt": "Hand-picked colours, a class file, or a narrowed range. Choo",
@@ -313,6 +323,11 @@
   "approved": "2026-08-08",
   "excerpt": "<figure>\n  <img src=\"img/dialog.png\" alt=\"The plugin dialog,",
   "where": "docs/index.html"
+ },
+ "29e44fdb122fe52a": {
+  "approved": "2026-08-26",
+  "excerpt": "We welcome reports of anything else that surprises you.",
+  "where": "docs/USER-GUIDE.md"
  },
  "2bf9c666f7764119": {
   "approved": "2026-08-15",
@@ -359,6 +374,11 @@
   "excerpt": "Tilings give compact side-by-side patches (and support the i",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "354b6bc08dc262da": {
+  "approved": "2026-08-26",
+  "excerpt": "Spacing will not help, since each of this layer's {} areas takes one tile unit however large it is drawn; a layer with fewer areas or a tileable with fewer elements would.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "35f33dca9e7daec3": {
   "approved": "2026-08-08",
   "excerpt": "*Four indices of deprivation in a basket weave, and seven in",
@@ -388,6 +408,16 @@
   "approved": "2026-08-08",
   "excerpt": "## The map option switches",
   "where": "docs/USER-GUIDE.md"
+ },
+ "3916bd06372d8c9d": {
+  "approved": "2026-08-26",
+  "excerpt": "That map was saved by a newer version of the plugin (record {}, this build reads {}), so it cannot be opened here. Update the plugin, or add its layers in QGIS to look at the map.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "39c414d5b8cedb78": {
+  "approved": "2026-08-26",
+  "excerpt": "This layer's extent cannot be measured, so the pattern cannot be placed on it. Give the layer a coordinate reference system in its properties and try again.",
+  "where": "weavingspace_qgis/bridge.py"
  },
  "39e2d7a81a350cae": {
   "approved": "2026-08-12",
@@ -428,6 +458,11 @@
   "approved": "2026-08-08",
   "excerpt": "No symbology found in the style file.",
   "where": "weavingspace_qgis/bridge.py"
+ },
+ "3fe59f4b7f535485": {
+  "approved": "2026-08-26",
+  "excerpt": "Tile counts grow with the square of the inverse spacing, so a small",
+  "where": "docs/USER-GUIDE.md"
  },
  "40b6010412c0e118": {
   "approved": "2026-08-16",
@@ -484,6 +519,11 @@
   "excerpt": "Element '{}' keeps the {} colour(s) set in QGIS; its ramp ce",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "48b0da416d7ff148": {
+  "approved": "2026-08-26",
+  "excerpt": "working-state control kind {} is unknown",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "48efd94208fb4c9b": {
   "approved": "2026-08-09",
   "excerpt": "Strand width as a fraction of spacing; 1.0 leaves no gaps.",
@@ -497,6 +537,11 @@
  "49cd57d1eb1b5e3b": {
   "approved": "2026-08-09",
   "excerpt": "Where this element's class colours come from: automatic, ano",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "4b0667dd0f87cd79": {
+  "approved": "2026-08-26",
+  "excerpt": "The data this map was made from could not be found, so it can be looked at but not redrawn. Choose the region layer to carry on.",
   "where": "weavingspace_qgis/dialog.py"
  },
  "4b231879cdb7a396": {
@@ -518,6 +563,16 @@
   "approved": "2026-08-08",
   "excerpt": "laying out the tiling\u2026 %p%",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "4c8f314d4f4d6193": {
+  "approved": "2026-08-26",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version first, and",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
+ "4d2703e55ff7e416": {
+  "approved": "2026-08-25",
+  "excerpt": "How the tests are held to account, including a mutation-test",
+  "where": "README.md"
  },
  "4d3261f48a555d49": {
   "approved": "2026-08-08",
@@ -559,6 +614,11 @@
   "excerpt": "The class count has been raised to {} so the {} you set can ",
   "where": "weavingspace_qgis/bridge.py"
  },
+ "50a7ab6c958cadcd": {
+  "approved": "2026-08-26",
+  "excerpt": "That GeoPackage does not carry a saved map, so there is nothing to carry on with. Add its layers in QGIS to look at it.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "50af5cd426307348": {
   "approved": "2026-08-08",
   "excerpt": "Use tileable as icon (one per map unit)",
@@ -573,6 +633,11 @@
   "approved": "2026-08-08",
   "excerpt": "<footer>\n<p>The two figures above are reproduced from the <e",
   "where": "docs/index.html"
+ },
+ "53e20efcc5a2798e": {
+  "approved": "2026-08-26",
+  "excerpt": "This map was saved by a newer version of the plugin (record {}, this build reads {}), so its settings cannot be restored. The layers are unaffected.",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "5483557be2e5abca": {
   "approved": "2026-08-09",
@@ -597,6 +662,11 @@
  "55c94fd469d6f825": {
   "approved": "2026-08-08",
   "excerpt": "Rotating the pattern usually helps: roughly 15\u201375\u00b0 suits two",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "5625d88949f2eda3": {
+  "approved": "2026-08-26",
+  "excerpt": "Copies the region layer into the file, making it larger.",
   "where": "weavingspace_qgis/dialog.py"
  },
  "565d72c47cb52b89": {
@@ -854,6 +924,11 @@
   "excerpt": "Choosing {} for element '{}' discarded {} colour(s) you had ",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "75fa641a5f9cde6f": {
+  "approved": "2026-08-26",
+  "excerpt": "Which map to work on, or start another beside it.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "7680bbe84486c14c": {
   "approved": "2026-08-09",
   "excerpt": "{} is no longer in the layer, so the elements using it now s",
@@ -903,6 +978,11 @@
   "approved": "2026-08-08",
   "excerpt": "That layer's symbology defines no classes",
   "where": "weavingspace_qgis/bridge.py"
+ },
+ "7eec30631865ee9f": {
+  "approved": "2026-08-26",
+  "excerpt": "region (from the saved map)",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "807759666588f171": {
   "approved": "2026-08-09",
@@ -1009,6 +1089,11 @@
   "excerpt": "Element '{}' coloured by '{}'",
   "where": "weavingspace_qgis/category_editor.py"
  },
+ "8dc0e4ffae59ed37": {
+  "approved": "2026-08-26",
+  "excerpt": "live update paused: this design cannot be drawn on this layer; press Generate to see why",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "8ddc26b5865601ac": {
   "approved": "2026-08-16",
   "excerpt": "The colour ramp '{}' is not in this QGIS style library, so t",
@@ -1083,6 +1168,11 @@
   "approved": "2026-08-19",
   "excerpt": "The first class and the last have boxes you can type into; t",
   "where": "docs/USER-GUIDE.md"
+ },
+ "972f5708f54d6ac2": {
+  "approved": "2026-08-26",
+  "excerpt": "This design does not repeat across the plane, so there is no map to draw. Choose another family, or undo the modifiers that flattened it.",
+  "where": "weavingspace_qgis/bridge.py"
  },
  "972f75eb72bd2c86": {
   "approved": "2026-08-19",
@@ -1439,6 +1529,11 @@
   "excerpt": "![Four deprivation indices in a basket weave, and seven in a",
   "where": "README.md"
  },
+ "cdcc7dc001490605": {
+  "approved": "2026-08-26",
+  "excerpt": "This will generate roughly {} tiles. A map this large may use all the memory on this computer, and QGIS may stop responding while it is drawn, so save your project first. {} Continue anyway?",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "cdd9c3fccc1946fa": {
   "approved": "2026-08-08",
   "excerpt": "Clip by map units (no ragged edges)",
@@ -1469,6 +1564,16 @@
   "excerpt": "Could not read the class colours file, so these elements kee",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "d0d7008ca61c8aed": {
+  "approved": "2026-08-26",
+  "excerpt": "Carry on with a map saved to a GeoPackage.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "d137cf61625dad00": {
+  "approved": "2026-08-26",
+  "excerpt": "That GeoPackage holds a saved map but none of its layers, so there is nothing to draw.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "d1b8be31b0c12eef": {
   "approved": "2026-08-08",
   "excerpt": "The pattern catalogue for the chosen element count.",
@@ -1483,6 +1588,11 @@
   "approved": "2026-08-16",
   "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
   "where": "weavingspace_qgis/metadata.txt"
+ },
+ "d2636d2dc5b2377b": {
+  "approved": "2026-08-26",
+  "excerpt": "A spacing of about {} map units or more would keep it smaller.",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "d38b031b7c5875c1": {
   "approved": "2026-08-17",
@@ -1518,6 +1628,16 @@
   "approved": "2026-08-16",
   "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
   "where": "weavingspace_qgis/metadata.txt"
+ },
+ "d5148ad6deff9c35": {
+  "approved": "2026-08-26",
+  "excerpt": "{} is already open here, so its map is the one being worked on.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "d65d9a0cb1afdac9": {
+  "approved": "2026-08-26",
+  "excerpt": "None of that GeoPackage's layers would open, so the map could not be brought back.",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "d67370e4b7b5f340": {
   "approved": "2026-08-15",
@@ -1563,6 +1683,11 @@
   "approved": "2026-08-12",
   "excerpt": "{} {}: could not reach PyPI ({})",
   "where": "weavingspace_qgis/deps.py"
+ },
+ "db53891361179987": {
+  "approved": "2026-08-26",
+  "excerpt": "The map was saved to {}, but its design could not be written into the file, so opening it elsewhere will show the map without carrying on with it.",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "db5a44ca4dc08deb": {
   "approved": "2026-08-12",

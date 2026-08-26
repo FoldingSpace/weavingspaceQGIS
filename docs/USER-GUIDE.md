@@ -288,5 +288,6 @@ neither of which any spacing would help. Layer identities
 change when you regenerate (the styling carries over), so layers placed
 in a print layout need re-picking afterwards. There is no tile-shaped
 legend yet; the layer panel lists each element's classes, and a legend
-composed from the element layers in a print layout does the job. We welcome reports of anything else that surprises
-you.
+composed from the element layers in a print layout does the job.
+
+We welcome reports of anything else that surprises you.

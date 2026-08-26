@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-313 defect(s) with a regression test.
+314 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -339,6 +339,8 @@ there is no separate list to remember.
   guarded by `test_the_range_editor_repaints_with_its_own_elements_colours`
 - **release.py's watchdog measured wall clock, so a laptop asleep mid-release would have aborted a healthy run as hung. The same defect cost four verdicts in mutation batch 8 and was fixed there; release.py was written afterwards and repeated it.**  
   guarded by `test_the_release_watchdog_ignores_a_sleeping_machine`
+- **the roadmap gate cleared 0.24.3 for a candidate while its section listed eleven unreproduced hunt claims and five untested fixes, because the sentence saying the section was NOT clear contained the words the gate looks for.**  
+  guarded by `test_the_roadmap_gate_reads_a_statement_not_a_mention`
 - **the scheme shelf was not cleared with the project, so a scheme set aside in one project reappeared in the next.**  
   guarded by `test_the_shelf_does_not_survive_the_project_that_made_it`
 - **the size guard refused instead of asking, on a memory figure nothing measured; and two answers that were not sizes at all shared the refusal's value, so a design that does not tile the plane was reported as a spacing problem.**  
@@ -679,7 +681,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
-- the mutation campaign: 50
+- the mutation campaign: 51
 - reported by a user: 29
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

@@ -37336,6 +37336,93 @@ def _argparse_long_flags(path):
   return accepted
 
 
+def test_the_roadmap_gate_reads_a_statement_not_a_mention():
+  """The clearance phrase must be SAID, not discussed.
+
+  `tools/check_roadmap.py` is the FIRST stage of every release, before
+  the standards check and long before the suite, and it refuses a
+  candidate while the version's roadmap section still lists work. It
+  decided that by searching the section for the words "nothing
+  outstanding".
+
+  A BARE SUBSTRING SEARCH CAN BE SATISFIED BY DENYING IT. 0.24.3's own
+  section carried, honestly, a sentence saying it did NOT yet say the
+  phrase -- and the gate read the denial as the declaration and cleared
+  a tree with a page of outstanding work under it. The fault this check
+  exists to prevent, arriving through the check.
+
+  THE REPAIR IS A DISTINCTION RATHER THAN A MARKER: a quoted phrase is
+  somebody talking ABOUT the words, and the roadmap explains its own
+  convention in prose, so quoting them is something it does
+  legitimately. Quoted spans are stripped before looking, which keeps
+  the phrase prose-first -- the reason it was chosen over a marker --
+  while making it impossible to satisfy by discussing it.
+
+  DRIVEN AGAINST THE CHECKER'S OWN PREDICATE, on strings this test
+  composes, so it needs no repository in a particular state and cannot
+  start failing because somebody edited ROADMAP.md.
+
+  Regression: the roadmap gate cleared 0.24.3 for a candidate while its section listed eleven unreproduced hunt claims and five untested fixes, because the sentence saying the section was NOT clear contained the words the gate looks for. [mutation]
+  """
+  import importlib.util
+  here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+  spec = importlib.util.spec_from_file_location(
+    "check_roadmap", os.path.join(here, "tools", "check_roadmap.py"))
+  gate = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(gate)
+
+  problems, checked = [], 0
+
+  def cell(what, condition, detail):
+    """One promise about how the clearance phrase is read.
+
+    Args:
+      what: how the cell names itself in a failure.
+      condition: True when the promise held.
+      detail: what was actually seen, quoted when it did not.
+
+    Returns:
+      None; appends to `problems` and counts into `checked`.
+    """
+    nonlocal checked
+    checked += 1
+    if not condition:
+      problems.append(f"{what}: {detail}")
+
+  # THE DENIAL THAT FOOLED IT, in both the quoting styles this file
+  # uses. Either would have cleared the gate.
+  for style in ('"nothing outstanding"', "“nothing outstanding”",
+                "`nothing outstanding`"):
+    denial = (f"WHAT IS STILL OWED, and it is the reason this section "
+              f"does not yet say {style}:\n\n**A thing nobody did.**")
+    cell(f"a section DENYING the phrase in {style[0]}...{style[-1]} "
+         f"is not clear",
+         not gate.says_it_is_clear(denial),
+         "the gate read a sentence saying the section is not clear as "
+         "a declaration that it is")
+
+  # ...AND THE DECLARATION ITSELF STILL WORKS, which is the half a
+  # repair like this quietly breaks: a gate nothing can satisfy is as
+  # useless as one anything can.
+  cell("a section that plainly says it is clear is clear",
+       gate.says_it_is_clear(
+         "Everything here landed, so there is nothing outstanding in "
+         "code.\n\n### Process items, which do not block a candidate"),
+       "the gate refused a section that declares itself clear")
+  cell("and the words are read whatever their case",
+       gate.says_it_is_clear("NOTHING OUTSTANDING."),
+       "the gate is case-sensitive, so a section shouting its "
+       "clearance would be refused")
+  cell("a section that simply lists work is not clear",
+       not gate.says_it_is_clear("**Something owed.** Not done yet."),
+       "a section with no clearance phrase at all was cleared")
+
+  assert checked == 6, f"only {checked} cells were compared"
+  assert not problems, \
+    "the roadmap gate can be satisfied by discussing it:\n  " + \
+    "\n  ".join(problems)
+
+
 def test_the_documents_numbers_match_the_code():
   """Numbers in prose rot, and nothing here was checking them.
 
@@ -61129,6 +61216,8 @@ def main():
         test_a_candidate_is_published_only_when_it_is_gated)
   check("the vendoring tool reproduces the current vendor",
         test_the_vendoring_tool_reproduces_the_current_vendor)
+  check("the roadmap gate reads a statement, not a mention",
+        test_the_roadmap_gate_reads_a_statement_not_a_mention)
   check("the documents' numbers match the code",
         test_the_documents_numbers_match_the_code)
   check("every documented command still exists",

@@ -868,6 +868,18 @@ MUTATIONS = [
            "all that stands between the run and the kept file. This "
            "entry SURVIVED the day the chooser landed, which is how "
            "that gap was found"),
+  dict(name="the-roadmap-gate-cannot-be-satisfied-by-quoting-it",
+       file="tools/check_roadmap.py",
+       old="""  return CLEAR in QUOTED.sub(" ", section).lower()""",
+       new="""  return CLEAR in section.lower()  # mutation: a mention will do""",
+       test="test_the_roadmap_gate_reads_a_statement_not_a_mention",
+       why="this gate is the FIRST stage of every release and refuses "
+           "a candidate while the version's roadmap section still "
+           "lists work. Searched as a bare substring, the phrase could "
+           "be supplied by a sentence DENYING it -- which 0.24.3's own "
+           "section carried, honestly, and the gate read the denial as "
+           "the declaration and cleared a tree with a page of "
+           "outstanding work under it"),
   dict(name="a-file-that-will-not-resume-says-so", file=DIALOG,
        old="""      if not bridge.write_working_state(path, resumable):""",
        new="""      bridge.write_working_state(path, resumable)

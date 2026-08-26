@@ -39,6 +39,37 @@ ROADMAP = os.path.join(ROOT, "ROADMAP.md")
 # quoted in the failure so nobody has to guess it.
 CLEAR = "nothing outstanding"
 
+# Spans that are somebody TALKING ABOUT the phrase rather than saying
+# it: "..." straight or curly, and `...` for code.
+QUOTED = re.compile(r'"[^"]*"|“[^”]*”|`[^`]*`', re.S)
+
+
+def says_it_is_clear(section: str) -> bool:
+  """Does this section DECLARE itself clear, rather than mention the phrase?
+
+  Args:
+    section: the version's own slice of ROADMAP.md.
+
+  Returns:
+    True when the clearance phrase appears outside every quotation.
+
+  A BARE SUBSTRING SEARCH LET A SECTION PASS BY SAYING THE OPPOSITE.
+  0.24.3's own section carried the sentence "WHAT IS STILL OWED, and
+  it is the reason this section does not yet say 'nothing
+  outstanding'" -- written honestly, and read by this gate as the
+  declaration it was denying. So a tree with a page of outstanding
+  work was cleared for a candidate, which is the fault this check
+  exists to prevent arriving through the check itself.
+
+  A QUOTED PHRASE IS A MENTION, NOT A STATEMENT, and that distinction
+  is the whole of the repair: the roadmap explains its own convention
+  in prose, so quoting the words is something it does legitimately and
+  often. Stripping quoted spans before looking keeps the phrase
+  prose-first, which is why it was chosen over a marker, while making
+  it impossible to satisfy by discussing it.
+  """
+  return CLEAR in QUOTED.sub(" ", section).lower()
+
 
 def plugin_version():
   """The version a candidate would be built for, from metadata.txt.
@@ -195,7 +226,7 @@ def main():
     problems.append(
       f"ROADMAP.md has no section for {version}. Every release says "
       f"what it owed, even when the answer is nothing.")
-  elif CLEAR not in section.lower():
+  elif not says_it_is_clear(section):
     outstanding = [line.strip() for line in section.splitlines()
                    if line.strip().startswith("**")]
     problems.append(
