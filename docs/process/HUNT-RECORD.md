@@ -398,6 +398,36 @@ after eight code-reading rounds walked past it. The sweep finds
 DISAGREEMENTS between things that already exist. It cannot find a harm
 nobody has described.
 
+## ROUND SEVEN, 2026-08-26 (night): eight hunts at iterative exploration
+
+Aimed at the CORE LOOP on the maintainer's word -- a person exploring
+data iteratively -- in eight directions deliberately unlike the
+consistency sweep's ground. FIVE CONFIRMED DEFECTS (ledger rows 21-25,
+all fixed the same night with tests and proved entries), one marginal
+claim, three directions empty WITH MEASUREMENTS. The round's rows:
+
+| Direction | Question | Logged | Confirmed | Note |
+| --- | --- | ---: | ---: | --- |
+| Backwards from harm (4th outing) | what would twenty minutes of exploring destroy? | 10 | 0 | destruction acts now uniformly noticed-and-recorded; next harm hunt should aim where notices cannot reach (mid-run, multi-dialog) |
+| Oscillation convergence | does state after N round trips equal state after 1? | 12 | 0 | twelve pairs convergent across thirteen stores; return invariants look designed-in -- add a concurrency or persistence axis next time |
+| The shelf's kept-silently records (write-only) | is any kept record never restored, restored wrongly, or kept only where nobody persists it? | 8 | 2 | both losses were in PERSISTENCE or a sibling's SCOPE, never the keep itself; the control leg (same journey minus the excursion) separates a stamp fault from an adoption fault in one run |
+| Preview against map under churn | does either rest describing a design the other never received? | 4 | 1 | the suite's preview tests all call the refresher FRESH, so the widget's resting store was structurally untestable by them |
+| Classification churn (unreachable) | does a revisited (scheme,k) redraw the ladder it drew? | 6 | 1 | churn determinism is genuinely solid; the yield was the label-sanity oracle carried along. MAGNITUDE MIX, not magnitude, is the fixture dimension the suite lacked |
+| Colour editor mid-iteration (one-boundary) | does a settled map draw what the editor's records hold? | 6 | 1 (+2 medium) | when a dict gains a new KIND of key, grep every site that rebuilds or pops it -- the absence keys inherited the positional picks' lifecycle at three sites and nobody decided any of them |
+| Monotonic growth | what grows without bound over fifty iterations? | 5 | 0 | nothing: file size plateaus, receivers stay at one, costs flat. A two-point profile diff LIES about growth; only the per-iteration trajectory separates drift from phase |
+| Stochastic (3rd outing) | settled-only invariants over random acts | 8 | 1 marginal | 150 seeded sessions, 149 clean. Settling plus negative controls cut the last outing's 171-session noise to one shape -- which was the product writing back a byte-identical ramp twin's name |
+
+WHAT THE ROUND SAYS. The exploration surface's ordinary acts are well
+defended -- three empty directions measured it so. The five real
+defects all lived at SEAMS the acts cross: the live path's missing
+repair pair, a label formatter met only after classification, a
+release scoped wider than its act, persistence writers reading a
+mode-filtered view, and a mirror rebuilt without its newest kind of
+key. And the verification queue held: every claim was reproduced here
+by a route its hunt did not use before anything was fixed, with one
+honest exception recorded in the ledger (the preview claim's
+independent route could not stage the act, so its proof is the entry).
+
 ## What a "direction" means
 
 A direction is not a place in the code. It is the QUESTION a hunt

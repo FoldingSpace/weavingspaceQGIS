@@ -1064,6 +1064,64 @@ MUTATIONS = [
            "its layers and none of its design. Measured: the twin "
            "leaves 1,959 characters on the group and this branch "
            "left none"),
+  dict(name="the-preview-learns-what-the-restyle-painted",
+       file=DIALOG,
+       old="""      self._refresh_preview_colours()
+      _dump("LIVE-GATE", "restyled")""",
+       new="""      _dump("LIVE-GATE", "restyled")""",
+       test="test_the_preview_follows_the_live_restyle",
+       why="every style change answered by the live restyle left the "
+           "design preview one act behind the map -- the pick-time "
+           "repaint read the layers before the restyle landed and "
+           "nothing repainted after it, so a person iterating judged "
+           "their design by colours the map no longer draws"),
+  dict(name="a-legend-class-of-real-width-prints-real-bounds",
+       file=BRIDGE,
+       old="""  _widen_degenerate_labels(renderer)""",
+       new="""  pass  # mutation: whole-span precision stands""",
+       test="test_a_mixed_magnitude_legend_prints_real_bounds",
+       why="a column mixing 1e-9 with 1e9 printed '0 - 0' for a "
+           "quantile class of real width, so a reader concluded the "
+           "palest quarter of their map held zero -- the precision "
+           "honest for mixed magnitudes is only knowable from the "
+           "narrowest class actually cut"),
+  dict(name="a-release-is-scoped-to-the-field-the-act-is-about",
+       file=DIALOG,
+       old="""    for field, record in list(
+        self._pinned_bounds.get(tile_id, {}).items()):
+      if acted_on is not None and field != acted_on:
+        continue""",
+       new="""    for field, record in list(
+        self._pinned_bounds.get(tile_id, {}).items()):
+      if False:
+        continue  # mutation: every field is released""",
+       test="test_an_act_about_one_field_spares_anothers_ladder",
+       why="a scheme change made while the row displayed v2 released "
+           "the copied ladder kept for v1, so the return to v1 drew "
+           "re-derived breaks under the surviving copied colours -- "
+           "against the ruling that unworn records are kept silently"),
+  dict(name="a-silent-pin-is-still-stamped",
+       file=DIALOG,
+       old="""    pinned = (assignment.get("pinned")
+              or self._pinned_bounds.get(tid, {}).get(var or "") or {})""",
+       new="""    pinned = assignment.get("pinned") or {}""",
+       test="test_a_pin_kept_silently_still_reaches_the_stores",
+       why="the stamp read the mode-filtered assignment, which reports "
+           "pins empty for any row not wearing Graduated, so a pin "
+           "made on one style died at the project boundary the moment "
+           "the row generated wearing another -- whole in the session "
+           "that made it, gone from every project it was saved into"),
+  dict(name="reverse-carries-the-absence-colours",
+       file=DIALOG,
+       old="""          **{index: colour for index, colour in picks.items()
+             if not index.isdigit()},""",
+       new="""          # mutation: digit keys alone survive the mirror""",
+       test="test_reverse_carries_the_absence_colours",
+       why="the mirror rebuilt the picks dict from digit keys alone, "
+           "and the catch-all and infinity colours live in that dict "
+           "under non-digit keys -- so one Reverse click silently "
+           "destroyed a hand-picked No data colour, and reversing "
+           "back did not return it"),
   dict(name="a-reopened-dialog-wears-the-design-it-left",
        file=DIALOG,
        old="""    self._restore_the_adopted_design()
@@ -2773,9 +2831,14 @@ MUTATIONS = [
            "handle, so every narrowed ramp is quietly wrong at the end "
            "a reader trusts most"),
   dict(name="quant-reverse-permutation", file=DIALOG,
-       old="          str(count - 1 - int(index)): colour",
-       new="          str(int(index)): colour"
-           "  # mutation: picks stay put while the ramp turns",
+       # Re-anchored 2026-08-26 when the mirror learned to carry the
+       # absence keys; the claim is unchanged.
+       old="""          **{str(count - 1 - int(index)): colour
+             for index, colour in picks.items()
+             if index.isdigit() and int(index) < count}}""",
+       new="""          **{str(int(index)): colour
+             for index, colour in picks.items()
+             if index.isdigit() and int(index) < count}}""",
        test="test_reverse_permutes_quant_customization",
        why="Reverse turns the ramp around underneath positional picks; "
            "without the permutation a pick made on the dark end "
@@ -4188,17 +4251,6 @@ MUTATIONS = [
            "repainted it unconditionally -- so hand styling on a "
            "missing-value layer survived a re-tile and was destroyed "
            "by a restyle, which is the more ordinary act of the two"),
-  dict(name="deferral-leaves-the-stamp-alone", file=DIALOG,
-       old="    if bridge.expressible_style(layer.renderer()) is None:\n"
-           "      return\n"
-           "    picked = assignment.get(\"category_colours\")",
-       new="    picked = assignment.get(\"category_colours\")",
-       test="test_deferral_does_not_erase_the_work_behind_it",
-       why="a deferring element is reported with no picks and no pins, "
-           "which at this site is indistinguishable from a user who "
-           "cleared everything -- so restyling an element in QGIS "
-           "removes its pinned bounds and hand-picked colours from the "
-           "saved project while the open window still shows them"),
   dict(name="deferral-carries-the-stamp-across-a-retile", file=DIALOG,
        old="      if bridge.expressible_style(out.renderer()) is None:\n"
            "        for name, value in (old_stamps.get(tid) or {}).items():\n"

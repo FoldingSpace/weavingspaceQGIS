@@ -2632,6 +2632,56 @@ def quant_class_colours(ramp_name: str, reverse: bool, count: int,
   return colours
 
 
+def _widen_degenerate_labels(renderer) -> None:
+  """Reprint class labels whose two ends read as the same number.
+
+  Args:
+    renderer: a QgsGraduatedSymbolRenderer whose classes are already
+      cut. Mutated in place; nothing else is touched.
+
+  Returns:
+    None. Labels are rewritten only when at least one class of REAL
+    width prints both of its bounds identically -- the "0 - 0" case a
+    mixed-magnitude column produces -- and then every label is
+    reprinted at one precision so the legend stays uniform. The
+    precision is taken from the NARROWEST class actually cut, which
+    is only knowable after classification; the whole-span estimate
+    made before it is blind to a column mixing 1e-9 with 1e9.
+
+  QGIS's own classification method goes on writing the labels
+  (`labelForRange`), so this configures rather than reimplements --
+  the same argument the precision block above already makes.
+  """
+  import math
+  method = renderer.classificationMethod()
+  if method is None or not hasattr(method, "setLabelPrecision"):
+    return
+  ranges = renderer.ranges()
+  widths = [r.upperValue() - r.lowerValue() for r in ranges
+            if r.upperValue() > r.lowerValue()]
+  if not widths:
+    return
+  def collapsed(label):
+    sides = [s.strip() for s in label.split("-") if s.strip()]
+    return len(sides) >= 2 and sides[0] == sides[-1]
+  degenerate = [i for i, r in enumerate(ranges)
+                if r.upperValue() > r.lowerValue() and collapsed(r.label())]
+  if not degenerate:
+    return
+  narrowest = min(widths)
+  needed = (int(math.ceil(-math.log10(narrowest))) + 2
+            if narrowest < 1 else 0)
+  precision = max(method.labelPrecision(), min(15, needed))
+  if precision == method.labelPrecision():
+    return
+  method.setLabelPrecision(precision)
+  if hasattr(method, "setLabelTrimTrailingZeroes"):
+    method.setLabelTrimTrailingZeroes(True)
+  for position, r in enumerate(ranges):
+    renderer.updateRangeLabel(
+      position, method.labelForRange(r.lowerValue(), r.upperValue()))
+
+
 def make_graduated_renderer(layer: QgsVectorLayer, field: str,
                             ramp_name: str, scheme: str, k: int,
                             outline: bool,
@@ -3267,6 +3317,19 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   finally:
     if restore is not None:
       source.setSubsetString(restore)
+  # A LEGEND THAT PRINTS "0 - 0" FOR A CLASS OF REAL WIDTH is a legend
+  # lying about its own map. The precision chosen above divides the
+  # WHOLE column's span by k, which is honest for uniform magnitudes
+  # and blind to MIXED ones: sixteen values from 1e-9 to 1e9 at k=4
+  # put a quantile class between 1e-9 and 7.75e-06 -- real width,
+  # printed as "0 - 0" at zero decimals, so a reader concludes the
+  # palest quarter of their map holds zero. The 2026-08-10 fix cured
+  # uniform-tiny columns and left mixed ones behind (measured
+  # 2026-08-26, found by the classification-churn hunt). Only NOW are
+  # the actual breaks known, so the honest precision comes from the
+  # NARROWEST class the classifier really cut; QGIS's own formatter
+  # still writes every label, exactly as the block above argues.
+  _widen_degenerate_labels(renderer)
   if pins and copied is None:
     # THE LADDER'S OUTER EDGE IS THE LIMIT WHERE THERE IS ONE, not the
     # smallest value that survived it. `finite_values` has already been

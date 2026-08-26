@@ -15214,6 +15214,16 @@ def test_a_second_project_does_not_take_the_first_ones_opacity():
       dlg.close()
 
 
+#
+# THIS AXIS IS HELD REDUNDANTLY SINCE 2026-08-26, and its catalogue
+# entry (`deferral-leaves-the-stamp-alone`) was retired rather than
+# left as a permanent survivor. The deferral guard in
+# `_stamp_category_colours` is one defence; the stamp's fallback to
+# the session dicts (the silent-pin fix, ledger row 24) is a second,
+# so removing the guard alone no longer erases anything this test can
+# see. Break BOTH -- the guard and the dict fallbacks -- and it fails
+# at once. Redundant is not dead; an entry that can only ever be red
+# is (settled 2026-08-20).
 def test_deferral_does_not_erase_the_work_behind_it():
   """Handing an element to QGIS must not throw away what you set here.
 
@@ -61566,6 +61576,296 @@ def test_the_map_survives_its_file_being_deleted():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_the_preview_follows_the_live_restyle():
+  """The design preview rests on what the map draws, not one act back.
+
+  With live update on, a style act's own handler repaints the preview
+  at pick time -- while the layers still wear the OLD style -- and
+  the restyle that answers the act 900 ms later must repaint it
+  again, or the preview rests one act behind the map and a person
+  iterating judges their design by colours the map no longer draws.
+
+  The oracle is the CALL: `preview.show_unit` is wrapped (never
+  replaced), and at rest the colours it was LAST shown must agree
+  with a fresh `_table_id_colours()`. The premise -- that the act
+  really changed the map's colours -- is asserted, because a pick
+  that never reached the layers passes any stale-preview check
+  vacuously.
+
+  Regression: every style change answered by the live restyle path left the design preview showing the previous act's colours -- the pick-time repaint read the layers before the restyle landed and nothing repainted after it. Found by the preview hunt of 2026-08-26 with three faces (a settled ramp pick, a mid-run pick, a style-ending burst); shipping since 2026-08-17. [mutation]
+  """
+  layer = make_region_layer(n=4, cell=1000)
+  QgsProject.instance().addMapLayer(layer)
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  shown = {}
+  original = dlg.preview.show_unit
+  def spy(unit, colours, *a, **kw):
+    shown["colours"] = dict(colours) if colours else {}
+    return original(unit, colours, *a, **kw)
+  dlg.preview.show_unit = spy
+  try:
+    dlg.layer_combo.setLayer(layer)
+    _tick(2500)
+    _settle(dlg, seconds=60)
+    assert dlg.live_check.isChecked(), \
+      "live update is off, so the path under test cannot run"
+    before = dict(dlg._table_id_colours())
+    ramp = dlg.table.cellWidget(0, 4)
+    names = [ramp.itemText(i) for i in range(ramp.count())]
+    other = next((n for n in ("Reds", "Greens", "Oranges")
+                  if n in names and n != ramp.currentText()), None)
+    assert other, "no second ramp on offer"
+    index = ramp.findText(other)
+    ramp.setCurrentIndex(index)
+    ramp.activated.emit(index)
+    _tick(2500)                         # past both debounces
+    _settle(dlg, seconds=60)
+    _tick(400)
+    fresh = dlg._table_id_colours()
+    assert fresh != before, \
+      "the ramp pick changed no colour, so this fixture cannot show " \
+      "a stale preview -- the premise failed, not the product"
+    last = shown.get("colours") or {}
+    stale = {t: (last.get(t), fresh.get(t)) for t in fresh
+             if str(last.get(t)).lower() != str(fresh.get(t)).lower()}
+    assert not stale, \
+      f"at rest the preview was last shown {stale} -- one act behind " \
+      f"the map, which is the defect the live path's refresh cures"
+  finally:
+    dlg.preview.show_unit = original
+    dlg.close()
+    QgsProject.instance().clear()
+
+
+def test_a_mixed_magnitude_legend_prints_real_bounds():
+  """No class of real width may print both its bounds as one number.
+
+  A column mixing 1e-9 with 1e9 puts a quantile class between 1e-9
+  and 7.75e-06: real width, printed "0 - 0" at whole-span precision,
+  so a reader concludes the palest quarter of the map holds zero.
+  The precision honest for such a column is only knowable AFTER
+  classification, from the narrowest class actually cut.
+
+  Regression: on a mixed-magnitude column the legend printed "0 - 0" for a class of real width -- the label precision was derived from the whole span divided by k, which mixed magnitudes defeat. The 2026-08-10 fix covered uniformly tiny columns and left mixed ones behind. Found by the classification-churn hunt of 2026-08-26. [mutation]
+  """
+  from weavingspace_qgis import bridge, compat
+  layer = QgsVectorLayer("MultiPolygon?crs=EPSG:3857", "mixed", "memory")
+  prov = layer.dataProvider()
+  prov.addAttributes([compat.make_field("v", float)])
+  layer.updateFields()
+  feats = []
+  for j, e in enumerate(list(range(-9, -1)) + list(range(2, 10))):
+    f = QgsFeature(layer.fields())
+    f.setGeometry(QgsGeometry.fromPolygonXY([[
+      QgsPointXY(j * 10, 0), QgsPointXY(j * 10 + 9, 0),
+      QgsPointXY(j * 10 + 9, 9), QgsPointXY(j * 10, 9)]]))
+    f["v"] = float(10.0 ** e)
+    feats.append(f)
+  prov.addFeatures(feats)
+  layer.updateExtents()
+  renderer = bridge.make_graduated_renderer(layer, "v", "Blues",
+                                            "Quantiles", 4, False)
+  ranges = renderer.ranges()
+  assert ranges, "no classes were cut, so there is nothing to judge"
+  bad = []
+  for r in ranges:
+    if r.upperValue() <= r.lowerValue():
+      continue                          # genuinely degenerate: allowed
+    sides = [s.strip() for s in r.label().split("-") if s.strip()]
+    if len(sides) >= 2 and sides[0] == sides[-1]:
+      bad.append(r.label())
+  assert not bad, \
+    f"classes of real width print both bounds identically: {bad}"
+
+
+def test_an_act_about_one_field_spares_anothers_ladder():
+  """Releasing a copied ladder is scoped to the field the act is about.
+
+  The records of the style a row is NOT wearing -- and of the fields
+  it is not displaying -- are kept, and kept silently (rulings of
+  2026-08-20/21). A class count or scheme changed while the row shows
+  v2 says nothing about the ladder somebody copied for v1.
+
+  Both arms are driven: the cross-field act must SPARE the ladder,
+  and the same-field act must still RELEASE it, because a scoping fix
+  that stops the release entirely is the opposite defect.
+
+  Regression: a scheme change made while the row displayed v2 released the copied ladder kept for v1 -- `_release_copied_breaks` iterated every field where its sibling scopes to the current one -- so the return to v1 drew re-derived breaks under the surviving copied colours. Found by the shelf hunt of 2026-08-26, confirmed through the style door independently. [mutation]
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  folder = tempfile.mkdtemp(prefix="ws_ladder_scope_")
+  try:
+    layer = make_region_layer(n=5, cell=1000)
+    QgsProject.instance().addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.layer_combo.setLayer(layer)
+    _tick(1000)
+    _settle(dlg, seconds=30)
+    combo = dlg.table.cellWidget(0, 1)
+    index = combo.findText("v1")
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(300)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    tid = dlg.table.item(0, 0).text()
+    dlg._pinned_bounds.setdefault(tid, {})["v1"] = {
+      "low": 1.0, "high": 4.0, "breaks": [1.0, 2.0, 3.0, 4.0]}
+    combo = dlg.table.cellWidget(0, 1)
+    index = combo.findText("v2")
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(300)
+    style = dlg.table.cellWidget(0, 2)
+    index = style.findText("Quant: Equal intervals")
+    style.setCurrentIndex(index)
+    style.activated.emit(index)         # the act, about v2
+    _tick(400)
+    kept = dlg._pinned_bounds.get(tid, {}).get("v1") or {}
+    assert kept.get("breaks") == [1.0, 2.0, 3.0, 4.0], \
+      f"an act about v2 released v1's copied ladder: {kept!r}"
+    # ...and the same-field arm: back on v1, the same act releases
+    combo = dlg.table.cellWidget(0, 1)
+    index = combo.findText("v1")
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(300)
+    style = dlg.table.cellWidget(0, 2)
+    index = style.findText("Quant: Quantiles")
+    style.setCurrentIndex(index)
+    style.activated.emit(index)
+    _tick(400)
+    released = dlg._pinned_bounds.get(tid, {}).get("v1") or {}
+    assert not released.get("breaks"), \
+      f"the same-field act no longer releases the ladder: {released!r}"
+    dlg.close()
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_pin_kept_silently_still_reaches_the_stores():
+  """A pin on a row wearing another style survives the boundary.
+
+  The ruling of 2026-08-20: the records of the style a row is not
+  wearing are kept, and kept silently. The stamp and the group record
+  are those records' PERSISTENCE, so both must carry a pin made on a
+  graduated row after the row generates wearing categories --
+  otherwise the work is whole in the session that made it and gone
+  from every project and file it is saved into.
+
+  Regression: `_stamp_category_colours` and the working-state capture both read the mode-filtered `_assignments`, which reports pins and picks empty for any row not wearing the mode that displays them -- so a pin made on one style died at the project boundary when the row generated wearing another, stamped absent-by-choice. Found by the shelf hunt of 2026-08-26; the two writers confirmed against each other. [mutation]
+  """
+  import json
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  folder = tempfile.mkdtemp(prefix="ws_silent_pin_")
+  try:
+    layer = make_region_layer(n=5, cell=1000)
+    QgsProject.instance().addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.layer_combo.setLayer(layer)
+    _tick(1000)
+    _settle(dlg, seconds=30)
+    combo = dlg.table.cellWidget(0, 1)
+    index = combo.findText("v1")
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(300)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    tid = dlg.table.item(0, 0).text()
+    dlg._pinned_bounds.setdefault(tid, {})["v1"] = {"low": 2.5}
+    style = dlg.table.cellWidget(0, 2)
+    index = style.findText("Categorized")
+    style.setCurrentIndex(index)
+    style.activated.emit(index)
+    _tick(300)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    assert dlg._pinned_bounds.get(tid, {}).get("v1"), \
+      "the session itself lost the pin, so the stores cannot show " \
+      "the boundary loss this test is about"
+    lid = dlg._element_layer_ids.get(tid)
+    out = QgsProject.instance().mapLayer(lid)
+    stamp = out.customProperty("weavingspace_quant_style") if out else None
+    assert stamp and json.loads(stamp).get("pinned", {}).get("low") == 2.5, \
+      f"the layer stamp dropped the kept pin: {stamp!r}"
+    group_pin = None
+    for child in QgsProject.instance().layerTreeRoot().children():
+      raw = (child.customProperty("weavingspace_working_state")
+             if hasattr(child, "customProperty") else None)
+      if raw:
+        for element in json.loads(raw).get("elements") or []:
+          if str(element.get("id")) == tid:
+            group_pin = element.get("pinned")
+    assert group_pin and group_pin.get("low") == 2.5, \
+      f"the group's record dropped the kept pin: {group_pin!r}"
+    dlg.close()
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_reverse_carries_the_absence_colours():
+  """One Reverse click keeps a hand-picked No data colour.
+
+  Positional class picks mirror with the ladder; the catch-all and
+  infinity colours name kinds of ABSENCE and have no mirror image, so
+  they simply come along -- Reverse CARRIES the customization, and
+  twice is home.
+
+  Regression: `_mirror_quant_customization` rebuilt the picks dict keeping only digit keys, and since 2026-08-15 the catch-all and infinity picks live in that dict under non-digit keys -- so one Reverse click silently destroyed a hand-picked No data colour, and reversing back did not return it. Found by the editor hunt of 2026-08-26. [mutation]
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  folder = tempfile.mkdtemp(prefix="ws_reverse_absence_")
+  try:
+    layer = make_region_layer(n=5, cell=1000)
+    QgsProject.instance().addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.layer_combo.setLayer(layer)
+    _tick(1000)
+    _settle(dlg, seconds=30)
+    combo = dlg.table.cellWidget(0, 1)
+    index = combo.findText("v1")
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(300)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    tid = dlg.table.item(0, 0).text()
+    field = dlg.table.cellWidget(0, 1).currentText()
+    dlg._quant_colours.setdefault(tid, {})[field] = {
+      "1": "#112233", bridge_module().NO_DATA_KEY: "#7b3294"}
+    rev = dlg.table.cellWidget(0, 5)
+    target = rev if hasattr(rev, "setChecked") else next(
+      (c for c in rev.findChildren(object) if hasattr(c, "setChecked")),
+      None)
+    assert target is not None, "no Reverse control on row 0"
+    target.setChecked(True)
+    _tick(400)
+    after = dlg._quant_colours.get(tid, {}).get(field) or {}
+    assert after.get(bridge_module().NO_DATA_KEY) == "#7b3294", \
+      f"one Reverse click destroyed the No data pick: {after!r}"
+    assert any(key.isdigit() for key in after), \
+      "the positional picks vanished entirely, so the mirror itself " \
+      "broke while the absence keys were being carried"
+    dlg.close()
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def main():
   """Run every registered test and report what happened.
 
@@ -61909,6 +62209,16 @@ def main():
         test_one_session_leaves_one_group)
   check("the map survives its file being deleted",
         test_the_map_survives_its_file_being_deleted)
+  check("the preview follows the live restyle",
+        test_the_preview_follows_the_live_restyle)
+  check("a mixed-magnitude legend prints real bounds",
+        test_a_mixed_magnitude_legend_prints_real_bounds)
+  check("an act about one field spares another's ladder",
+        test_an_act_about_one_field_spares_anothers_ladder)
+  check("a pin kept silently still reaches the stores",
+        test_a_pin_kept_silently_still_reaches_the_stores)
+  check("Reverse carries the absence colours",
+        test_reverse_carries_the_absence_colours)
   check("a class source follows the record under it",
         test_a_class_source_follows_the_record_under_it)
   check("the file carries the design the map is wearing",

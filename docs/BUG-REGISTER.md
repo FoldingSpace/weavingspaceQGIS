@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-324 defect(s) with a regression test.
+329 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -295,10 +295,14 @@ there is no separate list to remember.
   guarded by `test_a_landing_never_writes_over_another_datasets_map`
 - **the region stamp was read from the chooser as the run landed, so switching the region layer mid-run filed A's tiles under B -- and the next run on B then destroyed them, through the very guard written to stop a landing writing over another dataset's map.**  
   guarded by `test_a_map_is_filed_under_the_dataset_it_was_drawn_from`
+- **on a mixed-magnitude column the legend printed "0 - 0" for a class of real width -- the label precision was derived from the whole span divided by k, which mixed magnitudes defeat. The 2026-08-10 fix covered uniformly tiny columns and left mixed ones behind. Found by the classification-churn hunt of 2026-08-26.**  
+  guarded by `test_a_mixed_magnitude_legend_prints_real_bounds`
 - **pointing the region chooser at a dataset without an element's column left that element wearing the scheme cut for the column that had gone.**  
   guarded by `test_a_new_region_drops_a_setup_whose_column_has_gone`
 - **the installer skipped names case-insensitively while the lookup matched exactly, so four palettes were silently unavailable on any QGIS that spells them differently.**  
   guarded by `test_a_palette_is_usable_whatever_case_qgis_spells_it`
+- **`_stamp_category_colours` and the working-state capture both read the mode-filtered `_assignments`, which reports pins and picks empty for any row not wearing the mode that displays them -- so a pin made on one style died at the project boundary when the row generated wearing another, stamped absent-by-choice. Found by the shelf hunt of 2026-08-26; the two writers confirmed against each other.**  
+  guarded by `test_a_pin_kept_silently_still_reaches_the_stores`
 - **closing the plugin window and opening it again (or reopening a saved project) reverted every hand-chosen variable, style, ramp and class count to the plugin's default cycle while the layers still drew the chosen design, and the next Generate then repainted the map to the wrong variables -- a categorical element re-tiled as a quantitative one. Found 2026-08-26 by the consistency sweep's boundary-crossing oracle.**  
   guarded by `test_a_reopened_dialog_wears_the_design_it_left`
 - **reopening a project under an open plugin panel bound the dataset identity to one of the plugin's own output layers, so the project's hand-picked colours and pinned bounds were unreachable and the next Generate destroyed them.**  
@@ -315,6 +319,8 @@ there is no separate list to remember.
   guarded by `test_a_spacing_a_person_typed_outlives_a_change_of_dataset`
 - **clearing a group's field-keyed records on a silent record destroyed a pinned bound belonging to an element that had merely been switched to another style, and stamped its absence onto the layer.**  
   guarded by `test_a_style_switch_is_not_consent_to_lose_a_pin`
+- **a scheme change made while the row displayed v2 released the copied ladder kept for v1 -- `_release_copied_breaks` iterated every field where its sibling scopes to the current one -- so the return to v1 drew re-derived breaks under the surviving copied colours. Found by the shelf hunt of 2026-08-26, confirmed through the style door independently.**  
+  guarded by `test_an_act_about_one_field_spares_anothers_ladder`
 - **every element layer carried every mapped variable, so a shared GeoPackage shipped attributes the map never displayed and grew twenty-fold; and the table names said nothing about which variable each element drew.**  
   guarded by `test_an_element_table_carries_only_what_it_displays`
 - **the output group was remembered nowhere, so returning to a dataset gave back its colours and its pins and somebody else's design -- a probe measured a user's `grid 3` coming home as `hex-slice 3`, and a spacing of 137 they had typed coming home 500 with nothing said.**  
@@ -339,6 +345,8 @@ there is no separate list to remember.
   guarded by `test_one_session_leaves_one_group`
 - **recolouring only the "no data" catch-all in QGIS read as a clean classify, so the plugin announced a ramp nobody chose, discarded the colour, and repainted those areas grey at the next Generate.**  
   guarded by `test_recolouring_the_catch_all_alone_is_not_a_new_ramp`
+- **`_mirror_quant_customization` rebuilt the picks dict keeping only digit keys, and since 2026-08-15 the catch-all and infinity picks live in that dict under non-digit keys -- so one Reverse click silently destroyed a hand-picked No data colour, and reversing back did not return it. Found by the editor hunt of 2026-08-26.**  
+  guarded by `test_reverse_carries_the_absence_colours`
 - **reversing a qualitative palette was a no-op, with the switch still reading as ticked.**  
   guarded by `test_reverse_runs_a_qualitative_palette_backwards`
 - **the categorized renderer recorded no source colour ramp, so a clean ramp applied in QGIS's dock was adopted as hand-picks instead of replacing them, and QGIS's own panel showed no ramp at all.**  
@@ -353,6 +361,8 @@ there is no separate list to remember.
   guarded by `test_the_new_code_mutation_guard_reports_rather_than_gates`
 - **no widget anywhere in the dialog named the output group, so a demo of several datasets in a row accumulated maps with nothing to say which one the next Generate would replace -- and A-B-A left one dataset owning two groups that nothing could tell apart.**  
   guarded by `test_the_output_group_chooser_binds_to_the_dataset`
+- **every style change answered by the live restyle path left the design preview showing the previous act's colours -- the pick-time repaint read the layers before the restyle landed and nothing repainted after it. Found by the preview hunt of 2026-08-26 with three faces (a settled ramp pick, a mid-run pick, a style-ending burst); shipping since 2026-08-17.**  
+  guarded by `test_the_preview_follows_the_live_restyle`
 - **the preview debounce was a flat 350 ms guarding some 20 ms of work, so two thirds of the wait a user feels after nudging a control was deliberate delay.**  
   guarded by `test_the_preview_wait_widens_for_a_slow_rebuild`
 - **the last of nine copies of the assignment lookup, and the only one whose result a user reads directly.**  
@@ -701,7 +711,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
-- the mutation campaign: 61
+- the mutation campaign: 66
 - reported by a user: 29
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

@@ -4233,6 +4233,18 @@ class WeavingSpaceDialog(QDialog):
       return  # nothing changed since the last run
     _dump("LIVE-GATE", "reached-restyle")
     if self._restyle_only():
+      # ...AND THE PREVIEW LEARNS WHAT THE RESTYLE JUST PAINTED. The
+      # control's own handler repainted the preview at pick time,
+      # when the layers still wore the OLD style -- so without this
+      # call the preview rests one act behind the map on every
+      # style change the live path answers, and a person iterating
+      # judges their design by colours the map no longer draws.
+      # `_apply_style_change` pairs restyle-then-refresh; this path
+      # never had the pair. Geometry endings self-heal by accident
+      # (the landing's rebuild repaints), which is why only
+      # style-ending acts rested stale. Found by the preview hunt of
+      # 2026-08-26; shipping since 2026-08-17.
+      self._refresh_preview_colours()
       _dump("LIVE-GATE", "restyled")
       return  # only the colours changed: done already, no tiling
     self._generate(live=True)
@@ -5882,7 +5894,22 @@ class WeavingSpaceDialog(QDialog):
     # only thing that does not agree with them.
     if bridge.expressible_style(layer.renderer()) is None:
       return
-    picked = assignment.get("category_colours")
+    # THE DICTS ARE THE SOURCE, NOT THE MODE-FILTERED ASSIGNMENT.
+    # `_assignments` reports these records EMPTY for any row not
+    # wearing the mode that displays them -- so a stamp taken from it
+    # wrote absence-by-mode as absence-by-choice, and a pin or a
+    # hand-picked colour made on one style died at the project
+    # boundary the moment the row generated wearing another. That is
+    # the exact conflation row 14's fix gated in
+    # `_apply_element_records`, arriving at the OTHER writer. The
+    # session dicts hold what is genuinely kept (per element AND
+    # field, kept silently, ruling of 2026-08-20), so absence in THEM
+    # is a real absence and may clear. Found by the shelf hunt of
+    # 2026-08-26, confirmed here by comparing stores.
+    tid = str(assignment.get("id"))
+    var = assignment.get("var")
+    picked = (assignment.get("category_colours")
+              or self._category_colours.get(tid, {}).get(var or ""))
     if picked:
       layer.setCustomProperty(
         "weavingspace_category_colours",
@@ -5893,8 +5920,11 @@ class WeavingSpaceDialog(QDialog):
     # the graduated customization travels the same way: positional
     # picks plus the display window, under their own property so the
     # two records cannot corrupt one another
-    quant = assignment.get("quant_colours")
+    quant = (assignment.get("quant_colours")
+             or self._quant_colours.get(tid, {}).get(var or ""))
     window = tuple(assignment.get("range_bounds", (0, 100)))
+    if window == (0, 100):
+      window = tuple(self._ramp_ranges.get(tid, (0, 100)))
     # ...and the PINNED BOUNDS with them. They have to be stamped
     # because nothing on a renderer records that a break was CHOSEN
     # rather than computed: a reopened project would read the breaks
@@ -5902,9 +5932,13 @@ class WeavingSpaceDialog(QDialog):
     # next Generate would recompute over them. That is the shape of
     # the opacity and ramp defects of 2026-08-13, and this is the
     # same remedy.
-    pinned = assignment.get("pinned") or {}
-    if assignment.get("mode") == "Graduated" and (quant or pinned
-                                                  or window != (0, 100)):
+    pinned = (assignment.get("pinned")
+              or self._pinned_bounds.get(tid, {}).get(var or "") or {})
+    # The mode gate is GONE from this condition, deliberately: a pin
+    # kept silently on a row wearing categories is still the user's
+    # work, and the stamp is what carries it across the project
+    # boundary. What decides is whether the SESSION holds anything.
+    if (quant or pinned or window != (0, 100)):
       layer.setCustomProperty(
         "weavingspace_quant_style",
         json.dumps({"field": assignment["var"],
@@ -7026,10 +7060,20 @@ class WeavingSpaceDialog(QDialog):
       k_spin = self.table.cellWidget(row, 3)
       count = int(k_spin.value()) if k_spin is not None else 0
       if count > 0:
+        # POSITIONAL picks mirror; the ABSENCE picks do not move.
+        # Since 2026-08-15 the catch-all and infinity colours live in
+        # this same dict under non-digit keys, and rebuilding it from
+        # digits alone destroyed a hand-picked No data colour on one
+        # Reverse click -- silently, against the rule that Reverse
+        # CARRIES the customization. A key that is not a class index
+        # has no mirror image and simply comes along. Found by the
+        # editor hunt of 2026-08-26.
         self._quant_colours[tile_id][field] = {
-          str(count - 1 - int(index)): colour
-          for index, colour in picks.items()
-          if index.isdigit() and int(index) < count}
+          **{index: colour for index, colour in picks.items()
+             if not index.isdigit()},
+          **{str(count - 1 - int(index)): colour
+             for index, colour in picks.items()
+             if index.isdigit() and int(index) < count}}
     self._custom_swatch_cache.pop(tile_id, None)
 
   def _current_category_colours(self, assignment):
@@ -10218,8 +10262,27 @@ class WeavingSpaceDialog(QDialog):
     job, and it is why the record holds the two separately (settled
     2026-08-14).
     """
+    # ONLY THE FIELD THE ACT IS ABOUT. Every call site of this method
+    # is an act on the row's CURRENT field -- a class count moved, a
+    # scheme chosen, a ladder adopted from the panel -- and the ruling
+    # of 2026-08-20 keeps the records of every OTHER field silently.
+    # Until 2026-08-26 this loop released every field's ladder, so a
+    # class count changed while showing v2 destroyed a ladder copied
+    # for v1, and the return to v1 drew re-derived breaks under the
+    # surviving copied colours. Found by the shelf hunt, confirmed by
+    # the style door independently. Where the row cannot be found the
+    # old whole-element behaviour stands, which can only ever release
+    # too much rather than corrupt.
+    acted_on = None
+    row_now = self._row_for_element(tile_id)
+    if row_now is not None and row_now >= 0:
+      var_combo = self.table.cellWidget(row_now, 1)
+      if var_combo is not None:
+        acted_on = var_combo.currentText() or None
     for field, record in list(
         self._pinned_bounds.get(tile_id, {}).items()):
+      if acted_on is not None and field != acted_on:
+        continue
       if not record.get("breaks"):
         continue
       # The outer edges go WITH the breaks rather than surviving like
@@ -13770,6 +13833,36 @@ class WeavingSpaceDialog(QDialog):
     elements = [{key: assignment.get(key)
                  for key in WORKING_STATE_ELEMENT}
                 for assignment in self._assignments()]
+    # BACKFILL WHAT THE MODE HID. `_assignments` reports pins, class
+    # colours, category colours and the window as empty for any row
+    # not WEARING the mode that displays them -- absence-by-mode, not
+    # absence-by-choice. The record is this design's persistence, so
+    # it takes the kept work from the session dicts directly; the
+    # apply side's mode gate (row 14) already refuses to clear on a
+    # silent record, and a record that is never silent about kept
+    # work cannot lose it at a reopen either. Found by the shelf hunt
+    # of 2026-08-26 (the stamp writer) and confirmed against this
+    # second writer by comparing stores.
+    for element in elements:
+      tid, var = str(element.get("id")), element.get("var")
+      if not var:
+        continue
+      if not element.get("pinned"):
+        kept = self._pinned_bounds.get(tid, {}).get(var)
+        if kept:
+          element["pinned"] = dict(kept)
+      if not element.get("quant_colours"):
+        kept = self._quant_colours.get(tid, {}).get(var)
+        if kept:
+          element["quant_colours"] = dict(kept)
+      if not element.get("category_colours"):
+        kept = self._category_colours.get(tid, {}).get(var)
+        if kept:
+          element["category_colours"] = dict(kept)
+      if tuple(element.get("range_bounds") or (0, 100)) == (0, 100):
+        window = tuple(self._ramp_ranges.get(tid, (0, 100)))
+        if window != (0, 100):
+          element["range_bounds"] = list(window)
     layer = self.layer_combo.currentLayer()
     return {
       "version": WORKING_STATE_VERSION,
