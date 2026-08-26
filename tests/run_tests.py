@@ -26102,6 +26102,45 @@ def test_a_landing_never_writes_over_another_datasets_map():
       f"generating on the FIRST dataset destroyed the SECOND " \
       f"dataset's map ({len(alive)}/{len(b_layers)} layers left): a " \
       f"finished map deleted to make room for one the user already had"
+
+    # ---- AND THE REFUSAL ITSELF, DRIVEN, because the journey above
+    # no longer reaches it. Measured 2026-08-26 by breaking both the
+    # refusal and the group-ownership match at once: the test went on
+    # passing, so what protects B's map on that journey is the
+    # BINDING -- the run lands in the group the dialog is working in,
+    # and the dialog is no longer working in B's. The refusal is a
+    # second line of defence behind it, and a guard nobody has
+    # watched fail is a guard nobody should count.
+    #
+    # So this leg puts the dialog IN a group whose layers name another
+    # dataset, which is what a reopened project holding two datasets'
+    # maps looks like from the inside, and requires the landing to
+    # build beside it rather than into it.
+    working = second._group_of_our_layers(project.layerTreeRoot())
+    assert working is not None, \
+      "PREMISE: the second dialog is working in no group, so there " \
+      "is nothing for the landing to refuse"
+    theirs_now = set()
+    restamped = 0
+    for child in working.children():
+      layer = getattr(child, "layer", lambda: None)()
+      if layer is None:
+        continue
+      theirs_now.add(layer.id())
+      if layer.customProperty("weavingspace_region"):
+        layer.setCustomProperty("weavingspace_region", B.source())
+        restamped += 1
+    assert restamped and theirs_now, \
+      "PREMISE: no layer in the working group carried a region stamp " \
+      "to re-point, so the refusal cannot be reached"
+    second.spacing_spin.setValue(530)
+    _generate_and_wait(second)
+    _tick(300)
+    survived = {lid for lid in theirs_now if project.mapLayer(lid)}
+    assert survived == theirs_now, \
+      f"the landing wrote into a group whose layers say they came " \
+      f"from another dataset ({len(survived)}/{len(theirs_now)} left): " \
+      f"a map made from one dataset replaced by a run on another"
   finally:
     second.close()
     project.clear()

@@ -2876,6 +2876,36 @@ were green in their own runs; nothing but the whole suite puts the two
 in the same room. When a fix changes what a record holds, grep the
 suite for other tests that read that record before writing a new one.
 
+## BOTH BRANCHES OF THAT QUESTION CAME UP THE SAME NIGHT
+
+The rule for a survivor is to break every route at once: if the test
+fails, the axis is live and redundantly held; if it passes, the
+assertion is the problem after all. Two entries were judged that way
+on 2026-08-26 and they came out on opposite sides, which is worth
+recording because the reflex is to expect one answer.
+
+The categorical attribution entry FAILED with both routes broken, so
+its axis is live and its redundancy was written at the test.
+
+The landing's refusal to write over another dataset's map PASSED with
+both routes broken -- so nothing was redundant and the test had simply
+stopped reaching the case. What protects that journey now is the
+BINDING: the run lands in the group the dialog is working in, and
+after a switch the dialog is not working in the other dataset's group
+at all. The refusal is a second line of defence behind it, which is a
+perfectly good thing to have and not something a test was watching.
+The repair is the one this file already prescribes for a guard nobody
+has watched fail: DRIVE THE DOOR THE GUARD IS ABOUT. The test now puts
+the dialog inside a group whose layers say they came from another
+dataset -- what a reopened two-dataset project looks like from the
+inside -- and requires the landing to build beside it. The entry
+catches again.
+
+**A FIRST LINE OF DEFENCE MOVING IN FRONT OF A GUARD LOOKS EXACTLY
+LIKE THE GUARD WORKING.** When a fix lands near an older protection,
+the older one's entry is worth re-judging: it may have stopped being
+reachable without anybody weakening it.
+
 ## AN ENTRY CAN STOP CATCHING BECAUSE A RULING GAVE THE FACT A SECOND
 ## WRITER
 
