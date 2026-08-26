@@ -1369,6 +1369,11 @@
   "excerpt": "The tile unit could not be built.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "aad4c2fa3d8cb4eb": {
+  "approved": "2026-08-26",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
  "ab1268090055f63d": {
   "approved": "2026-08-15",
   "excerpt": "There are no values to pin a class bound against.",
