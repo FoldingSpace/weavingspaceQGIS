@@ -2055,9 +2055,9 @@ def few_values_message(field: str, distinct: int, asked: int,
   if pinned:
     return (f"'{field}' has {distinct} distinct values left between "
             f"its pinned bounds, so {empty} of the {asked} classes "
-            f"are empty.")
+            f"{'is' if empty == 1 else 'are'} empty.")
   return (f"'{field}' has {distinct} distinct values, so {empty} of "
-          f"the {asked} classes are empty.")
+          f"the {asked} classes {'is' if empty == 1 else 'are'} empty.")
 
 
 def empty_classes_message(field: str, empty: int, asked: int):

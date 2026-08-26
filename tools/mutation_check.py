@@ -922,7 +922,7 @@ MUTATIONS = [
            "last set to, so the widening a slow machine depends on "
            "never happens"),
   dict(name="a-ramp-window-belongs-to-its-own-group", file=DIALOG,
-       old="""      elif graduated:
+       old="""      elif graduated and not keep_adopted:
         self._ramp_ranges.pop(tid, None)""",
        new="""      # mutation: leave the last group's window in place""",
        test="test_the_output_group_chooser_binds_to_the_dataset",
@@ -948,7 +948,7 @@ MUTATIONS = [
        # test can actually reach.
        old="""      if element.get("single_colour"):
         self._single_colours[tid] = element["single_colour"]
-      else:
+      elif not keep_adopted:
         self._single_colours.pop(tid, None)""",
        new="""      if element.get("single_colour"):
         self._single_colours[tid] = element["single_colour"]
@@ -963,7 +963,7 @@ MUTATIONS = [
            "reported this from three directions in one evening"),
   dict(name="a-pick-does-not-follow-you-to-another-group",
        file=DIALOG,
-       old="""        elif graduated:
+       old="""        elif graduated and not keep_adopted:
           self._quant_colours.get(tid, {}).pop(var, None)""",
        new="""        # mutation: keep the other group's hand-picked colours""",
        test="test_a_group_restores_its_own_state_and_no_one_elses",
@@ -1036,21 +1036,6 @@ MUTATIONS = [
            "skipped, and `_take_over_group` adopting the resumed "
            "layers' stamps into the OTHER dataset's memory bank, "
            "which is ruling 8's cross-dataset leak"),
-  dict(name="a-style-switch-is-not-consent-to-lose-a-pin",
-       file=DIALOG,
-       old="""        elif graduated:
-          self._pinned_bounds.get(tid, {}).pop(var, None)""",
-       new="""        else:
-          self._pinned_bounds.get(tid, {}).pop(var, None)""",
-       test="test_a_style_switch_is_not_consent_to_lose_a_pin",
-       why="`_assignments` reports the ramp window, the pins and the "
-           "hand-picked class colours as empty for any row NOT "
-           "WEARING GRADUATED, so a record is silent about them "
-           "whenever the element is merely on another style. "
-           "Clearing on that silence breaks the ruling of 2026-08-20 "
-           "that the records of the style a row is not wearing are "
-           "kept, and kept silently, so a row switched back finds its "
-           "work where it left it"),
   dict(name="a-resumed-group-carries-the-design-it-resumed",
        file=DIALOG,
        old="""      self._stamp_working_state(already)""",
@@ -1064,6 +1049,74 @@ MUTATIONS = [
            "its layers and none of its design. Measured: the twin "
            "leaves 1,959 characters on the group and this branch "
            "left none"),
+  dict(name="a-recoded-category-reaches-the-legend",
+       file=DIALOG,
+       old="""      words = {}
+      for v in values:
+        if v is None or isinstance(v, (int, float)) \\
+            or bridge.cannot_be_placed(v):
+          continue
+        words[str(v)] = words.get(str(v), 0) + 1""",
+       new="""      words = {}  # mutation: the digest is numbers-blind again""",
+       test="test_a_recoded_category_reaches_the_legend",
+       why="a text value recoded in QGIS's attribute table never "
+           "reached the legend -- the value digest was built from "
+           "finite numbers alone, so the signature said unchanged and "
+           "the stale renderer painted the new value catch-all grey "
+           "under a legend still listing the departed class"),
+  dict(name="a-group-choice-waits-for-the-run",
+       file=DIALOG,
+       old="""    if self._task is not None:
+      self._report_quietly(
+        "A map is still being generated; choose the group to work on "
+        "once it finishes.")
+      self._refresh_group_combo()
+      return""",
+       new="""    pass  # mutation: a mid-run choice is obeyed""",
+       test="test_a_group_choice_waits_for_the_run",
+       why="a group chosen while a tiling was in flight repointed the "
+           "records the landing was about to read, landing the run in "
+           "a rival group whose saved record named a variable nobody "
+           "chose -- resuming it later silently redrew the map"),
+  dict(name="a-categorical-copy-overwrites-the-targets-picks",
+       file=DIALOG,
+       old="""    else:
+      self._category_colours.get(target_id, {}).pop(their_field, None)
+    self._custom_swatch_cache.pop(target_id, None)""",
+       new="""    self._custom_swatch_cache.pop(target_id, None)""",
+       test="test_a_categorical_copy_overwrites_the_targets_picks",
+       why="a copy from a pick-less source left the target's old "
+           "hand-picks painting the map -- and hand-picks outrank the "
+           "copied ramp and template, so the user was told the "
+           "elements now match while one kept its old colours, "
+           "stamped into every file"),
+  dict(name="retirement-closes-the-colour-editor",
+       file=DIALOG,
+       old="""        if getattr(previous, "_open_editor", None) is not None:
+          previous._open_editor.reject()
+          previous._open_editor = None""",
+       new="""        pass  # mutation: the editor outlives its dialog""",
+       test="test_retirement_closes_the_colour_editor",
+       why="a colour editor left open when a second plugin window "
+           "opened went on acting for the retired dialog -- picks "
+           "landed in a record nobody persists or repainted shared "
+           "layers with the retired dialog's stale design"),
+  dict(name="an-unreadable-source-keeps-the-map-at-the-landing",
+       file=DIALOG,
+       old="""        if a.get("class_source") in unreadable \\
+            and old_renderers.get(tid) is not None:
+          out.setRenderer(old_renderers[tid])
+          self._preserved_this_run.append(tid)
+        else:""",
+       new="""        if False:
+          pass
+        else:""",
+       test="test_an_unreadable_source_keeps_the_map_at_the_landing",
+       why="a re-tile whose element named a class source that had "
+           "gone re-seeded automatic colours over the QML's, "
+           "unrecoverably, while the identical journey through the "
+           "restyle path kept them -- sub-second timing deciding "
+           "which map a user got"),
   dict(name="reclassifying-spares-the-absence-colours",
        file=DIALOG,
        old="""      whole = self._quant_colours.get(tile_id, {}).pop(field, None)
@@ -1512,7 +1565,7 @@ MUTATIONS = [
            "different places"),
   dict(name="a-copy-never-carries-the-variable", file=DIALOG,
        old="""    their_field = target["var"]
-    if picks:""",
+    # THE COPY OVERWRITES, with nothing kept back (maintainer's""",
        new="""    their_field = source["var"]  # mutation: carry the variable
     if picks:""",
        test="test_a_categorical_scheme_copies_onto_another_element",
@@ -4102,11 +4155,11 @@ MUTATIONS = [
   # Aimed at _add_output_layers' loop, not at seed_renderer itself,
   # since the fast restyle path calls the same function correctly.
   dict(name="each-element-keeps-its-own-renderer", file=DIALOG,
-       old="""        bridge.seed_renderer(
-          out, a, templates.get(a.get("class_source")),""",
-       new="""        a = assignments[0] if assignments else a  # mutation: one
-        bridge.seed_renderer(
-          out, a, templates.get(a.get("class_source")),""",
+       old="""          bridge.seed_renderer(
+            out, a, templates.get(a.get("class_source")),""",
+       new="""          a = assignments[0] if assignments else a  # mutation: one
+          bridge.seed_renderer(
+            out, a, templates.get(a.get("class_source")),""",
        test="test_an_unassigned_element_beside_elements_sharing_one_field",
        why="elements that classify the SAME column can only be told "
            "apart by their ramps, so a renderer shared between them "

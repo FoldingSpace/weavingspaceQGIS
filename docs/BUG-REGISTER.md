@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-332 defect(s) with a regression test.
+337 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -247,6 +247,8 @@ there is no separate list to remember.
 
 - **retyping a class boundary and recolouring a class in one visit to QGIS's panel recorded the colour and lost the boundary, which then died at the next thing that re-seeded the element.**  
   guarded by `test_a_boundary_retyped_beside_a_recolour_is_still_recorded`
+- **copying a categorized scheme from an element with no hand-picks left the target's old picks painting the map and stamped into the file, against the overwrite ruling. Found by the class-source hunt of 2026-08-26; verified at the layer stamp.**  
+  guarded by `test_a_categorical_copy_overwrites_the_targets_picks`
 - **a categorical colour scheme could not be copied to another element at all, where the graduated one could.**  
   guarded by `test_a_categorical_scheme_copies_onto_another_element`
 - **changing the region dataset kept the output path and the group, so Generate overwrote a file and a result built from different data, without a word.**  
@@ -289,6 +291,8 @@ there is no separate list to remember.
   guarded by `test_a_graduated_copy_carries_the_catch_all`
 - **the categorized adoption path got a test and its graduated twin, five identical lines away, still had none.**  
   guarded by `test_a_graduated_dock_refinement_survives_the_next_restyle`
+- **picking a group in the output chooser while a tiling was in flight repointed the records the landing was about to read, landing the run in a rival group whose saved record named the wrong variable. Found by the mid-run hunt of 2026-08-26; the FILE's record was measured sound, which is what narrowed the fault to this door.**  
+  guarded by `test_a_group_choice_waits_for_the_run`
 - **every key of a group's working state except the ramp window was written only when the incoming record held one, so a ramp, a single colour, an opacity, a class count, a hand-picked class colour, a pinned bound or a categorical colour set on one output group stayed in force on another whose own record said it had none, and the next restyle painted and stamped it there.**  
   guarded by `test_a_group_restores_its_own_state_and_no_one_elses`
 - **the scheme cell went on naming a scheme after a ladder was retyped in QGIS or copied from another element, so the row described a classification the map no longer had.**  
@@ -307,6 +311,8 @@ there is no separate list to remember.
   guarded by `test_a_pin_kept_silently_still_reaches_the_stores`
 - **picking the ramp 'gray' and pressing Apply in QGIS's styling dock with no change silently renamed the row, the records and the next stamp to 'gist_gray' -- no pixel ever differs, and the label moved under the user. Found by the stochastic hunt of 2026-08-26 (seed 5001, shrunk); ruled 2026-08-26: the user's name wins the tie.**  
   guarded by `test_a_ramp_twins_name_does_not_move_under_the_user`
+- **a categorical value edited in QGIS's attribute table never reached the legend -- the value digest was built from finite numbers only, so the signature said unchanged and the landing reattached the stale renderer; the recoded value painted no-data grey with nothing said. Found by the data-edit hunt of 2026-08-26.**  
+  guarded by `test_a_recoded_category_reaches_the_legend`
 - **closing the plugin window and opening it again (or reopening a saved project) reverted every hand-chosen variable, style, ramp and class count to the plugin's default cycle while the layers still drew the chosen design, and the next Generate then repainted the map to the wrong variables -- a categorical element re-tiled as a quantitative one. Found 2026-08-26 by the consistency sweep's boundary-crossing oracle.**  
   guarded by `test_a_reopened_dialog_wears_the_design_it_left`
 - **reopening a project under an open plugin panel bound the dataset identity to one of the plugin's own output layers, so the project's hand-picked colours and pinned bounds were unreachable and the next Generate destroyed them.**  
@@ -331,6 +337,8 @@ there is no separate list to remember.
   guarded by `test_an_output_group_carries_the_whole_working_state`
 - **an automatic mutant moved the sampling divisor and one covering test noticed nothing, because nothing looked at where the swatch ended.**  
   guarded by `test_an_unclassed_swatch_reaches_both_ends_of_its_ramp`
+- **a re-tile whose element named a class source that had gone re-seeded automatic colours over the QML's, unrecoverably, while the identical journey through the restyle path kept them -- two runs less than a second apart gave two different maps. Found by the class-source hunt of 2026-08-26.**  
+  guarded by `test_an_unreadable_source_keeps_the_map_at_the_landing`
 - **control ranges and steps were unasserted as a class; a mutation batch moved one and the suite was silent.**  
   guarded by `test_every_control_accepts_the_range_it_should`
 - **no test asserted any control's tooltip, so all thirty-one could be removed unnoticed.**  
@@ -351,6 +359,8 @@ there is no separate list to remember.
   guarded by `test_reclassifying_spares_the_absence_colours`
 - **recolouring only the "no data" catch-all in QGIS read as a clean classify, so the plugin announced a ramp nobody chose, discarded the colour, and repainted those areas grey at the next Generate.**  
   guarded by `test_recolouring_the_catch_all_alone_is_not_a_new_ramp`
+- **a colour editor left open when a second plugin window opened went on acting for the retired dialog -- picks landed in a record nobody persists, or repainted shared layers with the retired dialog's stale design, which the live dialog then adopted as a dock edit. Found by the two-dialogs hunt of 2026-08-26.**  
+  guarded by `test_retirement_closes_the_colour_editor`
 - **`_mirror_quant_customization` rebuilt the picks dict keeping only digit keys, and since 2026-08-15 the catch-all and infinity picks live in that dict under non-digit keys -- so one Reverse click silently destroyed a hand-picked No data colour, and reversing back did not return it. Found by the editor hunt of 2026-08-26.**  
   guarded by `test_reverse_carries_the_absence_colours`
 - **reversing a qualitative palette was a no-op, with the switch still reading as ticked.**  
@@ -717,7 +727,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
-- the mutation campaign: 69
+- the mutation campaign: 74
 - reported by a user: 29
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

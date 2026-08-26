@@ -428,6 +428,33 @@ by a route its hunt did not use before anything was fixed, with one
 honest exception recorded in the ledger (the preview claim's
 independent route could not stage the act, so its proof is the entry).
 
+## ROUND EIGHT, 2026-08-26 (night): eight hunts at the seams
+
+Aimed by the previous round's lessons at what its notices and clean
+sweeps could not reach. SIX DEFECTS (ledger rows 29-34, all fixed the
+same night), two clean directions with measurements, two ruling
+requests raised to the maintainer. The rows, as the hunts filed them:
+
+| Direction | Question | Logged | Confirmed | Lesson |
+| --- | --- | ---: | ---: | --- |
+| Mid-run acts (one-boundary) | which in-flight act has no guard and no test? | 4 | 1 | enumerate the guarded acts first -- the unguarded door was findable by grep before any probe ran |
+| Two dialogs interleaved (two-stores) | what still acts for a retired dialog? | 5 | 1 | the reachable route into a retired dialog is not its widgets but its surviving child windows -- hunt the children |
+| Oscillation × persistence (two-stores) | which returns stop finding the work when the trip crosses a save? | 5 | 1 (ruling raised) | a byte-grep of the saved file is the cheapest independent route to "no store holds it" |
+| Notices as claims (prose, 2nd) | does every sentence survive being tested as a claim? | 6 | 2 (1 ruling raised) | drive the SAME loss through every door -- the door that speaks hides the doors that do not |
+| Class-source family (asymmetry) | QML, templates and copies, iterated | 8 | 2 | when a keep-behaviour is an explicit arm on one path and "signature unchanged" on its twin, iterate a second control into the act -- the promise then rests on a debounce race |
+| No-data twin (write-only) | what does a departing twin leave unread? | 11 | 0 | after any landing, tick the event loop before driving a control -- the deferred replay makes a starved probe read its own pick reverting as a defect |
+| Data edited between acts (unreachable) | does the settled map follow every KIND of edit? | 7 | 1 | when a digest fixes "the data moved", ask which TYPES its terms can see -- the fix's guard drove the type the fix handled |
+| Pixels vs records | does everything drawn match the record beneath? | 6 | 1 | diff a widget grab against the right baseline, or a stripe-count change swallows the stroke you seek |
+
+AND THE VERIFICATION QUEUE EARNED ITS KEEP TWICE OVER: two of the
+independent probes drove the WRONG DOOR (a graduated copy call for a
+categorical claim; a direct internal call for a journey the fix
+closes at the window) and were caught by re-driving through the right
+ones; and one catalogue entry took FOUR fixtures to prove, each
+failure a different mechanism quietly keeping the behaviour -- the
+full ladder is in the ledger, and its moral is that nothing in a
+hunt's reproduction is incidental until proven so.
+
 ## What a "direction" means
 
 A direction is not a place in the code. It is the QUESTION a hunt

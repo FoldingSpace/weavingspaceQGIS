@@ -4577,12 +4577,30 @@ class WeavingSpaceDialog(QDialog):
         else:
           kind = bridge.NO_DATA_KEY
         absent[kind] = absent.get(kind, 0) + 1
+      # ...AND THE WORDS, not only the numbers. Every term above is
+      # numeric, so a TEXT column digested identically whichever
+      # values it held: recoding forest to alpine in QGIS's attribute
+      # table moved nothing, `_signature` said unchanged, and the
+      # landing reattached the stale categorized renderer -- the new
+      # value painted catch-all grey under a legend still listing the
+      # departed class, with nothing said. The numeric half of exactly
+      # this was fixed on 2026-08-15 and its guard test drove a
+      # numeric column, which is how the text half survived. Found by
+      # the data-edit hunt, 2026-08-26. Counted as frequencies, since
+      # categorical classes are cut from value counts.
+      words = {}
+      for v in values:
+        if v is None or isinstance(v, (int, float)) \
+            or bridge.cannot_be_placed(v):
+          continue
+        words[str(v)] = words.get(str(v), 0) + 1
       self._value_digests[(layer.id(), field_name)] = (
         len(values), len(numbers),
         numbers[0] if numbers else None,
         numbers[-1] if numbers else None,
         hash(tuple(numbers)),
-        tuple(sorted(absent.items())))
+        tuple(sorted(absent.items())),
+        hash(tuple(sorted(words.items()))))
     return self._values_cache.get(key)
 
   def _value_digest(self, field_name):
@@ -4880,7 +4898,19 @@ class WeavingSpaceDialog(QDialog):
     # this runs while the table is being BUILT and that widget may not
     # exist yet. `_reverse_choices` is what survives a rebuild, which
     # is the same reason the ramp itself is looked up by tile id.
-    reversed_here = bool(self._reverse_choices.get(tile_id, False))
+    # THE RECORD, GATED BY THE MODE THAT CAN WEAR IT -- exactly the
+    # gate `_refresh_ramp_icons`, `_sync_row` and `_assignments` all
+    # apply, and this constructor did not: a Reverse kept silently
+    # from a graduated excursion drew the swatch and all 64 dropdown
+    # icons mirror-imaged on a CATEGORIZED row whose map, preview and
+    # (disabled) toggle all said forward. Found by the pixels hunt,
+    # 2026-08-26. The kept record is untouched; only what is DRAWN
+    # follows what the row is wearing.
+    switch_now = self._row_reverse(self._row_for_element(tile_id)) \
+        if self._row_for_element(tile_id) is not None else None
+    wearable = switch_now is None or switch_now.isEnabled()
+    reversed_here = bool(self._reverse_choices.get(tile_id, False)) \
+        and wearable
     for name in self._ramp_names:
       # IN THIS ELEMENT'S OWN DIRECTION, not always forward. The
       # swatch is how a user reads an element and chooses its next
@@ -7040,7 +7070,8 @@ class WeavingSpaceDialog(QDialog):
     if discarded:
       self._report_quietly(
         f"Choosing {because} for element '{tile_id}' discarded "
-        f"{len(discarded)} class colour(s) you had picked by hand.")
+        f"{len(discarded)} class colour(s) you had picked by hand "
+        f"for '{field}'.")
     elif reset_range and had_window:
       self._report_quietly(
         f"Choosing {because} for element '{tile_id}' restored the "
@@ -9650,9 +9681,20 @@ class WeavingSpaceDialog(QDialog):
     this rather than the plugin guessing, and somebody did.
     """
     their_field = target["var"]
+    # THE COPY OVERWRITES, with nothing kept back (maintainer's
+    # ruling, 2026-08-20: the copy takes the per-value colours and the
+    # catch-all). Writing only WHEN the source had picks left the
+    # TARGET'S old hand-picks standing -- and hand-picks outrank both
+    # the copied ramp and a copied QML template, so a copy from a
+    # pick-less source told the user "element 'b' now uses the classes
+    # from element 'a'" while b's forest stayed the old red for good,
+    # stamped into every file. Found by the class-source hunt,
+    # 2026-08-26, and verified at the stamp: an empty source CLEARS.
     if picks:
       self._category_colours.setdefault(target_id, {})[their_field] = \
           dict(picks)
+    else:
+      self._category_colours.get(target_id, {}).pop(their_field, None)
     self._custom_swatch_cache.pop(target_id, None)
     row = self._row_for_element(target_id)
     if row is None or row < 0:
@@ -13000,6 +13042,19 @@ class WeavingSpaceDialog(QDialog):
         previous._live_timer.stop()
         previous._preview_timer.stop()
         previous.live_check.setChecked(False)
+        # ...AND ITS CHILD WINDOWS. The colour editor is WindowModal
+        # to the DIALOG, deliberately, so QGIS stays usable -- which
+        # also means it outlives its parent's retirement: hidden
+        # parent, visible editor, and every pick its closures make
+        # runs on the RETIRED dialog, whose restyle path still writes
+        # renderers. A pick made there either went nowhere the map is
+        # or reverted the live dialog's pending edits. The reachable
+        # route into a retired dialog is not its widgets but its
+        # surviving children. Found by the two-dialogs hunt,
+        # 2026-08-26.
+        if getattr(previous, "_open_editor", None) is not None:
+          previous._open_editor.reject()
+          previous._open_editor = None
         if previous._task is not None:
           previous._task.cancel()
           previous._task = None
@@ -13425,6 +13480,25 @@ class WeavingSpaceDialog(QDialog):
     """
     if _dialog_is_gone(self) or _live_dialog() is not self:
       return
+    # NOT WHILE A RUN IS IN FLIGHT. Choosing a group repoints the
+    # records the landing is about to read -- `_stamp_working_state`
+    # re-reads the elements live off the swapped table -- so a choice
+    # made mid-tiling landed the run in a fresh rival group whose
+    # saved record described ANOTHER map's design, and resuming that
+    # group later silently redrew it with a variable nobody chose for
+    # it. `_bind_group_to_dataset` has carried this same guard since
+    # 2026-08-25; this door never got it (found by the mid-run hunt,
+    # 2026-08-26 -- a guard added to one door belongs at every door).
+    # The choice is REFUSED in words rather than queued, because a
+    # queued choice would land against whatever the run leaves, which
+    # is a design nobody has seen yet; the chooser is re-synced so it
+    # goes on telling the truth.
+    if self._task is not None:
+      self._report_quietly(
+        "A map is still being generated; choose the group to work on "
+        "once it finishes.")
+      self._refresh_group_combo()
+      return
     combo = getattr(self, "group_combo", None)
     if combo is None:
       return
@@ -13531,7 +13605,7 @@ class WeavingSpaceDialog(QDialog):
           if same and layer is not self.layer_combo.currentLayer():
             self.layer_combo.setLayer(layer)
             break
-      self._apply_working_state(record)
+      self._apply_working_state(record, keep_adopted=True)
     finally:
       self._selecting_a_group = False
     self._refresh_group_combo()
@@ -13926,11 +14000,19 @@ class WeavingSpaceDialog(QDialog):
       "region": layer.source() if layer is not None else None,
     }
 
-  def _apply_working_state(self, record) -> bool:
+  def _apply_working_state(self, record, keep_adopted=False) -> bool:
     """Put a group's recorded map back into the dialog.
 
     Args:
       record: a dict from `_read_working_state`, or None.
+      keep_adopted: True at the ADOPTION doors (the constructor and a
+        project read), where the only thing in the dicts is what
+        adoption just recovered from THIS group's own layer stamps --
+        so a key the record is silent about leaves the adopted value
+        standing instead of clearing it. False at the group CHOOSER,
+        where clearing on silence is what stops one group's answer
+        riding onto another (ledger row 1). Passed through to
+        `_apply_element_records`.
 
     Returns:
       True when the dialog was moved, False when there was nothing
@@ -14003,7 +14085,7 @@ class WeavingSpaceDialog(QDialog):
     finally:
       blocked(False)
 
-    self._apply_element_records(record)
+    self._apply_element_records(record, keep_adopted)
     # The table is rebuilt ONCE, here, reading the record rather than
     # the rows it is about to replace. See `_restoring_assignments`.
     self._restoring_assignments = record.get("elements") or None
@@ -14016,12 +14098,15 @@ class WeavingSpaceDialog(QDialog):
     self._restoring_assignments = None
     return True
 
-  def _apply_element_records(self, record):
+  def _apply_element_records(self, record, keep_adopted=False):
     """Write a record's per-element choices into the dialog's own dicts.
 
     Args:
       record: the whole working state, read for its "elements" list and
         for the "region" it was made from.
+      keep_adopted: when True, a key the record is silent about never
+        pops the dialog's dict -- the adoption-door contract, argued
+        at `_apply_working_state`. Assignments still apply.
 
     Returns:
       None. Fills the element-keyed dicts `_refresh_table` restores
@@ -14077,16 +14162,16 @@ class WeavingSpaceDialog(QDialog):
       # door" wearing a fifth set of clothes.
       if element.get("ramp"):
         self._ramp_choices[tid] = element["ramp"]
-      else:
+      elif not keep_adopted:
         self._ramp_choices.pop(tid, None)
       if element.get("single_colour"):
         self._single_colours[tid] = element["single_colour"]
-      else:
+      elif not keep_adopted:
         self._single_colours.pop(tid, None)
       self._reverse_choices[tid] = bool(element.get("reverse"))
       if element.get("opacity") is not None:
         self._opacity_choices[tid] = int(element["opacity"])
-      else:
+      elif not keep_adopted:
         self._opacity_choices.pop(tid, None)
       self._class_choices[tid] = element.get("class_choice") or ""
       # THE COUNT ONLY WHERE SOMEBODY CHOSE IT. `k` is 50 on an
@@ -14098,7 +14183,7 @@ class WeavingSpaceDialog(QDialog):
       if element.get("scheme") != "Unclassed" \
           and element.get("k") is not None:
         self._class_counts[tid] = int(element["k"])
-      else:
+      elif not keep_adopted:
         # POPPED RATHER THAN WRITTEN, which keeps both promises at
         # once: an Unclassed row's fifty never becomes a CHOSEN count,
         # and a count chosen on the previous group does not survive
@@ -14140,7 +14225,7 @@ class WeavingSpaceDialog(QDialog):
       window = element.get("range_bounds")
       if window and tuple(window) != (0, 100):
         self._ramp_ranges[tid] = tuple(window)
-      elif graduated:
+      elif graduated and not keep_adopted:
         self._ramp_ranges.pop(tid, None)
       # THE VALUE-LADEN RECORDS ARE KEYED BY ELEMENT AND FIELD, so
       # what is cleared is this element's entry for THIS variable and
@@ -14152,7 +14237,7 @@ class WeavingSpaceDialog(QDialog):
         if element.get("quant_colours"):
           self._quant_colours.setdefault(tid, {})[var] = \
             dict(element["quant_colours"])
-        elif graduated:
+        elif graduated and not keep_adopted:
           self._quant_colours.get(tid, {}).pop(var, None)
       if not same_data:
         continue
@@ -14160,12 +14245,12 @@ class WeavingSpaceDialog(QDialog):
         if element.get("pinned"):
           self._pinned_bounds.setdefault(tid, {})[var] = \
             dict(element["pinned"])
-        elif graduated:
+        elif graduated and not keep_adopted:
           self._pinned_bounds.get(tid, {}).pop(var, None)
         if element.get("category_colours"):
           self._category_colours.setdefault(tid, {})[var] = \
             dict(element["category_colours"])
-        elif categorized:
+        elif categorized and not keep_adopted:
           self._category_colours.get(tid, {}).pop(var, None)
 
   def _stamp_working_state(self, group, launch_state=None):
@@ -15332,7 +15417,7 @@ class WeavingSpaceDialog(QDialog):
     # colours -- including any the user refined by hand
     element_fills = {}
 
-    templates, template_errors = {}, []
+    templates, template_errors, unreadable = {}, [], set()
     for token in {a.get("class_source") for a in assignments
                   if a.get("class_source")}:
       try:
@@ -15342,6 +15427,9 @@ class WeavingSpaceDialog(QDialog):
         else:
           templates[token] = bridge.load_categorized_template(token[5:])
       except Exception as e:
+        # tracked exactly as the restyle twin tracks it, and for the
+        # same keep-the-map promise; see the arm at the seeding below
+        unreadable.add(token)
         template_errors.append(f"{token.split(':', 1)[1][-40:]}: {e}")
 
     # A run carries the settings it was launched with, which is right
@@ -15807,12 +15895,30 @@ class WeavingSpaceDialog(QDialog):
           idx = mem.fields().indexOf(a["var"])
           if idx >= 0 and len(mem.uniqueValues(idx)) > 60:
             warned_cardinality.append(f"{tid} ({a['var']})")
-        # the same values as the restyle path hands over, so an
-        # element wears the same breaks whichever path drew it
-        bridge.seed_renderer(
-          out, a, templates.get(a.get("class_source")),
-          self._classification_values(a.get("var")) if a.get("var")
-          else None)
+        # AN UNREADABLE CLASS SOURCE KEEPS THE COLOURS THE MAP WAS
+        # WEARING, at the landing exactly as on the restyle path --
+        # whose arm says why: everything else about the element is
+        # still honoured, because refusing that too would turn one
+        # unreadable file into a row whose controls do nothing. The
+        # landing never had the arm, so the keep-the-map promise
+        # rested on the run signature saying "unchanged": add any
+        # second control to the act (an opacity with the spacing) and
+        # sub-second timing decided whether the colours survived --
+        # two runs less than a second apart gave two different maps.
+        # Found by the class-source hunt, 2026-08-26. ONLY the
+        # seeding is conditional: the stamps, the twin and every other
+        # per-element step below run exactly as for any element.
+        if a.get("class_source") in unreadable \
+            and old_renderers.get(tid) is not None:
+          out.setRenderer(old_renderers[tid])
+          self._preserved_this_run.append(tid)
+        else:
+          # the same values as the restyle path hands over, so an
+          # element wears the same breaks whichever path drew it
+          bridge.seed_renderer(
+            out, a, templates.get(a.get("class_source")),
+            self._classification_values(a.get("var")) if a.get("var")
+            else None)
         # the landing's half of the same baseline; see the twin in
         # `_restyle_only`, and note that the two are DELIBERATELY
         # separate calls rather than one shared helper wrapping

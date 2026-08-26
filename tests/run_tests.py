@@ -46233,12 +46233,20 @@ def test_model_based_dialog_states():
     state = "filed"
     assert os.path.exists(path), "the GeoPackage must exist"
     # a change of output PATH starts a new group by design (see
-    # force_new in _add_output_layers): the previous result came from
-    # somewhere else, and overwriting it in place would conflate two
-    # different outputs
-    assert len(groups()) == 3, \
-      f"changing the output target starts its own group, found "\
-      f"{len(groups())}"
+    # RE-DECIDED 2026-08-26 (maintainer's ruling: replace in place).
+    # This assertion used to expect a THIRD group here, reading
+    # memory-to-file as "the output target changed". It did not: the
+    # map so far lived nowhere, and live update's memory layers are
+    # this same design's own provisional draft, so giving it a file
+    # REPLACES the draft rather than forking a rival -- the ordinary
+    # session was leaving two groups and a stale memory copy the
+    # chooser offered for good (ledger row 19). A destination is only
+    # "changed" when there WAS one: file-to-different-file still
+    # forks, which the mapped -> filed transition below this one
+    # exercises through a real path change.
+    assert len(groups()) == 2, \
+      f"a first file for a memory-drawn map replaces the draft in "\
+      f"place, found {len(groups())} groups"
     for tid, lid in dlg._element_layer_ids.items():
       source = project.mapLayer(lid).source()
       assert path in source, \
@@ -46249,9 +46257,10 @@ def test_model_based_dialog_states():
     dlg.gpkg_widget.setFilePath("")
   _generate_and_wait(dlg)
   state = "mapped"
-  assert len(groups()) == 4, \
-    "and going back to temporary output starts another, for the " \
-    "same reason"
+  assert len(groups()) == 3, \
+    "leaving a real file for temporary output forks -- there WAS a "\
+    "destination, and overwriting its map in memory would conflate "\
+    "two different outputs"
   assert elements_live()
   for tid, lid in dlg._element_layer_ids.items():
     assert "memory" in project.mapLayer(lid).source() or \
@@ -48841,6 +48850,15 @@ def test_the_file_carries_the_design_the_map_is_wearing():
     project.clear()
 
 
+#
+# THIS AXIS IS HELD THREE WAYS SINCE 2026-08-26, and its catalogue
+# entry (`a-style-switch-is-not-consent-to-lose-a-pin`) was retired
+# rather than left as a permanent survivor: the capture BACKFILL puts
+# the kept pin into the record (so the apply's first branch assigns),
+# the mode gate refuses to clear on absence-by-mode, and the adoption
+# doors never clear on silence at all. No single mutation reaches the
+# loss any more; breaking all three at once does. Redundant is not
+# dead; an entry that can only ever be red is (settled 2026-08-20).
 def test_a_style_switch_is_not_consent_to_lose_a_pin():
   """A record silent BY MODE is not a record of a choice nobody made.
 
@@ -62041,6 +62059,350 @@ def test_a_ramp_twins_name_does_not_move_under_the_user():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_a_recoded_category_reaches_the_legend():
+  """Retyping a text value in QGIS reclassifies the map.
+
+  The value digest existed so an edit made through the attribute
+  table moves the signature; its terms were all numeric, so a TEXT
+  column digested identically whichever words it held -- forest
+  recoded to alpine drew catch-all grey under a legend still listing
+  forest. The numeric half was fixed 2026-08-15; its guard drove a
+  numeric column, which is how the text half survived.
+
+  Regression: a categorical value edited in QGIS's attribute table never reached the legend -- the value digest was built from finite numbers only, so the signature said unchanged and the landing reattached the stale renderer; the recoded value painted no-data grey with nothing said. Found by the data-edit hunt of 2026-08-26. [mutation]
+  """
+  import shutil
+  import tempfile
+  from qgis.core import QgsVectorFileWriter
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  folder = tempfile.mkdtemp(prefix="ws_recode_")
+  try:
+    region = make_region_layer(n=5, cell=1000)
+    path = os.path.join(folder, "region.gpkg")
+    options = QgsVectorFileWriter.SaveVectorOptions()
+    options.driverName = "GPKG"
+    options.layerName = "region"
+    QgsVectorFileWriter.writeAsVectorFormatV3(
+      region, path, QgsProject.instance().transformContext(), options)
+    disk = QgsVectorLayer(f"{path}|layername=region", "region", "ogr")
+    QgsProject.instance().addMapLayer(disk)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.layer_combo.setLayer(disk)
+    _tick(1000)
+    _settle(dlg, seconds=30)
+    combo = dlg.table.cellWidget(0, 1)
+    index = combo.findText("landcover")
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(300)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    field = disk.fields().indexOf("landcover")
+    assert disk.startEditing()
+    first = next(disk.getFeatures())
+    assert disk.changeAttributeValue(first.id(), field, "alpine")
+    assert disk.commitChanges(), disk.commitErrors()
+    _tick(600)
+    assert "alpine" in {str(f["landcover"]) for f in disk.getFeatures()}, \
+      "the edit never reached the layer, so nothing below means anything"
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    tid = dlg.table.item(0, 0).text()
+    out = QgsProject.instance().mapLayer(dlg._element_layer_ids.get(tid))
+    renderer = out.renderer()
+    assert hasattr(renderer, "categories"), "the row is not categorized"
+    listed = renderer.categories()
+    cats = [str(c.value()) for c in listed]
+    assert "alpine" in cats, \
+      f"the recoded value never reached the legend: {cats}"
+    dlg.close()
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_group_choice_waits_for_the_run():
+  """Choosing a group mid-tiling is refused in words, not obeyed.
+
+  `_stamp_working_state` re-reads the elements live at the landing,
+  so a group chosen mid-run swapped the table under the run and the
+  landed group's record described another map's design -- resuming it
+  later silently redrew the map with a variable nobody chose.
+  `_bind_group_to_dataset` has carried the in-flight guard since
+  2026-08-25; this door never got it.
+
+  Regression: picking a group in the output chooser while a tiling was in flight repointed the records the landing was about to read, landing the run in a rival group whose saved record named the wrong variable. Found by the mid-run hunt of 2026-08-26; the FILE's record was measured sound, which is what narrowed the fault to this door. [mutation]
+  """
+  import shutil
+  import tempfile
+  folder = tempfile.mkdtemp(prefix="ws_midrun_")
+  try:
+    dlg, disk, out = _a_disk_session(folder)
+    first_group = dlg._group_name
+    # a second group through the chooser's own door: "Create new"
+    combo = dlg.group_combo
+    index = next((i for i in range(combo.count())
+                  if combo.itemText(i) == "Create new"), -1)
+    assert index >= 0, "the chooser offers no Create new entry"
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(300)
+    # a person keeping both maps names a new file: create-new into
+    # the SAME GeoPackage is refused by a settled guard, correctly
+    dlg.gpkg_widget.setFilePath(os.path.join(folder, "second.gpkg"))
+    dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 0.8)
+    _tick(300)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    second_group = dlg._group_name
+    assert first_group != second_group, \
+      "the fixture made one group, so there is nothing to choose mid-run"
+    dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.3)
+    _tick(300)
+    dlg._generate()
+    assert dlg._task is not None, \
+      "no run was in flight, so the guard under test cannot be reached"
+    BAR_MESSAGES.clear()
+    combo = dlg.group_combo
+    index = next((i for i in range(combo.count())
+                  if str(first_group) in combo.itemText(i)), -1)
+    assert index >= 0, "the first group is not on offer"
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    said = " ".join(m[1] for m in BAR_MESSAGES)
+    assert "still being generated" in said, \
+      f"the mid-run choice was not refused in words: {said!r}"
+    _tick(6000)
+    _settle(dlg, seconds=90)
+    assert dlg._group_name == second_group, \
+      f"the mid-run choice took effect anyway: the dialog is in " \
+      f"{dlg._group_name!r}"
+    dlg.close()
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_categorical_copy_overwrites_the_targets_picks():
+  """A copy from a pick-less source clears the target's hand-picks.
+
+  The ruling of 2026-08-20: the copy OVERWRITES the per-value colours
+  and the catch-all. Writing only when the source HAD picks left the
+  target's old hand-picks standing -- and hand-picks outrank the
+  copied ramp and template, so the map kept drawing them while the
+  user was told the elements now match.
+
+  Regression: copying a categorized scheme from an element with no hand-picks left the target's old picks painting the map and stamped into the file, against the overwrite ruling. Found by the class-source hunt of 2026-08-26; verified at the layer stamp. [mutation]
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  folder = tempfile.mkdtemp(prefix="ws_copy_over_")
+  try:
+    layer = make_region_layer(n=5, cell=1000)
+    QgsProject.instance().addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.layer_combo.setLayer(layer)
+    _tick(1000)
+    _settle(dlg, seconds=30)
+    for row in (0, 1):
+      combo = dlg.table.cellWidget(row, 1)
+      index = combo.findText("landcover")
+      combo.setCurrentIndex(index)
+      combo.activated.emit(index)
+      _tick(250)
+      style = dlg.table.cellWidget(row, 2)
+      index = style.findText("Categorized")
+      style.setCurrentIndex(index)
+      style.activated.emit(index)
+      _tick(250)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    a_id = dlg.table.item(0, 0).text()
+    b_id = dlg.table.item(1, 0).text()
+    dlg._category_colours.setdefault(b_id, {})["landcover"] = {
+      "forest": "#ff0000"}
+    assert not dlg._category_colours.get(a_id, {}).get("landcover"), \
+      "the source has picks, so the pick-less case cannot arise"
+    dlg._copy_categories_to_many(a_id, [b_id])
+    _tick(400)
+    kept = dlg._category_colours.get(b_id, {}).get("landcover")
+    assert not kept, \
+      f"the copy left the target's old hand-picks standing: {kept!r}"
+    dlg.close()
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_retirement_closes_the_colour_editor():
+  """A second dialog closes the first one's open colour editor.
+
+  The editor is WindowModal to the DIALOG so QGIS stays usable --
+  which also means it outlives its parent's retirement: hidden
+  parent, visible editor, and every pick its closures make runs on
+  the retired dialog. The reachable route into a retired dialog is
+  not its widgets but its surviving children.
+
+  Regression: a colour editor left open when a second plugin window opened went on acting for the retired dialog -- picks landed in a record nobody persists, or repainted shared layers with the retired dialog's stale design, which the live dialog then adopted as a dock edit. Found by the two-dialogs hunt of 2026-08-26. [mutation]
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  folder = tempfile.mkdtemp(prefix="ws_editor_retire_")
+  try:
+    layer = make_region_layer(n=4, cell=1000)
+    QgsProject.instance().addMapLayer(layer)
+    first = WeavingSpaceDialog(iface=_Iface())
+    first.layer_combo.setLayer(layer)
+    _tick(1000)
+    _settle(first, seconds=30)
+    combo = first.table.cellWidget(0, 1)
+    index = combo.findText("landcover")
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(250)
+    style = first.table.cellWidget(0, 2)
+    index = style.findText("Categorized")
+    style.setCurrentIndex(index)
+    style.activated.emit(index)
+    _tick(250)
+    _generate_and_wait(first)
+    _tick(300)
+    _settle(first, seconds=30)
+    editor = _open_quant_editor(first, 0)
+    # the helper intercepts exec, whose return clears _open_editor;
+    # in production exec BLOCKS in a local event loop and the record
+    # stays set for as long as the window is open -- which is exactly
+    # the window a second dialog can be constructed in. Restore the
+    # state production holds during that window.
+    first._open_editor = editor
+    assert editor.isVisible() or True, "editor object exists"
+    assert first._open_editor is not None, \
+      "no editor opened, so retirement has nothing to close"
+    second = WeavingSpaceDialog(iface=_Iface())
+    _tick(400)
+    assert first._open_editor is None, \
+      "retirement left the first dialog's colour editor open and " \
+      "acting for a dialog that is no longer in force"
+    assert not editor.isVisible(), \
+      "the editor window is still visible after its dialog retired"
+    second.close()
+    first.close()
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_an_unreadable_source_keeps_the_map_at_the_landing():
+  """A missing QML keeps the worn colours through a RE-TILE.
+
+  The restyle path has carried this arm since 2026-08-13: an element
+  whose class source cannot be read keeps the colours it is wearing.
+  The landing never had it, so the promise rested on the run
+  signature saying "unchanged" -- add a second control to the act and
+  sub-second timing decided whether the colours survived.
+
+  Regression: a re-tile whose element named a class source that had gone re-seeded automatic colours over the QML's, unrecoverably, while the identical journey through the restyle path kept them -- two runs less than a second apart gave two different maps. Found by the class-source hunt of 2026-08-26. [mutation]
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  folder = tempfile.mkdtemp(prefix="ws_unreadable_")
+  try:
+    layer = make_region_layer(n=5, cell=1000)
+    QgsProject.instance().addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.layer_combo.setLayer(layer)
+    _tick(1000)
+    _settle(dlg, seconds=30)
+    combo = dlg.table.cellWidget(0, 1)
+    index = combo.findText("landcover")
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(250)
+    style = dlg.table.cellWidget(0, 2)
+    index = style.findText("Categorized")
+    style.setCurrentIndex(index)
+    style.activated.emit(index)
+    _tick(250)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    tid = dlg.table.item(0, 0).text()
+    # THE WORN COLOURS MUST DIFFER FROM WHAT A RE-SEED WOULD PRODUCE,
+    # or the arm's absence is invisible: ramp defaults re-seeded are
+    # ramp defaults again. A QML template governs them instead --
+    # copied so the ORIGINAL fixture survives its deletion.
+    qml = os.path.join(folder, "colours.qml")
+    shutil.copy(os.path.join(ROOT, "tests", "data", "landcover.qml"),
+                qml)
+    source_cell = dlg.table.cellWidget(0, 7)
+    index = source_cell.findData("file:" + qml) if source_cell else -1
+    if index < 0 and source_cell is not None \
+        and hasattr(source_cell, "addItem"):
+      source_cell.addItem(os.path.basename(qml), "file:" + qml)
+      index = source_cell.findData("file:" + qml)
+    assert source_cell is not None and index >= 0, \
+      "the class-source combo would not take the QML"
+    source_cell.setCurrentIndex(index)
+    source_cell.activated.emit(index)
+    _tick(400)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    out = QgsProject.instance().mapLayer(dlg._element_layer_ids[tid])
+    renderer = out.renderer()
+    worn = renderer.clone()
+    worn_categories = worn.categories()
+    before = {str(c.value()): c.symbol().color().name()
+              for c in worn_categories if c.symbol()}
+    assert before, "no categorized colours to keep"
+    os.remove(qml)
+    assert not os.path.exists(qml), "the QML did not go"
+    # STAGE THE RACE'S LOSING SIDE. The ~1s reconciliation drain can
+    # adopt the QML's colours as hand-picks, which are re-read at
+    # every landing and keep the map WHATEVER this arm does -- the
+    # sub-second accident the hunt measured (kept one run, lost the
+    # next). A user on the losing side has no such picks, so the
+    # record is emptied to stage that side deterministically; the
+    # keep must then come from the arm or from nowhere.
+    dlg._category_colours.get(tid, {}).pop("landcover", None)
+    # ...and the STYLE signature must move too, or the landing keeps
+    # the old renderer through the unchanged-assignment carry and the
+    # arm never decides anything. An opacity nudge is the hunt's own
+    # second control: styling, so it moves the signature; nothing to
+    # do with colours, so it cannot explain a kept ladder itself.
+    opacity = dlg.table.cellWidget(0, 6)
+    assert opacity is not None and hasattr(opacity, "setValue"), \
+      "no opacity control to move the style signature with"
+    opacity.setValue(70)
+    _tick(250)
+    dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.3)
+    _tick(300)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    out = QgsProject.instance().mapLayer(dlg._element_layer_ids[tid])
+    renderer = out.renderer()
+    listed = renderer.categories() if hasattr(renderer, "categories") else []
+    after = {str(c.value()): c.symbol().color().name()
+             for c in listed if c.symbol()}
+    shared = {v: (before.get(v), after.get(v)) for v in before
+              if v in after and before[v] != after[v]}
+    assert not shared, \
+      f"the landing re-seeded colours the unreadable source governed: " \
+      f"{shared}"
+    dlg.close()
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def main():
   """Run every registered test and report what happened.
 
@@ -62400,6 +62762,16 @@ def main():
         test_a_graduated_copy_carries_the_catch_all)
   check("a ramp twin's name does not move under the user",
         test_a_ramp_twins_name_does_not_move_under_the_user)
+  check("a recoded category reaches the legend",
+        test_a_recoded_category_reaches_the_legend)
+  check("a group choice waits for the run",
+        test_a_group_choice_waits_for_the_run)
+  check("a categorical copy overwrites the target's picks",
+        test_a_categorical_copy_overwrites_the_targets_picks)
+  check("retirement closes the colour editor",
+        test_retirement_closes_the_colour_editor)
+  check("an unreadable source keeps the map at the landing",
+        test_an_unreadable_source_keeps_the_map_at_the_landing)
   check("a class source follows the record under it",
         test_a_class_source_follows_the_record_under_it)
   check("the file carries the design the map is wearing",

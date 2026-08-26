@@ -864,6 +864,11 @@
   "excerpt": "Opens a gap around each whole unit (tilings only).",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "6d398e6a05e8f2bd": {
+  "approved": "2026-08-26",
+  "excerpt": "A map is still being generated; choose the group to work on ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "6e1daf96115aa11a": {
   "approved": "2026-08-09",
   "excerpt": "How solid this element draws, as QGIS layer opacity; 100 is ",
@@ -1079,6 +1084,11 @@
   "excerpt": "Set *Save to GeoPackage* and every element layer is written ",
   "where": "docs/USER-GUIDE.md"
  },
+ "8bea49d91fdee54d": {
+  "approved": "2026-08-26",
+  "excerpt": "'{}' has {} distinct values left between its pinned bounds, ",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "8c4cdc922b6b0cea": {
   "approved": "2026-08-15",
   "excerpt": "Element '{}' had classes copied from another element, and {}",
@@ -1168,6 +1178,11 @@
   "approved": "2026-08-19",
   "excerpt": "The first class and the last have boxes you can type into; t",
   "where": "docs/USER-GUIDE.md"
+ },
+ "972e3851438e9ed6": {
+  "approved": "2026-08-26",
+  "excerpt": "Choosing {} for element '{}' discarded {} class colour(s) yo",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "972f5708f54d6ac2": {
   "approved": "2026-08-26",
@@ -1483,6 +1498,11 @@
   "approved": "2026-08-16",
   "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
   "where": "weavingspace_qgis/metadata.txt"
+ },
+ "c10ba07f97dcc91e": {
+  "approved": "2026-08-26",
+  "excerpt": "'{}' has {} distinct values, so {} of the {} classes {} empt",
+  "where": "weavingspace_qgis/bridge.py"
  },
  "c3dd2d8765fd4fe8": {
   "approved": "2026-08-15",
