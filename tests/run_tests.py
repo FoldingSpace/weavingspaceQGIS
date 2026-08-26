@@ -48635,6 +48635,202 @@ def test_a_group_restores_its_own_state_and_no_one_elses():
     project.clear()
 
 
+def test_a_class_source_follows_the_record_under_it():
+  """Choosing a group restores the class source it was made with.
+
+  The class-source cell is a combo, and `_sync_row` rebuilds it
+  whenever the table is refreshed. Where the widget already exists it
+  was repopulated and never RE-SELECTED from `_class_choices` -- the
+  fix the ramp cell beside it was given on 2026-08-18, and this cell
+  was not. `_assignments` reads the WIDGET, so `_refresh_table` then
+  wrote the stale answer back over the record that a group switch had
+  just restored: the write existed and was read by nobody.
+
+  WHAT IT COSTS. A user colours a categorized element from a QML,
+  makes another map, then picks the first out of the group chooser --
+  and the element silently reverts to automatic colours. The next
+  Generate draws the wrong ones and stamps an empty class source onto
+  the group, so the choice is gone from the project and from the
+  GeoPackage as well. Found by a hunt on 2026-08-26 that read the
+  layer's own renderer rather than the dialog's dicts.
+
+  Regression: an imported class source was lost when its own output group was selected, because the combo was repopulated without being re-selected from the record, and the record was then overwritten from the stale widget. [mutation]
+  """
+  from weavingspace_qgis.dialog import (NEW_GROUP_LABEL,
+                                        WeavingSpaceDialog)
+  project = QgsProject.instance()
+  data = os.path.join(HERE, "data")
+  qml = os.path.join(data, "landcover.qml")
+  layer = QgsVectorLayer(
+    os.path.join(data, "landcover-categorical.gpkg") + "|layername=parcels",
+    "parcels", "ogr")
+  assert layer.isValid(), "the categorical fixture would not open"
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+
+  def choose(name):
+    """Pick a group the way a click does, matching the name exactly."""
+    combo = dlg.group_combo
+    for i in range(combo.count()):
+      if combo.itemText(i).split(" — ")[0].strip() == name:
+        combo.setCurrentIndex(i)
+        combo.activated.emit(i)
+        _tick(700)
+        return True
+    return False
+
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(700)
+    # A categorized element, which is the only kind that HAS a class
+    # source; the column is hidden otherwise and the cell never built.
+    row, tid = 0, None
+    for r in range(dlg.table.rowCount()):
+      var = dlg.table.cellWidget(r, 1)
+      mode = dlg.table.cellWidget(r, 2)
+      if var is None or mode is None:
+        continue
+      if var.findText("landcover") < 0:
+        continue
+      var.setCurrentText("landcover")
+      index = next((i for i in range(mode.count())
+                    if "Categor" in mode.itemText(i)), -1)
+      if index < 0:
+        continue
+      mode.setCurrentIndex(index)
+      mode.activated.emit(index)
+      _tick(400)
+      row = r
+      tid = dlg.table.item(r, 0).text()
+      break
+    assert tid, "no row could be put onto landcover as a category"
+
+    # The QML enters the session pool the way browsing puts it there,
+    # then is selected through the combo's own signal.
+    dlg._browsed_qmls.append(qml)
+    source = dlg.table.cellWidget(row, 7)
+    assert source is not None, \
+      "the categorized row has no class-source cell, so there is " \
+      "nothing for a group switch to restore"
+    dlg._populate_class_source_combo(source, "file:" + qml)
+    source.activated.emit(source.currentIndex())
+    _tick(300)
+    assert dlg._class_choices.get(tid) == "file:" + qml, \
+      f"the fixture could not put the QML on the row: the record " \
+      f"reads {dlg._class_choices.get(tid)!r}"
+
+    dlg.spacing_spin.setValue(500)
+    _generate_and_wait(dlg)
+    _tick(400)
+    mine = dlg._group_name
+
+    # A second map, so there is a group to come back FROM, and so the
+    # switch is a real one rather than a no-op.
+    assert choose(NEW_GROUP_LABEL), "the chooser offers no 'create new'"
+    other = dlg.table.cellWidget(row, 7)
+    if other is not None:
+      dlg._populate_class_source_combo(other, "")
+      other.activated.emit(other.currentIndex())
+      _tick(200)
+    dlg.spacing_spin.setValue(520)
+    _generate_and_wait(dlg)
+    _tick(400)
+    assert dlg._group_name != mine, \
+      "both runs landed in one group, so no switch was staged"
+
+    assert choose(mine), f"the group {mine!r} left the chooser"
+    back = dlg.table.cellWidget(row, 7)
+    shown = back.currentData() if back is not None else None
+    assert shown == "file:" + qml, \
+      f"the class-source cell shows {shown!r} after choosing the " \
+      f"group that was made with {'file:' + qml!r}. The record was " \
+      f"restored and the widget was not, and `_assignments` reads " \
+      f"the widget -- so the next rebuild writes this back over it"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_the_file_carries_the_design_the_map_is_wearing():
+  """A restyle updates the file's styles; its record must follow.
+
+  A style-only change never reaches `_add_output_layers`, so the two
+  places that hold a map's design have to be written from the restyle
+  path as well. The GROUP's record was given that write on 2026-08-25.
+  The FILE's record was added to the landing alone later the same
+  evening, so it inherited the very gap the group's write had just
+  closed -- one door mended of two, by two commits hours apart.
+
+  WHAT IT COSTS, measured 2026-08-26 by reading the file's own
+  metadata through GDAL rather than through this plugin: change an
+  element's ramp and press Generate, which is a restyle rather than a
+  re-tile, and the file's STYLES are updated while the file's RECORD
+  still describes the map from before. A colleague opening that
+  GeoPackage without the project resumes a design the user had
+  abandoned, and their first Generate repaints the map back to it. The
+  file disagreed with itself.
+
+  Regression: a restyle wrote the new design onto the group and into the layers' embedded styles but never into the GeoPackage's own working-state record, so a file opened elsewhere resumed the design from before the last style change. [mutation]
+  """
+  import tempfile
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  work = tempfile.mkdtemp(prefix="weavingspace_filerec_")
+  path = os.path.join(work, "map.gpkg")
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(600)
+    dlg.spacing_spin.setValue(500)
+    dlg.gpkg_widget.setFilePath(path)
+    _generate_and_wait(dlg)
+    _tick(400)
+    tid = sorted(dlg._element_layer_ids)[0]
+    row = next(r for r in range(dlg.table.rowCount())
+               if dlg.table.item(r, 0)
+               and dlg.table.item(r, 0).text() == tid)
+    ramp = dlg.table.cellWidget(row, 4)
+    assert ramp is not None and hasattr(ramp, "currentText"), \
+      "this row has no ramp chooser, so no style-only change can be " \
+      "made through it"
+    before = ramp.currentText()
+
+    # A DIFFERENT RAMP, PICKED THE WAY A PERSON PICKS ONE. `activated`
+    # is what marks the choice as theirs; `setCurrentText` alone moves
+    # the display and records nothing.
+    other = next((ramp.itemText(i) for i in range(ramp.count())
+                  if ramp.itemText(i) != before), None)
+    assert other, "the ramp chooser offers only one ramp"
+    ramp.setCurrentIndex(ramp.findText(other))
+    ramp.activated.emit(ramp.findText(other))
+    _tick(400)
+    _generate_and_wait(dlg)
+    assert _settle(dlg, seconds=60), "the restyle never settled"
+    _tick(400)
+
+    # THE ORACLE IS THE FILE, read back through the plugin's own
+    # reader -- the same call a colleague's resume makes.
+    filed = bridge.read_working_state(path) or {}
+    ramps = [e.get("ramp") for e in (filed.get("elements") or [])
+             if e.get("id") == tid]
+    assert ramps, \
+      f"the file carries no record for element {tid}, so a colleague " \
+      f"could not resume this map at all"
+    assert ramps[0] == other, \
+      f"the file's record says element {tid} wears {ramps[0]!r} where " \
+      f"the map now draws {other!r}. A restyle updated the file's " \
+      f"styles and left its record describing the map from before, so " \
+      f"resuming it elsewhere would repaint the abandoned ramp"
+  finally:
+    dlg.close()
+    project.clear()
+
+
 def test_a_style_switch_is_not_consent_to_lose_a_pin():
   """A record silent BY MODE is not a record of a choice nobody made.
 
@@ -61513,6 +61709,10 @@ def main():
         test_a_map_is_filed_under_the_dataset_it_was_drawn_from)
   check("a group restores its own state and no one else's",
         test_a_group_restores_its_own_state_and_no_one_elses)
+  check("a class source follows the record under it",
+        test_a_class_source_follows_the_record_under_it)
+  check("the file carries the design the map is wearing",
+        test_the_file_carries_the_design_the_map_is_wearing)
   check("a style switch is not consent to lose a pin",
         test_a_style_switch_is_not_consent_to_lose_a_pin)
   check("a file already open resumes completely",

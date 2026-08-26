@@ -5175,7 +5175,24 @@ class WeavingSpaceDialog(QDialog):
         self.table.setCellWidget(row, 7, file_combo)
       else:
         file_combo.setProperty("tile_id", tid)
-        self._populate_class_source_combo(file_combo)
+        # IT FOLLOWS THE RECORD WHEN THE RECORD MOVES UNDER IT, which
+        # is the fix the ramp cell beside it was given on 2026-08-18
+        # and this one was not. Rebuilt without the record, the combo
+        # merely PRESERVES whatever it was showing -- and `_assignments`
+        # reads the widget, so `_refresh_table` then wrote that stale
+        # answer back over the record. Selecting a group therefore
+        # threw away an imported QML: the element reverted to automatic
+        # colours, the next Generate drew the wrong ones and stamped an
+        # empty class source onto the group, so the choice was gone
+        # from the project and from the GeoPackage. Found by a hunt on
+        # 2026-08-26, reading the layer's own renderer rather than the
+        # dialog's dicts.
+        # THE RECORD IS THE AUTHORITY HERE because the combo's own
+        # `activated` handler writes to it the moment a person picks,
+        # so it can never be behind a user's choice -- only ahead of a
+        # widget that a group switch has just left stale.
+        self._populate_class_source_combo(
+          file_combo, self._class_choices.get(tid, ""))
     elif file_combo is not None:
       if tid:
         self._class_choices[tid] = file_combo.currentData()
@@ -12053,6 +12070,40 @@ class WeavingSpaceDialog(QDialog):
     # commit as the stamp it pairs with rather than found later.
     self._stamp_working_state(
       self._group_of_our_layers(QgsProject.instance().layerTreeRoot()))
+    # ...AND SO DOES THE FILE'S RECORD, WHICH IS THE SECOND DOOR. The
+    # paragraph above argued exactly this case and then mended one
+    # store of two: the group's record was given a write here on
+    # 2026-08-25, and the FILE's record was added to the landing alone
+    # later the same evening, so it inherited the gap it was written
+    # to close. Found by a hunt on 2026-08-26, reading the file's own
+    # metadata through GDAL: change a ramp and Generate -- a restyle,
+    # no re-tile -- and the file's STYLES were updated while the
+    # file's RECORD still described the map from before, so a
+    # colleague opening that GeoPackage without the project resumed a
+    # design the user had abandoned and their first Generate repainted
+    # the map back to it. The file disagreed with itself.
+    # WHEN A REPAIR GIVES ONE STORE A NEW WRITE, ENUMERATE EVERY STORE
+    # THAT ALREADY HELD THAT FACT.
+    path = self.gpkg_widget.filePath()
+    if path and os.path.exists(path):
+      resumable = self._capture_working_state()
+      # THE EMBEDDING FLAG IS CARRIED, NOT RE-DECIDED. Embedding the
+      # source is an explicit opt-in and a heavier act than a restyle
+      # has any business performing, so this keeps whatever the file
+      # already says about it rather than answering the question
+      # again -- a restyle must never quietly un-embed a source
+      # somebody chose to carry.
+      existing = bridge.read_working_state(path) or {}
+      if "region_embedded" in existing:
+        resumable["region_embedded"] = existing["region_embedded"]
+      if not bridge.write_working_state(path, resumable):
+        # The same sentence the landing uses, for the same reason: on
+        # either path the map and its styles are in the file and only
+        # the RESUME is lost, so a person meets one wording.
+        self._report_quietly(
+          f"The map was saved to {os.path.basename(path)}, but its "
+          f"design could not be written into the file, so opening it "
+          f"elsewhere will show the map without carrying on with it.")
     return True
 
   def _run_signature(self):

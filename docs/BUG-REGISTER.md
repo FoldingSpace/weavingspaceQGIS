@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-319 defect(s) with a regression test.
+321 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -253,6 +253,8 @@ there is no separate list to remember.
   guarded by `test_a_change_of_dataset_starts_a_new_file_and_a_new_group`
 - **a class source restored from the shelf was overwritten by the previous table's, so an element came home wearing another dataset's imported QML.**  
   guarded by `test_a_class_source_comes_home_to_the_dataset_it_was_chosen_on`
+- **an imported class source was lost when its own output group was selected, because the combo was repopulated without being re-selected from the record, and the record was then overwritten from the stale widget.**  
+  guarded by `test_a_class_source_follows_the_record_under_it`
 - **the painted-ladder store had no stated meaning for an absent entry, and either reading of it silently mis-attributes every colour on the element.**  
   guarded by `test_a_colour_on_a_ladder_we_never_saw_is_declined_and_named`
 - **a guard corrected to answer False for a moved file had that answer travel into a signature, so a colour picked afterwards was recorded, never drawn and never mentioned.**  
@@ -337,6 +339,8 @@ there is no separate list to remember.
   guarded by `test_reverse_runs_a_qualitative_palette_backwards`
 - **the categorized renderer recorded no source colour ramp, so a clean ramp applied in QGIS's dock was adopted as hand-picks instead of replacing them, and QGIS's own panel showed no ramp at all.**  
   guarded by `test_the_dock_reapplying_the_same_ramp_discards_the_hand_picks`
+- **a restyle wrote the new design onto the group and into the layers' embedded styles but never into the GeoPackage's own working-state record, so a file opened elsewhere resumed the design from before the last style change.**  
+  guarded by `test_the_file_carries_the_design_the_map_is_wearing`
 - **the output group was the unit of work in the rulings and in three separate mechanisms that had never been driven against each other -- and the first build of them broke six reopen journeys, let go of a map when the region layer was removed, and undid the user's own edits after every landing.**  
   guarded by `test_the_group_unit_rulings_hold_on_every_route`
 - **a fifty-minute gate that could not be satisfied before the artefact shipped stopped four candidates' worth of work on a release whose plugin passed every test it was given.**  
@@ -691,7 +695,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
-- the mutation campaign: 56
+- the mutation campaign: 58
 - reported by a user: 29
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

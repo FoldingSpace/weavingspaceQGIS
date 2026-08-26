@@ -975,6 +975,39 @@ MUTATIONS = [
            "This is the value-laden half, cleared per element AND "
            "field so that switching a variable away and back still "
            "gives a person their work back"),
+  dict(name="the-file-record-follows-a-restyle",
+       file=DIALOG,
+       old="""    path = self.gpkg_widget.filePath()
+    if path and os.path.exists(path):
+      resumable = self._capture_working_state()""",
+       new="""    path = ""  # mutation: leave the file's record behind
+    if path and os.path.exists(path):
+      resumable = self._capture_working_state()""",
+       test="test_the_file_carries_the_design_the_map_is_wearing",
+       why="a style-only change never reaches `_add_output_layers`, "
+           "so both stores of a map's design have to be written from "
+           "the restyle path. The group's record was given that write "
+           "on 2026-08-25 and the FILE's record was added to the "
+           "landing alone hours later, inheriting the gap that write "
+           "had just closed. Measured through GDAL: the file's styles "
+           "were updated and its record still described the map from "
+           "before, so a colleague resuming it repainted the ramp the "
+           "user had abandoned"),
+  dict(name="a-class-source-follows-the-record-under-it",
+       file=DIALOG,
+       old="""        self._populate_class_source_combo(
+          file_combo, self._class_choices.get(tid, ""))""",
+       new="""        self._populate_class_source_combo(file_combo)""",
+       test="test_a_class_source_follows_the_record_under_it",
+       why="rebuilt without the record the combo merely PRESERVES "
+           "what it was showing, and `_assignments` reads the widget "
+           "-- so `_refresh_table` wrote the stale answer back over "
+           "the record. Choosing a group threw away an imported QML: "
+           "the element reverted to automatic colours, the next "
+           "Generate drew the wrong ones and stamped an empty class "
+           "source, so the choice was gone from the project and the "
+           "GeoPackage. The ramp cell beside it got this fix on "
+           "2026-08-18 and this one did not"),
   dict(name="a-resume-recovers-the-data-its-map-was-made-from",
        file=DIALOG,
        # AIMED AT THE CALL'S ABSENCE RATHER THAN ITS POSITION, after
