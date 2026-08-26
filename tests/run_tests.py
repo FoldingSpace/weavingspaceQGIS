@@ -47608,6 +47608,227 @@ def _a_square_unit(catalog):
   return catalog.make_unit(families[0], spacing=1000, crs=3857)
 
 
+def test_a_map_is_filed_under_the_dataset_it_was_drawn_from():
+  """Whose map is this? Asked of the tiles, not of the chooser.
+
+  Every output layer carries `weavingspace_region`, and three separate
+  rulings read it: the chooser LABELS a group with it (ruling 1 of
+  2026-08-25), the binding matches a dataset's groups by it (ruling 2),
+  and the landing's own refusal to write over a map made from another
+  dataset compares against it (the ruling of 2026-08-24). The group's
+  working-state record carries the same fact a second time.
+
+  SO ONE ACT WRITES ONE FACT TWICE, AND THE TWO MUST COME FROM THE
+  SAME MOMENT. The record takes its `region` from the launch snapshot,
+  deliberately; the stamp used to be read LIVE from the region chooser
+  as the run landed. Between those two moments the user may have moved
+  the chooser -- an ordinary act, and one the race sweep already has a
+  cell for -- and then A's tiles came out claiming to be B's.
+
+  WHAT THAT COSTS IS A MAP, which is the last cell here and the reason
+  the test is not merely about tidiness: with A's tiles answering to
+  B, the binding hands that group to B and the landing's refusal reads
+  the same wrong stamp, so the next run on B replaces A's map in place.
+  Measured 2026-08-26 by driving it: four of four layers destroyed.
+
+  A ROUTE PER WAY THE TWO MOMENTS CAN DIFFER, with every cell
+  reporting rather than the first failure hiding the rest, and the
+  count asserted -- a journey this long is exactly where a cell
+  quietly stops being reached. The do-nothing route is the control: if
+  it ever fails, the fixture rather than the fix is what moved.
+
+  THE LAST CELL'S AXIS IS LIVE AND REDUNDANTLY HELD, which is said
+  here rather than left to be rediscovered, and it was established by
+  breaking every route at once as this project's rules ask. Under the
+  catalogue entry for this test the FIRST stamp cell fires and masks
+  it. Mutating the binding alone (any group will do) leaves it green,
+  because the landing's own refusal still declines the group;
+  mutating that refusal alone leaves it green too, because a dataset
+  with no group of its own has been detached and there is nothing to
+  reuse. Broken TOGETHER it fails at once, naming the four layers.
+  Three mechanisms, no single line owning the rule they jointly keep,
+  so an entry aimed at any one of them could only ever be red.
+
+  Regression: the region stamp was read from the chooser as the run landed, so switching the region layer mid-run filed A's tiles under B -- and the next run on B then destroyed them, through the very guard written to stop a landing writing over another dataset's map. [mutation]
+  """
+  from weavingspace_qgis.dialog import (WORKING_STATE_PROPERTY,
+                                        WeavingSpaceDialog)
+  project = QgsProject.instance()
+  A = make_region_layer(n=4, cell=1000)
+  A.setName("Aotearoa")
+  B = make_region_layer(n=4, cell=1000, origin=(900_000, 0))
+  B.setName("Bermuda")
+  project.addMapLayer(A)
+  project.addMapLayer(B)
+  a_source = A.source()
+  problems, checked = [], 0
+
+  def cell(what, condition, detail):
+    """One promise about what a map says it came from.
+
+    Args:
+      what: how the cell names itself in a failure.
+      condition: True when the promise held.
+      detail: what was actually seen, quoted when it did not.
+
+    Returns:
+      None; appends to `problems` and counts into `checked`.
+    """
+    nonlocal checked
+    checked += 1
+    if not condition:
+      problems.append(f"{what}: {detail}")
+
+  def group_named(name):
+    """The layer-tree group carrying this name, or None."""
+    return next((g for g in project.layerTreeRoot().findGroups()
+                 if g.name() == name), None)
+
+  def stamps_of(node):
+    """Every distinct region stamp the group's own layers carry.
+
+    Asked of the LAYERS rather than of the dialog, deliberately: the
+    dialog's records are what the stamp is meant to outlive, so
+    reading them would be asking the accused for an alibi.
+    """
+    if node is None:
+      return set()
+    out = set()
+    for child in node.children():
+      layer = getattr(child, "layer", lambda: None)()
+      if layer is not None and layer.customProperty("weavingspace_region"):
+        out.add(layer.customProperty("weavingspace_region"))
+    return out
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    # B gets a map of its own first, so "another dataset's group" is a
+    # real entry in the chooser rather than a hypothetical one.
+    dlg.layer_combo.setLayer(B)
+    _tick(500)
+    dlg.spacing_spin.setValue(700)
+    _generate_and_wait(dlg)
+    _tick(400)
+    b_group = dlg._group_name
+    cell("B's own run made a group to switch to",
+         bool(b_group), "B's run left the dialog on no group at all")
+
+    def choose_bs_group():
+      """Pick B's output group in the chooser, as a click would.
+
+      `setCurrentIndex` emits `currentIndexChanged` and NOT
+      `activated`, which is the signal the handler is connected to, so
+      driving the wrong one would exercise a path nobody is on.
+      """
+      combo = dlg.group_combo
+      where = next((i for i in range(combo.count())
+                    if b_group and b_group in combo.itemText(i)), -1)
+      if where < 0:
+        return False
+      combo.setCurrentIndex(where)
+      combo.activated.emit(where)
+      return True
+
+    routes = [
+      ("the region chooser moved to another dataset", 520.0,
+       lambda: bool(dlg.layer_combo.setLayer(B) or True)),
+      ("another dataset's output group chosen", 470.0, choose_bs_group),
+      ("the region chooser moved away and back", 430.0,
+       lambda: bool(dlg.layer_combo.setLayer(B) or _tick(200)
+                    or dlg.layer_combo.setLayer(A) or True)),
+      ("nothing touched while it ran", 390.0, lambda: True),
+    ]
+
+    landed_from_a_switch = None
+    for label, spacing, act in routes:
+      dlg.layer_combo.setLayer(A)
+      _tick(900)
+      dlg.spacing_spin.setValue(spacing)
+      _tick(300)
+      # THE PREMISE, ASSERTED RATHER THAN ASSUMED. A spacing that has
+      # not moved the geometry signature sends Generate down the
+      # restyle fast path, and the route then measures a journey with
+      # no run in it at all.
+      cell(f"{label}: the run really re-tiles",
+           dlg._geometry_signature() != dlg._last_geometry_sig,
+           f"the geometry signature did not move at spacing {spacing}")
+      dlg._generate()
+      cell(f"{label}: a run is in flight to interfere with",
+           dlg._task is not None,
+           "Generate started nothing, so this route staged nothing")
+      if dlg._task is None:
+        continue
+      cell(f"{label}: the interfering act could be performed",
+           bool(act()), "the act this route is named for did not happen")
+      _settle(dlg)
+      _tick(500)
+
+      landed = dlg._group_name
+      node = group_named(landed)
+      marks = stamps_of(node)
+      raw = node.customProperty(WORKING_STATE_PROPERTY) if node else None
+      recorded = (json.loads(raw).get("region") if raw else None)
+
+      cell(f"{label}: the tiles say they came from the dataset "
+           f"they were drawn from",
+           marks == {a_source},
+           f"tiles drawn from Aotearoa are stamped {marks!r}")
+      cell(f"{label}: the group's record and its layers agree",
+           bool(marks) and marks == {recorded},
+           f"the layers say {marks!r} and the record says "
+           f"{recorded!r} -- one fact, two moments, two answers")
+      if label.startswith("the region chooser moved to"):
+        landed_from_a_switch = landed
+
+    # ---- AND WHAT IT COSTS, DRIVEN RATHER THAN REASONED. Asserted
+    # ONCE rather than per route: the harm does not vary with which
+    # act moved the chooser, so paying for it four times would buy
+    # redundancy instead of coverage.
+    #
+    # AND THE TILES ARE READ FRESH, immediately before the run that
+    # might destroy them. Reading them after the FIRST route reported
+    # a loss that was nothing of the kind: the three routes after it
+    # are A's own runs on A's own group, and replacing that map in
+    # place is exactly what they are supposed to do. A harness whose
+    # failures are mostly its own is one nobody acts on, so this one
+    # is recorded at the line that fixes it.
+    dlg.layer_combo.setLayer(A)
+    _tick(900)
+    a_node = group_named(dlg._group_name)
+    a_tiles = {child.layer().id()
+               for child in (a_node.children() if a_node else [])
+               if getattr(child, "layer", lambda: None)() is not None}
+    cell("the routes left a map of A's to be destroyed",
+         landed_from_a_switch is not None and bool(a_tiles),
+         "A holds no output group after the routes above, so the "
+         "cell below would prove nothing")
+    if landed_from_a_switch and a_tiles:
+      dlg.layer_combo.setLayer(B)
+      _tick(900)
+      dlg.spacing_spin.setValue(610)
+      _generate_and_wait(dlg)
+      _tick(500)
+      alive = {lid for lid in a_tiles
+               if project.mapLayer(lid) is not None}
+      cell("a run on one dataset does not destroy another's map",
+           alive == a_tiles,
+           f"{len(a_tiles) - len(alive)} of {len(a_tiles)} layers of "
+           f"tiles drawn from Aotearoa were removed by a run on "
+           f"Bermuda")
+
+    # one for B's group, four routes at five cells each -- three
+    # asserting the route's own premise and two its promise -- then
+    # one premise for the harm and the harm itself
+    assert checked == 23, f"only {checked} cells were compared"
+    assert not problems, \
+      "a map was filed under the wrong dataset:\n  " + \
+      "\n  ".join(problems)
+  finally:
+    dlg.close()
+    project.clear()
+
+
 def test_the_group_unit_rulings_hold_on_every_route():
   """The four boundaries the group-unit rulings cross, as one matrix.
 
@@ -60097,6 +60318,8 @@ def main():
         test_a_saved_map_can_be_opened_and_carried_on)
   check("the size guard warns where it used to refuse",
         test_the_size_guard_warns_where_it_used_to_refuse)
+  check("a map is filed under the dataset it was drawn from",
+        test_a_map_is_filed_under_the_dataset_it_was_drawn_from)
   check("the group-unit rulings hold on every route",
         test_the_group_unit_rulings_hold_on_every_route)
   check("the preview draws the middle of the patch",

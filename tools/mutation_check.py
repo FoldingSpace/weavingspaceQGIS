@@ -868,6 +868,24 @@ MUTATIONS = [
            "all that stands between the run and the kept file. This "
            "entry SURVIVED the day the chooser landed, which is how "
            "that gap was found"),
+  dict(name="the-region-stamp-names-the-layer-that-was-tiled",
+       file=DIALOG,
+       old="""    region_now = (source_layer
+                  if self._source_layer_alive(source_layer) else None)""",
+       new="""    region_now = self.layer_combo.currentLayer()  # mutation: read live""",
+       test="test_a_map_is_filed_under_the_dataset_it_was_drawn_from",
+       why="which dataset a map came from is a fact about the TILES, "
+           "and reading it off the chooser as the run lands makes the "
+           "answer depend on where the user was looking when the "
+           "tiling finished. Switch the region layer mid-run and A's "
+           "tiles came out stamped as B's, so the chooser labelled "
+           "A's map with B's name, the binding handed that group to "
+           "B, and the landing's own refusal to write over another "
+           "dataset's map read the same wrong stamp and let a B run "
+           "replace it -- four of four layers destroyed, measured "
+           "2026-08-26. The record had it right all along, taking "
+           "`region` from the launch snapshot: one act was writing "
+           "one fact twice, from two moments"),
   dict(name="an-empty-chooser-does-not-forget-the-dataset", file=DIALOG,
        old="""    if layer is None:
       # AN EMPTY CHOOSER IS NOT A DATASET""",

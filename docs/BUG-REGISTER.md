@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-312 defect(s) with a regression test.
+313 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -287,6 +287,8 @@ there is no separate list to remember.
   guarded by `test_a_ladder_somebody_else_cut_makes_the_scheme_cell_read_custom`
 - **generating after reopening a project that held maps of two datasets replaced the wrong dataset's map, silently.**  
   guarded by `test_a_landing_never_writes_over_another_datasets_map`
+- **the region stamp was read from the chooser as the run landed, so switching the region layer mid-run filed A's tiles under B -- and the next run on B then destroyed them, through the very guard written to stop a landing writing over another dataset's map.**  
+  guarded by `test_a_map_is_filed_under_the_dataset_it_was_drawn_from`
 - **pointing the region chooser at a dataset without an element's column left that element wearing the scheme cut for the column that had gone.**  
   guarded by `test_a_new_region_drops_a_setup_whose_column_has_gone`
 - **the installer skipped names case-insensitively while the lookup matched exactly, so four palettes were silently unavailable on any QGIS that spells them differently.**  
@@ -677,7 +679,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
-- the mutation campaign: 49
+- the mutation campaign: 50
 - reported by a user: 29
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

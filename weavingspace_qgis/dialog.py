@@ -14614,7 +14614,37 @@ class WeavingSpaceDialog(QDialog):
     # showed up as a run that quietly reused the previous group. The
     # rule this project already carries -- assert the postcondition,
     # not just the anchor -- would have caught it; a probe did.
-    region_now = self.layer_combo.currentLayer()
+    # ASKED OF THE LAYER THIS RUN TILED, never of the chooser as it
+    # stands now. Which dataset a map came from is a fact about the
+    # TILES, and the tiles were drawn from `source_layer` however the
+    # chooser has moved since -- so reading it live made the answer
+    # depend on where the user happened to be looking when the tiling
+    # finished. Switch the region layer mid-run, which is an ordinary
+    # act the race sweep already has a cell for, and A's tiles came
+    # out stamped as B's: the chooser then labelled A's map with B's
+    # name (ruling 1), the binding handed that group to B (ruling 2),
+    # and the `theirs` check below -- whose whole job is refusing to
+    # write over a map made from another dataset -- read the same
+    # wrong stamp and let a B run replace it. Measured 2026-08-26 by
+    # driving it rather than reading it: four of four layers of A's
+    # tiles destroyed by a run on B.
+    #
+    # ONE ACT WAS WRITING ONE FACT TWICE, FROM TWO MOMENTS, which is
+    # what made the pair legible once either was measured.
+    # `_stamp_working_state` takes the record's `region` from the
+    # LAUNCH snapshot, deliberately and correctly; this line took the
+    # same fact live. The two now come from the same moment, so a
+    # group's record and its layers cannot come to disagree about
+    # whose map they are.
+    #
+    # AN EMPTY STRING IS THE HONEST ANSWER for a run whose region
+    # layer was deleted underneath it: there is no dataset to name,
+    # and unstamped output is a state the older rules already handle
+    # (`not stamps` below). Stamping whatever the chooser holds
+    # instead would file the map under a dataset it was never drawn
+    # from, which is the defect above wearing its own workaround.
+    region_now = (source_layer
+                  if self._source_layer_alive(source_layer) else None)
     region_source = region_now.source() if region_now is not None else ""
     root_now = QgsProject.instance().layerTreeRoot()
     candidate = (self._group_of_our_layers(root_now)
