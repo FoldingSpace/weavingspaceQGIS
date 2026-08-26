@@ -1645,6 +1645,12 @@ class WeavingSpaceDialog(QDialog):
     # this element's ladder", which is not the same as "it has not
     # moved" and is read that way at every site.
     self._painted_ladders = {}
+    # ...and its categorical twin, {tile_id: {field: {value: colour}}}
+    # -- the categories the plugin itself painted, so a dock edit can
+    # be told apart from the plugin's own work by attribution rather
+    # than by delta, exactly as the graduated side has done since the
+    # ruling of 2026-08-20. Absent means "never seen" and DECLINES.
+    self._painted_categories = {}
     # {layer id: the last fingerprint taken while that layer's data
     # was READABLE}. Ledger row 4 of 2026-08-20, a regression from the
     # row-32 fix. `_layer_fingerprint` must not call `extent()` on a
@@ -1726,6 +1732,10 @@ class WeavingSpaceDialog(QDialog):
     # styleChanged watcher (see _on_layer_style_edited) can tell a
     # QGIS-side edit from our own seeding and react only to the first
     self._applying_style = False
+    # the mode a person chose, banked per element AND field so a
+    # variable's return wears its own style rather than the last
+    # field's (maintainer's ruling, 2026-08-26, sparing the picks)
+    self._mode_by_field = {}
     # elements whose renderer the LAST run carried over unchanged;
     # _finish_run re-examines them for dock edits made mid-run
     self._preserved_this_run = []
@@ -2790,6 +2800,36 @@ class WeavingSpaceDialog(QDialog):
       _dump("SWITCH", "boundary",
             "change-of-dataset" if switched_from_work
             else "first-choice", "landed=", self._landed_this_session)
+    # LEAVING A DATASET STAMPS WHAT YOU LEAVE. The group record is
+    # ordinarily written at landings -- but a choice made and switched
+    # away from INSIDE the live debounce has no landing yet, so the
+    # return applied the record from before the pick and the choice
+    # died silently, while the switch notice's own sentence had just
+    # testified to it ("landcover ... now show p, q instead"). One
+    # stamp from the live widgets, taken before the swap below empties
+    # the view, makes the record describe the state a person actually
+    # left. A run in flight is left to its landing, whose launch
+    # snapshot must win. Found by the switchdoor hunt of 2026-08-26
+    # (round nine); the settled journey was already clean.
+    if switched_from_work and not self._selecting_a_group \
+        and self._task is None:
+      try:
+        # THE REGION IS THE OUTGOING DATASET'S. The chooser already
+        # holds the NEW layer when this handler runs, so a plain
+        # capture would stamp the group being left as the other
+        # dataset's -- of one fact written twice, the writer with a
+        # reason here is `_memory_layer_id`, which the swap below has
+        # not yet moved.
+        outgoing = QgsProject.instance().mapLayer(
+          self._memory_layer_id or "")
+        self._stamp_working_state(
+          self._group_of_our_layers(QgsProject.instance().layerTreeRoot()),
+          launch_state=(
+            {"region": outgoing.source()} if outgoing is not None
+            else None))
+      except Exception:
+        _dump("STATE", "switch-stamp-failed",
+              traceback.format_exc(limit=3))
     # The memory banks swap on ANY change of layer -- hygiene rather
     # than protection, so it is not gated on the landing: what belongs
     # to a dataset must never be readable while another is chosen.
@@ -2899,16 +2939,26 @@ class WeavingSpaceDialog(QDialog):
         if was and was != "---" and was not in new_fields and now != was:
           moved.append((was, now))
       if moved:
-        gone = sorted({was for was, _ in moved})
-        landed = sorted({now for _, now in moved if now != "---"})
+        # EVERY ELEMENT GETS THE SENTENCE THAT IS TRUE OF IT. One
+        # aggregate sentence flattened the pairs, so an element left
+        # with NOTHING was affirmatively covered by "now show ...
+        # instead" about its neighbours -- the mixed case lying about
+        # exactly the element that lost most (the switchdoor hunt of
+        # 2026-08-26). The two approved sentence templates are
+        # unchanged; what changed is which elements each one speaks
+        # for.
         where = layer.name() if layer is not None else "this layer"
-        if landed:
+        landed_pairs = [(was, now) for was, now in moved if now != "---"]
+        stranded = sorted({was for was, now in moved if now == "---"})
+        if landed_pairs:
+          gone = sorted({was for was, _ in landed_pairs})
+          landed = sorted({now for _, now in landed_pairs})
           self._report_quietly(
             f"{', '.join(gone)} is not in '{where}', so the elements "
             f"using it now show {', '.join(landed)} instead.")
-        else:
+        if stranded:
           self._report_quietly(
-            f"{', '.join(gone)} is not in '{where}', and there is "
+            f"{', '.join(stranded)} is not in '{where}', and there is "
             f"nothing left to show in its place.")
     # ...and the table now standing there is asked whether a scheme it
     # kept still makes sense on the new data. It runs AFTER the rebuild
@@ -3798,6 +3848,7 @@ class WeavingSpaceDialog(QDialog):
       combo.blockSignals(True)
       combo.setCurrentText(now)
       combo.blockSignals(False)
+      combo.setProperty("ws_last_var", now)
       restored = self._unshelve_scheme(tid_here, remembered) \
           if tid_here and remembered is not None else None
       instead = self._plausible_mode(now)
@@ -4214,6 +4265,13 @@ class WeavingSpaceDialog(QDialog):
       # `_layer_fingerprint`, and answers with the last good reading
       # instead of touching the extent.
       if self._restyle_only():
+        # THE PAIR TRAVELS TO EVERY DOOR. This exit is four lines from
+        # row 21's fix and was missing the same refresh: a restyle
+        # answered here left the preview resting on the colours from
+        # before the act, exactly the harm the pair below cures.
+        # Found by the preview hunt of 2026-08-26 (round nine),
+        # measured at the widget's own resting store.
+        self._refresh_preview_colours()
         _dump("LIVE-GATE", "restyled-without-the-source")
         return
       if not self._said_source_gone:
@@ -5597,7 +5655,16 @@ class WeavingSpaceDialog(QDialog):
     # offered in the dropdown, since someone may genuinely want one)
     id_like = {"fid", "objectid", "id", "gid", "ogc_fid"}
     numeric = [f for f in fields if self._field_is_numeric(f)]
-    preferred = [f for f in numeric if f.lower() not in id_like] or numeric
+    # ...OR ANY FIELD AT ALL, exactly as the deleted-column twin has
+    # read since 2026-08-20 (its line says `or numeric or fields`).
+    # Without the last fallback a switch to an all-text dataset left
+    # re-pointed rows on "---" while the twin would have landed them
+    # on a surviving column -- and the switch notice then covered
+    # them with a sentence about the elements that DID land
+    # somewhere. Ruling 5 of 2026-08-21 counts text columns as
+    # usable. Found by the switchdoor hunt of 2026-08-26.
+    preferred = [f for f in numeric
+                 if f.lower() not in id_like] or numeric or fields
     # A GROUP BEING RESTORED SPEAKS FOR THE TABLE, for this one
     # rebuild. Everywhere else the previous ASSIGNMENTS are the right
     # thing to carry forward; here they belong to the map being left,
@@ -5649,14 +5716,24 @@ class WeavingSpaceDialog(QDialog):
       # ...and an element PREFERS a field it has shown before: when
       # the shelf holds a scheme for a column this dataset HAS -- the
       # A-B-A journey -- the element returns to it, and the scheme
-      # comes back with it below.
+      # comes back with it below. COMPUTED WHETHER OR NOT THE CURRENT
+      # COLUMN SURVIVED (maintainer's ruling, 2026-08-26): when
+      # datasets share column names, keep-by-name used to keep the
+      # re-pointed column on the return leg while the same journey
+      # with a landed group restored the person's choice through the
+      # group record -- two settled rules answering one act by
+      # whether a run happened to land. The shelf entry IS the
+      # person's earlier choice, it is popped on restore, and a row
+      # whose current column was itself chosen deliberately has no
+      # shelf entry for another field to beat it.
       remembered = None
-      if column_gone:
-        shelf = self._scheme_memory.get(tid, {})
-        held = [f for f in fields if f in shelf]
-        if held:
-          remembered = held[0]
-      if prev and prev["var"] in fields:
+      shelf = self._scheme_memory.get(tid, {})
+      held = [f for f in fields if f in shelf]
+      if held:
+        remembered = held[0]
+      if remembered is not None:
+        var_combo.setCurrentText(remembered)
+      elif prev and prev["var"] in fields:
         var_combo.setCurrentText(prev["var"])
       elif prev is not None and prev["var"] is None \
           and not self._fieldless_build:
@@ -5664,8 +5741,6 @@ class WeavingSpaceDialog(QDialog):
         # default back in here would undo the user's choice on every
         # design change, and their map would grow an element they had
         # switched off
-      elif remembered is not None:
-        var_combo.setCurrentText(remembered)
       elif preferred:
         var_combo.setCurrentText(preferred[row % len(preferred)])
       var_combo.currentIndexChanged.connect(
@@ -5721,6 +5796,11 @@ class WeavingSpaceDialog(QDialog):
       mode_combo.currentIndexChanged.connect(
         self._refresh_preview_colours)
       self.table.setCellWidget(row, 2, mode_combo)
+      # seed the banked-mode bookkeeping with the field the row is
+      # BORN on: a row that never moves never fires the handler, and
+      # without the seed the first excursion had no outgoing field to
+      # bank the chosen style under
+      var_combo.setProperty("ws_last_var", var_combo.currentText())
       var_combo.currentIndexChanged.connect(
         lambda _i, v=var_combo, m=mode_combo: self._follow_variable(v, m))
 
@@ -6036,6 +6116,51 @@ class WeavingSpaceDialog(QDialog):
                     "range": list(window)}, sort_keys=True))
     else:
       layer.removeCustomProperty("weavingspace_quant_style")
+    # ...AND THE GROUP RECORD FOLLOWS, coalesced. Every store of a
+    # fact, mended together: a dock edit the dialog adopts re-stamps
+    # the LAYER here, and until 2026-08-26 nothing re-stamped the
+    # GROUP -- so a recolour made in QGIS's own panel was adopted
+    # into the dialog, the layer and the file, while the group record
+    # kept the pre-edit colours, and the next reopen applied that
+    # stale record over everything adoption had just recovered (the
+    # doors hunt of round nine; also the mechanism under the
+    # consistency sweep's reopen finding). Queued rather than called,
+    # because a landing stamps the group itself after calling this
+    # once per element, and a burst of dock edits needs one stamp,
+    # not one per signal.
+    self._queue_group_restamp()
+
+  def _queue_group_restamp(self):
+    """Ask for the working group's record to be re-stamped, soon.
+
+    Returns:
+      None. Arms a zero-delay single shot that stamps the group of
+      this dialog's own layers -- unless a run is in flight (its
+      landing stamps with the launch snapshot, which must win), a
+      group selection or restyle is mid-apply (the record and the
+      widgets are transiently out of step, and what sits there is
+      nobody's decision), or the dialog has been retired.
+
+    Zero-delay is the coalescing: every caller in one event-loop turn
+    shares the single queued stamp.
+    """
+    if getattr(self, "_group_restamp_queued", False):
+      return
+    self._group_restamp_queued = True
+
+    def stamp():
+      self._group_restamp_queued = False
+      if (self._task is not None or self._selecting_a_group
+          or getattr(self, "_applying_style", False)
+          or _dialog_is_gone(self) or _live_dialog() is not self):
+        return
+      try:
+        self._stamp_working_state(
+          self._group_of_our_layers(QgsProject.instance().layerTreeRoot()))
+      except Exception:
+        _dump("STATE", "queued-restamp-failed",
+              traceback.format_exc(limit=3))
+    QTimer.singleShot(0, stamp)
 
   def _adopt_category_colours(self, layer, tile_id):
     """Read stamped customization back off an adopted output layer.
@@ -6682,6 +6807,17 @@ class WeavingSpaceDialog(QDialog):
     # how adoption tells "the dialog holds a choice" from "the dialog
     # holds an echo of the project being replaced".
     self._project_is_being_replaced = True
+    # ...AND THE MARKER CANNOT BE LEFT STANDING. Adoption's clear is
+    # the primary drop, and File > New never reaches adoption at all
+    # -- QGIS emits `cleared` and no `readProject` -- so the flag
+    # stood for the rest of the session and `_swap_dataset_memory`
+    # stayed inert (the doors hunt of 2026-08-26, round nine). A
+    # project OPEN runs cleared-then-read synchronously, so a
+    # zero-delay single shot queued here fires only after the whole
+    # replacement -- adoption included -- has finished: by then a
+    # standing flag is a leak, never a window.
+    QTimer.singleShot(0, lambda: setattr(
+      self, "_project_is_being_replaced", False))
     # ...AND THE TABLE, WHICH IS ITSELF A RECORD KEYED BY TILE ID.
     # Every dict above is emptied and the ROWS were left standing, so
     # the next `_refresh_table` read the surviving cell widgets as
@@ -6703,6 +6839,7 @@ class WeavingSpaceDialog(QDialog):
     # and the rule it keeps failing is its own: ENUMERATE WHAT A CLEAR
     # SITE LEAVES, NOT WHAT IT CLEARS. The list above is long and
     # convincing and the thing it omitted was not a dict at all.
+    self._mode_by_field = {}
     self._preserved_this_run = []
     # {tile_id: (assignment, bounds, colours)} -- dock edits that
     # arrived while a run was in flight, replayed once it has landed.
@@ -7296,10 +7433,28 @@ class WeavingSpaceDialog(QDialog):
     """
     # imported here rather than at module scope, as its two siblings
     # in this file already are
-    from qgis.core import QgsGraduatedSymbolRenderer
+    from qgis.core import (QgsCategorizedSymbolRenderer,
+                           QgsGraduatedSymbolRenderer)
     if layer is None or not tile_id:
       return
     renderer = layer.renderer()
+    # THE CATEGORICAL TWIN RECORDS TOO (2026-08-26). The categorized
+    # walk used to attribute by DELTA -- adopt whatever differs from
+    # what the plugin would seed NOW -- and a landing that keeps a
+    # renderer over an unreadable class source made that delta lie:
+    # "expected" fell back to automatic colours while the map
+    # honestly wore the template, and the template's own colours were
+    # adopted as a person's picks. Attribution by record is the
+    # question the state can answer at any moment, which is the same
+    # argument that built `_painted_ladders`.
+    if isinstance(renderer, QgsCategorizedSymbolRenderer):
+      cat_field = renderer.classAttribute()
+      if cat_field:
+        cats = renderer.categories()
+        self._painted_categories.setdefault(str(tile_id), {})[cat_field] = {
+          str(c.value()): c.symbol().color().name()
+          for c in cats if c.symbol()}
+      return
     if not isinstance(renderer, QgsGraduatedSymbolRenderer):
       return
     field = renderer.classAttribute()
@@ -8117,10 +8272,28 @@ class WeavingSpaceDialog(QDialog):
     # and a new category has a new KEY, so `expected.get(key)` is None
     # and the walk below would adopt it on sight.
     adopted = 0
+    # ...BY ATTRIBUTION, NOT DELTA (2026-08-26, the seams hunt). The
+    # walk used to adopt whatever differed from what the plugin would
+    # seed NOW -- and a landing keeping a renderer over an unreadable
+    # class source made that delta lie: "expected" fell back to
+    # automatic colours while the map honestly wore the template, so
+    # the template's own colours became hand-picks that outrank the
+    # template forever. `_painted_categories` answers whose colour
+    # each one is, exactly as `_painted_ladders` does for the
+    # graduated twin; a colour the plugin painted, or one on an
+    # element never seen, is declined -- neither is a person's
+    # decision.
+    painted = (self._painted_categories.get(str(tile_id)) or {}).get(field)
+    unattributable = 0
     for key, colour in actual.items():
       if expected.get(key) != colour and record.get(key) != colour:
+        if painted is None or painted.get(key) == colour:
+          unattributable += 1
+          continue
         record[key] = colour
         adopted += 1
+    if unattributable:
+      _dump("ADOPTCOLOUR", tile_id, "declined=", unattributable)
     _dump("ADOPTCOLOUR", tile_id, "adopted=", adopted,
           "expected=", expected, "actual=", actual)
     if not adopted:
@@ -9788,6 +9961,21 @@ class WeavingSpaceDialog(QDialog):
     # their colours rather than one.
     token = source.get("class_source")
     file_cell = self.table.cellWidget(row, 7)
+    # ...AND A SOURCE WITH NO CLASS SOURCE CLEARS THE TARGET'S. The
+    # overwrite ruling (2026-08-20, extended by row 31 of the
+    # 2026-08-26 ledger for the hand-picks) names the class source
+    # among what a copy carries -- and a QML template left standing
+    # outranks the copied ramp exactly as the surviving picks did, so
+    # a copy onto a QML-governed element said "now uses the classes
+    # from element 'a'" while every QML colour stayed on the map and
+    # in every record. Found by the seams hunt of 2026-08-26 (round
+    # nine), one rung below row 31's fix.
+    if not token:
+      self._class_choices.pop(target_id, None)
+      if file_cell is not None and hasattr(file_cell, "setCurrentIndex"):
+        file_cell.blockSignals(True)
+        file_cell.setCurrentIndex(0)
+        file_cell.blockSignals(False)
     if token and file_cell is not None and hasattr(file_cell, "findData"):
       # A FIRST DRAFT ALSO OFFERED THE TOKEN HERE when the receiving
       # combo had never heard of it, on the theory that a project
@@ -10269,9 +10457,19 @@ class WeavingSpaceDialog(QDialog):
     # layer's No data colour is part of how the element looks. The
     # absence picks live under non-digit keys beside the positional
     # ones, so they ride the same dict.
+    # ...READ UNDER THE SOURCE'S OWN FIELD, never the target's. The
+    # source's picks live where its variable filed them; asked under
+    # `field` (the TARGET's variable) this read answered {} whenever
+    # the two differed -- so the catch-all never travelled on the
+    # ordinary cross-field copy -- and answered a STALE kept record
+    # when the source happened to hold idle work for the target's
+    # column, importing a colour nobody chose for this copy. The
+    # categorical twin (`_copy_categorical_scheme`) and the pin read
+    # a few lines above both already ask under the source's var.
     self._quant_colours.setdefault(target_id, {})[field] = {
       **{key: colour for key, colour in
-         (self._quant_colours.get(source_id, {}).get(field) or {}).items()
+         (self._quant_colours.get(source_id, {})
+          .get(source.get("var")) or {}).items()
          if not key.isdigit()},
       **{str(index): colour
          for index, (_lo, _hi, colour) in enumerate(classes)}}
@@ -11122,7 +11320,37 @@ class WeavingSpaceDialog(QDialog):
       mode_combo.blockSignals(True)
       mode_combo.setCurrentText(self._plausible_mode(var))
       mode_combo.blockSignals(False)
-    if not mode_combo.property("touched"):
+    # THE STYLE FOLLOWS THE FIELD, NOT THE ELEMENT (maintainer's
+    # ruling, 2026-08-26, sparing the picks). A touched mode used to
+    # ride the element across a variable change, so returning a row
+    # from Categorized landcover to v1 arrived wearing Categorized --
+    # and the Quantiles re-click the user was then forced into is a
+    # genuine reclassify, which retires the very positional picks the
+    # kept-silently ruling had preserved. The mode a person chose is
+    # banked per element AND field on the way out, exactly as ruling 6
+    # already keys the scheme limbs, and a field whose bank holds a
+    # choice comes back wearing it -- no forced re-click, no cleared
+    # picks. A user's own mode click on the controls still retires
+    # picks as the 2026-08-09 rule says.
+    tid_here = mode_combo.property("tile_id")
+    prev_field = var_combo.property("ws_last_var")
+    if tid_here and prev_field and prev_field not in ("", "---") \
+        and prev_field != var and mode_combo.property("touched"):
+      self._mode_by_field.setdefault(tid_here, {})[prev_field] = \
+        mode_combo.currentText()
+    var_combo.setProperty("ws_last_var", var)
+    banked = (self._mode_by_field.get(tid_here, {}).get(var)
+              if tid_here else None)
+    if banked and banked in self.MODES and \
+        mode_combo.findText(banked) >= 0 and \
+        not (banked in self.GRAD_SCHEMES and var not in ("", "---")
+             and not self._field_is_numeric(var)):
+      mode_combo.blockSignals(True)
+      mode_combo.setCurrentText(banked)
+      mode_combo.blockSignals(False)
+      mode_combo.setProperty("touched", True)
+      self._refresh_preview_colours()
+    elif not mode_combo.property("touched"):
       mode_combo.blockSignals(True)
       mode_combo.setCurrentText(self._plausible_mode(var))
       mode_combo.blockSignals(False)
@@ -12508,6 +12736,16 @@ class WeavingSpaceDialog(QDialog):
       self._live_pending = True  # one run at a time; rerun when done
       return
     if not live and self._restyle_only():
+      # ...AND THE PREVIEW LEARNS WHAT WAS PAINTED, exactly as the
+      # live path's restyle exits do. With live update off nothing
+      # repaints the preview at pick time -- preserve, do not repaint
+      # -- so the Generate that answers the change is the one moment
+      # the preview can catch up, and without this pair it rested on
+      # the previous design's colours while the map and table agreed
+      # on the new ones. Found by the preview hunt of 2026-08-26
+      # (round nine): the promise has four doors, and this one and
+      # the source-gone exit never had the pair the other two carry.
+      self._refresh_preview_colours()
       return  # the button pressed after a style change: instant
     layer = self.layer_combo.currentLayer()
     if layer is None:
@@ -13189,6 +13427,17 @@ class WeavingSpaceDialog(QDialog):
     if group is None:
       group = self._newest_output_group(root)
     if group is None:
+      # THE MARKER DROPS ON THIS PATH TOO. The clear at the bottom of
+      # this method says "cleared unconditionally, including on the
+      # paths that adopt nothing" -- and this return was exactly such
+      # a path, reached whenever the opened project holds no plugin
+      # group at all. The flag then stood for the rest of the
+      # session: `_swap_dataset_memory` stayed inert, the dataset
+      # identity never bound, and one dataset's value-keyed
+      # hand-picks stayed live under the next -- ruling 8's leak,
+      # resurrected through an ordinary File > Open of a plain
+      # project. Found by the doors hunt of 2026-08-26 (round nine).
+      self._project_is_being_replaced = False
       return
     # Taken over rather than written by us, so the first Generate
     # REPLACES it whatever the output box says. Read and cleared in
@@ -14023,6 +14272,35 @@ class WeavingSpaceDialog(QDialog):
     for element in elements:
       tid, var = str(element.get("id")), element.get("var")
       if not var:
+        # A PARKED ROW STILL HAS A MEMORY. An element on "---"
+        # displays nothing, so the flat keys stay empty -- but its
+        # per-field work is exactly as real as an unworn field's on a
+        # displaying row, and skipping the whole element here meant
+        # parking a row and saving the project killed every pin and
+        # hand-pick it ever held, in the record AND (via the stamp
+        # writers reading `var or ""`) on the layer. The kept loop
+        # below files EVERY field for a var-less element, since none
+        # of them is displayed. Found by the kept hunt of 2026-08-26
+        # (round nine) -- the maintainer's own "fields not in force
+        # at a save" lead with its last corner unlit.
+        kept = {}
+        for field in (set(self._pinned_bounds.get(tid, {}))
+                      | set(self._quant_colours.get(tid, {}))
+                      | set(self._category_colours.get(tid, {}))):
+          if not field:
+            continue
+          entry = {}
+          if self._pinned_bounds.get(tid, {}).get(field):
+            entry["pinned"] = dict(self._pinned_bounds[tid][field])
+          if self._quant_colours.get(tid, {}).get(field):
+            entry["quant_colours"] = dict(self._quant_colours[tid][field])
+          if self._category_colours.get(tid, {}).get(field):
+            entry["category_colours"] = \
+              dict(self._category_colours[tid][field])
+          if entry:
+            kept[field] = entry
+        if kept:
+          element["kept"] = kept
         continue
       if not element.get("pinned"):
         kept = self._pinned_bounds.get(tid, {}).get(var)
@@ -14471,6 +14749,21 @@ class WeavingSpaceDialog(QDialog):
     is told the data is missing: a map you can look at and cannot
     re-tile is worth more than a refusal.
     """
+    # A GUARD ADDED TO ONE DOOR BELONGS AT EVERY DOOR INTO THE SAME
+    # ROOM. `_on_group_chosen` and `_bind_group_to_dataset` both
+    # refuse while a run is in flight, because repointing the records
+    # mid-run lands the tiling in a rival group stamped with a
+    # variable nobody chose -- and this third door had no guard, so a
+    # resume during a run repointed `_element_layer_ids` under the
+    # landing, silently dropped the map the user had just opened,
+    # and one ordinary Generate then rewrote the saved GeoPackage
+    # with the other dataset's tiling. Found by the doors hunt of
+    # 2026-08-26 (round nine), the same shape as row 30.
+    if self._task is not None:
+      self._report_quietly(
+        "A map is still being generated; open the saved map once it "
+        "finishes.")
+      return False
     record = bridge.read_working_state(path)
     if record is None:
       self._report_quietly(
@@ -14556,31 +14849,53 @@ class WeavingSpaceDialog(QDialog):
       # the twin rather than only that the line is present. The twin
       # says why at its own call site; adding the call without
       # reading that is how presence came to stand in for order.
-      self._recover_the_source(path, record)
+      # THE WHOLE RESUME RUNS UNDER `_selecting_a_group`, the recovery
+      # and the tail included, and the window's width is the fix for
+      # two defects the doors and switchdoor hunts found on the same
+      # night (2026-08-26, round nine). The RECOVERY ran before the
+      # window opened, so its `setLayer` fired the switch machinery:
+      # the output path was cleared with a sentence, and the switch
+      # door announced a re-point of an intermediate table the apply
+      # replaced a breath later -- two spurious sentences on a journey
+      # ruling 38 says stays silent. And the TAIL ran after the window
+      # closed, so `_update_layer_exclusions` churned the layer combo,
+      # `_bind_group_to_dataset` heard it, and the dialog was snatched
+      # straight back to the current dataset's group -- the user told
+      # "its map is the one being worked on" while standing on the
+      # other map, the resumed group left unclaimed.
       self._selecting_a_group = True
       try:
+        self._recover_the_source(path, record)
         self._take_over_group(already)
         self._apply_working_state(record)
+        self.gpkg_widget.blockSignals(True)
+        self.gpkg_widget.setFilePath(path)
+        self.gpkg_widget.blockSignals(False)
+        self._last_path = path
+        # THE GROUP TAKES THE RECORD TOO, for the reason written at
+        # the twin: the file carries it and the group did not, so
+        # saving the project, reopening it and choosing that group
+        # gave back its layers and none of its design. Measured here:
+        # the twin leaves 1,959 characters on the group and this
+        # branch left none. THE REGION IS THE FILE'S OWN: when
+        # recovery fails the chooser still names the other dataset,
+        # and a capture would stamp the resumed group as that
+        # dataset's -- so choosing it later would re-tile the wrong
+        # data into this file's own path.
+        self._stamp_working_state(already, launch_state={
+          key: value for key, value in
+          (("region", record.get("region")), ("output_path", path))
+          if value})
+        # AND THE PLUGIN MUST NOT OFFER ITS OWN OUTPUT AS A REGION.
+        # Construction, project-read and the run landing all update
+        # the exclusions; this path registered element layers and did
+        # not, so after a resume the region chooser listed the map's
+        # own tile layers and could auto-select one -- and the next
+        # Generate tiled the plugin's output, reporting success.
+        self._update_layer_exclusions()
+        self._refresh_group_combo()
       finally:
         self._selecting_a_group = False
-      self.gpkg_widget.blockSignals(True)
-      self.gpkg_widget.setFilePath(path)
-      self.gpkg_widget.blockSignals(False)
-      self._last_path = path
-      # THE GROUP TAKES THE RECORD TOO, for the reason written at the
-      # twin: the file carries it and the group did not, so saving the
-      # project, reopening it and choosing that group gave back its
-      # layers and none of its design. Measured here: the twin leaves
-      # 1,959 characters on the group and this branch left none.
-      self._stamp_working_state(already)
-      # AND THE PLUGIN MUST NOT OFFER ITS OWN OUTPUT AS A REGION.
-      # Construction, project-read and the run landing all update the
-      # exclusions; this path registered element layers and did not,
-      # so after a resume the region chooser listed the map's own tile
-      # layers and could auto-select one -- and the next Generate
-      # tiled the plugin's output, reporting success.
-      self._update_layer_exclusions()
-      self._refresh_group_combo()
       self._report_quietly(
         f"{os.path.basename(path)} is already open here, so its map "
         f"is the one being worked on.")
@@ -14627,42 +14942,48 @@ class WeavingSpaceDialog(QDialog):
 
     # THE SOURCE, by reference or from inside the file. Reached before
     # the record is applied, because the assignment table cannot
-    # restore a variable to a column the region does not have.
-    self._recover_the_source(path, record)
+    # restore a variable to a column the region does not have -- and
+    # INSIDE the `_selecting_a_group` window, with the tail, for the
+    # two reasons written at the already-open branch above: the
+    # recovery's `setLayer` must not fire the switch machinery's
+    # sentences, and the tail's exclusion churn must not let the
+    # binding snatch the dialog back to the current dataset's group.
     self._selecting_a_group = True
     try:
+      self._recover_the_source(path, record)
       self._take_over_group(group)
       self._apply_working_state(record)
+      # THE FILE BEING RESUMED IS THE OUTPUT FILE, whatever the record
+      # says. The record carries the path the map was WRITTEN to, and
+      # restoring that is right when the group is chosen inside its
+      # own project -- but a resumed file may be a copy, or the same
+      # file moved, and then the recorded path names somebody else's
+      # map. Found by a hunt: copy a saved map, resume the copy, press
+      # Generate, and the run overwrote the ORIGINAL while the copy
+      # sat stale beside it. The one the user pointed at is the one
+      # they mean.
+      self.gpkg_widget.blockSignals(True)
+      self.gpkg_widget.setFilePath(path)
+      self.gpkg_widget.blockSignals(False)
+      self._last_path = path
+      # ...AND THE GROUP TAKES THE RECORD TOO, stamped with the FILE'S
+      # region rather than whatever the chooser happens to hold when
+      # recovery fails -- see the already-open branch.
+      self._stamp_working_state(
+        self._group_of_our_layers(QgsProject.instance().layerTreeRoot()),
+        launch_state={key: value for key, value in
+                      (("region", record.get("region")),
+                       ("output_path", path)) if value})
+      # THE SAME EXCLUSION THE OTHER BRANCH NEEDS, and for the same
+      # reason: this path has just registered element layers, and
+      # every other place that does so -- construction, project-read,
+      # the run landing -- tells the region chooser to ignore them.
+      # Without it the chooser offers the map's own tiles and the next
+      # Generate draws a map from the plugin's output.
+      self._update_layer_exclusions()
+      self._refresh_group_combo()
     finally:
       self._selecting_a_group = False
-    # THE FILE BEING RESUMED IS THE OUTPUT FILE, whatever the record
-    # says. The record carries the path the map was WRITTEN to, and
-    # restoring that is right when the group is chosen inside its own
-    # project -- but a resumed file may be a copy, or the same file
-    # moved, and then the recorded path names somebody else's map.
-    # Found by a hunt: copy a saved map, resume the copy, press
-    # Generate, and the run overwrote the ORIGINAL while the copy sat
-    # stale beside it. The one the user pointed at is the one they
-    # mean.
-    self.gpkg_widget.blockSignals(True)
-    self.gpkg_widget.setFilePath(path)
-    self.gpkg_widget.blockSignals(False)
-    self._last_path = path
-    # ...AND THE GROUP TAKES THE RECORD TOO. The file carries it and
-    # the group did not, so saving the project, reopening it and
-    # choosing the group gave back its layers and none of its design
-    # -- the record living in exactly one of the two places that were
-    # meant to hold it.
-    self._stamp_working_state(
-      self._group_of_our_layers(QgsProject.instance().layerTreeRoot()))
-    # THE SAME EXCLUSION THE OTHER BRANCH NEEDS, and for the same
-    # reason: this path has just registered element layers, and every
-    # other place that does so -- construction, project-read, the run
-    # landing -- tells the region chooser to ignore them. Without it
-    # the chooser offers the map's own tiles and the next Generate
-    # draws a map from the plugin's output.
-    self._update_layer_exclusions()
-    self._refresh_group_combo()
     self._report_quietly(
       f"Opened the saved map from {os.path.basename(path)}: "
       f"{loaded} element layers.")
@@ -14699,7 +15020,12 @@ class WeavingSpaceDialog(QDialog):
         if same:
           self.layer_combo.setLayer(layer)
           return
-      found = QgsVectorLayer(wanted, os.path.basename(str(wanted)), "ogr")
+      # named from the FILE half of the source alone: an OGR source
+      # string carries `|layername=<table>`, so the basename of the
+      # whole string read "region.gpkg|layername=region" in the
+      # layers panel (the harm hunt of 2026-08-26)
+      found = QgsVectorLayer(
+        wanted, os.path.basename(str(wanted).split("|")[0]), "ogr")
       if found.isValid():
         project.addMapLayer(found)
         self.layer_combo.setLayer(found)
@@ -15058,6 +15384,22 @@ class WeavingSpaceDialog(QDialog):
     bar had already been hidden the last thing the user saw was the
     worker's "5%", which reads as a hang.
     """
+    # A RETIRED DIALOG'S RESULT IS DISCARDED, whole. Retirement
+    # cancels the task, but a run past its worker has already
+    # reported, so its landing arrives here regardless -- and a
+    # landing executed for a window the user has replaced removed the
+    # live session's layers, adopted nothing, and built a rival
+    # group beside the map ("WeavingSpace tiles 2", eight plugin
+    # layers, one session) -- rows 18 and 19's settled rules broken
+    # at a fifth door. The natural way to reach it is the natural act
+    # itself: the landing is the long, hang-looking phase, and
+    # clicking the toolbar button then is the ordinary retry. Found
+    # by the seams hunt of 2026-08-26 (round nine). The map the user
+    # keeps is whatever the LIVE dialog owns; this result belonged to
+    # a window that no longer exists.
+    if _dialog_is_gone(self) or _live_dialog() is not self:
+      self._task = None
+      return
     if gdf is None and error is None:
       self._finish_run()
       return  # cancelled: reset quietly
@@ -16036,6 +16378,14 @@ class WeavingSpaceDialog(QDialog):
         # per-element step below run exactly as for any element.
         if a.get("class_source") in unreadable \
             and old_renderers.get(tid) is not None:
+          # What this keeps is the plugin's own previous seeding held
+          # over an unreadable file -- nobody's decision -- and no
+          # adoption may record it as a person's picks. That is held
+          # where every adoption route passes: the categorical walk
+          # attributes each colour against `_painted_categories`
+          # (2026-08-26), so the carry's colours -- which the plugin
+          # painted -- are declined on every route, and a person's
+          # dock edit on the kept renderer still differs and adopts.
           out.setRenderer(old_renderers[tid])
           self._preserved_this_run.append(tid)
         else:

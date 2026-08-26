@@ -335,7 +335,7 @@ EQUIVALENT = [
   },
   {
     "file": "weavingspace_qgis/dialog.py",
-    "snippet": """    if not mode_combo.property("touched"):
+    "snippet": """    elif not mode_combo.property("touched"):
       mode_combo.blockSignals(True)""",
     "mutation": "call removed",
     "reason":

@@ -39,6 +39,14 @@ jobs:
     env:
       QT_QPA_PLATFORM: offscreen
       PYTHONUNBUFFERED: "1"
+      # EVERY GATE NAMES ITSELF. The first probe round showed the
+      # rewritten file ABSENT at judgement with "the region layer was
+      # removed" warnings -- so the recovery run was REFUSED rather
+      # than failing to write, and this plugin's ten live gates each
+      # print their own name behind this flag. Deducing which gate
+      # fired has cost this project two diagnoses already; one run
+      # with the dump on answers it.
+      WEAVINGSPACE_ADOPT_DUMP: "1"
       # The same declared slowness as the windows suite job, for the
       # same reason: the suite's timing allowances are CONTENTION
       # times this, and a probe that fails on a ceiling sized for the
@@ -89,6 +97,10 @@ jobs:
         shell: cmd
         run: call "%QGIS_SHIM%" -u tools/ci_provision.py
 
-      - name: The one failing test, and nothing else
+      - name: The failing tests, and nothing else
+        # Two Windows-only reds as of 6d6ea2d's round: the historic
+        # moved-GeoPackage recovery, and rows 37's kept-work test,
+        # which lost the other field's work across the .qgz boundary
+        # here alone.
         shell: cmd
-        run: call "%QGIS_SHIM%" -u tools/run_some.py test_a_project_whose_output_geopackage_has_moved
+        run: call "%QGIS_SHIM%" -u tools/run_some.py test_a_project_whose_output_geopackage_has_moved test_a_saved_project_keeps_the_other_fields_work

@@ -829,6 +829,11 @@
   "excerpt": ". Its pinned bounds are kept.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "67f2f030a0194817": {
+  "approved": "2026-08-26",
+  "excerpt": "A map is still being generated; open the saved map once it f",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "68022acfc248f883": {
   "approved": "2026-08-08",
   "excerpt": "Elements '{}' and '{}' use colours that are hard to tell apa",
@@ -1578,6 +1583,11 @@
   "approved": "2026-08-09",
   "excerpt": "Three things worth knowing:",
   "where": "docs/USER-GUIDE.md"
+ },
+ "ceb287ca7292097a": {
+  "approved": "2026-08-26",
+  "excerpt": "DELETE FROM layer_styles WHERE f_table_name = '%s'",
+  "where": "weavingspace_qgis/bridge.py"
  },
  "cf75a40b898a78c4": {
   "approved": "2026-08-08",

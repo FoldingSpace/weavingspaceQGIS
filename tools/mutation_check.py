@@ -704,9 +704,9 @@ MUTATIONS = [
            "do it. The maintainer ruled it a question rather than a "
            "refusal, on one threshold shared with the dataset switch"),
   dict(name="keep-by-name-is-what-a-switch-keeps", file=DIALOG,
-       old="""      if prev and prev["var"] in fields:
+       old="""      elif prev and prev["var"] in fields:
         var_combo.setCurrentText(prev["var"])""",
-       new="""      if False:  # mutation: keep nothing by name
+       new="""      elif False:  # mutation: keep nothing by name
         var_combo.setCurrentText(prev["var"])""",
        test="test_a_dataset_switch_keeps_its_promises_on_every_route",
        why="keep-by-name is the rule every other switch ruling is an "
@@ -1030,9 +1030,9 @@ MUTATIONS = [
        # than by this entry. Absence is the wrong implementation
        # somebody would plausibly write, and it is the state this
        # branch actually shipped in.
-       old="""      self._recover_the_source(path, record)
-      self._selecting_a_group = True""",
-       new="""      self._selecting_a_group = True""",
+       old="""        self._recover_the_source(path, record)
+        self._take_over_group(already)""",
+       new="""        self._take_over_group(already)""",
        test="test_a_file_already_open_resumes_completely",
        why="PRESENCE IS NOT ORDER. The call was added to this branch "
            "on 2026-08-26 and put after the restore, where its twin "
@@ -1047,8 +1047,11 @@ MUTATIONS = [
            "which is ruling 8's cross-dataset leak"),
   dict(name="a-resumed-group-carries-the-design-it-resumed",
        file=DIALOG,
-       old="""      self._stamp_working_state(already)""",
-       new="""      pass  # mutation: leave the group without its record""",
+       old="""        self._stamp_working_state(already, launch_state={
+          key: value for key, value in
+          (("region", record.get("region")), ("output_path", path))
+          if value})""",
+       new="""        pass  # mutation: leave the group without its record""",
        test="test_a_file_already_open_resumes_completely",
        why="the take-over branch was written from the twin that loads "
            "the file and dropped what came after it. The twin ends "
@@ -1090,11 +1093,13 @@ MUTATIONS = [
            "contains"),
   dict(name="a-dataset-switch-says-what-it-re-points",
        file=DIALOG,
-       old="""        if landed:
+       old="""        if landed_pairs:
+          gone = sorted({was for was, _ in landed_pairs})
+          landed = sorted({now for _, now in landed_pairs})
           self._report_quietly(
             f"{', '.join(gone)} is not in '{where}', so the elements "
             f"using it now show {', '.join(landed)} instead.")""",
-       new="""        if landed:
+       new="""        if landed_pairs:
           pass  # mutation: the switch door falls silent again""",
        test="test_a_dataset_switch_says_what_it_re_points",
        why="a change of region dataset re-pointed elements whose "
@@ -1157,13 +1162,9 @@ MUTATIONS = [
   dict(name="an-unreadable-source-keeps-the-map-at-the-landing",
        file=DIALOG,
        old="""        if a.get("class_source") in unreadable \\
-            and old_renderers.get(tid) is not None:
-          out.setRenderer(old_renderers[tid])
-          self._preserved_this_run.append(tid)
-        else:""",
-       new="""        if False:
-          pass
-        else:""",
+            and old_renderers.get(tid) is not None:""",
+       new="""        if False and a.get("class_source") in unreadable \\
+            and old_renderers.get(tid) is not None:""",
        test="test_an_unreadable_source_keeps_the_map_at_the_landing",
        why="a re-tile whose element named a class source that had "
            "gone re-seeded automatic colours over the QML's, "
@@ -1188,7 +1189,8 @@ MUTATIONS = [
   dict(name="a-graduated-copy-carries-the-catch-all",
        file=DIALOG,
        old="""      **{key: colour for key, colour in
-         (self._quant_colours.get(source_id, {}).get(field) or {}).items()
+         (self._quant_colours.get(source_id, {})
+          .get(source.get("var")) or {}).items()
          if not key.isdigit()},""",
        new="""      # mutation: the copy moves positional colours alone""",
        test="test_a_graduated_copy_carries_the_catch_all",
@@ -1307,10 +1309,12 @@ MUTATIONS = [
        # ANCHORED ON THE COMMENT ABOVE THE CALL, because both branches
        # now make this call and an anchor matching twice applies
        # nothing while the run still reports a result.
-       old="""    # draws a map from the plugin's output.
-    self._update_layer_exclusions()""",
-       new="""    # draws a map from the plugin's output.
-    pass  # mutation: skip the exclusion on the loading branch""",
+       old="""      # Without it the chooser offers the map's own tiles and the next
+      # Generate draws a map from the plugin's output.
+      self._update_layer_exclusions()""",
+       new="""      # Without it the chooser offers the map's own tiles and the next
+      # Generate draws a map from the plugin's output.
+      pass  # mutation: skip the exclusion on the loading branch""",
        test="test_a_resume_keeps_its_output_off_the_region_list",
        why="construction, project-read and the run landing all keep "
            "the plugin's own output out of the region chooser, and "
@@ -1517,9 +1521,9 @@ MUTATIONS = [
            "three dump lines after reading named the wrong suspect"),
   dict(name="an-element-returns-to-a-field-it-has-shown-before",
        file=DIALOG,
-       old="""      elif remembered is not None:
+       old="""      if remembered is not None:
         var_combo.setCurrentText(remembered)""",
-       new="""      elif False:  # mutation: ignore the shelf when re-defaulting
+       new="""      if False:  # mutation: ignore the shelf when re-defaulting
         var_combo.setCurrentText(remembered)""",
        test="test_a_dropped_column_takes_its_whole_scheme_and_the_shelf_returns_it",
        why="ruling 6 is that switching back RESTORES: the element "
@@ -1753,8 +1757,7 @@ MUTATIONS = [
            "retirement it is about to describe"),
   dict(name="a-vanished-source-still-repaints-on-the-live-path", file=DIALOG,
        old="""      if self._restyle_only():
-        _dump("LIVE-GATE", "restyled-without-the-source")
-        return""",
+        # THE PAIR TRAVELS TO EVERY DOOR. This exit is four lines from""",
        # THE ORDER OF THE OPERANDS IS THE WHOLE MUTATION. Written
        # `self._restyle_only() and False` this SURVIVED: Python
        # evaluates left to right, so the restyle still ran and still
@@ -1762,8 +1765,7 @@ MUTATIONS = [
        # whose side effect survives it breaks nothing the test can
        # see. Short-circuit ahead of the call.
        new="""      if False and self._restyle_only():  # mutation: refuse it too
-        _dump("LIVE-GATE", "restyled-without-the-source")
-        return""",
+        # THE PAIR TRAVELS TO EVERY DOOR. This exit is four lines from""",
        test="test_a_colour_picked_after_the_file_moved_still_reaches_the_map",
        why="the availability gate is about TILING, and a restyle "
            "re-seeds renderers on tiles that already exist. Left as a "
@@ -1772,10 +1774,8 @@ MUTATIONS = [
            "recorded, never drawn, and explained by a sentence about "
            "the user's DATA when the fact is about their FILE"),
   dict(name="the-button-restyles-before-it-asks-about-the-source", file=DIALOG,
-       old="""    if not live and self._restyle_only():
-      return  # the button pressed after a style change: instant""",
-       new="""    if not live and False and self._restyle_only():
-      return  # mutation: ask about the source first""",
+       old="""    if not live and self._restyle_only():""",
+       new="""    if not live and False and self._restyle_only():""",
        test="test_a_colour_picked_after_the_file_moved_still_reaches_the_map",
        why="the TWIN of the entry above, and the reason it needed no "
            "repair: `_generate` puts its restyle fast path ABOVE its "
@@ -1975,8 +1975,8 @@ MUTATIONS = [
   # mutated, every element there lands on "---" and the map goes to
   # flat fill.
   dict(name="stale-field-assignment", file=DIALOG,
-       old='      if prev and prev["var"] in fields:',
-       new='      if prev and prev["var"] is not None:',
+       old='      elif prev and prev["var"] in fields:',
+       new='      elif prev and prev["var"] is not None:',
        test="test_switching_region_layer_counts_as_a_change",
        why="an element re-pointing at a column the layer now chosen "
            "actually has; carrying the old layer's column name means "
@@ -2015,8 +2015,10 @@ MUTATIONS = [
        why="where a square slice's cuts begin; the element count is "
            "the same either way, so counting cannot catch it"),
   dict(name="identifier-default", file=DIALOG,
-       old="preferred = [f for f in numeric if f.lower() not in id_like] or numeric",
-       new="preferred = [f for f in numeric if f.lower() in id_like] or numeric",
+       old="""    preferred = [f for f in numeric
+                 if f.lower() not in id_like] or numeric or fields""",
+       new="""    preferred = [f for f in numeric
+                 if f.lower() in id_like] or numeric or fields""",
        test="test_defaults_avoid_identifier_columns",
        why="the default variable being a measurement rather than a "
            "row id, which maps storage order and looks like data"),
@@ -6049,7 +6051,8 @@ MUTATIONS = [
            "did, which is this software's characteristic failure "
            "wearing a file format"),
   dict(name="a-resumed-map-finds-its-source-by-reference", file=DIALOG,
-       old="""      found = QgsVectorLayer(wanted, os.path.basename(str(wanted)), "ogr")
+       old="""      found = QgsVectorLayer(
+        wanted, os.path.basename(str(wanted).split("|")[0]), "ogr")
       if found.isValid():""",
        new="""      found = QgsVectorLayer(wanted, "x", "ogr")
       if False:  # mutation: never load the recorded source""",
@@ -6123,6 +6126,315 @@ MUTATIONS = [
            "be drawn sails through the gate into a run that cannot "
            "draw it, and the note the user sees is about a tile count "
            "that does not exist"),
+  # ---- round nine, 2026-08-26: the bulletproofing hunts' fixes, one
+  # ---- entry per axis, each proved on the day it was written.
+  dict(name="the-copy-reads-the-sources-own-field", file=DIALOG,
+       old="""      **{key: colour for key, colour in
+         (self._quant_colours.get(source_id, {})
+          .get(source.get("var")) or {}).items()
+         if not key.isdigit()},""",
+       new="""      **{key: colour for key, colour in
+         (self._quant_colours.get(source_id, {})
+          .get(field) or {}).items()
+         if not key.isdigit()},""",
+       test="test_a_graduated_copy_carries_the_catch_all",
+       why="the row-27 merge read the source's absence picks under "
+           "the TARGET's field, so the catch-all silently failed to "
+           "travel on every cross-field copy -- the ordinary case, "
+           "since the copy chooser offers every other graduated "
+           "element -- and a stale kept record on the source for the "
+           "target's own column imported a colour nobody chose, "
+           "painted onto the twin and stamped into every file"),
+  dict(name="the-button-restyle-repaints-the-preview", file=DIALOG,
+       old="""      # the source-gone exit never had the pair the other two carry.
+      self._refresh_preview_colours()
+      return  # the button pressed after a style change: instant""",
+       new="""      # the source-gone exit never had the pair the other two carry.
+      return  # the button pressed after a style change: instant""",
+       test="test_every_restyle_door_repaints_the_preview",
+       why="with live update off nothing repaints the preview at pick "
+           "time -- preserve, do not repaint -- so the Generate that "
+           "answers a style change is the one moment the preview can "
+           "catch up, and without the pair it rested on the previous "
+           "design's colours while the table and the map agreed on "
+           "the new ones"),
+  dict(name="the-source-gone-restyle-repaints-the-preview", file=DIALOG,
+       old="""        self._refresh_preview_colours()
+        _dump("LIVE-GATE", "restyled-without-the-source")""",
+       new="""        _dump("LIVE-GATE", "restyled-without-the-source")""",
+       test="test_every_restyle_door_repaints_the_preview",
+       why="a restyle answered at the source-gone gate is four lines "
+           "from row 21's fix and was missing the same refresh, so a "
+           "ramp picked after the region file moved reached the map "
+           "and never the preview -- a person iterating judged their "
+           "design by colours the map no longer draws"),
+  dict(name="a-dock-edit-reaches-the-group-record", file=DIALOG,
+       old="""    # not one per signal.
+    self._queue_group_restamp()""",
+       new="""    # not one per signal.""",
+       test="test_a_dock_recolour_survives_the_reopen",
+       why="a dock recolour the dialog adopts re-stamps the layer and "
+           "the file and, without this, never the GROUP record -- so "
+           "a reopen applied the stale record over everything "
+           "adoption had just recovered and the next Generate painted "
+           "the map back to the colour the user had abandoned"),
+  dict(name="a-resume-waits-for-the-run", file=DIALOG,
+       old="""    if self._task is not None:
+      self._report_quietly(
+        "A map is still being generated; open the saved map once it "
+        "finishes.")
+      return False""",
+       new="""    if False:
+      self._report_quietly(
+        "A map is still being generated; open the saved map once it "
+        "finishes.")
+      return False""",
+       test="test_a_resume_waits_for_the_run",
+       why="the resume was the one door into the group machinery "
+           "without the in-flight guard its two twins carry, so a "
+           "resume during a run repointed the records the landing "
+           "reads, silently dropped the resumed map, and one ordinary "
+           "Generate rewrote the saved GeoPackage with the other "
+           "dataset's tiling"),
+  dict(name="the-recovery-stays-inside-the-window", file=DIALOG,
+       old="""    self._selecting_a_group = True
+    try:
+      self._recover_the_source(path, record)
+      self._take_over_group(group)""",
+       new="""    self._recover_the_source(path, record)
+    self._selecting_a_group = True
+    try:
+      self._take_over_group(group)""",
+       test="test_a_resume_is_not_snatched_by_its_own_tail",
+       why="the recovery's setLayer fired the switch machinery "
+           "unguarded, so resuming one dataset's file while another "
+           "was in force cleared the output path out loud and "
+           "announced a re-point of an intermediate table the apply "
+           "replaced a breath later -- two spurious sentences on the "
+           "journey ruling 38 says stays silent"),
+  dict(name="the-resumes-tail-stays-inside-the-window", file=DIALOG,
+       old="""      self._update_layer_exclusions()
+      self._refresh_group_combo()
+    finally:
+      self._selecting_a_group = False""",
+       new="""    finally:
+      self._selecting_a_group = False
+    self._update_layer_exclusions()
+    self._refresh_group_combo()""",
+       test="test_a_resume_is_not_snatched_by_its_own_tail",
+       why="the exclusions rebuild churns the layer combo, and run "
+           "after the window closed that churn reached "
+           "_bind_group_to_dataset -- which snatched the dialog "
+           "straight back to the current dataset's group while the "
+           "user was told the saved map was the one being worked on, "
+           "the resumed group left unclaimed"),
+  # `a-groupless-adoption-drops-the-marker` was RETIRED here on
+  # 2026-08-26: the early-return clear it mutated is held REDUNDANTLY
+  # by the queued zero-delay clear on its only journey (a groupless
+  # project opened under a live dialog), so the entry could only ever
+  # survive. Broken TOGETHER with the queued clear the test fails at
+  # once -- proved by hand the same day -- so the axis is live and
+  # redundantly held, which is a note at the test rather than an
+  # entry that can only be red. The queued clear's own entry is
+  # below, and File > New gives it a journey the early return cannot
+  # cover.
+  dict(name="a-new-project-drops-the-marker", file=DIALOG,
+       old="""    QTimer.singleShot(0, lambda: setattr(
+      self, "_project_is_being_replaced", False))""",
+       new="""    pass""",
+       test="test_a_groupless_project_drops_the_replacement_marker",
+       why="File > New emits `cleared` and never `readProject`, so no "
+           "adoption runs and nothing else can drop the marker; the "
+           "queued clear fires after the synchronous replacement -- "
+           "adoption included -- has finished, by which time a "
+           "standing flag is a leak rather than a window"),
+  dict(name="a-pickless-copy-clears-the-class-source", file=DIALOG,
+       old="""    if not token:
+      self._class_choices.pop(target_id, None)
+      if file_cell is not None and hasattr(file_cell, "setCurrentIndex"):
+        file_cell.blockSignals(True)
+        file_cell.setCurrentIndex(0)
+        file_cell.blockSignals(False)""",
+       new="""    if False:
+      self._class_choices.pop(target_id, None)
+      if file_cell is not None and hasattr(file_cell, "setCurrentIndex"):
+        file_cell.blockSignals(True)
+        file_cell.setCurrentIndex(0)
+        file_cell.blockSignals(False)""",
+       test="test_a_pickless_copy_clears_the_class_source",
+       why="the class source is on the overwrite ruling's list and "
+           "the copy only ever WROTE the token -- nothing cleared it "
+           "when the source had none, so a copy onto a "
+           "template-governed element claimed the elements now match "
+           "while the template went on outranking the copied ramp on "
+           "the map and in every record"),
+  dict(name="the-landing-adopts-only-what-a-person-left", file=DIALOG,
+       old="""        if painted is None or painted.get(key) == colour:
+          unattributable += 1
+          continue""",
+       new="""        if painted is None and False:
+          unattributable += 1
+          continue""",
+       test="test_the_landing_does_not_adopt_its_own_carry",
+       why="what the unreadable-source arm keeps is the plugin's own "
+           "previous seeding, nobody's decision -- and the "
+           "re-examination adopted it as hand-picks and stamped them, "
+           "so a template's colours became picks that outrank the "
+           "template forever and restoring the edited file changed "
+           "nothing, on the landing path alone"),
+  dict(name="a-retired-landing-is-discarded", file=DIALOG,
+       old="""    if _dialog_is_gone(self) or _live_dialog() is not self:
+      self._task = None
+      return
+    if gdf is None and error is None:""",
+       new="""    if gdf is None and error is None:""",
+       test="test_a_retired_dialogs_landing_is_discarded",
+       why="retirement cancels the task, but a run past its worker "
+           "has already reported, so its landing executes for the "
+           "retired window -- removing the live session's layers and "
+           "building a rival group beside the map, rows 18 and 19's "
+           "settled rules broken at a fifth door, reached by the "
+           "ordinary act of opening the plugin again during the "
+           "long landing phase"),
+  dict(name="a-dropped-table-takes-its-style-row", file=BRIDGE,
+       old="""        try:
+          source.ExecuteSQL(
+            "DELETE FROM layer_styles WHERE f_table_name = '%s'"
+            % layer_name.replace("'", "''"))
+        except Exception:
+          pass""",
+       new="""        pass""",
+       test="test_a_dropped_table_takes_its_saved_style_with_it",
+       why="DeleteLayer removes the table and leaves QGIS's "
+           "layer_styles row behind, so a dropped element table's "
+           "whole unworn style -- the field's name, pins and "
+           "hand-picked colours, QML and SLD -- survived in the file "
+           "a colleague receives, against the ruling that the file "
+           "shows the limit of what it contains, through a door "
+           "_file_safe_state cannot see"),
+  dict(name="a-parked-row-still-has-a-memory", file=DIALOG,
+       old="""      if not var:
+        # A PARKED ROW STILL HAS A MEMORY. An element on "---"
+        # displays nothing, so the flat keys stay empty -- but its""",
+       new="""      if not var:
+        continue
+      if False:
+        # A PARKED ROW STILL HAS A MEMORY. An element on "---"
+        # displays nothing, so the flat keys stay empty -- but its""",
+       test="test_a_parked_element_keeps_its_work_at_the_boundary",
+       why="the capture skipped a var-less element whole -- no flat "
+           "keys, no kept map -- so parking a row on '---' and saving "
+           "the project killed every pin and hand-pick the element "
+           "ever held, while the same session's dicts still held "
+           "everything: the maintainer's own fields-not-in-force "
+           "lead, at its last unlit corner"),
+  dict(name="a-repointed-row-lands-on-any-field", file=DIALOG,
+       old="""    preferred = [f for f in numeric
+                 if f.lower() not in id_like] or numeric or fields""",
+       new="""    preferred = [f for f in numeric
+                 if f.lower() not in id_like] or numeric""",
+       test="test_the_switch_notice_owns_every_element",
+       why="the deleted-column twin has carried `or fields` since "
+           "2026-08-20; without it a switch to an all-text dataset "
+           "left re-pointed rows on '---' while the twin would have "
+           "landed them on a surviving column -- and the switch "
+           "notice then covered them with a sentence about the "
+           "elements that did land somewhere"),
+  dict(name="the-stranded-elements-get-their-own-sentence", file=DIALOG,
+       old="""        if stranded:
+          self._report_quietly(
+            f"{', '.join(stranded)} is not in '{where}', and there is "
+            f"nothing left to show in its place.")""",
+       new="""        if False:
+          self._report_quietly(
+            f"{', '.join(stranded)} is not in '{where}', and there is "
+            f"nothing left to show in its place.")""",
+       test="test_the_switch_notice_owns_every_element",
+       why="an element left with nothing must be owned by the "
+           "nothing-left sentence: with the arm gone, a switch to a "
+           "dataset with no columns at all re-points every element "
+           "into silence, which is the switch door going quiet on "
+           "exactly the largest loss it exists to announce"),
+  dict(name="leaving-a-dataset-stamps-what-you-leave", file=DIALOG,
+       old="""    if switched_from_work and not self._selecting_a_group \\
+        and self._task is None:
+      try:
+        # THE REGION IS THE OUTGOING DATASET'S. The chooser already""",
+       new="""    if False:
+      try:
+        # THE REGION IS THE OUTGOING DATASET'S. The chooser already""",
+       test="test_a_pick_survives_a_switch_inside_the_debounce",
+       why="a choice made and switched away from inside the live "
+           "debounce has no landing yet, so the return applied the "
+           "group record from before the pick and the choice died "
+           "silently -- while the switch notice's own sentence had "
+           "just testified to it"),
+  dict(name="the-capture-backfills-the-pin", file=DIALOG,
+       old="""      if not element.get("pinned"):
+        kept = self._pinned_bounds.get(tid, {}).get(var)
+        if kept:
+          element["pinned"] = dict(kept)""",
+       new="""      if False:
+        kept = self._pinned_bounds.get(tid, {}).get(var)
+        if kept:
+          element["pinned"] = dict(kept)""",
+       test="test_a_pin_kept_silently_still_reaches_the_stores",
+       why="the group record's flat pin key is backfilled from the "
+           "session dict where the mode-filtered view reports "
+           "silence; without the backfill a pin made on a row wearing "
+           "another style dies at the save while the session still "
+           "holds it -- the capture-side half of row 24, whose axis "
+           "had no entry of its own until the per-assertion hunt of "
+           "round nine flagged it"),
+  dict(name="the-kept-renderer-is-kept-whole", file=DIALOG,
+       # anchored on the arm's own tail: the kept_by_hand twin keeps
+       # the same pair at a SHALLOWER indent, so the ten-space form
+       # matches exactly once
+       old="""          out.setRenderer(old_renderers[tid])
+          self._preserved_this_run.append(tid)""",
+       new="""          out.setRenderer(None)
+          self._preserved_this_run.append(tid)""",
+       test="test_an_unreadable_source_keeps_the_map_at_the_landing",
+       why="the keep must keep the WHOLE renderer: a keep that "
+           "installs anything else destroys the classification "
+           "wholesale, and the test's shared-categories oracle "
+           "intersected before with after, so an empty after passed "
+           "on total loss until the count-what-you-looked-at premise "
+           "joined it"),
+  dict(name="the-return-leg-restores-the-chosen-variable", file=DIALOG,
+       old="""      remembered = None
+      shelf = self._scheme_memory.get(tid, {})
+      held = [f for f in fields if f in shelf]
+      if held:
+        remembered = held[0]
+      if remembered is not None:
+        var_combo.setCurrentText(remembered)
+      elif prev and prev["var"] in fields:""",
+       new="""      remembered = None
+      if column_gone:
+        shelf = self._scheme_memory.get(tid, {})
+        held = [f for f in fields if f in shelf]
+        if held:
+          remembered = held[0]
+      if prev and prev["var"] in fields:""",
+       test="test_the_return_leg_restores_the_chosen_variable",
+       why="when datasets share column names the return leg's "
+           "keep-by-name kept the re-pointed column while the same "
+           "journey with a landed group restored the choice through "
+           "the group record -- two settled rules answering one act "
+           "by whether a run happened to land; the maintainer ruled "
+           "the shelf's remembered field wins the return"),
+  dict(name="the-style-follows-the-field", file=DIALOG,
+       old="""    banked = (self._mode_by_field.get(tid_here, {}).get(var)
+              if tid_here else None)""",
+       new="""    banked = None""",
+       test="test_a_fields_return_wears_its_own_style_and_keeps_its_picks",
+       why="a touched mode used to ride the ELEMENT across a variable "
+           "change, so a field's return arrived wearing the other "
+           "field's style and the re-click the user was forced into "
+           "retired the positional picks the kept-silently ruling "
+           "preserves -- the mode banks per element and field now, "
+           "exactly as ruling 6 keys the scheme limbs"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a

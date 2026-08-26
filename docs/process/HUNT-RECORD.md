@@ -12,7 +12,7 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-08-26 (night), after TWO MORE ROUNDS of eight hunts
+Last updated 2026-08-26 (late), after ROUND NINE -- the bulletproofing round, below -- and before it TWO MORE ROUNDS of eight hunts
 each -- the fifth and sixth this project has run, and between them the
 strongest evidence yet for the method and for its cost.
 
@@ -397,6 +397,48 @@ round for, and which found the worst defect in this project's history
 after eight code-reading rounds walked past it. The sweep finds
 DISAGREEMENTS between things that already exist. It cannot find a harm
 nobody has described.
+
+## ROUND NINE, 2026-08-26 (late): the bulletproofing round
+
+Launched on the maintainer's charter -- everything of the last three
+days bulletproof, in itself AND as the user experiences it -- with the
+consistency sweep re-run BESIDE the hunts per the standing rule, and
+the sweep run first because it is nearly free. Eight hunts: doors,
+kept, switchdoor, livepreview, picksdict, seams, testbatch (the
+per-assertion trigger, fired on the round-eight batch), and harm.
+FIFTEEN confirmed product defects (ledger rows 39-53), four dead test
+axes plus a shared-fixture fault, two ruling questions grilled and
+settled the same night, and the sweep's four claims judged within the
+hour -- two of them its own harness faults, one closed by row 42's
+mechanism.
+
+| Direction | Confirmed | The lesson |
+| --- | ---: | --- |
+| doors (asymmetry, keep_adopted) | 4 | a guard at two doors of three is a countdown at the third; a flag with one setter and one clearer leaks through every path that reaches neither |
+| kept (write-only, the file limit) | 2 | the file has doors `_file_safe_state` cannot see -- a TABLE drop leaves QGIS's style row -- so a byte oracle must sweep the whole file, not the record |
+| switchdoor (prose as claims) | 3 | a notice that flattens per-element pairs lies about the element that lost most; a recovery's setLayer is a switch to every unguarded listener |
+| livepreview (timing) | 2 | a repaired pair travels to SOME doors by itself and to none of the rest -- enumerate the doors of a promise, not the fixes |
+| picksdict (two-stores) | 1 | when a merge reads two dicts, ask WHOSE key each subscript uses; the twin three lines up had it right |
+| seams (rows 29-33) | 3 | a fix one rung up leaves the same shape one rung down (the class source under the picks); retirement cannot cancel a run past its worker |
+| testbatch (per-assertion) | 4 axes | the shim's exec intercept makes every visibility axis vacuous; a shared fixture's unasserted landing turns its dependants into tests of the draft |
+| harm (backwards from losses) | 2 + sense-2 | ALL FIVE original complaints measured resolved end-to-end -- the round's charter answered -- and the two findings were experience gaps BESIDE fixed rows, which only a harm-first direction reports |
+
+WHAT THE ROUND SAYS. The repairs-attract-defects claim now stands at
+SEVEN ROUNDS FOR SEVEN, and the strongest single instance is the
+verification queue's own: of the round's fifteen, THIRTEEN are in
+code written inside the three-day window and five inside repairs of
+the same window's repairs. The sweep-beside-hunts rule earned its
+place from the other side this time: the sweep's reopen finding was
+the doors hunt's row 42 wearing a session's clothes, and neither
+instrument alone would have both FOUND it (the sweep) and NAMED its
+mechanism (the hunt).
+
+AND THE VERIFICATION QUEUE STAYED THE COST. Every claim reproduced
+here by a route its hunt did not use before its fix landed; my own
+harness faults this round -- a wrong-door copy probe, a grab of a
+never-shown dialog, a memory fixture across a .qgz, a max-preserving
+premise -- are tallied in the ledger beside the hunts' findings, per
+the standing practice.
 
 ## ROUND SEVEN, 2026-08-26 (night): eight hunts at iterative exploration
 

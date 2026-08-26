@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-340 defect(s) with a regression test.
+354 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -281,12 +281,18 @@ there is no separate list to remember.
   guarded by `test_a_dataset_that_leaves_the_project_is_still_a_dataset_left`
 - **an automatic mutant flipped the colours-agree comparison at dialog.py:3345 and twenty covering tests noticed nothing, because not one of them looked at what the user was told.**  
   guarded by `test_a_dock_edit_that_changes_no_colour_is_announced_as_nothing`
+- **a class recoloured in QGIS's styling panel was adopted everywhere except the output group's own record, so closing the plugin and reopening it restored the pre-edit colour and the next Generate repainted the map backwards. Found by the doors hunt of round nine (2026-08-26); also the mechanism under the consistency sweep's reopen finding.**  
+  guarded by `test_a_dock_recolour_survives_the_reopen`
 - **the signature stamped after adopting a dock recolour was never checked, so the lookup that finds the element could be broken without any test failing.**  
   guarded by `test_a_dock_refinement_survives_the_next_restyle`
 - **a dataset switch reset an element's mode and left its ramp, Reverse and class count standing, then restored a scheme filed under a corrected mode nobody chose.**  
   guarded by `test_a_dropped_column_takes_its_whole_scheme_and_the_shelf_returns_it`
 - **a ramp chosen on a row whose style was left derived rode a deleted column onto its replacement, then reverted at the next rebuild.**  
   guarded by `test_a_dropped_columns_ramp_goes_even_when_the_style_was_derived`
+- **dropping a stale element table deleted the table and left its `layer_styles` row behind, so the whole unworn style -- the field's name, its pinned bounds and hand-picked colours, readable QML and SLD -- survived in the GeoPackage a colleague receives, against the ruling that the file shows the limit of what it contains. Found by the kept hunt of round nine (2026-08-26), at the file's own bytes.**  
+  guarded by `test_a_dropped_table_takes_its_saved_style_with_it`
+- **a touched mode rode the ELEMENT across a variable change, so a row returned from Categorized landcover to v1 arrived wearing Categorized -- and the Quantiles re-click the user was forced into is a genuine reclassify, retiring the positional picks the kept-silently ruling preserves. The maintainer ruled 2026-08-26: the mode banks per element AND field, exactly as ruling 6 keys the scheme limbs, and the picks are spared because the re-click never happens. Found by the kept hunt of round nine.**  
+  guarded by `test_a_fields_return_wears_its_own_style_and_keeps_its_picks`
 - **resuming a GeoPackage whose layers were already in the project took the group over without stamping the working state onto it or recovering the source, so the design was lost at the next reopen and the region chooser was left pointing at another dataset.**  
   guarded by `test_a_file_already_open_resumes_completely`
 - **the graduated copy moved positional colours only (digit keys), so the hand-picked No data colour stayed behind and the target's twin drew default grey where the categorical copy carries its catch-all. Found by the editor hunt of 2026-08-26; ruled 2026-08-26.**  
@@ -297,6 +303,8 @@ there is no separate list to remember.
   guarded by `test_a_group_choice_waits_for_the_run`
 - **every key of a group's working state except the ramp window was written only when the incoming record held one, so a ramp, a single colour, an opacity, a class count, a hand-picked class colour, a pinned bound or a categorical colour set on one output group stayed in force on another whose own record said it had none, and the next restyle painted and stamped it there.**  
   guarded by `test_a_group_restores_its_own_state_and_no_one_elses`
+- **opening a project with no plugin group under an open dialog left `_project_is_being_replaced` standing for the rest of the session -- the memory banks stayed inert, the dataset identity never bound, and one dataset's value-keyed hand-picks stayed live under the next, which is ruling 8's leak resurrected. Found by the doors hunt of round nine (2026-08-26).**  
+  guarded by `test_a_groupless_project_drops_the_replacement_marker`
 - **the scheme cell went on naming a scheme after a ladder was retyped in QGIS or copied from another element, so the row described a classification the map no longer had.**  
   guarded by `test_a_ladder_somebody_else_cut_makes_the_scheme_cell_read_custom`
 - **generating after reopening a project that held maps of two datasets replaced the wrong dataset's map, silently.**  
@@ -309,6 +317,12 @@ there is no separate list to remember.
   guarded by `test_a_new_region_drops_a_setup_whose_column_has_gone`
 - **the installer skipped names case-insensitively while the lookup matched exactly, so four palettes were silently unavailable on any QGIS that spells them differently.**  
   guarded by `test_a_palette_is_usable_whatever_case_qgis_spells_it`
+- **an element parked on "---" was skipped whole by the working-state capture -- no flat keys, no kept map -- and the parking Generate removed its layer stamps, so a save and reopen killed every pin and hand-pick the element ever held while the same session's dicts still held everything. Found by the kept hunt of round nine (2026-08-26): the maintainer's "fields not in force at a save" lead with its last corner unlit.**  
+  guarded by `test_a_parked_element_keeps_its_work_at_the_boundary`
+- **with live update on, a variable picked and switched away from before the queued rerun landed was silently reverted on the return -- the group record still described the state before the pick, and the switch notice's own sentence had just testified to the choice it was about to lose. Leaving a dataset now stamps what you leave. Found by the switchdoor hunt of round nine (2026-08-26).**  
+  guarded by `test_a_pick_survives_a_switch_inside_the_debounce`
+- **copying a plain categorical element onto one governed by an imported class source said "now uses the classes from element 'a'" while every one of the source file's colours stayed on the map and in every record -- the template outranks the copied ramp exactly as the surviving hand-picks did in ledger row 31. Found by the seams hunt of round nine (2026-08-26).**  
+  guarded by `test_a_pickless_copy_clears_the_class_source`
 - **`_stamp_category_colours` and the working-state capture both read the mode-filtered `_assignments`, which reports pins and picks empty for any row not wearing the mode that displays them -- so a pin made on one style died at the project boundary when the row generated wearing another, stamped absent-by-choice. Found by the shelf hunt of 2026-08-26; the two writers confirmed against each other.**  
   guarded by `test_a_pin_kept_silently_still_reaches_the_stores`
 - **picking the ramp 'gray' and pressing Apply in QGIS's styling dock with no change silently renamed the row, the records and the next stamp to 'gist_gray' -- no pixel ever differs, and the label moved under the user. Found by the stochastic hunt of 2026-08-26 (seed 5001, shrunk); ruled 2026-08-26: the user's name wins the tie.**  
@@ -321,8 +335,14 @@ there is no separate list to remember.
   guarded by `test_a_reopened_project_reaches_its_own_colours_and_pins`
 - **a project reopened from a file heard no in-place dock recolour at all, because a guard read a deliberately empty record as evidence that the row had moved.**  
   guarded by `test_a_reopened_project_still_hears_a_recolour_made_in_qgis`
+- **resuming a saved map whose region could not be recovered left the dialog bound to the CURRENT dataset's group while announcing the saved map was being worked on, with two spurious sentences (a cleared output path and a switch notice about an intermediate table) on the way past -- the resumed group unclaimed and stamped with the wrong dataset. Found by the doors and switchdoor hunts of round nine (2026-08-26), independently.**  
+  guarded by `test_a_resume_is_not_snatched_by_its_own_tail`
 - **the resume path registered element layers without updating the region chooser's exclusions, so a resumed map's own tile layers were offered as region data and the next Generate tiled the plugin's own output.**  
   guarded by `test_a_resume_keeps_its_output_off_the_region_list`
+- **opening a saved GeoPackage while a tiling was in flight repointed the element records mid-run, silently dropped the resumed map at the landing, and one ordinary Generate then rewrote the saved file with the other dataset's tiling. Found by the doors hunt of round nine (2026-08-26); the same shape as ledger row 30, at a third door.**  
+  guarded by `test_a_resume_waits_for_the_run`
+- **retirement cancels the task, but a run past its worker has already reported, so its landing executed for the retired window -- removing the live session's layers, adopting nothing, and building a rival group beside the map, rows 18 and 19's settled rules broken at a fifth door. The natural route is the natural act: the landing is the long, hang-looking phase, and opening the plugin again then is the ordinary retry. Found by the seams hunt of round nine (2026-08-26).**  
+  guarded by `test_a_retired_dialogs_landing_is_discarded`
 - **a finished map could be looked at but not carried on with: the GeoPackage held tables and styles and nothing about the design that produced them, so a demo had to re-tile from scratch and a colleague received a result they could not continue.**  
   guarded by `test_a_saved_map_can_be_opened_and_carried_on`
 - **a pin or hand-picked colour made for one field died at every persistence boundary the moment the row was saved showing another field -- the group record and stamps carried the displayed field alone. Found by the oscillation-and-persistence hunt of 2026-08-26, the byte-grep of the .qgz as its second route; ruled the same day.**  
@@ -351,6 +371,8 @@ there is no separate list to remember.
   guarded by `test_every_declared_offset_is_pinned`
 - **controls added via a shared row helper were never checked for reachability, so removing the helper call hid two of them.**  
   guarded by `test_every_design_control_is_reachable`
+- **a manual Generate answered by the restyle fast path, and a live restyle performed at the source-gone gate, both returned without repainting the design preview -- so at rest it showed the previous act's colours while the table and the map agreed on the new ones. Found by the preview hunt of round nine (2026-08-26); the same harm as ledger row 21 at the two doors its fix did not reach.**  
+  guarded by `test_every_restyle_door_repaints_the_preview`
 - **only the existence of installed palettes was checked, never the colours they run between.**  
   guarded by `test_installed_palettes_span_their_declared_colours`
 - **keeping a previous result protected its group and not its GeoPackage, so a run wrote over the file the kept group draws from.**  
@@ -377,6 +399,8 @@ there is no separate list to remember.
   guarded by `test_the_file_shows_the_limit_of_what_it_contains`
 - **the output group was the unit of work in the rulings and in three separate mechanisms that had never been driven against each other -- and the first build of them broke six reopen journeys, let go of a map when the region layer was removed, and undid the user's own edits after every landing.**  
   guarded by `test_the_group_unit_rulings_hold_on_every_route`
+- **a re-tile whose element named an unreadable class source kept the worn renderer (right), and the landing's re-examination then adopted those kept colours as hand-picks and stamped them -- so a template's colours became picks that outrank the template forever, and restoring the edited file changed nothing, on the landing path alone with the restyle twin behaving. Found by the seams hunt of round nine (2026-08-26).**  
+  guarded by `test_the_landing_does_not_adopt_its_own_carry`
 - **deleting the output GeoPackage and pressing Generate removed every element layer from the project and added none, silently, because the handle release recreated a zero-byte file and the landing read bare existence as "update the file". Found 2026-08-26 by the file-lifecycle census; the write's own moment measured first=False exists=True size=0.**  
   guarded by `test_the_map_survives_its_file_being_deleted`
 - **a fifty-minute gate that could not be satisfied before the artefact shipped stopped four candidates' worth of work on a release whose plugin passed every test it was given.**  
@@ -391,12 +415,16 @@ there is no separate list to remember.
   guarded by `test_the_range_editor_repaints_with_its_own_elements_colours`
 - **release.py's watchdog measured wall clock, so a laptop asleep mid-release would have aborted a healthy run as hung. The same defect cost four verdicts in mutation batch 8 and was fixed there; release.py was written afterwards and repeated it.**  
   guarded by `test_the_release_watchdog_ignores_a_sleeping_machine`
+- **when datasets share column names, the return leg's keep-by-name kept the re-pointed column while the same journey with a landed group restored the person's choice through the group record -- two settled rules answering one act by whether a run happened to land. The maintainer ruled 2026-08-26: the shelf's remembered field wins the return. Found by the harm hunt of round nine.**  
+  guarded by `test_the_return_leg_restores_the_chosen_variable`
 - **the roadmap gate cleared 0.24.3 for a candidate while its section listed eleven unreproduced hunt claims and five untested fixes, because the sentence saying the section was NOT clear contained the words the gate looks for.**  
   guarded by `test_the_roadmap_gate_reads_a_statement_not_a_mention`
 - **the scheme shelf was not cleared with the project, so a scheme set aside in one project reappeared in the next.**  
   guarded by `test_the_shelf_does_not_survive_the_project_that_made_it`
 - **the size guard refused instead of asking, on a memory figure nothing measured; and two answers that were not sizes at all shared the refusal's value, so a design that does not tile the plane was reported as a spacing problem.**  
   guarded by `test_the_size_guard_warns_where_it_used_to_refuse`
+- **the switch notice flattened its per-element pairs, so an element left with nothing was affirmatively covered by a sentence about the elements that landed somewhere -- and the re-point path lacked the `or fields` fallback its deleted-column twin has carried since 2026-08-20, which is what made the mixed case reachable only here. Found by the switchdoor hunt of round nine (2026-08-26).**  
+  guarded by `test_the_switch_notice_owns_every_element`
 - **hand-picked colours and pinned bounds carried to any dataset sharing a column name, putting one dataset's value strings and numbers into another's saved files.**  
   guarded by `test_value_laden_records_never_cross_a_shared_name`
 
@@ -732,8 +760,8 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - a bug hunt pointed in a named direction: 91
+- the mutation campaign: 91
 - not written down at the time: 88
-- the mutation campaign: 77
 - reported by a user: 29
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

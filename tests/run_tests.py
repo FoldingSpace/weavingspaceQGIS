@@ -49038,8 +49038,6 @@ def test_a_file_already_open_resumes_completely():
     # ordinary state this branch exists for: somebody adds the tables
     # to their project, or opens a project made before the record
     # existed, and then points the plugin at the file.
-    for group in groups:
-      group.setCustomProperty(WORKING_STATE_PROPERTY, "")
     # AND THE EXCLUSIONS ARE CLEARED FOR THE SAME REASON THE RECORD
     # IS. This fixture generates in-session, so the landing has
     # already told the region chooser to ignore these layers -- and
@@ -49054,11 +49052,6 @@ def test_a_file_already_open_resumes_completely():
          not dlg.layer_combo.exceptedLayerList(),
          "the chooser still excludes layers, so the cell below "
          "cannot tell the resume's own call from the landing's")
-    cell("the record could be cleared for the test",
-         not any(g.customProperty(WORKING_STATE_PROPERTY, "")
-                 for g in root.findGroups()),
-         "the record survived being cleared, so a stamp cannot be "
-         "told from a leftover")
 
     # A SECOND DATASET WITH DIFFERENT COLUMN NAMES, so "the source was
     # recovered" is a real claim rather than a coincidence. The first
@@ -49073,6 +49066,22 @@ def test_a_file_already_open_resumes_completely():
     dlg.layer_combo.setLayer(other)
     _tick(600)
 
+    # THE RECORD IS STRIPPED HERE, after the switch, not before it:
+    # leaving a built dataset now STAMPS the group on the way out
+    # (the ruling of 2026-08-26), so a strip made before the switch
+    # was quietly re-written and the resume's own stamp could be
+    # deleted without this test noticing -- the redundancy was the
+    # round's own fix. Between this strip and the record cell below,
+    # the only writer left is the resume branch under test; the
+    # recovery's setLayer runs inside `_selecting_a_group`, which the
+    # switch stamp deliberately skips.
+    for group in root.findGroups():
+      group.setCustomProperty(WORKING_STATE_PROPERTY, "")
+    cell("the record could be cleared for the test",
+         not any(g.customProperty(WORKING_STATE_PROPERTY, "")
+                 for g in root.findGroups()),
+         "the record survived being cleared, so a stamp cannot be "
+         "told from a leftover")
     resumed = dlg._resume_from_gpkg(path)
     _tick(800)
     cell("the resume reported success", bool(resumed), resumed)
@@ -49215,8 +49224,22 @@ def test_a_resume_keeps_its_output_off_the_region_list():
 
     ours = set(dlg._element_layer_ids.values())
     assert ours, "the resume produced no element layers to exclude"
-    excepted = {lyr.id() for lyr in dlg.layer_combo.exceptedLayerList()}
-    left = ours - excepted
+    # ASKED OF WHAT THE COMBO OFFERS, not of its stored exclusion
+    # list: `exceptedLayerList()` hands back the POINTERS it was
+    # given, and when a mutation leaves the stale pre-resume entries
+    # standing those wrappers are deleted layers -- reading them was
+    # undefined, answering stale ids on one run and a segfault on the
+    # next, so the entry over this oracle was flaky by construction.
+    # The offered list is also the user-facing claim.
+    offered = set()
+    for index in range(dlg.layer_combo.count()):
+      candidate = dlg.layer_combo.layer(index)
+      if candidate is not None:
+        offered.add(candidate.id())
+    assert offered, \
+      "PREMISE: the region chooser offers nothing at all, so " \
+      "exclusion cannot be told from an empty project"
+    left = ours & offered
     assert not left, \
       f"{len(left)} of the resumed map's own layers are offered as " \
       f"region data, so the next Generate could tile the plugin's " \
@@ -59512,13 +59535,40 @@ def test_a_project_whose_output_geopackage_has_moved():
       # write that never happened from a write a stale handle spoiled
       # from a zero-byte ghost the landing mistook for a map.
       if trouble:
+        # DIAGNOSIS MUST NOT REPLACE THE VERDICT. Every reading below
+        # touches an object whose C++ half may be gone -- that is the
+        # state under test -- so a raise here would hand back a
+        # traceback about the instrument instead of the assertion,
+        # which is this project's own probe-side trap arriving inside
+        # a test. Each line is taken on its own and its own failure
+        # is recorded as a finding.
+        def found(label, read):
+          try:
+            trouble.append(f"[found] {label}: {read()}")
+          except Exception as exc:                       # noqa: BLE001
+            trouble.append(f"[found] {label}: unreadable ({exc})")
+
         for suffix in ("", "-wal", "-shm"):
           side = out_path + suffix
-          trouble.append(
-            f"[found] {os.path.basename(side)}: " +
-            (f"{os.path.getsize(side)} bytes" if os.path.exists(side)
-             else "absent"))
-        trouble.append(f"[found] the plugin said {BAR_MESSAGES!r}")
+          found(os.path.basename(side),
+                lambda side=side: (f"{os.path.getsize(side)} bytes"
+                                   if os.path.exists(side) else "absent"))
+        found("layers", lambda: "; ".join(
+          f"{lyr.name()!r} valid={lyr.isValid()} src={lyr.source()!r}"
+          for lyr in project.mapLayers().values()))
+        found("chooser", lambda: (
+          revived.layer_combo.currentLayer().name()
+          if revived.layer_combo.currentLayer() is not None else None))
+        found("chooser offers", lambda: [
+          revived.layer_combo.layer(i).name()
+          for i in range(revived.layer_combo.count())
+          if revived.layer_combo.layer(i) is not None])
+        found("dialog", lambda: (
+          f"task={revived._task is not None} "
+          f"element_ids={dict(revived._element_layer_ids)!r} "
+          f"group={revived._group_name!r} "
+          f"path={revived.gpkg_widget.filePath()!r}"))
+        found("the plugin said", lambda: repr(BAR_MESSAGES))
       assert not trouble, \
         "after re-pointing the output at the same path the map is still " \
         "not there:\n  " + "\n  ".join(trouble)
@@ -61463,6 +61513,22 @@ def _a_disk_session(folder):
   _generate_and_wait(dlg)
   _tick(300)
   _settle(dlg, seconds=60)
+  # THE LANDING IS ASSERTED, NOT ASSUMED. Every test standing on this
+  # helper reads the session it hands back, so a Generate that never
+  # reached the file -- `write_gpkg_layer` raising at entry is the
+  # row-20 failure family -- turned each of them into a test of the
+  # in-memory draft: the one-group test passed counting the WRONG
+  # group, and the deleted-file test skipped loudly while reporting
+  # PASS. Found by the per-assertion hunt of round nine (2026-08-26).
+  assert os.path.exists(out) and os.path.getsize(out) > 0, \
+    "the fixture's Generate never wrote the GeoPackage, so every " \
+    "test on this helper would measure the memory draft instead"
+  assert dlg._element_layer_ids and all(
+    _reads_from(QgsProject.instance().mapLayer(lid), out)
+    for lid in dlg._element_layer_ids.values()
+    if QgsProject.instance().mapLayer(lid)), \
+    "the fixture's layers do not read from the file they were asked " \
+    "to land in"
   return dlg, disk, out
 
 
@@ -62012,6 +62078,32 @@ def test_a_graduated_copy_carries_the_catch_all():
     assert any(key.isdigit() for key in got), \
       "the copy brought no positional colours at all, so the " \
       "catch-all check above proves nothing about a working copy"
+    # ...AND ACROSS A CHANGE OF FIELD, which is the ordinary case:
+    # `_copy_targets` offers every other graduated element whatever
+    # its column. The merge read the source's absence picks under the
+    # TARGET's field, so with both rows on v1 above the two reads
+    # coincide and this test could not see the defect it guards --
+    # the catch-all silently failed to travel on every cross-field
+    # copy, and a stale kept record on the source for the target's
+    # own column imported a colour nobody chose. Found by the
+    # picksdict hunt of round nine (2026-08-26); verified at the
+    # stamp and the landed twin.
+    third = dlg.table.item(2, 0).text()
+    combo = dlg.table.cellWidget(2, 1)
+    index = combo.findText("v2")
+    assert index >= 0, "PREMISE: no second column on offer"
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(300)
+    outcome = dlg._copy_classification(source, third)
+    _tick(400)
+    assert not isinstance(outcome, str) or "left out" not in outcome, \
+      f"PREMISE: the cross-field copy refused ({outcome!r})"
+    crossed = dlg._quant_colours.get(third, {}).get("v2") or {}
+    assert crossed.get(bridge_module().NO_DATA_KEY) == "#7b3294", \
+      f"the catch-all did not survive a cross-field copy: {crossed!r} " \
+      f"-- the merge is reading the source's picks under the " \
+      f"target's field"
     dlg.close()
   finally:
     QgsProject.instance().clear()
@@ -62197,9 +62289,19 @@ def test_a_group_choice_waits_for_the_run():
       "no run was in flight, so the guard under test cannot be reached"
     BAR_MESSAGES.clear()
     combo = dlg.group_combo
+    # MATCHED ON THE PART, NOT THE WHOLE: labels are built by
+    # concatenation, so `"WeavingSpace tiles" in itemText` also
+    # matches "WeavingSpace tiles 2 -- ..." -- and newest-first
+    # ordering made that the CURRENT group, so this cell staged no
+    # rival choice at all and its deed axis could never fire. Found
+    # by the per-assertion hunt of round nine (2026-08-26).
     index = next((i for i in range(combo.count())
-                  if str(first_group) in combo.itemText(i)), -1)
+                  if combo.itemText(i).split(" — ")[0].strip()
+                  == str(first_group)), -1)
     assert index >= 0, "the first group is not on offer"
+    assert index != combo.currentIndex(), \
+      "PREMISE: the staged choice is the group already in force, so " \
+      "nothing mid-run is being chosen"
     combo.setCurrentIndex(index)
     combo.activated.emit(index)
     said = " ".join(m[1] for m in BAR_MESSAGES)
@@ -62311,7 +62413,16 @@ def test_retirement_closes_the_colour_editor():
     # the window a second dialog can be constructed in. Restore the
     # state production holds during that window.
     first._open_editor = editor
-    assert editor.isVisible() or True, "editor object exists"
+    # ...AND SHOWN, as production holds it: exec blocks in a local
+    # event loop with the window on screen, and the shim's intercept
+    # returns without showing anything -- so the visibility axis
+    # below was vacuously green and its sibling read `... or True`,
+    # an assertion that cannot fail. Found by the per-assertion hunt
+    # of round nine (2026-08-26).
+    editor.show()
+    assert editor.isVisible(), \
+      "PREMISE: the editor window is not visible, so closing it " \
+      "cannot be observed"
     assert first._open_editor is not None, \
       "no editor opened, so retirement has nothing to close"
     second = WeavingSpaceDialog(iface=_Iface())
@@ -62422,6 +62533,15 @@ def test_an_unreadable_source_keeps_the_map_at_the_landing():
     listed = renderer.categories() if hasattr(renderer, "categories") else []
     after = {str(c.value()): c.symbol().color().name()
              for c in listed if c.symbol()}
+    # COUNT WHAT YOU LOOKED AT. `shared` intersects before and after,
+    # so a renderer destroyed WHOLESALE -- replaced by a default
+    # single symbol, `after` empty -- intersected with nothing and
+    # this passed on total loss. Found by the per-assertion hunt of
+    # round nine (2026-08-26).
+    assert after, \
+      "the landed element no longer draws categories at all -- the " \
+      "kept renderer was destroyed wholesale, which is a larger loss " \
+      "than the recolouring this test was written about"
     shared = {v: (before.get(v), after.get(v)) for v in before
               if v in after and before[v] != after[v]}
     assert not shared, \
@@ -62610,6 +62730,1039 @@ def test_a_dataset_switch_says_what_it_re_points():
   finally:
     QgsProject.instance().clear()
     shutil.rmtree(folder, ignore_errors=True)
+
+
+
+# ---- round nine: the bulletproofing hunts of 2026-08-26, verified and
+# ---- guarded. Each test drives the USER'S journey its hunt reported,
+# ---- and each failed on the unfixed tree before its fix landed.
+
+
+def _a_saved_resumable_map(folder):
+  """A GeoPackage carrying a full working record, from its own session.
+
+  Args:
+    folder: where the region and the map files go.
+
+  Returns:
+    The map's path. The project is left EMPTY: the file is the only
+    thing that survives, which is what makes it a resume fixture
+    rather than a group-selection one.
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  region, _ = _boundary_disk_region(folder)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(region)
+  _tick(400)
+  path = os.path.join(folder, "saved_map.gpkg")
+  dlg.gpkg_widget.setFilePath(path)
+  _generate_and_wait(dlg)
+  _tick(300)
+  _settle(dlg, seconds=60)
+  dlg.close()
+  QgsProject.instance().clear()
+  _tick(300)
+  assert bridge.read_working_state(path), \
+    "the fixture's map carries no record, so nothing below can resume"
+  return path
+
+
+def test_a_dock_recolour_survives_the_reopen():
+  """An edit adopted from QGIS's panel is still there tomorrow.
+
+  The dialog adopts a dock recolour into its dicts, the layer stamp
+  and the file -- and until 2026-08-26 nothing re-stamped the GROUP
+  record, so `_restore_the_adopted_design` applied the stale record
+  over everything adoption had just recovered, and the next Generate
+  painted the map back to the colour the user had abandoned.
+
+  Regression: a class recoloured in QGIS's styling panel was adopted everywhere except the output group's own record, so closing the plugin and reopening it restored the pre-edit colour and the next Generate repainted the map backwards. Found by the doors hunt of round nine (2026-08-26); also the mechanism under the consistency sweep's reopen finding. [mutation]
+  """
+  from qgis.PyQt.QtGui import QColor
+  project = QgsProject.instance()
+  region = make_region_layer(n=4, cell=1000)
+  project.addMapLayer(region)
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    tid = dlg.table.item(0, 0).text()
+    combo = dlg.table.cellWidget(0, 1)
+    combo.setCurrentText("landcover")
+    combo.activated.emit(combo.currentIndex())
+    _tick(200)
+    mode = dlg.table.cellWidget(0, 2)
+    mode.setCurrentText("Categorized")
+    mode.activated.emit(mode.currentIndex())
+    _tick(200)
+    dlg._category_colours.setdefault(tid, {})["landcover"] = {
+      "forest": "#112233"}
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    lyr = project.mapLayer(dlg._element_layer_ids[tid])
+    # the recolour, by the route QGIS's panel takes: clone, update,
+    # setRenderer -- which fires styleChanged
+    clone = lyr.renderer().clone()
+    cats = clone.categories()
+    for i, c in enumerate(cats):
+      if str(c.value()) == "forest":
+        symbol = c.symbol().clone()
+        symbol.setColor(QColor("#aa5500"))
+        clone.updateCategorySymbol(i, symbol)
+    lyr.setRenderer(clone)
+    lyr.triggerRepaint()
+    _tick(2500)
+    _settle(dlg, seconds=60)
+    held = dlg._category_colours.get(tid, {}).get("landcover", {})
+    assert held.get("forest") == "#aa5500", \
+      f"PREMISE: the dialog never adopted the dock edit ({held!r})"
+    dlg.close()
+    _tick(400)
+    second = WeavingSpaceDialog(iface=_Iface())
+    try:
+      second.live_check.setChecked(False)
+      _tick(1200)
+      _settle(second, seconds=60)
+      back = second._category_colours.get(tid, {}).get("landcover", {})
+      assert back.get("forest") == "#aa5500", \
+        f"a reopen restored {back.get('forest')!r} over the adopted " \
+        f"dock edit #aa5500 -- the group record was never re-stamped"
+      _generate_and_wait(second)
+      _tick(300)
+      _settle(second, seconds=60)
+      out = project.mapLayer(second._element_layer_ids[tid])
+      renderer = out.renderer()
+      cats = renderer.categories()
+      painted = {str(c.value()): c.symbol().color().name()
+                 for c in cats if c.symbol()}
+      assert painted.get("forest") == "#aa5500", \
+        f"the Generate after the reopen painted {painted.get('forest')!r} " \
+        f"over the dock edit"
+    finally:
+      second.close()
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_resume_waits_for_the_run():
+  """The third door into the group machinery refuses mid-run too.
+
+  `_on_group_chosen` and `_bind_group_to_dataset` both refuse while a
+  tiling is in flight; `_resume_from_gpkg` did not, so a resume
+  during a run repointed the records the landing was about to read.
+
+  Regression: opening a saved GeoPackage while a tiling was in flight repointed the element records mid-run, silently dropped the resumed map at the landing, and one ordinary Generate then rewrote the saved file with the other dataset's tiling. Found by the doors hunt of round nine (2026-08-26); the same shape as ledger row 30, at a third door. [mutation]
+  """
+  import shutil
+  import tempfile
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="ws_resume_wait_")
+  try:
+    saved = _a_saved_resumable_map(folder)
+    region_b = make_region_layer(n=5, cell=800)
+    region_b.setName("regionB")
+    project.addMapLayer(region_b)
+    from weavingspace_qgis.dialog import WeavingSpaceDialog
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(region_b)
+      _tick(400)
+      dlg.spacing_spin.setValue(120)
+      before = dict(dlg._element_layer_ids)
+      BAR_MESSAGES.clear()
+      dlg._generate()
+      assert dlg._task is not None, \
+        "PREMISE: the run was not in flight, so the guard is not asked"
+      outcome = dlg._resume_from_gpkg(saved)
+      said = " ".join(t for _k, t in BAR_MESSAGES)
+      assert not outcome, \
+        "the resume accepted a file while a run was in flight"
+      assert dict(dlg._element_layer_ids) == before, \
+        "the refused resume still repointed the element records"
+      assert "still being generated" in said, \
+        f"the refusal was silent: {said!r}"
+      _settle(dlg, seconds=120)
+    finally:
+      dlg.close()
+  finally:
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_resume_is_not_snatched_by_its_own_tail():
+  """An at-rest resume ends ON the resumed map, quietly.
+
+  Two halves of one window: the recovery must not fire the switch
+  machinery's sentences (a recovery is not a switch, ruling 38), and
+  the tail's exclusion churn must not let the dataset binding snatch
+  the dialog back to the current dataset's group.
+
+  Regression: resuming a saved map whose region could not be recovered left the dialog bound to the CURRENT dataset's group while announcing the saved map was being worked on, with two spurious sentences (a cleared output path and a switch notice about an intermediate table) on the way past -- the resumed group unclaimed and stamped with the wrong dataset. Found by the doors and switchdoor hunts of round nine (2026-08-26), independently. [mutation]
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis import bridge
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="ws_resume_snatch_")
+  try:
+    saved = _a_saved_resumable_map(folder)
+    file_record_region = (bridge.read_working_state(saved) or {}).get(
+      "region")
+    from weavingspace_qgis.dialog import WeavingSpaceDialog as _WSD
+    # ---- LEG ONE: recovery SUCCEEDS, and stays silent. The recovery
+    # loads the saved map's own region from disk, and its setLayer
+    # must not fire the switch machinery: no cleared-path sentence,
+    # no switch notice about an intermediate table (ruling 38 -- a
+    # recovery is not a switch). The first draft of this test only
+    # drove the failing recovery, whose setLayer never fires, so the
+    # window around the recovery could be removed without a test
+    # noticing.
+    region_b1 = make_region_layer(n=5, cell=800)
+    region_b1.setName("regionB")
+    QgsProject.instance().addMapLayer(region_b1)
+    leg_one = _WSD(iface=_Iface())
+    try:
+      leg_one.live_check.setChecked(False)
+      leg_one.layer_combo.setLayer(region_b1)
+      _tick(400)
+      # an output path on the session being interrupted, so that a
+      # recovery escaping the window would trip `_begin_new_dataset`
+      # and clear it OUT LOUD -- without one the escape has nothing
+      # to say and the silence assertions cannot see it
+      leg_one.gpkg_widget.setFilePath(os.path.join(folder, "b1.gpkg"))
+      _generate_and_wait(leg_one)
+      _tick(300)
+      _settle(leg_one, seconds=60)
+      assert leg_one.gpkg_widget.filePath().strip(), \
+        "PREMISE: the session being interrupted has no output path, " \
+        "so an escaped recovery would clear nothing and say nothing"
+      BAR_MESSAGES.clear()
+      assert leg_one._resume_from_gpkg(saved), \
+        "PREMISE: the recoverable resume itself failed"
+      _tick(800)
+      _settle(leg_one, seconds=60)
+      said_one = " ".join(t for _k, t in BAR_MESSAGES)
+      assert "path was cleared" not in said_one, \
+        f"a successful recovery cleared the output path out loud: " \
+        f"{said_one!r}"
+      assert "is not in '" not in said_one, \
+        f"a successful recovery fired the switch notice: {said_one!r}"
+      chosen = leg_one.layer_combo.currentLayer()
+      assert chosen is not None and file_record_region and \
+        chosen.source() == file_record_region, \
+        f"PREMISE: the recovery never selected the saved map's own " \
+        f"region ({chosen.source() if chosen else None!r})"
+    finally:
+      leg_one.close()
+      QgsProject.instance().clear()
+      _tick(300)
+    # ---- LEG TWO: the saved map's region goes away, so recovery
+    # must fail, and the tail must not snatch the dialog back
+    for entry in os.listdir(folder):
+      if entry.startswith("region.gpkg"):
+        os.rename(os.path.join(folder, entry),
+                  os.path.join(folder, entry + ".away"))
+    region_b = make_region_layer(n=5, cell=800)
+    region_b.setName("regionB")
+    project.addMapLayer(region_b)
+    from weavingspace_qgis.dialog import WeavingSpaceDialog
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(region_b)
+      _tick(400)
+      _generate_and_wait(dlg)          # this session has landed a run
+      _tick(300)
+      _settle(dlg, seconds=60)
+      BAR_MESSAGES.clear()
+      outcome = dlg._resume_from_gpkg(saved)
+      _tick(800)
+      _settle(dlg, seconds=60)
+      _tick(400)
+      assert outcome, "PREMISE: the resume itself failed"
+      said = " ".join(t for _k, t in BAR_MESSAGES)
+      claimed = any(saved in (project.mapLayer(i).source() or "")
+                    for i in dlg._element_layer_ids.values()
+                    if project.mapLayer(i))
+      assert claimed, \
+        f"the dialog came to rest on {dlg._group_name!r} rather than " \
+        f"the resumed map -- snatched back by its own tail"
+      assert "path was cleared" not in said, \
+        f"the recovery cleared the output path out loud: {said!r}"
+      assert "is not in '" not in said, \
+        f"the recovery fired the switch notice about an intermediate " \
+        f"table: {said!r}"
+      # ...and the resumed group's record names the FILE'S dataset,
+      # not the dataset the chooser happened to hold when recovery
+      # failed
+      if file_record_region:
+        from weavingspace_qgis.dialog import WORKING_STATE_PROPERTY
+        root = project.layerTreeRoot()
+        group = dlg._group_of_our_layers(root)
+        held = (group.customProperty(WORKING_STATE_PROPERTY)
+                if group is not None else None)
+        assert held and file_record_region in str(held), \
+          f"the resumed group's record does not name the file's own " \
+          f"dataset ({str(held)[:200]!r})"
+    finally:
+      dlg.close()
+  finally:
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_groupless_project_drops_the_replacement_marker():
+  """The being-replaced flag never outlives the replacement.
+
+  Regression: opening a project with no plugin group under an open dialog left `_project_is_being_replaced` standing for the rest of the session -- the memory banks stayed inert, the dataset identity never bound, and one dataset's value-keyed hand-picks stayed live under the next, which is ruling 8's leak resurrected. Found by the doors hunt of round nine (2026-08-26). [mutation]
+  """
+  import shutil
+  import tempfile
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="ws_flagdrop_")
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  dlg = None
+  try:
+    _boundary_disk_region(folder)
+    plain = os.path.join(folder, "plain.qgz")
+    assert project.write(plain)
+    project.clear()
+    _tick(200)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    _tick(300)
+    assert project.read(plain), "the plain project would not read"
+    _tick(600)
+    assert not dlg._project_is_being_replaced, \
+      "the marker is still standing after a groupless project opened " \
+      "-- the adopt path's early return skipped the clear"
+    # NOTE (2026-08-26): this leg is held REDUNDANTLY -- the early
+    # return's clear and the queued zero-delay clear both cover it,
+    # so no single mutation can turn it red; broken together the leg
+    # fails at once (proved by hand). The File > New leg below is the
+    # queued clear's own ground and carries the catalogue entry.
+    # ...and the File > New shape, which never reaches adoption at all
+    project.clear()
+    _tick(600)
+    assert not dlg._project_is_being_replaced, \
+      "the marker is still standing after the project was cleared " \
+      "with nothing to adopt"
+  finally:
+    if dlg is not None:
+      dlg.close()
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_pickless_copy_clears_the_class_source():
+  """A copy overwrites the class source like everything else it owns.
+
+  Regression: copying a plain categorical element onto one governed by an imported class source said "now uses the classes from element 'a'" while every one of the source file's colours stayed on the map and in every record -- the template outranks the copied ramp exactly as the surviving hand-picks did in ledger row 31. Found by the seams hunt of round nine (2026-08-26). [mutation]
+  """
+  project = QgsProject.instance()
+  region = make_region_layer(n=4, cell=1000)
+  project.addMapLayer(region)
+  # an independent categorized layer for element b to reference
+  donor = make_region_layer(n=3, cell=900)
+  donor.setName("donor")
+  from weavingspace_qgis import bridge
+  donor.setRenderer(bridge.make_categorized_renderer(
+    donor, "landcover", "Set2", False))
+  project.addMapLayer(donor)
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    a_id = dlg.table.item(0, 0).text()
+    b_id = dlg.table.item(1, 0).text()
+    for row in (0, 1):
+      combo = dlg.table.cellWidget(row, 1)
+      combo.setCurrentText("landcover")
+      combo.activated.emit(combo.currentIndex())
+      _tick(200)
+      mode = dlg.table.cellWidget(row, 2)
+      mode.setCurrentText("Categorized")
+      mode.activated.emit(mode.currentIndex())
+      _tick(200)
+    cell = dlg.table.cellWidget(1, 7)
+    assert cell is not None and hasattr(cell, "findData"), \
+      "PREMISE: row b has no class-source cell"
+    token = f"layer:{donor.id()}"
+    where = cell.findData(token)
+    assert where >= 0, "PREMISE: the donor layer is not offered"
+    cell.setCurrentIndex(where)
+    if hasattr(cell, "activated"):
+      cell.activated.emit(where)
+    _tick(300)
+    assert dlg._class_choices.get(b_id) == token, \
+      f"PREMISE: b never took the class source " \
+      f"({dlg._class_choices.get(b_id)!r})"
+    # the CATEGORICAL door, which is the one the class source rides:
+    # the first draft of this test drove the graduated copy for a
+    # categorical claim, the round's own recorded wrong-door trap
+    outcome = dlg._copy_categories_to_many(a_id, [b_id])
+    _tick(300)
+    assert not isinstance(outcome, str) or "left out" not in str(outcome), \
+      f"PREMISE: the copy refused ({outcome!r})"
+    assert not dlg._class_choices.get(b_id), \
+      f"the pick-less copy left b governed by " \
+      f"{dlg._class_choices.get(b_id)!r} -- the template outranks " \
+      f"the copy it was told replaced it"
+    assert cell.currentIndex() == 0, \
+      "the class-source cell still names the file the copy replaced"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_the_landing_does_not_adopt_its_own_carry():
+  """A renderer the plugin kept is never mistaken for a person's picks.
+
+  Regression: a re-tile whose element named an unreadable class source kept the worn renderer (right), and the landing's re-examination then adopted those kept colours as hand-picks and stamped them -- so a template's colours became picks that outrank the template forever, and restoring the edited file changed nothing, on the landing path alone with the restyle twin behaving. Found by the seams hunt of round nine (2026-08-26). [mutation]
+  """
+  import shutil
+  import tempfile
+  project = QgsProject.instance()
+  region = make_region_layer(n=4, cell=1000)
+  project.addMapLayer(region)
+  folder = tempfile.mkdtemp(prefix="ws_carry_")
+  # a FILE token, deliberately: a `layer:` token vanishes from the
+  # combo with its layer, so the widget forgets the choice and the
+  # unreadable-source arm never fires -- the fixture this test first
+  # shipped with, which could not exhibit its case
+  qml = os.path.join(folder, "scheme.qml")
+  shutil.copy(os.path.join(os.path.dirname(__file__), "data",
+                           "landcover.qml"), qml)
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    tid = dlg.table.item(0, 0).text()
+    combo = dlg.table.cellWidget(0, 1)
+    combo.setCurrentText("landcover")
+    combo.activated.emit(combo.currentIndex())
+    _tick(200)
+    mode = dlg.table.cellWidget(0, 2)
+    mode.setCurrentText("Categorized")
+    mode.activated.emit(mode.currentIndex())
+    _tick(200)
+    dlg._browsed_qmls.append(qml)
+    dlg._update_dynamic_columns()
+    _tick(200)
+    cell = dlg.table.cellWidget(0, 7)
+    where = cell.findData("file:" + qml)
+    assert where >= 0, "PREMISE: the browsed QML is not offered"
+    cell.setCurrentIndex(where)
+    if hasattr(cell, "activated"):
+      cell.activated.emit(where)
+    _tick(300)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    lyr = project.mapLayer(dlg._element_layer_ids[tid])
+    worn = {str(c.value()): c.symbol().color().name()
+            for c in lyr.renderer().categories() if c.symbol()}
+    assert worn, "PREMISE: the first landing drew no categories"
+    before = dict(dlg._category_colours.get(tid, {}).get(
+      "landcover") or {})
+    # the class source becomes unreadable: the file is deleted
+    os.remove(qml)
+    _tick(300)
+    dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.25)
+    _tick(300)
+    _generate_and_wait(dlg)             # a re-tile: the landing's arm
+    _tick(300)
+    _settle(dlg, seconds=60)
+    out = project.mapLayer(dlg._element_layer_ids[tid])
+    kept = {str(c.value()): c.symbol().color().name()
+            for c in out.renderer().categories() if c.symbol()}
+    shared = {v for v in worn if v in kept and worn[v] == kept[v]}
+    assert shared, \
+      "PREMISE: the landing did not keep the worn renderer, so the " \
+      "arm under test never fired and adoption has nothing to adopt"
+    after = dict(dlg._category_colours.get(tid, {}).get(
+      "landcover") or {})
+    assert after == before, \
+      f"the landing adopted its own kept renderer as hand-picks: " \
+      f"{before!r} became {after!r} -- the carry outranks the " \
+      f"template from here on"
+  finally:
+    dlg.close()
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_retired_dialogs_landing_is_discarded():
+  """A run belonging to a replaced window changes nothing.
+
+  Regression: retirement cancels the task, but a run past its worker has already reported, so its landing executed for the retired window -- removing the live session's layers, adopting nothing, and building a rival group beside the map, rows 18 and 19's settled rules broken at a fifth door. The natural route is the natural act: the landing is the long, hang-looking phase, and opening the plugin again then is the ordinary retry. Found by the seams hunt of round nine (2026-08-26). [mutation]
+  """
+  project = QgsProject.instance()
+  region = make_region_layer(n=5, cell=800)
+  project.addMapLayer(region)
+  from weavingspace_qgis.dialog import GROUP_BASE_NAME, WeavingSpaceDialog
+  first = WeavingSpaceDialog(iface=_Iface())
+  second = None
+  try:
+    first.live_check.setChecked(False)
+    first.layer_combo.setLayer(region)
+    _tick(400)
+    # a first map LANDS, so the retired window's landing would have a
+    # map to remove and a group to rival -- with nothing landed, a
+    # discarded and an executed landing both leave one group and the
+    # oracle cannot tell them apart
+    _generate_and_wait(first)
+    _tick(300)
+    _settle(first, seconds=60)
+    assert first._element_layer_ids, "PREMISE: no first map landed"
+    landed_before = sorted(first._element_layer_ids.values())
+    first.spacing_spin.setValue(120)
+    _tick(300)
+    # STAGED AT THE EXACT MOMENT: the result has arrived and the
+    # landing is about to run -- the state retirement cannot cancel,
+    # because the worker has already reported. Waiting for a real
+    # race here made the cell green whenever the cancel happened to
+    # win, which is the reproduction-that-cannot-reach-its-case trap;
+    # the wrap opens the second window first and then lets the
+    # landing proceed, which is precisely what processEvents inside
+    # the landing lets a toolbar click do.
+    staged = {}
+    original = first._on_generated
+    def landing_with_a_new_window(*args, **kwargs):
+      if "second" not in staged:
+        staged["second"] = WeavingSpaceDialog(iface=_Iface())
+        staged["second"].live_check.setChecked(False)
+      return original(*args, **kwargs)
+    first._on_generated = landing_with_a_new_window
+    first._generate()
+    assert first._task is not None, \
+      "PREMISE: no run was in flight"
+    deadline = time.time() + 120
+    while time.time() < deadline and first._task is not None:
+      _tick(200)
+    _tick(600)
+    second = staged.get("second")
+    assert second is not None, \
+      "PREMISE: the landing never ran, so retirement was never late"
+    _settle(second, seconds=60)
+    root = project.layerTreeRoot()
+    groups = [g.name() for g in root.findGroups()
+              if g.name().startswith(GROUP_BASE_NAME)]
+    assert len(groups) <= 1, \
+      f"the retired window's landing built a rival group: {groups}"
+    survivors = [lid for lid in landed_before
+                 if project.mapLayer(lid) is not None]
+    assert survivors == landed_before, \
+      f"the retired window's landing removed the live map's layers: " \
+      f"{len(survivors)} of {len(landed_before)} survive"
+  finally:
+    if second is not None:
+      second.close()
+    first.close()
+    project.clear()
+
+
+def test_a_dropped_table_takes_its_saved_style_with_it():
+  """What leaves the file leaves whole -- the style row included.
+
+  Regression: dropping a stale element table deleted the table and left its `layer_styles` row behind, so the whole unworn style -- the field's name, its pinned bounds and hand-picked colours, readable QML and SLD -- survived in the GeoPackage a colleague receives, against the ruling that the file shows the limit of what it contains. Found by the kept hunt of round nine (2026-08-26), at the file's own bytes. [mutation]
+  """
+  import shutil
+  import sqlite3
+  import tempfile
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="ws_stylerow_")
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  dlg = None
+  try:
+    region, _ = _boundary_disk_region(folder)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    tid = dlg.table.item(0, 0).text()
+    out = os.path.join(folder, "map.gpkg")
+    dlg.gpkg_widget.setFilePath(out)
+    var = dlg.table.cellWidget(0, 1)
+    var.setCurrentText("v1")
+    var.activated.emit(var.currentIndex())
+    _tick(200)
+    dlg._quant_colours.setdefault(tid, {})["v1"] = {"0": "#123456"}
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    dropped_table = f"tiles_{tid}_v1"
+    # ...then the element moves to another column, dropping the table
+    # (the combo re-fetched: the landing rebuilt the table)
+    var = dlg.table.cellWidget(0, 1)
+    var.setCurrentText("v2")
+    var.activated.emit(var.currentIndex())
+    _tick(300)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    dlg.close()
+    dlg = None
+    project.clear()
+    _tick(400)
+    connection = sqlite3.connect(out)
+    try:
+      connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+      tables = {row[0] for row in connection.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'")}
+      assert dropped_table not in tables, \
+        "PREMISE: the stale table itself was never dropped"
+      if "layer_styles" in tables:
+        rows = list(connection.execute(
+          "SELECT styleQML FROM layer_styles WHERE f_table_name=?",
+          (dropped_table,)))
+        assert not rows, \
+          f"the dropped table's saved style survives in the file: " \
+          f"{len(rows)} layer_styles row(s) for {dropped_table}, " \
+          f"carrying the unworn field's work"
+    finally:
+      connection.close()
+    blob = open(out, "rb").read()
+    assert b"#123456" not in blob, \
+      "the unworn hand-pick is still readable in the file's bytes"
+  finally:
+    if dlg is not None:
+      dlg.close()
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_parked_element_keeps_its_work_at_the_boundary():
+  """A row on "---" still has a memory, and the memory crosses a save.
+
+  Regression: an element parked on "---" was skipped whole by the working-state capture -- no flat keys, no kept map -- and the parking Generate removed its layer stamps, so a save and reopen killed every pin and hand-pick the element ever held while the same session's dicts still held everything. Found by the kept hunt of round nine (2026-08-26): the maintainer's "fields not in force at a save" lead with its last corner unlit. [mutation]
+  """
+  import shutil
+  import tempfile
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="ws_parked_")
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  dlg = second = None
+  try:
+    region, _ = _boundary_disk_region(folder)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    tid = dlg.table.item(0, 0).text()
+    var = dlg.table.cellWidget(0, 1)
+    var.setCurrentText("v1")
+    var.activated.emit(var.currentIndex())
+    _tick(200)
+    dlg._pinned_bounds.setdefault(tid, {})["v1"] = {"low": 1.5}
+    dlg._quant_colours.setdefault(tid, {})["v1"] = {"0": "#123456"}
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    # re-fetched: the landing rebuilt the table, and a combo held
+    # across a rebuild is the suite's own documented deleted-object
+    # trap
+    var = dlg.table.cellWidget(0, 1)
+    var.setCurrentText("---")           # parked, deliberately
+    var.activated.emit(var.currentIndex())
+    _tick(300)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    assert dlg._pinned_bounds.get(tid, {}).get("v1"), \
+      "PREMISE: the session dict lost the pin before the save, so " \
+      "the boundary is not what this test is measuring"
+    saved = os.path.join(folder, "p.qgz")
+    assert project.write(saved)
+    dlg.close()
+    dlg = None
+    project.clear()
+    _tick(300)
+    assert project.read(saved)
+    _tick(400)
+    second = WeavingSpaceDialog(iface=_Iface())
+    second.live_check.setChecked(False)
+    _tick(1200)
+    _settle(second, seconds=60)
+    pin = second._pinned_bounds.get(tid, {}).get("v1")
+    pick = second._quant_colours.get(tid, {}).get("v1")
+    assert pin and float(pin.get("low", 0)) == 1.5, \
+      f"the parked element's pin died at the project boundary: {pin!r}"
+    assert pick and pick.get("0") == "#123456", \
+      f"the parked element's hand-pick died at the project boundary: " \
+      f"{pick!r}"
+  finally:
+    for d in (dlg, second):
+      if d is not None:
+        d.close()
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_the_switch_notice_owns_every_element():
+  """Each element gets the sentence that is true of it.
+
+  Two legs. A switch to an all-text dataset re-points every element
+  onto a surviving column (the twin's own fallback, aligned) and says
+  so with the landed sentence. A switch to a dataset with no columns
+  at all leaves the elements with nothing -- and the nothing-left
+  sentence must own them, not a neighbourly "now show ... instead".
+
+  Regression: the switch notice flattened its per-element pairs, so an element left with nothing was affirmatively covered by a sentence about the elements that landed somewhere -- and the re-point path lacked the `or fields` fallback its deleted-column twin has carried since 2026-08-20, which is what made the mixed case reachable only here. Found by the switchdoor hunt of round nine (2026-08-26). [mutation]
+  """
+  project = QgsProject.instance()
+  region = make_region_layer(n=4, cell=1000)
+  project.addMapLayer(region)
+  # an all-text dataset: same geometry, text columns only
+  from qgis.PyQt.QtCore import QVariant
+  from weavingspace_qgis import compat
+  texty = QgsVectorLayer("MultiPolygon?crs=EPSG:3857", "texty", "memory")
+  prov = texty.dataProvider()
+  prov.addAttributes([compat.make_field("name", str),
+                      compat.make_field("kind", str)])
+  texty.updateFields()
+  for f in region.getFeatures():
+    g = QgsFeature(texty.fields())
+    g.setGeometry(f.geometry())
+    g.setAttribute(0, "x")
+    g.setAttribute(1, "y")
+    prov.addFeature(g)
+  project.addMapLayer(texty)
+  bare = QgsVectorLayer("MultiPolygon?crs=EPSG:3857", "bare", "memory")
+  for f in region.getFeatures():
+    g = QgsFeature(bare.fields())
+    g.setGeometry(f.geometry())
+    bare.dataProvider().addFeature(g)
+  project.addMapLayer(bare)
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    var = dlg.table.cellWidget(0, 1)
+    var.setCurrentText("v1")
+    var.activated.emit(var.currentIndex())
+    _tick(200)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    # leg one: every column dies, every element lands a text column
+    BAR_MESSAGES.clear()
+    dlg.layer_combo.setLayer(texty)
+    _tick(1500)
+    _settle(dlg, seconds=60)
+    said = " ".join(t for _k, t in BAR_MESSAGES)
+    assert "now show" in said, \
+      f"the landed sentence never fired on the text switch: {said!r}"
+    assert "nothing left to show" not in said, \
+      f"elements landed on text columns yet the nothing-left " \
+      f"sentence fired: {said!r}"
+    landed = {dlg.table.cellWidget(r, 1).currentText()
+              for r in range(dlg.table.rowCount())
+              if dlg.table.cellWidget(r, 1) is not None}
+    assert landed & {"name", "kind"}, \
+      f"PREMISE: no element landed a text column ({landed!r}), so " \
+      f"the fallback is not what this leg measured"
+    # leg two: a dataset with no columns at all
+    from qgis.PyQt.QtWidgets import QMessageBox
+    MODAL_ANSWERS["question"] = QMessageBox.StandardButton.No
+    try:
+      BAR_MESSAGES.clear()
+      dlg.layer_combo.setLayer(bare)
+      _tick(1500)
+      _settle(dlg, seconds=60)
+      said = " ".join(t for _k, t in BAR_MESSAGES)
+      assert "nothing left to show" in said, \
+        f"elements were left with nothing and no sentence owned " \
+        f"them: {said!r}"
+    finally:
+      MODAL_ANSWERS.pop("question", None)
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_pick_survives_a_switch_inside_the_debounce():
+  """A choice made and left within the live window is still a choice.
+
+  Regression: with live update on, a variable picked and switched away from before the queued rerun landed was silently reverted on the return -- the group record still described the state before the pick, and the switch notice's own sentence had just testified to the choice it was about to lose. Leaving a dataset now stamps what you leave. Found by the switchdoor hunt of round nine (2026-08-26). [mutation]
+  """
+  project = QgsProject.instance()
+  region = make_region_layer(n=4, cell=1000)
+  project.addMapLayer(region)
+  region_b = make_region_layer(n=3, cell=1200)
+  region_b.setName("regionB")
+  project.addMapLayer(region_b)
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    assert dlg.live_check.isChecked(), \
+      "PREMISE: live update is off, so there is no debounce window"
+    _tick(2500)
+    _settle(dlg, seconds=90)
+    assert dlg._element_layer_ids, "PREMISE: no live map landed"
+    row = 0
+    tid = dlg.table.item(row, 0).text()
+    var = dlg.table.cellWidget(row, 1)
+    assert var.currentText() != "landcover", \
+      "PREMISE: the fixture's default is the choice under test"
+    var.setCurrentText("landcover")
+    var.activated.emit(var.currentIndex())
+    _tick(200)                          # inside the 900 ms window
+    dlg.layer_combo.setLayer(region_b)
+    _tick(1200)
+    _settle(dlg, seconds=90)
+    dlg.layer_combo.setLayer(region)
+    _tick(1200)
+    _settle(dlg, seconds=90)
+    back = None
+    for r in range(dlg.table.rowCount()):
+      if dlg.table.item(r, 0) and dlg.table.item(r, 0).text() == tid:
+        back = dlg.table.cellWidget(r, 1).currentText()
+    assert back == "landcover", \
+      f"the pick made inside the debounce window came back as " \
+      f"{back!r} -- the record described the state before the choice"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_every_restyle_door_repaints_the_preview():
+  """The restyle-then-refresh pair travels to all four doors.
+
+  Two doors carried it (`_apply_style_change`, and the live gate's
+  ordinary restyled exit, row 21); two did not. The oracle is the
+  preview widget's own resting store, per element.
+
+  Regression: a manual Generate answered by the restyle fast path, and a live restyle performed at the source-gone gate, both returned without repainting the design preview -- so at rest it showed the previous act's colours while the table and the map agreed on the new ones. Found by the preview hunt of round nine (2026-08-26); the same harm as ledger row 21 at the two doors its fix did not reach. [mutation]
+  """
+  import shutil
+  import tempfile
+  project = QgsProject.instance()
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def resting(dlg, tid):
+    return str((dlg.preview._id_colours or {}).get(tid)).lower()
+
+  def pick_ramp(dlg, row, name):
+    """Choose a ramp the way a click does.
+
+    Args:
+      dlg: the dialog whose table holds the row.
+      row: the table row whose ramp cell is driven.
+      name: the ramp to select; asserted to be on offer, so a typo
+        fails loudly instead of leaving the act unstaged.
+    """
+    ramp = dlg.table.cellWidget(row, 4)
+    idx = ramp.findText(name)
+    assert idx >= 0, f"no ramp {name} on offer"
+    ramp.setCurrentIndex(idx)
+    ramp.activated.emit(idx)
+
+  # door one: live OFF, ramp changed, Generate pressed
+  region = make_region_layer(n=4, cell=1000)
+  project.addMapLayer(region)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    tid = dlg.table.item(0, 0).text()
+    pick_ramp(dlg, 0, "Reds")
+    _tick(300)
+    _generate_and_wait(dlg)
+    _tick(400)
+    _settle(dlg, seconds=60)
+    old = str(dlg._table_id_colours()[tid]).lower()
+    assert resting(dlg, tid) == old, \
+      "ORACLE PREMISE: at baseline the preview does not hold the " \
+      "element's own colour"
+    pick_ramp(dlg, 0, "Greens")
+    _tick(500)
+    _generate_and_wait(dlg)
+    _tick(600)
+    _settle(dlg, seconds=60)
+    new = str(dlg._table_id_colours()[tid]).lower()
+    assert new != old, "PREMISE: the colours never moved"
+    assert resting(dlg, tid) == new, \
+      f"after a manual Generate answered by a restyle the preview " \
+      f"rests on {resting(dlg, tid)} while the table holds {new}"
+  finally:
+    dlg.close()
+    project.clear()
+    _tick(300)
+  # door two: live ON, the region file moved away, ramp picked
+  folder = tempfile.mkdtemp(prefix="ws_prevdoor_")
+  try:
+    region, region_path = _boundary_disk_region(folder)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.layer_combo.setLayer(region)
+      _tick(400)
+      assert dlg.live_check.isChecked(), "PREMISE: live update is off"
+      _tick(2500)
+      _settle(dlg, seconds=90)
+      assert dlg._element_layer_ids, "PREMISE: no live map landed"
+      tid = sorted(dlg._element_layer_ids)[0]
+      row = next(r for r in range(dlg.table.rowCount())
+                 if dlg.table.item(r, 0).text() == tid)
+      old = str(dlg._table_id_colours()[tid]).lower()
+      assert resting(dlg, tid) == old, \
+        "ORACLE PREMISE: the preview does not hold the baseline colour"
+      os.rename(region_path, region_path + ".away")
+      _tick(300)
+      other = "Purples" if "#6a51a3" not in old else "Oranges"
+      pick_ramp(dlg, row, other)
+      _tick(2500)
+      _settle(dlg, seconds=90)
+      new = str(dlg._table_id_colours()[tid]).lower()
+      assert new != old, \
+        f"PREMISE: the source-gone restyle never painted ({old}->{new})"
+      assert resting(dlg, tid) == new, \
+        f"after the source-gone restyle the preview rests on " \
+        f"{resting(dlg, tid)} while the table holds {new}"
+    finally:
+      dlg.close()
+  finally:
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+
+def test_the_return_leg_restores_the_chosen_variable():
+  """A-B-A with no Generate gives back the variable you chose.
+
+  Regression: when datasets share column names, the return leg's keep-by-name kept the re-pointed column while the same journey with a landed group restored the person's choice through the group record -- two settled rules answering one act by whether a run happened to land. The maintainer ruled 2026-08-26: the shelf's remembered field wins the return. Found by the harm hunt of round nine. [mutation]
+  """
+  project = QgsProject.instance()
+  a_layer = make_region_layer(n=4, cell=1000)
+  a_layer.setName("dataset-A")
+  project.addMapLayer(a_layer)
+  # dataset B shares the numeric columns and lacks landcover
+  from weavingspace_qgis import compat
+  b_layer = QgsVectorLayer("MultiPolygon?crs=EPSG:3857", "dataset-B",
+                           "memory")
+  prov = b_layer.dataProvider()
+  prov.addAttributes([compat.make_field("v1", float),
+                      compat.make_field("v2", float)])
+  b_layer.updateFields()
+  for i, f in enumerate(a_layer.getFeatures()):
+    g = QgsFeature(b_layer.fields())
+    g.setGeometry(f.geometry())
+    g.setAttribute(0, float(i))
+    g.setAttribute(1, float(i) * 2)
+    prov.addFeature(g)
+  project.addMapLayer(b_layer)
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(a_layer)
+    _tick(400)
+    tid = dlg.table.item(0, 0).text()
+    var = dlg.table.cellWidget(0, 1)
+    assert var.currentText() != "landcover", \
+      "PREMISE: the default is the choice under test"
+    var.setCurrentText("landcover")
+    var.activated.emit(var.currentIndex())
+    _tick(300)
+    # away, with NO generate anywhere
+    dlg.layer_combo.setLayer(b_layer)
+    _tick(1200)
+    _settle(dlg, seconds=60)
+    # the switch re-pointed the element onto a shared-name column
+    moved = dlg.table.cellWidget(0, 1).currentText()
+    assert moved != "landcover", \
+      f"PREMISE: the element still shows landcover on B ({moved!r}), " \
+      f"so nothing was re-pointed and the return cannot restore"
+    dlg.layer_combo.setLayer(a_layer)
+    _tick(1200)
+    _settle(dlg, seconds=60)
+    back = None
+    for r in range(dlg.table.rowCount()):
+      if dlg.table.item(r, 0) and dlg.table.item(r, 0).text() == tid:
+        back = dlg.table.cellWidget(r, 1).currentText()
+    assert back == "landcover", \
+      f"the return leg came back showing {back!r} rather than the " \
+      f"chosen landcover -- keep-by-name beat the shelf, which the " \
+      f"ruling of 2026-08-26 reversed for the no-group return"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_fields_return_wears_its_own_style_and_keeps_its_picks():
+  """The mode follows the field, so no re-click retires the picks.
+
+  Regression: a touched mode rode the ELEMENT across a variable change, so a row returned from Categorized landcover to v1 arrived wearing Categorized -- and the Quantiles re-click the user was forced into is a genuine reclassify, retiring the positional picks the kept-silently ruling preserves. The maintainer ruled 2026-08-26: the mode banks per element AND field, exactly as ruling 6 keys the scheme limbs, and the picks are spared because the re-click never happens. Found by the kept hunt of round nine. [mutation]
+  """
+  project = QgsProject.instance()
+  region = make_region_layer(n=4, cell=1000)
+  project.addMapLayer(region)
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    tid = dlg.table.item(0, 0).text()
+    var = dlg.table.cellWidget(0, 1)
+    var.setCurrentText("v1")
+    var.activated.emit(var.currentIndex())
+    _tick(200)
+    mode = dlg.table.cellWidget(0, 2)
+    mode.setCurrentText("Quant: Quantiles")
+    mode.activated.emit(mode.currentIndex())
+    _tick(200)
+    dlg._quant_colours.setdefault(tid, {})["v1"] = {"0": "#123456"}
+    # the excursion: another field, another (deliberate) style
+    var = dlg.table.cellWidget(0, 1)
+    var.setCurrentText("landcover")
+    var.activated.emit(var.currentIndex())
+    _tick(300)
+    mode = dlg.table.cellWidget(0, 2)
+    mode.setCurrentText("Categorized")
+    mode.activated.emit(mode.currentIndex())
+    _tick(300)
+    # home: the field's own style must come back on its own
+    var = dlg.table.cellWidget(0, 1)
+    var.setCurrentText("v1")
+    var.activated.emit(var.currentIndex())
+    _tick(300)
+    mode = dlg.table.cellWidget(0, 2)
+    assert mode.currentText() == "Quant: Quantiles", \
+      f"the return arrived wearing {mode.currentText()!r} rather " \
+      f"than the style chosen for v1 -- the forced re-click this " \
+      f"ruling abolishes is back"
+    picks = dlg._quant_colours.get(tid, {}).get("v1")
+    assert picks and picks.get("0") == "#123456", \
+      f"the picks did not survive the field journey: {picks!r}"
+    # ...and the landcover excursion's own style is banked too
+    var = dlg.table.cellWidget(0, 1)
+    var.setCurrentText("landcover")
+    var.activated.emit(var.currentIndex())
+    _tick(300)
+    mode = dlg.table.cellWidget(0, 2)
+    assert mode.currentText() == "Categorized", \
+      f"landcover's own chosen style was lost on ITS return: " \
+      f"{mode.currentText()!r}"
+  finally:
+    dlg.close()
+    project.clear()
 
 
 def main():
@@ -63862,6 +65015,36 @@ def main():
         test_the_colour_editor_opens_on_a_column_with_no_values)
   check("the removal notice survives the chooser moving first",
         test_the_removal_notice_survives_the_chooser_moving_first)
+
+  check("a dock recolour survives the reopen",
+        test_a_dock_recolour_survives_the_reopen)
+  check("a resume waits for the run",
+        test_a_resume_waits_for_the_run)
+  check("a resume is not snatched by its own tail",
+        test_a_resume_is_not_snatched_by_its_own_tail)
+  check("a groupless project drops the replacement marker",
+        test_a_groupless_project_drops_the_replacement_marker)
+  check("a pick-less copy clears the class source",
+        test_a_pickless_copy_clears_the_class_source)
+  check("the landing does not adopt its own carry",
+        test_the_landing_does_not_adopt_its_own_carry)
+  check("a retired dialog's landing is discarded",
+        test_a_retired_dialogs_landing_is_discarded)
+  check("a dropped table takes its saved style with it",
+        test_a_dropped_table_takes_its_saved_style_with_it)
+  check("a parked element keeps its work at the boundary",
+        test_a_parked_element_keeps_its_work_at_the_boundary)
+  check("the switch notice owns every element",
+        test_the_switch_notice_owns_every_element)
+  check("a pick survives a switch inside the debounce",
+        test_a_pick_survives_a_switch_inside_the_debounce)
+  check("every restyle door repaints the preview",
+        test_every_restyle_door_repaints_the_preview)
+
+  check("the return leg restores the chosen variable",
+        test_the_return_leg_restores_the_chosen_variable)
+  check("a field's return wears its own style and keeps its picks",
+        test_a_fields_return_wears_its_own_style_and_keeps_its_picks)
 
   if SHARD_COUNT > 1:
     print(f"\nshard {SHARD_INDEX} of {SHARD_COUNT}: "

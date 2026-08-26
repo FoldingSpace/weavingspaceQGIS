@@ -763,6 +763,23 @@ prose reliably marks where behaviour drifted and that is where both of
 2026-08-12's product defects came from; and a save-reload-compare,
 because stored state is where hostile stored properties live.
 
+**THE TEXT-REVIEW QUEUE SHOWS THE MAINTAINER THINGS THEY CANNOT
+JUDGE.** (Maintainer's observation, 2026-08-26: an SQL statement --
+`DELETE FROM layer_styles WHERE f_table_name = '%s'` -- reached the
+queue, and "that string is irrelevant for me to approve".) Recorded
+rather than acted on, because the fix is not obviously an
+improvement: the filter is deliberately over-inclusive, and the day
+it skipped strings opening with `{` it dropped three live
+user-facing sentences unread. So the question is whether a rule
+exists that admits SQL and internal identifiers while admitting
+nothing a person meets -- "contains a space and no SQL keyword" is
+the sort of guess that fails on the first sentence carrying a table
+name. A study, in the shape this file already prescribes for the
+assert-a-shipped-string idea: run the candidate rule over the whole
+corpus of 312 approved pieces, count what it would have hidden, and
+only then decide. What must NOT happen is the queue being narrowed
+to make review pleasant, which is how a gate becomes decoration.
+
 **Badges on the README**, and the "minimalist faux 3d" button styling
 the user mentioned. Both cosmetic, neither designed.
 

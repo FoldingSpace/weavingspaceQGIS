@@ -4502,6 +4502,29 @@ def drop_gpkg_layer(path: str, layer_name: str) -> bool:
     for index in range(source.GetLayerCount()):
       if source.GetLayer(index).GetName() == layer_name:
         source.DeleteLayer(index)
+        # ...AND THE TABLE'S SAVED STYLE GOES WITH IT. DeleteLayer
+        # removes the table and its gpkg_contents rows and leaves the
+        # `layer_styles` rows behind -- QGIS's style table is not
+        # GDAL's to manage -- so a dropped element table's whole
+        # style survived in the file: its QML with the stamped
+        # records (pins, hand-picked colours, the field's name) and
+        # its SLD, readable by anyone who opens the file. Under the
+        # ruling that the file shows the limit of what it contains,
+        # that is unworn work leaking through a door
+        # `_file_safe_state` cannot see, since it is not a record
+        # write at all. Measured by the kept hunt of 2026-08-26
+        # (round nine): the row survives a WAL checkpoint, which is
+        # the state a colleague receives. The name's single quotes
+        # are doubled before interpolation (ExecuteSQL takes no bound
+        # parameters), and the call is best-effort like everything
+        # else here: a file with no layer_styles table answers with
+        # an ignorable error.
+        try:
+          source.ExecuteSQL(
+            "DELETE FROM layer_styles WHERE f_table_name = '%s'"
+            % layer_name.replace("'", "''"))
+        except Exception:
+          pass
         return True
     return False
   except Exception:
