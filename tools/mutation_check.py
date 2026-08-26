@@ -6265,6 +6265,16 @@ MUTATIONS = [
            "template-governed element claimed the elements now match "
            "while the template went on outranking the copied ramp on "
            "the map and in every record"),
+  dict(name="a-group-is-named-for-its-dataset", file=DIALOG,
+       old="""    base = f"{GROUP_BASE_NAME} — {dataset}" if dataset else GROUP_BASE_NAME""",
+       new="""    base = GROUP_BASE_NAME  # mutation: back to a bare counter""",
+       test="test_a_group_is_named_for_the_dataset_it_was_made_from",
+       why="tiling two datasets in a row left a panel of "
+           "'WeavingSpace tiles' and 'WeavingSpace tiles 2', so the "
+           "place a person looks first could not say which map came "
+           "from which data -- while the dialog's own chooser had "
+           "been labelling those same groups with their dataset all "
+           "along"),
   dict(name="a-saved-record-names-its-dataset-by-file", file=DIALOG,
        old="""    same_data = bool(here) and same_source(here, record.get("region"))""",
        new="""    same_data = bool(here) and here == record.get("region")""",

@@ -47391,8 +47391,8 @@ def test_the_output_group_chooser_binds_to_the_dataset():
     # 2026-08-26: chosen, then a layer added and removed, and the
     # dialog was on the newer group with its records repointed.
     wanted_old = next((i for i in range(dlg.group_combo.count())
-                       if dlg.group_combo.itemText(i).split(" — ")[0]
-                       .strip() == first), -1)
+                       if _label_names_group(
+                         dlg.group_combo.itemText(i), first)), -1)
     cell("the older group can still be picked out of the chooser",
          wanted_old >= 0,
          f"{first!r} is not among {labels()} by its own name")
@@ -47453,8 +47453,9 @@ def test_the_output_group_chooser_binds_to_the_dataset():
            f"the dialog holds {dlg._ramp_ranges.get(tid)!r} on the "
            f"group it was just narrowed on")
       other = next((i for i in range(dlg.group_combo.count())
-                    if dlg.group_combo.itemText(i).split(" — ")[0]
-                    .strip() not in (first, NEW_GROUP_LABEL)), -1)
+                    if not _label_names_group(
+                      dlg.group_combo.itemText(i), first)
+                    and dlg.group_combo.itemText(i) != NEW_GROUP_LABEL), -1)
       cell("there is another group of A's to move to",
            other >= 0,
            f"{labels()} offers no second group of Aotearoa's")
@@ -48541,7 +48542,7 @@ def test_a_group_restores_its_own_state_and_no_one_elses():
     """
     combo = dlg.group_combo
     for i in range(combo.count()):
-      if combo.itemText(i).split(" — ")[0].strip() == name:
+      if _label_names_group(combo.itemText(i), name):
         combo.setCurrentIndex(i)
         combo.activated.emit(i)
         _tick(700)
@@ -48730,7 +48731,7 @@ def test_a_class_source_follows_the_record_under_it():
     """Pick a group the way a click does, matching the name exactly."""
     combo = dlg.group_combo
     for i in range(combo.count()):
-      if combo.itemText(i).split(" — ")[0].strip() == name:
+      if _label_names_group(combo.itemText(i), name):
         combo.setCurrentIndex(i)
         combo.activated.emit(i)
         _tick(700)
@@ -48961,7 +48962,7 @@ def test_a_style_switch_is_not_consent_to_lose_a_pin():
     combo = dlg.group_combo
     picked = False
     for i in range(combo.count()):
-      if combo.itemText(i).split(" — ")[0].strip() == group:
+      if _label_names_group(combo.itemText(i), group):
         combo.setCurrentIndex(i)
         combo.activated.emit(i)
         _tick(700)
@@ -62341,8 +62342,8 @@ def test_a_group_choice_waits_for_the_run():
     # rival choice at all and its deed axis could never fire. Found
     # by the per-assertion hunt of round nine (2026-08-26).
     index = next((i for i in range(combo.count())
-                  if combo.itemText(i).split(" — ")[0].strip()
-                  == str(first_group)), -1)
+                  if _label_names_group(combo.itemText(i),
+                                        str(first_group))), -1)
     assert index >= 0, "the first group is not on offer"
     assert index != combo.currentIndex(), \
       "PREMISE: the staged choice is the group already in force, so " \
@@ -63180,6 +63181,31 @@ def test_a_pickless_copy_clears_the_class_source():
   finally:
     dlg.close()
     project.clear()
+
+
+def _label_names_group(text, name) -> bool:
+  """Whether a group-chooser label is offering this group.
+
+  Args:
+    text: one label as the chooser shows it.
+    name: the group's own name, as the layer tree holds it.
+
+  Returns:
+    True when the row is that group's. The label is the NAME, with
+    the dataset appended only where the name does not already carry
+    it, so a row belongs to this group when it is the name exactly or
+    the name followed by the separator.
+
+  WHY NOT `text.split(" — ")[0]`, which is what six call sites here
+  did until 2026-08-26. A group is named for the dataset it was made
+  from now, so the separator sits INSIDE the name and splitting on it
+  answers "WeavingSpace tiles" for every group in the project. The
+  suite's own rule about labels built by concatenation is to match
+  the part rather than the whole; this is that rule with one owner.
+  """
+  text = (text or "").strip()
+  name = (name or "").strip()
+  return bool(name) and (text == name or text.startswith(f"{name} — "))
 
 
 def _drawn_by_value(layer) -> dict:
@@ -64084,6 +64110,105 @@ def test_one_dataset_spelt_two_ways_is_one_dataset():
       dlg.close()
     project.clear()
     shutil.rmtree(folder, ignore_errors=True)
+
+
+
+def test_a_group_is_named_for_the_dataset_it_was_made_from():
+  """The layers panel says which map is which.
+
+  THE MAINTAINER'S RULING OF 2026-08-26, on meeting a panel of
+  "WeavingSpace tiles" and "WeavingSpace tiles 2" after tiling two
+  datasets in a row: the counter told nobody which was which, while
+  the group chooser in the dialog had been labelling those same
+  groups with their dataset since the group became the unit of work.
+  Two places, one fact, and only one of them answered. A new group
+  carries the plugin's name first, so its groups still sort together,
+  and the dataset after it.
+
+  The name remains a LABEL and never an identity -- the lookup asks
+  the layers, which is why renaming stays the user's business -- so
+  what this guards is what a person reads, and it reads it in both
+  places: the panel and the chooser, which must not print the dataset
+  twice now that the name carries it.
+
+  Regression: two datasets tiled in a row left groups called "WeavingSpace tiles" and "WeavingSpace tiles 2", so the layers panel could not say which map came from which data while the dialog's own chooser could. Reported by the maintainer against rc20 (2026-08-26). [mutation]
+  """
+  from weavingspace_qgis.dialog import GROUP_BASE_NAME, WeavingSpaceDialog
+  project = QgsProject.instance()
+  first = make_region_layer(n=4, cell=1000)
+  first.setName("nyc blocks")
+  project.addMapLayer(first)
+  second = make_other_region()
+  second.setName("anthromes")
+  project.addMapLayer(second)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(first)
+    _tick(400)
+    dlg.spacing_spin.setValue(520)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    root = project.layerTreeRoot()
+    made = dlg._group_of_our_layers(root)
+    assert made is not None, "PREMISE: the first run made no group"
+    assert "nyc blocks" in made.name(), \
+      f"the group is called {made.name()!r}, which does not say what " \
+      f"it was made from; the panel is where a person looks first"
+    assert made.name().startswith(GROUP_BASE_NAME), \
+      f"the group is called {made.name()!r}: the plugin's own name " \
+      f"comes first so its groups sort together"
+
+    dlg.layer_combo.setLayer(second)
+    _tick(900)
+    dlg.spacing_spin.setValue(520)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    names = [g.name() for g in project.layerTreeRoot().findGroups()]
+    assert len(names) == 2, \
+      f"the fixture did not leave two maps to tell apart: {names}"
+    assert any("anthromes" in name for name in names), \
+      f"the second dataset's map is called {names!r}, so the two " \
+      f"groups differ by a counter and nothing else"
+    assert len(set(names)) == 2 and not any(
+      name == f"{GROUP_BASE_NAME} 2" for name in names), \
+      f"a group is still named by a bare counter: {names}"
+
+    # ...AND THE CHOOSER DOES NOT SAY IT TWICE, which is the other
+    # half: it appended the dataset to every group's name, and the
+    # name now carries it.
+    combo = getattr(dlg, "group_combo", None)
+    assert combo is not None, "PREMISE: there is no group chooser"
+    labels = [combo.itemText(i) for i in range(combo.count())]
+    doubled = [text for text in labels
+               if text.count("anthromes") > 1 or text.count("nyc blocks") > 1]
+    assert not doubled, \
+      f"the chooser prints the dataset twice now that the name " \
+      f"carries it: {doubled!r}"
+
+    # a SECOND map from one dataset still needs telling apart, and
+    # that is what the counter is for
+    dlg.layer_combo.setLayer(first)
+    _tick(900)
+    dlg.opt_new_group.setChecked(True)
+    try:
+      dlg.spacing_spin.setValue(560)
+      _generate_and_wait(dlg)
+      _tick(300)
+      _settle(dlg, seconds=60)
+    finally:
+      dlg.opt_new_group.setChecked(False)
+    now = [g.name() for g in project.layerTreeRoot().findGroups()]
+    assert len(now) == 3 and len(set(now)) == 3, \
+      f"a second map from one dataset did not get a name of its own: {now}"
+    from_first = [name for name in now if "nyc blocks" in name]
+    assert len(from_first) == 2, \
+      f"the second map from that dataset is not named for it: {now}"
+  finally:
+    dlg.close()
+    project.clear()
 
 
 def main():
@@ -65367,6 +65492,8 @@ def main():
   check("a field's return wears its own style and keeps its picks",
         test_a_fields_return_wears_its_own_style_and_keeps_its_picks)
 
+  check("a group is named for the dataset it was made from",
+        test_a_group_is_named_for_the_dataset_it_was_made_from)
   check("one dataset spelt two ways is one dataset",
         test_one_dataset_spelt_two_ways_is_one_dataset)
 

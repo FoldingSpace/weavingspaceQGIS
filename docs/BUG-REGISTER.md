@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-355 defect(s) with a regression test.
+356 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -301,6 +301,8 @@ there is no separate list to remember.
   guarded by `test_a_graduated_dock_refinement_survives_the_next_restyle`
 - **picking a group in the output chooser while a tiling was in flight repointed the records the landing was about to read, landing the run in a rival group whose saved record named the wrong variable. Found by the mid-run hunt of 2026-08-26; the FILE's record was measured sound, which is what narrowed the fault to this door.**  
   guarded by `test_a_group_choice_waits_for_the_run`
+- **two datasets tiled in a row left groups called "WeavingSpace tiles" and "WeavingSpace tiles 2", so the layers panel could not say which map came from which data while the dialog's own chooser could. Reported by the maintainer against rc20 (2026-08-26).**  
+  guarded by `test_a_group_is_named_for_the_dataset_it_was_made_from`
 - **every key of a group's working state except the ramp window was written only when the incoming record held one, so a ramp, a single colour, an opacity, a class count, a hand-picked class colour, a pinned bound or a categorical colour set on one output group stayed in force on another whose own record said it had none, and the next restyle painted and stamped it there.**  
   guarded by `test_a_group_restores_its_own_state_and_no_one_elses`
 - **opening a project with no plugin group under an open dialog left `_project_is_being_replaced` standing for the rest of the session -- the memory banks stayed inert, the dataset identity never bound, and one dataset's value-keyed hand-picks stayed live under the next, which is ruling 8's leak resurrected. Found by the doors hunt of round nine (2026-08-26).**  
@@ -761,7 +763,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 92
+- the mutation campaign: 93
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
 - reported by a user: 29

@@ -2026,6 +2026,32 @@ Confirmed with the user via an explicit design review:
   the reopened one did, so it was two rules colliding rather than a
   persistence fault.
 
+- **A FOURTH RULING OF 2026-08-26: AN OUTPUT GROUP IS NAMED FOR THE
+  DATASET IT WAS MADE FROM.** `WeavingSpace tiles — nyc blocks`, the
+  plugin's own name first so its groups sort together, the dataset
+  after it, and a counter only where that name is taken. The
+  maintainer met a panel of `WeavingSpace tiles` and `WeavingSpace
+  tiles 2` after tiling two datasets in a row and asked why the
+  layers panel could not say what the dialog's own chooser had been
+  saying since the group became the unit of work.
+  ONE FACT, TWO PLACES, AND ONLY ONE OF THEM ANSWERED. The chooser
+  composed its label as `<group name> — <dataset>`; the panel had the
+  counter. So the name now carries the dataset and the chooser
+  appends it only where the name does not already have it -- a group
+  somebody renamed, or output made before this ruling, for which the
+  chooser is the only place the dataset appears.
+  THE NAME IS STILL A LABEL AND NEVER AN IDENTITY. The lookup asks
+  the layers; renaming stays the user's business and is never undone.
+  And the dataset is taken from THE LAYER THIS RUN TILED where the
+  caller knows it, falling back to the chooser only where it does
+  not, which is the rule the region stamp already follows for the
+  same reason.
+  ITS COST WAS IN THE SUITE, and worth knowing: six call sites
+  recovered a group's name from a chooser label by splitting on the
+  separator, which was right until the separator moved inside the
+  name. They route through one helper now. When you change how a
+  label is composed, grep for whoever DECOMPOSES it.
+
 - **A THIRD RULING OF 2026-08-26: A KEPT SCHEME IS HELD, NOT OWNED.**
   An element whose class-source file cannot be read keeps the colours
   it is drawing, and it keeps them by having them RECORDED -- a

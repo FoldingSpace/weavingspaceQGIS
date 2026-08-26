@@ -439,6 +439,20 @@ dataset) rather than from the chooser, which already holds the new
 one. A run in flight is left to its landing, whose launch snapshot
 must win.
 
+## What an output group is called
+
+`WeavingSpace tiles — <dataset>`, made in `_get_or_make_group` from
+the layer the run tiled, with a counter appended only where that name
+is already taken. The plugin's own name comes first so its groups sort
+together in the panel.
+
+The name is a LABEL. Every lookup asks the layers, so renaming a group
+is the user's business and the plugin follows it rather than undoing
+it; the counter exists for the case where one dataset owns two maps.
+The group chooser shows the name as it stands and appends the dataset
+only where the name does not already carry it, which is a renamed
+group or output made before 2026-08-26.
+
 ## A group's record: which half comes from which moment
 
 The design, the output path and the region describe THE MAP THAT WAS

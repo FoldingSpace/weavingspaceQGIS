@@ -13976,7 +13976,14 @@ class WeavingSpaceDialog(QDialog):
       chosen = -1
       for group, handle, source in self._our_groups(root):
         dataset = self._dataset_label(source)
-        label = group.name() if not dataset \
+        # ...AND NEVER TWICE. Since 2026-08-26 a group is NAMED for
+        # its dataset, so appending the dataset unconditionally read
+        # "WeavingSpace tiles — nyc — nyc". The dataset is still
+        # appended where the name does not already carry it, which is
+        # a group somebody has renamed and output made before this
+        # ruling -- for those the chooser is the only place the
+        # dataset appears at all.
+        label = group.name() if not dataset or dataset in group.name() \
             else f"{group.name()} — {dataset}"
         combo.addItem(label, handle)
         if mine is not None and group.name() == mine.name() \
@@ -15576,7 +15583,7 @@ class WeavingSpaceDialog(QDialog):
         return parent
     return None
 
-  def _get_or_make_group(self, force_new: bool):
+  def _get_or_make_group(self, force_new: bool, tiled=None):
     """Return (layer-tree group, created?) for this run's output.
 
     Args:
@@ -15584,6 +15591,11 @@ class WeavingSpaceDialog(QDialog):
         when the user ticked "Create as new group" or when the output
         destination changed, both of which mean this run must not
         overwrite the last one's result.
+      tiled: the region layer this run was drawn from, used to NAME a
+        group that has to be created. None where the caller has no
+        such layer, and then the chooser answers instead; a name is a
+        label rather than an identity, so an imperfect one costs a
+        reader a moment and nothing else.
 
     Returns:
       A (group, created) pair. `created` is True only when a new group
@@ -15592,8 +15604,9 @@ class WeavingSpaceDialog(QDialog):
       replace, so emptying it here says "there is nothing to replace".
 
     Reuses the group from the previous run unless forced or the user
-    deleted it; a new group gets the first free "WeavingSpace tiles N"
-    name. ``insertGroup(0, ...)`` puts it at the top of the layers
+    deleted it; a new group is named for the dataset it was made from
+    ("WeavingSpace tiles — nyc"), with a counter where that name is
+    taken. ``insertGroup(0, ...)`` puts it at the top of the layers
     panel.
 
     THE LOOKUP ASKS THE LAYERS FIRST, and the name only as a fallback.
@@ -15625,11 +15638,30 @@ class WeavingSpaceDialog(QDialog):
         # the same breath as finding their group.
         self._group_name = group.name()
         return group, False
-    name = GROUP_BASE_NAME
+    # NAMED FOR THE DATASET IT IS MADE FROM (maintainer's ruling,
+    # 2026-08-26, on meeting a panel of "WeavingSpace tiles" and
+    # "WeavingSpace tiles 2" after tiling two datasets). The chooser
+    # has labelled these groups with their dataset since the group
+    # became the unit of work, so the name a person reads in the
+    # dialog and the name they read in the layers panel disagreed for
+    # no reason: the panel had the counter and the chooser had the
+    # answer. The plugin's own name stays FIRST so its groups sort
+    # together, which is what the counter was doing for them.
+    #
+    # ASKED OF THE LAYER THIS RUN TILED where the caller knows it,
+    # falling back to the chooser only when it does not: which dataset
+    # a map came from is a fact about the tiles, and reading it live
+    # is what filed one dataset's tiles under another earlier today.
+    if tiled is None:
+      combo = getattr(self, "layer_combo", None)
+      tiled = combo.currentLayer() if combo is not None else None
+    dataset = (tiled.name() or "").strip() if tiled is not None else ""
+    base = f"{GROUP_BASE_NAME} — {dataset}" if dataset else GROUP_BASE_NAME
+    name = base
     i = 1
     while root.findGroup(name) is not None:
       i += 1
-      name = f"{GROUP_BASE_NAME} {i}"
+      name = f"{base} {i}"
     self._group_name = name
     self._element_layer_ids = {}
     self._no_data_layer_ids = {}
@@ -16182,7 +16214,7 @@ class WeavingSpaceDialog(QDialog):
     # later run that has no claim to it.
     self._adopted_group_unwritten = False
     self._new_group_chosen = False
-    group, created = self._get_or_make_group(force_new)
+    group, created = self._get_or_make_group(force_new, tiled=source_layer)
     group.setName(self._group_name)
 
     old_ids = dict(self._element_layer_ids)
