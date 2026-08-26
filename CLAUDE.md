@@ -1949,6 +1949,41 @@ Confirmed with the user via an explicit design review:
   user-plugin half of this decision, because nothing of theirs is
   destroyed there.
 
+- **A GUARD ADDED TO ONE DOOR BELONGS AT EVERY DOOR INTO THE SAME
+  ROOM.** (2026-08-25, and it is the sharpest thing the group-unit
+  build taught.) A regression showed that taking a group over while a
+  run was IN FLIGHT erased the evidence the landing was about to read,
+  so `self._task is not None` was added to `_bind_group_to_dataset`.
+  Two other methods reach the same work -- `_on_group_chosen` and
+  `_resume_from_gpkg` -- and neither got it, because the fix was made
+  where the failure was REPORTED rather than where the behaviour
+  lives. A hunt found it within the hour, working backwards from harm:
+  picking a group mid-run would repoint the records the landing reads
+  as `old_ids`, and the run would then remove the layers of the group
+  just switched TO.
+  THE HABIT: when a guard goes in, grep for every caller of the thing
+  it protects and ask which of them can be in the same state. This
+  project already says the same about signals ("grep for the other
+  routes into the same handler"), about clear sites ("enumerate what a
+  clear site LEAVES"), and about pairs; this is the same rule wearing
+  a fourth set of clothes, and the fourth time is the one that should
+  make it a reflex.
+
+- **A RECORD ASSEMBLED FROM TWO MOMENTS MUST SAY WHICH MOMENT EACH
+  FIELD CAME FROM.** (Same day.) The working state deliberately takes
+  its DESIGN from the launch snapshot and its ELEMENTS live, and both
+  halves are right for good reasons written at the code. What was not
+  thought through is that `region` travels with the design half -- so
+  a dataset changed mid-run files the NEW dataset's hand-picked
+  colours and pins under the OLD dataset's source, and the gate that
+  exists to stop value-laden records crossing datasets then waves them
+  straight through. Ruling 8's leak arriving through the record built
+  to prevent inference.
+  Ask of any record built from two readings: for each field, WHICH
+  reading is it about? A field that describes the DATA belongs with
+  the data's moment, and one that describes the DESIGN belongs with
+  the design's.
+
 - **THE SIZE GUARD ASKS; ONLY WHAT IS NOT A SIZE IS REFUSED.**
   (Maintainer's ruling, 2026-08-25: "Warning not absolute. Find a
   different approach to sentinel if appropriate.") Above

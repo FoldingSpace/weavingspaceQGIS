@@ -235,7 +235,47 @@ resumable, with the source recovered BY REFERENCE and embedding it an
 explicit opt-in; and element tables trimmed to the symbolised
 variable and named `tiles_<tid>_<variable>`.
 
-THE WORK, in the order the dependencies force:
+**BUILT AND COMMITTED ON 2026-08-25**, so what follows is the record
+and the six numbered steps below are done. Seven commits, `18df97d`
+through `4527dec`: the working-state record on the group's own custom
+property; the chooser and the symmetric binding, with
+`_fresh_group_for_new_data` retired; element tables trimmed to the
+variable each displays and named `tiles_<tid>_<variable>`; the
+GeoPackage made resumable with the source by reference and embedding
+an opt-in; the size guard turned from a refusal into a banded
+question with its sentinels split off; and the upstream library taken
+to 0.0.7.89. Five tests, sixty-odd cells between them, and nineteen
+catalogue entries proved to catch, with three re-anchored, two
+re-aimed and two retired with their reasoning.
+
+AND THE FOUR-AXIS MATRIX the maintainer asked for --
+`test_the_group_unit_rulings_hold_on_every_route` -- crossing the
+QGIS-plugin boundary, the user-plugin boundary, styling and the
+choice of dataset, with a spine, a seeded sample, every cell
+reporting, no route skipped everywhere, and proved red with either of
+two fixes removed.
+
+WHAT IS STILL OWED, and it is the reason this section does not yet
+say "nothing outstanding":
+
+**ELEVEN HUNT CLAIMS, NONE REPRODUCED.** Four hunts aimed at the
+sweep's own fresh work, which is where this project's record says the
+defects are. Two of them decide whether the rest matter: a MAP
+DELETED, because `_on_group_chosen` and `_resume_from_gpkg` lack the
+in-flight guard their twin carries, and VALUES CROSSING DATASETS,
+because `_stamp_working_state` takes `region` from the launch
+snapshot while reading `elements` live. A third was found
+independently by two hunts: embedding the source defeats the very
+gate that would let its pins and hand-picked colours through. The
+full list is in `dev/state-of-play.md` and in the work list; each
+must be reproduced by a route the hunt did not use before it is
+believed, and each confirmed one owes a test and a proved entry.
+
+**AND THE FIVE FIXES OF `4527dec` ARE UNTESTED**, said here rather
+than discovered later: each was verified by reading the code at the
+line a hunt named, and the suite has not run against them.
+
+THE STEPS, all done, kept for the order the dependencies forced:
 
 1. THE WORKING-STATE RECORD and its persistence in the group's custom
    properties. Everything else reads it. Its RESTORE WHITELIST is the
@@ -267,7 +307,12 @@ choice of dataset. Not a case per ruling: a crossing, with the spine
 run every time and the rest sampled under a printed seed, per the
 default in docs/TESTING.md.
 
-**THE SIZE GUARD WARNS RATHER THAN REFUSES.** (Maintainer's ruling,
+**THE SIZE GUARD WARNS RATHER THAN REFUSES. BUILT 2026-08-25**, in
+`72b0276`; what follows is the reasoning, kept because the entry is
+what a reader will find when they ask why a ceiling stopped refusing.
+The sentinels were split off FIRST, as this entry required, and are
+`bridge.UNTILEABLE` and `bridge.UNCOUNTABLE` -- negative, so no
+`est > ceiling` comparison can wave one through. (Maintainer's ruling,
 2026-08-25: "Warning not absolute. Find a different approach to
 sentinel if appropriate.") `MAX_TILES_HARD` refuses a run outright
 above 200,000 estimated tiles, on a comment claiming the run would
@@ -306,7 +351,13 @@ and two judged catalogue entries. NOTHING IS OUTSTANDING HERE; the
 line is kept only until the changelog sentence has been through review,
 and goes at that point.
 
-**A SAVED RESULT CARRIES EVERY COLUMN OF THE SOURCE DATA.**
+**A SAVED RESULT CARRIES EVERY COLUMN OF THE SOURCE DATA. BUILT
+2026-08-25**, in `c41c7c5`: each element table now carries the
+variable that element displays plus `tile_id` and `prototile_id`, and
+is named `tiles_<tid>_<variable>`, sanitised and de-collided. The
+decisions this entry left to the maintainer were taken as the ruling
+described them, and the entry is kept for the measurements underneath
+it. **A SAVED RESULT CARRIES EVERY COLUMN OF THE SOURCE DATA.**
 (Colleague's report, 2026-08-21, on the maintainer's own data: 23
 element layers each holding all 26 source attributes took an 800 KB
 dataset to a 19 MB GeoPackage. Moved here from 0.24.4 by the ruling
@@ -342,8 +393,13 @@ symbolized. So the file a user sends a colleague carries attributes
 the map never displayed. That is not ruling 8's cross-dataset leak,
 and it is the same family of concern.
 
-**READ IN "ONE I MADE EARLIER".** (Same conversation; moved here from
-0.24.4 by the ruling above.) Point the plugin at a saved output
+**READ IN "ONE I MADE EARLIER". BUILT 2026-08-25**, in `6ea58e8`:
+`_resume_from_gpkg` opens a saved map without the project that made
+it, the record travelling as GeoPackage file metadata. The colleague's
+second ask -- that the file carry the whole design so reading it back
+RESUMES the work rather than merely displaying it -- is what was
+built, so the two halves closed together as this entry required.
+(Same conversation; moved here from 0.24.4 by the ruling above.) Point the plugin at a saved output
 GeoPackage -- without the project that made it -- and have it adopt
 the group the way a reopened project is adopted, so a demo can open a
 finished result instead of tiling one live. Depends on the entry
