@@ -13326,9 +13326,22 @@ class WeavingSpaceDialog(QDialog):
     #
     # ASKED OF THE LAYERS, like everything else here: a group is the
     # one we are on when it holds a layer this dialog claims.
-    on_it = {child.layer().id() for child in group.children()
+    # ASKED OF ALL THIS DATASET'S GROUPS, not only the newest one.
+    # Recency is a TIE-BREAK for choosing where nothing is chosen
+    # (ruling 3); it is not a rule that overrules a group the user
+    # picked, and ruling 1's whole gain is that the choice is on
+    # screen and CAN be overruled. Asked of `group` alone, this clause
+    # protected the newest group and nothing else -- so deliberately
+    # choosing an older one lasted until the next churn of project
+    # layers, which a run causes twice. Measured 2026-08-26: the user
+    # chose the older group, a layer was added and removed, and the
+    # dialog was on the newer one with its records repointed.
+    mine = set(self._element_layer_ids.values())
+    on_it = {child.layer().id()
+             for entry in theirs
+             for child in entry[0].children()
              if getattr(child, "layer", lambda: None)() is not None}
-    if on_it & set(self._element_layer_ids.values()):
+    if on_it & mine:
       # AND IT REALLY DOES NOTHING, the arming included. Clearing
       # `_new_group_chosen` here silently revoked "create new": the
       # user asks for a map of its own, the combo re-emits on the
@@ -13652,9 +13665,26 @@ class WeavingSpaceDialog(QDialog):
       if element.get("scheme") != "Unclassed" \
           and element.get("k") is not None:
         self._class_counts[tid] = int(element["k"])
+      # ASSIGNED, NOT MERELY SET, like the two siblings above it. This
+      # wrote the window only when the incoming record held a narrowed
+      # one, and nothing else clears the record -- `_detach_from_the_
+      # group` empties the layer ids and the signatures and not this --
+      # so a window narrowed on one group rode onto a group whose own
+      # record says the ramp runs end to end, and that group's classes
+      # took their colours from a stretch of ramp nobody chose for
+      # them. Measured 2026-08-26 across two groups of one dataset:
+      # the record said (0, 100) and the dialog held (10, 40).
+      #
+      # THE DEFAULT IS AN ABSENCE HERE, which is why this pops rather
+      # than storing (0, 100): `_ramp_ranges` is the record that means
+      # SOMEBODY NARROWED IT, exactly as `_class_counts` means somebody
+      # CHOSE a count, and writing the default into it would make every
+      # restored element look narrowed to every reader downstream.
       window = element.get("range_bounds")
       if window and tuple(window) != (0, 100):
         self._ramp_ranges[tid] = tuple(window)
+      else:
+        self._ramp_ranges.pop(tid, None)
       if element.get("quant_colours") and var:
         self._quant_colours.setdefault(tid, {})[var] = \
           dict(element["quant_colours"])
@@ -13796,13 +13826,70 @@ class WeavingSpaceDialog(QDialog):
       return False
 
     root = project.layerTreeRoot()
+    # ONE FILE IS ONE MAP, so a file already open is TAKEN OVER rather
+    # than opened again. Nothing asked this until 2026-08-26, and
+    # resuming the same GeoPackage twice duly built a second group
+    # over the same tables: two maps of one file, both drawing the
+    # same layers, with the next Generate writing into the file both
+    # of them read. That is the double map adoption exists to
+    # prevent, arriving through a door adoption never sees -- and
+    # under ruling 1 it is worse than it was, because the chooser
+    # then offers two entries that are the same map and nothing
+    # tells them apart.
+    #
+    # ASKED OF THE LAYERS' OWN SOURCES, never of a name: a group is
+    # showing this file when it holds a layer whose provider string
+    # names it. `|layername=` is what OGR appends per table, so the
+    # comparison is on the part before it.
+    already = None
+    for node in root.findGroups():
+      for child in node.children():
+        layer = getattr(child, "layer", lambda: None)()
+        try:
+          source = layer.source() if layer is not None else ""
+        except Exception:
+          continue
+        if source and source.split("|")[0] == path:
+          already = node
+          break
+      if already is not None:
+        break
+    if already is not None:
+      # THE RECORD IS STILL APPLIED. Somebody asking to open a file
+      # they already have open means "put me back on that map", which
+      # is a resume rather than a no-op -- and the design may have
+      # moved since. What is not done again is the LOADING, because
+      # the layers are already there.
+      self._selecting_a_group = True
+      try:
+        self._take_over_group(already)
+        self._apply_working_state(record)
+      finally:
+        self._selecting_a_group = False
+      self.gpkg_widget.blockSignals(True)
+      self.gpkg_widget.setFilePath(path)
+      self.gpkg_widget.blockSignals(False)
+      self._last_path = path
+      self._refresh_group_combo()
+      self._report_quietly(
+        f"{os.path.basename(path)} is already open here, so its map "
+        f"is the one being worked on.")
+      return True
     name = GROUP_BASE_NAME
     index = 1
     while root.findGroup(name) is not None:
       index += 1
       name = f"{GROUP_BASE_NAME} {index}"
     group = root.insertGroup(0, name)
-    loaded = 0
+    # TWO COUNTS, because they answer different questions. `opened` is
+    # whether anything came back at all, which decides whether this
+    # group has any business existing; `loaded` is how many ELEMENTS
+    # came back, which is what the user is told. Sharing one number
+    # between them is what made the message overstate the map, and
+    # splitting them carelessly would leave a file of nothing but
+    # paired layers with its group removed and its layers stranded
+    # in the project, registered and shown nowhere.
+    loaded = opened = 0
     for table in sorted(wanted):
       found = QgsVectorLayer(f"{path}|layername={table}", table, "ogr")
       if not found.isValid():
@@ -13812,8 +13899,16 @@ class WeavingSpaceDialog(QDialog):
       found.loadDefaultStyle()
       project.addMapLayer(found, False)
       group.addLayer(found)
-      loaded += 1
-    if not loaded:
+      # COUNTED AS AN ELEMENT ONLY IF IT IS ONE. A paired no-data
+      # layer's table is `<table>_no_data`, which starts with `tiles_`
+      # like every other, so counting the tables told somebody that a
+      # four-element design had come back as six element layers. The
+      # twins ARE loaded and adopted, correctly -- they are half of
+      # how absence is drawn -- and they are simply not elements.
+      opened += 1
+      if not table.endswith("_no_data"):
+        loaded += 1
+    if not opened:
       root.removeChildNode(group)
       self._report_quietly(
         "None of that GeoPackage's layers would open, so the map "
@@ -15421,7 +15516,25 @@ class WeavingSpaceDialog(QDialog):
             resumable[key] = launch_state[key]
       resumable["region_embedded"] = self._embed_source_into(
         path, source_layer)
-      bridge.write_working_state(path, resumable)
+      # AND THE ANSWER IS READ. `write_working_state`'s own Returns
+      # block says a failure "is reported rather than raised", and
+      # nothing read the bool it returns -- a rule asserting its own
+      # enforcement, which this project has paid for before. The map,
+      # its styles and its tables are all in the file either way; what
+      # is lost is the RESUME, and losing it in silence means the
+      # colleague who receives the file meets "that GeoPackage does
+      # not carry a saved map" with nothing having been said to
+      # anybody at the time it happened.
+      #
+      # QUIETLY, NOT MODALLY. This is a generation path, where an
+      # unconditional modal is forbidden, and the sentence has to be
+      # something a person can act on: the map is fine, the file is
+      # written, and it will open rather than resume.
+      if not bridge.write_working_state(path, resumable):
+        self._report_quietly(
+          f"The map was saved to {os.path.basename(path)}, but its "
+          f"design could not be written into the file, so opening it "
+          f"elsewhere will show the map without carrying on with it.")
     # ...and the chooser learns about a group this run may have just
     # made. Rebuilt rather than appended to, so a group the run
     # REPLACED, or one the user deleted while it ran, leaves the list

@@ -868,6 +868,73 @@ MUTATIONS = [
            "all that stands between the run and the kept file. This "
            "entry SURVIVED the day the chooser landed, which is how "
            "that gap was found"),
+  dict(name="a-file-that-will-not-resume-says-so", file=DIALOG,
+       old="""      if not bridge.write_working_state(path, resumable):""",
+       new="""      bridge.write_working_state(path, resumable)
+      if False:  # mutation: drop the answer on the floor""",
+       test="test_a_saved_map_can_be_opened_and_carried_on",
+       why="`write_working_state`'s own Returns block promises that a "
+           "failure 'is reported rather than raised', and nothing read "
+           "the bool it hands back -- a rule asserting its own "
+           "enforcement, which this project has paid for before. The "
+           "map, its styles and its tables reach the file either way; "
+           "what is lost is the RESUME, and losing it in silence means "
+           "the colleague who receives the file meets 'that GeoPackage "
+           "does not carry a saved map' with nothing having been said "
+           "to anybody at the time"),
+  dict(name="a-ramp-window-belongs-to-its-own-group", file=DIALOG,
+       old="""      else:
+        self._ramp_ranges.pop(tid, None)""",
+       new="""      # mutation: leave the last group's window in place""",
+       test="test_the_output_group_chooser_binds_to_the_dataset",
+       why="`_ramp_ranges` means SOMEBODY NARROWED THE RAMP, and it "
+           "was written only when the incoming record held a narrowed "
+           "window where the two siblings on the neighbouring lines "
+           "are assigned either way. Nothing else clears it, so a "
+           "window narrowed on one group rode onto a group whose own "
+           "record says the ramp runs end to end, and that group's "
+           "classes took their colours from a stretch of ramp nobody "
+           "chose for them"),
+  dict(name="an-explicit-group-choice-outlives-ordinary-churn",
+       file=DIALOG,
+       old="""    on_it = {child.layer().id()
+             for entry in theirs
+             for child in entry[0].children()
+             if getattr(child, "layer", lambda: None)() is not None}""",
+       new="""    on_it = {child.layer().id() for child in group.children()
+             if getattr(child, "layer", lambda: None)() is not None}""",
+       test="test_the_output_group_chooser_binds_to_the_dataset",
+       why="recency is a tie-break for choosing where nothing is "
+           "chosen, not a rule that takes a chosen group away again. "
+           "Asked of the NEWEST group alone, the already-working-on-it "
+           "clause protected that group and no other, so deliberately "
+           "picking an older one lasted until the next churn of "
+           "project layers -- which a run causes twice, so it would "
+           "rarely last at all. Ruling 1's whole gain is that the rule "
+           "is on screen and CAN be overruled"),
+  dict(name="one-file-is-one-map", file=DIALOG,
+       old="""    if already is not None:
+      # THE RECORD IS STILL APPLIED.""",
+       new="""    if False:  # mutation: open the same file again anyway
+      # THE RECORD IS STILL APPLIED.""",
+       test="test_a_saved_map_can_be_opened_and_carried_on",
+       why="nothing asked whether the file being resumed was already "
+           "open, so resuming it twice built a SECOND group over the "
+           "same tables -- two entries in the chooser that are the "
+           "same map with nothing to tell them apart, and the next "
+           "Generate writing into the file both of them draw from. "
+           "The double map adoption exists to prevent, arriving "
+           "through a door adoption never sees"),
+  dict(name="a-paired-layer-is-not-an-element", file=DIALOG,
+       old="""      if not table.endswith("_no_data"):
+        loaded += 1""",
+       new="""      loaded += 1  # mutation: count the twins as elements too""",
+       test="test_a_saved_map_can_be_opened_and_carried_on",
+       why="a paired no-data layer's table is `<table>_no_data`, which "
+           "starts with `tiles_` like every other, so a four-element "
+           "design told the user six element layers had come back. "
+           "The twins are loaded and adopted correctly -- they are "
+           "half of how absence is drawn -- and they are not elements"),
   dict(name="the-region-stamp-names-the-layer-that-was-tiled",
        file=DIALOG,
        old="""    region_now = (source_layer
@@ -5533,14 +5600,20 @@ MUTATIONS = [
   # file, the version refusal, the source found by reference, and
   # embedding staying an opt-in.
   dict(name="a-saved-map-carries-its-state", file=DIALOG,
-       old="""      bridge.write_working_state(path, resumable)""",
-       new="""      pass  # mutation: the file keeps no record of its design""",
+       old="""      if not bridge.write_working_state(path, resumable):
+        self._report_quietly(""",
+       new="""      if False:  # mutation: the file keeps no record of its design
+        self._report_quietly(""",
        test="test_a_saved_map_can_be_opened_and_carried_on",
        why="without it a finished map can be looked at and not carried "
            "on with: the file holds tables and styles and nothing "
            "about the design that produced them, so a demo re-tiles "
            "from scratch and a colleague receives a result they cannot "
-           "continue"),
+           "continue. RE-ANCHORED AND RE-JUDGED on 2026-08-26, when "
+           "the call gained a caller that reads its answer: the "
+           "mutation still has to remove the WRITE and not merely the "
+           "report, or it would prove its sibling entry rather than "
+           "this one"),
   dict(name="a-forward-incompatible-file-is-refused", file=DIALOG,
        old="""    if not isinstance(version, int) or version > WORKING_STATE_VERSION:
       # FORWARD-INCOMPATIBLE, REFUSED WHOLE.""",

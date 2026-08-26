@@ -46965,7 +46965,94 @@ def test_the_output_group_chooser_binds_to_the_dataset():
            f"the dialog holds {dlg._group_name!r}, so it lost the "
            f"group the moment somebody renamed it")
 
-    assert checked == 15, f"only {checked} cells were compared"
+    # ---- AND A CHOICE CAN BE OVERRULED, WHICH IS RULING 1'S POINT
+    # Recency is a tie-break for choosing where nothing is chosen, not
+    # a rule that takes a chosen group away again. The clause that
+    # keeps the binding from undoing the user's work used to ask only
+    # about the NEWEST group, so an explicit choice of an older one
+    # lasted until the next churn of project layers -- which a run
+    # causes twice, so it would rarely last at all. Measured
+    # 2026-08-26: chosen, then a layer added and removed, and the
+    # dialog was on the newer group with its records repointed.
+    wanted_old = next((i for i in range(dlg.group_combo.count())
+                       if dlg.group_combo.itemText(i).split(" — ")[0]
+                       .strip() == first), -1)
+    cell("the older group can still be picked out of the chooser",
+         wanted_old >= 0,
+         f"{first!r} is not among {labels()} by its own name")
+    if wanted_old >= 0:
+      dlg.group_combo.setCurrentIndex(wanted_old)
+      dlg.group_combo.activated.emit(wanted_old)
+      _tick(900)
+      cell("choosing the older group takes the dialog to it",
+           dlg._group_name == first,
+           f"after choosing {first!r} the dialog holds "
+           f"{dlg._group_name!r}")
+      # THE RE-EMISSION ITSELF, which is the mechanism the rule is
+      # about: `QgsMapLayerComboBox` re-emits `layerChanged` whenever
+      # the project's layers churn, and a run causes that twice.
+      # Emitting it is driving the signal a real churn sends, exactly
+      # as the cells above emit `activated` for a click.
+      #
+      # TWO DRAFTS COULD NOT REACH THE CASE, and both are recorded
+      # because each reads like a passing cell. Adding and removing a
+      # spare polygon layer disturbed nothing with two datasets
+      # already in the project, so no re-emission happened at all. And
+      # a RUN cannot show it either: the landing makes the chosen
+      # group the newest one in the tree, so the newest-group-only
+      # reading of the clause answers correctly by accident. The
+      # catalogue said so both times.
+      dlg.layer_combo.layerChanged.emit(A)
+      _tick(900)
+      cell("a re-emission does not take the chosen group away",
+           dlg._group_name == first,
+           f"an ordinary re-emission moved the dialog from {first!r} "
+           f"to {dlg._group_name!r}, so the chooser names a map the "
+           f"user cannot keep")
+
+      # AND THE SAME AGAIN THROUGH A RUN, which is the journey rather
+      # than the mechanism, and which also stages the window for the
+      # leg below -- one run answering two questions.
+      tid = dlg._assignments()[0]["id"]
+      dlg._ramp_ranges[tid] = (10, 40)
+      dlg.spacing_spin.setValue(505)
+      _generate_and_wait(dlg)
+      _tick(600)
+      cell("and a run does not take the chosen group away again",
+           dlg._group_name == first,
+           f"generating moved the dialog from {first!r} to "
+           f"{dlg._group_name!r}, so the chooser names a map the user "
+           f"cannot keep")
+
+      # ---- AND A GROUP'S RAMP WINDOW BELONGS TO IT
+      # `_ramp_ranges` is the record that means SOMEBODY NARROWED THE
+      # RAMP, and it was written only when the incoming record held a
+      # narrowed one -- where the reverse switch and the class source
+      # beside it are assigned either way. Nothing else clears it, so
+      # a window narrowed on one group rode onto a group whose own
+      # record says the ramp runs end to end, and that group's classes
+      # took their colours from a stretch nobody chose for them.
+      cell("a narrowed window reaches the group it was made on",
+           dlg._ramp_ranges.get(tid) == (10, 40),
+           f"the dialog holds {dlg._ramp_ranges.get(tid)!r} on the "
+           f"group it was just narrowed on")
+      other = next((i for i in range(dlg.group_combo.count())
+                    if dlg.group_combo.itemText(i).split(" — ")[0]
+                    .strip() not in (first, NEW_GROUP_LABEL)), -1)
+      cell("there is another group of A's to move to",
+           other >= 0,
+           f"{labels()} offers no second group of Aotearoa's")
+      if other >= 0:
+        dlg.group_combo.setCurrentIndex(other)
+        dlg.group_combo.activated.emit(other)
+        _tick(900)
+        cell("and it does not ride onto a group that never had one",
+             dlg._ramp_ranges.get(tid) != (10, 40),
+             f"the dialog still holds {dlg._ramp_ranges.get(tid)!r} on "
+             f"{dlg._group_name!r}, whose own record says the ramp "
+             f"runs end to end")
+
+    assert checked == 22, f"only {checked} cells were compared"
     assert not problems, \
       "the output-group chooser did not keep its promises:\n  " + \
       "\n  ".join(problems)
@@ -47226,9 +47313,28 @@ def test_a_saved_map_can_be_opened_and_carried_on():
     if not condition:
       problems.append(f"{what}: {detail}")
 
-  def write_region(columns):
-    """Put a region layer on disk holding exactly these columns."""
+  def write_region(columns, missing=None):
+    """Put a region layer on disk holding exactly these columns.
+
+    Args:
+      columns: the attribute names to carry.
+      missing: a column to blank in ONE feature, or None. Staged
+        rather than hoped for: a map only grows a paired no-data layer
+        where something is absent, and this project measured fifteen
+        configurations on clean data without producing a single twin.
+        A leg that needs a twin and has none cannot tell a right
+        answer from a wrong one.
+
+    Returns:
+      The written layer, valid, asserted by the caller.
+    """
     memory = make_region_layer(n=4, cell=1000)
+    if missing:
+      memory.startEditing()
+      first = next(memory.getFeatures())
+      memory.changeAttributeValue(
+        first.id(), memory.fields().indexOf(missing), None)
+      memory.commitChanges()
     frame = bridge.layer_to_gdf(memory, columns)
     written = bridge.write_gpkg_layer(
       bridge.gdf_to_layer(frame, "region"), region_path, "region",
@@ -47288,6 +47394,38 @@ def test_a_saved_map_can_be_opened_and_carried_on():
          and (stored or {}).get("design", {}).get("family")
          == wanted_family,
          f"{(stored or {}).get('design')}")
+    # ---- LEG ONE AND A HALF: and a write that FAILS says so
+    # `write_working_state`'s own Returns block promises that a
+    # failure "is reported rather than raised", and nothing read the
+    # bool it hands back -- a rule asserting its own enforcement,
+    # which this project has paid for before. The map, its styles and
+    # its tables all reach the file either way; what is lost is the
+    # RESUME, and losing it in silence means the colleague who
+    # receives the file meets "that GeoPackage does not carry a saved
+    # map" with nothing having been said to anybody at the time.
+    #
+    # STAGED BY REPLACING THE DEPENDENCY, never the code under test:
+    # the dialog is what is being measured, and this is the same move
+    # the suite already makes on `bridge.write_gpkg_layer`. Restored
+    # in a `finally`, and the restoration is asserted, because a
+    # replacement left in place would quietly disable the resume for
+    # every leg below.
+    real_write = bridge.write_working_state
+    try:
+      bridge.write_working_state = lambda *_a, **_k: False
+      BAR_MESSAGES.clear()
+      dlg.spacing_spin.setValue(505)
+      _generate_and_wait(dlg)
+      _tick(400)
+      cell("a state write that fails is not silent",
+           "carrying on with it" in said(dlg),
+           f"the run said {said(dlg)!r}, so a file that will open but "
+           f"not resume was written with nothing said about it")
+    finally:
+      bridge.write_working_state = real_write
+    assert bridge.write_working_state is real_write, \
+      "the stub outlived its leg, so every leg below is measuring it"
+
     dlg.close()
     project.clear()
     _tick(300)
@@ -47367,7 +47505,9 @@ def test_a_saved_map_can_be_opened_and_carried_on():
     _tick(300)
 
     # ---- LEG FIVE: the opt-in, and a source that cannot be reached
-    region = write_region(["v1", "v2", "v3"])
+    # ITS REGION CARRIES A GAP, so the map grows a paired no-data
+    # layer and leg six's count cell has something to miscount.
+    region = write_region(["v1", "v2", "v3"], missing="v1")
     project.addMapLayer(region)
     dlg = WeavingSpaceDialog(iface=_Iface())
     dlg.live_check.setChecked(False)
@@ -47409,10 +47549,75 @@ def test_a_saved_map_can_be_opened_and_carried_on():
          f"the region chooser holds "
          f"{None if recovered is None else recovered.source()!r}")
 
+    # ---- LEG SIX: the same file opened twice, and what it says came
+    # back. Both were reported by a hunt on 2026-08-25 and both were
+    # reproduced by driving on the 26th.
+    #
+    # ONE FILE IS ONE MAP. Nothing asked whether this file was already
+    # open, so resuming it again built a SECOND group over the same
+    # tables -- two entries in the chooser that are the same map, with
+    # nothing to tell them apart, and the next Generate writing into
+    # the file both of them draw from.
+    root = project.layerTreeRoot()
+    before = len(root.findGroups())
+    BAR_MESSAGES.clear()
+    cell("resuming a file that is already open is not a refusal",
+         dlg._resume_from_gpkg(shared_path),
+         f"the plugin said {said(dlg)!r}")
+    _tick(700)
+    cell("and it does not make a second group over the same tables",
+         len(root.findGroups()) == before,
+         f"{len(root.findGroups()) - before} extra group(s) appeared, "
+         f"so one file is now two maps")
+
+    # AND THE COUNT IS OF ELEMENTS. A paired no-data layer's table is
+    # `<table>_no_data`, which starts with `tiles_` like every other,
+    # so a four-element design announced six element layers. The twins
+    # are loaded and adopted -- they are half of how absence is drawn
+    # -- and they are not elements.
+    ours = next((g for g in root.findGroups()
+                 if any(getattr(c, "layer", lambda: None)() is not None
+                        and c.layer().customProperty("weavingspace_output")
+                        for c in g.children())), None)
+    kids = [c.layer() for c in (ours.children() if ours else [])
+            if getattr(c, "layer", lambda: None)() is not None]
+    paired = [lyr for lyr in kids
+              if lyr.customProperty("weavingspace_no_data")]
+    BAR_MESSAGES.clear()
+    project.clear()
+    _tick(300)
+    dlg.close()
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    _tick(300)
+    BAR_MESSAGES.clear()
+    dlg._resume_from_gpkg(shared_path)
+    _tick(700)
+    spoken = "".join(ch for ch in said(dlg).split("element layers")[0]
+                     if ch.isdigit())
+    reopened = next((g for g in project.layerTreeRoot().findGroups()
+                     if any(getattr(c, "layer", lambda: None)() is not None
+                            and c.layer().customProperty(
+                              "weavingspace_output")
+                            for c in g.children())), None)
+    came_back = [c.layer() for c in (reopened.children() if reopened else [])
+                 if getattr(c, "layer", lambda: None)() is not None]
+    twins = [lyr for lyr in came_back
+             if lyr.customProperty("weavingspace_no_data")]
+    cell("the fixture really carries paired layers to miscount",
+         bool(paired) or bool(twins),
+         "this map has no no-data twin, so the cell below could not "
+         "tell a right count from a wrong one")
+    cell("the resume message counts elements, not paired layers",
+         spoken and int(spoken) == len(came_back) - len(twins),
+         f"it said {spoken!r} where {len(came_back)} layers came back "
+         f"and {len(twins)} of them are paired no-data twins")
+
     # four about the record, five about resuming it, three about the
     # refusal, three about a column that has gone, two about the
-    # opt-in and the source that could not be reached
-    assert checked == 18, f"only {checked} cells were compared"
+    # opt-in and the source that could not be reached, four about
+    # opening one file twice and what it says came back
+    assert checked == 23, f"only {checked} cells were compared"
     assert not problems, \
       "a saved map could not be carried on with:\n  " + \
       "\n  ".join(problems)
