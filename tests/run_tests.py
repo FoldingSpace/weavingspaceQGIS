@@ -59499,9 +59499,26 @@ def test_a_project_whose_output_geopackage_has_moved():
         if out is None:
           trouble.append(f"{tile_id}: the dialog claims a layer that is gone")
         elif not out.isValid():
-          trouble.append(f"{tile_id}: came back invalid again")
+          trouble.append(f"{tile_id}: came back invalid again, "
+                         f"reading {out.source()!r}")
         elif not _reads_from(out, out_path):
           trouble.append(f"{tile_id}: reads from {out.source()!r}")
+      # SAY WHAT WAS FOUND, not which assertion was reached: this leg
+      # has failed five Windows CI rounds in a row saying only "came
+      # back invalid again", and a round there costs fifty minutes, so
+      # the message carries the state of the FILE at the moment of
+      # judgement -- existence and size at the path, the sqlite side
+      # files, and what the plugin said -- which is what separates a
+      # write that never happened from a write a stale handle spoiled
+      # from a zero-byte ghost the landing mistook for a map.
+      if trouble:
+        for suffix in ("", "-wal", "-shm"):
+          side = out_path + suffix
+          trouble.append(
+            f"[found] {os.path.basename(side)}: " +
+            (f"{os.path.getsize(side)} bytes" if os.path.exists(side)
+             else "absent"))
+        trouble.append(f"[found] the plugin said {BAR_MESSAGES!r}")
       assert not trouble, \
         "after re-pointing the output at the same path the map is still " \
         "not there:\n  " + "\n  ".join(trouble)
@@ -61569,7 +61586,20 @@ def test_the_map_survives_its_file_being_deleted():
   try:
     dlg, disk, out = _a_disk_session(folder)
     assert dlg._element_layer_ids, "the fixture made no map"
-    os.remove(out)
+    # The defect's own premise is a file deleted WHILE the project's
+    # layers hold it. Windows refuses that deletion -- for this test
+    # and for a user's Finder-equivalent alike -- so the state under
+    # test cannot exist there, exactly as its three deleted-file
+    # siblings record. Announced rather than silently green.
+    try:
+      os.remove(out)
+    except OSError as exc:
+      _skip_loudly(
+        "test_the_map_survives_its_file_being_deleted",
+        f"this platform will not delete a GeoPackage another handle "
+        f"holds, so the state under test cannot exist here: {exc}")
+      dlg.close()
+      return
     assert not os.path.exists(out), "the fixture could not delete the file"
     dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.3)
     _tick(300)

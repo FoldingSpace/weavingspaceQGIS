@@ -1,0 +1,94 @@
+# A THROWAWAY. Delete this file once the Windows red on
+# `a project whose output geopackage has moved` is understood.
+#
+# The question it exists for: that test has failed FIVE Windows CI
+# rounds for five -- every element layer "came back invalid again"
+# after the output is re-pointed at its own path -- while the same
+# journey is green on macOS and all three Linux legs, and the
+# zero-byte-file fix of 2026-08-26 (row 20 of the day's ledger),
+# which shares its moved-away journey, did not kill it. Reaching the
+# test through the `windows` job costs about fifty minutes, because
+# that job installs QGIS and then runs the whole suite; this installs
+# the same QGIS the same way and runs ONLY the failing test, whose
+# failure message now reports what it FOUND (the file's existence and
+# size at the path, the sqlite side files, what the plugin said)
+# rather than which assertion it reached.
+#
+# Triggered by pushes that touch THIS FILE ONLY, so it never lengthens
+# an ordinary push and never competes with the rounds that gate a
+# candidate; re-aiming it at another test is an edit to the run line
+# below, which is itself the trigger. `workflow_dispatch` is listed
+# for the day this reaches the default branch, and does not work
+# before then: GitHub resolves a dispatchable workflow against the
+# DEFAULT branch, so one that lives only on a feature branch answers
+# 404 -- the lesson winprobe.yml already carries.
+name: windows single-test probe (temporary)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/wintest.yml
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    # A hang-catcher, not a budget: the install is the long half and
+    # the one test takes minutes. Sized well above both.
+    timeout-minutes: 90
+    env:
+      QT_QPA_PLATFORM: offscreen
+      PYTHONUNBUFFERED: "1"
+      # The same declared slowness as the windows suite job, for the
+      # same reason: the suite's timing allowances are CONTENTION
+      # times this, and a probe that fails on a ceiling sized for the
+      # Mac would report the runner rather than the plugin.
+      WEAVINGSPACE_TEST_SLOWNESS: "4"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install QGIS the way a Windows user does
+        # The same Chocolatey route as ci.yml's windows job, so the
+        # probe measures the same QGIS the failing job drives.
+        shell: pwsh
+        run: choco install qgis -y --no-progress
+
+      - name: Find the Python shim
+        # Copied from ci.yml's windows job: the folder carries the
+        # version in its name, so both are globbed rather than
+        # written down.
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $bin = Get-Item "C:\Program Files\QGIS *\bin" `
+            -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $bin) {
+            Get-ChildItem "C:\Program Files" | Select-Object -ExpandProperty Name
+            throw "no 'C:\Program Files\QGIS *\bin' after the install"
+          }
+          $shim = Get-ChildItem $bin.FullName -Filter "python-qgis*.bat" |
+            Select-Object -First 1
+          if (-not $shim) {
+            throw "no python-qgis*.bat under $($bin.FullName)"
+          }
+          "QGIS_SHIM=$($shim.FullName)" |
+            Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "using $($shim.FullName)"
+
+      - name: Which QGIS is this
+        # Printed so a reading months from now says which QGIS and
+        # which Python produced it; the 4.x floor is asserted by the
+        # gating job and merely reported here.
+        shell: cmd
+        run: call "%QGIS_SHIM%" -c "import qgis.core, sys; print('QGIS', qgis.core.Qgis.QGIS_VERSION); print(sys.version)"
+
+      - name: Provision the scientific stack, through the plugin's own code
+        # The test drives a full Generate, so it needs geopandas; the
+        # same tools/ci_provision.py route as every other leg, outside
+        # build.shipped_files(), consent untouched.
+        shell: cmd
+        run: call "%QGIS_SHIM%" -u tools/ci_provision.py
+
+      - name: The one failing test, and nothing else
+        shell: cmd
+        run: call "%QGIS_SHIM%" -u tools/run_some.py test_a_project_whose_output_geopackage_has_moved

@@ -205,15 +205,30 @@ there, which is what makes the anchor match exactly once -- and proves
 `caught`; and the whole batch (rows 37-38, tests, entries, documents)
 is committed and pushed as `118804e`.
 
-**THE WINDOWS RED IS JUDGED, 2026-08-26 (night): IT IS REAL, THREE FOR
-THREE.** `a project whose output geopackage has moved` failed on
-`ba255e7`, on `d9fed9f` and on `fa6c831`, each time alone (576 and 579
-passed, 1 failed) and each time with the identical message -- all four
-element layers "came back invalid again" after the output was
-re-pointed at the same path. The test the rule prescribed was "twice
-is real, once is a flake"; three settles it, and it is recorded here
-rather than in a log because a red nobody judges is how a gate stops
-being read.
+**THE WINDOWS RED IS JUDGED, 2026-08-26 (night): IT IS REAL, AND NOW
+FIVE FOR FIVE.** `a project whose output geopackage has moved` failed
+on `ba255e7`, `d9fed9f`, `fa6c831` -- each time alone, identical
+message, all four element layers "came back invalid again" after the
+output was re-pointed at the same path -- and then on `b913da8` and on
+`cd07d89`. The last of those is the verdict the zero-byte-file fix
+(row 20) was waiting on, and the answer is NO: the fix that cured the
+macOS twin did not kill the Windows red, so the two share a journey
+and not a mechanism, or Windows adds one.
+
+WHAT cd07d89'S ROUND SAID BESIDE IT: 594 passed, 2 failed, both
+Windows-only. The second red was row 20's own NEW test failing on
+`WinError 32` at its `os.remove` -- Windows will not delete a
+GeoPackage another handle holds, for the test and for a user alike,
+so the state under test cannot exist there and the test now announces
+itself with `_skip_loudly` like its three deleted-file siblings.
+
+WHAT IS ARMED FOR THE DIAGNOSIS, rather than another bare red: the
+failing leg's message now reports what it FOUND (the file's existence
+and size at the path, the sqlite side files, what the plugin said),
+and `.github/workflows/wintest.yml` -- a throwaway on the winprobe
+precedent -- installs the same Chocolatey QGIS and runs ONLY this
+test, triggered by pushes touching itself, so a diagnosis round costs
+the install rather than the install plus four hundred tests.
 
 WHAT IT IS NOT. It is not one of the three tests the morning of the
 26th fixed, and it is not simply the Windows file-handle limit
