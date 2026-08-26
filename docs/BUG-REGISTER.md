@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-354 defect(s) with a regression test.
+355 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -377,6 +377,8 @@ there is no separate list to remember.
   guarded by `test_installed_palettes_span_their_declared_colours`
 - **keeping a previous result protected its group and not its GeoPackage, so a run wrote over the file the kept group draws from.**  
   guarded by `test_keeping_a_result_keeps_its_file_however_it_was_kept`
+- **on Windows a reopened project whose output GeoPackage had moved could not be rebuilt -- re-pointing the output at its own path and pressing Generate produced no file, no layers and no message, because the region stamps and the region source were compared as strings and a project save had respelt one of them. Six CI rounds, always alone. Found by the wintest probe of 2026-08-26 once every exit from _generate was made to name itself.**  
+  guarded by `test_one_dataset_spelt_two_ways_is_one_dataset`
 - **session memory was keyed by bare column names, so a scheme, its value strings and its pinned numbers made on one dataset could reactivate on any later dataset sharing a column name.**  
   guarded by `test_one_datasets_memory_never_steers_another`
 - **an ordinary session -- live update draws, then the user chooses a GeoPackage and presses Generate -- left two output groups, the older holding four memory layers with a stale copy of the same map, offered in the group chooser for good. Found 2026-08-26 by the consistency sweep's baseline.**  
@@ -759,8 +761,8 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
+- the mutation campaign: 92
 - a bug hunt pointed in a named direction: 91
-- the mutation campaign: 91
 - not written down at the time: 88
 - reported by a user: 29
 - reading the code: 15

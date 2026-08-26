@@ -2001,6 +2001,85 @@ Confirmed with the user via an explicit design review:
   switch. Ends the asymmetry where two doors into one loss differed
   only in which of them said so.
 
+- **TWO MORE RULINGS OF 2026-08-26, from the bulletproofing round.**
+  Both settle a case where two settled rules gave one act two answers.
+  THE RETURN LEG RESTORES THE CHOSEN VARIABLE. A-B-A without a
+  Generate used to keep the re-pointed column wherever the datasets
+  shared a name -- keep-by-name, the composition of rulings 6 and 7 --
+  while the same journey WITH a landed group gave the person's choice
+  back through the group record. Two rules, two answers, decided by
+  whether a run happened to land. The shelf's remembered field wins
+  the return now: the shelf entry IS the earlier choice, it is popped
+  on restore, and a row whose current column was itself chosen has no
+  shelf entry for another field to beat.
+  THE STYLE FOLLOWS THE FIELD, NOT THE ELEMENT. A touched mode rode
+  the element across a variable change, so a row returning from
+  Categorized landcover to v1 arrived wearing Categorized -- and the
+  re-click the user was then forced into is a genuine reclassify,
+  which retires the positional picks the kept-silently ruling of
+  2026-08-20 preserves. The mode banks per element AND field
+  (`_mode_by_field`), exactly as ruling 6 keys the scheme limbs, so a
+  field's return wears its own style and no forced re-click happens.
+  A person's own mode click still retires picks, as 2026-08-09 says.
+  MEASURED PARITY FIRST, which is why this is a ruling rather than a
+  defect report: the in-session return destroyed the picks exactly as
+  the reopened one did, so it was two rules colliding rather than a
+  persistence fault.
+
+- **A STRING THAT CARRIES A PATH INSIDE IT IS A PATH.** (2026-08-26,
+  the Windows red of six CI rounds.) `same_destination` exists
+  because one file has two spellings -- Windows short names, case
+  folding, separators -- and it was applied faithfully to output
+  PATHS while seven sites went on comparing LAYER SOURCES with `==`.
+  A source only looks like an opaque token; it is a path plus
+  `|layername=`, and a project save respells the path half. So a
+  reopened project's own output group read as ANOTHER dataset's, and
+  the guard protecting a kept result refused the ordinary recovery
+  run -- through a MODAL, so the message bar stayed empty and the
+  user met a Generate that wrote nothing and said nothing.
+  `same_source` is the one owner now: file half through
+  `same_destination`, tail case-folded.
+  ASK OF ANY IDENTIFIER WHETHER A FILESYSTEM EVER TOUCHED IT. Where
+  it did, the string that comes back is not the string that went
+  out, and `==` is a bug waiting for the platform that shows it.
+
+- **ATTRIBUTION BEATS DELTA, AND THREE NARROW GUARDS ARE THE SIGNAL
+  TO STOP PATCHING ROUTES.** (2026-08-26, ledger row 48, and it is
+  the sharpest thing the bulletproofing round taught.) The
+  categorized adoption walk asked what CHANGED -- adopt any colour
+  differing from what the plugin would seed NOW -- and a landing that
+  keeps a renderer over an unreadable class source makes that
+  question lie: `expected` falls back to automatic colours while the
+  map honestly wears the template, so the template's own colours were
+  adopted as a person's hand-picks and outranked the template
+  forever. THREE successive fixes each closed one route and left
+  another: a skip in the landing's re-examination, a skip in the
+  deferred-adoption replay, then a colour-precise marker -- and the
+  reworked test caught a fresh route past every one. What ended it
+  was asking the question the state can answer at ANY moment:
+  `_painted_categories` records what the plugin itself painted, the
+  categorical twin of `_painted_ladders`, so the walk asks WHOSE
+  colour this is. All three narrow guards were then deleted.
+  THE RULE: when the third narrow guard leaks, stop asking which
+  route is missing and ask whether the question is right. This file
+  already says the same about `_table_id_colours`, which was wrong
+  six times until it stopped enumerating and read what the map draws.
+
+- **EVERY EXIT FROM A LONG METHOD NAMES ITSELF, AND A MODAL REFUSAL
+  IS THE QUIETEST OF ALL.** (2026-08-26.) Live update has named its
+  ten gates since two diagnoses were lost to its silence; `_generate`
+  has EIGHT exits and named none, so a Windows-only failure where the
+  recovery run left no file, no layers and no message could not be
+  read off a log at all. Each exit dumps now, and the
+  keep-the-previous-result guard prints its whole decision rather
+  than the fact of it.
+  THE MODAL IS THE PART TO REMEMBER: that guard refuses through a
+  QMessageBox, which in a headless suite lands in the shim's MODALS
+  and never reaches the message bar -- so a run refused there is
+  indistinguishable from a run that was never launched. The ledger
+  already carried this as harness fault eleven; it recurs because
+  the two stores are read by different code. Read both.
+
 - **A GUARD ADDED TO ONE DOOR BELONGS AT EVERY DOOR INTO THE SAME
   ROOM.** (2026-08-25, and it is the sharpest thing the group-unit
   build taught.) A regression showed that taking a group over while a

@@ -769,7 +769,8 @@ MUTATIONS = [
            "shelf"),
   dict(name="a-landing-never-writes-over-another-datasets-map",
        file=DIALOG,
-       old="""      theirs = bool(stamps) and region_source not in stamps""",
+       old="""      theirs = bool(stamps) and not any(
+        same_source(region_source, mark) for mark in stamps)""",
        new="""      theirs = False  # mutation: write into whatever group is there""",
        test="test_a_landing_never_writes_over_another_datasets_map",
        why="ruling 2 makes a second output group the ordinary result "
@@ -6433,6 +6434,24 @@ MUTATIONS = [
            "retired the positional picks the kept-silently ruling "
            "preserves -- the mode banks per element and field now, "
            "exactly as ruling 6 keys the scheme limbs"),
+  dict(name="one-dataset-spelt-two-ways-is-one-dataset", file=DIALOG,
+       old="""  if not same_destination(one_path, other_path):
+    return False
+  return one_tail.strip().lower() == other_tail.strip().lower()""",
+       new="""  return str(one) == str(other)  # mutation: compare raw strings""",
+       test="test_one_dataset_spelt_two_ways_is_one_dataset",
+       why="a layer source is a PATH plus a provider tail, and a "
+           "project save respells the path half -- on Windows the "
+           "plugin stamps backslashes and QGIS reads back forward "
+           "slashes. Compared as strings, a reopened project's own "
+           "output group looked as though it came from ANOTHER "
+           "dataset: the keep-the-previous-result guard refused the "
+           "ordinary recovery run through a modal, so the user met a "
+           "Generate that wrote nothing and said nothing. Six Windows "
+           "CI rounds, always alone; the same comparison also decides "
+           "which group a dataset owns, whether a landing may write "
+           "over a group, and whether a resume finds a layer already "
+           "open"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a

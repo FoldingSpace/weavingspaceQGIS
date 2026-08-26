@@ -170,86 +170,66 @@ two elements share a column, one element's notice silenced the other.
 
 ### Outstanding
 
-**THE NIGHT OF 2026-08-26 CLOSED EIGHTEEN DEFECT ROWS AND TWO
-RULINGS, all fixed, tested and entry-proved**; rows 18 to 38 of
-`docs/process/defects-2026-08-26.md` are the record, and the two new
-rulings bind from CLAUDE.md (the file shows the limit of what it
-contains, with the project carrying the whole working memory home;
-and the switch door speaks). What produced them: the consistency
-sweep, two eight-hunt rounds at iterative exploration and at the
-seams, a CI-caught regression of this session's own reopen fix, and
-a grilling that settled the two corroborated leads. Everything is
-committed through `cd07d89` and pushed.
+**2026-08-26 CLOSED THIRTY-THREE DEFECT ROWS AND FOUR RULINGS**, all
+fixed, tested and entry-proved. Rows 18 to 53 of
+`docs/process/defects-2026-08-26.md` are the record; the rulings bind
+from CLAUDE.md -- the file shows the limit of what it contains with
+the project carrying the working memory home, the switch door speaks,
+the return leg restores the chosen variable, and the style follows
+the field. What produced them: the consistency sweep, four eight-hunt
+rounds (iterative exploration, the seams, and the bulletproofing
+round of doors/kept/switchdoor/livepreview/picksdict/seams/testbatch/
+harm), a CI-caught regression of this session's own, and two
+grillings. Committed and pushed through `ec45f44`.
+
+THE ROUND THAT CLOSED IT was aimed by the maintainer at making the
+three previous days bulletproof in two senses at once -- each repair
+sound in itself, AND the original complaint resolved as a user
+experiences it. The harm-first hunt re-drove all five original
+complaints end to end and measured every one resolved; the other
+seven found fifteen further defects, thirteen of them inside the
+three-day window and five inside that window's own repairs.
 
 **WHAT IS OPEN, exactly:**
 
-*CI is in flight on two commits.* On `cd07d89` every job but Windows
-has answered green -- mutation, standards, three suites, three
-galleries, three installs and macOS -- and the Windows leg is the one
-carrying the question of whether the Windows red (`a project whose
-output geopackage has moved`, four failures for four runs) died with
-the zero-byte-file fix. On `118804e` (the rulings batch, pushed
-2026-08-26 after the sentences were approved) the mutation run fired
-on the push and the tests run had to be DISPATCHED by hand: GitHub
-created no ci.yml run for the push at all, four minutes and three
-queries later, with no concurrency stanza and no paths filter to
-explain it -- the mutation workflow fired from the same push. A
-watcher keyed to all three run ids is armed.
+*THE WINDOWS REDS, two, and they are the only thing between here and
+the rc.* Both are Windows-only; every other job on every platform is
+green. See the entry below for where the diagnosis stands.
 
-**CLOSED SINCE THE LIST ABOVE WAS FIRST WRITTEN, same day:** the two
-switch-door sentences were approved untouched and applied (`--approve`,
-queue now 0 of 310); the mis-anchored entry
-`a-file-that-will-not-resume-says-so` was re-aimed at the LANDING
-write its test drives -- the write-then-report pair is contiguous only
-there, which is what makes the anchor match exactly once -- and proves
-`caught`; and the whole batch (rows 37-38, tests, entries, documents)
-is committed and pushed as `118804e`.
+*CI is in flight* on `64cb0fa` (the round-nine batch) and `ec45f44`
+(the diagnosis instrumentation), with watchers on the run ids. Both
+carry the Windows question; `ec45f44` also carries the probe round
+that should name the mechanism.
 
-**THE WINDOWS RED IS JUDGED, 2026-08-26 (night): IT IS REAL, AND NOW
-FIVE FOR FIVE.** `a project whose output geopackage has moved` failed
-on `ba255e7`, `d9fed9f`, `fa6c831` -- each time alone, identical
-message, all four element layers "came back invalid again" after the
-output was re-pointed at the same path -- and then on `b913da8` and on
-`cd07d89`. The last of those is the verdict the zero-byte-file fix
-(row 20) was waiting on, and the answer is NO: the fix that cured the
-macOS twin did not kill the Windows red, so the two share a journey
-and not a mechanism, or Windows adds one.
+*Two changelog additions await the maintainer* before promotion --
+the switch door speaking, and a field's return wearing its own style
+-- because both are user-visible behaviours the approved entry
+predates, and this project's rule is that a changelog approved before
+a behaviour change is stale by definition.
 
-WHAT cd07d89'S ROUND SAID BESIDE IT: 594 passed, 2 failed, both
-Windows-only. The second red was row 20's own NEW test failing on
-`WinError 32` at its `os.remove` -- Windows will not delete a
-GeoPackage another handle holds, for the test and for a user alike,
-so the state under test cannot exist there and the test now announces
-itself with `_skip_loudly` like its three deleted-file siblings.
+**THE WINDOWS RED IS DIAGNOSED AND FIXED, 2026-08-26.** `a project
+whose output geopackage has moved` failed alone on Windows for SIX CI
+rounds, and the cause was never on the platform: a layer source is a
+path plus `|layername=`, a project save respells the path half, and
+SEVEN sites compared sources with `==`. So a reopened project's own
+output group read as another dataset's, `keeping` turned True, and
+the keep-the-previous-result guard refused the ordinary recovery run
+-- through a QMessageBox, which never reaches the message bar, so the
+user met a Generate that wrote nothing and said nothing. `same_source`
+is the one owner now, and ROW 54 of
+`docs/process/defects-2026-08-26.md` carries the full account with
+the probe output that named it.
 
-WHAT IS ARMED FOR THE DIAGNOSIS, rather than another bare red: the
-failing leg's message now reports what it FOUND (the file's existence
-and size at the path, the sqlite side files, what the plugin said),
-and `.github/workflows/wintest.yml` -- a throwaway on the winprobe
-precedent -- installs the same Chocolatey QGIS and runs ONLY this
-test, triggered by pushes touching itself, so a diagnosis round costs
-the install rather than the install plus four hundred tests.
+GUARDED WITHOUT WINDOWS, which is what makes it a fix rather than a
+hope: a symlink gives one file two names on any platform, so
+`test_one_dataset_spelt_two_ways_is_one_dataset` stages the exact
+condition here, asserts `samefile` as its premise, and requires the
+next Generate to replace its own map in place.
 
-WHAT IT IS NOT. It is not one of the three tests the morning of the
-26th fixed, and it is not simply the Windows file-handle limit
-docs/TESTING.md documents: three SIBLING tests announce themselves
-with `_skip_loudly` because Windows cannot stage "the file went away
-while the layer was open" at all, and the one that IS reachable works
-because clearing the project first releases the handles, given a
-retry. This test has neither treatment, so the question is whether it
-needs the sibling's release or whether the PLUGIN fails to recover.
-
-AND IT HAS A MACOS TWIN, found the same night by the consistency
-sweep and recorded as row 20 of `docs/process/defects-2026-08-26.md`:
-delete the output GeoPackage and press Generate, and the file is
-rewritten while NOTHING in the project reads from it, the dialog's
-four element ids resolve to no layer, and the map left on screen is a
-stale copy at the old spacing. One is the file moving and coming back,
-the other the file going and being rewritten; both end with element
-layers that no longer reach their data. THEY SHOULD BE DIAGNOSED
-TOGETHER, and the Windows leg is the more useful of the two because it
-is deterministic. If they are one defect, the platform was not the
-cause -- it was the thing that stopped it being intermittent.
+THE SECOND WINDOWS RED -- rows 37's `a saved project keeps the other
+fields' work` -- is not yet separately diagnosed. It may share this
+cause, since it also turns on records compared across a project save;
+the probe stays aimed at both until CI says otherwise.
 
 **THE DEBOUNCES ARE DECIDED, 2026-08-26**, which was the last entry
 here. The maintainer's condition was to take the shorter preview wait

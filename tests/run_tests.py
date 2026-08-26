@@ -63771,6 +63771,112 @@ def test_a_fields_return_wears_its_own_style_and_keeps_its_picks():
     project.clear()
 
 
+
+def test_one_dataset_spelt_two_ways_is_one_dataset():
+  """A stamp and a source that name one file are one dataset.
+
+  THE WINDOWS RED OF SIX CI ROUNDS, reproduced without Windows. A
+  group's `weavingspace_region` stamps were compared with the region
+  layer's `source()` as RAW STRINGS, and a project save gives one
+  file two spellings there -- the plugin stamps
+  `C:\\WORKSP~1\\...` and QGIS reads back
+  `C:/workspace/...`. So a reopened project's own group looked
+  as though it came from ANOTHER dataset: `keeping` turned true and
+  the keep-the-previous-result guard refused the ordinary recovery
+  run through a QMessageBox, which never reaches the message bar. The
+  user meets a Generate that writes nothing and says nothing.
+
+  A SYMLINK STAGES IT ON ANY PLATFORM, which is what makes this a
+  test rather than a Windows-only observation: two names, one file,
+  and `os.path.samefile` says so wherever the suite runs. The premise
+  is asserted, so a filesystem that cannot make the link says so
+  rather than passing vacuously.
+
+  Regression: on Windows a reopened project whose output GeoPackage had moved could not be rebuilt -- re-pointing the output at its own path and pressing Generate produced no file, no layers and no message, because the region stamps and the region source were compared as strings and a project save had respelt one of them. Six CI rounds, always alone. Found by the wintest probe of 2026-08-26 once every exit from _generate was made to name itself. [mutation]
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import (WeavingSpaceDialog, same_source)
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="ws_two_spellings_")
+  dlg = None
+  try:
+    region, region_path = _boundary_disk_region(folder)
+    link_path = os.path.join(folder, "the-same-data.gpkg")
+    try:
+      os.symlink(region_path, link_path)
+    except (OSError, NotImplementedError, AttributeError) as exc:
+      _skip_loudly(
+        "test_one_dataset_spelt_two_ways_is_one_dataset",
+        f"this filesystem will not make a symlink, so one file "
+        f"cannot be given two names here: {exc}")
+      return
+    assert os.path.samefile(region_path, link_path), \
+      "PREMISE: the link does not name the same file, so there is " \
+      "no second spelling to test"
+
+    spelt_one_way = region.source()
+    spelt_another = spelt_one_way.replace(
+      os.path.basename(region_path), os.path.basename(link_path))
+    assert spelt_another != spelt_one_way, \
+      "PREMISE: the two spellings are the same string"
+    # the comparison itself, both ways round and against a real other
+    assert same_source(spelt_one_way, spelt_another), \
+      f"one file spelt two ways read as two datasets: " \
+      f"{spelt_one_way!r} against {spelt_another!r}"
+    assert not same_source(spelt_one_way,
+                           spelt_one_way.replace("region", "elsewhere")), \
+      "two genuinely different datasets read as one"
+
+    # ...and the behaviour that rested on it: a group whose stamps
+    # are spelt the OTHER way is still this dataset's own group, so
+    # Generate replaces it in place rather than refusing to overwrite
+    # a result it thinks belongs to somebody else
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    out = os.path.join(folder, "map.gpkg")
+    dlg.gpkg_widget.setFilePath(out)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    before = sorted(dlg._element_layer_ids)
+    assert before, "PREMISE: the first run made no map"
+    restamped = 0
+    for lid in dlg._element_layer_ids.values():
+      layer = project.mapLayer(lid)
+      if layer is not None and layer.customProperty("weavingspace_region"):
+        layer.setCustomProperty("weavingspace_region", spelt_another)
+        restamped += 1
+    assert restamped, \
+      "PREMISE: no output layer carried a region stamp to respell"
+    MODALS.clear()
+    BAR_MESSAGES.clear()
+    dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.2)
+    _tick(300)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
+    refusals = [text for _kind, text in MODALS
+                if "overwrite its data" in text]
+    assert not refusals, \
+      f"the run was refused as though the group belonged to another " \
+      f"dataset: {refusals!r} -- one file spelt two ways"
+    after = sorted(dlg._element_layer_ids)
+    assert after == before, \
+      f"the run did not replace its own map in place: {before} " \
+      f"became {after}"
+    groups = [g.name() for g in project.layerTreeRoot().findGroups()]
+    assert len(groups) == 1, \
+      f"one dataset spelt two ways left two groups: {groups}"
+  finally:
+    if dlg is not None:
+      dlg.close()
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def main():
   """Run every registered test and report what happened.
 
@@ -65051,6 +65157,9 @@ def main():
         test_the_return_leg_restores_the_chosen_variable)
   check("a field's return wears its own style and keeps its picks",
         test_a_fields_return_wears_its_own_style_and_keeps_its_picks)
+
+  check("one dataset spelt two ways is one dataset",
+        test_one_dataset_spelt_two_ways_is_one_dataset)
 
   if SHARD_COUNT > 1:
     print(f"\nshard {SHARD_INDEX} of {SHARD_COUNT}: "

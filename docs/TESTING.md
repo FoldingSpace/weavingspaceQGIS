@@ -2769,6 +2769,81 @@ once by widening the anchor with a neighbouring line unique to the
 site the test actually drives. Prefer the helper where one exists:
 a helper anchor cannot be split again by a third call site.
 
+## AN ORACLE THAT READS A DEPENDENCY'S STORED POINTERS READS FREED MEMORY
+
+2026-08-26, and it is the freed-temporary trap wearing its most
+convincing disguise yet. A test asked whether the plugin keeps its
+own output out of the region chooser, and read
+`layer_combo.exceptedLayerList()` -- the list the combo was HANDED.
+Under the mutation those entries are the stale pre-resume layers,
+whose C++ objects are gone, so reading their ids was undefined: it
+answered plausible stale ids on one run and SEGFAULTED on the next.
+An entry over that oracle is flaky by construction, and its verdicts
+were worthless in both directions.
+
+THE REPAIR IS ALSO THE BETTER QUESTION. What the promise is about is
+what the chooser OFFERS, so the test now walks the combo's own items
+and asks which layers a user could pick. That is the user-facing
+claim, it touches only live objects, and it made the entry catch
+first time.
+
+**ASK WHETHER YOUR ORACLE READS WHAT THE DEPENDENCY WAS TOLD OR WHAT
+IT NOW SHOWS.** The first is a record that can outlive its subjects;
+the second is what the person meets. This project already knows that
+`ranges()` and `categories()` hand back copies and that a temporary
+frees its contents -- this is the same family reached through a
+widget's own accessor rather than a renderer's.
+
+## A FIXTURE'S TOKEN CAN VANISH WITH THE THING IT NAMES
+
+Same day. A test for the landing's unreadable-class-source arm staged
+the source as a `layer:` token and then removed that layer to make it
+unreadable -- and the combo, rebuilt, no longer offered the token at
+all, so the ROW forgot the choice and the arm under test never fired.
+The test passed while measuring nothing.
+
+A `file:` token is the fixture that can move: delete the file and the
+row still names it, which is the state the arm exists for. The tell
+is general -- **when a fixture makes something unreachable, ask
+whether the CHOICE survives the unreachability, or whether your setup
+has quietly removed the subject as well.**
+
+## A REDUNDANCY YOUR OWN FIX CREATED WILL SWALLOW AN ENTRY
+
+Also 2026-08-26, and it is the sharpest of the round's entry-proof
+lessons. An entry over the resume's group stamp SURVIVED, and the
+test was not weak: the same round had taught the switch door to stamp
+the group on the way out of a dataset, so the fixture's strip -- made
+BEFORE the switch -- was quietly re-written before the resume ran,
+and the resume's own stamp could be deleted with nothing noticing.
+
+Moving the strip to AFTER the switch left the branch under test as
+the only writer between the strip and the assertion, and the entry
+caught at once. So: **when an entry stops catching, ask what YOU
+added this round that now writes the same fact.** A survivor is a
+question about the whole set of writers, not only about the test.
+
+## INSTRUMENTATION MUST NOT BE ABLE TO REPLACE THE VERDICT
+
+The same day's diagnosis block for a Windows-only failure read every
+layer's validity and source -- objects whose C++ halves may be gone,
+since that is the state under test. A raise there would have handed
+back a traceback about the instrument instead of the assertion, which
+is this project's own probe-side trap arriving inside a test that
+only ever fails on a machine nobody here can drive.
+
+Each reading is taken on its own now, and its own failure is recorded
+as a finding ("unreadable (...)") rather than thrown. **A `[found]`
+block is evidence, and evidence that can crash is evidence you will
+not have on the run that mattered.**
+
+AND IT MUST READ EVERY STORE A REFUSAL CAN LAND IN. That failure
+looked like a run that did nothing, because the message bar was
+empty -- and one of the eight exits from `_generate` refuses through
+a QMessageBox, which the suite's shim records in MODALS. Reading one
+store and concluding silence is harness fault eleven of this
+project's own ledger, met again.
+
 ## WHEN A REPAIR GIVES ONE STORE A NEW WRITE, ENUMERATE EVERY STORE
 
 The last two findings of 2026-08-26 were the same shape as each other,

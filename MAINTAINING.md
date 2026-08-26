@@ -389,6 +389,56 @@ layers come into existence, connect the watch there too -- a layer the
 plugin holds but does not hear is worse than one it does not know
 about, since the table goes on describing a map that has moved.
 
+## Whose colour is this? Attribution, not delta
+
+Both styling paths now answer that question from a RECORD of what the
+plugin itself painted, rather than by comparing the layer against
+what the plugin would seed today.
+
+`_painted_ladders` has done it for graduated elements since
+2026-08-20. `_painted_categories` is its categorical twin, added
+2026-08-26: `{tile_id: {field: {value: colour}}}`, written wherever
+the plugin paints (both `seed_renderer` sites and group adoption) and
+NEVER from the follow, which runs before attribution and would record
+the dock's own work as ours. An absent entry means "never seen" and
+DECLINES, which is neither ours nor theirs.
+
+Why the delta had to go: a landing that keeps a renderer over an
+unreadable class source makes "what would we seed now" a lie -- it
+answers automatic colours while the map honestly wears the template
+-- so the template's colours were adopted as somebody's hand-picks
+and outranked the template from then on. Three narrower guards each
+closed one route into that and left another; the record closes the
+question instead of the routes.
+
+## Every exit from `_generate` says which one it was
+
+Live update has named its ten gates behind `WEAVINGSPACE_ADOPT_DUMP`
+since two diagnoses were lost to its silence. The button path has
+eight exits and, until 2026-08-26, named none -- so a Generate that
+produced no file, no layers and no message could not be diagnosed
+from a log at all. Each exit now dumps `GEN-GATE <name>`, and the
+keep-the-previous-result guard prints its whole decision: `keeping`,
+`would_replace`, `same_destination`, and both paths.
+
+THE ONE TO KNOW ABOUT is that guard, because it refuses through a
+QMessageBox. In a headless run the suite's shim records it in MODALS
+and the message bar stays empty, so the run looks like one that never
+started. When a run appears to do nothing, read the modal store
+before concluding silence.
+
+## Leaving a dataset stamps what you leave
+
+The group record is ordinarily written at landings. A choice made and
+switched away from INSIDE the live debounce has no landing yet, so
+the return applied the record from before the choice and the choice
+died -- while the switch notice had just announced it. `_on_layer_changed`
+stamps the working group on the way out of a dataset it has built
+from, taking the region from `_memory_layer_id` (the outgoing
+dataset) rather than from the chooser, which already holds the new
+one. A run in flight is left to its landing, whose launch snapshot
+must win.
+
 ## Invariants — do not break these
 
 1. **The worker thread never touches pyproj/PROJ.** QGIS uses the same

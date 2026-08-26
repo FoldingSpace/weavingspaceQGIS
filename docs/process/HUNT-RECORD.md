@@ -440,6 +440,35 @@ never-shown dialog, a memory fixture across a .qgz, a max-preserving
 premise -- are tallied in the ledger beside the hunts' findings, per
 the standing practice.
 
+AND THE ENTRY PROOFS WERE A ROUND OF THEIR OWN, which is the part
+this record has not carried before. Twenty-one entries: twenty prove
+`caught`, one is RETIRED with its redundancy demonstrated by breaking
+both routes together. Getting there cost four distinct kinds of
+repair, and none of them was "strengthen the assertion":
+- two anchors failed on a single backslash becoming a line
+  continuation inside the entry's own string;
+- two tests could not reach their case (a fixture with no output path
+  for the clearing to speak about; one with no landed map for the
+  rival to threaten);
+- one fixture's `layer:` class-source token VANISHED with its layer,
+  so the row forgot the choice and the arm never fired -- a `file:`
+  token is the one that can move;
+- and one entry was swallowed by a redundancy THIS ROUND created: the
+  switch door now stamps the group on the way out of a dataset, so a
+  fixture stripping the record before the switch had it re-written
+  before the resume ran.
+The last is the transferable one. When an entry stops catching, ask
+what you added this round that now writes the same fact.
+
+AND THE ROUND CORRECTED ONE OF ITS OWN READINGS IN PUBLIC. The
+Windows probe's first output was read here as the recovery run being
+refused, on the strength of "the region layer was removed" warnings.
+They were the fixture's own teardown -- BAR_MESSAGES accumulates
+across a test -- and the real finding was quieter and more useful:
+the run leaves no file, no layers and NO MESSAGE, which is what
+pointed at a modal refusal and at eight unnamed exits.
+
+
 ## ROUND SEVEN, 2026-08-26 (night): eight hunts at iterative exploration
 
 Aimed at the CORE LOOP on the maintainer's word -- a person exploring

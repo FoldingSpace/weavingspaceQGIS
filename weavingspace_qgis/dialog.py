@@ -547,6 +547,54 @@ def same_destination(one, other):
   return settled(one) == settled(other)
 
 
+def same_source(one, other):
+  """Whether two layer sources name the SAME DATASET.
+
+  Args:
+    one: a source string as `QgsVectorLayer.source()` gives it, or as
+      the plugin stamped it into `weavingspace_region`.
+    other: the same, to compare against.
+
+  Returns:
+    True when both are empty, or when both name one file and the same
+    layer inside it. False otherwise.
+
+  WHY NOT `a == b`, which is what six sites did until 2026-08-26. A
+  source is a PATH plus a provider tail (`|layername=tiles_a_v1`),
+  and the path half comes back from a project file spelt however QGIS
+  chose to write it: on Windows the plugin stamps
+  `C:\\WORKSP~1\\...\\region.gpkg|layername=region` and reads
+  back `C:/workspace/.../region.gpkg|layername=region`. One
+  dataset, two spellings, compared as two datasets.
+
+  WHAT THAT COST, measured on a Windows runner six CI rounds running:
+  a reopened project's output group appeared to have been made from
+  ANOTHER dataset, so the guard that protects a kept result refused
+  the ordinary recovery run -- through a QMessageBox, which never
+  reaches the message bar, so the user meets a Generate that produces
+  nothing and says nothing. The same comparison decides which group a
+  dataset owns, whether the landing may write over a group, and
+  whether the resume finds a layer already open, so the fault reaches
+  every one of the group-unit rulings on the platform most of this
+  plugin's users are on.
+
+  The file half is delegated to `same_destination`, which asks the
+  filesystem first (device and inode, so the volume decides about
+  case, and Windows short names resolve) and falls back to a
+  normalised string for a file not yet written. The tail is compared
+  case-folded, because a GeoPackage folds table names too.
+  """
+  if not one and not other:
+    return True
+  if not one or not other:
+    return False
+  one_path, _, one_tail = str(one).partition("|")
+  other_path, _, other_tail = str(other).partition("|")
+  if not same_destination(one_path, other_path):
+    return False
+  return one_tail.strip().lower() == other_tail.strip().lower()
+
+
 def _ramp_icon(name: str, reverse: bool = False):
   """Small preview swatch (a QIcon) for a named colour ramp.
 
@@ -12838,7 +12886,8 @@ class WeavingSpaceDialog(QDialog):
                  for child in other.children()
                  if getattr(child, "layer", lambda: None)() is not None
                  and child.layer().customProperty("weavingspace_region")}
-        keeping = bool(marks) and mine not in marks
+        keeping = bool(marks) and not any(
+          same_source(mine, mark) for mark in marks)
     would_replace = []
     if not live and keeping and path_now:
       # ASKED WITH THE NAMES THIS RUN WOULD WRITE, which since
@@ -13681,7 +13730,7 @@ class WeavingSpaceDialog(QDialog):
       return None
     for layer in QgsProject.instance().mapLayers().values():
       try:
-        if layer.source() == source:
+        if same_source(layer.source(), source):
           return layer.name()
       except Exception:
         continue
@@ -13843,7 +13892,7 @@ class WeavingSpaceDialog(QDialog):
       if wanted:
         for layer in QgsProject.instance().mapLayers().values():
           try:
-            same = layer.source() == wanted
+            same = same_source(layer.source(), wanted)
           except Exception:
             continue
           if same and layer is not self.layer_combo.currentLayer():
@@ -13919,7 +13968,7 @@ class WeavingSpaceDialog(QDialog):
       if wanted:
         for layer in QgsProject.instance().mapLayers().values():
           try:
-            same = layer.source() == wanted
+            same = same_source(layer.source(), wanted)
           except Exception:
             continue
           if same and layer is not self.layer_combo.currentLayer():
@@ -15032,7 +15081,7 @@ class WeavingSpaceDialog(QDialog):
     if wanted:
       for layer in project.mapLayers().values():
         try:
-          same = layer.source() == wanted
+          same = same_source(layer.source(), wanted)
         except Exception:
           continue
         if same:
@@ -15235,7 +15284,7 @@ class WeavingSpaceDialog(QDialog):
         continue
       stamped = [layer.customProperty("weavingspace_region")
                  for layer in ours]
-      if any(mark == wanted for mark in stamped):
+      if any(same_source(mark, wanted) for mark in stamped):
         return node
     # Nothing was made from this dataset -- or nothing says so, which
     # is what output from before the stamp looks like. The newest
@@ -15827,7 +15876,8 @@ class WeavingSpaceDialog(QDialog):
                 for child in candidate.children()
                 if getattr(child, "layer", lambda: None)() is not None
                 and child.layer().customProperty("weavingspace_region")}
-      theirs = bool(stamps) and region_source not in stamps
+      theirs = bool(stamps) and not any(
+        same_source(region_source, mark) for mark in stamps)
       if theirs and self._adopted_group_unwritten:
         # ...UNLESS THIS IS A RECOVERY, which the ruling of 2026-08-21
         # already decided and this guard, written on the 24th, did not
