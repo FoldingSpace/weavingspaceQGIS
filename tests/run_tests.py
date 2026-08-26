@@ -4291,6 +4291,124 @@ def test_the_coverage_count_matches_the_map():
   dlg.close()
 
 
+def test_the_preview_wait_widens_for_a_slow_rebuild():
+  """The preview debounce is a floor, and a slow machine widens it.
+
+  The wait before the design preview is rebuilt was a flat 350 ms,
+  which measured against what it guards is over-damped: a rebuild here
+  costs about 20-30 ms, and a held-down spin button repeats around
+  thirty times a second, so anything past about 120 ms already
+  coalesces one. Shortening it is what "the snappy interactive feel
+  has gone" asks for.
+
+  WHAT MAKES SHORTENING IT SAFE, which is the whole subject of this
+  test. The timer is SINGLE-SHOT and restarted by every change, so
+  continuous input fires exactly one rebuild whatever the interval --
+  a shorter wait does not do more work, it starts the same work
+  sooner. What a longer wait really absorbs is a HESITATION of a few
+  hundred milliseconds mid-interaction, and that only costs anything
+  where a rebuild is expensive. Its cost scales with elements times
+  features, which is the ground the uncached-value defect of
+  2026-08-19 lived on, so the machines where it hurts are exactly the
+  ones nobody here can measure.
+
+  SO THE WAIT IS AT LEAST AS LONG AS THE LAST REBUILD TOOK, floored at
+  `PREVIEW_DEBOUNCE_MS` and capped at `PREVIEW_DEBOUNCE_CEILING_MS`,
+  which is the flat value it had before -- so a slow machine or a
+  heavy design widens itself back and is never worse off than it was.
+
+  AND THE LAST CELL DRIVES THE CALLER, because a unit-tested
+  mechanism with an undriven caller is a motionless axis, which this
+  project has recorded more than once. The arithmetic being right is
+  worth nothing if the timer is never armed with its answer.
+
+  Regression: the preview debounce was a flat 350 ms guarding some 20 ms of work, so two thirds of the wait a user feels after nudging a control was deliberate delay. [mutation]
+  """
+  from weavingspace_qgis.dialog import (PREVIEW_DEBOUNCE_CEILING_MS,
+                                        PREVIEW_DEBOUNCE_MS,
+                                        WeavingSpaceDialog)
+  assert PREVIEW_DEBOUNCE_MS < PREVIEW_DEBOUNCE_CEILING_MS, \
+    "the floor is not below the ceiling, so nothing below can vary"
+  project = QgsProject.instance()
+  layer = make_region_layer(n=4, cell=1000)
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  problems, checked = [], 0
+
+  def cell(what, condition, detail):
+    """One promise about how long the dialog waits.
+
+    Args:
+      what: how the cell names itself in a failure.
+      condition: True when the promise held.
+      detail: what was actually seen, quoted when it did not.
+
+    Returns:
+      None; appends to `problems` and counts into `checked`.
+    """
+    nonlocal checked
+    checked += 1
+    if not condition:
+      problems.append(f"{what}: {detail}")
+
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(500)
+
+    # A REBUILD REALLY HAS BEEN TIMED. Without this the cells below
+    # are arithmetic on a number nothing produces.
+    cell("a real rebuild records what it cost",
+         dlg._last_rebuild_ms > 0,
+         f"the dialog has drawn a preview and reports "
+         f"{dlg._last_rebuild_ms!r} ms, so nothing is measuring it")
+    cell("and a rebuild here is cheap enough for the floor to apply",
+         dlg._last_rebuild_ms < PREVIEW_DEBOUNCE_CEILING_MS,
+         f"a rebuild on this fixture took {dlg._last_rebuild_ms:.0f} "
+         f"ms, so this machine cannot exhibit the fast case at all")
+
+    middle = (PREVIEW_DEBOUNCE_MS + PREVIEW_DEBOUNCE_CEILING_MS) // 2
+    for staged, wanted, why in (
+        (0.0, PREVIEW_DEBOUNCE_MS, "nothing has been rebuilt yet"),
+        (float(PREVIEW_DEBOUNCE_MS) / 2, PREVIEW_DEBOUNCE_MS,
+         "a rebuild cheaper than the floor"),
+        (float(middle), middle, "a rebuild between the two"),
+        (float(PREVIEW_DEBOUNCE_CEILING_MS) * 3,
+         PREVIEW_DEBOUNCE_CEILING_MS,
+         "a rebuild far slower than the old flat wait")):
+      dlg._last_rebuild_ms = staged
+      cell(f"the wait after {why}",
+           dlg._preview_wait() == wanted,
+           f"a last rebuild of {staged:.0f} ms gives a wait of "
+           f"{dlg._preview_wait()} where {wanted} was wanted")
+
+    # ---- AND THE TIMER IS ARMED WITH IT, driven through a control's
+    # own signal rather than by calling the helper again.
+    dlg._last_rebuild_ms = float(PREVIEW_DEBOUNCE_CEILING_MS) * 3
+    dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.1)
+    cell("a slow machine's timer really is armed for longer",
+         dlg._preview_timer.interval() == PREVIEW_DEBOUNCE_CEILING_MS,
+         f"the timer is set to {dlg._preview_timer.interval()} ms "
+         f"where the last rebuild took "
+         f"{dlg._last_rebuild_ms:.0f}, so the wait is computed and "
+         f"then thrown away")
+    _tick(600)
+    dlg._last_rebuild_ms = 1.0
+    dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.1)
+    cell("and a fast one's is armed for the floor",
+         dlg._preview_timer.interval() == PREVIEW_DEBOUNCE_MS,
+         f"the timer is set to {dlg._preview_timer.interval()} ms "
+         f"where the floor is {PREVIEW_DEBOUNCE_MS}")
+
+    assert checked == 8, f"only {checked} cells were compared"
+    assert not problems, \
+      "the preview wait does not follow what a rebuild costs:\n  " + \
+      "\n  ".join(problems)
+  finally:
+    dlg.close()
+    project.clear()
+
+
 def test_staggered_actions_during_a_run():
   """A second action DURING a run, at every stage of the run.
 
@@ -60860,6 +60978,8 @@ def main():
         test_free_text_inputs_survive_nonsense)
   check("the coverage count matches the map",
         test_the_coverage_count_matches_the_map)
+  check("the preview wait widens for a slow rebuild",
+        test_the_preview_wait_widens_for_a_slow_rebuild)
   check("staggered actions during a run",
         test_staggered_actions_during_a_run)
   check("data changed in QGIS while the plugin is open",

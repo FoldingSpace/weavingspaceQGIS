@@ -894,6 +894,33 @@ MUTATIONS = [
            "the colleague who receives the file meets 'that GeoPackage "
            "does not carry a saved map' with nothing having been said "
            "to anybody at the time"),
+  dict(name="the-preview-wait-follows-what-a-rebuild-costs",
+       file=DIALOG,
+       old="""    return int(max(PREVIEW_DEBOUNCE_MS,
+                   min(PREVIEW_DEBOUNCE_CEILING_MS,
+                       getattr(self, "_last_rebuild_ms", 0.0))))""",
+       new="""    return PREVIEW_DEBOUNCE_MS  # mutation: the floor, whatever it costs""",
+       test="test_the_preview_wait_widens_for_a_slow_rebuild",
+       why="the preview debounce was shortened from a flat 350 to a "
+           "FLOOR of 150, and what makes that safe on a machine nobody "
+           "here has measured is that it is at least as long as the "
+           "last rebuild took. A rebuild's cost scales with elements "
+           "times features -- the ground the uncached-value defect of "
+           "2026-08-19 lived on -- so on heavy data a fixed short wait "
+           "would start work the user is about to interrupt, which is "
+           "the complaint it was shortened to answer, made worse"),
+  dict(name="the-preview-timer-is-armed-with-the-wait-it-computed",
+       file=DIALOG,
+       old="""    self._preview_timer.setInterval(self._preview_wait())
+    self._preview_timer.start()""",
+       new="""    self._preview_timer.start()  # mutation: keep whatever it had""",
+       test="test_the_preview_wait_widens_for_a_slow_rebuild",
+       why="a unit-tested mechanism with an undriven caller is a "
+           "motionless axis, and this project has recorded that shape "
+           "more than once. Computing the right wait and never arming "
+           "the timer with it leaves every interval at whatever it was "
+           "last set to, so the widening a slow machine depends on "
+           "never happens"),
   dict(name="a-ramp-window-belongs-to-its-own-group", file=DIALOG,
        old="""      else:
         self._ramp_ranges.pop(tid, None)""",

@@ -170,45 +170,50 @@ two elements share a column, one element's notice silenced the other.
 
 ### Outstanding
 
-**THE TWO DEBOUNCE VALUES, and they are the whole of it.** Everything
-around them is done. They are `PREVIEW_DEBOUNCE_MS` and
-`LIVE_DEBOUNCE_MS` now rather than a literal in six places; the
-staggered-action sweep derives its delays from them and ASSERTS that
-they still straddle both boundaries, which it could not before, since
-the literals had been chosen to straddle the old numbers and moving
-either would have left the sweep passing while exercising one
-interleaving; and the measurement sits at the constants.
+There is nothing outstanding in code for 0.24.3.
 
-WHAT WAS MEASURED, 2026-08-17 and again 2026-08-26: a user nudging a
-control with live update on waits about 1.7 seconds for the map to
-settle, of which roughly 225 ms is CPU. So about two thirds of the
-wait is deliberate delay. That is not a regression -- the interactive
-loop is measurably faster than v0.24.0 and the intervals are
-identical in both -- but it is what "the snappy interactive feel has
-gone" describes, and nobody has ever chosen those numbers against a
-measurement.
+**THE DEBOUNCES ARE DECIDED, 2026-08-26**, which was the last entry
+here. The maintainer's condition was to take the shorter preview wait
+"if the recommended option there is generally safe on different sorts
+of computers and load conditions" -- so the condition was CHECKED
+rather than assumed, and a flat number does not meet it.
 
-THREE QUESTIONS, and they are design rather than defect. What should
-the two intervals be; should the preview and the live run share one
-debounce instead of firing at 350 and again at 900; and should a run
-about to be superseded be CANCELLED sooner than it is.
-`tools/probes/one_interaction.py` is the instrument and takes the
-tree to measure as an argument, so any two can be compared.
+WHAT THE CHECK FOUND, because the obvious worry is the wrong one. The
+preview timer is SINGLE-SHOT and restarted by every change, so
+continuous input -- a held-down spin button, a dragged slider -- fires
+exactly one rebuild whatever the interval; shortening it does not do
+more work, it starts the same work sooner. What a longer wait really
+absorbs is a HESITATION of a few hundred milliseconds mid-interaction,
+and that costs something only where a rebuild is expensive. A
+rebuild's cost scales with elements times features, which is the
+ground the uncached-value defect of 2026-08-19 lived on -- 3,011
+features rescanned 23 times for one keystroke -- so the machines where
+a short flat wait would hurt are exactly the ones nobody here can
+measure.
 
-THE RECOMMENDATION ON FILE, so this closes in one decision rather
-than a session. The preview is over-damped: it guards some 20 ms of
-work, and about 120 ms already coalesces a held-down spin button,
-which repeats around thirty times a second. The live interval guards
+SO THE PREVIEW WAIT IS A FLOOR OF 150 ms, at least as long as the last
+rebuild actually took, capped at the 350 ms it was flat at before.
+Measured: a rebuild on the standard fixture costs 31 ms, so the wait
+is 150; stage a 220 ms rebuild and the wait is 220; stage a 900 ms one
+and it is 350, which is exactly what a user has today. A fast machine
+gets the snappier loop and a slow one is never worse off than it was.
+Guarded by `test_the_preview_wait_widens_for_a_slow_rebuild`, whose
+last two cells DRIVE the caller, and by two judged catalogue entries --
+one for the arithmetic and one for the timer actually being armed with
+its answer, since a unit-tested mechanism with an undriven caller is a
+motionless axis.
+
+THE LIVE INTERVAL IS UNCHANGED AT 900 ms, deliberately. It guards
 something genuinely expensive -- 229 ms on a sixteen-polygon fixture
-and seconds on three thousand areas -- and should move only alongside
-the third question, which is what would make a shorter one safe. They
-should stay SEPARATE either way: the preview is what tells somebody
-their input registered, and merging the two either delays that to the
-live interval or launches real tilings at the preview's cadence.
+and seconds on three thousand areas -- and shortening it is only safe
+alongside cancelling a superseded run sooner, which is a change to the
+run lifecycle rather than to a number. That is recorded under "Later,
+or never" rather than left as a loose end.
 
-Deciding the numbers, or DEFERRING this entry to a later version, are
-both legitimate and both the maintainer's. Changing either value is
-one line in `dialog.py`.
+AND THE TWO STAY SEPARATE, which answers the second of the three
+questions this entry used to carry. The preview is what tells somebody
+their input registered; merging the two would either delay that to the
+live interval or launch real tilings at the preview's cadence.
 
 ### What this version has already closed
 
@@ -561,6 +566,29 @@ element-id ceiling above, which is upstream's decision rather than
 ours.
 
 ## Later, or never
+
+**CANCEL A RUN THAT IS ABOUT TO BE SUPERSEDED.** The third of the
+three debounce questions, and the only one the decision of 2026-08-26
+left open. The other two are settled: the preview wait is a floor that
+widens to whatever a rebuild costs, and the two debounces stay
+separate.
+
+WHY IT IS NOT DONE HERE. The live interval is 900 ms because it guards
+something genuinely expensive -- 229 ms of CPU on a sixteen-polygon
+fixture, seconds on three thousand areas -- and the honest way to
+shorten it is to make a superseded run STOP rather than to start the
+next one sooner and have two in flight. That is a change to the run
+lifecycle rather than to a number: `QgsTask` cancellation, what a
+cancelled run does to the group it was going to land in, and the
+existing rule that a run is not over until its layers exist. It wants
+its own round with its own races tested, and it would be the wrong
+thing to fold into a candidate whose gates are about to measure
+everything else.
+
+WHAT WOULD MAKE IT WORTH DOING: a report that the map itself, rather
+than the preview, still feels slow to iterate with. The preview is
+what tells somebody their input registered, and that half is now as
+fast as the machine allows.
 
 **Deriving the aggregate coverage from the per-test record** (was
 `for-0.24.1/coverage-dedupe`, commit 34dab50bd0cd, branch deleted

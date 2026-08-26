@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-314 defect(s) with a regression test.
+315 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -335,6 +335,8 @@ there is no separate list to remember.
   guarded by `test_the_new_code_mutation_guard_reports_rather_than_gates`
 - **no widget anywhere in the dialog named the output group, so a demo of several datasets in a row accumulated maps with nothing to say which one the next Generate would replace -- and A-B-A left one dataset owning two groups that nothing could tell apart.**  
   guarded by `test_the_output_group_chooser_binds_to_the_dataset`
+- **the preview debounce was a flat 350 ms guarding some 20 ms of work, so two thirds of the wait a user feels after nudging a control was deliberate delay.**  
+  guarded by `test_the_preview_wait_widens_for_a_slow_rebuild`
 - **the last of nine copies of the assignment lookup, and the only one whose result a user reads directly.**  
   guarded by `test_the_range_editor_repaints_with_its_own_elements_colours`
 - **release.py's watchdog measured wall clock, so a laptop asleep mid-release would have aborted a healthy run as hung. The same defect cost four verdicts in mutation batch 8 and was fixed there; release.py was written afterwards and repeated it.**  
@@ -681,7 +683,7 @@ there is no separate list to remember.
 
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
-- the mutation campaign: 51
+- the mutation campaign: 52
 - reported by a user: 29
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8

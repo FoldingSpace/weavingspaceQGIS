@@ -25,7 +25,8 @@ this file leans on; everything else is ordinary Python.
   slot once, ``interval`` ms after the most recent ``start()``; calling
   ``start()`` again restarts the countdown. We funnel every control
   change through two such timers so that dragging a spinner rebuilds
-  the preview (350 ms) and regenerates the map (900 ms) once per pause,
+  the preview (PREVIEW_DEBOUNCE_MS, widened on a slow rebuild) and
+  regenerates the map (LIVE_DEBOUNCE_MS) once per pause,
   not once per tick.
 
 * Threading via QgsTask (see worker.py). Qt GUIs are single-threaded:
@@ -153,17 +154,45 @@ NEW_GROUP_LABEL = "Create new"
 # quietly stopped straddling anything while still passing. That sweep
 # derives its delays from these constants now.
 #
-# THE VALUES ARE A DESIGN QUESTION AND ARE THE MAINTAINER'S. The
-# measurement is that one nudge with live update on settles in about
-# 1,645 ms of which only 229 ms is work, so roughly 1.4 seconds is
-# deliberate delay -- which is what "the snappy interactive feel has
-# gone" describes. The recommendation on file is that the preview is
-# over-damped at 350 (it guards 20 ms, and about 120 ms already
-# coalesces a held-down spin button) while the live interval is
-# guarding something genuinely expensive and should move only if a
-# superseded run is cancelled sooner. Changing either is now one
-# number here.
-PREVIEW_DEBOUNCE_MS = 350
+# THE PREVIEW INTERVAL IS A FLOOR, NOT A FIXED WAIT, and that is what
+# makes shortening it safe on a machine nobody here has measured.
+# (Maintainer's decision, 2026-08-26: take the shorter number "if the
+# recommended option there is generally safe on different sorts of
+# computers and load conditions" -- so the condition was checked
+# rather than assumed, and a flat number does not meet it.)
+#
+# WHAT A DEBOUNCE ACTUALLY GUARDS, since the obvious worry is the
+# wrong one. The timer is SINGLE-SHOT and restarted by every change,
+# so continuous input -- a held-down spin button, a dragged slider --
+# fires exactly ONE rebuild whatever the interval, and shortening it
+# changes only how soon that rebuild starts. What a longer interval
+# really absorbs is a HESITATION: a pause of 150-350 ms mid-
+# interaction, which at 350 is swallowed and at 150 starts work the
+# user is about to interrupt. On a machine where a rebuild is cheap
+# that costs nothing. Where it is expensive it is the "snappy feel
+# has gone" complaint made worse, and the cost scales with elements
+# times features -- which is exactly the ground the uncached-value
+# defect of 2026-08-19 lived on, 3,011 features rescanned 23 times
+# for one keystroke.
+#
+# SO THE WAIT IS AT LEAST AS LONG AS THE LAST REBUILD TOOK, floored at
+# PREVIEW_DEBOUNCE_MS and capped at PREVIEW_DEBOUNCE_CEILING_MS, which
+# is the flat value it had before. A fast machine with a small design
+# gets the short wait; a slow one, or a heavy design, widens itself
+# back towards the old number and is never worse than it was. Measured
+# with the MONOTONIC clock, per this project's rule that only
+# timestamps are wall clock -- a laptop closed mid-interaction must not
+# come back believing a rebuild took two hours.
+#
+# THE LIVE INTERVAL IS UNTOUCHED, deliberately. It guards something
+# genuinely expensive -- 229 ms on a sixteen-polygon fixture, seconds
+# on three thousand areas -- and shortening it is only safe alongside
+# cancelling a superseded run sooner, which is a change to the run
+# lifecycle rather than to a number and wants its own round.
+PREVIEW_DEBOUNCE_MS = 150
+# ...AND NEVER LONGER THAN THIS, which is what the preview debounce
+# was flat until 2026-08-26.
+PREVIEW_DEBOUNCE_CEILING_MS = 350
 LIVE_DEBOUNCE_MS = 900
 
 WORKING_STATE_PROPERTY = "weavingspace_working_state"
@@ -1658,7 +1687,8 @@ class WeavingSpaceDialog(QDialog):
     # each element last wore in each mode, so a style excursion and
     # back costs nothing. This lived on the combo widget as `last_quant`
     # and `last_cat` until 2026-08-13, which survives a style flip and
-    # NOT a table rebuild: any design change rebuilds the table 350 ms
+    # NOT a table rebuild: any design change rebuilds the table a
+    # preview debounce
     # later, so a ramp crossed over before that landed came back as a
     # positional default instead. Every other per-element choice is
     # keyed by tile id for exactly this reason (settled decision).
@@ -1854,6 +1884,10 @@ class WeavingSpaceDialog(QDialog):
     bridge.ensure_ramps_installed()
     self._ramp_names = bridge.ramp_names()
     self._adopt_existing_group()
+    # How long the LAST preview rebuild took, in milliseconds. Zero
+    # until one has happened, which is right: the first rebuild of a
+    # session has nothing to be slower than, and the floor applies.
+    self._last_rebuild_ms = 0.0
     self._preview_timer = QTimer(self)
     self._preview_timer.setSingleShot(True)
     self._preview_timer.setInterval(PREVIEW_DEBOUNCE_MS)
@@ -3930,16 +3964,18 @@ class WeavingSpaceDialog(QDialog):
 
   def _queue_preview(self, *args):
     """Debounced funnel for DESIGN-tab changes: restart both countdowns
-    (unit + table rebuild and preview repaint at 350 ms, live map
+    (unit + table rebuild and preview repaint after the preview
+    debounce, live map
     regeneration at 900 ms). Signal payloads arrive in *args and are
     ignored.
 
     Data & colours widgets must NOT use this path: the rebuild it
     schedules replaces every table cell widget, and a rebuild landing
-    350 ms after one palette pick destroys the chooser the user has
+    a debounce after one palette pick destroys the chooser the user has
     open for the next one (the "race among choosers" this once
     caused). They use _refresh_preview_colours instead.
     """
+    self._preview_timer.setInterval(self._preview_wait())
     self._preview_timer.start()
     self._queue_live()
 
@@ -4246,11 +4282,35 @@ class WeavingSpaceDialog(QDialog):
         self.mod_t_inset.value() * self.opt_aspect.value() * spacing / 100)
     return unit
 
+  def _preview_wait(self) -> int:
+    """How long to wait for quiet before rebuilding the preview.
+
+    Returns:
+      Milliseconds: at least `PREVIEW_DEBOUNCE_MS`, at most
+      `PREVIEW_DEBOUNCE_CEILING_MS`, and otherwise as long as the last
+      rebuild actually took.
+
+    A FLOOR RATHER THAN A FIXED WAIT, and the reasoning is at the
+    constants. In short: the timer is single-shot and restarted by
+    every change, so a shorter interval does not cause more rebuilds
+    during continuous input -- it only starts the one rebuild sooner.
+    What it does change is whether a HESITATION mid-interaction is
+    absorbed, and that only matters where a rebuild is expensive. So
+    the interval is asked to be at least as long as the last rebuild
+    was, which makes a slow machine or a heavy design widen itself
+    back towards the number this was flat at before, with no attempt
+    here to guess at hardware nobody has measured.
+    """
+    return int(max(PREVIEW_DEBOUNCE_MS,
+                   min(PREVIEW_DEBOUNCE_CEILING_MS,
+                       getattr(self, "_last_rebuild_ms", 0.0))))
+
   def _rebuild_unit(self):
     """Rebuild the unit and everything derived from it (assignment
     table rows, preview). Runs on the main thread; unit construction
     is fast enough for that (the expensive step is the tiling itself,
     which is what the background task exists for)."""
+    started = time.monotonic()
     try:
       self._unit = self._build_unit()
     except Exception as e:
@@ -4263,6 +4323,11 @@ class WeavingSpaceDialog(QDialog):
     self._refresh_table()
     self.preview.show_unit(self._unit, self._table_id_colours(),
                            self.shells_spin.value())
+    # WHAT THIS COST, so the next debounce can be at least this long.
+    # See PREVIEW_DEBOUNCE_MS: the wait is a floor rather than a fixed
+    # number precisely so a machine or a design nobody here measured
+    # widens it back towards the old flat value on its own.
+    self._last_rebuild_ms = (time.monotonic() - started) * 1000.0
 
   # ------------------------------------------------------------- data table
 
@@ -12166,7 +12231,7 @@ class WeavingSpaceDialog(QDialog):
         QMessageBox.warning(self, "WeavingSpace", "Choose a region layer.")
       return
     if self._preview_timer.isActive():
-      # A design change schedules the unit rebuild 350 ms later, so a
+      # A design change schedules the unit rebuild a debounce later, so a
       # Generate pressed inside that window would tile the PREVIOUS
       # design (an integration test comparing the output against a
       # direct library call caught this). Flush the pending rebuild

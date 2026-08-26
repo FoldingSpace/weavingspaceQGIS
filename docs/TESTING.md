@@ -1275,10 +1275,12 @@ all three.
 
 **"Immediately" is one interleaving out of many.** Race tests here
 fired their second action with no delay, which only ever exercises the
-state before any debounce has fired. The dialog has two debounces (350
-ms preview, 900 ms live) and a task whose completion does main-thread
-work, so an action at 400 ms meets a different machine from one at 0
-ms, and one at 1,000 ms meets a third.
+state before any debounce has fired. The dialog has two debounces --
+the preview one, which is a FLOOR that widens to whatever the last
+rebuild cost, and the live one -- and a task whose completion does
+main-thread work, so an action arriving after the preview fires meets
+a different machine from one at 0 ms, and one arriving after the live
+interval meets a third.
 `test_staggered_actions_during_a_run` sweeps a delay across both
 boundaries for each action. When adding a race test, ask which
 *stages* exist, not merely whether two things can happen at once.
@@ -1388,7 +1390,7 @@ turns that dependency from invisible into intermittent.
 DEBOUNCE.** The same day, a stochastic hunt's top claim -- a row
 saying Graduated over a categorized renderer, on seven independent
 seeds -- did not reproduce on any of seven deliberate routes once each
-was allowed to settle. This dialog debounces at 350 ms and 900 ms and
+was allowed to settle. This dialog debounces twice before drawing and
 draws with the settings a run was LAUNCHED with, so between a style
 change and the queued rerun landing the table and the map genuinely
 disagree, correctly. Any invariant swept over random actions must wait
@@ -2227,7 +2229,7 @@ product deliberately ignores.
 **SO WHEN A PROBE DISAGREES WITH A CLAIM, SUSPECT THE PROBE FIRST**,
 and specifically ask what the code under test does with the timing,
 the ordering and the debounces you happened to choose. This dialog has
-four such windows now -- 350 ms preview, 900 ms live, 300 ms repaint
+four such windows now -- the preview debounce, the live one, a 300 ms repaint
 drain, and a 1 s echo -- and a reproduction that lands inside one of
 them measures the window rather than the software.
 
