@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-360 defect(s) with a regression test.
+362 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -363,6 +363,8 @@ there is no separate list to remember.
   guarded by `test_a_spacing_a_person_typed_outlives_a_change_of_dataset`
 - **clearing a group's field-keyed records on a silent record destroyed a pinned bound belonging to an element that had merely been switched to another style, and stamped its absence onto the layer.**  
   guarded by `test_a_style_switch_is_not_consent_to_lose_a_pin`
+- **a dialog that had not adopted the output GeoPackage left the table of an element's previous variable behind, and resuming that file drew the abandoned variable over the map. Found by the element-tables hunt, 2026-08-27.**  
+  guarded by `test_a_switched_variable_leaves_no_orphan_in_the_file`
 - **a scheme change made while the row displayed v2 released the copied ladder kept for v1 -- `_release_copied_breaks` iterated every field where its sibling scopes to the current one -- so the return to v1 drew re-derived breaks under the surviving copied colours. Found by the shelf hunt of 2026-08-26, confirmed through the style door independently.**  
   guarded by `test_an_act_about_one_field_spares_anothers_ladder`
 - **every element layer carried every mapped variable, so a shared GeoPackage shipped attributes the map never displayed and grew twenty-fold; and the table names said nothing about which variable each element drew.**  
@@ -437,6 +439,8 @@ there is no separate list to remember.
   guarded by `test_the_size_guard_warns_where_it_used_to_refuse`
 - **the switch notice flattened its per-element pairs, so an element left with nothing was affirmatively covered by a sentence about the elements that landed somewhere -- and the re-point path lacked the `or fields` fallback its deleted-column twin has carried since 2026-08-20, which is what made the mixed case reachable only here. Found by the switchdoor hunt of round nine (2026-08-26).**  
   guarded by `test_the_switch_notice_owns_every_element`
+- **two column names that sanitise to one table name left the earlier column's saved style in the GeoPackage, so its hand-picked colours and field name travelled to whoever the file was sent to. Found by the kept-map hunt, 2026-08-27.**  
+  guarded by `test_two_columns_sharing_a_table_leave_one_style_of_ours`
 - **hand-picked colours and pinned bounds carried to any dataset sharing a column name, putting one dataset's value strings and numbers into another's saved files.**  
   guarded by `test_value_laden_records_never_cross_a_shared_name`
 
@@ -771,7 +775,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 97
+- the mutation campaign: 99
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
 - reported by a user: 29

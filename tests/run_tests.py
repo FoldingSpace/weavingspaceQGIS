@@ -21685,7 +21685,6 @@ def test_an_exported_geopackage_is_still_recognised_as_our_own():
   """
   import shutil
   import tempfile
-  from qgis.core import QgsVectorLayer
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   project = QgsProject.instance()
   folder = tempfile.mkdtemp(prefix="weavingspace_stamped_")
@@ -63223,6 +63222,39 @@ def _label_names_group(text, name) -> bool:
   return bool(name) and (text == name or text.startswith(f"{name} — "))
 
 
+
+def _style_rows(path):
+  """Every style row a GeoPackage holds, as (table, name, qml).
+
+  Args:
+    path: the .gpkg to read.
+
+  Returns:
+    A list of tuples, empty when the file has no `layer_styles` table
+    or will not open. Asked through OGR and RELEASED at once: a handle
+    left open on a GeoPackage stops the next run writing to it.
+  """
+  from osgeo import ogr
+  if not os.path.exists(path):
+    return []
+  data = ogr.Open(path, 0)
+  if data is None:
+    return []
+  found = []
+  try:
+    result = data.ExecuteSQL(
+      "SELECT f_table_name, styleName, styleQML FROM layer_styles")
+    if result is None:
+      return []
+    for feature in result:
+      found.append(tuple(feature.GetField(i) for i in range(3)))
+    data.ReleaseResultSet(result)
+  except Exception:
+    return []
+  finally:
+    data = None
+  return found
+
 def _drawn_by_value(layer) -> dict:
   """What a categorized layer draws, keyed as the dialog keys it.
 
@@ -64563,6 +64595,262 @@ def test_a_queued_restamp_never_writes_a_blank_the_plugin_imposed():
     project.clear()
 
 
+
+def test_a_switched_variable_leaves_no_orphan_in_the_file():
+  """The file a user sends on holds the map they made, and only that.
+
+  Since the variable joined the table name (ruling 6, 2026-08-25),
+  switching an element's variable WRITES A NEW TABLE rather than
+  replacing one -- so the old variable's table is stale the moment the
+  switch lands. What removed it was a record living on the DIALOG, so
+  a window that never adopted or resumed the file knew nothing and
+  dropped nothing: restart QGIS without saving, or File > New, choose
+  the same output GeoPackage again, switch a variable, Generate.
+
+  The map on screen is right, which is what makes it quiet. The cost
+  is in the file: resuming it loads the orphan as an extra element,
+  two layers claiming one element id, and tables load in sorted order
+  so the abandoned variable sorts above the live one and paints over
+  it -- measured at 23.7% of sampled pixels drawn by a variable the
+  design had dropped.
+
+  The file is read here through QGIS's own provider rather than
+  through the helper the fix uses, so the test cannot agree with the
+  code it guards.
+
+  Regression: a dialog that had not adopted the output GeoPackage left the table of an element's previous variable behind, and resuming that file drew the abandoned variable over the map. Found by the element-tables hunt, 2026-08-27. [mutation]
+  """
+  import shutil
+  import tempfile
+  from qgis.core import QgsVectorLayer
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="ws_orphan_")
+
+  def tables_in(path):
+    """What the file holds, and what state the file is in.
+
+    Read through OGR and RELEASED immediately. A QgsVectorLayer left
+    holding this GeoPackage keeps an open handle on it, and the next
+    run writing to the same file then fails at the sqlite level -- an
+    instrument that changes what it measures, which cost this test its
+    first reading.
+    """
+    from osgeo import ogr
+    if not os.path.exists(path):
+      return set()
+    source = ogr.Open(path, 0)
+    if source is None:
+      return set()
+    try:
+      return {source.GetLayer(i).GetName()
+              for i in range(source.GetLayerCount())}
+    finally:
+      source = None
+
+  region = make_region_layer(n=4, cell=1000)
+  region.setName("nyc blocks")
+  project.addMapLayer(region)
+  out = os.path.join(folder, "sent on.gpkg")
+  try:
+    first = WeavingSpaceDialog(iface=_Iface())
+    try:
+      first.live_check.setChecked(False)
+      first.layer_combo.setLayer(region)
+      _tick(400)
+      first.gpkg_widget.setFilePath(out)
+      first.spacing_spin.setValue(520)
+      _generate_and_wait(first)
+      _tick(300)
+      _settle(first, seconds=90)
+      tid = sorted(first._element_layer_ids)[0]
+      row = next(r for r in range(first.table.rowCount())
+                 if first.table.item(r, 0).text() == tid)
+      was = first.table.cellWidget(row, 1).currentText()
+      assert was and was != "---", \
+        "PREMISE: the element carries no variable, so none can be switched"
+      started = tables_in(out)
+      assert any(t.startswith(f"tiles_{tid}") for t in started), \
+        f"PREMISE: the first run wrote no table for element {tid!r}: {started}"
+    finally:
+      first.close()
+
+    # A SESSION THAT LEAVES NOTHING BEHIND: the group goes with the
+    # window, which is what QGIS restarted without a saved project,
+    # or File > New, hands the next dialog. The region layer stays,
+    # because the user still has their data.
+    root = project.layerTreeRoot()
+    for node in list(root.findGroups()):
+      for child in list(node.children()):
+        layer = getattr(child, "layer", lambda: None)()
+        if layer is not None:
+          project.removeMapLayer(layer.id())
+      root.removeChildNode(node)
+    _tick(400)
+
+    second = WeavingSpaceDialog(iface=_Iface())
+    try:
+      second.live_check.setChecked(False)
+      second.layer_combo.setLayer(region)
+      _tick(400)
+      second.gpkg_widget.setFilePath(out)
+      _tick(200)
+      row = next(r for r in range(second.table.rowCount())
+                 if second.table.item(r, 0).text() == tid)
+      var = second.table.cellWidget(row, 1)
+      other = next(var.itemText(i) for i in range(var.count())
+                   if var.itemText(i) not in ("---", was, ""))
+      var.setCurrentText(other)
+      var.activated.emit(var.currentIndex())
+      _tick(300)
+      second.spacing_spin.setValue(520)
+      _generate_and_wait(second)
+      _tick(400)
+      _settle(second, seconds=90)
+
+      ours = {t for t in tables_in(out)
+              if t == f"tiles_{tid}" or t.startswith(f"tiles_{tid}_")}
+      live = {t for t in ours if not t.endswith("_no_data")}
+      assert len(live) == 1, \
+        f"element {tid!r} has {len(live)} tables in the file: " \
+        f"{sorted(live)}. The one it no longer draws is an orphan, and " \
+        f"resuming this file loads it as a second element that sorts " \
+        f"above the live one and paints over the map."
+      kept = live.pop()
+      assert kept.startswith(f"tiles_{tid}"), kept
+      assert was.lower() not in kept.lower() or was.lower() == other.lower(), \
+        f"the surviving table is {kept!r}, which still names the " \
+        f"variable {was!r} the element no longer draws"
+    finally:
+      second.close()
+  finally:
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+
+def test_two_columns_sharing_a_table_leave_one_style_of_ours():
+  """The file carries the map's own work, and nothing it abandoned.
+
+  Element tables are named for the element AND its variable, so
+  switching a variable normally writes a new table and the drop takes
+  the old one -- with its saved style, since 2026-08-26. But
+  `element_table_name` folds punctuation and caps its length, so two
+  different columns can share ONE table: `Pop` and `Pop %` both give
+  `tiles_a_Pop`. Then the table is REPLACED, nothing is dropped, and
+  QGIS keys `layer_styles` by the style's NAME -- so the row written
+  for `a – Pop` sits beside the row for `a – Pop %`, carrying its QML:
+  the abandoned column's name, its pinned bounds and its hand-picked
+  colours, readable by anyone the file is sent to.
+
+  A repair aimed at an act has to be re-aimed at the act's ABSENCE:
+  the drop mends the case where something is deleted, and this is the
+  case where nothing is.
+
+  Read at the FILE'S BYTES, because that is what a colleague receives,
+  and a record-level check would have passed throughout.
+
+  Regression: two column names that sanitise to one table name left the earlier column's saved style in the GeoPackage, so its hand-picked colours and field name travelled to whoever the file was sent to. Found by the kept-map hunt, 2026-08-27. [mutation]
+  """
+  import shutil
+  import tempfile
+  from qgis.PyQt.QtCore import QVariant
+  from qgis.core import QgsField
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="ws_style_residue_")
+  MARK = "#aa00cc"
+  try:
+    region = make_region_layer(n=4, cell=1000)
+    region.setName("wards")
+    provider = region.dataProvider()
+    provider.addAttributes([QgsField("Pop", QVariant.Double),
+                            QgsField("Pop %", QVariant.Double)])
+    region.updateFields()
+    first = region.fields().indexOf("Pop")
+    second = region.fields().indexOf("Pop %")
+    provider.changeAttributeValues(
+      {f.id(): {first: float(f.id() * 3 % 17),
+                second: float(f.id() * 7 % 11)}
+       for f in region.getFeatures()})
+    project.addMapLayer(region)
+
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(region)
+      _tick(400)
+      tid = dlg.table.item(0, 0).text()
+      assert (bridge.element_table_name(tid, "Pop")
+              == bridge.element_table_name(tid, "Pop %")), \
+        "PREMISE: these two columns no longer share a table name, so " \
+        "this test is aimed at nothing -- pick two that do, or retire it"
+
+      row = 0
+      var = dlg.table.cellWidget(row, 1)
+      var.setCurrentText("Pop")
+      var.activated.emit(var.currentIndex())
+      _tick(300)
+      # A COLOUR SOMEBODY PICKED, staged in the record the editor
+      # writes: the control route is a modal window, and what this
+      # test is about is where the colour ENDS UP, not how it is
+      # chosen.
+      dlg._quant_colours.setdefault(tid, {})["Pop"] = {"0": MARK}
+      out = os.path.join(folder, "sent on.gpkg")
+      dlg.gpkg_widget.setFilePath(out)
+      dlg.spacing_spin.setValue(520)
+      _generate_and_wait(dlg)
+      _tick(400)
+      _settle(dlg, seconds=90)
+      with open(out, "rb") as handle:
+        started = handle.read()
+      assert MARK.encode() in started or MARK.lstrip("#").encode() in started, \
+        "PREMISE: the hand-picked colour never reached the file, so " \
+        "its survival there cannot be what this test measures"
+
+      row = next(r for r in range(dlg.table.rowCount())
+                 if dlg.table.item(r, 0).text() == tid)
+      var = dlg.table.cellWidget(row, 1)
+      var.setCurrentText("Pop %")
+      var.activated.emit(var.currentIndex())
+      _tick(300)
+      dlg.spacing_spin.setValue(560)
+      _generate_and_wait(dlg)
+      _tick(400)
+      _settle(dlg, seconds=90)
+
+      # ROUTE ONE: the store the residue lives in.
+      ours = [r for r in _style_rows(out)
+              if r[0] == bridge.element_table_name(tid, "Pop %")]
+      assert len(ours) == 1, \
+        f"the table carries {len(ours)} styles of ours: {ours}. The row " \
+        f"written for the abandoned column survived, because its table " \
+        f"was replaced rather than dropped and nothing else removes it."
+      assert MARK.lstrip("#") not in (ours[0][2] or ""), \
+        f"the surviving style still records {MARK}, a colour picked " \
+        f"for a column this map no longer displays"
+    finally:
+      dlg.close()
+    # ROUTE TWO: THE FILE A COLLEAGUE RECEIVES. Read only once
+    # everything here has let go of it -- while the dataset is open,
+    # sqlite's freelist still holds the deleted page, so the bytes
+    # answer about the moment of reading rather than about the file.
+    # Measured 2026-08-27: present with the layer open, absent once
+    # closed, with the row itself gone in both readings.
+    project.clear()
+    _tick(600)
+    with open(out, "rb") as handle:
+      now = handle.read()
+    assert MARK.encode() not in now \
+        and MARK.lstrip("#").encode() not in now, \
+      f"the file carries {MARK} after being closed, so a colleague " \
+      f"receives a colour picked for a column this map does not display"
+  finally:
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def main():
   """Run every registered test and report what happened.
 
@@ -65844,6 +66132,10 @@ def main():
   check("a field's return wears its own style and keeps its picks",
         test_a_fields_return_wears_its_own_style_and_keeps_its_picks)
 
+  check("two columns sharing a table leave one style of ours",
+        test_two_columns_sharing_a_table_leave_one_style_of_ours)
+  check("a switched variable leaves no orphan in the file",
+        test_a_switched_variable_leaves_no_orphan_in_the_file)
   check("a kept renderer must still draw the column it is classed on",
         test_a_kept_renderer_must_still_draw_the_column_it_is_classed_on)
   check("a resumed group is named for its dataset",

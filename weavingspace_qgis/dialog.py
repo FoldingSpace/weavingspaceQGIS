@@ -17077,12 +17077,41 @@ class WeavingSpaceDialog(QDialog):
       # stale and the drop would remove the map it had just made. The
       # names are decided once, per element, and read back here.
       key = self._gpkg_key(path)
-      written = self._gpkg_tables_written.get(key, set())
+      written = set(self._gpkg_tables_written.get(key, set()))
       current = {tables_this_run[tid] for tid in new_ids
                  if tid in tables_this_run}
       current |= {f"{tables_this_run[tid]}_no_data"
                   for tid in self._no_data_layer_ids
                   if tid in tables_this_run}
+      # AND THE FILE IS ASKED AS WELL AS THE SESSION, because the
+      # record above is a record of what a DIALOG did. Since the
+      # variable joined the table name (ruling 6, 2026-08-25),
+      # switching an element's variable writes a NEW table rather than
+      # replacing one -- so the old variable's table is stale the
+      # moment the switch lands, and only this record knew to remove
+      # it. A dialog that never adopted or resumed the file knows
+      # nothing: restart QGIS without saving the project, or File >
+      # New, choose the same output GeoPackage, switch a variable,
+      # Generate, and the abandoned table stays. Nothing on screen
+      # says so, because the map in front of the user is right.
+      # WHAT IT COSTS IS THE FILE ITSELF. Resuming it loads the orphan
+      # as an extra element -- five layers for a four-element record,
+      # two of them claiming element 'a' -- and tables load in sorted
+      # order, so the abandoned variable sorts above the live one and
+      # PAINTS OVER IT: 23.7% of sampled pixels drawn by a variable
+      # the design had dropped (measured 2026-08-27).
+      # SCOPED TO THE ELEMENTS THIS RUN WROTE. A table this run did
+      # not write, for an element this run does not have, is the
+      # shrank-design case the session record above already covers,
+      # and widening the sweep to every `tiles_*` in the file would
+      # make the drop a claim about somebody else's tables rather
+      # than about our own elements.
+      for name in bridge.gpkg_tables(path):
+        for tid in new_ids:
+          stem = f"tiles_{tid}"
+          if name == stem or name.startswith(f"{stem}_"):
+            written.add(name)
+            break
       for stale in sorted(written):
         name = stale if stale.startswith("tiles_") else f"tiles_{stale}"
         if name not in current:

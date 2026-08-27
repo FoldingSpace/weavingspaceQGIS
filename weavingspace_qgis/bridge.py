@@ -4420,6 +4420,46 @@ def make_no_data_renderer(colour, outline: bool, kinds=None):
   return QgsCategorizedSymbolRenderer(ABSENCE_FIELD, categories)
 
 
+def gpkg_tables(path: str) -> set:
+  """Every table name a GeoPackage holds.
+
+  Args:
+    path: the .gpkg to ask. A path that does not exist, cannot be
+      opened, or arrives while GDAL is unavailable answers empty.
+
+  Returns:
+    The set of layer (table) names in the file, or an empty set. Never
+    raises: every caller here is deciding what to do about a file
+    somebody owns, and a check that explodes is worse than one that
+    declines.
+
+  WHY IT ASKS THE FILE, which is the argument the function below
+  already makes and this one exists to share: a file OUTLIVES A
+  SESSION. Anything the dialog remembers about what it wrote is a
+  record of what one window did, and the same file can be written to
+  by a window that remembers nothing -- a restarted QGIS, an unsaved
+  project, File > New -- after which a record-only answer is not
+  merely incomplete but confidently wrong.
+  """
+  if not path or not os.path.exists(path):
+    return set()
+  try:
+    from osgeo import ogr
+  except ImportError:
+    return set()
+  source = None
+  try:
+    source = ogr.Open(path, 0)          # 0 = read only; we only look
+    if source is None:
+      return set()
+    return {source.GetLayer(i).GetName()
+            for i in range(source.GetLayerCount())}
+  except Exception:
+    return set()
+  finally:
+    source = None
+
+
 def gpkg_tables_we_would_replace(path: str, layer_names) -> list:
   """Which of these tables the file ALREADY holds.
 
@@ -4444,24 +4484,8 @@ def gpkg_tables_we_would_replace(path: str, layer_names) -> list:
   113/112/113/112, no warning. A file outlives a session, so the
   question has to be put to the file.
   """
-  if not path or not os.path.exists(path):
-    return []
-  try:
-    from osgeo import ogr
-  except ImportError:
-    return []
-  source = None
-  try:
-    source = ogr.Open(path, 0)          # 0 = read only; we only look
-    if source is None:
-      return []
-    present = {source.GetLayer(i).GetName()
-               for i in range(source.GetLayerCount())}
-    return [name for name in layer_names if name in present]
-  except Exception:
-    return []
-  finally:
-    source = None
+  present = gpkg_tables(path)
+  return [name for name in layer_names if name in present]
 
 
 def drop_gpkg_layer(path: str, layer_name: str) -> bool:
@@ -4534,6 +4558,12 @@ def drop_gpkg_layer(path: str, layer_name: str) -> bool:
     source = None
 
 
+#: What this plugin writes into `layer_styles.description`, and the
+#: only mark by which a style row can be told to be ours. Anything
+#: without it was saved by somebody else and is never removed.
+SEEDED_BY_US = "seeded by WeavingSpace"
+
+
 def embed_style(layer: QgsVectorLayer) -> None:
   """Best-effort: save the layer's current style into its GeoPackage.
 
@@ -4562,9 +4592,79 @@ def embed_style(layer: QgsVectorLayer) -> None:
   try:
     # through compat: the call this used to make directly is
     # deprecated, and a deprecated call is what a later QGIS breaks
-    compat.save_style_to_database(layer, name, "seeded by WeavingSpace")
+    compat.save_style_to_database(layer, name, SEEDED_BY_US)
   except Exception:
     pass
+  # ...AND ANY EARLIER STYLE OF OURS ON THIS TABLE GOES.
+  # `layer_styles` is keyed by the style's NAME, and an element layer
+  # is named `<id> – <variable>`, so changing an element's variable
+  # writes a style under a new name beside the old one. Usually the
+  # TABLE name changes too and the drop takes both rows with it
+  # (`drop_gpkg_layer`, after the kept hunt of 2026-08-26) -- but
+  # `element_table_name` folds punctuation and caps its length, so two
+  # different columns can share one table: `Pop` and `Pop %` both give
+  # `tiles_a_Pop`. Then the table is REPLACED, nothing is dropped, and
+  # the old row survives carrying its QML -- the abandoned field's
+  # name, its pinned bounds and its hand-picked colours, readable by
+  # anyone who opens the file. Under the ruling that the file shows
+  # the limit of what it contains, that is unworn work leaking through
+  # a door no record write passes.
+  # SCOPED BY OUR OWN DESCRIPTION, never by the table alone: a
+  # GeoPackage is an ordinary file, and a style somebody saved onto
+  # our output themselves is theirs. `SEEDED_BY_US` is the mark this
+  # function has written since it was first added, so it names exactly
+  # the rows this plugin is responsible for.
+  _drop_our_other_styles(layer, name)
+
+
+def _drop_our_other_styles(layer, keeping: str) -> None:
+  """Remove styles this plugin wrote on a layer's table, except one.
+
+  Args:
+    layer: the output layer whose style has just been embedded; its
+      source names both the GeoPackage and the table inside it.
+    keeping: the style name just written, which is the one to leave.
+
+  Returns:
+    None. Best-effort throughout, like everything else that edits a
+    user's file here: a file with no `layer_styles` table, a missing
+    GDAL, or a source that is not a GeoPackage all leave it untouched
+    rather than failing the run that produced the map.
+
+  Only rows carrying this plugin's own description are removed, so a
+  style a person saved onto our output is never touched.
+  """
+  try:
+    from osgeo import ogr
+  except ImportError:
+    return
+  source_string = ""
+  try:
+    source_string = layer.source() or ""
+  except Exception:
+    return
+  if "|layername=" not in source_string:
+    return
+  path, _, tail = source_string.partition("|layername=")
+  table = tail.split("|")[0]
+  if not path.lower().endswith(".gpkg") or not os.path.exists(path):
+    return
+  data = None
+  try:
+    data = ogr.Open(path, 1)            # 1 = for update
+    if data is None:
+      return
+    # ExecuteSQL takes no bound parameters here, so the quotes are
+    # doubled by hand exactly as the drop above does it.
+    data.ExecuteSQL(
+      "DELETE FROM layer_styles WHERE f_table_name = '%s' "
+      "AND styleName <> '%s' AND description = '%s'"
+      % (table.replace("'", "''"), keeping.replace("'", "''"),
+         SEEDED_BY_US.replace("'", "''")))
+  except Exception:
+    pass
+  finally:
+    data = None
 
 
 def region_outline_layer(source_layer: QgsVectorLayer) -> QgsVectorLayer:

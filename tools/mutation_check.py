@@ -6266,6 +6266,27 @@ MUTATIONS = [
            "template-governed element claimed the elements now match "
            "while the template went on outranking the copied ramp on "
            "the map and in every record"),
+  dict(name="one-table-carries-one-style-of-ours", file=BRIDGE,
+       old="""  _drop_our_other_styles(layer, name)""",
+       new="""  pass  # mutation: leave every earlier style of ours behind""",
+       test="test_two_columns_sharing_a_table_leave_one_style_of_ours",
+       why="two column names that sanitise to one table name left the "
+           "earlier column's saved style in the GeoPackage, so its "
+           "QML -- the abandoned field's name, its pinned bounds and "
+           "its hand-picked colours -- travelled to whoever the file "
+           "was sent to, through a door the stale-table drop cannot "
+           "see because nothing is dropped at all"),
+  dict(name="the-stale-table-drop-asks-the-file", file=DIALOG,
+       old="""      for name in bridge.gpkg_tables(path):""",
+       new="""      for name in ():  # mutation: ask only this dialog's memory""",
+       test="test_a_switched_variable_leaves_no_orphan_in_the_file",
+       why="a dialog that had never adopted or resumed the output "
+           "GeoPackage knew nothing about what an earlier session "
+           "wrote, so switching an element's variable left the old "
+           "variable's table in the file -- and resuming that file "
+           "loaded the orphan as an extra element, which sorts above "
+           "the live one and paints the abandoned variable over the "
+           "map"),
   dict(name="a-kept-renderer-must-still-draw-its-column", file=DIALOG,
        old="""    return classed_on == (assignment.get("var") or "")""",
        new="""    return True  # mutation: keep it whatever it is classed on""",
