@@ -1022,11 +1022,20 @@ about not paying twice for the same information. Measured on the
   or written to a file, and the rule that a landing never writes over
   a map made from another dataset. On the open side, as of this date:
   whether the design travels a change of dataset, what a retained
-  scheme follows, what the design-floor question offers, and whether
-  "use tileable as icon" persists. The spacing was the first of the
-  open ones to be decided, and decided on its own merits rather than
-  by analogy -- a number a person TYPED survives, a number the plugin
-  DERIVED does not.
+  scheme follows, and what the design-floor question offers. The
+  spacing was the first of the open ones to be decided, and decided on
+  its own merits rather than by analogy -- a number a person TYPED
+  survives, a number the plugin DERIVED does not.
+  ICON MODE WAS ON THAT LIST AND IS NOT OPEN, corrected 2026-08-27.
+  Ruling 4 of 2026-08-25 puts icon mode in the working state a group
+  restores, the restore whitelist carries it, and a hunt drove six
+  boundaries -- group switch and return, project save and reopen,
+  GeoPackage resume, dataset switch, off-and-re-generate -- reading
+  the node property with plain json, the file with bare GDAL and the
+  .qgz out of its own zip. All agreed. A binding file that lists a
+  settled question as open is read as current and invites somebody to
+  implement forgetting, which is why the clause is struck rather than
+  left as harmless untidiness.
 
 ## Lessons learned here (do not relearn these the hard way)
 
@@ -3825,6 +3834,140 @@ here, and the decision to add one is the maintainer's. Recorded
   measured and left alone rather than given a symmetrical repair, and
   a catalogue entry reverses its order so the asymmetry is guarded
   rather than remembered.
+- **A REPAIR AIMED AT AN ACT MUST BE RE-AIMED AT THE ACT'S ABSENCE.**
+  (2026-08-27, two hunts from different directions in one afternoon.)
+  On 2026-08-26 the stale-table drop was taught to take a saved STYLE
+  with the table it removes, which mends every case where something is
+  deleted. Both of the day's file-residue defects are cases where
+  NOTHING IS DELETED: once because the record of what to delete lives
+  on a WINDOW rather than in the file, so a dialog that never adopted
+  the output GeoPackage knows of nothing to drop; once because two
+  column names sanitise to ONE table, so the table is replaced and
+  nothing ever looks stale -- while `layer_styles` is keyed by the
+  style's NAME, and the row written for the abandoned column sits
+  beside the new one carrying its whole QML.
+  So ask of any repair that fires on an act: what happens on the
+  journey where that act never occurs? The drop was right and its
+  coverage was the question nobody put.
+
+- **A GUARD WHOSE CONDITION IS RIGHT CAN STILL BE AIMED AT NOTHING.**
+  (2026-08-27.) The queued restamp's new guard reads `_fieldless_build`,
+  and that flag was measured TRUE at exactly the moment the defect
+  fires. Its first test passed anyway with the guard mutated away,
+  because the journey it drove -- a recolour to a SINGLE SYMBOL --
+  never reaches the adoption that queues the restamp at all. A single
+  symbol is deliberately not followed (the scope of the follow ruling
+  of 2026-08-17), so the test was aimed at a door the act never opens.
+  The catalogue found it; reading did not. The repair was to drive the
+  recolour the way this suite's other adoption tests drive it: clone
+  the renderer the layer already has, move ONE class's colour, install
+  the clone.
+  AND THE PREMISE CHECK LIED FIRST. The rewritten test then failed on
+  its own premise, which read `layer.renderer().ranges()[0].symbol()`
+  -- the freed-temporary pattern this file already records twice. A
+  premise that cannot be trusted is worse than none, because its
+  failure is read as the product's.
+
+- **AN INSTRUMENT THAT HOLDS A FILE CHANGES WHAT IT MEASURES, AND
+  BYTES REMEMBER PAGES NOBODY REFERENCES.** (2026-08-27, twice inside
+  one test.) A guard read a GeoPackage through a `QgsVectorLayer` it
+  left alive, and the open handle made the NEXT run fail at the sqlite
+  level: zero tables, read as the product's fault. Rewritten to read
+  the file's raw BYTES, it then found an abandoned colour sitting in
+  sqlite's freelist -- present with the dataset open, absent once
+  everything had let go, with the style row itself gone in both
+  readings.
+  THE FILE A COLLEAGUE RECEIVES IS THE FILE AFTER IT IS CLOSED, and
+  that is the only moment a byte-level claim about it means anything.
+  Read through OGR and release at once, or clear the project first.
+
+- **RETIREMENT IS A FACT ABOUT THE OBJECT, NOT AN ABSENCE IN A
+  REGISTRY.** (2026-08-27.) Every long-lived handler here is gated by
+  "am I the dialog in charge", and that record was only ever cleared
+  by SUCCESSION -- so a plugin the user DISABLED left it naming a
+  dialog they had disposed of, which went on adopting dock edits,
+  rewriting the project's group record and speaking into QGIS's
+  message bar about controls in a window there was no longer any way
+  to open, until QGIS restarted.
+  THE OBVIOUS LEVER IS THE WRONG ONE AND WAS MEASURED SO. The gate
+  reads "if there IS a live dialog and it is not me, drop", so None
+  means "nobody has said" and clearing the record makes EVERY dialog
+  believe it is in charge rather than none: the sentence the fix had
+  just been written for came straight back. `_dialog_is_gone` answers
+  the retirement now, because it is the question every handler puts
+  first. And closing the WINDOW deliberately does not retire, since
+  `open_dialog` reuses the object -- a closed window is a hidden one
+  somebody may bring back with its map intact.
+
+- **A LAYER BUILT ON ANOTHER LAYER'S SOURCE IS THAT LAYER TO ANYTHING
+  THAT LOOKS UP BY SOURCE.** (2026-08-27.) The map-unit outlines layer
+  is built on the REGION'S OWN SOURCE, deliberately, since nothing is
+  copied; and it carries `weavingspace_output`, which is what keeps it
+  out of the region chooser. Each fact is right alone and they collide
+  in a walk that filters by neither: recovery took whichever layer
+  QGIS's map yielded first with a matching source, and `setLayer` on a
+  layer the combo EXCLUDES leaves the chooser empty -- then returned,
+  in front of its own two fallbacks. A resume reported success beside
+  a blank chooser, every element's variable lost, and a Generate that
+  launched nothing and said nothing.
+  WHEN YOU RESOLVE AN IDENTIFIER TO AN OBJECT, ASK WHO ELSE ANSWERS TO
+  IT, and whether the answer is one the caller is ALLOWED to use. Then
+  check that the assignment took: a `setLayer` that did not land must
+  fall through rather than return as though it had.
+
+- **ENUMERATE THE PRODUCERS OF A SECOND CLAIMANT, NOT JUST THE ONE YOU
+  BUILT.** (2026-08-27.) The paired-layer rule of 2026-08-16 says a
+  paired artefact inherits the identity property of the thing it is
+  paired with, so every lookup keyed on that property gains a second
+  answer. Its fix enumerated the plugin's own twin and stopped there.
+  QGIS's own DUPLICATE LAYER copies custom properties, so a copy of an
+  output layer claims its element too -- and adoption, keeping the
+  LAST claimant in panel order, adopted a copy sitting below the
+  original. The next Generate replaced the copy and left the user's
+  real layer standing over the new map, under an identical name, never
+  updated again, with nothing said.
+  NOTHING IS DELETED ON A GUESS: the two layers are indistinguishable,
+  a GeoPackage-backed copy shares even its source, and keeping a copy
+  of yesterday's map is a reasonable thing to do. The first in panel
+  order wins and the plugin SAYS which one it will replace.
+
+- **A DANGLING REFERENCE IS NOT A DISAGREEMENT, WHICH IS WHY NOTHING
+  COMPLAINS.** (2026-08-27.) An element may take its classes from
+  another element's LAYER, and the choice is stored as
+  `layer:<layer id>` -- while a re-tile gives every element a new
+  layer with a new id. So one Generate after the choice, the token
+  named an object that no longer existed: the donor read as an
+  UNREADABLE class source, the follower kept the colours it already
+  had under the keep-the-map promise, and two elements went on drawing
+  one column in two sets of colours for good. Every mechanism behaved
+  exactly as designed.
+  References are repointed as the layers are replaced -- in the record
+  AND in the combo, since `_assignments` reads the WIDGET and healing
+  the record alone was measured to last until the next rebuild. The
+  donor's CONTENT is stamped too, as a QML class source has been since
+  2026-08-13; a reference stamped by name alone can never notice the
+  thing it points at moving.
+  WHAT IS STILL OPEN, and is a ruling rather than a defect: a donor
+  that MOVES is followed one run late, because the landing reads its
+  template from the donor's outgoing layer while the donor is being
+  re-seeded in the same pass. Curing it decides the ORDER elements are
+  seeded in, and two elements may take their classes from each other
+  -- driven 2026-08-27, and it settles rather than churning.
+
+- **BREAK EVERY ROUTE AT ONCE, OR THE CATALOGUE MEASURES THE OTHER
+  ONE.** (2026-08-27, three times in a day.) A fix written as two
+  guards -- skip our own output AND check the chooser took -- survives
+  having either one mutated, because the other still sends the walk to
+  its fallbacks. An older entry that had caught for weeks began to
+  SURVIVE the moment a new writer covered the same ground. And an
+  entry aimed at the recorder half of a two-site fix passed with that
+  half deleted outright, because the arm deciding the carry made the
+  recorder's case unreachable.
+  A SURVIVOR IS INFORMATION, NOT A NUISANCE: it says the behaviour is
+  held redundantly, or that the entry is aimed at a case nothing can
+  reach. Both are worth knowing, and the answer is the same -- mutate
+  the SHARED thing, or say at the entry why it now needs both halves.
+
 - **A SITE NAMED BY READING IS A HYPOTHESIS, AND IT READS EXACTLY LIKE
   ONE SOMEBODY PROVED.** (2026-08-20, the same defect.) Where that
   refusal lived was worked out from the source, written into the
