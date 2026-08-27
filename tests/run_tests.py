@@ -64851,6 +64851,240 @@ def test_two_columns_sharing_a_table_leave_one_style_of_ours():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+
+def test_the_files_record_follows_a_dock_edit():
+  """The GeoPackage does not disagree with itself.
+
+  Every exit where a dock edit is ADOPTED embeds the layer's new style
+  into the file, and until now none of them wrote the file's own
+  RECORD -- only the landing and the restyle did. So the file drew a
+  colour somebody picked in QGIS's panel while its record said no
+  colour had been picked, and the half a colleague resumes from is the
+  record: they open the map, the dialog tells them nothing was chosen,
+  and their first Generate paints over it.
+
+  Read from the FILE, not from the dialog, because the disagreement is
+  invisible from either side alone.
+
+  Regression: a colour adopted from QGIS's styling panel reached the file's saved styles and never the file's own working record, so resuming that GeoPackage elsewhere restored a design the user had moved away from. Found by the agreement sweep, 2026-08-27. [mutation]
+  """
+  import json
+  import shutil
+  import tempfile
+  from qgis.PyQt.QtGui import QColor
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="ws_file_record_")
+  MARK = "#204060"
+  try:
+    region = make_region_layer(n=4, cell=1000)
+    region.setName("wards")
+    project.addMapLayer(region)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(region)
+      _tick(400)
+      out = os.path.join(folder, "shared.gpkg")
+      dlg.gpkg_widget.setFilePath(out)
+      dlg.spacing_spin.setValue(520)
+      _generate_and_wait(dlg)
+      _tick(300)
+      _settle(dlg, seconds=90)
+      before = json.dumps(bridge.read_working_state(out) or {})
+      assert MARK not in before, \
+        f"PREMISE: the file already records {MARK}, so its arrival " \
+        f"there proves nothing"
+
+      tid = sorted(dlg._element_layer_ids)[0]
+      layer = project.mapLayer(dlg._element_layer_ids[tid])
+      clone = layer.renderer().clone()
+      bands = clone.ranges()            # BOUND: the list frees its symbols
+      assert bands, "PREMISE: the element draws no classes to recolour"
+      symbol = bands[0].symbol().clone()
+      symbol.setColor(QColor(MARK))
+      clone.updateRangeSymbol(0, symbol)
+      layer.setRenderer(clone)
+      layer.triggerRepaint()
+      _tick(2500)
+      settled = layer.renderer()
+      landed = settled.ranges()
+      assert landed[0].symbol().color().name() == MARK, \
+        "PREMISE: the recolour never reached the layer, so nothing " \
+        "was adopted"
+
+      after = json.dumps(bridge.read_working_state(out) or {})
+      assert MARK in after, \
+        f"the file's saved record does not know about {MARK}, which " \
+        f"the same file's saved STYLE is drawing: a colleague resuming " \
+        f"this file is told nothing was picked, and their first " \
+        f"Generate paints over it"
+    finally:
+      dlg.close()
+  finally:
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_an_opacity_set_in_qgis_reaches_the_table():
+  """QGIS owns opacity, so the dialog reads it rather than deciding it.
+
+  Adoption at reopen has read opacity off the layer since 2026-08-13,
+  because a second copy can only disagree with QGIS's own -- and
+  `_add_output_layers` pushes the dialog's copy back onto the layer,
+  so the next restyle for any reason at all undoes a choice still
+  visible in the layer panel. Nothing read it WITHIN a session: set
+  20% in Layer Properties and the layer, its renderer and the file's
+  saved style said 20 while the spin box and every record said 100.
+
+  Both stores are checked, because the cell is one: `_assignments`
+  reads the SPIN BOX, so a record mended alone is written back over at
+  the next rebuild.
+
+  Regression: an opacity set in QGIS's own Layer Properties never reached the plugin's table or its records, so one later restyle put the layer back to full strength. Found by the agreement sweep, 2026-08-27. [mutation]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  region = make_region_layer(n=4, cell=1000)
+  region.setName("wards")
+  project.addMapLayer(region)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    dlg.spacing_spin.setValue(520)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=90)
+    tid = sorted(dlg._element_layer_ids)[0]
+    layer = project.mapLayer(dlg._element_layer_ids[tid])
+    assert dlg._opacity_choices.get(tid, 100) == 100, \
+      "PREMISE: this element is not at full strength to begin with"
+
+    layer.setOpacity(0.2)               # what Layer Properties does
+    layer.triggerRepaint()
+    _tick(2500)
+
+    assert dlg._opacity_choices.get(tid) == 20, \
+      f"the dialog still records " \
+      f"{dlg._opacity_choices.get(tid)}% for an element QGIS is " \
+      f"drawing at 20%, and it pushes that number back onto the layer"
+    row = next(r for r in range(dlg.table.rowCount())
+               if dlg.table.item(r, 0).text() == tid)
+    spin = dlg._row_opacity(row)
+    assert spin is not None and spin.value() == 20, \
+      f"the table cell shows {spin.value() if spin else None}, and " \
+      f"the cell is what the next rebuild writes back into the record"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_resumed_layer_is_named_as_a_fresh_one_is():
+  """Opening a saved map does not show the plugin's own plumbing.
+
+  Ruling 5 exists so somebody can open a finished result WITHOUT
+  generating, and that is the one journey where nothing afterwards
+  corrects a name. The layers came back under their TABLE names --
+  `tiles_a_v1`, `tiles_a_v1_no_data` -- so a resumed map's layer panel
+  and any legend printed from it read in a spelling that means
+  something only inside this code, where a generated map reads
+  `a – v1` and `a – no data`.
+
+  Regression: layers loaded by resuming a GeoPackage were named for their internal tables rather than for their element and variable. Found by the paired-layer hunt, 2026-08-27. [mutation]
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="ws_resume_named_layers_")
+  try:
+    saved = _a_saved_resumable_map(folder)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      _tick(300)
+      assert dlg._resume_from_gpkg(saved), "PREMISE: the resume was refused"
+      _tick(500)
+      _settle(dlg, seconds=90)
+      names = [project.mapLayer(i).name()
+               for i in dlg._element_layer_ids.values()
+               if project.mapLayer(i) is not None]
+      assert names, "PREMISE: the resume registered no element layers"
+      plumbing = [n for n in names if n.startswith("tiles_")]
+      assert not plumbing, \
+        f"the layer panel shows this plugin's own table names: " \
+        f"{plumbing}. A generated map reads 'a – v1'."
+      assert all(" – " in n for n in names), \
+        f"a resumed layer does not say which element and variable it " \
+        f"draws: {names}"
+    finally:
+      dlg.close()
+  finally:
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_no_data_layer_says_which_dataset_it_came_from():
+  """The twin carries its element's provenance, as every output does.
+
+  Every output layer was given `weavingspace_region` so that a landing
+  can refuse to write over a map made from ANOTHER dataset. The commit
+  that did it anchored on the element's own tile-id line and never
+  touched the paired layer's identical one, so the twins have gone
+  unstamped ever since.
+
+  It costs nothing today -- every reader drops a falsy stamp -- and
+  that is exactly why it is worth closing: a group left holding only
+  twins gives the refusal an EMPTY set of stamps, which it reads as
+  output made before stamping existed, and the guard goes quiet. An
+  omission ruled benign has gone live in this project three hours
+  after the accident hiding it was removed.
+
+  Regression: paired no-data layers carried no record of which dataset they were made from, so a group holding only twins would tell the landing's refusal nothing. Found by the paired-layer hunt, 2026-08-27. [mutation]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  region = make_region_layer(n=4, cell=1000)
+  region.setName("wards")
+  provider = region.dataProvider()
+  index = region.fields().indexOf("v1")
+  # SOME VALUES MISSING, which is what gives an element a twin at all
+  provider.changeAttributeValues(
+    {f.id(): {index: None} for f in region.getFeatures() if f.id() % 3 == 0})
+  project.addMapLayer(region)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    dlg.spacing_spin.setValue(520)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=90)
+    assert dlg._no_data_layer_ids, \
+      "PREMISE: the run produced no paired layer, so there is nothing " \
+      "here to stamp -- the fixture has no missing values"
+    for tid, lid in dlg._no_data_layer_ids.items():
+      twin = project.mapLayer(lid)
+      assert twin is not None, f"the twin of {tid!r} is not in the project"
+      theirs = twin.customProperty("weavingspace_region")
+      element = project.mapLayer(dlg._element_layer_ids[tid])
+      mine = element.customProperty("weavingspace_region")
+      assert mine, \
+        "PREMISE: the element itself carries no region stamp, so the " \
+        "twin cannot be asked to match it"
+      assert theirs == mine, \
+        f"the paired layer of element {tid!r} says its dataset is " \
+        f"{theirs!r} where its element says {mine!r}: a group holding " \
+        f"only twins would tell the landing's refusal nothing at all"
+  finally:
+    dlg.close()
+    project.clear()
+
+
 def main():
   """Run every registered test and report what happened.
 
@@ -66132,6 +66366,14 @@ def main():
   check("a field's return wears its own style and keeps its picks",
         test_a_fields_return_wears_its_own_style_and_keeps_its_picks)
 
+  check("the file's record follows a dock edit",
+        test_the_files_record_follows_a_dock_edit)
+  check("an opacity set in QGIS reaches the table",
+        test_an_opacity_set_in_qgis_reaches_the_table)
+  check("a resumed layer is named as a fresh one is",
+        test_a_resumed_layer_is_named_as_a_fresh_one_is)
+  check("a no data layer says which dataset it came from",
+        test_a_no_data_layer_says_which_dataset_it_came_from)
   check("two columns sharing a table leave one style of ours",
         test_two_columns_sharing_a_table_leave_one_style_of_ours)
   check("a switched variable leaves no orphan in the file",

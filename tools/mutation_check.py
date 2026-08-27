@@ -987,14 +987,16 @@ MUTATIONS = [
            "gives a person their work back"),
   dict(name="the-file-record-follows-a-restyle",
        file=DIALOG,
-       old="""    path = self.gpkg_widget.filePath()
-    if path and os.path.exists(path):
-      resumable = self._capture_working_state()""",
-       new="""    path = ""  # mutation: leave the file's record behind
-    if path and os.path.exists(path):
-      resumable = self._capture_working_state()""",
+       old="""    return bool(bridge.write_working_state(
+      path, self._file_safe_state(resumable)))""",
+       new="""    return True  # mutation: never write the file's record""",
        test="test_the_file_carries_the_design_the_map_is_wearing",
-       why="a style-only change never reaches `_add_output_layers`, "
+       why="AIMED AT THE SHARED WRITER since 2026-08-27, because "
+           "breaking the restyle's own call alone now SURVIVES: the "
+           "queued restamp writes the same record, so the behaviour "
+           "is held redundantly and only breaking every route at once "
+           "asks a real question. "
+           "A style-only change never reaches `_add_output_layers`, "
            "so both stores of a map's design have to be written from "
            "the restyle path. The group's record was given that write "
            "on 2026-08-25 and the FILE's record was added to the "
@@ -6266,6 +6268,48 @@ MUTATIONS = [
            "template-governed element claimed the elements now match "
            "while the template went on outranking the copied ramp on "
            "the map and in every record"),
+  dict(name="the-files-record-follows-a-dock-edit", file=DIALOG,
+       old="""        if self._last_path:
+          self._rewrite_the_files_record(self._last_path)""",
+       new="""        if False:  # mutation: leave the file's record behind
+          self._rewrite_the_files_record(self._last_path)""",
+       test="test_the_files_record_follows_a_dock_edit",
+       why="every exit that adopts a dock edit embeds the new STYLE "
+           "into the GeoPackage and none wrote the file's own RECORD, "
+           "so the file disagreed with itself -- and a colleague "
+           "resuming it is told no colour was picked, their first "
+           "Generate painting over the one the same file is drawing"),
+  dict(name="an-opacity-set-in-qgis-is-read-back", file=DIALOG,
+       old="""      self._adopt_the_layers_opacity(layer_id, tile_id)""",
+       new="""      pass  # mutation: let the dialog go on believing its own""",
+       test="test_an_opacity_set_in_qgis_reaches_the_table",
+       why="an opacity set in QGIS's Layer Properties reached the "
+           "layer, its renderer and the file's saved style while the "
+           "spin box and every record still said 100 -- and the "
+           "dialog pushes its own number back, so one later restyle "
+           "for any reason undid a choice still visible in the layer "
+           "panel"),
+  dict(name="a-resumed-layer-is-named-for-its-element", file=DIALOG,
+       old="""      stamped = (found.customProperty("weavingspace_tile_id") or "").strip()""",
+       new="""      stamped = ""  # mutation: keep the internal table name""",
+       test="test_a_resumed_layer_is_named_as_a_fresh_one_is",
+       why="layers loaded by resuming a GeoPackage kept their internal "
+           "table names, so a resumed map's panel and legend read "
+           "`tiles_a_v1` where a generated one reads `a – v1` -- on "
+           "the one journey, opening a finished result without "
+           "generating, where nothing afterwards corrects it"),
+  dict(name="a-twin-carries-its-elements-dataset", file=DIALOG,
+       old="""    if region_source:
+      layer.setCustomProperty("weavingspace_region", region_source)""",
+       new="""    if False:  # mutation: leave the twin unstamped
+      layer.setCustomProperty("weavingspace_region", region_source)""",
+       test="test_a_no_data_layer_says_which_dataset_it_came_from",
+       why="paired no-data layers carried no record of the dataset "
+           "they were made from, so a group holding only twins hands "
+           "the landing's refusal an empty set of stamps -- which it "
+           "reads as output made before stamping existed, and the "
+           "guard against writing over another dataset's map goes "
+           "quiet"),
   dict(name="one-table-carries-one-style-of-ours", file=BRIDGE,
        old="""  _drop_our_other_styles(layer, name)""",
        new="""  pass  # mutation: leave every earlier style of ours behind""",

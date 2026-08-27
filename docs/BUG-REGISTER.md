@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-362 defect(s) with a regression test.
+366 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -321,6 +321,8 @@ there is no separate list to remember.
   guarded by `test_a_mixed_magnitude_legend_prints_real_bounds`
 - **pointing the region chooser at a dataset without an element's column left that element wearing the scheme cut for the column that had gone.**  
   guarded by `test_a_new_region_drops_a_setup_whose_column_has_gone`
+- **paired no-data layers carried no record of which dataset they were made from, so a group holding only twins would tell the landing's refusal nothing. Found by the paired-layer hunt, 2026-08-27.**  
+  guarded by `test_a_no_data_layer_says_which_dataset_it_came_from`
 - **the installer skipped names case-insensitively while the lookup matched exactly, so four palettes were silently unavailable on any QGIS that spells them differently.**  
   guarded by `test_a_palette_is_usable_whatever_case_qgis_spells_it`
 - **an element parked on "---" was skipped whole by the working-state capture -- no flat keys, no kept map -- and the parking Generate removed its layer stamps, so a save and reopen killed every pin and hand-pick the element ever held while the same session's dicts still held everything. Found by the kept hunt of round nine (2026-08-26): the maintainer's "fields not in force at a save" lead with its last corner unlit.**  
@@ -351,6 +353,8 @@ there is no separate list to remember.
   guarded by `test_a_resume_waits_for_the_run`
 - **a group made by opening a saved GeoPackage was named "WeavingSpace tiles" with a counter rather than for its dataset, so two resumed maps could offer the chooser two identical labels while writing different files. Found by the group-naming hunt, 2026-08-27.**  
   guarded by `test_a_resumed_group_is_named_for_its_dataset`
+- **layers loaded by resuming a GeoPackage were named for their internal tables rather than for their element and variable. Found by the paired-layer hunt, 2026-08-27.**  
+  guarded by `test_a_resumed_layer_is_named_as_a_fresh_one_is`
 - **retirement cancels the task, but a run past its worker has already reported, so its landing executed for the retired window -- removing the live session's layers, adopting nothing, and building a rival group beside the map, rows 18 and 19's settled rules broken at a fifth door. The natural route is the natural act: the landing is the long, hang-looking phase, and opening the plugin again then is the ordinary retry. Found by the seams hunt of round nine (2026-08-26).**  
   guarded by `test_a_retired_dialogs_landing_is_discarded`
 - **a finished map could be looked at but not carried on with: the GeoPackage held tables and styles and nothing about the design that produced them, so a demo had to re-tile from scratch and a colleague received a result they could not continue.**  
@@ -369,6 +373,8 @@ there is no separate list to remember.
   guarded by `test_an_act_about_one_field_spares_anothers_ladder`
 - **every element layer carried every mapped variable, so a shared GeoPackage shipped attributes the map never displayed and grew twenty-fold; and the table names said nothing about which variable each element drew.**  
   guarded by `test_an_element_table_carries_only_what_it_displays`
+- **an opacity set in QGIS's own Layer Properties never reached the plugin's table or its records, so one later restyle put the layer back to full strength. Found by the agreement sweep, 2026-08-27.**  
+  guarded by `test_an_opacity_set_in_qgis_reaches_the_table`
 - **the output group was remembered nowhere, so returning to a dataset gave back its colours and its pins and somebody else's design -- a probe measured a user's `grid 3` coming home as `hex-slice 3`, and a spacing of 137 they had typed coming home 500 with nothing said.**  
   guarded by `test_an_output_group_carries_the_whole_working_state`
 - **an automatic mutant moved the sampling divisor and one covering test noticed nothing, because nothing looked at where the swatch ended.**  
@@ -413,6 +419,8 @@ there is no separate list to remember.
   guarded by `test_the_file_carries_the_design_the_map_is_wearing`
 - **none yet -- this guards the boundary the `kept` map created the day it was born, because the file's record is written from the same capture and would otherwise inherit the key.**  
   guarded by `test_the_file_shows_the_limit_of_what_it_contains`
+- **a colour adopted from QGIS's styling panel reached the file's saved styles and never the file's own working record, so resuming that GeoPackage elsewhere restored a design the user had moved away from. Found by the agreement sweep, 2026-08-27.**  
+  guarded by `test_the_files_record_follows_a_dock_edit`
 - **the output group was the unit of work in the rulings and in three separate mechanisms that had never been driven against each other -- and the first build of them broke six reopen journeys, let go of a map when the region layer was removed, and undid the user's own edits after every landing.**  
   guarded by `test_the_group_unit_rulings_hold_on_every_route`
 - **deleting the output GeoPackage and pressing Generate removed every element layer from the project and added none, silently, because the handle release recreated a zero-byte file and the landing read bare existence as "update the file". Found 2026-08-26 by the file-lifecycle census; the write's own moment measured first=False exists=True size=0.**  
@@ -775,7 +783,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 99
+- the mutation campaign: 103
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
 - reported by a user: 29

@@ -6286,6 +6286,17 @@ class WeavingSpaceDialog(QDialog):
       try:
         self._stamp_working_state(
           self._group_of_our_layers(QgsProject.instance().layerTreeRoot()))
+        # ...AND THE FILE'S OWN RECORD WITH IT, because a dock edit
+        # this dialog adopts is written into the file's STYLES by
+        # every adoption exit and was written into the file's RECORD
+        # by none of them. The file then disagrees with itself, and
+        # the half a colleague resumes from is the record: they open
+        # the map drawing a colour somebody picked, the dialog tells
+        # them nothing was picked, and their first Generate paints
+        # over it. Queued here rather than added to six exits, so a
+        # seventh cannot be written without it.
+        if self._last_path:
+          self._rewrite_the_files_record(self._last_path)
       except Exception:
         _dump("STATE", "queued-restamp-failed",
               traceback.format_exc(limit=3))
@@ -8230,6 +8241,49 @@ class WeavingSpaceDialog(QDialog):
     name, flipped = self._ramp_match(ramp, prefer=prefer)
     return None if flipped else name
 
+  def _adopt_the_layers_opacity(self, layer_id, tile_id):
+    """Read an element's opacity back off its layer, and show it.
+
+    Args:
+      layer_id: the output layer somebody has just restyled in QGIS.
+      tile_id: the element it carries.
+
+    Returns:
+      None. Updates this element's opacity record and the table cell
+      that displays it, and does nothing at all when the two already
+      agree with the layer, so an ordinary recolour costs one
+      comparison.
+
+    BOTH STORES, because the cell is one. `_assignments` reads the
+    SPIN BOX, so a record updated alone is written back over at the
+    next rebuild -- the widget-is-a-store fault this project has paid
+    for twice. The cell is set with its signals blocked, or setting it
+    right would fire the handler that writes the spin's value into the
+    record and undo what this just adopted.
+    """
+    layer = QgsProject.instance().mapLayer(layer_id)
+    if layer is None:
+      return
+    try:
+      wearing = max(0, min(100, round(layer.opacity() * 100)))
+    except Exception:
+      return
+    if self._opacity_choices.get(tile_id) == wearing:
+      return
+    _dump("OPACITY", tile_id, "layer=", wearing,
+          "dialog=", self._opacity_choices.get(tile_id, "-"))
+    self._opacity_choices[tile_id] = wearing
+    for row in range(self.table.rowCount()):
+      cell = self.table.item(row, 0)
+      if cell is None or cell.text() != tile_id:
+        continue
+      spin = self._row_opacity(row)
+      if spin is not None and spin.value() != wearing:
+        spin.blockSignals(True)
+        spin.setValue(wearing)
+        spin.blockSignals(False)
+      break
+
   def _on_layer_style_edited(self, layer_id, tile_id):
     """React when someone restyles an element layer in QGIS itself.
 
@@ -8297,6 +8351,24 @@ class WeavingSpaceDialog(QDialog):
     if not self._applying_style \
         and self._element_layer_ids.get(tile_id) == layer_id:
       self._picked_back.discard(tile_id)
+    # OPACITY IS QGIS'S OWN, AND A PERSON HAS JUST MOVED IT. Adoption
+    # at reopen has read it off the layer since 2026-08-13, for the
+    # reason written there: the dialog's copy can only disagree, and
+    # `_add_output_layers` pushes that copy back, so the next restyle
+    # -- any restyle, for any reason -- quietly undoes a choice still
+    # visible in QGIS's own panel. The same is true WITHIN a session
+    # and nothing read it: set 20% in Layer Properties and the layer,
+    # its renderer and the file's saved style all said 20 while the
+    # widget, the dialog's record, the group's record and the file's
+    # record all said 100. One ramp change and a Generate put 100 back
+    # on the map. Measured by the agreement sweep, 2026-08-27.
+    # AT REST ONLY, like every other adoption here: not while the
+    # dialog is writing renderers, not while a run is in flight, and
+    # not while a landing is still being reconciled -- during any of
+    # those what sits on the layer is nobody's decision.
+    if not self._applying_style and self._task is None \
+        and tile_id not in self._preserved_this_run:
+      self._adopt_the_layers_opacity(layer_id, tile_id)
     if self._applying_style or self._task is not None:
       # THE ROW STILL LEARNS IT IS DEFERRING, even mid-run, and that
       # one line is the difference between a style surviving and being
@@ -12377,7 +12449,8 @@ class WeavingSpaceDialog(QDialog):
 
   def _add_no_data_layer(self, assignment, tile_id, absent, group,
                          project, path, table_name=None, hand_opacity=None,
-                         hand_renderer=None, hand_subset=None):
+                         hand_renderer=None, hand_subset=None,
+                         region_source=None):
     """Draw one element's missing-value tiles as their own layer.
 
     Args:
@@ -12410,6 +12483,14 @@ class WeavingSpaceDialog(QDialog):
         None. NOT gated, because a subset says which features to draw
         rather than how to colour them and is nobody's styling -- the
         same rule the element's own subset follows.
+      region_source: the source string of the dataset this map was
+        tiled from, which is stamped onto the layer exactly as it is
+        onto the element beside it. None leaves the twin unstamped,
+        which is what output made before that stamp existed looks
+        like. PASSED rather than written by the caller afterwards,
+        because the twin's style goes into the GeoPackage inside this
+        call and a stamp written after it would reach the project and
+        never the file.
 
     Returns:
       None. The layer is registered, added to the group directly
@@ -12500,6 +12581,21 @@ class WeavingSpaceDialog(QDialog):
     layer.setCustomProperty("weavingspace_output", True)
     layer.setCustomProperty("weavingspace_tile_id", tile_id)
     layer.setCustomProperty("weavingspace_no_data", True)
+    # ...AND WHICH DATASET IT CAME FROM, exactly as its element is
+    # stamped. The commit that gave every output layer this stamp
+    # anchored on the element's own `weavingspace_tile_id` line and
+    # never touched the twin's identical one, so the twins have gone
+    # unstamped since. Nothing costs a user anything today: all four
+    # readers drop a falsy stamp. What makes it a countdown rather
+    # than a harmless omission is a group holding ONLY twins -- then
+    # the set of stamps is empty, and the refusal that stops a run
+    # writing over a map made from another dataset reads that as
+    # output made before the stamp existed and goes quiet. (Found by
+    # the paired-layer hunt, 2026-08-27; measured as held redundantly,
+    # fixed because an omission ruled benign has gone live here three
+    # hours after the accident hiding it was removed.)
+    if region_source:
+      layer.setCustomProperty("weavingspace_region", region_source)
     # THE SAME OPACITY AS ITS ELEMENT. The repainting twin sets this
     # and the creating path did not, so an element faded to 40% drew
     # its missing-value areas at full strength -- the hardest shapes
@@ -12855,17 +12951,10 @@ class WeavingSpaceDialog(QDialog):
     # THAT ALREADY HELD THAT FACT.
     path = self.gpkg_widget.filePath()
     if path and os.path.exists(path):
-      resumable = self._capture_working_state()
-      # THE EMBEDDING FLAG IS CARRIED, NOT RE-DECIDED. Embedding the
-      # source is an explicit opt-in and a heavier act than a restyle
-      # has any business performing, so this keeps whatever the file
-      # already says about it rather than answering the question
-      # again -- a restyle must never quietly un-embed a source
-      # somebody chose to carry.
-      existing = bridge.read_working_state(path) or {}
-      if "region_embedded" in existing:
-        resumable["region_embedded"] = existing["region_embedded"]
-      if not bridge.write_working_state(path, self._file_safe_state(resumable)):
+      # THE EMBEDDING FLAG IS CARRIED, NOT RE-DECIDED, which is the
+      # helper's own contract and the reason it is shared with the
+      # queued restamp: everything but a landing carries it.
+      if not self._rewrite_the_files_record(path):
         # The same sentence the landing uses, for the same reason: on
         # either path the map and its styles are in the file and only
         # the RESUME is lost, so a person meets one wording.
@@ -14714,6 +14803,49 @@ class WeavingSpaceDialog(QDialog):
       "region": layer.source() if layer is not None else None,
     }
 
+  def _rewrite_the_files_record(self, path) -> bool:
+    """Bring the GeoPackage's own saved record up to date.
+
+    Args:
+      path: the .gpkg this map is being written to. A path naming no
+        existing file answers True without doing anything, since
+        there is no file whose record could be stale.
+
+    Returns:
+      True when the file's record now describes the map, False when
+      the write failed. Nothing is reported here: the callers differ
+      in what they say about a failure, and one of them runs from a
+      queued timer where there is nobody to tell.
+
+    FOR WRITERS THAT ARE NOT LANDINGS, which is the whole reason it
+    carries the embedding flag rather than deciding it. Embedding the
+    source is an explicit opt-in and a heavier act than a restyle or
+    an adopted dock edit has any business performing, so this keeps
+    whatever the file already says -- a restyle must never quietly
+    un-embed a source somebody chose to carry. A LANDING does decide
+    it, from the box, and so writes its own record rather than calling
+    this.
+
+    WHY IT EXISTS AT ALL: the restyle path was taught to write this
+    record on 2026-08-26, and the six exits where a dock edit is
+    ADOPTED were not -- each of them embeds the layer's new STYLE into
+    the file and left the file's record saying the old thing. So the
+    file disagreed with itself: its style drew a colour somebody
+    picked in QGIS's panel, and its record said no colour had been
+    picked. A colleague opening it resumed the record, and their first
+    Generate repainted the map back over the adopted colour and
+    stripped it from the file. Measured by the agreement sweep,
+    2026-08-27.
+    """
+    if not path or not os.path.exists(path):
+      return True
+    resumable = self._capture_working_state()
+    existing = bridge.read_working_state(path) or {}
+    if "region_embedded" in existing:
+      resumable["region_embedded"] = existing["region_embedded"]
+    return bool(bridge.write_working_state(
+      path, self._file_safe_state(resumable)))
+
   def _file_safe_state(self, record):
     """A working-state record fit to leave the machine in a GeoPackage.
 
@@ -15324,6 +15456,33 @@ class WeavingSpaceDialog(QDialog):
       # the stamps ride inside the embedded style, so this is what
       # makes the layer recognisably ours again
       found.loadDefaultStyle()
+      # NAMED AS A FRESH RUN NAMES IT. The layers come back under
+      # their TABLE names -- `tiles_a_v1`, `tiles_a_v1_no_data` -- so
+      # a resumed map's panel and legend read in the plugin's internal
+      # spelling where a generated one reads `a – v1` and
+      # `a – no data`. Nobody outside this code knows what a tiles_
+      # table is, and ruling 5 exists precisely so somebody can open a
+      # finished result WITHOUT generating, which is the one journey
+      # where nothing else ever corrects the name. The stamps needed
+      # to compose it are on the layer the moment its embedded style
+      # is loaded, one line above. (Found by the paired-layer hunt,
+      # 2026-08-27.)
+      # A NAME IS A LABEL AND NEVER AN IDENTITY, so nothing is looked
+      # up by it and a name the user changes afterwards is theirs.
+      stamped = (found.customProperty("weavingspace_tile_id") or "").strip()
+      if stamped:
+        if found.customProperty("weavingspace_no_data"):
+          found.setName(f"{stamped} – no data")
+        else:
+          shown = next((element.get("var") for element
+                        in (record.get("elements") or [])
+                        if str(element.get("id")) == stamped), None)
+          # An element carrying no variable keeps the table name
+          # rather than being given a half-name: unassigned elements
+          # are drawn as flat fill and a bare id says less than the
+          # table does.
+          if shown:
+            found.setName(f"{stamped} – {shown}")
       project.addMapLayer(found, False)
       group.addLayer(found)
       # COUNTED AS AN ELEMENT ONLY IF IT IS ONE. A paired no-data
@@ -16960,7 +17119,13 @@ class WeavingSpaceDialog(QDialog):
           old_no_data_renderers.get(tid) if kept_by_hand else None,
           # the filter is not styling and is not gated, matching the
           # element's own subset a few lines below
-          old_no_data_subsets.get(tid))
+          old_no_data_subsets.get(tid),
+          # ...and the same provenance its element was stamped with a
+          # few lines above, passed rather than copied afterwards
+          # because the twin's style goes into the GeoPackage inside
+          # this call, and a stamp written after it would reach the
+          # project and never the file.
+          region_source)
       # the user's own filter, back on the fresh layer. Applied AFTER
       # the renderer, because a subset changes what a classifier
       # would see and the styling above belongs to the whole element;
