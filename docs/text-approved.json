@@ -1,4 +1,9 @@
 {
+ "0117c987b0da77fc": {
+  "approved": "2026-08-26",
+  "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",
+  "where": "weavingspace_qgis/help_content.py"
+ },
  "02349d052c9624a8": {
   "approved": "2026-08-09",
   "excerpt": "Shrink each unit in place, into separate glyphs.",
@@ -454,6 +459,11 @@
   "excerpt": "Opens a thin gap around every tile or strand.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "3e9c4452622eb29b": {
+  "approved": "2026-08-26",
+  "excerpt": "A map saved to a GeoPackage remembers how it was made. Open ",
+  "where": "docs/USER-GUIDE.md"
+ },
  "3eb02c489d810773": {
   "approved": "2026-08-08",
   "excerpt": "You do not need a GitHub account, git, or a command line for",
@@ -548,6 +558,11 @@
   "approved": "2026-08-09",
   "excerpt": "Where this element's class colours come from: automatic, ano",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "4adca5fa95c74d2a": {
+  "approved": "2026-08-26",
+  "excerpt": "Each map the plugin draws lives in its own QGIS layer group,",
+  "where": "docs/USER-GUIDE.md"
  },
  "4b0667dd0f87cd79": {
   "approved": "2026-08-26",
@@ -1229,6 +1244,11 @@
   "excerpt": "*Join data using whole tileable* asks every element in a uni",
   "where": "docs/USER-GUIDE.md"
  },
+ "99eff827611c38a8": {
+  "approved": "2026-08-26",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
  "9a46c8497b5ce2cd": {
   "approved": "2026-08-08",
   "excerpt": "Create as new group (keep the previous result)",
@@ -1563,6 +1583,11 @@
   "approved": "2026-08-09",
   "excerpt": "Slant the pattern up-down.",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "c9cc18423ffcd235": {
+  "approved": "2026-08-26",
+  "excerpt": "[general]\nname=WeavingSpace\nqgisMinimumVersion=4.0\nqgisMaxim",
+  "where": "weavingspace_qgis/metadata.txt"
  },
  "ca3799a9b6ffcb1c": {
   "approved": "2026-08-08",

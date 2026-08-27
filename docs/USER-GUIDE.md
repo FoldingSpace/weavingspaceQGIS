@@ -274,6 +274,24 @@ variable, style, ramp, or classification in the dialog. *Create as new group*
 keeps a previous attempt alongside for comparison, with a different
 file if you are saving to disk.
 
+Each map the plugin draws lives in its own QGIS layer group, named for
+the dataset it was made from, and the *QGIS Layer Group* chooser beside
+the region layer says which one the next run will land in. Choosing a
+dataset selects its group and choosing a group selects its dataset, so
+the two cannot disagree; where one dataset owns several maps, the most
+recent is chosen. Selecting a group brings back the design it was made
+with, down to each element's variable, style, ramp, class colours and
+pinned bounds, so a project holding several maps can be picked up
+wherever you left it. Rename a group if you would rather call it
+something else: the plugin finds its own output by what is inside the
+group.
+
+A map saved to a GeoPackage remembers how it was made. Open a saved
+file and the plugin brings back its layers and its whole design without
+the project you made it in, finding the data it was drawn from where
+that data is still on your computer. Tick *Include the source data* if
+the file is going to somebody who does not have it.
+
 ## Limits worth knowing
 
 Tile counts grow with the square of the inverse spacing, so a small

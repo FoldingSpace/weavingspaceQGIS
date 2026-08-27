@@ -2876,6 +2876,29 @@ were green in their own runs; nothing but the whole suite puts the two
 in the same room. When a fix changes what a record holds, grep the
 suite for other tests that read that record before writing a new one.
 
+## A TEST THAT PINS A NAME PINS IT TWICE: AS TEXT AND AS A SYMBOL
+
+2026-08-26, and it cost a release gate. Output groups were given
+names carrying their dataset, and the suite was swept for the old name
+by grepping the literal. Six sites turned up and were mended. The
+candidate's own suite then failed on two tests that pin the same name
+through `GROUP_BASE_NAME`, which no search for the string could ever
+have found.
+
+Both were repaired to state their rule rather than the string, and
+both are better tests for it: one asks the PROJECT which groups it
+holds rather than comparing against a constant that happened to match,
+and the other asserts the thing it was really about, that a first run
+gets no counter appended. Neither will move again when the convention
+does.
+
+**THE HABIT IS CHEAP: when a test compares against a name, ask whether
+the name has a symbol, and sweep for both.** And when an assertion
+pins a literal that the product composes, prefer stating the rule --
+this file's own standing advice about composing an expected sentence
+from the function the product uses, arriving at a name instead of a
+notice.
+
 ## BOTH BRANCHES OF THAT QUESTION CAME UP THE SAME NIGHT
 
 The rule for a survivor is to break every route at once: if the test

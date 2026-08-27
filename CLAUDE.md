@@ -2026,6 +2026,24 @@ Confirmed with the user via an explicit design review:
   the reopened one did, so it was two rules colliding rather than a
   persistence fault.
 
+- **WHEN YOU CHANGE A NAME OR A FORMAT, FIND EVERY READER -- BY SYMBOL
+  AS WELL AS BY LITERAL.** (2026-08-26, twice within an hour, on one
+  small change.) Naming output groups for their dataset was swept
+  through the suite by grepping the string "WeavingSpace tiles", which
+  found six sites and mended them; the RELEASE GATE then failed on two
+  more that pin the same name through `GROUP_BASE_NAME`. A name with a
+  symbol has two spellings in a tree and a search for one is a search
+  for half.
+  THE OTHER FACE IS DECOMPOSITION. The group chooser composes its
+  label as `<name> — <dataset>`, and six places in the suite recovered
+  the name by splitting on that separator -- correct until the
+  separator moved INSIDE the name, after which every group answered
+  "WeavingSpace tiles". They share one helper now.
+  SO ASK BOTH QUESTIONS: who writes this string, and who takes it
+  apart? This file already says to grep every reader of a custom
+  property and every route into a handler; a name and a label are the
+  same rule wearing text.
+
 - **A FOURTH RULING OF 2026-08-26: AN OUTPUT GROUP IS NAMED FOR THE
   DATASET IT WAS MADE FROM.** `WeavingSpace tiles — nyc blocks`, the
   plugin's own name first so its groups sort together, the dataset

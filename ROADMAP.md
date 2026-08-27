@@ -94,12 +94,18 @@ wheels from PyPI when QGIS lacks them. Plugins get rejected for
 hiding the second, not for doing it. Full detail in
 docs/PUBLISHING.md.
 
-## 0.24.3 — next
+## 0.24.3 — released 2026-08-26
 
-Worked straight on `pre-0.24.3rc1`. What follows is what the version
-DELIVERS, organised as a user meets it; the complete defect record,
-row by row with what each still owes, is
-`docs/process/defects-2026-08-17.md`.
+Published as `v0.24.3` from `main`, promoted from candidate rc21 with
+its receipt rather than rebuilt. What follows is what the version
+DELIVERS, kept because a reader arriving at this file wants to know
+what the last release was for; everything it owed is done, and what it
+never landed has moved to 0.24.4 below.
+
+The record of how it was built is elsewhere and stays there: the
+defect ledgers under `docs/process/`, sixty rows across 2026-08-17 to
+26; the rulings in CLAUDE.md, where they bind; and the verification
+lessons in docs/TESTING.md.
 
 ### What it gives you
 
@@ -168,141 +174,9 @@ unmentioned though four documents said otherwise; every Unclassed
 element was warned a third of its fifty steps were empty; and where
 two elements share a column, one element's notice silenced the other.
 
-### Outstanding
+## 0.24.4 — next
 
-**Nothing outstanding.** Everything this version owed in code is
-built, tested and entry-proved, and the record of how lives where it
-binds rather than here: `docs/process/defects-2026-08-26.md` for the
-fifty-nine rows, CLAUDE.md for the five rulings of 2026-08-25 and
-2026-08-26, docs/TESTING.md for what the round cost to verify.
-
-THE LAST THINGS TO CLOSE, in the order they closed. The Windows red
-of six CI rounds, diagnosed to its mechanism and fixed: a layer source
-is a path plus a provider tail, a project save respells the path half,
-and eight sites compared sources as raw strings. The four regressions
-round nine shipped, found by the whole suite rather than by any
-targeted run, three of them one mechanism -- a stamp taken away from a
-landing may carry only what a landing decided -- and the fourth a
-collision between two registered tests that the maintainer settled as
-the day's third ruling. The debounces, decided by measurement: the
-preview wait is a floor that widens to whatever a rebuild costs, and
-the live interval is unchanged for reasons recorded under "Later, or
-never". And the changelog, which gained three approved paragraphs for
-behaviours this version acquired after the entry was first approved.
-
-WHAT IS NOT IN CODE AND THEREFORE NOT HERE: the candidate's own gates,
-which measure this tree, and CI, which `publish_candidate.py` refuses
-to publish past. Neither is work owed; both are how the work is
-checked.
-
-### What this version has already closed
-
-Entries are DELETED as they land, which is what keeps this file a
-statement of what is owed rather than a diary. What follows is the
-shortest record that leaves nothing unfindable: where the reasoning
-lives, and the measurements that live nowhere else.
-
-**THE DATASET-SWITCH CONTRACT.** The seven rulings of 2026-08-21, the
-boundary the full suite drew (a change of dataset is leaving a
-dataset this session has BUILT from), and ruling 8 of 2026-08-24 --
-per-dataset memory banks, value-laden records never crossing a shared
-column name, the file boundary tested at the GeoPackage's own bytes.
-The "variables in common" carve was built and ended the same day by
-the maintainer's own question about confidential values. rc17's
-number was spent by a superseded build and never published; rc18
-carried all of it. Eight hunts after rc18 found ELEVEN defects, every
-one in the day's own code and nine inside its repairs, two of them
-privacy leaks of exactly the kind ruling 8 exists to prevent -- so
-**rc18 is SUPERSEDED** and the next candidate carries the cures.
-Record: `docs/process/defects-2026-08-25.md`.
-
-**THE OUTPUT GROUP AS THE UNIT OF WORK.** Settled by a grilling on
-2026-08-25 after a colleague drove the rules above through a real
-demo of several datasets in a row and found they answer ONE ACT in
-three different ways, none of them named on screen. His diagnosis is
-the sentence the design had to answer, and it is quoted in CLAUDE.md
-where the six rulings bind: inferring all of this "is OK as far as it
-goes, but it's too hard to be reliable and not produce weird seeming
-behaviour relatively often". Built the same day in seven commits,
-`18df97d` through `4527dec`: the working-state record on the group's
-own custom property, the chooser and the symmetric binding with
-`_fresh_group_for_new_data` retired, element tables trimmed and named
-for their variable, the GeoPackage made resumable, the size guard
-turned from a refusal into a banded question with its sentinels split
-off, and the upstream library taken to 0.0.7.89. Guarded by five
-tests, the four-axis matrix
-`test_the_group_unit_rulings_hold_on_every_route`, and nineteen
-catalogue entries proved to catch.
-
-**AND ITS HUNT ROUND, JUDGED 2026-08-26.** Nine claims, six confirmed
-and fixed with tests and proved entries, three refuted -- each by
-driving the product rather than reading it, with the four probes
-committed under `tools/probes/`. The worst of the six: the region
-stamp was read off the CHOOSER as a run landed, so switching the
-region layer mid-run filed one dataset's tiles under another and a
-later run on that other dataset destroyed them.
-
-**MEASUREMENTS THAT LIVE NOWHERE ELSE.** The colleague's file: 23
-element layers each carrying all 26 source attributes took an 800 KB
-dataset to a 19 MB GeoPackage, which is what trimming answers. A probe
-wrote a four-column dataset out and read it back with OGR: four
-tables, each holding all four columns including one deliberately
-named `secret_code` that no element ever displayed -- not ruling 8's
-cross-dataset leak, and the same family of concern. And the maintainer
-met the naming half on rc16: in the project the layers read
-"tileid - variablename" while the TABLE names were `tiles_<tid>`, so
-opening the file directly showed "filename - tiles_a" and the
-variable was nowhere.
-
-**A SPACING A PERSON TYPED** now survives a change of dataset while
-one the plugin DERIVED is still re-derived, and pressing Auto hands
-the choice back. Measured rather than reported: 137 typed, 500 on
-return, with nothing said. Guarded by
-`test_a_spacing_a_person_typed_outlives_a_change_of_dataset` and two
-judged entries.
-
-**THE THIRTEEN GUARDS** owed for the fixes of 2026-08-17 were written
-and proved on the 18th. The ledger's OWES column is the record; check
-it rather than believing this paragraph:
-
-    python3 -c "
-    import re,pathlib
-    txt=pathlib.Path('docs/process/defects-2026-08-17.md').read_text()
-    rows=[l for l in txt.split('## The ledger')[1].splitlines()
-          if re.match(r'^\\|\\s*\\d+\\s*\\|',l) and len(l.split('|'))==7]
-    print([(r.split('|')[1].strip(), r.split('|')[5].strip()) for r in rows
-           if r.split('|')[5].strip() not in ('test + entry','prose')])"
-
-The reasoning that outlives these fixes is in CLAUDE.md where it
-binds, in docs/TESTING.md where it is about tests, and at the code.
-
-### Process items, which do not block a candidate
-
-**CONFIRM THE GHOST NUMBERS ON A REAL SCREEN.** Deferred until after
-the release by the maintainer, 2026-08-17, to be tested by the person
-who reported it. The cause is removed — the Unclassed table is no
-longer composited through a `QGraphicsOpacityEffect` and fades per
-item through the palette's disabled colour — and guarded by
-`test_the_unclassed_list_fades_without_a_graphics_effect` and the
-catalogue entry `the-unclassed-list-is-not-composited`. What no test
-here can say is whether the ghosts are GONE: they live in the window
-system's backing store, where `grab()` repaints cleanly and a scrolled
-render matched a force-repainted one across 32,900 sampled pixels. The
-original report, kept so the check has something to check against: a
-second, faint set of class bounds painted behind the live ones in the
-Lower and Upper columns, offset by about a row, on scrolling.
-
-### Everything that stood under 0.24.4, moved up on 2026-08-25
-
-MAINTAINER'S RULING that day, in three words: **nothing is delayed.**
-What follows was written as 0.24.4 work and is 0.24.3 work now. The
-entries are unchanged apart from this line, so the reasoning each was
-deferred WITH is still readable -- and in one case that reasoning is
-an argument against doing it now, which is recorded rather than
-quietly dropped: the twenty-eight-version upstream jump was held back
-on 2026-08-18 precisely because it moves the reference renderer the
-gallery and the colourspace comparison measure against, so its gates
-have to be read case by case rather than glanced at.
+Worked on `pre-0.24.4rc1`. What follows is what the version owes.
 
 **A NO-DATA TWIN REPORTED ON COMPLETE DATA.** (Maintainer, rc16,
 2026-08-24: the paired layer appears on the mosquito data though the
@@ -335,95 +209,19 @@ IT DOES NOT BLOCK A CANDIDATE: a paired layer that appears where
 nothing is missing is a puzzle rather than a wrong map, and no
 measurement available here reproduces it.
 
-**TAKE THE UPSTREAM LIBRARY FROM 0.0.7.61 TO 0.0.7.89.** Checked
-2026-08-18 under the standing rule that upstream is compared before
-the suite runs, and OFFERED rather than taken: the maintainer's
-decision that day was to build rc8 on the current vendor and do this
-as its own piece of work, because a twenty-eight-version jump cannot
-be folded into a candidate whose gates are about to measure it.
-
-**TAKEN ON 2026-08-25**, and what follows is the record rather than
-the plan. The vendor is 0.0.7.89 at bf1bbbf -- past ac69ca2, which is
-where upstream stood when this entry was written. All five remaining
-patches (matplotlib and scipy made optional) re-applied on their
-exact anchors, none needing a decision.
-
-COMPARED STRUCTURALLY FIRST, as the standing rule asks. Six of the
-twelve library modules differ behaviourally: `_tiling_geometries.py`,
-`symmetry.py`, `tile_map.py`, `tileable.py`, `tiling_utils.py`,
-`topology.py` and `weave_unit.py`. `_loom.py`, `_weave_grid.py` and
-`weave_matrices.py` are comments alone; `__init__.py` and
-`tile_unit.py` are identical. Nothing upstream that we do not carry.
-
-AND ONE CLAIM IN THIS ENTRY WAS WRONG, which is worth keeping rather
-than quietly correcting. It said `c26dc70` "makes ids case-sensitive
-in both TileUnit and WeaveUnit, so `a` and `A` are now different" --
-read out of a commit message rather than measured. Measured against
-the vendor on 2026-08-25: `TILE_IDS` holds 702 ids, `a`..`z` then
-`aa`..`zz`, ALL LOWERCASE, and asking for 710 elements comes back
-with 702 silently. Capitals do not appear at all. This project's own
-rule applies to its own roadmap: a fact read out of a message is a
-hypothesis, and it reads exactly like one somebody proved.
-
-WHAT THAT SETTLES, and it is good news for the entry under "Waiting
-on the upstream project" below. Doubled lowercase ids survive a
-GeoPackage's case fold where capitals do not, so upstream has removed
-the case blocker for TILINGS entirely. What it has not removed is the
-WEAVE STRING FORMAT, where one character means one element and a
-two-character id has nowhere to go -- so `catalog.MAX_ELEMENTS` stays
-at 26, which is a DECISION and not a discovery: moving it means
-auditing everything that assumes an id is one character and living
-with a limit that differs by family, and nobody has asked for a
-twenty-seventh element. Both canaries fired on the bump, which is
-what canaries are for, and both were rewritten to what is true now
-rather than relaxed.
-
-THE MEASUREMENT IS THE CANDIDATE'S, and this entry said otherwise
-until 2026-08-26. It read "recorded in the commit that carries them",
-naming a commit that was never made: the bump commit said the
-measurement would follow in its own, and nothing followed. The three
-things owed -- the functional suite, the visual gallery read case by
-case, and the colourspace comparison against the moved reference
-renderer -- are precisely the gates `release.py --rc` runs, so the
-candidate is where they happen rather than a commit somebody has to
-remember. Read the gallery case by case when it does: the reference
-renderer moved by twenty-eight versions, which is why this was held
-back in the first place.
-
-**WHAT SHOULD THE DEBOUNCES BE?** Measured 2026-08-17 and recorded
-here because changing it would change the software, which is the line
-between a process item and a real entry.
-
-A user nudging a control with live update on waits about 1.7 SECONDS
-before the map settles, of which roughly 225 ms is CPU and the rest is
-the 350 ms preview debounce and the 900 ms live one. So about two
-thirds of the wait is deliberate delay. That is not a regression --
-the interactive loop is measurably FASTER than v0.24.0, the debounces
-are identical in both, and 61 layers in the project change nothing --
-but it is what "the snappy interactive feel has gone" is describing,
-and nobody has ever chosen those numbers against a measurement.
-
-Three questions, and they are design rather than defect: what should
-the two intervals be; should the preview and the live run share one
-debounce instead of firing at 350 and again at 900; and should a run
-that is about to be superseded be CANCELLED sooner than it is.
-`tools/probes/one_interaction.py` is the instrument, and it takes the
-tree to measure as an argument so any two can be compared.
-
-
-Deferred from 0.24.3 on 2026-08-15. All three are MEASUREMENT: they
-say how good the suite is rather than whether the plugin is right,
-so none of them blocks an artefact.
-
-**ANSWERED and deleted from here on 2026-08-16.** The rebuild count
-was retired dialogs: four routes into `_rebuild_unit` that a dialog
-kept open after the user had finished with it, the last of them the
-layer combo's own re-emission rather than a project signal. Fixed and
-guarded; 1,282 rebuilds down to 173. Kept as one line only because
-this entry said the question "changes no artefact", and it turned out
-to be the direct cause of a red suite on three platforms -- deferring
-it was the wrong call, made on a local measurement too cheap to show
-the effect.
+**CONFIRM THE GHOST NUMBERS ON A REAL SCREEN.** Deferred until after
+the release by the maintainer, 2026-08-17, to be tested by the person
+who reported it. The cause is removed — the Unclassed table is no
+longer composited through a `QGraphicsOpacityEffect` and fades per
+item through the palette's disabled colour — and guarded by
+`test_the_unclassed_list_fades_without_a_graphics_effect` and the
+catalogue entry `the-unclassed-list-is-not-composited`. What no test
+here can say is whether the ghosts are GONE: they live in the window
+system's backing store, where `grab()` repaints cleanly and a scrolled
+render matched a force-repainted one across 32,900 sampled pixels. The
+original report, kept so the check has something to check against: a
+second, faint set of class bounds painted behind the live ones in the
+Lower and Upper columns, offset by about a row, on scrolling.
 
 **FOR STUDY: warn when a test asserts a string that also appears in
 shipped source.** Added 2026-08-16, deliberately as a question rather
@@ -480,15 +278,6 @@ expensive stratum, which nothing has ever measured -- 1,172 of the
 1,488 reachable mutants, and the cheap stratum's 59% says nothing
 about them. And a certification batch, once the suite stops changing,
 since improvement rounds cannot certify themselves.
-
-## 0.24.4 — after this one
-
-**Nothing.** Everything that stood here moved into 0.24.3 on
-2026-08-25 on the maintainer's ruling that nothing is delayed. The
-section is kept rather than deleted because the release process
-expects a version to have one, and because an empty section says
-something a missing section does not: this was emptied deliberately,
-not forgotten.
 
 ## Waiting on the upstream project
 

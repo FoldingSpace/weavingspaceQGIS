@@ -22,7 +22,7 @@ about=Creates tiled and woven map layers that carry several attributes
     installation, and declining simply closes the plugin. Released
     under the MIT licence; the bundled weavingspace library is MIT
     too, and both notices are in LICENSE.md.
-version=0.24.3
+version=0.24.4
 license=MIT
 author=Luke Bergmann
 email=luke.bergmann@gmail.com
@@ -45,7 +45,11 @@ server=False
 ; wants to know what moved reads on. One text serving both is how a
 ; changelog becomes a list nobody finishes.
 ; (Maintainer's instruction, 2026-08-13.)
-changelog=0.24.3 You decide how your data is classed: which values are
+changelog=0.24.4 THIS ENTRY IS A PLACEHOLDER AND MUST NOT SHIP. It
+    says so plainly because a stub that reads like prose is a stub
+    that ships. Replace it by reading what actually changed:
+    git diff v0.24.3..HEAD -- weavingspace_qgis/
+    changelog=0.24.3 You decide how your data is classed: which values are
     drawn at all, where the first and last classes end, and what
     becomes of the areas left out.
     The range drawn: an element's ladder has four ends you can set
