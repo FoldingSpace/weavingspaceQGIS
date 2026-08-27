@@ -65529,6 +65529,22 @@ def test_a_resume_does_not_recover_onto_our_own_outlines_layer():
                 if fresh.table.cellWidget(r, 1) is not None]
       assert [v for v in chosen if v and v != "---"], \
         f"no element came back with a variable: {chosen}"
+      # ...AND THE SAME DOOR WHERE IT ONLY COSTS A NAME. The chooser
+      # labels a group by walking the project for a layer whose source
+      # matches, and that walk had the same first-match fault -- so it
+      # could name a map after the plugin's own outlines layer, which
+      # is a name nobody outside this code recognises. Cosmetic beside
+      # its twin, and closed because a guard missing at one of two
+      # doors is a countdown rather than a defence.
+      ours = [lyr.name() for lyr in project.mapLayers().values()
+              if lyr.customProperty("weavingspace_output")
+              and same_source_for_tests(lyr.source(), wanted)]
+      assert ours, \
+        "PREMISE: no output layer shares the region's source any more"
+      label = fresh._dataset_label(wanted)
+      assert label not in ours, \
+        f"the chooser would call this map {label!r}, which is the " \
+        f"plugin's own output layer rather than the user's data"
     finally:
       fresh.close()
   finally:

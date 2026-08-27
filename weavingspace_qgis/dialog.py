@@ -14246,6 +14246,19 @@ class WeavingSpaceDialog(QDialog):
     if not source:
       return None
     for layer in QgsProject.instance().mapLayers().values():
+      # THE SAME DOOR AS `_recover_the_source`, and it was open here
+      # too. The map-unit outlines layer is built on the REGION'S OWN
+      # SOURCE, so a walk that matches by source and takes the first
+      # answer can name a group after the plugin's own output rather
+      # than after the user's data -- and the chooser would then
+      # label a map with a name nobody outside this code recognises.
+      # Cosmetic where its twin cost a resume, and closed for the
+      # reason this project already writes down twice: a guard that
+      # is missing and currently costs nothing is a countdown rather
+      # than a defence. (Found by the design-controls hunt alongside
+      # its twin, 2026-08-27.)
+      if layer.customProperty("weavingspace_output"):
+        continue
       try:
         if same_source(layer.source(), source):
           return layer.name()

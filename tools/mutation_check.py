@@ -305,6 +305,21 @@ MUTATIONS = [
            "nor unmake one, so without this term a mode change or a "
            "variable swap is answered in place and the holes the "
            "feature exists to remove come back"),
+  dict(name="the-chooser-labels-a-group-by-the-users-data", file=DIALOG,
+       old="""      if layer.customProperty("weavingspace_output"):
+        continue
+      try:
+        if same_source(layer.source(), source):""",
+       new="""      try:
+        if same_source(layer.source(), source):""",
+       test="test_a_resume_does_not_recover_onto_our_own_outlines_layer",
+       why="the group chooser names a map by walking the project for "
+           "a layer whose source matches, and the outlines layer is "
+           "built on the region's OWN source -- so the chooser could "
+           "label a map after the plugin's own output, which is a "
+           "name nobody outside this code recognises. The same first-"
+           "match fault as its twin in `_recover_the_source`, where "
+           "it cost a whole resume"),
   dict(name="recovery-skips-the-plugins-own-output", file=DIALOG,
        old="""        if layer.customProperty("weavingspace_output"):
           continue
