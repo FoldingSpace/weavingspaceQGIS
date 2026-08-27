@@ -186,18 +186,28 @@ before it goes in.
 `for-0.24.4/hunt-fixes` -- twenty-five defects of 2026-08-27, each
 with a registered test and a catalogue entry that was RUN and reported
 caught, plus the day's ledger and the lessons promoted into CLAUDE.md.
-BEFORE IT MERGES: a full local suite that reaches its own summary
-line. Two runs on 2026-08-27 ended in `Fatal Python error: Aborted` at
-exactly 571 tests, which was ledger row 25 and is fixed; the run that
-proves it had not finished when the day's work stopped.
+Its documentation of the five rulings was merged into
+`copy-select-all` on 2026-08-27, so that branch carries everything
+this one has. BEFORE IT MERGES TO `main`: a full local suite that
+reaches its own summary line.
 
 `for-0.24.4/copy-select-all` -- the Select all button beside "Copy
 to...", the two element ceilings (weaves `a`..`z`, tilings `a`..`z`
 then `aa`..`zz` capped at sixteen by sixteen), and `element_order`,
 which is what stops the twenty-seventh element sorting second
 everywhere a person reads a list. It has `hunt-fixes` merged into it,
-so it is the wider of the two. BEFORE IT MERGES: the same full suite,
-and the three sentences it adds settled in the text-review queue.
+documentation included, so it is the branch that carries 0.24.4 as it
+stands.
+BEFORE IT MERGES: A FULL SUITE HAS NEVER COMPLETED ON THIS TREE, and
+that is the single largest thing 0.24.4 owes. Three runs were started
+on 2026-08-27: two ended in `Fatal Python error: Aborted` at exactly
+571 tests -- ledger row 25, which is fixed -- and the third was
+stopped deliberately at 299 passing and none failing, before the
+merge, to get the merge done. 299 passes with no summary line is not a
+green suite, and neither was 571. Start it, leave the tree alone while
+it runs, and read the LAST LINE.
+Also owed: the three sentences it adds settled in the text-review
+queue, which is the maintainer's act and no gate's.
 
 `for-0.24.4/save-load-tab` -- the Save & open tab: saving and opening
 built from the same widget, side by side, on their own tab, with the
