@@ -1097,22 +1097,37 @@ def _dialog_is_gone(dialog):
   """
   if dialog is None:
     return True
+  # IS IT DELETED FIRST, AND THE ORDER IS THE WHOLE OF IT. This guard
+  # exists to be safe on an object that may already be dead, so it may
+  # not TOUCH that object before asking. The retirement check below
+  # went in above this one on 2026-08-27 -- "asked before sip, because
+  # it is cheaper" -- and reading any attribute off a deleted wrapper
+  # raises `RuntimeError: wrapped C/C++ object ... has been deleted`,
+  # from inside a Qt slot, which took the whole suite down with
+  # `Fatal Python error: Aborted` at the one test that destroys a
+  # dialog and then pokes it. Cheaper is not a reason to ask a
+  # question of something that may not be there.
+  try:
+    from qgis.PyQt import sip
+  except Exception:
+    sip = None
+  if sip is not None:
+    try:
+      if sip.isdeleted(dialog):
+        return True
+    except Exception:
+      return False
   # A RETIRED DIALOG IS GONE AS FAR AS EVERY HANDLER IS CONCERNED,
   # though its Python object is perfectly alive: QGIS unloading the
   # plugin takes the menu entry and the reference away, so there is no
   # route back to this window and nothing it does can be seen or
-  # undone. Asked before sip, because it is cheaper and because a
-  # retired dialog whose C++ half survives is the whole case.
-  if getattr(dialog, "_retired", False):
+  # undone. Asked only once the object is known to be live -- and
+  # still defensively, since being wrong here must never raise into a
+  # Qt slot.
+  try:
+    return bool(getattr(dialog, "_retired", False))
+  except Exception:
     return True
-  try:
-    from qgis.PyQt import sip
-  except Exception:
-    return False
-  try:
-    return bool(sip.isdeleted(dialog))
-  except Exception:
-    return False
 
 
 def _forget_live_dialog(token):
