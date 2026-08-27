@@ -4052,6 +4052,36 @@ def read_working_state(path: str):
   return record if isinstance(record, dict) else None
 
 
+def element_order(tile_id) -> tuple:
+  """Sort key putting element ids in the order they are handed out.
+
+  Args:
+    tile_id: an element's id, as the library names it: `a`..`z`, then
+      `aa`, `ab` and so on.
+
+  Returns:
+    `(length, id)`, which is the order upstream generates them in --
+    the single letters first, then the doubled ones alphabetically.
+
+  WHY NOT PLAIN `sorted`. Python compares strings character by
+  character, so `"aa" < "z"`: the twenty-seventh element sorts SECOND,
+  between `a` and `b`. Under a single alphabet that could never
+  happen, and every id in this plugin was one character until the
+  tiling ceiling rose on 2026-08-27. Left alone it would have put
+  element 27 second in the assignment table, second in the layers
+  panel, and second in every list a person reads -- not wrong in the
+  sense of losing anything, and wrong in the sense that nobody could
+  find their twenty-seventh variable.
+
+  ASKED OF EVERY SITE THAT ORDERS ELEMENTS, because a sort key that
+  only some callers use is a second order rather than a fix: the
+  table's rows, the layers the run builds, the design view's labels
+  and the legibility check's pairs all read this.
+  """
+  text = str(tile_id)
+  return (len(text), text)
+
+
 def element_table_name(tile_id: str, variable, taken=()) -> str:
   """The GeoPackage table name for one element's tiles.
 

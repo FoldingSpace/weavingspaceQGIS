@@ -307,17 +307,55 @@ for _n in TILINGS_BY_N:
 # shut, for the reason above, which is upstream's format to change
 # rather than ours.
 #
-# SO THE CEILING COULD MOVE FOR TILINGS ALONE, and this is a decision
-# rather than a discovery. It stays at 26 for both because a limit
-# that differs by family is one more thing a user and a maintainer
-# each have to hold in mind, nobody has asked for a twenty-seventh
-# element, and the work is not the number: it is auditing everything
-# that assumes an id is one character, in this plugin and in whatever
-# a user has already saved. Twenty-six stands until somebody wants
-# more enough to pay for that. (Reasoning rewritten 2026-08-18, after
-# the earlier version compressed the two routes into one sentence and
-# left the impression that case folding was what stopped doubling.)
-MAX_ELEMENTS = 26
+# SO THE CEILING MOVES FOR TILINGS ALONE, and that is the maintainer's
+# ruling of 2026-08-27: a-z only for WEAVES, a-z then aa-zz for
+# TILINGS, capped in practice at sixteen by sixteen. The paragraph
+# this replaces argued for holding both at 26 on the grounds that a
+# limit differing by family is one more thing to hold in mind and
+# that nobody had asked. Somebody has asked, and the asymmetry is not
+# arbitrary: it follows the two blockers above, which stopped at
+# different places. Route two is open for tilings because upstream
+# supplies the doubled ids and the GeoPackage keeps `tiles_aa` and
+# `tiles_ab` apart; it is shut for weaves because a weave is
+# SPECIFIED as a string with one character per element, so "ab"
+# already means two strands rather than one element called ab. That
+# is upstream's format to change rather than ours.
+#
+# WHY 256 RATHER THAN 702. The doubled alphabet supplies 702 ids and
+# the number that matters is the grid: `tightest_grid` arrays n cells
+# over the tightest near-square, so 256 is exactly sixteen by
+# sixteen -- a round arrangement rather than a ragged one, and far
+# past what any map can be read at. The cap is ours, as the old one
+# was.
+#
+# MEASURED BEFORE IT MOVED, 2026-08-27, because the note above says
+# upstream's doubled ids are used ONLY in `_tiling_geometries` and
+# that had never been driven here. All four formula families build a
+# unit with exactly n DISTINCT ids at 27, 52, 53, 100, 196 and 256 --
+# 52 and 53 included deliberately, since 52 is where the OLD
+# single-case-letters scheme ran out and a silent truncation would
+# show there first. Cost per unit at 256: stripes 0.03s, grid 0.03s,
+# hex-slice 0.05s, square-slice 0.05s, so the catalogue sweep that
+# builds every entry grows by about half a minute rather than by
+# hours.
+#
+# WHAT THIS DOES NOT SETTLE, and the old note was right about it: an
+# id is assumed to be one character in places nobody has enumerated,
+# here and in whatever a user has already saved. Nothing below 27 can
+# reach two characters, so every existing project and GeoPackage is
+# untouched; what is new is that a design ABOVE 26 can produce ids
+# this plugin has never written before. `test_a_tiling_may_carry_two_
+# letter_elements` drives those ids through a GeoPackage and back.
+MAX_ELEMENTS_WEAVE = 26
+
+#: The tiling ceiling, and the one the catalogue's own loop uses.
+#: Sixteen by sixteen: see the note above for why it is not 702.
+MAX_ELEMENTS_TILING = 16 * 16
+
+#: What the plugin will offer at all, which is the wider of the two.
+#: Read this where a limit is about "any design"; read the two above
+#: where it is about a KIND of design, because they differ on purpose.
+MAX_ELEMENTS = MAX_ELEMENTS_TILING
 
 # Families whose construction is a formula in n, so they hold at every
 # count up to the ceiling: stripes cuts the unit into n parallel bands,
@@ -339,12 +377,16 @@ GENERAL_TILINGS = {
 # Measured at 2..60; every other count prints "n-colouring of hexes is
 # not supported" and falls back to a default unit. Both lists reach
 # past 20, which is how a count with no other interesting design (25
-# for squares) comes to have one. Hexagons' 37 does NOT: the
-# extension loop stops at MAX_ELEMENTS, which is 26, so 37 is
-# recorded as a measured fact about the library and reaches no menu
-# until that ceiling moves. (Corrected 2026-08-12: this said 37 was
-# offered too, which was true under the higher ceiling it was written
-# against.)
+# for squares) comes to have one. Hexagons' 37 IS offered again as of
+# 2026-08-27: the extension loop stops at `MAX_ELEMENTS_TILING`, and
+# that is now 256, so a count this list reaches past the old ceiling
+# gets its menu entry. (This has said three things in three weeks --
+# offered, then not offered under a lowered ceiling, then offered --
+# and each was true when written. It is derived from the loop's own
+# bound rather than stated, which is why it keeps needing correcting;
+# `test_the_catalogue_offers_only_designs_that_build` re-measures
+# every entry at every count on every run, so the menu and this
+# sentence cannot disagree for long.)
 HEX_COLOURING_COUNTS = tuple(range(2, 17)) + (19, 37)
 SQUARE_COLOURING_COUNTS = tuple(range(2, 10)) + (16, 25)
 
@@ -355,7 +397,14 @@ SQUARE_COLOURING_COUNTS = tuple(range(2, 10)) + (16, 25)
 # counts each (2-7, {3,4,7,9} and {3,5,9} respectively), all of which
 # the literal above already offers where they exist.
 
-for _n in range(2, MAX_ELEMENTS + 1):
+# TILINGS ONLY above `MAX_ELEMENTS_WEAVE`, which needs no condition
+# here and is worth saying anyway: every family this loop adds is a
+# TILING, and the weave entries all come from the literal above, which
+# the web app wrote and which reaches nowhere near 26. So the weave
+# ceiling holds because nothing offers a weave above it, and
+# `test_no_weave_is_offered_past_the_single_alphabet` says so rather
+# than leaving it to be noticed.
+for _n in range(2, MAX_ELEMENTS_TILING + 1):
   # setdefault throughout: a count the web app already covers keeps the
   # app's own entries untouched, and this block only fills the gaps
   _families = TILINGS_BY_N.setdefault(_n, {})

@@ -1325,7 +1325,8 @@ class TilePreview(QWidget):
                   [list(r.coords) for r in g.interiors]
           polys.append((tid, rings))
       self._polys = polys
-      self._ids = sorted({p[0] for p in polys})
+      self._ids = sorted({p[0] for p in polys},
+                         key=bridge.element_order)
       self._id_colours = id_colours
       # label the central unit's tiles with their ids, as the web
       # app's design view does. The centroid is the visual centre and
@@ -1465,8 +1466,10 @@ class WeavingSpaceDialog(QDialog):
   """
 
   # element counts offered (the catalogue's keys: every count from 2
-  # to 26, where single-character element ids stop being distinct
-  # without case -- see catalog.MAX_ELEMENTS for why that matters)
+  # to 256 for TILINGS, whose ids run a..z then aa..zz, and 2 to 26
+  # for weaves, which name their strands one character at a time --
+  # see catalog.MAX_ELEMENTS_WEAVE and MAX_ELEMENTS_TILING, which
+  # differ on purpose and say why at length)
   N_CHOICES = sorted(catalog.TILINGS_BY_N)
   # entries of the per-row Style dropdown; "Quant: X" rows all mean a
   # graduated (classed numeric) renderer, differing in break method
@@ -4755,7 +4758,8 @@ class WeavingSpaceDialog(QDialog):
     if self._unit is None:
       return []
     try:
-      return sorted(set(self._unit.tiles.tile_id))
+      return sorted(set(self._unit.tiles.tile_id),
+                    key=bridge.element_order)
     except Exception:
       return []
 
@@ -15827,6 +15831,9 @@ class WeavingSpaceDialog(QDialog):
     # tables the file holds and QGIS would not open; reported once
     # below, beside the count of what did come back
     refused = []
+    # (sort key, layer) for everything that opened, added to the group
+    # together below so the panel reads in element order
+    arriving = []
     for table in sorted(wanted):
       found = QgsVectorLayer(f"{path}|layername={table}", table, "ogr")
       if not found.isValid():
@@ -15870,7 +15877,19 @@ class WeavingSpaceDialog(QDialog):
           if shown:
             found.setName(f"{stamped} – {shown}")
       project.addMapLayer(found, False)
-      group.addLayer(found)
+      # ADDED IN ELEMENT ORDER, NOT TABLE ORDER, once every layer is
+      # known. The tables are walked in `sorted` order, and a table
+      # name carries its element -- so `tiles_aa_v1` falls before
+      # `tiles_b_v1`, and a resumed map of more than twenty-six
+      # elements would list its twenty-seventh SECOND while a freshly
+      # generated one lists it last. `element_order` is the one owner
+      # of that question (2026-08-27); the twin follows its element,
+      # which is what the table order gave for free and this must
+      # keep.
+      arriving.append(
+        ((bridge.element_order(stamped or table),
+          1 if found.customProperty("weavingspace_no_data") else 0),
+         found))
       # COUNTED AS AN ELEMENT ONLY IF IT IS ONE. A paired no-data
       # layer's table is `<table>_no_data`, which starts with `tiles_`
       # like every other, so counting the tables told somebody that a
@@ -15880,6 +15899,8 @@ class WeavingSpaceDialog(QDialog):
       opened += 1
       if not table.endswith("_no_data"):
         loaded += 1
+    for _key, layer in sorted(arriving, key=lambda pair: pair[0]):
+      group.addLayer(layer)
     if not opened:
       root.removeChildNode(group)
       self._report_quietly(
@@ -16946,7 +16967,7 @@ class WeavingSpaceDialog(QDialog):
     old_outline = self._outline_layer_id
     new_ids = {}
     by_id = {a["id"]: a for a in assignments}
-    tile_ids = sorted(set(gdf["tile_id"]))
+    tile_ids = sorted(set(gdf["tile_id"]), key=bridge.element_order)
     warned_cardinality = []
     # {tile_id: the fills that element will paint}, gathered as the
     # renderers go on so the separability check sees the map's real

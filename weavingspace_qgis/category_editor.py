@@ -798,7 +798,8 @@ class CategoryColourDialog(QDialog):
         which targets were left out in its own notice.
 
     Returns:
-      None. Builds a checkable dropdown and a Copy button beside it.
+      None. Builds a checkable dropdown, a button that ticks every
+      target at once, and a Copy button beside them.
       Nothing happens until the button is pressed, and the ticks are
       cleared afterwards, so the control never sits showing a target
       as though this element were somehow bound to it: a copy is an
@@ -838,6 +839,46 @@ class CategoryColourDialog(QDialog):
     button = QPushButton("Copy")
     button.setToolTip("Copy onto the ticked elements")
 
+    # ALL OF THEM AT ONCE. (Maintainer's request, 2026-08-27.) The
+    # case that justified letting a class bound sit outside the data
+    # at all was handing ONE PAIR OF LIMITS TO SEVERAL VARIABLES, and
+    # on a design of a dozen elements that meant a dozen visits to a
+    # dropdown to say "yes, all of them".
+    # IT SAYS WHAT IT WILL DO, which is why the label moves rather
+    # than sitting at "Select all" over a list that is already
+    # entirely ticked: a control that cannot change anything is one a
+    # person presses twice before believing it. With everything
+    # ticked the only thing left to want is to start again, so that
+    # is what it offers.
+    every = QPushButton()
+    every.setToolTip("Tick every element, or clear them all")
+
+    def all_of_them():
+      """Whether every target is ticked, which decides what to offer."""
+      return box.count() > 0 and all(
+        box.itemCheckState(index) == Qt.CheckState.Checked
+        for index in range(box.count()))
+
+    def say_what_it_offers():
+      """Keep the label true of what pressing it would do now."""
+      every.setText("Clear" if all_of_them() else "Select all")
+
+    def take_them_all():
+      """Tick everything, or -- with everything ticked -- clear it."""
+      if all_of_them():
+        box.deselectAllOptions()
+      else:
+        box.selectAllOptions()
+      say_what_it_offers()
+
+    every.clicked.connect(take_them_all)
+    # ...AND IT FOLLOWS THE TICKS WHEREVER THEY MOVE: through the
+    # dropdown, and through the clearing the Copy button does when the
+    # act is over. A label that only tracked its own presses would sit
+    # reading "Clear" over an empty list the moment a copy was taken.
+    box.checkedItemsChanged.connect(say_what_it_offers)
+    say_what_it_offers()
+
     def pressed():
       # THE IDS, NOT THE LABELS. A label carries the element's current
       # variable ("b - v2") for the reader's sake, and a variable is a
@@ -852,10 +893,15 @@ class CategoryColourDialog(QDialog):
 
     button.clicked.connect(pressed)
     line.addWidget(box, 0, Qt.AlignmentFlag.AlignVCenter)
+    # Between the list and the act: it changes what is ticked, so it
+    # belongs with the ticking rather than beside the button that
+    # commits to it.
+    line.addWidget(every, 0, Qt.AlignmentFlag.AlignVCenter)
     line.addWidget(button, 0, Qt.AlignmentFlag.AlignVCenter)
     line.addStretch(1)
     self._copy_box = box
     self._copy_button = button
+    self._copy_all_button = every
     layout.addWidget(row)
 
   def _build_clamp_strip(self, layout, bounds):

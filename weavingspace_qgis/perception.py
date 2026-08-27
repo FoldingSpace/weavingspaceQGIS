@@ -248,7 +248,9 @@ def clashes(element_colours, shared=None, threshold=CLASH_THRESHOLD):
     kept = [c for c in colours if _hex_of(c) not in ABSENCE_FILLS]
     compared[tile_id] = kept or list(colours)
   element_colours = compared
-  ids = sorted(element_colours)
+  from . import bridge          # local: this module is imported by
+  # bridge's own callers and a top-level import would circle
+  ids = sorted(element_colours, key=bridge.element_order)
   for index, first in enumerate(ids):
     for second in ids[index + 1:]:
       # Elements deliberately given the same ramp are not a problem:

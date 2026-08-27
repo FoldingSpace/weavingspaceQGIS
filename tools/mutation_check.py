@@ -3333,17 +3333,54 @@ MUTATIONS = [
   # its surroundings to match exactly once, since a replacement takes
   # the first occurrence and an anchor that matches twice mutates
   # something nobody chose.
+  dict(name="copy-to-offers-select-all", file=EDITOR,
+       old="""    every.clicked.connect(take_them_all)""",
+       new="""    pass  # mutation: the button does nothing""",
+       test="test_copy_to_offers_select_all",
+       why="giving one classification to every element of a design "
+           "meant one trip through the dropdown per element, which is "
+           "exactly the act that justified out-of-data bounds in the "
+           "first place -- one pair of limits handed to several "
+           "variables"),
   dict(name="element-ceiling-back-to-the-old-limit", file=CATALOG,
-       old="MAX_ELEMENTS = 26",
-       new="MAX_ELEMENTS = 20  # mutation: the old hand-written limit",
+       old="MAX_ELEMENTS_TILING = 16 * 16",
+       new="MAX_ELEMENTS_TILING = 26  # mutation: the old single alphabet",
        test="test_every_element_count_up_to_the_ceiling_is_offered",
        why="the chooser must offer every count the catalogue can "
-           "build, up to the 26 where single-character element ids "
-           "stay distinct without case; capping it lower takes "
-           "designs away from users with no sign anything is missing"),
+           "build, up to the sixteen-by-sixteen grid the doubled "
+           "element ids reach; capping it lower takes designs away "
+           "from users with no sign anything is missing"),
+  dict(name="a-weave-reaching-past-its-own-alphabet", file=CATALOG,
+       old="MAX_ELEMENTS_WEAVE = 26",
+       new="MAX_ELEMENTS_WEAVE = 16 * 16  # mutation: one ceiling again",
+       test="test_no_weave_is_offered_past_the_single_alphabet",
+       why="a weave is SPECIFIED as a string with one character per "
+           "element, so a two-letter id is not unsupported there but "
+           "already spoken for -- \"ab\" means two strands. Letting "
+           "the weave ceiling follow the tiling one would change what "
+           "every stored design means"),
+  dict(name="elements-are-ordered-as-they-are-handed-out", file=BRIDGE,
+       old="""  return (len(text), text)""",
+       new="""  return (text,)  # mutation: plain lexical order""",
+       test="test_a_tiling_may_carry_two_letter_elements",
+       why="Python compares strings character by character, so "
+           "\"aa\" < \"z\" and the twenty-seventh element sorts SECOND "
+           "-- second in the assignment table, second in the layers "
+           "panel, second in every list a person reads. Nothing is "
+           "lost; a user simply cannot find their twenty-seventh "
+           "variable"),
+  dict(name="a-tiling-past-the-alphabet-is-offered", file=CATALOG,
+       old="for _n in range(2, MAX_ELEMENTS_TILING + 1):",
+       new="for _n in range(2, 27):  # mutation: one alphabet again",
+       test="test_a_tiling_may_carry_two_letter_elements",
+       why="a tiling may carry more elements than the lowercase "
+           "alphabet has letters, because its ids run a..z then "
+           "aa..zz and a GeoPackage keeps those apart -- capping the "
+           "loop at 26 takes every design past the alphabet off the "
+           "menu, and the ids nobody had written before go untested"),
   dict(name="seventeen-elements-left-out-again", file=CATALOG,
-       old="for _n in range(2, MAX_ELEMENTS + 1):",
-       new="for _n in [_c for _c in range(2, MAX_ELEMENTS + 1)"
+       old="for _n in range(2, MAX_ELEMENTS_TILING + 1):",
+       new="for _n in [_c for _c in range(2, MAX_ELEMENTS_TILING + 1)"
            " if _c != 17]:  # mutation: skip 17 as the web app did",
        test="test_every_element_count_up_to_the_ceiling_is_offered",
        why="17 elements was the count the user noticed missing; a gap "
@@ -3414,13 +3451,12 @@ MUTATIONS = [
        new="HEX_COLOURING_COUNTS = tuple(range(2, 17)) + (19, 38)"
            "  # mutation: a count the library cannot hand-build",
        test="test_the_catalogue_offers_only_designs_that_build",
-       why="37 sits above MAX_ELEMENTS, so the loop over the MENU "
-           "never reached it and an automatic mutant moved it freely. "
-           "The list is a measured fact about which arrangements the "
-           "library hand-builds, and it goes on the menu the day the "
-           "element ceiling rises -- at which point a wrong count "
-           "reaches a user as a plausible map carrying the wrong "
-           "number of variables"),
+       why="37 sat above the element ceiling until 2026-08-27, so the "
+           "loop over the MENU never reached it and an automatic "
+           "mutant moved it freely. The ceiling has risen past it, so "
+           "a wrong count now reaches a user directly, as a plausible "
+           "map carrying the wrong number of variables -- which is "
+           "what this list being a MEASURED fact was always for"),
   dict(name="unclassed-swatch-stops-short", file=DIALOG,
        old="        step = (len(shades) - 1) / 7",
        new="        step = (len(shades) - 1) / 8"

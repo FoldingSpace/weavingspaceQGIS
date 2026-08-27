@@ -1018,26 +1018,36 @@ def test_every_element_count_up_to_the_ceiling_is_offered():
   # gained 17 after 20 would answer "every count is there" while
   # listing them out of order to anything that does not sort for itself
   offered = list(catalog.TILINGS_BY_N)
-  assert offered == list(range(2, 27)), \
-    f"the counts on offer are {offered}, not every count from 2 to 26 " \
-    f"in order"
+  assert offered == list(range(2, 257)), \
+    f"the counts on offer run {offered[:3]}...{offered[-3:]} " \
+    f"({len(offered)} of them), not every count from 2 to 256 in order"
   assert 17 in catalog.TILINGS_BY_N, \
     "17 elements is missing again; it was the web app dictionary's " \
     "omission, not a limit of the library"
-  # the ceiling is the LOWERCASE alphabet, so state the connection
-  # rather than the number: 26 letters, 26 ids that stay distinct when
-  # something downstream folds their case
-  assert catalog.MAX_ELEMENTS == len(string.ascii_lowercase) == 26, \
-    f"MAX_ELEMENTS is {catalog.MAX_ELEMENTS}; it is the size of the " \
-    f"lowercase alphabet, because element 27 is 'A' and collides with " \
-    f"element 1's 'a' on any case-insensitive path"
+  # TWO CEILINGS SINCE 2026-08-27, and each is stated as what it is
+  # rather than as a number. Weaves keep the LOWERCASE ALPHABET,
+  # because a weave is specified as a string with one character per
+  # element and "ab" already means two strands. Tilings reach the
+  # DOUBLED alphabet, which the GeoPackage keeps apart -- capped at
+  # sixteen by sixteen, which is the tightest grid's own arrangement
+  # at that count.
+  assert catalog.MAX_ELEMENTS_WEAVE == len(string.ascii_lowercase) == 26, \
+    f"MAX_ELEMENTS_WEAVE is {catalog.MAX_ELEMENTS_WEAVE}; it is the " \
+    f"size of the lowercase alphabet, because a weave names its " \
+    f"strands one character at a time"
+  assert catalog.MAX_ELEMENTS_TILING == 16 * 16, \
+    f"MAX_ELEMENTS_TILING is {catalog.MAX_ELEMENTS_TILING}; it is a " \
+    f"square grid of sixteen by sixteen, which is what makes 256 the " \
+    f"number rather than the doubled alphabet's 702"
   # the chooser is built from the catalogue, so what the catalogue
   # holds is what a user meets
-  assert WeavingSpaceDialog.N_CHOICES == list(range(2, 27)), \
-    f"the chooser offers {WeavingSpaceDialog.N_CHOICES}"
+  assert WeavingSpaceDialog.N_CHOICES == list(range(2, 257)), \
+    f"the chooser offers {len(WeavingSpaceDialog.N_CHOICES)} counts, " \
+    f"from {WeavingSpaceDialog.N_CHOICES[:2]} to " \
+    f"{WeavingSpaceDialog.N_CHOICES[-2:]}"
   # every count carries the four families that generalise, named as
   # the family list shows them
-  for n in range(2, 27):
+  for n in range(2, 257):
     families = catalog.TILINGS_BY_N[n]
     for family in ("stripes", "grid", "hex-slice", "square-slice"):
       assert f"{family} {n}" in families, \
@@ -1101,18 +1111,17 @@ def test_the_catalogue_offers_only_designs_that_build():
   # number rather than derived from MAX_ELEMENTS on purpose -- a
   # count read from the module under test would move with it, and a
   # loop that had quietly stopped early would still pass.
-  assert builds == {"hex-colouring": 25, "square-colouring": 25}, \
+  assert builds == {"hex-colouring": 255, "square-colouring": 255}, \
     f"only {builds} counts were built, so the comparisons above prove less"
 
-  # ...and the DECLARED lists, including the counts above the ceiling.
-  # The loop over the menu stops at MAX_ELEMENTS, so hex-colouring 37
-  # is named in catalog.py and never reached by anything: an automatic
-  # mutant moved it to 38 and nothing noticed. It is not dead, it is
-  # early -- the lists are measured facts about which arrangements the
-  # library hand-builds, and they go on the menu the day the element
-  # ceiling rises. A fact nobody re-measures is exactly the kind that
-  # rots quietly, so each declared count is built here whether or not
-  # it is currently offered.
+  # ...and the DECLARED lists. Until 2026-08-27 this paragraph existed
+  # because hex-colouring 37 sat above the ceiling, named in catalog.py
+  # and reached by nothing -- an automatic mutant moved it to 38 and
+  # nothing noticed. The ceiling has risen past it, so 37 is now on the
+  # menu like the rest; the loop stays exactly as it was, because what
+  # it guards is that every DECLARED count is built whether or not it
+  # happens to be offered, and the day another measured count lands
+  # above a ceiling is the day that matters again.
   declared = 0
   for tiling_type, counts in (
       ("hex-col", catalog.HEX_COLOURING_COUNTS),
@@ -45603,11 +45612,12 @@ def test_every_element_count_still_has_its_designs():
  [unrecorded]
   """
   from weavingspace_qgis import catalog
-  # Every count from 2 to 26, written out rather than read from
-  # catalog.MAX_ELEMENTS: taking the bound from the module under test
-  # would move both sides of the comparison together, and a chooser
-  # that quietly shrank would still pass.
-  expected = set(range(2, 27))
+  # Every count from 2 to 256, written out rather than read from
+  # `catalog.MAX_ELEMENTS_TILING`: taking the bound from the module
+  # under test would move both sides of the comparison together, and a
+  # chooser that quietly shrank would still pass. The number moved on
+  # 2026-08-27 and the discipline did not.
+  expected = set(range(2, 257))
   actual = set(catalog.TILINGS_BY_N)
   missing = sorted(expected - actual)
   extra = sorted(actual - expected)
@@ -65971,6 +65981,217 @@ def test_a_layer_whose_crs_lies_is_refused_rather_than_crashing():
     project.clear()
 
 
+
+def test_a_tiling_may_carry_two_letter_elements():
+  """Past twenty-six, an element is `aa` -- through the file and back.
+
+  The element ceiling rose for TILINGS on 2026-08-27, from the
+  lowercase alphabet to the doubled one capped at sixteen by sixteen.
+  What made that safe rather than merely possible is the GeoPackage:
+  the route past 26 that was blocked is CAPITALS, because `tiles_a`
+  and `tiles_A` fold into one table with both writes reporting
+  success, while `tiles_aa` and `tiles_ab` are distinct however case
+  is folded.
+
+  So this drives the ids nobody had written before all the way out to
+  a file and back, rather than asserting that the library produces
+  them: a design of more than 26 elements, saved, and resumed.
+
+  Regression: element ids were capped at 26 for every family, so a tiling could not carry more variables than the lowercase alphabet has letters. Raised for tilings at the maintainer's asking, 2026-08-27. [mutation]
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis import catalog
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="ws_many_elements_")
+  try:
+    # THIRTY, which is the smallest round count past the old ceiling
+    # and cheap to tile; the ids it needs are a..z then aa..ad.
+    unit = catalog.make_unit(
+      catalog.GENERAL_TILINGS["stripes"](30), spacing=500, crs=3857)
+    ids = list(dict.fromkeys(unit.tiles.tile_id))
+    assert len(ids) == 30, \
+      f"PREMISE: the library gave {len(ids)} ids for a 30-element " \
+      f"design, so there is nothing past the alphabet to carry"
+    doubled = [i for i in ids if len(str(i)) > 1]
+    assert doubled, \
+      f"PREMISE: no id past the single alphabet was produced: {ids}"
+    assert all(str(i).islower() for i in ids), \
+      f"an id uses capitals, which fold together on a GeoPackage: {ids}"
+
+    region = make_region_layer(n=4, cell=1000)
+    region.setName("wards")
+    project.addMapLayer(region)
+    saved = os.path.join(folder, "many.gpkg")
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(region)
+      _tick(400)
+      where = dlg.n_combo.findData(30)
+      assert where >= 0, \
+        "the chooser does not offer thirty elements, so a user cannot " \
+        "reach the designs the catalogue now carries"
+      dlg.n_combo.setCurrentIndex(where)
+      _tick(600)
+      dlg.gpkg_widget.setFilePath(saved)
+      dlg.spacing_spin.setValue(700)
+      _generate_and_wait(dlg)
+      _tick(400)
+      _settle(dlg, seconds=180)
+      # THE ORDER A PERSON READS, which is the half a doubled
+      # alphabet quietly breaks: Python compares strings character by
+      # character, so "aa" < "z" and the twenty-seventh element sorts
+      # SECOND. Under one alphabet that could not happen. Asked of the
+      # TABLE, because that is where somebody looks for their
+      # twenty-seventh variable.
+      rows = [dlg.table.item(r, 0).text()
+              for r in range(dlg.table.rowCount())]
+      assert rows[:3] == ["a", "b", "c"], \
+        f"the assignment table starts {rows[:5]}: an element past the " \
+        f"alphabet has sorted itself into the middle of the list"
+      assert rows[25:28] == ["z", "aa", "ab"], \
+        f"the rows around the alphabet's end read {rows[24:29]}, not " \
+        f"z then aa then ab"
+      made = sorted(dlg._element_layer_ids)
+      assert len(made) > 26, \
+        f"the run produced {len(made)} element layers for a design of " \
+        f"thirty: {made}"
+      long_ones = [tid for tid in made if len(str(tid)) > 1]
+      assert long_ones, f"no two-letter element reached the map: {made}"
+    finally:
+      dlg.close()
+
+    # ...AND THE FILE KEEPS THEM APART, which is the whole reason the
+    # doubled alphabet is the route that was open.
+    tables = [t for t in _gpkg_table_names(saved) if t.startswith("tiles_")]
+    assert len(set(t.lower() for t in tables)) == len(tables), \
+      f"two element tables fold onto one another: {sorted(tables)}"
+    for tid in long_ones:
+      assert any(t.startswith(f"tiles_{tid}") for t in tables), \
+        f"element {tid!r} has no table of its own: {sorted(tables)}"
+  finally:
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_no_weave_is_offered_past_the_single_alphabet():
+  """A weave names its strands one character at a time.
+
+  The tiling ceiling rose to 256 on 2026-08-27 and the weave ceiling
+  did not, and the asymmetry is not arbitrary: a weave is SPECIFIED as
+  a string with one character per element -- "abcdef-|ghijk-" -- which
+  users type, the catalogue stores verbatim, and the library reads
+  character by character. The strand count comes from `len(ID)`, so
+  "ab" already means two strands rather than one element called `ab`.
+  Widening it would change what every stored design means, and that is
+  upstream's format to change rather than ours.
+
+  Nothing in the catalogue's extension loop adds a weave, so this
+  holds today without a guard -- which is exactly the kind of thing
+  that stops holding when somebody generalises the loop.
+
+  Regression: nothing stopped a weave family being offered above the 26 counts its one-character-per-strand format can express. Guarded when the tiling ceiling rose, 2026-08-27. [mutation]
+  """
+  from weavingspace_qgis import catalog
+  past = {}
+  for n, families in catalog.TILINGS_BY_N.items():
+    if n <= 26:
+      continue
+    for name, spec in families.items():
+      if str(spec.get("type", "")).lower() == "weave":
+        past.setdefault(n, []).append(name)
+  assert not past, \
+    f"weave designs are offered above twenty-six elements: {past}. A " \
+    f"weave names its strands one character at a time, so an element " \
+    f"called 'aa' would be read as two strands, a and a."
+  # ...and the ceiling that says so is still the alphabet's size,
+  # written as what it is rather than as a number.
+  import string
+  assert catalog.MAX_ELEMENTS_WEAVE == len(string.ascii_lowercase), \
+    f"the weave ceiling is {catalog.MAX_ELEMENTS_WEAVE}, which is no " \
+    f"longer the size of the alphabet it is named for"
+
+
+
+def test_copy_to_offers_select_all():
+  """Sending one classification to every element takes one press.
+
+  The case that justified letting a class bound sit outside the data
+  at all was handing ONE PAIR OF LIMITS TO SEVERAL VARIABLES, and on a
+  design of a dozen elements saying "yes, all of them" meant a dozen
+  trips through a dropdown. (Maintainer's request, 2026-08-27.)
+
+  THE LABEL MOVES, and that is the half worth guarding: with
+  everything already ticked, a button still reading "Select all" can
+  do nothing, and a control that cannot change anything is one a
+  person presses twice before believing it. With everything ticked the
+  only thing left to want is to start again.
+
+  Regression: the Copy to... dropdown had no way to tick every element at once, so giving one classification to a whole design meant one trip through the list per element. Asked for by the maintainer, 2026-08-27. [mutation]
+  """
+  from qgis.PyQt.QtCore import Qt
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+  order = ["forest", "water", "urban"]
+  colours = {value: "#00ff00" for value in order}
+  taken = []
+  targets = [("b", "b - v1"), ("c", "c - v2"), ("d", "d - v3")]
+  editor = CategoryColourDialog(
+    "a", "landcover", order, colours, lambda *a: None,
+    pin_changed=lambda *a: None,
+    copy_targets=targets, copy_to=lambda wanted: taken.append(list(wanted)))
+  try:
+    box = editor._copy_box
+    every = getattr(editor, "_copy_all_button", None)
+    assert every is not None, \
+      "there is no way to tick every element at once, so one " \
+      "classification for a whole design is one trip per element"
+
+    def ticked():
+      return [box.itemData(i) for i in range(box.count())
+              if box.itemCheckState(i) == Qt.CheckState.Checked]
+
+    assert not ticked(), "PREMISE: something was ticked before anything " \
+      "was pressed"
+    assert "select all" in every.text().lower(), \
+      f"the button reads {every.text()!r} over an empty list"
+
+    every.click()
+    _tick(200)
+    assert ticked() == [tid for tid, _label in targets], \
+      f"pressing it ticked {ticked()} of " \
+      f"{[tid for tid, _l in targets]}"
+    assert "select all" not in every.text().lower(), \
+      f"with everything ticked the button still reads {every.text()!r}, " \
+      f"which is a press that can do nothing"
+
+    # ...AND BACK, because that is what it offers once everything is on
+    every.click()
+    _tick(200)
+    assert not ticked(), \
+      f"pressing it again left {ticked()} ticked"
+    assert "select all" in every.text().lower(), \
+      f"over an empty list the button reads {every.text()!r}"
+
+    # ...AND THE COPY TAKES THEM ALL, which is the point of the
+    # control rather than the ticking.
+    every.click()
+    _tick(200)
+    editor._copy_button.click()
+    _tick(300)
+    assert taken == [[tid for tid, _label in targets]], \
+      f"the copy went to {taken} rather than to every element"
+    # the ticks are cleared afterwards, as they were before this
+    # button existed -- and the label follows them back
+    assert not ticked(), "the ticks survived the copy"
+    assert "select all" in every.text().lower(), \
+      f"after the copy cleared the ticks the button reads " \
+      f"{every.text()!r}, which is not what pressing it would do"
+  finally:
+    editor.close()
+
+
 def main():
   """Run every registered test and report what happened.
 
@@ -67252,6 +67473,12 @@ def main():
   check("a field's return wears its own style and keeps its picks",
         test_a_fields_return_wears_its_own_style_and_keeps_its_picks)
 
+  check("copy to offers select all",
+        test_copy_to_offers_select_all)
+  check("a tiling may carry two letter elements",
+        test_a_tiling_may_carry_two_letter_elements)
+  check("no weave is offered past the single alphabet",
+        test_no_weave_is_offered_past_the_single_alphabet)
   check("live update measures the ground not the box",
         test_live_update_measures_the_ground_not_the_box)
   check("a layer whose CRS lies is refused rather than crashing",

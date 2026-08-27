@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-375 defect(s) with a regression test.
+378 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -379,6 +379,8 @@ there is no separate list to remember.
   guarded by `test_a_style_switch_is_not_consent_to_lose_a_pin`
 - **a dialog that had not adopted the output GeoPackage left the table of an element's previous variable behind, and resuming that file drew the abandoned variable over the map. Found by the element-tables hunt, 2026-08-27.**  
   guarded by `test_a_switched_variable_leaves_no_orphan_in_the_file`
+- **element ids were capped at 26 for every family, so a tiling could not carry more variables than the lowercase alphabet has letters. Raised for tilings at the maintainer's asking, 2026-08-27.**  
+  guarded by `test_a_tiling_may_carry_two_letter_elements`
 - **a scheme change made while the row displayed v2 released the copied ladder kept for v1 -- `_release_copied_breaks` iterated every field where its sibling scopes to the current one -- so the return to v1 drew re-derived breaks under the surviving copied colours. Found by the shelf hunt of 2026-08-26, confirmed through the style door independently.**  
   guarded by `test_an_act_about_one_field_spares_anothers_ladder`
 - **an element taking its classes from another element's layer lost the reference at the next Generate, because a re-tile replaces every layer, so the two silently stopped agreeing about a column they share. Found by the collateral sweep, 2026-08-27.**  
@@ -393,6 +395,8 @@ there is no separate list to remember.
   guarded by `test_an_unclassed_swatch_reaches_both_ends_of_its_ramp`
 - **a re-tile whose element named a class source that had gone re-seeded automatic colours over the QML's, unrecoverably, while the identical journey through the restyle path kept them -- two runs less than a second apart gave two different maps. Found by the class-source hunt of 2026-08-26.**  
   guarded by `test_an_unreadable_source_keeps_the_map_at_the_landing`
+- **the Copy to... dropdown had no way to tick every element at once, so giving one classification to a whole design meant one trip through the list per element. Asked for by the maintainer, 2026-08-27.**  
+  guarded by `test_copy_to_offers_select_all`
 - **control ranges and steps were unasserted as a class; a mutation batch moved one and the suite was silent.**  
   guarded by `test_every_control_accepts_the_range_it_should`
 - **no test asserted any control's tooltip, so all thirty-one could be removed unnoticed.**  
@@ -409,6 +413,8 @@ there is no separate list to remember.
   guarded by `test_keeping_a_result_keeps_its_file_however_it_was_kept`
 - **live update's tile-count gate measured the region's bounding box rather than its ground, so it paused on sparse data and quoted a count many times what the map draws. Found by the size-guard hunt, 2026-08-27.**  
   guarded by `test_live_update_measures_the_ground_not_the_box`
+- **nothing stopped a weave family being offered above the 26 counts its one-character-per-strand format can express. Guarded when the tiling ceiling rose, 2026-08-27.**  
+  guarded by `test_no_weave_is_offered_past_the_single_alphabet`
 - **on Windows a reopened project whose output GeoPackage had moved could not be rebuilt -- re-pointing the output at its own path and pressing Generate produced no file, no layers and no message, because the region stamps and the region source were compared as strings and a project save had respelt one of them. Six CI rounds, always alone. Found by the wintest probe of 2026-08-26 once every exit from _generate was made to name itself.**  
   guarded by `test_one_dataset_spelt_two_ways_is_one_dataset`
 - **session memory was keyed by bare column names, so a scheme, its value strings and its pinned numbers made on one dataset could reactivate on any later dataset sharing a column name.**  
@@ -801,7 +807,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 112
+- the mutation campaign: 115
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
 - reported by a user: 29
