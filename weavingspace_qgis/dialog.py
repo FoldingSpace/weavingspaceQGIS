@@ -13717,13 +13717,35 @@ class WeavingSpaceDialog(QDialog):
         # user can read. Taken from the frame just mapped rather than
         # from the layer, which is where the values actually went, and
         # deduplicated because several elements may share one field.
+        # TWO KINDS OF SENTENCE, TWO RECORDS, because one set gating
+        # both was silencing an element on its neighbour's behalf.
+        # `said_constant` is about a COLUMN -- every element carrying
+        # it draws from the same values, so one sentence is enough --
+        # and it went on ALSO gating the legend-size note, which has
+        # been PER ELEMENT since 2026-08-17 and measures emptiness on
+        # the ladder each element actually draws. So two rows on one
+        # column with different class counts produced one sentence
+        # quoting a ladder the other element does not have, while the
+        # other drew twenty classes with fifteen empty and was never
+        # mentioned. Measured 2026-08-27; open as row 41 of the
+        # 2026-08-17 ledger for nine days, and this is the landing's
+        # half of a fix the restyle path was given alone -- diff the
+        # two hunks against each other, which is a rule this project
+        # already writes down.
+        # KEYED ON THE SENTENCE, exactly as the twin is: elements with
+        # nothing new to say stay silent, and no element is decided
+        # for by another.
         said_constant = set()
+        said_notes = set()
         for assignment in assignments:
           field = assignment.get("var")
           if not field or assignment.get("mode") != "Graduated":
             continue
-          if field in said_constant or field not in gdf.columns:
+          if field not in gdf.columns:
             continue
+          # The COLUMN's own sentences are said once; this row's own
+          # sentence is asked for below whatever the column has said.
+          column_spoken = field in said_constant
           # THE REGION LAYER, not the tiled frame -- the same source the
           # sibling branch below already documents, and the one this
           # branch quietly did not use. The renderer this sentence
@@ -13747,8 +13769,9 @@ class WeavingSpaceDialog(QDialog):
               constant_source.fields().indexOf(field))
             if constant_source is not None else gdf[field])
           if bridge.numeric_values_are_constant(region_values):
-            said_constant.add(field)
-            self._report_quietly(bridge.constant_field_message(field))
+            if not column_spoken:
+              said_constant.add(field)
+              self._report_quietly(bridge.constant_field_message(field))
           else:
             # The same rule at n > 1: the row asked for more classes
             # than the column has values, so the map draws fewer than
@@ -13763,8 +13786,15 @@ class WeavingSpaceDialog(QDialog):
               self._report_quietly(retired)
             note = self._legend_size_note(field, assignment,
                                           assignment.get("id"))
-            if note is not None:
-              said_constant.add(field)
+            # SAID FOR THIS ELEMENT, deduped by its own words. The
+            # column record is still consulted, because the constant
+            # sentence is this rule's n == 1 instance and two
+            # sentences about one column is one too many -- but a
+            # DIFFERENT sentence from a different element is not the
+            # same sentence, and it is now said.
+            if note is not None and not column_spoken \
+                and note not in said_notes:
+              said_notes.add(note)
               self._report_quietly(note)
           # Gaps in the column, counted from the REGION LAYER, because
           # the sentence says "areas" and must mean the user's areas:
@@ -13786,9 +13816,27 @@ class WeavingSpaceDialog(QDialog):
           # nine no-data tiles across seven areas, and on an
           # infinities-only column it said nothing whatever, so grey
           # patches appeared with no explanation.
+          if column_spoken:
+            continue
+          # COUNTED OVER THE AREAS THAT REACHED THE MAP. The sentence
+          # this feeds says the areas it counts "draw as no data", and
+          # an area with NO GEOMETRY draws nothing whatever -- it
+          # never became a tile, and it already has its own sentence
+          # in `unmappable_areas_message`. Counting it here made the
+          # number true of the table and false of the map: measured
+          # 2026-08-27 on 25 areas where one row was both blank of
+          # geometry and null in the column, so the bar promised four
+          # no-data areas over a map drawing three.
+          # THE TOTAL IS STILL THE USER'S OWN AREAS, which is why it
+          # is not narrowed with the count: the sentence says "of 25
+          # areas", and a reader looking at their own table must find
+          # that number there.
           missing = sum(
             1 for feature in layer.getFeatures()
-            if bridge.cannot_be_placed(feature[field]))
+            if bridge.cannot_be_placed(feature[field])
+            and not (feature.geometry() is None
+                     or feature.geometry().isNull()
+                     or feature.geometry().isEmpty()))
           note = bridge.missing_values_message(
             field, missing, int(layer.featureCount()))
           if note is not None:
@@ -15669,9 +15717,20 @@ class WeavingSpaceDialog(QDialog):
     # paired layers with its group removed and its layers stranded
     # in the project, registered and shown nowhere.
     loaded = opened = 0
+    # tables the file holds and QGIS would not open; reported once
+    # below, beside the count of what did come back
+    refused = []
     for table in sorted(wanted):
       found = QgsVectorLayer(f"{path}|layername={table}", table, "ogr")
       if not found.isValid():
+        # NAMED RATHER THAN PASSED OVER. The count below is honest --
+        # it says how many layers came back -- but a person who saved
+        # four elements and is handed three has lost one, and only the
+        # case where EVERY table fails said anything. A loss is
+        # reported, never silent, which is this project's own standing
+        # rule. (Found by the notices hunt, 2026-08-27, by dropping
+        # one element's table from a saved map and resuming it.)
+        refused.append(table)
         continue
       # the stamps ride inside the embedded style, so this is what
       # makes the layer recognisably ours again
@@ -15777,6 +15836,30 @@ class WeavingSpaceDialog(QDialog):
     self._report_quietly(
       f"Opened the saved map from {os.path.basename(path)}: "
       f"{loaded} element layers.")
+    # ...AND WHAT DID NOT COME BACK IS NAMED. Two causes, one
+    # sentence, because a person meets one outcome: a table the file
+    # still holds and QGIS will not open, and a table the file no
+    # longer holds at all -- the second is what a dropped or partly
+    # copied file gives you, and it never reached the loop above,
+    # because the loop walks the tables the file HAS. Only the case
+    # where EVERY table failed said anything, so somebody who saved
+    # four elements and was handed three was told "3 element layers"
+    # and nothing else, on the journey whose whole purpose is opening
+    # a finished result. A loss is reported, never silent. (Found by
+    # the notices hunt, 2026-08-27, by dropping one element's table
+    # from a saved map and resuming it.)
+    saved_elements = len([element for element
+                          in (record.get("elements") or [])
+                          if element.get("id")])
+    if refused or (saved_elements and loaded < saved_elements):
+      missing = (f"{saved_elements - loaded} of its {saved_elements} "
+                 f"element layers are missing"
+                 if saved_elements and loaded < saved_elements
+                 else f"{len(refused)} of its layers would not open")
+      names = (f": {', '.join(sorted(refused))}" if refused else "")
+      self._report_quietly(
+        f"That file gave back less than was saved to it, so this map "
+        f"is not complete: {missing}{names}.")
     return True
 
   def _recover_the_source(self, path, record):

@@ -65552,6 +65552,245 @@ def test_a_resume_does_not_recover_onto_our_own_outlines_layer():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+
+def test_two_elements_on_one_column_each_get_their_own_notice():
+  """A sentence about a ladder is about the element that draws it.
+
+  The empty-classes notice became PER ELEMENT on 2026-08-17, measuring
+  emptiness on the ladder each element actually draws -- and the
+  landing went on deduplicating it by COLUMN, on the older reasoning
+  that several elements share a column and one sentence about it is
+  enough. So two rows on one column with different class counts
+  produced ONE sentence, quoting a ladder the other element does not
+  have, while that other element's own emptiness was never mentioned.
+
+  The restyle path was given this fix on 2026-08-26 and the landing
+  was not, which is why the pair is worth naming: when a fix is
+  written into one of two paths, diff the two hunks against each
+  other rather than each against its own neighbourhood.
+
+  The column's OWN sentences -- every area has the same value, and how
+  many areas have no usable data -- are still said once, because those
+  are statements about the data rather than about a ladder.
+
+  Regression: two elements drawing one column with different class counts produced a single emptiness notice, true of one of them and quoting a class count the other does not have, while the second element was never mentioned. Open as row 41 of the 2026-08-17 ledger; found again and measured by the notices hunt, 2026-08-27. [mutation]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  region = make_region_layer(n=5, cell=1000)
+  region.setName("wards")
+  project.addMapLayer(region)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+
+    classes = next(
+      (c for c in range(dlg.table.columnCount())
+       if dlg.table.horizontalHeaderItem(c) is not None
+       and "class" in dlg.table.horizontalHeaderItem(c).text().lower()),
+      None)
+    assert classes is not None, \
+      f"PREMISE: no Classes column: " \
+      f"{[dlg.table.horizontalHeaderItem(c).text() for c in range(dlg.table.columnCount()) if dlg.table.horizontalHeaderItem(c)]}"
+
+    asked = {}
+    for row, count in ((0, 12), (3, 20)):
+      var = dlg.table.cellWidget(row, 1)
+      var.setCurrentText("v1")
+      var.activated.emit(var.currentIndex())
+      _tick(200)
+      mode = dlg.table.cellWidget(row, 2)
+      mode.setCurrentText("Quant: Quantiles")
+      mode.activated.emit(mode.currentIndex())
+      _tick(200)
+      spin = dlg.table.cellWidget(row, classes)
+      assert spin is not None and hasattr(spin, "setValue"), \
+        f"PREMISE: row {row} has no class-count control"
+      spin.setValue(count)
+      spin.editingFinished.emit()
+      _tick(200)
+      asked[dlg.table.item(row, 0).text()] = spin.value()
+    assert len(set(asked.values())) == 2, \
+      f"PREMISE: both elements ask for the same number of classes " \
+      f"({asked}), so one sentence could honestly serve both"
+
+    BAR_MESSAGES.clear()
+    dlg.spacing_spin.setValue(520)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=90)
+    said = [t for _k, t in BAR_MESSAGES]
+
+    # WHAT EACH ELEMENT DRAWS, asked of its own renderer rather than
+    # of the sentence, so the test cannot agree with the notice it is
+    # checking.
+    empty = {}
+    for tid, count in asked.items():
+      layer = project.mapLayer(dlg._element_layer_ids[tid])
+      renderer = layer.renderer()
+      bands = renderer.ranges() if hasattr(renderer, "ranges") else []
+      drawn = {v for v in _drawn_by_value(layer)}
+      empty[tid] = (len(bands), count, drawn)
+    speaking = {tid: count for tid, (bands, count, _d) in empty.items()
+                if bands}
+    assert len(speaking) == 2, \
+      f"PREMISE: only one element drew a ladder at all: {empty}"
+
+    for tid, count in speaking.items():
+      mine = [t for t in said if f"of the {count} classes" in t]
+      assert mine, \
+        f"nothing was said about element {tid!r}, which asked for " \
+        f"{count} classes; the bar said {said!r}. Its neighbour's " \
+        f"sentence was allowed to speak for it."
+  finally:
+    dlg.close()
+    project.clear()
+
+
+
+def _gpkg_table_names(path):
+  """Every table a GeoPackage holds, asked of OGR and released at once.
+
+  Args:
+    path: the .gpkg to read.
+
+  Returns:
+    A list of layer names, empty when the file will not open. The
+    handle is dropped immediately: one left open stops the next run
+    writing to the same file, which has cost this suite a reading.
+  """
+  from osgeo import ogr
+  if not os.path.exists(path):
+    return []
+  data = ogr.Open(path, 0)
+  if data is None:
+    return []
+  try:
+    return [data.GetLayer(i).GetName() for i in range(data.GetLayerCount())]
+  finally:
+    data = None
+
+
+
+def test_the_no_data_count_counts_areas_that_drew():
+  """A sentence saying "they draw as no data" is about the map.
+
+  The notice counting areas with no usable value is measured over the
+  region layer, deliberately, because it says "areas" and must mean
+  the user's own areas. It counted EVERY row, including rows with no
+  geometry -- which never became a tile and draw nothing whatever, and
+  which already have their own sentence. So the number was true of the
+  table and false of the map: a row that is both blank of geometry and
+  null in the column was promised as a no-data area over a map that
+  drew none for it.
+
+  The TOTAL still counts every area, which is not an oversight: the
+  sentence says "of 25 areas", and a reader checking that against
+  their own table must find the number there.
+
+  Regression: the no-data count included areas with no geometry, which draw nothing at all, so the sentence promised more no-data areas than the map contains. Found by the notices hunt, 2026-08-27. [mutation]
+  """
+  from qgis.core import QgsFeature, QgsGeometry
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  region = make_region_layer(n=4, cell=1000)
+  region.setName("wards")
+  provider = region.dataProvider()
+  index = region.fields().indexOf("v1")
+  # THREE AREAS WITH NO VALUE, all of which draw as no data...
+  nulled = [f.id() for f in region.getFeatures()][:3]
+  provider.changeAttributeValues({fid: {index: None} for fid in nulled})
+  # ...AND ONE ROW THAT IS NOT AN AREA AT ALL: no geometry and no
+  # value, which draws nothing and is somebody else's sentence.
+  blank = QgsFeature(region.fields())
+  blank.setGeometry(QgsGeometry())
+  provider.addFeatures([blank])
+  region.updateExtents()
+  project.addMapLayer(region)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    row = 0
+    var = dlg.table.cellWidget(row, 1)
+    var.setCurrentText("v1")
+    var.activated.emit(var.currentIndex())
+    _tick(200)
+    BAR_MESSAGES.clear()
+    dlg.spacing_spin.setValue(520)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=90)
+    said = [t for _k, t in BAR_MESSAGES]
+    about = [t for t in said if "draw as no data" in t]
+    assert about, \
+      f"PREMISE: nothing was said about missing values at all: {said!r}"
+    assert any(str(len(nulled)) in t.split(" of ")[0] for t in about), \
+      f"the sentence counts a row that draws nothing: {about!r}, where " \
+      f"{len(nulled)} areas have no value and one further row has no " \
+      f"geometry and so never reached the map"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_layer_that_will_not_open_is_named():
+  """A resume that brings back less than was saved says so.
+
+  The count was honest -- it says how many element layers came back --
+  and a person who saved four elements and is handed three has lost
+  one. Only the case where EVERY table failed said anything, so a
+  single unreadable table was passed over in silence, on the journey
+  whose whole purpose is opening a finished result.
+
+  A loss is reported, never silent, which is this project's standing
+  rule about every other way work goes missing.
+
+  Regression: an element table that would not open was skipped in silence when resuming a GeoPackage, so a map came back missing an element with nothing said. Found by the notices hunt, 2026-08-27. [mutation]
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="ws_refused_table_")
+  try:
+    saved = _a_saved_resumable_map(folder)
+    held = [t for t in _gpkg_table_names(saved) if t.startswith("tiles_")
+            and not t.endswith("_no_data")]
+    assert len(held) > 1, \
+      f"PREMISE: the saved map has {len(held)} element tables, so " \
+      f"dropping one leaves nothing to come back"
+    doomed = sorted(held)[0]
+    assert bridge.drop_gpkg_layer(saved, doomed), \
+      f"PREMISE: {doomed} could not be dropped, so nothing is missing"
+
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      _tick(300)
+      BAR_MESSAGES.clear()
+      assert dlg._resume_from_gpkg(saved), "PREMISE: the resume was refused"
+      _tick(600)
+      _settle(dlg, seconds=90)
+      said = " ".join(t for _k, t in BAR_MESSAGES)
+      assert "not complete" in said, \
+        f"the resume said nothing about the element it could not bring " \
+        f"back: {said!r}"
+      # ...AND IT SAYS HOW MUCH, because "something is missing" sends
+      # somebody looking without telling them how far to look.
+      assert f"of its {len(held)} element layers" in said, \
+        f"the sentence does not say how many of how many: {said!r}"
+    finally:
+      dlg.close()
+  finally:
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def main():
   """Run every registered test and report what happened.
 
@@ -66833,6 +67072,12 @@ def main():
   check("a field's return wears its own style and keeps its picks",
         test_a_fields_return_wears_its_own_style_and_keeps_its_picks)
 
+  check("the no data count counts areas that drew",
+        test_the_no_data_count_counts_areas_that_drew)
+  check("a layer that will not open is named",
+        test_a_layer_that_will_not_open_is_named)
+  check("two elements on one column each get their own notice",
+        test_two_elements_on_one_column_each_get_their_own_notice)
   check("a resume does not recover onto our own outlines layer",
         test_a_resume_does_not_recover_onto_our_own_outlines_layer)
   check("a duplicated layer does not displace the one it copied",

@@ -320,6 +320,37 @@ MUTATIONS = [
            "name nobody outside this code recognises. The same first-"
            "match fault as its twin in `_recover_the_source`, where "
            "it cost a whole resume"),
+  dict(name="the-no-data-count-counts-areas-that-drew", file=DIALOG,
+       old="""            and not (feature.geometry() is None
+                     or feature.geometry().isNull()
+                     or feature.geometry().isEmpty()))""",
+       new="""            and True)""",
+       test="test_the_no_data_count_counts_areas_that_drew",
+       why="the sentence says the areas it counts draw as no data, "
+           "and an area with no geometry draws nothing at all -- it "
+           "never became a tile and has its own sentence already, so "
+           "counting it promised more no-data areas than the map "
+           "contains"),
+  dict(name="a-layer-that-will-not-open-is-named", file=DIALOG,
+       old="""    if refused or (saved_elements and loaded < saved_elements):""",
+       new="""    if False:  # mutation: lose it in silence""",
+       test="test_a_layer_that_will_not_open_is_named",
+       why="an element table that would not open was skipped in "
+           "silence when resuming a GeoPackage, so somebody who saved "
+           "four elements was handed three with nothing said, on the "
+           "journey whose whole purpose is opening a finished result"),
+  dict(name="one-element-does-not-silence-another", file=DIALOG,
+       old="""            if note is not None and not column_spoken \\
+                and note not in said_notes:
+              said_notes.add(note)""",
+       new="""            if note is not None and field not in said_constant:
+              said_constant.add(field)""",
+       test="test_two_elements_on_one_column_each_get_their_own_notice",
+       why="the empty-classes notice is per ELEMENT and the landing "
+           "deduplicated it by COLUMN, so two rows on one column with "
+           "different class counts produced one sentence -- quoting a "
+           "ladder the other element does not have, while that "
+           "element's own emptiness went unmentioned"),
   dict(name="recovery-skips-the-plugins-own-output", file=DIALOG,
        old="""        if layer.customProperty("weavingspace_output"):
           continue

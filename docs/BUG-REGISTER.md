@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-370 defect(s) with a regression test.
+373 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -319,6 +319,8 @@ there is no separate list to remember.
   guarded by `test_a_ladder_somebody_else_cut_makes_the_scheme_cell_read_custom`
 - **generating after reopening a project that held maps of two datasets replaced the wrong dataset's map, silently.**  
   guarded by `test_a_landing_never_writes_over_another_datasets_map`
+- **an element table that would not open was skipped in silence when resuming a GeoPackage, so a map came back missing an element with nothing said. Found by the notices hunt, 2026-08-27.**  
+  guarded by `test_a_layer_that_will_not_open_is_named`
 - **the region stamp was read from the chooser as the run landed, so switching the region layer mid-run filed A's tiles under B -- and the next run on B then destroyed them, through the very guard written to stop a landing writing over another dataset's map.**  
   guarded by `test_a_map_is_filed_under_the_dataset_it_was_drawn_from`
 - **on a mixed-magnitude column the legend printed "0 - 0" for a class of real width -- the label precision was derived from the whole span divided by k, which mixed magnitudes defeat. The 2026-08-10 fix covered uniformly tiny columns and left mixed ones behind. Found by the classification-churn hunt of 2026-08-26.**  
@@ -435,6 +437,8 @@ there is no separate list to remember.
   guarded by `test_the_map_survives_its_file_being_deleted`
 - **a fifty-minute gate that could not be satisfied before the artefact shipped stopped four candidates' worth of work on a release whose plugin passed every test it was given.**  
   guarded by `test_the_new_code_mutation_guard_reports_rather_than_gates`
+- **the no-data count included areas with no geometry, which draw nothing at all, so the sentence promised more no-data areas than the map contains. Found by the notices hunt, 2026-08-27.**  
+  guarded by `test_the_no_data_count_counts_areas_that_drew`
 - **no widget anywhere in the dialog named the output group, so a demo of several datasets in a row accumulated maps with nothing to say which one the next Generate would replace -- and A-B-A left one dataset owning two groups that nothing could tell apart.**  
   guarded by `test_the_output_group_chooser_binds_to_the_dataset`
 - **every style change answered by the live restyle path left the design preview showing the previous act's colours -- the pick-time repaint read the layers before the restyle landed and nothing repainted after it. Found by the preview hunt of 2026-08-26 with three faces (a settled ramp pick, a mid-run pick, a style-ending burst); shipping since 2026-08-17.**  
@@ -457,6 +461,8 @@ there is no separate list to remember.
   guarded by `test_the_switch_notice_owns_every_element`
 - **two column names that sanitise to one table name left the earlier column's saved style in the GeoPackage, so its hand-picked colours and field name travelled to whoever the file was sent to. Found by the kept-map hunt, 2026-08-27.**  
   guarded by `test_two_columns_sharing_a_table_leave_one_style_of_ours`
+- **two elements drawing one column with different class counts produced a single emptiness notice, true of one of them and quoting a class count the other does not have, while the second element was never mentioned. Open as row 41 of the 2026-08-17 ledger; found again and measured by the notices hunt, 2026-08-27.**  
+  guarded by `test_two_elements_on_one_column_each_get_their_own_notice`
 - **hand-picked colours and pinned bounds carried to any dataset sharing a column name, putting one dataset's value strings and numbers into another's saved files.**  
   guarded by `test_value_laden_records_never_cross_a_shared_name`
 
@@ -791,7 +797,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 107
+- the mutation campaign: 110
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
 - reported by a user: 29
