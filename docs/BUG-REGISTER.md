@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-366 defect(s) with a regression test.
+368 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -279,6 +279,8 @@ there is no separate list to remember.
   guarded by `test_a_dataset_switch_says_what_it_re_points`
 - **removing the region layer and choosing another skipped every change-of-dataset protection, so Generate overwrote the previous dataset's GeoPackage without a word.**  
   guarded by `test_a_dataset_that_leaves_the_project_is_still_a_dataset_left`
+- **a plugin the user had disabled went on writing to the project and speaking into QGIS's message bar. Found by the two-dialogs hunt, 2026-08-27.**  
+  guarded by `test_a_disabled_plugin_stops_talking`
 - **an automatic mutant flipped the colours-agree comparison at dialog.py:3345 and twenty covering tests noticed nothing, because not one of them looked at what the user was told.**  
   guarded by `test_a_dock_edit_that_changes_no_colour_is_announced_as_nothing`
 - **a class recoloured in QGIS's styling panel was adopted everywhere except the output group's own record, so closing the plugin and reopening it restored the pre-edit colour and the next Generate repainted the map backwards. Found by the doors hunt of round nine (2026-08-26); also the mechanism under the consistency sweep's reopen finding.**  
@@ -371,6 +373,8 @@ there is no separate list to remember.
   guarded by `test_a_switched_variable_leaves_no_orphan_in_the_file`
 - **a scheme change made while the row displayed v2 released the copied ladder kept for v1 -- `_release_copied_breaks` iterated every field where its sibling scopes to the current one -- so the return to v1 drew re-derived breaks under the surviving copied colours. Found by the shelf hunt of 2026-08-26, confirmed through the style door independently.**  
   guarded by `test_an_act_about_one_field_spares_anothers_ladder`
+- **an element taking its classes from another element's layer lost the reference at the next Generate, because a re-tile replaces every layer, so the two silently stopped agreeing about a column they share. Found by the collateral sweep, 2026-08-27.**  
+  guarded by `test_an_element_follows_the_layer_it_takes_its_classes_from`
 - **every element layer carried every mapped variable, so a shared GeoPackage shipped attributes the map never displayed and grew twenty-fold; and the table names said nothing about which variable each element drew.**  
   guarded by `test_an_element_table_carries_only_what_it_displays`
 - **an opacity set in QGIS's own Layer Properties never reached the plugin's table or its records, so one later restyle put the layer back to full strength. Found by the agreement sweep, 2026-08-27.**  
@@ -783,7 +787,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 103
+- the mutation campaign: 105
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
 - reported by a user: 29

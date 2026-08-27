@@ -6268,6 +6268,37 @@ MUTATIONS = [
            "template-governed element claimed the elements now match "
            "while the template went on outranking the copied ramp on "
            "the map and in every record"),
+  dict(name="a-donor-layer-is-stamped-by-its-content", file=DIALOG,
+       old="""        for value, (symbol, label) in template.items()))""",
+       new="""        for value, (symbol, label) in template.items())[:0])""",
+       test="test_an_element_follows_the_layer_it_takes_its_classes_from",
+       why="a class source that is a LAYER entered both signatures as "
+           "a bare token, where a QML has been stamped by its content "
+           "since 2026-08-13 -- so nothing about the donor changing "
+           "could move the dependent's signature, and no re-seeding "
+           "could ever be triggered by the thing the control exists "
+           "to follow"),
+  dict(name="a-donor-reference-survives-a-re-tile", file=DIALOG,
+       old="""      donor = replaced.get(token[6:])""",
+       new="""      donor = None  # mutation: leave the reference dangling""",
+       test="test_an_element_follows_the_layer_it_takes_its_classes_from",
+       why="an element taking its classes from another element's "
+           "layer names that layer by ID, and a re-tile makes a new "
+           "layer -- so one Generate after the choice the reference "
+           "named nothing, the donor read as an unreadable source, "
+           "and the two elements went on drawing one column in two "
+           "sets of colours for good, silently, because a dangling "
+           "reference is not a disagreement"),
+  dict(name="a-disabled-plugin-is-retired", file=PLUGIN,
+       old="""        self.dialog.retire()""",
+       new="""        pass  # mutation: leave it in charge after unloading""",
+       test="test_a_disabled_plugin_stops_talking",
+       why="the record of which dialog is in charge was only ever "
+           "cleared by succession, so disabling the plugin left it "
+           "naming a dialog the user had disposed of -- which went on "
+           "adopting dock edits, rewriting the project's group record "
+           "and speaking into QGIS's message bar until QGIS was "
+           "restarted"),
   dict(name="the-files-record-follows-a-dock-edit", file=DIALOG,
        old="""        if self._last_path:
           self._rewrite_the_files_record(self._last_path)""",

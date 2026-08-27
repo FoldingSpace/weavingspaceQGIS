@@ -64717,7 +64717,9 @@ def test_a_switched_variable_leaves_no_orphan_in_the_file():
         f"resuming this file loads it as a second element that sorts " \
         f"above the live one and paints over the map."
       kept = live.pop()
-      assert kept.startswith(f"tiles_{tid}"), kept
+      # (nothing here asserts `kept` starts with `tiles_<tid>`: `live`
+      # was filtered by exactly that a moment ago, so it could only
+      # ever restate the filter)
       assert was.lower() not in kept.lower() or was.lower() == other.lower(), \
         f"the surviving table is {kept!r}, which still names the " \
         f"variable {was!r} the element no longer draws"
@@ -65013,6 +65015,20 @@ def test_a_resumed_layer_is_named_as_a_fresh_one_is():
                for i in dlg._element_layer_ids.values()
                if project.mapLayer(i) is not None]
       assert names, "PREMISE: the resume registered no element layers"
+      # ...AND THE TWINS, which have their own naming branch. Reading
+      # `_element_layer_ids` alone left that branch unguarded: it
+      # could be deleted outright and this test went on passing.
+      # (Found by the per-assertion audit, 2026-08-27.)
+      twins = [project.mapLayer(i).name()
+               for i in dlg._no_data_layer_ids.values()
+               if project.mapLayer(i) is not None]
+      for name in twins:
+        assert not name.startswith("tiles_"), \
+          f"a resumed paired layer is called {name!r}, which is this " \
+          f"plugin's own table name; a generated one reads 'a – no data'"
+        assert name.endswith(" – no data"), \
+          f"a resumed paired layer is called {name!r} and does not say " \
+          f"it draws the missing values of its element"
       plumbing = [n for n in names if n.startswith("tiles_")]
       assert not plumbing, \
         f"the layer panel shows this plugin's own table names: " \
@@ -65080,6 +65096,248 @@ def test_a_no_data_layer_says_which_dataset_it_came_from():
         f"the paired layer of element {tid!r} says its dataset is " \
         f"{theirs!r} where its element says {mine!r}: a group holding " \
         f"only twins would tell the landing's refusal nothing at all"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+
+def test_an_element_follows_the_layer_it_takes_its_classes_from():
+  """A class source that is a LAYER survives the next re-tile.
+
+  An element may take its classes from another element's layer, which
+  is how two elements are made to say the same thing about one column.
+  The choice is stored as `layer:<layer id>` -- and a re-tile gives
+  every element a NEW layer with a new id, so ONE Generate after the
+  choice was made the token named an object that no longer existed.
+  The donor then read as an unreadable class source, the dependent
+  kept the colours it happened to have under the keep-the-map promise,
+  and the two elements went on drawing one column in two sets of
+  colours for good. Nothing complained, because a dangling reference
+  is not a disagreement.
+
+  The donor is given a ramp the dependent would never choose for
+  itself BEFORE the choice is made, so "they agree" can only mean the
+  dependent followed.
+
+  WHAT THIS DOES NOT YET GUARD, and it is written down rather than
+  quietly asserted: a donor that MOVES is followed one run late. The
+  template is read from the donor's outgoing layer at the top of a
+  landing, while the donor is being re-seeded in the same pass, so
+  the dependent sees what the donor drew last time. Curing that means
+  deciding the order elements are seeded in, and two elements may
+  take their classes from each other. Measured 2026-08-27 and left
+  for a ruling.
+
+  Regression: an element taking its classes from another element's layer lost the reference at the next Generate, because a re-tile replaces every layer, so the two silently stopped agreeing about a column they share. Found by the collateral sweep, 2026-08-27. [mutation]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  region = make_region_layer(n=4, cell=1000)
+  region.setName("wards")
+  project.addMapLayer(region)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+
+    def drive(row, column, text):
+      """Pick in a cell the way a person does: set it, then signal.
+
+      Args:
+        row: the element's row in the assignment table.
+        column: which cell -- 1 is the variable, 2 the style.
+        text: the entry to choose, by its visible text.
+
+      Returns:
+        None. The `activated` signal is emitted deliberately: setting
+        a combo without it stages a state no user can reach, which
+        has produced a confident false claim in this project before.
+      """
+      cell = dlg.table.cellWidget(row, column)
+      cell.setCurrentText(text)
+      cell.activated.emit(cell.currentIndex())
+      _tick(200)
+
+    def drive_ramp(row, name):
+      """The ramp cell, found by what it OFFERS rather than by index:
+      the columns here appear and disappear with what the rows carry,
+      so a literal index is a fixture that quietly moves."""
+      for column in range(dlg.table.columnCount()):
+        cell = dlg.table.cellWidget(row, column)
+        if cell is None or not hasattr(cell, "findText"):
+          continue
+        where = cell.findText(name)
+        if where >= 0:
+          cell.setCurrentIndex(where)
+          cell.activated.emit(where)
+          _tick(300)
+          return True
+      return False
+
+    for row in (0, 3):
+      drive(row, 1, "landcover")
+      drive(row, 2, "Categorized")
+    assert drive_ramp(0, "Accent"), \
+      "PREMISE: no control in the donor's row offers the ramp 'Accent'"
+    dlg.spacing_spin.setValue(520)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=90)
+    donor_id = dlg.table.item(0, 0).text()
+    taker_id = dlg.table.item(3, 0).text()
+    apart = _drawn_by_value(project.mapLayer(dlg._element_layer_ids[taker_id]))
+    donor_now = _drawn_by_value(
+      project.mapLayer(dlg._element_layer_ids[donor_id]))
+    assert any(apart.get(k) != v for k, v in donor_now.items()
+               if k in apart), \
+      "PREMISE: the two elements already agree, so nothing below can " \
+      "tell following apart from a coincidence"
+
+    # ...and the second element takes its classes from the first
+    dlg._update_dynamic_columns()
+    _tick(200)
+    cell = dlg.table.cellWidget(3, 7)
+    where = cell.findData(f"layer:{dlg._element_layer_ids[donor_id]}")
+    assert where >= 0, \
+      f"PREMISE: the donor's layer is not on offer as a class source: " \
+      f"{[cell.itemData(i) for i in range(cell.count())]}"
+    cell.setCurrentIndex(where)
+    cell.activated.emit(where)
+    _tick(300)
+    dlg.spacing_spin.setValue(524)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=90)
+
+    def agreement():
+      """What each of the two draws, for the values they share."""
+      donor = _drawn_by_value(project.mapLayer(
+        dlg._element_layer_ids[donor_id]))
+      taker = _drawn_by_value(project.mapLayer(
+        dlg._element_layer_ids[taker_id]))
+      return {k: (taker[k], v) for k, v in donor.items()
+              if k in taker and taker[k] != v}
+
+    arrived = agreement()
+    assert not arrived, \
+      f"the element did not take the donor's classes at all: {arrived}"
+
+    # ...AND THE NEXT RE-TILE, which replaces every layer and so every
+    # layer id, must not quietly break the reference.
+    dlg.spacing_spin.setValue(528)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=90)
+    after = agreement()
+    assert not after, \
+      f"one Generate later the two no longer agree: {after} (the " \
+      f"follower's colour against the donor's). The choice names a " \
+      f"layer id, and a re-tile makes a new layer, so the reference " \
+      f"was left dangling and the follower kept whatever it had."
+    held = dlg._class_choices.get(taker_id, "")
+    assert held.startswith("layer:"), \
+      f"the follower's class source is now {held!r}"
+    # ...AND THE REFERENCE IS STAMPED BY THE DONOR'S CONTENT, not by
+    # its name. A QML class source has been stamped by content since
+    # 2026-08-13, so that editing the file moves both signatures and
+    # the element is re-seeded; a donor LAYER entered them bare, so
+    # nothing about the donor changing could ever move them. Asked of
+    # the stamp directly because the seeding ORDER decides when a
+    # change reaches the map -- a donor that moves is followed one run
+    # late -- and that is a ruling rather than a defect, while the
+    # stamp is what makes any following possible at all.
+    from qgis.PyQt.QtGui import QColor
+    was = dlg._class_source_stamp(held)
+    donor_layer = project.mapLayer(dlg._element_layer_ids[donor_id])
+    clone = donor_layer.renderer().clone()
+    classes = clone.categories()      # BOUND: the list frees its symbols
+    assert classes, "PREMISE: the donor draws no categories"
+    symbol = classes[0].symbol().clone()
+    symbol.setColor(QColor("#0b1e2d"))
+    clone.updateCategorySymbol(0, symbol)
+    donor_layer.setRenderer(clone)
+    _tick(300)
+    assert dlg._class_source_stamp(held) != was, \
+      "the donor's colours moved and its stamp did not, so nothing " \
+      "downstream can ever notice a donor changing"
+    assert held[6:] == dlg._element_layer_ids[donor_id], \
+      f"the follower still names {held[6:][-12:]!r} where the donor's " \
+      f"layer is now {dlg._element_layer_ids[donor_id][-12:]!r}"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_disabled_plugin_stops_talking():
+  """Disabling the plugin stops it, rather than merely hiding it.
+
+  Every long-lived connection this dialog makes -- to the project, to
+  each output layer, to its own combo, which QGIS re-fires whenever
+  the project's layers churn -- is guarded at the HANDLER by "am I the
+  dialog in charge", because a layer outlives the dialog that made it
+  and Qt goes on calling an ordinary Python lambda. That record was
+  only ever cleared by SUCCESSION, so with no successor it went on
+  naming a dialog the user had disposed of: disable the plugin in
+  QGIS's Plugin Manager and it still adopted styling-dock edits,
+  still rewrote the project's group record, and still pushed
+  sentences into QGIS's message bar about controls in a window there
+  was no longer any way to open. Until QGIS was restarted.
+
+  Closing the WINDOW is deliberately not this: `open_dialog` reuses
+  the object, so a closed window is a hidden one somebody may bring
+  back with its map and its records intact.
+
+  Regression: a plugin the user had disabled went on writing to the project and speaking into QGIS's message bar. Found by the two-dialogs hunt, 2026-08-27. [mutation]
+  """
+  from qgis.PyQt.QtGui import QColor
+  from weavingspace_qgis import plugin as plugin_module
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  region = make_region_layer(n=4, cell=1000)
+  region.setName("wards")
+  project.addMapLayer(region)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    dlg.spacing_spin.setValue(520)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=90)
+    group = dlg._group_of_our_layers(project.layerTreeRoot())
+    assert group is not None, "PREMISE: the run left no group"
+    before = dlg._read_working_state(group) or {}
+    tid = sorted(dlg._element_layer_ids)[0]
+    layer = project.mapLayer(dlg._element_layer_ids[tid])
+
+    # QGIS DISABLING THE PLUGIN, which is exactly this call
+    standing = plugin_module.WeavingSpacePlugin(_Iface())
+    standing.dialog = dlg
+    standing.unload()
+    _tick(400)
+    BAR_MESSAGES.clear()
+
+    # ...and now an ordinary act in QGIS, with no plugin to hear it
+    clone = layer.renderer().clone()
+    bands = clone.ranges()             # BOUND: the list frees its symbols
+    assert bands, "PREMISE: the element draws no classes to recolour"
+    symbol = bands[0].symbol().clone()
+    symbol.setColor(QColor("#123456"))
+    clone.updateRangeSymbol(0, symbol)
+    layer.setRenderer(clone)
+    layer.triggerRepaint()
+    _tick(2500)
+
+    said = [t for _k, t in BAR_MESSAGES]
+    assert not said, \
+      f"a plugin the user has disabled put {said} into QGIS's message " \
+      f"bar, about controls in a window there is no way to open"
+    after = dlg._read_working_state(group) or {}
+    assert after == before, \
+      "a plugin the user has disabled rewrote the project's group record"
   finally:
     dlg.close()
     project.clear()
@@ -66366,6 +66624,10 @@ def main():
   check("a field's return wears its own style and keeps its picks",
         test_a_fields_return_wears_its_own_style_and_keeps_its_picks)
 
+  check("an element follows the layer it takes its classes from",
+        test_an_element_follows_the_layer_it_takes_its_classes_from)
+  check("a disabled plugin stops talking",
+        test_a_disabled_plugin_stops_talking)
   check("the file's record follows a dock edit",
         test_the_files_record_follows_a_dock_edit)
   check("an opacity set in QGIS reaches the table",

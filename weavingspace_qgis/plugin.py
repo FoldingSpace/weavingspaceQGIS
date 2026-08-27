@@ -120,6 +120,23 @@ class WeavingSpacePlugin:
       self.iface.removeToolBarIcon(self.action)
       self.action = None
     if self.dialog is not None:
+      # RETIRED BEFORE IT IS CLOSED, and closing alone is not enough.
+      # Every long-lived connection this dialog made -- to the
+      # project, to each output layer, to its own combo, which QGIS
+      # re-fires whenever the project's layers churn -- is guarded at
+      # the handler by "am I the dialog in charge", and that record
+      # went on naming this one. So a plugin the user had DISABLED
+      # went on adopting styling-dock edits, rewriting the project's
+      # group record and putting sentences into QGIS's message bar
+      # about controls in a window there was no longer any way to
+      # open, until QGIS was restarted. (Found by the two-dialogs
+      # hunt, 2026-08-27.)
+      try:
+        self.dialog.retire()
+      except Exception:
+        # unloading must not fail: QGIS is taking our UI away either
+        # way, and a raise here leaves the menu entry behind
+        pass
       self.dialog.close()
       self.dialog = None
 

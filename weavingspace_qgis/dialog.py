@@ -1072,10 +1072,20 @@ def _dialog_is_gone(dialog):
     dialog: a WeavingSpaceDialog, or None.
 
   Returns:
-    True when the object must not be touched -- it is None, or sip
-    reports the wrapped C++ object deleted. False when it is safe, and
-    False as well when sip cannot be imported, since refusing to work
-    is worse than the rare crash this guards.
+    True when the object must not be touched -- it is None, sip
+    reports the wrapped C++ object deleted, or the dialog has been
+    RETIRED because the plugin is being unloaded. False when it is
+    safe, and False as well when sip cannot be imported, since
+    refusing to work is worse than the rare crash this guards.
+
+  RETIREMENT IS ASKED HERE because this is the question every
+  long-lived handler puts first, and the alternative lever does not
+  work: the neighbouring gate reads "if there IS a live dialog and it
+  is not me, drop", so clearing that record makes every dialog think
+  it is in charge rather than none. A plugin the user disabled went on
+  adopting dock edits, rewriting the project's group record and
+  speaking into QGIS's message bar until QGIS was restarted.
+  (2026-08-27.)
 
   Qt disconnects a signal from a BOUND METHOD when the receiving
   QObject dies, but a LAMBDA is an ordinary Python object that Qt
@@ -1086,6 +1096,14 @@ def _dialog_is_gone(dialog):
   disconnecting at one teardown site would not.
   """
   if dialog is None:
+    return True
+  # A RETIRED DIALOG IS GONE AS FAR AS EVERY HANDLER IS CONCERNED,
+  # though its Python object is perfectly alive: QGIS unloading the
+  # plugin takes the menu entry and the reference away, so there is no
+  # route back to this window and nothing it does can be seen or
+  # undone. Asked before sip, because it is cheaper and because a
+  # retired dialog whose C++ half survives is the whole case.
+  if getattr(dialog, "_retired", False):
     return True
   try:
     from qgis.PyQt import sip
@@ -4235,6 +4253,49 @@ class WeavingSpaceDialog(QDialog):
       return
     self._live_timer.start()
 
+  def retire(self):
+    """Stand this dialog down for good, because the plugin is going.
+
+    Returns:
+      None. Clears the record of which dialog is in charge, when that
+      is this one, and marks this dialog closed. Nothing is
+      disconnected: an element layer outlives the dialog that made it
+      and its lambda is an ordinary Python object Qt goes on calling,
+      so every long-lived connection here is guarded AT THE HANDLER
+      rather than at a teardown site -- which is what makes clearing
+      one record enough to silence all of them.
+
+    THE GATE ASKED WHICH OF US IS IN CHARGE AND NEVER WHETHER ANY OF
+    US SHOULD BE. Retirement here only ever happened by SUCCESSION: a
+    new dialog takes the record, and the old one's handlers see
+    `_live_dialog() is not self` and return. With no successor the
+    record goes on naming a dialog the user has disposed of -- so
+    disabling the plugin in QGIS's Plugin Manager left it adopting
+    dock edits, rewriting the project's group record, and pushing
+    sentences into QGIS's message bar about controls in a window there
+    is no longer any way to open. It lasted until QGIS was restarted.
+    (Found by the two-dialogs hunt, 2026-08-27.)
+
+    IT DOES NOT CLEAR THE RECORD OF WHO IS IN CHARGE, and that was
+    the first attempt. The gate reads "if there IS a live dialog and
+    it is not me, drop" -- None means "nobody has said", so clearing
+    the record makes EVERY dialog believe it is in charge rather than
+    none. Measured 2026-08-27: the message the disabled plugin had
+    just been fixed for came straight back. So retirement is a fact
+    about this dialog, read by `_dialog_is_gone`, which every
+    long-lived handler already asks first.
+
+    NOT CALLED WHEN THE WINDOW IS MERELY CLOSED, and that is the
+    distinction the fix turns on: `plugin.open_dialog` REUSES this
+    object, so a closed window is a hidden one that the user may bring
+    back with its map, its records and its adopted edits intact.
+    Retiring there would leave a dialog that can be reopened and can
+    no longer do anything.
+    """
+    self._closed = True
+    self._retired = True
+    _dump("RETIRE", "the plugin is being unloaded")
+
   def closeEvent(self, event):  # noqa: N802 (Qt API)
     """Qt calls this when the window closes.
 
@@ -7382,15 +7443,22 @@ class WeavingSpaceDialog(QDialog):
     ask = getattr(renderer, "categories", None)
     if ask is None:
       return
-    # AND IT MUST BE THIS ELEMENT'S OWN COLUMN. A renderer classed on
-    # a column the element no longer draws describes somebody else's
-    # values, and recording it would write the old column's value
-    # strings into this field's record, its shadow and the layer's
-    # stamp -- where a reopened project would read them back as this
-    # column's colours. Held here as well as at the landing arm that
-    # decides the carry, because this is the site that WRITES.
-    if not self._a_kept_renderer_still_draws_this(renderer, assignment):
-      return
+    # NO SECOND GUARD HERE, AND THE MEASUREMENT IS THE REASON.
+    # A renderer classed on a column the element no longer draws would
+    # file that column's value strings under this one, so this site
+    # was given the same question as the landing arm that decides the
+    # carry. Audited per assertion on 2026-08-27 and measured
+    # UNREACHABLE: with the landing arm in place the rebuilt layer
+    # always wears a renderer classed on the field the row shows, and
+    # with the arm reverted AND the table trim disabled the stale
+    # column is still absent, because a re-tile rebuilds the frame
+    # from the source. A guard that cannot fire reads as protection
+    # while guarding nothing, and this project has deleted one before
+    # for the same reason (ledger row 34, 2026-08-20).
+    # WHAT WOULD REOPEN IT: an element keeping a renderer across a
+    # change of column by any route that does not rebuild its layer.
+    # There is none today; a restyle cannot, because changing the
+    # mapped variable is a geometry change.
     # BOUND FIRST. A temporary list from a QGIS getter frees its
     # contents, so `categories()[0].symbol()` reads released memory --
     # once a segfault here, once a plausible wrong colour.
@@ -13025,9 +13093,11 @@ class WeavingSpaceDialog(QDialog):
         QML, ``layer:<id>`` for a donor layer, or None/"" for none.
 
     Returns:
-      For a QML, ``(token, (mtime_ns, size))``; for anything else the
-      token unchanged. The value goes into both signatures, so editing
-      the file moves them and the element is re-seeded.
+      For a QML, ``(token, (mtime_ns, size))``; for a donor layer,
+      ``(token, ((value, colour, label), ...))`` taken from the
+      template that layer would hand over; for anything else the token
+      unchanged. The value goes into both signatures, so a change to
+      either kind of source moves them and the element is re-seeded.
 
     Why this exists: the signatures carried the TOKEN alone, so a
     scheme rewritten on disk left every signature equal. Pressing
@@ -13050,7 +13120,44 @@ class WeavingSpaceDialog(QDialog):
     A rewrite that preserves both is possible in principle and has no
     consequence a user would notice.
     """
-    if not token or not token.startswith("file:"):
+    if not token:
+      return token
+    if token.startswith("layer:"):
+      # A DONOR LAYER IS CONTENT TOO, and it entered both signatures
+      # BARE -- so an element declaring "take my classes from element
+      # c" followed c once and never again. Recolour c, press
+      # Generate, and c changes while d keeps the ladder it was given
+      # minutes ago: two elements on one column drawing "crops" in
+      # different colours, silently and for good, which is the
+      # one-colour-one-meaning rule broken by the very control that
+      # exists to uphold it. The QML half of this function has been
+      # stamped by content since 2026-08-13; this half was not.
+      # (Found by the collateral sweep, 2026-08-27.)
+      #
+      # FINGERPRINTED THROUGH `template_from_layer`, which is what the
+      # dependent actually CONSUMES, so the stamp cannot come to
+      # disagree with the thing it is stamping. It costs a clone per
+      # category on each tick, where the QML half deliberately avoids
+      # a hash for the same reason -- but this reads a renderer in
+      # memory rather than a file, and the count is bounded by
+      # `bridge.MANY_CATEGORIES` rather than by the size of anybody's
+      # data.
+      #
+      # A DONOR THAT CANNOT BE READ RIGHT NOW returns the last
+      # reading, exactly as a missing QML does and for the same
+      # settled reason: losing a source is not an edit, and moving
+      # the signature on it would re-seed the element from nothing.
+      donor = QgsProject.instance().mapLayer(token[6:])
+      try:
+        template = bridge.template_from_layer(donor)
+      except Exception:
+        return (token, self._class_source_stamps.get(token))
+      stamp = tuple(sorted(
+        (value, symbol.color().name(), label)
+        for value, (symbol, label) in template.items()))
+      self._class_source_stamps[token] = stamp
+      return (token, stamp)
+    if not token.startswith("file:"):
       return token
     path = token[5:]
     try:
@@ -14802,6 +14909,65 @@ class WeavingSpaceDialog(QDialog):
       # carries as `weavingspace_region`.
       "region": layer.source() if layer is not None else None,
     }
+
+  def _repoint_donors(self, old_ids, new_ids):
+    """Follow "take my classes from that layer" across a re-tile.
+
+    Args:
+      old_ids: the element layers this run replaced, by element.
+      new_ids: the layers it made, by element.
+
+    Returns:
+      None. Rewrites any class-source choice naming a layer this run
+      replaced so that it names the same ELEMENT'S new layer, and
+      re-selects the affected rows' combos so the widget and the
+      record agree.
+
+    THE CHOICE IS STORED AS `layer:<layer id>`, and a re-tile gives
+    every element a new layer with a new id -- so one Generate after
+    the choice was made, the token named an object that no longer
+    exists. The donor then read as an UNREADABLE source, the
+    dependent kept the colours it already had under the keep-the-map
+    promise, and two elements went on drawing one column in two sets
+    of colours for good. That is the harm the control exists to
+    prevent, arriving as a dangling reference rather than as a
+    disagreement, which is why nothing complained. Measured
+    2026-08-27: following works on arrival and the id stops resolving
+    at the very next run.
+
+    HEALED RATHER THAN RESOLVED AT EVERY READER, so the mended token
+    is right in the row, in the group's record, in the project and in
+    the GeoPackage; a reader-side fallback would leave four stores
+    holding a reference to nothing.
+
+    AND THE WIDGET IS MENDED WITH THE RECORD, because `_assignments`
+    reads the COMBO. Healing the record alone was measured to last
+    until the next rebuild, which writes the widget's stale answer
+    back over it -- the same fault this column was given a fix for on
+    2026-08-26, arriving from the other end.
+    """
+    replaced = {lid: tid for tid, lid in (old_ids or {}).items()}
+    if not replaced:
+      return
+    moved = []
+    for tid, token in list(self._class_choices.items()):
+      if not token or not token.startswith("layer:"):
+        continue
+      donor = replaced.get(token[6:])
+      if donor and donor in new_ids:
+        self._class_choices[tid] = f"layer:{new_ids[donor]}"
+        moved.append(tid)
+    if not moved:
+      return
+    _dump("CLASSSRC", "repointed", ",".join(moved))
+    for row in range(self.table.rowCount()):
+      cell = self.table.item(row, 0)
+      if cell is None or cell.text() not in moved:
+        continue
+      combo = self.table.cellWidget(row, 7)
+      if combo is not None:
+        self._populate_class_source_combo(
+          combo, self._class_choices.get(cell.text(), ""))
 
   def _rewrite_the_files_record(self, path) -> bool:
     """Bring the GeoPackage's own saved record up to date.
@@ -17183,6 +17349,23 @@ class WeavingSpaceDialog(QDialog):
       group.insertLayer(0, outline_layer)
       self._outline_layer_id = outline_layer.id()
 
+    # AN ELEMENT THAT TAKES ITS CLASSES FROM ANOTHER ELEMENT'S LAYER
+    # IS RE-POINTED HERE, BEFORE THAT LAYER IS DESTROYED. The choice
+    # is stored as `layer:<layer id>`, and a re-tile gives every
+    # element a NEW layer with a new id -- so one Generate after the
+    # choice was made the token named an object that no longer
+    # exists. The donor then read as an unreadable source, the
+    # dependent kept the colours it already had under the
+    # keep-the-map promise, and the two elements went on drawing one
+    # column in two sets of colours for good: exactly the harm the
+    # control exists to prevent, arriving as a dangling reference
+    # rather than as a disagreement. Measured 2026-08-27 -- following
+    # WORKS on arrival and the id stops resolving at the very next
+    # run.
+    # HEALED RATHER THAN RESOLVED AT EVERY READER, because a token
+    # mended here is right in the row, in the group's record, in the
+    # project and in the GeoPackage, where a reader-side fallback
+    # would leave four stores holding a reference to nothing.
     # drop the previous run's element layers
     for tid, lid in old_ids.items():
       if project.mapLayer(lid) is not None:
@@ -17199,6 +17382,7 @@ class WeavingSpaceDialog(QDialog):
       if tid not in new_ids:
         del self._last_signatures[tid]
     self._element_layer_ids = new_ids
+    self._repoint_donors(old_ids, new_ids)
     # AFTER the ids are adopted, not during the loop that builds them:
     # the question "is this element deferring" is asked of the layer
     # the dialog currently points at, and until this line that is the
