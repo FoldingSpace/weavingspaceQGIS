@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-369 defect(s) with a regression test.
+370 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -349,6 +349,8 @@ there is no separate list to remember.
   guarded by `test_a_reopened_project_reaches_its_own_colours_and_pins`
 - **a project reopened from a file heard no in-place dock recolour at all, because a guard read a deliberately empty record as evidence that the row had moved.**  
   guarded by `test_a_reopened_project_still_hears_a_recolour_made_in_qgis`
+- **resuming a map made with the outlines layer ticked could recover onto that layer rather than the region, leaving the chooser empty and every variable lost. Found by the design-controls hunt, 2026-08-27.**  
+  guarded by `test_a_resume_does_not_recover_onto_our_own_outlines_layer`
 - **resuming a saved map whose region could not be recovered left the dialog bound to the CURRENT dataset's group while announcing the saved map was being worked on, with two spurious sentences (a cleared output path and a switch notice about an intermediate table) on the way past -- the resumed group unclaimed and stamped with the wrong dataset. Found by the doors and switchdoor hunts of round nine (2026-08-26), independently.**  
   guarded by `test_a_resume_is_not_snatched_by_its_own_tail`
 - **the resume path registered element layers without updating the region chooser's exclusions, so a resumed map's own tile layers were offered as region data and the next Generate tiled the plugin's own output.**  
@@ -789,7 +791,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 106
+- the mutation campaign: 107
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
 - reported by a user: 29

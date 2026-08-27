@@ -305,6 +305,33 @@ MUTATIONS = [
            "nor unmake one, so without this term a mode change or a "
            "variable swap is answered in place and the holes the "
            "feature exists to remove come back"),
+  dict(name="recovery-skips-the-plugins-own-output", file=DIALOG,
+       old="""        if layer.customProperty("weavingspace_output"):
+          continue
+        try:
+          same = same_source(layer.source(), wanted)
+        except Exception:
+          continue
+        if same:
+          self.layer_combo.setLayer(layer)""",
+       new="""        try:
+          same = same_source(layer.source(), wanted)
+        except Exception:
+          continue
+        if same:
+          self.layer_combo.setLayer(layer)
+          return""",
+       test="test_a_resume_does_not_recover_onto_our_own_outlines_layer",
+       why="BOTH HALVES AT ONCE, because either alone survives: the "
+           "skip and the does-the-chooser-hold-anything check each "
+           "send the walk on to its fallbacks, so only removing the "
+           "whole fix asks a real question. "
+           "The map-unit outlines layer is built on the region's own "
+           "source and is excluded from the region chooser, so "
+           "recovery landing on it left the chooser EMPTY -- and it "
+           "returned in front of its own fallbacks, so a resume "
+           "reported success while every element's variable was lost "
+           "and Generate drew nothing and said nothing"),
   dict(name="a-duplicate-does-not-displace-the-original", file=DIALOG,
        old="""      elif tid:
         if str(tid) in self._element_layer_ids:

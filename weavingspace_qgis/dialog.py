@@ -15790,13 +15790,37 @@ class WeavingSpaceDialog(QDialog):
     wanted = record.get("region")
     if wanted:
       for layer in project.mapLayers().values():
+        # OUR OWN OUTPUT IS NEVER THE ANSWER, however well its source
+        # matches. The map-unit outlines layer is built on the REGION'S
+        # OWN SOURCE -- deliberately, since nothing is copied -- and it
+        # carries `weavingspace_output`, which is what keeps it out of
+        # the region chooser. Those two facts are each right and they
+        # collide in a walk that filters by neither: this loop took
+        # whichever layer QGIS's map happened to yield first, and where
+        # that was the outlines layer, `setLayer` on a layer the combo
+        # EXCLUDES leaves the chooser empty -- and this returned, in
+        # front of its own two fallbacks. The resume then reported
+        # success beside a blank chooser, every element's variable
+        # lost, and a Generate that launched nothing and said nothing.
+        # Measured 2026-08-27: two of four ordinary reopen-and-resume
+        # trials with nothing removed, and deterministic once the raw
+        # layer is tidied out of the panel -- which is exactly what
+        # having an outlines layer invites somebody to do.
+        if layer.customProperty("weavingspace_output"):
+          continue
         try:
           same = same_source(layer.source(), wanted)
         except Exception:
           continue
         if same:
           self.layer_combo.setLayer(layer)
-          return
+          # ...AND THE CHOOSER IS ASKED WHETHER IT TOOK. A combo may
+          # decline a layer for reasons this walk does not enumerate
+          # -- the exclusion above is one and there may be others --
+          # so a `setLayer` that did not land must fall through to the
+          # fallbacks below rather than return as though it had.
+          if self.layer_combo.currentLayer() is not None:
+            return
       # named from the FILE half of the source alone: an OGR source
       # string carries `|layername=<table>`, so the basename of the
       # whole string read "region.gpkg|layername=region" in the

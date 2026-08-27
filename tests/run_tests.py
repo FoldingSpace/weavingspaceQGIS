@@ -65434,6 +65434,108 @@ def test_a_duplicated_layer_does_not_displace_the_one_it_copied():
     project.clear()
 
 
+
+def same_source_for_tests(one, other) -> bool:
+  """Ask the plugin's own comparator whether two sources are one file.
+
+  Args:
+    one: a layer's provider string.
+    other: the source to compare it with.
+
+  Returns:
+    True when they name the same data. Imported through the dialog so
+    a test cannot come to disagree with the rule it is checking; a
+    second implementation here would be a second answer.
+  """
+  from weavingspace_qgis.dialog import same_source
+  return same_source(one, other)
+
+
+
+def test_a_resume_does_not_recover_onto_our_own_outlines_layer():
+  """Recovery finds the user's data, not the plugin's copy of its name.
+
+  The map-unit outlines layer is built on the REGION'S OWN SOURCE --
+  deliberately, since nothing is copied -- and it carries
+  `weavingspace_output`, which is what keeps it out of the region
+  chooser. Each fact is right on its own, and they collide in a walk
+  that filters by neither: recovery took whichever layer QGIS's map
+  yielded first with a matching source, and `setLayer` on a layer the
+  combo EXCLUDES leaves the chooser empty. It then returned, in front
+  of its own two fallbacks, so a resume reported success beside a
+  blank chooser, every element's variable lost, and a Generate that
+  launched nothing and said nothing. The user's saved map could not be
+  redrawn.
+
+  Driven with the raw region layer removed, which makes it certain
+  rather than a coin toss on QGIS's hash order -- and which is exactly
+  the tidying-up that having an outlines layer invites.
+
+  Regression: resuming a map made with the outlines layer ticked could recover onto that layer rather than the region, leaving the chooser empty and every variable lost. Found by the design-controls hunt, 2026-08-27. [mutation]
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="ws_recover_outlines_")
+  try:
+    region, _ = _boundary_disk_region(folder)
+    saved = os.path.join(folder, "saved_map.gpkg")
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(region)
+      _tick(400)
+      dlg.opt_outlines.setChecked(True)
+      dlg.gpkg_widget.setFilePath(saved)
+      _generate_and_wait(dlg)
+      _tick(300)
+      _settle(dlg, seconds=90)
+      wanted = region.source()
+    finally:
+      dlg.close()
+
+    outlines = [lyr for lyr in project.mapLayers().values()
+                if lyr.customProperty("weavingspace_output")
+                and same_source_for_tests(lyr.source(), wanted)]
+    assert outlines, \
+      "PREMISE: no output layer shares the region's source, so the " \
+      "collision this guards cannot arise -- has the outlines layer " \
+      "stopped being built on the region's own source?"
+    # THE RAW LAYER GOES, which is the tidying-up an outlines layer
+    # invites and what makes this certain rather than a coin toss on
+    # QGIS's hash order.
+    project.removeMapLayer(region.id())
+    _tick(400)
+
+    fresh = WeavingSpaceDialog(iface=_Iface())
+    try:
+      fresh.live_check.setChecked(False)
+      _tick(300)
+      assert fresh._resume_from_gpkg(saved), "PREMISE: the resume was refused"
+      _tick(600)
+      _settle(fresh, seconds=90)
+      live = fresh.layer_combo.currentLayer()
+      assert live is not None, \
+        "the region chooser is empty after a resume that reported " \
+        "success, so every element's variable is lost and Generate " \
+        "has nothing to draw from"
+      assert not live.customProperty("weavingspace_output"), \
+        f"the chooser holds {live.name()!r}, which is the plugin's own " \
+        f"output: it is excluded from this very combo, so nothing a " \
+        f"user does can put it there"
+      chosen = [fresh.table.cellWidget(r, 1).currentText()
+                for r in range(fresh.table.rowCount())
+                if fresh.table.cellWidget(r, 1) is not None]
+      assert [v for v in chosen if v and v != "---"], \
+        f"no element came back with a variable: {chosen}"
+    finally:
+      fresh.close()
+  finally:
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def main():
   """Run every registered test and report what happened.
 
@@ -66715,6 +66817,8 @@ def main():
   check("a field's return wears its own style and keeps its picks",
         test_a_fields_return_wears_its_own_style_and_keeps_its_picks)
 
+  check("a resume does not recover onto our own outlines layer",
+        test_a_resume_does_not_recover_onto_our_own_outlines_layer)
   check("a duplicated layer does not displace the one it copied",
         test_a_duplicated_layer_does_not_displace_the_one_it_copied)
   check("an element follows the layer it takes its classes from",
