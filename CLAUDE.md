@@ -2035,6 +2035,98 @@ Confirmed with the user via an explicit design review:
   the reopened one did, so it was two rules colliding rather than a
   persistence fault.
 
+- **THE FIVE RULINGS OF 2026-08-27, SETTLED BY GRILLING. NONE OF THEM
+  IS BUILT.** They are recorded here because the reasoning is what a
+  later session will not have; the WORK is in ROADMAP.md under 0.24.4,
+  written to be implementable from that document alone. Read both
+  before touching any of it, and do not take the presence of a ruling
+  here as evidence that the code follows it.
+  1. SAVING IS A POSITIVE ACT. A path chooser records what you WOULD
+     save to or load from and does nothing on its own. A SAVE button
+     beside the output path writes the map as it stands -- tables,
+     styles, the resumable record, the stale-table drop and the
+     embedded source together -- and a LOAD button beside the other
+     chooser reads one back. Generate DRAWS. Auto-generate never
+     writes. SAVE ASKS BEFORE OVERWRITING a file the plugin did not
+     write: with Save a deliberate press, asking every time is noise,
+     and a file somebody else's map is in is not.
+     WHAT IT RETIRES. Live update's output-path gate is DELETED rather
+     than explained: its reason was that a live run must not rewrite
+     somebody's file on every keystroke, and under this ruling no run
+     writes at all, so a gate that cannot fire would sit in the source
+     reading as protection. It also overrules the Save & open tab
+     already written on the `../ws-save-load` worktree, which resumes
+     the instant a file is chosen.
+     THE QUESTION IT ANSWERED WAS A DIFFERENT ONE. The maintainer was
+     asked how live update should ANNOUNCE its silent pause, and
+     answered by moving the ground under the question. Recorded that
+     way round because it is what a grilling is for, and because the
+     three options offered were all worse than the answer.
+  2. UNTICKING "INCLUDE THE SOURCE DATA" MEANS IT IS NOT IN THIS FILE.
+     The `weavingspace_region` table is dropped at Save -- only that
+     table, the one the plugin wrote itself, never anything else a
+     user keeps in the file. It follows the ruling of 2026-08-26 that
+     the file shows the limit of what it contains: a private copy
+     somebody has switched off is exactly what they would be surprised
+     to find in a file they send on. Today the copy stays while the
+     record says it is gone, so the privacy AND the resume are both
+     lost; measured on the file's own bytes.
+  3. AN OUTPUT PATH NEVER DECIDES WHICH GROUP A RUN LANDS ON. The
+     chooser alone does, which is what the ruling of 2026-08-25 gave
+     it, and "create new" remains the way to ask for a second map.
+     Clearing the path currently forks a group silently -- and
+     unattended under live update, from an ordinary design tweak.
+     Under ruling 1 the fork's own justification disappears, since a
+     run no longer writes anything to overwrite.
+  4. A RAMP IS REMEMBERED UNDER THE MODE THE ROW IS IN, not under the
+     family the RAMP belongs to. A row remembers what it WORE in each
+     mode: pick `Accent` while Graduated, pick `Reds` back, and the
+     categorical slot is untouched. The comment at that site argues
+     for the present rule and is to be REWRITTEN rather than edited --
+     its worry, that a categorized row carrying `YlOrRd` would hand
+     that back on the next flip, is answered by the row having worn
+     it. Decided on the dialog-controls side of the two-relationships
+     framing: what makes the next thirty seconds clear, not what loses
+     nothing.
+  5. DONORS ARE SEEDED BEFORE THEIR FOLLOWERS, reading the donor's NEW
+     layer, so a change reaches its follower in the same run rather
+     than one later. THE OBVIOUS ANSWER IS RULED OUT BY DEFERRAL: the
+     template cannot be computed from the donor's ROW, because a donor
+     may be deferring and its renderer made by hand in the dock, which
+     is exactly when following it is most useful -- so the donor's new
+     layer must exist first. SEEDING ORDER IS SEPARATED FROM PANEL
+     ORDER, which reads `a..z` then `aa..`. Two elements taking from
+     each other have no valid order and keep the one-run lag, with the
+     reason at the code; driven 2026-08-27, a cycle SETTLES rather
+     than churning.
+
+- **TWO ELEMENT CEILINGS, NOT ONE.** (Maintainer's ruling, 2026-08-27,
+  and this one IS built.) Weaves keep `a`..`z`; tilings run `a`..`z`
+  then `aa`..`zz`, capped at sixteen by sixteen. The asymmetry follows
+  the two blockers `catalog.py` sets out at length, which stop in
+  different places: the doubled ids are open for tilings because
+  upstream supplies them and a GeoPackage keeps `tiles_aa` and
+  `tiles_ab` apart, and shut for weaves because a weave is SPECIFIED
+  as a string with one character per element, so "ab" already means
+  two strands. 256 rather than the doubled alphabet's 702 because
+  `tightest_grid` makes that exactly sixteen by sixteen.
+  MEASURED BEFORE IT MOVED: all four formula families build a unit
+  with exactly n DISTINCT ids at 27, 52, 53, 100, 196 and 256, at
+  0.01-0.05s each. The catalogue went from 247 entries to 1,168 and
+  the sweep that builds every one of them still passes.
+  AND `"aa" < "z"`, WHICH IS THE HALF A DOUBLED ALPHABET BREAKS
+  QUIETLY. Python compares strings character by character, so the
+  twenty-seventh element sorted SECOND -- second in the assignment
+  table, in the layers panel, in the design view's labels, in the
+  legibility check's pairs, and second again in a resumed panel, where
+  table names carry the same fault. Nothing was lost; a user simply
+  could not find their twenty-seventh variable.
+  `bridge.element_order` is the one owner of that question and every
+  site reads it. `tools/probes/element_order_through_a_roundtrip.py`
+  prints the three orders -- the dock, the file, and the dock after a
+  resume -- because they are three different questions, and the file's
+  own listing is right only by the accident of creation order.
+
 - **WHEN YOU CHANGE A NAME OR A FORMAT, FIND EVERY READER -- BY SYMBOL
   AS WELL AS BY LITERAL.** (2026-08-26, twice within an hour, on one
   small change.) Naming output groups for their dataset was swept
