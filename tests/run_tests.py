@@ -66071,6 +66071,37 @@ def test_a_tiling_may_carry_two_letter_elements():
     for tid in long_ones:
       assert any(t.startswith(f"tiles_{tid}") for t in tables), \
         f"element {tid!r} has no table of its own: {sorted(tables)}"
+    # AND THE FILE'S OWN LISTING IS NO GUIDE, which is why the resume
+    # must not follow it: `tiles_aa_v3` sorts before `tiles_x_v3` as
+    # text, so a resumed map ordered by table name would put the
+    # twenty-seventh element back in the middle. Measured here rather
+    # than assumed, and the assertion is about the DOCK below.
+    assert sorted(tables) != tables or len(tables) < 27, \
+      "PREMISE: this file's tables happen to be in text order, so " \
+      "sorting them would not show the fault"
+
+    fresh = WeavingSpaceDialog(iface=_Iface())
+    try:
+      fresh.live_check.setChecked(False)
+      _tick(300)
+      assert fresh._resume_from_gpkg(saved), "PREMISE: the resume failed"
+      _tick(800)
+      _settle(fresh, seconds=180)
+      group = fresh._group_of_our_layers(project.layerTreeRoot())
+      assert group is not None, "PREMISE: the resume left no group"
+      panel = []
+      for child in group.children():
+        layer = child.layer() if hasattr(child, "layer") else None
+        if layer is not None:
+          panel.append(layer.name().split(" ")[0])
+      seam = [name for name in panel
+              if name in ("y", "z", "aa", "ab")]
+      assert seam == ["y", "z", "aa", "ab"], \
+        f"the resumed layers panel reads {seam} around the end of the " \
+        f"alphabet: a table name carries its element, and " \
+        f"`tiles_aa_v3` sorts before `tiles_y_v1`"
+    finally:
+      fresh.close()
   finally:
     project.clear()
     shutil.rmtree(folder, ignore_errors=True)
