@@ -15851,15 +15851,19 @@ class WeavingSpaceDialog(QDialog):
     saved_elements = len([element for element
                           in (record.get("elements") or [])
                           if element.get("id")])
-    if refused or (saved_elements and loaded < saved_elements):
-      missing = (f"{saved_elements - loaded} of its {saved_elements} "
-                 f"element layers are missing"
-                 if saved_elements and loaded < saved_elements
-                 else f"{len(refused)} of its layers would not open")
-      names = (f": {', '.join(sorted(refused))}" if refused else "")
+    # WRITTEN AS WHOLE SENTENCES rather than composed from fragments,
+    # because the text-review queue shows a person what they are
+    # approving and three interpolated pieces of one sentence cannot
+    # be read or edited as prose.
+    if saved_elements and loaded < saved_elements:
       self._report_quietly(
-        f"That file gave back less than was saved to it, so this map "
-        f"is not complete: {missing}{names}.")
+        f"That file gave back less than was saved to it: "
+        f"{saved_elements - loaded} of its {saved_elements} element "
+        f"layers are missing, so this map is not complete.")
+    elif refused:
+      self._report_quietly(
+        f"{len(refused)} of that file's layers would not open, so this "
+        f"map is not complete: {', '.join(sorted(refused))}.")
     return True
 
   def _recover_the_source(self, path, record):

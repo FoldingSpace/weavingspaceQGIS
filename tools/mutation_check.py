@@ -332,7 +332,7 @@ MUTATIONS = [
            "counting it promised more no-data areas than the map "
            "contains"),
   dict(name="a-layer-that-will-not-open-is-named", file=DIALOG,
-       old="""    if refused or (saved_elements and loaded < saved_elements):""",
+       old="""    if saved_elements and loaded < saved_elements:""",
        new="""    if False:  # mutation: lose it in silence""",
        test="test_a_layer_that_will_not_open_is_named",
        why="an element table that would not open was skipped in "
