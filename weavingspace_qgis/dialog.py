@@ -4294,7 +4294,7 @@ class WeavingSpaceDialog(QDialog):
     """
     self._closed = True
     self._retired = True
-    _dump("RETIRE", "the plugin is being unloaded")
+    _dump("RETIRE", "plugin-unloaded")
 
   def closeEvent(self, event):  # noqa: N802 (Qt API)
     """Qt calls this when the window closes.
