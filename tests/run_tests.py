@@ -46286,21 +46286,19 @@ def test_model_based_dialog_states():
     _generate_and_wait(dlg)
     state = "filed"
     assert os.path.exists(path), "the GeoPackage must exist"
-    # a change of output PATH starts a new group by design (see
-    # RE-DECIDED 2026-08-26 (maintainer's ruling: replace in place).
-    # This assertion used to expect a THIRD group here, reading
-    # memory-to-file as "the output target changed". It did not: the
-    # map so far lived nowhere, and live update's memory layers are
-    # this same design's own provisional draft, so giving it a file
-    # REPLACES the draft rather than forking a rival -- the ordinary
-    # session was leaving two groups and a stale memory copy the
-    # chooser offered for good (ledger row 19). A destination is only
-    # "changed" when there WAS one: file-to-different-file still
-    # forks, which the mapped -> filed transition below this one
-    # exercises through a real path change.
+    # RE-DECIDED TWICE, and the second decision retired the question.
+    # On 2026-08-26 this stopped expecting a THIRD group for
+    # memory-to-file, on the maintainer's ruling that the memory
+    # layers are this same design's own provisional draft and a file
+    # replaces the draft rather than forking a rival (ledger row 19).
+    # On 2026-08-27 the maintainer ruled that AN OUTPUT PATH NEVER
+    # DECIDES WHICH GROUP A RUN LANDS ON at all, so no path change of
+    # any kind forks: the chooser decides, and "create new" is the way
+    # to ask for a second map. Both this transition and the one below
+    # therefore expect the group they already have.
     assert len(groups()) == 2, \
-      f"a first file for a memory-drawn map replaces the draft in "\
-      f"place, found {len(groups())} groups"
+      f"naming a file for a memory-drawn map replaces it in place, "\
+      f"found {len(groups())} groups"
     for tid, lid in dlg._element_layer_ids.items():
       source = project.mapLayer(lid).source()
       assert path in source, \
@@ -46311,10 +46309,18 @@ def test_model_based_dialog_states():
     dlg.gpkg_widget.setFilePath("")
   _generate_and_wait(dlg)
   state = "mapped"
-  assert len(groups()) == 3, \
-    "leaving a real file for temporary output forks -- there WAS a "\
-    "destination, and overwriting its map in memory would conflate "\
-    "two different outputs"
+  # RE-DECIDED 2026-08-27, deliberately rather than bent: this
+  # expected a THIRD group, on the reasoning that there HAD been a
+  # destination and overwriting its map in memory would conflate two
+  # outputs. The maintainer ruled that an output path never decides
+  # which group a run lands on -- clearing the box forked a group
+  # silently, and under live update it did so with no button press,
+  # from an ordinary design tweak (ledger row 12). The reason the
+  # fork gave for itself is also going: under "saving is a positive
+  # act" a run writes nothing, so there is no file to overwrite.
+  assert len(groups()) == 2, \
+    f"clearing the output box is not a request for a second map; "\
+    f"found {len(groups())} groups"
   assert elements_live()
   for tid, lid in dlg._element_layer_ids.items():
     assert "memory" in project.mapLayer(lid).source() or \
@@ -65130,14 +65136,14 @@ def test_an_element_follows_the_layer_it_takes_its_classes_from():
   itself BEFORE the choice is made, so "they agree" can only mean the
   dependent followed.
 
-  WHAT THIS DOES NOT YET GUARD, and it is written down rather than
-  quietly asserted: a donor that MOVES is followed one run late. The
-  template is read from the donor's outgoing layer at the top of a
-  landing, while the donor is being re-seeded in the same pass, so
-  the dependent sees what the donor drew last time. Curing that means
-  deciding the order elements are seeded in, and two elements may
-  take their classes from each other. Measured 2026-08-27 and left
-  for a ruling.
+  WHAT THIS DOES NOT GUARD, because its neighbour does: a donor that
+  MOVES must reach its follower in the SAME run rather than one run
+  later. That was measured here on 2026-08-27, left for a ruling, and
+  ruled on the same day; it is
+  `test_a_donor_reaches_its_follower_in_the_same_run` now, which owns
+  the seeding order, the panel order that had to be separated from it,
+  and the cycle. This test stays aimed at the REFERENCE surviving a
+  re-tile, which is a different claim and was a different defect.
 
   Regression: an element taking its classes from another element's layer lost the reference at the next Generate, because a re-tile replaces every layer, so the two silently stopped agreeing about a column they share. Found by the collateral sweep, 2026-08-27. [mutation]
   """
@@ -65275,6 +65281,252 @@ def test_an_element_follows_the_layer_it_takes_its_classes_from():
     assert held[6:] == dlg._element_layer_ids[donor_id], \
       f"the follower still names {held[6:][-12:]!r} where the donor's " \
       f"layer is now {dlg._element_layer_ids[donor_id][-12:]!r}"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_donor_reaches_its_follower_in_the_same_run():
+  """A donor that moves is followed at once, not one run later.
+
+  An element may take its classes from another element's LAYER, which
+  is how two elements are made to say the same thing about one column.
+  The landing read every template ONCE, before its loop, from the
+  layers the run was replacing -- while the donor was being re-seeded
+  in that same loop -- so a donor that moved was followed a run late
+  and the two drew one column in two sets of colours until somebody
+  pressed Generate again. Ruled on 2026-08-27: donors are seeded
+  before their followers, reading the donor's new layer.
+
+  THE FOLLOWER HERE SORTS BEFORE ITS DONOR, deliberately. Element `a`
+  follows element `d`, so the seeding order and the panel order are
+  in conflict and the test can tell them apart: the map must follow
+  the DEPENDENCY and the layers panel must still read `a`..`d`. A fix
+  that simply reordered the loop would pass the first half and fail
+  the second, which is why both are here.
+
+  TWO WAYS THE LAG SURVIVES A REORDERING, and each is asserted. The
+  donor must be seeded first, and the follower must actually be
+  RE-SEEDED: its own row does not move when its donor's ramp changes,
+  so its signature matches and the old renderer would be carried
+  across whole. Its class-source stamp cannot see the difference
+  either, being read before the run starts.
+
+  AND A CYCLE SETTLES. Two elements taking their classes from each
+  other have no valid order, so one of them keeps the one-run lag by
+  construction. What must not happen is churn -- two elements trading
+  colours for ever, a fresh map on every press. Driven here and
+  recorded as a measured fact rather than an assumption.
+
+  Regression: an element following another element's layer was seeded from the donor's OUTGOING layer, so a donor that moved was followed one run late and the two disagreed about a column they share until the next Generate. Ruled on 2026-08-27. [mutation]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  region = make_region_layer(n=4, cell=1000)
+  region.setName("wards")
+  project.addMapLayer(region)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+
+    def drive(row, column, text):
+      """Pick in a cell the way a person does: set it, then signal.
+
+      Args:
+        row: the element's row in the assignment table.
+        column: which cell -- 1 is the variable, 2 the style.
+        text: the entry to choose, by its visible text.
+
+      Returns:
+        None. `activated` is emitted deliberately: setting a combo
+        without it stages a state no user can reach.
+      """
+      cell = dlg.table.cellWidget(row, column)
+      cell.setCurrentText(text)
+      cell.activated.emit(cell.currentIndex())
+      _tick(200)
+
+    def drive_ramp(row, name):
+      """Choose a ramp in a row, finding the cell by what it OFFERS.
+
+      Args:
+        row: the element's row in the assignment table.
+        name: the ramp, by its QgsStyle name.
+
+      Returns:
+        True when a cell offered that ramp and was driven, False when
+        none did -- every caller asserts on it, because a silent miss
+        would leave the row on the ramp it already had and every
+        comparison afterwards would be between two identical states.
+        The columns appear and disappear with what the rows carry, so
+        a literal index is a fixture that quietly moves.
+      """
+      for column in range(dlg.table.columnCount()):
+        cell = dlg.table.cellWidget(row, column)
+        if cell is None or not hasattr(cell, "findText"):
+          continue
+        where = cell.findText(name)
+        if where >= 0:
+          cell.setCurrentIndex(where)
+          cell.activated.emit(where)
+          _tick(300)
+          return True
+      return False
+
+    # row 3 DONATES to row 0, so the follower sorts first
+    for row in (0, 3):
+      drive(row, 1, "landcover")
+      drive(row, 2, "Categorized")
+    assert drive_ramp(3, "Accent"), \
+      "PREMISE: no control in the donor's row offers the ramp 'Accent'"
+    dlg.spacing_spin.setValue(520)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=90)
+    taker_id = dlg.table.item(0, 0).text()
+    donor_id = dlg.table.item(3, 0).text()
+    assert bridge.element_order(taker_id) < bridge.element_order(donor_id), \
+      f"PREMISE: {taker_id!r} does not sort before {donor_id!r}, so " \
+      f"this fixture cannot tell seeding order from panel order"
+
+    def drawn(tid):
+      """What an element's layer paints, by the value each class means.
+
+      Args:
+        tid: the element id.
+
+      Returns:
+        A dict of value to colour, read off the layer's own renderer
+        rather than recomputed from the ramp, so it is what the map
+        shows including anything refined by hand.
+      """
+      return _drawn_by_value(project.mapLayer(dlg._element_layer_ids[tid]))
+
+    def disagreement():
+      """Where the donor and its follower differ.
+
+      Returns:
+        A dict of value to (the follower's colour, the donor's), for
+        the values both elements draw -- empty when they agree, which
+        is what following means.
+      """
+      donor, taker = drawn(donor_id), drawn(taker_id)
+      return {k: (taker[k], v) for k, v in donor.items()
+              if k in taker and taker[k] != v}
+
+    assert disagreement(), \
+      "PREMISE: the two elements already agree, so nothing below can " \
+      "tell following apart from a coincidence"
+
+    # ...and now the first takes its classes from the last
+    dlg._update_dynamic_columns()
+    _tick(200)
+    token = f"layer:{dlg._element_layer_ids[donor_id]}"
+    picked = False
+    for column in range(dlg.table.columnCount()):
+      cell = dlg.table.cellWidget(0, column)
+      if cell is None or not hasattr(cell, "findData"):
+        continue
+      where = cell.findData(token)
+      if where >= 0:
+        cell.setCurrentIndex(where)
+        cell.activated.emit(where)
+        _tick(300)
+        picked = True
+        break
+    assert picked, \
+      "PREMISE: the donor's layer is not on offer as a class source"
+    dlg.spacing_spin.setValue(524)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=90)
+    assert not disagreement(), \
+      f"the element did not take the donor's classes at all: " \
+      f"{disagreement()}"
+
+    # THE DONOR MOVES, and one Generate must carry it across. The
+    # spacing moves with it so this is the landing rather than the
+    # restyle path; the restyle twin is driven below.
+    before = drawn(donor_id)
+    assert drive_ramp(3, "Dark2"), \
+      "PREMISE: the donor's row offers no second categorical ramp"
+    dlg.spacing_spin.setValue(528)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=90)
+    assert drawn(donor_id) != before, \
+      "PREMISE: the donor drew the same colours after its ramp " \
+      "changed, so there is no movement here for anything to follow"
+    late = disagreement()
+    assert not late, \
+      f"the donor moved and its follower did not, in the same run: " \
+      f"{late} (the follower's colour against the donor's). The " \
+      f"template was read from the donor's layer as it stood BEFORE " \
+      f"this run re-seeded it."
+
+    # ...AND THE PANEL STILL READS IN ELEMENT ORDER, which seeding
+    # order no longer decides.
+    node = project.layerTreeRoot().findLayer(
+      dlg._element_layer_ids[donor_id])
+    assert node is not None, "the donor's layer is in no group"
+    seen = []
+    for child in node.parent().children():
+      reader = getattr(child, "layer", None)
+      layer = reader() if callable(reader) else None
+      named = (layer.customProperty("weavingspace_tile_id")
+               if layer is not None else None)
+      if named:
+        seen.append(str(named))
+    assert len(seen) >= 2, \
+      f"PREMISE: the group holds {seen}, too few to have an order"
+    assert seen == sorted(seen, key=bridge.element_order), \
+      f"the layers panel reads {seen}, which is the order the seeding " \
+      f"needed rather than the order a person reads"
+
+    # THE RESTYLE TWIN: a ramp change alone does not re-tile, and the
+    # same lag lives on that path with nothing replaced at all.
+    before = drawn(donor_id)
+    assert drive_ramp(3, "Set2"), \
+      "PREMISE: the donor's row offers no third categorical ramp"
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=90)
+    assert drawn(donor_id) != before, \
+      "PREMISE: the donor did not move on the restyle path"
+    assert not disagreement(), \
+      f"on the restyle path the follower kept the donor's previous " \
+      f"colours: {disagreement()}"
+
+    # A CYCLE SETTLES. Each now takes its classes from the other,
+    # which has no valid seeding order at all -- one of the two keeps
+    # the one-run lag, and the pair must come to rest rather than
+    # trading colours on every press.
+    for column in range(dlg.table.columnCount()):
+      cell = dlg.table.cellWidget(3, column)
+      if cell is None or not hasattr(cell, "findData"):
+        continue
+      where = cell.findData(f"layer:{dlg._element_layer_ids[taker_id]}")
+      if where >= 0:
+        cell.setCurrentIndex(where)
+        cell.activated.emit(where)
+        _tick(300)
+        break
+    dlg.spacing_spin.setValue(532)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=90)
+    first = (drawn(donor_id), drawn(taker_id))
+    dlg.spacing_spin.setValue(536)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=90)
+    assert (drawn(donor_id), drawn(taker_id)) == first, \
+      "two elements taking their classes from each other churn: the " \
+      "second run drew something the first did not, so the pair never " \
+      "comes to rest"
   finally:
     dlg.close()
     project.clear()
@@ -66221,6 +66473,124 @@ def test_copy_to_offers_select_all():
       f"{every.text()!r}, which is not what pressing it would do"
   finally:
     editor.close()
+
+
+def test_a_ramp_is_remembered_under_the_mode_the_row_is_in():
+  """A ramp tried on one mode never fills the other mode's slot.
+
+  Ledger row 13 of 2026-08-27, settled by the maintainer's ruling the
+  same day. Every sync filed a row's ramp under the family the RAMP
+  belongs to rather than under the mode the ROW is in, so trying a
+  qualitative ramp on a quantitative row wrote it into the
+  categorical slot and left it there. Undoing the experiment brought
+  every visible cell back -- the chooser, the swatch, the map -- while
+  the memory kept `Accent`, and the next change of variable to a text
+  column drew a ramp nobody had chosen in that session.
+
+  TWO JOURNEYS, because a fix that simply forgot everything would pass
+  the first one alone.
+
+  THE UNDONE EXPERIMENT is the discriminating half: pick `Accent` on a
+  Graduated row, pick `Reds` back, point the row at a text column, and
+  read what the MAP draws. The oracle is a CONTRAST rather than a
+  colour table -- the same element is drawn again with `Accent`
+  deliberately chosen, and the two sets of fills must differ. That
+  asks nothing of the plugin's own sampling, and it fails loudly if
+  `Accent` is somehow indistinguishable on this fixture, which would
+  otherwise make the whole comparison vacuous.
+
+  THE CONTROL is the other half of the ruling: a row that genuinely
+  WORE a categorical ramp while categorized must be handed it back
+  after an excursion to a numeric column. Under the old rule this half
+  passed too, which is exactly why it is here -- it is what stops
+  "remember nothing" being a fix.
+
+  Regression: a qualitative ramp tried on a quantitative row was filed under the categorical slot, so undoing the experiment returned every visible cell while the memory kept it, and the next change of variable to a text column drew a ramp nobody had chosen in that session. Found by the return sweep, 2026-08-27, and ruled on the same day. [mutation]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.spacing_spin.setValue(600)
+  _map_every_name(dlg, ["v1", "landcover", "v2", "v3"])
+  tid = dlg.table.item(0, 0).text()
+
+  def ramp_cell():
+    # re-fetched every time: a rebuild replaces every cell widget, and
+    # a reference taken before one is a dead object
+    return dlg.table.cellWidget(0, 4)
+
+  def point_row_at(name):
+    combo = dlg.table.cellWidget(0, 1)
+    index = combo.findText(name)
+    assert index >= 0, \
+      f"the variable chooser does not offer {name!r}"
+    combo.setCurrentIndex(index)
+    dlg._update_dynamic_columns()
+    _tick(250)
+
+  assert dlg._row_mode(0) == "Graduated", \
+    f"the fixture's first row is {dlg._row_mode(0)!r}, not Graduated, " \
+    f"so the experiment this test is about cannot be staged on it"
+
+  # THE EXPERIMENT, and its undoing. Both premises are asserted: a
+  # journey where the qualitative ramp never landed, or never left,
+  # would make every conclusion below a statement about nothing.
+  _pick_ramp(ramp_cell(), "Accent")
+  assert ramp_cell().currentText() == "Accent", \
+    "a qualitative ramp would not stay on a Graduated row, so the " \
+    "experiment this test is about cannot be performed"
+  _pick_ramp(ramp_cell(), "Reds")
+  assert ramp_cell().currentText() == "Reds", \
+    "the experiment was not undone, so nothing below is about a row " \
+    "whose visible cells have all come back"
+
+  point_row_at("landcover")
+  assert dlg._row_mode(0) == "Categorized", \
+    f"pointing the row at a text column left it {dlg._row_mode(0)!r}"
+  assert ramp_cell().currentText() != "Accent", \
+    "the row came back wearing the ramp that was tried and taken off " \
+    "again while it was Graduated: the categorical slot was filled by " \
+    "an experiment on the other side"
+
+  _generate_and_wait(dlg)
+  _tick(200)
+  drawn = project.mapLayer(dlg._element_layer_ids[tid])
+  assert drawn is not None, "the run produced no layer for element " + tid
+  without_accent = bridge.renderer_fill_colours(drawn)
+  assert without_accent, "the element's renderer paints nothing"
+
+  # THE CONTRAST. Chosen deliberately this time, on a row that is
+  # categorized, which is the only state in which this ramp is now
+  # allowed to be remembered.
+  _pick_ramp(ramp_cell(), "Accent")
+  assert ramp_cell().currentText() == "Accent", \
+    "the ramp chooser refused a qualitative ramp on a categorized row"
+  _generate_and_wait(dlg)
+  _tick(200)
+  drawn = project.mapLayer(dlg._element_layer_ids[tid])
+  with_accent = bridge.renderer_fill_colours(drawn)
+  assert with_accent, "the element's renderer paints nothing"
+  assert without_accent != with_accent, \
+    f"the map drew the same fills before and after Accent was chosen " \
+    f"({without_accent}), so either the abandoned experiment was on " \
+    f"the map all along or this fixture cannot tell the two ramps apart"
+
+  # THE CONTROL: what the row WORE as a categorized row comes back.
+  point_row_at("v2")
+  assert dlg._row_mode(0) == "Graduated", \
+    f"pointing the row at a numeric column left it {dlg._row_mode(0)!r}"
+  assert ramp_cell().currentText() != "Accent", \
+    "the categorical ramp rode the row onto a numeric column"
+  point_row_at("landcover")
+  assert ramp_cell().currentText() == "Accent", \
+    f"the row came back on {ramp_cell().currentText()!r} rather than " \
+    f"the ramp it was actually wearing as a categorized row, so the " \
+    f"memory has stopped remembering rather than started remembering " \
+    f"the right thing"
 
 
 def main():
@@ -67552,6 +67922,10 @@ def main():
         test_a_group_is_named_for_the_dataset_it_was_made_from)
   check("one dataset spelt two ways is one dataset",
         test_one_dataset_spelt_two_ways_is_one_dataset)
+  check("a ramp is remembered under the mode the row is in",
+        test_a_ramp_is_remembered_under_the_mode_the_row_is_in)
+  check("a donor reaches its follower in the same run",
+        test_a_donor_reaches_its_follower_in_the_same_run)
 
   if SHARD_COUNT > 1:
     print(f"\nshard {SHARD_INDEX} of {SHARD_COUNT}: "

@@ -436,9 +436,11 @@ since improvement rounds cannot certify themselves.
 Blocked on the weavingspace project rather than on this repository, so
 no release waits for it.
 
-**Element ids past 26.** Two routes past the ceiling, blocked by two
-different things. Setting both out because compressing them is how the
-reasoning gets misremembered.
+**Element ids past 26, FOR WEAVES ONLY.** The tiling half of this
+entry LANDED on 2026-08-27 and what remains is the weave half, which is
+genuinely upstream's. Three routes were set out here rather than one,
+because compressing them is how the reasoning gets misremembered, and
+they stop in three different places.
 
 *Using the capitals as well* — a..z then A..Z, 52 ids — is blocked by
 GEOPACKAGE CASE FOLDING, and that part is measured rather than argued:
@@ -465,7 +467,7 @@ silently. So for TILINGS both blockers are off — upstream provides
 the ids, and doubled lowercase survives the GeoPackage. For WEAVES
 the format is still the obstacle, and changing it is upstream's
 decision rather than ours, which is why this entry stays in this
-section.
+section, narrowed to that half.
 
 AND THE READING THAT SAID IDS HAD BECOME CASE-SENSITIVE WAS WRONG.
 The 0.24.3 entry above carried it from a commit message, and it
@@ -473,18 +475,30 @@ pointed the opposite way — toward capitals colliding. Measuring the
 vendor settled it. Kept here because this entry's own opening says
 compressing the reasoning is how it gets misremembered.
 
-WHAT WOULD MAKE IT OURS. Moving the ceiling for tilings alone is a
-decision, not a discovery, and the work is not the number: it is
-auditing everything that assumes an id is one character, here and in
-designs users have already saved, and then living with a limit that
-differs by family. `MAX_ELEMENTS` is one number for both today.
-Nobody has asked for a twenty-seventh element.
+IT BECAME OURS ON 2026-08-27, and this paragraph replaces the
+prediction that stood here. The maintainer ruled the two ceilings
+apart: weaves keep `a`..`z`, tilings run `a`..`z` then `aa`..`zz`
+capped at sixteen by sixteen, so `catalog.py` now carries
+`MAX_ELEMENTS_WEAVE`, `MAX_ELEMENTS_TILING` and an alias, where this
+entry used to say one number served both. The reasoning is in
+CLAUDE.md under "TWO ELEMENT CEILINGS, NOT ONE" and the code is on
+`for-0.24.4/copy-select-all`.
+THE PREDICTION WAS RIGHT ABOUT WHERE THE WORK WOULD BE. It said the
+work is not the number but auditing everything that assumes an id is
+one character, and that is exactly what it was: `"aa" < "z"` compares
+character by character, so the twenty-seventh element sorted SECOND in
+the assignment table, the layers panel, the design view's labels, the
+legibility pairs, and again in a resumed panel where table names carry
+the same fault. `bridge.element_order` owns that question now.
+WHAT IT WAS WRONG ABOUT is the last line, which said nobody had asked
+for a twenty-seventh element. Somebody did, and a roadmap entry
+predicting the absence of a request is a sentence with a short life.
 
 **Two conversations to have.** Whether the corrected large-plain-weave
 note was sent (`docs/process/upstream-note-large-plain-weaves.md`
-supersedes the first, which blamed a commit wrongly), and the
-element-id ceiling above, which is upstream's decision rather than
-ours.
+supersedes the first, which blamed a commit wrongly), and the WEAVE
+half of the element-id ceiling above, which is upstream's decision
+rather than ours now that the tiling half is built.
 
 ## Later, or never
 

@@ -5575,26 +5575,46 @@ class WeavingSpaceDialog(QDialog):
     if ramp_combo is not None:
       ramp = ramp_combo.currentText()
       is_cat_ramp = ramp in bridge.CATEGORICAL_RAMPS
-      # Remember this ramp under the family it BELONGS to, which is not
-      # necessarily the mode the row is in: a categorized row carrying
-      # YlOrRd is remembering a quantitative choice, and filing it under
-      # "Categorized" would hand it straight back on the next flip. So
-      # the ramp's own family decides the slot, and the swap below reads
-      # the slot the MODE wants. Recorded on every sync rather than only
-      # when a swap happens, so the ramp to come back to is whatever the
-      # user last had, not merely whatever was last displaced.
-      family = "Categorized" if is_cat_ramp else "Graduated"
+      # A RAMP IS REMEMBERED UNDER THE MODE THE ROW IS IN, never under
+      # the family the RAMP belongs to. (Maintainer's ruling,
+      # 2026-08-27, on ledger row 13 of that date.) A row remembers
+      # what it WORE in each mode: pick `Accent` while Graduated, pick
+      # `Reds` back, and the categorical slot is untouched. Filing by
+      # the ramp's own family instead put `Accent` into the categorical
+      # slot permanently -- every visible cell came back, and the next
+      # change of variable drew a ramp nobody had chosen this session.
+      #
+      # THE COMMENT THIS REPLACES ARGUED FOR THE OLD RULE, and its
+      # worry is answered rather than overruled. It said that a
+      # categorized row carrying `YlOrRd` is remembering a quantitative
+      # choice and that filing it under "Categorized" would hand it
+      # straight back on the next flip. It would -- and that is now the
+      # wanted answer, because the row wore it there and nobody took it
+      # off; a ramp left standing on a categorized row is one somebody
+      # was content to see on it.
+      #
+      # ONLY A ROW THAT HAS NOT MOVED MAY RECORD, which is the whole of
+      # the ordering here and the reason `moved` is computed first. On
+      # the sync that FOLLOWS a mode change the cell still holds the
+      # outgoing mode's ramp, so recording it under the incoming mode
+      # would file the wrong ramp and then hand it straight to the swap
+      # below, which reads the very slot that write had just filled --
+      # a flip that undoes itself. A row that has not moved is one
+      # whose ramp somebody chose for the mode it is in, which is
+      # exactly the thing worth remembering, and it is recorded on
+      # every such sync so the ramp to come back to is whatever they
+      # last had rather than whatever was last displaced.
+      moved = row_tid is None or self._synced_modes.get(row_tid) != mode
       memory = self._ramp_memory.setdefault(row_tid, {}) \
         if row_tid else {}
-      memory[family] = ramp
-      # Has the row CHANGED mode since it was last synced? Only then is
-      # the ramp in the cell one nobody chose for this mode, and only
-      # then may it be swapped. On a row that has not moved, the ramp
-      # arrived by the user picking it, and substituting it here would
-      # undo the pick they just made -- while _clear_category_colours
-      # had already destroyed their hand-picked colours on the way in,
-      # for a change that then did not happen.
-      moved = row_tid is None or self._synced_modes.get(row_tid) != mode
+      if not moved and mode in ("Categorized", "Graduated"):
+        memory[mode] = ramp
+      # The swap is gated on `moved` for the other half of that reason:
+      # on a row that has not moved the ramp arrived by somebody
+      # picking it, and substituting it here would undo the pick they
+      # just made -- while _clear_category_colours had already
+      # destroyed their hand-picked colours on the way in, for a change
+      # that then did not happen.
       target = None
       if moved and mode == "Categorized" and not is_cat_ramp:
         target = (memory.get("Categorized")
@@ -7198,7 +7218,9 @@ class WeavingSpaceDialog(QDialog):
     # `_get_or_make_group` found the incoming project's group by name
     # and adopted it WITHOUT the element ids that say what is in it;
     # `_last_path` survived, so `force_new` stayed False and the
-    # group was never rebuilt either. The dialog then neither adopted
+    # group was never rebuilt either (that second limb is history:
+    # the path stopped feeding `force_new` on 2026-08-27, and what
+    # keeps the record honest now is the forgetting below). The dialog then neither adopted
     # the opened project nor replaced it: the next Generate added its
     # layers ALONGSIDE the ones already there, the previous run's
     # elements sat above the new ones, and the map drew two tilings
@@ -12818,7 +12840,12 @@ class WeavingSpaceDialog(QDialog):
     if path:
       bridge.embed_style(layer)
     project.addMapLayer(layer, False)
-    group.addLayer(layer)
+    # UNDER ITS OWN ELEMENT rather than at the end of the group. A twin
+    # carries its element's tile id, so it sorts equal to it and lands
+    # directly below -- which is where it has always been, and stopped
+    # being free the moment seeding order and panel order came apart
+    # (ruling 5 of 2026-08-27).
+    self._join_in_panel_order(group, layer, tile_id)
     # The user's own filter back on the fresh layer, after the style
     # and the registration, exactly where the element's own subset is
     # restored. A provider that refuses the clause is left unfiltered
@@ -12908,18 +12935,60 @@ class WeavingSpaceDialog(QDialog):
         unreadable.add(token)
         template_errors.append(f"{token.split(':', 1)[1][-40:]}: {e}")
 
+    # DONORS ARE RE-SEEDED BEFORE THEIR FOLLOWERS HERE TOO, and the
+    # twin needs it for the same reason the landing does even though
+    # nothing is replaced on this path: the templates above were read
+    # BEFORE the loop, so an element re-seeded inside it leaves any
+    # follower reached later reading the colours it had a moment ago.
+    # A guard added at one door belongs at every door into the same
+    # room, and this room is "the follower draws what the donor draws".
+    def donor_for(tile_id):
+      token = (assignments.get(tile_id) or {}).get("class_source") or ""
+      if not token.startswith("layer:"):
+        return None
+      donor_layer = project.mapLayer(token[6:])
+      named = (donor_layer.customProperty("weavingspace_tile_id")
+               if donor_layer is not None else None)
+      if named:
+        return str(named)
+      return next((t for t, other in layers.items()
+                   if other.id() == token[6:]), None)
+
+    order = self._seeding_order(
+      sorted(layers, key=bridge.element_order), donor_for)
+    reseeded = set()
+
     changed = []
     # the flag keeps _on_layer_style_edited from mistaking this very
     # seeding for a styling-dock edit and adopting our own colours
     self._applying_style = True
     try:
-      for tid, layer in layers.items():
+      for tid in order:
+        layer = layers[tid]
         a = assignments[tid]
         signature = self._signature(a)
+        # ...AND A FOLLOWER WHOSE DONOR JUST MOVED IS NOT "already
+        # wearing what it should", however still its own row is. Its
+        # class-source stamp was taken before this restyle began, so
+        # the signature cannot see a donor THIS pass re-seeded.
         if self._last_signatures.get(tid) == signature \
+            and donor_for(tid) not in reseeded \
             and not (a.get("mode_raw") != self.DEFERRING
                      and bridge.expressible_style(layer.renderer()) is None):
           continue  # this element is already wearing what it should
+        # the follower reads the donor's layer AS IT NOW STANDS, which
+        # on this path is the same object re-seeded in place
+        source_token = a.get("class_source") or ""
+        if source_token.startswith("layer:"):
+          fresh = layers.get(donor_for(tid))
+          if fresh is not None:
+            try:
+              templates[source_token] = bridge.template_from_layer(fresh)
+              unreadable.discard(source_token)
+            except Exception as e:
+              unreadable.add(source_token)
+              template_errors.append(
+                f"{source_token.split(':', 1)[1][-40:]}: {e}")
         # ...the second half of that test is the RECLAIM case, and it
         # is here for the same reason as on the run-landing path: an
         # element taken back by picking the style it had before
@@ -12968,6 +13037,9 @@ class WeavingSpaceDialog(QDialog):
             layer, a, templates.get(a.get("class_source")),
             self._classification_values(a.get("var")) if a.get("var")
             else None)
+          # ...and anything following THIS element's layer must be
+          # re-seeded after it rather than skipped as unchanged
+          reseeded.add(tid)
           # WE JUST PAINTED IT, so this ladder is the baseline every
           # later dock edit is judged against. Read back off the layer
           # rather than from `a`, because a classifier can reduce,
@@ -14323,18 +14395,20 @@ class WeavingSpaceDialog(QDialog):
     self._gpkg_tables_written.setdefault(
       self._gpkg_key(path), set()).add(table)
     # ...AND THE PATH ITSELF, which adoption needs quite as much as
-    # the group. `_add_output_layers` computes
-    # `force_new = opt_new_group.isChecked() or path != self._last_path`
-    # and the FILE WIDGET survives a File > Open while `_last_path`
-    # is cleared with everything else -- so a dialog that had just
-    # adopted the incoming project's group compared the chooser's
-    # path against None, decided the destination had changed, and
-    # built a SECOND group beside the one it had adopted. Measured by
-    # a hunt on 2026-08-16: two groups, four adopted layers orphaned,
-    # both groups' layers reading the SAME tables, so the abandoned
-    # one redrew the new data under the old symbology. That is the
-    # invisible double map the adoption exists to prevent, arriving
-    # through the adoption itself.
+    # the group: it is what the file's own record is rewritten
+    # through, and what puts the adopted file back in the chooser when
+    # a project is reopened.
+    # THE REASON IT WAS FIRST RECORDED HAS SINCE BEEN DELETED, and
+    # saying so is cheaper than leaving a reader to infer it. Until
+    # 2026-08-27 the landing armed a fresh group whenever this path
+    # differed from the chooser's, so a dialog that had just adopted
+    # the incoming project's group compared against None, decided the
+    # destination had changed, and built a SECOND group beside the one
+    # it had adopted -- two groups, four adopted layers orphaned, both
+    # reading the SAME tables, measured by a hunt on 2026-08-16. That
+    # inference is gone under the ruling that an output path never
+    # decides which group a run lands on; the recording stays, for the
+    # two reasons above.
     #
     # Taken from the layer rather than from the file widget, so it
     # describes where the output actually IS rather than where the
@@ -15137,6 +15211,101 @@ class WeavingSpaceDialog(QDialog):
       # carries as `weavingspace_region`.
       "region": layer.source() if layer is not None else None,
     }
+
+  def _seeding_order(self, tile_ids, donor_for):
+    """The order elements are SEEDED in, donors before their followers.
+
+    Args:
+      tile_ids: every element this run draws, in panel order.
+      donor_for: a callable taking an element id and answering the
+        element whose LAYER that one takes its classes from, or None
+        where it follows nobody, follows a file, or follows a layer
+        that is not one of this run's elements.
+
+    Returns:
+      A permutation of tile_ids in which an element that takes its
+      classes from another element's layer comes AFTER that element.
+      Nothing else is reordered, so a run with no follows returns the
+      panel order it was given.
+
+    Why it exists: the landing used to read every template once,
+    before the loop, from the layers this run is REPLACING -- so a
+    donor that MOVED was followed one run late, the follower drawing
+    what the donor drew last time (ledger row 16 of 2026-08-27).
+    Seeding the donor first is what lets the follower read the
+    donor's NEW layer, and the template cannot simply be computed from
+    the donor's ROW instead: a donor may be DEFERRING, its renderer
+    made by hand in QGIS's dock and derivable from no assignment,
+    which is exactly when following it is most useful.
+
+    TWO ELEMENTS TAKING FROM EACH OTHER have no valid order, and that
+    is not an error to refuse. The cycle is broken at whichever of
+    them is reached second, so one keeps today's one-run lag and the
+    other does not. Driven 2026-08-27: a cycle SETTLES rather than
+    churning, because each run reads what the last one drew.
+    """
+    known = set(tile_ids)
+    order, placed, placing = [], set(), set()
+
+    def place(tid):
+      # `placing` is the cycle guard, and reaching it is precisely what
+      # leaves one element of a cycle reading its donor's outgoing
+      # layer. `placed` is the ordinary already-done case.
+      if tid in placed or tid in placing:
+        return
+      placing.add(tid)
+      donor = donor_for(tid)
+      if donor is not None and donor != tid and donor in known:
+        place(donor)
+      placing.discard(tid)
+      placed.add(tid)
+      order.append(tid)
+
+    for tid in tile_ids:
+      place(tid)
+    return order
+
+  def _join_in_panel_order(self, group, layer, tile_id):
+    """Add a layer to the output group where its ELEMENT belongs.
+
+    Args:
+      group: the output group this run is filling.
+      layer: the layer to add, already registered with the project.
+      tile_id: the element the layer belongs to. A no-data twin
+        carries its own element's id, which is what puts it directly
+        below that element rather than at the end of the group.
+
+    Returns:
+      None. The layer joins before the first layer already in the
+      group whose element sorts AFTER this one, and at the end when
+      there is none -- so a twin, sorting equal to its element, lands
+      under it.
+
+    Why this exists rather than `group.addLayer`: seeding order and
+    PANEL order stopped being the same thing when donors began being
+    seeded before their followers (ruling 5 of 2026-08-27). Appending
+    would leave the panel in whatever order the follow relationships
+    forced, which is an order nobody chose and nobody can see the
+    reason for; a panel reads `a`..`z` then `aa`.. through
+    `bridge.element_order`, as every other list a person meets here
+    does.
+    """
+    order = bridge.element_order(tile_id)
+    at = None
+    for index, node in enumerate(group.children()):
+      # a group node has no `layer()`, and the outline layer carries no
+      # tile id: both are simply passed over
+      reader = getattr(node, "layer", None)
+      other = reader() if callable(reader) else None
+      named = (other.customProperty("weavingspace_tile_id")
+               if other is not None else None)
+      if named and bridge.element_order(str(named)) > order:
+        at = index
+        break
+    if at is None:
+      group.addLayer(layer)
+    else:
+      group.insertLayer(at, layer)
 
   def _repoint_donors(self, old_ids, new_ids):
     """Follow "take my classes from that layer" across a re-tile.
@@ -16767,75 +16936,35 @@ class WeavingSpaceDialog(QDialog):
     preserved via the signature check.
     """
     project = QgsProject.instance()
-    # A NEW GROUP IS FOR A DELIBERATE REDIRECT, not for any difference
-    # between where output is going and where it last went.
+    # AN OUTPUT PATH NEVER DECIDES WHICH GROUP A RUN LANDS ON.
+    # (Maintainer's ruling, 2026-08-27, ledger row 12.) The chooser
+    # alone decides, which is what the ruling of 2026-08-25 gave it,
+    # and "create new" remains the way to ask for a second map.
     #
-    # This read `path != self._last_path`, and on 2026-08-16 that
-    # turned the adoption fix into the very defect the adoption fix
-    # was written to cure. Adopting a reopened project's group now
-    # records that group's GeoPackage in `_last_path` (see
-    # `_remember_our_table`, which had to, or a dialog comparing
-    # against None built a rival). A user who then clears the output
-    # box -- asking for memory layers, which is what somebody
-    # recovering a project with a moved region layer does -- left
-    # `path` empty against a remembered file, so the destination read
-    # as CHANGED and Generate built a second group beside the one it
-    # had just taken over. Both groups then drew the same tables, and
-    # the abandoned one redrew the new data under the old symbology:
-    # the invisible double map, arriving through its own repair.
-    # Bisected to 3b78241; the same test passes at its parent.
+    # WHAT WAS HERE, and why it is gone rather than narrowed. A
+    # `moved_the_output` term compared this run's destination with the
+    # last one's and armed a fresh group when they differed. Clearing
+    # the output path therefore forked a group silently -- and under
+    # live update it landed with no button press at all, from an
+    # ordinary design tweak, which is how a panel fills with
+    # near-identical group names. Found independently by the return
+    # sweep and the live-update hunt.
+    # ITS OWN REASON WAS THAT A RUN MUST NOT OVERWRITE THE LAST
+    # RESULT'S FILE, and that reason is being taken away in the same
+    # version: under "saving is a positive act" a run writes nothing,
+    # so there is no file to overwrite and nothing left for the
+    # inference to protect. A guard whose reason has gone reads as
+    # protection, which is why the term is deleted with this
+    # explanation rather than left standing.
+    # WHAT IT COST WHILE IT STOOD is worth keeping, because it is the
+    # shape of the argument rather than the argument: the term needed
+    # a clause for a cleared box (recovery), a clause for a group
+    # adopted but not yet written, and a clause for live update's
+    # memory layers -- three narrowings in eleven days, each after a
+    # measurement, each because the path was answering a question
+    # about the GROUP. The chooser answers that question and can be
+    # seen answering it.
     #
-    # So the comparison now asks what it always meant: is the user
-    # sending output to a DIFFERENT FILE. Both sides must name a file
-    # for that to be true. Clearing the box means "memory output"
-    # rather than "start again", and going from memory to a file
-    # writes the group we already have into it. `Create as new group`
-    # remains the control for saying start again on purpose, which is
-    # the point -- an explicit checkbox should not be shadowed by an
-    # inference from a file path.
-    # ...EXCEPT ON THE FIRST RUN AFTER ADOPTING SOMEBODY ELSE'S GROUP,
-    # which is the case the two contracts disagreed about.
-    #
-    # A group this dialog WROTE and a group it INHERITED are different
-    # things, and `_last_path` stopped telling them apart on
-    # 2026-08-16 when adoption began recording the adopted file (it had
-    # to: comparing against None built a rival beside the group it had
-    # just taken over). Then a user recovering a project -- adopt, point
-    # at a live layer, clear the output box for memory layers -- left
-    # `path` empty against a remembered file, the destination read as
-    # changed, and Generate built the rival anyway. The invisible
-    # double map, arriving through its own repair. Bisected to 3b78241.
-    #
-    # Making a cleared box mean "not a redirect" fixed that and broke
-    # the other contract, which is deliberate and tested: moving output
-    # to a file, or back to memory, DOES start its own group, because
-    # the previous result came from somewhere else and overwriting it
-    # would conflate two outputs (test_model_based_dialog_states).
-    #
-    # Both hold once the question is asked properly. A path change
-    # starts a new group; adopting a group and then generating into it
-    # for the FIRST time replaces it, whatever the box says, because
-    # taking a project over is the whole purpose of adopting it. After
-    # that first run the group is ours and the ordinary rule resumes.
-    # `Create as new group` overrides either way, which keeps the
-    # explicit control ahead of any inference.
-    # ...AND ONLY WHERE THE USER NAMED NO FILE. Narrowed 2026-08-17
-    # after a hunt measured what the wider version did: with the flag
-    # armed, redirecting to a DIFFERENT GeoPackage was swallowed --
-    # no new group, the adopted map replaced in place, nothing said --
-    # while the very next redirect behaved normally. Same action,
-    # opposite answers, turning on whether this dialog had written the
-    # group, which no user can see.
-    #
-    # The recovery this exists for is narrower than I first made it:
-    # somebody reopening a project whose region layer has moved clears
-    # the output box to get memory layers. That is the case where an
-    # empty path must not read as a redirect. Where they NAME a file,
-    # they have said where output goes and the ordinary rule is right.
-    # (A third scope was considered and is a no-op: when the path
-    # still MATCHES what was adopted, `force_new` is already False
-    # without any flag -- measured.)
-    adopted_and_no_file_named = self._adopted_group_unwritten and not path
     # A RENAME MADE WHILE THIS RUN WAS TILING keeps the group, and is
     # the one case where finding it by its layers must NOT reuse it:
     # the user renamed the result they were looking at, which is the
@@ -16944,35 +17073,13 @@ class WeavingSpaceDialog(QDialog):
           for mark in stamps
           for other in project.mapLayers().values()
           if getattr(other, "source", lambda: None)() == mark)
-    # A DESTINATION IS ONLY "CHANGED" IF THERE WAS ONE, and that
-    # clause is the difference between replacing a map and building a
-    # rival beside it. Live update writes MEMORY layers, which set no
-    # `_last_path`; so the moment somebody chose a GeoPackage, the
-    # comparison read "the destination moved" and the landing built a
-    # second group, leaving live update's four memory layers behind as
-    # a complete stale copy of the same map. Measured 2026-08-26: one
-    # session, one map, two groups -- surviving the project save, with
-    # the chooser offering both for good under labels differing by one
-    # digit. That is the colleague's own diagnosis of 2026-08-25 (one
-    # dataset owning two groups with nothing to tell them apart)
-    # arriving with no change of dataset at all, and against the
-    # settled rule that Generate replaces the previous result in place
-    # and "Create as new group" is the only route to a second.
-    # NOTHING OF THE USER'S IS LOST BY REPLACING: the previous result
-    # IS live update's own provisional draft of this same design, and
-    # anybody who wants it kept has the checkbox that says so.
-    # (Maintainer's ruling, 2026-08-26: replace in place.)
-    moved_the_output = (bool((self._last_path or "").strip())
-                        and not same_destination(path, self._last_path))
     force_new = (self.opt_new_group.isChecked() or renamed_mid_run
                  or theirs
-                 or self._new_group_chosen or (
-      moved_the_output and not adopted_and_no_file_named))
+                 or self._new_group_chosen)
     # Spent the moment it is read: the group is this dialog's from
-    # here on, and a second run with a changed destination follows the
-    # ordinary rule again. Cleared BEFORE the work below rather than
-    # after, so an exception on the way cannot leave it armed for a
-    # later run that has no claim to it.
+    # here on, so a later run has no claim on the softer treatment a
+    # freshly adopted group gets. Cleared BEFORE the work below rather
+    # than after, so an exception on the way cannot leave it armed.
     self._adopted_group_unwritten = False
     self._new_group_chosen = False
     group, created = self._get_or_make_group(force_new, tiled=source_layer)
@@ -16983,6 +17090,28 @@ class WeavingSpaceDialog(QDialog):
     new_ids = {}
     by_id = {a["id"]: a for a in assignments}
     tile_ids = sorted(set(gdf["tile_id"]), key=bridge.element_order)
+    # WHICH ELEMENT A `layer:` CLASS SOURCE NAMES, asked of the LAYER
+    # first and of this run's own record second. The layer is the
+    # better answer because it survives a group adopted from a reopened
+    # project, where `_element_layer_ids` may be empty while the layers
+    # themselves still carry their stamps; the record is the fallback
+    # for a layer that has already gone.
+    owner_of_old = {lid: t for t, lid in old_ids.items()}
+
+    def donor_for(tile_id):
+      token = (by_id.get(tile_id) or {}).get("class_source") or ""
+      if not token.startswith("layer:"):
+        return None
+      donor_layer = project.mapLayer(token[6:])
+      named = (donor_layer.customProperty("weavingspace_tile_id")
+               if donor_layer is not None else None)
+      return str(named) if named else owner_of_old.get(token[6:])
+
+    # DONORS ARE SEEDED BEFORE THEIR FOLLOWERS (ruling 5 of
+    # 2026-08-27). Panel order is `tile_ids` and is what the group is
+    # built in; this is the order the WORK is done in, and the two are
+    # deliberately separate -- see `_join_in_panel_order`.
+    seed_order = self._seeding_order(tile_ids, donor_for)
     warned_cardinality = []
     # {tile_id: the fills that element will paint}, gathered as the
     # renderers go on so the separability check sees the map's real
@@ -17215,10 +17344,39 @@ class WeavingSpaceDialog(QDialog):
     # See _adopt_dock_bounds for why the numbers are kept rather than
     # a note to look again.
     self._adoption_deferred = {}
-    for tid in tile_ids:
+    # elements THIS RUN actually re-seeded, as against carrying a
+    # renderer across whole. A follower reads it to learn that its
+    # donor moved underneath it; `_seeding_order` is what guarantees
+    # the donor has already been answered by the time it is asked.
+    reseeded = set()
+    for tid in seed_order:
       a = by_id.get(tid, {"id": tid, "var": None, "mode": "Single colour",
                           "ramp": "Greys", "scheme": "Quantiles", "k": 5,
                           "outline": False})
+      # THE FOLLOWER READS THE DONOR'S NEW LAYER. `templates` above was
+      # built from the layers this run is REPLACING, which is right for
+      # a QML file and wrong for an element: seeding order puts the
+      # donor first, so by the time a follower is reached its donor's
+      # new layer exists and is what it must follow. Recomputed here
+      # rather than in the loop's seeding branch because that branch is
+      # reached down several arms, and a template read at only some of
+      # them is the asymmetry this project keeps paying for.
+      source_token = a.get("class_source") or ""
+      if source_token.startswith("layer:"):
+        donor_tid = donor_for(tid)
+        fresh = (project.mapLayer(new_ids[donor_tid])
+                 if donor_tid in new_ids else None)
+        if fresh is not None:
+          try:
+            templates[source_token] = bridge.template_from_layer(fresh)
+            # a donor whose OUTGOING layer could not be read -- the
+            # dangling `layer:` token of ledger row 14 -- is not an
+            # unreadable source once its new layer answers
+            unreadable.discard(source_token)
+          except Exception as e:
+            unreadable.add(source_token)
+            template_errors.append(
+              f"{source_token.split(':', 1)[1][-40:]}: {e}")
       display = f"{tid} – {a['var']}" if a["var"] else f"{tid} (no data)"
       sub = gdf[gdf["tile_id"] == tid]
       # TRIMMED TO WHAT THIS ELEMENT DISPLAYS (ruling 6 of
@@ -17347,6 +17505,22 @@ class WeavingSpaceDialog(QDialog):
       signature = self._signature(a)
       previous = self._last_signatures.get(tid)
       unchanged = (tid in old_renderers and previous == signature)
+      # A FOLLOWER MOVES WHEN ITS DONOR MOVES, and its own row need not
+      # have moved at all: same variable, same style, same ramp, so the
+      # signature matches and the renderer would be carried across
+      # whole. That is the one-run lag from the other side, and
+      # ordering the seeding is worth nothing while it stands --
+      # the follower would be reached after the donor and then not
+      # re-seeded at all.
+      # ITS CLASS-SOURCE STAMP CANNOT ANSWER THIS, which is why the
+      # question is asked here rather than left to the signature. The
+      # stamp is read when the run is LAUNCHED, off the donor's layer
+      # as it stood BEFORE this run re-seeded it, so a donor moved by
+      # THIS run is invisible to it. A donor moved by anything else --
+      # a dock edit, a ramp picked and then a spacing change -- does
+      # move the stamp, and that route was already covered.
+      if unchanged and donor_for(tid) in reseeded:
+        unchanged = False
       # A DEFERRING element keeps the renderer somebody built in
       # QGIS's styling panel even though its assignment moved, because
       # the plugin has stopped styling it -- that is what deferring
@@ -17507,6 +17681,10 @@ class WeavingSpaceDialog(QDialog):
             out, a, templates.get(a.get("class_source")),
             self._classification_values(a.get("var")) if a.get("var")
             else None)
+          # this element MOVED, so anything following its layer must be
+          # re-seeded too rather than carried across; the seeding order
+          # puts those followers after it
+          reseeded.add(tid)
         # the landing's half of the same baseline; see the twin in
         # `_restyle_only`, and note that the two are DELIBERATELY
         # separate calls rather than one shared helper wrapping
@@ -17581,7 +17759,9 @@ class WeavingSpaceDialog(QDialog):
       if path:
         bridge.embed_style(out)
       project.addMapLayer(out, False)
-      group.addLayer(out)
+      # ...at its ELEMENT'S place in the panel, which is no longer
+      # where the loop happens to have reached: see `_seeding_order`
+      self._join_in_panel_order(group, out, tid)
       if absent is not None and len(absent):
         self._add_no_data_layer(
           a, tid, absent, group, project, path, table_name,

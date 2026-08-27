@@ -1400,15 +1400,22 @@ MUTATIONS = [
            "rc18 and rc19"),
   dict(name="one-session-leaves-one-group",
        file=DIALOG,
-       old="""    moved_the_output = (bool((self._last_path or "").strip())
-                        and not same_destination(path, self._last_path))""",
-       new="""    moved_the_output = (
-      not same_destination(path, self._last_path))""",
+       old="""    force_new = (self.opt_new_group.isChecked() or renamed_mid_run
+                 or theirs
+                 or self._new_group_chosen)""",
+       new="""    force_new = (self.opt_new_group.isChecked() or renamed_mid_run
+                 or theirs
+                 or self._new_group_chosen
+                 or not same_destination(path, self._last_path))""",
        test="test_one_session_leaves_one_group",
        why="live update's memory output sets no _last_path, so a bare "
-           "destination comparison read the first file-backed run as a "
-           "move and built a rival group -- one map, two groups, the "
-           "older a stale memory copy the chooser offered for good"),
+           "destination comparison reads the first file-backed run as "
+           "a move and builds a rival group -- one map, two groups, "
+           "the older a stale memory copy the chooser offered for "
+           "good. RE-ANCHORED 2026-08-27: the term this mutation "
+           "restores was deleted whole by the ruling that an output "
+           "path never decides the group, so the entry now reaches the "
+           "same harm through the expression that survived"),
   dict(name="a-zero-byte-file-is-not-a-geopackage",
        file=DIALOG,
        old="""        empty_file = (os.path.exists(path)
@@ -4754,10 +4761,10 @@ MUTATIONS = [
        old="    force_new = (self.opt_new_group.isChecked() or "
            "renamed_mid_run\n"
            "                 or theirs\n"
-           "                 or self._new_group_chosen or (",
+           "                 or self._new_group_chosen)",
        new="    force_new = (self.opt_new_group.isChecked()\n"
            "                 or theirs\n"
-           "                 or self._new_group_chosen or (",
+           "                 or self._new_group_chosen)",
        test="test_the_output_group_is_renamed_while_a_run_is_in_flight",
        why="renaming the output group while a tiling runs is how a "
            "user keeps that result, exactly as 'Create as new group' "
@@ -6548,6 +6555,82 @@ MUTATIONS = [
            "group's good record, so the next dialog opened in that "
            "project met a map plainly drawn from three columns beside a "
            "table describing none of them"),
+  dict(name="an-output-path-never-decides-the-group", file=DIALOG,
+       old="""    force_new = (self.opt_new_group.isChecked() or renamed_mid_run
+                 or theirs
+                 or self._new_group_chosen)""",
+       new="""    force_new = (self.opt_new_group.isChecked() or renamed_mid_run
+                 or theirs
+                 or self._new_group_chosen
+                 or (bool((self._last_path or "").strip())
+                     and not same_destination(path, self._last_path)))""",
+       test="test_model_based_dialog_states",
+       why="the mutation restores the term the ruling of 2026-08-27 "
+           "deleted: clearing the output path then forks a SECOND "
+           "group rather than replacing in place, silently, and under "
+           "live update it lands with no button press at all -- which "
+           "is how a layers panel fills with near-identical group "
+           "names, the state the group chooser was built to end"),
+  dict(name="donors-are-seeded-before-their-followers", file=DIALOG,
+       old="""    for tid in tile_ids:
+      place(tid)
+    return order""",
+       new="""    for tid in tile_ids:
+      place(tid)
+    return list(tile_ids)  # mutation: seed in panel order""",
+       test="test_a_donor_reaches_its_follower_in_the_same_run",
+       why="an element taking its classes from another element's layer "
+           "is seeded from that layer, so a donor reached AFTER its "
+           "follower is still wearing what it drew last run -- the "
+           "follower then draws the donor's previous colours and the "
+           "two disagree about a column they share until somebody "
+           "presses Generate again"),
+  dict(name="a-follower-is-reseeded-when-its-donor-moves", file=DIALOG,
+       old="""      if unchanged and donor_for(tid) in reseeded:
+        unchanged = False""",
+       new="""      if False:  # mutation: carry the follower's renderer across""",
+       test="test_a_donor_reaches_its_follower_in_the_same_run",
+       why="ordering the seeding is worth nothing while a follower is "
+           "skipped as unchanged: its own row does not move when its "
+           "donor's ramp does, and its class-source stamp was read "
+           "before the run began, so the old renderer is carried "
+           "across whole and the lag survives the reordering"),
+  dict(name="the-panel-reads-in-element-order-not-seeding-order",
+       file=DIALOG,
+       old="""    if at is None:
+      group.addLayer(layer)
+    else:
+      group.insertLayer(at, layer)""",
+       new="""    group.addLayer(layer)  # mutation: append as seeded""",
+       test="test_a_donor_reaches_its_follower_in_the_same_run",
+       why="seeding order stopped being panel order when donors began "
+           "going first, so appending leaves the layers panel in "
+           "whatever order the follow relationships forced -- an order "
+           "nobody chose and nobody can see the reason for, where "
+           "every other list a person meets reads a..z then aa.."),
+  dict(name="the-restyle-follows-a-donor-that-moved-too", file=DIALOG,
+       old="""          # ...and anything following THIS element's layer must be
+          # re-seeded after it rather than skipped as unchanged
+          reseeded.add(tid)""",
+       new="""          pass  # mutation: the restyle forgets which donors moved""",
+       test="test_a_donor_reaches_its_follower_in_the_same_run",
+       why="a ramp change alone does not re-tile, so the same one-run "
+           "lag lives on the restyle path with nothing replaced at "
+           "all: the templates are read before the loop, and a "
+           "follower reached after its donor is skipped as already "
+           "wearing what it should"),
+  dict(name="a-ramp-is-remembered-under-the-rows-mode", file=DIALOG,
+       old="""      if not moved and mode in ("Categorized", "Graduated"):
+        memory[mode] = ramp""",
+       new="""      memory["Categorized" if is_cat_ramp else "Graduated"] = ramp""",
+       test="test_a_ramp_is_remembered_under_the_mode_the_row_is_in",
+       why="the mutation is the rule this replaced, exactly: file the "
+           "ramp under the family it belongs to rather than under the "
+           "mode the row is in. A qualitative ramp tried on a "
+           "quantitative row then fills the categorical slot "
+           "permanently, every visible cell comes back when the "
+           "experiment is undone, and the next change of variable to a "
+           "text column draws a ramp nobody chose in that session"),
   dict(name="a-group-is-named-for-its-dataset", file=DIALOG,
        old="""    base = f"{GROUP_BASE_NAME} — {dataset}" if dataset else GROUP_BASE_NAME""",
        new="""    base = GROUP_BASE_NAME  # mutation: back to a bare counter""",

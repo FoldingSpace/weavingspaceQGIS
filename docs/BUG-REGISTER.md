@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-378 defect(s) with a regression test.
+380 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -287,6 +287,8 @@ there is no separate list to remember.
   guarded by `test_a_dock_recolour_survives_the_reopen`
 - **the signature stamped after adopting a dock recolour was never checked, so the lookup that finds the element could be broken without any test failing.**  
   guarded by `test_a_dock_refinement_survives_the_next_restyle`
+- **an element following another element's layer was seeded from the donor's OUTGOING layer, so a donor that moved was followed one run late and the two disagreed about a column they share until the next Generate. Ruled on 2026-08-27.**  
+  guarded by `test_a_donor_reaches_its_follower_in_the_same_run`
 - **a dataset switch reset an element's mode and left its ramp, Reverse and class count standing, then restored a scheme filed under a corrected mode nobody chose.**  
   guarded by `test_a_dropped_column_takes_its_whole_scheme_and_the_shelf_returns_it`
 - **a ramp chosen on a row whose style was left derived rode a deleted column onto its replacement, then reverted at the next rebuild.**  
@@ -343,6 +345,8 @@ there is no separate list to remember.
   guarded by `test_a_pin_kept_silently_still_reaches_the_stores`
 - **removing the region layer and then recolouring an output layer in QGIS wrote a fieldless table over the group's working record, losing every element's variable and style. Found by the working-state hunt, 2026-08-27.**  
   guarded by `test_a_queued_restamp_never_writes_a_blank_the_plugin_imposed`
+- **a qualitative ramp tried on a quantitative row was filed under the categorical slot, so undoing the experiment returned every visible cell while the memory kept it, and the next change of variable to a text column drew a ramp nobody had chosen in that session. Found by the return sweep, 2026-08-27, and ruled on the same day.**  
+  guarded by `test_a_ramp_is_remembered_under_the_mode_the_row_is_in`
 - **picking the ramp 'gray' and pressing Apply in QGIS's styling dock with no change silently renamed the row, the records and the next stamp to 'gist_gray' -- no pixel ever differs, and the label moved under the user. Found by the stochastic hunt of 2026-08-26 (seed 5001, shrunk); ruled 2026-08-26: the user's name wins the tie.**  
   guarded by `test_a_ramp_twins_name_does_not_move_under_the_user`
 - **a categorical value edited in QGIS's attribute table never reached the legend -- the value digest was built from finite numbers only, so the signature said unchanged and the landing reattached the stale renderer; the recoded value painted no-data grey with nothing said. Found by the data-edit hunt of 2026-08-26.**  
@@ -807,7 +811,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 115
+- the mutation campaign: 117
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
 - reported by a user: 29
