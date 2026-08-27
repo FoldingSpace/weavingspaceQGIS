@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-373 defect(s) with a regression test.
+375 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -321,6 +321,8 @@ there is no separate list to remember.
   guarded by `test_a_landing_never_writes_over_another_datasets_map`
 - **an element table that would not open was skipped in silence when resuming a GeoPackage, so a map came back missing an element with nothing said. Found by the notices hunt, 2026-08-27.**  
   guarded by `test_a_layer_that_will_not_open_is_named`
+- **a layer whose CRS does not match its coordinates produced infinite bounds that the tile estimate never saw, because a caller supplying the measured ground discards the extent -- so the run was accepted and died as an unhandled IndexError. Found by the size-guard hunt, 2026-08-27.**  
+  guarded by `test_a_layer_whose_crs_lies_is_refused_rather_than_crashing`
 - **the region stamp was read from the chooser as the run landed, so switching the region layer mid-run filed A's tiles under B -- and the next run on B then destroyed them, through the very guard written to stop a landing writing over another dataset's map.**  
   guarded by `test_a_map_is_filed_under_the_dataset_it_was_drawn_from`
 - **on a mixed-magnitude column the legend printed "0 - 0" for a class of real width -- the label precision was derived from the whole span divided by k, which mixed magnitudes defeat. The 2026-08-10 fix covered uniformly tiny columns and left mixed ones behind. Found by the classification-churn hunt of 2026-08-26.**  
@@ -405,6 +407,8 @@ there is no separate list to remember.
   guarded by `test_installed_palettes_span_their_declared_colours`
 - **keeping a previous result protected its group and not its GeoPackage, so a run wrote over the file the kept group draws from.**  
   guarded by `test_keeping_a_result_keeps_its_file_however_it_was_kept`
+- **live update's tile-count gate measured the region's bounding box rather than its ground, so it paused on sparse data and quoted a count many times what the map draws. Found by the size-guard hunt, 2026-08-27.**  
+  guarded by `test_live_update_measures_the_ground_not_the_box`
 - **on Windows a reopened project whose output GeoPackage had moved could not be rebuilt -- re-pointing the output at its own path and pressing Generate produced no file, no layers and no message, because the region stamps and the region source were compared as strings and a project save had respelt one of them. Six CI rounds, always alone. Found by the wintest probe of 2026-08-26 once every exit from _generate was made to name itself.**  
   guarded by `test_one_dataset_spelt_two_ways_is_one_dataset`
 - **session memory was keyed by bare column names, so a scheme, its value strings and its pinned numbers made on one dataset could reactivate on any later dataset sharing a column name.**  
@@ -797,7 +801,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 110
+- the mutation campaign: 112
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
 - reported by a user: 29

@@ -320,6 +320,26 @@ MUTATIONS = [
            "name nobody outside this code recognises. The same first-"
            "match fault as its twin in `_recover_the_source`, where "
            "it cost a whole resume"),
+  dict(name="the-live-gate-measures-the-ground", file=DIALOG,
+       old="""      ground, edge = self._ground_and_edge(layer)""",
+       new="""      ground, edge = None, None  # mutation: count the box""",
+       test="test_live_update_measures_the_ground_not_the_box",
+       why="the estimate was taught to measure the region's own "
+           "ground rather than the rectangle round it, and the LIVE "
+           "caller kept the old question by passing no geometry -- so "
+           "the path a user meets on every keystroke paused maps it "
+           "can draw, quoting counts many times what the run then "
+           "produced"),
+  dict(name="bounds-that-are-not-finite-are-uncountable", file=BRIDGE,
+       old="""  if not (math.isfinite(w) and math.isfinite(h)):
+    return UNCOUNTABLE""",
+       new="""  if False:  # mutation: let infinite bounds score a number""",
+       test="test_a_layer_whose_crs_lies_is_refused_rather_than_crashing",
+       why="a caller supplying the region's measured ground discards "
+           "the extent, so infinite bounds never reached the number "
+           "the finiteness check watches -- the run scored a couple "
+           "of dozen tiles, was waved through, and reached the user "
+           "as a raw IndexError from inside the library"),
   dict(name="the-no-data-count-counts-areas-that-drew", file=DIALOG,
        old="""            and not (feature.geometry() is None
                      or feature.geometry().isNull()

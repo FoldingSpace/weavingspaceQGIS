@@ -1794,6 +1794,10 @@ class WeavingSpaceDialog(QDialog):
     # the stamp it had rather than moving the signature. See
     # _class_source_stamp.
     self._class_source_stamps = {}
+    # (layer id, fingerprint) -> (dissolved area, dissolved perimeter),
+    # so the live gate can measure the ground without a geometry pass
+    # per keystroke; see `_ground_and_edge`.
+    self._ground_cache = {}
     # {tile_id: {"Graduated": name, "Categorized": name}} -- the ramp
     # each element last wore in each mode, so a style excursion and
     # back costs nothing. This lived on the combo widget as `last_quant`
@@ -3475,6 +3479,95 @@ class WeavingSpaceDialog(QDialog):
     finally:
       widget.blockSignals(False)
 
+  def _ground_and_edge(self, layer):
+    """How much ground a region really covers, and its boundary.
+
+    Args:
+      layer: the region layer, read in whatever CRS it holds.
+
+    Returns:
+      `(area, perimeter)` of the layer's DISSOLVED geometry in the
+      same units the extent is measured in, or `(None, None)` where
+      that cannot be worked out -- an unavailable layer, a transform
+      PROJ will not make, a geometry that will not union. A caller
+      handed None falls back to assuming the region fills its extent,
+      which is the older and more generous assumption rather than a
+      wrong one.
+
+    WHY DISSOLVED. Adjacent cells cut from a raster share edges that
+    need no allowance, where a scatter of islands each carry their
+    own; summing each polygon's perimeter measures how the data was
+    cut into rows rather than the ground it covers. Measured
+    2026-08-19 across four models, and the dissolved boundary is the
+    only one generous on both shapes.
+
+    CACHED BY WHAT THE LAYER CONTAINS, because this is asked from the
+    live gate on every debounce tick and a dissolve is a pass over
+    every geometry. The cache is keyed on the layer's fingerprint, so
+    an edit invalidates it; entries for OTHER layers are kept, which
+    is the half `_classification_values` got wrong once -- replacing
+    the whole dict on a miss gave a twenty-three element design a hit
+    rate of zero.
+    """
+    from . import compat
+    if not compat.layer_data_is_available(layer):
+      return (None, None)
+    # KEYED ON THIS LAYER'S OWN CONTENTS, deliberately not through
+    # `_layer_fingerprint`: that one describes the layer IN FORCE and
+    # takes no argument, so using it here would file one layer's
+    # ground under another layer's fingerprint. Coarser than that
+    # helper on purpose -- a vertex moved INSIDE the bounding box
+    # changes neither the count nor the extent, which is the same
+    # stated limit the fingerprint itself carries -- and the cost of
+    # being wrong is an estimate slightly out of date, where the cost
+    # of a wrong KEY is one layer answering for another.
+    try:
+      extent = layer.extent()
+      key = (layer.id(), int(layer.featureCount()),
+             round(extent.xMinimum(), 6), round(extent.yMinimum(), 6),
+             round(extent.xMaximum(), 6), round(extent.yMaximum(), 6))
+    except Exception:
+      return (None, None)
+    if key in self._ground_cache:
+      return self._ground_cache[key]
+    try:
+      from qgis.core import (QgsCoordinateReferenceSystem,
+                             QgsCoordinateTransform, QgsGeometry)
+      # THE SAME UNITS THE EXTENT IS IN, or the ground and the box it
+      # is compared against are two different measurements: only a
+      # GEOGRAPHIC layer is transformed, exactly as
+      # `_extent_in_working_units` decides it.
+      transform = None
+      if layer.crs().isGeographic():
+        transform = QgsCoordinateTransform(
+          layer.crs(), QgsCoordinateReferenceSystem("EPSG:3857"),
+          QgsProject.instance())
+      shapes = []
+      for feature in layer.getFeatures():
+        geometry = feature.geometry()
+        if geometry is None or geometry.isNull() or geometry.isEmpty():
+          continue
+        if transform is not None:
+          moved = QgsGeometry(geometry)
+          if moved.transform(transform) != 0:
+            continue
+          geometry = moved
+        shapes.append(geometry)
+      if not shapes:
+        answer = (None, None)
+      else:
+        whole = QgsGeometry.unaryUnion(shapes)
+        answer = ((None, None) if whole is None or whole.isEmpty()
+                  else (float(whole.area()), float(whole.length())))
+    except Exception:
+      answer = (None, None)
+    # only THIS layer's stale readings go; every other layer's stay
+    self._ground_cache = {
+      known: value for known, value in self._ground_cache.items()
+      if known[0] != layer.id()}
+    self._ground_cache[key] = answer
+    return answer
+
   def _extent_in_working_units(self, layer):
     """The layer's extent as the TILING will see it, in metres.
 
@@ -4481,7 +4574,21 @@ class WeavingSpaceDialog(QDialog):
     if self.opt_icons.isChecked():
       est = bridge.estimate_icon_count(self._unit, layer.featureCount())
     else:
-      est = bridge.estimate_tile_count_bounds(self._unit, bounds)
+      # THE GROUND, NOT THE BOX ROUND IT -- the fix of 2026-08-19 went
+      # to the estimator's arithmetic and to Generate's caller, and
+      # this caller kept the old question by passing no geometry. So
+      # the path a user meets on EVERY KEYSTROKE went on counting the
+      # bounding rectangle: two long islands occupying 4% of their own
+      # extent read 64,098 tiles against 7,490 drawn, and live update
+      # paused a map well under its own ceiling, telling the user a
+      # number the run then disproved. Measured 2026-08-27 at 5.5x,
+      # 8.6x, 34x and 2,592x on four sparse shapes.
+      # A `None` ground is the older, more generous assumption and is
+      # still honest, so a layer whose geometry cannot be measured
+      # keeps exactly the behaviour it had.
+      ground, edge = self._ground_and_edge(layer)
+      est = bridge.estimate_tile_count_bounds(
+        self._unit, bounds, covered_area=ground, covered_edge=edge)
     # A SENTINEL IS NOT A COUNT, and this gate has to say so first.
     # Both sentinels are NEGATIVE, so `est > LIVE_UPDATE_MAX_TILES` is
     # False for them: read as a number, a design that does not tile

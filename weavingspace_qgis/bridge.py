@@ -868,6 +868,18 @@ def estimate_tile_count_bounds(unit, b, scale: float = 1.0,
   tile_diag = math.hypot(tb[2] - tb[0], tb[3] - tb[1]) * scale
   w = b[2] - b[0]
   h = b[3] - b[1]
+  # THE BOUNDS THEMSELVES MUST BE COUNTABLE, and asking only at the
+  # END was asking a term the answer never reached. `estimate` is
+  # checked for finiteness below, which catches an infinite extent
+  # when the arithmetic runs on `w` and `h` -- and a caller supplying
+  # `covered_area` DISCARDS both, so infinite bounds left no trace in
+  # it. A GeoPackage stamped EPSG:4326 over metre coordinates
+  # reprojects to (0, 0, inf, inf) and scored 51 tiles, band "ok": the
+  # run was waved through and reached the user as a raw
+  # `IndexError: index out of range` from inside the library.
+  # Measured 2026-08-27 on the memory and OGR providers alike.
+  if not (math.isfinite(w) and math.isfinite(h)):
+    return UNCOUNTABLE
   v = unit.get_vectors()
   det = abs(v[0][0] * v[1][1] - v[0][1] * v[1][0]) * scale * scale
   if det <= 0:
@@ -879,6 +891,10 @@ def estimate_tile_count_bounds(unit, b, scale: float = 1.0,
     ground, edge = w * h, 2 * (w + h)
   else:
     ground, edge = covered_area, covered_edge or 0.0
+  # ...and a ground measured off geometry that will not reproject is
+  # no more countable than the bounds were.
+  if not (math.isfinite(ground) and math.isfinite(edge)):
+    return UNCOUNTABLE
   covered = ground + edge * tile_diag + 4 * tile_diag * tile_diag
   n_prototiles = covered / det
   estimate = n_prototiles * max(len(unit.tiles), 1)

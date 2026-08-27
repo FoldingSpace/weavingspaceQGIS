@@ -65791,6 +65791,186 @@ def test_a_layer_that_will_not_open_is_named():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+
+def _two_long_islands(crs="EPSG:3857"):
+  """A region that occupies very little of its own extent.
+
+  Args:
+    crs: what to stamp the layer with. The default is honest; a
+      caller testing a layer whose CRS lies passes something else.
+
+  Returns:
+    A memory polygon layer of two thin strips far apart, added to
+    nothing. Every region fixture in this suite is a DENSE SQUARE,
+    where the ground and the circle round it differ only by pi/2 and
+    any honest threshold accepts both -- which is why nothing here
+    ever caught an estimate measuring the box.
+  """
+  from qgis.PyQt.QtCore import QVariant
+  from qgis.core import (QgsFeature, QgsField, QgsGeometry, QgsPointXY,
+                         QgsVectorLayer)
+  layer = QgsVectorLayer(f"Polygon?crs={crs}", "islands", "memory")
+  provider = layer.dataProvider()
+  provider.addAttributes([QgsField("v1", QVariant.Double)])
+  layer.updateFields()
+  made = []
+  for index, x in enumerate((0, 90_000)):
+    points = [QgsPointXY(x, 0), QgsPointXY(x + 2_000, 0),
+              QgsPointXY(x + 2_000, 100_000), QgsPointXY(x, 100_000)]
+    feature = QgsFeature(layer.fields())
+    feature.setGeometry(QgsGeometry.fromPolygonXY([points]))
+    feature.setAttributes([float(index + 1)])
+    made.append(feature)
+  provider.addFeatures(made)
+  layer.updateExtents()
+  return layer
+
+
+def test_live_update_measures_the_ground_not_the_box():
+  """The gate a user meets on every keystroke asks the honest question.
+
+  The estimate was taught on 2026-08-19 to measure the region's own
+  ground rather than the rectangle round it, because the library
+  covers a circle enclosing the bounds and then CLIPS -- and most real
+  data is sparse inside its own extent. That fix went to the
+  estimator's arithmetic and to Generate's caller. The LIVE caller
+  kept the old question by passing no geometry, so the path a user
+  meets on every keystroke went on counting the box: two long islands
+  occupying four percent of their extent read tens of thousands of
+  tiles against a map of a few thousand, and live update paused a map
+  well under its own ceiling while telling the user a number the run
+  then disproved.
+
+  The premise measures what the OLD question would have answered, so
+  this cannot pass because the fixture happens to be small.
+
+  Regression: live update's tile-count gate measured the region's bounding box rather than its ground, so it paused on sparse data and quoted a count many times what the map draws. Found by the size-guard hunt, 2026-08-27. [mutation]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  region = _two_long_islands()
+  project.addMapLayer(region)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    dlg.spacing_spin.setValue(900)
+    _tick(300)
+    assert dlg._unit is not None, "PREMISE: no tile unit was built"
+    extent = dlg._extent_in_working_units(region)
+    assert extent is not None, "PREMISE: the layer has no extent"
+    box = (extent.xMinimum(), extent.yMinimum(),
+           extent.xMaximum(), extent.yMaximum())
+
+    # WHAT THE OLD QUESTION SAID, computed here rather than remembered
+    was = bridge.estimate_tile_count_bounds(dlg._unit, box)
+    ground, edge = dlg._ground_and_edge(region)
+    assert ground is not None, \
+      "PREMISE: the ground could not be measured, so the gate is " \
+      "honestly falling back and this test proves nothing"
+    now = bridge.estimate_tile_count_bounds(
+      dlg._unit, box, covered_area=ground, covered_edge=edge)
+    assert was > bridge.LIVE_UPDATE_MAX_TILES, \
+      f"PREMISE: the box question answers {was}, under the ceiling of " \
+      f"{bridge.LIVE_UPDATE_MAX_TILES}, so it would not have paused " \
+      f"anything and this fixture is not sparse enough"
+    assert now <= bridge.LIVE_UPDATE_MAX_TILES, \
+      f"the gate still counts {now} tiles for a region covering " \
+      f"{100 * ground / ((box[2] - box[0]) * (box[3] - box[1])):.0f}% " \
+      f"of its own extent"
+
+    # ...AND THE GATE ITSELF, because a mechanism with an undriven
+    # caller is a motionless axis.
+    dlg.live_note.setText("")
+    dlg.live_check.setChecked(True)
+    _tick(400)
+    dlg._maybe_live_generate()
+    _tick(400)
+    assert "paused" not in dlg.live_note.text().lower(), \
+      f"live update paused on a map it can draw: " \
+      f"{dlg.live_note.text()!r}"
+    _settle(dlg, seconds=120)
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_a_layer_whose_crs_lies_is_refused_rather_than_crashing():
+  """An estimate that cannot be made must say so, not sail through.
+
+  A layer stamped EPSG:4326 over metre coordinates reprojects to
+  INFINITE bounds -- through geopandas, which is what the run's own
+  estimate reads, where QGIS's transform clamps to the Mercator limit
+  and hides it. The estimator checks its RESULT for finiteness, which
+  catches that while the arithmetic runs on the extent; and a caller
+  supplying the region's measured GROUND discards the extent, so the
+  infinity left no trace in the number. The run scored a couple of
+  dozen tiles, band "ok", was waved through, and reached the user as a
+  raw `IndexError: index out of range` from inside the library.
+
+  A sentinel guarded by `isfinite` is only as reachable as the term it
+  watches, so the bounds are now asked directly.
+
+  STAGED AT THE ESTIMATOR, and the reason is worth stating rather than
+  hiding: the infinite bounds arise inside the run's own reprojection,
+  and this suite's fixtures reach that path through a conversion whose
+  clamping behaviour differs. The caller WAS driven, by the size-guard
+  hunt of 2026-08-27, which measured the estimate at 51 and the run
+  dying with that IndexError on both the memory and OGR providers.
+  What this holds is the arithmetic that decides it.
+
+  Regression: a layer whose CRS does not match its coordinates produced infinite bounds that the tile estimate never saw, because a caller supplying the measured ground discards the extent -- so the run was accepted and died as an unhandled IndexError. Found by the size-guard hunt, 2026-08-27. [mutation]
+  """
+  import math
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  region = make_region_layer(n=4, cell=1000)
+  project.addMapLayer(region)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    dlg.spacing_spin.setValue(520)
+    _tick(300)
+    unit = dlg._unit
+    assert unit is not None, "PREMISE: no tile unit was built"
+
+    honest = (0.0, 0.0, 4000.0, 4000.0)
+    plain = bridge.estimate_tile_count_bounds(unit, honest)
+    assert bridge.is_a_size(plain) and plain > 0, \
+      f"PREMISE: an ordinary extent does not answer with a count " \
+      f"({plain}), so a sentinel below would prove nothing"
+
+    # WHAT A REPROJECTION THAT CANNOT BE MADE HANDS OVER, with a
+    # ground measured off the geometry beside it -- which is exactly
+    # the pair that let the infinity out of the arithmetic.
+    endless = (0.0, 0.0, math.inf, math.inf)
+    ground = 1_600_000.0
+    edge = 16_000.0
+    est = bridge.estimate_tile_count_bounds(
+      unit, endless, covered_area=ground, covered_edge=edge)
+    assert est == bridge.UNCOUNTABLE, \
+      f"the estimate answered {est}, a number, for bounds that are " \
+      f"not finite -- so the run is waved through and the user meets " \
+      f"whatever the library raises"
+    assert not bridge.is_a_size(est), \
+      "a sentinel that reads as a size is one a comparison waves past"
+
+    # ...AND A GROUND THAT WILL NOT REPROJECT IS NO BETTER, which is
+    # the same question asked of the other term.
+    assert bridge.estimate_tile_count_bounds(
+      unit, honest, covered_area=math.inf,
+      covered_edge=edge) == bridge.UNCOUNTABLE, \
+      "an unmeasurable ground still scored a number"
+  finally:
+    dlg.close()
+    project.clear()
+
+
 def main():
   """Run every registered test and report what happened.
 
@@ -67072,6 +67252,10 @@ def main():
   check("a field's return wears its own style and keeps its picks",
         test_a_fields_return_wears_its_own_style_and_keeps_its_picks)
 
+  check("live update measures the ground not the box",
+        test_live_update_measures_the_ground_not_the_box)
+  check("a layer whose CRS lies is refused rather than crashing",
+        test_a_layer_whose_crs_lies_is_refused_rather_than_crashing)
   check("the no data count counts areas that drew",
         test_the_no_data_count_counts_areas_that_drew)
   check("a layer that will not open is named",
