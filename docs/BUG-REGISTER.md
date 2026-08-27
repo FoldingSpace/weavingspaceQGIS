@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-356 defect(s) with a regression test.
+360 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -307,6 +307,8 @@ there is no separate list to remember.
   guarded by `test_a_group_restores_its_own_state_and_no_one_elses`
 - **opening a project with no plugin group under an open dialog left `_project_is_being_replaced` standing for the rest of the session -- the memory banks stayed inert, the dataset identity never bound, and one dataset's value-keyed hand-picks stayed live under the next, which is ruling 8's leak resurrected. Found by the doors hunt of round nine (2026-08-26).**  
   guarded by `test_a_groupless_project_drops_the_replacement_marker`
+- **an element whose class-source file had gone kept its old renderer across a change of variable, so it was classed on a column its layer no longer carried and drew nothing, and the old column's values were then recorded under the new column's name. Found by the class-source hunt and verified against the renderer and the stamp, 2026-08-27.**  
+  guarded by `test_a_kept_renderer_must_still_draw_the_column_it_is_classed_on`
 - **a re-tile whose element named an unreadable class source kept the worn renderer (right), and the landing's re-examination then adopted those kept colours as hand-picks and stamped them -- so a template's colours became picks that outrank the template forever and restoring the edited file changed nothing. Found by the seams hunt of round nine (2026-08-26); the cure that followed recorded nothing at all, which cost the colours at the next run, and the two halves were settled together by the maintainer the same day.**  
   guarded by `test_a_kept_scheme_is_held_rather_than_owned`
 - **the scheme cell went on naming a scheme after a ladder was retyped in QGIS or copied from another element, so the row described a classification the map no longer had.**  
@@ -329,6 +331,8 @@ there is no separate list to remember.
   guarded by `test_a_pickless_copy_clears_the_class_source`
 - **`_stamp_category_colours` and the working-state capture both read the mode-filtered `_assignments`, which reports pins and picks empty for any row not wearing the mode that displays them -- so a pin made on one style died at the project boundary when the row generated wearing another, stamped absent-by-choice. Found by the shelf hunt of 2026-08-26; the two writers confirmed against each other.**  
   guarded by `test_a_pin_kept_silently_still_reaches_the_stores`
+- **removing the region layer and then recolouring an output layer in QGIS wrote a fieldless table over the group's working record, losing every element's variable and style. Found by the working-state hunt, 2026-08-27.**  
+  guarded by `test_a_queued_restamp_never_writes_a_blank_the_plugin_imposed`
 - **picking the ramp 'gray' and pressing Apply in QGIS's styling dock with no change silently renamed the row, the records and the next stamp to 'gist_gray' -- no pixel ever differs, and the label moved under the user. Found by the stochastic hunt of 2026-08-26 (seed 5001, shrunk); ruled 2026-08-26: the user's name wins the tie.**  
   guarded by `test_a_ramp_twins_name_does_not_move_under_the_user`
 - **a categorical value edited in QGIS's attribute table never reached the legend -- the value digest was built from finite numbers only, so the signature said unchanged and the landing reattached the stale renderer; the recoded value painted no-data grey with nothing said. Found by the data-edit hunt of 2026-08-26.**  
@@ -345,6 +349,8 @@ there is no separate list to remember.
   guarded by `test_a_resume_keeps_its_output_off_the_region_list`
 - **opening a saved GeoPackage while a tiling was in flight repointed the element records mid-run, silently dropped the resumed map at the landing, and one ordinary Generate then rewrote the saved file with the other dataset's tiling. Found by the doors hunt of round nine (2026-08-26); the same shape as ledger row 30, at a third door.**  
   guarded by `test_a_resume_waits_for_the_run`
+- **a group made by opening a saved GeoPackage was named "WeavingSpace tiles" with a counter rather than for its dataset, so two resumed maps could offer the chooser two identical labels while writing different files. Found by the group-naming hunt, 2026-08-27.**  
+  guarded by `test_a_resumed_group_is_named_for_its_dataset`
 - **retirement cancels the task, but a run past its worker has already reported, so its landing executed for the retired window -- removing the live session's layers, adopting nothing, and building a rival group beside the map, rows 18 and 19's settled rules broken at a fifth door. The natural route is the natural act: the landing is the long, hang-looking phase, and opening the plugin again then is the ordinary retry. Found by the seams hunt of round nine (2026-08-26).**  
   guarded by `test_a_retired_dialogs_landing_is_discarded`
 - **a finished map could be looked at but not carried on with: the GeoPackage held tables and styles and nothing about the design that produced them, so a demo had to re-tile from scratch and a colleague received a result they could not continue.**  
@@ -385,6 +391,8 @@ there is no separate list to remember.
   guarded by `test_one_dataset_spelt_two_ways_is_one_dataset`
 - **session memory was keyed by bare column names, so a scheme, its value strings and its pinned numbers made on one dataset could reactivate on any later dataset sharing a column name.**  
   guarded by `test_one_datasets_memory_never_steers_another`
+- **opening a GeoPackage already open under another spelling of the same path built a second group over the same tables, and the next Generate hollowed out the first. Found by two hunts independently, one reading the file through GDAL, 2026-08-27.**  
+  guarded by `test_one_file_is_one_map_however_its_path_is_spelt`
 - **an ordinary session -- live update draws, then the user chooses a GeoPackage and presses Generate -- left two output groups, the older holding four memory layers with a stale copy of the same map, offered in the group chooser for good. Found 2026-08-26 by the consistency sweep's baseline.**  
   guarded by `test_one_session_leaves_one_group`
 - **changing the class count (or scheme, or ramp) destroyed a hand-picked No data colour along with the positional picks, and the notice counted it as a "class colour" -- the destruction rule of 2026-08-09 predates the absence keys of 2026-08-15 and nobody had decided they join it. Found by the editor hunt of 2026-08-26; ruled 2026-08-26.**  
@@ -763,7 +771,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 93
+- the mutation campaign: 97
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
 - reported by a user: 29

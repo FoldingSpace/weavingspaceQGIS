@@ -64226,6 +64226,343 @@ def test_a_group_is_named_for_the_dataset_it_was_made_from():
     project.clear()
 
 
+
+def test_a_kept_renderer_must_still_draw_the_column_it_is_classed_on():
+  """Losing a scheme file must not cost the element its next variable.
+
+  An element whose class-source file cannot be read KEEPS the colours
+  it is drawing (the ruling of 2026-08-26, a kept scheme is held
+  rather than owned). That is right while the element goes on drawing
+  the same column, and it stops being right the moment somebody
+  changes the column: the layer is rebuilt at a landing carrying the
+  identifiers plus the variable it draws, so a renderer classed on the
+  OLD column names a field the new layer does not have. Every tile
+  falls outside every class and the map draws as one flat sheet of the
+  catch-all colour -- the empty-map failure the text-field guard has
+  existed to prevent since 2026-08-09, arriving by a new road.
+
+  The quieter half is what it then WRITES. The recorder that banks a
+  kept renderer's colours read the row's field and the renderer's
+  categories without asking whether the two agree, so the old column's
+  value strings went into the new column's record, into the shadow
+  that marks them held, and into the layer stamp -- where a reopened
+  project reads them back as this column's colours.
+
+  Regression: an element whose class-source file had gone kept its old renderer across a change of variable, so it was classed on a column its layer no longer carried and drew nothing, and the old column's values were then recorded under the new column's name. Found by the class-source hunt and verified against the renderer and the stamp, 2026-08-27. [mutation]
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="ws_varswitch_")
+  qml = os.path.join(folder, "landcover.qml")
+  shutil.copy(os.path.join(os.path.dirname(__file__), "data", "landcover.qml"),
+              qml)
+  region = make_region_layer()
+  project.addMapLayer(region)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    row = 1
+    tid = dlg.table.item(row, 0).text()
+    var = dlg.table.cellWidget(row, 1)
+    var.setCurrentText("landcover")
+    var.activated.emit(var.currentIndex())
+    _tick(200)
+    mode = dlg.table.cellWidget(row, 2)
+    mode.setCurrentText("Categorized")
+    mode.activated.emit(mode.currentIndex())
+    _tick(200)
+    dlg._browsed_qmls.append(qml)
+    dlg._update_dynamic_columns()
+    _tick(200)
+    cell = dlg.table.cellWidget(row, 7)
+    where = cell.findData("file:" + qml)
+    assert where >= 0, "PREMISE: the browsed scheme file is not on offer"
+    cell.setCurrentIndex(where)
+    cell.activated.emit(where)
+    _tick(300)
+    dlg.spacing_spin.setValue(520)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=90)
+    first = project.mapLayer(dlg._element_layer_ids[tid])
+    assert first.renderer().classAttribute() == "landcover", \
+      "PREMISE: the element was never classed on the scheme's column"
+    # THE CATCH-ALL IS EVERY FIELD'S, so it is not evidence of one
+    # column's values reaching another's record: `bridge.NO_DATA_KEY`
+    # is the key the editable catch-all colour lives under whatever
+    # the column, and a categorized record without it would be the
+    # surprise. What must not cross are the VALUES.
+    from weavingspace_qgis import bridge
+    words = set(_drawn_by_value(first)) - {bridge.NO_DATA_KEY}
+    assert words, \
+      "PREMISE: the scheme drew nothing but the catch-all, so there " \
+      "are no values here that could wrongly cross to another column"
+
+    os.remove(qml)                       # the scheme file goes...
+    _tick(200)
+    # RE-FETCHED, because a Generate rebuilds every cell widget and the
+    # one captured before it is a freed C++ object.
+    row = next(r for r in range(dlg.table.rowCount())
+               if dlg.table.item(r, 0).text() == tid)
+    var = dlg.table.cellWidget(row, 1)
+    var.setCurrentText("v1")             # ...and the element changes column
+    var.activated.emit(var.currentIndex())
+    _tick(300)
+    dlg.spacing_spin.setValue(560)       # a geometry change: a full re-tile
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=90)
+
+    after = project.mapLayer(dlg._element_layer_ids[tid])
+    fields = [f.name() for f in after.fields()]
+    classed_on = after.renderer().classAttribute()
+    assert classed_on in fields, \
+      f"the element is classed on {classed_on!r}, which its layer does " \
+      f"not carry: it has {fields}. Every tile falls outside every " \
+      f"class, so the map draws as one flat sheet."
+    assert classed_on == "v1", \
+      f"the element draws v1 and is classed on {classed_on!r}"
+    # ...and nothing of the old column's values was filed under the new
+    recorded = set((dlg._category_colours.get(tid) or {}).get("v1") or {})
+    held = set((dlg._kept_for_unreadable.get(tid) or {}).get("v1") or {})
+    stamp = after.customProperty("weavingspace_category_colours") or ""
+    for store, name in ((recorded, "the record"), (held, "the shadow")):
+      stale = {w for w in words if w in store}
+      assert not stale, \
+        f"{name} holds {sorted(stale)} under 'v1': those are the values " \
+        f"of the column this element no longer draws"
+    for word in words:
+      assert f'"{word}"' not in stamp, \
+        f"the layer stamp carries {word!r}, a value of the old column, " \
+        f"so a reopened project reads it back as one of v1's colours"
+  finally:
+    dlg.close()
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_resumed_group_is_named_for_its_dataset():
+  """Opening a saved map names its group the way generating one does.
+
+  The ruling of 2026-08-26 names an output group for the dataset it
+  was made from, and it was written into the run's own door and not
+  into the resume, which went on counting from the bare base. So two
+  saved maps opened in one project produced "WeavingSpace tiles" and
+  "WeavingSpace tiles 2" -- and the chooser, which appends the dataset
+  only where the name lacks it, then labelled BOTH of them with their
+  dataset. Two entries reading alike, writing different GeoPackages.
+
+  What this asserts is the panel and the chooser together, because the
+  defect is only visible where they meet: a name carrying its dataset
+  is what stops the chooser having to add one.
+
+  Regression: a group made by opening a saved GeoPackage was named "WeavingSpace tiles" with a counter rather than for its dataset, so two resumed maps could offer the chooser two identical labels while writing different files. Found by the group-naming hunt, 2026-08-27. [mutation]
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import GROUP_BASE_NAME, WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="ws_resume_named_")
+  try:
+    saved = _a_saved_resumable_map(folder)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      _tick(300)
+      assert dlg._resume_from_gpkg(saved), "PREMISE: the resume was refused"
+      _tick(500)
+      _settle(dlg, seconds=90)
+      live = dlg.layer_combo.currentLayer()
+      assert live is not None, \
+        "PREMISE: the source did not come back, so there is no dataset " \
+        "for the name to carry"
+      dataset = (live.name() or "").strip()
+      group = dlg._group_of_our_layers(project.layerTreeRoot())
+      assert group is not None, "PREMISE: the resume left no group"
+      assert group.name() == f"{GROUP_BASE_NAME} — {dataset}", \
+        f"the resumed group is called {group.name()!r}, which does not " \
+        f"say it was made from {dataset!r}"
+      # ...and the chooser does not then say the dataset twice
+      labels = [dlg.group_combo.itemText(i)
+                for i in range(dlg.group_combo.count())]
+      ours = [t for t in labels if _label_names_group(t, group.name())]
+      assert ours, f"the chooser does not offer this group: {labels}"
+      assert ours[0].count(dataset) == 1, \
+        f"the chooser prints the dataset twice: {ours[0]!r}"
+    finally:
+      dlg.close()
+  finally:
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_one_file_is_one_map_however_its_path_is_spelt():
+  """A file already open is taken over, whatever route names it.
+
+  `same_destination` exists because one file has more than one
+  spelling -- a symlinked folder, a case-folding filesystem, a Windows
+  short name, a path with a `.` in it -- and the guard that decides
+  whether a GeoPackage is already open compared the layer's source
+  with the path using `==`. Eight sites were swept for this on
+  2026-08-26 and every one of them compared a stamp with a stamp; this
+  one compares a LAYER SOURCE with a PATH, so a search for that shape
+  could not reach it.
+
+  What it costs is not a tidy duplicate. The second group draws the
+  same tables, so one ordinary Generate rewrites the file both of them
+  read: the element whose table the run renames is left pointing at a
+  table that no longer exists, and its siblings quietly redraw the new
+  run's data under the abandoned group's renderers.
+
+  Regression: opening a GeoPackage already open under another spelling of the same path built a second group over the same tables, and the next Generate hollowed out the first. Found by two hunts independently, one reading the file through GDAL, 2026-08-27. [mutation]
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog, same_destination
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="ws_one_file_")
+  try:
+    saved = _a_saved_resumable_map(folder)
+    # THE SAME FILE, LEGALLY RESPELT. `.` is chosen over case folding
+    # because it is the one respelling every platform this plugin runs
+    # on accepts, and Linux CI would fold no case at all.
+    other = os.path.join(folder, os.curdir, os.path.basename(saved))
+    assert other != saved, "PREMISE: the two spellings are the same string"
+    assert os.path.samefile(other, saved), \
+      "PREMISE: the two spellings are not the same file"
+    assert same_destination(other, saved), \
+      "PREMISE: this project's own comparator does not call these one file"
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      _tick(300)
+      assert dlg._resume_from_gpkg(saved), "PREMISE: the first resume failed"
+      _tick(500)
+      _settle(dlg, seconds=90)
+      first = dlg._group_of_our_layers(project.layerTreeRoot())
+      assert first is not None, "PREMISE: the first resume left no group"
+      before = [n.name() for n in project.layerTreeRoot().findGroups()]
+
+      BAR_MESSAGES.clear()
+      assert dlg._resume_from_gpkg(other), \
+        "the second resume was refused outright"
+      _tick(500)
+      _settle(dlg, seconds=90)
+      after = [n.name() for n in project.layerTreeRoot().findGroups()]
+      said = " ".join(t for _k, t in BAR_MESSAGES)
+      assert after == before, \
+        f"opening the same file by another spelling built a second " \
+        f"group: {before} became {after}. Both draw the same tables, " \
+        f"so the next Generate rewrites the file under one of them."
+      assert "already open" in said, \
+        f"the take-over said nothing about the file being open: {said!r}"
+    finally:
+      dlg.close()
+  finally:
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_queued_restamp_never_writes_a_blank_the_plugin_imposed():
+  """Losing the data must not erase the record of the map.
+
+  A writer that copies the working state onto the group may carry only
+  what a landing decided (2026-08-26). Two conditions were given to
+  the switch-out stamp that day and not to the OTHER writer standing
+  away from a landing: the queued restamp, which answers an adopted
+  dock edit. Remove the region layer from the project -- the map stays
+  on screen, which is why people do it -- and the assignment table
+  goes blank because its columns went with it. That is a blank the
+  plugin imposed and nobody chose. Recolour a layer in QGIS's panel
+  and the queued restamp wrote that blank over the group's good
+  record: every element's variable and style gone, so the next dialog
+  opened in that project met a map plainly drawn from three columns
+  beside a table describing none of them, and Generate refusing for
+  want of a variable.
+
+  Regression: removing the region layer and then recolouring an output layer in QGIS wrote a fieldless table over the group's working record, losing every element's variable and style. Found by the working-state hunt, 2026-08-27. [mutation]
+  """
+  from qgis.PyQt.QtGui import QColor
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  region = make_region_layer(n=4, cell=1000)
+  region.setName("nyc blocks")
+  project.addMapLayer(region)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    dlg.spacing_spin.setValue(520)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=90)
+    group = dlg._group_of_our_layers(project.layerTreeRoot())
+    assert group is not None, "PREMISE: the run left no group"
+    landed = dlg._read_working_state(group) or {}
+    drawn = [e.get("var") for e in (landed.get("elements") or [])]
+    assert [v for v in drawn if v], \
+      "PREMISE: the landed record names no variables, so there is " \
+      "nothing here for a restamp to destroy"
+    tid = sorted(dlg._element_layer_ids)[0]
+    layer = project.mapLayer(dlg._element_layer_ids[tid])
+
+    project.removeMapLayer(region.id())    # the data goes; the map stays
+    _tick(600)
+    assert not [dlg.table.cellWidget(r, 1).currentText()
+                for r in range(dlg.table.rowCount())
+                if (dlg.table.cellWidget(r, 1) is not None
+                    and dlg.table.cellWidget(r, 1).currentText() not in
+                    ("", "---"))], \
+      "PREMISE: the table still offers columns, so this is not the " \
+      "fieldless state the guard is about"
+
+    # ...AND NOW AN ORDINARY RECOLOUR IN QGIS'S OWN PANEL, driven the
+    # way the dock drives it and the way this suite's other adoption
+    # tests do: clone the renderer the layer already has, move ONE
+    # class's colour, and install the clone, which is what fires
+    # `styleChanged`. A single symbol would not do here -- an
+    # arbitrary fill is not a renderer the row can reproduce, so it is
+    # deliberately not followed (the scope of the follow ruling,
+    # 2026-08-17) and never reaches the adoption that queues the
+    # restamp. Measured while writing this: the record survived a
+    # single-symbol recolour even with the guard removed, so a test
+    # built on one would have been aimed at nothing.
+    clone = layer.renderer().clone()
+    bands = clone.ranges()          # BOUND FIRST: a temporary list frees them
+    assert bands, "PREMISE: the element draws no classes to recolour"
+    symbol = bands[0].symbol().clone()
+    symbol.setColor(QColor("#e7342a"))
+    clone.updateRangeSymbol(0, symbol)
+    layer.setRenderer(clone)
+    layer.triggerRepaint()
+    _tick(2500)
+    # BOUND, not chained: `renderer().ranges()[0].symbol()` reads a
+    # list QGIS has already freed, which has segfaulted this project
+    # once and returned a plausible wrong colour once -- and a PREMISE
+    # check that lies is worse than none.
+    settled = layer.renderer()
+    landed_bands = settled.ranges()
+    got = landed_bands[0].symbol().color().name()
+    assert got == "#e7342a", \
+      f"PREMISE: the recolour never reached the layer (class 0 draws " \
+      f"{got!r}), so nothing was adopted and no restamp was queued"
+
+    kept = dlg._read_working_state(group) or {}
+    after = [e.get("var") for e in (kept.get("elements") or [])]
+    assert after == drawn, \
+      f"the group's record was rewritten while the data was away: " \
+      f"{drawn} became {after}. The map is still drawn from those " \
+      f"columns, so the next dialog opened here describes nothing."
+  finally:
+    dlg.close()
+    project.clear()
+
+
 def main():
   """Run every registered test and report what happened.
 
@@ -65507,6 +65844,14 @@ def main():
   check("a field's return wears its own style and keeps its picks",
         test_a_fields_return_wears_its_own_style_and_keeps_its_picks)
 
+  check("a kept renderer must still draw the column it is classed on",
+        test_a_kept_renderer_must_still_draw_the_column_it_is_classed_on)
+  check("a resumed group is named for its dataset",
+        test_a_resumed_group_is_named_for_its_dataset)
+  check("one file is one map however its path is spelt",
+        test_one_file_is_one_map_however_its_path_is_spelt)
+  check("a queued restamp never writes a blank the plugin imposed",
+        test_a_queued_restamp_never_writes_a_blank_the_plugin_imposed)
   check("a group is named for the dataset it was made from",
         test_a_group_is_named_for_the_dataset_it_was_made_from)
   check("one dataset spelt two ways is one dataset",

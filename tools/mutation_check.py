@@ -1163,9 +1163,11 @@ MUTATIONS = [
   dict(name="an-unreadable-source-keeps-the-map-at-the-landing",
        file=DIALOG,
        old="""        if a.get("class_source") in unreadable \\
-            and old_renderers.get(tid) is not None:""",
+            and self._a_kept_renderer_still_draws_this(
+              old_renderers.get(tid), a):""",
        new="""        if False and a.get("class_source") in unreadable \\
-            and old_renderers.get(tid) is not None:""",
+            and self._a_kept_renderer_still_draws_this(
+              old_renderers.get(tid), a):""",
        test="test_an_unreadable_source_keeps_the_map_at_the_landing",
        why="a re-tile whose element named a class source that had "
            "gone re-seeded automatic colours over the QML's, "
@@ -6196,12 +6198,11 @@ MUTATIONS = [
   dict(name="the-recovery-stays-inside-the-window", file=DIALOG,
        old="""    self._selecting_a_group = True
     try:
-      self._recover_the_source(path, record)
-      self._take_over_group(group)""",
+      self._recover_the_source(path, record)""",
        new="""    self._recover_the_source(path, record)
     self._selecting_a_group = True
     try:
-      self._take_over_group(group)""",
+      pass""",
        test="test_a_resume_is_not_snatched_by_its_own_tail",
        why="the recovery's setLayer fired the switch machinery "
            "unguarded, so resuming one dataset's file while another "
@@ -6265,6 +6266,46 @@ MUTATIONS = [
            "template-governed element claimed the elements now match "
            "while the template went on outranking the copied ramp on "
            "the map and in every record"),
+  dict(name="a-kept-renderer-must-still-draw-its-column", file=DIALOG,
+       old="""    return classed_on == (assignment.get("var") or "")""",
+       new="""    return True  # mutation: keep it whatever it is classed on""",
+       test="test_a_kept_renderer_must_still_draw_the_column_it_is_classed_on",
+       why="an element whose class-source file had gone kept its old "
+           "renderer across a change of variable, so it was classed on "
+           "a column its rebuilt layer does not carry: every tile falls "
+           "outside every class and the map draws as one flat sheet of "
+           "the catch-all, while the old column's value strings are "
+           "then recorded under the new column's name"),
+  dict(name="a-resumed-group-is-named-for-its-dataset", file=DIALOG,
+       old="""      named = self._a_name_for_a_new_group(root)
+      if named != group.name():""",
+       new="""      named = group.name()  # mutation: keep the provisional name
+      if named != group.name():""",
+       test="test_a_resumed_group_is_named_for_its_dataset",
+       why="a group made by opening a saved GeoPackage was named from "
+           "the bare base with a counter rather than for its dataset, "
+           "so two resumed maps offered the chooser two identical "
+           "labels while writing different files"),
+  dict(name="one-file-is-one-map-however-it-is-spelt", file=DIALOG,
+       old="""        if source and same_destination(source.split("|")[0], path):""",
+       new="""        if source and source.split("|")[0] == path:""",
+       test="test_one_file_is_one_map_however_its_path_is_spelt",
+       why="a GeoPackage already open under another spelling of the "
+           "same path was opened AGAIN, building a second group over "
+           "the same tables -- and one ordinary Generate then hollowed "
+           "out the first, leaving one layer pointing at a table that "
+           "no longer exists and its siblings redrawing the new run's "
+           "data under the abandoned group's renderers"),
+  dict(name="a-queued-restamp-refuses-a-fieldless-table", file=DIALOG,
+       old="""      if getattr(self, "_fieldless_build", False):""",
+       new="""      if False:  # mutation: stamp the blank over the record""",
+       test="test_a_queued_restamp_never_writes_a_blank_the_plugin_imposed",
+       why="removing the region layer leaves the assignment table blank "
+           "because its columns went with it -- a blank the plugin "
+           "imposed -- and the queued restamp wrote that over the "
+           "group's good record, so the next dialog opened in that "
+           "project met a map plainly drawn from three columns beside a "
+           "table describing none of them"),
   dict(name="a-group-is-named-for-its-dataset", file=DIALOG,
        old="""    base = f"{GROUP_BASE_NAME} — {dataset}" if dataset else GROUP_BASE_NAME""",
        new="""    base = GROUP_BASE_NAME  # mutation: back to a bare counter""",

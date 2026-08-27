@@ -6268,6 +6268,21 @@ class WeavingSpaceDialog(QDialog):
           or getattr(self, "_applying_style", False)
           or _dialog_is_gone(self) or _live_dialog() is not self):
         return
+      # AND A TABLE WITH NO FIELDS TO OFFER HAS NOTHING TO SAY. When
+      # the region layer is removed from the project the table goes
+      # blank because its columns went with it -- a blank the plugin
+      # imposed, not one anybody chose -- and this writer stands
+      # nowhere near a landing, so it wrote that blank over a good
+      # record: every element's variable and style gone, and the next
+      # dialog opened in that project met a map plainly drawn from
+      # three columns beside a table describing none of them, with
+      # Generate refusing for want of a variable. The switch-out stamp
+      # was given this condition on 2026-08-26 and this door was not.
+      # (Found 2026-08-27; `_fieldless_build` is the same owner of the
+      # question that the assignment table itself reads.)
+      if getattr(self, "_fieldless_build", False):
+        _dump("STATE", "no-queued-restamp-the-table-has-no-fields")
+        return
       try:
         self._stamp_working_state(
           self._group_of_our_layers(QgsProject.instance().layerTreeRoot()))
@@ -7258,6 +7273,55 @@ class WeavingSpaceDialog(QDialog):
     if recovered and (expected is not None or not named):
       self._quant_colours.setdefault(tile_id, {})[field] = recovered
 
+  def _a_kept_renderer_still_draws_this(self, renderer, assignment):
+    """Can a renderer kept over an unreadable file still draw this element?
+
+    Args:
+      renderer: the renderer the element's PREVIOUS layer was drawing
+        with, or None when there was no previous layer.
+      assignment: the element's row as `_assignments` reports it, so
+        `var` is the column the element draws NOW.
+
+    Returns:
+      True when that renderer can still paint this element, and False
+      when it cannot -- in which case the caller seeds a fresh one
+      rather than carrying this one across.
+
+    WHY THIS IS ASKED OF THE RENDERER RATHER THAN OF WHAT CHANGED.
+    Keeping the colours over a class source that has gone is right,
+    and it stops being right the moment the element changes COLUMN: a
+    renderer classed on `landcover` re-attached to an element now
+    drawing `v1` puts every tile outside every class, so the map falls
+    to the catch-all and reads as a solid sheet of grey. The element's
+    layer is rebuilt at a landing and carries the identifiers plus the
+    variable it draws (ruling 6, 2026-08-25), so the old column is not
+    merely unused -- it is absent, and the renderer names a field the
+    layer does not have. Measured 2026-08-27: classed on 'landcover'
+    against fields ['tile_id', 'prototile_id', 'v1'].
+    The neighbouring arm above asks the same question as a DELTA, off
+    the previous signature. This one asks what the state can answer at
+    any moment, which is the rule that ended the adoption family
+    (attribution beats delta, 2026-08-26): a renderer that names a
+    column is answerable whether or not we hold a signature for the
+    row, so an adopted group -- which deliberately holds none -- is
+    covered too.
+    A SINGLE SYMBOL PAINTS EVERYTHING, whatever the values, which is
+    what somebody usually leaves in Layer Properties; it names no
+    field and so is never refused here. That is the same reading of
+    "no categories covers everything" the carried-renderer rule
+    already takes, and refusing it would throw away the very styling
+    the carry exists to preserve.
+    """
+    if renderer is None:
+      return False
+    ask = getattr(renderer, "classAttribute", None)
+    if ask is None:
+      return True
+    classed_on = ask()
+    if not classed_on:
+      return True
+    return classed_on == (assignment.get("var") or "")
+
   def _own_the_colours_of_an_unreadable_source(self, layer, assignment):
     """Record what a kept renderer draws, because its file has gone.
 
@@ -7306,6 +7370,15 @@ class WeavingSpaceDialog(QDialog):
     renderer = layer.renderer() if layer is not None else None
     ask = getattr(renderer, "categories", None)
     if ask is None:
+      return
+    # AND IT MUST BE THIS ELEMENT'S OWN COLUMN. A renderer classed on
+    # a column the element no longer draws describes somebody else's
+    # values, and recording it would write the old column's value
+    # strings into this field's record, its shadow and the layer's
+    # stamp -- where a reopened project would read them back as this
+    # column's colours. Held here as well as at the landing arm that
+    # decides the carry, because this is the site that WRITES.
+    if not self._a_kept_renderer_still_draws_this(renderer, assignment):
       return
     # BOUND FIRST. A temporary list from a QGIS getter frees its
     # contents, so `categories()[0].symbol()` reads released memory --
@@ -15141,7 +15214,18 @@ class WeavingSpaceDialog(QDialog):
           source = layer.source() if layer is not None else ""
         except Exception:
           continue
-        if source and source.split("|")[0] == path:
+        # THE FILE HALF THROUGH THE ONE COMPARATOR, never `==`. A
+        # source is a path plus `|layername=`, and a path has more
+        # than one spelling: a symlinked folder, a case-folding
+        # filesystem, a Windows short name. Compared literally, a file
+        # already open under another spelling opened a SECOND group
+        # over the same tables -- two identical chooser entries, and
+        # the next Generate rewriting the file both of them draw from.
+        # The eight sites swept on 2026-08-26 all compared a stamp
+        # with a stamp; this one compares a layer source with a path,
+        # so a search for that shape could not reach it. (Ninth site,
+        # found 2026-08-27.)
+        if source and same_destination(source.split("|")[0], path):
           already = node
           break
       if already is not None:
@@ -15217,11 +15301,12 @@ class WeavingSpaceDialog(QDialog):
         f"{os.path.basename(path)} is already open here, so its map "
         f"is the one being worked on.")
       return True
-    name = GROUP_BASE_NAME
-    index = 1
-    while root.findGroup(name) is not None:
-      index += 1
-      name = f"{GROUP_BASE_NAME} {index}"
+    # NAMED PROVISIONALLY, AND FOR ITS DATASET A MOMENT LATER. The
+    # group has to exist before the file's layers can be put in it,
+    # and the dataset is not known until `_recover_the_source` has
+    # run, which is deliberately below -- so this takes a free name
+    # now and the real one as soon as there is an answer.
+    name = self._a_name_for_a_new_group(root)
     group = root.insertGroup(0, name)
     # TWO COUNTS, because they answer different questions. `opened` is
     # whether anything came back at all, which decides whether this
@@ -15268,6 +15353,15 @@ class WeavingSpaceDialog(QDialog):
     self._selecting_a_group = True
     try:
       self._recover_the_source(path, record)
+      # ...AND NOW THE GROUP CAN SAY WHOSE MAP IT IS. Renamed before
+      # `_take_over_group`, which records the name this dialog works
+      # under; renaming a group nobody has seen yet is not the same
+      # act as renaming one somebody named, which is theirs and is
+      # never undone.
+      named = self._a_name_for_a_new_group(root)
+      if named != group.name():
+        group.setName(named)
+        self._group_name = named
       self._take_over_group(group)
       self._apply_working_state(record)
       # THE FILE BEING RESUMED IS THE OUTPUT FILE, whatever the record
@@ -15583,6 +15677,49 @@ class WeavingSpaceDialog(QDialog):
         return parent
     return None
 
+  def _a_name_for_a_new_group(self, root, tiled=None):
+    """Compose the name a new output group takes.
+
+    Args:
+      root: the project's layer tree root, asked which names are
+        already taken.
+      tiled: the layer this map was made from, when the caller knows
+        it; None asks the region chooser instead.
+
+    Returns:
+      The name, `WeavingSpace tiles — <dataset>`, with a counter
+      appended only where that name is already in the tree. Nothing is
+      created or renamed here.
+
+    ONE OWNER, because the ruling of 2026-08-26 was written into the
+    run's own door and NOT into the resume, which went on counting
+    from the bare base -- so opening two saved maps in one project
+    produced `WeavingSpace tiles` and `WeavingSpace tiles 2`, and the
+    chooser, which appends the dataset only where the name lacks it,
+    labelled both `WeavingSpace tiles — <dataset>`. Two identical
+    entries writing different GeoPackages. A rule with two
+    implementations has two behaviours the day one of them is wrong,
+    which this project already knows from the candidate name that was
+    derived twice.
+    ASKED OF THE LAYER THIS MAP WAS MADE FROM where the caller knows
+    it, falling back to the chooser only when it does not: which
+    dataset a map came from is a fact about the tiles, and reading it
+    live is what filed one dataset's tiles under another.
+    THE NAME IS STILL A LABEL AND NEVER AN IDENTITY -- the lookup asks
+    the layers, and a name a person changes is never changed back.
+    """
+    if tiled is None:
+      combo = getattr(self, "layer_combo", None)
+      tiled = combo.currentLayer() if combo is not None else None
+    dataset = (tiled.name() or "").strip() if tiled is not None else ""
+    base = f"{GROUP_BASE_NAME} — {dataset}" if dataset else GROUP_BASE_NAME
+    name = base
+    i = 1
+    while root.findGroup(name) is not None:
+      i += 1
+      name = f"{base} {i}"
+    return name
+
   def _get_or_make_group(self, force_new: bool, tiled=None):
     """Return (layer-tree group, created?) for this run's output.
 
@@ -15652,16 +15789,7 @@ class WeavingSpaceDialog(QDialog):
     # falling back to the chooser only when it does not: which dataset
     # a map came from is a fact about the tiles, and reading it live
     # is what filed one dataset's tiles under another earlier today.
-    if tiled is None:
-      combo = getattr(self, "layer_combo", None)
-      tiled = combo.currentLayer() if combo is not None else None
-    dataset = (tiled.name() or "").strip() if tiled is not None else ""
-    base = f"{GROUP_BASE_NAME} — {dataset}" if dataset else GROUP_BASE_NAME
-    name = base
-    i = 1
-    while root.findGroup(name) is not None:
-      i += 1
-      name = f"{base} {i}"
+    name = self._a_name_for_a_new_group(root, tiled)
     self._group_name = name
     self._element_layer_ids = {}
     self._no_data_layer_ids = {}
@@ -16720,7 +16848,8 @@ class WeavingSpaceDialog(QDialog):
         # seeding is conditional: the stamps, the twin and every other
         # per-element step below run exactly as for any element.
         if a.get("class_source") in unreadable \
-            and old_renderers.get(tid) is not None:
+            and self._a_kept_renderer_still_draws_this(
+              old_renderers.get(tid), a):
           # What this keeps is the plugin's own previous seeding held
           # over an unreadable file -- nobody's decision -- and no
           # adoption may record it as a person's picks. That is held
