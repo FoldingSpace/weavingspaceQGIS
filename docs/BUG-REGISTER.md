@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-368 defect(s) with a regression test.
+369 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -293,6 +293,8 @@ there is no separate list to remember.
   guarded by `test_a_dropped_columns_ramp_goes_even_when_the_style_was_derived`
 - **dropping a stale element table deleted the table and left its `layer_styles` row behind, so the whole unworn style -- the field's name, its pinned bounds and hand-picked colours, readable QML and SLD -- survived in the GeoPackage a colleague receives, against the ruling that the file shows the limit of what it contains. Found by the kept hunt of round nine (2026-08-26), at the file's own bytes.**  
   guarded by `test_a_dropped_table_takes_its_saved_style_with_it`
+- **duplicating an output layer in QGIS made the copy the one the plugin adopted, so the next Generate replaced the copy and stranded the user's real element layer on top of the new map. Found by the layers-panel hunt, 2026-08-27.**  
+  guarded by `test_a_duplicated_layer_does_not_displace_the_one_it_copied`
 - **a touched mode rode the ELEMENT across a variable change, so a row returned from Categorized landcover to v1 arrived wearing Categorized -- and the Quantiles re-click the user was forced into is a genuine reclassify, retiring the positional picks the kept-silently ruling preserves. The maintainer ruled 2026-08-26: the mode banks per element AND field, exactly as ruling 6 keys the scheme limbs, and the picks are spared because the re-click never happens. Found by the kept hunt of round nine.**  
   guarded by `test_a_fields_return_wears_its_own_style_and_keeps_its_picks`
 - **resuming a GeoPackage whose layers were already in the project took the group over without stamping the working state onto it or recovering the source, so the design was lost at the next reopen and the region chooser was left pointing at another dataset.**  
@@ -787,7 +789,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 105
+- the mutation campaign: 106
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
 - reported by a user: 29

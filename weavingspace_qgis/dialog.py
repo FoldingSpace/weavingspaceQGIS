@@ -13996,6 +13996,10 @@ class WeavingSpaceDialog(QDialog):
     project = QgsProject.instance()
     self._no_data_layer_ids = dict(
       self._no_data_layer_ids)
+    # Elements claimed by more than one layer in this group, collected
+    # as they are met and reported once at the end; see the note where
+    # they are found.
+    twice = set()
     for child in group.children():
       layer = child.layer() if hasattr(child, "layer") else None
       if layer is None or project.mapLayer(layer.id()) is None:
@@ -14019,10 +14023,36 @@ class WeavingSpaceDialog(QDialog):
       # with, so every lookup keyed on that property silently gains a
       # second answer. When you add one, grep the property rather
       # than the feature.
+      # AND A SECOND CLAIMANT IS NOT SILENTLY PREFERRED. QGIS's own
+      # Duplicate Layer copies custom properties, so a copy of an
+      # output layer carries its element's id and this loop, taking
+      # the LAST claimant in panel order, adopted whichever happened
+      # to sit lower. The next Generate then removed the one it had
+      # adopted and left the OTHER standing: last run's tiling,
+      # permanently on top of the new map, under an identical name,
+      # never updated again. That is the same catastrophe the paired
+      # layer produced on 2026-08-16, through the door that fix did
+      # not close -- its own comment says every lookup keyed on the
+      # property gains a second answer, and it counted the plugin's
+      # twin without counting the user's copy.
+      # THE FIRST IN PANEL ORDER WINS, and nothing is deleted on a
+      # guess: the two layers are indistinguishable (the properties
+      # were copied, and a GeoPackage-backed copy shares even its
+      # source), so removing the extra would be destroying something
+      # somebody may have made on purpose -- keeping a copy of
+      # yesterday's map is a reasonable thing to do. What the plugin
+      # owes is to SAY so, since the one left behind will sit over
+      # the new map otherwise.
       if tid and layer.customProperty("weavingspace_no_data"):
-        self._no_data_layer_ids[str(tid)] = layer.id()
+        if str(tid) in self._no_data_layer_ids:
+          twice.add(str(tid))
+        else:
+          self._no_data_layer_ids[str(tid)] = layer.id()
       elif tid:
-        self._element_layer_ids[str(tid)] = layer.id()
+        if str(tid) in self._element_layer_ids:
+          twice.add(str(tid))
+        else:
+          self._element_layer_ids[str(tid)] = layer.id()
         # a project saved with hand-picked colours brings them back
         self._adopt_category_colours(layer, str(tid))
         # THE LADDER IN FRONT OF US IS THE BASELINE, and this is the
@@ -14067,6 +14097,17 @@ class WeavingSpaceDialog(QDialog):
         self._remember_our_table(layer)
       elif layer.customProperty("weavingspace_outline"):
         self._outline_layer_id = layer.id()
+    if twice:
+      # SAID ONCE, NAMING THE ELEMENTS, and never as a modal: this
+      # runs at construction, before the user has done anything, and
+      # a box in front of a dialog that is still opening is not a
+      # message anybody asked for.
+      self._report_quietly(
+        f"More than one layer here says it is element "
+        f"{', '.join(sorted(twice))} of this map, which usually means "
+        f"a layer was duplicated. The plugin will replace the upper "
+        f"one; move or remove the other, or its tiles will stay on "
+        f"top of the new map.")
     if self._element_layer_ids or self._outline_layer_id:
       self._group_name = group.name()
     # THE MARKER IS DROPPED HERE AND ONLY HERE. Everything between the

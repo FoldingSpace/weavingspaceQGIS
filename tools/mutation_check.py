@@ -305,9 +305,26 @@ MUTATIONS = [
            "nor unmake one, so without this term a mode change or a "
            "variable swap is answered in place and the holes the "
            "feature exists to remove come back"),
+  dict(name="a-duplicate-does-not-displace-the-original", file=DIALOG,
+       old="""      elif tid:
+        if str(tid) in self._element_layer_ids:
+          twice.add(str(tid))
+        else:
+          self._element_layer_ids[str(tid)] = layer.id()""",
+       new="""      elif tid:
+        self._element_layer_ids[str(tid)] = layer.id()""",
+       test="test_a_duplicated_layer_does_not_displace_the_one_it_copied",
+       why="QGIS's Duplicate Layer copies custom properties, so two "
+           "layers claim one element and adoption kept the LAST -- so "
+           "the next Generate replaced the copy and left the user's "
+           "real element layer standing over the new map, under an "
+           "identical name, never updated again"),
   dict(name="a-paired-layer-is-not-its-element", file=DIALOG,
        old="""      if tid and layer.customProperty("weavingspace_no_data"):
-        self._no_data_layer_ids[str(tid)] = layer.id()
+        if str(tid) in self._no_data_layer_ids:
+          twice.add(str(tid))
+        else:
+          self._no_data_layer_ids[str(tid)] = layer.id()
       elif tid:""",
        new="""      if tid:""",
        test="test_a_reopened_plugin_does_not_mistake_a_no_data_layer_for_its_element",

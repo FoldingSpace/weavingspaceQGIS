@@ -65343,6 +65343,97 @@ def test_a_disabled_plugin_stops_talking():
     project.clear()
 
 
+
+def test_a_duplicated_layer_does_not_displace_the_one_it_copied():
+  """Copying a layer in QGIS must not cost the map it copied.
+
+  QGIS's own Duplicate Layer copies custom properties, so the copy
+  carries its element's `weavingspace_tile_id` and two layers then
+  claim one element. Adoption walked the group and kept the LAST
+  claimant in panel order, so a copy sitting below the original was
+  adopted instead of it -- and the next Generate replaced the copy and
+  left the ORIGINAL standing: last run's tiling, permanently on top of
+  the new map, under an identical name, never updated again.
+
+  That is the same catastrophe the paired no-data layer produced on
+  2026-08-16. Its fix counted the plugin's own twin as the producer of
+  a second claimant and did not count the user's copy, though its own
+  comment says every lookup keyed on that property gains a second
+  answer.
+
+  NOTHING IS DELETED ON A GUESS. The two layers are indistinguishable
+  -- the properties were copied, and a GeoPackage-backed copy shares
+  even its source -- and keeping a copy of yesterday's map is a
+  reasonable thing to do. What the plugin owes is to take the upper
+  one and SAY so, because the other will sit over the new map.
+
+  Regression: duplicating an output layer in QGIS made the copy the one the plugin adopted, so the next Generate replaced the copy and stranded the user's real element layer on top of the new map. Found by the layers-panel hunt, 2026-08-27. [mutation]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  region = make_region_layer(n=4, cell=1000)
+  region.setName("wards")
+  project.addMapLayer(region)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    dlg.spacing_spin.setValue(520)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=90)
+    group = dlg._group_of_our_layers(project.layerTreeRoot())
+    assert group is not None, "PREMISE: the run left no group"
+    tid = sorted(dlg._element_layer_ids)[0]
+    original = project.mapLayer(dlg._element_layer_ids[tid])
+    where = [n.layer().id() for n in group.children()
+             if hasattr(n, "layer") and n.layer() is not None]
+    assert original.id() in where, "PREMISE: the element is not in the group"
+  finally:
+    dlg.close()
+
+  # WHAT DUPLICATE LAYER DOES: a copy carrying the same custom
+  # properties, placed BELOW the layer it came from.
+  copy = original.clone()
+  copy.setName(original.name())
+  assert copy.customProperty("weavingspace_tile_id") == tid, \
+    "PREMISE: a cloned layer does not carry the element's id, so this " \
+    "is not the state a duplicate produces"
+  project.addMapLayer(copy, False)
+  group.insertLayer(len(group.children()), copy)
+  _tick(400)
+
+  BAR_MESSAGES.clear()
+  fresh = WeavingSpaceDialog(iface=_Iface())
+  try:
+    fresh.live_check.setChecked(False)
+    _tick(600)
+    adopted = fresh._element_layer_ids.get(tid)
+    assert adopted == original.id(), \
+      f"the plugin adopted the COPY rather than the layer it was made " \
+      f"from, so the next Generate replaces the copy and leaves the " \
+      f"original on top of the new map for good"
+    said = " ".join(t for _k, t in BAR_MESSAGES)
+    assert tid in said and "duplicat" in said.lower(), \
+      f"nothing said that two layers claim element {tid!r}: {said!r}"
+
+    # ...AND THE COPY IS NOT QUIETLY DESTROYED, because it may be
+    # somebody's deliberate keepsake of yesterday's map.
+    fresh.layer_combo.setLayer(region)
+    _tick(400)
+    fresh.spacing_spin.setValue(560)
+    _generate_and_wait(fresh)
+    _tick(300)
+    _settle(fresh, seconds=90)
+    assert project.mapLayer(copy.id()) is not None, \
+      "the run removed the duplicate, which is a layer the plugin " \
+      "cannot tell from one somebody made on purpose"
+  finally:
+    fresh.close()
+    project.clear()
+
+
 def main():
   """Run every registered test and report what happened.
 
@@ -66624,6 +66715,8 @@ def main():
   check("a field's return wears its own style and keeps its picks",
         test_a_fields_return_wears_its_own_style_and_keeps_its_picks)
 
+  check("a duplicated layer does not displace the one it copied",
+        test_a_duplicated_layer_does_not_displace_the_one_it_copied)
   check("an element follows the layer it takes its classes from",
         test_an_element_follows_the_layer_it_takes_its_classes_from)
   check("a disabled plugin stops talking",
