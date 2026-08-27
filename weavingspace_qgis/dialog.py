@@ -2614,35 +2614,77 @@ class WeavingSpaceDialog(QDialog):
                self.opt_colour_warnings):
       olayout.addWidget(cb)
 
-    out_form = QFormLayout()
+    olayout.addStretch(1)
+    tabs.addTab(opts_tab, "Map options")
+
+    # ---- tab 4: saving and opening, which are one subject
+    # SAVING AND OPENING ARE THE SAME ACT FROM TWO ENDS, so they are
+    # built alike and sit together: one file row each, the same
+    # widget, the same filter, the same shape of label, and a button
+    # each that DOES the thing. They lived on Map options until
+    # 2026-08-27, where saving sat under seven switches about how the
+    # map is drawn and opening was a button some distance below it --
+    # two halves of one idea, looking nothing like each other.
+    # (Maintainer's instruction that day.)
+    #
+    # SAVING IS A POSITIVE ACT (maintainer's ruling, the same day, and
+    # the reason this tab has buttons at all). A path chooser records
+    # what you WOULD save to or load from and does nothing on its own;
+    # the button is the act. Until this ruling, setting the output path
+    # was the documented way to save and every Generate wrote the file
+    # -- so a map was saved as a side effect of drawing it, a path
+    # chosen for later was written to at once, and live update had to
+    # be held back to stop it rewriting somebody's file on every
+    # keystroke.
+    files_tab = QWidget()
+    flayout = QVBoxLayout(files_tab)
+    files_form = QFormLayout()
     self.gpkg_widget = QgsFileWidget()
     from . import compat
     compat.set_save_file_mode(self.gpkg_widget)
     self.gpkg_widget.setFilter("GeoPackage (*.gpkg)")
     self.gpkg_widget.setDialogTitle("Save tiled map to GeoPackage")
     self.gpkg_widget.setToolTip(
-      "Save all element layers, with styling, to one file.")
-    out_form.addRow("Save to GeoPackage\n(empty = temporary layers)",
-                    self.gpkg_widget)
-    olayout.addLayout(out_form)
+      "Where Save will write the map. Choosing it writes nothing.")
+    save_row = QHBoxLayout()
+    save_row.addWidget(self.gpkg_widget, 1)
+    self.save_button = QPushButton("Save")
+    self.save_button.setToolTip("Write the map as it stands to that file.")
+    self.save_button.clicked.connect(self._save_pressed)
+    save_row.addWidget(self.save_button)
+    files_form.addRow("Save the map to", save_row)
     # THE SOURCE TRAVELS ONLY IF ASKED (ruling 5 of 2026-08-25). A
     # saved map records where its data came from, which is enough to
     # carry on with on the machine that made it; putting the data
     # itself in is for a file somebody ELSE is meant to continue.
+    # It belongs beside the box it qualifies rather than under the
+    # whole tab, which is why it is a row of the same form.
     self.opt_embed_source = QCheckBox(
       "Include the source data, so others can carry on with it")
     self.opt_embed_source.setToolTip(
       "Copies the region layer into the file, making it larger.")
-    olayout.addWidget(self.opt_embed_source)
-    resume_row = QHBoxLayout()
-    resume = QPushButton("Open a saved map...")
-    resume.setToolTip("Carry on with a map saved to a GeoPackage.")
-    resume.clicked.connect(self._resume_from_a_file)
-    resume_row.addWidget(resume)
-    resume_row.addStretch(1)
-    olayout.addLayout(resume_row)
-    olayout.addStretch(1)
-    tabs.addTab(opts_tab, "Map options")
+    files_form.addRow("", self.opt_embed_source)
+    # ...and the other end, built from the same widget so the two rows
+    # read as one pair. Choosing a file here is NOT the act either: a
+    # chooser that loaded the moment it was filled would be the same
+    # confusion as a chooser that saved, and the maintainer's ruling
+    # names both ends of it.
+    self.resume_widget = QgsFileWidget()
+    compat.set_open_file_mode(self.resume_widget)
+    self.resume_widget.setFilter("GeoPackage (*.gpkg)")
+    self.resume_widget.setDialogTitle("Open a saved map")
+    self.resume_widget.setToolTip(
+      "Which saved map Load will open. Choosing it opens nothing.")
+    load_row = QHBoxLayout()
+    load_row.addWidget(self.resume_widget, 1)
+    self.load_button = QPushButton("Load")
+    self.load_button.setToolTip("Carry on with the map in that file.")
+    self.load_button.clicked.connect(self._load_pressed)
+    load_row.addWidget(self.load_button)
+    files_form.addRow("Open a saved map", load_row)
+    flayout.addLayout(files_form)
+    flayout.addStretch(1)
+    tabs.addTab(files_tab, "Save && open")
 
     # ---- tab 4: help (condensed guide; full version in docs/USER-GUIDE.md)
     # QTextBrowser renders a subset of HTML and opens links externally
@@ -4502,9 +4544,19 @@ class WeavingSpaceDialog(QDialog):
     if not self.live_check.isChecked():
       _dump("LIVE-GATE", "live-update-off")
       return
-    if self.gpkg_widget.filePath().strip() or \
-        self.opt_new_group.isChecked():
-      _dump("LIVE-GATE", "gpkg-or-new-group")
+    # THE OUTPUT-PATH HALF OF THIS GATE IS DELETED, not explained.
+    # (Ruling of 2026-08-27.) It stopped live update the moment an
+    # output path was set, silently, while the user guide promised a
+    # note -- and its reason was that a live run must not rewrite
+    # somebody's file on every keystroke. Under "saving is a positive
+    # act" no run writes at all, so the gate could not fire, and a
+    # guard that cannot fire sits in the source reading as protection.
+    # Ledger row 11 of that date.
+    # "CREATE AS NEW GROUP" STAYS: it asks for a SECOND map to compare
+    # against, and building one unattended on every keystroke is not
+    # what anybody means by it.
+    if self.opt_new_group.isChecked():
+      _dump("LIVE-GATE", "new-group")
       return
     if self._task is not None:
       self._live_pending = True
@@ -6502,8 +6554,11 @@ class WeavingSpaceDialog(QDialog):
         # them nothing was picked, and their first Generate paints
         # over it. Queued here rather than added to six exits, so a
         # seventh cannot be written without it.
-        if self._last_path:
-          self._rewrite_the_files_record(self._last_path)
+        # THE FILE'S RECORD IS SAVE'S, and this queue's job is the
+        # GROUP's record alone. Before 2026-08-27 the file was
+        # written by whatever act happened to touch it, which is how
+        # its styles and its record came to disagree; now one act
+        # writes both.
       except Exception:
         _dump("STATE", "queued-restamp-failed",
               traceback.format_exc(limit=3))
@@ -8744,8 +8799,13 @@ class WeavingSpaceDialog(QDialog):
       # written down twice that a rule naming one of a pair gets read
       # as a rule about one of a pair; the graduated repair was made
       # hours before this one and never looked five hundred lines up.
-      if self._last_path:
-        bridge.embed_style(layer)
+      # THE FILE LEARNS AT SAVE (ruling of 2026-08-27). The change
+      # above reaches the map, the project and the group's record
+      # here; the GeoPackage is written by `_save_the_map`, in one
+      # act with the record that describes it, so the two cannot
+      # disagree. The paragraph above this is kept as HISTORY: it
+      # argues for a write that used to happen at this line, and the
+      # defect it describes is what the one-act save prevents.
       _dump("DROP", tile_id, "clean-classify")
       return  # our own seeding, or an edit that changed no colour
 
@@ -8849,8 +8909,13 @@ class WeavingSpaceDialog(QDialog):
           # opened: 11 disagreements for a categorical recolour, 12
           # for a graduated one, and an element at 0.25 opacity in the
           # project and 0.85 in the file.
-          if self._last_path:
-            bridge.embed_style(layer)
+          # THE FILE LEARNS AT SAVE (ruling of 2026-08-27). The change
+          # above reaches the map, the project and the group's record
+          # here; the GeoPackage is written by `_save_the_map`, in one
+          # act with the record that describes it, so the two cannot
+          # disagree. The paragraph above this is kept as HISTORY: it
+          # argues for a write that used to happen at this line, and the
+          # defect it describes is what the one-act save prevents.
         return
 
     # adopt the divergent colours as hand-picks for the current field
@@ -8923,8 +8988,13 @@ class WeavingSpaceDialog(QDialog):
       # opened: 11 disagreements for a categorical recolour, 12
       # for a graduated one, and an element at 0.25 opacity in the
       # project and 0.85 in the file.
-      if self._last_path:
-        bridge.embed_style(layer)
+      # THE FILE LEARNS AT SAVE (ruling of 2026-08-27). The change
+      # above reaches the map, the project and the group's record
+      # here; the GeoPackage is written by `_save_the_map`, in one
+      # act with the record that describes it, so the two cannot
+      # disagree. The paragraph above this is kept as HISTORY: it
+      # argues for a write that used to happen at this line, and the
+      # defect it describes is what the one-act save prevents.
     self._report_quietly(
       f"Element '{tile_id}' keeps the {adopted} colour(s) set in "
       f"QGIS; its ramp cell now reads Custom.")
@@ -9178,8 +9248,13 @@ class WeavingSpaceDialog(QDialog):
         self._element_layer_ids.get(tile_id, ""))
       if layer_now is not None:
         self._stamp_category_colours(layer_now, refreshed)
-        if self._last_path:
-          bridge.embed_style(layer_now)
+        # THE FILE LEARNS AT SAVE (ruling of 2026-08-27). The change
+        # above reaches the map, the project and the group's record
+        # here; the GeoPackage is written by `_save_the_map`, in one
+        # act with the record that describes it, so the two cannot
+        # disagree. The paragraph above this is kept as HISTORY: it
+        # argues for a write that used to happen at this line, and the
+        # defect it describes is what the one-act save prevents.
     self._refresh_preview_colours()
     self._report_quietly(
       f"Element '{tile_id}' follows the styling you set in QGIS: "
@@ -9499,8 +9574,13 @@ class WeavingSpaceDialog(QDialog):
         self._element_layer_ids.get(tile_id) or "")
       if layer_now is not None:
         self._stamp_category_colours(layer_now, refreshed)
-        if self._last_path:
-          bridge.embed_style(layer_now)
+        # THE FILE LEARNS AT SAVE (ruling of 2026-08-27). The change
+        # above reaches the map, the project and the group's record
+        # here; the GeoPackage is written by `_save_the_map`, in one
+        # act with the record that describes it, so the two cannot
+        # disagree. The paragraph above this is kept as HISTORY: it
+        # argues for a write that used to happen at this line, and the
+        # defect it describes is what the one-act save prevents.
     # ...AND THE ROW IS TOLD, which is what makes the Style cell read
     # Custom. That cell is decided in `_sync_row`, whose callers are
     # the dynamic-column pass (reached from `_queue_live`) and the
@@ -9671,8 +9751,13 @@ class WeavingSpaceDialog(QDialog):
       # THE SHAPE, three times in one day: a guard that asks about one
       # thing standing in front of an exit that is about another. Ask
       # what a guard is FOR before deciding what it may skip.
-      if self._last_path:
-        bridge.embed_style(layer)
+      # THE FILE LEARNS AT SAVE (ruling of 2026-08-27). The change
+      # above reaches the map, the project and the group's record
+      # here; the GeoPackage is written by `_save_the_map`, in one
+      # act with the record that describes it, so the two cannot
+      # disagree. The paragraph above this is kept as HISTORY: it
+      # argues for a write that used to happen at this line, and the
+      # defect it describes is what the one-act save prevents.
       # A RETYPED BOUNDARY LANDS HERE, because moving a number moves
       # no colour, and this is the only exit concluding that nothing
       # else claimed the edit. LAST, and contained: this method runs
@@ -9787,8 +9872,13 @@ class WeavingSpaceDialog(QDialog):
           # opened: 11 disagreements for a categorical recolour, 12
           # for a graduated one, and an element at 0.25 opacity in the
           # project and 0.85 in the file.
-          if self._last_path:
-            bridge.embed_style(layer)
+          # THE FILE LEARNS AT SAVE (ruling of 2026-08-27). The change
+          # above reaches the map, the project and the group's record
+          # here; the GeoPackage is written by `_save_the_map`, in one
+          # act with the record that describes it, so the two cannot
+          # disagree. The paragraph above this is kept as HISTORY: it
+          # argues for a write that used to happen at this line, and the
+          # defect it describes is what the one-act save prevents.
         return
 
     # THE LADDER FIRST, WHATEVER THE COLOURS DID. Adoption of BOUNDS
@@ -9924,8 +10014,13 @@ class WeavingSpaceDialog(QDialog):
       # opened: 11 disagreements for a categorical recolour, 12
       # for a graduated one, and an element at 0.25 opacity in the
       # project and 0.85 in the file.
-      if self._last_path:
-        bridge.embed_style(layer)
+      # THE FILE LEARNS AT SAVE (ruling of 2026-08-27). The change
+      # above reaches the map, the project and the group's record
+      # here; the GeoPackage is written by `_save_the_map`, in one
+      # act with the record that describes it, so the two cannot
+      # disagree. The paragraph above this is kept as HISTORY: it
+      # argues for a write that used to happen at this line, and the
+      # defect it describes is what the one-act save prevents.
     self._report_quietly(
       f"Element '{tile_id}' keeps the {adopted} colour(s) set in "
       f"QGIS; its ramp cell now reads Custom.")
@@ -12533,8 +12628,13 @@ class WeavingSpaceDialog(QDialog):
     # the same opacity as its element: they are one element to a
     # reader, and two layers fading differently would say otherwise
     layer.setOpacity(max(0, min(100, assignment.get("opacity", 100))) / 100.0)
-    if self._last_path:
-      bridge.embed_style(layer)
+    # THE FILE LEARNS AT SAVE (ruling of 2026-08-27). The change
+    # above reaches the map, the project and the group's record
+    # here; the GeoPackage is written by `_save_the_map`, in one
+    # act with the record that describes it, so the two cannot
+    # disagree. The paragraph above this is kept as HISTORY: it
+    # argues for a write that used to happen at this line, and the
+    # defect it describes is what the one-act save prevents.
     layer.triggerRepaint()
 
   def _absence_kinds_for(self, tile_id, field):
@@ -12837,8 +12937,10 @@ class WeavingSpaceDialog(QDialog):
     # after the embed and so corrected only the half that was easy to
     # see. When a fix is inserted into an existing sequence, check
     # the ORDER against the twin, not merely the presence of a line.
-    if path:
-      bridge.embed_style(layer)
+    # THE TWIN IS WRITTEN BY SAVE, beside its element and under the
+    # same table name plus `_no_data`. Nothing is embedded here for
+    # the same reason nothing is embedded at the element's own
+    # landing: a run draws, and a save writes.
     project.addMapLayer(layer, False)
     # UNDER ITS OWN ELEMENT rather than at the end of the group. A twin
     # carries its element's tile id, so it sorts equal to it and lands
@@ -13060,10 +13162,13 @@ class WeavingSpaceDialog(QDialog):
         # so it has to record the hand-picked colours itself or a colour
         # chosen here would be missing from a project saved afterwards
         self._stamp_category_colours(layer, a)
-        if self._last_path:
-          # a GeoPackage carries its own cartography, so the file has to
-          # learn about the change too
-          bridge.embed_style(layer)
+        # THE FILE LEARNS AT SAVE (ruling of 2026-08-27). The change
+        # above reaches the map, the project and the group's record
+        # here; the GeoPackage is written by `_save_the_map`, in one
+        # act with the record that describes it, so the two cannot
+        # disagree. The paragraph above this is kept as HISTORY: it
+        # argues for a write that used to happen at this line, and the
+        # defect it describes is what the one-act save prevents.
         layer.setName(f"{tid} – {a['var']}" if a["var"]
                       else f"{tid} (no data)")
         # ...AND THE PAIRED LAYER, or the No data colour would be the
@@ -13138,8 +13243,13 @@ class WeavingSpaceDialog(QDialog):
         if layer_now is not None:
           fresh = self._assignment_for(tid)
           self._stamp_category_colours(layer_now, fresh or a)
-          if self._last_path:
-            bridge.embed_style(layer_now)
+          # THE FILE LEARNS AT SAVE (ruling of 2026-08-27). The change
+          # above reaches the map, the project and the group's record
+          # here; the GeoPackage is written by `_save_the_map`, in one
+          # act with the record that describes it, so the two cannot
+          # disagree. The paragraph above this is kept as HISTORY: it
+          # argues for a write that used to happen at this line, and the
+          # defect it describes is what the one-act save prevents.
         self._report_quietly(retired)
       # THE CONSTANT COLUMN IS ASKED HERE TOO, and this is the path
       # that meets it. A class-count change is symbology, so it is
@@ -13213,21 +13323,9 @@ class WeavingSpaceDialog(QDialog):
     # colleague opening that GeoPackage without the project resumed a
     # design the user had abandoned and their first Generate repainted
     # the map back to it. The file disagreed with itself.
-    # WHEN A REPAIR GIVES ONE STORE A NEW WRITE, ENUMERATE EVERY STORE
-    # THAT ALREADY HELD THAT FACT.
-    path = self.gpkg_widget.filePath()
-    if path and os.path.exists(path):
-      # THE EMBEDDING FLAG IS CARRIED, NOT RE-DECIDED, which is the
-      # helper's own contract and the reason it is shared with the
-      # queued restamp: everything but a landing carries it.
-      if not self._rewrite_the_files_record(path):
-        # The same sentence the landing uses, for the same reason: on
-        # either path the map and its styles are in the file and only
-        # the RESUME is lost, so a person meets one wording.
-        self._report_quietly(
-          f"The map was saved to {os.path.basename(path)}, but its "
-          f"design could not be written into the file, so opening it "
-          f"elsewhere will show the map without carrying on with it.")
+    # A RESTYLE DOES NOT WRITE THE FILE either, and the store it
+    # used to keep in step is kept in step by Save writing the
+    # tables, the styles and the record together.
     return True
 
   def _run_signature(self):
@@ -13547,55 +13645,22 @@ class WeavingSpaceDialog(QDialog):
     # layers under its own names. The panel was protected and the file
     # was destroyed. So the question is the one the GROUP asks:
     # is this run keeping somebody else's result?
-    keeping = self.opt_new_group.isChecked() \
-        or self._new_group_chosen
-    if not keeping and path_now:
-      root_here = QgsProject.instance().layerTreeRoot()
-      other = (self._group_of_our_layers(root_here)
-               or self._newest_output_group(root_here))
-      here = self.layer_combo.currentLayer()
-      mine = here.source() if here is not None else ""
-      if other is not None and mine:
-        marks = {child.layer().customProperty("weavingspace_region")
-                 for child in other.children()
-                 if getattr(child, "layer", lambda: None)() is not None
-                 and child.layer().customProperty("weavingspace_region")}
-        keeping = bool(marks) and not any(
-          same_source(mine, mark) for mark in marks)
-    would_replace = []
-    if not live and keeping and path_now:
-      # ASKED WITH THE NAMES THIS RUN WOULD WRITE, which since
-      # 2026-08-25 carry the variable each element displays. Asking
-      # with the bare `tiles_<id>` form would miss every table a
-      # current design writes, so the warning that keeps a result's
-      # file would go quiet exactly when the file is at risk.
-      planned, would_be = [], {}
-      for row in self._assignments():
-        name = bridge.element_table_name(row["id"], row.get("var"),
-                                         would_be.values())
-        would_be[row["id"]] = name
-        planned.append(name)
-      would_replace = bridge.gpkg_tables_we_would_replace(path_now, planned)
-    if not live and keeping and path_now \
-        and (would_replace
-             or same_destination(path_now, self._last_path)):
-      # THE WHOLE DECISION, not merely that it was taken. This exit
-      # refuses through a MODAL, so in a headless suite it leaves the
-      # message bar empty and reads as a Generate that did nothing --
-      # and which of its two terms fired is the question, since
-      # `same_destination` resolves Windows short names through
-      # realpath and a MOVED file is precisely when realpath cannot.
-      _dump("GEN-GATE", "would-overwrite-a-kept-result",
-            "keeping=", keeping, "would_replace=", would_replace,
-            "same_destination=",
-            same_destination(path_now, self._last_path),
-            "path_now=", path_now, "last_path=", self._last_path)
-      QMessageBox.warning(
-        self, "WeavingSpace",
-        "You asked to keep the previous result as its own group, but "
-        "writing to the same GeoPackage would overwrite its data. "
-        "Choose a different file for this run.")
-      return
+    #
+    # EVERYTHING ABOVE THIS LINE IS HISTORY, kept because the harm it
+    # measured is what Save must now not repeat rather than because
+    # anything here acts on it.
+    # A RUN CANNOT OVERWRITE ANYTHING, so the gate that stood here is
+    # gone. (Ruling of 2026-08-27.) It refused a Generate whose output
+    # path would have written over a result the user had asked to
+    # keep -- through a MODAL, which in a headless run left the
+    # message bar empty and read as a Generate that did nothing. Its
+    # whole subject was the file a run was about to write, and a run
+    # writes no file now.
+    # WHAT REPLACES IT IS AT SAVE, where the writing happens:
+    # `_may_overwrite` asks before writing over a file this map did
+    # not write. That is the maintainer's own wording -- with Save a
+    # deliberate press, asking every time is noise, and a file
+    # somebody else's map is in is not.
 
     from . import compat
     if not compat.layer_data_is_available(layer):
@@ -15366,49 +15431,6 @@ class WeavingSpaceDialog(QDialog):
         self._populate_class_source_combo(
           combo, self._class_choices.get(cell.text(), ""))
 
-  def _rewrite_the_files_record(self, path) -> bool:
-    """Bring the GeoPackage's own saved record up to date.
-
-    Args:
-      path: the .gpkg this map is being written to. A path naming no
-        existing file answers True without doing anything, since
-        there is no file whose record could be stale.
-
-    Returns:
-      True when the file's record now describes the map, False when
-      the write failed. Nothing is reported here: the callers differ
-      in what they say about a failure, and one of them runs from a
-      queued timer where there is nobody to tell.
-
-    FOR WRITERS THAT ARE NOT LANDINGS, which is the whole reason it
-    carries the embedding flag rather than deciding it. Embedding the
-    source is an explicit opt-in and a heavier act than a restyle or
-    an adopted dock edit has any business performing, so this keeps
-    whatever the file already says -- a restyle must never quietly
-    un-embed a source somebody chose to carry. A LANDING does decide
-    it, from the box, and so writes its own record rather than calling
-    this.
-
-    WHY IT EXISTS AT ALL: the restyle path was taught to write this
-    record on 2026-08-26, and the six exits where a dock edit is
-    ADOPTED were not -- each of them embeds the layer's new STYLE into
-    the file and left the file's record saying the old thing. So the
-    file disagreed with itself: its style drew a colour somebody
-    picked in QGIS's panel, and its record said no colour had been
-    picked. A colleague opening it resumed the record, and their first
-    Generate repainted the map back over the adopted colour and
-    stripped it from the file. Measured by the agreement sweep,
-    2026-08-27.
-    """
-    if not path or not os.path.exists(path):
-      return True
-    resumable = self._capture_working_state()
-    existing = bridge.read_working_state(path) or {}
-    if "region_embedded" in existing:
-      resumable["region_embedded"] = existing["region_embedded"]
-    return bool(bridge.write_working_state(
-      path, self._file_safe_state(resumable)))
-
   def _file_safe_state(self, record):
     """A working-state record fit to leave the machine in a GeoPackage.
 
@@ -15786,22 +15808,231 @@ class WeavingSpaceDialog(QDialog):
     except Exception:
       _dump("STATE", "stamp-failed", traceback.format_exc(limit=3))
 
-  def _resume_from_a_file(self):
-    """Ask for a saved map and carry on with it.
+  def _load_pressed(self):
+    """The Load button: carry on with the map the Open row names.
 
     Returns:
-      None. Puts a file chooser up, then hands the chosen path to
+      None. Reads the path out of the Open chooser and hands it to
       `_resume_from_gpkg`, which does the work and says what it found.
+      An empty chooser is answered in words rather than by opening a
+      file dialogue: the row above says what Load will read, and a
+      button that quietly asked a different question would make the
+      chooser decorative.
 
-    Separated from the work so the work can be tested without a modal:
-    the suite drives `_resume_from_gpkg` directly, and this method is
-    the two lines that cannot be driven headlessly.
+    Why a button at all, when choosing a file could simply have done
+    it: the maintainer's ruling of 2026-08-27 is that a path chooser
+    records what you WOULD load from and the button does the loading.
+    The first version of this tab resumed the moment a file was
+    chosen, which is the same confusion as a save path that saved.
     """
-    from qgis.PyQt.QtWidgets import QFileDialog
-    path, _filter = QFileDialog.getOpenFileName(
-      self, "Open a saved map", "", "GeoPackage (*.gpkg)")
-    if path:
-      self._resume_from_gpkg(path)
+    path = (self.resume_widget.filePath() or "").strip()
+    if not path:
+      self._report_quietly(
+        "Choose a saved map in the box beside Load first.")
+      return
+    self._resume_from_gpkg(path)
+
+  def _save_pressed(self):
+    """The Save button: write the map as it stands.
+
+    Returns:
+      None. Everything it does is in `_save_the_map`, which is
+      separated from the button so the whole act can be driven
+      headlessly -- the suite presses this where a person would, and
+      reads the file afterwards.
+    """
+    self._save_the_map()
+
+  def _save_the_map(self, path=None) -> bool:
+    """Write the map, its styles and its record to a GeoPackage.
+
+    Args:
+      path: where to write. Defaults to whatever the Save chooser
+        holds, which is the ordinary case; a caller passes one only
+        where it has a reason to.
+
+    Returns:
+      True when the file was written, False when there was nothing to
+      write, nowhere to write it, or the user declined an overwrite.
+      Every False answer is explained to the user first: a Save that
+      does nothing and says nothing is the failure this whole ruling
+      is about.
+
+    WHAT IT WRITES, in one act, because these are one act: an element
+    table per element (and one per no-data twin), each layer's style
+    embedded into the file beside it, the stale tables this map no
+    longer has, the source data when the box beside the chooser is
+    ticked -- and dropped when it is not -- and last the resumable
+    record, through `_file_safe_state`, so the file shows the limit of
+    what it contains.
+
+    WHY IT IS A BUTTON. Until 2026-08-27 every Generate wrote the file
+    whenever an output path was set, so the map was saved as a side
+    effect of drawing it: a path chosen for later was written to at
+    once, live update had to be gated to stop it rewriting somebody's
+    file on every keystroke, and clearing the box forked a second
+    group. The maintainer ruled that saving is a positive act.
+
+    THE LAYERS ARE REPOINTED AT THE FILE, in place, and that is not
+    tidiness. A map drawn to memory layers and saved to a GeoPackage
+    would otherwise come back EMPTY when the project is reopened --
+    a memory layer round-trips through a .qgz as a valid layer with no
+    features -- so the file would hold the map and the project would
+    not. `compat.point_layer_at` keeps each layer's id, renderer, name
+    and custom properties, which is what the rest of the dialog keys
+    on.
+    """
+    import os
+    from qgis.core import QgsProject
+    from . import compat
+    project = QgsProject.instance()
+    if path is None:
+      path = (self.gpkg_widget.filePath() or "").strip()
+    if not path:
+      self._report_quietly(
+        "Choose a file in the box beside Save first.")
+      return False
+    if not self._element_layer_ids:
+      self._report_quietly(
+        "There is no map to save yet. Press Generate first.")
+      return False
+    if not self._may_overwrite(path):
+      return False
+
+    # WHAT EACH ELEMENT'S TABLE IS CALLED is decided when the map is
+    # DRAWN, not here, so that two saves of one map cannot disagree
+    # about it and so that the name follows the variable the element
+    # actually displays (ruling 6 of 2026-08-25). A map adopted or
+    # resumed rather than drawn carries the names it was found under.
+    tables = dict(getattr(self, "_element_tables", {}) or {})
+    order = sorted(self._element_layer_ids, key=bridge.element_order)
+    missing = [tid for tid in order if tid not in tables]
+    if missing:
+      # Recomputed rather than refused: a dialog that has adopted a
+      # group knows the elements without having drawn them, and
+      # refusing to save that map would be a worse answer than naming
+      # its tables the way a run would have.
+      taken = list(tables.values())
+      for tid in missing:
+        assignment = self._assignment_for(tid) or {}
+        tables[tid] = bridge.element_table_name(
+          tid, assignment.get("var"), taken)
+        taken.append(tables[tid])
+
+    # A file that holds nothing is RECREATED and one that holds
+    # something is added to, which is what protects a user's own
+    # tables in a shared GeoPackage. "Does it exist" is not the
+    # question -- closing a GeoPackage makes sqlite touch it, so a
+    # deleted file can be back at zero bytes by the time we look.
+    fresh = (not os.path.exists(path)) or os.path.getsize(path) == 0
+    written_names = set()
+    trouble = []
+    for tid in order:
+      for layer_id, table in (
+          (self._element_layer_ids.get(tid), tables[tid]),
+          (self._no_data_layer_ids.get(tid), f"{tables[tid]}_no_data")):
+        layer = project.mapLayer(layer_id) if layer_id else None
+        if layer is None:
+          continue
+        subset = layer.subsetString()
+        try:
+          bridge.write_gpkg_layer(layer, path, table, first=fresh)
+        except Exception as e:
+          trouble.append(f"{table}: {e}")
+          continue
+        fresh = False
+        written_names.add(table)
+        # ...and the project's own layer now reads from the file, so
+        # the map survives the project being closed and reopened
+        compat.point_layer_at(layer, path, table)
+        if subset:
+          layer.setSubsetString(subset)
+        # the style goes in AFTER the repointing, or it would be
+        # embedded against the memory layer's own source and the file
+        # would carry a style nothing in it wears
+        bridge.embed_style(layer)
+    if trouble:
+      self._report_quietly(
+        f"Part of the map could not be written: {trouble[0]}")
+      return False
+
+    # Each handle above was opened while its siblings were still being
+    # appended to the same file, so the earliest ones cache "no
+    # spatial index" from that moment. One reload per layer, after all
+    # the writing is over, refreshes the answer.
+    for tid in order:
+      for layer_id in (self._element_layer_ids.get(tid),
+                       self._no_data_layer_ids.get(tid)):
+        layer = project.mapLayer(layer_id) if layer_id else None
+        if layer is not None:
+          layer.dataProvider().reloadData()
+
+    self._drop_tables_this_map_no_longer_has(path, written_names)
+    self._last_path = path
+    self._gpkg_tables_written[self._gpkg_key(path)] = set(written_names)
+
+    # THE RECORD LAST, so that a file which failed half way through
+    # does not claim to be resumable. The design and the region come
+    # from the group's own record where it has one, for the same
+    # reason a landing takes them from its launch snapshot: they
+    # describe the map that was DRAWN, and this method draws nothing.
+    resumable = self._capture_working_state()
+    resumable["region_embedded"] = self._embed_or_drop_the_source(path)
+    if not bridge.write_working_state(
+        path, self._file_safe_state(resumable)):
+      self._report_quietly(
+        f"The map was saved to {os.path.basename(path)}, but its "
+        f"design could not be written into the file, so opening it "
+        f"elsewhere will show the map without carrying on with it.")
+      return True
+    self._report_quietly(f"Saved to {os.path.basename(path)}.")
+    return True
+
+  def _may_overwrite(self, path) -> bool:
+    """Ask before writing over a file this plugin did not write.
+
+    Args:
+      path: the file Save is about to write.
+
+    Returns:
+      True to go ahead, False when the user declined. A file that does
+      not exist, holds nothing, or is one of ours is never asked
+      about: with Save a deliberate press, asking every time is noise,
+      and a file somebody else's work is in is not.
+      (Maintainer's ruling, 2026-08-27.)
+
+    WHAT COUNTS AS OURS, and it is asked of the FILE rather than
+    remembered: a file this dialog has already saved to in this
+    session, or one carrying a working-state record naming the group
+    being saved. The second is what makes an ordinary re-save silent
+    after a restart, and what keeps the question for the case that
+    matters -- a GeoPackage holding somebody's own tables, or another
+    map of theirs.
+    """
+    import os
+    from qgis.PyQt.QtWidgets import QMessageBox
+    if not os.path.exists(path) or os.path.getsize(path) == 0:
+      return True
+    if self._gpkg_key(path) in self._gpkg_tables_written:
+      return True
+    record = bridge.read_working_state(path)
+    if isinstance(record, dict):
+      # ...and a file carrying OUR record for THIS dataset is this
+      # map's own file, met again after a restart. `same_source` owns
+      # the comparison because a source is a path plus a layer name
+      # and a project save respells the path half.
+      layer = self.layer_combo.currentLayer()
+      here = layer.source() if layer is not None else None
+      if here and same_source(here, record.get("region")):
+        return True
+    answer = QMessageBox.question(
+      self, "WeavingSpace",
+      f"{os.path.basename(path)} already exists and was not written "
+      f"by this map. Saving will replace the tables this map needs "
+      f"and leave the rest of the file alone. Save anyway?",
+      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+      QMessageBox.StandardButton.No)
+    return answer == QMessageBox.StandardButton.Yes
 
   def _resume_from_gpkg(self, path) -> bool:
     """Carry on with a map saved to a GeoPackage.
@@ -16296,6 +16527,90 @@ class WeavingSpaceDialog(QDialog):
       # cannot reach the original, and nothing else.
       _dump("STATE", "embed-failed", traceback.format_exc(limit=3))
       return False
+
+  def _embed_or_drop_the_source(self, path) -> bool:
+    """Put the region data into the saved file, or take it back out.
+
+    Args:
+      path: the GeoPackage Save has just written.
+
+    Returns:
+      True when the file now holds a copy of the region layer, False
+      when it does not -- which is the ordinary case, since embedding
+      is an opt-in, and also the answer when a copy was removed or a
+      write failed. The caller records it, so the file's own record
+      and the file's own tables agree by construction.
+
+    UNTICKING MEANS IT IS NOT IN THIS FILE. (Maintainer's ruling,
+    2026-08-27, on ledger row 26 of that date.) Ticking the box,
+    unticking it and saving again used to leave a full private copy of
+    the region sitting in the file while the record beside it said
+    `region_embedded: False` -- so the privacy the box promised was
+    gone AND the resume the copy would have given was refused, since
+    the record is what a resume reads. Measured on the file's own
+    bytes through OGR.
+    ONLY OUR OWN TABLE IS DROPPED, never anything else a user keeps in
+    the file, which is the same line the stale-table drop holds: the
+    plugin removes what the plugin wrote.
+    IT FOLLOWS THE RULING OF 2026-08-26 that the file shows the limit
+    of what it contains. A private copy somebody has switched off is
+    exactly what they would be surprised to find in a file they send
+    on.
+    """
+    box = getattr(self, "opt_embed_source", None)
+    if box is not None and box.isChecked():
+      # the layer in the chooser, which under the group binding is the
+      # dataset this map belongs to
+      return self._embed_source_into(path, self.layer_combo.currentLayer())
+    if bridge.REGION_TABLE_NAME in bridge.gpkg_tables(path):
+      bridge.drop_gpkg_layer(path, bridge.REGION_TABLE_NAME)
+    return False
+
+  def _drop_tables_this_map_no_longer_has(self, path, current):
+    """Remove element tables an earlier save left that this map lacks.
+
+    Args:
+      path: the GeoPackage being saved into.
+      current: the table names this save has just written.
+
+    Returns:
+      None. Drops only tables THIS plugin wrote for THESE elements --
+      never a table the user's own file already contained.
+
+    A GeoPackage is replaced table by table, so a design that SHRANK
+    would otherwise leave its old elements in the file: the map shows
+    three and the file holds six, with nothing to say which three are
+    the map. That file is the thing a user sends to somebody else, so
+    the wrongness travels while the map stays right.
+
+    THE FILE IS ASKED AS WELL AS THE SESSION, because the record is a
+    record of what a DIALOG did. Since the variable joined the table
+    name (ruling 6 of 2026-08-25), switching an element's variable
+    writes a NEW table rather than replacing one -- so the old
+    variable's table is stale the moment the switch lands, and a
+    dialog that never adopted or resumed this file knows nothing about
+    it. Resuming such a file loads the orphan as an extra element and
+    the abandoned variable can paint over the map (measured
+    2026-08-27, 23.7% of sampled pixels).
+    SCOPED TO THIS MAP'S OWN ELEMENTS. A table for an element this map
+    does not have is the shrank-design case the session record covers;
+    sweeping every `tiles_*` in the file would make this a claim about
+    somebody else's tables rather than about our own.
+    """
+    key = self._gpkg_key(path)
+    written = set(self._gpkg_tables_written.get(key, set()))
+    for name in bridge.gpkg_tables(path):
+      for tid in self._element_layer_ids:
+        stem = f"tiles_{tid}"
+        if name == stem or name.startswith(f"{stem}_"):
+          written.add(name)
+          break
+    for stale in sorted(written):
+      # older records held bare element ids; those still name the
+      # `tiles_<id>` they were written for
+      name = stale if stale.startswith("tiles_") else f"tiles_{stale}"
+      if name not in current:
+        bridge.drop_gpkg_layer(path, name)
 
   def _read_working_state(self, group):
     """The working state a group carries, or None.
@@ -17284,14 +17599,6 @@ class WeavingSpaceDialog(QDialog):
     # exactly those; the new ones are collected as they are built
     old_no_data = dict(self._no_data_layer_ids)
     self._no_data_layer_ids = {}
-    if path:
-      # release file handles before overwriting GeoPackage layers,
-      # otherwise the write can hit sqlite locks (notably on Windows)
-      for lid in list(old_ids.values()) + list(old_no_data.values()):
-        if project.mapLayer(lid) is not None:
-          project.removeMapLayer(lid)
-      old_ids = {}
-      old_no_data = {}
 
     def column_has_values(field):
       """Whether any tile ANYWHERE on this map has a value here.
@@ -17316,7 +17623,6 @@ class WeavingSpaceDialog(QDialog):
       return seen[field]
 
     seen = {}
-    first_gpkg_layer = True
     # Which columns are DATA rather than identity, computed once for
     # the run: every variable any element displays. A column outside
     # this set is either the geometry or an identifier, and both stay
@@ -17349,6 +17655,9 @@ class WeavingSpaceDialog(QDialog):
     # donor moved underneath it; `_seeding_order` is what guarantees
     # the donor has already been answered by the time it is asked.
     reseeded = set()
+    # rebuilt each run, so an element the design has dropped does not
+    # leave its table name behind for a save to write again
+    self._element_tables = {}
     for tid in seed_order:
       a = by_id.get(tid, {"id": tid, "var": None, "mode": "Single colour",
                           "ramp": "Greys", "scheme": "Quantiles", "k": 5,
@@ -17452,53 +17761,14 @@ class WeavingSpaceDialog(QDialog):
       table_name = bridge.element_table_name(tid, a.get("var"),
                                              tables_this_run.values())
       tables_this_run[tid] = table_name
-      if path:
-        # THE FILE IS RECREATED ONLY IF IT DOES NOT EXIST, and that
-        # condition used to be `created` -- meaning the layer-tree
-        # GROUP was new, which is true on the first run of any fresh
-        # dialog, on "Create as new group", and whenever the output
-        # path changes. `first=True` becomes CreateOrOverwriteFile,
-        # which recreates the WHOLE GeoPackage. So a user who chose a
-        # .gpkg they already had lost everything else in it: their
-        # own tables, and the region layer itself if it lived there,
-        # in which case the map was drawn from data the same run had
-        # just deleted. Nothing said so -- the open layer answers
-        # featureCount() from cache -- and the only warning fires on
-        # a different condition entirely and advises choosing another
-        # file, which would destroy that one instead.
-        #
-        # Destroying data the plugin did not create is the one thing
-        # it must never do, and the stale-table drop at the end of
-        # this method already says so in as many words: it removes
-        # only tables THIS dialog wrote, never a table the user's own
-        # file already contained. That is also what makes recreating
-        # the file unnecessary -- dropping our own dead tiles_*
-        # tables is the job recreation was doing, done narrowly.
-        # Measured 2026-08-13. Guarded by
-        # test_a_generate_spares_the_rest_of_the_users_geopackage.
-        # "DOES THE FILE EXIST" IS NOT THE QUESTION -- "does it hold
-        # anything" is. When the output file has been deleted while
-        # its layers were open (a user tidying in the Finder, a moved
-        # file on Windows), the handle release above RECREATES a
-        # zero-byte file at the path: closing a GeoPackage makes
-        # sqlite touch it. Measured 2026-08-26: exists=False as the
-        # landing starts, exists=True size=0 at this line, so a bare
-        # existence test answered "update the file" and the writer
-        # died on a file that is not a GeoPackage -- taking the whole
-        # map with it, silently, since an exception in a Qt slot is
-        # swallowed. A zero-byte file holds nothing to preserve, so
-        # recreating it cannot cost anybody data; a NON-empty file
-        # keeps the update path, which is what protects a user's own
-        # tables in a shared GeoPackage.
-        empty_file = (os.path.exists(path)
-                      and os.path.getsize(path) == 0)
-        out = bridge.write_gpkg_layer(mem, path, table_name,
-                                      first=(first_gpkg_layer
-                                             and (not os.path.exists(path)
-                                                  or empty_file)))
-        first_gpkg_layer = False
-      else:
-        out = mem
+      # NOTHING IS WRITTEN HERE. Until 2026-08-27 an element was
+      # written into the GeoPackage at this point whenever an output
+      # path was set, and the layer that joined the project read from
+      # the file. The maintainer ruled that saving is a positive act:
+      # Generate DRAWS, and `_save_the_map` writes -- so every element
+      # arrives as a memory layer and Save repoints it at the file it
+      # is written into.
+      out = mem
 
       # styling: keep the previous layer's (possibly hand-refined)
       # renderer when this element's assignment didn't change
@@ -17756,15 +18026,13 @@ class WeavingSpaceDialog(QDialog):
       # `_restyle_only` had the order right; this path did not.
       # Measured 2026-08-13. Guarded by
       # test_an_exported_geopackage_is_still_recognised_as_our_own.
-      if path:
-        bridge.embed_style(out)
       project.addMapLayer(out, False)
       # ...at its ELEMENT'S place in the panel, which is no longer
       # where the loop happens to have reached: see `_seeding_order`
       self._join_in_panel_order(group, out, tid)
       if absent is not None and len(absent):
         self._add_no_data_layer(
-          a, tid, absent, group, project, path, table_name,
+          a, tid, absent, group, project, None, table_name,
           # ...through the SAME gate its element just went through.
           # Outside it, a value the dialog itself wrote last run reads
           # as a hand-set one and outranks the spin box the user just
@@ -17792,21 +18060,14 @@ class WeavingSpaceDialog(QDialog):
             f"The filter you had set on element '{tid}' could not be "
             f"applied to the new layer, so it now draws everything.")
       new_ids[tid] = out.id()
+      # WHAT EACH ELEMENT'S TABLE WOULD BE CALLED, decided here even
+      # though nothing is written here: `_save_the_map` must not
+      # re-derive it, or two saves of one map could disagree about a
+      # name and leave the earlier one behind as an orphan.
+      self._element_tables[tid] = table_name
       self._last_signatures[tid] = signature
       self._watch_element_layer(out, tid)
 
-    if path:
-      # Each GeoPackage handle above was opened while its SIBLINGS
-      # were still being appended to the same file, and the earliest
-      # handles cache "no spatial index" from that moment: the R-tree
-      # is in the file (verified against sqlite directly) while the
-      # provider believes otherwise, so QGIS quietly skips
-      # index-assisted paths for exactly those elements. One reload
-      # per layer, after all writing is over, refreshes the answer.
-      for lid in new_ids.values():
-        written = project.mapLayer(lid)
-        if written is not None:
-          written.dataProvider().reloadData()
 
     # map unit outlines (kept on top of the group, project-only)
     if old_outline and project.mapLayer(old_outline) is not None:
@@ -17877,84 +18138,13 @@ class WeavingSpaceDialog(QDialog):
     # PREVIOUS run's layer. Asked once here rather than once per
     # element, which is also what it costs.
     self._refresh_deferring_rows()
-    # A GeoPackage is REPLACED table by table, so a design that
-    # shrank left its old elements in the file: the map showed three
-    # and the file held six, with nothing to say which three were the
-    # map. That file is the thing a user sends to somebody else, so
-    # the wrongness travels while the map stays right. Only tables
-    # THIS dialog wrote into THIS file are removed, and only those
-    # the current design no longer has -- never a table the user's
-    # own file already contained. Guarded by
-    # test_a_geopackage_loses_the_elements_a_design_dropped.
-    if path:
-      # TABLE NAMES, not element ids, since 2026-08-16. An element
-      # with missing values writes a SECOND table, and a record kept
-      # by element could not name it -- so a no-data table outlived
-      # the values that made it and travelled inside the file a user
-      # sends on, which is the same wrongness this drop already
-      # exists to prevent, arriving through the new feature. Old
-      # records held ids; those are bare element names and still
-      # match the tiles_<id> they were written for, so a dialog
-      # carrying one from earlier in the session drops what it always
-      # did and simply does not know about no-data tables until its
-      # next run.
-      # KEYED BY THE FILE, not by the spelling. `_last_path` learnt
-      # this on 2026-08-17 and this record did not, which is the twin
-      # the fix missed: one file reached under two spellings splits
-      # into two keys, so the tables an earlier run wrote are invisible
-      # to this one and a design that SHRANK leaves its dropped
-      # element's table behind. The user then sends on a GeoPackage
-      # describing a design they abandoned, and nothing on screen says
-      # so, because the group itself is correctly reused. Windows
-      # produces the two spellings unaided.
-      # NAMED FROM WHAT THIS RUN ACTUALLY WROTE, since the variable
-      # joined the table name on 2026-08-25. Rebuilding the names from
-      # the element ids alone would say `tiles_a` where this run wrote
-      # `tiles_a_v1`, so every table of the new design would look
-      # stale and the drop would remove the map it had just made. The
-      # names are decided once, per element, and read back here.
-      key = self._gpkg_key(path)
-      written = set(self._gpkg_tables_written.get(key, set()))
-      current = {tables_this_run[tid] for tid in new_ids
-                 if tid in tables_this_run}
-      current |= {f"{tables_this_run[tid]}_no_data"
-                  for tid in self._no_data_layer_ids
-                  if tid in tables_this_run}
-      # AND THE FILE IS ASKED AS WELL AS THE SESSION, because the
-      # record above is a record of what a DIALOG did. Since the
-      # variable joined the table name (ruling 6, 2026-08-25),
-      # switching an element's variable writes a NEW table rather than
-      # replacing one -- so the old variable's table is stale the
-      # moment the switch lands, and only this record knew to remove
-      # it. A dialog that never adopted or resumed the file knows
-      # nothing: restart QGIS without saving the project, or File >
-      # New, choose the same output GeoPackage, switch a variable,
-      # Generate, and the abandoned table stays. Nothing on screen
-      # says so, because the map in front of the user is right.
-      # WHAT IT COSTS IS THE FILE ITSELF. Resuming it loads the orphan
-      # as an extra element -- five layers for a four-element record,
-      # two of them claiming element 'a' -- and tables load in sorted
-      # order, so the abandoned variable sorts above the live one and
-      # PAINTS OVER IT: 23.7% of sampled pixels drawn by a variable
-      # the design had dropped (measured 2026-08-27).
-      # SCOPED TO THE ELEMENTS THIS RUN WROTE. A table this run did
-      # not write, for an element this run does not have, is the
-      # shrank-design case the session record above already covers,
-      # and widening the sweep to every `tiles_*` in the file would
-      # make the drop a claim about somebody else's tables rather
-      # than about our own elements.
-      for name in bridge.gpkg_tables(path):
-        for tid in new_ids:
-          stem = f"tiles_{tid}"
-          if name == stem or name.startswith(f"{stem}_"):
-            written.add(name)
-            break
-      for stale in sorted(written):
-        name = stale if stale.startswith("tiles_") else f"tiles_{stale}"
-        if name not in current:
-          bridge.drop_gpkg_layer(path, name)
-      self._gpkg_tables_written[key] = current
-    self._last_path = path
+    # THE STALE-TABLE DROP MOVED TO SAVE with everything else that
+    # touches the file (ruling of 2026-08-27). It is
+    # `_drop_tables_this_map_no_longer_has`, and it runs against the
+    # tables that save has just written rather than against the ones a
+    # run happened to produce.
+    # `_last_path` is where this map was last SAVED, so only a save
+    # may move it. A run that draws changes nothing about the file.
     # A LANDING IS WHAT MAKES A DATASET THIS SESSION'S WORK: from here
     # a change of region layer is a change of dataset, with everything
     # _begin_new_dataset does. Before it, a switch is a first choice.
@@ -17975,48 +18165,10 @@ class WeavingSpaceDialog(QDialog):
     # the ELEMENT half; the reasoning for that split is at
     # `_stamp_working_state`, beside the code that does it.
     self._stamp_working_state(group, launch_state)
-    # ...AND INTO THE FILE, which is what makes it RESUMABLE (ruling 5
-    # of 2026-08-25). The group's custom property persists with the
-    # PROJECT; a colleague receives the GeoPackage on its own, and the
-    # roadmap's "one I made earlier" is somebody opening a finished
-    # result without the project that made it.
-    #
-    # THE SOURCE COMES BACK BY REFERENCE. The record already carries
-    # the region's own source string, which every output layer has
-    # carried as `weavingspace_region` since 2026-08-24, so nothing
-    # extra is written for the ordinary case: the file stays small,
-    # and it stays private, since somebody else's copy of the data is
-    # not smuggled along with a map of it. EMBEDDING IS THE OPT-IN,
-    # for a file another person is meant to carry on with, which is
-    # the same shape as the dependency consent and as ruling 8's
-    # "sharing a ladder across files is an explicit act".
-    if path:
-      resumable = self._capture_working_state()
-      if isinstance(launch_state, dict):
-        for key in ("design", "output_path", "region"):
-          if key in launch_state:
-            resumable[key] = launch_state[key]
-      resumable["region_embedded"] = self._embed_source_into(
-        path, source_layer)
-      # AND THE ANSWER IS READ. `write_working_state`'s own Returns
-      # block says a failure "is reported rather than raised", and
-      # nothing read the bool it returns -- a rule asserting its own
-      # enforcement, which this project has paid for before. The map,
-      # its styles and its tables are all in the file either way; what
-      # is lost is the RESUME, and losing it in silence means the
-      # colleague who receives the file meets "that GeoPackage does
-      # not carry a saved map" with nothing having been said to
-      # anybody at the time it happened.
-      #
-      # QUIETLY, NOT MODALLY. This is a generation path, where an
-      # unconditional modal is forbidden, and the sentence has to be
-      # something a person can act on: the map is fine, the file is
-      # written, and it will open rather than resume.
-      if not bridge.write_working_state(path, self._file_safe_state(resumable)):
-        self._report_quietly(
-          f"The map was saved to {os.path.basename(path)}, but its "
-          f"design could not be written into the file, so opening it "
-          f"elsewhere will show the map without carrying on with it.")
+    # THE FILE'S RECORD IS WRITTEN BY SAVE, in one act with the tables
+    # and the styles it describes (ruling of 2026-08-27). A run that
+    # writes nothing has nothing to record, and a record written apart
+    # from the tables is how a file came to disagree with itself.
     # ...and the chooser learns about a group this run may have just
     # made. Rebuilt rather than appended to, so a group the run
     # REPLACED, or one the user deleted while it ran, leaves the list

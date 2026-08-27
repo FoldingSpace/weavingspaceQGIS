@@ -73,6 +73,70 @@ def set_save_file_mode(file_widget) -> None:
   file_widget.setStorageMode(QgsFileWidget.StorageMode.SaveFile)
 
 
+def set_open_file_mode(file_widget) -> None:
+  """Put a QgsFileWidget into open-an-existing-file mode (scoped enum).
+
+  Args:
+    file_widget: the QgsFileWidget to configure.
+
+  Returns:
+    None; the widget is mutated in place.
+
+  The twin of `set_save_file_mode`, and it lives here for the same
+  reason: the enum is scoped in QGIS 4 and was not in QGIS 3, and this
+  module is the one place allowed to know that. Added 2026-08-27 with
+  the Save & open tab, where the two ends of one act are built from
+  the same widget so that they read as a pair.
+  """
+  from qgis.gui import QgsFileWidget
+  file_widget.setStorageMode(QgsFileWidget.StorageMode.GetFile)
+
+
+def point_layer_at(layer, path: str, table: str) -> bool:
+  """Repoint a layer at a GeoPackage table, IN PLACE.
+
+  Args:
+    layer: the QgsVectorLayer to repoint -- typically a memory layer
+      whose contents have just been written into the file.
+    path: the .gpkg file.
+    table: the table inside it.
+
+  Returns:
+    True when the layer now reads from the file, False when the call
+    is unavailable or left the layer invalid. A False answer is not
+    an exception on purpose: the caller has already written the data,
+    so the file is good and only the PROJECT's view of it is at
+    stake, and refusing to save on that account would be worse.
+
+  Why in place rather than building a new layer. The layer's ID is
+  what the whole dialog keys on -- `_element_layer_ids`, the class
+  source tokens that name a donor's layer, the watchers, the group's
+  node order, and every custom property the map's identity is made of.
+  Replacing the object means reissuing all of that; `setDataSource`
+  changes the provider underneath and leaves the id, the renderer, the
+  name and the properties exactly where they were.
+
+  `loadDefaultStyleFlag` is FALSE deliberately. The file may already
+  carry a saved style from an earlier save, and loading it here would
+  repaint the map with what was written last time instead of what the
+  user is looking at -- the map is the authority at this moment, and
+  the style is written INTO the file immediately afterwards.
+  """
+  from qgis.core import QgsDataProvider
+  uri = f"{path}|layername={table}"
+  setter = getattr(layer, "setDataSource", None)
+  if setter is None:
+    return False
+  try:
+    setter(uri, layer.name(), "ogr", QgsDataProvider.ProviderOptions(),
+           False)
+  except TypeError:
+    # QGIS 3.x had no loadDefaultStyleFlag on this overload; keeping
+    # the older shape costs one line and is what this module is for
+    setter(uri, layer.name(), "ogr", QgsDataProvider.ProviderOptions())
+  return bool(layer.isValid())
+
+
 def writer_overwrite_file():
   """QgsVectorFileWriter action: create/overwrite the whole file."""
   return QgsVectorFileWriter.ActionOnExistingFile.CreateOrOverwriteFile

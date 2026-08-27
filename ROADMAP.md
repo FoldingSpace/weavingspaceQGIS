@@ -221,8 +221,44 @@ buttons, and its labels through text review, which have never been
 approved.
 
 **SAVING IS A POSITIVE ACT.** (Maintainer's ruling, 2026-08-27,
-settled by grilling. NOT BUILT: every sentence below describes what
-the plugin should do, not what it does.) A path chooser records what
+settled by grilling. THE PRODUCT SIDE IS BUILT ON
+`for-0.24.4/saving-is-an-act`; THE SUITE IS NOT CONVERTED, and the
+branch must not merge until it is. What that means precisely, because
+"partly done" is the state this file exists to make unambiguous:
+
+BUILT. A Save & open tab carrying two file rows and a button each --
+Save writes, Load reads, and neither chooser does anything on its own.
+`_save_the_map` writes the element tables, the twins, the embedded
+styles, the stale-table drop, the source copy or its removal, and the
+resumable record, in one act; `compat.point_layer_at` repoints each
+layer at the file in place, keeping the ids the rest of the dialog is
+keyed on. `_may_overwrite` asks before writing over a file this map
+did not write. Generate writes NOTHING: the landing's per-element
+write, its style embedding, its index reload, its stale drop, its
+`_last_path` move and its record write are all gone, along with the
+eleven adoption and restyle exits that embedded a style and the two
+that rewrote the file's record. `_rewrite_the_files_record` is
+retired. Live update's output-path gate is deleted with the
+measurement at the site, and so is the Generate-time modal that
+refused a run whose path would overwrite a kept result -- a run
+overwrites nothing now.
+
+OWED, and measured rather than guessed. TWENTY-ONE catalogue entries
+are orphaned by the move and must be re-aimed at Save or retired with
+a reason at the entry; `python3 tools/check_standards.py` names every
+one. FIFTY-SIX registered tests set an output path and then Generate,
+expecting the file to be written; each needs the Save press a person
+now makes, and the handful that are ABOUT the writing -- the dock
+edit reaching the file, the file's record following a restyle, the
+mid-write restyle race -- need re-deciding rather than mechanically
+patching, because what they assert has changed rather than moved.
+THREE TESTS ARE OWED THAT DO NOT EXIST: a Generate leaves the file
+BYTE UNCHANGED, Save writes it, and the overwrite prompt fires on
+somebody else's file and not on our own.
+NOTHING HERE HAS BEEN RUN. The branch was written while the full
+suite was measuring another tree, so every sentence above describes
+code that compiles and has been read, not code that has been
+exercised.) A path chooser records what
 you WOULD save to or load from and does nothing on its own. A SAVE
 button beside the output path writes the map as it stands; a LOAD
 button beside the other path chooser reads one back. Generate DRAWS.
