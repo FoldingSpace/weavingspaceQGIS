@@ -178,6 +178,148 @@ two elements share a column, one element's notice silenced the other.
 
 Worked on `pre-0.24.4rc1`. What follows is what the version owes.
 
+**WHAT IS ALREADY BUILT, AND ON WHICH BRANCH.** Three branches carry
+0.24.4 so far, and none is merged. A branch cannot tell you it is
+unfinished, which is why each is named here with what must be true
+before it goes in.
+
+`for-0.24.4/hunt-fixes` -- twenty-five defects of 2026-08-27, each
+with a registered test and a catalogue entry that was RUN and reported
+caught, plus the day's ledger and the lessons promoted into CLAUDE.md.
+BEFORE IT MERGES: a full local suite that reaches its own summary
+line. Two runs on 2026-08-27 ended in `Fatal Python error: Aborted` at
+exactly 571 tests, which was ledger row 25 and is fixed; the run that
+proves it had not finished when the day's work stopped.
+
+`for-0.24.4/copy-select-all` -- the Select all button beside "Copy
+to...", the two element ceilings (weaves `a`..`z`, tilings `a`..`z`
+then `aa`..`zz` capped at sixteen by sixteen), and `element_order`,
+which is what stops the twenty-seventh element sorting second
+everywhere a person reads a list. It has `hunt-fixes` merged into it,
+so it is the wider of the two. BEFORE IT MERGES: the same full suite,
+and the three sentences it adds settled in the text-review queue.
+
+`for-0.24.4/save-load-tab` -- the Save & open tab: saving and opening
+built from the same widget, side by side, on their own tab, with the
+"include the source data" box beside the path it qualifies. IT IS
+PARTLY OVERRULED and must not merge as it stands: its open row resumes
+the moment a file is chosen, which the ruling of 2026-08-27 forbids --
+a path chooser records what you WOULD load from, and a LOAD button
+does the loading. The tab itself, and the pairing, are what the
+maintainer asked for and stand. BEFORE IT MERGES: the Save and Load
+buttons, and its labels through text review, which have never been
+approved.
+
+**SAVING IS A POSITIVE ACT.** (Maintainer's ruling, 2026-08-27,
+settled by grilling. NOT BUILT: every sentence below describes what
+the plugin should do, not what it does.) A path chooser records what
+you WOULD save to or load from and does nothing on its own. A SAVE
+button beside the output path writes the map as it stands; a LOAD
+button beside the other path chooser reads one back. Generate DRAWS.
+Auto-generate never writes.
+WHAT SAVE WRITES, in one act: the element tables, the embedded styles,
+the resumable record through `_file_safe_state`, the stale-table drop,
+and the source copy when "Include the source data" is ticked.
+IT ASKS BEFORE OVERWRITING a file the plugin did not write (the
+maintainer's addition the same day). With Save a deliberate press,
+asking every time is noise; a file somebody else's map is in is not.
+WHERE THE WORK IS. Everything under `if path:` in
+`dialog._add_output_layers`, and the file-record write the restyle
+makes through `_rewrite_the_files_record`, becomes what Save does.
+This is the largest piece of the five and the one to take slowly: the
+resumable record and the stale-table drop both live there, and both
+have their own ledger rows from 2026-08-26 and -27.
+AND ONE GATE IS DELETED RATHER THAN EXPLAINED. Live update refuses
+while an output path is set, silently, and the user guide promises a
+note (ledger row 11 of 2026-08-27). Its reason was that a live run
+must not rewrite somebody's file on every keystroke -- and under this
+ruling no run writes at all, so the gate cannot fire. A guard that
+cannot fire reads as protection; remove it with the measurement at the
+site, as this project did on 2026-08-20.
+IT ALSO OVERRULES WORK ALREADY WRITTEN. The Save & open tab on the
+`../ws-save-load` worktree resumes the moment a file is chosen, which
+is exactly what this forbids; its open row becomes a Load button.
+BEFORE IT MERGES: a test that a Generate leaves the file BYTE
+UNCHANGED and that Save writes it; a test that the overwrite prompt
+fires on somebody else's file and not on our own; and the live-update
+gate's removal proved by its own catalogue entry going with it.
+
+**UNTICKING "INCLUDE THE SOURCE DATA" MEANS IT IS NOT IN THIS FILE.**
+(Maintainer's ruling, 2026-08-27. NOT BUILT.) Ticking the box, then
+unticking it and saving again, leaves the file holding a full private
+copy of the region layer while the record beside it says
+`region_embedded: False` -- so the privacy the box promised is gone
+AND the resume the copy would have given is refused, since the record
+is what a resume reads. Measured through OGR on the file's own bytes
+by the save-gpkg hunt, 2026-08-27; ledger row 26.
+THE FIX IS AT SAVE, not at Generate, which is where writing now
+happens: `weavingspace_region` is dropped, and ONLY that table -- the
+one the plugin wrote itself, never anything else a user keeps in the
+file. `bridge.drop_gpkg_layer` is already to hand and already takes
+the saved style with the table.
+WHY: the ruling of 2026-08-26 that the file shows the limit of what it
+contains. A private copy somebody has switched off is exactly what
+they would be surprised to find in a file they send on.
+BEFORE IT MERGES: a test that reads the file's BYTES after the untick
+-- once the dataset is closed, since sqlite's freelist keeps a deleted
+page while the file is open (measured 2026-08-27).
+
+**AN OUTPUT PATH NEVER DECIDES WHICH GROUP A RUN LANDS ON.**
+(Maintainer's ruling, 2026-08-27. NOT BUILT.) Clearing the output path
+and generating again builds a SECOND group rather than replacing in
+place, silently -- and under live update it lands with no button
+press, from an ordinary design tweak. Found independently by the
+return sweep and the live-update hunt; ledger row 12.
+The chooser alone decides which group a run lands on, which is what
+the ruling of 2026-08-25 gave it; "create new" remains the way to ask
+for a second map. Under the Save ruling above the fork's own reason --
+a run must not overwrite the last result -- disappears entirely,
+because a run no longer writes anything.
+WHERE: the `moved_the_output` branch that arms a fresh group.
+`test_model_based_dialog_states` pins the current behaviour and must
+be re-decided rather than quietly bent.
+
+**A RAMP IS REMEMBERED UNDER THE MODE THE ROW IS IN.** (Maintainer's
+ruling, 2026-08-27. NOT BUILT.) Every sync files a ramp under the
+family the RAMP belongs to, so a qualitative ramp tried on a
+quantitative row fills the categorical slot permanently: pick
+`Accent` on a Graduated row, pick `Reds` back, and every visible cell
+returns while `_ramp_memory[a]["Categorized"]` keeps `Accent`. Point
+that row at a text column later and it draws colours nobody chose in
+this session. Measured by the return sweep against the renderer's own
+colours, with a control case; ledger row 13.
+File it under the row's CURRENT MODE instead: a row remembers what it
+WORE in each mode, the undo returns, and neither slot can be changed
+by anything done on the other side. The comment at that site argues
+for the present rule and is to be REWRITTEN rather than edited -- its
+worry, that a categorized row carrying `YlOrRd` would hand that back
+on the next flip, is answered by the row having worn it.
+BEFORE IT MERGES: the sweep's own journey as a test -- pick, pick
+back, then change the variable and read the map.
+
+**DONORS ARE SEEDED BEFORE THEIR FOLLOWERS.** (Maintainer's ruling,
+2026-08-27. NOT BUILT.) An element that takes its classes from another
+element's LAYER is followed one run late: the landing builds its
+templates once, before the loop, from the donor's OUTGOING layer,
+while the donor is being re-seeded in the same pass. Ledger row 16.
+The template cannot be computed from the donor's ROW, and that is what
+rules out the obvious answer: a donor may be DEFERRING, its renderer
+made by hand in QGIS's dock and derivable from no assignment, which is
+exactly when following it is most useful. So the donor's new layer has
+to exist before its follower is seeded.
+WHERE: `_add_output_layers`'s element loop, and the `templates` dict
+built above it. SEEDING ORDER MUST BE SEPARATED FROM PANEL ORDER --
+that loop also decides the order layers join the group, and the panel
+reads `a..z` then `aa..` through `bridge.element_order` since the
+ceiling rose. Collect and insert, as `_resume_from_gpkg` already does.
+TWO ELEMENTS TAKING FROM EACH OTHER have no valid order, so that case
+keeps today's one-run lag with the reason written at the code. Driven
+2026-08-27: a cycle SETTLES rather than churning -- one tiling for one
+act, live update on.
+BEFORE IT MERGES: a test that a donor moving reaches its follower in
+the SAME run, and the cycle driven so its lag is a recorded fact
+rather than an assumption.
+
 **A NO-DATA TWIN REPORTED ON COMPLETE DATA.** (Maintainer, rc16,
 2026-08-24: the paired layer appears on the mosquito data though the
 variable has no missing values.) MEASURED SO FAR: the source is clean
