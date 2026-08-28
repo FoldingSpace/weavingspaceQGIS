@@ -114,6 +114,11 @@
   "excerpt": "Missing or too old: {} If you approve, WeavingSpace will: \u2022 ",
   "where": "weavingspace_qgis/plugin.py"
  },
+ "0ee3b73cb9eb417a": {
+  "approved": "2026-08-27",
+  "excerpt": "Carry on with the map in that file.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "0eec116b706692e6": {
   "approved": "2026-08-08",
   "excerpt": "WeavingSpace \u2013 tiled & woven multivariate maps (v{})",
@@ -123,6 +128,11 @@
   "approved": "2026-08-08",
   "excerpt": "# WeavingSpace QGIS plugin",
   "where": "README.md"
+ },
+ "0fb1c724e78bc3fa": {
+  "approved": "2026-08-27",
+  "excerpt": "Part of the map could not be written: {}",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "0fecfcd1640a7651": {
   "approved": "2026-08-15",
@@ -289,6 +299,11 @@
   "excerpt": "<div class=\"plates\">\n  <div>\n    <img src=\"img/twill-weave.p",
   "where": "docs/index.html"
  },
+ "1fd28a120d53cae4": {
+  "approved": "2026-08-27",
+  "excerpt": "Drawing a map and saving one are separate acts. Nothing is w",
+  "where": "docs/USER-GUIDE.md"
+ },
  "2020ebaf6a837c09": {
   "approved": "2026-08-19",
   "excerpt": "Where the ramp starts; values below are not drawn",
@@ -439,6 +454,11 @@
   "excerpt": "## What it makes",
   "where": "README.md"
  },
+ "39fa5c91e6be6607": {
+  "approved": "2026-08-27",
+  "excerpt": "Where Save will write the map. Nothing is written until you ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "3b8726b210fd02dc": {
   "approved": "2026-08-17",
   "excerpt": "Element '{}' follows the styling you set in QGIS:",
@@ -488,6 +508,11 @@
   "approved": "2026-08-16",
   "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
   "where": "weavingspace_qgis/metadata.txt"
+ },
+ "418cedfc7fa3ea45": {
+  "approved": "2026-08-27",
+  "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",
+  "where": "weavingspace_qgis/help_content.py"
  },
  "4213e61f21636c4b": {
   "approved": "2026-08-19",
@@ -789,6 +814,11 @@
   "excerpt": "Element '{}' left {} in QGIS alone, because it cannot tell y",
   "where": "weavingspace_qgis/bridge.py"
  },
+ "63c5f97052c09093": {
+  "approved": "2026-08-27",
+  "excerpt": "Regenerating replaces the previous group and keeps whatever ",
+  "where": "docs/USER-GUIDE.md"
+ },
  "64028974e0430a30": {
   "approved": "2026-08-12",
   "excerpt": "no candidate versions for {}",
@@ -874,10 +904,20 @@
   "excerpt": "Only elements with a categorized style have values to colour",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "693609c53051bba8": {
+  "approved": "2026-08-27",
+  "excerpt": "Which saved map Load will open. Nothing is loaded until you ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "69e787fa9d00960b": {
   "approved": "2026-08-12",
   "excerpt": "<div class=\"plates\">\n  <div>\n    <img src=\"img/twill-weave.p",
   "where": "docs/index.html"
+ },
+ "6aed089cfd06b1e2": {
+  "approved": "2026-08-27",
+  "excerpt": "Choose a file in the box beside Save first.",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "6b4ddcfafb108d99": {
   "approved": "2026-08-08",
@@ -962,6 +1002,11 @@
  "75bc4b0ff09d2e73": {
   "approved": "2026-08-08",
   "excerpt": "<p><small>WeavingSpace QGIS plugin version {}</small></p>",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "75f6af058152941e": {
+  "approved": "2026-08-27",
+  "excerpt": "The map is still drawing. Save it once it has landed.",
   "where": "weavingspace_qgis/dialog.py"
  },
  "75fa1d21b18f18de": {
@@ -1249,6 +1294,11 @@
   "excerpt": "Copy onto the ticked elements",
   "where": "weavingspace_qgis/category_editor.py"
  },
+ "98c826b9ec4fa6d2": {
+  "approved": "2026-08-27",
+  "excerpt": "There is no map to save yet. Press Generate first.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "98e7c7ce4e0397db": {
   "approved": "2026-08-08",
   "excerpt": "This will generate roughly {} tiles and may take a while. Co",
@@ -1469,6 +1519,11 @@
   "excerpt": "Warns when two elements use colours a reader may confuse.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "b29dc6728f28f2ef": {
+  "approved": "2026-08-27",
+  "excerpt": "{} already exists and was not written by this map. Saving wi",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "b4518dcfb8cc1738": {
   "approved": "2026-08-20",
   "excerpt": "kept {} colours for values '{}' does not have",
@@ -1614,6 +1669,11 @@
   "excerpt": "![Four deprivation indices in a basket weave, and seven in a",
   "where": "README.md"
  },
+ "cbd2469e5452dd31": {
+  "approved": "2026-08-27",
+  "excerpt": "Choose a saved map in the box beside Load first.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "cdcc7dc001490605": {
   "approved": "2026-08-26",
   "excerpt": "This will generate roughly {} tiles. A map this large may use all the memory on this computer, and QGIS may stop responding while it is drawn, so save your project first. {} Continue anyway?",
@@ -1747,6 +1807,11 @@
  "d8fb754f8bebea18": {
   "approved": "2026-08-19",
   "excerpt": "Drawn as icons, this layer's {} areas ask for roughly {} til",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "d91cbbbf0c69475a": {
+  "approved": "2026-08-27",
+  "excerpt": "Write the map as it stands to that file.",
   "where": "weavingspace_qgis/dialog.py"
  },
  "da5ad31e5390269e": {
