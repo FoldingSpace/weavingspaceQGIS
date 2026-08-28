@@ -4070,6 +4070,30 @@ here, and the decision to add one is the maintainer's. Recorded
   `open_dialog` reuses the object -- a closed window is a hidden one
   somebody may bring back with its map intact.
 
+- **A WIDGET THAT RETAINS LAYER OBJECTS MUST BE REBUILT WHEN LAYERS
+  ARE REMOVED, AND A DEAD POINTER'S ADDRESS GETS REUSED.**
+  (2026-08-27, found by the saving branch's first full suite.) The
+  region chooser keeps the plugin's own output out of its list
+  through `setExceptedLayerList`, which stores the layer OBJECTS.
+  That list was rebuilt at construction, at a project read, at a
+  resume and after a landing -- and never when layers were REMOVED.
+  So after File > New the combo went on excluding a set of destroyed
+  pointers, and a layer allocated where a dead one had been was
+  excluded for being somebody else: the chooser offers NOTHING while
+  the project plainly holds a polygon layer, and Generate refuses for
+  want of a region with nothing on screen to explain it.
+  THE SWEEP IS THE TRANSFERABLE PART. Ask which widgets are handed
+  layer OBJECTS that they keep: here `setExceptedLayerList` is the
+  only one, since `setLayer` names a current layer whose lifetime the
+  combo follows and `setFilters` takes flags. One member, swept
+  rather than assumed.
+  AND IT IS GUARDED BY THE SUITE RATHER THAN BY AN ENTRY, deliberately
+  and in writing at the fix: the harm needs an address to be reused,
+  so the test that caught it fails in a full run and passes when run
+  alone. An entry would report SURVIVED most times it was judged,
+  which is a false negative and worse than no entry -- the one shape
+  this catalogue must not carry.
+
 - **A LAYER BUILT ON ANOTHER LAYER'S SOURCE IS THAT LAYER TO ANYTHING
   THAT LOOKS UP BY SOURCE.** (2026-08-27.) The map-unit outlines layer
   is built on the REGION'S OWN SOURCE, deliberately, since nothing is

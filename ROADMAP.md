@@ -280,12 +280,32 @@ everything closed. The fourth is a MATRIX,
 `test_saving_holds_on_every_route`: nine routes to a press crossed
 with two data shapes and three aftermaths, spine plus a seeded
 sample, reporting every failing cell and asserting what actually ran.
-STILL OWED: a full suite on this branch. Nothing above has been RUN
-as a whole -- the conversion was written while the other branch's
-suite was measuring another tree -- so what is claimed here is code
-that compiles, reads correctly and has been driven test by test,
-which is not the same as a green suite. That run is the last thing
-between this branch and a merge.) A path chooser records what
+THE FIRST FULL SUITE RAN AND FOUND SEVEN, of which THREE WERE REAL
+DEFECTS rather than conversion noise -- which is the answer to
+whether the conversion was worth its cost. 636 passed, 7 failed at
+`844e6d4`.
+A RUN CLAIMED A SAVE IT NEVER MADE: the success notice ended ", saved
+to <path>" whenever a path was set, so somebody whose export
+directory is read-only was told their map had been saved to a file
+that was never written. A SAVE DURING THE FIRST RUN said "There is no
+map to save yet. Press Generate first", which they had; the mid-run
+guard sits above the no-map check now. And THE REGION CHOOSER COULD
+EXCLUDE A LAYER FOR BEING SOMEBODY ELSE: nothing rebuilt the
+exclusion list when layers were REMOVED, and `setExceptedLayerList`
+holds the layer objects, so after File > New a layer allocated where
+a destroyed one had been was excluded silently -- the chooser
+offering nothing against a project that plainly holds a polygon
+layer. Ledger rows 27, 28 and 29.
+The other four were the conversion's own, and each was swept for as a
+CLASS rather than fixed where it was met: a press keyed on a variable
+name rather than on the dialog object, a test whose dialog adopts its
+path from a reopened project rather than being given one, a press
+sitting before the pin whose arrival it was about, and a timing flake
+that now waits on the chooser instead of on a number of milliseconds.
+STILL OWED: the second full run, over the fixes and the merge, which
+is what would let this branch merge; the fifteen re-aimed catalogue
+entries proved one at a time; and the text of the Save tab, which is
+in the review queue and is the maintainer's to approve.) A path chooser records what
 you WOULD save to or load from and does nothing on its own. A SAVE
 button beside the output path writes the map as it stands; a LOAD
 button beside the other path chooser reads one back. Generate DRAWS.

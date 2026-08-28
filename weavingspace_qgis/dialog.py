@@ -3493,6 +3493,13 @@ class WeavingSpaceDialog(QDialog):
     # all. A deterministic guard would need a way to ask the combo
     # what it is excluding without dereferencing the pointers it
     # holds, and QGIS offers none.
+    # AND THE FAMILY WAS SWEPT rather than this one site mended. The
+    # question is which widgets we hand LAYER OBJECTS that they then
+    # keep: `setExceptedLayerList` is the only one -- `setLayer`
+    # names the current layer, whose lifetime the combo follows
+    # through the project, and `setFilters` takes flags -- and the
+    # colour editor deliberately holds no layer at all. One member,
+    # and this is it.
     self._update_layer_exclusions()
     # The id this dialog was pointed at, taken from whichever witness
     # still holds it: `_removal_pending` was set before the removal,
