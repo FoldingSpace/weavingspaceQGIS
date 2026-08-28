@@ -174,64 +174,6 @@ unmentioned though four documents said otherwise; every Unclassed
 element was warned a third of its fifty steps were empty; and where
 two elements share a column, one element's notice silenced the other.
 
-## 0.24.4 — next
-
-Worked on `pre-0.24.4rc1`. What follows is what the version owes.
-
-**ONE LINE CARRIES 0.24.4**, since the two branches were merged on
-2026-08-27: `for-0.24.4/copy-select-all`, which now holds the Save
-work as well. `for-0.24.4/saving-is-an-act` is an ancestor of it and
-is kept only so its history reads; nothing is owed on it.
-
-WHAT THE VERSION HAS. The twenty-five defects of the hunt round, each
-with a registered test and a proved catalogue entry; the Select all
-button; the two element ceilings with `element_order` behind them;
-and all five rulings of 2026-08-27 -- an output path never decides the
-group, a ramp is remembered under the row's mode, donors are seeded
-before their followers, saving is a positive act, and unticking
-"Include the source data" takes it out of the file.
-
-WHAT THE SAVE CONVERSION COST AND FOUND, because the ratio is the
-argument for doing it that way again. Fifty-eight Save presses went
-in by script where the old code's write used to happen; twenty-four
-tests were converted BY HAND because what they assert changed rather
-than moved; four tests were written that did not exist, one of them a
-matrix of eleven routes to a press crossed with two shapes and three
-aftermaths. Twenty catalogue entries are proved `caught`, two of them
-guarding an ABSENCE by putting a deleted behaviour back, since there
-is no line left to mutate.
-IT FOUND FOUR REAL DEFECTS, three on ordinary journeys: a run
-claiming a save it never made, a Save during the first run telling
-somebody to press Generate, a region chooser excluding a newly loaded
-layer for being allocated where a destroyed one had been, and -- the
-worst -- a map opened with Load being DESTROYED by being saved.
-Ledger rows 27 to 30.
-
-WHAT IS OWED BEFORE A CANDIDATE: the full suite, which belongs to the
-rc rather than to the working day (maintainer's instruction,
-2026-08-27) and which shards three ways when it runs. The last whole
-run was 636 passed and 7 failed at `844e6d4`; every one of those
-seven is fixed, and the fixes are covered by targeted runs rather
-than by a whole-tree measurement.
-
-**AND ONE BRANCH IS SUPERSEDED RATHER THAN OWED.**
-`for-0.24.4/save-load-tab` holds exactly one commit that is not on
-the line, `4a9cbfc`, the first Save & open tab -- the one that
-resumed the instant a file was chosen. Ruling 1 of 2026-08-27
-overruled it in as many words, and what shipped instead is a Load
-button beside that chooser. So the release gate's two options,
-"merge it or rename it for the version it is really for", both miss:
-it belongs to no version. Deleting it or moving it out of the
-`for-` namespace is the maintainer's call, and the sha is written
-here so that either is reversible.
-
-(The two rulings that stood here -- SAVING IS A POSITIVE ACT and
-UNTICKING "INCLUDE THE SOURCE DATA" MEANS IT IS NOT IN THIS FILE --
-are deleted because they LANDED, which is what this file asks of an
-entry that is done. Their reasoning lives in CLAUDE.md, where it
-binds, and what they cost and found is in the ledger for 2026-08-27,
-rows 26 to 30.)
-
 **A NO-DATA TWIN REPORTED ON COMPLETE DATA.** (Maintainer, rc16,
 2026-08-24: the paired layer appears on the mosquito data though the
 variable has no missing values.) MEASURED SO FAR: the source is clean
@@ -276,6 +218,70 @@ render matched a force-repainted one across 32,900 sampled pixels. The
 original report, kept so the check has something to check against: a
 second, faint set of class bounds painted behind the live ones in the
 Lower and Upper columns, offset by about a row, on scrolling.
+
+## 0.24.4 — next
+
+Worked on `pre-0.24.4rc1`. What follows is what the version owes.
+
+**ONE LINE CARRIES 0.24.4**, since the two branches were merged on
+2026-08-27: `for-0.24.4/copy-select-all`, which now holds the Save
+work as well. `for-0.24.4/saving-is-an-act` is an ancestor of it and
+is kept only so its history reads; nothing is owed on it.
+
+WHAT THE VERSION HAS. The twenty-five defects of the hunt round, each
+with a registered test and a proved catalogue entry; the Select all
+button; the two element ceilings with `element_order` behind them;
+and all five rulings of 2026-08-27 -- an output path never decides the
+group, a ramp is remembered under the row's mode, donors are seeded
+before their followers, saving is a positive act, and unticking
+"Include the source data" takes it out of the file.
+
+WHAT THE SAVE CONVERSION COST AND FOUND, because the ratio is the
+argument for doing it that way again. Fifty-eight Save presses went
+in by script where the old code's write used to happen; twenty-four
+tests were converted BY HAND because what they assert changed rather
+than moved; four tests were written that did not exist, one of them a
+matrix of eleven routes to a press crossed with two shapes and three
+aftermaths. Twenty catalogue entries are proved `caught`, two of them
+guarding an ABSENCE by putting a deleted behaviour back, since there
+is no line left to mutate.
+IT FOUND FOUR REAL DEFECTS, three on ordinary journeys: a run
+claiming a save it never made, a Save during the first run telling
+somebody to press Generate, a region chooser excluding a newly loaded
+layer for being allocated where a destroyed one had been, and -- the
+worst -- a map opened with Load being DESTROYED by being saved.
+Ledger rows 27 to 30.
+
+WHAT IS OWED BEFORE A CANDIDATE: the full suite, which belongs to the
+rc rather than to the working day (maintainer's instruction,
+2026-08-27) and which shards three ways when it runs. The last whole
+run was 636 passed and 7 failed at `844e6d4`; every one of those
+seven is fixed, and the fixes are covered by targeted runs rather
+than by a whole-tree measurement.
+
+**NOTHING OUTSTANDING.** Every entry this version carried is done or
+deliberately moved: the two that need a person rather than an
+assistant are under "Needs the maintainer" above, and the four
+measurements and studies are under 0.24.5 below.
+The branch that was superseded rather than owed, `for-0.24.4/save-load-tab`,
+was deleted on the maintainer's decision the same day; its single
+commit was `4a9cbfc`, the first Save & open tab, which ruling 1
+overruled.
+
+(The two rulings that stood here -- SAVING IS A POSITIVE ACT and
+UNTICKING "INCLUDE THE SOURCE DATA" MEANS IT IS NOT IN THIS FILE --
+are deleted because they LANDED, which is what this file asks of an
+entry that is done. Their reasoning lives in CLAUDE.md, where it
+binds, and what they cost and found is in the ledger for 2026-08-27,
+rows 26 to 30.)
+
+## 0.24.5 — deferred here from 0.24.4
+
+Moved on the maintainer's decision of 2026-08-27, in the act of
+cutting 0.24.4's candidate. None of it is abandoned and none of it
+was blocking the version: three are measurements rather than
+defect-finding, and the fourth is a study whose answer is written
+at its own entry.
 
 **FOR STUDY: warn when a test asserts a string that also appears in
 shipped source.** Added 2026-08-16, deliberately as a question rather
