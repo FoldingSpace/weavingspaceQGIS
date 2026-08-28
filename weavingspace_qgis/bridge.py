@@ -3609,7 +3609,7 @@ def load_categorized_template(path: str) -> dict:
   renderer = QgsFeatureRenderer.load(elem, QgsReadWriteContext())
   if not isinstance(renderer, QgsCategorizedSymbolRenderer):
     raise ValueError(
-      "The style file does not contain categorised symbology.")
+      "The style file does not contain categorized symbology.")
   mapping = {}
   for cat in renderer.categories():
     if cat.value() is None or cat.value() == "":

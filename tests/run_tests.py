@@ -26716,6 +26716,72 @@ def test_a_class_source_comes_home_to_the_dataset_it_was_chosen_on():
     project.clear()
 
 
+def test_a_recipients_save_keeps_the_source_the_sender_included():
+  """Opening somebody's self-contained map must not empty it.
+
+  The sender ticks "Include the source data" so that a colleague who
+  does not have the region layer can still redraw the map. The
+  recipient opens it with Load and presses Save -- which is an
+  ordinary thing to do, because Save is how anything is written now --
+  and the copy the sender put there has to still be in the file.
+
+  WHY IT WAS NOT. `_embed_or_drop_the_source` asks the checkbox and
+  nothing else, and its drop branch was written for the act of
+  UNTICKING. A dialog that has only ever opened a file has never
+  touched that box, so the branch fired for the act's ABSENCE and
+  stripped the table. The record beside it is the writer with a
+  reason -- the sender decided it -- so a resume tells the box what
+  the file holds.
+
+  THE FILE IS READ THROUGH THE PLUGIN'S OWN READER, which is what a
+  resume uses, so this asks the question a recipient's recipient would
+  ask rather than a question about bytes.
+
+  Regression: opening a self-contained GeoPackage with Load and pressing Save silently removed the embedded region copy the sender had included, so the map could never be redrawn again by anyone. Found by the unreachable-guards hunt of 2026-08-28. [hunt]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  with _temp_dir() as folder:
+    path = os.path.join(folder, "shared.gpkg")
+    sender, _layer, _tid = _categorical_dialog()
+    try:
+      sender.live_check.setChecked(False)
+      sender.spacing_spin.setValue(600.0)
+      _generate_and_wait(sender)
+      assert sender._element_layer_ids, "PREMISE: the sender drew nothing"
+      sender.opt_embed_source.setChecked(True)
+      sender.gpkg_widget.setFilePath(path)
+      assert press_save(sender, path), "PREMISE: the sender's save failed"
+      sent = set(bridge.gpkg_tables(path))
+      assert bridge.REGION_TABLE_NAME in sent, (
+        f"PREMISE: the source was never embedded, so there is nothing "
+        f"for a second save to lose: {sorted(sent)}")
+    finally:
+      sender.close()
+    project.clear()
+    _tick(300)
+
+    recipient = WeavingSpaceDialog(iface=_Iface())
+    try:
+      recipient.live_check.setChecked(False)
+      recipient.resume_widget.setFilePath(path)
+      recipient._load_pressed()
+      _settle(recipient, seconds=60)
+      assert recipient._element_layer_ids, \
+        "PREMISE: the Load brought back no map, so there is none to save"
+      recipient.gpkg_widget.setFilePath(path)
+      assert press_save(recipient, path), \
+        "PREMISE: the recipient's save did not happen"
+      after = set(bridge.gpkg_tables(path))
+      assert bridge.REGION_TABLE_NAME in after, (
+        f"the recipient's save removed the source the sender "
+        f"included; the file now holds {sorted(after)} and can never "
+        f"be redrawn by anybody")
+    finally:
+      recipient.close()
+
+
 def test_a_group_is_bound_to_its_dataset_however_the_path_is_spelt():
   """One directory, two absolute spellings, and still one map.
 
@@ -45902,9 +45968,20 @@ def _settle(dlg, seconds=30):
 
   def poll(n=[0]):
     n[0] += 1
+    # THE REPAINT DEBOUNCE COUNTS TOO, added 2026-08-28 after the
+    # stochastic hunt measured that it did not. A dock edit made in
+    # QGIS's own panel is reconciled by `_repaint_timer`, 300 ms
+    # after the repaint, so a test that judged "once the dialog has
+    # settled" was reading a state up to 300 ms before the plugin had
+    # answered -- and this suite's whole follow-and-adopt family is
+    # judged that way. Waiting on the EVENT rather than on a number
+    # of seconds is this project's own rule; the event was simply
+    # missing a third timer.
+    repaint = getattr(dlg, "_repaint_timer", None)
     quiet = (dlg._task is None
              and not dlg._live_timer.isActive()
-             and not dlg._preview_timer.isActive())
+             and not dlg._preview_timer.isActive()
+             and not (repaint is not None and repaint.isActive()))
     if quiet or n[0] > seconds * 5:
       state["settled"] = quiet
       loop.quit()
@@ -68444,6 +68521,18 @@ def _save_matrix_cell(route, shape, aftermath, folder):
       if not wanted <= there:
         return (f"saving elsewhere emptied the first file, which now "
                 f"holds {sorted(there)}")
+    if route == "after-a-design-tweak":
+      # THE ROUTE'S WHOLE POINT: the file must describe the map it
+      # HOLDS. Every other check in this cell is satisfied by a file
+      # whose record names a design its tiles were never drawn at,
+      # because the tables and the styles are right either way -- so
+      # without this the route stages the case and judges nothing,
+      # which is how its first draft let the catalogue entry survive.
+      recorded = (record.get("design") or {}).get("spacing")
+      if recorded != drawn_spacing:
+        return (f"the file records spacing {recorded!r} where its own "
+                f"tiles were drawn at {drawn_spacing!r}, so a "
+                f"colleague opening it is shown a design nobody made")
     if route == "after-a-variable-change":
       orphans = {t for t in tables
                  if t.startswith("tiles_") and t not in wanted
@@ -69277,6 +69366,8 @@ def main():
         test_a_landing_never_writes_over_another_datasets_map)
   check("a group is bound to its dataset however the path is spelt",
         test_a_group_is_bound_to_its_dataset_however_the_path_is_spelt)
+  check("a recipient's save keeps the source the sender included",
+        test_a_recipients_save_keeps_the_source_the_sender_included)
   check("a dropped column's ramp goes even when the style was derived",
         test_a_dropped_columns_ramp_goes_even_when_the_style_was_derived)
   check("the shelf does not survive the project that made it",

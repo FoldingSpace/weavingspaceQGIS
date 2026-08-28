@@ -16640,6 +16640,31 @@ class WeavingSpaceDialog(QDialog):
     """
     from qgis.core import QgsVectorLayer
     project = QgsProject.instance()
+
+    # THE BOX IS TOLD WHAT THE FILE HOLDS, before anything else, and
+    # whichever of the three recoveries below runs. Until 2026-08-28 it
+    # was not, and the cost landed on the person LEAST able to see it.
+    # `_embed_or_drop_the_source` asks this control and nothing else,
+    # and its drop branch was written for "the user unticked it"; a
+    # dialog that has opened somebody's self-contained map with Load
+    # has never touched the box, so the branch fired for "the plugin
+    # never said" and stripped the copy the SENDER ticked it to
+    # include. Measured that day: `weavingspace_region` present in the
+    # file before the recipient's Save and absent after, read through
+    # the plugin's own reader and through bare sqlite. The file could
+    # then never be redrawn by anybody.
+    # It is the repair-aimed-at-an-act rule met again: the drop was
+    # right about the act and silent about its absence. The record is
+    # the writer with a REASON here -- the sender decided this, and
+    # the box is only a control -- so the record wins.
+    box = getattr(self, "opt_embed_source", None)
+    if box is not None:
+      was = box.blockSignals(True)
+      try:
+        box.setChecked(bool(record.get("region_embedded")))
+      finally:
+        box.blockSignals(was)
+
     wanted = record.get("region")
     if wanted:
       for layer in project.mapLayers().values():

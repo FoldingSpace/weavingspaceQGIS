@@ -2092,6 +2092,19 @@ MUTATIONS = [
        test="test_a_finished_run_leaves_nothing_armed",
        why="an ordinary Generate not arming a live rebuild nobody "
            "asked for"),
+  dict(name="a-resume-tells-the-embed-box-what-the-file-holds", file=DIALOG,
+       # Round ten, 2026-08-28. `_embed_or_drop_the_source` asks the
+       # checkbox and nothing else, so a dialog that has only OPENED
+       # somebody's self-contained map -- and has therefore never
+       # touched the box -- dropped the copy the sender included the
+       # moment the recipient pressed Save. Mutating the restore away
+       # is exactly the shipped behaviour: the box goes back to
+       # unticked and the next save empties the file.
+       old="""        box.setChecked(bool(record.get("region_embedded")))""",
+       new="""        box.setChecked(False)""",
+       test="test_a_recipients_save_keeps_the_source_the_sender_included",
+       why="a colleague who opens a self-contained map and saves it "
+           "still having a file anybody can redraw"),
   dict(name="a-save-records-the-design-its-tiles-hold", file=DIALOG,
        # Round ten, 2026-08-28, converged on by two hunts from
        # opposite directions. `_save_the_map` wrote the FILE's record

@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-388 defect(s) with a regression test.
+389 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -125,6 +125,8 @@ there is no separate list to remember.
   guarded by `test_a_project_opened_under_an_open_dialog_keeps_its_no_data_layers`
 - **`make_categorized_renderer` died with `'NoneType' object has no attribute 'color'` when the named ramp was absent, and its graduated twin silently drew every class in placeholder grey. Found 2026-08-17 on the mutation workflow's Linux container, where `get_ramp("tab10")` answered None because the plugin's palettes had never been installed there.**  
   guarded by `test_a_ramp_the_library_lacks_still_draws_a_map_and_says_so`
+- **opening a self-contained GeoPackage with Load and pressing Save silently removed the embedded region copy the sender had included, so the map could never be redrawn again by anyone. Found by the unreachable-guards hunt of 2026-08-28.**  
+  guarded by `test_a_recipients_save_keeps_the_source_the_sender_included`
 - **pin_problem's refusal printed its numbers with a hard-coded decimal point beside boxes that parse through the locale, so under a comma-decimal locale retyping the refused number pinned a value a hundred times out and the plugin accepted it.**  
   guarded by `test_a_refusal_names_a_number_the_box_beside_it_accepts`
 - **adoption skipped any output group whose name it did not recognise, so renaming the group and reopening the project produced a second group and orphaned the first. Measured 2026-08-17: 'Deprivation, woven' with four GeoPackage layers left beneath a fresh 'WeavingSpace tiles' holding four memory layers of the same map.**  
@@ -828,7 +830,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 122
-- a bug hunt pointed in a named direction: 92
+- a bug hunt pointed in a named direction: 93
 - not written down at the time: 88
 - reported by a user: 29
 - reading the code: 15

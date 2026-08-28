@@ -224,18 +224,38 @@ def check_user_facing_text():
         problems.append(
           f"{rel}: explains something in terms of the web app: "
           f"\"{snippet}\"")
-    for wrong, right in (("color", "colour"), ("colors", "colours"),
-                         ("symbolize", "symbolise-or-symbolize?")):
-      if wrong == "color":
-        for m in re.finditer(r"\bcolor(s|ed|ing)?\b", spell_text):
-          # QGIS API names are allowed; prose is not
-          context = spell_text[max(0, m.start() - 30):m.end() + 30]
-          if "Qgs" in context or "setColor" in context or \
-              "color_part" in context or "_r" in context:
-            continue
-          problems.append(f"{rel}: American spelling \"{m.group(0)}\" "
-                          f"in user-facing text")
-          break
+    # EVERY SPELLING THE RULE NAMES, which until 2026-08-28 meant one
+    # of them. The loop carried three tuples and acted on a single
+    # `if wrong == "color":`, so `colors` and `symbolize` were dead
+    # code reading as protection -- and `colormap` and `behavior`,
+    # both named in CLAUDE.md's hard rule, were never looked for at
+    # all: `colormap` fails the word boundary in `\bcolor(s|ed|ing)?\b`.
+    # Found by the instruments audit of that day, with a plant the
+    # gate had to catch as its control.
+    # AND CANADIAN SPELLING KEEPS -ize, which is why the wrong half of
+    # that pair is `symbolise` rather than `symbolize`. The retired
+    # tuple had it the other way round with a question mark in the
+    # replacement, so nobody had decided it; CLAUDE.md had.
+    misspellings = (
+      (r"\bcolor(s|ed|ing)?\b", "colour"),
+      (r"\bcolor ?map(s)?\b", "colourmap"),
+      (r"\bbehavior(s|al)?\b", "behaviour"),
+      (r"\b(symbolis|categoris|organis)(e|es|ed|ing|ation)\b", "-ize"),
+    )
+    for pattern, right in misspellings:
+      for m in re.finditer(pattern, spell_text):
+        # QGIS AND MATPLOTLIB API NAMES ARE ALLOWED; prose is not.
+        # An identifier that mirrors somebody else's API keeps their
+        # spelling, which is the other half of the same rule.
+        context = spell_text[max(0, m.start() - 30):m.end() + 30]
+        if "Qgs" in context or "setColor" in context or \
+            "color_part" in context or "_r" in context or \
+            "matplotlib" in context or "cmap" in context:
+          continue
+        problems.append(f"{rel}: American spelling \"{m.group(0)}\" "
+                        f"in user-facing text (this project writes "
+                        f"{right})")
+        break
 
 
 def check_regression_shapes():
