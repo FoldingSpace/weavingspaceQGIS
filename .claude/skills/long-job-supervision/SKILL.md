@@ -62,6 +62,27 @@ The two failures are mirror images — one goes silent forever, the
 other repeats itself endlessly — and both leave you unable to tell
 what is happening now.
 
+## Before relaunching, ask what the failed launch already started
+
+A launcher that reports an error has not necessarily failed to launch.
+`LOG=... && nohup <long job> > "$LOG" 2>&1 &` mis-scoped its variable
+on 2026-08-27 and said so; the `&` had already backgrounded the job.
+The error was real, was read as "nothing started", and a second run
+went out. Two of them then ran for a quarter of an hour on one tree,
+each sharding a test suite into the other's contention, sharing the
+output directories and the artefact numbering, with the second
+truncating the log the first was writing past — so the progress counts
+read off that log described a race rather than a run.
+
+This is the mirror of "the launcher's exit status describes the
+launcher": the same confusion, in the direction that costs more,
+because a wrongly believed FAILURE duplicates work while a wrongly
+believed SUCCESS merely delays it. So before any relaunch, `pgrep -f`
+for the WORK — the interpreter and script, never the wrapper — and
+kill what you find before starting again. Two writers on one measured
+tree is the same fault as the two-mutating-jobs rule below, arriving
+by way of a shell quoting mistake.
+
 ## Two jobs that MUTATE one file must never run at once
 
 The tree-lock rule in this skill is written about a READER meeting a
@@ -86,6 +107,14 @@ thing that tells a collision from a clean run.
 minutes of CPU across forty minutes of wall clock is blocked, not
 busy, and that single ratio points straight at the cause. Print both
 side by side in any status output; neither number means much alone.
+
+**And ask which process the CPU figure is about.** For anything
+sharded, the parent does nothing itself: it spawns workers and waits.
+Its CPU reading is near zero for the whole run, healthy or hung, so
+the one measurement that separates blocked from busy says neither.
+Measured 2026-08-27: parent 0:00.09 while its three suite shards held
+2:47, 4:10 and 2:24 across twelve minutes. Sum the children and print
+how many there are — a worker count that falls is itself a finding.
 
 Before concluding a job is stuck, check the plainest explanations
 first: is the log growing, and is the last line an error message

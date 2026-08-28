@@ -665,6 +665,26 @@ obligations: they exist so nobody pays twice for the same discovery.
   metadata.txt, the README against the project page, and any
   message that might one day be shown in a rich widget as well as a
   plain one.
+  AND A THIRD RENDERER IS THE ONE THAT CUTS THE ENTRY OUT. (Row 31
+  of 2026-08-27.) The entry is delimited rather than stored: an entry
+  ends at a lookahead for a line opening with digits. Opening the
+  0.24.4 section INDENTED the previous version's header instead of
+  stripping its `changelog=` prefix, so `    changelog=0.24.3 You
+  decide...` was no longer a header to that pattern, and the 0.24.4
+  entry ran on through the whole of 0.24.3 -- thirty-one bullets of
+  an already-shipped release under this one's heading, and a field
+  name in the middle of what the plugin manager displays.
+  ITS OWN TEST COULD NOT SEE IT, and that is the transferable half:
+  the test reads the CURRENT version's entry and requires a paragraph
+  then bold bullets, which TWO ENTRIES JOINED END TO END satisfy
+  exactly. A shape assertion cannot tell one record from two. Where a
+  tool cuts one record out of a document holding several, assert the
+  CUT -- that the piece stops where the next begins and carries none
+  of its neighbour's furniture -- and not merely that the piece is
+  shaped like a piece. The guard walks every version header in the
+  field now, and the catalogue entry
+  `an-entry-stops-where-the-next-version-starts` stands on the
+  boundary itself.
 - **Release notes are COMPOSED, never generated, and the half a
   person writes is the `changelog=` entry in metadata.txt.** A
   release page has two readers: somebody deciding whether to
@@ -1443,6 +1463,28 @@ renderer, found by a hunt hours after the carry-over was written.)
   RUNNER'S pid (`until ! kill -0 $PID`), and read the summary line
   before believing a verdict count -- no "N passed, M failed" means
   nothing has finished, whatever exited.
+- **AND THE MIRROR IMAGE: A LAUNCHER THAT FAILS MAY HAVE STARTED THE
+  JOB FIRST.** (2026-08-27.) `LOG=... && nohup python3 release.py
+  --rc > "$LOG" 2>&1 &` mis-scoped its variable and reported an
+  error, so the launch was read as having not happened and the
+  candidate was launched again. The `&` had already backgrounded a
+  release. TWO of them then ran for a quarter of an hour on one tree,
+  each running the three-shard suite into the other's contention,
+  sharing `dist/`, `reports/` and the candidate numbering, with the
+  second truncating the log the first was writing past -- so the
+  shard counts read off that log and reported as progress described a
+  race. The rule above says an exit status describes the launcher
+  rather than the job; this is the same sentence read the other way,
+  and it is the more expensive direction. BEFORE RELAUNCHING
+  ANYTHING, ASK WHAT THE FAILED LAUNCHER STARTED: `pgrep -f` for the
+  work itself, never for the wrapper.
+  AND THE READING THAT WOULD HAVE CAUGHT IT WAS POINTED AT THE WRONG
+  PROCESS. The beat reported the parent's cpu, which for a sharded
+  run is near zero however healthy it is, so cpu-against-elapsed --
+  the one measurement that tells blocked from busy -- said neither
+  for sixteen minutes. It sums the children now. When a watcher
+  reports cpu, ask which process the figure is about; a parent that
+  only waits is not the job.
 - A watcher that REPEATS itself misleads as badly as one that goes
   silent: a monitor grepping a whole log each pass re-reported the
   same historical failure every 45 seconds as though it were news,

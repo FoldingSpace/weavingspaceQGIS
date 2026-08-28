@@ -53,6 +53,10 @@ RELEASE = "release.py"
 # and reports rather than gates, so its ONE safeguard against
 # answering a question it could not look at earns a proof too
 MUTATE_AUTO = "tools/mutate_auto.py"
+# the composer of the release notes: the changelog is the most-read
+# prose this project ships and one text serves two renderers, so the
+# boundary deciding where an entry STOPS earns a proof
+RELEASE_NOTES = "tools/release_notes.py"
 # the ONE part of the vendored library that is ours: the
 # patch making matplotlib and scipy optional
 VENDOR_TILEABLE = ("weavingspace_qgis/vendor/weavingspace/tileable.py")
@@ -3758,6 +3762,23 @@ MUTATIONS = [
            "bound the person had chosen -- reported by the maintainer "
            "against rc10, who had pinned an upper bound and found no "
            "mark for it anywhere"),
+  dict(name="an-entry-stops-where-the-next-version-starts",
+       file=RELEASE_NOTES,
+       # ANCHORED ON THE BOUNDARY, which is the whole of the question:
+       # an entry that never ends is an entry that swallows every
+       # release before it, and the shape assertions cannot see that,
+       # because two entries joined end to end have the shape of one.
+       old="  match = re.search(rf\"{re.escape(version)}\\s+(.*?)"
+           "(?=\\n\\s*\\d+\\.\\d+\\.\\d+\\s|\\Z)\",",
+       new="  match = re.search(rf\"{re.escape(version)}\\s+(.*?)(?=\\Z)\",",
+       test="test_the_release_notes_keep_their_categories",
+       why="the boundary is the only thing that ends an entry, and on "
+           "2026-08-27 the metadata defeated it from the other side: "
+           "the 0.24.3 header was indented with its `changelog=` "
+           "prefix still on it, which is not a line opening with "
+           "digits, so the 0.24.4 release page would have carried "
+           "thirty-one bullets of an already-shipped release under "
+           "this one's heading"),
   dict(name="a-candidate-is-named-by-its-number", file=RELEASE,
        # ANCHORED ON THE ASK, not on build.py's arithmetic: the fault
        # was release.py deriving the number a SECOND way, and a

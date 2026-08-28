@@ -3074,3 +3074,33 @@ been given eight days earlier.
 So: when you mend one store of a fact, list every store that already
 held it, and check each. The list is usually short and it is never
 empty; the second store is the one nobody is looking at.
+
+## TWO RECORDS JOINED END TO END HAVE THE SHAPE OF ONE
+
+(2026-08-27, row 31 of that day's ledger.) The changelog is one text
+shown by two renderers, and the test written for exactly that danger
+reads the current version's entry and requires an opening paragraph
+followed by bold bullets. Every assertion in it passed on a body that
+was nine tenths another release: the 0.24.4 entry had swallowed the
+whole of 0.24.3, because opening the new section indented the previous
+version's header with its `changelog=` prefix still on it and the
+boundary is a lookahead for a line beginning with digits.
+
+An entry twice as long as it should be still opens with a paragraph
+and still continues in bullets. Shape is preserved by concatenation,
+which is what makes a shape assertion blind here -- and blind in the
+one direction that ships another release's notes under this one's
+heading.
+
+So where a tool cuts one record out of a document holding several,
+assert the CUT rather than the shape: that the piece stops where the
+next one starts, and that it carries none of its neighbour's
+furniture -- no second header, no field name, nothing that only
+appears at a boundary. The widened guard walks every version header in
+the field and asks that of each, and the catalogue entry
+`an-entry-stops-where-the-next-version-starts` stands on the boundary
+itself, so a boundary quietly relaxed is a red suite rather than a
+release page nobody rereads.
+
+The same question is worth putting to any test of a parser, a
+splitter or a section extractor: what does it assert about the END?
