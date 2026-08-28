@@ -231,28 +231,54 @@ record as file metadata, which makes a saved map resumable without the
 project that made it -- the source recovered by reference, embedding
 it an explicit opt-in -- and element tables are trimmed to the
 variable each element displays and named `tiles_<tid>_<variable>`.
-WHEN that record is written is DUE TO CHANGE, and the change is built
-on a branch rather than here. On this line a run writes it, so setting
-an output path makes every Generate save. The maintainer ruled on
-2026-08-27 that saving is a positive act -- a path chooser choosing
-what you WOULD write to, a Save button doing the writing, Generate
-only drawing, and auto-generate never writing at all -- and both
-halves of that now live on `for-0.24.4/saving-is-an-act`: the product
-code, and a suite converted to it (the catalogue re-aimed at the one
-writer, every test that pressed Generate expecting a file now pressing
-Save, and a matrix over the routes to a press). What it owes before
-it can merge is a full RUN. So this paragraph goes on describing the
-plugin as it stands, which is what it is for, and the branch
-describes what it will be.
+SAVING IS A POSITIVE ACT, and since 2026-08-27 that is what the
+plugin does rather than what it is going to do. A path chooser
+records what you WOULD write to and does nothing on its own; the SAVE
+button beside it writes the map as it stands -- element tables, their
+no-data twins, each layer's style embedded beside it, the stale-table
+drop, the source copy when the box is ticked and its REMOVAL when it
+is not, and the resumable record, in one act. LOAD, on the row
+beneath, reads a saved map back. Generate draws. Auto-generate never
+writes at all.
 
-WHAT WILL CHANGE HERE WHEN IT LANDS, so that a maintainer reading
-this after the merge is not surprised: `_save_the_map` becomes the
-only writer of the GeoPackage, so every question about WHEN the file
-learns something has one answer instead of eleven. A run draws to
-memory; the layers are repointed at the file by the press, in place,
-which is what keeps the map alive in a reopened project. A save while
-a run is in flight is refused in words, and a save over a file the
-plugin did not write asks first.
+`_save_the_map` IS THE ONLY WRITER, which is the part that matters to
+whoever maintains this: every question about when the file learns
+something has one answer instead of eleven. Three consequences are
+worth knowing before touching it.
+
+THE LAYERS ARE REPOINTED AT THE FILE by the press, in place, through
+`compat.point_layer_at`, which keeps each layer's id, renderer, name
+and custom properties -- the things the rest of the dialog is keyed
+on. Without it a map drawn to memory and saved to a GeoPackage comes
+back EMPTY when the project is reopened, since a memory layer
+round-trips through a .qgz as a valid layer with no features.
+
+AND A LAYER THAT ALREADY READS FROM THE DESTINATION IS SKIPPED rather
+than written: asking OGR to write a layer into the table it is
+reading from is asking it to overwrite a layer with itself, which it
+refuses. That is not an edge case, it is the SECOND press on any map,
+and before the skip existed every save after the first failed at the
+first element and returned before the styles, the drop and the
+record.
+
+AND THE TABLE NAMES COME FROM THE LAYER where it already reads from
+this file. A dialog that opened a map with Load never drew it, so it
+holds no record of what the tables are called -- and where the region
+data cannot be found the variables are not restored either, so
+recomputing gave `tiles_a` for a table the file calls `tiles_a_v1`.
+The save wrote new tables, the stale-table drop removed the real ones
+as belonging to elements this map no longer had, and the file a
+person had just opened was gone. Names are invented only where there
+is no such layer, which is the adopted-group case.
+
+TWO REFUSALS, both in words. A press while a run is IN FLIGHT is
+refused, because what is on screen then is the previous map -- and
+that guard sits ABOVE the no-map check, or a press during the first
+run answers "there is no map to save yet" to somebody who has just
+pressed Generate. And a press onto a file this map did not write asks
+first; what counts as ours is the file's own record naming the
+dataset in force, not this session's memory, so an ordinary re-save
+after a restart is silent.
 
 WHICH DATASET A MAP CAME FROM IS ASKED OF THE LAYER THAT WAS TILED.
 Every output layer carries `weavingspace_region`, and three rules read

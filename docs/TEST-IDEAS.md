@@ -26,10 +26,17 @@ bottom.
 1. **DONE** — a project round trip changes nothing a user chose.
    Found the opacity defect: the layer kept 60%, the table said 100%,
    and the next restyle would have pushed 100% onto the map.
-2. A GeoPackage written, reopened in a FRESH project, compared against
-   the layers it came from. Disagreement means what a colleague
-   receives is not what you see, which is the whole promise of the
-   export.
+2. **DONE** (2026-08-27) — a GeoPackage written, reopened cold,
+   compared against the layers it came from. Disagreement means what a
+   colleague receives is not what you see, which is the whole promise
+   of the export. It lives inside
+   `test_random_designs_keep_their_views_in_agreement`, which had
+   compared three SAME-SESSION views and nothing across a boundary:
+   each random design is now saved, and the file's tile counts per
+   element and the class colours its own embedded style paints are
+   compared with the map on screen, with the number of elements
+   actually compared asserted. The save matrix crosses the same
+   boundary from the other side, per route.
 3. A project round trip where the class-source QML has since MOVED.
    The element should fall back to automatic colours and say so, not
    carry stale colours silently.

@@ -120,6 +120,16 @@ for the run that will build `0.24.0rc5` -- so the name says which
 artefact the CI result belongs to. A bare `pre-release` tells nobody
 which release, and two of them at once tell nobody anything.
 
+AND IT MAY ALREADY EXIST, pointing at the commit that OPENED the
+version. `pre-<version>rc1` is usually created the moment the version
+does, so the push at this stage is a fast-forward rather than a
+creation -- and `git branch -f` refuses it, because that branch is
+checked out in the main worktree. Move it THERE, with `git merge
+--ff-only <the work branch>`, and push from there; forcing it from
+another worktree is not available and would be the wrong instinct
+anyway, since a fast-forward is exactly what this is. (Met 2026-08-27,
+cutting 0.24.4rc1.)
+
 The sequence runs WITHOUT stopping to ask. It is one process, not
 a series of decisions: the pre-candidate push is a step in it,
 like the secrets check or the gates. Stop for the user only when

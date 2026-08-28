@@ -1611,6 +1611,115 @@ green matrix that cannot go red is an expensive way to feel covered.
 seen once is tested forever; the rotation then only ever covers ground
 with no known history.
 
+## CONVERTING A SUITE WHEN ONE ACT SPLITS INTO TWO
+
+2026-08-27, when saving stopped being a side effect of drawing. Six
+hundred and forty tests had been written against a plugin where
+setting an output path made every Generate write the file; the ruling
+made writing a separate press. What follows is what the conversion
+cost, what it found, and the four ways a mechanical sweep goes wrong,
+because the shape recurs whenever an act is split.
+
+**THE FAITHFUL CONVERSION IS THE ONE THAT CHANGES NO TEST'S MEANING.**
+A run wrote whenever a path was set, so a Save press inserted at
+exactly the moment the old write happened reproduces the state each
+test was written against. Fifty-eight went in by script that way.
+What must NOT be converted mechanically is the test whose subject is
+the act itself -- when it happens, what refuses it, what is said --
+because there the assertion has CHANGED rather than moved. Twenty-four
+of those were re-decided by hand.
+
+**AND A DISJUNCTION IS WHERE A CONVERSION GOES QUIETLY GREEN.** Two
+tests asserted "the plugin warned OR the file is unchanged", which was
+a real question while a run wrote. Under a ruling that stops anything
+writing, the second limb is true on every route for ever, and both
+tests would have passed while measuring nothing. WHEN A RULING REMOVES
+A BEHAVIOUR, GREP THE SUITE FOR ASSERTIONS JOINED BY `or`: each is a
+place where one limb may have become free.
+
+**FOUR WAYS THE SWEEP ITSELF WAS WRONG, each found by the suite and
+then swept for as a CLASS rather than mended where it was met.** That
+last part is the discipline: every one of these was a family with
+between one and two members, and finding the others cost a ten-line
+script each time.
+
+*It keyed on a variable name rather than on the object.* The script
+tracked which dialog held an output path by the name `dlg`, and a
+function that builds a SECOND dialog under the same name inherited the
+first one's state -- so a press landed in a leg that is deliberately
+memory-mode. Swept by re-running the analysis with `X = Dialog(`
+resetting the state: one other candidate, and it was a false positive.
+
+*The tests that never named a path were invisible to it.* A dialog
+that ADOPTS a reopened project gets its path from the layers, so no
+`setFilePath` appears in the function at all and a sweep keyed on that
+call has nothing to see. Those tests then assert that the map still
+reads from its file after a run -- true when a run wrote. Swept by
+asking a different question: every `_reads_from` assertion whose most
+recent preceding act is a generate rather than a save.
+
+*It put the press where the old write was, not where the test's
+subject is.* A pinned-bounds test set its pin AFTER the generate, so a
+press inserted at the generate wrote the file before the thing the
+test is about had happened. Swept by looking for a file READ that
+follows a style change that follows a press.
+
+*And one failure was not the conversion at all.* A test failed in the
+full suite and passed alone: the region chooser had not settled on a
+second dataset before the run. That is a fixed-tick bet on how loaded
+the machine is, and the cure is this file's own rule -- wait on the
+EVENT. It now waits for the chooser to hold the layer and says what it
+found if it never does, which turned a silent flake into the sentence
+that named a real defect underneath it.
+
+## WHAT "THE FILE DID NOT CHANGE" MEANS, MEASURED
+
+Also 2026-08-27, and it cost three drafts of one test.
+
+**BYTES ARE NOT A PROPERTY OF AN UNTOUCHED GEOPACKAGE.** A Generate
+after a Save leaves every table, every feature count, every embedded
+style and the record IDENTICAL while the file grows from 184,320 bytes
+to 356,352 -- sqlite reorganising it as the layers that were reading it
+are replaced and let go. A byte comparison there measures the file
+system rather than the plugin, and it fails on a run that wrote
+nothing at all. Compare what the file HOLDS.
+
+**AND A VALUE JUST WRITTEN IS NOT IN THE FILE YET.** It lives in
+sqlite's write-ahead log beside it, so OGR reads it back perfectly
+while a byte search of the `.gpkg` finds nothing. A byte-level claim
+about a file is only meaningful once everything has let go -- and then
+it should be made about every file that TRAVELS, since the log and the
+shared-memory file sit next to it until the close folds them in.
+
+**SO "DID THE PRESS WRITE" HAS THREE ANSWERS AND TWO ARE WRONG.**
+Asking whether the file EXISTS is true of a file somebody else wrote,
+so a save the user declined was reported as one that happened. Asking
+whether its BYTES moved fails the opposite way: saving an unchanged
+map twice leaves them identical. What a person actually goes by is
+what the plugin SAYS, so that is what the helper reads -- with the
+file's state as a cross-check in both directions, since a plugin that
+reports a save and leaves no file, or writes without a word, is a
+defect this helper must not smooth over on its way past.
+
+## A MATRIX THAT PASSES FIRST TIME HAS NOT BEEN WATCHED FAIL
+
+The save matrix came back green on its first run, over nine routes and
+two shapes and three aftermaths. This file already says to break the
+fix and watch the guard fail; what made it easy here is that the fix
+WAS a mutation: the in-place skip, deleted, turns "save twice" into
+OGR refusing to overwrite a layer with itself, and the matrix went red
+at once. An entry over that line is now what proves the matrix can
+fail -- so the catalogue and the matrix guard each other, which is
+worth more than either alone.
+
+AND TWO ROUTES ADDED AFTER IT WAS GREEN FOUND THE WORST DEFECT OF THE
+DAY. Reading the writer end to end, rather than the tests, turned up
+two journeys nobody had crossed: saving to a DIFFERENT file, and
+saving a map that was LOADED rather than drawn. The second destroyed
+the file it was saving. A matrix is a crossing of what somebody
+thought of; the routes it lacks are found by reading the code it
+tests, not by looking at the matrix.
+
 ## REACH FOR THE MATRIX FIRST when writing or improving a test
 
 **This is the default shape for any test about a BEHAVIOUR FAMILY, not

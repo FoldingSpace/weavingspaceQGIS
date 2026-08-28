@@ -2035,24 +2035,29 @@ Confirmed with the user via an explicit design review:
   the reopened one did, so it was two rules colliding rather than a
   persistence fault.
 
-- **THE FIVE RULINGS OF 2026-08-27, SETTLED BY GRILLING. THREE ARE
-  BUILT AND TWO ARE ON A BRANCH.** They are recorded here because the
-  reasoning is what a later session will not have; the outstanding
-  WORK is in ROADMAP.md under 0.24.4.
-  WHICH IS WHICH, because a ruling written down reads exactly like a
-  ruling implemented. Rulings 3, 4 and 5 -- the output path, the ramp
-  memory and the seeding order -- are on
-  `for-0.24.4/copy-select-all`, each with a registered test and
-  catalogue entries proved `caught`, with ONE exception named at the
-  entry itself: the restyle half of ruling 5 is unproved, its entry
-  retired with the measurement rather than left able only to be red.
-  Rulings 1 and 2 -- saving as a positive act, and the untick that
-  drops the source -- are on `for-0.24.4/saving-is-an-act`, product
-  code AND suite: the catalogue's twenty-one orphans are re-aimed or
-  retired, the tests that pressed Generate expecting a file now press
-  Save, and the three that were owed exist along with a matrix over
-  the routes to a press. What that branch still owes is a full RUN.
-  Nothing on the merged line behaves that way yet.
+- **THE FIVE RULINGS OF 2026-08-27, SETTLED BY GRILLING. ALL FIVE ARE
+  BUILT, AND ON ONE LINE.** They are recorded here because the
+  reasoning is what a later session will not have.
+  WHAT EACH CARRIES, because a ruling written down reads exactly like
+  a ruling implemented. Rulings 3, 4 and 5 -- the output path, the
+  ramp memory and the seeding order -- each have a registered test and
+  catalogue entries proved `caught`, with ONE exception measured to a
+  close at the entry itself: the restyle half of ruling 5 is HELD
+  REDUNDANTLY rather than unproved, by a class source stamped on the
+  donor's content and by the reseeded term behind it. Rulings 1 and
+  2 -- saving as a positive act, and the untick that drops the
+  source -- carry twenty proved entries between them and a matrix of
+  eleven routes to a press.
+  WHAT THE CONVERSION COST AND FOUND, kept because it is the argument
+  for doing it that way again. Fifty-eight Save presses went in by
+  script where the old code's write used to happen; twenty-four tests
+  were converted BY HAND because what they assert changed rather than
+  moved; four tests were written that did not exist. It found FOUR
+  REAL DEFECTS, three on ordinary journeys -- a run claiming a save it
+  never made, a Save during the first run telling somebody to press
+  Generate, a region chooser excluding a newly loaded layer for being
+  allocated where a destroyed one had been, and a map opened with Load
+  being DESTROYED by being saved. Ledger rows 27 to 30.
   TWO DECISIONS WERE TAKEN WHILE BUILDING IT, both small, both the
   kind that should be visible rather than discovered later.
   A SAVE PRESSED WHILE A RUN IS IN FLIGHT IS REFUSED IN WORDS. What
