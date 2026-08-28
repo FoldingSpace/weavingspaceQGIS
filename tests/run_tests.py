@@ -26716,6 +26716,76 @@ def test_a_class_source_comes_home_to_the_dataset_it_was_chosen_on():
     project.clear()
 
 
+def test_create_new_makes_one_group_and_not_one_per_run():
+  """Asking for a second map must not ask for a second map each time.
+
+  "Create new" is how somebody keeps a previous result and starts
+  another beside it. The flag it sets is SPENT by the landing that
+  honours it -- the group is this dialog's from then on -- and the
+  clear is what stops every later run building another.
+
+  WHY THIS TEST EXISTS RATHER THAN A CATALOGUE ENTRY ALONE. The entry
+  over that clear was retired on 2026-08-28 as redundant, and re-judged
+  the same evening it was the one bad trade of the twelve: the
+  assertion the retirement leaned on cannot fail, because the test it
+  named never touches the group chooser and so never ARMS the flag.
+  Breaking every clear site passed. Driven properly the harm is plain:
+  pick "create new", generate, and nudge the spacing three times --
+  two groups as it stands, four and climbing with the landing's clear
+  removed, so a person who asked for one second map gets a fresh copy
+  of the whole map on every press.
+
+  THE PREMISE IS THE ARMING. The chooser is driven the way a person
+  drives it, and the flag is asserted TRUE before anything is
+  generated, because a test of a flag's clearing that never sets it is
+  the shape this one replaces.
+
+  Regression: none in the product -- the clear works. What was missing was any test that could notice if it stopped, which the catalogue's own retirement had been credited to. [suite]
+  """
+  from weavingspace_qgis.dialog import NEW_GROUP_LABEL
+  project = QgsProject.instance()
+  dlg, _layer, _tid = _categorical_dialog()
+  try:
+    dlg.live_check.setChecked(False)
+    _generate_and_wait(dlg)
+    root = project.layerTreeRoot()
+    assert len(dlg._our_groups(root)) == 1, \
+      "PREMISE: the first run did not leave exactly one group"
+
+    index = dlg.group_combo.findText(NEW_GROUP_LABEL)
+    assert index >= 0, \
+      f"PREMISE: the chooser offers no {NEW_GROUP_LABEL!r} entry"
+    dlg.group_combo.setCurrentIndex(index)
+    dlg.group_combo.activated.emit(index)
+    _tick(300)
+    assert dlg._new_group_chosen, \
+      "PREMISE: choosing 'Create new' did not arm the flag, so this " \
+      "test cannot see it being spent"
+
+    _generate_and_wait(dlg)
+    _tick(250)
+    assert not dlg._new_group_chosen, \
+      "the landing did not spend the flag, so every later run will " \
+      "build another group"
+    assert len(dlg._our_groups(root)) == 2, \
+      f"asking for one second map gave " \
+      f"{len(dlg._our_groups(root))} groups"
+
+    # ...and three ordinary runs afterwards must add none.
+    for step in range(3):
+      dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.1)
+      _tick(250)
+      _generate_and_wait(dlg)
+      _tick(250)
+      groups = dlg._our_groups(root)
+      assert len(groups) == 2, (
+        f"run {step + 1} after 'Create new' left {len(groups)} groups: "
+        f"{[g[0].name() for g in groups]!r}. The flag was not spent, so "
+        f"every press is building a fresh copy of the whole map.")
+  finally:
+    dlg.close()
+
+
 def test_a_load_under_live_update_keeps_the_map_it_opened():
   """Opening a saved map must not be answered by redrawing it.
 
@@ -69695,6 +69765,8 @@ def main():
         test_a_design_that_shrank_leaves_nothing_behind_in_the_file)
   check("a load under live update keeps the map it opened",
         test_a_load_under_live_update_keeps_the_map_it_opened)
+  check("create new makes one group and not one per run",
+        test_create_new_makes_one_group_and_not_one_per_run)
   check("a dropped column's ramp goes even when the style was derived",
         test_a_dropped_columns_ramp_goes_even_when_the_style_was_derived)
   check("the shelf does not survive the project that made it",

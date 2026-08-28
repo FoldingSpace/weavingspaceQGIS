@@ -1961,7 +1961,11 @@ MUTATIONS = [
            "recorded, never drawn, and explained by a sentence about "
            "the user's DATA when the fact is about their FILE"),
   dict(name="the-button-restyles-before-it-asks-about-the-source", file=DIALOG,
-       old="""    if not live and self._restyle_only():""",
+       # RE-ANCHORED 2026-08-28, when the fast path learned to decline
+       # while a request for a new group is armed. The claim is
+       # unchanged: it is about this exit sitting ABOVE the
+       # availability check, not about what else it now asks.
+       old="""    if not live and not self._new_group_chosen and self._restyle_only():""",
        new="""    if not live and False and self._restyle_only():""",
        test="test_a_colour_picked_after_the_file_moved_still_reaches_the_map",
        why="the TWIN of the entry above, and the reason it needed no "
@@ -2102,6 +2106,31 @@ MUTATIONS = [
        test="test_a_finished_run_leaves_nothing_armed",
        why="an ordinary Generate not arming a live rebuild nobody "
            "asked for"),
+  dict(name="create-new-is-not-answered-by-a-restyle", file=DIALOG,
+       # Round ten, 2026-08-28. "Create as new group" has always taken
+       # the full path; the group chooser's "Create new" did not, so
+       # choosing it and pressing Generate restyled the first map in
+       # place, said nothing, and left the request armed to fork the
+       # map on some later run. Mutating the guard away restores
+       # exactly that.
+       old="""    if not live and not self._new_group_chosen and self._restyle_only():""",
+       new="""    if not live and self._restyle_only():""",
+       test="test_create_new_makes_one_group_and_not_one_per_run",
+       why="a person who asks for a second map getting it when they "
+           "ask, rather than nothing now and an unexpected fork later"),
+  dict(name="the-fresh-group-flag-is-spent-by-its-landing", file=DIALOG,
+       # RESTORED 2026-08-28. This entry was retired that morning as
+       # redundant and re-judged the same evening as the one bad trade
+       # of twelve: the assertion the retirement leaned on could not
+       # fail, because the test it named never touches the group
+       # chooser and so never ARMS the flag. Breaking every clear site
+       # passed. It has a test that arms it now.
+       old="""    self._adopted_group_unwritten = False
+    self._new_group_chosen = False""",
+       new="""    self._adopted_group_unwritten = False""",
+       test="test_create_new_makes_one_group_and_not_one_per_run",
+       why="one second map rather than a fresh copy of the whole map "
+           "on every press afterwards"),
   dict(name="a-shrunk-design-leaves-no-table-behind", file=DIALOG,
        # Round ten, 2026-08-28. The drop's candidates were the
        # session's own record plus the tables of elements the map

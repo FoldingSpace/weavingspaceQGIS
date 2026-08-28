@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-393 defect(s) with a regression test.
+394 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -577,6 +577,8 @@ there is no separate list to remember.
   guarded by `test_a_generate_pressed_during_a_run_is_not_swallowed`
 - **2026-08-19. A style picked in the table left the row deaf to a rule-based renderer pasted onto its layer in QGIS, and the next Generate destroyed it.**  
   guarded by `test_a_style_picked_by_hand_still_follows_a_paste_in_qgis`
+- **none in the product -- the clear works. What was missing was any test that could notice if it stopped, which the catalogue's own retirement had been credited to.**  
+  guarded by `test_create_new_makes_one_group_and_not_one_per_run`
 - **a sharded coverage recorder lost a whole shard at startup to a race between three processes removing one file.**  
   guarded by `test_nothing_asks_whether_a_file_exists_before_removing_it`
 - **2026-08-19. The tenth candidate's dossier and receipt were written as the ninth's, over the published ninth's own files.**  
@@ -844,9 +846,9 @@ there is no separate list to remember.
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8
 - race and stress testing: 6
+- the functional suite, run whole: 6
 - a family audit of the claims the software makes: 5
 - a multi-step session test: 5
-- the functional suite, run whole: 5
 - driving the UI and rebuilding the same map from the library directly: 5
 - the hostile data corpus: 4
 - a randomised differential sweep: 3

@@ -13705,7 +13705,20 @@ class WeavingSpaceDialog(QDialog):
         self._press_pending = True
       _dump("GEN-GATE", "already-running", "live=", live)
       return
-    if not live and self._restyle_only():
+    # A REQUEST FOR A SECOND MAP CANNOT BE ANSWERED BY REPAINTING THE
+    # FIRST. "Create as new group" has always taken the full path --
+    # it is a settled decision, and the comparison escape hatch the
+    # whole feature exists for -- and the group chooser's "Create new"
+    # is the same request arriving through the control that replaced
+    # it. Until 2026-08-28 it was not honoured here: choosing it and
+    # pressing Generate with nothing else changed took the fast path,
+    # so no second map appeared, nothing was said, and the request
+    # stayed ARMED -- to fire on some later, unrelated run, which then
+    # forked the map instead of replacing it in place. Measured with
+    # the dumps on: `GEN-GATE restyled-instead`, one group, still
+    # armed; then an ordinary spacing nudge, two groups.
+    # The flag is spent by a LANDING, so the run has to be one.
+    if not live and not self._new_group_chosen and self._restyle_only():
       # ...AND THE PREVIEW LEARNS WHAT WAS PAINTED, exactly as the
       # live path's restyle exits do. With live update off nothing
       # repaints the preview at pick time -- preserve, do not repaint
