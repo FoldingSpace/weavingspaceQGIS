@@ -67462,9 +67462,9 @@ def test_a_ramp_is_remembered_under_the_mode_the_row_is_in():
 
 
 SAVE_ROUTES = (
-  "first-save", "re-save", "after-restyle", "after-retile",
-  "after-a-dock-edit", "after-a-variable-change", "no-map", "no-path",
-  "load-it-back",
+  "first-save", "re-save", "save-elsewhere", "after-restyle",
+  "after-retile", "after-a-dock-edit", "after-a-variable-change",
+  "no-map", "no-path", "load-it-back", "save-after-load",
 )
 SAVE_SHAPES = ("a memory region", "a region on disk")
 SAVE_AFTERMATHS = ("immediately", "after a generate", "read cold")
@@ -67541,13 +67541,23 @@ def _save_matrix_cell(route, shape, aftermath, folder):
 
     # ---- THE ACT
     _hush(dlg)
-    if route in ("re-save", "after-restyle", "after-retile",
-                 "after-a-dock-edit", "after-a-variable-change",
-                 "load-it-back"):
+    if route in ("re-save", "save-elsewhere", "after-restyle",
+                 "after-retile", "after-a-dock-edit",
+                 "after-a-variable-change", "load-it-back",
+                 "save-after-load"):
       if not press_save(dlg, path, expect=False):
         return f"the staging save wrote nothing: {_said(dlg)!r}"
     if route == "re-save":
       pass                              # the second press is below
+    elif route == "save-elsewhere":
+      # SAVE AS, which is the journey the in-place skip has to leave
+      # alone: after the first press every layer READS from the first
+      # file, and a second file must still receive the whole map
+      # rather than be skipped for holding it already.
+      first_file = path
+      path = os.path.join(folder, "elsewhere.gpkg")
+      dlg.gpkg_widget.setFilePath(path)
+      _tick(150)
     elif route == "after-restyle":
       combo = dlg.table.cellWidget(0, 4)
       if combo is None or not hasattr(combo, "setCurrentText"):
@@ -67622,6 +67632,13 @@ def _save_matrix_cell(route, shape, aftermath, folder):
     record = bridge.read_working_state(path)
     if not record:
       return "the saved file carries no record, so it cannot be resumed"
+    if route == "save-elsewhere":
+      # BOTH files hold the map: the first one is not emptied by the
+      # second press, and the second is not left empty by the skip.
+      there = set(bridge.gpkg_tables(first_file))
+      if not wanted <= there:
+        return (f"saving elsewhere emptied the first file, which now "
+                f"holds {sorted(there)}")
     if route == "after-a-variable-change":
       orphans = {t for t in tables
                  if t.startswith("tiles_") and t not in wanted
@@ -67677,7 +67694,7 @@ def _save_matrix_cell(route, shape, aftermath, folder):
         if cold.featureCount() != count:
           return (f"{table} holds {cold.featureCount()} features cold "
                   f"where the map showed {count}")
-    if route == "load-it-back":
+    if route in ("load-it-back", "save-after-load"):
       from weavingspace_qgis.dialog import WeavingSpaceDialog
       # WHICH ELEMENTS WERE SAVED, captured before anything closes.
       # Recorded here rather than derived below because the "read
@@ -67703,6 +67720,23 @@ def _save_matrix_cell(route, shape, aftermath, folder):
             and came_back != elements:
           return (f"Load came back with {came_back} where the saved "
                   f"map had {elements}")
+        if route == "save-after-load":
+          # SAVING A MAP YOU DID NOT DRAW. A resumed dialog has no
+          # record of what each element's table is called -- the
+          # names are decided when a map is DRAWN -- so the save has
+          # to recompute them rather than refuse, and the file must
+          # come out holding the same tables it went in with.
+          held_before = set(bridge.gpkg_tables(path))
+          _hush(second)
+          second.gpkg_widget.setFilePath(path)
+          _tick(150)
+          if not press_save(second, path, expect=False):
+            return (f"a map opened with Load could not be saved back: "
+                    f"{_said(second)!r}")
+          held_after = set(bridge.gpkg_tables(path))
+          if not held_before <= held_after:
+            return (f"saving a loaded map lost "
+                    f"{sorted(held_before - held_after)} from the file")
       finally:
         second.close()
     return None
