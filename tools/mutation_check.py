@@ -2784,6 +2784,21 @@ MUTATIONS = [
   # is still in flight and `_save_the_map` refuses, so a mutation
   # there would change nothing and report a survivor that means
   # nothing.
+  dict(name="a-loaded-map-keeps-the-table-names-it-has", file=DIALOG,
+       old="""        named = self._table_a_layer_already_reads(tid, path)""",
+       new="""        named = None  # mutation: make the names up again""",
+       test="test_saving_holds_on_every_route",
+       why="a map opened with Load was DESTROYED by being saved. The "
+           "dialog never drew it, so it holds no record of what the "
+           "tables are called -- and where the region data cannot be "
+           "found the variables are not restored either, so the names "
+           "were recomputed as `tiles_a` for a table the file calls "
+           "`tiles_a_v1`. The save wrote four new tables, the "
+           "stale-table drop removed the four real ones as belonging "
+           "to elements this map no longer had, the embedded styles "
+           "went with them, and the layers on screen were left "
+           "pointing at tables that no longer existed. One press on "
+           "the ordinary journey of opening a finished map"),
   dict(name="a-second-save-is-not-a-write-in-place", file=DIALOG,
        old="""        if same_source(layer.source(), f"{path}|layername={table}"):
           written_names.add(table)

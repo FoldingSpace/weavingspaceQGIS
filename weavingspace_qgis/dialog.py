@@ -15963,12 +15963,32 @@ class WeavingSpaceDialog(QDialog):
     order = sorted(self._element_layer_ids, key=bridge.element_order)
     missing = [tid for tid in order if tid not in tables]
     if missing:
-      # Recomputed rather than refused: a dialog that has adopted a
-      # group knows the elements without having drawn them, and
-      # refusing to save that map would be a worse answer than naming
-      # its tables the way a run would have.
+      # THE LAYER'S OWN TABLE IS THE AUTHORITY where it already reads
+      # from this file, and asking it is what stops a saved map being
+      # destroyed by being saved. A dialog that opened a map with Load
+      # never drew it, so it holds no record of what the tables are
+      # called -- and where the region data could not be found the
+      # variables are not restored either, so RECOMPUTING gave
+      # `tiles_a` for a table the file calls `tiles_a_v1`. The save
+      # then wrote four new tables, the stale-table drop removed the
+      # four real ones as belonging to elements this map no longer
+      # had, the embedded styles went with them, and the layers on
+      # screen were left pointing at tables that no longer existed.
+      # One press, and the file a person had opened was gone.
+      # (Measured 2026-08-27 by the save matrix's `save-after-load`
+      # route, on its first run.)
       taken = list(tables.values())
       for tid in missing:
+        named = self._table_a_layer_already_reads(tid, path)
+        if named:
+          tables[tid] = named
+          taken.append(named)
+          continue
+        # ...and only where there is no such layer is a name made up,
+        # which is the adopted-group case this branch was written for:
+        # the elements are known, the map was drawn elsewhere, and
+        # naming the tables the way a run would have is a better
+        # answer than refusing to save at all.
         assignment = self._assignment_for(tid) or {}
         tables[tid] = bridge.element_table_name(
           tid, assignment.get("var"), taken)
@@ -16062,6 +16082,36 @@ class WeavingSpaceDialog(QDialog):
       return True
     self._report_quietly(f"Saved to {os.path.basename(path)}.")
     return True
+
+  def _table_a_layer_already_reads(self, tile_id, path):
+    """The table in THIS file that an element's layer already reads.
+
+    Args:
+      tile_id: the element to ask about.
+      path: the file being saved to.
+
+    Returns:
+      The table name, or None where that element has no layer, its
+      layer reads from memory, or it reads from a DIFFERENT file --
+      the last being a Save As, where the map must be written afresh
+      under the names this map would choose rather than under the
+      names some other file happens to use.
+
+    Asked of the layer's own source rather than of any record here,
+    because a map opened with Load was never drawn by this dialog and
+    the record is empty; the source is the only witness that has not
+    been through this session.
+    """
+    from qgis.core import QgsProject
+    layer = QgsProject.instance().mapLayer(
+      self._element_layer_ids.get(tile_id) or "")
+    source = layer.source() if layer is not None else ""
+    if "layername=" not in source:
+      return None
+    file_half = source.split("|", 1)[0]
+    if not same_destination(file_half, path):
+      return None
+    return source.split("layername=", 1)[1].split("|", 1)[0] or None
 
   def _may_overwrite(self, path) -> bool:
     """Ask before writing over a file this plugin did not write.
