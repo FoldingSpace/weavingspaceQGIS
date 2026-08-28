@@ -504,6 +504,11 @@
   "excerpt": "Class colours from a QGIS style file",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "43825b38dfba0969": {
+  "approved": "2026-08-27",
+  "excerpt": "How many variables to map is a design question more than a t",
+  "where": "docs/USER-GUIDE.md"
+ },
  "4386757262e57cf9": {
   "approved": "2026-08-08",
   "excerpt": "Pulls each repeating unit apart from its neighbours, showing",
@@ -734,6 +739,11 @@
   "excerpt": "This QGIS plugin is an interface to the [weavingspace](https",
   "where": "README.md"
  },
+ "5b56b24a89875117": {
+  "approved": "2026-08-27",
+  "excerpt": "More than one layer here says it is element {} of this map, ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "5bcf447deef804db": {
   "approved": "2026-08-09",
   "excerpt": "Adds the region boundaries as outlines on top of the pattern",
@@ -953,6 +963,11 @@
   "approved": "2026-08-08",
   "excerpt": "<p><small>WeavingSpace QGIS plugin version {}</small></p>",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "75fa1d21b18f18de": {
+  "approved": "2026-08-27",
+  "excerpt": "Tick every element, or clear them all",
+  "where": "weavingspace_qgis/category_editor.py"
  },
  "75fa2b54dc5335a6": {
   "approved": "2026-08-09",
@@ -1524,6 +1539,11 @@
   "excerpt": "A {}-class scheme has {} {} to pin, so it cannot carry {}. A",
   "where": "weavingspace_qgis/bridge.py"
  },
+ "bfdc348cb87ca105": {
+  "approved": "2026-08-27",
+  "excerpt": "{} of that file's layers would not open, so this map is not ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "c00ebe99752bb704": {
   "approved": "2026-08-19",
   "excerpt": "Where the ladder starts; values below are not drawn",
@@ -1962,6 +1982,11 @@
  "f6627eb64fc59ba3": {
   "approved": "2026-08-08",
   "excerpt": "The tiling produced no tiles.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "f6afc47a10fafe42": {
+  "approved": "2026-08-27",
+  "excerpt": "That file gave back less than was saved to it: {} of its {} ",
   "where": "weavingspace_qgis/dialog.py"
  },
  "f7b13276066c57aa": {

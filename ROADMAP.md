@@ -178,47 +178,35 @@ two elements share a column, one element's notice silenced the other.
 
 Worked on `pre-0.24.4rc1`. What follows is what the version owes.
 
-**WHAT IS ALREADY BUILT, AND ON WHICH BRANCH.** Three branches carry
-0.24.4 so far, and none is merged. A branch cannot tell you it is
-unfinished, which is why each is named here with what must be true
-before it goes in.
+**WHAT IS ALREADY BUILT, AND ON WHICH BRANCH.** Two branches carry
+0.24.4. A branch cannot tell you it is unfinished, which is why each
+is named here with what must be true before it goes in.
 
-`for-0.24.4/hunt-fixes` -- twenty-five defects of 2026-08-27, each
-with a registered test and a catalogue entry that was RUN and reported
-caught, plus the day's ledger and the lessons promoted into CLAUDE.md.
-Its documentation of the five rulings was merged into
-`copy-select-all` on 2026-08-27, so that branch carries everything
-this one has. BEFORE IT MERGES TO `main`: a full local suite that
-reaches its own summary line.
+`for-0.24.4/copy-select-all` -- everything finished so far, and the
+branch to work in. It carries `hunt-fixes` merged whole (the
+twenty-five defects of 2026-08-27, each with a registered test and a
+proved catalogue entry), the Select all button, the two element
+ceilings with `element_order` behind them, and three of the five
+rulings of 2026-08-27: an output path never decides the group, a ramp
+is remembered under the row's mode, and donors are seeded before
+their followers.
+A FULL SUITE HAS COMPLETED ON IT, which is what 0.24.4 owed most:
+636 passed, 1 failed at `0e9056c`, and that failure -- the user guide
+naming one element ceiling where the code has two -- is fixed with
+the test re-decided rather than widened. THE SUITE HAS NOT BEEN RUN
+AGAIN SINCE the three rulings landed on top of it, so what is proved
+is the tree underneath them plus each ruling's own tests and entries.
+BEFORE IT MERGES TO `main`: one more full suite over the whole of it.
 
-`for-0.24.4/copy-select-all` -- the Select all button beside "Copy
-to...", the two element ceilings (weaves `a`..`z`, tilings `a`..`z`
-then `aa`..`zz` capped at sixteen by sixteen), and `element_order`,
-which is what stops the twenty-seventh element sorting second
-everywhere a person reads a list. It has `hunt-fixes` merged into it,
-documentation included, so it is the branch that carries 0.24.4 as it
-stands.
-BEFORE IT MERGES: A FULL SUITE HAS NEVER COMPLETED ON THIS TREE, and
-that is the single largest thing 0.24.4 owes. Three runs were started
-on 2026-08-27: two ended in `Fatal Python error: Aborted` at exactly
-571 tests -- ledger row 25, which is fixed -- and the third was
-stopped deliberately at 299 passing and none failing, before the
-merge, to get the merge done. 299 passes with no summary line is not a
-green suite, and neither was 571. Start it, leave the tree alone while
-it runs, and read the LAST LINE.
-Also owed: the three sentences it adds settled in the text-review
-queue, which is the maintainer's act and no gate's.
-
-`for-0.24.4/save-load-tab` -- the Save & open tab: saving and opening
-built from the same widget, side by side, on their own tab, with the
-"include the source data" box beside the path it qualifies. IT IS
-PARTLY OVERRULED and must not merge as it stands: its open row resumes
-the moment a file is chosen, which the ruling of 2026-08-27 forbids --
-a path chooser records what you WOULD load from, and a LOAD button
-does the loading. The tab itself, and the pairing, are what the
-maintainer asked for and stand. BEFORE IT MERGES: the Save and Load
-buttons, and its labels through text review, which have never been
-approved.
+`for-0.24.4/saving-is-an-act` -- rulings 1 and 2, the Save work, as
+PRODUCT CODE ONLY. Read that branch's own ROADMAP entry before
+touching it: it names what is built and what is owed, measured rather
+than guessed. IT MUST NOT MERGE AS IT STANDS, and the reason is not
+caution. Generate no longer writes the GeoPackage, so twenty-one
+catalogue entries are orphaned and fifty-six registered tests expect
+a file that a run no longer produces; merging it would take a tree
+with one known failure to a tree with dozens. Nothing on it has been
+run.
 
 **SAVING IS A POSITIVE ACT.** (Maintainer's ruling, 2026-08-27,
 settled by grilling. THE PRODUCT SIDE IS BUILT ON
@@ -309,62 +297,6 @@ they would be surprised to find in a file they send on.
 BEFORE IT MERGES: a test that reads the file's BYTES after the untick
 -- once the dataset is closed, since sqlite's freelist keeps a deleted
 page while the file is open (measured 2026-08-27).
-
-**AN OUTPUT PATH NEVER DECIDES WHICH GROUP A RUN LANDS ON.**
-(Maintainer's ruling, 2026-08-27. NOT BUILT.) Clearing the output path
-and generating again builds a SECOND group rather than replacing in
-place, silently -- and under live update it lands with no button
-press, from an ordinary design tweak. Found independently by the
-return sweep and the live-update hunt; ledger row 12.
-The chooser alone decides which group a run lands on, which is what
-the ruling of 2026-08-25 gave it; "create new" remains the way to ask
-for a second map. Under the Save ruling above the fork's own reason --
-a run must not overwrite the last result -- disappears entirely,
-because a run no longer writes anything.
-WHERE: the `moved_the_output` branch that arms a fresh group.
-`test_model_based_dialog_states` pins the current behaviour and must
-be re-decided rather than quietly bent.
-
-**A RAMP IS REMEMBERED UNDER THE MODE THE ROW IS IN.** (Maintainer's
-ruling, 2026-08-27. NOT BUILT.) Every sync files a ramp under the
-family the RAMP belongs to, so a qualitative ramp tried on a
-quantitative row fills the categorical slot permanently: pick
-`Accent` on a Graduated row, pick `Reds` back, and every visible cell
-returns while `_ramp_memory[a]["Categorized"]` keeps `Accent`. Point
-that row at a text column later and it draws colours nobody chose in
-this session. Measured by the return sweep against the renderer's own
-colours, with a control case; ledger row 13.
-File it under the row's CURRENT MODE instead: a row remembers what it
-WORE in each mode, the undo returns, and neither slot can be changed
-by anything done on the other side. The comment at that site argues
-for the present rule and is to be REWRITTEN rather than edited -- its
-worry, that a categorized row carrying `YlOrRd` would hand that back
-on the next flip, is answered by the row having worn it.
-BEFORE IT MERGES: the sweep's own journey as a test -- pick, pick
-back, then change the variable and read the map.
-
-**DONORS ARE SEEDED BEFORE THEIR FOLLOWERS.** (Maintainer's ruling,
-2026-08-27. NOT BUILT.) An element that takes its classes from another
-element's LAYER is followed one run late: the landing builds its
-templates once, before the loop, from the donor's OUTGOING layer,
-while the donor is being re-seeded in the same pass. Ledger row 16.
-The template cannot be computed from the donor's ROW, and that is what
-rules out the obvious answer: a donor may be DEFERRING, its renderer
-made by hand in QGIS's dock and derivable from no assignment, which is
-exactly when following it is most useful. So the donor's new layer has
-to exist before its follower is seeded.
-WHERE: `_add_output_layers`'s element loop, and the `templates` dict
-built above it. SEEDING ORDER MUST BE SEPARATED FROM PANEL ORDER --
-that loop also decides the order layers join the group, and the panel
-reads `a..z` then `aa..` through `bridge.element_order` since the
-ceiling rose. Collect and insert, as `_resume_from_gpkg` already does.
-TWO ELEMENTS TAKING FROM EACH OTHER have no valid order, so that case
-keeps today's one-run lag with the reason written at the code. Driven
-2026-08-27: a cycle SETTLES rather than churning -- one tiling for one
-act, live update on.
-BEFORE IT MERGES: a test that a donor moving reaches its follower in
-the SAME run, and the cycle driven so its lag is a recorded fact
-rather than an assumption.
 
 **A NO-DATA TWIN REPORTED ON COMPLETE DATA.** (Maintainer, rc16,
 2026-08-24: the paired layer appears on the mosquito data though the
