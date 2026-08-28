@@ -45892,7 +45892,12 @@ def test_race_settings_change_during_run():
   dlg._queue_live()
   assert dlg._task is not None, "the in-flight run must not be replaced"
   dlg._generate()
-  assert dlg._live_pending, \
+  # REMEMBERED SOMEWHERE, rather than in one named flag. A queued live
+  # tick and a queued button press are held apart since 2026-08-28 --
+  # they are honoured differently, and conflating them silently
+  # dropped presses whenever live update was off -- so what this
+  # premise is about is that the request survived at all.
+  assert dlg._press_pending or dlg._live_pending, \
     "a second request during a run must be remembered, not dropped"
 
   assert _settle(dlg, 60), "the dialog never came to rest"
@@ -51294,13 +51299,23 @@ def test_a_queued_live_rerun_happens_once_and_stops():
   # timing-dependent (test_race_settings_change_during_run relies on
   # the same property).
   #
-  # The rerun is queued by ASKING FOR ONE while a task is in flight --
-  # _generate's own first act is to set the flag and return, one run
-  # at a time. Merely changing a setting does not: that starts the
-  # live debounce, and whether it lands before the run finishes is a
-  # race, which is no way to build a precondition.
+  # The rerun is queued by driving THE LIVE PATH while a task is in
+  # flight: `_maybe_live_generate`'s own gate sets the flag and
+  # returns, one run at a time. Merely changing a setting does not,
+  # because that starts the live debounce and whether it lands before
+  # the run finishes is a race, which is no way to build a
+  # precondition -- so the handler is called directly, which is
+  # deterministic AND is the mechanism this test's name is about.
+  #
+  # It used to press `_generate()` here instead, which was the same
+  # flag until 2026-08-28. A queued PRESS is now held apart from a
+  # queued live tick, because handing a press to the live path meant
+  # discarding it whenever live update was off; pressing here would
+  # therefore stage the other queue and this test would no longer be
+  # about a live rerun at all. The press path has its own guard,
+  # test_a_generate_pressed_during_a_run_is_not_swallowed.
   dlg.spacing_spin.setValue(470)
-  dlg._generate()
+  dlg._maybe_live_generate()
   assert dlg._live_pending, \
     "asking for a run while one was in flight did not queue a rerun, " \
     "so the memory this test is about was never filled and the " \
