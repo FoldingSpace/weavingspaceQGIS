@@ -2135,6 +2135,33 @@ Confirmed with the user via an explicit design review:
      reason at the code; driven 2026-08-27, a cycle SETTLES rather
      than churning.
 
+- **AND THE SECOND ONE FOUND A COLLISION BETWEEN TWO SETTLED RULES.**
+  (2026-08-27, the run over the three rulings.)
+  `test_a_ramp_you_are_offered_is_the_ramp_you_get` went red on its
+  second half: a row turned categorical kept `YlGn`, "a ramp chosen
+  for numbers". Neither the rule nor the code was wrong. The older
+  rule is that a row ARRIVING in Categorized swaps a sequential ramp
+  away, because a sequential ramp over categories is a cartographic
+  error nobody asked for; ruling 4 of the same day remembers a ramp
+  under THE MODE THE ROW IS IN. The test's own first half leaves row 1
+  wearing YlGn as a CATEGORIZED row -- deliberately, that being its
+  subject -- so under the ruling that row now remembers YlGn as its
+  categorical choice, and the flip hands it back. The ruling's wording
+  anticipates precisely this: it "would hand that back on the next
+  flip -- and that is now the wanted answer, because the row wore it
+  there and nobody took it off".
+  WHAT TELLS THE TWO APART IS WHETHER THE ROW HAS A MEMORY FOR THE
+  MODE IT IS ENTERING, and that sentence is the whole of the
+  reconciliation. The second half is staged on a row that has never
+  been categorized now, and both answers are asserted in the same
+  test, because they differ by one thing only and a reader meeting one
+  would take it for the whole rule.
+  THE GENERAL FORM, which this file already carries from the other
+  side: when a ruling changes what is REMEMBERED, look for the rules
+  that DERIVE the same thing, and expect a test that stages the
+  remembering to be the one that fails. Its fixture is no longer
+  staging what its docstring names.
+
 - **A FULL SUITE FINDS WHAT A TARGETED RUN CANNOT REACH, AND THE FIRST
   ONE HERE FOUND A DOCUMENT.** (2026-08-27.) The first full suite ever
   to complete on `for-0.24.4/copy-select-all` returned 636 passed and

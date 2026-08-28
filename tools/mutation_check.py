@@ -6705,9 +6705,30 @@ MUTATIONS = [
   # moved at that moment. Which mechanism covers the journey the test
   # does drive is UNESTABLISHED, and this project's own rule is that
   # an accidental cover is a countdown rather than a defence.
-  # WHAT WOULD CLOSE IT: a leg with live update ON, where a ramp pick
-  # does reach the map through the restyle path, and the follower can
-  # be asked before any landing runs.
+  # AND IT WAS MEASURED TO A CLOSE ON 2026-08-27 rather than left
+  # unestablished. The rule for a survivor is to break every route at
+  # once and read the answer; both attempts survived --
+  # `reseeded.add(tid)` alone, and then the WHOLE skip condition -- so
+  # the follower is re-seeded on the restyle path by something else
+  # again. Wrapping the methods and driving the leg says what:
+  #   after the ramp pick, before any Generate: no restyle ran, the
+  #     donor had not moved, the two agreed (PRESERVE, DO NOT REPAINT)
+  #   after the Generate: `_restyle_only` ran with no task in flight,
+  #     the donor HAD moved, and the two still agreed
+  # What carries it is the CLASS-SOURCE CONTENT STAMP. A reference is
+  # stamped by the donor's content and not by its name alone (since
+  # 2026-08-13), so when the donor's ramp moves the FOLLOWER'S OWN
+  # SIGNATURE moves with it, and the skip cannot fire whatever the
+  # ordering machinery says. The `reseeded` term is a second line of
+  # defence behind it.
+  # SO THE HONEST RECORD IS "HELD REDUNDANTLY BY TWO NAMED
+  # MECHANISMS", which is a different sentence from the one that
+  # stood here before -- "unestablished, which is a countdown". No
+  # single-site mutation can break it, because the two sites are far
+  # apart in the file and this catalogue replaces one contiguous span
+  # per entry. What would change the answer is a journey where the
+  # donor's CONTENT does not move while its rendering does; nobody
+  # has found one, and looking for it is the work this note leaves.
   dict(name="a-ramp-is-remembered-under-the-rows-mode", file=DIALOG,
        old="""      if not moved and mode in ("Categorized", "Graduated"):
         memory[mode] = ramp""",

@@ -21741,6 +21741,18 @@ def test_a_ramp_you_are_offered_is_the_ramp_you_get():
   mode STICKS, and a row that genuinely changes mode still has its
   ramp replaced.
 
+  AND THE SECOND HALF MOVED TO ANOTHER ROW ON 2026-08-27, which is a
+  re-decision rather than a repair. Ruling 4 of that day remembers a
+  ramp under the mode the row is IN, so the row this test leaves
+  wearing YlGn as a categorized row now remembers YlGn as its
+  categorical choice and is handed it back on any later flip -- the
+  ruling says so in as many words. The swap it is really about
+  belongs to a row with NOTHING remembered for the mode it is
+  entering, so that is what the second half stages now, on a row that
+  has never been categorized. Both answers are asserted, because they
+  differ by one thing only and a reader meeting one would take it for
+  the whole rule.
+
   Regression: a ramp the dropdown offered was refused on a categorized row, the user's hand-picked colours were destroyed for it, and the notice described a change that never happened.
  [unrecorded]
   """
@@ -21807,21 +21819,57 @@ def test_a_ramp_you_are_offered_is_the_ramp_you_get():
     "the hand-pick outlived a ramp change that the plugin announced " \
     "as discarding it"
 
-  # the other half: a row that really changes mode still swaps, or
-  # this fix has broken the reason the swap exists
-  mode_cell = dlg.table.cellWidget(1, 2)
-  mode_cell.setCurrentText("Quant: Quantiles")
+  # THE OTHER HALF: a row that really changes mode still swaps, or
+  # this fix has broken the reason the swap exists.
+  #
+  # DRIVEN ON ROW 0, and the reason is a collision between two settled
+  # rules that the maintainer has already decided. Ruling 4 of
+  # 2026-08-27 remembers a ramp under THE MODE THE ROW IS IN, and the
+  # half above deliberately leaves row 1 wearing YlGn as a CATEGORIZED
+  # row -- so row 1's categorical memory is now YlGn, and flipping it
+  # away and back hands YlGn straight back. That is not the swap being
+  # lost; it is the ruling working, and its own wording anticipates
+  # this exact case: a categorized row carrying a quantitative ramp
+  # "would hand that back on the next flip -- and that is now the
+  # wanted answer, because the row wore it there and nobody took it
+  # off".
+  # So the case this half NAMES -- a row arriving in Categorized
+  # carrying a ramp chosen for NUMBERS, with nothing remembered for
+  # the mode it is entering -- has to be staged on a row that has
+  # never been categorized. Row 0 is graduated on v1 and has no
+  # categorical memory at all, which is what a row turning
+  # categorical for the first time looks like.
+  # (Re-decided 2026-08-27, when the first full suite over the three
+  # rulings failed here. Before that, this half was staged on row 1
+  # and passed for a reason the ruling has since overturned.)
+  before_flip = dlg.table.cellWidget(0, 4).currentText()
+  assert before_flip not in bridge.CATEGORICAL_RAMPS, \
+    f"PREMISE: row 0 already wears {before_flip!r}, a qualitative " \
+    f"palette, so turning it categorical could not show a swap"
+  assert not dlg._ramp_memory.get(dlg.table.item(0, 0).text(), {}) \
+      .get("Categorized"), \
+    "PREMISE: row 0 already remembers a categorical ramp, so this " \
+    "half would be measuring the memory rather than the swap"
+  variable = dlg.table.cellWidget(0, 1)
+  variable.setCurrentText("landcover")
+  variable.activated.emit(variable.currentIndex())
   dlg._update_dynamic_columns()
-  _tick(200)
-  dlg.table.cellWidget(1, 1).setCurrentText("landcover")
-  mode_cell = dlg.table.cellWidget(1, 2)
-  mode_cell.setCurrentText("Categorized")
-  dlg._update_dynamic_columns()
-  _tick(200)
-  after_flip = dlg.table.cellWidget(1, 4).currentText()
+  _tick(300)
+  assert dlg._row_mode(0) == "Categorized", \
+    f"PREMISE: row 0 came out {dlg._row_mode(0)!r} on a text column, " \
+    f"so it never turned categorical and nothing was asked to swap"
+  after_flip = dlg.table.cellWidget(0, 4).currentText()
   assert after_flip in bridge.CATEGORICAL_RAMPS, \
     f"a row turned categorical kept {after_flip!r}, a ramp chosen " \
     f"for numbers: the mode-change swap has been lost"
+  # ...and row 1 keeps what it wore there, which is the other rule in
+  # the same act. Asserted here rather than trusted, because the two
+  # answers differ by one thing only -- whether the row has a memory
+  # for the mode it is entering -- and a reader meeting only the line
+  # above would take the swap for the whole rule.
+  assert dlg.table.cellWidget(1, 4).currentText() == wanted, \
+    f"row 1 lost the {wanted!r} it was wearing as a categorized row " \
+    f"when its neighbour changed mode"
   dlg.close()
 
 
@@ -66277,20 +66325,24 @@ def test_a_donor_reaches_its_follower_in_the_same_run():
     # THE RESTYLE TWIN: a ramp change alone does not re-tile, and the
     # same lag lives on that path with nothing replaced at all.
     #
-    # THIS LEG IS NOT PROVED, and saying so is the honest record.
-    # Its catalogue entry, `the-restyle-follows-a-donor-that-moved-
-    # too`, SURVIVED: the restyle's own half of the fix can be deleted
-    # and these assertions still pass, so what they measure is not the
-    # restyle path.
-    # WHAT WAS TRIED AND WHY IT FAILED. The obvious repair is to ask
-    # BEFORE any Generate, on the reasoning that picking a ramp
-    # restyles there and then. It does not: with live update off the
-    # map is deliberately NOT refreshed until the user asks
-    # (PRESERVE, DO NOT REPAINT, 2026-08-19), so the donor has not
-    # moved at that moment and the premise assertion fires. The leg
-    # therefore stands as it was, and what covers the restyle path is
-    # unestablished rather than accidentally covered -- which is a
-    # countdown, not a defence.
+    # WHAT COVERS THIS LEG IS NOW MEASURED, where it used to be
+    # written down as unestablished. Driven on 2026-08-27 with the
+    # methods wrapped: after the ramp pick and before any Generate,
+    # nothing had run and the donor had not moved (PRESERVE, DO NOT
+    # REPAINT); after the Generate, `_restyle_only` ran with no task
+    # in flight, the donor HAD moved, and the follower had followed.
+    # So the restyle path is genuinely exercised here.
+    # AND THE BEHAVIOUR IS HELD TWICE, which is why its catalogue
+    # entry could never catch. A class source is stamped by the
+    # donor's CONTENT rather than by its name (2026-08-13), so a
+    # donor's ramp change moves the FOLLOWER'S OWN signature -- the
+    # skip cannot fire, whatever the ordering machinery does -- and
+    # the `reseeded` term is a second line of defence behind that.
+    # Two mutations were tried and both survived: `reseeded.add(tid)`
+    # alone, and the whole skip condition. Held redundantly by two
+    # named mechanisms is a different and better sentence than
+    # unestablished; what would change it is a journey where a
+    # donor's content does not move while its rendering does.
     before = drawn(donor_id)
     assert drive_ramp(3, "Set2"), \
       "PREMISE: the donor's row offers no third categorical ramp"
