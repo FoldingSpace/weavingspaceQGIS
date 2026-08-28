@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-387 defect(s) with a regression test.
+388 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -87,6 +87,8 @@ there is no separate list to remember.
   guarded by `test_a_geopackage_carries_the_no_data_opacity_it_was_given`
 - **a class recoloured in QGIS's styling dock was discarded when the plugin reopened, because the graduated adoption path stopped at the mere presence of a ramp name, while its categorized twin asked whether that ramp explained the colours.**  
   guarded by `test_a_graduated_dock_recolour_survives_the_plugin_being_shut`
+- **a project saved under one spelling of its own folder and reopened under another stopped recognising its dataset's output group, so Generate built a rival group beside the user's map and orphaned it. Shipped in v0.24.3; found by the cross-platform hunt of 2026-08-28, which is the seam nobody had hunted deliberately.**  
+  guarded by `test_a_group_is_bound_to_its_dataset_however_the_path_is_spelt`
 - **a renderer or filter set on an element's no-data layer in QGIS was destroyed by the next Generate, silently, while the same work on the element beside it survived and was reported. Found independently by two hunts on 2026-08-16; confirmed by reading layer_styles out of the exported GeoPackage, where tiles_a carried the hand-set colour and tiles_a_no_data carried the default.**  
   guarded by `test_a_hand_styled_no_data_layer_survives_a_re_tile`
 - **2026-08-19, found by a hunt pointed at what that day's own signature fix had broken -- a floor set wide of the data changed nothing and said nothing.**  
@@ -826,7 +828,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 122
-- a bug hunt pointed in a named direction: 91
+- a bug hunt pointed in a named direction: 92
 - not written down at the time: 88
 - reported by a user: 29
 - reading the code: 15

@@ -2092,6 +2092,41 @@ MUTATIONS = [
        test="test_a_finished_run_leaves_nothing_armed",
        why="an ordinary Generate not arming a live rebuild nobody "
            "asked for"),
+  dict(name="a-save-records-the-design-its-tiles-hold", file=DIALOG,
+       # Round ten, 2026-08-28, converged on by two hunts from
+       # opposite directions. `_save_the_map` wrote the FILE's record
+       # from `_capture_working_state`, which reads the live controls
+       # -- so with live update off, where the map deliberately does
+       # not follow the controls, moving the design after a map landed
+       # and then pressing Save put the design on SCREEN into a file
+       # holding tiles drawn at another one. Measured: drawn at 600,
+       # box moved to 840, group record 600 and file record 840; and a
+       # Load of that file followed by one Generate took 450 tiles
+       # down to 98. Mutating the carry away is exactly the shipped
+       # behaviour before the fix.
+       old="""    for key in ("design", "region"):
+      if key in carried:
+        resumable[key] = carried[key]""",
+       new="""    for key in ():
+      if key in carried:
+        resumable[key] = carried[key]""",
+       test="test_saving_holds_on_every_route",
+       why="a file recording the design its own tiles were drawn at, "
+           "so a colleague opening it is not shown a design that was "
+           "never made and does not lose the map to their first "
+           "Generate"),
+  dict(name="a-region-stamp-is-a-path-not-a-string", file=DIALOG,
+       # Round ten, 2026-08-28. The twelfth reader of a region stamp
+       # and the only one still comparing with `==`. One directory has
+       # more than one absolute spelling, so a project saved under one
+       # and reopened under another stopped recognising its own
+       # dataset's output group: the chooser fell to "Create new" and
+       # the next Generate built a rival group beside the user's map.
+       old="""              if source and entry[2] and same_source(entry[2], source)]""",
+       new="""              if source and entry[2] and entry[2] == source]""",
+       test="test_a_group_is_bound_to_its_dataset_however_the_path_is_spelt",
+       why="a reopened project finding the output group its own "
+           "dataset made, rather than piling a second one beside it"),
   dict(name="a-queued-press-is-a-press-not-a-live-tick", file=DIALOG,
        # The defect this restores, measured 2026-08-28: a press queued
        # on `_live_pending` is honoured by starting the LIVE timer,
@@ -6401,7 +6436,13 @@ MUTATIONS = [
   # 2 and 3 of 2026-08-25 are three separate promises and a single
   # mutation would prove only whichever assertion fires first.
   dict(name="a-dataset-selects-its-own-group", file=DIALOG,
-       old="""    theirs = [entry for entry in groups if source and entry[2] == source]""",
+       # RE-ANCHORED 2026-08-28, when the comparison folded through
+       # `same_source`. The entry's claim is unchanged -- it is about
+       # WHICH groups belong to this dataset, not about how a source
+       # is spelt -- and its sibling `a-region-stamp-is-a-path-not-a-
+       # string` stands on the folding itself.
+       old="""    theirs = [entry for entry in groups
+              if source and entry[2] and same_source(entry[2], source)]""",
        new="""    theirs = list(groups)  # mutation: any group will do""",
        test="test_the_output_group_chooser_binds_to_the_dataset",
        why="ruling 2: choosing a dataset must select a group made from "

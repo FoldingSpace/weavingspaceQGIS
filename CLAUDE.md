@@ -4419,6 +4419,26 @@ here, and the decision to add one is the maintainer's. Recorded
   the same breath as the press reproduced it FIRST TIME, on both arms,
   deterministically. Where a case depends on a window, do not measure
   how often you land in it -- close the window.
+  AND THE HARM WAS OVERSTATED, MEASURED THE SAME DAY. A person cannot
+  reach it: `generate_btn.setEnabled(False)` runs before the task
+  starts, and the only two sites that re-enable it are `_finish_run`
+  and the zombie recovery, which clears `_task` first. Driven at a
+  fine spacing and read mid-flight -- `task=True`, button disabled, a
+  real `click()` setting nothing, a direct `_generate()` setting
+  `_press_pending` at once. So the state is produced by the SUITE and
+  not by a user: `test_two_generates_with_different_families_keep_
+  their_elements_apart`, the test that failed under load, calls
+  `dlg._generate()` three times, as `test_race_double_generate` has
+  since long before this.
+  THE FIX STANDS AS DEFENCE IN DEPTH and the mechanism below is exact;
+  what was wrong was the sentence around it, written in four documents
+  and in a candidate's tester notes that told people to press a button
+  the interface greys out for the whole run. This is this file's own
+  rule about a site named by reading, arriving at a HARM instead: the
+  mechanism was measured and the reachability was assumed, and only
+  one of those was checked. ASK OF ANY DEFECT WHETHER THE JOURNEY THAT
+  REACHES IT IS ONE A PERSON CAN DRIVE, and measure that as separately
+  as you measure the mechanism.
   THE DEFECT ITSELF IS THIS FILE'S OWN SHAPE: one flag gating two
   different things. `_generate` queued a press on `_live_pending`,
   `_finish_run` honoured that by starting the LIVE timer, and

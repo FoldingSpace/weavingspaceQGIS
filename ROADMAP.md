@@ -277,8 +277,17 @@ nothing: the press was queued on the live-rerun flag and handed to the
 live path, which declines whenever live update is off. The map kept
 the elements of the run already going while the table described the
 design just asked for, and layers were left tagged for elements that
-design no longer had. It shipped, so it is a fix a user gets rather
-than a repair to this version's own work.
+design no longer had.
+AND THE HARM IS THE SUITE'S RATHER THAN A USER'S, measured on the
+evening of the same day: the Generate button is disabled for the whole
+of a run, so no press can reach that state and only a direct call to
+`_generate` does -- which is what the test that failed and
+`test_race_double_generate` both do. The fix stands as defence in
+depth, a press and a live tick being different facts; what was wrong
+was the sentence around it. The changelog line this entry asked for is
+therefore WITHDRAWN rather than owed, since a user did not meet this,
+and the candidate's tester notes have to be rewritten before anything
+goes out: they told testers to press a button the plugin greys out.
 IT WAS FOUND BY THE SUITE RUN WHOLE, once, in a shard on a loaded
 machine, and looked exactly like flakiness against fourteen clean
 runs; what settled it was that the dialog had SETTLED before the
@@ -292,12 +301,16 @@ their premise and were repaired without changing their subjects, which
 CI found and the targeted runs could not.
 
 **A CHANGELOG LINE IS OWED BEFORE PROMOTION, AND IT IS THE
-MAINTAINER'S.** The fix above changes behaviour a user meets, so
-0.24.4's `changelog=` entry should name it, and approving that wording
-is the user's act rather than an assistant's. It does not block a
-candidate -- a candidate is for feedback -- but it does block the
-build that gets promoted, since `metadata.txt` ships and changing it
-retires a receipt. Proposed wording is in the session handover.
+MAINTAINER'S** -- but not for the fix above, whose entry it was
+originally written for and which a user never met. What 0.24.4's
+`changelog=` entry should name is the round of 2026-08-28 recorded in
+`docs/process/defects-2026-08-28.md`: a saved map recording the design
+its own tiles were drawn at, a reopened project finding its own output
+group however its folder is spelt, and whatever else that round
+closes. Approving the wording is the user's act rather than an
+assistant's. It does not block a candidate -- a candidate is for
+feedback -- but it does block the build that gets promoted, since
+`metadata.txt` ships and changing it retires a receipt.
 
 **NOTHING OUTSTANDING IN CODE.** Every entry this version carried is
 done or deliberately moved: the two that need a person rather than an

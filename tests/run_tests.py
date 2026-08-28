@@ -26716,6 +26716,72 @@ def test_a_class_source_comes_home_to_the_dataset_it_was_chosen_on():
     project.clear()
 
 
+def test_a_group_is_bound_to_its_dataset_however_the_path_is_spelt():
+  """One directory, two absolute spellings, and still one map.
+
+  A source is a path plus `|layername=`, and a path has more than one
+  absolute spelling: `/var` and `/private/var` name one directory on
+  every Mac, a short name does the same on Windows, and a symlinked
+  sync folder does it anywhere. `same_source` exists for exactly that
+  and owns eleven of the twelve comparisons of a region stamp; the
+  twelfth, in `_bind_group_to_dataset`, compared strings until
+  2026-08-28.
+
+  WHAT THE SECOND SPELLING COSTS, and it is the whole harm: the
+  dataset stops recognising the output group it made, the chooser
+  falls to "Create new", and the next Generate builds a second group
+  of the same tiles beside the first -- which is then never updated
+  again, under a name that says it belongs to this data.
+
+  THE PREMISE IS ASSERTED because the platform decides whether this
+  case exists at all. Where the scratch directory has no second
+  spelling, the test says so loudly rather than passing on a journey
+  it never drove.
+
+  Regression: a project saved under one spelling of its own folder and reopened under another stopped recognising its dataset's output group, so Generate built a rival group beside the user's map and orphaned it. Shipped in v0.24.3; found by the cross-platform hunt of 2026-08-28, which is the seam nobody had hunted deliberately. [hunt]
+  """
+  project = QgsProject.instance()
+  with _temp_dir() as folder:
+    dlg, layer = _save_matrix_fixture("a region on disk", folder)
+    try:
+      _generate_and_wait(dlg)
+      root = project.layerTreeRoot()
+      assert len(dlg._our_groups(root)) == 1, \
+        "PREMISE: the first run did not leave exactly one output group"
+
+      source = layer.source()
+      other = (source[len("/private"):] if source.startswith("/private/")
+               else "/private" + source)
+      if not (source.startswith("/private/") or source.startswith("/var/")) \
+         or not os.path.exists(other.split("|")[0]):
+        _skip_loudly(
+          "test_a_group_is_bound_to_its_dataset_however_the_path_is_spelt",
+          f"this platform's scratch directory has only one absolute "
+          f"spelling ({source.split('|')[0]!r}), so the case cannot be "
+          f"staged here. It stages on macOS, where /var and "
+          f"/private/var name one directory.")
+        return
+
+      twin = QgsVectorLayer(other, "region, spelt the other way", "ogr")
+      assert twin.isValid(), \
+        f"PREMISE: {other!r} did not open, so it is not the same file"
+      project.addMapLayer(twin)
+      # Through the combo, which is what a person moves, so the
+      # binding runs the way it runs for them.
+      dlg.layer_combo.setLayer(twin)
+      _tick(400)
+      _map_every_name(dlg, ["v1", "landcover", "v2", "v3"])
+      _generate_and_wait(dlg)
+
+      groups = dlg._our_groups(root)
+      assert len(groups) == 1, (
+        f"one dataset under two spellings left {len(groups)} output "
+        f"groups: {[g[0].name() for g in groups]!r}. The respelt "
+        f"project did not recognise the map its own data had made.")
+    finally:
+      dlg.close()
+
+
 def test_a_landing_never_writes_over_another_datasets_map():
   """Two maps stay two maps, whichever one you generate next.
 
@@ -68184,6 +68250,7 @@ def test_a_ramp_is_remembered_under_the_mode_the_row_is_in():
 SAVE_ROUTES = (
   "first-save", "re-save", "save-elsewhere", "after-restyle",
   "after-retile", "after-a-dock-edit", "after-a-variable-change",
+  "after-a-design-tweak",
   "no-map", "no-path", "load-it-back", "save-after-load",
 )
 SAVE_SHAPES = ("a memory region", "a region on disk")
@@ -68323,6 +68390,24 @@ def _save_matrix_cell(route, shape, aftermath, folder):
       if table_of_element(dlg, dlg.table.item(0, 0).text()) == before_table:
         return ("SKIPPED: the variable change did not rename the "
                 "element's table, so an orphan cannot arise")
+    elif route == "after-a-design-tweak":
+      # THE ONE ROUTE WITH NO REGENERATE IN IT, and the only one where
+      # the controls and the map disagree at the moment of the press.
+      # With live update off the map deliberately does not follow the
+      # controls, so a person can adjust the design after a map has
+      # landed; a Save then must record the design its TILES hold and
+      # not the one on screen. Every other writing route here presses
+      # while the two agree, which is why they could all pass while a
+      # file was being given a design its tiles were never drawn at.
+      dlg.live_check.setChecked(False)
+      drawn_spacing = dlg.spacing_spin.value()
+      drawn_elements = sorted(dlg._element_layer_ids)
+      dlg.spacing_spin.setValue(drawn_spacing * 1.4)
+      _tick(1200)
+      if sorted(dlg._element_layer_ids) != drawn_elements:
+        return "SKIPPED: the tweak re-tiled, so the two cannot disagree"
+      if dlg.spacing_spin.value() == drawn_spacing:
+        return "SKIPPED: the spacing box did not move"
 
     # ---- THE PRESS
     _hush(dlg)
@@ -69190,6 +69275,8 @@ def main():
         test_a_class_source_comes_home_to_the_dataset_it_was_chosen_on)
   check("a landing never writes over another dataset's map",
         test_a_landing_never_writes_over_another_datasets_map)
+  check("a group is bound to its dataset however the path is spelt",
+        test_a_group_is_bound_to_its_dataset_however_the_path_is_spelt)
   check("a dropped column's ramp goes even when the style was derived",
         test_a_dropped_columns_ramp_goes_even_when_the_style_was_derived)
   check("the shelf does not survive the project that made it",

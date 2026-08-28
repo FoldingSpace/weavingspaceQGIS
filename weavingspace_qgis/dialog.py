@@ -14986,7 +14986,23 @@ class WeavingSpaceDialog(QDialog):
     source = layer.source()
     root = QgsProject.instance().layerTreeRoot()
     groups = self._our_groups(root)
-    theirs = [entry for entry in groups if source and entry[2] == source]
+    # `same_source` RATHER THAN `==`, and this was the twelfth reader
+    # of a region stamp and the only one still comparing strings.
+    # A source is a path plus `|layername=`, and one directory has
+    # more than one absolute spelling -- `/var` against
+    # `/private/var` on any Mac, a short name on Windows, a symlinked
+    # sync folder anywhere -- so a project saved under one spelling
+    # and reopened under another stopped recognising its own dataset's
+    # output group. Measured 2026-08-28 by the cross-platform hunt: on
+    # the respelt leg the chooser falls to "Create new" and the next
+    # Generate builds a second group of the same dataset's tiles
+    # beside the first, which is then never updated again. Shipped in
+    # v0.24.3 at 18df97d, and missed by the sweep of 2026-08-26 for
+    # the eighth site's own reason -- a stamp against a LIVE LAYER'S
+    # source is a different pair of operands from a stamp against a
+    # stamp, so a search for the phrasing found nothing.
+    theirs = [entry for entry in groups
+              if source and entry[2] and same_source(entry[2], source)]
     if not theirs and groups and not any(entry[2] for entry in groups):
       # OUTPUT FROM BEFORE THE REGION STAMP SAYS NOTHING about which
       # dataset it came from, and refusing to bind to it would leave
@@ -16096,7 +16112,36 @@ class WeavingSpaceDialog(QDialog):
     # from the group's own record where it has one, for the same
     # reason a landing takes them from its launch snapshot: they
     # describe the map that was DRAWN, and this method draws nothing.
+    #
+    # AND THAT SENTENCE WAS A CLAIM RATHER THAN A DESCRIPTION UNTIL
+    # 2026-08-28. `_capture_working_state` reads the LIVE controls, so
+    # with live update off -- where the map deliberately does not
+    # follow the controls -- moving the design after a map landed and
+    # then pressing Save wrote the design on SCREEN into the file
+    # beside tiles drawn at another one. Measured: drawn at spacing
+    # 600, box moved to 840, group record 600 and file record 840; and
+    # with the element count moved 4 to 2, a file holding tiles a to d
+    # whose own record names ['a', 'b']. A colleague opening it is
+    # shown a design its tiles were never drawn at, and their first
+    # Generate replaces the map with it.
+    # The carry is the same one `_stamp_working_state` makes and for
+    # the same reason (CLAUDE.md, 2026-08-26, ledger rows 55-57): only
+    # a LANDING may move these three, because only a landing knows
+    # what was drawn. Save is the second writer that never stands at
+    # one, and it inherited the gap when the write moved here from the
+    # landing path in 0ecdf7c.
+    # TWO OF THE THREE, NOT ALL THREE, and the exception is the point:
+    # `output_path` is the one edge this act legitimately decides. The
+    # twin carries it because a landing does not choose where the file
+    # goes; a SAVE does, and a file whose own record names another
+    # file would point a resume at a stranger's map -- which is what
+    # `_apply_working_state` says at the line that reads it back.
     resumable = self._capture_working_state()
+    carried = self._read_working_state(self._group_of_our_layers(
+      QgsProject.instance().layerTreeRoot())) or {}
+    for key in ("design", "region"):
+      if key in carried:
+        resumable[key] = carried[key]
     resumable["region_embedded"] = self._embed_or_drop_the_source(path)
     if not bridge.write_working_state(
         path, self._file_safe_state(resumable)):

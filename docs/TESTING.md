@@ -3369,7 +3369,19 @@ reproduced the defect FIRST TIME, on both arms, deterministically,
 and the same staging is what the new guard uses. Where a case depends
 on a window, close the window rather than sampling it.
 
-**AND THE DEFECT WAS REAL AND USER-FACING.** With live update off, a
+**AND THE DEFECT WAS REAL AND THE SUITE'S RATHER THAN A USER'S**,
+which is the correction this section needed and did not get until the
+hunt round of the same evening measured it. The Generate button is
+disabled for the whole of a run, so nothing a person does can enter
+`_generate` with a task in flight; what does is the suite, which calls
+the method directly here and in `test_race_double_generate`. The
+mechanism below is exact and the fix is right as defence in depth. The
+sentence that was wrong is the one claiming a person met it -- written
+into four documents and into a candidate's tester notes before anybody
+asked whether the journey was drivable. Measure the REACHABILITY as
+separately as you measure the mechanism; one probe reading
+`generate_btn.isEnabled()` mid-run settles it in five minutes. With
+live update off, a
 Generate pressed during a run was queued on the live-rerun flag and
 handed to the live path, which returns whenever live update is off --
 so the press was remembered and discarded in silence, leaving the
