@@ -7274,6 +7274,23 @@ class WeavingSpaceDialog(QDialog):
       combo.clear()
       combo.blockSignals(False)
     _dump("FORGET")
+    # NEITHER DEFERRED-WORK FLAG SURVIVES A PROJECT, and until
+    # 2026-08-28 both did. `closeEvent` clears them; this twin cleared
+    # eight other remembered-intent records and not these two, so a
+    # request queued while a run was in flight was carried into the
+    # NEXT project opened and repainted its layers unasked -- and
+    # adoption leaves `_last_signatures` empty, so the restyle's skip
+    # matches nothing and every element is re-seeded. Found by the
+    # asymmetry hunt of that day, working from the twin rather than
+    # from the flag: a new flag inherits the clear site its
+    # predecessor had and no other.
+    # BEFORE THE CANCEL, NOT BESIDE `self._task = None` BELOW IT.
+    # `TilingTask.cancel()` reports synchronously, so `_finish_run`
+    # runs INSIDE this method and would honour a flag cleared
+    # afterwards. Order, not presence, which is this file's own
+    # standing lesson about a call put back in the wrong place.
+    self._press_pending = False
+    self._live_pending = False
     # ...and say so until adoption has read the incoming project. The
     # clear alone is not enough because the TABLE survives it and
     # refills these records before adoption is asked; this marker is
@@ -16642,6 +16659,22 @@ class WeavingSpaceDialog(QDialog):
       self.gpkg_widget.setFilePath(path)
       self.gpkg_widget.blockSignals(False)
       self._last_path = path
+      # A MAP OPENED IS THIS SESSION'S WORK, exactly as a map drawn
+      # is. `_landed_this_session` had one writer, the landing, so a
+      # resume left it False: `switched_from_work` then read a change
+      # of dataset as a FIRST CHOICE, `_begin_new_dataset` never ran,
+      # the output path stayed pointed at the file just opened, and
+      # nothing was said. Load a map, point the chooser at other data,
+      # Generate, Save -- and the file you opened held the other
+      # dataset's tiles under the first map's table names, measured
+      # 2026-08-28 by reading the extents back with bare OGR. The
+      # overwrite question could not save it either: the resume's own
+      # adoption had already put the file into `_gpkg_tables_written`,
+      # so `_may_overwrite` answered "ours".
+      # The counterfactual is what named the cause: the identical
+      # journey with this flag forced True clears the path and
+      # announces it, like every other switch away from work.
+      self._landed_this_session = True
       # ...AND THE GROUP TAKES THE RECORD TOO, stamped with the FILE'S
       # region rather than whatever the chooser happens to hold when
       # recovery fails -- see the already-open branch.

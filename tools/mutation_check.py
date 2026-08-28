@@ -1574,8 +1574,18 @@ MUTATIONS = [
            "first whole run"),
   dict(name="a-landing-is-what-makes-a-dataset-this-sessions-work",
        file=DIALOG,
-       old="""    self._landed_this_session = True""",
-       new="""    pass  # mutation: no landing ever counts""",
+       # NARROWED 2026-08-28, when the RESUME learned to set the same
+       # flag and this anchor began matching twice. The claim is about
+       # the LANDING's write, so it binds the comment line above it,
+       # which the resume's own site does not share.
+       old="""    # A LANDING IS WHAT MAKES A DATASET THIS SESSION'S WORK: from here
+    # a change of region layer is a change of dataset, with everything
+    # _begin_new_dataset does. Before it, a switch is a first choice.
+    self._landed_this_session = True""",
+       new="""    # A LANDING IS WHAT MAKES A DATASET THIS SESSION'S WORK: from here
+    # a change of region layer is a change of dataset, with everything
+    # _begin_new_dataset does. Before it, a switch is a first choice.
+    pass  # mutation: no landing ever counts""",
        test="test_a_change_of_dataset_starts_a_new_file_and_a_new_group",
        why="with the set-site gone every switch is a first choice "
            "forever: the path never clears and B's landing replaces "
