@@ -16954,8 +16954,37 @@ class WeavingSpaceDialog(QDialog):
     """
     key = self._gpkg_key(path)
     written = set(self._gpkg_tables_written.get(key, set()))
+    # AND THE FILE'S OWN RECORD IS ASKED, which is the third reader
+    # and the one that knows what the PREVIOUS save put there.
+    # Until 2026-08-28 the candidates were the session's record union
+    # the tables named for elements this map still has -- and a
+    # DROPPED element is in neither. The docstring above called that
+    # "the shrank-design case the session record covers", which is
+    # true only while there is a group to adopt: that record is seeded
+    # by adoption and cleared when a project is replaced. Close QGIS
+    # without saving the project, or File > New with the dialog open,
+    # reduce the design and save to the same file, and the dropped
+    # elements' tables stayed -- with their columns, their values and
+    # their `layer_styles` rows -- against a record naming only the
+    # survivors. Measured 2026-08-28 across two processes: a file
+    # holding `tiles_c_salary_secret` and `tiles_d_payroll_private`,
+    # 66 rows each, read back with bare OGR, and the plugin's own Load
+    # announcing four elements where the map had two.
+    # THE SCOPE IS UNCHANGED and this is why the record rather than a
+    # sweep: it names the elements THIS map's previous save wrote, so
+    # nothing here becomes a claim about tables somebody else keeps in
+    # the file. That is the ruling of 2026-08-26 -- the file shows the
+    # limit of what it contains -- and ruling 8, since a dropped
+    # element's column name and values are exactly the residue that
+    # must not travel.
+    knew = set(self._element_layer_ids)
+    record = bridge.read_working_state(path)
+    if isinstance(record, dict):
+      for element in (record.get("elements") or []):
+        if isinstance(element, dict) and element.get("id"):
+          knew.add(str(element["id"]))
     for name in bridge.gpkg_tables(path):
-      for tid in self._element_layer_ids:
+      for tid in knew:
         stem = f"tiles_{tid}"
         if name == stem or name.startswith(f"{stem}_"):
           written.add(name)

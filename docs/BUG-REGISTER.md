@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-391 defect(s) with a regression test.
+392 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -79,6 +79,8 @@ there is no separate list to remember.
   guarded by `test_a_deferring_element_keeps_its_renderer_across_a_generate`
 - **an element styled in QGIS and then moved onto a text column was drawn by a graduated renderer over words, so every tile fell outside every class and the map painted nothing.**  
   guarded by `test_a_deferring_element_moved_to_words_still_draws`
+- **reducing a design and saving to the same GeoPackage left the dropped elements' tables, their columns, their values and their style rows in the file whenever there was no output group to adopt, against a record naming only the survivors. Found by the file-bytes hunt of 2026-08-28, read with bare OGR across two processes.**  
+  guarded by `test_a_design_that_shrank_leaves_nothing_behind_in_the_file`
 - **destroying the plugin dialog left a dangling pointer on the QApplication and a live styleChanged lambda on every output layer, so restyling an element layer afterwards crashed QGIS.**  
   guarded by `test_a_destroyed_dialog_cannot_be_reached_by_a_layer_it_made`
 - **a class break retyped in QGIS, a stroke or legend label set on a categorized element, and a ramp changed in the styling panel all reached the map and the project but never the exported GeoPackage.**  
@@ -834,7 +836,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 122
-- a bug hunt pointed in a named direction: 95
+- a bug hunt pointed in a named direction: 96
 - not written down at the time: 88
 - reported by a user: 29
 - reading the code: 15

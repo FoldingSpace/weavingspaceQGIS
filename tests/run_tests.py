@@ -26716,6 +26716,85 @@ def test_a_class_source_comes_home_to_the_dataset_it_was_chosen_on():
     project.clear()
 
 
+def test_a_design_that_shrank_leaves_nothing_behind_in_the_file():
+  """A file the plugin never adopted is still tidied when it shrinks.
+
+  A GeoPackage is replaced table by table, so a design that loses an
+  element would leave that element's table -- its column, its values
+  and its `layer_styles` row -- in the file somebody sends on. The
+  drop that prevents it took its candidates from the session's own
+  record of what it had written, plus the tables named for elements
+  the map STILL has. A dropped element is in neither.
+
+  THE BOUNDARY IS EXACTLY "NOTHING TO ADOPT", which is why this test
+  clears the project between the two saves. The session record is
+  seeded by adoption and cleared when a project is replaced, so with
+  the group standing the drop works and the leak cannot be seen --
+  which is what the hunt's own control run established. Close QGIS
+  without saving the project, or File > New with the dialog open, and
+  the file keeps the dropped element.
+
+  WHAT LEAKS IS NOT ONLY A TABLE. The column name travels with it, and
+  the values in it, which is precisely the residue ruling 8 forbids
+  crossing between datasets and the ruling of 2026-08-26 forbids a
+  redistributed file carrying at all.
+
+  Regression: reducing a design and saving to the same GeoPackage left the dropped elements' tables, their columns, their values and their style rows in the file whenever there was no output group to adopt, against a record naming only the survivors. Found by the file-bytes hunt of 2026-08-28, read with bare OGR across two processes. [hunt]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  with _temp_dir() as folder:
+    path = os.path.join(folder, "shrinks.gpkg")
+    first, layer = _save_matrix_fixture("a region on disk", folder)
+    # THE SOURCE STRING, HELD NOW. `project.clear()` below destroys the
+    # layer's C++ object, and asking the wrapper afterwards raises --
+    # which is the state this test is deliberately creating.
+    region_source = layer.source()
+    try:
+      _generate_and_wait(first)
+      assert len(first._element_layer_ids) >= 3, \
+        "PREMISE: too few elements for a design to shrink"
+      first.gpkg_widget.setFilePath(path)
+      assert press_save(first, path), "PREMISE: the first save failed"
+      wide = {t for t in bridge.gpkg_tables(path) if t.startswith("tiles_")}
+      assert len(wide) >= 3, f"PREMISE: only {sorted(wide)} was written"
+    finally:
+      first.close()
+    # NOTHING TO ADOPT: the project goes, so the next dialog has no
+    # group and no session record of this file at all.
+    project.clear()
+    _tick(300)
+    again = QgsVectorLayer(region_source, "region again", "ogr")
+    assert again.isValid(), "PREMISE: the region file did not reopen"
+    project.addMapLayer(again)
+    second = WeavingSpaceDialog(iface=_Iface())
+    try:
+      second.live_check.setChecked(False)
+      second.layer_combo.setLayer(again)
+      _tick(300)
+      second.n_combo.setCurrentText("2")
+      _tick(500)
+      _map_every_name(second, ["v1", "landcover"])
+      second.spacing_spin.setValue(600)
+      _generate_and_wait(second)
+      assert len(second._element_layer_ids) == 2, \
+        f"PREMISE: the design did not shrink to two: " \
+        f"{sorted(second._element_layer_ids)}"
+      second.gpkg_widget.setFilePath(path)
+      assert press_save(second, path), "PREMISE: the second save failed"
+      left = {t for t in bridge.gpkg_tables(path) if t.startswith("tiles_")}
+      wanted = {table_of_element(second, tid)
+                for tid in second._element_layer_ids}
+      assert left == wanted, (
+        f"the file still holds {sorted(left - wanted)} after the design "
+        f"shrank to {sorted(wanted)}; a colleague opening it gets the "
+        f"elements this map no longer has, with their columns and "
+        f"their values")
+    finally:
+      second.close()
+
+
 def test_a_colour_put_back_in_qgis_is_the_colour_that_is_kept():
   """Changing your mind in the styling dock must leave your last word.
 
@@ -69543,6 +69622,8 @@ def main():
         test_a_bound_box_keeps_its_number_when_qt_reads_the_display_back)
   check("a colour put back in QGIS is the colour that is kept",
         test_a_colour_put_back_in_qgis_is_the_colour_that_is_kept)
+  check("a design that shrank leaves nothing behind in the file",
+        test_a_design_that_shrank_leaves_nothing_behind_in_the_file)
   check("a dropped column's ramp goes even when the style was derived",
         test_a_dropped_columns_ramp_goes_even_when_the_style_was_derived)
   check("the shelf does not survive the project that made it",

@@ -2102,6 +2102,28 @@ MUTATIONS = [
        test="test_a_finished_run_leaves_nothing_armed",
        why="an ordinary Generate not arming a live rebuild nobody "
            "asked for"),
+  dict(name="a-shrunk-design-leaves-no-table-behind", file=DIALOG,
+       # Round ten, 2026-08-28. The drop's candidates were the
+       # session's own record plus the tables of elements the map
+       # STILL has, and a DROPPED element is in neither -- so with no
+       # group to adopt, a reduced design left the old elements'
+       # tables, columns and values in the file somebody sends on.
+       # Mutating the file's record out of the candidate set restores
+       # exactly that.
+       old="""    record = bridge.read_working_state(path)
+    if isinstance(record, dict):
+      for element in (record.get("elements") or []):
+        if isinstance(element, dict) and element.get("id"):
+          knew.add(str(element["id"]))""",
+       new="""    record = None
+    if isinstance(record, dict):
+      for element in (record.get("elements") or []):
+        if isinstance(element, dict) and element.get("id"):
+          knew.add(str(element["id"]))""",
+       test="test_a_design_that_shrank_leaves_nothing_behind_in_the_file",
+       why="a file that holds this map and nothing the design has "
+           "dropped, so a column name and its values do not travel to "
+           "whoever the file is sent to"),
   dict(name="a-display-nobody-edited-is-not-a-number-anybody-typed",
        file=os.path.join("weavingspace_qgis", "widgets.py"),
        # Round ten, 2026-08-28. Qt calls `interpret()` on Return and
