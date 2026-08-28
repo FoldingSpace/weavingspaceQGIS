@@ -1794,6 +1794,11 @@
   "excerpt": "The first class cannot end at {}: the copied classes put the",
   "where": "weavingspace_qgis/bridge.py"
  },
+ "d801def964994fd0": {
+  "approved": "2026-08-27",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
  "d84cfc40a917feb6": {
   "approved": "2026-08-09",
   "excerpt": "Keeps the previous result and adds this run as a separate gr",
