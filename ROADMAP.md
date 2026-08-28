@@ -190,13 +190,22 @@ ceilings with `element_order` behind them, and three of the five
 rulings of 2026-08-27: an output path never decides the group, a ramp
 is remembered under the row's mode, and donors are seeded before
 their followers.
-A FULL SUITE HAS COMPLETED ON IT, which is what 0.24.4 owed most:
-636 passed, 1 failed at `0e9056c`, and that failure -- the user guide
-naming one element ceiling where the code has two -- is fixed with
-the test re-decided rather than widened. THE SUITE HAS NOT BEEN RUN
-AGAIN SINCE the three rulings landed on top of it, so what is proved
-is the tree underneath them plus each ruling's own tests and entries.
-BEFORE IT MERGES TO `main`: one more full suite over the whole of it.
+TWO FULL SUITES HAVE COMPLETED ON IT, and the second is the one that
+matters: 638 passed and 1 failed at `8b3146d`, the first run over the
+three rulings rather than the tree underneath them. The failure was
+`test_a_ramp_you_are_offered_is_the_ramp_you_get`, and it was a
+COLLISION between two settled rules rather than a fault in either --
+the older rule that a row turning categorical swaps a sequential ramp
+away, against ruling 4, which remembers a ramp under the mode the row
+is in. What tells them apart is whether the row has a memory for the
+mode it is entering; the test's second half is staged on a row that
+has never been categorized now, both answers are asserted, and the
+reasoning is in CLAUDE.md.
+(The first run, 636 passed and 1 failed at `0e9056c`, found the user
+guide naming one element ceiling where the code has two.)
+BEFORE IT MERGES TO `main`: a full suite over the tree as it now
+stands, since the re-decided test and the standards-gate change
+landed after that run.
 
 `for-0.24.4/saving-is-an-act` -- rulings 1 and 2, the Save work, as
 PRODUCT CODE ONLY. Read that branch's own ROADMAP entry before
@@ -349,13 +358,20 @@ seven entries were found anchored on text that no longer existed. It
 is asked at push time rather than inside `mutation_check`, which is
 where the original entry wanted it -- a sweep run by hand still gets
 no preflight, and that is the part left standing.)
-`check_standards` compares only the COUNTS in the derived
-documents where the generators' own `--check` catches more. Three
-`EQUIVALENT` entries exclude nothing. And `mutate_auto`'s watchdog
-ignores a child's CPU, so it can score a live mutant as stalled --
-the same shape as the two stalls that turned out to be hiding
-survivors, which is why the campaign work list also asks that a stall
-not count toward a printed rate until it has been re-judged alone.
+Three `EQUIVALENT` entries exclude nothing. And `mutate_auto`'s
+watchdog ignores a child's CPU, so it can score a live mutant as
+stalled -- the same shape as the two stalls that turned out to be
+hiding survivors, which is why the campaign work list also asks that
+a stall not count toward a printed rate until it has been re-judged
+alone.
+(The third of them landed on 2026-08-27: `check_standards` compared
+only the COUNTS in the derived documents, which is blind to a test
+RENAMED, a purpose rewritten or an area re-assigned -- everything
+that leaves the opening number alone while the document goes on
+describing a suite that no longer exists. It renders both documents
+through the generators' own `render()` now and compares the whole
+text, naming the first line that differs so a failure is a work
+list rather than a diff to go hunting through.)
 
 **Two mutation measurements, neither of them defect-finding.** The
 expensive stratum, which nothing has ever measured -- 1,172 of the

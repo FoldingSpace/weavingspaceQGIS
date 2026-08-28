@@ -504,10 +504,27 @@ def check_derived_documents():
   precisely when deciding where to write tests next.
 
   The recount uses each GENERATOR'S OWN rule, imported rather than
-  restated, so this check cannot drift from the thing it checks. It
-  compares counts rather than regenerating and diffing, because a
-  checker with side effects surprises whoever runs it -- and because
-  a count is the part a reader trusts.
+  restated, so this check cannot drift from the thing it checks.
+
+  IT COMPARES THE WHOLE DOCUMENT, not the count it opens with, since
+  2026-08-27. Counts were what this check compared for its first
+  three weeks, on the reasoning that a count is the part a reader
+  trusts -- and a count is blind to everything that leaves it
+  unchanged: a test RENAMED, a purpose rewritten, a `Regression:`
+  line reworded, an area re-assigned. Each of those makes the
+  document describe a suite that no longer exists while its opening
+  number stays right, which is the exact failure these two documents
+  are regenerated to prevent. The generators already knew how to
+  answer this properly -- both have a `--check` that renders and
+  compares -- so what was missing was this check asking them rather
+  than counting for itself. (ROADMAP item of 2026-08-13, closed.)
+  Neither renderer reads a clock or the filesystem, so the comparison
+  is stable: same suite, same bytes.
+
+  It still does not WRITE, which is the part of the old reasoning
+  that survives. A checker with side effects surprises whoever runs
+  it, and a gate that quietly mends what it is meant to report is a
+  gate nobody has to satisfy.
   """
   import importlib.util
 
@@ -518,46 +535,51 @@ def check_derived_documents():
     spec.loader.exec_module(module)
     return module
 
-  # the bug register: one entry per Regression: line in the suite
-  register = os.path.join(ROOT, "docs", "BUG-REGISTER.md")
-  if not os.path.exists(register):
-    problems.append("docs/BUG-REGISTER.md is missing; run "
-                    "tools/bug_register.py")
-  else:
-    try:
-      module = load("bug_register")
-      found = module.entries()
-    except Exception as exc:                                # noqa: BLE001
-      found = None
-      problems.append(f"could not recount the bug register: {exc}")
-    text = open(register, encoding="utf-8").read()
-    claimed = re.search(r"(\d+) defect\(s\) with a regression test", text)
-    if found is not None and claimed:
-      if len(found) != int(claimed.group(1)):
-        problems.append(
-          f"docs/BUG-REGISTER.md says {claimed.group(1)} defects and "
-          f"the suite now carries {len(found)}; run "
-          f"tools/bug_register.py and commit the result")
+  def first_difference(current, fresh):
+    """Where the file on disk and the suite's own answer diverge.
 
-  # the test map: one row per registered test
-  test_map = os.path.join(ROOT, "docs", "TEST-MAP.md")
-  if not os.path.exists(test_map):
-    problems.append("docs/TEST-MAP.md is missing; run tools/test_map.py")
-  else:
-    text = open(test_map, encoding="utf-8").read()
-    claimed = re.search(r"(\d+) tests across (\d+) areas", text)
+    Args:
+      current: the document as committed.
+      fresh: the document the generator would write now.
+
+    Returns:
+      A sentence naming the first line that differs and quoting both
+      sides, or the line counts where one text merely runs longer.
+      SAYING WHAT WAS FOUND rather than that something was found: a
+      failure that only reports staleness sends somebody to a
+      three-thousand-line diff to learn which test they renamed.
+    """
+    here, there = current.split("\n"), fresh.split("\n")
+    for number, (mine, theirs) in enumerate(zip(here, there), start=1):
+      if mine != theirs:
+        return (f"first difference at line {number}: the file says "
+                f"{mine.strip()[:70]!r} where the suite says "
+                f"{theirs.strip()[:70]!r}")
+    if len(here) != len(there):
+      return (f"the file has {len(here)} lines where the suite would "
+              f"write {len(there)}")
+    return "they differ only in trailing whitespace"
+
+  for label, tool, build in (
+      ("docs/BUG-REGISTER.md", "bug_register",
+       lambda m: m.render(m.entries())),
+      ("docs/TEST-MAP.md", "test_map",
+       lambda m: m.render(m.collect()))):
+    path = os.path.join(ROOT, "docs", os.path.basename(label))
+    if not os.path.exists(path):
+      problems.append(f"{label} is missing; run tools/{tool}.py")
+      continue
     try:
-      module = load("test_map")
-      counted = len(module.collect())
+      fresh = build(load(tool))
     except Exception as exc:                                # noqa: BLE001
-      counted = None
-      problems.append(f"could not recount the test map: {exc}")
-    if counted is not None and claimed:
-      if counted != int(claimed.group(1)):
-        problems.append(
-          f"docs/TEST-MAP.md says {claimed.group(1)} tests and the "
-          f"suite now registers {counted}; run tools/test_map.py and "
-          f"commit the result")
+      problems.append(f"could not regenerate {label}: {exc}")
+      continue
+    current = open(path, encoding="utf-8").read()
+    if current != fresh:
+      problems.append(
+        f"{label} is not what the suite would produce -- "
+        f"{first_difference(current, fresh)}; run tools/{tool}.py and "
+        f"commit the result")
 
 
 def check_equivalence_claims():
