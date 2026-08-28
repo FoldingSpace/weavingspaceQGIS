@@ -3104,3 +3104,125 @@ release page nobody rereads.
 
 The same question is worth putting to any test of a parser, a
 splitter or a section extractor: what does it assert about the END?
+
+## AN ENTRY GOES BLIND WHEN A CONVERSION EDITS ITS TEST'S FIXTURE
+
+2026-08-27, and it is the sharpest single finding of the branch's full
+catalogue sweep, because it is the only one of forty-three survivors
+that this branch caused.
+
+`an-embedded-source-is-an-opt-in` mutates the plugin into embedding
+the region data ALWAYS, and its test is what proves that unticking
+"Include the source data" keeps a private copy of somebody's data out
+of a file they send on. It caught at `v0.24.3`. It survives now, and
+the code it guards is correct: the day's Save conversion inserted
+`opt_embed_source.setChecked(True)` into that test's fixture, so the
+test ticks the box, and a mutation that embeds always is invisible to
+a test that asked for embedding.
+
+That is this file's own rule — A FIXTURE'S CHOICE MUST DIFFER FROM THE
+DEFAULT THE MUTATION FALLS BACK TO — arriving by a route the rule did
+not anticipate. Nobody wrote a bad fixture. A mechanical sweep across
+six hundred tests changed one line of an unrelated test's setup, which
+is exactly what a faithful conversion is supposed to do, and the
+casualty was a guard three thousand lines away that nothing connected
+to it.
+
+**SO WHEN A CONVERSION TOUCHES FIXTURES EN MASSE, RE-JUDGE THE
+CATALOGUE, NOT ONLY THE SUITE.** A green suite says the conversion
+preserved what the tests assert. It cannot say whether they can still
+FAIL, and that is the question the catalogue exists to answer.
+
+**AND THE REPAIR TOOK TWO MOVES, WHICH IS THE OTHER HALF.** Re-aiming
+the entry at the test that stages the box UNTICKED was the obvious fix
+and was not enough: it still survived, because the day's ruling had
+given the fact a SECOND WRITER. `_embed_or_drop_the_source` asks the
+box itself and drops the table on the other arm, so the callee's guard
+is never reached on the journey that matters, and mutating it changes
+nothing a test can see. Anchored at the CALLER, where the decision now
+lives, it catches. Ask of any re-aimed entry whether the site it names
+is still the site that DECIDES, or has become a second line of defence
+behind one.
+
+## AN ANCHOR CAN BE AMBIGUOUS BY INDENTATION ALONE
+
+Same sweep, nine entries returning no verdict at all: `mutation_check`
+refuses an entry whose `old` text matches more than one place, on the
+sound ground that mutating the first would leave the others doing the
+work. Seven were genuine duplicates, the ordinary consequence of this
+branch copying lines that entries stood on.
+
+TWO WERE NOT AMBIGUOUS IN THE CODE AT ALL. A match is a SUBSTRING, and
+eight spaces of indentation sit inside ten -- so an anchor written for
+a statement at one nesting level also matched its more deeply nested
+twin a few lines away, in the same method, doing the same thing on the
+other arm of a branch. Nothing had been copied; the anchor had always
+been able to match twice and nothing had noticed until a second twin
+appeared. Bind the line ABOVE, which differs, rather than reaching for
+more of the statement itself.
+
+**AND THE GATE DOES NOT ASK THIS.** `check_standards` fails when a
+catalogue anchor is ABSENT and says nothing when it is ambiguous --
+so nine entries reported nothing while every gate was green, which is
+the gate-that-checks-half-of-what-it-names shape met inside the
+checker written to catch that shape in others. Whether it should also
+require uniqueness is a change to a release gate and therefore the
+maintainer's; it is recorded in the 2026-08-27 ledger rather than
+done.
+
+**WHERE THE SITE IS NOT OBVIOUS, THE TEST'S DOCSTRING SETTLES IT.**
+The kept-result entry reads by its name like `_detach_from_the_group`;
+its test says `_get_or_make_group` outright, in the sentence
+explaining what went wrong. Narrowing nine anchors by reasoning from
+their names would have aimed at least one of them at the wrong method
+and produced a confident, wrong `caught`.
+
+## ASSERT THE STRUCTURE, NOT A WIDTH
+
+Also 2026-08-27, writing the guard for a release body that must not be
+hard-wrapped. The first draft looked for prose lines shorter than
+sixty characters, on the reasoning that a wrapped paragraph's last
+line stops short. It is wrong in both directions: it fires on a
+legitimately short paragraph, and it misses a wrapped paragraph whose
+final line happens to run long.
+
+The property is structural and exact. In Markdown a paragraph ends at
+a blank line, so TWO CONSECUTIVE PROSE LINES ARE a wrapped paragraph,
+whatever they measure. The rewritten guard walks the body tracking
+whether the previous line was prose, and names every offending pair.
+
+The general form: when a check reaches for a threshold, ask whether
+the thing being checked has an exact definition somewhere. A
+heuristic over a measurable quantity is usually a definition nobody
+looked up, and its false positives teach people to ignore it.
+
+## SILENCE WITH EXIT 0 IS NOT A PASS
+
+The same evening, three attempts at one red-and-green proof, every
+failure in the instrument.
+
+`tests/run_tests.py` ends through `os._exit`, so when stdout is a
+PIPE rather than a terminal it is block-buffered and the buffered
+`PASS <name>` is discarded — `tools/run_some.py` exits 0 having
+printed nothing at all, while a FAILURE's traceback reaches unbuffered
+stderr and survives. So the green half of a proof reads as an empty
+log and a zero exit, which is indistinguishable from a runner that
+never started. `PYTHONUNBUFFERED=1` is what makes the verdict reach
+the pipe. This is the same `os._exit` that stopped
+`tools/coverage_report.py` writing a report until 2026-08-13.
+
+AND THE TWO INTERPRETERS ARE NOT INTERCHANGEABLE, which cost the other
+two attempts. A test runs under `$QGIS_PY`; an edit script and
+`mutation_check` run under `env -u PYTHONHOME -u PYTHONPATH python3`.
+Swapping them fails in two directions that both look like a broken
+test: `env -u ... python3` hands back the SYSTEM interpreter, which
+dies at `import qgis`, and a bare `python3` under a sourced QGIS
+environment dies at `Failed to import encodings` having applied no
+edit — so the run that follows measures unmodified code and reports
+fiction.
+
+THE COMMON CURE is the one this file already prescribes for probes:
+keep the WHOLE output rather than filtering to the lines you expect,
+and say out loud when a phase produced nothing. A filter that matches
+nothing is indistinguishable from a run that said nothing, and here it
+hid a traceback for two rounds.

@@ -109,6 +109,32 @@ forbidden. The price is per-entry times inflating 15–50% under
 contention, so the sweep prints its slowest entries and anything
 marked ATTENTION is re-run ALONE before being believed: a mutant
 slowed past a timeout can read as caught while it merely stalled.
+
+**READ THAT FLAG'S DEFINITION BEFORE READING ITS NAME, because the
+paragraph above is what a reader takes it for and it is only half.**
+The sweep's own line is `verdict = "caught" if proc.returncode == 0
+else "ATTENTION"`, so ATTENTION covers everything that is not a clean
+kill: a SURVIVOR, an entry the tool REFUSED to judge, a crash, and a
+stall. Contention is the least of those and, measured, the rarest. The
+word SURVIVED never appears in a sweep log at all, which matters
+because the obvious sanity check — grep the log for survivors —
+answers a reassuring zero however bad the news is.
+MEASURED 2026-08-27, the first full sweep of the 0.24.4 branch: 516 of
+559 caught and 43 flagged, which at four shards read like contention
+and was nothing of the kind. Re-run one at a time on an idle machine
+the 43 came back **0 caught, 34 survived, 9 unjudgeable** — every one
+of the nine an AMBIGUOUS ANCHOR, which is the tool refusing rather
+than failing. So the solo re-run is not a tie-breaker against
+contention; it is what turns one word into the three different
+findings it is hiding, and each of the three needs a different act.
+AND JUDGE THE SURVIVORS AGAINST THE LAST RELEASE before deciding what
+they mean. Of those 34, thirty-three survived at `v0.24.3` as well, so
+the catalogue had been losing entries quietly for a version while its
+headline count went on describing 559 entries as though each held
+something. Exactly one was the branch's doing. A sweep that reports a
+number without that comparison cannot tell drift from a regression,
+and the two are different work: drift is a round of its own, a
+regression belongs to the change that caused it.
 Never run the sweep beside a release's gates or beside the census;
 one measurement at a time is how each stays a measurement. (Added
 2026-08-09, the first night the catalogue was too large to sweep

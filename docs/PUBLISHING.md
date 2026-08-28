@@ -956,6 +956,38 @@ two renderers, arriving from the other side.
 or a half-width window. Found on rc9, 2026-08-18, by a maintainer on a
 phone after I had looked only at a wide one.
 
+**AND THE PART THAT STAYED WRAPPED WAS THE PART NOBODY WRITES.**
+(2026-08-27, ledger row 32.) Everything above was known, written down
+here, and obeyed by every candidate's own notes -- while
+`publish_candidate.py`'s `CLOSING` constant, the section asking a
+tester what to report back, was hard-wrapped at 72 columns from the
+day it was written. It is appended to every body the tool composes, so
+every candidate published since 2026-08-21 carried a paragraph that
+snaps mid-clause on a phone. Nobody reread it because nobody wrote it
+that day: a constant is invisible in the way a sentence you have just
+typed is not.
+IT IS GUARDED NOW, inside
+`test_a_candidate_is_published_only_when_it_is_gated`, which already
+drove the tool with `--dry-run` and read the body it composes.
+Structurally rather than by width: in Markdown a paragraph ends at a
+blank line, so two consecutive prose lines ARE a wrapped paragraph
+whatever they measure, and a length rule fires on a legitimately short
+paragraph while missing a wrap whose last line runs long. Catalogue
+entry `a-release-body-paragraph-is-one-long-line`, judged caught.
+FOUND BY READING THE LIVE PAGE, which is the rule this section already
+carries and the reason it was found at all: the local notes file was
+perfectly well formed, and the defect lived in what the tool added on
+the way past.
+
+**AND ONCE A CANDIDATE IS PUBLISHED, THE TOOL WILL NOT COMPOSE ITS
+BODY AGAIN.** `--dry-run` refuses on a tag that is already taken,
+exactly as it should, so a correction cannot be made by regenerating:
+read the LIVE body back, edit it, and put it up with `gh release edit
+--notes-file`, which leaves the tag, the URL and the attachments where
+they are. The refusal prints its reason and produces no body, so a
+pipeline that greps the output for the body gets nothing -- and an
+empty result there means refused, not composed-and-empty.
+
 When fixing a published page, EDIT IT IN PLACE (`gh release edit
 --notes-file`) so the tag, the URL and the attachments are untouched,
 then read the live body back and measure it. A local file that looks

@@ -3,7 +3,7 @@ name: long-job-supervision
 description: Supervise work that outlasts a single turn — test suites, builds, training runs, migrations, batch jobs — so the machine stays busy, finished work gets picked up immediately, and a stuck job is caught in minutes rather than hours. Use this whenever you start something long in the background, whenever a user asks for periodic status updates or says "keep going without me", whenever you are about to write a watcher or poll loop, and whenever a job seems to be taking longer than it should. Also use it before reporting that something is "still running" — that claim is worth exactly as much as the reading behind it.
 derived_from:
   - path: docs/MUTATION-LOOP.md
-    sha256: 9aca146590184af73d78812a6b8488a00ca96f5672aaa82c095b026d2e7b830c
+    sha256: 270e2400fe84b3e21abadab8d891a6cb8bb9dc6e3310741d207e9a41cfb608ba
 ---
 
 # Supervising work that outlasts a turn
@@ -447,3 +447,60 @@ success, the supervision is fine and the job is worthless -- fix the
 job to refuse, or give it a control run whose expected answer is not
 success.
 
+
+## A query that cannot match is not evidence that nothing exists
+
+The watcher faults above are about a watcher going silent. This is
+the opposite and worse: a watcher that SPEAKS, confidently, and is
+wrong, because the question it asks can never be answered yes.
+
+Measured 2026-08-27, three times in one evening on one project.
+`gh run list --commit <sha>` matches only the full forty-character
+sha; given a short one it returns an empty list and exit 0. Three CI
+watchers were built on that query. Each reported, in its own words,
+that no run had ever been created — for commits whose runs were in
+fact green. The first report was then explained with an invented
+mechanism ("the platform creates runs for pushes, not commits, so an
+intermediate commit gets none"), written into a binding document, and
+believed for an hour. An empty result from a filter that cannot match
+is indistinguishable from an empty result because the world is empty,
+and the difference is one command:
+
+    gh run list --branch <branch> --json headSha,name,status,conclusion
+
+then compare the full sha yourself, or `git rev-parse` before asking.
+
+**THE HABIT, and it costs one run: before arming a watcher, make its
+query answer YES about something that already exists.** Point it at
+the previous commit, the finished job, yesterday's run. A query
+verified only against the thing you are waiting for is verified
+against nothing, because the answer you expect at first is empty
+either way. This is the seed-a-watcher rule from the other side: seed
+it with a POSITIVE it should find, not only with what is already
+true.
+
+And when a watcher reports an absence, treat that as a claim about
+the query first and about the world second.
+
+## Buffered output dies with the process, so silence is not success
+
+A runner that ends through `os._exit` never flushes. When its stdout
+is a PIPE rather than a terminal it is block-buffered, so a success
+line sitting in the buffer is discarded and the process exits 0
+having printed nothing — while a failure's traceback, going to
+unbuffered stderr, survives. The result is exactly inverted from what
+you want: failures are loud and successes are silent, so an empty log
+with a zero exit reads as "the runner never started".
+
+Measured 2026-08-27: the same test printed `PASS` when run to a
+terminal and nothing at all through a pipe, three times, while a
+proof script recorded "NOTHING WAS WRITTEN". `PYTHONUNBUFFERED=1`
+fixes it for Python; the general form is to set the runtime's
+unbuffered flag whenever you capture a child's output, and to make
+any harness say out loud that a phase produced nothing rather than
+letting an empty capture pass for a pass.
+
+The same `os._exit` also silently defeats anything that writes at
+interpreter shutdown — coverage recorders, profilers, `atexit`
+handlers. If a tool that should have written a file wrote nothing,
+ask how the process ended before asking what the tool did wrong.
