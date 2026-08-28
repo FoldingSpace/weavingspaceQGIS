@@ -37771,20 +37771,40 @@ def test_the_documents_numbers_match_the_code():
 
   # THE ELEMENT CEILING, spelled out in words as this voice spells
   # small numbers, so the check reads the words rather than a digit.
+  #
+  # THERE ARE TWO CEILINGS SINCE 2026-08-27 and this check reads both,
+  # which is a deliberate re-decision rather than a widened pattern:
+  # the fact it was written about -- one number serving weaves and
+  # tilings alike -- stopped being true when the maintainer ruled them
+  # apart. A weave is SPECIFIED as a string with one character per
+  # element, so "ab" already means two strands; a tiling's ids come
+  # from upstream as `a`..`z` then `aa`..`zz`, and a GeoPackage keeps
+  # `tiles_aa` and `tiles_ab` distinct. The guide has to say both, or
+  # a tiling user reads a limit that is an order of magnitude under
+  # what the plugin will draw for them. This test failed on the first
+  # full suite that ever reached it, which is what a full suite is
+  # for.
   words = {"twenty": 20, "twenty-one": 21, "twenty-two": 22,
            "twenty-three": 23, "twenty-four": 24, "twenty-five": 25,
-           "twenty-six": 26, "thirty": 30, "fifty": 50}
+           "twenty-six": 26, "thirty": 30, "fifty": 50,
+           "two hundred and fifty-six": 256}
   guide = read("docs/USER-GUIDE.md")
-  claim = re.search(r"catalogue\s+runs to ([a-z-]+)", guide)
+  claim = re.search(
+    r"catalogue\s+runs to ([a-z-]+(?:\s+[a-z-]+)*?) elements for a "
+    r"weave and to ([a-z-]+(?:\s+[a-z-]+)*?) for a tiling", guide)
   assert claim, \
-    "the user guide no longer states a catalogue ceiling at all, so " \
+    "the user guide no longer states BOTH catalogue ceilings, so " \
     "this check has silently stopped checking anything"
-  stated = words.get(claim.group(1))
-  assert stated is not None, \
-    f"the guide states a ceiling this test cannot read: {claim.group(1)!r}"
-  assert stated == catalog.MAX_ELEMENTS, (
-    f"the user guide says the catalogue runs to {claim.group(1)} "
-    f"({stated}) and catalog.MAX_ELEMENTS is {catalog.MAX_ELEMENTS}")
+  for said, ceiling, family in (
+      (claim.group(1), catalog.MAX_ELEMENTS_WEAVE, "weave"),
+      (claim.group(2), catalog.MAX_ELEMENTS_TILING, "tiling")):
+    stated = words.get(" ".join(said.split()))
+    assert stated is not None, \
+      f"the guide states a {family} ceiling this test cannot read: " \
+      f"{said!r}"
+    assert stated == ceiling, (
+      f"the user guide says the catalogue runs to {said} ({stated}) "
+      f"for a {family} and the code says {ceiling}")
 
   # THE VENDORED COMMIT, and the gate that is supposed to compare it.
   with open(os.path.join(root, "weavingspace_qgis", "vendor",
