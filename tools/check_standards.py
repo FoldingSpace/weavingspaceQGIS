@@ -741,6 +741,17 @@ def check_ci_covers_what_it_claims():
                     "runs on Linux at all")
     return
   workflow = open(path, encoding="utf-8").read()
+  # WHAT THE WORKFLOW RUNS, WITHOUT WHAT IT MERELY MENTIONS. The
+  # harness clause below asks whether `tests/<name>.py` appears in
+  # this text, and until 2026-08-28 a COMMENT satisfied it: a line
+  # reading `# NOT run here: tests/parity_harness.py` was enough, so
+  # the sentence that satisfied the gate could deny it. That is
+  # `check_roadmap`'s own defect of 2026-08-26 met again in a sibling
+  # checker, and it was found the same way -- by planting the thing
+  # the gate must catch and watching it pass.
+  workflow_runs = "\n".join(
+    line.split(" #", 1)[0] for line in workflow.splitlines()
+    if not line.lstrip().startswith("#"))
 
   for job in ("standards", "suite", "install", "gallery", "windows",
               "macos"):
@@ -767,6 +778,13 @@ def check_ci_covers_what_it_claims():
   covered_by = {
     "standards check": "standards",
     "secrets audit": "standards",
+    # THE SECOND SECRETS RUN IS THE SAME QUESTION at a later moment --
+    # `release.py` asks it twice, once before the expensive work and
+    # once immediately before committing, because a leaked key is the
+    # one failure a later release cannot undo. Linux answers "is this
+    # tree clean" in the standards job, which is the whole of what
+    # either invocation asks.
+    "secrets audit (pre-commit)": "standards",
     "published content audit": "standards",
     "build zip": "standards",
     "functional suite": "suite",
@@ -782,6 +800,10 @@ def check_ci_covers_what_it_claims():
     "roadmap and branches": "reads local branches, which a runner "
                             "checkout does not have",
     "testing report": "written from this run's captured output",
+    "release notes": "composes the body of a GitHub release from this "
+                     "run's own artefacts and from `gh`; a runner has "
+                     "neither the dist/ directory nor anything to "
+                     "publish",
     "refresh published images": "rewrites files in the working tree",
     "test map": "regenerates a document the standards job then checks",
     "bug register": "regenerates a document the standards job then checks",
@@ -795,7 +817,26 @@ def check_ci_covers_what_it_claims():
     listed = re.search(r"EXPECTED_STAGES = \[(.*?)\]", release_src, re.S)
     stages = re.findall(r'"([^"]+)"', listed.group(1)) if listed else []
   except OSError:
+    release_src = ""
     stages = []
+  # AND THE LIST ITSELF IS CHECKED AGAINST THE STAGES release.py
+  # ACTUALLY RUNS. CLAUDE.md says of this clause that "nothing there
+  # is a hand-kept list, so the two cannot drift apart quietly", and
+  # until 2026-08-28 `EXPECTED_STAGES` was exactly that: a stage added
+  # to release.py and forgotten there got no CI job, no written
+  # exemption and no complaint. Two were already outside it. The
+  # sibling test `test_every_expected_stage_is_actually_run` compares
+  # listed against called and never called against listed, so it could
+  # not see this either. Found by the instruments audit of that day,
+  # which planted a stage the gate had to catch.
+  run_names = sorted(set(re.findall(r'\brun\(\s*"([^"]+)"', release_src)))
+  for name in run_names:
+    if name not in stages:
+      problems.append(
+        f"release.py runs the stage {name!r} and EXPECTED_STAGES does "
+        f"not list it, so the CI-parity question below is never asked "
+        f"about it. Add it to EXPECTED_STAGES -- this list is what "
+        f"CLAUDE.md promises cannot drift, and it drifted.")
   for stage in stages:
     if stage in mac_only:
       continue
@@ -876,7 +917,7 @@ def check_ci_covers_what_it_claims():
     if not harness.endswith(".py"):
       continue
     quoted = f"tests/{harness}"
-    if quoted in workflow or harness in harness_exempt:
+    if quoted in workflow_runs or harness in harness_exempt:
       continue
     problems.append(
       f"{quoted} is a test harness that ci.yml never runs. Add it to "

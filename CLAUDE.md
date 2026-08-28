@@ -363,7 +363,21 @@ obligations: they exist so nobody pays twice for the same discovery.
   the existence check without failing anything, which is the
   matches-nothing-reports-nothing fault the mutation catalogue had
   found the same day. Nothing there is a hand-kept
-  list, so the two cannot drift apart quietly. It runs in a second,
+  list, so the two cannot drift apart quietly.
+  THAT LAST SENTENCE WAS FALSE FOR SIXTEEN DAYS and is true now. The
+  stage list `EXPECTED_STAGES` in `release.py` IS hand-kept and was
+  the only thing this check read, so a stage added there and
+  forgotten got no CI job, no written exemption and no complaint --
+  and two were already outside it, the release notes and the
+  pre-commit secrets audit. The sibling test compares listed against
+  called and never called against listed, so it could not see it
+  either. `check_standards` now reads every `run(...)` name out of
+  `release.py` and requires each to be listed, which is what makes
+  the sentence true by construction. Found 2026-08-28 by an
+  instruments audit that planted a stage the gate had to catch, with
+  the control run first -- which is the practice to copy, because
+  every claim it made came as a pair.
+  It runs in a second,
   before the pre-candidate push, which is the only moment early
   enough to matter: the push precedes the local gates, so a broken
   or hollowed-out workflow otherwise surfaces fifty minutes later or

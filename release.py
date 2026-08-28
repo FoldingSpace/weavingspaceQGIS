@@ -117,6 +117,14 @@ EXPECTED_STAGES = [
   "refresh published images",
   "test map", "bug register", "published content audit",
   "build release candidate", "candidate dossier", "build zip",
+  # THESE TWO WERE RUN AND NOT LISTED until 2026-08-28, so the
+  # CI-parity clause was never asked about them -- which is the state
+  # CLAUDE.md describes as impossible, on the grounds that nothing
+  # here is a hand-kept list. It was. `check_standards` now reads
+  # every `run(...)` name out of this file and requires it to appear
+  # here, so the promise holds by construction rather than by
+  # somebody remembering.
+  "secrets audit (pre-commit)", "release notes",
 ]
 
 # name -> [status, seconds]. status is "done", "running" or "failed".
