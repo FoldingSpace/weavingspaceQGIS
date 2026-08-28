@@ -26716,6 +26716,75 @@ def test_a_class_source_comes_home_to_the_dataset_it_was_chosen_on():
     project.clear()
 
 
+def test_a_load_under_live_update_keeps_the_map_it_opened():
+  """Opening a saved map must not be answered by redrawing it.
+
+  A resume moves the design controls to what the file says, which
+  arms both debounce timers. `_last_run_sig` was left at whatever the
+  session had, so the live path's same-signature gate could not fire
+  and a tick a second later RE-TILED the map that had just been
+  opened -- into memory layers, replacing the GeoPackage-backed ones
+  Save had made. The map looked right until the project was reopened,
+  when it came back empty.
+
+  WITH LIVE UPDATE ON, WHICH IS THE DEFAULT AND THE POINT. Every
+  other resume test in this suite unticks it, so the whole family was
+  driven at a setting no user is holding -- which is why nothing here
+  saw this. That is the more useful half of the finding: ask of any
+  test family which control it holds at a value nobody chose.
+
+  Regression: pressing Load with live update at its default re-tiled the opened map into memory a second later, so the GeoPackage-backed layers were removed and the project reopened empty. Found by the races hunt of 2026-08-28, which ruled out all four debounce windows before finding the cause was a default the suite never drives. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  with _temp_dir() as folder:
+    path = os.path.join(folder, "saved.gpkg")
+    maker, _layer = _save_matrix_fixture("a region on disk", folder)
+    try:
+      _generate_and_wait(maker)
+      maker.gpkg_widget.setFilePath(path)
+      assert press_save(maker, path), "PREMISE: the map was never saved"
+      saved = {tid: project.mapLayer(lid).featureCount()
+               for tid, lid in maker._element_layer_ids.items()
+               if project.mapLayer(lid) is not None}
+      assert saved and sum(saved.values()), "PREMISE: the map holds no tiles"
+    finally:
+      maker.close()
+    project.clear()
+    _tick(300)
+
+    reader = WeavingSpaceDialog(iface=_Iface())
+    try:
+      assert reader.live_check.isChecked(), \
+        "PREMISE: live update is not on by default, so this drives the " \
+        "same journey every other resume test already drives"
+      reader.resume_widget.setFilePath(path)
+      reader._load_pressed()
+      _settle(reader, seconds=60)
+      # ...AND THEN LET THE LIVE DEBOUNCE FIRE, which is the act under
+      # test. Settling alone returns before it.
+      _tick(2500)
+      _settle(reader, seconds=60)
+      from_file = {}
+      for tid, lid in reader._element_layer_ids.items():
+        out = project.mapLayer(lid)
+        if out is not None:
+          from_file[tid] = (out.featureCount(),
+                            out.source().startswith(path))
+      assert from_file, "the opened map lost every layer"
+      memory = sorted(t for t, (_n, on_disk) in from_file.items()
+                      if not on_disk)
+      assert not memory, (
+        f"elements {memory} were re-tiled into memory after a Load, so "
+        f"the file's own layers were replaced and the project will "
+        f"reopen without them")
+      counts = {t: n for t, (n, _d) in from_file.items()}
+      assert counts == saved, (
+        f"the opened map now holds {counts} where the file holds {saved}")
+    finally:
+      reader.close()
+
+
 def test_a_design_that_shrank_leaves_nothing_behind_in_the_file():
   """A file the plugin never adopted is still tidied when it shrinks.
 
@@ -69624,6 +69693,8 @@ def main():
         test_a_colour_put_back_in_qgis_is_the_colour_that_is_kept)
   check("a design that shrank leaves nothing behind in the file",
         test_a_design_that_shrank_leaves_nothing_behind_in_the_file)
+  check("a load under live update keeps the map it opened",
+        test_a_load_under_live_update_keeps_the_map_it_opened)
   check("a dropped column's ramp goes even when the style was derived",
         test_a_dropped_columns_ramp_goes_even_when_the_style_was_derived)
   check("the shelf does not survive the project that made it",

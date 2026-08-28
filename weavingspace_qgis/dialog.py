@@ -16672,6 +16672,20 @@ class WeavingSpaceDialog(QDialog):
       self.gpkg_widget.setFilePath(path)
       self.gpkg_widget.blockSignals(False)
       self._last_path = path
+      # AND NOTHING HAS CHANGED SINCE THE MAP THAT IS NOW ON SCREEN,
+      # which is what stops live update redrawing it. A resume arms
+      # both debounce timers -- it moves the design controls to what
+      # the file says -- and left `_last_run_sig` at whatever the
+      # session had, so the same-signature gate could not fire and a
+      # tick a second later re-tiled the opened map into MEMORY
+      # layers. The GeoPackage-backed layers Save had made were
+      # removed, so the project reopened empty: measured 2026-08-28
+      # with live update at its default, 312 tiles becoming 0 across a
+      # .qgz round trip, against 312 with the box unticked.
+      # IT WAS INVISIBLE TO THE SUITE because every resume test unticks
+      # live update -- a default no user is holding, which is the more
+      # useful half of that measurement.
+      self._last_run_sig = self._run_signature()
       # A MAP OPENED IS THIS SESSION'S WORK, exactly as a map drawn
       # is. `_landed_this_session` had one writer, the landing, so a
       # resume left it False: `switched_from_work` then read a change
