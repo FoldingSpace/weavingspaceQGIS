@@ -4294,6 +4294,96 @@ here, and the decision to add one is the maintainer's. Recorded
   reach. Both are worth knowing, and the answer is the same -- mutate
   the SHARED thing, or say at the entry why it now needs both halves.
 
+- **A RULING THAT GIVES A FACT A SECOND WRITER PUTS AN OLDER ENTRY TO
+  SLEEP, AND NOBODY IS TOLD.** (2026-08-28, deciding all thirty-four
+  survivors of the branch's full sweep; the round is written up in
+  `docs/process/catalogue-triage-2026-08-28.md`.) Thirty-three of the
+  thirty-four predated v0.24.3, and almost none was a weak test. The
+  fortnight's rulings each added a store or a mechanism -- the group's
+  working state, `_painted_ladders` attribution, a gate behind a
+  timer, a follow that brings a row up to a layer's count before the
+  colour handlers run -- and every one left an older single-site entry
+  unable to fail. The catalogue's count went on describing 559
+  guarded behaviours while a version's worth of them had quietly
+  become second lines of defence.
+  SO WHEN A RULING ADDS A WRITER, RE-JUDGE THE ENTRIES OVER THE OLD
+  ONE, in the same round. This file already says to enumerate every
+  store that holds a fact when a repair gives one store a new write;
+  this is that rule pointed at the CATALOGUE rather than at the code.
+  THREE SHAPES RECUR and each makes a single-site entry permanently
+  red: one limb of a FALLBACK CHAIN (`group = lookup() or
+  findGroup(name)`, `lost = pending or watched`), one of two READINGS
+  of the same fact a few lines apart (a combo's default seeded, then
+  re-selected from the record twenty-two lines below), and one TERM of
+  a tuple whose siblings answer the same question (the run signature
+  carries a layer's identity and its fingerprint). The repair is to
+  anchor the whole decision, which cannot be split again by the next
+  alternative somebody adds.
+
+- **AN INERT MUTATION AND A REDUNDANTLY HELD ONE BOTH REPORT SURVIVED,
+  AND THEY NEED OPPOSITE REPAIRS.** (Same day.) An entry excluding
+  modes from the no-data split was mutated by adding a literal to a
+  list read from `mode` -- while deferral lives in `mode_raw`, so the
+  mutation matched nothing and changed nothing. That reads exactly
+  like a test too weak to notice. THE DISCRIMINATOR IS TO KILL THE
+  SITE OUTRIGHT: if the test then fails, the site is live and the
+  mutation was inert; if it still passes, something else is answering.
+  Four attempts went into that entry before the question was put that
+  way round.
+
+- **A TREATMENT WHOSE CONTROL ALSO FAILS HAS MEASURED NOTHING**, and
+  it nearly cost twelve wrong retirements twice in one day. Breaking
+  every entry on a test "to see whether the axis is live" includes the
+  sibling entry that already CATCHES, so the failure is guaranteed
+  before the survivors are touched; pairing a survivor with a catching
+  sibling has the same defect. Run the control -- the co-broken thing
+  alone -- and read the treatment only when the control passes. Every
+  redundancy verdict of that round carries its control.
+
+- **COVERAGE SAYS A LINE RAN, NOT THAT ITS BRANCH WAS TAKEN.** Sixteen
+  tests execute `if len(expected) != len(actual):` and every one
+  evaluates it false, so removing the guard changes nothing for them;
+  exactly one test ever takes the branch. A per-test coverage record
+  answers "could this test possibly notice" and not "does this test
+  exercise the case", and for a GUARD the two questions differ.
+
+- **THE PER-TEST COVERAGE RECORD IS KEYED BY A TEST'S DISPLAY NAME,
+  NOT ITS FUNCTION NAME**, which is what `check()` registers it under.
+  `mutate_auto.display_to_function` is the mapping; borrow it rather
+  than writing a second one. Looking a catalogue entry's `test=` up in
+  the record directly misses every time, and the answer -- "not in the
+  record" for all thirty-four -- reads exactly like a finding about
+  the entries.
+
+- **RANKING CANDIDATES CANNOT CHANGE A VERDICT; UNDER A CAP IT DECIDES
+  WHAT WAS ASKED.** Sampling "the eight most focused" tests covering a
+  line by the SIZE of their coverage record put region outlines and
+  legend labels to a mutation about layer removal, and "0 of 8 notice"
+  read as evidence. Rank by word overlap with the mutated line first,
+  as `rank_covering_tests` does, always include the entry's own test,
+  and PRINT what the cap dropped.
+  AND A NEGATIVE FROM A CAPPED SEARCH IS NEVER EVIDENCE OF ABSENCE. A
+  test that fails under the mutation genuinely notices; silence only
+  says the answer was not in the sample.
+
+- **A UNIFORM VERDICT IS ALMOST ALWAYS THE INSTRUMENT.** Three of this
+  project's own tools were found wrong in one day by that tell alone:
+  thirty-four "not in the record", then "0 of 8" everywhere, then
+  DIFFERS everywhere because a comparison counted `region_7c23c`
+  against `region_bb6b7` as a changed decision. Before believing a
+  result that came back the same for every input, run the instrument
+  against a case whose answer you already know.
+
+- **`mutation_check` APPLIES EXACTLY ONE REPLACEMENT, BY DESIGN**, so
+  a fact held at two DISTANT sites cannot be guarded by any single
+  entry. The run signature's identity and fingerprint terms are 47
+  lines apart, and an anchor spanning both breaks on any edit between
+  them. Where the sites are adjacent, widen the anchor; where they are
+  not, the honest record is a retirement with the measurement and the
+  redundancy written at the test. Whether the tool should take a LIST
+  of replacements is a real question about campaign machinery and is
+  recorded in ROADMAP.md rather than decided in passing.
+
 - **A SITE NAMED BY READING IS A HYPOTHESIS, AND IT READS EXACTLY LIKE
   ONE SOMEBODY PROVED.** (2026-08-20, the same defect.) Where that
   refusal lived was worked out from the source, written into the

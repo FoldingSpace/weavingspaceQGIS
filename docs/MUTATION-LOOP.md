@@ -416,6 +416,56 @@ count how often a private method ran, which is pinning an
 implementation detail. Those are ACCEPTED, and lower the rate
 honestly.
 
+## Triaging a whole ROUND of survivors: the order that worked
+
+2026-08-28, deciding thirty-four at once. Doing them one at a time by
+reading is what the six-of-eight-false measurement above warns
+against; this is the sequence that settled them, cheapest question
+first, and each step names what its answer is NOT evidence of.
+
+**1. Does the named test execute the mutated line?** From
+`reports/per-test-coverage.json` -- which is keyed by each test's
+DISPLAY name, so map the entry's `test=` through
+`mutate_auto.display_to_function` first. A MISS means no assertion can
+help; the entry is aimed where its test does not go. A REACH is only
+an upper bound: coverage says a line RAN, not that its branch was
+TAKEN, and for a guard those differ.
+
+**2. Does the journey change at all?** Run the named test against the
+tree and against a sandbox carrying the mutation with
+`WEAVINGSPACE_ADOPT_DUMP=1`, and compare the decisions the dialog
+dumps. NORMALISE the identifiers first: a memory layer is
+`region_7c23c` in one run and `region_bb6b7` in the next, and without
+that every comparison reads DIFFERS. Identical dumps are weak
+evidence -- most behaviours dump nothing -- and a difference names
+where an assertion should go.
+
+**3. Does any test that reaches the line notice?** Apply the mutation
+once and put every covering test to it. Rank candidates by word
+overlap with the mutated line, keep the entry's own test, and PRINT
+what a cap dropped: ranking cannot change a verdict when everything
+runs, but under a cap it decides what was asked. A NOTICES is durable
+and names a re-aim; a silence is not evidence of absence.
+
+**4. Break every route at once -- with its CONTROL.** This is the step
+that separates a redundantly held axis from a weak assertion, and the
+control is not optional: breaking a survivor together with a sibling
+entry that ALREADY CATCHES fails the test whatever the survivor does.
+Run the co-broken thing ALONE; read the treatment only if that passes.
+Two rounds of retirements were nearly made on evidence that proved
+nothing, both caught this way.
+
+**5. Kill the site outright, when a survivor will not resolve.** A
+mutation that matches nothing, or matches a field the code does not
+read, is INERT -- and reports SURVIVED exactly as a redundantly held
+axis does. If killing the site fails the test, the site is live and
+the mutation was inert; if it does not, something else answers.
+
+Three attempts at a staging is the limit this project already sets.
+Past it the approach is wrong, and the honest outcomes are a
+retirement carrying the measurement, or an ACCEPT naming the condition
+that would reopen it.
+
 ## Triaging a survivor
 
 Five kinds, needing different answers:

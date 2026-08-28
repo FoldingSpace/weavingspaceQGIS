@@ -66,6 +66,45 @@ The general rule these share: when a survivor appears, count the call
 sites and read the named test BEFORE concluding the suite is weak.
 The catalogue is as capable of lying as the code it guards.
 
+## THREE MORE WAYS, FOUND BY DECIDING THIRTY-FOUR SURVIVORS AT ONCE
+
+2026-08-28. The branch's full sweep left thirty-four survivors, and
+thirty-three of them predated the released version -- so the
+catalogue had been losing entries for a version while its count went
+on describing them. Deciding every one produced three further ways an
+entry lies, all of which read as a weak test. The round is written up
+in `docs/process/catalogue-triage-2026-08-28.md`.
+
+**A FACT THAT GAINED A SECOND WRITER.** The commonest by far. Every
+ruling that adds a store -- a group's working state, an attribution
+record, a gate behind a timer -- leaves the entries over the OLD
+mechanism unable to fail, without anybody weakening a test. When a
+ruling lands, re-judge the entries standing on what it now duplicates.
+
+**AN ENTRY ON ONE LIMB OF A FALLBACK CHAIN, OR ONE READING OF A FACT
+READ TWICE.** `group = lookup() or findGroup(name)` and `lost =
+pending or watched` each serve from either half; a combo's default and
+its re-selection read one record twenty-two lines apart; a signature
+tuple carries a layer's identity and its fingerprint side by side.
+Anchor the whole decision, not a limb of it.
+
+**AN INERT MUTATION.** The mutation matches nothing, or matches a
+field the code does not consult -- a literal added to a list read from
+`mode` while deferral lives in `mode_raw`. Nothing changes, so nothing
+fails, and the verdict is indistinguishable from a redundantly held
+axis. THE DISCRIMINATOR IS TO KILL THE SITE OUTRIGHT: a live site
+whose removal fails the test proves the mutation was inert; a site
+whose removal changes nothing is answered elsewhere.
+
+**AND ONE STRUCTURAL LIMIT WORTH KNOWING BEFORE YOU WRITE AN ENTRY.**
+`mutation_check` applies exactly ONE replacement. A fact held at two
+DISTANT sites therefore cannot be guarded by a single entry at all --
+47 lines apart, in the case that raised it, where an anchor spanning
+both would break on any edit between them. Adjacent sites can be
+covered by widening the anchor; distant ones cannot, and the honest
+outcome is a retirement carrying the measurement rather than an entry
+that can only ever be red.
+
 ## The two harnesses
 
 `tools/mutation_check.py` holds hand-picked mutations, one per

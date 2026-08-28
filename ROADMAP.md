@@ -391,6 +391,27 @@ through the generators' own `render()` now and compares the whole
 text, naming the first line that differs so a failure is a work
 list rather than a diff to go hunting through.)
 
+**SHOULD A CATALOGUE ENTRY BE ABLE TO BREAK TWO SITES?** Raised
+2026-08-28 while deciding the drifted entries, and recorded rather
+than done because it is a change to campaign machinery in the middle
+of a candidate. `tools/mutation_check.py` applies exactly ONE
+replacement per entry, deliberately -- an entry names one site, and
+mutating several would make its verdict mean nothing. But this
+project's commonest defect shape is ONE FACT HELD IN SEVERAL STORES,
+and three entries that round stood on one limb of a pair whose other
+limb answers: a fallback chain, two readings a few lines apart, two
+terms of one tuple. Where the sites are adjacent an anchor can cover
+both. Where they are not -- the run signature's identity and
+fingerprint terms are 47 lines apart -- no entry can, and the honest
+outcome was a retirement.
+An `also=[(old, new), ...]` field would let those be guarded, at the
+cost of a verdict that no longer names one site. THE QUESTION TO
+SETTLE FIRST is whether that is still a mutation test or has become a
+feature test wearing one: breaking three sites at once and requiring a
+failure proves the SET is live, which is exactly the weaker claim the
+one-replacement rule exists to refuse. Worth an hour of thought and a
+grilling before any code.
+
 **Two mutation measurements, neither of them defect-finding.** The
 expensive stratum, which nothing has ever measured -- 1,172 of the
 1,488 reachable mutants, and the cheap stratum's 59% says nothing

@@ -3,7 +3,7 @@ name: long-job-supervision
 description: Supervise work that outlasts a single turn — test suites, builds, training runs, migrations, batch jobs — so the machine stays busy, finished work gets picked up immediately, and a stuck job is caught in minutes rather than hours. Use this whenever you start something long in the background, whenever a user asks for periodic status updates or says "keep going without me", whenever you are about to write a watcher or poll loop, and whenever a job seems to be taking longer than it should. Also use it before reporting that something is "still running" — that claim is worth exactly as much as the reading behind it.
 derived_from:
   - path: docs/MUTATION-LOOP.md
-    sha256: ff6462a4e74aa0a1b160cbd291aa8ac90a7f423c2e212f048302f15a7617212f
+    sha256: d72ddd2f0b89310a01f54c24f90b6ce33c692a4c8c10e07b9e1cba9389d6d990
 ---
 
 # Supervising work that outlasts a turn
@@ -115,6 +115,18 @@ the one measurement that separates blocked from busy says neither.
 Measured 2026-08-27: parent 0:00.09 while its three suite shards held
 2:47, 4:10 and 2:24 across twelve minutes. Sum the children and print
 how many there are — a worker count that falls is itself a finding.
+
+**AND THE PATTERN THAT FINDS THE PROCESSES WILL FIND THE WRAPPERS
+TOO.** A beat matching a job by its command line picks up the shell
+that launched it as well as the worker, and a launcher's CPU is zero
+forever — so a healthy run prints a column of zeros beside one busy
+figure, which is indistinguishable from most of the workers having
+died. Measured 2026-08-28: three recorders reading 0:00.00, 0:00.00
+and 9:11 were, asked directly, carrying 3:20, 3:46 and 3:47 apiece.
+Match the INTERPRETER running the work, not the wrapper, and when a
+beat's own numbers look alarming, ask the processes before believing
+the watcher. This is the sibling of "a watcher must name its subject":
+a figure whose subject is ambiguous is not a measurement.
 
 Before concluding a job is stuck, check the plainest explanations
 first: is the log growing, and is the last line an error message

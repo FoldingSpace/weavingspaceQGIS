@@ -3,9 +3,9 @@ name: mutation-campaign
 description: Run a mutation-testing campaign to measure and genuinely improve how good a test suite is — sampling mutants, triaging survivors, verifying that new tests actually fail, and deciding when a score can be defended. Use this whenever the user wants to know whether their tests are any good, asks about mutation testing or mutation score, says coverage looks high but they don't trust it, wants to raise a mutation score toward a target, or is writing tests to close gaps that a mutation tool found. Also use it when someone proposes to accept a surviving mutant as "equivalent", or asks how many mutants they need to sample — both are places where a campaign quietly turns into a vanity metric.
 derived_from:
   - path: docs/MUTATION-LOOP.md
-    sha256: ff6462a4e74aa0a1b160cbd291aa8ac90a7f423c2e212f048302f15a7617212f
+    sha256: d72ddd2f0b89310a01f54c24f90b6ce33c692a4c8c10e07b9e1cba9389d6d990
   - path: docs/MUTATION-TESTING.md
-    sha256: 17d870bc1aa9f0f5c1247500607a82c4b1e5990527d7a86a08752fe0e7e13152
+    sha256: 83d8b707c2bf10a73100555e98c6b5e1e48e4ea1cbfe1e6782bcd6f5bee8f55c
 ---
 
 # Running a mutation campaign
@@ -103,6 +103,47 @@ looking healthy, all found in one sweep:
 Count the call sites and read the named test before concluding the
 suite is weak. Five of thirteen survivors in that sweep were the
 first kind alone.
+
+**THREE MORE WAYS, from a round that decided thirty-four survivors at
+once — thirty-three of them older than the last release, so the
+catalogue had been going quiet for a version while its count went on
+describing them:**
+
+- **a fact that gained a SECOND WRITER.** The commonest by far.
+  Every decision that adds a store — a record that persists the same
+  state, an attribution table, a gate behind an existing one — leaves
+  the entries over the OLD mechanism unable to fail, and nobody
+  weakened a test. When such a change lands, re-judge the entries
+  standing on what it now duplicates, in the same round;
+- **an entry on ONE LIMB of a fallback chain, or one of two readings
+  of a fact read twice.** `x = lookup() or fallback(name)`; a widget's
+  default seeded here and re-selected from the record twenty lines
+  below; two terms of one tuple that answer the same question. Anchor
+  the whole decision rather than a limb, so the next alternative
+  somebody adds cannot split it again;
+- **an INERT mutation** — one that matches nothing, or matches a field
+  the code does not consult. It changes nothing, so nothing fails, and
+  the verdict is indistinguishable from a redundantly held axis.
+
+**THE DISCRIMINATOR FOR THE LAST ONE IS TO KILL THE SITE OUTRIGHT.**
+If the test then fails, the site is live and your mutation was inert;
+if it still passes, something else is answering. Four attempts went
+into one entry before the question was asked that way round.
+
+**AND EVERY REDUNDANCY VERDICT NEEDS ITS CONTROL.** Breaking a
+survivor together with a sibling entry that ALREADY CATCHES fails the
+test whatever the survivor does, so the failure proves nothing. Run
+the co-broken thing ALONE first; read the treatment only when that
+control passes. Two rounds of retirements were nearly made on such
+evidence in a single day, and only the control caught it.
+
+**A STRUCTURAL LIMIT WORTH KNOWING BEFORE YOU WRITE AN ENTRY:** a
+harness that applies ONE replacement per entry — which is the right
+default, since an entry names one site — cannot guard a fact held at
+two DISTANT sites at all. Adjacent sites can be covered by widening
+the anchor; distant ones cannot, and the honest outcome is a
+retirement carrying the measurement rather than an entry that can only
+ever be red.
 
 **AND SUSPECT YOUR OWN NEWEST GUARD HARDEST.** The catalogue's most
 valuable catch is not an old test that has drifted; it is a guard

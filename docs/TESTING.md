@@ -3144,6 +3144,76 @@ lives, it catches. Ask of any re-aimed entry whether the site it names
 is still the site that DECIDES, or has become a second line of defence
 behind one.
 
+## FOUR WAYS A TEST DID NOT REACH THE JOURNEY ITS ENTRY NAMED
+
+2026-08-28, deciding all thirty-four survivors of the branch's full
+catalogue sweep. Eleven of them were this: the test is sound, its
+assertions are sharp, and the journey it drives never touches the code
+the entry stands on. Each is worth knowing on sight, because each
+reads as a weak test and none is.
+
+**A GENERATE THAT CHANGES NO GEOMETRY IS A RESTYLE.** Picking a style
+back, choosing a ramp, moving a class count: none of them re-tiles, so
+`_generate` takes the fast path and the LANDING never runs. A test
+that says "and then Generate" may therefore never reach the landing's
+own rules -- the plugin says so itself, `GEN-GATE restyled-instead`,
+which is why those exits were made to name themselves. Nudge the
+spacing when the landing is the subject.
+
+**A CLASSIFY ON A CONSTANT COLUMN NOW DEFERS.** The follow path drops
+out at `DROP <tid> deferring` above the count guard, so a test written
+when that route reached the guard no longer does. When a ruling
+changes what a journey MEANS, the tests that drove it keep passing and
+stop arriving.
+
+**SELECTING THE LAYER THAT IS ALREADY SELECTED STAGES NO CHOICE.** A
+reopened dialog has adopted its own output and its region with it, so
+`setLayer(region)` fires nothing and any clause about what a first
+choice means is unreachable. Pick something else first.
+
+**A TEST CAN ONLY TELL WHERE A VALUE IS READ FROM WHEN THE TWO SOURCES
+DISAGREE.** The deferral-opacity arms set the cell to 30 and re-tiled,
+by which time the LAYER also held 0.3 -- so taking the cell's number
+and taking the old layer's gave the same answer and the entry could
+not fail either way. With live update off the map is deliberately not
+repainted, which makes the disagreement stageable rather than a race:
+move the cell to 60, leave the layer at 0.3, and the landing has to
+choose.
+
+**AND THE PAIRS RULE BITES THE GUARD AS WELL AS THE PRODUCT.** A
+handler with two follow exits, one per styling path, was guarded by a
+test that drove only the categorized one; its graduated twin's entry
+could never fail. The docstring of that very test says the twin
+asymmetry produced most of its week's defects.
+
+## ASSERT WHAT A RE-SEED WOULD NOT REPRODUCE
+
+Same round, and it cost two withdrawn assertions. A followed row has
+already been brought up to its layer's field and class count, so
+re-seeding the element reproduces BOTH -- and a test asserting them
+passes whether the renderer was preserved or repainted. What a re-seed
+destroys is the COLOURS, and those are the discriminator.
+
+The general form is this file's own rule about the easiest observable
+nearby, arriving where the record and the map agree: before asserting
+a property, ask what the failure you fear would do to it. If the
+answer is "nothing", it is not the property to assert.
+
+## STAGE THE CONDITION, THEN ASSERT THE PREMISE OUT LOUD
+
+`if gaps_first:` guarded the assertion that would have caught a
+mutated dedup key, and the fixture left the first element with no
+empty classes, so it never ran. Taking the judgement out from behind
+the `if` turned the test red -- correctly -- and the repair was to
+STAGE the condition: both elements are given a class count high
+enough to leave gaps, and the premise says so in words. Two counts
+were tried before one worked, which is cheaper than an assertion that
+cannot fire.
+
+This project already carries "a judgement behind an `if` is a green
+that says nothing". What this adds is the order of operations: assert
+the premise FIRST, watch it fail, then stage until it holds.
+
 ## AN ANCHOR CAN BE AMBIGUOUS BY INDENTATION ALONE
 
 Same sweep, nine entries returning no verdict at all: `mutation_check`
