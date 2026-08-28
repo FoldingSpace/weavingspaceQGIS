@@ -2105,6 +2105,22 @@ MUTATIONS = [
        test="test_a_recipients_save_keeps_the_source_the_sender_included",
        why="a colleague who opens a self-contained map and saves it "
            "still having a file anybody can redraw"),
+  dict(name="a-saved-element-names-the-table-it-was-drawn-into", file=DIALOG,
+       # Round ten, 2026-08-28, and the defect was in the repair above
+       # it: that carry mended the design and the region and left the
+       # ELEMENTS live, so a variable moved after a landing was
+       # recorded in the file against tiles drawn with the old one.
+       # Measured by the hunt aimed at the repair: drawn with `a` on
+       # v1 into `tiles_a_v1`, chooser moved to v3, and the file's
+       # record said v3 beside its own `tiles_a_v1`.
+       old="""      if isinstance(element, dict) and element.get("id") in was_drawn:
+        element["var"] = was_drawn[element["id"]]""",
+       new="""      if isinstance(element, dict) and False:
+        element["var"] = was_drawn[element["id"]]""",
+       test="test_saving_holds_on_every_route",
+       why="a saved file whose record names, for every element, the "
+           "table its own tiles are in -- so a colleague's first "
+           "Generate does not replace the sender's element"),
   dict(name="a-save-records-the-design-its-tiles-hold", file=DIALOG,
        # Round ten, 2026-08-28, converged on by two hunts from
        # opposite directions. `_save_the_map` wrote the FILE's record
@@ -3693,7 +3709,11 @@ MUTATIONS = [
            "gets a map quietly carrying the wrong number of variables"),
   dict(name="adopted-signature-stamped-on-the-wrong-element",
        file=DIALOG,
-       old="""    return next((a for a in self._assignments()
+       # RE-ANCHORED 2026-08-28, when `_assignment_for` began asking
+       # `_assignments` for one row rather than building every one.
+       # The claim is unchanged: this entry is about the lookup
+       # finding the RIGHT element, not about how many rows are read.
+       old="""    return next((a for a in self._assignments(only=tile_id)
                  if a["id"] == tile_id), None)""",
        new="""    return next((a for a in self._assignments()
                  if a["id"] != tile_id), None)  # mutation""",
@@ -3718,7 +3738,11 @@ MUTATIONS = [
            "after a run, so it was satisfied by silence"),
   dict(name="range-editor-repaints-from-another-element",
        file=DIALOG,
-       old="""    return next((a for a in self._assignments()
+       # RE-ANCHORED 2026-08-28, when `_assignment_for` began asking
+       # `_assignments` for one row rather than building every one.
+       # The claim is unchanged: this entry is about the lookup
+       # finding the RIGHT element, not about how many rows are read.
+       old="""    return next((a for a in self._assignments(only=tile_id)
                  if a["id"] == tile_id), None)""",
        new="""    return next((a for a in self._assignments()
                  if a["id"] != tile_id), None)  # mutation""",
@@ -3732,7 +3756,11 @@ MUTATIONS = [
            "the same fault the Custom ramp cell exists to prevent"),
   dict(name="graduated-signature-stamped-on-the-wrong-element",
        file=DIALOG,
-       old="""    return next((a for a in self._assignments()
+       # RE-ANCHORED 2026-08-28, when `_assignment_for` began asking
+       # `_assignments` for one row rather than building every one.
+       # The claim is unchanged: this entry is about the lookup
+       # finding the RIGHT element, not about how many rows are read.
+       old="""    return next((a for a in self._assignments(only=tile_id)
                  if a["id"] == tile_id), None)""",
        new="""    return next((a for a in self._assignments()
                  if a["id"] != tile_id), None)  # mutation""",

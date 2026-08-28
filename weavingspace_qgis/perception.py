@@ -251,6 +251,24 @@ def clashes(element_colours, shared=None, threshold=CLASH_THRESHOLD):
   from . import bridge          # local: this module is imported by
   # bridge's own callers and a top-level import would circle
   ids = sorted(element_colours, key=bridge.element_order)
+  # LAB ONCE PER ELEMENT PER VISION, not once per PAIR, which is the
+  # same fix as the one recorded below it moved one level out. That
+  # one stopped `distance` reconverting inside the innermost loop;
+  # this one stops the whole of an element's colours being converted
+  # again for every element it is compared against. Element `a` was
+  # converted 255 times in a 256-element design.
+  # Measured 2026-08-28 at the ceiling raised the day before: 901,080
+  # conversions where 3*n*k = 3,840 will do, 235 times too many, and
+  # 8.06 seconds of a thirty-eight-second frozen dialog. It grows with
+  # the class count as well, so a design with many categories pays it
+  # twice over.
+  # Nothing about WHAT is compared changes: the same pairs, the same
+  # distances, the same worst case. Only the repeated arithmetic goes.
+  in_lab = {
+    tile_id: {vision: [_to_lab(_as_dichromat(c, vision))
+                       for c in element_colours[tile_id]]
+              for vision in VISIONS}
+    for tile_id in ids}
   for index, first in enumerate(ids):
     for second in ids[index + 1:]:
       # Elements deliberately given the same ramp are not a problem:
@@ -279,10 +297,8 @@ def clashes(element_colours, shared=None, threshold=CLASH_THRESHOLD):
       # same distances, the same worst-case picked. Only the repeated
       # arithmetic goes.
       for vision in VISIONS:
-        firsts = [_to_lab(_as_dichromat(c, vision))
-                  for c in element_colours[first]]
-        seconds = [_to_lab(_as_dichromat(c, vision))
-                   for c in element_colours[second]]
+        firsts = in_lab[first][vision]
+        seconds = in_lab[second][vision]
         for one in firsts:
           for two in seconds:
             apart = sum((a - b) ** 2 for a, b in zip(one, two)) ** 0.5

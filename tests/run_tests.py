@@ -68478,10 +68478,31 @@ def _save_matrix_cell(route, shape, aftermath, folder):
       # file was being given a design its tiles were never drawn at.
       dlg.live_check.setChecked(False)
       drawn_spacing = dlg.spacing_spin.value()
-      drawn_elements = sorted(dlg._element_layer_ids)
+      # THE LAYER IDS, NOT THE KEYS. A re-tile leaves the element ids
+      # exactly as they were and replaces the LAYERS behind them, so a
+      # guard comparing `sorted(dict)` cannot fire -- which is the
+      # inert-guard shape this project keeps meeting, caught here by
+      # the hunt aimed at this route the hour after it was written.
+      drawn_layers = dict(dlg._element_layer_ids)
+      drawn_vars = {row_id: table_of_element(dlg, row_id)
+                    for row_id in drawn_layers}
       dlg.spacing_spin.setValue(drawn_spacing * 1.4)
+      # AND A VARIABLE, because the record holds two kinds of thing
+      # that a live reading gets wrong in two different ways: the
+      # DESIGN, which describes the map, and each element's VARIABLE,
+      # which names the table its tiles are in. Moving only the
+      # spacing stages half the case, which is how the entry for the
+      # second half survived its first proof.
+      chooser = dlg.table.cellWidget(0, 1)
+      if chooser is not None:
+        for candidate in ("v3", "v2", "v1"):
+          if chooser.findText(candidate) >= 0 and \
+              chooser.currentText() != candidate:
+            chooser.setCurrentIndex(chooser.findText(candidate))
+            chooser.activated.emit(chooser.currentIndex())
+            break
       _tick(1200)
-      if sorted(dlg._element_layer_ids) != drawn_elements:
+      if dict(dlg._element_layer_ids) != drawn_layers:
         return "SKIPPED: the tweak re-tiled, so the two cannot disagree"
       if dlg.spacing_spin.value() == drawn_spacing:
         return "SKIPPED: the spacing box did not move"
@@ -68533,6 +68554,22 @@ def _save_matrix_cell(route, shape, aftermath, folder):
         return (f"the file records spacing {recorded!r} where its own "
                 f"tiles were drawn at {drawn_spacing!r}, so a "
                 f"colleague opening it is shown a design nobody made")
+      # AND EACH ELEMENT'S VARIABLE, which is the half the first
+      # repair left behind: it names the TABLE the tiles went into, so
+      # a live reading of it points the record at a table the file
+      # does not hold.
+      for element in (record.get("elements") or []):
+        row_id = element.get("id")
+        if row_id not in drawn_vars:
+          continue
+        wanted = drawn_vars[row_id]
+        if wanted and wanted not in tables:
+          continue
+        named = f"tiles_{row_id}_{element.get('var')}"
+        if element.get("var") and named not in tables:
+          return (f"the file's record says element {row_id!r} carries "
+                  f"{element.get('var')!r}, which would be table "
+                  f"{named!r}, and the file holds {sorted(tables)}")
     if route == "after-a-variable-change":
       orphans = {t for t in tables
                  if t.startswith("tiles_") and t not in wanted

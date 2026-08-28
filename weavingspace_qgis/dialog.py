@@ -7856,7 +7856,7 @@ class WeavingSpaceDialog(QDialog):
     hide. Collapsed here, one mutation does the work of nine.
     (2026-08-12.)
     """
-    return next((a for a in self._assignments()
+    return next((a for a in self._assignments(only=tile_id)
                  if a["id"] == tile_id), None)
 
   def _clear_quant_customization(self, tile_id, because,
@@ -8766,6 +8766,17 @@ class WeavingSpaceDialog(QDialog):
         self._report_quietly(
           f"Element '{tile_id}' is now styled in QGIS, so its colours "
           f"are set in the Layer Styling panel.")
+      # THE PICTURE FOLLOWS EVEN THOUGH THE RECORDS DO NOT. Deferral
+      # means the plugin stops deciding this element's SYMBOLOGY; it
+      # has never meant the design view may go on showing a colour the
+      # map does not contain. Until 2026-08-28 this exit returned in
+      # front of every refresh, so an element restyled in the dock kept
+      # the plugin's old colour in the preview for the rest of the
+      # session and no later act healed it -- measured by rendering the
+      # widget, zero pixels of what the map draws. The guard is about
+      # deferral and the exit below it was about the picture, which is
+      # this file's own standing shape.
+      self._refresh_preview_colours()
       _dump("DROP", tile_id, "deferring")
       return
     layer = QgsProject.instance().mapLayer(layer_id)
@@ -8805,6 +8816,22 @@ class WeavingSpaceDialog(QDialog):
       self._graduated_layer_edited(layer, tile_id, renderer)
       return
     if not isinstance(renderer, QgsCategorizedSymbolRenderer):
+      # THE DESIGN VIEW STILL HAS TO FOLLOW, and until 2026-08-28 it
+      # did not. This exit is taken by exactly the renderers deferral
+      # is made of -- a rule-based fill, a single symbol somebody
+      # mixed in the dock -- which is the one case where the map's
+      # colour is nobody's but the user's. Both nameable siblings
+      # refresh; this one returned in front of the refresh, so the
+      # preview went on painting the plugin's old colour, a colour the
+      # map does not contain, for the rest of the session, and no
+      # later act healed it. Measured by rendering the widget: zero
+      # pixels of the colour the map draws.
+      # The fifth door into the room `test_every_restyle_door_repaints_
+      # the_preview` walked on 2026-08-26, and the reason none of the
+      # four found it is that the dialog's own computation is RIGHT
+      # here -- `_table_id_colours` answers the new colour -- so every
+      # test reading that function passes straight over it.
+      self._refresh_preview_colours()
       return
     assignment = self._assignment_for(tile_id)
     if assignment is None or assignment["mode"] != "Categorized" \
@@ -11514,7 +11541,7 @@ class WeavingSpaceDialog(QDialog):
     if note is not None:
       self._report_quietly(note)
 
-  def _assignments(self) -> list[dict]:
+  def _assignments(self, only=None) -> list[dict]:
     """Read the Data & colours table into plain dicts.
 
     The ONE crossing point between widget state and everything
@@ -11583,6 +11610,27 @@ class WeavingSpaceDialog(QDialog):
     result = []
     for row in range(self.table.rowCount()):
       id_item = self.table.item(row, 0)
+      # ONE ROW WHERE ONE ROW IS WANTED. `only` changes nothing about
+      # what a dict holds or about how fresh it is -- the same widgets
+      # are read at the same moment -- and it is what stops
+      # `_assignment_for` building every element to return one.
+      # Measured 2026-08-28 at the 256-element ceiling raised the day
+      # before: the landing walked 256 rows 768 times, 200,192
+      # row-visits where 768 would do, and each visit re-derived the
+      # region layer's fingerprint to hit a cache that then hit --
+      # 201,987 derivations of an extent, a feature count and a CRS.
+      # Together with the legibility check's own quadratic that was
+      # thirty-eight seconds of frozen QGIS on every Generate after
+      # the first, against one second at twenty-six elements.
+      # A CACHE WAS THE OBVIOUS ANSWER AND IS FORBIDDEN HERE, in this
+      # method's own words and for a good reason: the table is the
+      # record, `_row_follows_the_renderer` moves rows while the
+      # landing is seeding, and a snapshot taken at the start of a
+      # landing is stale by the middle of it. Reading fewer rows costs
+      # nothing in freshness; remembering them would.
+      if only is not None and (id_item is None
+                               or id_item.text() != only):
+        continue
       var_combo, mode_combo, k_spin, ramp_combo, reverse_holder, \
         opacity_spin, file_combo = self._row_widgets(row)
       reverse_box = self._row_reverse(row)
@@ -16142,6 +16190,32 @@ class WeavingSpaceDialog(QDialog):
     for key in ("design", "region"):
       if key in carried:
         resumable[key] = carried[key]
+    # AND EACH ELEMENT'S VARIABLE, WHICH IS NOT A SETTING BUT A NAME.
+    # The rest of an element's record is live on purpose, and must
+    # stay so: the colour editors are usable while a run is in flight
+    # and after it lands, so a colour or a pin chosen after the map
+    # was drawn belongs in the file. The VARIABLE is different in kind
+    # -- it decides the table the tiles were written into
+    # (`tiles_<id>_<variable>`), so a live reading of it names a table
+    # the file does not have.
+    # Measured 2026-08-28, by a hunt aimed at this very repair an hour
+    # after it landed: drawn with `a` on v1 into `tiles_a_v1`, the
+    # chooser moved to v3, Save -- and the file's record said v3 while
+    # its own table said v1, so a colleague's first Generate replaced
+    # the sender's element. The same run re-drove this method's own
+    # commit message and found its second example half-mended: design
+    # n carried as 4 and the element list live as ['a', 'b'], beside
+    # four tables. A record that contradicts itself is the thing the
+    # ruling of 2026-08-26 forbids.
+    # WHICH MOMENT EACH FIELD IS ABOUT is the question this file
+    # already asks of every record built from two readings; the answer
+    # here is per KEY rather than per record.
+    was_drawn = {element.get("id"): element.get("var")
+                 for element in (carried.get("elements") or [])
+                 if isinstance(element, dict)}
+    for element in (resumable.get("elements") or []):
+      if isinstance(element, dict) and element.get("id") in was_drawn:
+        element["var"] = was_drawn[element["id"]]
     resumable["region_embedded"] = self._embed_or_drop_the_source(path)
     if not bridge.write_working_state(
         path, self._file_safe_state(resumable)):
