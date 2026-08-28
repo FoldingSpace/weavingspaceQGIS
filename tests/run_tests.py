@@ -65508,6 +65508,21 @@ def test_a_donor_reaches_its_follower_in_the_same_run():
 
     # THE RESTYLE TWIN: a ramp change alone does not re-tile, and the
     # same lag lives on that path with nothing replaced at all.
+    #
+    # THIS LEG IS NOT PROVED, and saying so is the honest record.
+    # Its catalogue entry, `the-restyle-follows-a-donor-that-moved-
+    # too`, SURVIVED: the restyle's own half of the fix can be deleted
+    # and these assertions still pass, so what they measure is not the
+    # restyle path.
+    # WHAT WAS TRIED AND WHY IT FAILED. The obvious repair is to ask
+    # BEFORE any Generate, on the reasoning that picking a ramp
+    # restyles there and then. It does not: with live update off the
+    # map is deliberately NOT refreshed until the user asks
+    # (PRESERVE, DO NOT REPAINT, 2026-08-19), so the donor has not
+    # moved at that moment and the premise assertion fires. The leg
+    # therefore stands as it was, and what covers the restyle path is
+    # unestablished rather than accidentally covered -- which is a
+    # countdown, not a defence.
     before = drawn(donor_id)
     assert drive_ramp(3, "Set2"), \
       "PREMISE: the donor's row offers no third categorical ramp"
@@ -65515,10 +65530,10 @@ def test_a_donor_reaches_its_follower_in_the_same_run():
     _tick(300)
     _settle(dlg, seconds=90)
     assert drawn(donor_id) != before, \
-      "PREMISE: the donor did not move on the restyle path"
+      "PREMISE: the donor did not move after its ramp changed"
     assert not disagreement(), \
-      f"on the restyle path the follower kept the donor's previous " \
-      f"colours: {disagreement()}"
+      f"the follower kept the donor's previous colours: " \
+      f"{disagreement()}"
 
     # A CYCLE SETTLES. Each now takes its classes from the other,
     # which has no valid seeding order at all -- one of the two keeps

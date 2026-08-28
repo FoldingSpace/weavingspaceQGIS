@@ -231,15 +231,17 @@ record as file metadata, which makes a saved map resumable without the
 project that made it -- the source recovered by reference, embedding
 it an explicit opt-in -- and element tables are trimmed to the
 variable each element displays and named `tiles_<tid>_<variable>`.
-WHEN that record is written is DUE TO CHANGE and has not changed yet.
-Today a run writes it, so setting an output path makes every Generate
-save; the maintainer ruled on 2026-08-27 that saving is a positive act
--- a path chooser choosing what you WOULD write to, a Save button
-doing the writing, Generate only drawing, and auto-generate never
-writing at all. Nothing of that is built. The work is in ROADMAP.md
-under 0.24.4 and the reasoning is in CLAUDE.md under the five rulings
-of that date; this paragraph describes the plugin as it stands, which
-is what it is for.
+WHEN that record is written is DUE TO CHANGE, and the change is built
+on a branch rather than here. On this line a run writes it, so setting
+an output path makes every Generate save. The maintainer ruled on
+2026-08-27 that saving is a positive act -- a path chooser choosing
+what you WOULD write to, a Save button doing the writing, Generate
+only drawing, and auto-generate never writing at all -- and the
+product side of that lives on `for-0.24.4/saving-is-an-act`, which has
+never been run and owes twenty-one catalogue entries and fifty-six
+tests before it can merge. So this paragraph goes on describing the
+plugin as it stands, which is what it is for, and the branch describes
+what it will be.
 
 WHICH DATASET A MAP CAME FROM IS ASKED OF THE LAYER THAT WAS TILED.
 Every output layer carries `weavingspace_region`, and three rules read

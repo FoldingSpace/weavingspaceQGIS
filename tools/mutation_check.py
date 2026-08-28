@@ -6608,17 +6608,22 @@ MUTATIONS = [
            "whatever order the follow relationships forced -- an order "
            "nobody chose and nobody can see the reason for, where "
            "every other list a person meets reads a..z then aa.."),
-  dict(name="the-restyle-follows-a-donor-that-moved-too", file=DIALOG,
-       old="""          # ...and anything following THIS element's layer must be
-          # re-seeded after it rather than skipped as unchanged
-          reseeded.add(tid)""",
-       new="""          pass  # mutation: the restyle forgets which donors moved""",
-       test="test_a_donor_reaches_its_follower_in_the_same_run",
-       why="a ramp change alone does not re-tile, so the same one-run "
-           "lag lives on the restyle path with nothing replaced at "
-           "all: the templates are read before the loop, and a "
-           "follower reached after its donor is skipped as already "
-           "wearing what it should"),
+  # RETIRED 2026-08-27, WITH ITS MEASUREMENT, rather than left as an
+  # entry that can only ever be red. The restyle path was given the
+  # same three repairs as the landing, on the rule that a guard added
+  # at one door belongs at every door -- but nothing here PROVES the
+  # restyle half: deleting `reseeded.add(tid)` on that path leaves
+  # `test_a_donor_reaches_its_follower_in_the_same_run` passing.
+  # WHAT WAS TRIED. Asking before any Generate, so the restyle is
+  # measured where it happens, fails on its own premise: with live
+  # update off the map is deliberately not repainted until the user
+  # asks (PRESERVE, DO NOT REPAINT, 2026-08-19), so the donor has not
+  # moved at that moment. Which mechanism covers the journey the test
+  # does drive is UNESTABLISHED, and this project's own rule is that
+  # an accidental cover is a countdown rather than a defence.
+  # WHAT WOULD CLOSE IT: a leg with live update ON, where a ramp pick
+  # does reach the map through the restyle path, and the follower can
+  # be asked before any landing runs.
   dict(name="a-ramp-is-remembered-under-the-rows-mode", file=DIALOG,
        old="""      if not moved and mode in ("Categorized", "Graduated"):
         memory[mode] = ramp""",

@@ -2035,12 +2035,22 @@ Confirmed with the user via an explicit design review:
   the reopened one did, so it was two rules colliding rather than a
   persistence fault.
 
-- **THE FIVE RULINGS OF 2026-08-27, SETTLED BY GRILLING. NONE OF THEM
-  IS BUILT.** They are recorded here because the reasoning is what a
-  later session will not have; the WORK is in ROADMAP.md under 0.24.4,
-  written to be implementable from that document alone. Read both
-  before touching any of it, and do not take the presence of a ruling
-  here as evidence that the code follows it.
+- **THE FIVE RULINGS OF 2026-08-27, SETTLED BY GRILLING. THREE ARE
+  BUILT AND TWO ARE ON A BRANCH.** They are recorded here because the
+  reasoning is what a later session will not have; the outstanding
+  WORK is in ROADMAP.md under 0.24.4.
+  WHICH IS WHICH, because a ruling written down reads exactly like a
+  ruling implemented. Rulings 3, 4 and 5 -- the output path, the ramp
+  memory and the seeding order -- are on
+  `for-0.24.4/copy-select-all`, each with a registered test and
+  catalogue entries proved `caught`, with ONE exception named at the
+  entry itself: the restyle half of ruling 5 is unproved, its entry
+  retired with the measurement rather than left able only to be red.
+  Rulings 1 and 2 -- saving as a positive act, and the untick that
+  drops the source -- are BUILT ONLY AS PRODUCT CODE on
+  `for-0.24.4/saving-is-an-act`, which has never been run and must
+  not merge until its suite is converted. Nothing on the merged line
+  behaves that way yet.
   1. SAVING IS A POSITIVE ACT. A path chooser records what you WOULD
      save to or load from and does nothing on its own. A SAVE button
      beside the output path writes the map as it stands -- tables,
@@ -2099,6 +2109,23 @@ Confirmed with the user via an explicit design review:
      each other have no valid order and keep the one-run lag, with the
      reason at the code; driven 2026-08-27, a cycle SETTLES rather
      than churning.
+
+- **A FULL SUITE FINDS WHAT A TARGETED RUN CANNOT REACH, AND THE FIRST
+  ONE HERE FOUND A DOCUMENT.** (2026-08-27.) The first full suite ever
+  to complete on `for-0.24.4/copy-select-all` returned 636 passed and
+  1 failed, and the failure was `test_the_documents_numbers_match_the_
+  code`: the element ceiling had split in two the previous day while
+  the user guide went on naming one, so a tiling user was being told a
+  limit an order of magnitude under what the plugin would draw for
+  them. No test aimed at the ceiling work could have found it, because
+  none of them reads the guide.
+  TWO INSTRUMENTS EXITED 0 WITH THE ANSWER INSIDE THEM the same hour:
+  the suite itself, which reports a failure and still exits clean
+  through its runner, and the mutation catalogue, which REFUSED to
+  judge eight entries for want of `QGIS_PY` and printed the command
+  that fixes it. Both times the verdict was in the output and not in
+  the status, which is this file's own standing rule met twice in one
+  session.
 
 - **TWO ELEMENT CEILINGS, NOT ONE.** (Maintainer's ruling, 2026-08-27,
   and this one IS built.) Weaves keep `a`..`z`; tilings run `a`..`z`
