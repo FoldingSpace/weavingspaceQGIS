@@ -178,184 +178,59 @@ two elements share a column, one element's notice silenced the other.
 
 Worked on `pre-0.24.4rc1`. What follows is what the version owes.
 
-**WHAT IS ALREADY BUILT, AND ON WHICH BRANCH.** Two branches carry
-0.24.4. A branch cannot tell you it is unfinished, which is why each
-is named here with what must be true before it goes in.
+**ONE LINE CARRIES 0.24.4**, since the two branches were merged on
+2026-08-27: `for-0.24.4/copy-select-all`, which now holds the Save
+work as well. `for-0.24.4/saving-is-an-act` is an ancestor of it and
+is kept only so its history reads; nothing is owed on it.
 
-`for-0.24.4/copy-select-all` -- everything finished so far, and the
-branch to work in. It carries `hunt-fixes` merged whole (the
-twenty-five defects of 2026-08-27, each with a registered test and a
-proved catalogue entry), the Select all button, the two element
-ceilings with `element_order` behind them, and three of the five
-rulings of 2026-08-27: an output path never decides the group, a ramp
-is remembered under the row's mode, and donors are seeded before
-their followers.
-TWO FULL SUITES HAVE COMPLETED ON IT, and the second is the one that
-matters: 638 passed and 1 failed at `8b3146d`, the first run over the
-three rulings rather than the tree underneath them. The failure was
-`test_a_ramp_you_are_offered_is_the_ramp_you_get`, and it was a
-COLLISION between two settled rules rather than a fault in either --
-the older rule that a row turning categorical swaps a sequential ramp
-away, against ruling 4, which remembers a ramp under the mode the row
-is in. What tells them apart is whether the row has a memory for the
-mode it is entering; the test's second half is staged on a row that
-has never been categorized now, both answers are asserted, and the
-reasoning is in CLAUDE.md.
-(The first run, 636 passed and 1 failed at `0e9056c`, found the user
-guide naming one element ceiling where the code has two.)
-BEFORE IT MERGES TO `main`: a full suite over the tree as it now
-stands, since the re-decided test and the standards-gate change
-landed after that run.
+WHAT THE VERSION HAS. The twenty-five defects of the hunt round, each
+with a registered test and a proved catalogue entry; the Select all
+button; the two element ceilings with `element_order` behind them;
+and all five rulings of 2026-08-27 -- an output path never decides the
+group, a ramp is remembered under the row's mode, donors are seeded
+before their followers, saving is a positive act, and unticking
+"Include the source data" takes it out of the file.
 
-`for-0.24.4/saving-is-an-act` -- rulings 1 and 2, the Save work, as
-PRODUCT CODE ONLY. Read that branch's own ROADMAP entry before
-touching it: it names what is built and what is owed, measured rather
-than guessed. IT MUST NOT MERGE AS IT STANDS, and the reason is not
-caution. Generate no longer writes the GeoPackage, so twenty-one
-catalogue entries are orphaned and fifty-six registered tests expect
-a file that a run no longer produces; merging it would take a tree
-with one known failure to a tree with dozens. Nothing on it has been
-run.
+WHAT THE SAVE CONVERSION COST AND FOUND, because the ratio is the
+argument for doing it that way again. Fifty-eight Save presses went
+in by script where the old code's write used to happen; twenty-four
+tests were converted BY HAND because what they assert changed rather
+than moved; four tests were written that did not exist, one of them a
+matrix of eleven routes to a press crossed with two shapes and three
+aftermaths. Twenty catalogue entries are proved `caught`, two of them
+guarding an ABSENCE by putting a deleted behaviour back, since there
+is no line left to mutate.
+IT FOUND FOUR REAL DEFECTS, three on ordinary journeys: a run
+claiming a save it never made, a Save during the first run telling
+somebody to press Generate, a region chooser excluding a newly loaded
+layer for being allocated where a destroyed one had been, and -- the
+worst -- a map opened with Load being DESTROYED by being saved.
+Ledger rows 27 to 30.
 
-**SAVING IS A POSITIVE ACT.** (Maintainer's ruling, 2026-08-27,
-settled by grilling. THE PRODUCT SIDE IS BUILT ON
-`for-0.24.4/saving-is-an-act`; THE SUITE IS NOT CONVERTED, and the
-branch must not merge until it is. What that means precisely, because
-"partly done" is the state this file exists to make unambiguous:
+WHAT IS OWED BEFORE A CANDIDATE: the full suite, which belongs to the
+rc rather than to the working day (maintainer's instruction,
+2026-08-27) and which shards three ways when it runs. The last whole
+run was 636 passed and 7 failed at `844e6d4`; every one of those
+seven is fixed, and the fixes are covered by targeted runs rather
+than by a whole-tree measurement.
 
-BUILT. A Save & open tab carrying two file rows and a button each --
-Save writes, Load reads, and neither chooser does anything on its own.
-`_save_the_map` writes the element tables, the twins, the embedded
-styles, the stale-table drop, the source copy or its removal, and the
-resumable record, in one act; `compat.point_layer_at` repoints each
-layer at the file in place, keeping the ids the rest of the dialog is
-keyed on. `_may_overwrite` asks before writing over a file this map
-did not write. Generate writes NOTHING: the landing's per-element
-write, its style embedding, its index reload, its stale drop, its
-`_last_path` move and its record write are all gone, along with the
-eleven adoption and restyle exits that embedded a style and the two
-that rewrote the file's record. `_rewrite_the_files_record` is
-retired. Live update's output-path gate is deleted with the
-measurement at the site, and so is the Generate-time modal that
-refused a run whose path would overwrite a kept result -- a run
-overwrites nothing now.
+**AND ONE BRANCH IS SUPERSEDED RATHER THAN OWED.**
+`for-0.24.4/save-load-tab` holds exactly one commit that is not on
+the line, `4a9cbfc`, the first Save & open tab -- the one that
+resumed the instant a file was chosen. Ruling 1 of 2026-08-27
+overruled it in as many words, and what shipped instead is a Load
+button beside that chooser. So the release gate's two options,
+"merge it or rename it for the version it is really for", both miss:
+it belongs to no version. Deleting it or moving it out of the
+`for-` namespace is the maintainer's call, and the sha is written
+here so that either is reversible.
 
-THE SUITE IS CONVERTED, and what each part of it cost is worth
-keeping, because the shape recurs whenever an act is split in two.
-THE CATALOGUE: all twenty-one orphaned entries are answered --
-fifteen RE-AIMED at `_save_the_map`, which is the one writer now, and
-six RETIRED, each leaving a comment carrying what it proved, why it
-can no longer fail that way, and what would reopen it. Two of the
-retirements are replaced by entries that break an ABSENCE rather than
-a guard, since there is no line left to mutate: `a-generate-writes-
-nothing` puts a write back into `_finish_run`, and
-`live-update-is-not-gated-by-a-path` puts the deleted gate back. That
-is the only way to guard a deletion, and it is written down here
-because the next ruling that removes a guard will need it.
-THE TESTS: fifty-eight Save presses went into the suite by script,
-each one where the old code's write used to happen -- that is the
-conversion that changes no test's meaning, since a run wrote whenever
-a path was set. Twenty-four tests were converted BY HAND instead,
-because what they assert changed rather than moved: the ones about
-when the file is written, what refuses, and what is said. Four of
-those are worth naming, as the shape rather than the instance. The
-live-update gate test now asserts the REVERSE of what it asserted:
-live update runs with a path set, because no run writes. The
-keep-a-result test stopped accepting "warned OR unchanged", which the
-ruling makes true on every route for a reason having nothing to do
-with the routes, and asserts the file at the byte instead, with a
-Save at the end as the control. The read-only-path test now requires
-the RUN to succeed and the SAVE to refuse -- and asserts the new and
-better outcome, that a person whose export directory is unwritable
-still has their map on screen. And the mid-write restyle race moved
-from the run to the press, pinning the outcome (no file half from
-before an edit and half from after) rather than either guard.
-THREE TESTS THAT DID NOT EXIST ARE WRITTEN, and a fourth beside them:
-a Generate leaves the file byte unchanged through four acts including
-an unattended live update while Save writes it; the overwrite
-question fires on somebody else's file, obeys a No, spares their own
-table on a Yes, and never asks about our own; unticking "Include the
-source data" takes the copy out of the file, read from the bytes with
-everything closed. The fourth is a MATRIX,
-`test_saving_holds_on_every_route`: nine routes to a press crossed
-with two data shapes and three aftermaths, spine plus a seeded
-sample, reporting every failing cell and asserting what actually ran.
-THE FIRST FULL SUITE RAN AND FOUND SEVEN, of which THREE WERE REAL
-DEFECTS rather than conversion noise -- which is the answer to
-whether the conversion was worth its cost. 636 passed, 7 failed at
-`844e6d4`.
-A RUN CLAIMED A SAVE IT NEVER MADE: the success notice ended ", saved
-to <path>" whenever a path was set, so somebody whose export
-directory is read-only was told their map had been saved to a file
-that was never written. A SAVE DURING THE FIRST RUN said "There is no
-map to save yet. Press Generate first", which they had; the mid-run
-guard sits above the no-map check now. And THE REGION CHOOSER COULD
-EXCLUDE A LAYER FOR BEING SOMEBODY ELSE: nothing rebuilt the
-exclusion list when layers were REMOVED, and `setExceptedLayerList`
-holds the layer objects, so after File > New a layer allocated where
-a destroyed one had been was excluded silently -- the chooser
-offering nothing against a project that plainly holds a polygon
-layer. Ledger rows 27, 28 and 29.
-The other four were the conversion's own, and each was swept for as a
-CLASS rather than fixed where it was met: a press keyed on a variable
-name rather than on the dialog object, a test whose dialog adopts its
-path from a reopened project rather than being given one, a press
-sitting before the pin whose arrival it was about, and a timing flake
-that now waits on the chooser instead of on a number of milliseconds.
-STILL OWED: the second full run, over the fixes and the merge, which
-is what would let this branch merge; the fifteen re-aimed catalogue
-entries proved one at a time; and the text of the Save tab, which is
-in the review queue and is the maintainer's to approve.) A path chooser records what
-you WOULD save to or load from and does nothing on its own. A SAVE
-button beside the output path writes the map as it stands; a LOAD
-button beside the other path chooser reads one back. Generate DRAWS.
-Auto-generate never writes.
-WHAT SAVE WRITES, in one act: the element tables, the embedded styles,
-the resumable record through `_file_safe_state`, the stale-table drop,
-and the source copy when "Include the source data" is ticked.
-IT ASKS BEFORE OVERWRITING a file the plugin did not write (the
-maintainer's addition the same day). With Save a deliberate press,
-asking every time is noise; a file somebody else's map is in is not.
-WHERE THE WORK IS. Everything under `if path:` in
-`dialog._add_output_layers`, and the file-record write the restyle
-makes through `_rewrite_the_files_record`, becomes what Save does.
-This is the largest piece of the five and the one to take slowly: the
-resumable record and the stale-table drop both live there, and both
-have their own ledger rows from 2026-08-26 and -27.
-AND ONE GATE IS DELETED RATHER THAN EXPLAINED. Live update refuses
-while an output path is set, silently, and the user guide promises a
-note (ledger row 11 of 2026-08-27). Its reason was that a live run
-must not rewrite somebody's file on every keystroke -- and under this
-ruling no run writes at all, so the gate cannot fire. A guard that
-cannot fire reads as protection; remove it with the measurement at the
-site, as this project did on 2026-08-20.
-IT ALSO OVERRULES WORK ALREADY WRITTEN. The Save & open tab on the
-`../ws-save-load` worktree resumes the moment a file is chosen, which
-is exactly what this forbids; its open row becomes a Load button.
-BEFORE IT MERGES: a test that a Generate leaves the file BYTE
-UNCHANGED and that Save writes it; a test that the overwrite prompt
-fires on somebody else's file and not on our own; and the live-update
-gate's removal proved by its own catalogue entry going with it.
-
-**UNTICKING "INCLUDE THE SOURCE DATA" MEANS IT IS NOT IN THIS FILE.**
-(Maintainer's ruling, 2026-08-27. NOT BUILT.) Ticking the box, then
-unticking it and saving again, leaves the file holding a full private
-copy of the region layer while the record beside it says
-`region_embedded: False` -- so the privacy the box promised is gone
-AND the resume the copy would have given is refused, since the record
-is what a resume reads. Measured through OGR on the file's own bytes
-by the save-gpkg hunt, 2026-08-27; ledger row 26.
-THE FIX IS AT SAVE, not at Generate, which is where writing now
-happens: `weavingspace_region` is dropped, and ONLY that table -- the
-one the plugin wrote itself, never anything else a user keeps in the
-file. `bridge.drop_gpkg_layer` is already to hand and already takes
-the saved style with the table.
-WHY: the ruling of 2026-08-26 that the file shows the limit of what it
-contains. A private copy somebody has switched off is exactly what
-they would be surprised to find in a file they send on.
-BEFORE IT MERGES: a test that reads the file's BYTES after the untick
--- once the dataset is closed, since sqlite's freelist keeps a deleted
-page while the file is open (measured 2026-08-27).
+(The two rulings that stood here -- SAVING IS A POSITIVE ACT and
+UNTICKING "INCLUDE THE SOURCE DATA" MEANS IT IS NOT IN THIS FILE --
+are deleted because they LANDED, which is what this file asks of an
+entry that is done. Their reasoning lives in CLAUDE.md, where it
+binds, and what they cost and found is in the ledger for 2026-08-27,
+rows 26 to 30.)
 
 **A NO-DATA TWIN REPORTED ON COMPLETE DATA.** (Maintainer, rc16,
 2026-08-24: the paired layer appears on the mosquito data though the
