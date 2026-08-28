@@ -36,6 +36,7 @@ the exact colours and labels below, so a regeneration means updating
 those assertions too.
 """
 
+import contextlib
 import os
 import sys
 
@@ -228,7 +229,13 @@ def main():
   os.makedirs(DATA, exist_ok=True)
   layer = build_layer()
   gpkg = os.path.join(DATA, "landcover-categorical.gpkg")
-  if os.path.exists(gpkg):
+  # Suppressed rather than guarded: `exists` then `remove` is a race,
+  # and asking the question does not make the answer last. Found
+  # 2026-08-28 by the family guard written for the same shape in the
+  # suite's own `main()`, where three sharded coverage recorders raced
+  # and one died before running a test. This site is likelier to be
+  # run once, which is exactly why it would have been left.
+  with contextlib.suppress(FileNotFoundError):
     os.remove(gpkg)
   write_gpkg(layer, gpkg)
   for name, classes in (("landcover.qml", QML_CLASSES),

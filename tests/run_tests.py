@@ -38231,6 +38231,59 @@ def test_the_roadmap_gate_reads_a_statement_not_a_mention():
     "\n  ".join(problems)
 
 
+def test_nothing_asks_whether_a_file_exists_before_removing_it():
+  """`exists` then `remove` is a race, and this harness is SHARDED.
+
+  Recording per-test coverage runs three recorders within a second of
+  each other. All three saw `reports/v<version>/scenarios.json`, two
+  removed it, and the third died with FileNotFoundError in `main()`
+  before running a single test -- so the record would have been
+  missing a third of the suite. That is the failure this project
+  calls silent: an incomplete coverage record never offers the missing
+  tests the chance to notice a mutant, so survivors are overstated and
+  the newest work is exactly what is ignored, while everything looks
+  healthy. Measured 2026-08-28.
+
+  ASKED AS A FAMILY RATHER THAN AT THE ONE SITE, because the shape is
+  what is wrong: any `if os.path.exists(x): os.remove(x)` in code that
+  can run more than once at a time has the same window, and the next
+  one will be written by somebody who has not met this. The cure is
+  `contextlib.suppress(FileNotFoundError)` or `missing_ok=True`, both
+  of which stop asking a question whose answer expires.
+
+  Regression: a sharded coverage recorder lost a whole shard at startup to a race between three processes removing one file. [suite]
+  """
+  import re as _re
+  suspects = []
+  roots = [os.path.join(ROOT, "tests"), os.path.join(ROOT, "tools")]
+  # The pattern spans two lines, so the source is read whole rather
+  # than line by line -- the fault is invisible to a per-line grep,
+  # which is how it survived every audit this project has run.
+  race = _re.compile(
+    r"if\s+os\.path\.exists\((?P<what>[^)]+)\)\s*:\s*\n\s*os\.remove\((?P=what)\)")
+  scanned = 0
+  for root in roots:
+    for folder, _dirs, files in os.walk(root):
+      for name in sorted(files):
+        if not name.endswith(".py"):
+          continue
+        path = os.path.join(folder, name)
+        with open(path, encoding="utf-8") as handle:
+          text = handle.read()
+        scanned += 1
+        for hit in race.finditer(text):
+          line = text[:hit.start()].count("\n") + 1
+          suspects.append(f"{os.path.relpath(path, ROOT)}:{line}")
+  assert scanned > 5, \
+    f"only {scanned} source files were scanned, so this test would " \
+    f"pass by looking at nothing"
+  assert not suspects, (
+    "these ask whether a file exists and then remove it, which is a "
+    "race whenever two of these processes run at once -- and the "
+    "suite and the coverage recorder both shard: "
+    f"{suspects}. Use contextlib.suppress(FileNotFoundError).")
+
+
 def test_the_catalogue_gate_refuses_an_ambiguous_anchor():
   """An anchor matching twice guards nothing, and the gate must say so.
 
@@ -68426,8 +68479,21 @@ def main():
   in the report as though it had just been measured.
   """
   # start the UI-vs-library record empty so the PDF shows this run
+  #
+  # SUPPRESSED RATHER THAN GUARDED, because `exists` then `remove` is
+  # a race and this suite is SHARDED: three recorders start within a
+  # second of each other, all three see the file, two remove it and
+  # the third dies with FileNotFoundError before running a single
+  # test. Measured 2026-08-28, recording per-test coverage in three
+  # shards -- shard 0 was gone at once while the others ran on, which
+  # would have produced a record missing a third of the suite. That is
+  # the one failure this project calls silent: an incomplete record
+  # never offers the missing tests the chance to notice a mutant, so
+  # survivors are overstated and the newest work is exactly what gets
+  # ignored. Asking whether it exists cannot fix it; only not caring
+  # can.
   record = os.path.join(report_dir(), "scenarios.json")
-  if os.path.exists(record):
+  with contextlib.suppress(FileNotFoundError):
     os.remove(record)
   QgsApplication.setPrefixPath(
     os.environ.get("QGIS_PREFIX_PATH", "/usr"), True)
@@ -69392,6 +69458,8 @@ def main():
         test_the_documents_numbers_match_the_code)
   check("the catalogue gate refuses an ambiguous anchor",
         test_the_catalogue_gate_refuses_an_ambiguous_anchor)
+  check("nothing asks whether a file exists before removing it",
+        test_nothing_asks_whether_a_file_exists_before_removing_it)
   check("every documented command still exists",
         test_every_documented_command_still_exists)
   check("the release refuses a tree it did not measure",
