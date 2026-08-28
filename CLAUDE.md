@@ -1485,6 +1485,58 @@ renderer, found by a hunt hours after the carry-over was written.)
   for sixteen minutes. It sums the children now. When a watcher
   reports cpu, ask which process the figure is about; a parent that
   only waits is not the job.
+- **READ THE LINE THAT ASSIGNS A TOOL'S VERDICT BEFORE TRUSTING THE
+  WORD.** (2026-08-27.) The catalogue sweep prints `caught` or
+  `ATTENTION`, and its own source is `verdict = "caught" if
+  proc.returncode == 0 else "ATTENTION"` -- so ATTENTION mostly means
+  a SURVIVOR, the word SURVIVED never appears in a sweep log at all,
+  and `grep -c SURVIVED` answers zero however bad the news is. Read as
+  "too slow to settle", 43 flags looked like contention across four
+  shards; re-run one at a time on an idle machine they came back 0
+  caught, 34 survived, 9 unjudgeable. A count of a word the tool never
+  prints is a reassuring zero, which is the absence-of-evidence fault
+  wearing a verdict's clothes.
+- **AND A SUMMARY THAT NAMES WHAT IT SUMMARISES IS CAUGHT BY ANY
+  FILTER LOOKING FOR IT.** The same sweep ends with `NEEDS ATTENTION
+  (re-run each alone): <every flagged name>`, so a `grep ATTENTION`
+  over the log picks up the summary beside the verdicts -- and `sed`
+  leaves a non-matching line untouched, so a whole sentence arrived as
+  one "name" and the loop word-split it into fifty. It also put a
+  count at "560 of 559". When you filter a log for a marker, exclude
+  the line that REPORTS on the marker, and check any total against the
+  count the run declared for itself.
+- **`gh run list --commit` MATCHES THE FULL FORTY-CHARACTER SHA, AND A
+  SHORT ONE RETURNS NOTHING AT ALL.** (Same day, and it is the
+  sixteenth watcher fault here.) A watcher keyed to `eb1ed8b` waited
+  two hours and then reported that no run had ever been created; a
+  second, written after reading that, reported the same within two
+  minutes. Both were wrong. Asked with the full sha, `eb1ed8b` has
+  `tests` and `mutation`, both green, and the live commit had two runs
+  in flight the whole time. An empty list from a filter that cannot
+  match is indistinguishable from an empty list because nothing
+  exists, and the first diagnosis written from it -- that GitHub
+  creates runs for pushes rather than commits, so an intermediate
+  commit gets none -- was invented to explain an artefact and is
+  simply false. `git rev-parse` the short sha before asking, or filter
+  by `--branch` and compare `headSha` yourself.
+- **A `PASS` LINE IS LOST TO A PIPE, SO SILENCE PLUS EXIT 0 IS NOT A
+  PASS.** `tests/run_tests.py` ends through `os._exit`, so when stdout
+  is not a terminal the buffered `PASS <name>` is discarded and
+  `tools/run_some.py` exits 0 having said nothing, while a FAILURE's
+  traceback reaches unbuffered stderr and survives. Read literally
+  that is a run reporting nothing, and it looks exactly like success.
+  `PYTHONUNBUFFERED=1` is what makes the verdict reach the pipe. Same
+  `os._exit` that stopped `tools/coverage_report.py` writing a report
+  at all until 2026-08-13.
+- **AND THE TWO INTERPRETERS ARE NOT INTERCHANGEABLE.** Tests run
+  under `$QGIS_PY`; edits and `tools/mutation_check.py` run under
+  `env -u PYTHONHOME -u PYTHONPATH python3`. Swapping them fails in
+  two directions that both read as a broken test: `env -u ... python3`
+  hands you the SYSTEM interpreter, which dies at `import qgis`, and a
+  bare `python3` under a sourced QGIS environment dies at `Failed to
+  import encodings` having applied no edit at all. Both were done in
+  one proof script on 2026-08-27, which is why they are written
+  together.
 - A watcher that REPEATS itself misleads as badly as one that goes
   silent: a monitor grepping a whole log each pass re-reported the
   same historical failure every 45 seconds as though it were news,
