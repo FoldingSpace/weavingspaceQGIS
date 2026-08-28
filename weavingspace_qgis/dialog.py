@@ -313,6 +313,14 @@ WORKING_STATE_ELEMENT = (
 # instruction about the NEXT run rather than a property of this one.
 # The preview's context shells are out for the same reason.
 WORKING_STATE_EDGES = ("output_path", "region")
+# `region_crs` rides beside `region` and is deliberately NOT an edge.
+# The edges are the two facts a LANDING alone may move; the system the
+# region was drawn in is a property OF that region rather than a third
+# thing to decide, so it is carried wherever `region` is carried and
+# asked for nowhere else. It exists because a CRS a person assigned
+# lives on the layer and not in its source string, so a recovery
+# rebuilt from the string alone brought the region back in the file's
+# own coordinates (2026-08-28).
 
 
 def _plugin_version() -> str:
@@ -4507,6 +4515,22 @@ class WeavingSpaceDialog(QDialog):
     """
     self._closed = True
     self._retired = True
+    # AND THE COLOUR EDITOR GOES WITH THE DIALOG, which the twin that
+    # retires a PREVIOUS instance has done since 2026-08-26 and this
+    # one did not. That window holds no layer and writes to the
+    # dialog's records, so a plugin the user has DISABLED left a live
+    # editor repainting their output layers and restamping the group's
+    # record -- from a plugin they had turned off, with no way left to
+    # open it and see. Measured 2026-08-28: element a's renderer moved
+    # under a pick made after `retire(); close()`, and the colour
+    # reached the saved .qgz twice.
+    # The two teardowns are twins written a day apart, and this is the
+    # line the later one did not copy.
+    if self._open_editor is not None:
+      try:
+        self._open_editor.reject()
+      except Exception:
+        pass
     _dump("RETIRE", "plugin-unloaded")
 
   def closeEvent(self, event):  # noqa: N802 (Qt API)
@@ -11524,8 +11548,22 @@ class WeavingSpaceDialog(QDialog):
     Returns:
       None. Falls through quietly when there is nothing on the map
       yet, or a run is in flight -- in the latter case the change is
-      already recorded and the finishing run will seed it.
+      already recorded and the finishing run will seed it. And when
+      this dialog has been RETIRED, because a plugin the user has
+      disabled paints nothing.
     """
+    # A RETIRED DIALOG PAINTS NOTHING. Closing the colour editor at
+    # `retire()` is what a person meets, and this is the other door
+    # into the same room: the editor writes to this dialog's records
+    # and calls back here, so an object that outlives the plugin -- a
+    # window Qt has hidden but not destroyed, a timer, a lambda on a
+    # layer -- could still reach the map. Every long-lived handler
+    # here already asks this first; the styling path did not, which is
+    # how a disabled plugin repainted an element and restamped the
+    # group's record on 2026-08-28.
+    if _dialog_is_gone(self):
+      _dump("RESTYLE", "dialog-retired")
+      return
     # THE RESTYLE GOES FIRST, and it used to be the whole of this
     # method. The swatch asked the ELEMENT'S OWN LAYER which classes
     # nothing wears, so painting it before the layer was restyled
@@ -15453,6 +15491,17 @@ class WeavingSpaceDialog(QDialog):
       # closed. It is the same string every output layer already
       # carries as `weavingspace_region`.
       "region": layer.source() if layer is not None else None,
+      # ...AND THE SYSTEM IT WAS DRAWN IN, because a CRS a person
+      # ASSIGNED lives on the layer and not in its source string, so
+      # rebuilding the region from `region` alone brings it back in
+      # the file's own coordinates. Fixing a shapefile with no `.prj`
+      # is the ordinary reason somebody assigns one, and a resumed map
+      # whose region lands fourteen thousand kilometres from its tiles
+      # is what that cost until 2026-08-28. Recorded beside the source
+      # rather than inside it, and carried with it.
+      "region_crs": (layer.crs().authid()
+                     if layer is not None and layer.crs().isValid()
+                     else None),
     }
 
   def _seeding_order(self, tile_ids, donor_for):
@@ -16240,7 +16289,7 @@ class WeavingSpaceDialog(QDialog):
     resumable = self._capture_working_state()
     carried = self._read_working_state(self._group_of_our_layers(
       QgsProject.instance().layerTreeRoot())) or {}
-    for key in ("design", "region"):
+    for key in ("design", "region", "region_crs"):
       if key in carried:
         resumable[key] = carried[key]
     # AND EACH ELEMENT'S VARIABLE, WHICH IS NOT A SETTING BUT A NAME.
@@ -16806,6 +16855,35 @@ class WeavingSpaceDialog(QDialog):
         f"map is not complete: {', '.join(sorted(refused))}.")
     return True
 
+  def _wear_the_recorded_crs(self, layer, record):
+    """Give a recovered region the system it was drawn in.
+
+    Args:
+      layer: the layer just rebuilt from a recorded source string.
+      record: the working state it was rebuilt from, read for
+        "region_crs".
+
+    Returns:
+      None. Assigns the recorded system only where the layer's own is
+      absent or differs, and only where the record has one -- a file
+      that declares its system correctly needs nothing, and a record
+      written before this key existed says nothing rather than
+      claiming no CRS.
+
+    A CRS A PERSON ASSIGNED IS NOT IN THE SOURCE STRING. It lives on
+    the layer, so anything rebuilt from `source()` alone comes back in
+    the file's coordinates -- which for a shapefile with no `.prj`, or
+    a file that declares the wrong system, is the whole reason they
+    assigned one.
+    """
+    from qgis.core import QgsCoordinateReferenceSystem
+    authid = (record or {}).get("region_crs")
+    if not authid or layer is None:
+      return
+    wanted = QgsCoordinateReferenceSystem(authid)
+    if wanted.isValid() and layer.crs().authid() != authid:
+      layer.setCrs(wanted)
+
   def _recover_the_source(self, path, record):
     """Point the region chooser at the data a saved map was made from.
 
@@ -16896,6 +16974,7 @@ class WeavingSpaceDialog(QDialog):
       # layers panel (the harm hunt of 2026-08-26)
       found = QgsVectorLayer(
         wanted, os.path.basename(str(wanted).split("|")[0]), "ogr")
+      self._wear_the_recorded_crs(found, record)
       if found.isValid():
         project.addMapLayer(found)
         self.layer_combo.setLayer(found)
@@ -16904,6 +16983,7 @@ class WeavingSpaceDialog(QDialog):
       inside = QgsVectorLayer(
         f"{path}|layername={bridge.REGION_TABLE_NAME}",
         "region (from the saved map)", "ogr")
+      self._wear_the_recorded_crs(inside, record)
       if inside.isValid():
         project.addMapLayer(inside)
         self.layer_combo.setLayer(inside)

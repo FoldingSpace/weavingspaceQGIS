@@ -4732,6 +4732,22 @@ def region_outline_layer(source_layer: QgsVectorLayer) -> QgsVectorLayer:
   layer = QgsVectorLayer(source_layer.source(),
                          f"{source_layer.name()} (outlines)",
                          source_layer.providerType())
+  # A CRS THE USER ASSIGNED LIVES ON THE LAYER, NOT IN ITS SOURCE, and
+  # rebuilding from the source string alone therefore loses it. Fixing
+  # a shapefile with no `.prj`, or a file that declares the wrong
+  # system, is the ordinary repair for exactly that -- and until
+  # 2026-08-28 the outlines came back in the FILE'S coordinates while
+  # the tiles were drawn in the assigned ones. Measured that day: a
+  # region written with no SRS and set to EPSG:2926, tiles at canvas
+  # -13609379,6044117 and outlines at 1290000,230000, some fourteen
+  # thousand kilometres apart, with the overlay rendering zero ink
+  # pixels over the map's own window against 2081 in the control.
+  # `layer_to_gdf` reads `layer.crs()` and so has always been right;
+  # this is the one place that rebuilt a layer and did not ask.
+  # THE SHAPE TO GREP FOR is `QgsVectorLayer(<something>.source()`,
+  # not the word CRS: anywhere a layer is rebuilt from its source
+  # string, everything the user set ON the layer is left behind.
+  layer.setCrs(source_layer.crs())
   sym = QgsFillSymbol.createSimple({
     "style": "no", "outline_color": "255,255,255,255",
     "outline_width": "0.9"})

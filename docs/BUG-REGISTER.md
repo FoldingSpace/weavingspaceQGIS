@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-394 defect(s) with a regression test.
+395 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -83,6 +83,8 @@ there is no separate list to remember.
   guarded by `test_a_design_that_shrank_leaves_nothing_behind_in_the_file`
 - **destroying the plugin dialog left a dangling pointer on the QApplication and a live styleChanged lambda on every output layer, so restyling an element layer afterwards crashed QGIS.**  
   guarded by `test_a_destroyed_dialog_cannot_be_reached_by_a_layer_it_made`
+- **a plugin disabled with the colour editor open went on repainting element layers and restamping the group record. Found by the two-dialogs hunt of 2026-08-28, which read it a second way out of a saved .qgz.**  
+  guarded by `test_a_disabled_plugin_paints_nothing`
 - **a class break retyped in QGIS, a stroke or legend label set on a categorized element, and a ramp changed in the styling panel all reached the map and the project but never the exported GeoPackage.**  
   guarded by `test_a_dock_edit_of_any_kind_reaches_the_exported_file`
 - **a bound pinned far outside a column of very small values flattened the box that holds the small one, so a pin of 6e-10 read back as 0.0 and the map was redrawn from zero.**  
@@ -840,7 +842,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 122
-- a bug hunt pointed in a named direction: 97
+- a bug hunt pointed in a named direction: 98
 - not written down at the time: 88
 - reported by a user: 29
 - reading the code: 15

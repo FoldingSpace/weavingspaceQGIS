@@ -26716,6 +26716,82 @@ def test_a_class_source_comes_home_to_the_dataset_it_was_chosen_on():
     project.clear()
 
 
+def test_a_disabled_plugin_paints_nothing():
+  """A plugin the user has turned off must not still be painting.
+
+  `retire()` stands a dialog down when the plugin is unloaded. Its
+  twin `_retire_previous_instance` -- which stands down a dialog a
+  SECOND one is replacing -- closes any open colour editor, because
+  that window holds no layer of its own and writes through the
+  dialog's records. The two teardowns were written a day apart and the
+  later one did not copy the line.
+
+  SO THE EDITOR OUTLIVED THE PLUGIN: a person who disabled
+  WeavingSpace with a Customize window open kept a live editor that
+  repainted their output layers and rewrote the project's group
+  record, from a plugin they had turned off and could no longer open.
+
+  TWO DOORS, because the rule here is that a guard belongs at every
+  door into the same room. The window goes at retirement, which is
+  what a person meets; and the styling path itself asks whether this
+  dialog is gone, which closes the route anything else outliving the
+  plugin -- a timer, a lambda on a layer -- could take.
+
+  Regression: a plugin disabled with the colour editor open went on repainting element layers and restamping the group record. Found by the two-dialogs hunt of 2026-08-28, which read it a second way out of a saved .qgz. [hunt]
+  """
+  from qgis.PyQt.QtGui import QColor
+  project = QgsProject.instance()
+  dlg, _layer, tid = _categorical_dialog()
+  try:
+    dlg.live_check.setChecked(False)
+    _generate_and_wait(dlg)
+    element = project.mapLayer(dlg._element_layer_ids[tid])
+    assert element is not None, "PREMISE: nothing was drawn"
+
+    def colours():
+      held = element.renderer().categories()
+      return [c.symbol().color().name() for c in held]
+
+    before = colours()
+    assert before, "PREMISE: the element draws no categories"
+    # A STAND-IN EDITOR, which is this suite's own idiom for the
+    # window: it records being closed and nothing else, because what
+    # is under test is whether retirement closes it at all.
+    class _StandInEditor:
+      """Records being closed, and nothing else."""
+
+      def __init__(self):
+        self.rejected = 0
+
+      def reject(self):
+        self.rejected += 1
+
+    editor = _StandInEditor()
+    dlg._open_editor = editor
+
+    # ...and the plugin is disabled, which is retire() then close().
+    dlg.retire()
+    dlg.close()
+    assert editor.rejected, (
+      "the colour editor was left open when the plugin was disabled, "
+      "so it goes on painting from a plugin the user has turned off")
+
+    # Even reached programmatically, it must not paint.
+    dlg._category_colours.setdefault(tid, {}).setdefault(
+      dlg._assignment_for(tid)["var"] if dlg._assignment_for(tid) else "x",
+      {})["forest"] = "#123456"
+    dlg._apply_style_change()
+    _tick(400)
+    assert colours() == before, (
+      f"a disabled plugin repainted the map: {before!r} became "
+      f"{colours()!r}")
+  finally:
+    try:
+      dlg.close()
+    except Exception:
+      pass
+
+
 def test_create_new_makes_one_group_and_not_one_per_run():
   """Asking for a second map must not ask for a second map each time.
 
@@ -69767,6 +69843,8 @@ def main():
         test_a_load_under_live_update_keeps_the_map_it_opened)
   check("create new makes one group and not one per run",
         test_create_new_makes_one_group_and_not_one_per_run)
+  check("a disabled plugin paints nothing",
+        test_a_disabled_plugin_paints_nothing)
   check("a dropped column's ramp goes even when the style was derived",
         test_a_dropped_columns_ramp_goes_even_when_the_style_was_derived)
   check("the shelf does not survive the project that made it",

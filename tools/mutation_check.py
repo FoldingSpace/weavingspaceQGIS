@@ -219,8 +219,13 @@ MUTATIONS = [
            "be dropped while the dialog is still alive enough to say "
            "so"),
   dict(name="a-dead-dialog-answers-no-signal", file=DIALOG,
-       old="""    if _dialog_is_gone(self):""",
-       new="""    if False:""",
+       # NARROWED 2026-08-28, when the styling path gained the same
+       # gate and this anchor began matching twice. It binds the dump
+       # below it, which is this site's own and not the other's.
+       old="""    if _dialog_is_gone(self):
+      # the layer outlived this dialog and its lambda came""",
+       new="""    if False:
+      # the layer outlived this dialog and its lambda came""",
        test="test_a_destroyed_dialog_cannot_be_reached_by_a_layer_it_made",
        why="Qt disconnects a bound method when its receiver dies but "
            "keeps calling a LAMBDA, and an element layer outlives the "
@@ -2106,6 +2111,25 @@ MUTATIONS = [
        test="test_a_finished_run_leaves_nothing_armed",
        why="an ordinary Generate not arming a live rebuild nobody "
            "asked for"),
+  dict(name="retirement-closes-the-editor-it-leaves-behind", file=DIALOG,
+       # Round ten, 2026-08-28. `retire()` and its twin
+       # `_retire_previous_instance` were written a day apart and the
+       # later one did not copy the line that closes an open colour
+       # editor -- so a plugin the user DISABLED kept a live editor
+       # repainting their layers and restamping the group record.
+       old="""    if self._open_editor is not None:
+      try:
+        self._open_editor.reject()
+      except Exception:
+        pass""",
+       new="""    if self._open_editor is not None:
+      try:
+        pass
+      except Exception:
+        pass""",
+       test="test_a_disabled_plugin_paints_nothing",
+       why="a plugin the user has turned off leaving no window behind "
+           "that can still paint their map"),
   dict(name="create-new-is-not-answered-by-a-restyle", file=DIALOG,
        # Round ten, 2026-08-28. "Create as new group" has always taken
        # the full path; the group chooser's "Create new" did not, so
@@ -2221,7 +2245,7 @@ MUTATIONS = [
        # Load of that file followed by one Generate took 450 tiles
        # down to 98. Mutating the carry away is exactly the shipped
        # behaviour before the fix.
-       old="""    for key in ("design", "region"):
+       old="""    for key in ("design", "region", "region_crs"):
       if key in carried:
         resumable[key] = carried[key]""",
        new="""    for key in ():
@@ -6736,6 +6760,7 @@ MUTATIONS = [
   dict(name="a-resumed-map-finds-its-source-by-reference", file=DIALOG,
        old="""      found = QgsVectorLayer(
         wanted, os.path.basename(str(wanted).split("|")[0]), "ogr")
+      self._wear_the_recorded_crs(found, record)
       if found.isValid():""",
        new="""      found = QgsVectorLayer(wanted, "x", "ogr")
       if False:  # mutation: never load the recorded source""",
