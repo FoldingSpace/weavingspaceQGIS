@@ -11623,6 +11623,34 @@ def test_the_release_notes_keep_their_categories():
     f"the entry has {len(bullets)} categor(y/ies), so this test " \
     f"cannot tell a categorized entry from a flattened one"
 
+  # ...and an entry STOPS where the next version begins. Nothing here
+  # asked that until 2026-08-27, when opening the 0.24.4 section
+  # INDENTED the previous version's header instead of stripping its
+  # `changelog=` prefix. The boundary is a lookahead for a line
+  # opening with digits, so `changelog=0.24.3` is not a header to it
+  # and the 0.24.4 entry swallowed the whole of 0.24.3: thirty-one
+  # bullets of a shipped release on the new release's page, and a
+  # stray field name mid-changelog in the plugin manager. Every
+  # assertion above passed, because two entries joined end to end
+  # have exactly the shape of one.
+  headers = [line.strip() for line in changelog.splitlines()
+             if re.match(r"^\s*\d+\.\d+\.\d+\s", line)]
+  assert len(headers) >= 2, \
+    f"only {len(headers)} version header(s) in the changelog, so this " \
+    f"check cannot tell an entry that stops from one that runs on"
+  for header in headers:
+    other = header.split()[0]
+    one = notes.entry_for(changelog, other)
+    assert one, f"no changelog entry for {other!r}, which the field names"
+    assert "changelog=" not in one, \
+      f"the {other} entry carries the field name inside it, so a " \
+      f"version header has been indented rather than stripped: {one!r}"
+    strays = [h.split()[0] for h in headers
+              if h.split()[0] != other and h[:40] in one]
+    assert not strays, \
+      f"the {other} entry runs on into {strays}, so the release page " \
+      f"for {other} would publish another release's notes"
+
   # ...and an entry with NO categories stays a plain paragraph rather
   # than growing a bullet list with one item in it.
   plain = notes.entry_for("9.9.9 One sentence and nothing else.", "9.9.9")

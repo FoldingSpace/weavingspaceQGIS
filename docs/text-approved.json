@@ -1974,6 +1974,11 @@
   "excerpt": "Could not re-open {} from {}",
   "where": "weavingspace_qgis/bridge.py"
  },
+ "ec3d4afc12789d1c": {
+  "approved": "2026-08-27",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
  "ed4b581d5ef2dbfc": {
   "approved": "2026-08-19",
   "excerpt": "Where the ramp starts and stops are the two that reach outsi",

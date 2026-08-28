@@ -69,11 +69,13 @@ changelog=0.24.4 Saving a map is now something you do rather than
     sets of colours until you pressed Generate again. Clearing the
     output box quietly started a second map. A ramp tried on a row
     and taken off again came back on the next change of style. A
-    plugin you had disabled went on speaking into the message bar.
+    plugin you had disabled went on running until QGIS restarted,
+    writing into your project and posting messages about a window you
+    could no longer open.
     A layer duplicated in the panel could be replaced instead of the
     original. And a map opened from a file could be lost by saving
     it.
-    changelog=0.24.3 You decide how your data is classed: which values are
+    0.24.3 You decide how your data is classed: which values are
     drawn at all, where the first and last classes end, and what
     becomes of the areas left out.
     The range drawn: an element's ladder has four ends you can set
