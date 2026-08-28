@@ -65557,20 +65557,24 @@ def test_a_donor_reaches_its_follower_in_the_same_run():
     # THE RESTYLE TWIN: a ramp change alone does not re-tile, and the
     # same lag lives on that path with nothing replaced at all.
     #
-    # THIS LEG IS NOT PROVED, and saying so is the honest record.
-    # Its catalogue entry, `the-restyle-follows-a-donor-that-moved-
-    # too`, SURVIVED: the restyle's own half of the fix can be deleted
-    # and these assertions still pass, so what they measure is not the
-    # restyle path.
-    # WHAT WAS TRIED AND WHY IT FAILED. The obvious repair is to ask
-    # BEFORE any Generate, on the reasoning that picking a ramp
-    # restyles there and then. It does not: with live update off the
-    # map is deliberately NOT refreshed until the user asks
-    # (PRESERVE, DO NOT REPAINT, 2026-08-19), so the donor has not
-    # moved at that moment and the premise assertion fires. The leg
-    # therefore stands as it was, and what covers the restyle path is
-    # unestablished rather than accidentally covered -- which is a
-    # countdown, not a defence.
+    # WHAT COVERS THIS LEG IS NOW MEASURED, where it used to be
+    # written down as unestablished. Driven on 2026-08-27 with the
+    # methods wrapped: after the ramp pick and before any Generate,
+    # nothing had run and the donor had not moved (PRESERVE, DO NOT
+    # REPAINT); after the Generate, `_restyle_only` ran with no task
+    # in flight, the donor HAD moved, and the follower had followed.
+    # So the restyle path is genuinely exercised here.
+    # AND THE BEHAVIOUR IS HELD TWICE, which is why its catalogue
+    # entry could never catch. A class source is stamped by the
+    # donor's CONTENT rather than by its name (2026-08-13), so a
+    # donor's ramp change moves the FOLLOWER'S OWN signature -- the
+    # skip cannot fire, whatever the ordering machinery does -- and
+    # the `reseeded` term is a second line of defence behind that.
+    # Two mutations were tried and both survived: `reseeded.add(tid)`
+    # alone, and the whole skip condition. Held redundantly by two
+    # named mechanisms is a different and better sentence than
+    # unestablished; what would change it is a journey where a
+    # donor's content does not move while its rendering does.
     before = drawn(donor_id)
     assert drive_ramp(3, "Set2"), \
       "PREMISE: the donor's row offers no third categorical ramp"

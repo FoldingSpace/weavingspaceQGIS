@@ -335,6 +335,27 @@ real and how many are noise, and only then decide whether it earns a
 place. If the noise is heavy the honest outcome is to drop it and keep
 the practice in docs/TESTING.md, where it already is.
 
+THE STUDY WAS RUN ON 2026-08-27, AND THE NUMBERS SAY DROP IT. Method:
+every `assert` in the suite, every string literal inside its test
+expression that is at least twelve characters and carries a space --
+prose rather than an identifier -- checked against the shipped
+package with `vendor/` excluded, that being upstream's wording rather
+than ours. RESULT: of 104 such fragments, 56 also appear in shipped
+source. More than half of the suite's prose comparisons would warn.
+AND THE HITS DO NOT SEPARATE. The largest group is tests choosing a
+CONTROL BY ITS VISIBLE TEXT -- `Quant: Equal intervals`, `Quant:
+Quantiles` -- which is what a user does, and what this project's own
+rule about driving a control through its own signal asks for. The
+rest are message fragments, which is the shape worth warning about.
+Nothing mechanical tells the two apart: both are strings in
+`dialog.py`, both are user-facing, and the difference is whether the
+wording is a LABEL somebody selects or a SENTENCE somebody reads.
+SO THE RECOMMENDATION IS TO DELETE THIS ENTRY, keeping the practice
+where it already is -- compose the expected text from the function
+the product uses. Deleting an entry that never landed is a scope
+decision rather than a tidy-up, so it stays here with its answer
+attached until the maintainer strikes it.
+
 **Give the stochastic hunt an exported-file invariant that RUNS.** Added
 2026-08-16. A hunt over 105 checked steps reported its five axes:
 holes 103, tile totals 103, opacity pairing 23, values-on-no-data 23,
@@ -358,12 +379,20 @@ seven entries were found anchored on text that no longer existed. It
 is asked at push time rather than inside `mutation_check`, which is
 where the original entry wanted it -- a sweep run by hand still gets
 no preflight, and that is the part left standing.)
-Three `EQUIVALENT` entries exclude nothing. And `mutate_auto`'s
-watchdog ignores a child's CPU, so it can score a live mutant as
-stalled -- the same shape as the two stalls that turned out to be
-hiding survivors, which is why the campaign work list also asks that
-a stall not count toward a printed rate until it has been re-judged
-alone.
+Three `EQUIVALENT` entries exclude nothing. And a stall must not
+count toward a printed rate until it has been re-judged alone --
+which is the half of this entry that still stands.
+THE OTHER HALF WAS ALREADY DONE AND THE ENTRY DID NOT KNOW.
+Re-reading `tools/watchdog.py` on 2026-08-27: it polls the child's
+CPU and its output, and a stall is declared only when NEITHER has
+moved for the whole window, which is precisely the "ignores a child's
+CPU" fault this entry reported. The stall patience also widens with
+CONCURRENCY, on a measurement of three mutants that "stalled" at
+141-175s under three workers and ran to real verdicts in 1683-1855s
+alone. What is left is the SCORING question -- a stall counts as
+caught, so a false one flatters the rate -- and that is a campaign
+commitment rather than a defect, so it belongs to a session that has
+read docs/MUTATION-TESTING.md, which governs it.
 (The third of them landed on 2026-08-27: `check_standards` compared
 only the COUNTS in the derived documents, which is blind to a test
 RENAMED, a purpose rewritten or an area re-assigned -- everything
