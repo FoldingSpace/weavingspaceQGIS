@@ -26716,6 +26716,63 @@ def test_a_class_source_comes_home_to_the_dataset_it_was_chosen_on():
     project.clear()
 
 
+def test_a_bound_box_keeps_its_number_when_qt_reads_the_display_back():
+  """Pressing Return in a bound box must not round the number in it.
+
+  `MarkableSpinBox.textFromValue` abbreviates -- "1.02M" for
+  1,015,001 -- and its docstring calls that display-only, touching
+  neither the stored value nor the validator. True of everything this
+  plugin does and FALSE OF QT, which calls `interpret()` on Return and
+  reads the display back through `valueFromText`. So on a column of
+  any real magnitude, opening the editor and pressing Return, typing
+  nothing at all, replaced the floor with three significant figures of
+  itself, moved every class break, and moved features out of range,
+  while the box read the same before and after.
+
+  THE MAGNITUDES ARE THE TEST. Every fixture in this suite lives
+  between 0 and about 50, where the display is exact and nothing can
+  be lost, which is why four guards over this widget drove `setValue`
+  and passed. The case needs a value large or small enough to
+  abbreviate AND a keystroke Qt handles itself.
+
+  THE PREMISE IS READ OFF THE WIDGET, not off the number asked for:
+  `decimals` clamps, so comparing against the asked-for value would
+  blame the box for the fixture. That is exactly the mistake the first
+  run of this check made.
+
+  Regression: pressing Return in a class-bound box silently replaced the stored bound with a rounding of its own abbreviated display, on any column above about 1e5 or below about 1e-4. Shipped in v0.24.3; found by the magnitude hunt of 2026-08-28. [hunt]
+  """
+  from qgis.PyQt.QtCore import Qt
+  from qgis.PyQt.QtTest import QTest
+  from weavingspace_qgis.widgets import MarkableSpinBox
+  lost, abbreviated = [], 0
+  for asked in (1015001.0, 1234567.0, 0.000123, 9876543210.0,
+                -2500000.0, 42.5):
+    box = MarkableSpinBox()
+    box.setDecimals(6)
+    box.setRange(-1e12, 1e12)
+    box.setValue(asked)
+    held = box.value()
+    shown = box.text()
+    if shown != f"{held}":
+      abbreviated += 1
+    try:
+      box.show()
+      box.setFocus()
+      QTest.keyClick(box, Qt.Key.Key_Return)
+      if box.value() != held:
+        lost.append((held, shown, box.value()))
+    finally:
+      box.close()
+  assert abbreviated >= 4, (
+    f"only {abbreviated} of the magnitudes abbreviated, so this test "
+    f"cannot show a display being read back as a value")
+  assert not lost, (
+    "a Return with nothing typed changed the number the box holds: "
+    + "; ".join(f"{held!r} shown {shown!r} became {after!r}"
+                for held, shown, after in lost))
+
+
 def test_a_recipients_save_keeps_the_source_the_sender_included():
   """Opening somebody's self-contained map must not empty it.
 
@@ -69405,6 +69462,8 @@ def main():
         test_a_group_is_bound_to_its_dataset_however_the_path_is_spelt)
   check("a recipient's save keeps the source the sender included",
         test_a_recipients_save_keeps_the_source_the_sender_included)
+  check("a bound box keeps its number when Qt reads the display back",
+        test_a_bound_box_keeps_its_number_when_qt_reads_the_display_back)
   check("a dropped column's ramp goes even when the style was derived",
         test_a_dropped_columns_ramp_goes_even_when_the_style_was_derived)
   check("the shelf does not survive the project that made it",

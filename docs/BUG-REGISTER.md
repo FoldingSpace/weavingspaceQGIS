@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-389 defect(s) with a regression test.
+390 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -47,6 +47,8 @@ there is no separate list to remember.
 
 ## Found by a bug hunt pointed in a named direction
 
+- **pressing Return in a class-bound box silently replaced the stored bound with a rounding of its own abbreviated display, on any column above about 1e5 or below about 1e-4. Shipped in v0.24.3; found by the magnitude hunt of 2026-08-28.**  
+  guarded by `test_a_bound_box_keeps_its_number_when_qt_reads_the_display_back`
 - **the colour editor printed class bounds with a hard-coded decimal point beside spin boxes that parse through the locale, so under a comma-decimal locale copying a printed bound pinned a number a thousand times too large and stamped it on the layer.**  
   guarded by `test_a_bound_the_editor_prints_can_be_typed_into_its_own_box`
 - **the fix that made a hand-set paired renderer survive a Generate applied the carried renderer unconditionally, so a re-tile that produced a new kind of absence left those tiles unpainted, while elements that LOST a kind kept its legend entry. Measured 2026-08-16 by rendering each paired layer over a magenta ground: uncovered rows came back as the background while their neighbours drew #8c9fc7 and #dddddd.**  
@@ -830,7 +832,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 122
-- a bug hunt pointed in a named direction: 93
+- a bug hunt pointed in a named direction: 94
 - not written down at the time: 88
 - reported by a user: 29
 - reading the code: 15

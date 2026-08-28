@@ -2102,6 +2102,25 @@ MUTATIONS = [
        test="test_a_finished_run_leaves_nothing_armed",
        why="an ordinary Generate not arming a live rebuild nobody "
            "asked for"),
+  dict(name="a-display-nobody-edited-is-not-a-number-anybody-typed",
+       file=os.path.join("weavingspace_qgis", "widgets.py"),
+       # Round ten, 2026-08-28. Qt calls `interpret()` on Return and
+       # reads the DISPLAY back through `valueFromText`, so an
+       # abbreviated "1.02M" replaced a stored 1,015,001. Mutating the
+       # guard away is exactly the shipped v0.24.3 behaviour.
+       old="""    try:
+      if text == self.textFromValue(self.value()):
+        return self.value()
+    except Exception:
+      pass""",
+       new="""    try:
+      pass
+    except Exception:
+      pass""",
+       test="test_a_bound_box_keeps_its_number_when_qt_reads_the_display_back",
+       why="a class bound a person set surviving a keystroke that "
+           "types nothing, on any column whose numbers are large or "
+           "small enough for the box to abbreviate them"),
   dict(name="a-resume-tells-the-embed-box-what-the-file-holds", file=DIALOG,
        # Round ten, 2026-08-28. `_embed_or_drop_the_source` asks the
        # checkbox and nothing else, so a dialog that has only OPENED

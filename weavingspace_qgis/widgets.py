@@ -344,7 +344,31 @@ class MarkableSpinBox(TrimmedSpinBox):
     "1.02G" and refusing it would make the display a trap: retyping
     the computed value is one of the two ways to give a bound back,
     and it is the way that survives when the clear mark is missed.
+
+    AND TEXT NOBODY EDITED IS NOT A NUMBER ANYBODY TYPED, which is
+    what the first draft of this class missed and what shipped in
+    v0.24.3. `textFromValue` calls itself display-only and says it
+    touches neither the stored value nor the validator -- true of
+    everything the plugin does, and false of Qt, which calls
+    `interpret()` on Return and reads the DISPLAY back through this
+    method. So on a column of any real magnitude, opening the editor
+    and pressing Return -- typing nothing -- replaced a floor of
+    1,015,001 with 1,020,000, moved every class break, and moved four
+    more of fifty areas out of range, while the box read "1.02M"
+    before and after. Measured 2026-08-28 by the magnitude hunt, off
+    the renderer rather than the editor.
+    So: when the text is EXACTLY what this box would print for the
+    value it already holds, the value is the answer. That is a
+    stronger question than comparing against the computed default,
+    which is what `_reads_as_computed` asks and why it absorbed the
+    unpinned case and none of the others. It closes every route that
+    interprets, not only Return.
     """
+    try:
+      if text == self.textFromValue(self.value()):
+        return self.value()
+    except Exception:
+      pass
     return _si_value(text, self.locale().decimalPoint()) \
         if _si_value(text, self.locale().decimalPoint()) is not None \
         else super().valueFromText(text)
