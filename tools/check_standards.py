@@ -373,6 +373,23 @@ def check_catalogue_anchors(catalogue):
       continue                      # a computed entry: not ours to judge
     if not target:
       continue
+    # A PLACEHOLDER IS NOT AN ANCHOR. A few entries are COMPUTED at
+    # run time -- `crs-reattach` finds the line it wants by walking
+    # the source -- and carry a literal only so the dict has the
+    # shape the rest of the file expects, marked as a placeholder at
+    # the site. Mutating text to itself changes nothing, so `old ==
+    # new` is the reliable tell, and judging one of those anchors
+    # asks a question about a string the tool never uses: the
+    # uniqueness check's first draft duly reported `crs-reattach` as
+    # ambiguous, on a placeholder that happens to be an ordinary call
+    # appearing twice, while the entry it names had been judged
+    # `caught` in the sweep an hour earlier. (2026-08-27.)
+    try:
+      new_text = ast.literal_eval(fields["new"]) if "new" in fields else None
+    except (ValueError, TypeError):
+      new_text = None
+    if new_text is not None and new_text == old_text:
+      continue
     seen += 1
     path = os.path.join(ROOT, target)
     if not os.path.exists(path):
@@ -382,11 +399,34 @@ def check_catalogue_anchors(catalogue):
       continue
     with open(path, encoding="utf-8") as handle:
       body = handle.read()
-    if old_text not in body:
+    hits = body.count(old_text)
+    if hits == 0:
       problems.append(
         f"the mutation catalogue's {name!r} anchors on text that is "
         f"no longer in {target}, so it mutates nothing and reports "
         f"nothing; re-anchor it on the line as it stands now")
+    elif hits > 1:
+      # PRESENT IS NOT ENOUGH, AND AMBIGUOUS FAILS THE SAME WAY. The
+      # tool refuses at run time rather than mutating the first of
+      # several sites, which is right -- but a refusal only reaches
+      # somebody who runs the whole catalogue, and a sweep is a thing
+      # that happens before a substantial release. Until 2026-08-27
+      # this check asked only whether the anchor was PRESENT, so nine
+      # entries sat reporting nothing at all while every gate was
+      # green, and the sweep that found them was the first in weeks.
+      # An entry that cannot be judged is not guarding anything,
+      # whichever way it fails.
+      # AND TWO OF THE NINE WERE AMBIGUOUS BY INDENTATION ALONE: a
+      # match is a SUBSTRING, so a statement anchored at one nesting
+      # level also matches its more deeply nested twin. Count matches
+      # rather than looking for duplicated lines.
+      problems.append(
+        f"the mutation catalogue's {name!r} anchors on text that "
+        f"appears {hits} times in {target}, so the tool would mutate "
+        f"the first site while its siblings go on doing the work and "
+        f"the entry reports nothing; narrow the anchor with a "
+        f"neighbouring line, or anchor at the shared helper if there "
+        f"is one")
   if seen < 30:
     problems.append(
       f"only {seen} catalogue entries could be read for their "

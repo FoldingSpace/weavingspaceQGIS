@@ -38231,6 +38231,121 @@ def test_the_roadmap_gate_reads_a_statement_not_a_mention():
     "\n  ".join(problems)
 
 
+def test_the_catalogue_gate_refuses_an_ambiguous_anchor():
+  """An anchor matching twice guards nothing, and the gate must say so.
+
+  `mutation_check` REFUSES at run time when an entry's `old` text
+  matches more than one place, because mutating the first site leaves
+  its siblings doing the work and the entry reports SURVIVED whatever
+  the tests do. That refusal only reaches somebody who sweeps the
+  whole catalogue, which happens before a substantial release --- so
+  `check_standards` asked the cheaper question at every push and asked
+  only half of it: whether the anchor was PRESENT.
+
+  On 2026-08-27 nine entries sat ambiguous, reporting nothing at all,
+  while every gate was green; the sweep that found them was the first
+  in weeks. Two of the nine were ambiguous by INDENTATION alone, since
+  a match is a substring and eight spaces sit inside ten, so the check
+  counts matches rather than looking for duplicated lines.
+
+  THE PLACEHOLDER CASE IS WHY THIS TEST HAS A THIRD ENTRY. A few
+  catalogue entries are COMPUTED at run time and carry a literal only
+  to keep the dict's shape; mutating text to itself changes nothing,
+  so `old == new` is the tell. The uniqueness check's first draft
+  judged one of those and reported `crs-reattach` as ambiguous while
+  the sweep had judged the computed entry `caught` an hour earlier.
+
+  Regression: nine catalogue entries sat ambiguous and reported nothing at all while every gate was green, found by the first full sweep in weeks rather than by any push. [mutation]
+  """
+  import tempfile
+  folder = tempfile.mkdtemp()
+  os.makedirs(os.path.join(folder, "weavingspace_qgis"))
+  # A source file where one line appears TWICE and another once, which
+  # is the whole of the fixture: the check is about counting matches.
+  source = os.path.join(folder, "weavingspace_qgis", "dialog.py")
+  with open(source, "w", encoding="utf-8") as handle:
+    handle.write(
+      "def one(self):\n"
+      "  self._settle()\n"
+      "  self._unique_line_here = 1\n"
+      "\n"
+      "def two(self):\n"
+      "  self._settle()\n"
+      + "".join(f"  self._filler_{n} = {n}\n" for n in range(40)))
+
+  # Thirty unique entries, so the check's own "fewer than this
+  # catalogue holds" floor does not fire and every problem the test
+  # sees is one it planted.
+  entries = "".join(
+    f'  dict(name="filler-{n}", file=DIALOG,\n'
+    f'       old="  self._filler_{n} = {n}",\n'
+    f'       new="  pass  # mutation",\n'
+    f'       test="test_x", why="filler"),\n'
+    for n in range(40))
+  catalogue = os.path.join(folder, "mutation_check.py")
+  with open(catalogue, "w", encoding="utf-8") as handle:
+    handle.write(
+      'DIALOG = "weavingspace_qgis/dialog.py"\n'
+      "MUTATIONS = [\n"
+      + entries
+      + '  dict(name="unique-anchor", file=DIALOG,\n'
+        '       old="  self._unique_line_here = 1",\n'
+        '       new="  pass  # mutation",\n'
+        '       test="test_x", why="a good entry must still pass"),\n'
+        '  dict(name="ambiguous-anchor", file=DIALOG,\n'
+        '       old="  self._settle()",\n'
+        '       new="  pass  # mutation",\n'
+        '       test="test_x", why="matches twice, so it guards nothing"),\n'
+        '  dict(name="computed-placeholder", file=DIALOG,\n'
+        '       old="  self._settle()",  # placeholder, replaced below\n'
+        '       new="  self._settle()",\n'
+        '       test="test_x", why="the real anchor is computed"),\n'
+      "]\n")
+
+  standards = _c2_tool_module("check_standards")
+  standards.ROOT = folder
+  standards.problems = []
+  standards.check_catalogue_anchors(catalogue)
+  said = standards.problems
+
+  named = [p for p in said if "ambiguous-anchor" in p]
+  assert named, \
+    f"an anchor matching two places was accepted, so an entry that " \
+    f"guards nothing would pass every push: {said}"
+  assert "appears 2 times" in named[0], \
+    f"the complaint does not say how many places it matched, which is " \
+    f"the one number the author needs: {named[0]}"
+  assert not [p for p in said if "unique-anchor" in p], \
+    f"a perfectly good entry was refused, and a gate that refuses " \
+    f"good entries is one people route around: {said}"
+  assert not [p for p in said if "computed-placeholder" in p], \
+    f"a COMPUTED entry's placeholder was judged as though it were an " \
+    f"anchor; `old == new` mutates nothing and is never what the tool " \
+    f"applies: {said}"
+  assert not [p for p in said if "fewer than this catalogue holds" in p], \
+    f"the fixture is too small for the check's own floor, so this " \
+    f"test would report a problem it did not plant: {said}"
+  assert len(said) == 1, \
+    f"exactly one thing is wrong with that fixture: {said}"
+
+  # ...and a MISSING anchor still fails, since widening the question
+  # must not have narrowed the older half of it.
+  standards.problems = []
+  with open(catalogue, "a", encoding="utf-8") as handle:
+    handle.write(
+      'MUTATIONS.append(dict(name="vanished-anchor", file=DIALOG,\n'
+      '                      old="  self._line_that_never_existed()",\n'
+      '                      new="  pass  # mutation",\n'
+      '                      test="test_x", why="the code moved"))\n')
+  standards.check_catalogue_anchors(catalogue)
+  assert [p for p in standards.problems if "vanished-anchor" in p], \
+    f"an anchor that matches NOTHING is no longer reported, so " \
+    f"widening the check has cost it the half it already had: " \
+    f"{standards.problems}"
+
+  shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_the_documents_numbers_match_the_code():
   """Numbers in prose rot, and nothing here was checking them.
 
@@ -69275,6 +69390,8 @@ def main():
         test_the_roadmap_gate_reads_a_statement_not_a_mention)
   check("the documents' numbers match the code",
         test_the_documents_numbers_match_the_code)
+  check("the catalogue gate refuses an ambiguous anchor",
+        test_the_catalogue_gate_refuses_an_ambiguous_anchor)
   check("every documented command still exists",
         test_every_documented_command_still_exists)
   check("the release refuses a tree it did not measure",

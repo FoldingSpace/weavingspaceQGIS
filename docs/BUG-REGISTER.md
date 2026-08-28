@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-384 defect(s) with a regression test.
+385 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -443,6 +443,8 @@ there is no separate list to remember.
   guarded by `test_save_asks_before_overwriting_a_file_it_did_not_write`
 - **saving became a positive act on 2026-08-27, and the acts that end in a press had one journey test each rather than a crossing.**  
   guarded by `test_saving_holds_on_every_route`
+- **nine catalogue entries sat ambiguous and reported nothing at all while every gate was green, found by the first full sweep in weeks rather than by any push.**  
+  guarded by `test_the_catalogue_gate_refuses_an_ambiguous_anchor`
 - **the categorized renderer recorded no source colour ramp, so a clean ramp applied in QGIS's dock was adopted as hand-picks instead of replacing them, and QGIS's own panel showed no ramp at all.**  
   guarded by `test_the_dock_reapplying_the_same_ramp_discards_the_hand_picks`
 - **a restyle wrote the new design onto the group and into the layers' embedded styles but never into the GeoPackage's own working-state record, so a file opened elsewhere resumed the design from before the last style change.**  
@@ -819,7 +821,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 121
+- the mutation campaign: 122
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
 - reported by a user: 29
