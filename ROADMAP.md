@@ -259,6 +259,17 @@ run was 636 passed and 7 failed at `844e6d4`; every one of those
 seven is fixed, and the fixes are covered by targeted runs rather
 than by a whole-tree measurement.
 
+**THE DRIFTED CATALOGUE IS DONE**, decided entry by entry on
+2026-08-28 and written up in `docs/process/catalogue-triage-2026-08-28.md`:
+nine re-aimed or re-anchored and proved `caught`, twelve retired with
+their measurement and the redundancy written at the test, four
+accepted with the condition that would reopen each, and five tests
+made materially stronger. The catalogue holds 548 entries where it
+held 559. The finding worth carrying is that these were not weak
+tests but facts that gained a SECOND WRITER as the fortnight's
+rulings landed, which is how a catalogue loses a version's worth of
+guards while its count goes on describing them.
+
 **NOTHING OUTSTANDING.** Every entry this version carried is done or
 deliberately moved: the two that need a person rather than an
 assistant are under "Needs the maintainer" above, and the four
@@ -274,34 +285,6 @@ are deleted because they LANDED, which is what this file asks of an
 entry that is done. Their reasoning lives in CLAUDE.md, where it
 binds, and what they cost and found is in the ledger for 2026-08-27,
 rows 26 to 30.)
-
-**THIRTY-THREE CATALOGUE ENTRIES NO LONGER CATCH, AND 0.24.4 OWES
-THEM.** (Maintainer's decision, 2026-08-28, choosing 0.24.4 over
-deferral.) The full sweep at `c265a94` judged 516 of 559 caught and
-flagged 43; re-run one at a time on an idle machine those came back 0
-caught, 34 survived, 9 unjudgeable. The nine were ambiguous anchors
-and are narrowed (7 catch, 2 survive). Of the 34 survivors, THIRTY-
-THREE also survived at `v0.24.3`, so the drift predates the released
-version; the one that did not is mended and proved. Each of the 33
-needs a decision at its entry, not a repair by reflex: HELD
-REDUNDANTLY (break every route at once -- if the test then fails, the
-axis is live, so retire the entry and write the redundancy at the
-test), AIMED AT A CASE NOTHING REACHES (re-aim, as the embed entry
-needed), or A WEAK TEST (strengthen it). The names are in
-`scratchpad/survivors.txt`, the solo verdicts in
-`scratchpad/triage-c265a94-2235.log`, and the baseline judgement in
-`scratchpad/baseline-v0243-2248.log`.
-
-**THE CATALOGUE GATE MUST REFUSE AN AMBIGUOUS ANCHOR, NOT ONLY A
-MISSING ONE.** (Same decision.) `check_catalogue_anchors` in
-`tools/check_standards.py` fails when an entry's `old` text is ABSENT
-and says nothing when it matches twice -- so nine entries reported
-nothing at all while every gate was green, which is this project's own
-gate-that-checks-half-of-what-it-names shape arriving inside the
-checker written to catch it elsewhere. Add a uniqueness requirement
-beside the existence one, in the reader that already walks every entry
-with `ast`, and prove it by planting an anchor that matches twice and
-requiring the checker to object.
 
 ## 0.24.5 — deferred here from 0.24.4
 

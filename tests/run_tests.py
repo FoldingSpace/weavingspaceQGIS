@@ -9181,6 +9181,17 @@ def test_every_element_is_told_about_its_own_legend():
       return [i for i in range(len(ranges)) if i not in worn]
 
     # ARM ONE: two elements on one column, told apart.
+    # BOTH counts are raised, because the case is that one element's
+    # notice must not silence the other's -- and until 2026-08-28 only
+    # the second was, so the first drew five classes with none of them
+    # empty, had nothing to be told, and the assertion about it sat
+    # behind an `if` that was false. With the dedup keyed on the
+    # column instead of the sentence, the survivor was the twenty-class
+    # notice the test asserts unconditionally, so the mutation was
+    # invisible. Twelve classes over this column leaves the first
+    # element gaps of its own; the premise below says so out loud
+    # rather than letting the case quietly not arise.
+    dlg.table.cellWidget(dlg._row_for_element(first), 3).setValue(18)
     dlg.table.cellWidget(dlg._row_for_element(second), 3).setValue(20)
     _tick(300)
     del BAR_MESSAGES[:]
@@ -9194,10 +9205,22 @@ def test_every_element_is_told_about_its_own_legend():
     assert any("20 classes" in m for m in said), (
       f"the element drawing twenty classes, {len(gaps_second)} of them "
       f"empty, was never mentioned. Said: {said!r}")
-    if gaps_first:
-      assert any(" 5 classes" in m for m in said), (
-        f"the element drawing five classes was silenced instead. "
-        f"Said: {said!r}")
+    # STATED AS A PREMISE AND THEN ASSERTED UNCONDITIONALLY. This read
+    # `if gaps_first:` until 2026-08-28, and a judgement behind an `if`
+    # is a green indistinguishable from one where the case never
+    # arose: with the five-class element silent the only surviving
+    # notice is the twenty-class one, which the assertion above is
+    # satisfied by -- so the entry over the dedup key could not fail,
+    # however the key was mutated. Both elements carry v3 here, which
+    # is the whole point of the case, so both must be heard.
+    assert gaps_first, (
+      f"the fixture left the FIRST element with no empty classes, so "
+      f"there is nothing for its neighbour to silence and this test "
+      f"cannot show the dedup key being wrong: {gaps_first}")
+    assert any("18 classes" in m for m in said), (
+      f"the element drawing eighteen classes was silenced instead: one "
+      f"element's notice answered for its neighbour, under a sentence "
+      f"quoting a class count it does not have. Said: {said!r}")
 
     # ARM TWO: a constant column, met on the restyle path.
     flat = make_region_layer(n=12)
@@ -13596,6 +13619,85 @@ def test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis():
     f"after a table rebuild the row reads {rebuilt} classes where QGIS "
     f"holds four, so the next Generate destroys the classification the "
     f"user set in the Symbology panel")
+
+  # ...AND IT MUST SURVIVE A RESTYLE, which is a different path from
+  # the Generate above and the one the follow's own signature record
+  # is FOR. `_restyle_only` re-seeds an element whose row no longer
+  # matches the signature it last recorded; a row that moved with no
+  # signal -- which is what following a dock edit is -- must therefore
+  # re-record, or the next style-only change anywhere in the table
+  # repaints the element the user styled in QGIS. Live update is
+  # turned on for this leg because with it off the map is
+  # deliberately not refreshed at all ("preserve, do not repaint"),
+  # so the restyle path would never run and the leg would assert
+  # nothing. Added 2026-08-28: the entry over that record survived
+  # because every assertion above drives Generate or a rebuild.
+  other = next((r for r in range(dlg.table.rowCount()) if r != row), None)
+  assert other is not None, "the design has one element, so no other row"
+  # THE COLOURS ARE WHAT A RE-SEED DESTROYS, and the field and the
+  # class count are not: the row has FOLLOWED the layer to v3 and four
+  # classes, so re-seeding reproduces both while repainting the ladder
+  # from the row's own ramp. A first draft of this leg asserted those
+  # two and passed with the behaviour broken -- the easiest observable
+  # nearby rather than the thing that must be true.
+  before_restyle = [r.symbol().color().name()
+                    for r in project.mapLayer(
+                      dlg._element_layer_ids[tid]).renderer().ranges()]
+  dlg.live_check.setChecked(True)
+  ramp_cell = dlg.table.cellWidget(other, 4)
+  assert ramp_cell is not None and ramp_cell.count() > 1, \
+    "the other row offers no ramp to pick, so no restyle can be staged"
+  pick = next((ramp_cell.itemText(i) for i in range(ramp_cell.count())
+               if ramp_cell.itemText(i)
+               and ramp_cell.itemText(i) != ramp_cell.currentText()), None)
+  assert pick, "no second ramp to choose on the other row"
+  ramp_cell.setCurrentText(pick)
+  ramp_cell.activated.emit(ramp_cell.findText(pick))
+  _tick(1400)
+  restyled = project.mapLayer(dlg._element_layer_ids[tid]).renderer()
+  after_restyle = [r.symbol().color().name() for r in restyled.ranges()]
+  assert restyled.classAttribute() == "v3" \
+      and after_restyle == before_restyle, (
+    f"a ramp picked on ANOTHER row repainted the element the user had "
+    f"styled in QGIS: it drew {before_restyle} and now draws "
+    f"{after_restyle} on {restyled.classAttribute()!r}. The row moved "
+    f"with no signal, so unless it re-records its signature the "
+    f"restyle compares the layer against a row it has never seen and "
+    f"re-seeds the renderer it just followed")
+
+  # AN UNCLASSED ROW'S FIFTY STEPS ARE NOT A CLASS COUNT ANYBODY
+  # CHOSE, and the follow must not write them into the Classes cell.
+  # Added 2026-08-28: the leak this guards is reachable through
+  # Unclassed rather than through a categorized renderer -- a
+  # categorized one has no `ranges` at all, so the entry's own
+  # wording pointed at a case the code cannot take, and the test
+  # pasted a four-class graduated renderer where nothing could leak.
+  # Fifty steps clamped to the 2-20 ceiling is the greyed 20 the
+  # tester's second screenshot showed.
+  unclassed_row = next((r for r in range(dlg.table.rowCount())
+                        if r != row), None)
+  if unclassed_row is not None:
+    unclassed_id = dlg.table.item(unclassed_row, 0).text()
+    mode_cell = dlg.table.cellWidget(unclassed_row, 2)
+    wanted = mode_cell.findText("Quant: Unclassed") if mode_cell else -1
+    if wanted >= 0:
+      mode_cell.setCurrentIndex(wanted)
+      mode_cell.activated.emit(wanted)
+      _tick(300)
+      _generate_and_wait(dlg)
+      _tick(200)
+      before_count = dlg._class_counts.get(unclassed_id)
+      unclassed_layer = project.mapLayer(
+        dlg._element_layer_ids[unclassed_id])
+      unclassed_layer.styleChanged.emit()
+      _tick(500)
+      after_count = dlg._class_counts.get(unclassed_id)
+      assert after_count == before_count, (
+        f"the follow took an Unclassed element's step count as a "
+        f"class count somebody chose: the record went from "
+        f"{before_count!r} to {after_count!r}, and the cell clamps it "
+        f"to the 2-20 ceiling at the next rebuild")
+
   dlg.close()
 
 
@@ -14616,6 +14718,24 @@ def test_a_reopened_plugin_adopts_the_group_it_last_wrote():
     "the second run reused the first run's layers, so nothing is kept"
   names = [g.name() for g in project.layerTreeRoot().findGroups()]
   assert len(names) >= 2, f"only one output group exists: {names}"
+
+  # AND THE OLDER GROUP IS THE ONE THE BARE NAME FINDS, which is what
+  # makes this test able to tell "the newest" from "whatever answers
+  # to the plugin's own name". A new group is inserted at the TOP of
+  # the layer tree, so a lookup by name happened to return the newest
+  # anyway and the entry over that lookup could not fail -- measured
+  # 2026-08-28, adoption ran and adopted the right group with the
+  # lookup mutated to `findGroup(GROUP_BASE_NAME)`. Renaming is an
+  # ordinary act in the layers panel, and this project's own rule is
+  # that a name is a LABEL rather than an identity.
+  from weavingspace_qgis.dialog import GROUP_BASE_NAME
+  older = next((g for g in project.layerTreeRoot().findGroups()
+                if any(child.layerId() in set(kept.values())
+                       for child in g.findLayers())), None)
+  assert older is not None, \
+    "the first run's layers are in no group, so nothing can be renamed"
+  older.setName(GROUP_BASE_NAME)
+  _tick(150)
   dlg.close()
 
   # ...the plugin is closed and opened again
@@ -15436,6 +15556,18 @@ def test_a_second_project_does_not_take_the_first_ones_opacity():
   hold a choice of its own. The table then showed 100 over a map drawn
   at 40, and one Generate painted the 100 into the .qgz.
 
+  AND ANY ONE OF THE THREE KEEPS THIS TEST GREEN, which is what makes
+  it worth saying here. Measured 2026-08-28: break the previous-table
+  rule alone and this passes; break it together with the adoption
+  rule and it still passes; break all three and it fails at once,
+  naming the hundred over a map drawn at forty. The two catalogue
+  entries over the first two routes were retired that day rather than
+  left as permanent survivors, and `the-opacity-cell-follows-its-
+  record` is the one that still catches. So if you weaken any of
+  these three, this test will not complain until the other two have
+  gone as well -- read that as a reason to keep all three rather than
+  as slack.
+
   THREE THINGS HAD TO BE TRUE and each was separately wrong: adoption
   outranks a record left over from the project being replaced; the
   previous table fills a GAP in that record rather than overruling it;
@@ -15824,6 +15956,34 @@ def test_deferral_keeps_opacity_and_the_twins_own_styling():
     assert fade(control) == 0.3, \
       f"the control element is at {fade(control)}, so the fixture is " \
       f"not comparing deferral against anything"
+
+    # ARM THREE: THE CELL AND THE LAYER DISAGREE, which is the only
+    # arm that can tell where the landing reads the number FROM.
+    # Above, the layer already carries 0.3 by the time the re-tile
+    # happens, so taking the old layer's value and taking the cell's
+    # give the same answer -- which is why the entry over this could
+    # not fail. With live update off the map is deliberately not
+    # repainted ("preserve, do not repaint"), so moving the cell to
+    # 60 leaves the layer at 0.3 until the next run lands, and the
+    # landing must honour the number the user just set rather than
+    # the one the old layer happens to hold. Added 2026-08-28.
+    spin = dlg.table.cellWidget(dlg._row_for_element(handed), 6)
+    assert spin is not None and spin.isEnabled(), \
+      "the Opacity cell is not live on the deferring element"
+    spin.setValue(60)
+    _tick(250)
+    assert fade(handed) == 0.3, (
+      f"the layer moved to {fade(handed)} before the run, so the cell "
+      f"and the layer no longer disagree and this arm proves nothing")
+    dlg.spacing_spin.setValue(1100)
+    _tick(250)
+    _generate_and_wait(dlg)
+    assert fade(handed) == 0.6, (
+      f"the landing took the OLD layer's opacity for a deferring "
+      f"element rather than the number the user had just set: the map "
+      f"draws {fade(handed)} where the table says 60. The Opacity cell "
+      f"stays live while an element defers, so it is the cell that "
+      f"says what the user wants")
   finally:
     dlg.close()
 
@@ -16149,6 +16309,23 @@ def test_taking_an_element_back_from_qgis_restyles_at_once():
   taken = project.mapLayer(dlg._element_layer_ids[tile_id])
   assert type(taken.renderer()).__name__ != "QgsRuleBasedRenderer", \
     f"picking {chosen!r} left QGIS's renderer on the map"
+
+  # ...AND ACROSS A RE-TILE, which is a different arm from the one
+  # above. Picking a style changes no geometry, so that Generate took
+  # the restyle fast path -- `GEN-GATE restyled-instead`, measured
+  # 2026-08-28 -- and the landing's own rule about whether an element
+  # has been TAKEN BACK was never consulted. It decides whether the
+  # new layer inherits the renderer the user is asking to replace, so
+  # a spacing nudge is what puts this promise on the re-tile path.
+  dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.15)
+  _tick(300)
+  _generate_and_wait(dlg)
+  retiled = project.mapLayer(dlg._element_layer_ids[tile_id])
+  assert type(retiled.renderer()).__name__ != "QgsRuleBasedRenderer", (
+    f"a re-tile carried QGIS's own renderer onto the new layer of an "
+    f"element the user had taken back: it draws "
+    f"{type(retiled.renderer()).__name__} where the row says "
+    f"{chosen!r}, so the element can never be reclaimed")
   assert dlg.table.cellWidget(1, 2).currentText() == chosen, \
     "the row does not name the style that was picked"
   for column in dlg.RENDERER_COLUMNS:
@@ -22001,6 +22178,59 @@ def test_a_discarded_pick_does_not_come_back():
       "weavingspace_category_colours") or ""), \
       "the dialog announced the picks discarded and left them " \
       "stamped on the layer, where a project save will keep them"
+
+    # ...AND THE GRADUATED TWIN, which had no leg here at all until
+    # 2026-08-28 and whose catalogue entry could therefore never
+    # fail. The handler has two follow exits, one per styling path,
+    # and this test drove only the categorized one -- the same twin
+    # asymmetry the docstring above says produced most of that week's
+    # defects, repeated in the test written to guard it. A graduated
+    # element's positional class colours live in `_quant_colours` and
+    # are stamped under `weavingspace_quant_style`.
+    quant_row = next(
+      (r for r in range(dlg.table.rowCount())
+       if dlg.table.item(r, 0) is not None
+       and dlg.table.item(r, 0).text() != tid), None)
+    if quant_row is not None:
+      quant_id = dlg.table.item(quant_row, 0).text()
+      mode = dlg.table.cellWidget(quant_row, 2)
+      wanted = mode.findText("Quant: Quantiles") if mode is not None else -1
+      variable = dlg.table.cellWidget(quant_row, 1)
+      numeric = next((variable.itemText(i) for i in range(variable.count())
+                      if variable.itemText(i).startswith("v")), None) \
+          if variable is not None else None
+      if wanted >= 0 and numeric:
+        variable.setCurrentText(numeric)
+        variable.activated.emit(variable.findText(numeric))
+        mode.setCurrentIndex(wanted)
+        mode.activated.emit(wanted)
+        _tick(300)
+        _generate_and_wait(dlg)
+        _tick(300)
+        dlg._quant_colours.setdefault(quant_id, {}).setdefault(
+          numeric, {})["0"] = "#123456"
+        dlg._apply_style_change()
+        _settle(dlg)
+        _tick(400)
+        quant_layer = project.mapLayer(dlg._element_layer_ids[quant_id])
+        assert "#123456" in (quant_layer.customProperty(
+          "weavingspace_quant_style") or ""), \
+          "the graduated pick was never stamped, so this leg cannot " \
+          "show it surviving a discard"
+        graduated = next(a for a in dlg._assignments() if a["id"] == quant_id)
+        quant_layer.setRenderer(bridge.make_graduated_renderer(
+          quant_layer, graduated["var"], "Greens", "Quantiles",
+          graduated.get("k", 5), graduated.get("outline", False),
+          classify_from=dlg._classification_values(graduated["var"])))
+        _tick(600)
+        assert not dlg._quant_colours.get(quant_id, {}).get(numeric), \
+          "the dialog did not follow the dock's ramp on the graduated " \
+          "element, so the discard this leg is about never happened"
+        assert "#123456" not in (quant_layer.customProperty(
+          "weavingspace_quant_style") or ""), \
+          "the graduated follow announced the class colours discarded " \
+          "and left them stamped on the layer, where a project save " \
+          "keeps them and the next Generate paints them back"
 
     dlg.close()
     _project_round_trip(folder)
@@ -36399,6 +36629,18 @@ def test_unload_with_windows_open_and_work_in_flight():
   raises -- see _QtNoiseWatch, which collects the exception hook and
   Qt's own critical messages for the duration.
 
+  TWO MECHANISMS HOLD THAT SECOND PROMISE, AND THIS TEST NEEDS BOTH
+  BROKEN BEFORE IT CAN FAIL. `unload` stops the live and preview
+  debounce timers as the window closes, and `_maybe_live_generate`
+  refuses at its first gate when `_closed` is set. Measured
+  2026-08-28: break the timer stop alone and this test passes, the
+  tick firing and being refused; break both and it fails at once,
+  naming the fresh generation. The catalogue entry that stood on the
+  timer stop was retired that day for exactly this reason -- an entry
+  over one of two sufficient routes can only ever be red -- so if you
+  weaken either half, this test is what is left, and it will not
+  complain until you have weakened the other as well.
+
   The debounced live regeneration counts as such a firing. An
   unloaded plugin that starts a fresh tiling 900 ms later writes
   layers into somebody's project after they removed the tool that
@@ -37454,18 +37696,31 @@ def _extreme_magnitude_layer():
   """A region layer whose values sit at 1e-9 and at 1e12.
 
   Returns:
-    A 4x4 grid in EPSG:3857 with two float columns: ``tiny``, running
-    1e-9 to 16e-9, and ``vast``, running 1e12 to 16e12. Both are
-    perfectly ordinary data -- proportions of a rare event, and
-    currency in a small unit -- and both are five or more orders of
-    magnitude from anything the default legend formatting was
-    designed around.
+    A 4x4 grid in EPSG:3857 with three float columns: ``tiny``,
+    running 1e-9 to 16e-9; ``vast``, running 1e12 to 16e12; and
+    ``mixed``, which holds both at once. The first two are perfectly
+    ordinary data -- proportions of a rare event, and currency in a
+    small unit -- and both are five or more orders of magnitude from
+    anything the default legend formatting was designed around.
+
+    ``mixed`` IS THE COLUMN THE WHOLE-SPAN ESTIMATE CANNOT SERVE, and
+    it was added 2026-08-28 because without it half the precision
+    machinery could not be exercised at all. Precision is settled
+    twice: once before classification, from the column's whole span,
+    and once after, from the NARROWEST class actually cut. On a
+    single-magnitude column the first pass suffices and the second is
+    unreachable -- so the catalogue entry over it survived every
+    judgement while this test passed. Here the span is about 1e9, so
+    the pre-classification step is far larger than one and asks for
+    no decimals, while the classes at the bottom are nanometres
+    apart and print identically without the second pass.
   """
   from weavingspace_qgis import compat
   layer = QgsVectorLayer("Polygon?crs=EPSG:3857", "magnitudes", "memory")
   provider = layer.dataProvider()
   provider.addAttributes([compat.make_field("tiny", float),
-                          compat.make_field("vast", float)])
+                          compat.make_field("vast", float),
+                          compat.make_field("mixed", float)])
   layer.updateFields()
   features, index = [], 0
   for i in range(4):
@@ -37478,6 +37733,13 @@ def _extreme_magnitude_layer():
       index += 1
       feature["tiny"] = index * 1e-9
       feature["vast"] = index * 1e12
+      # half the rows a nanometre apart, half a billion apart: the
+      # span is ~1e9 so the pre-classification estimate asks for no
+      # decimals, while the classes cut at the bottom are separated
+      # by 1e-9 and print identically unless the SECOND pass widens
+      # the precision from the narrowest class actually cut.
+      feature["mixed"] = (index * 1e-9 if index <= 8
+                          else (index - 8) * 1.25e8)
       features.append(feature)
   provider.addFeatures(features)
   layer.updateExtents()
@@ -37536,7 +37798,7 @@ def test_extreme_magnitudes_render_readable_legends():
   longest = 64
   trouble = []
   measured = 0
-  for field in ("tiny", "vast"):
+  for field in ("tiny", "vast", "mixed"):
     for scheme in ("Quantiles", "Equal intervals"):
       renderer = bridge.make_graduated_renderer(
         layer, field, "Reds", scheme, 5, False)
@@ -37565,8 +37827,8 @@ def test_extreme_magnitudes_render_readable_legends():
             f"their bounds are {bounds[position]} and "
             f"{bounds[position + 1]}. Two colours, one printed "
             f"meaning: the legend is lying about the map")
-  assert measured == 4, \
-    f"only {measured} of four field/scheme pairs were measured"
+  assert measured == 6, \
+    f"only {measured} of six field/scheme pairs were measured"
   assert not trouble, \
     "legends at the edge of magnitude are unreadable:\n  " + \
     "\n  ".join(trouble)
@@ -41710,6 +41972,30 @@ def test_a_project_that_already_has_forty_layers():
       f"the group its own output is in, {group_name!r}"
     assert second._element_layer_ids == ids, \
       "the reopened dialog did not adopt the element layers"
+    # A REAL FIRST CHOICE, which is what this leg is about. The
+    # reopened dialog has already adopted its own output and its
+    # region with it, so setting the combo to `region` selects what is
+    # already selected and no choice is made at all -- measured
+    # 2026-08-28, which is why the clause that tells a first pick from
+    # a switch could not be exercised here. Picking a decoy first and
+    # then the real region makes it a genuine choice, while leaving it
+    # the session's FIRST: nothing has landed in this dialog, so it
+    # must not be read as leaving work behind.
+    decoy = next((lyr for lyr in project.mapLayers().values()
+                  if lyr is not region
+                  and lyr.__class__.__name__ == "QgsVectorLayer"
+                  and lyr.geometryType() == region.geometryType()
+                  and not lyr.customProperty("weavingspace_output")), None)
+    # AND A PATH TO LOSE. A change of dataset CLEARS the output path,
+    # deliberately, so that B's map cannot be written over A's saved
+    # file; a first choice must not. Without a path set, that half of
+    # the ruling has nothing to show, which is the second reason this
+    # leg could not see the clause it is about.
+    second.gpkg_widget.setFilePath("/tmp/a-first-choice-keeps-this.gpkg")
+    _tick(150)
+    if decoy is not None:
+      second.layer_combo.setLayer(decoy)
+      _tick(200)
     second.layer_combo.setLayer(region)
     _tick(200)
     second.spacing_spin.setValue(500)
@@ -41719,6 +42005,13 @@ def test_a_project_that_already_has_forty_layers():
     assert len(groups) == 1, \
       f"a second session in a busy project left {len(groups)} output " \
       f"groups ({[g.name() for g in groups]})"
+    assert second.gpkg_widget.filePath() \
+        == "/tmp/a-first-choice-keeps-this.gpkg", (
+      f"the session's FIRST choice of region was read as leaving a "
+      f"dataset behind, so the output path was cleared: it now reads "
+      f"{second.gpkg_widget.filePath()!r}. Clearing is right when "
+      f"somebody switches away from work they have built; nothing had "
+      f"been built in this dialog")
 
     layers = [project.mapLayer(lid)
               for lid in second._element_layer_ids.values()]
@@ -54289,6 +54582,21 @@ def test_a_project_round_trip_changes_nothing_a_user_chose():
   reassigned on reload and a signature describes a run that no longer
   exists, so including them would fail every round trip and train a
   reader to wave the failure through.
+
+  WHAT MAKES THIS TEST GREEN IS NOW THE GROUP RECORD, and three
+  catalogue entries were retired on 2026-08-28 for saying otherwise.
+  The ramps being installed before adoption, a reopened layer's
+  opacity being read back, and `_ramp_match` trying each ramp
+  reversed are all older per-layer recovery routes, and since the
+  ruling of 2026-08-25 the group carries the whole working state on
+  its own property and a selection restores it. Measured per entry:
+  break any one of the three and this stays green; break it together
+  with `_apply_working_state`'s restore and it fails at once; break
+  that restore ALONE and it passes, so the failure is not the
+  co-broken half being sufficient. Read that as a reason to keep both
+  layers rather than as slack -- a GeoPackage resumed without its
+  project has no group record, and those older routes are what serve
+  it.
   """
   import shutil
   import tempfile
@@ -59116,6 +59424,22 @@ def test_a_forward_ramp_does_not_match_a_reversed_row():
     assert pale_first(), \
       f"the fixture's own forward renderer did not take: {ladder()}"
 
+    # AND THE PLUGIN NOTICED, which is the axis this test was missing.
+    # A forward ramp on a reversed row matches no trial the row can
+    # build, so the colours are adopted as positional picks and the
+    # cell falls back to Custom -- the settled answer for colours the
+    # row cannot name. Without the tick in the trial the comparison
+    # matches, the edit is filed as the plugin's own seeding, and
+    # nothing is adopted at all: measured 2026-08-28 as four adopted
+    # colours against none, while every assertion here still passed.
+    # It is asserted on the RECORD rather than on the cell's text
+    # because the record is what the next landing reads.
+    adopted = dlg._quant_colours.get(tile_id, {}).get("v3", {})
+    assert adopted, (
+      "the plugin took a forward ramp set in QGIS for its own "
+      "seeding of a REVERSED row: nothing was adopted, so the row "
+      "goes on claiming a direction the map does not have")
+
     # THE HARM: an unrelated edit must not flip it back. Without the
     # flag the plugin believes nothing changed, so the row goes on
     # claiming reversed and the next Generate redraws end for end.
@@ -62018,6 +62342,7 @@ def test_a_dock_reclassification_lands_while_a_run_is_finishing():
       assert len(list(twelve.ranges())) == 12, \
         f"the panel returned {len(list(twelve.ranges()))} classes, " \
         f"not the twelve this case needs to mismatch the dialog's five"
+      said_before = len(BAR_MESSAGES)
       live.setRenderer(twelve)
       _tick(100)
       settled = _settle(dlg, seconds=int(120 * CONTENTION))
@@ -62026,6 +62351,22 @@ def test_a_dock_reclassification_lands_while_a_run_is_finishing():
       "a twelve-class reclassification landing with a run raised " \
       "inside a signal handler, where adoption stops silently for " \
       "this element:\n" + "\n".join(noise.complaints())
+    # AND IT SAYS NOTHING, which is the other half of leaving it
+    # alone. Past the count guard the handler goes on to match the
+    # dock's ramp, CLEAR this element's positional colours and
+    # announce that it now follows that ramp -- a sentence about a
+    # reconciliation the dialog has no record for, with somebody's
+    # picks discarded behind it. The guard is what makes that
+    # unreachable, and until 2026-08-28 nothing in the suite could
+    # tell: sixteen tests execute that guard's line and only this one
+    # ever takes its branch, coverage recording that a line RAN
+    # rather than that its branch was TAKEN.
+    followed = [str(m) for m in BAR_MESSAGES[said_before:]
+                if "now follows" in str(m)]
+    assert not followed, \
+      f"a twelve-class reclassification the dialog cannot reconcile " \
+      f"was announced as a ramp the element now follows, which also " \
+      f"clears its class colours: {followed!r}"
     assert settled, "the dialog never settled after the second classify"
     kept = _class_hexes(dlg, tid)
     assert len(kept) == 12, \

@@ -257,8 +257,22 @@ MUTATIONS = [
            "unpinnable"),
   dict(name="the-removal-notice-does-not-depend-on-handler-order",
        file=DIALOG,
-       old="""    lost = pending or self._watched_layer_id""",
-       new="""    lost = self._watched_layer_id""",
+       # ANCHORED ON BOTH READINGS OF `pending`, because the id
+       # recorded before the removal is consulted twice in four lines
+       # -- once to say WHICH layer went and once to stop the early
+       # return -- and either reading alone keeps the notice alive.
+       # Measured 2026-08-28: breaking the first passes, breaking the
+       # guard clause alone passes, breaking both fails. One fact read
+       # twice is this project's commonest shape and it makes an entry
+       # over either reading permanently red.
+       old="""    lost = pending or self._watched_layer_id
+    if lost is None:
+      return
+    if lost not in tuple(layer_ids) and pending is None:""",
+       new="""    lost = self._watched_layer_id
+    if lost is None:
+      return
+    if lost not in tuple(layer_ids):""",
        test="test_the_removal_notice_survives_the_chooser_moving_first",
        why="QgsMapLayerComboBox emits layerChanged when the project "
            "churns and with two polygon layers quietly selects the "
@@ -710,13 +724,27 @@ MUTATIONS = [
        new="""    if time.monotonic() - self._style_signal_at.get(str(tile_id),
                                                     -1e9) < 0.0:""",
        test="test_an_in_place_recolour_is_heard_through_its_repaint",
+       accepted=True,
        why="a setRenderer edit emits styleChanged AND asks for a "
            "repaint. Handled once at the signal and again at the "
            "drain, the second pass runs after the row has followed "
            "the new class count, so anything that reasoned from the "
            "row rather than from what the plugin PAINTED read the "
            "second pass as a fresh edit and adopted the displaced "
-           "ladder the first pass rightly declined"),
+           "ladder the first pass rightly declined. ACCEPTED "
+           "2026-08-28, after it was found surviving at v0.24.3 too. "
+           "Measured by comparing the plugin's own dumped decisions "
+           "with and without the guard: the second pass DOES run "
+           "(`ADOPTCOLOUR ... adopted= 0 unattributable= 0`) and "
+           "adopts nothing, because attribution asks what the plugin "
+           "PAINTED -- `_painted_ladders`, the record added "
+           "2026-08-20 -- rather than reasoning from the row. So the "
+           "harm above is held by that record, and what is left of "
+           "this guard is one extra pass over an unchanged ladder. "
+           "The only test that could see it would count how often a "
+           "private method ran, which docs/MUTATION-LOOP.md names as "
+           "the shape to ACCEPT rather than defend. A catch here is "
+           "news: it would mean attribution stopped answering first."),
   dict(name="a-ladder-may-hold-two-classes-at-one-bound", file=DIALOG,
        old="""    if at_these_bounds:
       return here in at_these_bounds""",
@@ -852,20 +880,20 @@ MUTATIONS = [
            "that name. The matrix's same-schema cells are the guard, "
            "which is fitting -- the matrix exists because journeys "
            "tested one axis each"),
-  dict(name="orphan-records-belong-to-the-first-dataset-chosen",
-       file=DIALOG,
-       old="""      for name, store in outgoing.items():
-        target = bank[name]
-        for tid, fields in store.items():
-          target.setdefault(tid, {}).update(fields)""",
-       new="""      pass  # mutation: discard what adoption wrote before the swap""",
-       test="test_a_saved_project_brings_back_its_colours",
-       why="a reopened project's adoption reads the stamps into the "
-           "views before the chooser settles; rebinding to a fresh "
-           "bank without this merge silently discarded everything a "
-           "saved project carried. Eleven round-trip tests went red on "
-           "the banks' first full suite, every one with an empty "
-           "record -- the gate doing what a targeted run cannot"),
+  # RETIRED 2026-08-28, axis LIVE and held by the GROUP RECORD. It
+  # merged the records adoption had written before any dataset
+  # identity existed into the first bank, so a reopened project's
+  # hand-picked colours were not discarded by the rebind. Measured
+  # that day: breaking it alone leaves the test green; breaking it
+  # together with `_apply_working_state`'s restore FAILS at once --
+  # "no output layer in the reopened project carries the hand-picked
+  # colours; an afternoon's work does not survive quitting QGIS" --
+  # and the CONTROL, that restore broken by itself, passes. So the
+  # group record has been answering for this since the ruling of
+  # 2026-08-25, exactly as it does for the three round-trip entries
+  # retired above, and an entry over the merge alone can only ever be
+  # red. The merge still earns its place for a GeoPackage resumed
+  # without its project, which has no group record to restore from.
   dict(name="value-laden-records-never-cross-a-shared-name", file=DIALOG,
        old="""    self._category_colours = bank["colours"]
     self._pinned_bounds = bank["pins"]""",
@@ -1628,16 +1656,22 @@ MUTATIONS = [
   # single line owns it -- which is precisely the shape this project
   # already met with `_deriving_spacing`, and the honest record is a
   # note rather than an entry that can only ever be red.
-  dict(name="the-fresh-group-flag-is-spent-by-its-landing", file=DIALOG,
-       old="""    self._adopted_group_unwritten = False
-    self._new_group_chosen = False""",
-       new="""    self._adopted_group_unwritten = False
-    pass  # mutation: the flag survives its landing""",
-       test="test_a_change_of_dataset_starts_a_new_file_and_a_new_group",
-       why="left armed, EVERY later run builds another group: the demo "
-           "that switches once and then adjusts spacing five times "
-           "would leave six copies of the map. Spent the moment it is "
-           "read, like the adopted-group flag beside it"),
+  # RETIRED 2026-08-28, axis LIVE and the flag spent in FIVE places.
+  # `_new_group_chosen` is cleared by the constructor, by
+  # `_forget_the_last_project`, by `_on_group_chosen`, by
+  # `_bind_group_to_dataset` and by the landing, and this entry stood
+  # on the last of those. Measured that day: breaking the landing's
+  # clear leaves the test green, and breaking it together with the
+  # binding's leaves it green too, with the CONTROL (binding alone)
+  # also green -- so whatever the test sees, it is not this line.
+  # The promise itself is asserted directly by
+  # `test_a_change_of_dataset_starts_a_new_file_and_a_new_group`,
+  # which reads the flag after a third run and requires it spent, and
+  # by the layer-identity checks around it. WHICH of the five it
+  # actually observes was not established, and is recorded as unknown
+  # rather than guessed: what is established is that this one is not
+  # it. An entry over one of five sufficient writers can only ever be
+  # red, which is why this survived at v0.24.3 as well as here.
   dict(name="a-dropped-scheme-is-not-refilled-from-the-old-table",
        file=DIALOG,
        old="""      scheme_reset = restored is None and (
@@ -2573,22 +2607,17 @@ MUTATIONS = [
            "shrinks leaves its old elements behind -- and that file "
            "is the artefact that LEAVES, so the person who made it "
            "never sees the fault their colleague opens"),
-  dict(name="ramps-installed-before-adoption", file=DIALOG,
-       # the ordering bug as it actually happened: adoption ran two
-       # lines before the ramp list existed, so every lookup threw
-       # and every adopted element fell through to Custom
-       old="""    bridge.ensure_ramps_installed()
-    self._ramp_names = bridge.ramp_names()
-    self._adopt_existing_group()""",
-       new="""    self._adopt_existing_group()
-    bridge.ensure_ramps_installed()
-    self._ramp_names = bridge.ramp_names()""",
-       test="test_a_project_round_trip_changes_nothing_a_user_chose",
-       why="adoption asking which library ramp draws a reopened "
-           "layer, at a moment when the library has been read. Run "
-           "it first and no ramp can ever be named, so every "
-           "reopened element reads Custom -- the map survives, but "
-           "every ramp name a user chose is gone"),
+  # RETIRED 2026-08-28, axis LIVE and held by the GROUP RECORD. It installed the ramps BEFORE adoption, so a reopened element
+  # could be matched to a library ramp by name at all.
+  # Measured that day, and measured per entry rather than as a set:
+  # breaking this alone leaves the round-trip test green; breaking it
+  # together with `_apply_working_state`'s restore fails it at once;
+  # and the CONTROL -- that restore broken by itself -- passes, so the
+  # failure is not the co-broken half being sufficient. Since the
+  # ruling of 2026-08-25 the group carries the whole working state on
+  # its own custom property and a selection restores it, so every
+  # older per-layer recovery route gained a second writer and its
+  # entry could only ever be red.
   dict(name="reopened-ramp-read-off-the-layer", file=DIALOG,
        old="""    if named and tile_id not in self._ramp_choices:
       self._ramp_choices[tile_id] = named""",
@@ -2632,11 +2661,24 @@ MUTATIONS = [
        # is worth keeping in front of whoever reads a failure here.
        old="""    if len(expected) != len(actual):""",
        new="""    if False:  # mutation: walk two lists of different lengths""",
-       test="test_a_dock_classify_on_a_constant_column_does_not_crash",
-       why="the positional walk over dock classes staying inside "
-           "both lists; without it a Classify over a collapsed "
-           "constant column raises IndexError inside a renderer "
-           "signal handler, where the user sees nothing at all"),
+       test="test_a_dock_reclassification_lands_while_a_run_is_finishing",
+       why="a reclassification the dialog has no record for is LEFT "
+           "ALONE. Without this return the handler runs on and "
+           "reaches the branch that clears the element's positional "
+           "class colours, so colours a person picked are discarded "
+           "with nothing said. RE-AIMED 2026-08-28, and the harm "
+           "restated with it: the IndexError the old wording names "
+           "cannot happen since the walk was rewritten to enumerate "
+           "the renderer's own ranges. Measured that day -- the test "
+           "it used to name reaches this line no longer, because a "
+           "Classify on a constant column now makes the element "
+           "DEFER (`DROP b deferring`, and nothing else); of the "
+           "sixteen tests that execute this line, exactly one ever "
+           "takes its branch (`DROP b count 3 vs 12`), and comparing "
+           "the plugin's own dumped decisions with and without the "
+           "guard showed that one line as the only difference. The "
+           "test now stages a hand-picked colour there and requires "
+           "it to survive."),
   dict(name="quant-colours-reread-after-run", file=DIALOG,
        old="""          a["quant_colours"] = self._quant_colours.get(
             a["id"], {}).get(a["var"])""",
@@ -2725,34 +2767,25 @@ MUTATIONS = [
        test="test_preview_draws_the_middle_of_the_patch",
        why="the centre of the pattern being drawn at all, with "
            "context shells on"),
-  dict(name="signature-layer-identity", file=DIALOG,
-       # Narrowed 2026-08-10: the geometry signature and the run
-       # signature open with the same line, so the bare anchor
-       # mutated whichever came first while the other went on
-       # noticing the change. Anchored to _run_signature by its
-       # docstring, which is the one the named test drives.
-       old="""    (reopening the dialog, for instance, changes nothing)."\"\"
-    layer = self.layer_combo.currentLayer()
-    kwargs = self._unit_kwargs()
-    kwargs.pop("spec", None)
-    return (
-      layer.id() if layer is not None else None,""",
-       new="""    (reopening the dialog, for instance, changes nothing)."\"\"
-    layer = self.layer_combo.currentLayer()
-    kwargs = self._unit_kwargs()
-    kwargs.pop("spec", None)
-    return (
-      layer.id() if layer is None else None,""",
-       # And it went on surviving with the anchor narrowed, because
-       # the two layers the test switched between differ in extent:
-       # the layer FINGERPRINT, which is in the same tuple, noticed
-       # the change and the identity term was never needed. The test
-       # now also switches to a layer the fingerprint cannot tell
-       # apart -- same areas, same columns, same CRS, different
-       # numbers -- and requires live update to redraw.
-       test="test_switching_region_layer_counts_as_a_change",
-       why="a different region layer counting as a change, rather "
-           "than leaving the previous layer's map on screen"),
+  # RETIRED 2026-08-28, axis LIVE and held by a sibling TERM of its
+  # own tuple. The run signature carries the layer's IDENTITY and the
+  # layer's FINGERPRINT, and either notices a switch, so mutating the
+  # identity leaves the fingerprint answering. Measured that day:
+  # identity alone passes, fingerprint alone passes, both together
+  # FAIL at once -- "choosing a different region layer did not change
+  # the run signature, so the plugin would skip the work". The entry
+  # had already been narrowed twice for this, on 2026-08-10 and again
+  # when the test gained a fingerprint-identical layer, and survived
+  # both times: narrowing chases the route where the fault is the
+  # anchor naming one term of an OR.
+  # WHY IT IS NOT RE-ANCHORED WIDER: the only contiguous text holding
+  # both terms is 47 lines, spanning the whole per-element tuple, and
+  # an anchor that long breaks on any edit inside it -- the gate would
+  # then call it absent, which is loud but useless. `mutation_check`
+  # applies exactly ONE replacement by design, so two distant sites
+  # cannot be broken by one entry at all. The promise itself is
+  # guarded by `test_switching_region_layer_counts_as_a_change`,
+  # which fails when both terms go.
   # Re-anchored 2026-08-10: the mark used to be set by a lambda on the
   # combo's ``activated`` signal. That lambda now calls
   # _on_mode_chosen, which sets the mark on its first line, so the
@@ -2768,10 +2801,20 @@ MUTATIONS = [
            "following the field's type and the user's own pick is "
            "overwritten the next time the variable changes"),
   dict(name="class-source-memory", file=DIALOG,
-       old='default = self._class_choices.get(tid, "")',
-       new='default = ""',
+       old='          file_combo, self._class_choices.get(tid, ""))',
+       new='          file_combo, "")  # mutation: the choice is not restored',
        test="test_choice_persistence_and_recovery",
-       why="per-element colourmap source surviving a rebuild"),
+       why="per-element colourmap source surviving a rebuild. "
+           "RE-AIMED 2026-08-28 from the line that seeds the combo's "
+           "DEFAULT to the one that RE-SELECTS it from the record "
+           "twenty-two lines below. Both read the same record and "
+           "either restores the choice, so the older anchor left the "
+           "second doing the work: measured, breaking it alone passes, "
+           "breaking the re-selection alone FAILS, and breaking both "
+           "fails. The re-selection is the site that decides -- which "
+           "is also the fix its neighbour in this table was given "
+           "eight days earlier, `_sync_row` repopulating a combo "
+           "without re-selecting from the record."),
   dict(name="selective-reseed", file=DIALOG,
        old="""      if kept_by_hand:
         out.setRenderer(old_renderers[tid])""",
@@ -3357,23 +3400,49 @@ MUTATIONS = [
            "bounds for quantiles and equal intervals over NaN, so the "
            "layer paints nothing while the run reports success"),
   dict(name="legend-labels-ignore-tiny-spreads", file=BRIDGE,
-       old="          method.setLabelPrecision(precision)",
-       new="          pass  # mutation: five classes all read 0 - 0",
+       # Bound to the line ABOVE as well, because a match is a
+       # SUBSTRING and this statement also appears indented ten
+       # spaces in the pre-classification pass: the two-space form
+       # sits inside the ten-space one, which is the ambiguity that
+       # left nine entries reporting nothing on 2026-08-27.
+       old="  if precision == method.labelPrecision():\n"
+           "    return\n"
+           "  method.setLabelPrecision(precision)",
+       new="  if precision == method.labelPrecision():\n"
+           "    return\n"
+           "  pass  # mutation: five classes all read 0 - 0",
        test="test_extreme_magnitudes_render_readable_legends",
        why="QGIS labels to four decimals by default, so a column "
            "around 1e-9 gets distinct colours whose legend entries "
            "all read '0 - 0': a legend claiming one meaning for five "
-           "different classes of the map"),
-  dict(name="closed-dialog-keeps-tiling", file=DIALOG,
-       old="""    for timer in (getattr(self, "_live_timer", None),
-                  getattr(self, "_preview_timer", None)):""",
-       new="""    for timer in ():  # mutation: debounces outlive the window""",
-       test="test_unload_with_windows_open_and_work_in_flight",
-       why="cancelling the task is not enough: a live-update timer "
-           "armed just before the window closed fires ~900ms later "
-           "and starts a fresh tiling that writes layers into the "
-           "project for a window nobody can see -- which is exactly "
-           "what unloading the plugin asks not to happen"),
+           "different classes of the map. RE-ANCHORED 2026-08-28 from "
+           "the PRE-classification pass to this one. Precision is "
+           "settled twice -- once from the column's whole span before "
+           "classification, once here from the NARROWEST class "
+           "actually cut -- and the entry stood on the first, which "
+           "this second pass repairs whatever the first does: "
+           "measured by reading the labels themselves in a mutated "
+           "tree, character for character identical across six "
+           "field/scheme pairs. Broken here the test fails at once, "
+           "and the CONTROL confirms it is this pass rather than the "
+           "pair: breaking this alone is enough. The fixture gained a "
+           "MIXED-MAGNITUDE column the same day, which is the case "
+           "the whole-span estimate is blind to by its own "
+           "docstring."),
+  # RETIRED 2026-08-28, and the axis is LIVE rather than lost. It
+  # stopped the debounce timers as the window closes; a live tick that
+  # survives is caught a second time by `_maybe_live_generate`'s first
+  # gate, `if self._closed`, which refuses and dumps `LIVE-GATE
+  # closed`. Measured that day: with only the timers broken the test
+  # passes and the dump gains that gate line, so the tick fires and is
+  # refused; with BOTH routes broken the test FAILS at once -- "the
+  # unloaded plugin started 1 fresh generation(s)". So the behaviour
+  # is HELD REDUNDANTLY, the test is strong, and an entry over either
+  # route alone could only ever be red.
+  # There is no shared site to anchor on instead: the two mechanisms
+  # are a timer stop and a gate, and that is the point of having them
+  # both. The redundancy is written at the test, where somebody
+  # weakening either half will read it.
   dict(name="reload-forgets-the-live-dialog", file=DIALOG,
        old="      return app.property(_LIVE_KEY)",
        new="      pass  # mutation: the record dies with a reload",
@@ -4150,13 +4219,18 @@ MUTATIONS = [
                                and (v != v or abs(v) > FINITE))
     for v in values)""",
        new="""  awkward = False  # mutation: hand the nulls to the classifier""",
-       test="test_a_column_with_no_values_at_all_invents_no_class",
-       why="QGIS's classifier counts a NULL as zero, so a column that "
-           "is entirely empty -- a join that matched nothing, a field "
-           "never filled -- comes back with class breaks sitting on "
-           "0 - 0. Every area is then coloured as though it had been "
-           "measured at nothing, which is a confident and wrong "
-           "statement about every place on the map"),
+       test="test_class_breaks_ignore_nulls",
+       why="QGIS's classifier counts a NULL as zero, so a column with "
+           "gaps comes back with class breaks sitting on 0 - 0 and "
+           "every break shifted toward zero. Areas are then coloured "
+           "as though they had been measured at nothing, which is a "
+           "confident and wrong statement about places on the map. "
+           "RE-AIMED 2026-08-28: the test it named covers a column "
+           "that is ENTIRELY null, where the classifier invents no "
+           "class whether or not the nulls are handed to it, so that "
+           "test executes this line and cannot fail on it. Three "
+           "tests were measured to notice; this is the one whose "
+           "whole subject is the breaks."),
   dict(name="empty-region-refused-silently", file=DIALOG,
        old='        QMessageBox.critical(self, "WeavingSpace", str(e))',
        new="        pass  # mutation: refuse the layer without saying so",
@@ -4297,24 +4371,12 @@ MUTATIONS = [
   # be true and each was wrong on its own. Two earlier attempts at
   # this were reverted for guessing; the trace behind
   # WEAVINGSPACE_ADOPT_DUMP named all three.
-  dict(name="adoption-outranks-the-project-being-replaced", file=DIALOG,
-       old="    if self._project_is_being_replaced or \\\n"
-           "        tile_id not in self._opacity_choices:",
-       new="    if tile_id not in self._opacity_choices:",
-       test="test_a_second_project_does_not_take_the_first_ones_opacity",
-       why="tile ids repeat across projects, so 'fill in only where "
-           "the dialog has nothing' declines the incoming layer's own "
-           "opacity in favour of the outgoing project's -- the user's "
-           "40 per cent found and refused"),
-  dict(name="the-previous-table-only-fills-a-gap", file=DIALOG,
-       old="      if prev is not None and \"opacity\" in prev \\\n"
-           "          and tid not in self._opacity_choices:",
-       new="      if prev is not None and \"opacity\" in prev:",
-       test="test_a_second_project_does_not_take_the_first_ones_opacity",
-       why="writing the previous table back unconditionally makes the "
-           "WIDGETS the authority, and after a project is replaced "
-           "those widgets belong to the project that has gone: it put "
-           "100 back over the 40 adoption had just recovered"),
+  # RETIRED 2026-08-28, for the same measurement as its neighbour
+  # above: it is the second of three sufficient routes into one
+  # promise, and `the-opacity-cell-follows-its-record` is the one the
+  # test can still see. The test's own docstring says three things had
+  # to be true; what it did not say, until the note added there this
+  # day, is that any one of the three is enough to keep it green.
   dict(name="the-opacity-cell-follows-its-record", file=DIALOG,
        old="    elif row_id and row_id in self._opacity_choices:",
        new="    elif False:",
@@ -4324,25 +4386,17 @@ MUTATIONS = [
            "cell standing from the outgoing project went on showing "
            "100 over a layer drawn at 40, and the table and the map "
            "disagreed in silence"),
-  dict(name="reopened-opacity-is-read-from-the-layer", file=DIALOG,
-       # RE-ANCHORED 2026-08-18: the condition above this gained the
-       # "or the project is being replaced" arm, so the old anchor's
-       # first line no longer exists. The behaviour it guards is the
-       # ASSIGNMENT, which is unchanged.
-       old="      self._opacity_choices[tile_id] = max(0, min(100, round(\n"
-           "        layer.opacity() * 100)))",
-       new="      pass  # mutation: the dialog forgets the layer's opacity",
-       test="test_a_project_round_trip_changes_nothing_a_user_chose",
-       why="QGIS persists layer opacity in the project, and until "
-           "2026-08-13 the dialog never read it back: a reopened "
-           "project showed 100% in the table while the layer was still "
-           "at the 60% chosen. Losing a setting would be better than "
-           "this -- _add_output_layers pushes the dialog's belief onto "
-           "the layer, so any later restyle silently undid a choice "
-           "still visible in QGIS's own layer panel. Found by a "
-           "differential written before anybody knew what it would "
-           "catch: the round trip compares every choice at once rather "
-           "than the three a test would think to name"),
+  # RETIRED 2026-08-28, axis LIVE and held by the GROUP RECORD. It read a reopened layer's opacity back into the dialog, so the
+  # table did not show 100 over a map drawn at 60.
+  # Measured that day, and measured per entry rather than as a set:
+  # breaking this alone leaves the round-trip test green; breaking it
+  # together with `_apply_working_state`'s restore fails it at once;
+  # and the CONTROL -- that restore broken by itself -- passes, so the
+  # failure is not the co-broken half being sufficient. Since the
+  # ruling of 2026-08-25 the group carries the whole working state on
+  # its own custom property and a selection restores it, so every
+  # older per-layer recovery route gained a second writer and its
+  # entry could only ever be red.
   dict(name="ramp-cell-and-map-agree-differentially", file=BRIDGE,
        old="    renderer.setSourceColorRamp(ramp.clone())",
        new="    pass  # mutation: the renderer forgets which ramp made it",
@@ -4768,16 +4822,20 @@ MUTATIONS = [
            "leaves the row saying Deferring, with its controls inert, "
            "over a map the plugin could describe -- and the next "
            "Generate seeds straight over it"),
-  dict(name="an-element-can-be-taken-back", file=DIALOG,
-       old="      kept_by_hand = ((unchanged or carried_while_deferring)\n"
-           "                      and not reclaimed)",
-       new="      kept_by_hand = (unchanged or carried_while_deferring)",
-       test="test_taking_an_element_back_from_qgis_restyles_at_once",
-       why="picking back the style an element had before it was "
-           "deferred restores its old signature exactly, so without "
-           "the reclaim test both seeding paths keep the renderer "
-           "they are being asked to replace and the element can never "
-           "be taken back"),
+  # RETIRED 2026-08-28, axis LIVE and held by the RESTYLE that runs
+  # first. The clause said a reclaimed element must not have its old
+  # renderer carried onto the new layer, and it is reached only at a
+  # landing. Picking a style back is a style change, so it re-seeds
+  # the layer at once -- and the Generate that follows changes no
+  # geometry, so it takes the fast path too: `GEN-GATE
+  # restyled-instead`, measured that day. Forced onto a real re-tile
+  # with a spacing nudge, the layer being carried has ALREADY been
+  # re-seeded, so carrying it carries the plugin's own renderer and
+  # nothing observable differs. Three stagings, all measured.
+  # WHAT THE ROUND LEFT BEHIND is a stronger test rather than an
+  # entry: `test_taking_an_element_back_from_qgis_restyles_at_once`
+  # now also re-tiles and requires the reclaimed style to survive
+  # that, which nothing in the suite asked before.
   # TWO ARMS OF ONE ACT, taking an element back from QGIS with a plain
   # fill: the colour has to travel and the mode has to last. Fixing
   # either alone loses the fill, by a different door.
@@ -4959,8 +5017,19 @@ MUTATIONS = [
            "and replaces the keepsake, or empties it and leaves a "
            "named, empty group with nothing to undo"),
   dict(name="the-group-is-found-by-its-layers", file=DIALOG,
-       old="      group = self._group_of_our_layers(root)",
-       new="      group = None",
+       # ANCHORED ON THE WHOLE FINDING STEP, both the lookup and the
+       # name fallback beneath it, because they are ALTERNATIVES in
+       # one chain rather than two duties: measured 2026-08-28,
+       # breaking either alone leaves the test green and breaking
+       # both fails it at once, naming the rival group. An entry over
+       # one limb of a fallback chain can only ever be red, which is
+       # why this one had survived since before v0.24.3.
+       old="      group = self._group_of_our_layers(root)\n"
+           "      if group is None and self._group_name:\n"
+           "        group = root.findGroup(self._group_name)",
+       new="      group = None  # mutation: the group is never found\n"
+           "      if False:\n"
+           "        group = root.findGroup(self._group_name)",
        test="test_a_renamed_group_is_still_the_group_the_next_run_replaces",
        why="falling back to the NAME alone cannot find a group the "
            "user renamed in the layers panel, so the next run builds "
@@ -5001,13 +5070,27 @@ MUTATIONS = [
   dict(name="deferral-keeps-the-no-data-split", file=DIALOG,
        old="    if mode in (\"Categorized\", \"Single colour\") or not mode:\n"
            "      return False",
-       new="    if not mode:\n      return False",
+       new="    if True:  # mutation: no element is ever split\n"
+           "      return False",
        test="test_a_deferring_element_keeps_its_no_data_layer",
-       why="a deferring element's mode reads 'Deferring to QGIS', which "
-           "is neither Categorized nor Single colour, so without this "
-           "the split is judged by a mode no branch below expects and "
-           "the element's missing-value areas stop being drawn -- "
-           "28,828 unpainted pixels of 490,000, holes in the map"),
+       why="an element whose renderer cannot place a null gets a "
+           "paired layer carrying the areas a classifier cannot put "
+           "anywhere, so 'not known' is drawn as its own colour "
+           "instead of as a hole -- 28,828 unpainted pixels of "
+           "490,000 in the measurement that prompted it. RE-CAST "
+           "2026-08-28 onto the split's EXISTENCE, which this test "
+           "sees, after four attempts to aim it at the deferring half "
+           "specifically. Two of those attempts were INERT rather "
+           "than redundant, which is worth knowing because both "
+           "report SURVIVED: the mode list is read from `mode`, which "
+           "holds the expressible style, while deferral lives in "
+           "`mode_raw`, so literals added to that list never matched. "
+           "Aimed at `mode_raw` it still survived, so a deferring "
+           "element keeps its twin by some route other than this "
+           "predicate -- recorded as UNPROVED rather than guarded. "
+           "What told inertness from redundancy is that killing the "
+           "predicate outright fails the test's control arm, which is "
+           "the mutation this entry now carries."),
   dict(name="the-scale-boxes-do-not-eat-a-keystroke", file=DIALOG,
        old="      box.setKeyboardTracking(False)\n"
            "      box.valueChanged.connect(self._queue_preview)",
@@ -5065,17 +5148,25 @@ MUTATIONS = [
            "whole style pasted across elements reaches the layer and "
            "never the row, and the next Generate destroys it -- the "
            "field report against rc5"),
-  dict(name="the-followed-row-keeps-its-new-signature",
-       file="weavingspace_qgis/dialog.py",
-       old="      self._last_signatures[tile_id] = self._signature(refreshed)\n"
-           "      # ...AND THE STAMP AND THE FILE, which this method must do",
-       new="      pass\n"
-           "      # ...AND THE STAMP AND THE FILE, which this method must do",
-       test="test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis",
-       why="the row moves with no signal, so without re-recording the "
-           "signature the next restyle compares the layer against a row "
-           "it has never seen and re-seeds the renderer it just "
-           "followed, which is the damaging half of the same report"),
+  # RETIRED 2026-08-28, axis LIVE and held by the preservation rule
+  # rather than by this record. It re-records a followed row's
+  # signature, so a later restyle sees the row and the layer agreeing
+  # and leaves the element alone. Measured that day across THREE
+  # journeys with the record broken -- a Generate, a table rebuild,
+  # and a live restyle driven from another row's ramp (the dump
+  # confirms the path ran: `LIVE-GATE reached-restyle`, `restyled`) --
+  # and the element kept the dock's own ladder every time, because
+  # hand styling survives unless that element's assignment changed.
+  # Two earlier assertions were written and withdrawn on the way: the
+  # field and the class count, which a re-seed REPRODUCES exactly
+  # since the row has already followed the layer to both, so they were
+  # the easiest observable nearby rather than the thing that must be
+  # true. The colours are that thing, and they survive as well.
+  # WHAT THE ROUND LEFT BEHIND is a stronger test rather than an
+  # entry: `test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis`
+  # now drives a restyle from a neighbouring row and requires the
+  # followed element's ladder to come through it unrepainted, which
+  # nothing in the suite asked before.
   dict(name="a-followed-count-reaches-the-record-too",
        file="weavingspace_qgis/dialog.py",
        # RE-ANCHORED 2026-08-19: the release of a copied ladder went in
@@ -5205,12 +5296,15 @@ MUTATIONS = [
        file=BRIDGE,
        old="  return _rounded_up_to_figures(spacing * scale, 3)",
        new="  return spacing * scale",
-       test="test_the_tile_estimate_is_honest_where_shapes_are_awkward",
+       test="test_the_size_guard_at_its_refusal_boundary",
        why="an unrounded suggestion is printed to three figures by the "
            "sentence instead, and printing rounds a FLOOR downward: "
            "1.2150048 was said as '1', which estimates 286,676 tiles "
            "against a cap of 200,000, so a user typing the plugin's own "
-           "advice met the identical refusal"),
+           "advice met the identical refusal. RE-AIMED 2026-08-28: the "
+           "test it named executes this line and never reads the "
+           "advice it returns, so it could not fail; the boundary test "
+           "types the number back and was measured to notice."),
   dict(name="the-spacing-advice-keeps-its-magnitude",
        file="weavingspace_qgis/dialog.py",
        # RE-ANCHORED 2026-08-25: the refusal became a question whose
@@ -5385,10 +5479,24 @@ MUTATIONS = [
        old="  _register_recorded_colormaps()",
        new="  pass  # mutation: score against matplotlib's own colours",
        test="test_the_ramp_a_row_names_is_the_ramp_the_map_draws",
+       accepted=True,
        why="without registering the recorded colours the comparison "
            "asserts the plugin's palettes ARE matplotlib's, which is "
            "false on every fresh QGIS and made the gate pass on one "
-           "seeded profile alone"),
+           "seeded profile alone. ACCEPTED 2026-08-28, after it was "
+           "found surviving at v0.24.3 as well as here: what would "
+           "notice this is the RELEASE's colourspace stage, which "
+           "runs in .venv-reference because macOS code-signing "
+           "refuses matplotlib inside the signed QGIS process, and "
+           "the suite never mentions this tool at all -- measured, "
+           "zero occurrences in tests/run_tests.py. The named test "
+           "keeps the assertion the comparison gave up (a row's ramp "
+           "is the ramp the map draws) and is the right test to read "
+           "beside this, but nothing it can do reaches a tool it does "
+           "not run. Accepted rather than defended by a test that "
+           "greps the source, which would pin the call rather than "
+           "the behaviour. A CATCH here is news: it would mean the "
+           "comparison became reachable from the harness."),
   dict(name="categorical-colour-is-decided-map-wide", file=BRIDGE,
        old="  n = max(len(everywhere), 1)",
        new="  n = max(len(values), 1)",
@@ -5438,14 +5546,19 @@ MUTATIONS = [
            "the scheme cuts more classes than the middle has values "
            "and the legend gains a swatch no tile wears"),
   dict(name="the-firing-control-is-the-one-that-is-read", file=EDITOR,
-       old="      self._bound_edited(which, pair)",
-       new="      self._bound_edited(which)",
+       old="      lambda _v, w=which, b=box: self._limit_moved(w, b))",
+       new="      lambda _v, w=which, b=box: self._limit_moved(w))",
        test="test_an_unclassed_row_pins_from_either_control",
-       why="with an end already pinned, dropping the firing pair makes "
-           "_bound_edited fall back to the FIRST registered control -- "
-           "the clamp strip -- so the Pin column's box takes the first "
-           "number a user types and silently discards every one after "
-           "it, applying the strip's stale value to the map"),
+       why="dropping the box the signal carries makes `_limit_moved` "
+           "fall back to the FIRST registered control for that edge, "
+           "so a floor typed into the table's own row is read off the "
+           "clamp strip instead and the map gets a number nobody "
+           "typed. RE-AIMED 2026-08-28: the pin path it used to name "
+           "registers one control per end since 2026-08-19, so the "
+           "fallback and the firing pair resolve to the same widget "
+           "and the mutation could not be observed. The harm it "
+           "describes is the one measured on 2026-08-17, now living "
+           "where two controls really do name one edge."),
   # RETIRED 2026-08-19, NOT RE-ANCHORED, because the behaviour it
   # guarded was deliberately reversed rather than moved. It required
   # an Unclassed row to carry a Pin COLUMN; the maintainer's
@@ -5881,30 +5994,41 @@ MUTATIONS = [
            "which is what was reported as 'pins do not work on "
            "unclassed', a user who learned the control in one place "
            "meeting fifty rows that do not offer it"),
-  dict(name="a-pin-click-moves-the-other-control", file=EDITOR,
-       old="    # the ladder the map now draws, so the window and the "
-           "map agree\n    self._redraw_bounds(answer)\n"
-           "    self._sync_pin_controls(which, pair)",
-       new="    # the ladder the map now draws, so the window and the "
-           "map agree\n    self._redraw_bounds(answer)",
-       test="test_an_unclassed_row_pins_from_either_control",
-       why="an Unclassed end is named by TWO controls, so clicking "
-           "the table's pin must light the strip's; without this the "
-           "strip goes on reading unpinned over a map that is pinned, "
-           "and clicking it applies a number the map left behind"),
+  # RETIRED 2026-08-28. It required that clicking one of TWO controls
+  # naming an end lights the other, and no style offers two pins any
+  # more: measured that day, a classed row registers exactly ONE (pin,
+  # box) pair per end and an Unclassed row registers none, its two
+  # controls per edge living in `_limit_boxes` since the maintainer's
+  # ruling of 2026-08-19 replaced the Pin column with a mark on the
+  # box. `_sync_pin_controls` skips the pair that fired, and both call
+  # sites pass their own, so with one pair the call is a no-op and the
+  # mutation changes nothing any test could see -- which is why it
+  # survived at v0.24.3 as well as here.
+  # WHERE THE BEHAVIOUR WENT: `a-typed-bound-moves-the-other-control`
+  # below now stands on `_sync_limit_boxes`, the twin that really does
+  # have a second control to move. What the pin path still decides --
+  # that a pin click repaints its own window -- is held by
+  # `a-pin-redraws-its-own-window`, which catches.
+  # WHAT IS LEFT UNGUARDED IS DEAD RATHER THAN LIVE: the pin family's
+  # support for several controls per end cannot be exercised at all
+  # now, so whether it should be deleted is a question about the CODE
+  # and the maintainer's to answer, not a hole a test could fill.
   dict(name="a-typed-bound-moves-the-other-control", file=EDITOR,
-       old="    # every break between the pins has just moved, so the "
-           "rest of the\n    # window must say so too\n"
-           "    self._redraw_bounds(answer)\n"
-           "    self._sync_pin_controls(which, pair)",
-       new="    # every break between the pins has just moved, so the "
-           "rest of the\n    # window must say so too\n"
-           "    self._redraw_bounds(answer)",
+       old="    self._redraw_bounds(answer)\n"
+           "    self._sync_limit_boxes(which, box)",
+       new="    self._redraw_bounds(answer)",
        test="test_an_unclassed_row_pins_from_either_control",
-       why="the twin of the entry above, anchored separately because "
-           "one anchor covering both would survive whatever the tests "
-           "do: typing a bound in the strip must move the table's box "
-           "and pin, or the two describe different maps"),
+       why="an Unclassed edge is named by TWO controls -- the table's "
+           "first row and the clamp strip -- so typing a floor into "
+           "one must move the other, or the strip goes on showing a "
+           "number the map has left behind and the next thing typed "
+           "there applies it. RE-AIMED 2026-08-28 from the pin path, "
+           "where it had been surviving since the ruling of "
+           "2026-08-19 gave Unclassed a floor and a ceiling instead "
+           "of pins: with one pin pair per end `_sync_pin_controls` "
+           "skips the pair that fired and does nothing, so the "
+           "mutation was unobservable. This is the same claim about "
+           "the registry that really does hold two controls."),
   dict(name="the-ramp-starts-where-the-map-does", file=BRIDGE,
        old="    drawable = last - first + 1",
        new="    first, last, drawable = 0, count - 1, count",
@@ -6040,11 +6164,27 @@ MUTATIONS = [
            "      assignment = live",
        new="    live = self._assignment_for(tile_id)",
        test="test_the_retirement_guard_is_asked_the_right_question",
+       accepted=True,
        why="two of the three callers hand in the LAUNCH SNAPSHOT, so "
            "pins the editor accepted against the live class count are "
            "retired the instant the run lands -- the record cleared, "
            "the stamp REMOVED so a reopen cannot recover them, and the "
-           "sentence blaming the user's data"),
+           "sentence blaming the user's data. ACCEPTED 2026-08-28, "
+           "after three stagings failed to make the difference "
+           "observable. Re-reading the live row can only change an "
+           "answer where the guard would decide differently for the "
+           "two class counts, and `pin_problem` does not refuse on "
+           "class count at all: a bound outside the data stopped "
+           "being refused on 2026-08-17, and a pin leaving fewer "
+           "distinct values than classes is accepted and explained "
+           "rather than retired. Measured that day -- pins at "
+           "values[1] and values[-2] are drawable at twenty classes "
+           "and at five alike, so the snapshot and the live row give "
+           "one answer. The named test's mid-run arm is right and "
+           "stays; what it cannot do is tell the two questions apart. "
+           "WHAT WOULD REOPEN IT: any refusal that depends on k. If "
+           "`pin_problem` refuses on the class count again this "
+           "becomes an ordinary guard and should catch."),
   dict(name="the-restyle-restamps-after-retiring", file=DIALOG,
        # RE-ANCHORED 2026-08-27, as its sibling above: the embed
        # that followed the stamp went with the saving ruling.
@@ -6087,10 +6227,17 @@ MUTATIONS = [
                             else float(value))
                       for key, value in pinned.items()},""",
        new="""                    "pinned": {},""",
-       test="test_a_pin_survives_a_project_round_trip",
+       test="test_a_pin_kept_silently_still_reaches_the_stores",
        why="nothing on a renderer records that a break was chosen "
            "rather than computed, so an unstamped pin is lost on "
-           "reopening and the next Generate recomputes over it"),
+           "reopening and the next Generate recomputes over it. "
+           "RE-AIMED 2026-08-28: the round-trip test it named reaches "
+           "this line and was measured blind, because the group's own "
+           "working-state record has carried the pins since the "
+           "ruling of 2026-08-25 and brings them home without the "
+           "layer stamp -- the stamp is held REDUNDANTLY for that "
+           "journey. The test that reads the stores directly still "
+           "sees it, which is where the claim belongs."),
   dict(name="the-follow-compares-in-the-rows-own-direction", file=DIALOG,
        old="        assignment.get(\"k\", 5), assignment.get(\"outline\", False),\n"
            "        reverse=assignment.get(\"reverse\", False),\n"
@@ -6105,14 +6252,17 @@ MUTATIONS = [
            "no change, the row goes on claiming reversed, and the next "
            "unrelated edit redraws the element end for end in the "
            "project and in the exported file"),
-  dict(name="a-reversed-ramp-is-recognised", file=DIALOG,
-       old="""    for flipped in (False, True):""",
-       new="""    for flipped in (False,):  # mutation: a reversed ramp names nothing""",
-       test="test_a_project_round_trip_changes_nothing_a_user_chose",
-       why="reversing produces a ramp clone matching no name in the "
-           "library, so without the reversed pass a reopened project "
-           "brings the element back as Custom picks: the map is right "
-           "and the tick the user set is gone"),
+  # RETIRED 2026-08-28, axis LIVE and held by the GROUP RECORD. It tried each library ramp REVERSED as well, so a reversed
+  # element came home reversed rather than as Custom picks.
+  # Measured that day, and measured per entry rather than as a set:
+  # breaking this alone leaves the round-trip test green; breaking it
+  # together with `_apply_working_state`'s restore fails it at once;
+  # and the CONTROL -- that restore broken by itself -- passes, so the
+  # failure is not the co-broken half being sufficient. Since the
+  # ruling of 2026-08-25 the group carries the whole working state on
+  # its own custom property and a selection restores it, so every
+  # older per-layer recovery route gained a second writer and its
+  # entry could only ever be red.
   dict(name="the-label-answers-for-every-row", file=EDITOR,
        old="""    for key, _stored, label, _fill in bridge.ABSENCE_KINDS:
       if value == key:
