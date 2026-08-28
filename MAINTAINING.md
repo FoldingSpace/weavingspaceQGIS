@@ -492,6 +492,36 @@ and the message bar stays empty, so the run looks like one that never
 started. When a run appears to do nothing, read the modal store
 before concluding silence.
 
+## Two queues, because a press and a live tick are not one fact
+
+One run at a time is settled, so anything asking for a run while one is
+in flight is REMEMBERED and honoured when that run lands. What was
+wrong until 2026-08-28 is that both kinds of request shared one flag.
+
+`_generate` queued a press on `_live_pending`; `_finish_run` honoured
+that by starting the LIVE timer; and `_maybe_live_generate` returns at
+its second gate whenever live update is switched off. So with the box
+unticked a button press was remembered and then discarded in silence:
+the map kept the elements of the run in flight while the table asked
+for the design the person had just chosen, and layers stayed in the
+panel tagged for elements that design no longer had -- which is what a
+later dialog adopts a group by.
+
+So there are two flags now and they are honoured differently.
+`_live_pending` is a deferred live tick and still restarts the live
+timer. `_press_pending` is a deferred BUTTON press and is re-pressed by
+`_finish_run`, through the same `singleShot(0)` the deferred adoptions
+use, because `_task` is cleared inside the landing rather than after
+it and `_generate` is entitled to a plugin at rest. A press supersedes
+a queued tick; a closed window presses nothing.
+
+The rule for anyone adding a third kind of deferred work: ask what
+consumes the flag, and whether that consumer can DECLINE for a reason
+that has nothing to do with the act being deferred. Every other
+remembered-intent record here is consumed by taking and clearing it at
+the point of use, which cannot lose anything; this one handed it to a
+gated path.
+
 ## Leaving a dataset stamps what you leave
 
 The group record is ordinarily written at landings. A choice made and

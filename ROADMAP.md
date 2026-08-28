@@ -270,10 +270,41 @@ tests but facts that gained a SECOND WRITER as the fortnight's
 rulings landed, which is how a catalogue loses a version's worth of
 guards while its count goes on describing them.
 
-**NOTHING OUTSTANDING.** Every entry this version carried is done or
-deliberately moved: the two that need a person rather than an
-assistant are under "Needs the maintainer" above, and the four
-measurements and studies are under 0.24.5 below.
+**AND ONE DEFECT FOUND AFTER THE CATALOGUE ROUND**, fixed on
+2026-08-28 and carried by `0.24.4rc3`. With live update off, a
+Generate pressed while a run was in flight did nothing at all and said
+nothing: the press was queued on the live-rerun flag and handed to the
+live path, which declines whenever live update is off. The map kept
+the elements of the run already going while the table described the
+design just asked for, and layers were left tagged for elements that
+design no longer had. It shipped, so it is a fix a user gets rather
+than a repair to this version's own work.
+IT WAS FOUND BY THE SUITE RUN WHOLE, once, in a shard on a loaded
+machine, and looked exactly like flakiness against fourteen clean
+runs; what settled it was that the dialog had SETTLED before the
+surplus layers were counted. Guarded by
+`test_a_generate_pressed_during_a_run_is_not_swallowed` and the entry
+`a-queued-press-is-a-press-not-a-live-tick`, both proved. The lesson
+is in CLAUDE.md and docs/TESTING.md; the mechanism is in
+MAINTAINING.md under "Two queues".
+WHAT IT COST BESIDES: two existing tests read the moved record as
+their premise and were repaired without changing their subjects, which
+CI found and the targeted runs could not.
+
+**A CHANGELOG LINE IS OWED BEFORE PROMOTION, AND IT IS THE
+MAINTAINER'S.** The fix above changes behaviour a user meets, so
+0.24.4's `changelog=` entry should name it, and approving that wording
+is the user's act rather than an assistant's. It does not block a
+candidate -- a candidate is for feedback -- but it does block the
+build that gets promoted, since `metadata.txt` ships and changing it
+retires a receipt. Proposed wording is in the session handover.
+
+**NOTHING OUTSTANDING IN CODE.** Every entry this version carried is
+done or deliberately moved: the two that need a person rather than an
+assistant are under "Needs the maintainer" above, the four
+measurements and studies are under 0.24.5 below, and the changelog
+line above is a sentence for the maintainer rather than work on the
+software.
 The branch that was superseded rather than owed, `for-0.24.4/save-load-tab`,
 was deleted on the maintainer's decision the same day; its single
 commit was `4a9cbfc`, the first Save & open tab, which ruling 1
