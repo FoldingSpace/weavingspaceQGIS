@@ -12,7 +12,91 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-08-26 (late), after ROUND NINE -- the bulletproofing round, below -- and before it TWO MORE ROUNDS of eight hunts
+Last updated 2026-08-28 (evening), after ROUND TEN -- the largest
+round this project has run, and the one that changes what this file
+says about which directions pay.
+
+ROUND TEN: TWENTY-THREE HUNTS AND A REBUILT SWEEP, KEPT AT EIGHT AT A
+TIME AND REPLENISHED AS EACH REPORTED, on the maintainer's
+instruction to run until twenty-four defects were in hand. Twenty-four
+confirmed, sixteen repaired the same evening with a registered test
+each and an entry proved caught wherever one could reach. The ledger
+is `defects-2026-08-28.md`.
+
+THREE THINGS THIS ROUND SETTLES, and the first is the sharpest.
+
+**THE UNTRIED DIRECTIONS BOTH PAID ON THEIR FIRST OUTING.** Two of the
+four on the "not yet tried" list below were run and both returned a
+confirmed defect: CROSS-PLATFORM DIVERGENCE found the twelfth reader
+of a region stamp still comparing with `==`, so a project reopened
+under another spelling of its own folder orphaned its map -- and it
+drove that on a Mac, because `/var` and `/private/var` are a real
+second spelling and a Windows-shaped defect needs no Windows. THE
+SPECIFICATION ITSELF -- the direction that asks whether a SETTLED
+DECISION is wrong rather than whether the code fails one -- measured
+that the rule "a quantitative style never stands on a text field"
+rests on a claim that is false for numeric strings, so a person whose
+numbers arrived through a CSV join is given one colour per value.
+The portfolio rule already reserved a third of a round for directions
+that cannot pattern-match; what this round adds is that the UNTRIED
+ones are the best-value third, and that they stay untried because
+they are uncomfortable rather than because they are unpromising.
+
+**A ROUND AIMED AT THE ROUND'S OWN REPAIRS IS NOW EIGHT FOR EIGHT.**
+The `repairs` hunt was pointed at a fix that had landed ninety minutes
+earlier and found that it carried two keys of a record and left the
+third live -- so a saved file named a table it did not hold. That fix
+had a registered test and a proved entry when the hunt started.
+
+**AND PERFORMANCE IS A DEFECT DIRECTION, MEASURED RATHER THAN FELT.**
+The element ceiling rose to 256 on 2026-08-27, and `scale` found two
+quadratics that had been harmless at 26 and were thirty-eight seconds
+of FROZEN QGIS at 256. Its method is the transferable part: compare
+call COUNTS at four element counts rather than seconds at two, so the
+answer is an equation naming its own caller, and use a 50 ms heartbeat
+as the second route, because that is the only instrument that tells
+SLOW from FROZEN and freezing is the harm.
+
+| Direction | Confirmed | The lesson |
+| --- | ---: | --- |
+| two-stores (save and load) | 1 | a write that MOVES to a new trigger leaves behind the carry it was doing at the old one, and the docstring travels with it |
+| backwards from harm (5th) | (same) | converged independently on the two-stores finding, from the opposite end; counted once |
+| cross-platform divergence (1st, was untried) | 1 | grep the READERS of one stamp and ask which of them folds; `/var` against `/private/var` stages a Windows defect on a Mac |
+| the specification itself (1st, was untried) | 1 | a justification stated as a fact about a dependency is a probe you can run in ten lines -- and the fact is often true of the EXAMPLE that prompted the rule and false of its SCOPE |
+| the instruments audit (2nd) | 3 | run the CONTROL first and make it a plant the checker must catch; when a checker reads a LIST out of another file, ask who maintains that list |
+| performance and scale (1st deliberate) | 2 | the ratio is the finding, and the ratio needs four counts; a heartbeat is what distinguishes frozen from slow; and the first Generate is cheap, so a hunt that measures one press measures the wrong press |
+| the first five minutes (2nd) | 1 (3 sites) | when a code comment names its own uncovered case AND cites a mitigation, drive the mitigation |
+| preview against map (2nd) | 2 | the existing pair asked the COMPUTATION and not the PICTURE; spying on the repaint turned "nothing happened" into a count |
+| unreachable branches | 1 | the literal half found only dead code; asking what ELSE makes a precondition true found a destroyed file |
+| write-only state (3rd) | 1 | the counterfactual arm -- replay the journey with one suspect record forced to the other arm's value -- turns "these differ" into "this is the cause" in one run |
+| the dock-edit family | 1 | when a fix gives a path a MEMORY, ask who refreshes it; the twin with the same memory refreshed at every exit and this one at none |
+| the colour editor across boundaries | 1 | a write that never reaches a landing must still reach the durable stores, so every refusal on the fast path is a hole in persistence |
+| magnitude as a fixture dimension | 1 | a display rule is only display-only if nothing re-reads the display -- and Qt re-reads it on Return |
+| the file's own bytes | 1 | a byte oracle must ask what the dialog COULD have known; the control run with the project KEPT is what turns "the drop is broken" into "the drop depends on adoption" |
+| races on the newest surfaces | 1 | the four windows were a red herring; the hiding place was a DEFAULT the suite never drives |
+| QGIS-side acts on the panel | 1 | a nine-day-old fix is worth re-asking at every door, and drive a drag the way QGIS does |
+| asymmetry (deferred-work flags) | 1 | grep the sites that clear the flag's SIBLINGS, not the flag; and where a cancel reports synchronously, clearing after it is too late |
+| the previous round's repairs (8th) | 1 | when a repair carries some keys of a record and not others, re-drive the commit message's OWN examples |
+| tests that cannot fail (4th) | 1 + 1 | when an entry is RETIRED because a test was made stronger, mutate the retired entry against the new leg before believing the trade |
+| the prose (3rd) | 1 | a user-facing sentence can regress HOURS after the code's own docstring is corrected for saying the same thing |
+| one boundary but not another (element ids) | 0 | clean, and it drove the new 256 ceiling end to end through every crossing, which nobody had |
+| stochastic (4th) | 0 | 193 settled sessions, six breaks, three of them its own -- and it found that `_settle` never waited on the repaint debounce, so the whole follow family was judged 300 ms early |
+| the consistency sweep (2nd) | 0 | rebuilt as a COMMITTED tool this time, 14 acts and 2,972 comparisons clean, with two negative controls proving it can go red |
+
+AND THE VERIFICATION QUEUE WAS THE COST, again and more so. Every
+claim above was reproduced here by a route its hunt did not use before
+its fix landed. Two of my own harness faults are tallied in the
+ledger, and one of my repairs was aimed an exit too low and was caught
+by the hunt's own reproduction rather than by my reading. One
+correction belongs at the top of any read of this round: THE
+QUEUED-PRESS DEFECT FIXED THAT MORNING WAS THE SUITE'S AND NOT A
+USER'S -- the Generate button is disabled for the whole of a run, so
+no press can reach that state -- and the harm had reached four binding
+documents and a candidate's tester notes before anybody asked whether
+a person could drive the journey. Ask that as separately as you ask
+about the mechanism.
+
+Before that, 2026-08-26 (late), after ROUND NINE -- the bulletproofing round, below -- and before it TWO MORE ROUNDS of eight hunts
 each -- the fifth and sixth this project has run, and between them the
 strongest evidence yet for the method and for its cost.
 

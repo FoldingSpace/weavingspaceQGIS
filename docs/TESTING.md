@@ -3334,6 +3334,41 @@ again. This one never needed that: the second site was still broken
 when the test was first run, so its first execution WAS the red proof,
 and the fix that followed turned it green.
 
+## THE DEFAULT A TEST FAMILY UNTICKS IS THE DEFAULT NOBODY TESTS
+
+2026-08-28, round ten, and it is the cheapest question in this
+document. Twelve tests here resume a saved map and every one of them
+unticks live update, which is ON by default. So the whole family was
+driven at a setting no user is holding -- and with the default, a
+Load re-tiled the opened map into memory a second later and left the
+saved file's own layers out of the project, which reopened empty.
+
+The hunt that found it swept a delay across all four of this dialog's
+windows first -- the preview debounce, the live debounce, the repaint
+drain and the echo guard -- and ruled every one of them out. The
+hiding place was not a race. It was a control the suite holds at a
+value a person does not.
+
+**SO ASK OF ANY TEST FAMILY WHAT IT HOLDS CONSTANT**, and for each,
+whether a user holds it there. Where the answer is no, one test in the
+family drives the default deliberately and ASSERTS that it is the
+default, so the day somebody changes it the test says so rather than
+quietly changing what it covers.
+
+## ASSERT THE PREMISE OFF THE THING, NOT OFF WHAT YOU ASKED FOR
+
+Same round, and it cost one run of a check written to prove a fix.
+A guard swept magnitudes through a spin box and compared what came
+back against the number it had passed to `setValue`. `decimals` clamps,
+so at 0.000123456 the box never held the number at all and the check
+reported the widget losing something my own fixture had lost.
+
+Reading the premise off the WIDGET -- what does it hold now that I
+have set it -- turned four false losses into none and left the real
+one standing. This is the same rule as counting what you compared,
+arriving where a value is transformed on its way in: **the premise is
+what the system actually has, never what you handed it.**
+
 ## ONE FAILURE IN FIFTEEN RUNS WAS NOT FLAKINESS
 
 2026-08-28, and it is the most expensive reading this file could have

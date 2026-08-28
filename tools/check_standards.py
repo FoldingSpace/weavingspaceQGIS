@@ -829,7 +829,26 @@ def check_ci_covers_what_it_claims():
   # listed against called and never called against listed, so it could
   # not see this either. Found by the instruments audit of that day,
   # which planted a stage the gate had to catch.
-  run_names = sorted(set(re.findall(r'\brun\(\s*"([^"]+)"', release_src)))
+  # EVERY LAUNCHER, EITHER QUOTE, AND NOT A COMMENT. The first draft
+  # of this read `run("...")` alone, which a hunt aimed at it the same
+  # evening showed is a partial gate: it missed a single-quoted name,
+  # an f-string, a name passed as a variable, and -- not hypothetical
+  # -- `run_sharded`, which is how release.py launches the functional
+  # suite. It also DEMANDED a name written inside a comment. So the
+  # sibling launcher is included, both quotes are, and commented lines
+  # are dropped first.
+  # WHAT IT STILL CANNOT SEE, said plainly rather than left implied: a
+  # stage whose name is computed rather than written. A name built by
+  # interpolation or held in a variable is invisible here, and the
+  # honest reading of "this list cannot drift" is therefore "cannot
+  # drift for a stage whose name is a literal at its call site".
+  # Writing one any other way is the thing to avoid.
+  release_lines = "\n".join(
+    line for line in release_src.splitlines()
+    if not line.lstrip().startswith("#"))
+  run_names = sorted(set(
+    re.findall(r"""\brun(?:_sharded)?\(\s*["']([^"']+)["']""",
+               release_lines)))
   for name in run_names:
     if name not in stages:
       problems.append(

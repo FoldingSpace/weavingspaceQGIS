@@ -2151,8 +2151,13 @@ MUTATIONS = [
        # moment the recipient pressed Save. Mutating the restore away
        # is exactly the shipped behaviour: the box goes back to
        # unticked and the next save empties the file.
-       old="""        box.setChecked(bool(record.get("region_embedded")))""",
-       new="""        box.setChecked(False)""",
+       # RE-AIMED 2026-08-28, when the fact moved off the session-wide
+       # checkbox and onto the FILE, because a control cannot hold a
+       # per-file answer without costing somebody their privacy in one
+       # direction or their preference in the other.
+       old="""    self._embedded_when_resumed[self._gpkg_key(path)] = bool(
+      record.get("region_embedded"))""",
+       new="""    self._embedded_when_resumed[self._gpkg_key(path)] = False""",
        test="test_a_recipients_save_keeps_the_source_the_sender_included",
        why="a colleague who opens a self-contained map and saves it "
            "still having a file anybody can redraw"),
@@ -2164,10 +2169,13 @@ MUTATIONS = [
        # Measured by the hunt aimed at the repair: drawn with `a` on
        # v1 into `tiles_a_v1`, chooser moved to v3, and the file's
        # record said v3 beside its own `tiles_a_v1`.
-       old="""      if isinstance(element, dict) and element.get("id") in was_drawn:
-        element["var"] = was_drawn[element["id"]]""",
-       new="""      if isinstance(element, dict) and False:
-        element["var"] = was_drawn[element["id"]]""",
+       # RE-ANCHORED 2026-08-28, when the carry grew from the variable
+       # alone to the element LIST as well -- carrying `design` while
+       # the membership stayed live made the record contradict itself
+       # the other way round.
+       old="""          merged = dict(now)
+          merged["var"] = element.get("var")""",
+       new="""          merged = dict(now)""",
        test="test_saving_holds_on_every_route",
        why="a saved file whose record names, for every element, the "
            "table its own tiles are in -- so a colleague's first "

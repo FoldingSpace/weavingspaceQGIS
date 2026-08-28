@@ -312,8 +312,63 @@ assistant's. It does not block a candidate -- a candidate is for
 feedback -- but it does block the build that gets promoted, since
 `metadata.txt` ships and changing it retires a receipt.
 
-**NOTHING OUTSTANDING IN CODE.** Every entry this version carried is
-done or deliberately moved: the two that need a person rather than an
+**AND THE ROUND OF 2026-08-28, which is the largest this project has
+run.** Twenty-three hunts kept at eight at a time and replenished as
+each reported, with the consistency sweep rebuilt beside them as a
+committed tool. Twenty-four confirmed defects, the ledger in
+`docs/process/defects-2026-08-28.md`, the directions and what each
+taught in `docs/process/HUNT-RECORD.md`.
+
+WHAT IT GIVES A USER, in the order somebody would care. A saved map
+now records the design and the variables its own tiles were drawn
+with, so a colleague opening it is not shown a design nobody made and
+does not lose the map to their first Generate. Opening somebody's
+self-contained file and saving it keeps the copy of the data they
+included. Opening a saved map with live update on -- the default --
+no longer redraws it into memory and leaves the file's map empty next
+time the project opens. Reducing a design and saving no longer leaves
+the dropped elements' tables, columns and values in the file. A
+project reopened under another spelling of its own folder finds the
+output group its data made instead of piling a second one beside it.
+A class bound survives a keystroke that types nothing. And a
+256-element design draws in about two seconds where it froze QGIS for
+thirty-eight.
+
+WHAT IS STILL OWED FROM IT, and each is a defect confirmed by a hunt
+and reproduced here rather than a guess: the design view's landing
+repaint fires before the new layer exists; a floor or ceiling and the
+colours after it are destroyed by a save-and-reopen before Generate,
+because those stamps only happen as a side effect of a restyle that a
+limit makes decline; pressing Load while your own polygon layer is
+open replaces the sender's map with your data, across three coupled
+sites; the duplicate-layer guard sits at the adoption door and not at
+the landing door; deleting the output group and pressing Save empties
+the file and reports success; and the catalogue triage of the same
+morning made two trades whose compensating test legs cannot fail.
+
+**AND ONE QUESTION IS THE MAINTAINER'S RATHER THAN OUTSTANDING WORK.**
+A quantitative style never stands on a text field, and the stated
+reason is that a graduated renderer over text comes back with no
+ranges. Measured on QGIS 4.0.3: true of WORDS, false of NUMERIC
+STRINGS -- a String column running "10" to "120" classifies exactly as
+its integer twin. So somebody whose numbers arrived through a CSV join
+cannot draw a choropleth from them and is given one colour per value
+instead. Whether a `str`-typed column should be classifiable is yours
+to decide. What is not a decision is the second half: between a
+graduated style built in QGIS's dock and the next Generate, the row
+reads "Quant: Quantiles" while the assignment says Categorized, and
+that Generate destroys the dock's work.
+
+**WORK IS OUTSTANDING IN CODE, and it is the list two paragraphs
+above.** This section said the opposite until the round of 2026-08-28,
+and the phrase is withdrawn deliberately rather than left to be
+satisfied by a heading: the release gate refuses a candidate while a
+version's section lists work, and it is right to, because every item
+on that list is a defect confirmed by a hunt and reproduced here. When
+they land or are moved, the declaration comes back.
+
+Everything the version carried BEFORE that round is done or
+deliberately moved: the two that need a person rather than an
 assistant are under "Needs the maintainer" above, the four
 measurements and studies are under 0.24.5 below, and the changelog
 line above is a sentence for the maintainer rather than work on the

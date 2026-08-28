@@ -492,6 +492,53 @@ and the message bar stays empty, so the run looks like one that never
 started. When a run appears to do nothing, read the modal store
 before concluding silence.
 
+## What a Save writes, and which moment each half of it is about
+
+`_save_the_map` writes the file's working-state record last, and that
+record is assembled from TWO moments. Three things describe the map
+that was DRAWN and are carried off the group's own record, because
+only a landing knows what was drawn: the design, the region, and the
+elements -- their membership AND the variable each was drawn with,
+since that variable names the table its tiles are in. Everything else
+about an element is read live and must stay so, because the colour
+editors remain usable after a landing and a colour or a pin chosen
+then belongs in the file.
+
+The one edge this act legitimately decides is `output_path`. A landing
+does not choose where the file goes; a Save does, and a file whose own
+record named another file would point a resume at a stranger's map.
+
+That split was got wrong twice in one evening, both times by carrying
+too little: the design and region alone, so the record named a
+variable its own tiles were not drawn with; and then those plus the
+variable but not the element LIST, so lowering the element count left
+a record claiming `n=4` beside two elements and a file holding four
+tables. Whenever you add a key to this record, ask which of the two
+moments it is about.
+
+## What a resume has to say for itself
+
+Opening a saved map is not a passive act, and three records have to
+learn about it or the next thing the user does destroys the file.
+
+`_landed_this_session` -- a map opened is this session's work, exactly
+as a map drawn is. Without it a change of dataset reads as a first
+choice, the output path is not cleared and nothing is said, and the
+next Generate writes the other dataset's tiles into the file that was
+opened.
+
+`_last_run_sig` -- nothing has changed since the map now on screen. A
+resume moves the design controls, which arms both debounce timers, and
+without this the live path's same-signature gate cannot fire: with
+live update at its default the opened map is re-tiled into memory a
+second later and the GeoPackage-backed layers are gone.
+
+`_embedded_when_resumed[path]` -- whether THAT FILE carried a copy of
+the region. It is deliberately not the checkbox: the box is a standing
+preference and the fact belongs to a file, so a recipient who never
+touched it does not strip the copy a sender included, and does not
+have their own data copied into their own next file either.
+
 ## Two queues, because a press and a live tick are not one fact
 
 One run at a time is settled, so anything asking for a run while one is

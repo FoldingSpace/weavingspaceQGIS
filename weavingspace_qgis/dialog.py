@@ -2678,6 +2678,16 @@ class WeavingSpaceDialog(QDialog):
     self.opt_embed_source.setToolTip(
       "Copies the region layer into the file, making it larger.")
     files_form.addRow("", self.opt_embed_source)
+    # WHOSE ANSWER IS IN THE BOX. `_embedded_when_resumed` is what a
+    # FILE said when it was opened, keyed by file; `_embed_box_touched`
+    # is whether this person has since had an opinion. Only the second
+    # may overrule the first, which is what keeps a recipient's Save
+    # from emptying a file they never asked to change while leaving a
+    # deliberate untick meaning exactly what it says.
+    self._embedded_when_resumed = {}
+    self._embed_box_touched = False
+    self.opt_embed_source.toggled.connect(
+      lambda _on: setattr(self, "_embed_box_touched", True))
     # ...and the other end, built from the same widget so the two rows
     # read as one pair. Choosing a file here is NOT the act either: a
     # chooser that loaded the moment it was filled would be the same
@@ -16240,12 +16250,42 @@ class WeavingSpaceDialog(QDialog):
     # WHICH MOMENT EACH FIELD IS ABOUT is the question this file
     # already asks of every record built from two readings; the answer
     # here is per KEY rather than per record.
-    was_drawn = {element.get("id"): element.get("var")
-                 for element in (carried.get("elements") or [])
-                 if isinstance(element, dict)}
-    for element in (resumable.get("elements") or []):
-      if isinstance(element, dict) and element.get("id") in was_drawn:
-        element["var"] = was_drawn[element["id"]]
+    # MEMBERSHIP AS WELL AS EACH ELEMENT'S VARIABLE, which the first
+    # draft of this carry got wrong and the hunt aimed at it measured
+    # the same evening. Carrying `design` -- which holds n -- while
+    # leaving the element LIST live made the record contradict itself
+    # the other way round: lower the count from four to two and press
+    # Save, and the file held four tables under a record naming n=4
+    # and two elements. A recipient's Load then brought c and d back
+    # AUTO-ASSIGNED, so their controls named v3 and v1 beside layers
+    # drawing v2 and v3, and their first Save destroyed both. Raising
+    # the count gives the mirror: a record naming tables the file does
+    # not hold.
+    # So the record's ELEMENTS are the ones the map was drawn with,
+    # each carrying the variable it was drawn with, and everything
+    # else about them read live -- because the colour editors stay
+    # usable after a landing and a colour or a pin chosen then belongs
+    # in the file. That is the same per-key question as the design and
+    # the region, asked of a list.
+    drawn_list = [element for element in (carried.get("elements") or [])
+                  if isinstance(element, dict) and element.get("id")]
+    if drawn_list:
+      live = {element.get("id"): element
+              for element in (resumable.get("elements") or [])
+              if isinstance(element, dict)}
+      rebuilt = []
+      for element in drawn_list:
+        now = live.get(element["id"])
+        if isinstance(now, dict):
+          merged = dict(now)
+          merged["var"] = element.get("var")
+        else:
+          # An element the table no longer shows at all: the map still
+          # holds its tiles, so the record keeps what it was drawn
+          # with rather than dropping it and orphaning the table.
+          merged = dict(element)
+        rebuilt.append(merged)
+      resumable["elements"] = rebuilt
     resumable["region_embedded"] = self._embed_or_drop_the_source(path)
     if not bridge.write_working_state(
         path, self._file_safe_state(resumable)):
@@ -16791,13 +16831,17 @@ class WeavingSpaceDialog(QDialog):
     # right about the act and silent about its absence. The record is
     # the writer with a REASON here -- the sender decided this, and
     # the box is only a control -- so the record wins.
-    box = getattr(self, "opt_embed_source", None)
-    if box is not None:
-      was = box.blockSignals(True)
-      try:
-        box.setChecked(bool(record.get("region_embedded")))
-      finally:
-        box.blockSignals(was)
+    # PER FILE, NOT ON THE CONTROL. The first repair set the checkbox
+    # itself, and a hunt aimed at that repair measured what a
+    # session-wide control does with a per-file fact, in both
+    # directions: a recipient who opened an embedded map and then
+    # pointed at their OWN private region had it copied into their own
+    # file unasked, and a person who had ticked the box deliberately
+    # had it silently unticked by opening any file without a copy in
+    # it. The fact belongs to the FILE, so it is remembered against
+    # the file and the control is left alone.
+    self._embedded_when_resumed[self._gpkg_key(path)] = bool(
+      record.get("region_embedded"))
 
     wanted = record.get("region")
     if wanted:
@@ -16931,6 +16975,17 @@ class WeavingSpaceDialog(QDialog):
       # the layer in the chooser, which under the group binding is the
       # dataset this map belongs to
       return self._embed_source_into(path, self.layer_combo.currentLayer())
+    # AND A COPY THE SENDER PUT THERE IS NOT THIS PERSON'S TO REMOVE
+    # unless they say so. The drop below was written for the act of
+    # UNTICKING; a dialog that opened somebody's self-contained map
+    # has never touched the box, so without this it fired for the
+    # act's ABSENCE and emptied a file the recipient could no longer
+    # redraw. The question is asked of THIS file and only while the
+    # box is untouched, so a deliberate untick still means what it
+    # says.
+    if not self._embed_box_touched and \
+        self._embedded_when_resumed.get(self._gpkg_key(path)):
+      return True
     if bridge.REGION_TABLE_NAME in bridge.gpkg_tables(path):
       bridge.drop_gpkg_layer(path, bridge.REGION_TABLE_NAME)
     return False

@@ -4411,6 +4411,59 @@ here, and the decision to add one is the maintainer's. Recorded
   NAME ITSELF -- live update pausing without saying why has cost this
   project two diagnoses now.
 
+- **A PER-FILE FACT MUST NOT LIVE ON A SESSION-WIDE CONTROL.**
+  (2026-08-28, round ten, and it was a repair of mine that put it
+  there.) "Include the source data" is one checkbox and the answer it
+  stands for belongs to a FILE: whether THAT GeoPackage carries a copy
+  of the region. Reading the box alone meant a recipient who had never
+  touched it stripped the copy a sender had deliberately included --
+  the drop was written for the act of unticking and fired for the
+  act's ABSENCE. Setting the box from the file's record cured that and
+  bought two new harms in one line: the recipient's own next Save
+  copied THEIR private region out unasked, and a person who had ticked
+  the box on purpose had it silently unticked by opening any file
+  without a copy in it.
+  THE SHAPE IS GENERAL. When a control's value is asked about a
+  subject the control does not name -- a file, a layer, an element --
+  keep the fact keyed by that subject and let the control mean what it
+  has always meant, which is a standing preference. Then say which one
+  wins: here the file's record wins while the person has not spoken,
+  and a deliberate untick still means exactly what it says.
+- **A DISPLAY RULE IS ONLY DISPLAY-ONLY IF NOTHING RE-READS THE
+  DISPLAY.** (2026-08-28.) `MarkableSpinBox.textFromValue` abbreviates
+  a large number to "1.02M" and its docstring says it touches neither
+  the stored value nor the validator. True of everything this project
+  does and FALSE OF QT, which calls `interpret()` on Return and reads
+  the display back through `valueFromText`. So pressing Return in a
+  bound box, typing nothing, replaced a floor of 1,015,001 with
+  1,020,000, moved every class break and moved four more of fifty
+  areas out of range -- shipped in v0.24.3, on any column above about
+  1e5 or below about 1e-4.
+  This file already says a display rule belongs in `textFromValue`
+  because `decimals` governs storage as well as display. What it did
+  not say is that the framework may complete the circle anyway. Ask of
+  any formatting override: who else calls the reader?
+- **A SUITE CAN HOLD A CONTROL AT A VALUE NO USER HOLDS.**
+  (2026-08-28.) Every resume test in this suite unticks live update,
+  which is ON by default -- so the whole family was driven at a
+  setting nobody has, and pressing Load with the default re-tiled the
+  opened map into memory a second later and emptied the saved file.
+  The hunt that found it swept all four debounce windows first and
+  ruled every one out; the hiding place was not a race but a default.
+  ASK OF ANY TEST FAMILY WHICH CONTROL IT HOLDS CONSTANT, and whether
+  a person holds it there.
+- **A RECORD SEEDED BY ADOPTION IS A RECORD THAT ASSUMES A PROJECT.**
+  (2026-08-28.) The stale-table drop took its candidates from the
+  session's own record of what it had written, plus the tables of
+  elements the map still has -- and a DROPPED element is in neither.
+  Its docstring called that "the shrank-design case the session record
+  covers", which holds only while there is a group to adopt: that
+  record is seeded by adoption and cleared when a project is replaced.
+  Close QGIS without saving the .qgz, reduce the design, save to the
+  same file, and the dropped elements' tables, columns and VALUES stay
+  in the file somebody sends on. The file's own record is asked now.
+  The general question: when a rule leans on a record, ask what SEEDS
+  that record and what a journey without the seeding act looks like.
 - **AN INTERMITTENT FAILURE UNDER LOAD CAN BE THE SUITE INTERMITTENTLY
   REACHING A REAL DEFECT.** (2026-08-28.) A per-test coverage
   re-record failed one test of 645, in a shard running beside two

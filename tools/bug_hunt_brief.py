@@ -41,6 +41,25 @@ configuration tried. The difference was not the model. The first was
 asked for a structural property that either exists or does not; the
 second was asked, in effect, for a failure.
 
+Updated 2026-08-28, after ROUND TEN: twenty-three hunts kept at eight
+at a time, twenty-four confirmed defects, sixteen repaired the same
+evening. Three things it settles for whoever is being briefed. The two
+directions on the untried list that were finally run BOTH paid on
+their first outing, so an untried direction is worth more than a
+proven one, not less. A round aimed at the same round's own repairs is
+now eight for eight -- one hunt found that a fix ninety minutes old
+carried two keys of a record and left the third live. And the
+cheapest finding of the round came from asking what the SUITE holds
+constant: every resume test unticks live update, which is on by
+default, so a whole family was driven at a setting no user has and a
+Load quietly emptied the saved file. Ask what a test family holds at a
+value nobody chooses.
+AND MEASURE THE JOURNEY AS SEPARATELY AS THE MECHANISM. One defect
+that round was diagnosed exactly right and reported as user-facing
+when the button it needs is disabled for the whole of a run -- the
+harm reached four binding documents and a candidate's tester notes
+before anybody asked whether a person could drive it.
+
 Updated 2026-08-16, after three rounds against a feature written that
 morning. Roughly seventeen confirmed defects; THIRTEEN of them were in
 code written the same day and three were inside earlier fixes for the
