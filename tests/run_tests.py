@@ -53160,6 +53160,135 @@ def test_two_generates_with_different_families_keep_their_elements_apart():
     "two generates with different families:\n  " + "\n  ".join(trouble)
 
 
+def test_a_generate_pressed_during_a_run_is_not_swallowed():
+  """A press made while a run is in flight must still draw a map.
+
+  Regression: with live update OFF, a Generate pressed during a run was
+  queued on `_live_pending` and honoured by STARTING THE LIVE TIMER --
+  whose handler returns at its second gate whenever live update is off.
+  The press was therefore remembered and then thrown away in silence.
+  The map kept the seven elements of the run in flight while the table
+  asked for four, and three layers stayed in the project tagged for
+  elements the design no longer had, which is what a later dialog
+  adopts the group by. One flag was answering two different questions:
+  a deferred live tick and a deferred button press are not the same
+  fact, and only one of them can be honoured by the live path. [suite]
+
+  THE PRESS IS STAGED, NOT HOPED FOR. `test_two_generates_with_
+  different_families_keep_their_elements_apart` reaches this ground
+  only when the machine is slow enough to leave the run in flight 150
+  ms later; it found this defect once in fifteen runs and read exactly
+  like flakiness. Here `_task` is checked in the same breath as the
+  press and the premise is asserted, so the case arises on a fast
+  machine too.
+
+  BOTH ARMS ARE DRIVEN. Live update ON was correct throughout, so a
+  repair that mended the off arm while breaking the on arm would look
+  identical from the off arm alone.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  trouble = []
+
+  for live_update in (False, True):
+    arm = "live on" if live_update else "live off"
+    project = QgsProject.instance()
+    for existing in list(project.mapLayers().values()):
+      project.removeMapLayer(existing.id())
+    MODALS.clear()
+    BAR_MESSAGES.clear()
+    dlg = None
+    try:
+      layer = make_region_layer(n=3)
+      project.addMapLayer(layer)
+      dlg = WeavingSpaceDialog(iface=_Iface())
+      dlg.live_check.setChecked(live_update)
+      dlg.layer_combo.setLayer(layer)
+      _tick(300)
+
+      large = _families_with(dlg, 7)
+      small = _families_with(dlg, 4)
+      if not large or not small:
+        _skip_loudly(
+          "a generate pressed during a run is not swallowed",
+          "the catalogue offers no family with 7 elements or none "
+          "with 4, so there is no design change to press through. "
+          "Restore one of each in catalog.TILINGS_BY_N.")
+        return
+
+      dlg.n_combo.setCurrentText("7")
+      _tick(150)
+      dlg.family_combo.setCurrentText(large[0])
+      _tick(500)
+      dlg.spacing_spin.setValue(500)
+      dlg._generate()
+      if not _settle(dlg, seconds=int(90 * CONTENTION)):
+        trouble.append(f"{arm}: the seven-element run never settled")
+        continue
+      _tick(250)
+      if len(set(_element_layers(dlg))) != 7:
+        trouble.append(
+          f"{arm}: the first run left "
+          f"{sorted(set(_element_layers(dlg)))}, so there is nothing "
+          f"surplus for a swallowed press to leave behind")
+        continue
+
+      # a second run, put in flight by a GEOMETRY change (a style
+      # change takes the fast path and finishes synchronously,
+      # leaving nothing to press through)
+      dlg.spacing_spin.setValue(455)
+      dlg._generate()
+      if dlg._task is None:
+        trouble.append(f"{arm}: no second run was launched")
+        continue
+
+      # THE STAGED CONDITION, with no tick in between: the design is
+      # changed and the button pressed while the run is demonstrably
+      # still going, which is what a person does when a run is slow.
+      dlg.n_combo.setCurrentText("4")
+      dlg.family_combo.setCurrentText(small[0])
+      if dlg._task is None:
+        trouble.append(
+          f"{arm}: the run finished before the press, so this case "
+          f"never staged a press during a run and proves nothing")
+        continue
+      dlg._generate()
+
+      if not _settle(dlg, seconds=int(120 * CONTENTION)):
+        trouble.append(f"{arm}: the dialog never settled after the press")
+        continue
+      _tick(300)
+
+      expected = {a["id"] for a in dlg._assignments()}
+      if len(expected) != 4:
+        trouble.append(f"{arm}: the settled design has {sorted(expected)}, "
+                       f"not four elements")
+        continue
+      produced = set(_element_layers(dlg))
+      if produced != expected:
+        trouble.append(
+          f"{arm}: the map holds {sorted(produced)} but the table asks "
+          f"for {sorted(expected)} -- the press was swallowed")
+      strays = {}
+      for out in project.mapLayers().values():
+        element = out.customProperty("weavingspace_tile_id")
+        if element and element not in expected:
+          strays[out.name()] = element
+      if strays:
+        trouble.append(
+          f"{arm}: {strays} are still in the project, tagged for "
+          f"elements this design does not have")
+      if not dlg.generate_btn.isEnabled():
+        trouble.append(f"{arm}: Generate left disabled afterwards")
+    except Exception as exc:
+      trouble.append(f"{arm}: raised {type(exc).__name__}: {exc}")
+    finally:
+      if dlg is not None:
+        dlg.close()
+
+  assert not trouble, \
+    "a Generate pressed during a run:\n  " + "\n  ".join(trouble)
+
+
 def test_a_restyle_arrives_while_the_geopackage_is_written():
   """A ramp picked while the output file is being written.
 
@@ -69240,6 +69369,8 @@ def main():
         test_a_region_edit_is_undone_while_a_run_is_in_flight)
   check("two generates with different families keep their elements apart",
         test_two_generates_with_different_families_keep_their_elements_apart)
+  check("a generate pressed during a run is not swallowed",
+        test_a_generate_pressed_during_a_run_is_not_swallowed)
   check("a restyle arrives while the geopackage is written",
         test_a_restyle_arrives_while_the_geopackage_is_written)
   check("the output group is deleted while a run is in flight",

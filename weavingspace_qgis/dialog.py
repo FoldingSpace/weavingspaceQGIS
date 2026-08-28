@@ -2037,6 +2037,20 @@ class WeavingSpaceDialog(QDialog):
     self._live_timer.setInterval(LIVE_DEBOUNCE_MS)
     self._live_timer.timeout.connect(self._maybe_live_generate)
     self._live_pending = False
+    # A Generate PRESSED while a run is in flight, which is a
+    # different fact from a live tick deferred the same way and must
+    # not share its flag. `_live_pending` is honoured by starting the
+    # live timer, and `_maybe_live_generate`'s second gate returns
+    # whenever live update is switched off -- so with the box
+    # unticked a press was queued, handed to a path that cannot run
+    # it, and lost in silence, with nothing said. Measured
+    # 2026-08-28: press Generate on a four-element design while a
+    # seven-element run is in flight and the map keeps all seven
+    # while the table asks for four, three layers left tagged for
+    # elements the design no longer has -- which is what a later
+    # dialog adopts the group by. One flag gating two different
+    # things, which this project has paid for before.
+    self._press_pending = False
     # True once the window has been closed. A closed dialog
     # must not write into the project: the timers can be
     # stopped, but the region layer's signals stay connected
@@ -4515,6 +4529,7 @@ class WeavingSpaceDialog(QDialog):
         except RuntimeError:
           pass                  # the Qt object is already gone
     self._live_pending = False
+    self._press_pending = False   # a closed window presses nothing
     # And the dialog is CLOSED, which the timers alone could not say.
     # Stopping them stopped the beat already armed; it did nothing
     # about the region layer's own signals, which stay connected to a
@@ -13589,7 +13604,17 @@ class WeavingSpaceDialog(QDialog):
     goes to the message bar rather than a dialog.
     """
     if self._task is not None:
-      self._live_pending = True  # one run at a time; rerun when done
+      # One run at a time, and this one reruns when that one is done.
+      # WHICH KIND of rerun is the question, and one flag answering it
+      # for both is what went wrong: a queued live tick is honoured by
+      # restarting the live timer, whose handler refuses whenever live
+      # update is off -- so a queued BUTTON press was handed to a path
+      # that could not run it. A press is remembered as a press and
+      # re-pressed by `_finish_run`.
+      if live:
+        self._live_pending = True
+      else:
+        self._press_pending = True
       _dump("GEN-GATE", "already-running", "live=", live)
       return
     if not live and self._restyle_only():
@@ -17314,7 +17339,20 @@ class WeavingSpaceDialog(QDialog):
     # plugin is genuinely at rest.
     if self._adoption_deferred:
       QTimer.singleShot(0, self._replay_deferred_adoptions)
-    if self._live_pending:
+    # A PRESS QUEUED UNDER THE RUN IS RE-PRESSED, never handed to the
+    # live path: that path returns at its second gate whenever live
+    # update is off, which is exactly the state somebody is in when
+    # they are pressing the button. Deferred by a timer for the same
+    # reason the adoption replay above is -- `_task` was cleared a few
+    # lines up, but this call stack is still inside the landing, and
+    # `_generate` is entitled to a plugin at rest. A closed window
+    # presses nothing.
+    if self._press_pending:
+      self._press_pending = False
+      self._live_pending = False    # the press supersedes a live tick
+      if not self._closed:
+        QTimer.singleShot(0, self._generate)
+    elif self._live_pending:
       self._live_pending = False
       self._live_timer.start()
 

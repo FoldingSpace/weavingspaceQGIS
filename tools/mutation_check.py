@@ -2092,6 +2092,28 @@ MUTATIONS = [
        test="test_a_finished_run_leaves_nothing_armed",
        why="an ordinary Generate not arming a live rebuild nobody "
            "asked for"),
+  dict(name="a-queued-press-is-a-press-not-a-live-tick", file=DIALOG,
+       # The defect this restores, measured 2026-08-28: a press queued
+       # on `_live_pending` is honoured by starting the LIVE timer,
+       # whose handler returns at its second gate whenever live update
+       # is off -- so with the box unticked the press was remembered
+       # and then discarded in silence. Anchored at the SETTER rather
+       # than at `_finish_run`, because the setter is where the two
+       # facts are told apart; mutating it puts a button press back
+       # onto the path that cannot run it, which is exactly the
+       # shipped behaviour before the fix.
+       old="""      if live:
+        self._live_pending = True
+      else:
+        self._press_pending = True""",
+       new="""      if live:
+        self._live_pending = True
+      else:
+        self._live_pending = True""",
+       test="test_a_generate_pressed_during_a_run_is_not_swallowed",
+       why="a Generate pressed while a run is in flight still drawing "
+           "the design it asked for, rather than leaving the previous "
+           "run's elements on the map with nothing said"),
   dict(name="cvd-simulation", file=PERCEPTION,
        old="""  if vision == "normal":
     return tuple(float(v) for v in rgb)""",

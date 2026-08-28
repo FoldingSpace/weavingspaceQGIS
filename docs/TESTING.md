@@ -3333,3 +3333,48 @@ already fixed has to be watched failing, usually by breaking the fix
 again. This one never needed that: the second site was still broken
 when the test was first run, so its first execution WAS the red proof,
 and the fix that followed turned it green.
+
+## ONE FAILURE IN FIFTEEN RUNS WAS NOT FLAKINESS
+
+2026-08-28, and it is the most expensive reading this file could have
+got wrong, because every cheap explanation was available and all of
+them were comfortable.
+
+A per-test coverage re-record failed one test of 645, in a shard
+running beside two others on a loaded machine. The candidate's own
+suite had passed that test an hour before. It passed alone under the
+plain harness; alone under the recorder's own instrumentation, twice;
+and nine times over across three concurrent copies. Fourteen clean
+runs against one failure, in a suite whose slowest tests wait on
+debounces, is the exact shape of a timing-tuned test meeting a
+different harness -- which this file already warns about twice.
+
+**THE TELL WAS IN WHAT THE FAILURE SURVIVED.** `_settle` waits on the
+EVENT -- no task in flight, no live timer, no preview timer -- and
+reports a timeout in different words than the ones in the log. So the
+dialog had genuinely finished, and the surplus layers were still
+there afterwards. A test that read too early produces a different
+sentence; this one had waited for quiet and then found the map
+disagreeing with the table. **Ask what a failure SURVIVED before
+ascribing it to timing**: a race the test merely lost cannot outlive
+the thing settling.
+
+**STAGE THE CONDITION; DO NOT MEASURE HOW OFTEN YOU LAND IN IT.** The
+suite's case puts a run in flight, waits about 150 ms, and presses
+Generate hoping the run is still going -- which on a fast machine it
+is not, so the case silently becomes a different journey. Chasing the
+frequency cost two full re-records and answered nothing. A probe that
+asserted `_task is not None` in the same breath as the press
+reproduced the defect FIRST TIME, on both arms, deterministically,
+and the same staging is what the new guard uses. Where a case depends
+on a window, close the window rather than sampling it.
+
+**AND THE DEFECT WAS REAL AND USER-FACING.** With live update off, a
+Generate pressed during a run was queued on the live-rerun flag and
+handed to the live path, which returns whenever live update is off --
+so the press was remembered and discarded in silence, leaving the
+previous run's elements on the map under a table asking for a
+different design. The suite reached that ground only when a machine
+was slow enough to put the press inside the run. **A test that fails
+rarely is a test that reaches something rarely, and what it reaches
+may be a defect rather than a window.**

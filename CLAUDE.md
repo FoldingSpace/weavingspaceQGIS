@@ -4396,3 +4396,38 @@ here, and the decision to add one is the maintainer's. Recorded
   know; and where a path can refuse for ten reasons, make each one
   NAME ITSELF -- live update pausing without saying why has cost this
   project two diagnoses now.
+
+- **AN INTERMITTENT FAILURE UNDER LOAD CAN BE THE SUITE INTERMITTENTLY
+  REACHING A REAL DEFECT.** (2026-08-28.) A per-test coverage
+  re-record failed one test of 645, in a shard running beside two
+  others on a loaded machine. Everything about it said harness: the
+  candidate's own suite had passed it an hour earlier, it passed alone
+  plain, alone under the recorder's instrumentation twice, and nine
+  times across three concurrent copies. One failure against fourteen
+  clean runs is exactly what flakiness looks like, and this file
+  already carries the rule that a test tuned in one harness is
+  re-tuned by another.
+  IT WAS A DEFECT, and the tell was in the log rather than in the
+  odds: `_settle` waits on the EVENT -- no task, no live timer, no
+  preview timer -- and reports a timeout in different words, so the
+  dialog had genuinely finished and the orphans were still there. A
+  failure that survives the thing settling is not a race the test lost.
+  WHAT SETTLED IT WAS STAGING THE CONDITION RATHER THAN CHASING THE
+  FREQUENCY. The suite's case presses Generate about 150 ms after
+  putting a run in flight and hopes the run is still going; on this
+  Mac it usually is not. A probe that checked `_task is not None` in
+  the same breath as the press reproduced it FIRST TIME, on both arms,
+  deterministically. Where a case depends on a window, do not measure
+  how often you land in it -- close the window.
+  THE DEFECT ITSELF IS THIS FILE'S OWN SHAPE: one flag gating two
+  different things. `_generate` queued a press on `_live_pending`,
+  `_finish_run` honoured that by starting the LIVE timer, and
+  `_maybe_live_generate` returns at its second gate whenever live
+  update is off -- so with the box unticked a button press was
+  remembered and then thrown away in silence, the map keeping the
+  elements of the run in flight while the table asked for the new
+  design. A deferred live tick and a deferred button press are not
+  the same fact. Guarded by `test_a_generate_pressed_during_a_run_is_
+  not_swallowed`, which drives BOTH arms because the live-on arm was
+  correct throughout, and by the catalogue entry
+  `a-queued-press-is-a-press-not-a-live-tick`.

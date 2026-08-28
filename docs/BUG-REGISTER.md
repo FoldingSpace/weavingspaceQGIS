@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-386 defect(s) with a regression test.
+387 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -561,6 +561,8 @@ there is no separate list to remember.
 
 - **2026-08-19. A bound of 1e9 or 1e-6 was elided by a fixed-width column, and the first SI attempt printed an exponent with a prefix on it.**  
   guarded by `test_a_bound_is_readable_and_typable_at_every_magnitude`
+- **with live update OFF, a Generate pressed during a run was queued on `_live_pending` and honoured by STARTING THE LIVE TIMER -- whose handler returns at its second gate whenever live update is off. The press was therefore remembered and then thrown away in silence. The map kept the seven elements of the run in flight while the table asked for four, and three layers stayed in the project tagged for elements the design no longer had, which is what a later dialog adopts the group by. One flag was answering two different questions: a deferred live tick and a deferred button press are not the same fact, and only one of them can be honoured by the live path.**  
+  guarded by `test_a_generate_pressed_during_a_run_is_not_swallowed`
 - **2026-08-19. A style picked in the table left the row deaf to a rule-based renderer pasted onto its layer in QGIS, and the next Generate destroyed it.**  
   guarded by `test_a_style_picked_by_hand_still_follows_a_paste_in_qgis`
 - **a sharded coverage recorder lost a whole shard at startup to a race between three processes removing one file.**  
@@ -832,8 +834,8 @@ there is no separate list to remember.
 - race and stress testing: 6
 - a family audit of the claims the software makes: 5
 - a multi-step session test: 5
+- the functional suite, run whole: 5
 - driving the UI and rebuilding the same map from the library directly: 5
 - the hostile data corpus: 4
-- the functional suite, run whole: 4
 - a randomised differential sweep: 3
 - comparing rendered output against the reference in Lab space: 1
