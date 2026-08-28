@@ -441,6 +441,12 @@ new=..., test=..., why=...)`, then run:
 
     <qgis python> tools/mutation_check.py --only <name>
 
+ONE NAME PER RUN: `--only` given twice keeps the LAST, judges that one
+entry, and prints "Checking 1 mutations" -- which reads exactly like a
+full run of the set you asked for. Loop over the names in the shell if
+you have several. (Measured 2026-08-27, having passed four names and
+been told about one.)
+
 It must report `caught`. This is the single most valuable habit in the
 loop. In one session six tests were written to close gaps, verified to
 pass, and then failed to kill the very mutants they were written for.

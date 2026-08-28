@@ -45,10 +45,34 @@ server=False
 ; wants to know what moved reads on. One text serving both is how a
 ; changelog becomes a list nobody finishes.
 ; (Maintainer's instruction, 2026-08-13.)
-changelog=0.24.4 THIS ENTRY IS A PLACEHOLDER AND MUST NOT SHIP. It
-    says so plainly because a stub that reads like prose is a stub
-    that ships. Replace it by reading what actually changed:
-    git diff v0.24.3..HEAD -- weavingspace_qgis/
+changelog=0.24.4 Saving a map is now something you do rather than
+    something that happens to you, and a map you have saved can be
+    opened again and carried on with.
+    Saving: choosing a file says where a map would go and writes
+    nothing. Nothing is written until you press Save, which puts every
+    element layer into one GeoPackage with its symbology embedded,
+    tidies away tables the design no longer has, and records the
+    design so the file can be opened on its own later. Press Load on
+    the row beneath to open one back. Generate draws the map; live
+    update never writes at all, so a file you chose for later is
+    still yours until you say otherwise. Save asks first where the
+    file holds data from another map, and unticking Include the
+    source data takes that copy out of the file rather than leaving
+    it there.
+    Designs: a tiling can now carry more than twenty-six elements,
+    running a to z and then aa to zz, and every list you meet reads
+    them in that order. A weave keeps twenty-six, its strands being
+    named one character each. Select all beside the variable column
+    assigns every element in one press.
+    What it puts right: an element taking its classes from another
+    element followed it a run late, so the two drew one column in two
+    sets of colours until you pressed Generate again. Clearing the
+    output box quietly started a second map. A ramp tried on a row
+    and taken off again came back on the next change of style. A
+    plugin you had disabled went on speaking into the message bar.
+    A layer duplicated in the panel could be replaced instead of the
+    original. And a map opened from a file could be lost by saving
+    it.
     changelog=0.24.3 You decide how your data is classed: which values are
     drawn at all, where the first and last classes end, and what
     becomes of the areas left out.

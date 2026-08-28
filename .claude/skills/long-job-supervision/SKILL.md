@@ -3,7 +3,7 @@ name: long-job-supervision
 description: Supervise work that outlasts a single turn — test suites, builds, training runs, migrations, batch jobs — so the machine stays busy, finished work gets picked up immediately, and a stuck job is caught in minutes rather than hours. Use this whenever you start something long in the background, whenever a user asks for periodic status updates or says "keep going without me", whenever you are about to write a watcher or poll loop, and whenever a job seems to be taking longer than it should. Also use it before reporting that something is "still running" — that claim is worth exactly as much as the reading behind it.
 derived_from:
   - path: docs/MUTATION-LOOP.md
-    sha256: 2a8b3a7aa8afdb50798bf5e44479c3df784bb4bb6942364101b41c10f45e1614
+    sha256: 9aca146590184af73d78812a6b8488a00ca96f5672aaa82c095b026d2e7b830c
 ---
 
 # Supervising work that outlasts a turn
@@ -386,6 +386,22 @@ directory, and whatever resource genuinely constrains your machine
 scarcity before you throttle on it). The rules — wait on the process, report
 change not state, CPU versus elapsed, fresh readings, chain the next
 stage — carry over unchanged.
+
+## A COMMAND CAN NARROW ITS OWN SCOPE AND SAY SO IN THE PLURAL
+
+A flag given twice may keep only the last. This project's catalogue
+runner takes `--only <name>`; passed four names it judged ONE and
+printed "Checking 1 mutations", which reads exactly like a full run
+of the four -- the count is honest about what it did and says nothing
+about what was asked. Eleven entries were reported as judged when
+fifteen had been requested, and only reading the list line by line
+showed the gap.
+
+The family is this skill's own: a job that runs to completion having
+done less than you asked, while every heartbeat looks healthy. Ask of
+any batch invocation whether the tool ACCUMULATES its selectors or
+replaces them, and prefer a shell loop with one selector per call,
+counting the verdicts against the names you meant to judge.
 
 ## Ask what the job reports when it cannot start at all
 
