@@ -11958,11 +11958,14 @@ def test_a_copy_and_its_pins_survive_a_project_round_trip():
 def test_a_pinned_element_exports_and_reopens_from_a_geopackage():
   """The other serialisation boundary: what a colleague receives.
 
-  A GeoPackage carries its own cartography, and the restyle path
-  embeds the style as it goes. The breaks a pin produced are ordinary
-  renderer ranges, so they must arrive in the file exactly as drawn --
-  which is the promise of the export, and a boundary this project's
-  own list of test ideas names as the richest.
+  A GeoPackage carries its own cartography, and a Save writes it: the
+  breaks a pin produced are ordinary renderer ranges, so they must
+  arrive in the file exactly as drawn -- which is the promise of the
+  export, and a boundary this project's own list of test ideas names
+  as the richest. The pin is set BEFORE the press here, because since
+  2026-08-27 the restyle path draws and does not write, so the file
+  carries whatever the last press found rather than whatever the last
+  restyle did.
 
   Regression: none yet; this guards a feature added in 0.24.3 rather than a defect that happened.
  [unrecorded]
@@ -11986,10 +11989,17 @@ def test_a_pinned_element_exports_and_reopens_from_a_geopackage():
     dlg.gpkg_widget.setFilePath(path)
     dlg.spacing_spin.setValue(1200)
     _generate_and_wait(dlg)
-    press_save(dlg)
     dlg._pinned_bounds.setdefault(tid, {})["v3"] = {"low": 10.0}
     dlg._apply_style_change()
     _tick(400)
+    # SAVED AFTER THE PIN, which is the order a person works in and
+    # the only order that means anything since 2026-08-27. The Save
+    # press went in by script after the GENERATE, where the old
+    # code's write was; the pin then reached the map through the
+    # restyle path, which no longer writes, and the file kept the
+    # ladder from before it. What a colleague receives is what the
+    # last press put there.
+    press_save(dlg)
 
     drawn = [(round(r.lowerValue(), 4), round(r.upperValue(), 4))
              for r in project.mapLayer(
@@ -15470,7 +15480,24 @@ def test_a_second_project_does_not_take_the_first_ones_opacity():
       _tick(300)
       two = region_on_disk(folder, "two.gpkg")
       dlg.layer_combo.setLayer(two)
-      _tick(400)
+      # WAIT ON THE CHOOSER, not on a number of milliseconds. The
+      # combo repopulates from the project's own signals after a
+      # clear, so a fixed tick is a bet on how loaded the machine is:
+      # this passed alone and failed inside the full suite, where the
+      # run was refused for want of a region layer and the Save press
+      # after it reported the refusal rather than the cause. A test
+      # that waits on the event either proceeds or says what it was
+      # still waiting for.
+      for _ in range(40):
+        if dlg.layer_combo.currentLayer() is two:
+          break
+        _tick(100)
+      assert dlg.layer_combo.currentLayer() is two, \
+        f"the chooser never settled on the second region: it holds " \
+        f"{dlg.layer_combo.currentLayer() and dlg.layer_combo.currentLayer().name()!r} " \
+        f"after four seconds, so the run below would be refused for " \
+        f"want of a layer"
+      _tick(200)
       dlg.gpkg_widget.setFilePath(os.path.join(folder, "map_two.gpkg"))
       dlg.table.cellWidget(0, 6).setValue(100)
       _tick(200)
@@ -34121,6 +34148,17 @@ def test_a_renamed_group_is_adopted_when_the_plugin_reopens():
     second.spacing_spin.setValue(560)
     _generate_and_wait(second)
     _tick(300)
+    # ...AND SAVED AGAIN, which is what keeps the map on disk since
+    # 2026-08-27: the run draws to memory, so without the press the
+    # assertion below would be asking the adopted file to be the
+    # source of layers nobody has written yet. The path comes from
+    # the ADOPTION rather than from this test, which is the half
+    # worth having: a reopened dialog knows where its map lives.
+    assert second.gpkg_widget.filePath().strip(), \
+      "the reopened dialog adopted the group without its output " \
+      "path, so a person would have to name the file again to save"
+    press_save(second)
+    _tick(200)
     root = project.layerTreeRoot()
     ours = [g for g in root.findGroups()
             if any(getattr(child, "layer", lambda: None)() is not None
@@ -39140,8 +39178,15 @@ def test_attribute_names_survive_the_round_trip():
   _map_every_name(dlg, pair)
   dlg.spacing_spin.setValue(700)
   _generate_and_wait(dlg)
-  press_save(dlg)
   _tick(300)
+  # NO SAVE HERE, deliberately: this leg is the MEMORY case, which is
+  # what makes the GeoPackage leg below a statement about the format
+  # rather than about the plugin losing a column. The Save conversion
+  # of 2026-08-27 put a press here by script, because the function's
+  # FIRST dialog had an output path and the second one reuses the
+  # name `dlg` -- the sweep tracked the variable rather than the
+  # object. Caught by the suite at once, since a press with an empty
+  # chooser is refused in words.
   assert dlg._element_layer_ids, "the memory run produced nothing"
   # BETWEEN THEM the elements must carry both spellings, and each must
   # carry its own. Asking every element for both stopped being the
@@ -54348,6 +54393,141 @@ def _classes_the_data_allows(dlg, field, asked, scheme=None):
   return int(asked)
 
 
+def _the_file_disagrees(dlg, project, path):
+  """Save this map and compare the file against what is on screen.
+
+  Args:
+    dlg: a dialog holding a map it has just drawn.
+    project: the QgsProject its layers are in.
+    path: where to save. A directory of this case's own, so nothing
+      carries between designs.
+
+  Returns:
+    ``(disagreements, compared)`` -- a list of sentences naming what
+    the file says against what the map draws, and how many elements
+    were actually compared. The count is returned so the caller can
+    assert the axis RAN: an axis that never executes is
+    indistinguishable from one that always passes, which this project
+    shipped once already in a hunt whose GeoPackage invariant ran zero
+    times while the report looked complete.
+
+  WHY THIS AXIS EXISTS. Nearly every real defect here came from
+  comparing two independent descriptions of one thing, and the
+  richest comparisons cross a BOUNDARY -- a save, an export, a
+  process. The three same-session views this sweep already compares
+  found nothing across seventy-five designs; the first differential
+  that crossed a serialisation boundary found a defect on its first
+  run. What a colleague receives is the description nobody was
+  comparing.
+
+  WHAT IS COMPARED, and both halves have been wrong in this plugin
+  before: how many tiles each element's table holds against what its
+  layer draws, and the class colours the file's own saved style
+  paints against the ones on screen. A file that opens with the right
+  shapes in the wrong colours is this software's characteristic
+  failure.
+  """
+  from weavingspace_qgis import bridge
+  if not dlg._element_layer_ids:
+    return ["nothing was drawn, so nothing could be saved"], 0
+  dlg.gpkg_widget.setFilePath(path)
+  _tick(150)
+  if not press_save(dlg, path, expect=False):
+    return [f"the map would not save: {_said(dlg)!r}"], 0
+
+  def colours(renderer):
+    """Every class colour a renderer paints, in class order.
+
+    Args:
+      renderer: a renderer, or None.
+
+    Returns:
+      A list of "#rrggbb". `ranges()` and `categories()` are bound to
+      a name before being subscripted, since a temporary from either
+      frees the symbols it hands back.
+    """
+    if renderer is None:
+      return []
+    for getter in ("ranges", "categories"):
+      held = getattr(renderer, getter, None)
+      if held is None:
+        continue
+      classes = held()
+      found = [c.symbol().color().name() if c.symbol() else None
+               for c in classes]
+      if found:
+        return found
+    symbol = getattr(renderer, "symbol", None)
+    return [symbol().color().name()] if symbol else []
+
+  return file_against_map(dlg, project, path, colours)
+
+
+def file_against_map(dlg, project, path, colours=None):
+  """Compare a saved GeoPackage against the map it was saved from.
+
+  Args:
+    dlg: the dialog whose map is on screen.
+    project: the QgsProject its layers are in.
+    path: the file to read back, opened COLD -- a fresh layer per
+      table, so what is compared is what the file carries rather than
+      what this session happens to hold.
+    colours: a reader for a renderer's class colours. Passed in by
+      the sweep, which has its own; omitted elsewhere, in which case
+      a local one is used.
+
+  Returns:
+    ``(disagreements, compared)``. The count is returned so a caller
+    can assert the comparison RAN, since a loop that never executes
+    reads exactly like one that found nothing.
+  """
+  if colours is None:
+    def colours(renderer):
+      """Every class colour a renderer paints, in class order.
+
+      Args:
+        renderer: a renderer, or None.
+
+      Returns:
+        A list of "#rrggbb", empty for a renderer with no classes.
+      """
+      if renderer is None:
+        return []
+      for getter in ("ranges", "categories"):
+        held = getattr(renderer, getter, None)
+        if held is None:
+          continue
+        classes = held()
+        found = [c.symbol().color().name() if c.symbol() else None
+                 for c in classes]
+        if found:
+          return found
+      symbol = getattr(renderer, "symbol", None)
+      return [symbol().color().name()] if symbol else []
+
+  trouble, compared = [], 0
+  for tid, layer_id in sorted(dlg._element_layer_ids.items()):
+    on_screen = project.mapLayer(layer_id)
+    table = table_of_element(dlg, tid)
+    if on_screen is None or not table:
+      continue
+    cold = QgsVectorLayer(f"{path}|layername={table}", f"cold {tid}", "ogr")
+    if not cold.isValid():
+      trouble.append(f"element {tid} is not in the file at all")
+      continue
+    compared += 1
+    if cold.featureCount() != on_screen.featureCount():
+      trouble.append(
+        f"element {tid}: the file holds {cold.featureCount()} tiles "
+        f"where the map draws {on_screen.featureCount()}")
+    theirs, ours = colours(cold.renderer()), colours(on_screen.renderer())
+    if theirs and ours and theirs != ours:
+      trouble.append(
+        f"element {tid}: the file's own style paints {theirs[:4]} "
+        f"where the map paints {ours[:4]}")
+  return trouble, compared
+
+
 def _views_disagree(dlg, project):
   """Every disagreement between the table and the map, as sentences.
 
@@ -54514,7 +54694,7 @@ def test_random_designs_keep_their_views_in_agreement():
   project.addMapLayer(layer)
   fields = ["v1", "v2", "landcover"]
   styles = ["Categorized", "Quant: Quantiles", "Quant: Equal intervals"]
-  trouble, total_compared = [], 0
+  trouble, total_compared, total_filed = [], 0, 0
 
   for case in range(cases):
     n, family, _entry = rng.choice(pool)
@@ -54615,6 +54795,15 @@ def test_random_designs_keep_their_views_in_agreement():
         total_compared += pinned_compared
         disagreements = [f"with a pin in force: {line}"
                          for line in pinned_trouble]
+    # ---- AND ACROSS THE BOUNDARY, which is where this project's
+    # evidence says the value is. The three views above are all
+    # same-session; what a colleague receives is a fourth description
+    # and nothing was comparing it.
+    with _temp_dir(prefix="ws_views_file_") as folder:
+      filed, filed_compared = _the_file_disagrees(
+        dlg, project, os.path.join(folder, "case.gpkg"))
+      total_filed += filed_compared
+      disagreements += [f"in the saved file: {line}" for line in filed]
     for line in disagreements:
       trouble.append(f"case {case} ({family}, n={n}): {line}")
     dlg.close()
@@ -54623,6 +54812,10 @@ def test_random_designs_keep_their_views_in_agreement():
   assert total_compared >= cases, \
     f"only {total_compared} element(s) were compared across {cases} " \
     f"design(s), so the sweep is not looking at what it claims to"
+  assert total_filed >= cases, \
+    f"only {total_filed} element(s) were compared against a SAVED " \
+    f"file across {cases} design(s); an axis that never runs reads " \
+    f"exactly like one that always passes"
   assert not trouble, \
     f"the table and the map disagree on {len(trouble)} count(s) " \
     f"(seed {seed}; quote it to reproduce):\n  " + \
@@ -67373,6 +67566,18 @@ def _save_matrix_cell(route, shape, aftermath, folder):
       if orphans:
         return (f"the abandoned variable's table is still in the file: "
                 f"{sorted(orphans)}")
+    if route in ("after-restyle", "after-a-dock-edit", "after-retile",
+                 "after-a-variable-change"):
+      # THE ROUTE'S OWN NAME IS A CLAIM ABOUT THE FILE, so the cell
+      # asks the file rather than only counting its tables: a save
+      # that wrote every table and none of the styles would satisfy
+      # everything above and lose exactly what these four routes are
+      # about.
+      differs, seen = file_against_map(dlg, project, path)
+      if not seen:
+        return "no element could be compared against the saved file"
+      if differs:
+        return "the file disagrees with the map: " + "; ".join(differs)
     if route == "re-save":
       _hush(dlg)
       if not press_save(dlg, path, expect=False):
@@ -67383,6 +67588,7 @@ def _save_matrix_cell(route, shape, aftermath, folder):
         return "saving twice changed which tables the file holds"
 
     # ---- WHAT HAPPENS NEXT
+    saved_elements = sorted(dlg._element_layer_ids)
     if aftermath == "after a generate":
       before = gpkg_contents(path)
       dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 0.85)
@@ -67410,10 +67616,13 @@ def _save_matrix_cell(route, shape, aftermath, folder):
                   f"where the map showed {count}")
     if route == "load-it-back":
       from weavingspace_qgis.dialog import WeavingSpaceDialog
-      elements = sorted(dlg._element_layer_ids) if dlg else sorted(counts)
-      if dlg is not None:
-        dlg.close()
-        dlg = None
+      # WHICH ELEMENTS WERE SAVED, captured before anything closes.
+      # Recorded here rather than derived below because the "read
+      # cold" aftermath has already closed the dialog by this point,
+      # and a fallback that reached for the cold reading's TABLE names
+      # would compare table names against element ids and report a
+      # difference that is only bookkeeping.
+      elements = saved_elements
       project.clear()
       _tick(250)
       second = WeavingSpaceDialog(iface=_Iface())

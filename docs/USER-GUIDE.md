@@ -263,17 +263,23 @@ heroic, and the Generate button remains for deliberate large runs.
 
 ## Saving and sharing
 
-Set *Save to GeoPackage* and every element layer is written into a
-single file with its symbology embedded: one `.gpkg` that a colleague
-can drop into QGIS and see your elements as you styled them; the region
-outlines stay in the project, since they are drawn from your own layer.
-Left empty, the
-layers are temporary and live only with the project. Regenerating
-replaces the previous group and keeps whatever styling you have refined
-by hand; an element's symbology is rebuilt only when you change its
-variable, style, ramp, or classification in the dialog. *Create as new group*
-keeps a previous attempt alongside for comparison, with a different
-file if you are saving to disk.
+Drawing a map and saving one are two acts. The box beside *Save*
+records where a map would go and writes nothing on its own; pressing
+*Save* writes every element layer into a single file with its
+symbology embedded, one `.gpkg` that a colleague can drop into QGIS
+and see your elements as you styled them. The region outlines stay in
+the project, since they are drawn from your own layer, and until you
+press Save the map lives only with the project. *Load*, on the row
+beneath, opens a saved map back into the dialog so you can carry on
+with it, and Save asks first where the file holds work this map did
+not write.
+
+Regenerating replaces the previous group and keeps whatever styling
+you have refined by hand; an element's symbology is rebuilt only when
+you change its variable, style, ramp, or classification in the dialog.
+*Create as new group* keeps a previous attempt alongside for
+comparison, and a result you mean to keep on disk wants a file of its
+own.
 
 Each map the plugin draws lives in its own QGIS layer group, named for
 the dataset it was made from, and the *QGIS Layer Group* chooser beside

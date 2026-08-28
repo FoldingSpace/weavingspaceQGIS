@@ -18254,10 +18254,17 @@ class WeavingSpaceDialog(QDialog):
     self._pending_colour_note = colour_clash
 
     if self.iface is not None:
+      # WHAT THE RUN DID, and no more. Until 2026-08-27 this added
+      # ", saved to <path>" whenever a path was set, which was true
+      # then and is false now: a run draws and the Save button
+      # writes. A success notice claiming a file that was never
+      # written is the worst of the three ways to be wrong here, and
+      # the test that stages an unwritable directory is what caught
+      # it. Nothing replaces the clause: the tab, its button and the
+      # help say where saving lives, and a per-run reminder is how a
+      # notice becomes something people stop reading.
       note = f"'{self._group_name}': {len(gdf)} tiles across " \
              f"{len(tile_ids)} element layers"
-      if path:
-        note += f", saved to {path}"
       self.iface.messageBar().pushSuccess("WeavingSpace", note)
       # colour_clash is NOT pushed here: it rides _pending_colour_note
       # and the done callback sends it once the dust settles. Pushing

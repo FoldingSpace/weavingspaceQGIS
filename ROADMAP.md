@@ -401,6 +401,17 @@ looking like full coverage. Counting what each invariant actually
 compared is the practice worth keeping; an axis that never runs is
 indistinguishable from one that always passes.
 
+THE SAME GAP IS NOW CLOSED IN THE OTHER INSTRUMENT, which narrows
+this entry rather than answering it. `test_random_designs_keep_their_
+views_in_agreement` compared three same-session views and nothing
+across a boundary; since 2026-08-27 it also SAVES each random design
+and compares what the file HOLDS -- tile counts per element, and the
+class colours the file's own embedded style paints -- against the map
+on screen, asserting how many elements it actually compared, which is
+the practice this entry is about. What is still owed is the same
+invariant inside the STOCHASTIC hunt, which drives random action
+sequences rather than random designs.
+
 **Sampling the six unsampled assignment-lookup copies.** Deferred here
 from 0.24.2 deliberately: it is measurement rather than
 defect-finding, and the night of 2026-08-13 put mutation sampling at
