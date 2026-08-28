@@ -263,16 +263,15 @@ heroic, and the Generate button remains for deliberate large runs.
 
 ## Saving and sharing
 
-Drawing a map and saving one are two acts. The box beside *Save*
-records where a map would go and writes nothing on its own; pressing
-*Save* writes every element layer into a single file with its
-symbology embedded, one `.gpkg` that a colleague can drop into QGIS
-and see your elements as you styled them. The region outlines stay in
-the project, since they are drawn from your own layer, and until you
-press Save the map lives only with the project. *Load*, on the row
-beneath, opens a saved map back into the dialog so you can carry on
-with it, and Save asks first where the file holds work this map did
-not write.
+Drawing a map and saving one are two acts. Nothing is written until
+you press *Save*, which puts every element layer into a single file
+with its symbology embedded: one `.gpkg` that a colleague can drop
+into QGIS and see your elements as you styled them. The region
+outlines stay in the project, since they are drawn from your own
+layer, and until you press Save the map lives only with the project.
+Nothing is opened until you press *Load*, on the row beneath, which
+brings a saved map back into the dialog so you can carry on with it.
+Save asks first where the file holds work this map did not write.
 
 Regenerating replaces the previous group and keeps whatever styling
 you have refined by hand; an element's symbology is rebuilt only when

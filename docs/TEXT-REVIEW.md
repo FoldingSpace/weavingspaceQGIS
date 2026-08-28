@@ -18,21 +18,20 @@ The README, the project page and the user guide, one paragraph at a time. Edit i
 
 **`docs/USER-GUIDE.md:266`**
 
-<!-- id:ab6a00b9e746a2da -->
+<!-- id:9a988424ea9066c5 -->
 ````
-Drawing a map and saving one are two acts. The box beside *Save*
-records where a map would go and writes nothing on its own; pressing
-*Save* writes every element layer into a single file with its
-symbology embedded, one `.gpkg` that a colleague can drop into QGIS
-and see your elements as you styled them. The region outlines stay in
-the project, since they are drawn from your own layer, and until you
-press Save the map lives only with the project. *Load*, on the row
-beneath, opens a saved map back into the dialog so you can carry on
-with it, and Save asks first where the file holds work this map did
-not write.
+Drawing a map and saving one are two acts. Nothing is written until
+you press *Save*, which puts every element layer into a single file
+with its symbology embedded: one `.gpkg` that a colleague can drop
+into QGIS and see your elements as you styled them. The region
+outlines stay in the project, since they are drawn from your own
+layer, and until you press Save the map lives only with the project.
+Nothing is opened until you press *Load*, on the row beneath, which
+brings a saved map back into the dialog so you can carry on with it.
+Save asks first where the file holds work this map did not write.
 ````
 
-**`docs/USER-GUIDE.md:277`**
+**`docs/USER-GUIDE.md:276`**
 
 <!-- id:63c5f97052c09093 -->
 ````
@@ -48,8 +47,8 @@ own.
 
 **`weavingspace_qgis/dialog.py:2648`** — in `_build_ui`
 
-<!-- id:ff8b5adc7fda05df -->
-> Where Save will write the map. Choosing it writes nothing.
+<!-- id:39fa5c91e6be6607 -->
+> Where Save will write the map. Nothing is written until you press 'Save'.
 
 **`weavingspace_qgis/dialog.py:2652`** — in `_build_ui`
 
@@ -58,45 +57,45 @@ own.
 
 **`weavingspace_qgis/dialog.py:2677`** — in `_build_ui`
 
-<!-- id:8f8308b143fabe2c -->
-> Which saved map Load will open. Choosing it opens nothing.
+<!-- id:693609c53051bba8 -->
+> Which saved map Load will open. Nothing is loaded until you press 'Load'.
 
 **`weavingspace_qgis/dialog.py:2681`** — in `_build_ui`
 
 <!-- id:0ee3b73cb9eb417a -->
 > Carry on with the map in that file.
 
-**`weavingspace_qgis/dialog.py:15831`** — in `_load_pressed`
+**`weavingspace_qgis/dialog.py:15867`** — in `_load_pressed`
 
 <!-- id:cbd2469e5452dd31 -->
 > Choose a saved map in the box beside Load first.
 
-**`weavingspace_qgis/dialog.py:15893`** — in `_save_the_map`
+**`weavingspace_qgis/dialog.py:15929`** — in `_save_the_map`
 
 <!-- id:6aed089cfd06b1e2 -->
 > Choose a file in the box beside Save first.
 
-**`weavingspace_qgis/dialog.py:15912`** — in `_save_the_map`
+**`weavingspace_qgis/dialog.py:15948`** — in `_save_the_map`
 
 <!-- id:75f6af058152941e -->
 > The map is still drawing. Save it once it has landed.
 
-**`weavingspace_qgis/dialog.py:15916`** — in `_save_the_map`
+**`weavingspace_qgis/dialog.py:15952`** — in `_save_the_map`
 
 <!-- id:98c826b9ec4fa6d2 -->
 > There is no map to save yet. Press Generate first.
 
-**`weavingspace_qgis/dialog.py:15995`** — in `_save_the_map`
+**`weavingspace_qgis/dialog.py:16051`** — in `_save_the_map`
 
 <!-- id:0fb1c724e78bc3fa -->
 > Part of the map could not be written: {}
 
-**`weavingspace_qgis/dialog.py:16084`** — in `_may_overwrite`
+**`weavingspace_qgis/dialog.py:16170`** — in `_may_overwrite`
 
 <!-- id:b29dc6728f28f2ef -->
 > {} already exists and was not written by this map. Saving will replace the tables this map needs and leave the rest of the file alone. Save anyway?
 
 **`weavingspace_qgis/help_content.py:7`** — in `module level`
 
-<!-- id:3382ea527c27d225 -->
-> <h2>What this plugin makes</h2> <p>Mapping several attributes of the same areas at once is a long-standing challenge of thematic cartography, and it has partial answers already: multivariate choropleths (bivariate and trivariate colour schemes) blend two or three attributes into a single symbology, though their legends must be learned and their ceiling arrives quickly. This plugin takes a different route. It lays a small repeating pattern across your study area and colours each kind of shape in it (each <i>element</i>, labelled a, b, c&hellip;) by its own attribute, with its own ordinary symbology, so each variable stays individually legible while sharing the one map.</p> <h2>A way of working</h2> <p>Iteration is fast, and live update follows your changes. Begin with one polygon layer in the projected CRS you mean to publish in. Choose the number of variables you want to be able to display and choose a pattern. Rough in a design with the spacing kept coarse. Assign variables and colours, refine rotation and insets, and tighten the spacing last. A final spacing near the typical width of your polygons means the smallest polygons will miss some elements at any single spacing but may be a useful compromise.</p><p>The result is a group of ordinary QGIS layers: one per element, one more for any element whose column has blanks, and the region outlines if you asked for them. You can continue to edit here or return to the main part of QGIS to edit more.</p><h2>The switches</h2> <p><i>Join data using whole tileable</i> has every element in a unit take data from the same area, so units read as coherent local summaries; left off, each tile follows the area it overlaps most, which is more faithful tile by tile but lets a unit near a boundary mix its sources (for weaves we generally leave it off). <i>Clip by map units</i> gives a tidy outline at the cost of fragmented edge tiles and speed; the ragged default sits more comfortably with the pattern as a design. <i>Use tileable as icon</i> places one unit per polygon, a gentler multivariate symbol that pairs well with the outlines layer. <i>Warn about lack of legibility in colour choices</i> checks, after each map, whether any two elements use colours a reader may not tell apart, in ordinary vision and for the red-green deficiencies. It is off by default and changes nothing about the map; turn it on once the design is close to settled.</p> <h2>Regenerating and output</h2> <p>A first map appears of its own accord once a layer and variables are in place. Generate (and live update) then replace the previous result in place, and styling you have refined by hand is kept unless you change that element's assignment in the dialog. <i>Create as new group</i> keeps a previous attempt for comparison. A map lives in its own layer group, named for the dataset it came from, and the <i>QGIS Layer Group</i> chooser says where the next run will land; selecting a group restores the design that made it. A map saved to a GeoPackage can be opened on its own later and carries its design with it. Drawing a map and saving one are two acts: the box beside <i>Save</i> records where a map would go and writes nothing on its own, the button writes every element layer there with its symbology embedded, and <i>Load</i> opens a saved map back into the dialog. Saving asks first where the file holds work this map did not write. Layer identities change on regeneration, so re-pick layers in print layouts afterwards.</p> <h2>Further reading</h2> <p>The thinking behind the technique, with worked examples:<br> O'Sullivan, D., &amp; Bergmann, L. (2026). Using MapWeaver to make tiled and woven maps of multivariate thematic data. <i>Cartographic Perspectives, 108</i>, 41&ndash;52. <a href="https://doi.org/10.14714/CP108.2109">doi:10.14714/CP108.2109</a><br> O'Sullivan, D., &amp; Bergmann, L. Tilings and weaves for multivariate mapping. Manuscript under review.</p> <p>Library and examples: <a href="https://github.com/DOSull/weavingspace">github.com/DOSull/weavingspace</a>. If you would like to make maps like these outside QGIS, MapWeaver is a browser-based tool built on the same library: <a href="https://dosull.github.io/mapweaver/app/">dosull.github.io/mapweaver/app</a>. We welcome your examples, questions, and reports of anything that surprises you.</p>
+<!-- id:2d874fab182bac9e -->
+> <h2>What this plugin makes</h2> <p>Mapping several attributes of the same areas at once is a long-standing challenge of thematic cartography, and it has partial answers already: multivariate choropleths (bivariate and trivariate colour schemes) blend two or three attributes into a single symbology, though their legends must be learned and their ceiling arrives quickly. This plugin takes a different route. It lays a small repeating pattern across your study area and colours each kind of shape in it (each <i>element</i>, labelled a, b, c&hellip;) by its own attribute, with its own ordinary symbology, so each variable stays individually legible while sharing the one map.</p> <h2>A way of working</h2> <p>Iteration is fast, and live update follows your changes. Begin with one polygon layer in the projected CRS you mean to publish in. Choose the number of variables you want to be able to display and choose a pattern. Rough in a design with the spacing kept coarse. Assign variables and colours, refine rotation and insets, and tighten the spacing last. A final spacing near the typical width of your polygons means the smallest polygons will miss some elements at any single spacing but may be a useful compromise.</p><p>The result is a group of ordinary QGIS layers: one per element, one more for any element whose column has blanks, and the region outlines if you asked for them. You can continue to edit here or return to the main part of QGIS to edit more.</p><h2>The switches</h2> <p><i>Join data using whole tileable</i> has every element in a unit take data from the same area, so units read as coherent local summaries; left off, each tile follows the area it overlaps most, which is more faithful tile by tile but lets a unit near a boundary mix its sources (for weaves we generally leave it off). <i>Clip by map units</i> gives a tidy outline at the cost of fragmented edge tiles and speed; the ragged default sits more comfortably with the pattern as a design. <i>Use tileable as icon</i> places one unit per polygon, a gentler multivariate symbol that pairs well with the outlines layer. <i>Warn about lack of legibility in colour choices</i> checks, after each map, whether any two elements use colours a reader may not tell apart, in ordinary vision and for the red-green deficiencies. It is off by default and changes nothing about the map; turn it on once the design is close to settled.</p> <h2>Regenerating and output</h2> <p>A first map appears of its own accord once a layer and variables are in place. Generate (and live update) then replace the previous result in place, and styling you have refined by hand is kept unless you change that element's assignment in the dialog. <i>Create as new group</i> keeps a previous attempt for comparison. A map lives in its own layer group, named for the dataset it came from, and the <i>QGIS Layer Group</i> chooser says where the next run will land; selecting a group restores the design that made it. A map saved to a GeoPackage can be opened on its own later and carries its design with it. Drawing a map and saving one are two acts: nothing is written until you press <i>Save</i>, which writes every element layer with its symbology embedded, and nothing is opened until you press <i>Load</i>. Saving asks first where the file holds work this map did not write. Layer identities change on regeneration, so re-pick layers in print layouts afterwards.</p> <h2>Further reading</h2> <p>The thinking behind the technique, with worked examples:<br> O'Sullivan, D., &amp; Bergmann, L. (2026). Using MapWeaver to make tiled and woven maps of multivariate thematic data. <i>Cartographic Perspectives, 108</i>, 41&ndash;52. <a href="https://doi.org/10.14714/CP108.2109">doi:10.14714/CP108.2109</a><br> O'Sullivan, D., &amp; Bergmann, L. Tilings and weaves for multivariate mapping. Manuscript under review.</p> <p>Library and examples: <a href="https://github.com/DOSull/weavingspace">github.com/DOSull/weavingspace</a>. If you would like to make maps like these outside QGIS, MapWeaver is a browser-based tool built on the same library: <a href="https://dosull.github.io/mapweaver/app/">dosull.github.io/mapweaver/app</a>. We welcome your examples, questions, and reports of anything that surprises you.</p>

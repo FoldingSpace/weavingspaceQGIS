@@ -441,8 +441,13 @@ MUTATIONS = [
        # writes what the layer wears AT THAT MOMENT, so a file told a
        # different opacity from the map is still a map a colleague
        # receives wrong.
-       old="""        bridge.embed_style(layer)""",
-       new="""        layer.setOpacity(1.0)  # mutation: tell the FILE otherwise
+       # ANCHORED WITH THE COMMENT ABOVE IT since 2026-08-27: the
+       # in-place skip added a second `embed_style` call, so the bare
+       # line matches twice.
+       old="""        # would carry a style nothing in it wears
+        bridge.embed_style(layer)""",
+       new="""        # would carry a style nothing in it wears
+        layer.setOpacity(1.0)  # mutation: tell the FILE otherwise
         bridge.embed_style(layer)""",
        test="test_a_geopackage_carries_the_no_data_opacity_it_was_given",
        why="embed_style writes what the layer wears at that moment, "
@@ -544,8 +549,15 @@ MUTATIONS = [
        # claim, in the same words: the FILE decides whether this is
        # somebody else's map, not what this session happens to
        # remember writing.
-       old="""    record = bridge.read_working_state(path)""",
-       new="""    record = None  # mutation: ask only this session's memory""",
+       # ANCHORED WITH THE LINE ABOVE IT: the same call is made by
+       # the resume, so the bare line matches twice and the tool
+       # rightly refuses it.
+       old="""    if self._gpkg_key(path) in self._gpkg_tables_written:
+      return True
+    record = bridge.read_working_state(path)""",
+       new="""    if self._gpkg_key(path) in self._gpkg_tables_written:
+      return True
+    record = None  # mutation: ask only this session's memory""",
        # ONE LITERAL, however long: the standards check reads an
        # entry's test name from its FIRST string, so a name split
        # across two lines is read as a test that does not exist.
@@ -2958,8 +2970,11 @@ MUTATIONS = [
        # RE-AIMED 2026-08-27 at the save's embed, the one that is
        # left. The promise is unchanged: a GeoPackage carries its own
        # cartography, so the map opens elsewhere looking like itself.
-       old='        bridge.embed_style(layer)',
-       new='        pass  # mutation: styles not written into the file',
+       # ANCHORED WITH THE COMMENT ABOVE IT, as its neighbour is: the
+       # in-place skip embeds a style too, so the bare call matches
+       # twice.
+       old='        # would carry a style nothing in it wears\n        bridge.embed_style(layer)',
+       new='        # would carry a style nothing in it wears\n        pass  # mutation: styles not written into the file',
        test='test_integration_gpkg_style_round_trip',
        why='a GeoPackage carrying its own cartography'),
   # --- second wave, aimed at the integration and UI-vs-library
@@ -6266,8 +6281,12 @@ MUTATIONS = [
   dict(name="the-stale-table-drop-follows-the-new-names", file=DIALOG,
        # RE-AIMED 2026-08-27 at the save, which is what now knows
        # which names it has just written.
-       old="""        written_names.add(table)""",
-       new="""        pass  # mutation: nothing counts as written, so all is stale""",
+       # ANCHORED WITH THE LINE ABOVE IT: the in-place skip counts a
+       # table as written too, so the bare line matches twice.
+       old="""        fresh = False
+        written_names.add(table)""",
+       new="""        fresh = False
+        pass  # mutation: nothing counts as written, so all is stale""",
        test="test_an_element_table_carries_only_what_it_displays",
        why="rebuilding the names from element ids alone says tiles_a "
            "where the run wrote tiles_a_v1, so every table of the NEW "
