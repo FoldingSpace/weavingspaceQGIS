@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-390 defect(s) with a regression test.
+391 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -59,6 +59,8 @@ there is no separate list to remember.
   guarded by `test_a_class_no_tile_wears_is_said_out_loud`
 - **the classes whose breaks are computed showed an empty cell in the Pin column, which reads as a control waiting to be set rather than as a place a pin cannot go.**  
   guarded by `test_a_class_that_cannot_be_pinned_says_so_in_its_cell`
+- **a category recoloured in QGIS and then set back to the colour it had left the discarded colour in the plugin's record, silently, and the next control change plus a Generate painted it over the map. Found by the dock-edit hunt of 2026-08-28, which read it three ways including the layer's own stamp.**  
+  guarded by `test_a_colour_put_back_in_qgis_is_the_colour_that_is_kept`
 - **under a copied ladder the class-count notice reported the column's distinct values rather than the classes the map drew, telling a user their map had fewer classes than it did.**  
   guarded by `test_a_copied_ladder_is_not_reported_as_a_reduction`
 - **copying a classification onto an element whose column holds a single value left every class but the first on the placeholder grey, so the element drew as flat no-data colour while its ramp cell named a ramp.**  
@@ -832,7 +834,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 122
-- a bug hunt pointed in a named direction: 94
+- a bug hunt pointed in a named direction: 95
 - not written down at the time: 88
 - reported by a user: 29
 - reading the code: 15

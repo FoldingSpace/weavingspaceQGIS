@@ -9063,6 +9063,19 @@ class WeavingSpaceDialog(QDialog):
     if not adopted:
       return
     self._custom_swatch_cache.pop(tile_id, None)
+    # AND THE RECORD OF WHAT WE PAINTED FOLLOWS THE ADOPTION, which
+    # until 2026-08-28 it did not. `_painted_categories` is what this
+    # walk asks whose colour a category wears, and no exit of this
+    # handler refreshed it -- so it went on naming the colours the
+    # plugin painted BEFORE the adoption. Recolour two categories in
+    # the dock, change your mind about one and put it back to the
+    # colour it had, and the plugin kept the discarded colour, said
+    # nothing, and the next control change plus a Generate painted it
+    # back over the map. The graduated twin calls
+    # `_remember_painted_ladder` at all three of its exits; this one
+    # called it at none, and the tell was that the twin has the same
+    # memory and refreshes it.
+    self._remember_painted_ladder(layer, tile_id)
     # the layer already wears these colours; recording the new
     # signature stops the restyle path re-seeding it, which would
     # discard any OTHER refinement the dock applied alongside them

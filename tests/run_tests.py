@@ -26716,6 +26716,83 @@ def test_a_class_source_comes_home_to_the_dataset_it_was_chosen_on():
     project.clear()
 
 
+def test_a_colour_put_back_in_qgis_is_the_colour_that_is_kept():
+  """Changing your mind in the styling dock must leave your last word.
+
+  The plugin attributes a dock colour against `_painted_categories` --
+  did we paint this -- which is the question the state can answer at
+  any moment, and the reason the older delta walk was retired. But a
+  record only answers honestly while it describes what the plugin
+  most recently painted, and no exit of `_on_layer_style_edited`
+  refreshed it, where its graduated twin refreshes at all three of
+  its own.
+
+  SO THE ACT THAT BREAKS IT IS CHANGING YOUR MIND: recolour a
+  category, then put it back to the colour it had. The second edit
+  matches what the record still says the plugin painted, so it is
+  declined as ours -- and the FIRST edit's colour, which the user has
+  just abandoned, stays in the record and is painted back over the map
+  at the next re-seed.
+
+  TWO EDITS ARE NEEDED, not one: a single dock edit leaves by the
+  ramp-follow door and never reaches the walk this is about.
+
+  Regression: a category recoloured in QGIS and then set back to the colour it had left the discarded colour in the plugin's record, silently, and the next control change plus a Generate painted it over the map. Found by the dock-edit hunt of 2026-08-28, which read it three ways including the layer's own stamp. [hunt]
+  """
+  from qgis.core import QgsCategorizedSymbolRenderer
+  from qgis.PyQt.QtGui import QColor
+  project = QgsProject.instance()
+  dlg, layer, tid = _categorical_dialog()
+  try:
+    dlg.live_check.setChecked(False)
+    _generate_and_wait(dlg)
+    element = project.mapLayer(dlg._element_layer_ids[tid])
+    assert element is not None, "PREMISE: the element drew no layer"
+    renderer = element.renderer()
+    assert isinstance(renderer, QgsCategorizedSymbolRenderer), \
+      "PREMISE: this element is not categorized, so there is no category"
+
+    def first_colour(of_layer):
+      # BOUND TO A NAME BEFORE SUBSCRIPTING: `categories()` hands back
+      # a temporary whose contents are freed, and reading through it
+      # answers a plausible wrong colour rather than raising.
+      held = of_layer.renderer().categories()
+      return held[0].symbol().color().name()
+
+    original = first_colour(element)
+
+    def recolour(to):
+      clone = element.renderer().clone()
+      held = clone.categories()
+      symbol = held[0].symbol().clone()
+      symbol.setColor(QColor(to))
+      clone.updateCategorySymbol(0, symbol)
+      element.setRenderer(clone)
+      element.styleChanged.emit()
+      element.triggerRepaint()
+      _settle(dlg, seconds=20)
+      _tick(1500)
+
+    recolour("#204060")                 # a colour nobody would seed
+    assert first_colour(element) == "#204060", \
+      "PREMISE: the first dock edit did not reach the layer"
+    recolour(original)                  # ...and changing your mind
+
+    # A NUDGE AND A GENERATE, which is what re-seeds and therefore what
+    # would paint a stale record back over the map.
+    dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.15)
+    _tick(300)
+    _generate_and_wait(dlg)
+    _tick(300)
+    after = project.mapLayer(dlg._element_layer_ids[tid])
+    drawn = first_colour(after)
+    assert drawn == original, (
+      f"the map draws {drawn!r} where the last colour set in QGIS was "
+      f"{original!r}: the abandoned one was kept and painted back")
+  finally:
+    dlg.close()
+
+
 def test_a_bound_box_keeps_its_number_when_qt_reads_the_display_back():
   """Pressing Return in a bound box must not round the number in it.
 
@@ -69464,6 +69541,8 @@ def main():
         test_a_recipients_save_keeps_the_source_the_sender_included)
   check("a bound box keeps its number when Qt reads the display back",
         test_a_bound_box_keeps_its_number_when_qt_reads_the_display_back)
+  check("a colour put back in QGIS is the colour that is kept",
+        test_a_colour_put_back_in_qgis_is_the_colour_that_is_kept)
   check("a dropped column's ramp goes even when the style was derived",
         test_a_dropped_columns_ramp_goes_even_when_the_style_was_derived)
   check("the shelf does not survive the project that made it",
