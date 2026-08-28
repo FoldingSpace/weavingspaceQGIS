@@ -27,6 +27,23 @@ EMPTY project, which is the rule that makes a failure name the test
 that is actually broken -- so a slice is a legitimate subset rather
 than a different suite. It took the suite from 32 minutes to 11.
 
+**AND A SHARD CAN DIE AT STARTUP, WHICH LOOKS LIKE NOTHING AT ALL.**
+(2026-08-28.) Recording per-test coverage three ways, shard 0 was gone
+before it ran a single test: `main()` cleared its scenario record with
+`if os.path.exists(x): os.remove(x)`, all three recorders saw the
+file, two removed it, and the third met FileNotFoundError. The other
+two ran on perfectly, the progress total climbed, and the record would
+have been missing a third of the suite -- which overstates survivors,
+since a test absent from the record is never offered the chance to
+notice a mutant. Both sites suppress the error now, and a family test
+scans `tests/` and `tools/` for the shape.
+SO READ SHARDS SEPARATELY, NEVER ONLY THEIR SUM. The fault was visible
+as an asymmetry -- nineteen, thirty, and nothing -- and invisible in
+the total. `tools/merge_coverage_shards.py` is the backstop rather
+than the detector: it counts the files against the total each one
+names and refuses a partial set, which is why this cost an hour of
+machine time rather than a wrong measurement.
+
 Three things make it trustworthy rather than merely fast. Each shard
 prints how many tests it was OFFERED, and those totals must agree:
 the first sharded run read 285, 285 and 286, which is not a

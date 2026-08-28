@@ -32,6 +32,21 @@ the author has: narrow it with surrounding context to the site the
 `why` describes, or -- if the sites really are interchangeable --
 delete the redundant call site rather than write a test defending it.
 
+AND THE RUN-TIME REFUSAL WAS NOT ENOUGH, because it only reaches
+whoever sweeps the whole catalogue, which happens before a substantial
+release. `check_standards` asked at every push whether an anchor was
+PRESENT and said nothing about one that matched twice, so on
+2026-08-27 NINE entries sat reporting nothing at all while every gate
+was green, and the sweep that found them was the first in weeks. It
+counts matches now. Two of those nine were ambiguous by INDENTATION
+alone -- a match is a substring, and eight spaces sit inside ten -- so
+the question is the count rather than any notion of duplicated lines.
+ONE CAVEAT, learned when the new check reported an entry the sweep had
+just judged `caught`: a few entries are COMPUTED at run time and carry
+a literal only to keep the dict's shape. Mutating text to itself
+changes nothing, so `old == new` marks a placeholder and is skipped.
+Exactly one entry in the catalogue is in that state.
+
 **An entry naming a test that cannot reach it.** One entry named the
 test that asserts the table's SHAPE while describing a decision that
 test never drives; it could not have failed. Before adding an entry,

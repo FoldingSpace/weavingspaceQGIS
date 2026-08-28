@@ -3,7 +3,7 @@ name: long-job-supervision
 description: Supervise work that outlasts a single turn — test suites, builds, training runs, migrations, batch jobs — so the machine stays busy, finished work gets picked up immediately, and a stuck job is caught in minutes rather than hours. Use this whenever you start something long in the background, whenever a user asks for periodic status updates or says "keep going without me", whenever you are about to write a watcher or poll loop, and whenever a job seems to be taking longer than it should. Also use it before reporting that something is "still running" — that claim is worth exactly as much as the reading behind it.
 derived_from:
   - path: docs/MUTATION-LOOP.md
-    sha256: 270e2400fe84b3e21abadab8d891a6cb8bb9dc6e3310741d207e9a41cfb608ba
+    sha256: ff6462a4e74aa0a1b160cbd291aa8ac90a7f423c2e212f048302f15a7617212f
 ---
 
 # Supervising work that outlasts a turn
@@ -504,3 +504,52 @@ The same `os._exit` also silently defeats anything that writes at
 interpreter shutdown — coverage recorders, profilers, `atexit`
 handlers. If a tool that should have written a file wrote nothing,
 ask how the process ended before asking what the tool did wrong.
+
+## Read shards separately; a total hides a shard that died
+
+Sharding turns one job into several, and the progress figure people
+watch is their SUM — which is exactly where a dead shard disappears.
+
+Measured 2026-08-28. A per-test coverage recorder was run three ways.
+One shard died before running a single unit, on a race in the
+harness's own startup: it cleared a file with `if exists: remove`,
+three processes started within a second of each other, two removed it
+and the third met FileNotFoundError. The other two ran on happily. The
+combined count rose steadily and looked healthy the whole time, and
+the record being produced was missing a third of the work — the kind
+of incompleteness that overstates a result rather than failing.
+
+The fault was plainly visible the moment the shards were read one by
+one: nineteen, thirty, and nothing.
+
+**So a heartbeat over sharded work reports PER SHARD, not just the
+total**, and the first pass after launch is worth reading closely: a
+shard that dies at startup has produced nothing, which is
+indistinguishable from a shard that has not finished its first unit
+yet — for about a minute, and never again.
+
+And where a merge step exists, know whether it is your detector or
+your backstop. A merge that counts the shard files against the total
+each one names will refuse a partial set, which is the right
+behaviour, but it refuses at the END: that turns a wrong measurement
+into an hour of wasted machine time, which is a good trade and not the
+same as noticing.
+
+## A guard that substitutes "nothing" for a failed call erases memory
+
+A watcher must report change, not state, and the usual implementation
+compares this pass's findings against the last. That comparison has a
+precondition nobody writes down: **the record of what you have already
+said has to survive a failed reading.**
+
+The ordinary guard breaks it. Wrapping a remote call as
+`result=$(remote_call || echo "[]")` keeps a transient failure from
+killing the loop, which is right — and it makes this pass's findings
+EMPTY, so the next successful pass finds everything new and
+re-announces verdicts it already reported. Measured 2026-08-28: a CI
+watcher reported the same green job twice, on one flaked poll.
+
+On an error, keep the previous state and skip the pass. Distinguish
+"the call failed" from "the call succeeded and found nothing", because
+those mean opposite things and the shell's `||` conflates them
+exactly.

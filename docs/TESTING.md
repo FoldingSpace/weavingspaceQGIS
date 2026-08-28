@@ -3226,3 +3226,40 @@ keep the WHOLE output rather than filtering to the lines you expect,
 and say out loud when a phase produced nothing. A filter that matches
 nothing is indistinguishable from a run that said nothing, and here it
 hid a traceback for two rounds.
+
+## GUARD THE SHAPE, AND READ THE FILE WHOLE
+
+2026-08-28. A sharded coverage recorder lost a whole shard at startup
+to `if os.path.exists(x): os.remove(x)` -- three processes, all seeing
+the file, two removing it, the third dying with FileNotFoundError
+before running a single test. The one-site repair was obvious. The
+GUARD was the interesting decision, and it found a second instance
+within a minute.
+
+**A RACE HAS A SHAPE, AND THE SHAPE IS WHAT RECURS.** A regression
+test pinned to the reported line would pass forever while the next
+person writes the same two lines somewhere else -- and they will,
+because asking whether a file exists before removing it reads as
+carefulness. The test therefore scans `tests/` and `tools/` for the
+pattern and names every site. It went red immediately on
+`tools/make_test_fixtures.py`, a script likelier to be run once and by
+hand, which is exactly the site a targeted repair leaves standing and
+exactly the site nobody would think to check.
+
+**AND IT HAD TO READ EACH FILE WHOLE.** The pattern spans two lines,
+so no per-line grep can see it -- which is how it survived every audit
+this project has run over these same files. When a test looks for a
+shape rather than a token, ask whether the shape fits on one line
+before reaching for a line-oriented search.
+
+**COUNT WHAT YOU SCANNED.** The test asserts it examined more than a
+handful of files, because a walk that finds nothing and a walk that
+looked at nothing are the same green -- this file's oldest and
+cheapest rule, arriving in a lint-shaped test rather than a loop over
+widgets.
+
+**AND THE RED CAME FOR FREE.** A guard written for a defect that is
+already fixed has to be watched failing, usually by breaking the fix
+again. This one never needed that: the second site was still broken
+when the test was first run, so its first execution WAS the red proof,
+and the fix that followed turned it green.

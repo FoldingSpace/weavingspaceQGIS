@@ -46,9 +46,19 @@ patience is recorded as caught, so pushing the worker count until the
 machine groans can quietly flatter the score. Watch the stall and
 timeout counts, and back off when they rise.
 
-Rough timings: coverage record about ten minutes, a batch of thirty
-about fifteen minutes at three workers, triage and test-writing
-longer than both. Budget an hour per cycle and expect several.
+Rough timings: a batch of thirty about fifteen minutes at three
+workers, triage and test-writing longer than both. Budget an hour per
+cycle and expect several.
+
+THE COVERAGE RECORD IS NOT "ABOUT TEN MINUTES", which is what stood
+here and was true of a suite half this size. Measured 2026-08-28 at
+658 tests, three shards on this machine: about an hour, since every
+test runs under `sys.monitoring` at roughly six times its plain cost.
+It scales with the suite, so re-measure rather than quoting this. Two
+things that do not change: it must be re-recorded whenever the suite
+changes, and EDITING A TEST WHILE IT RUNS invalidates the record being
+written, so all suite edits belong before it starts rather than
+during.
 
 ## Supervision
 
@@ -422,8 +432,20 @@ silently. Fix the test, not the score.
 
 **A redundant call site.** Deleting one of several identical calls
 leaves the others to do the work, so no test can discriminate and none
-should be contorted into trying. Count the call sites BEFORE believing
-a survivor is a gap: `_update_layer_exclusions()` has two and
+should be contorted into trying.
+THE EXPERIMENT THAT TELLS THIS FROM A WEAK TEST is to break EVERY
+route at once, in a sandbox, and run the entry's own test: fail means
+the axis is live and REDUNDANTLY HELD, so the entry retires and the
+redundancy is written at the test rather than left as an entry that
+can only ever be red; pass means nothing was redundant, and the entry
+is aimed at a case nothing reaches or the assertion is weak.
+`mutation_check` cannot answer it, deliberately -- it applies the
+mutation ONCE, because an entry names one site and mutating several
+would make its verdict mean nothing. So the triage wants its own
+throwaway-copy runner that replaces every occurrence, and the sandbox
+is not optional: an interrupted run must not be able to leave a
+deliberately broken line behind.
+Count the call sites BEFORE believing a survivor is a gap: `_update_layer_exclusions()` has two and
 `_refresh_preview_colours()` had six when this was written and has
 fifteen now, which is the point rather than an aside: a number about
 the code is true until somebody adds one, and a census on 2026-08-12

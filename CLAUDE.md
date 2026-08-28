@@ -1537,6 +1537,38 @@ renderer, found by a hunt hours after the carry-over was written.)
   import encodings` having applied no edit at all. Both were done in
   one proof script on 2026-08-27, which is why they are written
   together.
+- **`exists` THEN `remove` IS A RACE, AND EVERYTHING HERE SHARDS.**
+  (2026-08-28.) `tests/run_tests.py`'s `main()` cleared its scenario
+  record by asking whether the file was there and then removing it.
+  Three coverage recorders start within a second of each other; all
+  three saw it, two removed it, and the third died with
+  FileNotFoundError BEFORE RUNNING A SINGLE TEST. Nothing announced
+  that: the survivors ran on, the progress count rose, and the record
+  would have been missing a third of the suite -- which overstates
+  survivors, because a test missing from the record is never offered
+  the chance to notice a mutant. Asking the question cannot fix it;
+  only not caring can (`contextlib.suppress(FileNotFoundError)`).
+  IT WAS FOUND BY AN ASYMMETRY: one shard had recorded nothing while
+  its siblings were at nineteen and thirty. So when work is sharded,
+  read the shards SEPARATELY -- a total climbing healthily is the sum
+  of two shards doing fine and one that died at startup.
+  AND GUARD THE SHAPE RATHER THAN THE SITE. The family test scans
+  `tests/` and `tools/` for the pattern, reading each file WHOLE
+  because it spans two lines and no per-line grep can see it, and it
+  immediately found a second instance in
+  `tools/make_test_fixtures.py` -- a site likelier to be run once, and
+  therefore exactly the one a repair at the reported site leaves
+  standing.
+- **A WATCHER THAT SUBSTITUTES "NOTHING" FOR A FAILED CALL REPORTS
+  ITSELF TWICE.** (Same day, the seventeenth watcher fault.) A CI
+  poller deduplicated by comparing this pass's verdicts against the
+  last, and guarded `gh` with `|| echo "[]"` so a transient failure
+  could not kill the loop. That guard empties the comparison set, so
+  the next successful poll finds everything new and re-announces a
+  verdict already reported. The rule this project already carries --
+  report change, not state -- has a precondition nobody wrote down:
+  the record of what you have already said must survive a failed
+  reading. On an error, keep the previous state and skip the pass.
 - A watcher that REPEATS itself misleads as badly as one that goes
   silent: a monitor grepping a whole log each pass re-reported the
   same historical failure every 45 seconds as though it were news,
