@@ -431,9 +431,11 @@ MUTATIONS = [
            "orphans the real layer, leaving yesterday's map on top "
            "of the new one for good"),
   dict(name="a-kept-result-keeps-both-its-halves", file=DIALOG,
-       old="""    self._element_layer_ids = {}
+       old="""    self._group_name = name
+    self._element_layer_ids = {}
     self._no_data_layer_ids = {}""",
-       new="""    self._element_layer_ids = {}""",
+       new="""    self._group_name = name
+    self._element_layer_ids = {}""",
        test="test_keeping_a_result_keeps_both_halves_of_every_element",
        why="three places clear per-element state and no two cleared "
            "the same set; without this the record goes on naming the "
@@ -1930,8 +1932,10 @@ MUTATIONS = [
            "nothing locally to show for it, so the fast path would "
            "repaint tiles built from data that is gone"),
   dict(name="lost-column-redefaults", file=DIALOG,
-       old="""      moved.append((was, now))""",
-       new="""      moved.append((was, now))
+       old="""            self._reverse_choices[tid_here] = False
+      moved.append((was, now))""",
+       new="""            self._reverse_choices[tid_here] = False
+      moved.append((was, now))
       combo.setCurrentText("---")  # mutation: unassign instead""",
        test="test_the_user_changes_the_data_underneath",
        why="losing a column must cost an element its variable, not its "
@@ -2750,8 +2754,10 @@ MUTATIONS = [
   # _on_mode_chosen, which sets the mark on its first line, so the
   # behaviour lives one call deeper and the anchor follows it there.
   dict(name="chooser-race", file=DIALOG,
-       old='    mode_combo.setProperty("touched", True)',
-       new="    pass  # mutation: a hand-picked style is never remembered",
+       old="""    mode_combo.setProperty("touched", True)
+    # TAKING AN ELEMENT BACK FROM QGIS, recorded here because this is""",
+       new="""    pass  # mutation: a hand-picked style is never remembered
+    # TAKING AN ELEMENT BACK FROM QGIS, recorded here because this is""",
        test="test_style_follow_and_memory",
        why="the hook that remembers a hand-picked style (now the first "
            "line of _on_mode_chosen); without it every style goes on "
@@ -2763,8 +2769,10 @@ MUTATIONS = [
        test="test_choice_persistence_and_recovery",
        why="per-element colourmap source surviving a rebuild"),
   dict(name="selective-reseed", file=DIALOG,
-       old="        out.setRenderer(old_renderers[tid])",
-       new="        pass  # mutation: always re-seed, discarding hand work",
+       old="""      if kept_by_hand:
+        out.setRenderer(old_renderers[tid])""",
+       new="""      if kept_by_hand:
+        pass  # mutation: always re-seed, discarding hand work""",
        test="test_output_management",
        why="hand styling kept when an element's assignment is unchanged"),
   # `live-gpkg-gate` STOOD HERE AND WAS TURNED AROUND ON 2026-08-27.
@@ -2870,8 +2878,10 @@ MUTATIONS = [
            "absence, so this entry restores the behaviour and "
            "requires the test to notice"),
   dict(name="group-adoption", file=DIALOG,
-       old="    self._adopt_existing_group()",
-       new="    pass  # mutation: adoption disabled",
+       old="""    self._ramp_names = bridge.ramp_names()
+    self._adopt_existing_group()""",
+       new="""    self._ramp_names = bridge.ramp_names()
+    pass  # mutation: adoption disabled""",
        test="test_integration_second_dialog_session",
        why="a reopened dialog adopting the existing output group"),
   dict(name="output-tagging", file=DIALOG,
@@ -2895,8 +2905,10 @@ MUTATIONS = [
   # names a perfunctory test, and the fix is a sharper assertion
   # in that test, never a smaller catalogue here.
   dict(name='opacity-applied', file=DIALOG,
-       old='        out.setOpacity(max(0, min(100, a.get("opacity", 100))) / 100.0)',
-       new='        pass  # mutation: opacity never reaches the layer',
+       old="""        # whole appearance this run, opacity included
+        out.setOpacity(max(0, min(100, a.get("opacity", 100))) / 100.0)""",
+       new="""        # whole appearance this run, opacity included
+        pass  # mutation: opacity never reaches the layer""",
        test='test_element_opacity',
        why='the Opacity cell actually reaching the map'),
   dict(name='opacity-authority', file=DIALOG,
@@ -2905,8 +2917,12 @@ MUTATIONS = [
        test='test_element_opacity',
        why='an opacity set by hand in QGIS surviving regeneration'),
   dict(name='restyle-fast-path', file=DIALOG,
-       old='    if self.opt_new_group.isChecked():',
-       new='    if True:  # mutation: never restyle, always re-tile',
+       old="""    if self._last_geometry_sig is None or self._task is not None:
+      return False
+    if self.opt_new_group.isChecked():""",
+       new="""    if self._last_geometry_sig is None or self._task is not None:
+      return False
+    if True:  # mutation: never restyle, always re-tile""",
        test='test_restyle_without_retiling',
        why='style changes repainting instead of re-tiling'),
   dict(name='reverse-ramp', file=BRIDGE,
@@ -4931,9 +4947,11 @@ MUTATIONS = [
            "and the abandoned group redraws the new data under the "
            "old class breaks"),
   dict(name="adoption-knows-a-renamed-group", file=DIALOG,
-       old="    for node in root.children():",
-       new="    for node in [n for n in root.children()\n"
-           "                 if n.name().startswith(GROUP_BASE_NAME)]:",
+       old="""    found = []
+    for node in root.children():""",
+       new="""    found = []
+    for node in [n for n in root.children()
+                 if n.name().startswith(GROUP_BASE_NAME)]:""",
        test="test_a_renamed_group_is_adopted_when_the_plugin_reopens",
        why="reading the group's NAME rather than its layers' custom "
            "property makes a renamed group invisible to a reopened "
@@ -6207,9 +6225,13 @@ MUTATIONS = [
            "map they were last working in"),
   dict(name="choosing-a-group-selects-its-dataset", file=DIALOG,
        old="""          if same and layer is not self.layer_combo.currentLayer():
-            self.layer_combo.setLayer(layer)""",
+            self.layer_combo.setLayer(layer)
+            break
+      self._take_over_group(group)""",
        new="""          if False:  # mutation: the group does not move the dataset
-            self.layer_combo.setLayer(layer)""",
+            self.layer_combo.setLayer(layer)
+            break
+      self._take_over_group(group)""",
        test="test_the_output_group_chooser_binds_to_the_dataset",
        why="the binding is SYMMETRIC (ruling 2), and this is the half "
            "that is easy to leave out. Without it a group can be "
@@ -6358,14 +6380,25 @@ MUTATIONS = [
            "trimming safe -- a resumed map that cannot reach its data "
            "can be looked at and never redrawn"),
   dict(name="an-embedded-source-is-an-opt-in", file=DIALOG,
-       old="""    if box is None or not box.isChecked() or not path:
-      return False""",
-       new="""    if box is None or not path:  # mutation: always embed
-      return False""",
-       test="test_a_saved_map_can_be_opened_and_carried_on",
+       old="""    if box is not None and box.isChecked():""",
+       new="""    if box is not None:  # mutation: always embed, never drop""",
+       test="test_unticking_the_source_takes_it_out_of_the_file",
        why="embedding by default puts somebody's data inside every map "
            "of it, which is ruling 8's concern arriving at a different "
-           "boundary, and makes every file as large as its source"),
+           "boundary, and makes every file as large as its source. "
+           "RE-AIMED AND RE-ANCHORED 2026-08-27, and the two moves are "
+           "different findings. It named the RESUME test, which caught "
+           "this at v0.24.3 and stopped when the Save conversion added "
+           "`opt_embed_source.setChecked(True)` to that fixture -- a "
+           "mutation that embeds ALWAYS is invisible to a test that "
+           "ticks the box. Re-aiming at the untick test was still not "
+           "enough, because ruling 2 gave the fact a SECOND WRITER: "
+           "`_embed_or_drop_the_source` asks the box itself and drops "
+           "the table on the other arm, so the callee's own guard is "
+           "never reached on the journey that matters and mutating it "
+           "changes nothing. The anchor is the CALLER's line now, "
+           "where the decision lives, and where breaking it embeds "
+           "instead of dropping"),
   dict(name="our-own-key-is-not-somebodys-variable", file=DIALOG,
        old="""    return [f.name() for f in layer.fields()
             if f.name() != bridge.GPKG_FID_COLUMN]""",
