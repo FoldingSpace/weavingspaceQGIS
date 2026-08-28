@@ -53185,6 +53185,16 @@ def test_a_generate_pressed_during_a_run_is_not_swallowed():
   BOTH ARMS ARE DRIVEN. Live update ON was correct throughout, so a
   repair that mended the off arm while breaking the on arm would look
   identical from the off arm alone.
+
+  ONE AXIS HERE IS UNPROVEN AND SAYS SO. The catalogue entry restores
+  the defect by queueing a press on the live flag, and under that
+  mutation the map-holds assertion fires FIRST, so the stray-layers
+  assertion is never the one that fails. It is not a second guard, it
+  is the same guard's second sentence: both have one cause, and no
+  one-line mutation reaches the strays while leaving the map right. It
+  is kept because it names the harm a reader needs (a layer tagged for
+  an element the design no longer has is what a later dialog adopts
+  the group by), and recorded as masked rather than counted as proved.
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   trouble = []
