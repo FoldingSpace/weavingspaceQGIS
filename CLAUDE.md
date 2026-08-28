@@ -2047,10 +2047,35 @@ Confirmed with the user via an explicit design review:
   entry itself: the restyle half of ruling 5 is unproved, its entry
   retired with the measurement rather than left able only to be red.
   Rulings 1 and 2 -- saving as a positive act, and the untick that
-  drops the source -- are BUILT ONLY AS PRODUCT CODE on
-  `for-0.24.4/saving-is-an-act`, which has never been run and must
-  not merge until its suite is converted. Nothing on the merged line
-  behaves that way yet.
+  drops the source -- are on `for-0.24.4/saving-is-an-act`, product
+  code AND suite: the catalogue's twenty-one orphans are re-aimed or
+  retired, the tests that pressed Generate expecting a file now press
+  Save, and the three that were owed exist along with a matrix over
+  the routes to a press. What that branch still owes is a full RUN.
+  Nothing on the merged line behaves that way yet.
+  TWO DECISIONS WERE TAKEN WHILE BUILDING IT, both small, both the
+  kind that should be visible rather than discovered later.
+  A SAVE PRESSED WHILE A RUN IS IN FLIGHT IS REFUSED IN WORDS. What
+  is on screen mid-run is the PREVIOUS map, so writing it answers a
+  different question from the one the press asked -- silently, over
+  the file the person has just named. The run lands in seconds and
+  the press costs nothing to repeat. It is the same door the group
+  chooser and the resume already guard with `self._task is not None`,
+  which is this file's own rule that a guard added to one door
+  belongs at every door into the same room.
+  AND `_may_overwrite` ASKS ABOUT THE DATASET, NOT THE GROUP, which
+  leaves one case silent: a SECOND map of the SAME dataset, saved
+  onto the first map's file, replaces it without a question. Three
+  things decide that -- the file's record carries `region` and
+  `output_path` and no group identity at all, so the question is not
+  available to ask; the ruling's own boundary is "a file the plugin
+  did not write", and that is a file the plugin wrote from that data;
+  and the chooser is a save-mode dialogue, so the platform has
+  already asked about replacing an existing file. The method's own
+  docstring claimed the group until this was noticed, which is this
+  file's "a gate that checks half of what it names" met again, from
+  the documentation side. If the group should be the unit, the record
+  needs a group identity first.
   1. SAVING IS A POSITIVE ACT. A path chooser records what you WOULD
      save to or load from and does nothing on its own. A SAVE button
      beside the output path writes the map as it stands -- tables,

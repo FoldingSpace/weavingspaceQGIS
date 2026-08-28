@@ -231,22 +231,52 @@ measurement at the site, and so is the Generate-time modal that
 refused a run whose path would overwrite a kept result -- a run
 overwrites nothing now.
 
-OWED, and measured rather than guessed. TWENTY-ONE catalogue entries
-are orphaned by the move and must be re-aimed at Save or retired with
-a reason at the entry; `python3 tools/check_standards.py` names every
-one. FIFTY-SIX registered tests set an output path and then Generate,
-expecting the file to be written; each needs the Save press a person
-now makes, and the handful that are ABOUT the writing -- the dock
-edit reaching the file, the file's record following a restyle, the
-mid-write restyle race -- need re-deciding rather than mechanically
-patching, because what they assert has changed rather than moved.
-THREE TESTS ARE OWED THAT DO NOT EXIST: a Generate leaves the file
-BYTE UNCHANGED, Save writes it, and the overwrite prompt fires on
-somebody else's file and not on our own.
-NOTHING HERE HAS BEEN RUN. The branch was written while the full
-suite was measuring another tree, so every sentence above describes
-code that compiles and has been read, not code that has been
-exercised.) A path chooser records what
+THE SUITE IS CONVERTED, and what each part of it cost is worth
+keeping, because the shape recurs whenever an act is split in two.
+THE CATALOGUE: all twenty-one orphaned entries are answered --
+fifteen RE-AIMED at `_save_the_map`, which is the one writer now, and
+six RETIRED, each leaving a comment carrying what it proved, why it
+can no longer fail that way, and what would reopen it. Two of the
+retirements are replaced by entries that break an ABSENCE rather than
+a guard, since there is no line left to mutate: `a-generate-writes-
+nothing` puts a write back into `_finish_run`, and
+`live-update-is-not-gated-by-a-path` puts the deleted gate back. That
+is the only way to guard a deletion, and it is written down here
+because the next ruling that removes a guard will need it.
+THE TESTS: fifty-eight Save presses went into the suite by script,
+each one where the old code's write used to happen -- that is the
+conversion that changes no test's meaning, since a run wrote whenever
+a path was set. Twenty-four tests were converted BY HAND instead,
+because what they assert changed rather than moved: the ones about
+when the file is written, what refuses, and what is said. Four of
+those are worth naming, as the shape rather than the instance. The
+live-update gate test now asserts the REVERSE of what it asserted:
+live update runs with a path set, because no run writes. The
+keep-a-result test stopped accepting "warned OR unchanged", which the
+ruling makes true on every route for a reason having nothing to do
+with the routes, and asserts the file at the byte instead, with a
+Save at the end as the control. The read-only-path test now requires
+the RUN to succeed and the SAVE to refuse -- and asserts the new and
+better outcome, that a person whose export directory is unwritable
+still has their map on screen. And the mid-write restyle race moved
+from the run to the press, pinning the outcome (no file half from
+before an edit and half from after) rather than either guard.
+THREE TESTS THAT DID NOT EXIST ARE WRITTEN, and a fourth beside them:
+a Generate leaves the file byte unchanged through four acts including
+an unattended live update while Save writes it; the overwrite
+question fires on somebody else's file, obeys a No, spares their own
+table on a Yes, and never asks about our own; unticking "Include the
+source data" takes the copy out of the file, read from the bytes with
+everything closed. The fourth is a MATRIX,
+`test_saving_holds_on_every_route`: nine routes to a press crossed
+with two data shapes and three aftermaths, spine plus a seeded
+sample, reporting every failing cell and asserting what actually ran.
+STILL OWED: a full suite on this branch. Nothing above has been RUN
+as a whole -- the conversion was written while the other branch's
+suite was measuring another tree -- so what is claimed here is code
+that compiles, reads correctly and has been driven test by test,
+which is not the same as a green suite. That run is the last thing
+between this branch and a merge.) A path chooser records what
 you WOULD save to or load from and does nothing on its own. A SAVE
 button beside the output path writes the map as it stands; a LOAD
 button beside the other path chooser reads one back. Generate DRAWS.

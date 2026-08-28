@@ -605,8 +605,9 @@ def table_of_element(dlg, tile_id, suffix=""):
       layer, whose name is that one plus this.
 
   Returns:
-    The table name, or None when that element has no file-backed
-    layer -- memory output, or a run that produced nothing.
+    The table name, or None when that element has no name yet -- a
+    run that produced nothing, or an element the dialog does not
+    have.
 
   READ OFF THE LAYER rather than rebuilt from the element id, which is
   the point of having this at all. Ruling 6 of 2026-08-25 put the
@@ -614,13 +615,26 @@ def table_of_element(dlg, tile_id, suffix=""):
   spelling out ``tiles_<tid>`` is asserting the plugin's own naming
   arithmetic instead of the behaviour it was written for -- and would
   break on exactly the awkward column names worth testing.
+
+  AND IT FALLS BACK TO THE DIALOG'S OWN RECORD, since 2026-08-27.
+  Drawing and saving became two acts that day, so a map that has been
+  drawn and not yet saved has memory layers, whose sources name no
+  table at all -- and every caller here asking "which table is this
+  element's" got None, including the ones about a file written by an
+  EARLIER save. The name is decided when the map is DRAWN (see
+  `_save_the_map`), which is exactly what `_element_tables` holds, so
+  the fallback answers the same question the layer would have
+  answered a moment later. The layer stays the first authority
+  because a resumed or adopted map carries names this session never
+  chose.
   """
   layer_id = dlg._element_layer_ids.get(tile_id)
   layer = QgsProject.instance().mapLayer(layer_id) if layer_id else None
   source = layer.source() if layer is not None else ""
-  if "layername=" not in source:
-    return None
-  return source.split("layername=", 1)[1].split("|", 1)[0] + suffix
+  if "layername=" in source:
+    return source.split("layername=", 1)[1].split("|", 1)[0] + suffix
+  planned = (getattr(dlg, "_element_tables", {}) or {}).get(tile_id)
+  return f"{planned}{suffix}" if planned else None
 
 
 def element_of_table(name):
@@ -1977,6 +1991,182 @@ def _generate_and_wait(dlg):
   dlg._on_generated = orig
 
 
+def press_save(dlg, path=None, expect=True):
+  """Press Save where a person would, and say what happened.
+
+  Args:
+    dlg: the dialog to save from. Its Save chooser is expected to hold
+      a path already, exactly as a person's would.
+    path: the file the press should have written. Defaults to whatever
+      the Save chooser holds, which is what the button itself reads;
+      pass one only where the test knows better than the widget.
+    expect: True to require a file with something in it afterwards.
+      False where the test is ABOUT a save that must not write -- a
+      declined overwrite, a read-only folder, a map that does not exist
+      yet -- in which case the refusal is returned rather than asserted
+      and the caller checks what the user was told.
+
+  Returns:
+    True when a file with bytes in it is there afterwards, False when
+    nothing was written. On an unexpected failure it raises instead,
+    quoting BOTH stores a refusal can land in: the message bar and the
+    modal recorder. A Save refused through a QMessageBox leaves the bar
+    empty, and reading one store and concluding silence is this
+    project's own harness fault eleven.
+
+  WHY THE BUTTON RATHER THAN `dlg._save_the_map()`: a control must act
+  through its own signal, or the connection could be deleted and every
+  test here would go on passing. The button is what a person presses,
+  `_save_pressed` is what it is connected to, and `_save_the_map` is
+  where the work is; pressing the button proves the whole chain.
+
+  Regression: saving became a positive act on 2026-08-27, so a run no
+  longer writes the GeoPackage and every test that reads the file has
+  to press this first. [mutation]
+  """
+  import os
+  if path is None:
+    path = (dlg.gpkg_widget.filePath() or "").strip()
+
+  # WHAT COUNTS AS "IT WROTE", and both of the first two answers were
+  # wrong. `os.path.exists` is true of a file somebody ELSE wrote, so
+  # a save the user declined was reported as one that happened.
+  # Comparing the file's BYTES fails the opposite way: measured
+  # 2026-08-27, saving the same unchanged map twice leaves the file
+  # byte for byte identical, because sqlite rewrites the same pages
+  # -- so an honest re-save read as a refusal.
+  # The plugin's own confirmation is what a person actually goes by,
+  # so that is what this reads, with the file's state as a
+  # cross-check in both directions.
+  note = getattr(dlg, "live_note", None)
+  before = gpkg_contents(path) if path else None
+  BAR_MESSAGES.clear()
+  if note is not None:
+    note.setText("")
+  dlg.save_button.click()
+  spoken = " ".join(text for _kind, text in BAR_MESSAGES)
+  if note is not None:
+    spoken = f"{spoken} {note.text() or ''}"
+  written = "saved to" in spoken.lower()
+
+  # ...and the two must agree. A plugin that says it saved and left no
+  # file, or that says nothing and wrote anyway, is a defect this
+  # helper must not smooth over on its way past.
+  there = bool(path) and os.path.exists(path) and os.path.getsize(path) > 0
+  if written and not there:
+    raise AssertionError(
+      f"the plugin reported saving {path!r} and there is no file there")
+  if not written and before is not None and gpkg_contents(path) != before:
+    raise AssertionError(
+      f"a save that reported nothing changed {path!r} anyway: the file "
+      f"moved without a word to the user ({spoken!r})")
+  if expect and not written:
+    raise AssertionError(
+      f"Save wrote nothing to {path!r}. The plugin said {spoken!r} and "
+      f"the modal store holds {MODALS[-4:]!r}; the map has "
+      f"{len(dlg._element_layer_ids)} element layer(s).")
+  return written
+
+
+def gpkg_contents(path):
+  """What a GeoPackage HOLDS, as against what its bytes are.
+
+  Args:
+    path: the file to read. One that is not there answers an empty
+      dict rather than raising, so a caller can compare "before" and
+      "after" across a file coming into existence.
+
+  Returns:
+    ``{"tables": {name: feature count}, "record": <the working state>,
+    "styles": {table: styleQML}}`` -- the three things a colleague
+    receives. Every handle is released before returning, because an
+    instrument that holds a GeoPackage open changes what the next
+    reading of it sees.
+
+  WHY NOT THE BYTES, which is what the first draft of every caller
+  compared. Measured 2026-08-27: a Generate after a Save leaves every
+  table, every feature count, every style and the record IDENTICAL
+  while the file grows from 184,320 bytes to 356,352 -- sqlite
+  reorganising it as the layers that were reading it are replaced and
+  let go. The bytes of an untouched GeoPackage are not stable while
+  anything opens and closes it, so a byte comparison measures the
+  file system rather than the plugin, and it fails on a run that
+  wrote nothing at all.
+  A BYTE COMPARISON IS STILL RIGHT where nothing opens or closes the
+  file between the two readings -- the privacy check after an untick
+  is one, and it reads with the project cleared for that reason.
+  """
+  import sqlite3
+  from weavingspace_qgis import bridge
+  if not path or not os.path.exists(path) or os.path.getsize(path) == 0:
+    return {"tables": {}, "record": None, "styles": {}}
+  from osgeo import ogr
+  found = {}
+  handle = ogr.Open(path)
+  if handle is not None:
+    for index in range(handle.GetLayerCount()):
+      layer = handle.GetLayer(index)
+      found[layer.GetName()] = layer.GetFeatureCount()
+  handle = None
+  styles = {}
+  connection = sqlite3.connect(path)
+  try:
+    for table, qml in connection.execute(
+        "SELECT f_table_name, styleQML FROM layer_styles"):
+      styles[table] = qml
+  except sqlite3.Error:
+    pass                    # a file with no styles yet is not an error
+  finally:
+    connection.close()
+  return {"tables": found, "record": bridge.read_working_state(path),
+          "styles": styles}
+
+
+def _hush(dlg):
+  """Empty every store the plugin can speak into, before an act.
+
+  Args:
+    dlg: the dialog whose note line to clear as well as the shared
+      stores.
+
+  Returns:
+    None. Clears the message-bar recorder, the modal recorder and the
+    dialog's own note line, so that what `_said` reads afterwards
+    belongs to the act about to happen rather than to the one before
+    it.
+  """
+  BAR_MESSAGES.clear()
+  MODALS.clear()
+  note = getattr(dlg, "live_note", None)
+  if note is not None:
+    note.setText("")
+
+
+def _said(dlg):
+  """Everything the plugin has said, wherever it put the words.
+
+  Args:
+    dlg: the dialog whose note line to include.
+
+  Returns:
+    One string joining the message bar's recorded text, the modal
+    recorder's text, and the dialog's own note line.
+
+  ALL THREE, because which one a message lands in is a property of
+  the FIXTURE rather than of the behaviour: `_report_quietly` writes
+  to the note line only where there is no iface, and a refusal raised
+  through a QMessageBox reaches neither. A test that reads one store
+  and concludes silence is this project's own harness fault eleven,
+  met again -- and it has been met by reading the bar alone twice.
+  """
+  bar = " ".join(text for _kind, text in BAR_MESSAGES)
+  boxed = " ".join(str(text) for _kind, text in MODALS)
+  note = getattr(dlg, "live_note", None)
+  return " ".join(x for x in (bar, boxed,
+                              note.text() if note is not None else "")
+                  if x).strip()
+
+
 def _reads_from(layer, path):
   """Whether a layer's data really comes from this file.
 
@@ -2323,6 +2513,7 @@ def test_dialog_end_to_end():
     path = os.path.join(td, "out.gpkg")
     dlg.gpkg_widget.setFilePath(path)
     _generate_and_wait(dlg)
+    press_save(dlg)
     assert os.path.exists(path)
     import sqlite3
     con = sqlite3.connect(path)
@@ -2407,12 +2598,22 @@ def test_output_management():
 
 
 def test_live_update_gates():
-  """Live update must decline to run when output goes to a GeoPackage
-  (regenerating a file on every tweak would hammer the disk) and when
-  the comparison checkbox is on (it would spawn a group per tweak).
+  """Live update declines on comparison mode, and NOT on an output path.
 
-  Regression: live update rewrote a GeoPackage on every tweak, hammering the disk.
-  [integration]
+  The output-path gate existed because a live run rewrote the
+  GeoPackage on every tweak, which hammered the disk and could
+  overwrite somebody's file unattended. Saving became a positive act
+  on 2026-08-27, so no run writes anything and that gate was deleted
+  rather than explained -- a guard that cannot fire reads as
+  protection. What this asserts is therefore the REVERSE of what it
+  asserted until that day: a person refining a design with a file
+  chosen for later goes on seeing their map redraw.
+
+  The comparison gate is untouched and is the control: it still
+  declines, so a live update that simply never ran could not pass
+  this.
+
+  Regression: live update rewrote a GeoPackage on every tweak, hammering the disk; the cure is now that a run writes nothing at all. [integration]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   layer = make_region_layer()
@@ -2425,13 +2626,19 @@ def test_live_update_gates():
   dlg._generate = lambda **kw: calls.append(1)  # accepts live=True
   dlg.gpkg_widget.setFilePath("/tmp/never-written.gpkg")
   dlg._maybe_live_generate()
-  assert not calls, "gpkg output must gate live update"
-  dlg.gpkg_widget.setFilePath("")
+  assert calls, (
+    "a chosen output path must NOT stop live update any more: the run "
+    "writes nothing, so the gate it used to justify was deleted")
+  # ...and the file named there is untouched by that run, which is the
+  # half the deleted gate was really protecting.
+  assert not os.path.exists("/tmp/never-written.gpkg"), \
+    "a live run wrote the file the chooser merely names"
+  calls.clear()
   dlg.opt_new_group.setChecked(True)
   dlg._maybe_live_generate()
   assert not calls, "comparison mode must gate live update"
   # positive control: with every gate clear the SAME call must run,
-  # otherwise the asserts above would also pass for a live update
+  # otherwise the assert above would also pass for a live update
   # that simply never runs
   dlg.opt_new_group.setChecked(False)
   dlg._maybe_live_generate()
@@ -5635,18 +5842,38 @@ def test_removing_the_region_layer_is_noticed_in_a_real_project():
 
 
 def test_a_reopened_project_cannot_overwrite_yesterdays_geopackage():
-  """"Create as new group" protects the file across a session, not just
-  within one.
+  """Yesterday's file survives today's runs, and yields to today's Save.
 
-  Regression: the guard that refuses to write a new group over an
+  WHAT THIS ASSERTED UNTIL 2026-08-27, and why it had to be
+  re-decided rather than patched: a Generate wrote the GeoPackage
+  whenever a path was set, so the file needed a guard standing in
+  front of the RUN -- a modal that refused to write a new group over
+  an existing file. Saving became a positive act that day, the run
+  writes nothing at all, and that modal was deleted with its
+  measurement at the site. A test that went on requiring the refusal
+  would be pinning a guard the ruling removed.
+
+  WHAT REPLACES IT IS STRONGER, and is the first leg here: a reopened
+  project can run as often as it likes -- with "create as new group"
+  ticked, at a different spacing, with the old file named in the Save
+  box -- and yesterday's map is untouched to the BYTE. The old guard
+  protected one journey through a question; nothing writes now, so
+  there is no journey to protect.
+
+  THE SECOND LEG IS THE OTHER HALF OF THE SAME RULING, and it is here
+  so that the first cannot pass by the file being unwritable, the
+  dialog being broken, or Save being deaf: a deliberate press DOES
+  replace that map, silently, because the file carries our own record
+  naming the dataset in force. That silence is a decision -- see
+  `_may_overwrite`, which explains what it costs and what would have
+  to change to make the question group-level.
+
+  Regression: the guard that refused to write a new group over an
   existing GeoPackage compared the chosen path against `_last_path`,
-  which records only what THIS dialog instance last wrote. A reopened
-  project has a fresh dialog that remembers nothing, so a user ticking
-  the box precisely IN ORDER to keep yesterday's map overwrote it
-  without a warning. Measured 2026-08-16: 41/40/41/40 features became
+  which records only what THIS dialog instance last wrote, so a
+  reopened project's fresh dialog overwrote yesterday's map without a
+  warning. Measured 2026-08-16: 41/40/41/40 features became
   113/112/113/112, no modal, nothing on the note line. [hunt]
-
-  A file outlives a session, so the question is put to the FILE.
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   from qgis.core import QgsProject, QgsVectorLayer
@@ -5676,9 +5903,15 @@ def test_a_reopened_project_cannot_overwrite_yesterdays_geopackage():
     return found
 
   try:
-    # yesterday
+    # yesterday. A REGION ON DISK, not in memory, and the difference
+    # decides the second leg. A memory layer built afresh next
+    # session is a different dataset by every test this plugin
+    # applies -- a new id and a new source -- so a file written from
+    # one could not be recognised as "our own map of the dataset in
+    # force" without inventing a rule nothing else here follows. A
+    # region that lives in a file is also what a user has.
     QgsProject.instance().clear()
-    QgsProject.instance().addMapLayer(make_region_layer())
+    _boundary_disk_region(folder)
     first = WeavingSpaceDialog(iface=_Iface())
     first.live_check.setChecked(False)
     _tick(600)
@@ -5686,15 +5919,23 @@ def test_a_reopened_project_cannot_overwrite_yesterdays_geopackage():
     first.spacing_spin.setValue(700)
     _generate_and_wait(first)
     _tick(300)
+    press_save(first)
     remember_tables(first)
     before = counts()
     assert before, "nothing was written, so this test cannot run"
+    yesterday = gpkg_contents(path)
     first.close()
 
     # today: the project is reopened, so the dialog is NEW and knows
-    # nothing about that file
+    # nothing about that file -- but the region is the same file on
+    # disk, which is what makes the map in it OURS rather than
+    # somebody else's.
     QgsProject.instance().clear()
-    QgsProject.instance().addMapLayer(make_region_layer())
+    revived = QgsVectorLayer(
+      f"{os.path.join(folder, 'region.gpkg')}|layername=region",
+      "region", "ogr")
+    assert revived.isValid(), "the region did not come back from disk"
+    QgsProject.instance().addMapLayer(revived)
     second = WeavingSpaceDialog(iface=_Iface())
     second.live_check.setChecked(False)
     _tick(600)
@@ -5709,11 +5950,27 @@ def test_a_reopened_project_cannot_overwrite_yesterdays_geopackage():
     _tick(2500)
     after = counts()
     assert after == before, \
-      f"yesterday's map was overwritten: {before} became {after}. "\
-      f"The box was ticked to KEEP it"
-    said = " ".join(str(m) for m in MODALS)
-    assert "overwrite" in said.lower(), \
-      f"the run was refused without saying why: {MODALS!r}"
+      f"yesterday's map was overwritten by a RUN: {before} became "\
+      f"{after}. Since 2026-08-27 a Generate draws and writes nothing"
+    assert gpkg_contents(path) == yesterday, \
+      "the run changed what the file HOLDS, so something on the " \
+      "drawing path is still writing to it"
+    assert not MODALS, \
+      f"the run asked a question it no longer has any reason to ask: " \
+      f"{MODALS!r}"
+    # ...and Save is the act that does replace it, which is what makes
+    # the leg above a statement about the RUN rather than about a
+    # dialog that could not write at all.
+    assert second._element_layer_ids, "the second run drew nothing"
+    press_save(second)
+    replaced = counts()
+    assert replaced != before, \
+      f"a deliberate Save did not replace the map in its own file: "\
+      f"{before} is still there, and the plugin said {BAR_MESSAGES[-2:]!r}"
+    assert not MODALS, \
+      f"Save asked about a file holding our own map of the dataset in "\
+      f"force; that question is reserved for a file we did not write "\
+      f"({MODALS!r})"
     second.close()
   finally:
     shutil.rmtree(folder, ignore_errors=True)
@@ -7145,6 +7402,7 @@ def test_a_saved_project_brings_back_its_colours():
     dlg._generate()
     assert _settle(dlg, seconds=90), "the run never settled"
     _tick(250)
+    press_save(dlg)
     assert dlg._element_layer_ids, "no output was produced"
     dlg.close()
 
@@ -7277,6 +7535,7 @@ def test_a_geopackage_reopens_with_its_styles():
     dlg._generate()
     assert _settle(dlg, seconds=90), "the run never settled"
     _tick(250)
+    press_save(dlg)
     written = {tid: QgsProject.instance().mapLayer(lid)
                for tid, lid in dlg._element_layer_ids.items()}
     written = {t: l for t, l in written.items() if l is not None}
@@ -7742,6 +8001,7 @@ def test_a_generate_spares_the_rest_of_the_users_geopackage():
     dlg.gpkg_widget.setFilePath(path)
     dlg.spacing_spin.setValue(600)
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(400)
 
     after = tables_in_the_file()
@@ -7799,6 +8059,7 @@ def test_a_geopackage_loses_the_elements_a_design_dropped():
     dlg.gpkg_widget.setFilePath(path)
     dlg.spacing_spin.setValue(600)
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(300)
 
     def element_tables():
@@ -7820,6 +8081,7 @@ def test_a_geopackage_loses_the_elements_a_design_dropped():
     dlg._rebuild_unit()
     _tick(300)
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(400)
 
     # READ OFF THE LAYERS, not rebuilt from the element ids. Since
@@ -7915,6 +8177,7 @@ def test_a_geopackage_is_rewritten_and_renamed():
       dlg._generate()
       assert _settle(dlg, seconds=120), f"run {run} never settled"
       _tick(250)
+      press_save(dlg)
       assert dlg._element_layer_ids, f"run {run} produced no output"
       dlg.close()
 
@@ -11723,6 +11986,7 @@ def test_a_pinned_element_exports_and_reopens_from_a_geopackage():
     dlg.gpkg_widget.setFilePath(path)
     dlg.spacing_spin.setValue(1200)
     _generate_and_wait(dlg)
+    press_save(dlg)
     dlg._pinned_bounds.setdefault(tid, {})["v3"] = {"low": 10.0}
     dlg._apply_style_change()
     _tick(400)
@@ -14046,6 +14310,15 @@ def test_a_dock_edit_of_any_kind_reaches_the_exported_file():
   Read back FROM THE FILE, not from the layer in the project: the
   project's copy being right is exactly what hid all three.
 
+  WHEN IT REACHES THE FILE CHANGED ON 2026-08-27 and the family did
+  not. The eleven exits that embedded a style as each edit was adopted
+  are gone with the ruling that saving is a positive act, so the
+  promise is now that the NEXT SAVE carries whatever the dock did --
+  every member of the family, by whichever route it was adopted. Each
+  cell therefore asserts twice: the file does not move on the edit
+  alone, and one press afterwards carries it. The first half is the
+  ruling; the second is this test's original subject, unchanged.
+
   Regression: a class break retyped in QGIS, a stroke or legend label set on a categorized element, and a ramp changed in the styling panel all reached the map and the project but never the exported GeoPackage.
  [hunt]
   """
@@ -14134,7 +14407,8 @@ def test_a_dock_edit_of_any_kind_reaches_the_exported_file():
           con.close()
         return "\n".join(r[0] or "" for r in rows)
 
-      assert stored(), "the run wrote no style into the GeoPackage at all"
+      press_save(dlg)
+      assert stored(), "Save wrote no style into the GeoPackage at all"
 
       driven = 0
       for why, kind, edit, marker in EDITS:
@@ -14149,12 +14423,21 @@ def test_a_dock_edit_of_any_kind_reaches_the_exported_file():
         element.setRenderer(edited)
         element.styleChanged.emit()
         _tick(400)
+        # TWO THINGS PER CELL SINCE 2026-08-27, and the first is the
+        # ruling: the edit alone does not touch the file. Asserted per
+        # cell rather than once, because each of these edits takes a
+        # different route through the adoption machinery, and it was
+        # eleven separate exits that used to embed a style here.
+        assert stored() == was, (
+          f"{why}: the edit wrote itself into the GeoPackage with no "
+          f"Save press; since 2026-08-27 only Save writes")
+        press_save(dlg)
         now = stored()
         driven += 1
         assert now != was, (
           f"{why}: the edit reached the map and the project and never "
           f"the exported GeoPackage, so what a colleague opens is not "
-          f"the map that was made -- and Generate does not heal it")
+          f"the map that was made")
         if marker:
           # QGIS serialises a colour into QML as "255,0,255,255,rgb:..."
           # rather than as hex, so the marker is the triple. Found by
@@ -15168,6 +15451,7 @@ def test_a_second_project_does_not_take_the_first_ones_opacity():
       dlg._generate()
       assert _settle(dlg, seconds=90)
       _tick(300)
+      press_save(dlg)
       tid = dlg.table.item(0, 0).text()
 
       dlg.table.cellWidget(0, 6).setValue(40)
@@ -15175,6 +15459,7 @@ def test_a_second_project_does_not_take_the_first_ones_opacity():
       dlg._generate()
       assert _settle(dlg, seconds=90)
       _tick(300)
+      press_save(dlg)
       assert drawn(tid) == 40, \
         f"the fixture never faded the first map: it draws {drawn(tid)}"
       one = os.path.join(folder, "one.qgz")
@@ -15192,6 +15477,7 @@ def test_a_second_project_does_not_take_the_first_ones_opacity():
       dlg._generate()
       assert _settle(dlg, seconds=90)
       _tick(300)
+      press_save(dlg)
       # THE CONTROL: the second project's own choice, through a rebuild
       # of its own. Nothing about adoption may undo this.
       dlg.spacing_spin.setValue(520)
@@ -15216,6 +15502,7 @@ def test_a_second_project_does_not_take_the_first_ones_opacity():
       dlg._generate()
       assert _settle(dlg, seconds=90)
       _tick(300)
+      press_save(dlg)
       assert drawn(tid) == 40, (
         f"one Generate repainted the reopened map at {drawn(tid)} per "
         f"cent, destroying the 40 the user chose and saved")
@@ -21710,6 +21997,7 @@ def test_an_exported_geopackage_is_still_recognised_as_our_own():
     dlg.gpkg_widget.setFilePath(path)
     dlg.spacing_spin.setValue(600)
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(400)
     tile_id = dlg.table.item(0, 0).text()
     live = project.mapLayer(dlg._element_layer_ids[tile_id])
@@ -22115,6 +22403,7 @@ def test_integration_gpkg_style_round_trip():
     path = os.path.join(td, "session.gpkg")
     dlg.gpkg_widget.setFilePath(path)
     _generate_and_wait(dlg)
+    press_save(dlg)
     assert os.path.exists(path)
     # what the dialog produced, before anything is reloaded
     a_before = QgsProject.instance().mapLayer(
@@ -23970,6 +24259,7 @@ def test_ui_library_categorical_to_gpkg():
     path = os.path.join(td, "categorical.gpkg")
     dlg.gpkg_widget.setFilePath(path)
     _generate_and_wait(dlg)
+    press_save(dlg)
     expected = Tiling(
       TileUnit(tiling_type="hex-slice", n=3, offset=0, spacing=1000,
                crs=2193),
@@ -25733,8 +26023,15 @@ def test_a_change_of_dataset_starts_a_new_file_and_a_new_group():
   pressing Generate silently overwrote the file built from the first
   one -- a result on DISK, destroyed unasked. The path now CLEARS on
   any change of region layer, same-schema included, and the clearing
-  is announced; re-generating the SAME dataset still overwrites in
+  is announced; saving the SAME dataset again still overwrites in
   place, which is the settled replace-in-place contract.
+
+  THE ACT THAT WOULD DO THE DAMAGE IS NOW A SAVE, not a Generate, and
+  the clearing matters just as much for it: a path carried across a
+  switch is a path a later Save press would write B's map into.
+  `_may_overwrite` is a second line of defence there -- the file
+  carries a record naming A as its region, so it would ask -- and this
+  ruling is what stops the question arising at all.
 
   THE GROUP HALF is the same ruling in the project: the first landing
   after a switch builds a FRESH group through the door "Create as new
@@ -25765,8 +26062,8 @@ def test_a_change_of_dataset_starts_a_new_file_and_a_new_group():
     dlg.layer_combo.setLayer(other)
     _tick(600)
     assert not dlg.gpkg_widget.filePath(), \
-      "the output path survived the change of dataset, so the next " \
-      "Generate would overwrite a file built from the previous one"
+      "the output path survived the change of dataset, so a later " \
+      "Save would write B's map into the file A's map is in"
     said = dlg.live_note.text()
     assert "cleared" in said and "overwritten" in said, \
       f"the clearing was not announced: {said!r}"
@@ -25854,8 +26151,8 @@ def test_a_dataset_that_leaves_the_project_is_still_a_dataset_left():
 
     assert not dlg.gpkg_widget.filePath(), \
       f"the output path survived a dataset that LEFT the project " \
-      f"({dlg.gpkg_widget.filePath()!r}); the next Generate would " \
-      f"write over the file holding the previous dataset's map"
+      f"({dlg.gpkg_widget.filePath()!r}); a later Save would write " \
+      f"over the file holding the previous dataset's map"
     assert dlg._group_name is None, \
       f"the dialog still claims the group {dlg._group_name!r} after " \
       f"moving to a dataset with no group of its own, so the new " \
@@ -26334,6 +26631,23 @@ def test_keeping_a_result_keeps_its_file_however_it_was_kept():
   drawing dead layers under its own names. The layers panel looked
   right and the file was gone.
 
+  RE-DECIDED 2026-08-27, and the shape of the re-decision matters more
+  than the edit. This test used to accept EITHER a warning OR an
+  unchanged file, because a run legitimately wrote and the question
+  was whether it asked first. A run writes nothing now, so that
+  disjunction would be satisfied by the second limb on every route,
+  for a reason having nothing to do with what any of these routes
+  does -- a green that says nothing, which is this suite's own
+  commonest fault. What it asserts instead is the stronger and
+  simpler fact: through every route that keeps a result, the file is
+  unchanged TO THE BYTE, and no question is asked because none is
+  needed.
+
+  AND IT ENDS ON A CONTROL, for the same reason. An assertion that a
+  file did not change is satisfied by a file nothing could have
+  written -- a bad path, a dead dialog, a map that never drew. So the
+  last act is a deliberate Save, which must change it.
+
   Regression: keeping a previous result protected its group and not its GeoPackage, so a run wrote over the file the kept group draws from. [mutation]
   """
   import tempfile
@@ -26347,6 +26661,7 @@ def test_keeping_a_result_keeps_its_file_however_it_was_kept():
     dlg.spacing_spin.setValue(500)
     _generate_and_wait(dlg)
     _tick(300)
+    press_save(dlg)
     assert os.path.exists(path), "the fixture wrote no GeoPackage"
     from osgeo import ogr
     source = ogr.Open(path)
@@ -26354,6 +26669,10 @@ def test_keeping_a_result_keeps_its_file_however_it_was_kept():
                     for i in range(source.GetLayerCount()))
     source = None
     assert before, "the GeoPackage holds no tables to protect"
+    # The bytes, read once the handle above is released: a claim about
+    # a file is only about the file a colleague would receive when
+    # everything has let go of it (measured 2026-08-27).
+    kept_state = gpkg_contents(path)
 
     # A CHANGE OF DATASET keeps the previous result -- and the path is
     # put back by hand here, as a reopened project's adoption does.
@@ -26371,10 +26690,12 @@ def test_keeping_a_result_keeps_its_file_however_it_was_kept():
     after = sorted(source.GetLayer(i).GetName()
                    for i in range(source.GetLayerCount())) if source else []
     source = None
-    warned = any("overwrite" in text.lower() for _kind, text in MODALS)
-    assert warned or set(before) <= set(after), \
-      f"the run wrote into the kept result's file without warning: " \
+    assert gpkg_contents(path) == kept_state, \
+      f"a run on another dataset changed the kept result's file: " \
       f"{before} became {after}"
+    assert not MODALS, \
+      f"the run asked about overwriting a file it does not write: " \
+      f"{MODALS!r}"
 
     # A FOURTH WAY TO KEEP A RESULT arrived with the output-group
     # chooser on 2026-08-25: "Create new", chosen while working on a
@@ -26429,13 +26750,25 @@ def test_keeping_a_result_keeps_its_file_however_it_was_kept():
     dlg.spacing_spin.setValue(900)
     _generate_and_wait(dlg)
     _tick(400)
-    warned_new = any("overwrite" in text.lower() for _kind, text in MODALS)
     now = tiles_in(element_a)
-    assert warned_new or now == kept_count, \
+    assert now == kept_count, \
       f"choosing 'create new' kept the group in the panel and rewrote " \
       f"the file it draws from without a word: {element_a} held " \
       f"{kept_count} features and now holds {now}, so the kept copy " \
       f"is quietly showing the new map"
+    assert not MODALS, f"the run asked a question it need not: {MODALS!r}"
+
+    # THE CONTROL. Everything above says a file did not change; a file
+    # nothing could write does not change either. A deliberate press
+    # must move it, from this same dialog, at this same path, with the
+    # new spacing -- so the legs above are about the RUN.
+    press_save(dlg)
+    moved = tiles_in(element_a)
+    assert moved != kept_count, \
+      f"a deliberate Save did not rewrite {element_a} at the new " \
+      f"spacing ({kept_count} still), so nothing above was ever " \
+      f"capable of changing this file and the whole test is vacuous. " \
+      f"The plugin said {BAR_MESSAGES[-2:]!r}"
   finally:
     dlg.close()
     project.clear()
@@ -26855,6 +27188,7 @@ def test_a_datasets_files_never_name_anothers_columns():
     dlg.gpkg_widget.setFilePath(out_path)
     dlg.spacing_spin.setValue(500)
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(400)
     assert os.path.exists(out_path), "B's GeoPackage was never written"
     blob = open(out_path, "rb").read()
@@ -28674,6 +29008,7 @@ def test_a_geopackage_carries_the_no_data_opacity_it_was_given():
     dlg.gpkg_widget.setFilePath(path)
     dlg.spacing_spin.setValue(400)
     _generate_and_wait(dlg)
+    press_save(dlg)
     assert dlg._no_data_layer_ids.get(tid), \
       "no paired layer, so this test is about nothing"
 
@@ -29052,6 +29387,7 @@ def test_a_project_opened_under_an_open_dialog_is_taken_over():
   _tick(150)
   second.spacing_spin.setValue(520)
   _generate_and_wait(second)
+  press_save(second)
   # Asked as "the same FILE", not "the same string": the dialog takes
   # this from the layer's own source and Windows hands back the 8.3
   # short name, so a string comparison fails there on a path that is
@@ -29079,6 +29415,7 @@ def test_a_project_opened_under_an_open_dialog_is_taken_over():
   _tick(300)
   second.spacing_spin.setValue(555)
   _generate_and_wait(second)
+  press_save(second)
   groups = [g for g in project.layerTreeRoot().findGroups()
             if any(c.layer() is not None
                    and c.layer().customProperty("weavingspace_output")
@@ -31056,6 +31393,7 @@ def test_element_opacity():
     path = os.path.join(td, "opacity.gpkg")
     dlg.gpkg_widget.setFilePath(path)
     _generate_and_wait(dlg)
+    press_save(dlg)
     table_a = table_of_element(dlg, "a")
     assert table_a, "element a is not reading from the file"
     for lid in list(dlg._element_layer_ids.values()):
@@ -33382,6 +33720,7 @@ def test_reopening_a_saved_project_does_not_replace_its_map():
     first.gpkg_widget.setFilePath(gpkg)
     first.spacing_spin.setValue(420)
     _generate_and_wait(first)
+    press_save(first)
     _tick(300)
     before = {}
     for tid, lid in first._element_layer_ids.items():
@@ -33626,6 +33965,7 @@ def test_a_renamed_group_is_still_the_group_the_next_run_replaces():
     dlg.gpkg_widget.setFilePath(gpkg)
     dlg.spacing_spin.setValue(520)
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(300)
 
     root = project.layerTreeRoot()
@@ -33645,6 +33985,7 @@ def test_a_renamed_group_is_still_the_group_the_next_run_replaces():
     # ...and then an ordinary geometry change, which re-tiles
     dlg.spacing_spin.setValue(560)
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(300)
 
     ours = [g for g in root.findGroups()
@@ -33751,6 +34092,7 @@ def test_a_renamed_group_is_adopted_when_the_plugin_reopens():
     first.gpkg_widget.setFilePath(gpkg)
     first.spacing_spin.setValue(520)
     _generate_and_wait(first)
+    press_save(first)
     _tick(300)
     root = project.layerTreeRoot()
     made = root.findGroup(first._group_name)
@@ -34365,6 +34707,7 @@ def test_stamped_records_round_trip_through_a_real_qgz():
     dlg._generate()
     assert _settle(dlg, seconds=90), "the run never settled"
     _tick(250)
+    press_save(dlg)
     assert dlg._element_layer_ids, "no output was produced"
 
     # premise: both stamps are on their layers BEFORE the file cycle,
@@ -35445,6 +35788,7 @@ def test_output_layers_carry_spatial_indexes():
     dlg._generate()
     assert _settle(dlg, seconds=90), "the gpkg run never settled"
     _tick(250)
+    press_save(dlg)
     gpkg_checked = 0
     for tid, lid in dlg._element_layer_ids.items():
       out = project.mapLayer(lid)
@@ -38450,6 +38794,9 @@ def test_the_geopackage_opens_cleanly_in_a_fresh_process():
     dlg.gpkg_widget.setFilePath(path)
     _generate_and_wait(dlg)
     _tick(300)
+    # the drawing and the writing are two acts since 2026-08-27, and
+    # what a colleague opens tomorrow is what the SAVE put there
+    press_save(dlg)
     assert os.path.exists(path), "no GeoPackage was written"
     assert dlg._element_layer_ids, "the run produced no element layers"
 
@@ -38721,6 +39068,7 @@ def test_attribute_names_survive_the_round_trip():
     path = os.path.join(folder, "awkward.gpkg")
     dlg.gpkg_widget.setFilePath(path)
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(300)
     assert dlg._element_layer_ids, \
       "nothing was produced, so no name survived anything"
@@ -38792,6 +39140,7 @@ def test_attribute_names_survive_the_round_trip():
   _map_every_name(dlg, pair)
   dlg.spacing_spin.setValue(700)
   _generate_and_wait(dlg)
+  press_save(dlg)
   _tick(300)
   assert dlg._element_layer_ids, "the memory run produced nothing"
   # BETWEEN THEM the elements must carry both spellings, and each must
@@ -38852,6 +39201,7 @@ def test_attribute_names_survive_the_round_trip():
       dlg.gpkg_widget.setFilePath(os.path.join(folder, "pair.gpkg"))
       BAR_MESSAGES.clear()
       _generate_and_wait(dlg)
+      press_save(dlg)
       _tick(300)
       for tid, layer_id in dlg._element_layer_ids.items():
         if project.mapLayer(layer_id) is not None:
@@ -39054,6 +39404,12 @@ def test_the_output_carries_no_working_state():
     _generate_and_wait(dlg)
     _tick(300)
     assert dlg._element_layer_ids, "the run produced no layers"
+    if path:
+      # ...and the file case is only a file case once it is SAVED:
+      # the press is what repoints each layer at the GeoPackage and
+      # embeds its style, which is the moment a layer's custom
+      # properties travel into the file at all.
+      press_save(dlg)
     return dlg
 
   # ---- memory output
@@ -43415,10 +43771,23 @@ def test_a_read_only_and_a_full_disk_output_path():
   puts words (a message bar with an iface, a modal without — the
   suite records both, so both are read); that nothing half-written is
   adopted into the project, since a layer pointing at a file that was
-  never finished is worse than no layer; that no group of ghost
-  layers is left in the layers panel; and that the dialog is still
+  never finished is worse than no layer; and that the dialog is still
   usable, which is asserted by making a map with it afterwards rather
   than by looking at the button.
+
+  WHERE THE FAILURE HAPPENS MOVED ON 2026-08-27, and with it what this
+  test may assert. Drawing and writing are two acts now, so a Generate
+  onto an unwritable path SUCCEEDS -- it draws to memory and touches
+  no disk -- and the refusal arrives at the Save press instead. That
+  is a better outcome than the one this test used to pin, and the
+  improvement is asserted rather than assumed: THE MAP SURVIVES THE
+  DISK. Somebody whose export directory is read-only still has their
+  tiling on screen, and can save it somewhere else; before the ruling
+  they lost the run as well as the file.
+  So the drawn group and the element layers, which this test used to
+  report as ghosts left by a failed write, are now REQUIRED to be
+  there. What must still be absent is anything reading FROM the file
+  that was never written.
   """
   import shutil
   import tempfile
@@ -43487,42 +43856,65 @@ def test_a_read_only_and_a_full_disk_output_path():
         # widened shim, because the suite's keeps only the title
         boxed, restore = _c3_capture_modals()
         try:
+          # THE RUN, which must now succeed: it draws to memory and
+          # goes nowhere near this path.
           _generate_and_wait(dlg)
+          _tick(300)
+          drew = dict(dlg._element_layer_ids)
+          if not drew:
+            trouble.append(f"{label}: the run drew nothing, though the "
+                           f"path it cannot write to is only read at "
+                           f"Save")
+          if MODALS or BAR_MESSAGES:
+            spoken_at_run = ([text for _kind, text in boxed]
+                             + [text for _kind, text in BAR_MESSAGES])
+            if any(os.path.basename(path) in t for t in spoken_at_run):
+              trouble.append(f"{label}: the RUN complained about a file "
+                             f"it does not write: {spoken_at_run!r}")
+          MODALS.clear()
+          BAR_MESSAGES.clear()
+          del boxed[:]
+          # THE SAVE, which is where the operating system says no.
+          wrote = press_save(dlg, path, expect=False)
           _tick(300)
         finally:
           restore()
+
+        if wrote:
+          trouble.append(f"{label}: Save reported writing a file the "
+                         f"operating system will not allow")
 
         # ---- told, in words, in whichever place this plugin speaks
         said = [text for _kind, text in boxed] + \
                [text for _kind, text in BAR_MESSAGES]
         spoken = " ".join(said)
         if not MODALS and not BAR_MESSAGES:
-          trouble.append(f"{label}: the run failed and said nothing, "
+          trouble.append(f"{label}: the save failed and said nothing, "
                          f"in the bar or in a modal")
         elif os.path.basename(path) not in spoken:
           trouble.append(f"{label}: nothing said names the file that "
                          f"could not be written: {said!r}")
-        if any(text.strip().lower().startswith("'weavingspace tiles'")
-               for text in said):
-          trouble.append(f"{label}: the run reported SUCCESS for a map "
-                         f"that was never written: {said!r}")
+        if any("saved to" in text.strip().lower() for text in said):
+          trouble.append(f"{label}: the plugin reported SUCCESS for a "
+                         f"file that was never written: {said!r}")
 
-        # ---- nothing half-written adopted, and no ghosts left behind
+        # ---- nothing half-written adopted, and the MAP still stands
         for lyr in project.mapLayers().values():
           if _reads_from(lyr, path):
             trouble.append(f"{label}: {lyr.name()!r} was adopted from a "
                            f"GeoPackage that was never written")
-          if lyr.customProperty("weavingspace_output"):
-            trouble.append(f"{label}: {lyr.name()!r} is a ghost output "
-                           f"layer left behind by a failed write")
-        if dlg._element_layer_ids:
-          trouble.append(f"{label}: the dialog records element layers "
-                         f"{dlg._element_layer_ids!r} after a failed "
-                         f"write")
-        groups = _c3_output_groups()
-        if groups:
-          trouble.append(f"{label}: a failed write left output groups "
-                         f"{[g.name() for g in groups]}")
+        if dict(dlg._element_layer_ids) != drew:
+          trouble.append(f"{label}: the failed save disturbed the map "
+                         f"that was drawn: {drew!r} became "
+                         f"{dlg._element_layer_ids!r}")
+        for tid, lid in dlg._element_layer_ids.items():
+          if project.mapLayer(lid) is None:
+            trouble.append(f"{label}: element {tid!r} lost its layer to "
+                           f"a save that never happened")
+        if len(_c3_output_groups()) != 1:
+          trouble.append(f"{label}: the drawn map should still be in "
+                         f"exactly one group after a failed save, not "
+                         f"{[g.name() for g in _c3_output_groups()]}")
         if not dlg.generate_btn.isEnabled():
           trouble.append(f"{label}: Generate is disabled, so the user "
                          f"is stuck after a failed write")
@@ -43895,6 +44287,7 @@ def test_a_project_whose_region_layer_has_moved():
     dlg.spacing_spin.setValue(600)
     _generate_and_wait(dlg)
     _tick(250)
+    press_save(dlg)
     assert len(dlg._element_layer_ids) == 4, \
       f"the first map was not made: {sorted(dlg._element_layer_ids)}"
     project_path = os.path.join(folder, "project.qgz")
@@ -44505,6 +44898,7 @@ def test_the_plugin_survives_its_own_output_as_input():
     dlg.gpkg_widget.setFilePath(os.path.join(folder, "map.gpkg"))
     dlg.spacing_spin.setValue(600)
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(250)
 
     def offered(dialog):
@@ -46304,6 +46698,13 @@ def test_model_based_dialog_states():
     path = os.path.join(td, "model.gpkg")
     dlg.gpkg_widget.setFilePath(path)
     _generate_and_wait(dlg)
+    # THE STATE IS REACHED BY SAVING, not by running, since
+    # 2026-08-27: naming a file is a statement of intent and the
+    # press is the act. The model's "filed" state is therefore
+    # entered here rather than at the run above.
+    assert not os.path.exists(path), \
+      "the run wrote the file; drawing and saving are two acts"
+    press_save(dlg)
     state = "filed"
     assert os.path.exists(path), "the GeoPackage must exist"
     # RE-DECIDED TWICE, and the second decision retired the question.
@@ -47624,6 +48025,7 @@ def test_an_element_table_carries_only_what_it_displays():
     dlg.gpkg_widget.setFilePath(path)
     dlg.spacing_spin.setValue(700)
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(400)
     assert dlg._element_layer_ids, "the run produced no output"
 
@@ -47670,6 +48072,7 @@ def test_an_element_table_carries_only_what_it_displays():
     dlg.n_combo.setCurrentText("2")
     _tick(200)
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(400)
     source = ogr.Open(path)
     after = sorted(n for n in (source.GetLayer(i).GetName()
@@ -47833,6 +48236,7 @@ def test_a_saved_map_can_be_opened_and_carried_on():
     # below is what kills it.
     region_source = region.source()
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(400)
     assert dlg._element_layer_ids, "the run produced nothing to resume"
 
@@ -47874,6 +48278,7 @@ def test_a_saved_map_can_be_opened_and_carried_on():
       BAR_MESSAGES.clear()
       dlg.spacing_spin.setValue(505)
       _generate_and_wait(dlg)
+      press_save(dlg)
       _tick(400)
       cell("a state write that fails is not silent",
            "carrying on with it" in said(dlg),
@@ -47976,6 +48381,7 @@ def test_a_saved_map_can_be_opened_and_carried_on():
     dlg.gpkg_widget.setFilePath(shared_path)
     BAR_MESSAGES.clear()
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(400)
     assert dlg._element_layer_ids, \
       f"the embed run produced nothing, so the legs below are about " \
@@ -48889,6 +49295,7 @@ def test_the_file_carries_the_design_the_map_is_wearing():
     dlg.spacing_spin.setValue(500)
     dlg.gpkg_widget.setFilePath(path)
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(400)
     tid = sorted(dlg._element_layer_ids)[0]
     row = next(r for r in range(dlg.table.rowCount())
@@ -48910,6 +49317,7 @@ def test_the_file_carries_the_design_the_map_is_wearing():
     ramp.activated.emit(ramp.findText(other))
     _tick(400)
     _generate_and_wait(dlg)
+    press_save(dlg)
     assert _settle(dlg, seconds=60), "the restyle never settled"
     _tick(400)
 
@@ -49105,6 +49513,7 @@ def test_a_file_already_open_resumes_completely():
          f"the rows read {staged}, which is what the plugin would "
          f"have chosen anyway")
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(400)
 
     root = project.layerTreeRoot()
@@ -49283,6 +49692,7 @@ def test_a_resume_keeps_its_output_off_the_region_list():
     dlg.spacing_spin.setValue(540)
     dlg.gpkg_widget.setFilePath(path)
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(400)
 
     # Take the map away so the resume must LOAD it, which is the
@@ -49602,6 +50012,13 @@ def test_the_group_unit_rulings_hold_on_every_route():
         if not dlg._element_layer_ids:
           skipped[label] = "the staging run produced nothing"
           continue
+        if shape == "saved":
+          # The "saved" shape means a map that is ON DISK, and since
+          # 2026-08-27 a run does not put it there. Without the press
+          # every cell of this shape would be staging the memory case
+          # under another name, and the resume-file route below would
+          # have no file to open.
+          press_save(dlg)
         staged += 1
 
         # ---- the ROUTE
@@ -49653,6 +50070,7 @@ def test_the_group_unit_rulings_hold_on_every_route():
             dlg.gpkg_widget.setFilePath(saved_here)
             _generate_and_wait(dlg)
             _tick(300)
+            press_save(dlg)
             path = saved_here
           project.clear()
           _tick(200)
@@ -50359,6 +50777,7 @@ def test_a_geopackage_carries_the_same_colours_it_was_given():
     dlg._generate()
     assert _settle(dlg, seconds=90), "the run never settled"
     _tick(250)
+    press_save(dlg)
 
     before = {}
     for tile_id, layer_id in dlg._element_layer_ids.items():
@@ -52122,44 +52541,38 @@ def test_two_generates_with_different_families_keep_their_elements_apart():
 def test_a_restyle_arrives_while_the_geopackage_is_written():
   """A ramp picked while the output file is being written.
 
-  test_race_change_during_output_phase covers a change made while the
-  LAYERS are built, with temporary output. Add a GeoPackage and the
-  output phase acquires a second, worse hazard: _restyle_only writes
-  cartography into the same file, through bridge.embed_style, because
-  a GeoPackage carries its own styling. A restyle that ran while
-  _add_output_layers was part way through writing tiles_a, tiles_b,
-  tiles_c would have two writers on one sqlite file -- and the file is
-  the thing a colleague receives, so corrupting it is not a display
-  bug.
+  WHICH ACT DOES THE WRITING CHANGED ON 2026-08-27, and this test
+  moved with it rather than being deleted. It used to stage a restyle
+  arriving while a RUN wrote the GeoPackage, and the guards it pinned
+  were `_restyle_only` declining while `self._task is not None` and
+  again when the element layers had gone. A run writes nothing now, so
+  that arrangement cannot arise; what CAN, and is staged here, is a
+  restyle arriving while a SAVE is part way through the file.
 
-  Two things in _restyle_only stand between the user and that, and it
-  is worth naming both rather than pretending one of them is the
-  subject: it declines while self._task is not None (and _finish_run
-  clears the task only after _add_output_layers has returned), and it
-  declines when any element layer its records point at has gone --
-  which they all have, because writing to a GeoPackage releases the
-  old file handles first. Either alone would do; what this test pins
-  is the OUTCOME, since a maintainer removing one of them will not
-  find a test that reads like a description of the other.
+  THE HAZARD IS THE SAME ONE WEARING THE NEW WRITER'S CLOTHES. Save
+  walks the elements in order: write the table, repoint the layer at
+  it, embed the style. A restyle landing between two of those steps
+  would leave the earlier elements' styles in the file as they were
+  and the later ones as they became -- one file, two moments, and no
+  symptom on screen, since the map itself is consistent. That is this
+  project's characteristic failure, a file that disagrees with the map
+  it claims to be.
 
-  It stands INSIDE the write to do it, which is the only place the
-  timing is certain rather than hoped for -- everything else in this
-  file staggers a delay because it cannot be. And the change must not
-  be LOST, which is the other half of every race test here: declining
-  is only correct because the next Generate applies it.
+  SO WHAT IS PINNED IS THE OUTCOME, not either guard. A maintainer who
+  removes a guard should meet a test that names the harm rather than
+  one that reads like a description of the line they deleted: every
+  element table in the file, reopened with the style the file carries,
+  must draw what the map draws. It stands INSIDE the write to do it,
+  which is the only place the timing is certain rather than hoped for.
 
-  Measured while this was written, and worth knowing before anyone
-  tidies either guard away: removing ONE of them leaves this test
-  green, because the other still holds. Removing both makes it fail,
-  on seed_renderer meeting a layer that has gone. So this is a test
-  of the pair, and the pair is genuinely redundant here -- which is
-  the honest reading, not a claim that each line is independently
-  defended.
+  AND THE CHANGE MUST NOT BE LOST, which is the other half of every
+  race test here: whatever the plugin does with a restyle mid-save,
+  the ramp the person picked has to reach the map afterwards.
 
-  The spacing is put BACK to the running design's inside the write,
-  for a reason the code there explains: otherwise the geometry
-  signature differs from the run's, _restyle_only declines on those
-  grounds, and no arrangement of the guards could change the answer.
+  A SAVE PRESSED WHILE A RUN IS IN FLIGHT is refused in words, and
+  that is asserted here too because this is the one test that has a
+  run and a save in the same room. What is on screen mid-run is the
+  PREVIOUS map, so writing it would answer a question nobody asked.
   """
   import shutil
   import tempfile
@@ -52180,9 +52593,25 @@ def test_a_restyle_arrives_while_the_geopackage_is_written():
     _tick(300)
     dlg.spacing_spin.setValue(500)
     dlg.gpkg_widget.setFilePath(path)
-    _generate_and_wait(dlg)
+    dlg._generate()
+    # A SAVE PRESSED MID-RUN IS REFUSED, and this is the moment to
+    # ask: the task is in flight and the previous map is what is on
+    # screen. Asserted before the run is allowed to land, because
+    # afterwards there is no way to stage it.
+    assert dlg._task is not None, \
+      "PREMISE: no run in flight, so the mid-run press is not staged"
+    _hush(dlg)
+    assert not press_save(dlg, path, expect=False), \
+      "Save wrote the PREVIOUS map while a run was still drawing"
+    said = _said(dlg)
+    assert "still drawing" in said.lower(), \
+      f"the refusal said nothing a person could act on: {said!r}"
+    assert _settle(dlg, seconds=int(120 * CONTENTION)), \
+      "the first run never settled"
     _tick(250)
-    assert _element_layers(dlg), "the first run wrote no GeoPackage"
+    assert _element_layers(dlg), "the first run drew nothing"
+    press_save(dlg)
+    assert os.path.exists(path), "the first save wrote no GeoPackage"
 
     observed = {"calls": 0, "task_held": None, "refused": None,
                 "raised": None, "geometry_matches": None}
@@ -52195,21 +52624,18 @@ def test_a_restyle_arrives_while_the_geopackage_is_written():
       result = original_write(*args, **kwargs)
       if observed["calls"] == 0:
         # exactly one element written so far, which is the moment the
-        # file is least able to survive a second writer
+        # file is least able to survive a second writer -- and the
+        # moment at which half its elements carry the style from
+        # before whatever happens next
         observed["task_held"] = dlg._task is not None
         try:
-          # The spacing goes BACK to what the previous run used. Without
-          # that the geometry signature would differ from the last run's
-          # and _restyle_only would decline on those grounds alone --
-          # the fast path would be unreachable and the test would be
-          # asserting something no arrangement could violate. Putting
-          # it back is also what a user does: press Generate, think
-          # better of the new spacing, undo it, and pick a ramp while
-          # the file is still being written.
-          dlg.spacing_spin.setValue(500)
           combo = dlg.table.cellWidget(0, 4)
           if combo is not None and hasattr(combo, "setCurrentText"):
             combo.setCurrentText("YlGn")
+          # The geometry has not moved -- no run is involved at all
+          # now -- so the fast path is genuinely reachable here, which
+          # is what makes the restyle's arrival a real event rather
+          # than one declined for an unrelated reason.
           observed["geometry_matches"] = (
             dlg._geometry_signature() == dlg._last_geometry_sig)
           dlg._apply_style_change()
@@ -52219,33 +52645,70 @@ def test_a_restyle_arrives_while_the_geopackage_is_written():
       observed["calls"] += 1
       return result
 
+    def colours_of(renderer):
+      """Every class colour a renderer paints, in class order.
+
+      Args:
+        renderer: any of the renderers this plugin seeds, or None.
+
+      Returns:
+        A list of "#rrggbb" strings, empty for a renderer that has no
+        classes or for None. The lists from `ranges()` and
+        `categories()` are BOUND to a name before being subscripted:
+        a temporary from either frees its symbols, which has both
+        segfaulted QGIS here and returned a plausible wrong colour.
+      """
+      if renderer is None:
+        return []
+      found = []
+      for getter in ("ranges", "categories"):
+        classes = getattr(renderer, getter, None)
+        if classes is None:
+          continue
+        held = classes()
+        for entry in held:
+          symbol = entry.symbol()
+          found.append(None if symbol is None else symbol.color().name())
+        if found:
+          return found
+      symbol = getattr(renderer, "symbol", None)
+      return [symbol().color().name()] if symbol else []
+
+    # A SAVE THAT GENUINELY WRITES, which since the in-place fix of
+    # 2026-08-27 means a map that is not already in the file: a second
+    # press on an unchanged map skips every table (the layers read
+    # from those tables) and the instrumented writer would never run,
+    # which is how this premise first failed. A re-tile gives every
+    # element a new memory layer, so the save below writes all of
+    # them and the restyle has a real write to arrive inside.
+    dlg.spacing_spin.setValue(540)
+    _tick(250)
+    _generate_and_wait(dlg)
+    _tick(250)
+    assert _element_layers(dlg), "the re-tile drew nothing"
     bridge.write_gpkg_layer = watched
-    dlg.spacing_spin.setValue(455)    # geometry, so a real run starts
-    dlg._generate()
-    assert dlg._task is not None, \
-      "no run was launched, so nothing was writing the GeoPackage"
-    assert _settle(dlg, seconds=int(120 * CONTENTION)), \
-      "the dialog never settled after the restyle during the write"
+    press_save(dlg)
     bridge.write_gpkg_layer = original_write
     _tick(300)
 
     assert observed["calls"] > 0, \
       "bridge.write_gpkg_layer was never called, so the restyle never " \
       "arrived during a GeoPackage write and this test checked nothing"
-    assert observed["task_held"] is True, \
-      "the run was already cleared while its GeoPackage was still " \
-      "being written, so _restyle_only's guard cannot protect the file"
+    assert observed["task_held"] is False, \
+      "a run was in flight during the save, so this test is measuring " \
+      "the mid-run refusal above rather than the mid-write restyle"
     assert observed["geometry_matches"] is True, \
-      "the design on screen no longer matches the run that is being " \
-      "written, so _restyle_only would decline for that reason alone " \
-      "and this test cannot say anything about the guards it names"
+      "the design on screen no longer matches what is being written, " \
+      "so _restyle_only would decline for that reason alone and this " \
+      "test cannot say anything about the hazard it names"
     assert observed["raised"] is None, \
       f"the restyle raised inside the write: {observed['raised']}"
-    assert observed["refused"] is False, \
-      "_restyle_only went ahead during a GeoPackage write; it would " \
-      "embed styles into a file another writer holds open"
 
-    # the file a colleague receives must still open, layer by layer
+    # ---- THE OUTCOME. The file a colleague receives must open, and
+    # every element in it must be drawn by the style the file carries
+    # for it -- not half from before the restyle and half from after.
+    checked = 0
+    mismatched = []
     for tid in sorted(_element_layers(dlg)):
       table = table_of_element(dlg, tid)
       reopened = QgsVectorLayer(f"{path}|layername={table}",
@@ -52255,6 +52718,16 @@ def test_a_restyle_arrives_while_the_geopackage_is_written():
       assert reopened.featureCount() > 0, \
         f"{table} opens but is empty after the restyle raced the " \
         f"write"
+      in_file = colours_of(reopened.renderer())
+      on_map = colours_of(_element_layers(dlg)[tid].renderer())
+      if in_file and on_map and in_file != on_map:
+        mismatched.append(f"{tid}: file {in_file[:3]} map {on_map[:3]}")
+      checked += 1
+    assert checked, "no element was compared, so this proves nothing"
+    assert not mismatched, (
+      "the saved file disagrees with the map it was written from, so "
+      "the restyle landed part way through the write and the file "
+      "carries two moments at once: " + "; ".join(mismatched))
 
     # ...and the ramp the user picked mid-write is not lost
     _generate_and_wait(dlg)
@@ -52263,8 +52736,8 @@ def test_a_restyle_arrives_while_the_geopackage_is_written():
       .sourceColorRamp().color(1.0).name()
     assert seeded == bridge.get_ramp("YlGn").color(1.0).name(), \
       "the ramp picked while the GeoPackage was being written never " \
-      "reached the map; declining a restyle mid-write is only correct " \
-      "because the next Generate applies it"
+      "reached the map; declining a restyle mid-write would only be " \
+      "correct because the next Generate applies it"
   finally:
     bridge.write_gpkg_layer = original_write
     if dlg is not None:
@@ -53602,6 +54075,7 @@ def test_a_project_round_trip_changes_nothing_a_user_chose():
     dlg._generate()
     assert _settle(dlg, seconds=90), "the run never settled"
     _tick(250)
+    press_save(dlg)
     assert dlg._element_layer_ids, "no output was produced"
 
     before = _choices_snapshot(dlg)
@@ -55801,6 +56275,7 @@ import tempfile
 path = os.path.join(tempfile.mkdtemp(), "locale.gpkg")
 dlg.gpkg_widget.setFilePath(path)
 rt._generate_and_wait(dlg)
+rt.press_save(dlg)
 print("WROTE %d" % (1 if os.path.exists(path) else 0))
 sys.stdout.flush()
 os._exit(0)
@@ -56130,14 +56605,27 @@ def test_adversarial_sequences():
         not dlg.opt_new_group.isChecked())),
       ("gpkg path", lambda: dlg.gpkg_widget.setFilePath(
         os.path.join(tf.mkdtemp(), "adversarial.gpkg"))),
+      # SAVE IS AN ACT A PERSON CAN TAKE AT ANY MOMENT, including the
+      # ones nobody designed for: before a map exists, in the middle
+      # of a run, with no path chosen, twice in a row. It answers in
+      # words in each of those, and what this sequence asks is only
+      # that it never raises and never leaves the dialog unusable.
+      ("save", lambda: dlg.save_button.click()),
       ("live toggle", lambda: dlg.live_check.setChecked(
         not dlg.live_check.isChecked())),
     ]
 
   problems = []
   scenario = 0
-  for start_index in range(2):
-    for perturb_index in range(11):
+  # COUNTED FROM THE LISTS THEMSELVES, not typed. These were two
+  # literals until 2026-08-27, and adding a perturbation that day
+  # would have left the newest one -- pressing Save -- never chosen,
+  # while the test went on reporting a full crossing. The lambdas are
+  # never called here, so building the lists with no dialog is safe.
+  starts = len(provocations(None))
+  ways = len(perturbations(None, None))
+  for start_index in range(starts):
+    for perturb_index in range(ways):
       scenario += 1
       project.clear()
       layer = make_region_layer()
@@ -57433,6 +57921,7 @@ def test_a_dock_recolour_outlives_a_retile_a_save_and_a_reopen():
     dlg.gpkg_widget.setFilePath(out_path)
     dlg.spacing_spin.setValue(500)
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(250)
 
     out = project.mapLayer(dlg._element_layer_ids[tid])
@@ -57485,6 +57974,7 @@ def test_a_dock_recolour_outlives_a_retile_a_save_and_a_reopen():
     # ---- a full re-tiling: new layers, seeded from the record
     dlg.spacing_spin.setValue(430)
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(250)
     hand_colour_is_on_the_map(dlg, "after a re-tiling")
 
@@ -57528,6 +58018,7 @@ def test_a_dock_recolour_outlives_a_retile_a_save_and_a_reopen():
     second.gpkg_widget.setFilePath(out_path)
     second.spacing_spin.setValue(470)
     _generate_and_wait(second)
+    press_save(second)
     _tick(250)
     element = hand_colour_is_on_the_map(
       second, "after generating again in the reopened project")
@@ -58865,6 +59356,7 @@ def test_a_geopackage_path_with_spaces_and_accents_still_arrives():
     dlg.gpkg_widget.setFilePath(out_path)
     dlg.spacing_spin.setValue(500)
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(300)
     assert dlg._element_layer_ids, \
       f"the run produced no output at all; the bar said {BAR_MESSAGES!r}"
@@ -58988,6 +59480,7 @@ def test_a_reopened_geopackage_is_written_into_again():
     dlg.spacing_spin.setValue(500)
     _generate_and_wait(dlg)
     _tick(300)
+    press_save(dlg)
     first = {t: project.mapLayer(l).featureCount()
              for t, l in dlg._element_layer_ids.items()
              if project.mapLayer(l) is not None}
@@ -59035,6 +59528,10 @@ def test_a_reopened_geopackage_is_written_into_again():
       f"the second run never settled with the GeoPackage held open by " \
       f"{len(held)} layers; the plugin said {BAR_MESSAGES!r}"
     _tick(300)
+    # The hazard this test is named for now belongs to the SAVE: it is
+    # the press that has to write into a file the layers above are
+    # still holding open.
+    press_save(second)
     again = {t: project.mapLayer(l).featureCount()
              for t, l in second._element_layer_ids.items()
              if project.mapLayer(l) is not None}
@@ -59462,6 +59959,7 @@ def test_a_reopened_project_keeps_an_imported_class_scheme():
     dlg.gpkg_widget.setFilePath(out_path)
     dlg.spacing_spin.setValue(500)
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(400)
     before = _boundary_fills(project.mapLayer(dlg._element_layer_ids[tile_id]))
     assert "#112233" in before, \
@@ -59544,6 +60042,7 @@ def test_a_project_whose_output_geopackage_has_moved():
     dlg.spacing_spin.setValue(500)
     _generate_and_wait(dlg)
     _tick(300)
+    press_save(dlg)
     written = sorted(dlg._element_layer_ids)
     assert len(written) >= 2, \
       f"the run wrote {written}, so there is not much of a map to lose"
@@ -59597,6 +60096,10 @@ def test_a_project_whose_output_geopackage_has_moved():
       assert _settle(revived, seconds=120), \
         f"the recovery run never settled; the plugin said {BAR_MESSAGES!r}"
       _tick(300)
+      # RECOVERY IS TWO ACTS NOW. Drawing the map again brings it back
+      # to the screen; putting it back on disk where the project
+      # expects to find it is the Save press.
+      press_save(revived)
       trouble = []
       for tile_id, layer_id in sorted(revived._element_layer_ids.items()):
         out = project.mapLayer(layer_id)
@@ -59731,6 +60234,7 @@ def test_a_project_and_its_geopackage_move_together():
     dlg.spacing_spin.setValue(500)
     _generate_and_wait(dlg)
     _tick(300)
+    press_save(dlg)
     written = sorted(dlg._element_layer_ids)
     assert len(written) >= 2, f"the run wrote only {written}"
     marked = project.mapLayer(dlg._element_layer_ids[tile_id])
@@ -61607,6 +62111,7 @@ def _a_disk_session(folder):
   dlg.gpkg_widget.setFilePath(out)
   _tick(300)
   _generate_and_wait(dlg)
+  press_save(dlg)
   _tick(300)
   _settle(dlg, seconds=60)
   # THE LANDING IS ASSERTED, NOT ASSUMED. Every test standing on this
@@ -61774,6 +62279,12 @@ def test_the_map_survives_its_file_being_deleted():
     assert drawn, \
       "after the output file was deleted, a Generate left the project " \
       "with no element layers at all -- the map vanished in silence"
+    # PUTTING IT BACK IS THE SECOND ACT, and the hazard lives here now:
+    # releasing the old layers' handles RECREATED a zero-byte file at
+    # the path, so the save has to know that a file of no bytes is not
+    # a GeoPackage to be updated. That is what the title's "costs a
+    # re-save" means since 2026-08-27.
+    press_save(dlg)
     for layer in drawn:
       assert layer.featureCount() > 0, \
         f"{layer.name()} came back with no features"
@@ -62367,8 +62878,10 @@ def test_a_group_choice_waits_for_the_run():
     combo.setCurrentIndex(index)
     combo.activated.emit(index)
     _tick(300)
-    # a person keeping both maps names a new file: create-new into
-    # the SAME GeoPackage is refused by a settled guard, correctly
+    # a person keeping both maps names a new file. Since 2026-08-27
+    # this is a statement of intent and nothing more: no run writes,
+    # so naming the FIRST file here would be equally safe until
+    # somebody pressed Save.
     dlg.gpkg_widget.setFilePath(os.path.join(folder, "second.gpkg"))
     dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 0.8)
     _tick(300)
@@ -62855,6 +63368,7 @@ def _a_saved_resumable_map(folder):
   path = os.path.join(folder, "saved_map.gpkg")
   dlg.gpkg_widget.setFilePath(path)
   _generate_and_wait(dlg)
+  press_save(dlg)
   _tick(300)
   _settle(dlg, seconds=60)
   dlg.close()
@@ -63583,6 +64097,7 @@ def test_a_dropped_table_takes_its_saved_style_with_it():
     _tick(200)
     dlg._quant_colours.setdefault(tid, {})["v1"] = {"0": "#123456"}
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(300)
     _settle(dlg, seconds=60)
     dropped_table = f"tiles_{tid}_v1"
@@ -63593,6 +64108,7 @@ def test_a_dropped_table_takes_its_saved_style_with_it():
     var.activated.emit(var.currentIndex())
     _tick(300)
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(300)
     _settle(dlg, seconds=60)
     dlg.close()
@@ -64133,6 +64649,7 @@ def test_one_dataset_spelt_two_ways_is_one_dataset():
     out = os.path.join(folder, "map.gpkg")
     dlg.gpkg_widget.setFilePath(out)
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(300)
     _settle(dlg, seconds=60)
     before = sorted(dlg._element_layer_ids)
@@ -64150,6 +64667,7 @@ def test_one_dataset_spelt_two_ways_is_one_dataset():
     dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.2)
     _tick(300)
     _generate_and_wait(dlg)
+    press_save(dlg)
     _tick(300)
     _settle(dlg, seconds=60)
     refusals = [text for _kind, text in MODALS
@@ -64697,6 +65215,7 @@ def test_a_switched_variable_leaves_no_orphan_in_the_file():
       first.gpkg_widget.setFilePath(out)
       first.spacing_spin.setValue(520)
       _generate_and_wait(first)
+      press_save(first)
       _tick(300)
       _settle(first, seconds=90)
       tid = sorted(first._element_layer_ids)[0]
@@ -64741,6 +65260,7 @@ def test_a_switched_variable_leaves_no_orphan_in_the_file():
       _tick(300)
       second.spacing_spin.setValue(520)
       _generate_and_wait(second)
+      press_save(second)
       _tick(400)
       _settle(second, seconds=90)
 
@@ -64839,6 +65359,7 @@ def test_two_columns_sharing_a_table_leave_one_style_of_ours():
       dlg.gpkg_widget.setFilePath(out)
       dlg.spacing_spin.setValue(520)
       _generate_and_wait(dlg)
+      press_save(dlg)
       _tick(400)
       _settle(dlg, seconds=90)
       with open(out, "rb") as handle:
@@ -64855,6 +65376,7 @@ def test_two_columns_sharing_a_table_leave_one_style_of_ours():
       _tick(300)
       dlg.spacing_spin.setValue(560)
       _generate_and_wait(dlg)
+      press_save(dlg)
       _tick(400)
       _settle(dlg, seconds=90)
 
@@ -64893,13 +65415,28 @@ def test_two_columns_sharing_a_table_leave_one_style_of_ours():
 def test_the_files_record_follows_a_dock_edit():
   """The GeoPackage does not disagree with itself.
 
-  Every exit where a dock edit is ADOPTED embeds the layer's new style
-  into the file, and until now none of them wrote the file's own
-  RECORD -- only the landing and the restyle did. So the file drew a
-  colour somebody picked in QGIS's panel while its record said no
-  colour had been picked, and the half a colleague resumes from is the
-  record: they open the map, the dialog tells them nothing was chosen,
-  and their first Generate paints over it.
+  Every exit where a dock edit is ADOPTED used to embed the layer's new
+  style into the file, and none of them wrote the file's own RECORD --
+  only the landing and the restyle did. So the file drew a colour
+  somebody picked in QGIS's panel while its record said no colour had
+  been picked, and the half a colleague resumes from is the record:
+  they open the map, the dialog tells them nothing was chosen, and
+  their first Generate paints over it.
+
+  RE-DECIDED 2026-08-27, and this is one of the cases where what a
+  test asserts has CHANGED rather than moved. The disagreement was
+  possible because the two halves of the file were written by
+  different acts at different moments -- styles at every adoption, the
+  record at a landing. Since saving became a positive act there is
+  exactly one writer, `_save_the_map`, which puts the tables, the
+  styles and the record down in one press. So the property to hold is
+  no longer "the record keeps up with the style"; it is that the file
+  DOES NOT MOVE AT ALL between saves, and that one press leaves both
+  halves saying the same thing.
+
+  That is why both halves are read here where the original read only
+  the record: with one writer, a test that reads one half would go on
+  passing if the other were dropped from that writer.
 
   Read from the FILE, not from the dialog, because the disagreement is
   invisible from either side alone.
@@ -64908,6 +65445,7 @@ def test_the_files_record_follows_a_dock_edit():
   """
   import json
   import shutil
+  import sqlite3
   import tempfile
   from qgis.PyQt.QtGui import QColor
   from weavingspace_qgis import bridge
@@ -64930,10 +65468,12 @@ def test_the_files_record_follows_a_dock_edit():
       _generate_and_wait(dlg)
       _tick(300)
       _settle(dlg, seconds=90)
+      press_save(dlg)
       before = json.dumps(bridge.read_working_state(out) or {})
       assert MARK not in before, \
         f"PREMISE: the file already records {MARK}, so its arrival " \
         f"there proves nothing"
+      unsaved = gpkg_contents(out)
 
       tid = sorted(dlg._element_layer_ids)[0]
       layer = project.mapLayer(dlg._element_layer_ids[tid])
@@ -64952,12 +65492,47 @@ def test_the_files_record_follows_a_dock_edit():
         "PREMISE: the recolour never reached the layer, so nothing " \
         "was adopted"
 
+      # THE EDIT ALONE MUST NOT REACH THE FILE. Adoption is a change
+      # to the map on screen; the file is what somebody chose to save.
+      assert gpkg_contents(out) == unsaved, \
+        "an adopted dock edit wrote into the GeoPackage on its own; " \
+        "since 2026-08-27 only a Save press writes"
+      assert json.dumps(bridge.read_working_state(out) or {}) == before, \
+        "the file's record moved without a Save press"
+
+      # ...and one press puts BOTH halves down together.
+      press_save(dlg)
       after = json.dumps(bridge.read_working_state(out) or {})
       assert MARK in after, \
         f"the file's saved record does not know about {MARK}, which " \
         f"the same file's saved STYLE is drawing: a colleague resuming " \
         f"this file is told nothing was picked, and their first " \
         f"Generate paints over it"
+      # The STYLE half, read from the same file, because with a single
+      # writer a test that reads one half cannot notice the other
+      # being dropped from it.
+      style_blob = ""
+      connection = sqlite3.connect(out)
+      try:
+        table = table_of_element(dlg, tid)
+        rows = connection.execute(
+          "SELECT styleQML FROM layer_styles WHERE f_table_name = ?",
+          (table,)).fetchall()
+        style_blob = " ".join(str(r[0]) for r in rows)
+      except sqlite3.Error as e:
+        raise AssertionError(
+          f"the file carries no saved style to compare: {e}")
+      finally:
+        connection.close()
+      # A QML writes a colour as "r,g,b,alpha" rather than as the hex
+      # a person types, so the expected text is COMPOSED from the same
+      # QColor the record holds instead of transcribed.
+      mark = QColor(MARK)
+      as_qml = f"{mark.red()},{mark.green()},{mark.blue()}"
+      assert as_qml in style_blob, \
+        f"the file's saved STYLE does not draw {MARK} ({as_qml}), " \
+        f"though its record now names it: the file disagrees with " \
+        f"itself in the other direction"
     finally:
       dlg.close()
   finally:
@@ -65786,6 +66361,7 @@ def test_a_resume_does_not_recover_onto_our_own_outlines_layer():
       dlg.opt_outlines.setChecked(True)
       dlg.gpkg_widget.setFilePath(saved)
       _generate_and_wait(dlg)
+      press_save(dlg)
       _tick(300)
       _settle(dlg, seconds=90)
       wanted = region.source()
@@ -66325,6 +66901,7 @@ def test_a_tiling_may_carry_two_letter_elements():
       dlg.gpkg_widget.setFilePath(saved)
       dlg.spacing_spin.setValue(700)
       _generate_and_wait(dlg)
+      press_save(dlg)
       _tick(400)
       _settle(dlg, seconds=180)
       # THE ORDER A PERSON READS, which is the half a doubled
@@ -66626,6 +67203,736 @@ def test_a_ramp_is_remembered_under_the_mode_the_row_is_in():
     f"the ramp it was actually wearing as a categorized row, so the " \
     f"memory has stopped remembering rather than started remembering " \
     f"the right thing"
+
+
+SAVE_ROUTES = (
+  "first-save", "re-save", "after-restyle", "after-retile",
+  "after-a-dock-edit", "after-a-variable-change", "no-map", "no-path",
+  "load-it-back",
+)
+SAVE_SHAPES = ("a memory region", "a region on disk")
+SAVE_AFTERMATHS = ("immediately", "after a generate", "read cold")
+# Routes that end in a written file. The refusal routes are the other
+# two, and they are checked for what was SAID rather than for bytes.
+SAVE_WRITES = tuple(r for r in SAVE_ROUTES if r not in ("no-map", "no-path"))
+
+
+def _save_matrix_fixture(shape, folder):
+  """A dialog and a region of the shape this cell asks for.
+
+  Args:
+    shape: one of SAVE_SHAPES. "a memory region" is the ordinary
+      fixture; "a region on disk" is a GeoPackage-backed layer, which
+      is a different case for saving specifically -- the source can be
+      recovered by reference, and embedding it copies a real file.
+    folder: a scratch directory for the disk shape and the output.
+
+  Returns:
+    (dialog, layer). The dialog has live update off, the layer chosen,
+    a variable on every row and a spacing that tiles quickly. It has
+    generated nothing.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  if shape == "a region on disk":
+    layer, _path = _boundary_disk_region(folder)
+  else:
+    layer = make_region_layer()
+    project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.layer_combo.setLayer(layer)
+  _tick(300)
+  _map_every_name(dlg, ["v1", "landcover", "v2", "v3"])
+  dlg.spacing_spin.setValue(600)
+  _tick(200)
+  return dlg, layer
+
+
+def _save_matrix_cell(route, shape, aftermath, folder):
+  """Drive one route to a Save and judge what the file says.
+
+  Args:
+    route: one of SAVE_ROUTES -- the act that ends in a press.
+    shape: one of SAVE_SHAPES, the data underneath it.
+    aftermath: one of SAVE_AFTERMATHS -- what happens next, because
+      arrival and survival are different promises.
+    folder: a scratch directory of this cell's own.
+
+  Returns:
+    None when the cell holds, or a string naming what went wrong. A
+    cell that could not stage its own case returns a string beginning
+    "SKIPPED", which the caller counts rather than passes over: a
+    skipped cell reads exactly like a passing one.
+
+  WHAT EVERY WRITING ROUTE MUST LEAVE: a file holding a table for
+  every element the map has, a record that can be resumed, and no
+  question asked about a file of our own. What every REFUSING route
+  must leave: no file, and words a person can act on.
+  """
+  from qgis.PyQt.QtGui import QColor
+  from weavingspace_qgis import bridge
+  project = QgsProject.instance()
+  path = os.path.join(folder, "map.gpkg")
+  dlg, layer = _save_matrix_fixture(shape, folder)
+  try:
+    dlg.gpkg_widget.setFilePath("" if route == "no-path" else path)
+    if route != "no-map":
+      _generate_and_wait(dlg)
+      _tick(250)
+      if not dlg._element_layer_ids:
+        return "SKIPPED: the staging run drew nothing"
+
+    # ---- THE ACT
+    _hush(dlg)
+    if route in ("re-save", "after-restyle", "after-retile",
+                 "after-a-dock-edit", "after-a-variable-change",
+                 "load-it-back"):
+      if not press_save(dlg, path, expect=False):
+        return f"the staging save wrote nothing: {_said(dlg)!r}"
+    if route == "re-save":
+      pass                              # the second press is below
+    elif route == "after-restyle":
+      combo = dlg.table.cellWidget(0, 4)
+      if combo is None or not hasattr(combo, "setCurrentText"):
+        return "SKIPPED: row 0 has no ramp chooser to move"
+      combo.setCurrentText("PuBu")
+      combo.activated.emit(combo.currentIndex())
+      dlg._apply_style_change()
+      dlg._restyle_only()
+      _tick(400)
+    elif route == "after-retile":
+      dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.25)
+      _tick(250)
+      _generate_and_wait(dlg)
+      _tick(250)
+    elif route == "after-a-dock-edit":
+      tid = sorted(dlg._element_layer_ids, key=bridge.element_order)[0]
+      element = project.mapLayer(dlg._element_layer_ids[tid])
+      clone = element.renderer().clone()
+      held = getattr(clone, "ranges", getattr(clone, "categories", None))
+      classes = held() if held else []
+      if not classes:
+        return "SKIPPED: the first element draws no classes to recolour"
+      symbol = classes[0].symbol().clone()
+      symbol.setColor(QColor("#123456"))
+      if hasattr(clone, "updateRangeSymbol"):
+        clone.updateRangeSymbol(0, symbol)
+      else:
+        clone.updateCategorySymbol(0, symbol)
+      element.setRenderer(clone)
+      element.styleChanged.emit()
+      element.triggerRepaint()
+      _tick(1500)
+    elif route == "after-a-variable-change":
+      chooser = dlg.table.cellWidget(0, 1)
+      if chooser is None:
+        return "SKIPPED: row 0 has no variable chooser"
+      before_table = table_of_element(dlg, dlg.table.item(0, 0).text())
+      chooser.setCurrentText("v3")
+      chooser.activated.emit(chooser.currentIndex())
+      _tick(300)
+      _generate_and_wait(dlg)
+      _tick(250)
+      if table_of_element(dlg, dlg.table.item(0, 0).text()) == before_table:
+        return ("SKIPPED: the variable change did not rename the "
+                "element's table, so an orphan cannot arise")
+
+    # ---- THE PRESS
+    _hush(dlg)
+    wrote = press_save(dlg, path, expect=False)
+    said = _said(dlg)
+
+    if route in ("no-map", "no-path"):
+      if wrote:
+        return "a refused save wrote a file anyway"
+      if os.path.exists(path):
+        return "no map and no path, and yet a file appeared"
+      wanted = "generate" if route == "no-map" else "box"
+      if wanted not in said.lower():
+        return (f"the refusal does not say what to do about it: "
+                f"{said!r}")
+      return None
+
+    if not wrote:
+      return f"the save wrote nothing: {said!r}"
+    if MODALS:
+      return f"a save into our own file asked a question: {MODALS!r}"
+    tables = set(bridge.gpkg_tables(path))
+    wanted = {table_of_element(dlg, t) for t in dlg._element_layer_ids}
+    if not wanted <= tables:
+      return (f"the file is missing {sorted(wanted - tables)}; it "
+              f"holds {sorted(tables)}")
+    record = bridge.read_working_state(path)
+    if not record:
+      return "the saved file carries no record, so it cannot be resumed"
+    if route == "after-a-variable-change":
+      orphans = {t for t in tables
+                 if t.startswith("tiles_") and t not in wanted
+                 and not t.endswith("_no_data")}
+      if orphans:
+        return (f"the abandoned variable's table is still in the file: "
+                f"{sorted(orphans)}")
+    if route == "re-save":
+      _hush(dlg)
+      if not press_save(dlg, path, expect=False):
+        return "the second press wrote nothing"
+      if MODALS:
+        return f"the second press asked about our own file: {MODALS!r}"
+      if set(bridge.gpkg_tables(path)) != tables:
+        return "saving twice changed which tables the file holds"
+
+    # ---- WHAT HAPPENS NEXT
+    if aftermath == "after a generate":
+      before = gpkg_contents(path)
+      dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 0.85)
+      _tick(250)
+      _generate_and_wait(dlg)
+      _tick(300)
+      if gpkg_contents(path) != before:
+        return "a Generate after the save wrote into the saved file"
+    elif aftermath == "read cold":
+      counts = {}
+      for tid, lid in dlg._element_layer_ids.items():
+        out = project.mapLayer(lid)
+        if out is not None:
+          counts[table_of_element(dlg, tid)] = out.featureCount()
+      dlg.close()
+      dlg = None
+      project.clear()
+      _tick(250)
+      for table, count in counts.items():
+        cold = QgsVectorLayer(f"{path}|layername={table}", table, "ogr")
+        if not cold.isValid():
+          return f"{table} does not open in a fresh project"
+        if cold.featureCount() != count:
+          return (f"{table} holds {cold.featureCount()} features cold "
+                  f"where the map showed {count}")
+    if route == "load-it-back":
+      from weavingspace_qgis.dialog import WeavingSpaceDialog
+      elements = sorted(dlg._element_layer_ids) if dlg else sorted(counts)
+      if dlg is not None:
+        dlg.close()
+        dlg = None
+      project.clear()
+      _tick(250)
+      second = WeavingSpaceDialog(iface=_Iface())
+      try:
+        second.live_check.setChecked(False)
+        second.resume_widget.setFilePath(path)
+        _hush(second)
+        second.load_button.click()
+        _tick(600)
+        _settle(second, seconds=60)
+        came_back = sorted(second._element_layer_ids)
+        if not came_back:
+          return f"Load brought nothing back: {_said(second)!r}"
+        if route == "load-it-back" and aftermath != "read cold" \
+            and came_back != elements:
+          return (f"Load came back with {came_back} where the saved "
+                  f"map had {elements}")
+      finally:
+        second.close()
+    return None
+  finally:
+    if dlg is not None:
+      dlg.close()
+    project.clear()
+
+
+def test_saving_holds_on_every_route():
+  """Every way of arriving at a Save, crossed with what happens next.
+
+  Saving is a FAMILY of behaviours rather than one, which is what this
+  project's own default asks a matrix for: a single case passes for
+  whichever member happens to be intact and says nothing about the
+  rest. The members here are the acts a person performs before
+  pressing Save -- a first map, a second press, a restyle, a re-tile,
+  an edit made in QGIS's own panel, a change of variable -- plus the
+  two presses that must REFUSE, which are as much a part of the
+  feature as the ones that write.
+
+  THE SHAPES are the two that matter for saving specifically: a region
+  held in memory, and one that lives in a file. They differ in what
+  can be recovered by reference and in what embedding the source
+  copies.
+
+  THE AFTERMATH axis is here because arrival and survival are
+  different promises, and because the ruling this whole tab exists for
+  is about what happens NEXT: a Generate after a save must leave the
+  file alone, to the byte. Reading the file COLD is the third, since
+  what a colleague opens is the only reading that settles whether the
+  save worked.
+
+  SPINE AND SAMPLE, as every matrix here: every route runs against the
+  canonical shape immediately, three routes carry both aftermaths
+  every time, and the rest are drawn under a seed the failure message
+  prints. Cells report together rather than stopping at the first, and
+  the count of what actually ran is asserted -- a skipped cell reads
+  exactly like a passing one.
+
+  Regression: saving became a positive act on 2026-08-27, and the acts that end in a press had one journey test each rather than a crossing. [mutation]
+  """
+  import random
+  import shutil
+  import tempfile
+  seed = int(os.environ.get("WEAVINGSPACE_SAVE_MATRIX_SEED", "20260827"))
+  draw = random.Random(seed)
+
+  cells = [(route, SAVE_SHAPES[0], "immediately") for route in SAVE_ROUTES]
+  for route in ("first-save", "after-restyle", "after-retile"):
+    cells.append((route, SAVE_SHAPES[0], "after a generate"))
+    cells.append((route, SAVE_SHAPES[0], "read cold"))
+  # ...and a sample of the rest, so the crossing is covered over time
+  # without paying for it on every run.
+  rest = [(r, s, a) for r in SAVE_ROUTES for s in SAVE_SHAPES
+          for a in SAVE_AFTERMATHS if (r, s, a) not in cells]
+  if os.environ.get("WEAVINGSPACE_SAVE_MATRIX_FULL"):
+    cells.extend(rest)
+  else:
+    cells.extend(draw.sample(rest, min(5, len(rest))))
+
+  problems = []
+  skipped = {}
+  ran = 0
+  routes_seen = {}
+  for route, shape, aftermath in cells:
+    label = f"{route} / {shape} / {aftermath}"
+    folder = tempfile.mkdtemp(prefix="ws_save_matrix_")
+    try:
+      verdict = _save_matrix_cell(route, shape, aftermath, folder)
+    except Exception as exc:                       # noqa: BLE001
+      import traceback as _tb
+      verdict = f"raised {type(exc).__name__}: {exc}\n{_tb.format_exc()}"
+    finally:
+      shutil.rmtree(folder, ignore_errors=True)
+      QgsProject.instance().clear()
+    if verdict and verdict.startswith("SKIPPED"):
+      skipped[label] = verdict
+    elif verdict:
+      problems.append(f"{label}: {verdict}")
+    else:
+      ran += 1
+    routes_seen.setdefault(route, 0)
+    routes_seen[route] += 0 if verdict else 1
+
+  dead = [route for route in SAVE_ROUTES if not routes_seen.get(route)]
+  assert not dead or problems, (
+    f"these routes were skipped in every cell they were drawn for, so "
+    f"the matrix reports a crossing it did not run: {dead}; "
+    f"{skipped!r}")
+  assert ran >= len(SAVE_ROUTES), (
+    f"only {ran} cells of {len(cells)} actually staged anything "
+    f"(seed {seed}); skips: {skipped!r}")
+  assert not problems, (
+    f"{len(problems)} of {len(cells)} save cells failed (seed {seed}, "
+    f"re-run with WEAVINGSPACE_SAVE_MATRIX_SEED={seed}):\n  " +
+    "\n  ".join(problems))
+
+
+def test_a_generate_draws_and_only_a_save_writes():
+  """Drawing and saving are two acts, and the file can tell.
+
+  The maintainer's first ruling of 2026-08-27: a path chooser records
+  what you WOULD save to and does nothing on its own, a Save button
+  writes the map as it stands, Generate draws, and auto-generate never
+  writes at all. Until that day setting an output path made every run
+  write, which is how a path chosen for later was written to at once,
+  why live update had to be gated against rewriting somebody's file on
+  every keystroke, and why clearing the box forked a group.
+
+  MEASURED AT THE BYTE, because every weaker reading of "the file did
+  not change" has an innocent explanation. A file that does not exist
+  yet is the clearest case and is the first leg; after a save there IS
+  a file, and only its bytes can say whether a later run touched it.
+  Read with the layers still pointing at it, which is the state a user
+  is in -- what the next legs compare is this same reading against
+  itself, so an sqlite freelist page is common to both sides.
+
+  FOUR ACTS, and each is one somebody performs without thinking of it
+  as saving: a first Generate, a second at another spacing, a restyle,
+  and an unattended live update. None may write.
+
+  Regression: setting an output path made every Generate write the GeoPackage, so a file chosen for later was written to at once and a live update rewrote somebody's file on every keystroke. [mutation]
+  """
+  from weavingspace_qgis import bridge
+  project = QgsProject.instance()
+  dlg, layer, tid = _categorical_dialog()
+  try:
+    with _temp_dir() as folder:
+      path = os.path.join(folder, "later.gpkg")
+      dlg.live_check.setChecked(False)
+      dlg.spacing_spin.setValue(500)
+      dlg.gpkg_widget.setFilePath(path)
+      _tick(200)
+
+      # ---- ACT ONE: the first run. The box is full and the disk is
+      # empty, which is the state the ruling is really about.
+      _generate_and_wait(dlg)
+      _tick(300)
+      assert dlg._element_layer_ids, "the run drew nothing"
+      assert not os.path.exists(path), \
+        "choosing a file and pressing Generate wrote it; the chooser " \
+        "records what you WOULD save to and the press is the act"
+
+      # ---- ACT TWO: a second run at another spacing.
+      dlg.spacing_spin.setValue(560)
+      _generate_and_wait(dlg)
+      _tick(300)
+      assert not os.path.exists(path), \
+        "a second run wrote the file the first one left alone"
+
+      # ---- THE SAVE, which must produce the whole map and SAY SO.
+      # A press that writes in silence is indistinguishable from one
+      # that did nothing, which is the complaint this whole ruling
+      # began from.
+      _hush(dlg)
+      press_save(dlg)
+      told = _said(dlg)
+      assert os.path.basename(path) in told, \
+        f"the save named no file it had written: {told!r}"
+      tables = set(bridge.gpkg_tables(path))
+      wanted = {table_of_element(dlg, t) for t in dlg._element_layer_ids}
+      assert wanted <= tables, \
+        f"Save wrote {sorted(tables)} and the map has {sorted(wanted)}"
+      assert bridge.read_working_state(path), \
+        "the saved file carries no record, so it cannot be resumed"
+      saved = gpkg_contents(path)
+      drawn_then = {t: project.mapLayer(l).featureCount()
+                    for t, l in dlg._element_layer_ids.items()
+                    if project.mapLayer(l) is not None}
+
+      # ---- ACT THREE: a run AFTER the file exists. This is the leg
+      # the old behaviour would fail: there is now something to
+      # overwrite, and the run must not.
+      dlg.spacing_spin.setValue(620)
+      _generate_and_wait(dlg)
+      _tick(300)
+      assert gpkg_contents(path) == saved, \
+        "a Generate rewrote a file that already held a saved map"
+      # ...and the run really did draw something else, so the leg
+      # above is not a comparison between two identical maps: the file
+      # now holds the OLD one, which is the whole point of the ruling.
+      drawn_now = {t: project.mapLayer(l).featureCount()
+                   for t, l in dlg._element_layer_ids.items()
+                   if project.mapLayer(l) is not None}
+      assert drawn_now != drawn_then, \
+        f"PREMISE: the second run drew the same map as the first "\
+        f"({drawn_then}), so nothing above could have shown a write"
+
+      # ---- ACT FOUR: a restyle, and then live update, which is the
+      # unattended one. A ramp pick is not a save either.
+      combo = dlg.table.cellWidget(0, 4)
+      if combo is not None and hasattr(combo, "setCurrentText"):
+        combo.setCurrentText("PuBu")
+      dlg._apply_style_change()
+      dlg._restyle_only()
+      _tick(400)
+      assert gpkg_contents(path) == saved, \
+        "a restyle wrote into the saved file"
+
+      dlg.live_check.setChecked(True)
+      dlg.spacing_spin.setValue(680)
+      _tick(1600)
+      _settle(dlg, seconds=90)
+      dlg.live_check.setChecked(False)
+      assert gpkg_contents(path) == saved, \
+        "an unattended live update wrote the file; auto-generate never " \
+        "writes, which is the half of the ruling nobody is watching"
+
+      # ---- AND THE CONTROL, so none of the above passes because the
+      # file could not be written or the map had gone: the press
+      # writes the map as it now stands, spacing and ramp and all.
+      press_save(dlg)
+      assert gpkg_contents(path) != saved, \
+        "a deliberate Save after four changes wrote nothing, so every " \
+        "assertion above is about a file nothing could move"
+
+      # ---- A HALF-SAVED FILE SAYS SO. The record is written last, so
+      # a file whose tables arrived and whose record did not is a map
+      # somebody can open and cannot carry on with. That branch had no
+      # driver at all until now: it is staged by making the write
+      # answer False, which is what `write_working_state` promises to
+      # do rather than raise.
+      from weavingspace_qgis import bridge as _bridge
+      original = _bridge.write_working_state
+      _hush(dlg)
+      try:
+        _bridge.write_working_state = lambda *a, **kw: False
+        dlg.save_button.click()
+      finally:
+        _bridge.write_working_state = original
+      warned = _said(dlg)
+      assert os.path.basename(path) in warned, \
+        f"a save whose record could not be written said nothing that " \
+        f"names the file: {warned!r}"
+      assert "design" in warned.lower() or "carry" in warned.lower(), \
+        f"the warning does not say what was lost, so a person cannot " \
+        f"tell it from an ordinary save: {warned!r}"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_save_asks_before_overwriting_a_file_it_did_not_write():
+  """Somebody else's GeoPackage is asked about; our own is not.
+
+  The maintainer's addition to the saving ruling, the same day: with
+  Save a deliberate press, asking every time is noise -- and a file
+  somebody else's work is in is not noise. So the question is put
+  exactly once, at the file that needs it, and the answer is obeyed in
+  both directions.
+
+  THE FILE THAT NEEDS IT is built here the way a user's would be: a
+  layer of their own written to a GeoPackage by QGIS, with none of
+  this plugin's tables or records in it. What must survive a Yes is
+  their table; what must survive a No is the whole file.
+
+  AND OUR OWN FILE IS THE CONTROL. A question asked about every
+  existing file would satisfy the first half of this test while making
+  the feature useless, so the last leg saves twice over our own file
+  and requires silence.
+
+  Regression: Save writes over whatever the box names, so a GeoPackage holding somebody's own work could be part-overwritten by a press meant for a map. [mutation]
+  """
+  from qgis.PyQt.QtWidgets import QMessageBox
+  from weavingspace_qgis import bridge
+  project = QgsProject.instance()
+  dlg, layer, tid = _categorical_dialog()
+  try:
+    with _temp_dir() as folder:
+      theirs = os.path.join(folder, "their-work.gpkg")
+      # THEIR file: written by QGIS, holding one table of their own.
+      mine = QgsVectorLayer(
+        "Point?crs=EPSG:3857&field=note:string", "their notes", "memory")
+      feature = QgsFeature(mine.fields())
+      feature.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(1.0, 2.0)))
+      feature.setAttribute("note", "keep me")
+      mine.dataProvider().addFeatures([feature])
+      bridge.write_gpkg_layer(mine, theirs, "their_notes", first=True)
+      assert "their_notes" in bridge.gpkg_tables(theirs), \
+        "PREMISE: the fixture did not write the user's own table"
+      assert not bridge.read_working_state(theirs), \
+        "PREMISE: the fixture's file carries one of our records, so it " \
+        "is not somebody else's file at all"
+      untouched = open(theirs, "rb").read()
+
+      dlg.live_check.setChecked(False)
+      dlg.spacing_spin.setValue(500)
+      _generate_and_wait(dlg)
+      _tick(300)
+      assert dlg._element_layer_ids, "the run drew nothing to save"
+
+      # ---- DECLINED. The file is left exactly as it was.
+      dlg.gpkg_widget.setFilePath(theirs)
+      MODALS.clear()
+      MODAL_ANSWERS["question"] = QMessageBox.StandardButton.No
+      try:
+        wrote = press_save(dlg, theirs, expect=False)
+      finally:
+        MODAL_ANSWERS.pop("question", None)
+      assert not wrote, "Save wrote a file the user declined to overwrite"
+      asked = " ".join(text for _kind, text in MODALS)
+      assert "already exists" in asked.lower(), \
+        f"Save wrote over somebody else's file without asking: {MODALS!r}"
+      assert os.path.basename(theirs) in asked, \
+        f"the question does not name the file it is about: {asked!r}"
+      assert open(theirs, "rb").read() == untouched, \
+        "a declined Save changed the file anyway"
+
+      # ---- ACCEPTED. Our tables arrive; THEIRS survives beside them.
+      MODALS.clear()
+      press_save(dlg, theirs)
+      tables = set(bridge.gpkg_tables(theirs))
+      assert "their_notes" in tables, \
+        f"saving into somebody else's GeoPackage removed their own " \
+        f"table; it now holds {sorted(tables)}"
+      wanted = {table_of_element(dlg, t) for t in dlg._element_layer_ids}
+      assert wanted <= tables, \
+        f"the map did not arrive: {sorted(tables)}"
+
+      # ---- AND OUR OWN FILE IS NEVER ASKED ABOUT, including the
+      # second press onto the file we have just made ours.
+      MODALS.clear()
+      press_save(dlg, theirs)
+      assert not MODALS, \
+        f"Save asked again about a file it had just written: {MODALS!r}"
+      ours = os.path.join(folder, "ours.gpkg")
+      dlg.gpkg_widget.setFilePath(ours)
+      press_save(dlg)
+      MODALS.clear()
+      press_save(dlg)
+      assert not MODALS, \
+        f"Save asked about our own map's own file: {MODALS!r}"
+  finally:
+    dlg.close()
+    project.clear()
+
+
+def test_unticking_the_source_takes_it_out_of_the_file():
+  """The file shows the limit of what it contains.
+
+  The maintainer's second ruling of 2026-08-27, on ledger row 26 of
+  that day: ticking "Include the source data", then unticking it and
+  saving again, left the file holding a full private copy of the
+  region while the record beside it said `region_embedded: False`. So
+  the privacy the box promised was gone AND the resume the copy would
+  have given was refused, since the record is what a resume reads --
+  the worst of both.
+
+  READ FROM THE BYTES, and read with everything CLOSED. Measured that
+  day: with the dataset still open, an abandoned copy sits in sqlite's
+  freelist and a byte search finds values that no longer belong to any
+  table. The file a colleague receives is the file after it is closed,
+  and that is the only moment a claim like this one means anything.
+
+  ONLY OUR OWN TABLE GOES, which is the line the stale-table drop
+  holds as well: the plugin removes what the plugin wrote. A table of
+  the user's own in the same file is here to prove it.
+
+  Regression: unticking "Include the source data" and saving again left the private copy in the file while the record said it was gone, losing the privacy and the resume together. [mutation]
+  """
+  from qgis.core import QgsField
+  from qgis.PyQt.QtCore import QMetaType
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  # Named for what it is -- a value of the user's own that the
+  # unticked box promises not to ship -- rather than for secrecy,
+  # which reads to the secrets gate as a credential assigned to a
+  # revealing name, and rightly: that gate cannot tell a fixture from
+  # a leak, and should not have to.
+  PRIVATE_VALUE = "a-ward-name-nobody-else-should-see"
+  # THE VALUE GOES IN A COLUMN NOTHING DISPLAYS, and that is the whole
+  # design of this test. The first draft planted it in `landcover` --
+  # which element b DISPLAYS, so the value is in that element's own
+  # table by the ruling of 2026-08-25 that tables are trimmed to the
+  # variable they show. It was found in the file after the untick,
+  # correctly, and the test read it as the private copy surviving.
+  # (Measured 2026-08-27, including through a VACUUM, which is what
+  # ruled out the freelist as the explanation.)
+  # A column no element is assigned to reaches the file ONLY inside a
+  # copy of the region, so it answers the question the box is about.
+  layer = make_region_layer()
+  # TWO EDIT SESSIONS, not one. Adding a field and filling it in the
+  # same session leaves the values unwritten -- the field does not
+  # exist for `changeAttributeValue` until the addition is committed,
+  # and neither call complains. The premise assertion below is what
+  # caught it (2026-08-27).
+  layer.startEditing()
+  assert layer.addAttribute(
+    QgsField("secret_note", QMetaType.Type.QString)), \
+    "PREMISE: the fixture could not add the column this test is about"
+  assert layer.commitChanges(), "PREMISE: the column was not committed"
+  layer.startEditing()
+  index = layer.fields().indexOf("secret_note")
+  assert index >= 0, "PREMISE: the new column has no index"
+  for feature in layer.getFeatures():
+    layer.changeAttributeValue(feature.id(), index, PRIVATE_VALUE)
+  assert layer.commitChanges(), "PREMISE: the values were not committed"
+  carried = [f["secret_note"] for f in layer.getFeatures()]
+  assert all(v == PRIVATE_VALUE for v in carried) and carried, \
+    f"PREMISE: the region does not carry the value this test hides " \
+    f"({carried[:3]!r})"
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    with _temp_dir() as folder:
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(300)
+      _map_every_name(dlg, ["v1", "landcover", "v2", "v3"])
+      displayed = {a.get("var") for a in dlg._assignments()}
+      assert "secret_note" not in displayed, \
+        f"PREMISE: an element displays the secret column ({displayed}), " \
+        f"so its value belongs in the map's own tables and finding it " \
+        f"there would say nothing about the region copy"
+
+      path = os.path.join(folder, "shared.gpkg")
+      dlg.spacing_spin.setValue(500)
+      dlg.gpkg_widget.setFilePath(path)
+      _generate_and_wait(dlg)
+      _tick(300)
+
+      # ---- TICKED: the copy is there and the record says so.
+      dlg.opt_embed_source.setChecked(True)
+      press_save(dlg)
+      assert bridge.REGION_TABLE_NAME in bridge.gpkg_tables(path), \
+        "ticking the box did not put the source in the file"
+      # ASKED THROUGH OGR RATHER THAN OF THE BYTES, and the reason is
+      # the measurement that cost this test three drafts: a value just
+      # written lives in sqlite's write-ahead log beside the file, so
+      # OGR reads it back perfectly while a byte search of the .gpkg
+      # itself finds nothing. The bytes are only the whole story once
+      # everything has let go and the log is folded in, which is what
+      # the closing check below waits for.
+      embedded = _boundary_read_gpkg(path).get(bridge.REGION_TABLE_NAME)
+      assert embedded is not None and embedded.isValid(), \
+        "PREMISE: the region table did not come back out of the file"
+      carried_in_file = [f["secret_note"] for f in embedded.getFeatures()]
+      assert PRIVATE_VALUE in carried_in_file, \
+        f"PREMISE: the ticked box put a region copy in the file that " \
+        f"does not carry this test's own value ({carried_in_file[:3]!r}), " \
+        f"so its absence afterwards would prove nothing"
+      del embedded
+      record = bridge.read_working_state(path) or {}
+      assert record.get("region_embedded") is True, \
+        f"the file holds the source and its record denies it: {record!r}"
+
+      # a table of the user's own, added between the two saves, which
+      # the untick must not touch
+      theirs = QgsVectorLayer(
+        "Point?crs=EPSG:3857&field=note:string", "their notes", "memory")
+      feature = QgsFeature(theirs.fields())
+      feature.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(3.0, 4.0)))
+      feature.setAttribute("note", "keep me")
+      theirs.dataProvider().addFeatures([feature])
+      bridge.write_gpkg_layer(theirs, path, "their_notes", first=False)
+
+      # ---- UNTICKED: the copy goes, and the record agrees.
+      dlg.opt_embed_source.setChecked(False)
+      press_save(dlg)
+      tables = set(bridge.gpkg_tables(path))
+      assert bridge.REGION_TABLE_NAME not in tables, \
+        f"unticking the box left the private copy in the file: " \
+        f"{sorted(tables)}"
+      assert "their_notes" in tables, \
+        f"the untick took a table the plugin never wrote: " \
+        f"{sorted(tables)}"
+      record = bridge.read_working_state(path) or {}
+      assert record.get("region_embedded") is False, \
+        f"the record still claims an embedded source: {record!r}"
+
+      # ---- THE BYTES, once everything has let go, and INSIDE the
+      # temporary directory, which goes away with the block. The
+      # dialog is closed and the project cleared first: with the
+      # dataset open, sqlite keeps the dropped pages in its freelist
+      # and a byte search finds values belonging to no table at all
+      # (measured 2026-08-27).
+      dlg.close()
+      dlg = None
+      project.clear()
+      _tick(300)
+      # EVERY FILE THAT TRAVELS, not only the .gpkg: sqlite keeps a
+      # write-ahead log and a shared-memory file beside it, and a
+      # folder copied to somebody else carries whatever is there.
+      # Closing everything above checkpoints and removes them, so this
+      # is also the check that the closing really happened.
+      residue = {}
+      for name in sorted(os.listdir(folder)):
+        if not name.startswith(os.path.basename(path)):
+          continue
+        with open(os.path.join(folder, name), "rb") as handle:
+          if PRIVATE_VALUE.encode() in handle.read():
+            residue[name] = os.path.getsize(os.path.join(folder, name))
+      assert not residue, \
+        f"the region's own values are still in {sorted(residue)} after " \
+        f"the box was unticked and the map saved again; the privacy " \
+        f"the box promises is what makes it worth having"
+  finally:
+    if dlg is not None:
+      dlg.close()
+    project.clear()
 
 
 def main():
@@ -67961,6 +69268,13 @@ def main():
         test_a_ramp_is_remembered_under_the_mode_the_row_is_in)
   check("a donor reaches its follower in the same run",
         test_a_donor_reaches_its_follower_in_the_same_run)
+  check("saving holds on every route", test_saving_holds_on_every_route)
+  check("a generate draws and only a save writes",
+        test_a_generate_draws_and_only_a_save_writes)
+  check("save asks before overwriting a file it did not write",
+        test_save_asks_before_overwriting_a_file_it_did_not_write)
+  check("unticking the source takes it out of the file",
+        test_unticking_the_source_takes_it_out_of_the_file)
 
   if SHARD_COUNT > 1:
     print(f"\nshard {SHARD_INDEX} of {SHARD_COUNT}: "

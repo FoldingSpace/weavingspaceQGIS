@@ -15892,6 +15892,25 @@ class WeavingSpaceDialog(QDialog):
       self._report_quietly(
         "Choose a file in the box beside Save first.")
       return False
+    # A PRESS MADE WHILE A RUN IS IN FLIGHT IS ABOUT THE RUN. What is
+    # on screen at that moment is the PREVIOUS map, so writing it
+    # would answer a different question from the one the press asked
+    # -- silently, and over the file the user has just named. The run
+    # lands in seconds and the press costs nothing to repeat.
+    # This is the same door the group chooser and the resume already
+    # guard with `self._task is not None`; a guard added to one door
+    # belongs at every door into the same room.
+    #
+    # IT IS ASKED BEFORE "IS THERE A MAP", and the order is the whole
+    # of what a person is told. On the FIRST run there are no element
+    # layers yet, so the other way round a press mid-run answered
+    # "There is no map to save yet. Press Generate first." -- which is
+    # false twice over: they did press Generate, and it is running.
+    # Found by the test that stages exactly that moment, 2026-08-27.
+    if self._task is not None:
+      self._report_quietly(
+        "The map is still drawing. Save it once it has landed.")
+      return False
     if not self._element_layer_ids:
       self._report_quietly(
         "There is no map to save yet. Press Generate first.")
@@ -15935,6 +15954,26 @@ class WeavingSpaceDialog(QDialog):
         if layer is None:
           continue
         subset = layer.subsetString()
+        # A LAYER ALREADY READING FROM THIS TABLE IS ALREADY SAVED,
+        # and asking OGR to write it back is asking it to overwrite a
+        # layer with itself, which it refuses: "Cannot overwrite an
+        # OGR layer in place". Measured 2026-08-27, and it is not an
+        # edge case -- it is the SECOND press on any map. The first
+        # save repoints every layer at the file (which is what keeps
+        # the map alive in a reopened project), so from then on every
+        # further save met this, failed at the first element, and
+        # returned before writing the styles, the stale-table drop or
+        # the record. The whole of "save, change a colour, save
+        # again" was unreachable.
+        # The data needs no writing because it is already there: the
+        # layer READS from that table, and QGIS commits a user's own
+        # edits to the file itself. What still has to happen is
+        # everything AFTER the write -- the style, the name counted as
+        # current so the stale-table drop spares it, and the record.
+        if same_source(layer.source(), f"{path}|layername={table}"):
+          written_names.add(table)
+          bridge.embed_style(layer)
+          continue
         try:
           bridge.write_gpkg_layer(layer, path, table, first=fresh)
         except Exception as e:
@@ -16003,11 +16042,26 @@ class WeavingSpaceDialog(QDialog):
 
     WHAT COUNTS AS OURS, and it is asked of the FILE rather than
     remembered: a file this dialog has already saved to in this
-    session, or one carrying a working-state record naming the group
-    being saved. The second is what makes an ordinary re-save silent
+    session, or one carrying a working-state record naming THE DATASET
+    now in force. The second is what makes an ordinary re-save silent
     after a restart, and what keeps the question for the case that
-    matters -- a GeoPackage holding somebody's own tables, or another
-    map of theirs.
+    matters -- a GeoPackage holding somebody's own tables, or a map
+    made from other data.
+
+    IT IS THE DATASET AND NOT THE GROUP, deliberately, and the
+    difference is worth stating because it leaves one case silent: a
+    SECOND map of the SAME dataset, saved onto the first map's file,
+    replaces it without a question. Three things decide that. The
+    record carries `region` and `output_path` and no group identity at
+    all (WORKING_STATE_EDGES), so a group-level question is not
+    available to ask without widening what the file stores. The
+    maintainer's ruling names the boundary as "a file the plugin did
+    not write", and that file is one the plugin wrote from that data.
+    And the save chooser is a SAVE-mode file dialogue, so the platform
+    has already asked about replacing an existing file on the way in.
+    If the group ever becomes the unit this question is asked about,
+    the record needs a group identity first -- and this paragraph is
+    where to start, rather than a comparison this record cannot make.
     """
     import os
     from qgis.PyQt.QtWidgets import QMessageBox

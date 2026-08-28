@@ -436,14 +436,14 @@ MUTATIONS = [
            "KEPT group's no-data layers and the next run removes "
            "them, punching holes in the map the user asked to keep"),
   dict(name="the-file-gets-the-opacity-the-map-has", file=DIALOG,
-       old="""    if path:
-      bridge.embed_style(layer)
-    project.addMapLayer(layer, False)""",
-       new="""    if path:
-      # mutation: what the FILE is told, before it is told it
-      layer.setOpacity(1.0)
-      bridge.embed_style(layer)
-    project.addMapLayer(layer, False)""",
+       # RE-AIMED 2026-08-27 at `_save_the_map`, which is the only
+       # writer now. The hazard did not move: `embed_style` still
+       # writes what the layer wears AT THAT MOMENT, so a file told a
+       # different opacity from the map is still a map a colleague
+       # receives wrong.
+       old="""        bridge.embed_style(layer)""",
+       new="""        layer.setOpacity(1.0)  # mutation: tell the FILE otherwise
+        bridge.embed_style(layer)""",
        test="test_a_geopackage_carries_the_no_data_opacity_it_was_given",
        why="embed_style writes what the layer wears at that moment, "
            "so an opacity set afterwards reaches the project and not "
@@ -539,8 +539,13 @@ MUTATIONS = [
        # displayed variable. The claim is unchanged -- the FILE
        # decides whether a run would overwrite, not this session's
        # memory -- and emptying the answer is still how it fails.
-       old="""      would_replace = bridge.gpkg_tables_we_would_replace(path_now, planned)""",
-       new="""      would_replace = []  # mutation: ask the file nothing""",
+       # RE-AIMED 2026-08-27. The run no longer writes, so the
+       # question moved to `_may_overwrite` -- and it is the same
+       # claim, in the same words: the FILE decides whether this is
+       # somebody else's map, not what this session happens to
+       # remember writing.
+       old="""    record = bridge.read_working_state(path)""",
+       new="""    record = None  # mutation: ask only this session's memory""",
        # ONE LITERAL, however long: the standards check reads an
        # entry's test name from its FIRST string, so a name split
        # across two lines is read as a test that does not exist.
@@ -964,21 +969,17 @@ MUTATIONS = [
            "project's hand-picks and pins where nothing could reach "
            "them, and the next Generate destroyed them in the .qgz "
            "and the GeoPackage"),
-  dict(name="keeping-a-result-keeps-its-file", file=DIALOG,
-       old="""    keeping = self.opt_new_group.isChecked() \\
-        or self._new_group_chosen""",
-       new="""    keeping = self.opt_new_group.isChecked()  # mutation: the box alone""",
-       test="test_keeping_a_result_keeps_its_file_however_it_was_kept",
-       why="four things now keep a previous result and this guard "
-           "asked about one, so a change of dataset spared the GROUP "
-           "and wrote over the FILE it draws from -- tables rewritten, "
-           "others dropped, the panel looking right. The fourth is the "
-           "chooser's 'create new', added 2026-08-25, and it is the "
-           "only route where the group's own region stamps cannot "
-           "answer: they name the current dataset, so the arming is "
-           "all that stands between the run and the kept file. This "
-           "entry SURVIVED the day the chooser landed, which is how "
-           "that gap was found"),
+  # `keeping-a-result-keeps-its-file` STOOD HERE AND WAS RETIRED ON
+  # 2026-08-27, with its measurement, because the guard it mutated no
+  # longer exists. It asked whether the four ways of keeping a
+  # previous result all protected that result's FILE from the next
+  # run. Under the ruling that saving is a positive act, NO run writes
+  # any file at all, so there is nothing for the guard to decide and
+  # the modal it stood behind was deleted with the measurement at its
+  # site. What replaces it is `a-generate-writes-nothing` below, which
+  # breaks the absence rather than the guard: it puts a write back
+  # into the landing and requires the test to notice. WHAT WOULD
+  # REOPEN THIS: a decision that some run may write again.
   dict(name="the-roadmap-gate-cannot-be-satisfied-by-quoting-it",
        file="tools/check_roadmap.py",
        old="""  return CLEAR in QUOTED.sub(" ", section).lower()""",
@@ -999,12 +1000,19 @@ MUTATIONS = [
        # (An earlier anchor sat on the restyle site's neighbours and
        # the entry honestly reported SURVIVED, since the test never
        # reaches that site.)
-       old="""      if not bridge.write_working_state(path, self._file_safe_state(resumable)):
-        self._report_quietly(""",
-       new="""      bridge.write_working_state(path, self._file_safe_state(resumable))
-      if False:  # mutation: drop the answer on the floor
-        self._report_quietly(""",
-       test="test_a_saved_map_can_be_opened_and_carried_on",
+       # RE-AIMED 2026-08-27 at the save, which is where the record
+       # is written now, and at the test that STAGES the failure by
+       # making `write_working_state` answer False -- the branch had
+       # no driver at all before, so this entry could only ever have
+       # been red or vacuous.
+       old="""    if not bridge.write_working_state(
+        path, self._file_safe_state(resumable)):
+      self._report_quietly(""",
+       new="""    bridge.write_working_state(
+        path, self._file_safe_state(resumable))
+    if False:  # mutation: drop the answer on the floor
+      self._report_quietly(""",
+       test="test_a_generate_draws_and_only_a_save_writes",
        why="`write_working_state`'s own Returns block promises that a "
            "failure 'is reported rather than raised', and nothing read "
            "the bool it hands back -- a rule asserting its own "
@@ -1095,26 +1103,14 @@ MUTATIONS = [
            "This is the value-laden half, cleared per element AND "
            "field so that switching a variable away and back still "
            "gives a person their work back"),
-  dict(name="the-file-record-follows-a-restyle",
-       file=DIALOG,
-       old="""    return bool(bridge.write_working_state(
-      path, self._file_safe_state(resumable)))""",
-       new="""    return True  # mutation: never write the file's record""",
-       test="test_the_file_carries_the_design_the_map_is_wearing",
-       why="AIMED AT THE SHARED WRITER since 2026-08-27, because "
-           "breaking the restyle's own call alone now SURVIVES: the "
-           "queued restamp writes the same record, so the behaviour "
-           "is held redundantly and only breaking every route at once "
-           "asks a real question. "
-           "A style-only change never reaches `_add_output_layers`, "
-           "so both stores of a map's design have to be written from "
-           "the restyle path. The group's record was given that write "
-           "on 2026-08-25 and the FILE's record was added to the "
-           "landing alone hours later, inheriting the gap that write "
-           "had just closed. Measured through GDAL: the file's styles "
-           "were updated and its record still described the map from "
-           "before, so a colleague resuming it repainted the ramp the "
-           "user had abandoned"),
+  # `the-file-record-follows-a-restyle` STOOD HERE AND WAS RETIRED ON
+  # 2026-08-27. Its whole subject was that TWO writers of one fact --
+  # the landing and the restyle -- had to agree, and it was re-aimed
+  # once already at the shared writer for exactly that reason. There
+  # is one writer now, `_save_the_map`, so the disagreement it names
+  # cannot arise; `a-saved-map-carries-its-state` mutates that single
+  # writer and covers what is left. WHAT WOULD REOPEN THIS: a second
+  # site that writes the file's record.
   dict(name="a-class-source-follows-the-record-under-it",
        file=DIALOG,
        old="""        self._populate_class_source_combo(
@@ -1418,9 +1414,12 @@ MUTATIONS = [
            "same harm through the expression that survived"),
   dict(name="a-zero-byte-file-is-not-a-geopackage",
        file=DIALOG,
-       old="""        empty_file = (os.path.exists(path)
-                      and os.path.getsize(path) == 0)""",
-       new="""        empty_file = False  # mutation: bare existence decides""",
+       # RE-AIMED 2026-08-27 at the save's own freshness test. The
+       # deleted file is still recreated at zero bytes by the handle
+       # release; what reads that now is the press rather than the
+       # run, and the map is lost in exactly the same silence.
+       old="""    fresh = (not os.path.exists(path)) or os.path.getsize(path) == 0""",
+       new="""    fresh = not os.path.exists(path)  # mutation: bare existence decides""",
        test="test_the_map_survives_its_file_being_deleted",
        why="releasing the deleted file's handles recreates a zero-byte "
            "file at the path, so a bare existence test chose update "
@@ -2112,11 +2111,18 @@ MUTATIONS = [
            "maps of the same data agree and a second category does "
            "not steal the first one's colour"),
   dict(name="output-form-layout", file=DIALOG,
-       old="    olayout.addLayout(out_form)",
-       new="    pass  # mutation: the whole output form is never added",
+       # RE-AIMED 2026-08-27: the output form became the Save & open
+       # tab, and the row carrying the chooser and its button is what
+       # a person needs to be able to reach.
+       old='    files_form.addRow("Save the map to", save_row)',
+       new="    pass  # mutation: the save row is never added to the form",
        test="test_the_dialogs_chrome_does_its_job",
-       why="the GeoPackage and grouping controls existing in the "
-           "window rather than only in the source"),
+       why="the file chooser and its Save button existing in the "
+           "WINDOW rather than only in the source: a widget built and "
+           "left out of every layout keeps whatever parent it was "
+           "constructed with and never becomes a descendant of the "
+           "dialog, so it is unreachable while every test that calls "
+           "it by attribute goes on passing"),
   dict(name="progress-hidden-after-run", file=DIALOG,
        old="""        self.generate_btn.setEnabled(True)
         self.progress.setVisible(False)""",
@@ -2514,12 +2520,10 @@ MUTATIONS = [
        # Re-anchored 2026-08-26 when the zero-byte-file fix widened
        # this expression; the entry's claim is unchanged -- a file
        # holding anything is never recreated.
-       old="""        out = bridge.write_gpkg_layer(mem, path, table_name,
-                                      first=(first_gpkg_layer
-                                             and (not os.path.exists(path)
-                                                  or empty_file)))""",
-       new="""        out = bridge.write_gpkg_layer(mem, path, table_name,
-                                      first=first_gpkg_layer)""",
+       # RE-AIMED 2026-08-27 at the save's write, which carries the
+       # same argument for the same reason.
+       old="""          bridge.write_gpkg_layer(layer, path, table, first=fresh)""",
+       new="""          bridge.write_gpkg_layer(layer, path, table, first=True)""",
        test="test_a_generate_spares_the_rest_of_the_users_geopackage",
        why="the plugin never destroying data it did not create. "
            "Recreating an existing GeoPackage wipes every other "
@@ -2528,11 +2532,17 @@ MUTATIONS = [
            "map is drawn from data the same run deleted, silently, "
            "because an open layer answers featureCount from cache"),
   dict(name="shrunk-design-tidies-its-geopackage", file=DIALOG,
-       old="""      for stale in sorted(written):
-        name = stale if stale.startswith("tiles_") else f"tiles_{stale}"
-        if name not in current:
-          bridge.drop_gpkg_layer(path, name)""",
-       new="""      pass  # mutation: dropped elements stay in the file""",
+       # RE-ANCHORED 2026-08-27: the drop moved out of the landing
+       # into `_drop_tables_this_map_no_longer_has`, which the save
+       # calls, and lost two spaces of indentation on the way.
+       old="""    for stale in sorted(written):
+      # older records held bare element ids; those still name the
+      # `tiles_<id>` they were written for
+      name = stale if stale.startswith("tiles_") else f"tiles_{stale}"
+      if name not in current:
+        bridge.drop_gpkg_layer(path, name)""",
+       new="""    for stale in sorted(written):
+      pass  # mutation: the shrunk design leaves its old tables""",
        test="test_a_geopackage_loses_the_elements_a_design_dropped",
        why="the exported file describing the design that exists. A "
            "GeoPackage is replaced table by table, so a session that "
@@ -2741,11 +2751,93 @@ MUTATIONS = [
        new="        pass  # mutation: always re-seed, discarding hand work",
        test="test_output_management",
        why="hand styling kept when an element's assignment is unchanged"),
-  dict(name="live-gpkg-gate", file=DIALOG,
-       old="if self.gpkg_widget.filePath().strip() or \\",
-       new="if False or \\",
+  # `live-gpkg-gate` STOOD HERE AND WAS TURNED AROUND ON 2026-08-27.
+  # It proved that live update DECLINED while an output path was set,
+  # which was right while a live run rewrote the file on every
+  # keystroke. Nothing writes now, so the gate was deleted with the
+  # measurement at its site -- and an entry cannot mutate a line that
+  # is not there. What stands in its place breaks the ABSENCE
+  # instead: it puts the gate back and requires the test to notice,
+  # which is the only way to guard a deletion.
+  dict(name="live-update-is-not-gated-by-a-path", file=DIALOG,
+       # ANCHORED WITH THE DUMP LINE BENEATH IT, because the condition
+       # alone appears twice in this file and an anchor matching twice
+       # applies nothing while the run still reports a result.
+       old="""    if self.opt_new_group.isChecked():
+      _dump("LIVE-GATE", "new-group")""",
+       new="""    if self.gpkg_widget.filePath().strip():  # mutation: gate it again
+      return
+    if self.opt_new_group.isChecked():
+      _dump("LIVE-GATE", "new-group")""",
        test="test_live_update_gates",
-       why="live update declining to rewrite a GeoPackage on every tweak"),
+       why="a person refining a design with a file chosen for later "
+           "must go on seeing their map redraw. The gate that used to "
+           "stop them was justified by a live run rewriting their "
+           "file, and no run writes anything since the ruling of "
+           "2026-08-27; a guard that cannot fire reads as protection, "
+           "so it was removed rather than explained and this entry "
+           "guards its absence"),
+  # THE OTHER HALF OF THE SAME RULING, and it breaks an ABSENCE too:
+  # there is no line left in the landing to mutate, so this one puts
+  # a write BACK. Anchored in `_finish_run` rather than in
+  # `_add_output_layers` deliberately -- inside the landing the task
+  # is still in flight and `_save_the_map` refuses, so a mutation
+  # there would change nothing and report a survivor that means
+  # nothing.
+  dict(name="a-second-save-is-not-a-write-in-place", file=DIALOG,
+       old="""        if same_source(layer.source(), f"{path}|layername={table}"):
+          written_names.add(table)
+          bridge.embed_style(layer)
+          continue""",
+       new="""        if False:  # mutation: write every layer back over itself
+          written_names.add(table)
+          bridge.embed_style(layer)
+          continue""",
+       test="test_saving_holds_on_every_route",
+       why="a map could be SAVED ONCE AND NEVER AGAIN. The first "
+           "press repoints every element layer at the file it wrote, "
+           "which is what keeps the map alive in a reopened project, "
+           "so the second press asks OGR to write a layer into the "
+           "table it is reading from -- and OGR refuses: 'Cannot "
+           "overwrite an OGR layer in place'. The save reports the "
+           "first element's failure and returns BEFORE the styles, "
+           "the stale-table drop and the record, so save-change-save "
+           "was unreachable and the untick of ruling 2 could never "
+           "fire. Found by the save matrix on its first run, "
+           "2026-08-27"),
+  dict(name="a-save-mid-run-says-the-map-is-drawing", file=DIALOG,
+       # ANCHORED ON THE PAIR, because the ORDER is the behaviour: the
+       # no-map answer comes second so that a press during the FIRST
+       # run is told what is actually happening.
+       old="""    if self._task is not None:
+      self._report_quietly(
+        "The map is still drawing. Save it once it has landed.")
+      return False
+    if not self._element_layer_ids:""",
+       new="""    if not self._element_layer_ids:""",
+       test="test_a_restyle_arrives_while_the_geopackage_is_written",
+       why="a press made while a run is in flight is about the RUN, "
+           "and what is on screen at that moment is the PREVIOUS map "
+           "-- so writing it answers a question nobody asked, over "
+           "the file just named. Without the guard the press saves "
+           "the old map; with it below the no-map check, a press "
+           "during the first run answers 'There is no map to save "
+           "yet. Press Generate first.', which is false twice over"),
+  dict(name="a-generate-writes-nothing", file=DIALOG,
+       old="""    self.progress.setRange(0, 100)
+    self._task = None""",
+       new="""    self.progress.setRange(0, 100)
+    self._task = None
+    self._save_the_map()  # mutation: the run writes the file after all""",
+       test="test_a_generate_draws_and_only_a_save_writes",
+       why="drawing and saving are two acts (maintainer's ruling, "
+           "2026-08-27). A run that writes is how a file chosen for "
+           "later was written to at once, how live update came to "
+           "need a gate against rewriting somebody's file on every "
+           "keystroke, and how clearing the output box forked a "
+           "group. Nothing in the source can be mutated to prove an "
+           "absence, so this entry restores the behaviour and "
+           "requires the test to notice"),
   dict(name="group-adoption", file=DIALOG,
        old="    self._adopt_existing_group()",
        new="    pass  # mutation: adoption disabled",
@@ -2848,7 +2940,10 @@ MUTATIONS = [
        test='test_integration_weave_and_icons',
        why='the Draw tile boundaries switch reaching the symbols'),
   dict(name='gpkg-style-embed', file=DIALOG,
-       old='        bridge.embed_style(out)',
+       # RE-AIMED 2026-08-27 at the save's embed, the one that is
+       # left. The promise is unchanged: a GeoPackage carries its own
+       # cartography, so the map opens elsewhere looking like itself.
+       old='        bridge.embed_style(layer)',
        new='        pass  # mutation: styles not written into the file',
        test='test_integration_gpkg_style_round_trip',
        why='a GeoPackage carrying its own cartography'),
@@ -2922,8 +3017,9 @@ MUTATIONS = [
   # unchanged -- every element gets its own table inside the file --
   # and giving them all one name is still how it fails.
   dict(name='gpkg-layer-naming', file=DIALOG,
-       old='        out = bridge.write_gpkg_layer(mem, path, table_name,',
-       new='        out = bridge.write_gpkg_layer(mem, path, "tiles_x",',
+       # RE-AIMED 2026-08-27 at the save's write.
+       old='          bridge.write_gpkg_layer(layer, path, table, first=fresh)',
+       new='          bridge.write_gpkg_layer(layer, path, "tiles_x", first=fresh)',
        test='test_ui_library_categorical_to_gpkg',
        why='each element getting its own layer inside the GeoPackage'),
   dict(name='categorical-template-ignored', file=DIALOG,
@@ -4957,38 +5053,20 @@ MUTATIONS = [
            "reads that as the user taking the element back and "
            "re-seeds over a style they pasted a moment earlier, with "
            "nothing said but the tile count"),
-  dict(name="a-graduated-dock-edit-reaches-the-file",
-       file="weavingspace_qgis/dialog.py",
-       old="      if self._last_path:\n"
-           "        bridge.embed_style(layer)\n"
-           "      # A RETYPED BOUNDARY LANDS HERE, because moving a number moves",
-       new="      return  # our own seeding, or an edit that changed no colour\n"
-           "    if len(expected) != len(actual):",
-       test="test_a_dock_edit_of_any_kind_reaches_the_exported_file",
-       why="a COLOUR comparison cannot see a retyped break or an "
-           "added stroke, so this guard returns before every embed "
-           "exit and the GeoPackage a colleague opens carries the "
-           "style from before the edit -- with Generate unable to "
-           "heal it, since the row never moved"),
-  dict(name="a-categorized-dock-edit-reaches-the-file",
-       file="weavingspace_qgis/dialog.py",
-       # RE-ANCHORED 2026-08-20: this exit now names itself in the
-       # dump before returning, so the two lines are no longer
-       # adjacent.
-       old="      if self._last_path:\n"
-           "        bridge.embed_style(layer)\n"
-           "      _dump(\"DROP\", tile_id, \"clean-classify\")\n"
-           "      return  # our own seeding, or an edit that changed no colour\n"
-           "\n"
-           "    # a clean classify from a standard ramp?",
-       new="      return  # our own seeding, or an edit that changed no colour\n"
-           "\n"
-           "    # a clean classify from a standard ramp?",
-       test="test_a_dock_edit_of_any_kind_reaches_the_exported_file",
-       why="the categorized twin of the same guard, repaired hours "
-           "later than the graduated one and only because a hunt went "
-           "looking: a fill comparison cannot see a stroke, a legend "
-           "label or a deleted category"),
+  # `a-graduated-dock-edit-reaches-the-file` AND ITS CATEGORIZED TWIN
+  # STOOD HERE AND WERE RETIRED ON 2026-08-27, together, because the
+  # same measurement retires both. They proved that a colour
+  # comparison could not stand in front of the `embed_style` exits --
+  # a retyped break or an added stroke reaching the map and never the
+  # file. There are no embed exits on the adoption path any more: the
+  # file learns at the next Save, which writes whatever renderer the
+  # LAYER is wearing, and QGIS put that renderer there whether the
+  # plugin adopted the edit or not. So the promise now holds
+  # structurally rather than by a guard, and no one-line mutation of
+  # the adoption path can break it. WHAT WOULD REOPEN THEM: a
+  # decision to write the file from the adoption path again.
+  # What still needs guarding on that path is the plugin's own
+  # RECORD following the edit, which the attribution entries cover.
   dict(name="the-vendor-gate-compares-the-commit",
        file="tools/sync_release_content.py",
        old="    if commit:\n"
@@ -5665,12 +5743,13 @@ MUTATIONS = [
            "on the element layer with no class to place them and draw "
            "as holes, while the notice says to press Generate"),
   dict(name="an-adopted-ladder-is-stamped", file=DIALOG,
+       # RE-ANCHORED 2026-08-27: the embed that followed the stamp
+       # went with the saving ruling. The stamp is the half this
+       # entry was always about.
        old="""      layer_now = QgsProject.instance().mapLayer(
         self._element_layer_ids.get(tile_id) or "")
       if layer_now is not None:
-        self._stamp_category_colours(layer_now, refreshed)
-        if self._last_path:
-          bridge.embed_style(layer_now)""",
+        self._stamp_category_colours(layer_now, refreshed)""",
        new="      pass  # mutation: adopt without stamping",
        test="test_an_adopted_ladder_is_stamped_for_a_reopen",
        why="nothing on a renderer records that a break was CHOSEN "
@@ -5875,11 +5954,11 @@ MUTATIONS = [
            "the stamp REMOVED so a reopen cannot recover them, and the "
            "sentence blaming the user's data"),
   dict(name="the-restyle-restamps-after-retiring", file=DIALOG,
+       # RE-ANCHORED 2026-08-27, as its sibling above: the embed
+       # that followed the stamp went with the saving ruling.
        old="        if layer_now is not None:\n"
            "          fresh = self._assignment_for(tid)\n"
-           "          self._stamp_category_colours(layer_now, fresh or a)\n"
-           "          if self._last_path:\n"
-           "            bridge.embed_style(layer_now)",
+           "          self._stamp_category_colours(layer_now, fresh or a)",
        new="        if layer_now is not None:\n"
            "          pass  # mutation: the retired number stays stamped",
        test="test_a_retired_pin_leaves_neither_a_stamp_nor_a_silent_neighbour",
@@ -6043,10 +6122,11 @@ MUTATIONS = [
            "screen says so: the dropdown would offer it and choosing "
            "it would restore nothing"),
   dict(name="the-record-describes-the-map-that-was-tiled", file=DIALOG,
-       old="""      if isinstance(launch_state, dict):
-        for key in ("design", "output_path", "region"):""",
-       new="""      if False:  # mutation: record the controls as they stand now
-        for key in ("design", "output_path", "region"):""",
+       # RE-ANCHORED 2026-08-27: the three keys are named by
+       # WORKING_STATE_EDGES now, so the literal they were spelled
+       # with no longer appears here.
+       old="""      for key in ("design",) + WORKING_STATE_EDGES:""",
+       new="""      for key in ():  # mutation: the record follows the live controls""",
        test="test_an_output_group_carries_the_whole_working_state",
        why="the design half must come from the launch snapshot. Read "
            "live at the landing, a spacing typed while the tiling ran "
@@ -6169,9 +6249,10 @@ MUTATIONS = [
            "Sanitising makes collisions likelier rather than rarer, "
            "since 'rate %' and 'rate (%)' both become rate__"),
   dict(name="the-stale-table-drop-follows-the-new-names", file=DIALOG,
-       old="""      current = {tables_this_run[tid] for tid in new_ids
-                 if tid in tables_this_run}""",
-       new="""      current = {f"tiles_{tid}" for tid in new_ids}  # mutation""",
+       # RE-AIMED 2026-08-27 at the save, which is what now knows
+       # which names it has just written.
+       old="""        written_names.add(table)""",
+       new="""        pass  # mutation: nothing counts as written, so all is stale""",
        test="test_an_element_table_carries_only_what_it_displays",
        why="rebuilding the names from element ids alone says tiles_a "
            "where the run wrote tiles_a_v1, so every table of the NEW "
@@ -6182,10 +6263,14 @@ MUTATIONS = [
   # file, the version refusal, the source found by reference, and
   # embedding staying an opt-in.
   dict(name="a-saved-map-carries-its-state", file=DIALOG,
-       old="""      if not bridge.write_working_state(path, self._file_safe_state(resumable)):
-        self._report_quietly(""",
-       new="""      if False:  # mutation: the file keeps no record of its design
-        self._report_quietly(""",
+       # RE-AIMED 2026-08-27 at the save. The mutation SHORT-CIRCUITS
+       # rather than deleting: `False and not write(...)` never
+       # evaluates the call, so the tables arrive and the record does
+       # not -- which is exactly the half-saved file this guards.
+       old="""    if not bridge.write_working_state(
+        path, self._file_safe_state(resumable)):""",
+       new="""    if False and not bridge.write_working_state(
+        path, self._file_safe_state(resumable)):""",
        test="test_a_saved_map_can_be_opened_and_carried_on",
        why="without it a finished map can be looked at and not carried "
            "on with: the file holds tables and styles and nothing "
@@ -6452,17 +6537,14 @@ MUTATIONS = [
            "adopting dock edits, rewriting the project's group record "
            "and speaking into QGIS's message bar until QGIS was "
            "restarted"),
-  dict(name="the-files-record-follows-a-dock-edit", file=DIALOG,
-       old="""        if self._last_path:
-          self._rewrite_the_files_record(self._last_path)""",
-       new="""        if False:  # mutation: leave the file's record behind
-          self._rewrite_the_files_record(self._last_path)""",
-       test="test_the_files_record_follows_a_dock_edit",
-       why="every exit that adopts a dock edit embeds the new STYLE "
-           "into the GeoPackage and none wrote the file's own RECORD, "
-           "so the file disagreed with itself -- and a colleague "
-           "resuming it is told no colour was picked, their first "
-           "Generate painting over the one the same file is drawing"),
+  # `the-files-record-follows-a-dock-edit` STOOD HERE AND WAS RETIRED
+  # ON 2026-08-27. It proved that an adopted dock edit wrote the
+  # file's own record as well as its styles, so the file could not
+  # disagree with itself. `_rewrite_the_files_record` is retired: the
+  # file learns both halves at the next Save, from one writer, and
+  # the test of the same name now asserts that the file does not move
+  # between saves AND that one press puts both halves down together.
+  # WHAT WOULD REOPEN THIS: a second writer of either half.
   dict(name="an-opacity-set-in-qgis-is-read-back", file=DIALOG,
        old="""      self._adopt_the_layers_opacity(layer_id, tile_id)""",
        new="""      pass  # mutation: let the dialog go on believing its own""",
@@ -6505,8 +6587,10 @@ MUTATIONS = [
            "was sent to, through a door the stale-table drop cannot "
            "see because nothing is dropped at all"),
   dict(name="the-stale-table-drop-asks-the-file", file=DIALOG,
-       old="""      for name in bridge.gpkg_tables(path):""",
-       new="""      for name in ():  # mutation: ask only this dialog's memory""",
+       # RE-ANCHORED 2026-08-27: the loop moved into
+       # `_drop_tables_this_map_no_longer_has` and lost two spaces.
+       old="""    for name in bridge.gpkg_tables(path):""",
+       new="""    for name in []:  # mutation: ask the session, never the file""",
        test="test_a_switched_variable_leaves_no_orphan_in_the_file",
        why="a dialog that had never adopted or resumed the output "
            "GeoPackage knew nothing about what an earlier session "

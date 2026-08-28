@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-380 defect(s) with a regression test.
+384 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -133,7 +133,7 @@ there is no separate list to remember.
   guarded by `test_a_reopened_plugin_adopts_the_group_it_last_wrote`
 - **a reopened plugin adopted an element's no-data layer as the element itself, orphaning the real layer so a stale map stayed on top of every later run.**  
   guarded by `test_a_reopened_plugin_does_not_mistake_a_no_data_layer_for_its_element`
-- **the guard that refuses to write a new group over an existing GeoPackage compared the chosen path against `_last_path`, which records only what THIS dialog instance last wrote. A reopened project has a fresh dialog that remembers nothing, so a user ticking the box precisely IN ORDER to keep yesterday's map overwrote it without a warning. Measured 2026-08-16: 41/40/41/40 features became 113/112/113/112, no modal, nothing on the note line.**  
+- **the guard that refused to write a new group over an existing GeoPackage compared the chosen path against `_last_path`, which records only what THIS dialog instance last wrote, so a reopened project's fresh dialog overwrote yesterday's map without a warning. Measured 2026-08-16: 41/40/41/40 features became 113/112/113/112, no modal, nothing on the note line.**  
   guarded by `test_a_reopened_project_cannot_overwrite_yesterdays_geopackage`
 - **the restyle path stamped a pin it was about to retire, so a reopened project restored a bound the map ignored; and it decided whether to retire an element's pin at all by whether a different element had raised a legend notice about the same column.**  
   guarded by `test_a_retired_pin_leaves_neither_a_stamp_nor_a_silent_neighbour`
@@ -236,7 +236,7 @@ there is no separate list to remember.
   guarded by `test_integration_gpkg_style_round_trip`
 - **reopening the dialog created a rival layer group instead of adopting the one already in the project.**  
   guarded by `test_integration_second_dialog_session`
-- **live update rewrote a GeoPackage on every tweak, hammering the disk.**  
+- **live update rewrote a GeoPackage on every tweak, hammering the disk; the cure is now that a run writes nothing at all.**  
   guarded by `test_live_update_gates`
 - **re-generating discarded hand styling on elements whose assignment had not changed.**  
   guarded by `test_output_management`
@@ -301,6 +301,8 @@ there is no separate list to remember.
   guarded by `test_a_fields_return_wears_its_own_style_and_keeps_its_picks`
 - **resuming a GeoPackage whose layers were already in the project took the group over without stamping the working state onto it or recovering the source, so the design was lost at the next reopen and the region chooser was left pointing at another dataset.**  
   guarded by `test_a_file_already_open_resumes_completely`
+- **setting an output path made every Generate write the GeoPackage, so a file chosen for later was written to at once and a live update rewrote somebody's file on every keystroke.**  
+  guarded by `test_a_generate_draws_and_only_a_save_writes`
 - **the graduated copy moved positional colours only (digit keys), so the hand-picked No data colour stayed behind and the target's twin drew default grey where the categorical copy carries its catch-all. Found by the editor hunt of 2026-08-26; ruled 2026-08-26.**  
   guarded by `test_a_graduated_copy_carries_the_catch_all`
 - **the categorized adoption path got a test and its graduated twin, five identical lines away, still had none.**  
@@ -437,6 +439,10 @@ there is no separate list to remember.
   guarded by `test_reverse_carries_the_absence_colours`
 - **reversing a qualitative palette was a no-op, with the switch still reading as ticked.**  
   guarded by `test_reverse_runs_a_qualitative_palette_backwards`
+- **Save writes over whatever the box names, so a GeoPackage holding somebody's own work could be part-overwritten by a press meant for a map.**  
+  guarded by `test_save_asks_before_overwriting_a_file_it_did_not_write`
+- **saving became a positive act on 2026-08-27, and the acts that end in a press had one journey test each rather than a crossing.**  
+  guarded by `test_saving_holds_on_every_route`
 - **the categorized renderer recorded no source colour ramp, so a clean ramp applied in QGIS's dock was adopted as hand-picks instead of replacing them, and QGIS's own panel showed no ramp at all.**  
   guarded by `test_the_dock_reapplying_the_same_ramp_discards_the_hand_picks`
 - **a restyle wrote the new design onto the group and into the layers' embedded styles but never into the GeoPackage's own working-state record, so a file opened elsewhere resumed the design from before the last style change.**  
@@ -477,6 +483,8 @@ there is no separate list to remember.
   guarded by `test_two_columns_sharing_a_table_leave_one_style_of_ours`
 - **two elements drawing one column with different class counts produced a single emptiness notice, true of one of them and quoting a class count the other does not have, while the second element was never mentioned. Open as row 41 of the 2026-08-17 ledger; found again and measured by the notices hunt, 2026-08-27.**  
   guarded by `test_two_elements_on_one_column_each_get_their_own_notice`
+- **unticking "Include the source data" and saving again left the private copy in the file while the record said it was gone, losing the privacy and the resume together.**  
+  guarded by `test_unticking_the_source_takes_it_out_of_the_file`
 - **hand-picked colours and pinned bounds carried to any dataset sharing a column name, putting one dataset's value strings and numbers into another's saved files.**  
   guarded by `test_value_laden_records_never_cross_a_shared_name`
 
@@ -811,7 +819,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 117
+- the mutation campaign: 121
 - a bug hunt pointed in a named direction: 91
 - not written down at the time: 88
 - reported by a user: 29

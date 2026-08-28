@@ -236,12 +236,23 @@ on a branch rather than here. On this line a run writes it, so setting
 an output path makes every Generate save. The maintainer ruled on
 2026-08-27 that saving is a positive act -- a path chooser choosing
 what you WOULD write to, a Save button doing the writing, Generate
-only drawing, and auto-generate never writing at all -- and the
-product side of that lives on `for-0.24.4/saving-is-an-act`, which has
-never been run and owes twenty-one catalogue entries and fifty-six
-tests before it can merge. So this paragraph goes on describing the
-plugin as it stands, which is what it is for, and the branch describes
-what it will be.
+only drawing, and auto-generate never writing at all -- and both
+halves of that now live on `for-0.24.4/saving-is-an-act`: the product
+code, and a suite converted to it (the catalogue re-aimed at the one
+writer, every test that pressed Generate expecting a file now pressing
+Save, and a matrix over the routes to a press). What it owes before
+it can merge is a full RUN. So this paragraph goes on describing the
+plugin as it stands, which is what it is for, and the branch
+describes what it will be.
+
+WHAT WILL CHANGE HERE WHEN IT LANDS, so that a maintainer reading
+this after the merge is not surprised: `_save_the_map` becomes the
+only writer of the GeoPackage, so every question about WHEN the file
+learns something has one answer instead of eleven. A run draws to
+memory; the layers are repointed at the file by the press, in place,
+which is what keeps the map alive in a reopened project. A save while
+a run is in flight is refused in words, and a save over a file the
+plugin did not write asks first.
 
 WHICH DATASET A MAP CAME FROM IS ASKED OF THE LAYER THAT WAS TILED.
 Every output layer carries `weavingspace_region`, and three rules read
