@@ -15492,11 +15492,22 @@ def test_a_second_project_does_not_take_the_first_ones_opacity():
         if dlg.layer_combo.currentLayer() is two:
           break
         _tick(100)
-      assert dlg.layer_combo.currentLayer() is two, \
-        f"the chooser never settled on the second region: it holds " \
-        f"{dlg.layer_combo.currentLayer() and dlg.layer_combo.currentLayer().name()!r} " \
-        f"after four seconds, so the run below would be refused for " \
-        f"want of a layer"
+      if dlg.layer_combo.currentLayer() is not two:
+        # SAY WHAT WAS FOUND, not which assertion was reached: an
+        # empty chooser has three explanations -- the combo never
+        # heard about the layer, it is excluding it, or the project
+        # does not hold it -- and only the three readings together
+        # tell them apart.
+        offered = [dlg.layer_combo.layer(i).name()
+                   for i in range(dlg.layer_combo.count())
+                   if dlg.layer_combo.layer(i) is not None]
+        held = sorted(l.name() for l in project.mapLayers().values())
+        current = dlg.layer_combo.currentLayer()
+        raise AssertionError(
+          f"the chooser never settled on the second region after four "
+          f"seconds: it holds {current and current.name()!r}, offers "
+          f"{offered}, and the project holds {held}. The run below "
+          f"would be refused for want of a layer")
       _tick(200)
       dlg.gpkg_widget.setFilePath(os.path.join(folder, "map_two.gpkg"))
       dlg.table.cellWidget(0, 6).setValue(100)

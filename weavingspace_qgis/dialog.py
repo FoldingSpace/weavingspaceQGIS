@@ -3465,6 +3465,35 @@ class WeavingSpaceDialog(QDialog):
     """
     if _dialog_is_gone(self) or _live_dialog() is not self:
       return
+    # FIRST, REBUILD THE EXCLUSION LIST, and before any early return
+    # below, because this is the one record the dialog keeps that
+    # holds POINTERS to layers QGIS has just destroyed.
+    # `setExceptedLayerList` stores the layer objects themselves, and
+    # nothing rebuilt the list when layers were REMOVED -- only at
+    # construction, at a project read, at a resume and after a
+    # landing. So after File > New the combo went on excluding a set
+    # of dead pointers, and a layer allocated at a recycled address is
+    # then excluded for being somebody else: the chooser offers
+    # NOTHING while the project plainly holds a polygon layer, and
+    # Generate refuses for want of a region with no way for the user
+    # to see why.
+    # Measured 2026-08-27: clear the project, add one region, and the
+    # chooser offers [] with the project holding ['region']. Rebuilt
+    # from the live layers each time, as this method has always done,
+    # the stale pointers cannot survive the removal that made them
+    # stale.
+    # WHAT GUARDS IT IS THE SUITE RATHER THAN A CATALOGUE ENTRY, and
+    # that is a deliberate record rather than an omission. The harm
+    # needs a new layer to be ALLOCATED where a destroyed one was, so
+    # the test that caught it
+    # (`test_a_second_project_does_not_take_the_first_ones_opacity`)
+    # fails in a full run and passes when run alone. An entry over
+    # this line would therefore report SURVIVED most times it was
+    # judged -- a false negative, which is worse than no entry at
+    # all. A deterministic guard would need a way to ask the combo
+    # what it is excluding without dereferencing the pointers it
+    # holds, and QGIS offers none.
+    self._update_layer_exclusions()
     # The id this dialog was pointed at, taken from whichever witness
     # still holds it: `_removal_pending` was set before the removal,
     # `_watched_layer_id` is only still right if no combo handler has
