@@ -19286,6 +19286,35 @@ def test_a_candidate_is_published_only_when_it_is_gated():
   assert not [a for a in asked if a[:3] == ("gh", "release", "create")], \
     "a dry run tried to create a release"
 
+  # ...AND NO PARAGRAPH OF IT IS HARD-WRAPPED, which is a claim about
+  # the reader's screen rather than about the text. A GitHub release
+  # body preserves single newlines, so a paragraph wrapped at 72
+  # columns arrives with those breaks in it and a phone snaps a
+  # sentence mid-clause. Measured on the LIVE rc9 page, 2026-08-18,
+  # and again on 0.24.4rc1, where the offender was the tool's own
+  # CLOSING constant -- so every candidate this tool published carried
+  # it, in the one paragraph nobody rereads because nobody wrote it
+  # that day. Headings, list items, tables and quotes legitimately
+  # need their newlines; a prose line that stops short does not.
+  # Asked STRUCTURALLY rather than by line length: in Markdown a
+  # paragraph ends at a blank line, so two prose lines in a row ARE a
+  # wrapped paragraph, whatever they measure. A length rule gets this
+  # wrong in both directions -- it fires on a legitimately short
+  # paragraph, and it misses a wrap whose last line happens to run
+  # long.
+  body = said.split("--- body ---", 1)[-1]
+  furniture = ("#", "-", "*", "|", ">", "1.", "2.", "3.")
+  wrapped, previous = [], ""
+  for line in body.splitlines():
+    plain = (line.strip() and not line.lstrip().startswith(furniture))
+    if plain and previous:
+      wrapped.append(previous[:60] + " / " + line.strip()[:40])
+    previous = line if plain else ""
+  assert not wrapped, (
+    "a GitHub release body preserves single newlines, so these "
+    "paragraphs will break mid-clause on a phone -- write each as one "
+    f"long line: {wrapped}")
+
   # ...and the real call names a FULL commit, because GitHub refuses a
   # short one and the refusal arrives as an HTTP 422 nobody can read.
   state["runs"] = green

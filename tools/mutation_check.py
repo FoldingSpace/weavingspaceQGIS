@@ -57,6 +57,10 @@ MUTATE_AUTO = "tools/mutate_auto.py"
 # prose this project ships and one text serves two renderers, so the
 # boundary deciding where an entry STOPS earns a proof
 RELEASE_NOTES = "tools/release_notes.py"
+# the publisher of a candidate: it composes the half of a release body
+# that nobody writes fresh each time, which is exactly the half a
+# reader of the body never rereads
+PUBLISH_CANDIDATE = "tools/publish_candidate.py"
 # the ONE part of the vendored library that is ours: the
 # patch making matplotlib and scipy optional
 VENDOR_TILEABLE = ("weavingspace_qgis/vendor/weavingspace/tileable.py")
@@ -3778,6 +3782,25 @@ MUTATIONS = [
            "bound the person had chosen -- reported by the maintainer "
            "against rc10, who had pinned an upper bound and found no "
            "mark for it anywhere"),
+  dict(name="a-release-body-paragraph-is-one-long-line",
+       file=PUBLISH_CANDIDATE,
+       # Anchored on the CLOSING constant's own paragraph, because the
+       # defect was never in a candidate's written notes -- it was in
+       # the half the tool supplies, which is the half nobody rereads.
+       old="Whether the thing this candidate changed behaves as the "
+           "notes above say, on your own data rather than on a "
+           "fixture.",
+       new="Whether the thing this candidate changed behaves as the "
+           "notes above\\nsay, on your own data rather than on a "
+           "fixture.",
+       test="test_a_candidate_is_published_only_when_it_is_gated",
+       why="a GitHub release body preserves single newlines, so a "
+           "paragraph wrapped at 72 columns reaches a phone with a "
+           "sentence snapped mid-clause. Learned on rc9 and written "
+           "into docs/PUBLISHING.md, and this constant stayed "
+           "hard-wrapped regardless, so every candidate the tool "
+           "published carried it -- found 2026-08-27 by measuring the "
+           "LIVE page rather than the file it was composed from"),
   dict(name="an-entry-stops-where-the-next-version-starts",
        file=RELEASE_NOTES,
        # ANCHORED ON THE BOUNDARY, which is the whole of the question:

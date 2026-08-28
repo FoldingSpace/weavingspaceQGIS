@@ -40,12 +40,20 @@ REPO = "FoldingSpace/weavingspaceQGIS"
 # retyped per candidate: the questions do not change much, and a
 # candidate that forgets to ask gets feedback about whatever the
 # tester happened to notice.
+#
+# ONE LONG LINE PER PARAGRAPH, and it is not a style preference. A
+# GitHub release body preserves single newlines, so a paragraph
+# wrapped at the usual 72 columns arrives with those breaks in it and
+# a phone shows a sentence snapped mid-clause. The rule is written up
+# in docs/PUBLISHING.md, learned on rc9 -- and this constant was
+# hard-wrapped anyway, so every candidate this tool has published
+# carried it in the one paragraph nobody rereads because nobody wrote
+# it that day. Found 2026-08-27 by measuring the LIVE page rather than
+# the local file. metadata.txt is the opposite and stays wrapped,
+# because the plugin manager shows it as it stands.
 CLOSING = """## What would be most useful to hear
 
-Whether the thing this candidate changed behaves as the notes above
-say, on your own data rather than on a fixture. Whether anything you
-had set up survived the upgrade. And whether a crash of any kind turns
-up, with what you were doing immediately before it."""
+Whether the thing this candidate changed behaves as the notes above say, on your own data rather than on a fixture. Whether anything you had set up survived the upgrade. And whether a crash of any kind turns up, with what you were doing immediately before it."""
 
 
 def run(*args, **kwargs):
