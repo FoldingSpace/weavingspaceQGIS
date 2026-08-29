@@ -660,28 +660,31 @@ the one the sessions that produced designs that stuck all followed.
    narrowest screen still in use" rather than a reading of the screen
    in front of somebody. Nothing in the file calls
    `availableGeometry`.
-   THIS RE-OPENS THE SETTLED LAYOUT RULE OF 2026-08-09, which ordered
-   three priorities -- the ceiling first, then the table not
-   scrolling, then the preview's floor -- and had no height clause at
-   all. A fourth priority that is STRICT (never as tall) has to be
-   placed among them, and the width one becomes a question about the
-   actual display rather than about a constant. That is a ruling
-   rather than an implementation detail.
+   THE ASK IS SMALLER THAN IT FIRST LOOKS, and the maintainer said so
+   when this entry asked them for a clearance figure: it is not a
+   question about screen height and there is no number owed. **The
+   window simply must not take up the whole screen**, and the size it
+   is TODAY is fine -- "no shorter than now". So this is a CEILING on
+   growth and not a resize: where the display is roomy nothing changes
+   at all, and what has to stop is the window expanding until it fills
+   the screen, which today nothing prevents.
+   THAT MAKES IT AN ORDINARY REPAIR RATHER THAN A RULING. The settled
+   layout rule of 2026-08-09 keeps its three priorities and gains no
+   fourth to be ordered among them; the width clause simply stops
+   standing on `MAX_WINDOW_WIDTH` as a guess at "the narrowest screen
+   still in use" and asks the display in front of the person instead.
    AND TODAY'S LESSON APPLIES DIRECTLY: a window opens at its
-   sizeHint and a MINIMUM NEVER BOUNDS A PREFERRED SIZE, so capping
-   height means bounding whatever DRIVES it -- which will mean the
-   assignment table scrolling VERTICALLY, and that is the acceptable
-   direction, since a vertical scrollbar is ordinary where a
-   horizontal one is the thing the 2026-08-09 rule exists to avoid.
-   HOW MUCH SHORTER THAN THE SCREEN is the number the maintainer
-   still owes: "never as tall" sets a ceiling and "see the map
-   underneath" asks for more than one pixel of clearance.
+   sizeHint and a MINIMUM NEVER BOUNDS A PREFERRED SIZE, so bounding
+   the height means bounding whatever DRIVES it -- which on a display
+   too small to hold today's window means the assignment table
+   scrolling VERTICALLY. That is the acceptable direction, a vertical
+   scrollbar being ordinary where a horizontal one is the thing the
+   2026-08-09 rule exists to avoid.
    AND NO GUARD HERE OR ON CI CAN SEE IT. The assembled window is
    measurable only on a real desktop -- offscreen reports 1279 where
    cocoa gives 1334 -- so this belongs in `tools/platform_probe.py`,
-   measuring `dlg.height()` after `show()` against
-   `availableGeometry()`, which is the quantity the failure would
-   print.
+   measuring `dlg.width()` and `dlg.height()` after `show()` against
+   `availableGeometry()`, which is the quantity a failure would print.
 3. **NOTHING IN `dist/` MAY CARRY A NAME WITHOUT ITS VERSION, AND A
    CHECK MAY NOT WRITE THERE AT ALL.** (Maintainer's rule, 2026-08-29,
    on finding the newest file in `dist/` was an unversioned zip.)
