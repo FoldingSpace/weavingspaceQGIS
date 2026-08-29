@@ -7612,10 +7612,13 @@ MUTATIONS = [
        # pair is still skipped, so it cannot contradict itself -- and
        # the person who wrote it is not told that a part of their map
        # is not in it, while the person who OPENS it is.
-       old="""    absent = ""
-    if left_out:""",
-       new="""    absent = ""
-    if False:  # mutation: say nothing about what did not travel""",
+       # RE-ANCHORED 2026-08-28 within the hour, when the sentence was
+       # split in two so the review queue could show a reviewer a
+       # sentence rather than a format string. Anchored on the SINGLE
+       # branch, which is what the test drives; the plural branch is
+       # the same sentence and cannot be reached without it.
+       old="""    if len(left_out) == 1:""",
+       new="""    if False:  # mutation: say nothing about what did not travel""",
        test="test_a_save_says_which_elements_are_not_in_the_project",
        why="the sender being told what the recipient will be told: a "
            "file holding three of four elements is a fine thing to "

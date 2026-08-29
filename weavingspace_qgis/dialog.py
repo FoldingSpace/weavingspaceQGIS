@@ -16807,14 +16807,23 @@ class WeavingSpaceDialog(QDialog):
     # about that file and said only "Saved". Measured 2026-08-28: the
     # RECIPIENT is told the file gave back less than was saved to it,
     # so the sender was the only person not told.
+    # WRITTEN AS TWO WHOLE SENTENCES rather than one with the plural
+    # interpolated, because the text-review queue shows the reviewer
+    # what the format string looks like: assembled from `{}`s the
+    # entry read "Element{} {} {} no longer in the project", which is
+    # not a sentence anybody can approve. The maintainer has already
+    # said the queue shows them things they cannot judge; this is the
+    # half of that which is ours to fix.
     absent = ""
-    if left_out:
-      names = ", ".join(sorted(left_out))
+    if len(left_out) == 1:
       absent = (
-        f" Element{'s' if len(left_out) > 1 else ''} {names} "
-        f"{'are' if len(left_out) > 1 else 'is'} no longer in the "
-        f"project, so the file holds {len(order) - len(left_out)} of "
-        f"{len(order)} elements.")
+        f" Element {left_out[0]} is no longer in the project, so the "
+        f"file holds {len(order) - 1} of {len(order)} elements.")
+    elif left_out:
+      absent = (
+        f" Elements {', '.join(sorted(left_out))} are no longer in "
+        f"the project, so the file holds {len(order) - len(left_out)} "
+        f"of {len(order)} elements.")
     if moved:
       self._report_quietly(
         f"Saved to {os.path.basename(path)}. The data has changed "
