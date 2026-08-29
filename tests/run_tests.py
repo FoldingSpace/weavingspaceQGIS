@@ -27663,6 +27663,126 @@ def test_a_save_as_tells_the_group_where_the_map_went():
       dlg.close()
 
 
+def test_a_column_called_no_data_does_not_miscount_the_map():
+  """A table name is not the thing that says what a table is.
+
+  Element tables are `tiles_<id>_<variable>` and a paired no-data
+  layer's is `<table>_no_data`, so the resume counted an opened table
+  as an element unless its NAME ended that way -- while three lines
+  above, the same loop asked the layer's own STAMP for the same fact.
+  A column called "no data", which is what a great many datasets call
+  one, sanitises into exactly that ending, so a real element was
+  counted as a twin and the recipient was told a part of their map had
+  not come back.
+
+  NOBODY NEED CHOOSE THE COLUMN. The default cycle picks it like any
+  other numeric field, which is how the first draft of the probe for
+  this reproduced it in its own CONTROL arm.
+
+  THE CONTROL IS THE SAME DESIGN WITHOUT THAT COLUMN, because the
+  sentence has to be shown saying the right number before its saying
+  the wrong one means anything.
+
+  Regression: a column called "no data" made a resume count a real element as a paired twin, so the plugin announced fewer element layers than it had opened. Found by the sentences hunt of 2026-08-28. [hunt]
+  """
+  from qgis.PyQt.QtCore import QVariant
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+
+  def a_saved_map(variable, path, with_the_column):
+    """Draw and save a map whose first element shows `variable`.
+
+    Args:
+      variable: the column the FIRST element is put on, through the
+        chooser's own signal so the choice is somebody's.
+      path: the GeoPackage to save to.
+      with_the_column: True to give the region a column literally
+        called "no data" -- the arm this test is about -- and False
+        for the control, which must not have it at all, because the
+        default cycle would otherwise pick it for another element and
+        the control would reproduce the defect too.
+
+    Returns:
+      How many elements were drawn, so the recipient's sentence can be
+      compared against a number this test measured rather than assumed.
+    """
+    from qgis.core import QgsField
+    layer = make_region_layer(n=12)
+    if with_the_column:
+      layer.dataProvider().addAttributes([QgsField("no data", QVariant.Double)])
+      layer.updateFields()
+      index = layer.fields().indexFromName("no data")
+      source = layer.fields().indexFromName("v1")
+      layer.startEditing()
+      for feature in layer.getFeatures():
+        layer.changeAttributeValue(feature.id(), index,
+                                   feature.attributes()[source])
+      assert layer.commitChanges(), "PREMISE: the fixture would not commit"
+    project.addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(400)
+      chooser = dlg.table.cellWidget(0, 1)
+      assert chooser.findText(variable) >= 0, (
+        f"PREMISE: {variable!r} is not on offer")
+      chooser.setCurrentText(variable)
+      chooser.activated.emit(chooser.currentIndex())
+      _tick(400)
+      dlg.spacing_spin.setValue(1200)
+      _generate_and_wait(dlg)
+      drawn = len(dlg._element_layer_ids)
+      assert drawn, "PREMISE: nothing was drawn"
+      dlg.opt_embed_source.setChecked(True)
+      dlg.gpkg_widget.setFilePath(path)
+      assert press_save(dlg, path), "PREMISE: the save failed"
+      return drawn
+    finally:
+      dlg.close()
+
+  def what_a_recipient_is_told(path):
+    """The Load's own sentence, and how many elements really opened."""
+    project.clear()
+    opener = WeavingSpaceDialog(iface=_Iface())
+    try:
+      opener.live_check.setChecked(False)
+      opener.resume_widget.setFilePath(path)
+      # Both stores emptied first: BAR_MESSAGES accumulates across a
+      # test, so a teardown's own notice would be read as this one's.
+      BAR_MESSAGES.clear()
+      opener._load_pressed()
+      _settle(opener, seconds=60)
+      said = next((text for _kind, text in BAR_MESSAGES
+                   if "Opened the saved map" in text), "")
+      return said, len(opener._element_layer_ids)
+    finally:
+      opener.close()
+
+  with _temp_dir() as folder:
+    ordinary = os.path.join(folder, "ordinary.gpkg")
+    named = os.path.join(folder, "nodata.gpkg")
+
+    drawn = a_saved_map("v2", ordinary, with_the_column=False)
+    said, back = what_a_recipient_is_told(ordinary)
+    assert back == drawn, (
+      f"PREMISE: the control brought back {back} of {drawn} elements")
+    assert f"{drawn} element" in said, (
+      f"PREMISE: the control's own sentence does not name {drawn}: "
+      f"{said!r}. This test cannot tell a miscount from a rewording")
+
+    project.clear()
+    drawn = a_saved_map("no data", named, with_the_column=True)
+    said, back = what_a_recipient_is_told(named)
+    assert back == drawn, (
+      f"PREMISE: the map itself did not come back: {back} of {drawn}")
+    assert f"{drawn} element" in said, (
+      f"{drawn} element layers came back and the recipient was told "
+      f"{said!r}: a column called \"no data\" makes a table name look "
+      f"like a paired layer's, and the count reads the NAME where the "
+      f"line above it reads the stamp")
+
+
 def test_a_blend_mode_set_in_qgis_survives_a_re_tile():
   """The rest of QGIS's Layer Rendering box, not only the opacity.
 
@@ -71209,6 +71329,8 @@ def main():
         test_a_donor_comes_home_when_the_map_is_opened)
   check("a blend mode set in QGIS survives a re-tile",
         test_a_blend_mode_set_in_qgis_survives_a_re_tile)
+  check("a column called no data does not miscount the map",
+        test_a_column_called_no_data_does_not_miscount_the_map)
   check("choosing your own group keeps the region and the variables",
         test_choosing_your_own_group_keeps_the_region_and_the_variables)
   check("the icon notice reads the same ground in either crs",

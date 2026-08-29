@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-410 defect(s) with a regression test.
+411 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -65,6 +65,8 @@ there is no separate list to remember.
   guarded by `test_a_colour_picked_on_a_map_you_did_not_draw_reaches_it`
 - **a category recoloured in QGIS and then set back to the colour it had left the discarded colour in the plugin's record, silently, and the next control change plus a Generate painted it over the map. Found by the dock-edit hunt of 2026-08-28, which read it three ways including the layer's own stamp.**  
   guarded by `test_a_colour_put_back_in_qgis_is_the_colour_that_is_kept`
+- **a column called "no data" made a resume count a real element as a paired twin, so the plugin announced fewer element layers than it had opened. Found by the sentences hunt of 2026-08-28.**  
+  guarded by `test_a_column_called_no_data_does_not_miscount_the_map`
 - **under a copied ladder the class-count notice reported the column's distinct values rather than the classes the map drew, telling a user their map had fewer classes than it did.**  
   guarded by `test_a_copied_ladder_is_not_reported_as_a_reduction`
 - **copying a classification onto an element whose column holds a single value left every class but the first on the placeholder grey, so the element drew as flat no-data colour while its ramp cell named a ramp.**  
@@ -872,7 +874,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 122
-- a bug hunt pointed in a named direction: 113
+- a bug hunt pointed in a named direction: 114
 - not written down at the time: 88
 - reported by a user: 29
 - reading the code: 15

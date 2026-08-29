@@ -1532,7 +1532,12 @@ MUTATIONS = [
            "The double map adoption exists to prevent, arriving "
            "through a door adoption never sees"),
   dict(name="a-paired-layer-is-not-an-element", file=DIALOG,
-       old="""      if not table.endswith("_no_data"):
+       # RE-ANCHORED 2026-08-28, when the question moved from the
+       # table NAME to the layer's own stamp -- a column called "no
+       # data" made a real element look like a twin. The mutation is
+       # unchanged in what it means: every opened table is counted,
+       # twins included.
+       old="""      if not found.customProperty("weavingspace_no_data"):
         loaded += 1""",
        new="""      loaded += 1  # mutation: count the twins as elements too""",
        test="test_a_saved_map_can_be_opened_and_carried_on",
@@ -7598,6 +7603,23 @@ MUTATIONS = [
            "which group a dataset owns, whether a landing may write "
            "over a group, and whether a resume finds a layer already "
            "open"),
+  dict(name="an-element-is-counted-by-its-stamp",
+       file=DIALOG,
+       # Back to the table NAME, which is what shipped. Everything
+       # else about the resume is unchanged -- the layers open, the
+       # twins are adopted, the map is right -- and the SENTENCE tells
+       # somebody a part of their map did not come back.
+       old="""      if not found.customProperty("weavingspace_no_data"):
+        loaded += 1""",
+       new="""      if not table.endswith("_no_data"):
+        loaded += 1""",
+       test="test_a_column_called_no_data_does_not_miscount_the_map",
+       why="the count a recipient is given being about their map "
+           "rather than about how a column happens to be spelt: "
+           "`tiles_<id>_<variable>` puts the variable at the end, so "
+           "a column called \"no data\" -- which the default cycle "
+           "will pick unasked -- makes a real element look like a "
+           "paired twin"),
   dict(name="a-deferring-row-is-custom-wherever-it-is-asked",
        file=DIALOG,
        # Puts the question back where it was: decided from the row's

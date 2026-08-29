@@ -17208,8 +17208,18 @@ class WeavingSpaceDialog(QDialog):
       # four-element design had come back as six element layers. The
       # twins ARE loaded and adopted, correctly -- they are half of
       # how absence is drawn -- and they are simply not elements.
+      # ASKED OF THE STAMP, NOT OF THE NAME, and the line above this
+      # one has always asked the stamp for the same fact. A table is
+      # `tiles_<id>_<variable>`, so a column called "no data" -- which
+      # is what a great many datasets call one -- sanitises into
+      # exactly the ending a twin has, and a real element was counted
+      # as a twin. Measured 2026-08-28 with a control arm: four
+      # elements drawn and four brought back, announced as four under
+      # ordinary column names and as TWO under this one. Nobody need
+      # even choose the column: the default cycle picks it, which is
+      # how the control arm of the probe reproduced it first.
       opened += 1
-      if not table.endswith("_no_data"):
+      if not found.customProperty("weavingspace_no_data"):
         loaded += 1
     for _key, layer in sorted(arriving, key=lambda pair: pair[0]):
       group.addLayer(layer)
