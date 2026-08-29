@@ -613,19 +613,75 @@ graduated style built in QGIS's dock and the next Generate, the row
 reads "Quant: Quantiles" while the assignment says Categorized, and
 that Generate destroys the dock's work.
 
-**NOTHING OUTSTANDING IN CODE, and the declaration is back on the
-terms the withdrawn one set.** This section said the opposite from the
-round of 2026-08-28 until 2026-08-29, and the phrase was withdrawn
-deliberately rather than left to be satisfied by a heading: the
-release gate refuses a candidate while a version's section lists work,
-and it is right to, because every item on that list was a defect
-confirmed by a hunt and reproduced here. The withdrawal named its own
-condition -- when they land or are moved, the declaration comes back
--- and they have landed. Rows 18, 36, 23 and 35 were closed that
-morning, each audited before it was built; the window and Save's
-responsiveness were built from the maintainer's own decisions; and the
-catalogue triage's second bad trade was paid back with a leg that can
-fail and an entry for each path.
+**THE DECLARATION IS WITHDRAWN AGAIN, FOR TWO THINGS THE MAINTAINER
+ASKED FOR ON 2026-08-29 AFTER rc5 WENT OUT.** It stood between the
+close of the owed list and that request, on the terms the first
+withdrawal set, and everything it covered had genuinely landed: rows
+18, 36, 23 and 35 closed that morning, each audited before it was
+built; the window and Save's responsiveness built from the
+maintainer's own decisions; the catalogue triage's second bad trade
+paid back with a leg that can fail and an entry for each path.
+
+IT IS WITHDRAWN RATHER THAN LEFT STANDING BECAUSE THE GATE READS THE
+PHRASE. `check_roadmap` decides a section is clear by looking for
+"nothing outstanding" with quoted spans stripped, so a section
+carrying the declaration AND a list of work would clear a candidate
+that owes both -- which is this file's own recorded fault about a
+gate satisfied by a sentence, arriving from the other side. When the
+two land, the declaration comes back.
+
+BOTH CHANGE THE SHAPE OF THE INTERFACE, so both get `/grill-me`
+before anything is written, which is this project's standing rule and
+the one the sessions that produced designs that stuck all followed.
+
+1. **THE ELEMENT COUNT IS CHOSEN WITH A SLIDER, NOT A DROPDOWN.**
+   Today it is `n_combo`, a `QComboBox` filled from
+   `N_CHOICES = sorted(catalog.TILINGS_BY_N)`.
+   MEASURED BEFORE ANY DESIGN: those keys are CONTIGUOUS from 2 to
+   256, so a slider has no gaps to snap over, which is the objection
+   that would otherwise have decided the question. What the design
+   has to answer instead is three things the dropdown did for free.
+   The ceiling MOVES WITH THE KIND -- 256 for tilings and 26 for
+   weaves -- so the slider's maximum is not a constant. The families
+   THIN OUT along it: 21 families at n=2, 8 at n=12, 4 at n=26, and
+   none of them a weave at all from n=13 up, so dragging repopulates
+   the family list under the person's hand. And 255 positions in a
+   couple of hundred pixels is about a value per pixel, so a readout
+   and a keyboard step are part of the control rather than
+   decoration.
+2. **THE WINDOW MUST NOT BE WIDER THAN THE SCREEN, AND MUST NEVER BE
+   AS TALL -- the map underneath has to stay visible.** The intent is
+   already written in the source and is enforced nowhere: the
+   constructor's `resize(1180, 560)` carries the comment "height set
+   by the Design tab so the map stays visible behind the dialog",
+   while `_resize_to_design` ends `resize(max(self.width(), 1180),
+   max(400, height))` with NO upper bound on height at all, and
+   `MAX_WINDOW_WIDTH = 1480` is a constant standing in for "the
+   narrowest screen still in use" rather than a reading of the screen
+   in front of somebody. Nothing in the file calls
+   `availableGeometry`.
+   THIS RE-OPENS THE SETTLED LAYOUT RULE OF 2026-08-09, which ordered
+   three priorities -- the ceiling first, then the table not
+   scrolling, then the preview's floor -- and had no height clause at
+   all. A fourth priority that is STRICT (never as tall) has to be
+   placed among them, and the width one becomes a question about the
+   actual display rather than about a constant. That is a ruling
+   rather than an implementation detail.
+   AND TODAY'S LESSON APPLIES DIRECTLY: a window opens at its
+   sizeHint and a MINIMUM NEVER BOUNDS A PREFERRED SIZE, so capping
+   height means bounding whatever DRIVES it -- which will mean the
+   assignment table scrolling VERTICALLY, and that is the acceptable
+   direction, since a vertical scrollbar is ordinary where a
+   horizontal one is the thing the 2026-08-09 rule exists to avoid.
+   HOW MUCH SHORTER THAN THE SCREEN is the number the maintainer
+   still owes: "never as tall" sets a ceiling and "see the map
+   underneath" asks for more than one pixel of clearance.
+   AND NO GUARD HERE OR ON CI CAN SEE IT. The assembled window is
+   measurable only on a real desktop -- offscreen reports 1279 where
+   cocoa gives 1334 -- so this belongs in `tools/platform_probe.py`,
+   measuring `dlg.height()` after `show()` against
+   `availableGeometry()`, which is the quantity the failure would
+   print.
 
 ONE THING IS WATCHED RATHER THAN OWED AND IS NOT COVERED BY THIS. The
 landing's last preview repaint firing before the new layer exists did
