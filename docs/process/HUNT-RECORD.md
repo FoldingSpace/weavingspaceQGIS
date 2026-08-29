@@ -82,6 +82,18 @@ had read the entry describing it. Full reasoning in docs/TESTING.md.
 | hand-picked colours through the new doors | 1 | when an act is granted an EXCEPTION to a carry rule, check it grants the exception to every store of that fact; and drive Save AS, because a save that writes the same path twice cannot show a two-store split |
 | the ceilings through persistence (1st) | 1 | the stores were all clean at 256 and the defect was in the ACT: a performance round aimed at Generate leaves Save and Load unmeasured, and they are the two acts that reopen a file whose size their own loop is growing |
 
+AND VERIFICATION WIDENED A DOOR RATHER THAN CLOSING ONE, which is the
+outcome this record has not carried before. `brokenfiles` reported
+that a colour picked on a map opened with LOAD never reaches it, and
+the mechanism it named was exact. Driven here with a third arm the
+hunt had no reason to try -- the plugin closed and opened again, which
+adopts a group rather than landing one -- the same silence appeared on
+a journey the claim never mentioned and the code's own docstring calls
+something "users do constantly". A claim's door is worth one extra arm
+for the same reason its direction is worth one extra probe: the
+mechanism is usually right and its reach is usually reported from
+wherever the hunt happened to be standing.
+
 AND A CLAIM'S DIRECTION WAS WRONG AGAIN, which this file already warns
 about and which cost nothing this time because it was checked. The
 `absences` hunt reported a no-data twin being dropped while its element

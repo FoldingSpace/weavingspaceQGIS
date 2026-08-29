@@ -7589,6 +7589,23 @@ MUTATIONS = [
            "which group a dataset owns, whether a landing may write "
            "over a group, and whether a resume finds a layer already "
            "open"),
+  dict(name="a-restored-map-is-a-map-the-controls-describe",
+       file=DIALOG,
+       # Puts the restyle path back out of reach on any map this
+       # dialog did not draw. `_restyle_only` returns at its first
+       # line while `_last_geometry_sig` is None, so the colour goes
+       # into the record and the map keeps what it had -- on a map
+       # opened with Load, and on one adopted by reopening the plugin.
+       old="""    self._last_geometry_sig = self._geometry_signature()
+    return True""",
+       new="""    return True  # mutation: the controls describe nothing""",
+       test="test_a_colour_picked_on_a_map_you_did_not_draw_reaches_it",
+       why="the colour editor's promise that the canvas stays live so "
+           "a recolour can be watched, kept on the two commonest "
+           "journeys there are rather than only on a map drawn in this "
+           "session -- otherwise a colour picked after opening a saved "
+           "map, or after closing and reopening the plugin, is "
+           "recorded, never painted and never mentioned"),
   dict(name="a-save-tells-the-group-where-the-map-went",
        file=DIALOG,
        # Restores the behaviour exactly as it shipped: the group is

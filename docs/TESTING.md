@@ -48,6 +48,35 @@ itself:
 
     PYTHONPATH="$PWD" PYTHONUNBUFFERED=1 "$QGIS_PY" my_probe.py
 
+## A CONTROL ARM'S OWN ACT CAN TRAVEL INTO THE ARM IT CONTROLS
+
+2026-08-28, verifying a claim that a colour picked on a map opened
+with Load never reaches the map. The probe had three arms -- a map
+drawn in this session, the same map opened with Load, and one adopted
+by reopening the plugin -- and every arm picked THE SAME COLOUR.
+
+The control arm's pick was saved into the file the second arm opened.
+So that arm compared a colour with itself, reported a repaint that had
+happened before it ran, and the claim was nearly recorded as not
+reproducing. On a clean tree with one colour per arm, both opened maps
+stood still.
+
+**A CONTROL ARM IS A SECOND FIXTURE, AND IT INHERITS THE FIRST.**
+Wherever arms share a file, a project, a layer or a record, ask what
+the earlier arm LEFT there, and give each arm a value nothing else in
+the probe could have produced. Then assert the value is absent before
+you stage it: one line, and it is what tells "the act worked" from
+"the act was already done".
+
+TWO MORE THINGS THE SAME PROBE GOT WRONG, both caught by the control
+rather than by reading. It drove the RAMP combo where the act in
+question is the colour EDITOR's -- and a ramp picked with live update
+off deliberately does not repaint, so the control came back silent and
+correct. And it picked a CATEGORY colour on a quantitative row, which
+the map is right to ignore. Both read exactly like the defect. A
+control arm that must succeed is the cheapest way to find out that a
+probe is measuring its own fixture.
+
 ## A CLAIM HAS A DIRECTION, AND CHECKING IT IS NOT OPTIONAL
 
 2026-08-28. A hunt reported that a Save drops a no-data twin's table

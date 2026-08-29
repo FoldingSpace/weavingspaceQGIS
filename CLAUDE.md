@@ -4621,3 +4621,25 @@ here, and the decision to add one is the maintainer's. Recorded
   not_swallowed`, which drives BOTH arms because the live-on arm was
   correct throughout, and by the catalogue entry
   `a-queued-press-is-a-press-not-a-live-tick`.
+
+- **A RESTORE IS A LANDING, FOR EVERYTHING THAT ASKS WHETHER THE
+  CONTROLS DESCRIBE THE MAP.** (2026-08-28.) `_last_geometry_sig` is
+  how `_restyle_only` knows the tiles on screen are the tiles these
+  controls ask for, and only `_add_output_layers` ever set it -- so on
+  a map this dialog did not DRAW the restyle path was unreachable at
+  its first line. A colour picked in the editor went into the record,
+  the map kept what it had, and nothing was said: on a map opened with
+  Load, and on one adopted by reopening the plugin, which is a journey
+  the adoption's own docstring calls something users do constantly.
+  IT IS SET WHERE THE RECORD IS APPLIED, which is the one place all
+  three doors pass through and the moment the claim becomes true --
+  the controls have just been written FROM the group's own record, so
+  they describe the map its layers hold, exactly as a landing's
+  snapshot describes what it drew. A group with no record never
+  reaches that line and keeps a null signature, which is the honest
+  answer rather than an omission.
+  THE GENERAL FORM, and this project has the mirror of it already: ask
+  of any record whose meaning is "these two things agree" WHO ELSE
+  brings them into agreement. A landing is the obvious writer; a
+  restore is the quiet one, and a fact only the obvious writer sets is
+  a fact that is false on every journey the other one owns.

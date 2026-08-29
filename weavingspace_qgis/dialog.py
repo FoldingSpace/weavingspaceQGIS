@@ -15968,6 +15968,29 @@ class WeavingSpaceDialog(QDialog):
     # a different design, or a different dataset. A record consumed
     # by whatever happens next is worse than one that was dropped.
     self._restoring_assignments = None
+    # AND THE CONTROLS NOW DESCRIBE THE MAP ON SCREEN, which is what
+    # the geometry signature means and what the restyle path needs
+    # before it will do anything at all.
+    # `_restyle_only` returns at its first line while
+    # `_last_geometry_sig` is None, and until 2026-08-28 only a
+    # LANDING ever set it -- so on a map this dialog did not draw, the
+    # whole restyle path was unreachable. Measured that day: picking a
+    # category colour repainted a map drawn in the same session and
+    # did NOTHING to the same map opened with Load, or to one adopted
+    # by reopening the plugin, with the colour recorded, the map left
+    # as it was and nothing said. The colour editor's promise is that
+    # the canvas stays live so the recolour can be watched (settled
+    # 2026-08-08); on the two commonest journeys there is -- open a
+    # saved map, or close the plugin and open it again -- it was not
+    # kept.
+    # THE RECORD IS WHAT MAKES THIS HONEST. These controls were just
+    # written FROM the group's own record, so they describe the map
+    # its layers hold; that is the same claim a landing makes with the
+    # snapshot its run was launched with. A group with no record does
+    # not reach this line -- the caller returns above -- and its
+    # signature stays None, which is the right answer rather than an
+    # omission: nothing there says the controls and the layers agree.
+    self._last_geometry_sig = self._geometry_signature()
     return True
 
   def _apply_element_records(self, record, keep_adopted=False):

@@ -27663,6 +27663,152 @@ def test_a_save_as_tells_the_group_where_the_map_went():
       dlg.close()
 
 
+def test_a_colour_picked_on_a_map_you_did_not_draw_reaches_it():
+  """The colour editor repaints whatever map is on screen.
+
+  Its whole shape rests on this: the window is modal to the plugin
+  alone so the QGIS canvas stays live and the recolour can be watched
+  (settled 2026-08-08). `_apply_style_change` keeps that promise
+  through `_restyle_only`, which until 2026-08-28 returned at its
+  first line unless `_last_geometry_sig` was set -- and only a LANDING
+  ever set it. So on a map this dialog did not draw, the whole restyle
+  path was unreachable: the colour went into the record, the map kept
+  the colour it had, and nothing was said. Two journeys reach that
+  state and both are ordinary -- opening a saved map with Load, and
+  closing the plugin and opening it again, which
+  `_adopt_existing_group`'s own docstring calls something "users do
+  constantly".
+
+  THREE ARMS, ONE ACT. The first is the CONTROL, on a map drawn in
+  this session, where the repaint has always worked: without it a
+  silent arm proves nothing, since the fixture, the value or the tick
+  could be at fault. The claim was reported at the Load door alone;
+  the adoption door is where it was measured to bite hardest, and a
+  test covering one would have left the other.
+
+  AND EACH ARM PICKS A DIFFERENT COLOUR, which is not decoration. The
+  first draft used one colour throughout, so the control's pick
+  travelled into the file the second arm opened: that arm then
+  compared a colour with itself and reported a repaint that had
+  happened before it ran.
+
+  Regression: a colour picked in the editor never reached a map opened with Load or adopted by reopening the plugin, because the restyle path needs a geometry signature only a landing set. Found by the brokenfiles hunt of 2026-08-28. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  drawn_here, opened_map, adopted_map = "#123456", "#ab34cd", "#0055aa"
+
+  def paints(dlg, tile_id):
+    """The colours this element's layer would actually paint."""
+    layer = project.mapLayer(dlg._element_layer_ids.get(tile_id) or "")
+    renderer = layer.renderer() if layer is not None else None
+    if renderer is None or not hasattr(renderer, "categories"):
+      return []
+    # Bound before subscripting: a temporary from this getter frees
+    # its symbols, which has segfaulted QGIS here before.
+    entries = renderer.categories()
+    return [entry.symbol().color().name() for entry in entries]
+
+  def pick(dlg, tile_id, colour):
+    """Pick a category colour exactly as the editor's closure does.
+
+    Args:
+      dlg: the dialog whose records the editor would write into.
+      tile_id: the element whose colours are being edited.
+      colour: the hex string to put on that element's FIRST value,
+        which is the one every arm here picks so the arms differ only
+        in the colour itself.
+
+    Returns:
+      None. Writes the record and calls `_apply_style_change`, which
+      is the whole of what the editor's `picked` closure does, then
+      lets the event loop run long enough for a repaint to land.
+    """
+    assignment = dlg._assignment_for(tile_id)
+    assert assignment, f"PREMISE: element {tile_id!r} has no assignment"
+    _colours, order = dlg._current_category_colours(assignment)
+    assert order, (
+      f"PREMISE: {assignment.get('var')!r} offers no value to colour, "
+      f"so this arm cannot stage the act at all")
+    dlg._category_colours.setdefault(tile_id, {}).setdefault(
+      assignment["var"], {})[str(order[0])] = colour
+    dlg._apply_style_change()
+    _tick(400)
+
+  def categorical_element(dlg):
+    return next((tid for tid in sorted(dlg._element_layer_ids)
+                 if (dlg._assignment_for(tid) or {}).get("mode")
+                 == "Categorized"), None)
+
+  with _temp_dir() as folder:
+    path = os.path.join(folder, "map.gpkg")
+
+    # ---- THE CONTROL: a map drawn here, which has always repainted
+    dlg, _layer, tid = _categorical_dialog()
+    try:
+      dlg.live_check.setChecked(False)
+      _generate_and_wait(dlg)
+      assert dlg._element_layer_ids, "PREMISE: nothing was drawn"
+      assert drawn_here not in paints(dlg, tid), \
+        "PREMISE: the map already paints the control colour"
+      pick(dlg, tid, drawn_here)
+      assert drawn_here in paints(dlg, tid), (
+        f"the control arm did not repaint either, so this test "
+        f"measures the fixture rather than the door: "
+        f"{paints(dlg, tid)}")
+      # The source travels, because this fixture's region is a MEMORY
+      # layer: without it the opened map would have no data to take
+      # its values from and no colour could be picked at all.
+      dlg.opt_embed_source.setChecked(True)
+      dlg.gpkg_widget.setFilePath(path)
+      assert press_save(dlg, path), "PREMISE: the save failed"
+    finally:
+      dlg.close()
+
+    # ---- THE LOAD DOOR
+    project.clear()
+    opener = WeavingSpaceDialog(iface=_Iface())
+    try:
+      opener.live_check.setChecked(False)
+      opener.resume_widget.setFilePath(path)
+      opener._load_pressed()
+      _settle(opener, seconds=60)
+      assert opener._element_layer_ids, "PREMISE: the Load opened no elements"
+      opened = categorical_element(opener)
+      assert opened, (
+        f"PREMISE: the opened map has no categorical element: "
+        f"{[(t, (opener._assignment_for(t) or {}).get('mode')) for t in sorted(opener._element_layer_ids)]}")
+      assert opened_map not in paints(opener, opened), \
+        "PREMISE: the opened map already paints this arm's colour"
+      pick(opener, opened, opened_map)
+      assert opened_map in paints(opener, opened), (
+        f"a colour picked on a map opened with Load never reached it: "
+        f"the record holds {opener._category_colours.get(opened)!r} "
+        f"and the map still paints {paints(opener, opened)}")
+    finally:
+      opener.close()
+
+    # ---- THE ADOPTION DOOR: the plugin closed and opened again
+    adopted = WeavingSpaceDialog(iface=_Iface())
+    try:
+      adopted.live_check.setChecked(False)
+      _tick(900)
+      assert adopted._element_layer_ids, \
+        "PREMISE: the reopened plugin adopted no element layers"
+      mine = categorical_element(adopted)
+      assert mine, "PREMISE: the adopted map has no categorical element"
+      assert adopted_map not in paints(adopted, mine), \
+        "PREMISE: the adopted map already paints this arm's colour"
+      pick(adopted, mine, adopted_map)
+      assert adopted_map in paints(adopted, mine), (
+        f"a colour picked after reopening the plugin never reached "
+        f"the map it had just adopted: the record holds "
+        f"{adopted._category_colours.get(mine)!r} and the map still "
+        f"paints {paints(adopted, mine)}")
+    finally:
+      adopted.close()
+
+
 def test_a_no_data_twin_never_travels_without_its_element():
   """A file must not hold a twin belonging to nothing.
 
@@ -70873,6 +71019,8 @@ def main():
         test_a_no_data_twin_never_travels_without_its_element)
   check("a Save As tells the group where the map went",
         test_a_save_as_tells_the_group_where_the_map_went)
+  check("a colour picked on a map you did not draw reaches it",
+        test_a_colour_picked_on_a_map_you_did_not_draw_reaches_it)
   check("choosing your own group keeps the region and the variables",
         test_choosing_your_own_group_keeps_the_region_and_the_variables)
   check("the icon notice reads the same ground in either crs",
