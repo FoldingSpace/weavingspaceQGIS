@@ -486,8 +486,8 @@ MUTATIONS = [
        # RE-ANCHORED 2026-08-29: the save stopped dropping styles as
        # it went, so the call carries `drop_others=False` now. Same
        # line, same claim.
-       old="""        # would carry a style nothing in it wears
-        bridge.embed_style(layer, drop_others=False)""",
+       old="""          # would carry a style nothing in it wears
+          bridge.embed_style(layer, drop_others=False)""",
        new="""        # would carry a style nothing in it wears
         layer.setOpacity(1.0)  # mutation: tell the FILE otherwise
         bridge.embed_style(layer, drop_others=False)""",
@@ -2448,8 +2448,8 @@ MUTATIONS = [
        # REMEMBERS what it skipped so the person can be told. The
        # mutation is unchanged: the pair is written even though the
        # element's layer has gone.
-       old="""        left_out.append(tid)
-        continue""",
+       old="""          left_out.append(tid)
+          continue""",
        new="""        left_out.append(tid)  # mutation: written anyway""",
        test="test_a_no_data_twin_never_travels_without_its_element",
        why="a saved file never holding a no-data twin whose own "
@@ -2945,8 +2945,8 @@ MUTATIONS = [
        # holding anything is never recreated.
        # RE-AIMED 2026-08-27 at the save's write, which carries the
        # same argument for the same reason.
-       old="""          bridge.write_gpkg_layer(layer, path, table, first=fresh,
-                                  open_after=False)""",
+       old="""            bridge.write_gpkg_layer(layer, path, table, first=fresh,
+                                    open_after=False)""",
        new="""          bridge.write_gpkg_layer(layer, path, table, first=True)""",
        test="test_a_generate_spares_the_rest_of_the_users_geopackage",
        why="the plugin never destroying data it did not create. "
@@ -3241,11 +3241,11 @@ MUTATIONS = [
        # style to keep on each table so the removals could be done in
        # one open. The decision under test is the `if` itself and is
        # untouched.
-       old="""        if same_source(layer.source(), f"{path}|layername={table}"):
-          written_names.add(table)
-          bridge.embed_style(layer, drop_others=False)
-          styles_to_keep[table] = bridge.style_name_for(layer)
-          continue""",
+       old="""          if same_source(layer.source(), f"{path}|layername={table}"):
+            written_names.add(table)
+            bridge.embed_style(layer, drop_others=False)
+            styles_to_keep[table] = bridge.style_name_for(layer)
+            continue""",
        new="""        if False:  # mutation: write every layer back over itself
           written_names.add(table)
           bridge.embed_style(layer, drop_others=False)
@@ -3413,8 +3413,8 @@ MUTATIONS = [
        # in-place skip embeds a style too, so the bare call matches
        # twice.
        # RE-ANCHORED 2026-08-29 for the same reason as its neighbour.
-       old='        # would carry a style nothing in it wears\n        bridge.embed_style(layer, drop_others=False)',
-       new='        # would carry a style nothing in it wears\n        pass  # mutation: styles not written into the file',
+       old='          # would carry a style nothing in it wears\n          bridge.embed_style(layer, drop_others=False)',
+       new='          # would carry a style nothing in it wears\n          pass  # mutation: styles not written into the file',
        test='test_integration_gpkg_style_round_trip',
        why='a GeoPackage carrying its own cartography'),
   # --- second wave, aimed at the integration and UI-vs-library
@@ -3488,10 +3488,10 @@ MUTATIONS = [
   # and giving them all one name is still how it fails.
   dict(name='gpkg-layer-naming', file=DIALOG,
        # RE-AIMED 2026-08-27 at the save's write.
-       old='          bridge.write_gpkg_layer(layer, path, table, first=fresh,'
-           '\n                                  open_after=False)',
-       new='          bridge.write_gpkg_layer(layer, path, "tiles_x", first=fresh,'
-           '\n                                  open_after=False)',
+       old='            bridge.write_gpkg_layer(layer, path, table, first=fresh,'
+           '\n                                    open_after=False)',
+       new='            bridge.write_gpkg_layer(layer, path, "tiles_x", first=fresh,'
+           '\n                                    open_after=False)',
        test='test_ui_library_categorical_to_gpkg',
        why='each element getting its own layer inside the GeoPackage'),
   dict(name='categorical-template-ignored', file=DIALOG,
@@ -6904,8 +6904,8 @@ MUTATIONS = [
        # which names it has just written.
        # ANCHORED WITH THE LINE ABOVE IT: the in-place skip counts a
        # table as written too, so the bare line matches twice.
-       old="""        fresh = False
-        written_names.add(table)""",
+       old="""          fresh = False
+          written_names.add(table)""",
        new="""        fresh = False
         pass  # mutation: nothing counts as written, so all is stale""",
        test="test_an_element_table_carries_only_what_it_displays",
@@ -7953,13 +7953,48 @@ MUTATIONS = [
            "`_on_generated`'s own finally clears the note line, so the "
            "sentence has to be sent once the dust has settled or it is "
            "written and wiped"),
+  dict(name="the-save-loop-turns-the-event-loop", file=DIALOG,
+       # Back to a loop that never turns. The pump BEFORE the loop
+       # survives, deliberately -- so an entry satisfied by "did it
+       # turn at all" would report a clean sweep while the window is
+       # frozen for the whole of the work.
+       old="""        self.progress.setValue(step - 1)
+        QApplication.processEvents()""",
+       new="""        self.progress.setValue(step - 1)""",
+       test="test_a_save_lets_the_window_paint_while_it_writes",
+       why="the window painting WHILE the file is written, not once "
+           "before it starts: every call in that loop opens the "
+           "GeoPackage, so the cost grows with the map and 134 "
+           "seconds of it passed with a 50 ms heartbeat recording "
+           "nothing"),
+  dict(name="a-pumping-save-takes-its-buttons-down", file=DIALOG,
+       # The other half of the same decision, and the reason the first
+       # half is safe. Turning the event loop is what lets somebody
+       # press Save or Generate into a half-written file.
+       old="""    self.save_button.setEnabled(False)
+    self.generate_btn.setEnabled(False)""",
+       new="""    pass  # mutation: pump the loop with the controls live""",
+       test="test_a_save_lets_the_window_paint_while_it_writes",
+       why="a save that turns the event loop not letting somebody "
+           "press INTO it: the pump and the disabling are one "
+           "decision and either alone is worse than neither"),
+  dict(name="a-finished-save-puts-its-bar-away", file=DIALOG,
+       # Left standing. The save finishes, the map is written, and the
+       # window still shows a bar that says it is working -- the hang
+       # this was written to end, wearing its other face.
+       old="""      self.progress.setVisible(False)
+      self.progress.setRange(0, 100)""",
+       new="""      self.progress.setRange(0, 100)""",
+       test="test_a_save_lets_the_window_paint_while_it_writes",
+       why="the progress bar coming down whatever happened, the write "
+           "raising included"),
   dict(name="the-already-saved-skip-asks-the-file", file=DIALOG,
        # Back to asking the SOURCE STRING alone, which nobody else
        # rewriting the file can change. The element is skipped as
        # already saved, its name counted as written, and the drop
        # below then removes the table the colleague DID write.
-       old="""      reading = self._table_a_layer_already_reads(tid, path)
-      if reading and reading not in in_the_file:""",
+       old="""        reading = self._table_a_layer_already_reads(tid, path)
+        if reading and reading not in in_the_file:""",
        new="""      reading = self._table_a_layer_already_reads(tid, path)
       if False:""",
        test="test_a_save_leaves_a_shared_file_somebody_else_has_changed",

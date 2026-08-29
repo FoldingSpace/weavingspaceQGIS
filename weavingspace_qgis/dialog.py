@@ -17368,109 +17368,152 @@ class WeavingSpaceDialog(QDialog):
     # exactly doubled each time while the seconds ran 0.01, 0.03, 0.10
     # and 0.42. Same rows removed, one open.
     styles_to_keep = {}
-    for tid in order:
-      # A TWIN NEVER TRAVELS WITHOUT ITS ELEMENT. The paired layer
-      # holds the areas whose value is absent FOR THIS ELEMENT, so on
-      # its own it is a set of holes belonging to nothing. Where the
-      # element's layer has gone from the project -- somebody deleted
-      # that one row of the group in the panel -- the loop below wrote
-      # the twin anyway and the stale-table drop then took the element
-      # table that was not written, leaving the file holding
-      # `tiles_a_v1_no_data` with no `tiles_a_v1`. Measured 2026-08-28:
-      # the plugin said "Saved", and a recipient's Load brought back
-      # elements b, c and d beside an ORPHAN twin for a.
-      # Skipping the pair leaves neither in the written names, so the
-      # drop takes both and the file holds a map that is three elements
-      # rather than a map that contradicts itself. That is the settled
-      # shrank-design behaviour, applied to the pair rather than to one
-      # half of it -- the paired-artefact rule of 2026-08-16, which
-      # says every reader keyed on an element's identity gains a
-      # second answer, read here from the writing side.
-      if project.mapLayer(self._element_layer_ids.get(tid) or "") is None:
-        # AND THE PERSON IS TOLD WHICH ONES, below. Skipping keeps the
-        # FILE consistent, which is what row 46 was about; it leaves
-        # the map itself short of an element the design still has, and
-        # a plain "Saved" over that is the plugin knowing something
-        # about somebody's file and not saying it. The recipient meets
-        # a sentence about a map that gave back less than was saved to
-        # it, so the sender is the only one who was not told.
-        left_out.append(tid)
-        continue
-      # ...AND A TABLE THAT HAS GONE FROM THE FILE IS NOT A TABLE THIS
-      # SAVE CAN WRITE. The skip below treats a layer whose source
-      # already names a table in this file as saved already, and asked
-      # only the SOURCE STRING -- which somebody else rewriting the
-      # file cannot change. So when a colleague saved the shared file
-      # while this map was open, moving one element to another column,
-      # this element was skipped as "already saved" and its name went
-      # into `written_names` as though it had been written; the drop
-      # below then removed the table the colleague HAD written,
-      # because that table belongs to an element this map has and was
-      # not among the names just written. Element b left the file
-      # altogether, both people lost it, and the plugin said "Saved".
-      # Measured 2026-08-29 with two QGIS processes and a rendezvous.
-      # NOTHING CAN BE WRITTEN IN ITS PLACE, which is what decides the
-      # shape of this. The layer whose table has gone still answers
-      # `isValid` True and `featureCount` 40, and yields ZERO features
-      # -- a dependency's cheap answer being a cached one, met here
-      # for the third time -- so writing it would replace a real table
-      # with an empty one, which is worse than the defect.
-      reading = self._table_a_layer_already_reads(tid, path)
-      if reading and reading not in in_the_file:
-        vanished.append(tid)
-        continue
-      for layer_id, table in (
-          (self._element_layer_ids.get(tid), tables[tid]),
-          (self._no_data_layer_ids.get(tid), f"{tables[tid]}_no_data")):
-        layer = project.mapLayer(layer_id) if layer_id else None
-        if layer is None:
+    # THE WINDOW GOES ON PAINTING WHILE THIS RUNS, which is the
+    # maintainer's decision of 2026-08-29 and is not a repair of the
+    # cost. Every call this loop makes is one of QGIS's or OGR's own
+    # per-layer APIs, and each opens the GeoPackage, so the seconds
+    # grow with the layers already in the file -- 134 of them at the
+    # 256-element ceiling, with a 50 ms heartbeat recording ZERO
+    # beats. Making the save a single OGR session is a rewrite of the
+    # writer and belongs to 0.24.5; what a person meets in the
+    # meantime is a window that says what it is doing rather than one
+    # that looks like a hang.
+    # THE BUTTONS GO DOWN BECAUSE THE LOOP PUMPS. Turning the event
+    # loop is what lets the window paint AND what would let somebody
+    # press Save or Generate into a half-written file, so both
+    # controls are disabled for the duration -- the same mechanism a
+    # run already uses, and the reason a person cannot reach the
+    # in-flight press this project measured on 2026-08-28. They are
+    # put back as they were found rather than enabled, since a save
+    # can be pressed with Generate already refusing for its own
+    # reasons.
+    was_enabled = (self.save_button.isEnabled(),
+                   self.generate_btn.isEnabled())
+    self.save_button.setEnabled(False)
+    self.generate_btn.setEnabled(False)
+    self.progress.setVisible(True)
+    self.progress.setRange(0, len(order))
+    self.progress.setValue(0)
+    self.progress.setFormat("saving the map... %p%")
+    QApplication.processEvents()      # let that paint before the work
+    try:
+      for step, tid in enumerate(order, 1):
+        # ONE BEAT PER ELEMENT, AT THE TOP, where none of this body's
+        # four `continue`s can skip it: a bar that stops moving on the
+        # elements that are skipped says the save has hung.
+        self.progress.setValue(step - 1)
+        QApplication.processEvents()
+        # A TWIN NEVER TRAVELS WITHOUT ITS ELEMENT. The paired layer
+        # holds the areas whose value is absent FOR THIS ELEMENT, so on
+        # its own it is a set of holes belonging to nothing. Where the
+        # element's layer has gone from the project -- somebody deleted
+        # that one row of the group in the panel -- the loop below wrote
+        # the twin anyway and the stale-table drop then took the element
+        # table that was not written, leaving the file holding
+        # `tiles_a_v1_no_data` with no `tiles_a_v1`. Measured 2026-08-28:
+        # the plugin said "Saved", and a recipient's Load brought back
+        # elements b, c and d beside an ORPHAN twin for a.
+        # Skipping the pair leaves neither in the written names, so the
+        # drop takes both and the file holds a map that is three elements
+        # rather than a map that contradicts itself. That is the settled
+        # shrank-design behaviour, applied to the pair rather than to one
+        # half of it -- the paired-artefact rule of 2026-08-16, which
+        # says every reader keyed on an element's identity gains a
+        # second answer, read here from the writing side.
+        if project.mapLayer(self._element_layer_ids.get(tid) or "") is None:
+          # AND THE PERSON IS TOLD WHICH ONES, below. Skipping keeps the
+          # FILE consistent, which is what row 46 was about; it leaves
+          # the map itself short of an element the design still has, and
+          # a plain "Saved" over that is the plugin knowing something
+          # about somebody's file and not saying it. The recipient meets
+          # a sentence about a map that gave back less than was saved to
+          # it, so the sender is the only one who was not told.
+          left_out.append(tid)
           continue
-        subset = layer.subsetString()
-        # A LAYER ALREADY READING FROM THIS TABLE IS ALREADY SAVED,
-        # and asking OGR to write it back is asking it to overwrite a
-        # layer with itself, which it refuses: "Cannot overwrite an
-        # OGR layer in place". Measured 2026-08-27, and it is not an
-        # edge case -- it is the SECOND press on any map. The first
-        # save repoints every layer at the file (which is what keeps
-        # the map alive in a reopened project), so from then on every
-        # further save met this, failed at the first element, and
-        # returned before writing the styles, the stale-table drop or
-        # the record. The whole of "save, change a colour, save
-        # again" was unreachable.
-        # The data needs no writing because it is already there: the
-        # layer READS from that table, and QGIS commits a user's own
-        # edits to the file itself. What still has to happen is
-        # everything AFTER the write -- the style, the name counted as
-        # current so the stale-table drop spares it, and the record.
-        if same_source(layer.source(), f"{path}|layername={table}"):
+        # ...AND A TABLE THAT HAS GONE FROM THE FILE IS NOT A TABLE THIS
+        # SAVE CAN WRITE. The skip below treats a layer whose source
+        # already names a table in this file as saved already, and asked
+        # only the SOURCE STRING -- which somebody else rewriting the
+        # file cannot change. So when a colleague saved the shared file
+        # while this map was open, moving one element to another column,
+        # this element was skipped as "already saved" and its name went
+        # into `written_names` as though it had been written; the drop
+        # below then removed the table the colleague HAD written,
+        # because that table belongs to an element this map has and was
+        # not among the names just written. Element b left the file
+        # altogether, both people lost it, and the plugin said "Saved".
+        # Measured 2026-08-29 with two QGIS processes and a rendezvous.
+        # NOTHING CAN BE WRITTEN IN ITS PLACE, which is what decides the
+        # shape of this. The layer whose table has gone still answers
+        # `isValid` True and `featureCount` 40, and yields ZERO features
+        # -- a dependency's cheap answer being a cached one, met here
+        # for the third time -- so writing it would replace a real table
+        # with an empty one, which is worse than the defect.
+        reading = self._table_a_layer_already_reads(tid, path)
+        if reading and reading not in in_the_file:
+          vanished.append(tid)
+          continue
+        for layer_id, table in (
+            (self._element_layer_ids.get(tid), tables[tid]),
+            (self._no_data_layer_ids.get(tid), f"{tables[tid]}_no_data")):
+          layer = project.mapLayer(layer_id) if layer_id else None
+          if layer is None:
+            continue
+          subset = layer.subsetString()
+          # A LAYER ALREADY READING FROM THIS TABLE IS ALREADY SAVED,
+          # and asking OGR to write it back is asking it to overwrite a
+          # layer with itself, which it refuses: "Cannot overwrite an
+          # OGR layer in place". Measured 2026-08-27, and it is not an
+          # edge case -- it is the SECOND press on any map. The first
+          # save repoints every layer at the file (which is what keeps
+          # the map alive in a reopened project), so from then on every
+          # further save met this, failed at the first element, and
+          # returned before writing the styles, the stale-table drop or
+          # the record. The whole of "save, change a colour, save
+          # again" was unreachable.
+          # The data needs no writing because it is already there: the
+          # layer READS from that table, and QGIS commits a user's own
+          # edits to the file itself. What still has to happen is
+          # everything AFTER the write -- the style, the name counted as
+          # current so the stale-table drop spares it, and the record.
+          if same_source(layer.source(), f"{path}|layername={table}"):
+            written_names.add(table)
+            bridge.embed_style(layer, drop_others=False)
+            styles_to_keep[table] = bridge.style_name_for(layer)
+            continue
+          try:
+            # `open_after=False`: the next line repoints THIS layer at
+            # the table, so a layer opened here is discarded by
+            # construction. The reason is that rather than a measured
+            # saving -- an attempt to measure one here did not resolve a
+            # difference at 64 or 128 elements, and the parameter's own
+            # docstring says what was and was not established.
+            bridge.write_gpkg_layer(layer, path, table, first=fresh,
+                                    open_after=False)
+          except Exception as e:
+            trouble.append(f"{table}: {e}")
+            continue
+          fresh = False
           written_names.add(table)
+          # ...and the project's own layer now reads from the file, so
+          # the map survives the project being closed and reopened
+          compat.point_layer_at(layer, path, table)
+          if subset:
+            layer.setSubsetString(subset)
+          # the style goes in AFTER the repointing, or it would be
+          # embedded against the memory layer's own source and the file
+          # would carry a style nothing in it wears
           bridge.embed_style(layer, drop_others=False)
           styles_to_keep[table] = bridge.style_name_for(layer)
-          continue
-        try:
-          # `open_after=False`: the next line repoints THIS layer at
-          # the table, so a layer opened here is discarded by
-          # construction. The reason is that rather than a measured
-          # saving -- an attempt to measure one here did not resolve a
-          # difference at 64 or 128 elements, and the parameter's own
-          # docstring says what was and was not established.
-          bridge.write_gpkg_layer(layer, path, table, first=fresh,
-                                  open_after=False)
-        except Exception as e:
-          trouble.append(f"{table}: {e}")
-          continue
-        fresh = False
-        written_names.add(table)
-        # ...and the project's own layer now reads from the file, so
-        # the map survives the project being closed and reopened
-        compat.point_layer_at(layer, path, table)
-        if subset:
-          layer.setSubsetString(subset)
-        # the style goes in AFTER the repointing, or it would be
-        # embedded against the memory layer's own source and the file
-        # would carry a style nothing in it wears
-        bridge.embed_style(layer, drop_others=False)
-        styles_to_keep[table] = bridge.style_name_for(layer)
+    finally:
+      # THE BAR COMES DOWN WHATEVER HAPPENED, the write raising
+      # included: a progress bar left up over a finished save is the
+      # hang this was written to end, wearing the other face.
+      self.progress.setVisible(False)
+      self.progress.setRange(0, 100)
+      self.progress.setFormat("%p%")
+      self.save_button.setEnabled(was_enabled[0])
+      self.generate_btn.setEnabled(was_enabled[1])
     # ...AND THE SUPERSEDED STYLES GO IN ONE PASS over the whole file.
     # Deferring it to here changes nothing about the result -- the same
     # rows are removed, scoped by this plugin's own description as they

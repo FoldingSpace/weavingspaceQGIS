@@ -562,12 +562,21 @@ this version now owes.
    and `_field_is_numeric` is the one owner; strict, so a column with
    a word in it stays categorical. Reasoning in CLAUDE.md.
 2. **The window ceiling gives at the columns**, not at the preview
-   floor and not at 1280: trim the over-wide cells and make the layout
-   guard measure at a realistic font rather than the 9pt one every
-   runner supplies. OWED.
-3. **Save becomes responsive now**, and making it a single OGR session
-   is a round of its own rather than part of this candidate. OWED, and
-   the rewrite is under 0.24.5 below.
+   floor and not at 1280 -- BUILT. The columns grow to what their
+   content needs and the ceiling is 1480, derived from the
+   measurement rather than defended by a check, because setting a
+   font is not switching a platform: the minimum size hint reads 1279
+   at both 9pt and 13pt offscreen where cocoa gives 1334, so no guard
+   here or on CI can see the window's own overshoot at all.
+3. **Save becomes responsive now** -- BUILT. The write loop turns the
+   event loop once per element behind a determinate progress bar, so
+   the window says what it is doing instead of looking like a hang,
+   and Save and Generate are disabled for the duration and restored
+   to what they WERE: pumping is exactly what would otherwise let
+   somebody press into a half-written file, so the two are one
+   decision. The COST is untouched and deliberately so -- making the
+   save a single OGR session is a rewrite of the writer and is under
+   0.24.5 below.
 4. **The guide's Save sentence is reworded** to say what Save actually
    asks -- it asks where the file holds a map made from OTHER DATA,
    which is what the ruling of 2026-08-27 settled. Done in the guide

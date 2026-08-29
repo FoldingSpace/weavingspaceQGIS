@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-428 defect(s) with a regression test.
+429 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -193,6 +193,8 @@ there is no separate list to remember.
   guarded by `test_a_save_leaves_a_shared_file_somebody_else_has_changed`
 - **saving into a GeoPackage holding somebody else's map deleted their element tables and their embedded region copy, one line after a question promising to leave the rest of the file alone. Found by the shared-file hunt of 2026-08-28.**  
   guarded by `test_a_save_leaves_another_maps_tables_alone`
+- **a save froze the window for as long as it took -- two minutes at the element ceiling -- with no progress bar and no beat, because the write loop never turned the event loop. Measured by the save-at-scale instrument of round ten, 2026-08-29, and settled as the maintainer's decision 3 the same day.**  
+  guarded by `test_a_save_lets_the_window_paint_while_it_writes`
 - **deleting element layers in the panel and pressing Save reported plain success -- for a partial map, and for an emptied file when the whole group had gone. Found by the sentences and notices hunts of 2026-08-28.**  
   guarded by `test_a_save_says_which_elements_are_not_in_the_project`
 - **typing a scale factor between -1 and 1 was mangled by the step-over-zero handler firing per keystroke, so a mirrored design was silently un-mirrored and every element drew on the wrong side of the map.**  
@@ -907,7 +909,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- a bug hunt pointed in a named direction: 130
+- a bug hunt pointed in a named direction: 131
 - the mutation campaign: 121
 - not written down at the time: 88
 - reported by a user: 30

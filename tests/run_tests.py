@@ -29321,6 +29321,113 @@ def test_a_restyle_never_recuts_a_map_from_somebody_elses_region():
       dlg.close()
 
 
+def test_a_save_lets_the_window_paint_while_it_writes():
+  """A save says what it is doing rather than looking like a hang.
+
+  Every call the write loop makes is one of QGIS's or OGR's own
+  per-layer APIs, and each opens the GeoPackage, so the seconds grow
+  with the layers already in the file: 134 of them at the 256-element
+  ceiling, measured 2026-08-29 with a 50 ms heartbeat that recorded
+  ZERO beats. Making the save a single OGR session is a rewrite of the
+  writer and belongs to a later version; the maintainer's decision was
+  that the window should go on painting NOW.
+
+  THE ORACLE IS THE SAME INSTRUMENT THAT FOUND THE FREEZE. A timer
+  cannot fire while the loop never turns, so a heartbeat counted
+  across the press answers the question directly -- and it is a zero
+  interval rather than fifty milliseconds, because at four elements
+  the whole save is faster than one 50 ms tick and a test that needs
+  a 256-element map to say anything is a test nobody runs.
+
+  BOTH CONTROLS GO DOWN AND COME BACK AS THEY WERE FOUND. Turning the
+  event loop is what lets the window paint and what would otherwise
+  let somebody press Save or Generate into a half-written file, so the
+  two buttons are disabled for the duration -- and restored to what
+  they WERE rather than enabled, since a save can be pressed while
+  Generate is already refusing for reasons of its own.
+
+  AND THE BAR COMES DOWN. A progress bar left standing over a finished
+  save is the hang this was written to end, wearing the other face.
+
+  Regression: a save froze the window for as long as it took -- two minutes at the element ceiling -- with no progress bar and no beat, because the write loop never turned the event loop. Measured by the save-at-scale instrument of round ten, 2026-08-29, and settled as the maintainer's decision 3 the same day. [hunt]
+  """
+  from qgis.PyQt.QtCore import QTimer
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="ws_save_paints_")
+  path = os.path.join(folder, "map.gpkg")
+  try:
+    layer = make_region_layer()
+    project.addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(300)
+      dlg.spacing_spin.setValue(700.0)
+      _generate_and_wait(dlg)
+      assert dlg._element_layer_ids, "PREMISE: nothing was drawn"
+      assert dlg.save_button.isEnabled(), \
+        "PREMISE: Save is already disabled, so nothing below is about "\
+        "this save disabling it"
+      # `isHidden`, NOT `isVisible`. A widget in a window nobody has
+      # shown answers False to `isVisible` whatever anybody set, so
+      # both halves of this passed with the repair mutated away and
+      # the entry SURVIVED -- the offscreen-visibility trap this
+      # project already carries about `grab()`, met from the asking
+      # side. `setVisible` moves the explicit hidden flag, and that
+      # is a question a never-shown window can answer honestly.
+      assert dlg.progress.isHidden(), \
+        "PREMISE: the progress bar is already up before the save"
+
+      elements = len(dlg._element_layer_ids)
+      beats = []
+      heart = QTimer()
+      heart.setInterval(0)     # fires whenever the loop turns at all
+      # WHAT THE BUTTONS LOOK LIKE FROM INSIDE THE SAVE, which is the
+      # only moment the question can be asked: every turn of the loop
+      # is a moment somebody could have clicked.
+      heart.timeout.connect(
+        lambda: beats.append(dlg.save_button.isEnabled()
+                             or dlg.generate_btn.isEnabled()))
+      heart.start()
+      try:
+        dlg.gpkg_widget.setFilePath(path)
+        assert press_save(dlg, path), "PREMISE: the save failed"
+      finally:
+        heart.stop()
+      # ONE BEAT PER ELEMENT, NOT MERELY ONE. Measured 2026-08-29 at
+      # four elements: five beats, being the pump before the loop and
+      # one inside it per element. Asserting only that the loop turned
+      # at all would be satisfied by that single pre-loop pump, which
+      # is not what the decision is about -- the window has to go on
+      # painting THROUGH the work, not once before it starts.
+      assert len(beats) >= elements, (
+        f"the event loop turned {len(beats)} time(s) across a save of "
+        f"{elements} elements, so the window cannot paint while the "
+        f"work is happening and a save of any size looks exactly like "
+        f"a hang -- which at the element ceiling is two minutes")
+      assert not any(beats), (
+        "Save or Generate was still clickable while the file was half "
+        "written. Turning the event loop is what lets the window "
+        "paint AND what lets somebody press into the middle of a "
+        "save, so the two go together")
+
+      assert dlg.progress.isHidden(), (
+        "the progress bar is still up after the save finished, which "
+        "is the same hang wearing its other face")
+      assert dlg.save_button.isEnabled() and dlg.generate_btn.isEnabled(), (
+        f"the save left a button disabled -- Save "
+        f"{dlg.save_button.isEnabled()}, Generate "
+        f"{dlg.generate_btn.isEnabled()} -- so the map can never be "
+        f"saved or drawn again")
+    finally:
+      dlg.close()
+  finally:
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_a_save_leaves_a_shared_file_somebody_else_has_changed():
   """A colleague saving the shared file must not cost an element.
 
@@ -73310,6 +73417,8 @@ def main():
         test_returning_to_one_senders_map_re_tiles_it_from_their_own_data)
   check("a save leaves a shared file somebody else has changed",
         test_a_save_leaves_a_shared_file_somebody_else_has_changed)
+  check("a save lets the window paint while it writes",
+        test_a_save_lets_the_window_paint_while_it_writes)
   check("a follower goes on following a map you opened",
         test_a_follower_goes_on_following_a_map_you_opened)
   check("a restyle never recuts a map from somebody else's region",
