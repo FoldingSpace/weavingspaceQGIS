@@ -447,15 +447,25 @@ A class bound survives a keystroke that types nothing. And a
 256-element design draws in about two seconds where it froze QGIS for
 thirty-eight.
 
-WHAT IS STILL OWED FROM THE FIRST TWO WAVES, each a defect confirmed by
-a hunt and reproduced here rather than a guess (the third wave's owed
-list is in the ledger, named above): the design view keeps painting an
-element in a colour the map does not contain after a dock edit the
-plugin cannot name, and the landing's last preview
-repaint fires before the new layer exists;
-and the catalogue triage of the same morning made
-two trades whose compensating test legs cannot fail, one of which is
-already mended.
+NOTHING IS OWED FROM THE FIRST TWO WAVES ANY LONGER, and the last of
+it came off on 2026-08-29 (the third wave's owed list is in the
+ledger, named above). The design view painting an element in a colour
+the map does not contain after a dock edit was REPAIRED at `148b154`
+and UNGUARDED until the audit of that morning put the mutation on the
+line its repair added and watched it survive; it is door three of
+`test_every_restyle_door_repaints_the_preview` now. The catalogue
+triage's two bad trades are both mended: the restyle leg that could
+not fail has been restaged so that it can -- it used to run on an
+element the arm above had already reclaimed, whose layer wore the
+plugin's own renderer -- and the test its twin retirement left
+carrying nothing now has an entry for each of the two paths a reclaim
+can take.
+
+ONE THING IS WATCHED RATHER THAN OWED, and is left open deliberately.
+The landing's last preview repaint firing before the new layer exists
+DID NOT REPRODUCE: every repaint through a whole landing saw all of
+its layers. One clean journey is not a proof about all of them, so
+the row stands as something to look at again rather than as work.
 
 AND THE TWO FILE-SHARING ROWS CAME OFF IT ON 2026-08-29, both
 audited first, both confirmed open, and both repaired with the harm

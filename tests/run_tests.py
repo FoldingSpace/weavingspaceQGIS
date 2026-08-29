@@ -16356,11 +16356,41 @@ def test_taking_an_element_back_from_qgis_restyles_at_once():
   # above. Picking a style changes no geometry, so that Generate took
   # the restyle fast path -- `GEN-GATE restyled-instead`, measured
   # 2026-08-28 -- and the landing's own rule about whether an element
-  # has been TAKEN BACK was never consulted. It decides whether the
-  # new layer inherits the renderer the user is asking to replace, so
-  # a spacing nudge is what puts this promise on the re-tile path.
+  # has been TAKEN BACK was never consulted.
+  #
+  # THE RECLAIM IS STAGED AFRESH HERE, AND THE ORDER IS THE WHOLE OF
+  # IT. This leg used to be a spacing nudge and a Generate on the
+  # element the arm above had just reclaimed -- by which point its
+  # layer wore the PLUGIN'S renderer, so the landing found nothing
+  # rule-based to carry and the assertion held whatever the gate
+  # said. It could not fail, which the catalogue triage of 2026-08-28
+  # recorded as one of its two bad trades.
+  # So the element is put back into QGIS's hands, THE SPACING IS
+  # MOVED FIRST, and only then is the style picked back: with the
+  # geometry moved the restyle path declines, so the layer still
+  # holds the dock's renderer when the run lands and the landing's
+  # gate is the only thing deciding whether the new layer inherits
+  # it. Pick first and the restyle re-seeds in place, and the re-tile
+  # that follows meets an element that was never deferring.
+  again = project.mapLayer(dlg._element_layer_ids[tile_id])
+  again.setRenderer(_rule_based_renderer("#aa0044"))
+  again.styleChanged.emit()
+  _tick(400)
+  assert dlg.table.cellWidget(1, 2).currentText() == dlg.DEFERRING, \
+    "PREMISE: the element is not deferring again, so the re-tile leg "\
+    "is not about an element being taken back"
   dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.15)
   _tick(300)
+  mode = dlg.table.cellWidget(1, 2)
+  mode.setCurrentText(chosen)
+  mode.activated.emit(mode.currentIndex())
+  _tick(300)
+  staged = project.mapLayer(dlg._element_layer_ids[tile_id])
+  assert type(staged.renderer()).__name__ == "QgsRuleBasedRenderer", (
+    f"PREMISE: the pick re-seeded the layer in place, so the run "
+    f"below is not a re-tile of a deferring element -- it draws "
+    f"{type(staged.renderer()).__name__} where the dock's renderer "
+    f"should still be standing")
   _generate_and_wait(dlg)
   retiled = project.mapLayer(dlg._element_layer_ids[tile_id])
   assert type(retiled.renderer()).__name__ != "QgsRuleBasedRenderer", (

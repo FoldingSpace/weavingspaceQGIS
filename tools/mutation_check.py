@@ -7953,6 +7953,48 @@ MUTATIONS = [
            "`_on_generated`'s own finally clears the note line, so the "
            "sentence has to be sent once the dust has settled or it is "
            "written and wiped"),
+  dict(name="a-taken-back-element-is-not-carried-at-the-landing",
+       file=DIALOG,
+       # The landing keeps the dock's renderer over the style the
+       # person has just picked, so the element can never be taken
+       # back across a re-tile: the new layer draws what QGIS built
+       # while the row names a style the map does not have.
+       old="""      reclaimed = (tid in old_renderers
+                   and live_mode != self.DEFERRING
+                   and bridge.expressible_style(old_renderers[tid]) is None)""",
+       new="""      reclaimed = False  # mutation: nothing is ever taken back""",
+       test="test_taking_an_element_back_from_qgis_restyles_at_once",
+       why="an element taken back from QGIS being RE-SEEDED across a "
+           "re-tile: picking back the style it had before deferral "
+           "restores the signature it had before deferral, so "
+           "`unchanged` is exactly wrong and this gate is the only "
+           "thing that knows it. THE LEG THAT PROVES IT had to be "
+           "restaged first -- it used to run on an element the arm "
+           "above had already reclaimed, whose layer wore the "
+           "plugin's own renderer, so it held whatever the gate said "
+           "(the catalogue triage of 2026-08-28, one of its two bad "
+           "trades)"),
+  dict(name="a-taken-back-element-is-restyled-at-once", file=DIALOG,
+       # The twin, on the restyle path: the deferring arm stops
+       # asking whether the ROW still says deferring, so an element
+       # whose style has just been picked back takes the
+       # not-restyled branch and keeps QGIS's renderer for good.
+       # A RAW STRING, because the line it anchors on ends in a
+       # BACKSLASH: inside an ordinary triple-quoted string that is a
+       # line continuation, so the anchor was stored as one collapsed
+       # line and matched nothing. The tool said so rather than
+       # reporting a clean sweep, which is the whole reason it refuses
+       # an absent anchor.
+       old=r"""        if a.get("mode_raw") == self.DEFERRING \
+            and bridge.expressible_style(layer.renderer()) is None:""",
+       new="""        if bridge.expressible_style(layer.renderer()) is None:""",
+       test="test_taking_an_element_back_from_qgis_restyles_at_once",
+       why="the same promise on the path a pick actually takes, which "
+           "changes no geometry: a test on the LAYER cannot see the "
+           "reclaim, because the layer still holds the dock's "
+           "renderer at the moment of the pick -- the row is the only "
+           "witness. This test carried no entry at all until "
+           "2026-08-29, its own having been retired by the triage"),
   dict(name="the-save-loop-turns-the-event-loop", file=DIALOG,
        # Back to a loop that never turns. The pump BEFORE the loop
        # survives, deliberately -- so an entry satisfied by "did it
