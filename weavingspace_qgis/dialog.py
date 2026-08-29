@@ -13662,6 +13662,44 @@ class WeavingSpaceDialog(QDialog):
     # tables, the styles and the record together.
     return True
 
+  def _a_queued_run_would_redraw(self) -> bool:
+    """Is a live run waiting that would put a different map on screen?
+
+    Returns:
+      True when the live timer is armed AND the run it will start
+      would draw something other than what is there now. False when
+      nothing is queued, when the queued run is the no-op
+      `_maybe_live_generate` skips, or when the only thing that has
+      moved since the last run is the OUTPUT PATH.
+
+    WHY THE PATH IS EXCLUDED, and it is the whole of why this is a
+    method rather than one condition. The path is a term of the run
+    signature -- settled when a run WROTE the file, which since
+    2026-08-27 it does not -- so choosing a file arms the timer and
+    moves the signature while changing nothing about the tiles. A
+    guard that read the signature alone therefore refused the most
+    ordinary act there is: choose a file, press Save. Its own probe's
+    FIRST press caught that, which is what a control arm is for.
+    The terms are compared by value rather than by position, so this
+    cannot rot when the signature gains a term.
+
+    WHETHER THE PATH BELONGS IN THE SIGNATURE AT ALL is a real
+    question and the maintainer's: under the ruling that saving is a
+    positive act, a destination cannot change what a run produces, and
+    with live update on today, choosing a file re-tiles the map. It is
+    in the ledger rather than changed here.
+    """
+    if not self._live_timer.isActive():
+      return False
+    pending, last = self._run_signature(), self._last_run_sig
+    if last is None or len(pending) != len(last):
+      return True
+    differing = [now for now, before in zip(pending, last) if now != before]
+    if not differing:
+      return False        # the no-op run the live path skips anyway
+    here = self.gpkg_widget.filePath().strip() or None
+    return any(term != here for term in differing)
+
   def _run_signature(self):
     """Everything that affects the output, as one comparable tuple;
     live update skips regenerating when this equals the last run's
@@ -16497,6 +16535,30 @@ class WeavingSpaceDialog(QDialog):
       self._report_quietly(
         "This map's layers are no longer in the project, so there is "
         "nothing to save. Press Generate to draw it again.")
+      return False
+    # ...AND A RUN THAT HAS NOT STARTED YET IS THE SAME QUESTION AS
+    # ONE IN FLIGHT -- ASKED LAST OF THE FOUR, because the three
+    # above answer "is there a map to save at all" and this one
+    # answers "is it the map you mean". Asked first, it told
+    # somebody with no map at all that theirs was about to be
+    # redrawn: the save matrix's own no-map cells caught that, which
+    # is the same ordering lesson written twenty lines above. The
+    # guard above asks `_task`, which a QUEUED run does not have: with
+    # live update on -- the default -- a design change arms the live
+    # timer, and a press inside that window writes the map on screen,
+    # which is the map the person has just changed away from, and
+    # reports plain success. Measured 2026-08-28: saved at 55 tiles an
+    # element, the file still held 55 after the press, and a second
+    # later the map drew 190. The press asked for the design they had
+    # just chosen and the file got the one before it.
+    # REFUSED IN WORDS, LIKE ITS TWIN, rather than deferred. A press
+    # this dialog remembers and honours later is a promise about a map
+    # nobody has seen yet -- the shape the queued-press defect was
+    # about -- and the run lands in under a second.
+    if self._a_queued_run_would_redraw():
+      self._report_quietly(
+        "The map is about to be redrawn. Save it once the new one "
+        "has landed.")
       return False
     if not self._may_overwrite(path):
       return False

@@ -27663,6 +27663,72 @@ def test_a_save_as_tells_the_group_where_the_map_went():
       dlg.close()
 
 
+def test_a_save_waits_for_a_run_that_is_about_to_start():
+  """A press inside the live debounce is about the map that is coming.
+
+  The in-flight guard asks `_task`, and a QUEUED run does not have one
+  yet. With live update at its default, a design change arms the live
+  timer, and a press inside that window wrote the map on screen -- the
+  one the person had just changed away from -- and reported plain
+  success. Measured: saved at 55 tiles an element, the file still held
+  55 after the press, and a second later the map drew 190.
+
+  THE CONTROL IS THE ORDINARY SAVE, and it is why this test has two
+  arms rather than one. The output path is a term of the run signature
+  (settled when a run WROTE the file), so merely choosing a file arms
+  the timer and moves the signature -- and the first draft of this
+  guard refused choose-a-file-and-press-Save, the commonest act there
+  is. Its own probe caught that on its FIRST press.
+
+  Regression: a Save pressed while a live re-tile was queued wrote the map that was about to be replaced and reported success. Found by the sentences hunt of 2026-08-28. [hunt]
+  """
+  with _temp_dir() as folder:
+    path = os.path.join(folder, "map.gpkg")
+    dlg, _layer, _tid = _categorical_dialog()
+    try:
+      # live update ON, which is the default and the state this is
+      # about; `_categorical_dialog` switches it off.
+      dlg.live_check.setChecked(True)
+      _generate_and_wait(dlg)
+      assert dlg._element_layer_ids, "PREMISE: nothing was drawn"
+
+      # ---- THE CONTROL: choosing a file and pressing Save
+      dlg.gpkg_widget.setFilePath(path)
+      _tick(100)
+      assert press_save(dlg, path), (
+        "choosing a file arms the live timer, and the save that "
+        "follows it must still happen: this is the commonest act "
+        "there is")
+      first = gpkg_contents(path)["tables"]
+      assert first, "PREMISE: the control save wrote no tables"
+
+      # ---- AND A PRESS INSIDE A REAL RE-TILE'S WINDOW
+      dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 0.5)
+      _tick(50)
+      assert dlg._task is None, (
+        "PREMISE: the run had already started, so this is the "
+        "in-flight journey the older guard already refuses")
+      assert not press_save(dlg, path, expect=False), \
+        "the press inside the live window wrote the map it was not about"
+      said = _said_about_a_save(dlg)
+      assert "about to be redrawn" in said, (
+        f"the refusal does not say why: {said!r}")
+      assert gpkg_contents(path)["tables"] == first, \
+        "the refused press changed the file anyway"
+
+      # ...and once the queued run has landed, the same press works.
+      _settle(dlg, seconds=90)
+      assert press_save(dlg, path), \
+        "the save after the queued run landed was refused too"
+      after = gpkg_contents(path)["tables"]
+      assert after != first, (
+        f"the map was re-tiled between the two presses and the file "
+        f"holds the same counts either way ({first} then {after}), so "
+        f"this test cannot tell one map from the other")
+    finally:
+      dlg.close()
+
+
 def test_a_save_says_which_elements_are_not_in_the_project():
   """What the file holds, said to the person who wrote it.
 
@@ -71400,6 +71466,8 @@ def main():
         test_a_column_called_no_data_does_not_miscount_the_map)
   check("a save says which elements are not in the project",
         test_a_save_says_which_elements_are_not_in_the_project)
+  check("a save waits for a run that is about to start",
+        test_a_save_waits_for_a_run_that_is_about_to_start)
   check("choosing your own group keeps the region and the variables",
         test_choosing_your_own_group_keeps_the_region_and_the_variables)
   check("the icon notice reads the same ground in either crs",

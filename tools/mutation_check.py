@@ -7606,6 +7606,31 @@ MUTATIONS = [
            "which group a dataset owns, whether a landing may write "
            "over a group, and whether a resume finds a layer already "
            "open"),
+  dict(name="a-save-waits-for-a-queued-run",
+       file=DIALOG,
+       # Back to asking `_task` alone, which a queued run does not
+       # have: the press writes the map on screen, which is the one
+       # the person has just changed away from, and says "Saved".
+       old="""    if self._a_queued_run_would_redraw():""",
+       new="""    if False:  # mutation: only a run that has STARTED counts""",
+       test="test_a_save_waits_for_a_run_that_is_about_to_start",
+       why="a Save pressed inside the live debounce writing the map "
+           "that is about to be replaced, and reporting success for "
+           "it -- the same reasoning the in-flight guard already "
+           "carries, applied to the run that has not started yet"),
+  dict(name="a-queued-run-that-only-moves-the-path-is-not-a-redraw",
+       file=DIALOG,
+       # The other half, and the one that cost this guard its first
+       # draft: treat ANY signature difference as a redraw, and
+       # choosing a file -- which is a term of the run signature --
+       # refuses the ordinary choose-then-Save.
+       old="""    here = self.gpkg_widget.filePath().strip() or None
+    return any(term != here for term in differing)""",
+       new="""    return True  # mutation: any difference is a redraw""",
+       test="test_a_save_waits_for_a_run_that_is_about_to_start",
+       why="the commonest act there is -- choose a file, press Save -- "
+           "still working while live update is on, because a "
+           "destination does not change what a run draws"),
   dict(name="a-save-names-the-elements-it-left-out",
        file=DIALOG,
        # Back to plain success. The file is the same either way -- the
