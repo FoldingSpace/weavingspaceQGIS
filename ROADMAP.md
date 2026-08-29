@@ -906,6 +906,61 @@ will be read by some GIS users as promising the node/edge/face kind,
 and it does not. Whatever it is called, the tab has to say early and
 plainly that it describes the repeating unit and not the map.
 
+**AND THE MAINTAINER'S OWN FRAMING SHARPENS ALL OF THAT: this project
+has THREE kinds of layer -- the original data, the tiling over the
+whole space, and the element layers which unioned together ARE that
+tiling -- so it is the TILING'S topology that is at stake.** That is
+right, and it does not argue for a topology model over the output,
+because a tiling is PERIODIC: the adjacency structure of the whole
+tiling is already determined by the unit and its neighbouring copies,
+which is exactly what `Topology` is built on.
+
+MEASURED 2026-08-29, as two independent descriptions of one fact. The
+first takes every edge's `left_tile` and `right_tile` and reads their
+`label`, giving the element pairs that share an edge according to the
+UNIT. The second knows nothing about topology: it takes
+`get_local_patch(r=3)` -- a real piece of the tiling, 111 to 222 tiles
+-- and asks which polygons share a boundary of non-zero length. On
+laves 3.3.4.3.4 the two agree exactly at six pairs, and on hex-slice 3
+at three. So the unit does describe the tiling, and a structure over
+seventy thousand output polygons would be an expensive restatement of
+something 2.4 KB already says.
+
+**THE THIRD DESIGN DISAGREED, AND THE DISAGREEMENT IS THE USEFUL
+PART.** On hex-slice 6 the unit reported NINE pairs and the geometry
+seven. Classifying every contact by what it actually is: the seven
+share 288.675 map units of edge, and the two extra -- b-e and c-f --
+have a maximum shared length of 0.0 and intersect as a POINT. They
+touch at a corner. So "adjacent" in the topological sense includes
+contacts a reader cannot see, and the two senses are not
+interchangeable.
+
+WHICH SENSE THE TAB MEANS IS THEREFORE A DECISION, and for the
+cartographic question it is the geometric one. What somebody wants to
+know is which elements they can compare across a shared border, and a
+corner contact affords no comparison. The same distinction is worth
+carrying to the LEGIBILITY CHECK, which today warns about pairs of
+elements whose colours a reader may not separate without knowing which
+pairs actually abut -- a pair that never shares an edge is a weaker
+warning than one that does.
+
+**SO: STORE THE UNIT AS A LAYER, AND THE DUAL BESIDE IT.** Both are
+tiny -- n polygons and the dual's handful -- and it makes the file
+self-describing: somebody opens the GeoPackage and sees the motif and
+its dual without needing the plugin at all, which is the same argument
+that put the element tables and their styles in there. The dual has to
+be a layer in any case, being geometry.
+
+ONE CAVEAT, AND IT IS A REAL ONE: THE UNIT LIVES IN UNIT SPACE. Its
+coordinates are around the origin, not on the ground, so a layer
+carrying the map's CRS would place the motif at that CRS's origin --
+off the coast of Africa for a great many of them. That is this
+project's own recorded hazard about a memory layer handed EPSG:4326 by
+default, arriving through a new door. Either store these two with NO
+CRS and say in the layer name what they are, or place them
+deliberately; what must not happen is a layer that silently claims to
+be somewhere.
+
 WHAT COMES FIRST is still an inventory, and it is cheaper now that the
 two constraints above are known: what each manipulation actually does
 to a unit, which of them compose, and which produce a tiling the rest
