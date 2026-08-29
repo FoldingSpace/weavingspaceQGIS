@@ -682,6 +682,56 @@ the one the sessions that produced designs that stuck all followed.
    measuring `dlg.height()` after `show()` against
    `availableGeometry()`, which is the quantity the failure would
    print.
+3. **NOTHING IN `dist/` MAY CARRY A NAME WITHOUT ITS VERSION, AND A
+   CHECK MAY NOT WRITE THERE AT ALL.** (Maintainer's rule, 2026-08-29,
+   on finding the newest file in `dist/` was an unversioned zip.)
+   WHAT IS HAPPENING. `check_before_push` replays the `standards`
+   job's steps, one of which is "The plugin still packages"; that runs
+   `build.py`, and `build.py` writes `dist/weavingspace_qgis.zip` --
+   no version -- into whatever worktree it is run from. So the PUSH
+   GATE mutates the artefact directory, from an ungated tree, on every
+   invocation. Measured today: `weavingspace_qgis.zip` at 16:12 and
+   649,327 bytes, sitting an hour newer than the gated
+   `weavingspace_qgis-0.24.4rc5.zip` at 649,330, beside three
+   versioned candidates and their receipts.
+   WHY IT MATTERS RATHER THAN BEING UNTIDY. Sorted by date -- which is
+   what a person does in Finder -- the first thing in a directory of
+   gated artefacts is the ONE with no version, no receipt and no gate
+   behind it, and it is not even byte-identical to the candidate it
+   sits beside. This project already refuses to let a candidate NUMBER
+   be reused because one name over two trees confuses everybody; an
+   artefact with no name at all is that hazard with the label removed.
+   AND THE RULE IS WIDER THAN `dist/`: **NO UNVERSIONED FILENAME GOES
+   UP ON GITHUB EITHER.** (The maintainer, same day, on being told the
+   unversioned name was kept because README asks people to download
+   it: "readme can and should change".) So the release ASSET carries
+   its version too, and the prose that names it follows the artefact
+   rather than the artefact being held still for the prose.
+   THE CANDIDATE PATH IS ALREADY RIGHT, WHICH IS THE TELL. Every
+   pre-release attaches `weavingspace_qgis-<version>rc<n>.zip`; only
+   the RELEASE path attaches an unversioned one, at `release.py:1420`.
+   The convention exists and was applied to half the process.
+   WHAT IT TOUCHES, counted rather than guessed -- sixteen sites in
+   nine files, in three kinds. THE WRITER: `build.py:373`, plus its
+   own docstring and `MAINTAINING.md`. THE CONSUMERS: `release.py`
+   attaches and prints the path in four places, and `ci.yml` passes
+   `dist/weavingspace_qgis.zip` to `install_and_load.py` on all three
+   platforms -- so CI has to learn the version, which means reading
+   `metadata.txt` as `build.py` already does rather than globbing,
+   since a glob over a `dist/` holding several candidates is exactly
+   the ambiguity this rule is about. THE PROSE: `README.md:34`,
+   `docs/index.html:199` and `tools/release_notes.py:182`, which names
+   the attachment in every release body. All three are text a user
+   reads, so they go through `tools/text_review.py` and the wording is
+   the maintainer's to approve.
+   AND THE PACKAGING CHECK STILL SHOULD NOT WRITE INTO `dist/` at all,
+   independently of the naming: its only question is whether the
+   archive still forms, so it belongs in a temporary directory. The
+   two together leave `dist/` holding gated, versioned artefacts and
+   nothing else.
+   ALREADY-PUBLISHED RELEASES KEEP THEIR UNVERSIONED ASSETS. That is
+   history rather than a thing to mend, and rewriting old release
+   assets would break links people already have.
 
 ONE THING IS WATCHED RATHER THAN OWED AND IS NOT COVERED BY THIS. The
 landing's last preview repaint firing before the new layer exists did
