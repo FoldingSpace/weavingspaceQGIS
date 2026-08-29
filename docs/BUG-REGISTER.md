@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-416 defect(s) with a regression test.
+417 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -99,6 +99,8 @@ there is no separate list to remember.
   guarded by `test_a_failed_support_download_is_recorded`
 - **a bound pinned far outside a column of very small values flattened the box that holds the small one, so a pin of 6e-10 read back as 0.0 and the map was redrawn from zero.**  
   guarded by `test_a_far_pin_does_not_flatten_the_box_a_small_one_needs`
+- **five kinds of unopenable file were given one sentence claiming the file carried no saved map, including a path that did not exist. Found by the brokenfiles hunt of 2026-08-28.**  
+  guarded by `test_a_file_that_will_not_open_says_which_way_it_failed`
 - **a forward ramp set in QGIS matched a row that was ticked Reverse, so the plugin saw no change and the next unrelated edit flipped the element end for end in the project and in the exported file.**  
   guarded by `test_a_forward_ramp_does_not_match_a_reversed_row`
 - **the no-data layer's style was embedded in the GeoPackage before its opacity was set, so an exported map drew those areas opaque.**  
@@ -884,7 +886,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 122
-- a bug hunt pointed in a named direction: 119
+- a bug hunt pointed in a named direction: 120
 - not written down at the time: 88
 - reported by a user: 29
 - reading the code: 15

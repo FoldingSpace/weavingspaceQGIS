@@ -7609,6 +7609,20 @@ MUTATIONS = [
            "which group a dataset owns, whether a landing may write "
            "over a group, and whether a resume finds a layer already "
            "open"),
+  dict(name="a-file-that-is-not-there-says-so",
+       file=DIALOG,
+       # Back to the one sentence for five situations: the missing and
+       # unreadable arms fall through to "that GeoPackage does not
+       # carry a saved map", whose advice cannot be followed for
+       # either of them.
+       old="""    trouble = bridge.why_a_file_will_not_open(path)""",
+       new="""    trouble = None  # mutation: one sentence for every failure""",
+       test="test_a_file_that_will_not_open_says_which_way_it_failed",
+       why="a person being told which of their own acts to repeat: "
+           "\"there is nothing at that path\" and \"that file could "
+           "not be opened\" are different problems from \"this "
+           "GeoPackage carries no map\", and only the last is what "
+           "the old sentence said"),
   dict(name="the-legend-is-printed-from-the-ladder-that-is-drawn",
        file=BRIDGE,
        # WHAT THIS PROVES AND WHAT IT DOES NOT, said plainly because

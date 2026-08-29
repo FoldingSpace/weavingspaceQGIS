@@ -27663,6 +27663,88 @@ def test_a_save_as_tells_the_group_where_the_map_went():
       dlg.close()
 
 
+def test_a_file_that_will_not_open_says_which_way_it_failed():
+  """Five situations, and only one of them was what the sentence said.
+
+  `read_working_state` answers None for a path that does not exist, an
+  empty file, a file that is not a GeoPackage, a truncated one, and a
+  sound GeoPackage carrying no record. All five were told "that
+  GeoPackage does not carry a saved map... add its layers in QGIS to
+  look at it" -- advice you cannot follow for four of them, and untrue
+  of four of them.
+
+  THE CONTROL IS A REAL SAVED MAP, driven first: a test that only
+  shows refusals cannot tell a plugin that reads files from one that
+  refuses everything.
+
+  Regression: five kinds of unopenable file were given one sentence claiming the file carried no saved map, including a path that did not exist. Found by the brokenfiles hunt of 2026-08-28. [hunt]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  with _temp_dir() as folder:
+    good = os.path.join(folder, "good.gpkg")
+    dlg, _layer, _tid = _categorical_dialog()
+    try:
+      dlg.live_check.setChecked(False)
+      _generate_and_wait(dlg)
+      dlg.gpkg_widget.setFilePath(good)
+      assert press_save(dlg, good), "PREMISE: the save failed"
+    finally:
+      dlg.close()
+
+    empty = os.path.join(folder, "empty.gpkg")
+    open(empty, "wb").close()
+    prose = os.path.join(folder, "notes.gpkg")
+    with open(prose, "w") as handle:
+      handle.write("this is not a GeoPackage at all\n")
+    truncated = os.path.join(folder, "truncated.gpkg")
+    with open(good, "rb") as source, open(truncated, "wb") as sink:
+      sink.write(source.read(2048))
+    plain = os.path.join(folder, "plain.gpkg")
+    project.clear()
+    region = make_region_layer(n=6)
+    project.addMapLayer(region)
+    assert bridge.write_gpkg_layer(region, plain, "areas", first=True,
+                                   open_after=False) is None, \
+      "PREMISE: writing the plain GeoPackage did not behave as expected"
+
+    def what_it_says(path):
+      project.clear()
+      opener = WeavingSpaceDialog(iface=_Iface())
+      try:
+        opener.live_check.setChecked(False)
+        BAR_MESSAGES.clear()
+        opener.resume_widget.setFilePath(path)
+        opened = opener._load_pressed()
+        _settle(opener, seconds=30)
+        return opened, " ".join(text for _kind, text in BAR_MESSAGES)
+      finally:
+        opener.close()
+
+    _opened, said = what_it_says(good)
+    assert "element layer" in said, (
+      f"PREMISE: the control did not open at all, so every refusal "
+      f"below proves nothing: {said!r}")
+
+    missing = os.path.join(folder, "nowhere.gpkg")
+    _opened, said = what_it_says(missing)
+    assert "nothing at" in said and "moved or renamed" in said, (
+      f"a path that does not exist was told {said!r}")
+
+    for path, what in ((empty, "an empty file"),
+                       (prose, "a file that is not a GeoPackage"),
+                       (truncated, "a truncated GeoPackage")):
+      _opened, said = what_it_says(path)
+      assert "could not be opened as a GeoPackage" in said, (
+        f"{what} was told {said!r}")
+
+    _opened, said = what_it_says(plain)
+    assert "does not carry a saved map" in said, (
+      f"a sound GeoPackage with no record -- the ONE case that "
+      f"sentence is about -- was told {said!r}")
+
+
 def test_a_pinned_ladder_prints_a_legend_you_can_read():
   """The legend describes the ladder that is drawn, pins included.
 
@@ -71650,6 +71732,8 @@ def main():
         test_a_modifier_survives_a_family_excursion)
   check("a pinned ladder prints a legend you can read",
         test_a_pinned_ladder_prints_a_legend_you_can_read)
+  check("a file that will not open says which way it failed",
+        test_a_file_that_will_not_open_says_which_way_it_failed)
   check("choosing your own group keeps the region and the variables",
         test_choosing_your_own_group_keeps_the_region_and_the_variables)
   check("the icon notice reads the same ground in either crs",

@@ -4031,6 +4031,46 @@ def write_working_state(path: str, record: dict) -> bool:
     return False
 
 
+def why_a_file_will_not_open(path: str):
+  """Why this file cannot be read as a GeoPackage, if it cannot.
+
+  Args:
+    path: the file somebody pointed the Open row at.
+
+  Returns:
+    ``"missing"`` where there is nothing at that path, ``"unreadable"``
+    where something is there and GDAL will not open it as a data
+    source, and None where it opens -- which says nothing about
+    whether it carries a saved map, since a perfectly ordinary
+    GeoPackage does not.
+
+  IT EXISTS BECAUSE ONE SENTENCE WAS ANSWERING FIVE QUESTIONS.
+  `read_working_state` answers None for a path that does not exist, an
+  empty file, a file that is not a GeoPackage, a truncated one, and a
+  sound GeoPackage carrying no record -- and the resume told all five
+  "that GeoPackage does not carry a saved map... add its layers in
+  QGIS to look at it", which is advice you cannot follow for four of
+  them. Measured 2026-08-28, all five (`brokenfiles`).
+
+  The reading is deliberately cheap and says only what it can prove:
+  the difference between "there is nothing there" and "there is
+  something there I cannot read" is the whole of what a person needs
+  to know which of their own acts to repeat.
+  """
+  import os
+  from osgeo import gdal
+  if not path or not os.path.exists(path):
+    return "missing"
+  try:
+    handle = gdal.OpenEx(path)
+  except Exception:
+    return "unreadable"
+  if handle is None:
+    return "unreadable"
+  handle = None            # released at once; an open handle changes
+  return None              # what the next reading of the file sees
+
+
 def read_working_state(path: str):
   """The working state a GeoPackage carries, or None.
 

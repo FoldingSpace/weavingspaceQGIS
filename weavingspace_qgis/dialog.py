@@ -17127,6 +17127,26 @@ class WeavingSpaceDialog(QDialog):
         "A map is still being generated; open the saved map once it "
         "finishes.")
       return False
+    # WHY IT WILL NOT OPEN, BEFORE "IT CARRIES NO MAP". Five different
+    # situations answered None from `read_working_state` and were told
+    # the same thing -- a path that does not exist, an empty file, a
+    # file that is not a GeoPackage at all, a truncated one, and a
+    # sound GeoPackage with no record. Only the last of those is what
+    # the sentence says, and its advice -- add its layers in QGIS --
+    # is impossible to follow for the other four. Measured 2026-08-28
+    # across all five (`brokenfiles`).
+    trouble = bridge.why_a_file_will_not_open(path)
+    if trouble == "missing":
+      self._report_quietly(
+        f"There is nothing at {os.path.basename(path) or path}, so "
+        f"there is no map to open. Check whether the file has been "
+        f"moved or renamed.")
+      return False
+    if trouble == "unreadable":
+      self._report_quietly(
+        f"{os.path.basename(path) or path} could not be opened as a "
+        f"GeoPackage, so there is no map to read from it.")
+      return False
     record = bridge.read_working_state(path)
     if record is None:
       self._report_quietly(
