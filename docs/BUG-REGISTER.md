@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-417 defect(s) with a regression test.
+418 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -193,6 +193,8 @@ there is no separate list to remember.
   guarded by `test_a_second_project_does_not_take_the_first_ones_opacity`
 - **a style pasted onto an element layer while a tiling was in flight was silently destroyed by the run's landing, though the same paste a moment earlier or later survived.**  
   guarded by `test_a_style_pasted_mid_run_survives_the_landing`
+- **a text column counted 0 distinct values, so the many-categories question was never asked for one. Found by the manyareas hunt of 2026-08-28.**  
+  guarded by `test_a_text_column_is_counted_before_the_many_categories_question`
 - **the moved-data notice read a fingerprint that cannot see a value edit, so retyping numbers between Generate and Save wrote old tiles beside new data in silence -- the case the notice was written for. Found by the undo hunt of 2026-08-28.**  
   guarded by `test_a_value_edited_after_the_map_was_drawn_is_reported`
 - **2026-08-19. Found by a hunt reading the saved project with `zipfile` and the exported GeoPackage with `sqlite3`, neither of which involves QGIS: the retyped ranges were in the file's QML and the stamp appeared nowhere.**  
@@ -886,7 +888,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 122
-- a bug hunt pointed in a named direction: 120
+- a bug hunt pointed in a named direction: 121
 - not written down at the time: 88
 - reported by a user: 29
 - reading the code: 15

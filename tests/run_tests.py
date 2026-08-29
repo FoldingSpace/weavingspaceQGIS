@@ -27663,6 +27663,68 @@ def test_a_save_as_tells_the_group_where_the_map_went():
       dlg.close()
 
 
+def test_a_text_column_is_counted_before_the_many_categories_question():
+  """The question is asked of the column most likely to need it.
+
+  `_distinct_values` counts through the geometry-less scratch layer,
+  which holds its column AS DOUBLES -- that is what it is for, cutting
+  numeric breaks -- so every word in a text column arrived NULL and
+  the count came back 0. The question above `MANY_CATEGORIES` could
+  therefore never fire for a name column, which is exactly the kind
+  that has hundreds of values, and QGIS was handed a legend entry per
+  area with nothing asked.
+
+  THE CONTROL IS THE SAME VALUES AS NUMBERS. Without it a silent text
+  arm could be the threshold, the fixture or the door rather than the
+  counting.
+
+  Regression: a text column counted 0 distinct values, so the many-categories question was never asked for one. Found by the manyareas hunt of 2026-08-28. [hunt]
+  """
+  from qgis.core import QgsField
+  from qgis.PyQt.QtCore import QVariant
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  how_many = bridge.MANY_CATEGORIES + 20
+  layer = QgsVectorLayer("Polygon?crs=EPSG:3857", "areas", "memory")
+  layer.dataProvider().addAttributes(
+    [QgsField("name", QVariant.String), QgsField("code", QVariant.Double)])
+  layer.updateFields()
+  rows = []
+  for index in range(how_many):
+    feature = QgsFeature(layer.fields())
+    feature.setAttribute("name", f"ward {index}")
+    feature.setAttribute("code", float(index))
+    x, y = (index % 20) * 100.0, (index // 20) * 100.0
+    feature.setGeometry(QgsGeometry.fromPolygonXY([[
+      QgsPointXY(x, y), QgsPointXY(x + 90, y),
+      QgsPointXY(x + 90, y + 90), QgsPointXY(x, y + 90), QgsPointXY(x, y)]]))
+    rows.append(feature)
+  layer.dataProvider().addFeatures(rows)
+  layer.updateExtents()
+  project.addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(500)
+    numbers = dlg._distinct_values("code")
+    assert numbers == how_many, (
+      f"PREMISE: the numeric control counted {numbers} of {how_many}, "
+      f"so this test measures the counting rather than the type")
+    assert numbers > bridge.MANY_CATEGORIES, (
+      f"PREMISE: {how_many} does not clear the "
+      f"{bridge.MANY_CATEGORIES} the question fires above")
+    words = dlg._distinct_values("name")
+    assert words == how_many, (
+      f"a text column of {how_many} distinct values counted {words}, "
+      f"so the many-categories question can never fire for the kind "
+      f"of column most likely to need it")
+  finally:
+    dlg.close()
+
+
 def test_a_file_that_will_not_open_says_which_way_it_failed():
   """Five situations, and only one of them was what the sentence said.
 
@@ -71734,6 +71796,8 @@ def main():
         test_a_pinned_ladder_prints_a_legend_you_can_read)
   check("a file that will not open says which way it failed",
         test_a_file_that_will_not_open_says_which_way_it_failed)
+  check("a text column is counted before the many-categories question",
+        test_a_text_column_is_counted_before_the_many_categories_question)
   check("choosing your own group keeps the region and the variables",
         test_choosing_your_own_group_keeps_the_region_and_the_variables)
   check("the icon notice reads the same ground in either crs",

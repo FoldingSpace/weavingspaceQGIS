@@ -7609,6 +7609,19 @@ MUTATIONS = [
            "which group a dataset owns, whether a landing may write "
            "over a group, and whether a resume finds a layer already "
            "open"),
+  dict(name="a-text-column-is-counted-on-the-region",
+       file=DIALOG,
+       # Back through the scratch layer for every column, which is
+       # what shipped: it holds its values as DOUBLES, so a text
+       # column counts 0 and the many-categories question can never
+       # fire for one.
+       old="""    if layer is not None and not self._field_is_numeric(field):""",
+       new="""    if False:  # mutation: every column is counted as numbers""",
+       test="test_a_text_column_is_counted_before_the_many_categories_question",
+       why="the question above `MANY_CATEGORIES` being asked of the "
+           "kind of column most likely to need it -- a name column "
+           "with hundreds of values otherwise hands QGIS a legend "
+           "entry per area with nothing asked"),
   dict(name="a-file-that-is-not-there-says-so",
        file=DIALOG,
        # Back to the one sentence for five situations: the missing and

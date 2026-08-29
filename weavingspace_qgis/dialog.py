@@ -10687,6 +10687,26 @@ class WeavingSpaceDialog(QDialog):
     values a categorical style would actually DRAW rather than the
     ones one element's tiles happen to carry.
     """
+    # A TEXT COLUMN IS COUNTED ON THE REGION ITSELF, because the
+    # scratch layer holds its column AS DOUBLES -- that is what it is
+    # for, cutting numeric breaks -- so every word in it arrives NULL
+    # and the count came back 0. Measured 2026-08-28 with a control
+    # arm: 120 wards named in text counted 0, while the same 120 as
+    # numbers counted 120. The question above `MANY_CATEGORIES` could
+    # therefore never fire for the one kind of column most likely to
+    # have hundreds of values, so a name column handed QGIS a legend
+    # entry per area with nothing asked (`manyareas`).
+    # THE REGION IS THE WHOLE MAP, which is the property the scratch
+    # layer exists to give the numeric path, so asking it directly
+    # here answers the same question rather than a narrower one.
+    layer = self.layer_combo.currentLayer()
+    if layer is not None and not self._field_is_numeric(field):
+      index = layer.fields().indexOf(field)
+      if index >= 0:
+        try:
+          return len(layer.uniqueValues(index))
+        except Exception:
+          return None
     source = self._classification_values(field)
     if source is None:
       return None
