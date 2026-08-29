@@ -79,6 +79,11 @@
   "excerpt": "![Land use around the Great Lakes at six moments in time, dr",
   "where": "README.md"
  },
+ "0ab09ebfa0f67e71": {
+  "approved": "2026-08-28",
+  "excerpt": "Elements {} are no longer in the project, so the file holds ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "0adb038e39b338a0": {
   "approved": "2026-08-09",
   "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",
@@ -338,6 +343,11 @@
   "approved": "2026-08-13",
   "excerpt": "'{}' has {} distinct value{}, so it draws as {} class{}, not",
   "where": "weavingspace_qgis/bridge.py"
+ },
+ "2620181af17e60e7": {
+  "approved": "2026-08-28",
+  "excerpt": "This map's layers are no longer in the project, so there is ",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "264c7a8910295785": {
   "approved": "2026-08-09",
@@ -1369,6 +1379,11 @@
   "excerpt": "## A way of working",
   "where": "docs/USER-GUIDE.md"
  },
+ "a0836f2df79f1ff8": {
+  "approved": "2026-08-28",
+  "excerpt": "Saved to {}. The data has changed since this map was drawn, ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "a16f58fca2f3e39f": {
   "approved": "2026-08-08",
   "excerpt": "Tilings and weaves are both available, from the same catalog",
@@ -1912,6 +1927,11 @@
  "e3cabc63df704f83": {
   "approved": "2026-08-09",
   "excerpt": "The polygon layer whose attributes will be mapped. Best not ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "e46d4b8adf3b3e78": {
+  "approved": "2026-08-28",
+  "excerpt": "Element {} is no longer in the project, so the file holds {}",
   "where": "weavingspace_qgis/dialog.py"
  },
  "e49dc3d28b11fa28": {
