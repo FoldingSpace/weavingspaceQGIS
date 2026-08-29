@@ -1380,9 +1380,25 @@ def test_the_table_copes_with_the_largest_element_count():
     assert len(shown) == dlg.table.columnCount(), \
       f"only columns {shown} are out; this test must measure the table " \
       f"at its widest or the width assertions below prove nothing"
+    # WHAT THE WINDOW IS MADE OF, printed with the failure. This
+    # fault is reachable only where the platform's fonts are wider
+    # than this machine's, and four repairs have now been aimed at it
+    # from here by arithmetic. A remote failure that cannot be
+    # attributed costs a whole round to reproduce; these numbers say
+    # which part is doing it, so the next round is aimed rather than
+    # guessed. This project's own rule: report what was FOUND, never
+    # only which assertion was reached.
+    _made_of = (
+      f" [window {dlg.width()}, sizeHint {dlg.sizeHint().width()}, "
+      f"minimumSizeHint {dlg.minimumSizeHint().width()}; table width "
+      f"{dlg.table.width()}, minimum {dlg.table.minimumWidth()}, "
+      f"sizeHint {dlg.table.sizeHint().width()}; columns "
+      f"{[dlg.table.columnWidth(c) for c in shown]} summing to "
+      f"{sum(dlg.table.columnWidth(c) for c in shown)}]")
     assert dlg.width() <= MAX_WINDOW_WIDTH, \
       f"at {top} elements the window is {dlg.width()}px wide; past " \
-      f"{MAX_WINDOW_WIDTH} it no longer fits the narrowest screen in use"
+      f"{MAX_WINDOW_WIDTH} it no longer fits the narrowest screen in "\
+      f"use{_made_of}"
     # KNOWN RED, and deliberately not softened. Measured 2026-08-10:
     # _fit_table_width reserves PM_ScrollBarExtent (14px on this
     # build) for the vertical scrollbar, but the scrollbar that
@@ -25654,9 +25670,24 @@ def test_the_window_fits_the_narrowest_screen():
     assert len(shown) == dlg.table.columnCount(), \
       f"only columns {shown} are out; this test must measure the " \
       f"table at its widest or it proves nothing"
+    # WHAT THE WINDOW IS MADE OF, printed with the failure. This
+    # fault is reachable only where the platform's fonts are wider
+    # than this machine's, and four repairs have now been aimed at it
+    # from here by arithmetic. A remote failure that cannot be
+    # attributed costs a whole round to reproduce; these numbers say
+    # which part is doing it, so the next round is aimed rather than
+    # guessed. This project's own rule: report what was FOUND, never
+    # only which assertion was reached.
+    _made_of = (
+      f" [window {dlg.width()}, sizeHint {dlg.sizeHint().width()}, "
+      f"minimumSizeHint {dlg.minimumSizeHint().width()}; table width "
+      f"{dlg.table.width()}, minimum {dlg.table.minimumWidth()}, "
+      f"sizeHint {dlg.table.sizeHint().width()}; columns "
+      f"{[dlg.table.columnWidth(c) for c in shown]} summing to "
+      f"{sum(dlg.table.columnWidth(c) for c in shown)}]")
     assert dlg.width() <= MAX_WINDOW_WIDTH, \
       f"the window is {dlg.width()}px wide; past {MAX_WINDOW_WIDTH} " \
-      f"it no longer fits the narrowest screen still in use"
+      f"it no longer fits the narrowest screen still in use{_made_of}"
     assert dlg.table.horizontalScrollBar().maximum() == 0, \
       f"the table scrolls horizontally " \
       f"(scroll range {dlg.table.horizontalScrollBar().maximum()}px); " \
