@@ -83,6 +83,21 @@ SLOW from FROZEN and freezing is the harm.
 | stochastic (4th) | 0 | 193 settled sessions, six breaks, three of them its own -- and it found that `_settle` never waited on the repaint debounce, so the whole follow family was judged 300 ms early |
 | the consistency sweep (2nd) | 0 | rebuilt as a COMMITTED tool this time, 14 acts and 2,972 comparisons clean, with two negative controls proving it can go red |
 
+AND A SECOND WAVE OF EIGHT, launched when the first reached
+twenty-four, aimed at ground the first had not walked:
+
+| Direction | Confirmed | The lesson |
+| --- | ---: | --- |
+| the repairs, third pass | 2 | a repair that keys a fact by subject must key its OVERRIDE by subject too -- the fix for "a per-file fact on a session-wide control" shipped with a session-wide control governing it; and a flag added to make a resume count as work must be checked against every clause that exists BECAUSE a resume is not work |
+| the twelve retirements, re-judged | 1 + 2 corrections | a retirement is two claims -- "the mutation survives" and "something else answers" -- and only the second needs a control; where the promise is carried by a flag, check that the named test's journey ever ARMS it |
+| two dialogs and retirement | 1 | this project fixes retirement one door at a time and writes each fix in the door it was found at; diff the two teardown twins line by line and probe every line only one of them has |
+| coordinate systems | 1 + 1 sibling | the round trips are clean; what is not is every place that rebuilds a layer from its SOURCE STRING, because a CRS a person assigned is on the layer and not in the string -- grep for `QgsVectorLayer(x.source()`, not for CRS |
+| icon mode across the new surfaces | 1 | the boundaries were clean and the ARITHMETIC was not; where a project has already fixed a count twice, check the third against the geometry rather than against the code that computes it, because the test guarding it was written from the same arithmetic |
+| the third hop of a shared file | 1 | replacing a file with `shutil` under a live QGIS proves nothing -- the running process serves its own cached pages, so the second writer must be a second PROCESS |
+| edit sessions on the region | 1 | when a write moves from a run's landing to a user's button, every argument the landing handed it becomes a live read, and the fix its twin already received does not travel with it: diff the CALLER, not the callee |
+| the second five minutes | 1 | RETURN is worth sweeping in PAIRS OF DOORS rather than in acts -- forty-five act-and-inverse pairs came back clean, and the one failure was a control armed by two paths where only one tells the display |
+| weaves and strands | 0 | walked and empty, which is worth as much: seventy-seven strands codes through Save, Load, a group switch and the .qgz, character for character. And the suite's own fingerprint is blind to strand width, so three of the hunt's own readings could not have failed until it switched to tile AREA and proved the measure moved first |
+
 AND THE VERIFICATION QUEUE WAS THE COST, again and more so. Every
 claim above was reproduced here by a route its hunt did not use before
 its fix landed. Two of my own harness faults are tallied in the

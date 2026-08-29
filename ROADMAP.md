@@ -343,8 +343,15 @@ limit makes decline; pressing Load while your own polygon layer is
 open replaces the sender's map with your data, across three coupled
 sites; the duplicate-layer guard sits at the adoption door and not at
 the landing door; deleting the output group and pressing Save empties
-the file and reports success; and the catalogue triage of the same
-morning made two trades whose compensating test legs cannot fail.
+the file and reports success; two maps from two senders, where
+returning to the first re-tiles it from the second's data; a shared
+file somebody else has saved into while your map is open, where your
+Save reports success and leaves the file with no map in it at all;
+the group chooser describing a landing that will not happen whenever
+"Create as new group" is ticked, because it knows one of the two
+doors that arm it; and the catalogue triage of the same morning made
+two trades whose compensating test legs cannot fail, one of which is
+already mended.
 
 **AND ONE QUESTION IS THE MAINTAINER'S RATHER THAN OUTSTANDING WORK.**
 A quantitative style never stands on a text field, and the stated

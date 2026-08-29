@@ -4411,6 +4411,32 @@ here, and the decision to add one is the maintainer's. Recorded
   NAME ITSELF -- live update pausing without saying why has cost this
   project two diagnoses now.
 
+- **AND ITS OVERRIDE MUST BE KEYED BY THE SAME SUBJECT.** (Same
+  evening, in the repair for the entry below.) Keying the FACT by file
+  and then guarding it with a session-wide "has anybody touched the
+  box" bool answers a different question: one tick anywhere in a
+  session made every self-contained file opened afterwards strippable.
+  The question is "has this person spoken SINCE THIS FILE was opened",
+  which is a count against a count. When you key something by subject,
+  read every condition that governs it and key those too.
+- **A GUARD THAT REBUILDS A LAYER FROM ITS SOURCE STRING LOSES
+  EVERYTHING THE USER SET ON THE LAYER.** (2026-08-28.) A CRS somebody
+  assigned -- the ordinary repair for a shapefile with no `.prj` --
+  lives on the layer, never in `source()`. The outlines overlay was
+  rebuilt from the string, so it drew in the FILE's system while the
+  tiles drew in the assigned one, fourteen thousand kilometres away
+  and zero ink pixels over the map. GREP FOR `QgsVectorLayer(
+  something.source()`, not for the word CRS: subset strings, scale
+  ranges, custom properties and names are all in the same position.
+- **A COUNT QUOTED TO A PERSON MUST BE ASKED OF THE GEOMETRY, NOT OF
+  TWO TOTALS.** (2026-08-28.) The icon-mode sentence subtracted a TILE
+  count from an AREA count to say which elements were short. A unit's
+  tile sits off the centre it was placed at, so the difference is not
+  the number of uncovered areas in either direction: it named b, c and
+  d while a was missing from three areas and b from none. Where a
+  project has already corrected a count twice -- this one had -- check
+  the third against the map rather than against the code, because the
+  test guarding it was written from the same arithmetic.
 - **A PER-FILE FACT MUST NOT LIVE ON A SESSION-WIDE CONTROL.**
   (2026-08-28, round ten, and it was a repair of mine that put it
   there.) "Include the source data" is one checkbox and the answer it
