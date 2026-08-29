@@ -14140,9 +14140,20 @@ class WeavingSpaceDialog(QDialog):
             # both halves of an element".
             paired = QgsProject.instance().mapLayer(
               self._no_data_layer_ids.get(tid) or "")
-            drawn = element.featureCount() + (
-              paired.featureCount() if paired is not None else 0)
-            missing_here = unit_count - drawn
+            # ASK THE GEOMETRY, NOT THE ARITHMETIC. This was
+            # `unit_count - drawn` until 2026-08-28: an AREA count
+            # minus a TILE count, which is not the number of areas
+            # without this element's icon in either direction. A
+            # unit's tile sits off the centre it was placed at, so an
+            # element's tile can fall wholly outside the small area it
+            # belongs to while a neighbour's overhangs into it --
+            # measured that day on 155 Auckland areas, where the
+            # sentence named b, c and d while element a was the one
+            # missing from three areas and b was missing from none.
+            # The registered test could not see it because it checked
+            # the sentence against this same arithmetic rather than
+            # against the map.
+            missing_here = self._areas_no_icon_reaches(element, paired)
             if missing_here > 0:
               short[str(tid)] = missing_here
           note = bridge.icon_coverage_message(
@@ -16904,6 +16915,65 @@ class WeavingSpaceDialog(QDialog):
         f"{len(refused)} of that file's layers would not open, so this "
         f"map is not complete: {', '.join(sorted(refused))}.")
     return True
+
+  def _areas_no_icon_reaches(self, element, paired):
+    """How many of the region's areas no tile of this element touches.
+
+    Args:
+      element: the element's own output layer.
+      paired: its no-data twin, or None. Counted TOO, because an
+        element whose variable has gaps keeps those areas' icons on
+        the twin -- counting the element alone reports every element
+        on that column short by the number of gaps, which is the
+        self-refuting sentence of 2026-08-16.
+
+    Returns:
+      The number of region features that no tile of this element
+      intersects, or 0 when the question cannot be asked -- there is
+      no region, or nothing was drawn. Zero rather than a guess: a
+      sentence nobody can act on is worse than silence, and this
+      number is quoted to a user.
+
+    IT IS A SPATIAL QUESTION AND WAS ARITHMETIC. See the call site.
+    Asked through a spatial index over the element's own tiles, so the
+    cost is one index build plus one query per area rather than a
+    comparison of two totals that are not comparable.
+    """
+    from qgis.core import QgsSpatialIndex
+    region = self.layer_combo.currentLayer()
+    if region is None or element is None:
+      return 0
+    tiles = []
+    for layer in (element, paired):
+      if layer is None:
+        continue
+      try:
+        tiles.extend(f.geometry() for f in layer.getFeatures()
+                     if not f.geometry().isEmpty())
+      except Exception:
+        return 0
+    if not tiles:
+      return 0
+    index = QgsSpatialIndex()
+    from qgis.core import QgsFeature
+    holder = {}
+    for number, geometry in enumerate(tiles):
+      feature = QgsFeature(number)
+      feature.setGeometry(geometry)
+      index.addFeature(feature)
+      holder[number] = geometry
+    missing = 0
+    try:
+      for area in region.getFeatures():
+        shape = area.geometry()
+        if shape is None or shape.isEmpty():
+          continue
+        near = index.intersects(shape.boundingBox())
+        if not any(holder[n].intersects(shape) for n in near):
+          missing += 1
+    except Exception:
+      return 0
+    return missing
 
   def _wear_the_recorded_crs(self, layer, record):
     """Give a recovered region the system it was drawn in.

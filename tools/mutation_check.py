@@ -2111,6 +2111,19 @@ MUTATIONS = [
        test="test_a_finished_run_leaves_nothing_armed",
        why="an ordinary Generate not arming a live rebuild nobody "
            "asked for"),
+  dict(name="the-icon-notice-counts-areas-not-tiles", file=DIALOG,
+       # Round ten, 2026-08-28. The sentence naming which elements are
+       # short of icons subtracted a TILE count from an AREA count,
+       # which is not the number of areas without that element's icon
+       # in either direction: on 155 Auckland areas it named b, c and
+       # d while a was missing from three and b from none. Mutating it
+       # back to the arithmetic restores exactly that.
+       old="""            missing_here = self._areas_no_icon_reaches(element, paired)""",
+       new="""            missing_here = unit_count - (element.featureCount() + (
+              paired.featureCount() if paired is not None else 0))""",
+       test="test_the_icon_notice_names_the_elements_the_map_is_missing",
+       why="a sentence that names the elements a person's map is "
+           "really missing, rather than a different set of them"),
   dict(name="retirement-closes-the-editor-it-leaves-behind", file=DIALOG,
        # Round ten, 2026-08-28. `retire()` and its twin
        # `_retire_previous_instance` were written a day apart and the

@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-395 defect(s) with a regression test.
+396 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -225,6 +225,8 @@ there is no separate list to remember.
   guarded by `test_the_display_range_keeps_every_digit_a_user_types`
 - **the user guide named an element ceiling six short of the real one, and two documents named a vendored commit the tool had superseded eight days earlier, past a gate that had never compared that half of the stamp.**  
   guarded by `test_the_documents_numbers_match_the_code`
+- **in icon mode the coverage sentence named the wrong elements -- one missing from three of a user's areas went unmentioned while one missing from none was named. Found by the icon-mode hunt of 2026-08-28, read off the saved GeoPackage with geopandas as its second route.**  
+  guarded by `test_the_icon_notice_names_the_elements_the_map_is_missing`
 - **`distance` converts BOTH its arguments to CIELAB on every call, and the clash search compared every class of one element against every class of another -- so it did 2*k*k conversions where 2*k would do, at about twelve microseconds each. Measured: four categorized elements of 401 classes froze QGIS for 36.75s, of which 35.70s was here, on the GUI thread with the event loop dead; the tiling those colours belonged to took 1.05s. The live path paid it on every tweak.**  
   guarded by `test_the_legibility_check_agrees_with_its_own_distance`
 - **the notice that the region layer had been removed depended on which of two Qt handlers ran first, so it was silent on every CI runner while passing locally.**  
@@ -842,7 +844,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 122
-- a bug hunt pointed in a named direction: 98
+- a bug hunt pointed in a named direction: 99
 - not written down at the time: 88
 - reported by a user: 29
 - reading the code: 15

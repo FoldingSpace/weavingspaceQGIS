@@ -26716,6 +26716,119 @@ def test_a_class_source_comes_home_to_the_dataset_it_was_chosen_on():
     project.clear()
 
 
+def test_the_icon_notice_names_the_elements_the_map_is_missing():
+  """In icon mode, the sentence must name the elements actually short.
+
+  One tileable is placed on each area, so an element that reaches
+  fewer areas than the region has is missing icons -- while the
+  map-wide count stays zero, because the other elements still draw
+  those areas. The sentence naming which elements were short took an
+  AREA count and subtracted a TILE count, and those are not
+  comparable: a unit's tile sits off the centre it was placed at, so
+  an element's tile can fall wholly outside the small area it belongs
+  to while a neighbour's overhangs into it.
+
+  Measured 2026-08-28 on 155 Auckland areas: the plugin named b, c
+  and d while element a was missing from three areas and b from none.
+
+  THE ORACLE IS THE MAP, BY A SECOND IMPLEMENTATION. The product asks
+  through a spatial index; this asks with a plain loop over every
+  tile, so a fault in the indexing cannot hide in both. The old
+  registered test could not see this at all, because it checked the
+  sentence against the same arithmetic that produced it.
+
+  Regression: in icon mode the coverage sentence named the wrong elements -- one missing from three of a user's areas went unmentioned while one missing from none was named. Found by the icon-mode hunt of 2026-08-28, read off the saved GeoPackage with geopandas as its second route. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  # THE PACKAGED AUCKLAND AREAS, because the synthetic fixture cannot
+  # exhibit this: its areas are a regular grid, every element reaches
+  # every one of them, and the test returns having compared nothing.
+  # The catalogue caught exactly that on the first draft. Real areas
+  # vary in size and shape, which is what lets a unit's tile fall
+  # outside the small area it was placed for.
+  path = os.path.join(HERE, "data", "imd-auckland-sa2-2018.gpkg")
+  assert os.path.exists(path), f"packaged test data missing: {path}"
+  layer = QgsVectorLayer(path, "auckland", "ogr")
+  assert layer.isValid() and layer.featureCount() == 155, \
+    "PREMISE: the packaged Auckland areas did not open"
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(400)
+    # A WEAVE, which is where the two arithmetics diverge. On a
+    # tiling the old count and the true one agree on this data, so a
+    # tiling fixture cannot tell them apart -- the catalogue said so
+    # by surviving, twice.
+    dlg.kind_combo.setCurrentText("weave")
+    _tick(300)
+    for name in ("plain weave ab|cd", "twill weave ab|cd"):
+      if dlg.family_combo.findText(name) >= 0:
+        dlg.family_combo.setCurrentText(name)
+        break
+    _tick(400)
+    dlg.opt_icons.setChecked(True)
+    dlg.opt_outlines.setChecked(True)
+    dlg.spacing_spin.setValue(6000.0)
+    _tick(300)
+    _map_every_name(dlg, ["imd", "imd", "imd", "imd"])
+    # EVERYTHING THE PLUGIN SAYS ACROSS THE RUN. The note line is
+    # transient -- adding output layers makes the combo re-emit, and
+    # the first act of what that queues is to clear it -- so a read
+    # afterwards is a bet on which lands first. BAR_MESSAGES is the
+    # recorder the harness keeps for exactly this.
+    BAR_MESSAGES.clear()
+    _generate_and_wait(dlg)
+    _tick(600)
+    said = " ".join(str(m) for m in BAR_MESSAGES)
+    assert dlg._element_layer_ids, "PREMISE: the icon run drew nothing"
+
+    # THE TRUTH, by a plain loop rather than an index.
+    areas = [f.geometry() for f in layer.getFeatures()
+             if f.geometry() and not f.geometry().isEmpty()]
+    assert areas, "PREMISE: the region has no areas"
+    truth = {}
+    for tid, lid in dlg._element_layer_ids.items():
+      element = project.mapLayer(lid)
+      if element is None:
+        continue
+      tiles = [f.geometry() for f in element.getFeatures()
+               if f.geometry() and not f.geometry().isEmpty()]
+      twin = project.mapLayer(dlg._no_data_layer_ids.get(tid) or "")
+      if twin is not None:
+        tiles += [f.geometry() for f in twin.getFeatures()
+                  if f.geometry() and not f.geometry().isEmpty()]
+      truth[str(tid)] = sum(
+        1 for area in areas
+        if not any(tile.intersects(area) for tile in tiles))
+
+    short = sorted(t for t, n in truth.items() if n > 0)
+    notes = said
+    if not short:
+      return          # nothing to name; the positive case is below
+    # THE SENTENCE'S OWN LIST, parsed rather than searched for. The
+    # first draft looked for " a " and duly matched the English
+    # article, which is a matcher that cannot help naming element a
+    # whatever the map says -- a false positive of exactly the kind
+    # this project's own rule about substring matches warns of.
+    import re as _re
+    listed = _re.search(r"elements? ([^.]*?) (?:has|have) no icon", notes)
+    named = sorted(
+      part.strip() for part in
+      _re.split(r",| and ", listed.group(1)) if part.strip()
+    ) if listed else []
+    assert named, (
+      f"elements {short} reach none of some areas and the plugin said "
+      f"nothing: {notes[:200]!r}")
+    assert set(named) == set(short), (
+      f"the notice names {named} where the map is short of {short}; "
+      f"per element the map says {truth}")
+  finally:
+    dlg.close()
+
+
 def test_a_disabled_plugin_paints_nothing():
   """A plugin the user has turned off must not still be painting.
 
@@ -69845,6 +69958,8 @@ def main():
         test_create_new_makes_one_group_and_not_one_per_run)
   check("a disabled plugin paints nothing",
         test_a_disabled_plugin_paints_nothing)
+  check("the icon notice names the elements the map is missing",
+        test_the_icon_notice_names_the_elements_the_map_is_missing)
   check("a dropped column's ramp goes even when the style was derived",
         test_a_dropped_columns_ramp_goes_even_when_the_style_was_derived)
   check("the shelf does not survive the project that made it",
