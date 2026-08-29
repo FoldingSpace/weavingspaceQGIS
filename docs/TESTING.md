@@ -48,6 +48,39 @@ itself:
 
     PYTHONPATH="$PWD" PYTHONUNBUFFERED=1 "$QGIS_PY" my_probe.py
 
+## THE HARNESS SETTING EVERY RUNNER SETS IS PART OF THE MEASUREMENT
+
+2026-08-28. The suite was launched by hand, three shards, without
+`QT_QPA_PLATFORM=offscreen` -- which `tests/run_tests_macos.sh` sets,
+`release.py` sets, and the CI jobs set. Three layout tests failed at
+once, all saying the assembled window is 1334px against a 1280
+ceiling. Nothing about the layout had changed in the package since a
+candidate whose report shows all three passing.
+
+The cause was the font. Offscreen gives Sans Serif 9pt; cocoa gives
+the system font at 13pt, every label and combo is wider, and the
+window's minimum comes out 54px over. Measured both ways on one tree,
+which is what turned "three mysterious failures" into one sentence.
+
+TWO LESSONS, and the second is the more useful.
+
+**A RUN LAUNCHED BY HAND IS A DIFFERENT HARNESS.** When every other
+runner sets an environment variable, that variable is part of what the
+suite MEANS, and a hand-launched run without it measures something
+else. Copy the launcher rather than the command -- or better, run the
+launcher.
+
+**AND THE ACCIDENT WAS A FINDING.** The 1280 promise is about the
+narrowest screen a user has, and every instrument here verifies it
+under a 9pt font no desktop uses; at the system font the three
+priorities the rule sets out cannot all hold. So the mis-launch
+measured the one place nobody had measured. This project's own rule is
+to make a measurement somewhere nobody has been; the mirror of it is
+that a check reading a setting the ENVIRONMENT supplies may be reading
+somewhere nobody IS. Recorded for the maintainer in the ledger rather
+than fixed, because which of three settled priorities gives is a
+decision.
+
 ## A CONTROL ARM'S OWN ACT CAN TRAVEL INTO THE ARM IT CONTROLS
 
 2026-08-28, verifying a claim that a colour picked on a map opened

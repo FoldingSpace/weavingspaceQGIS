@@ -349,6 +349,11 @@
   "excerpt": "<figure>\n  <img src=\"img/dialog.png\" alt=\"The plugin dialog,",
   "where": "docs/index.html"
  },
+ "28a48250b8cfe0de": {
+  "approved": "2026-08-28",
+  "excerpt": "The style file does not contain categorized symbology.",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "29e44fdb122fe52a": {
   "approved": "2026-08-26",
   "excerpt": "We welcome reports of anything else that surprises you.",
@@ -1027,6 +1032,11 @@
  "7680bbe84486c14c": {
   "approved": "2026-08-09",
   "excerpt": "{} is no longer in the layer, so the elements using it now s",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "76d4df0156a67683": {
+  "approved": "2026-08-28",
+  "excerpt": "Saved to {}. The data has changed since this map was drawn, ",
   "where": "weavingspace_qgis/dialog.py"
  },
  "76e01bce16eefd64": {
