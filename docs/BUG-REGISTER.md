@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-424 defect(s) with a regression test.
+426 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -95,6 +95,8 @@ there is no separate list to remember.
   guarded by `test_a_dock_edit_of_any_kind_reaches_the_exported_file`
 - **a `layer:` class source was dropped in silence by a Load, because the layer id it named belongs to the session that saved the file. Found by the classsource hunt of 2026-08-28.**  
   guarded by `test_a_donor_comes_home_when_the_map_is_opened`
+- **a duplicated output layer survived a re-tile with nothing said, because the guard was written at the adoption door and not at the landing door. Found by the panel-acts hunt of 2026-08-28, ledger row 18.**  
+  guarded by `test_a_duplicated_layer_is_named_at_the_landing_as_well`
 - **a support package whose download failed was discarded in silence and provisioning still reported success, bypassing the reason machinery written for exactly that case. Found by the dependency hunt of 2026-08-28.**  
   guarded by `test_a_failed_support_download_is_recorded`
 - **a bound pinned far outside a column of very small values flattened the box that holds the small one, so a pin of 6e-10 read back as 0.0 and the map was redrawn from zero.**  
@@ -273,6 +275,8 @@ there is no separate list to remember.
   guarded by `test_the_display_range_keeps_every_digit_a_user_types`
 - **the user guide named an element ceiling six short of the real one, and two documents named a vendored commit the tool had superseded eight days earlier, past a gate that had never compared that half of the stamp.**  
   guarded by `test_the_documents_numbers_match_the_code`
+- **with "Create as new group" ticked the group chooser went on naming the group the next run would not land in, because it knew one of the two doors that arm a new group. Found by the newcomer hunt of 2026-08-28, ledger row 36.**  
+  guarded by `test_the_group_chooser_describes_the_landing_that_will_happen`
 - **in icon mode the coverage sentence named the wrong elements -- one missing from three of a user's areas went unmentioned while one missing from none was named. Found by the icon-mode hunt of 2026-08-28, read off the saved GeoPackage with geopandas as its second route.**  
   guarded by `test_the_icon_notice_names_the_elements_the_map_is_missing`
 - **the icon-coverage notice compared a geographic region against projected tiles, so every icon-mode run on WGS84 data reported every element as reaching none of the areas. Found by the icon-mode hunt of 2026-08-28.**  
@@ -899,7 +903,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- a bug hunt pointed in a named direction: 126
+- a bug hunt pointed in a named direction: 128
 - the mutation campaign: 121
 - not written down at the time: 88
 - reported by a user: 30

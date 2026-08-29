@@ -453,18 +453,15 @@ list is in the ledger, named above): the design view keeps painting an
 element in a colour the map does not contain after a dock edit the
 plugin cannot name, and the landing's last preview
 repaint fires before the new layer exists;
-the duplicate-layer guard sits at the adoption
-door and not at the landing door; two maps from two senders, where
+two maps from two senders, where
 returning to the first re-tiles it from the second's data; a shared
 file somebody else has saved into while your map is open, where your
 Save reports success and leaves the file with no map in it at all;
-the group chooser describing a landing that will not happen whenever
-"Create as new group" is ticked, because it knows one of the two
-doors that arm it; and the catalogue triage of the same morning made
+and the catalogue triage of the same morning made
 two trades whose compensating test legs cannot fail, one of which is
 already mended.
 
-FOUR HAVE COME OFF THAT LIST, named here rather than quietly dropped,
+NINE HAVE COME OFF THAT LIST, named here rather than quietly dropped,
 since this list is what the release gate reads. Deleting the output
 group and pressing Save is ledger row 19, closed with row 53. The
 queued-work flags carried into the next project (row 8) landed in
@@ -478,6 +475,32 @@ and recut every class from your data onto their tiles, then sent those
 styles home in their file. The fast path asks whose region it is now,
 and declines to a full run, which the landing's own refusal already
 protects.
+AND ROWS 18 AND 36 WERE REPAIRED THE SAME MORNING, both confirmed
+open first and both guarded. The chooser asked one of the two doors
+that arm a new group where the landing asks both, and the checkbox
+arming the other was connected to nothing at all. The duplicate-layer
+guard existed at adoption and not at the landing, where a run removes
+the layers it knows about and a COPY is not among them -- so it
+survived as last run's tiling over the new map, never updated again,
+with nothing said. The question and the sentence have one owner
+apiece now, so the two doors cannot come to disagree and the reviewed
+wording is not composed twice.
+
+AND FOUR MORE CAME OFF IT ON 2026-08-29, in an AUDIT RUN BEFORE
+ANYTHING WAS BUILT -- the maintainer's instruction, after three of the
+first nine turned out to be closed already with only their OWES column
+stale. Row 6 was REPAIRED at `148b154` and UNGUARDED, which only the
+catalogue could show: the mutation on the line its repair added
+SURVIVED, and it is door three of `test_every_restyle_door_repaints_
+the_preview` now. Row 7 did not reproduce -- every repaint through a
+whole landing saw all of its layers -- and is left open rather than
+deleted, since one clean journey is not a proof. Rows 9 and 10 are
+closed, re-measured by planting the exact shapes they name and
+watching the gate object, with the control silent. And row 36 is
+FIXED: the chooser asked one of the two doors that arm a new group
+where the landing asks both, and the checkbox that arms the other was
+connected to nothing at all.
+
 AND THE FOURTH IS ROW 20, closed the same night: a floor or ceiling,
 and every colour picked after it, were destroyed by a save-and-reopen
 before Generate, because every durable stamp an element carries was

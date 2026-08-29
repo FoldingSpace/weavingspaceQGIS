@@ -2151,6 +2151,10 @@ class WeavingSpaceDialog(QDialog):
     # edit that could change the answer retires the entry and nothing
     # else does. Why it is cached at all is at the method.
     self._numeric_text_cache = {}
+    # Elements a landing found claimed by two layers, held until
+    # the done callback can say so: a sentence pushed inside
+    # `_on_generated` is wiped by its own `finally`.
+    self._pending_duplicate_note = None
     # True once the window has been closed. A closed dialog
     # must not write into the project: the timers can be
     # stopped, but the region layer's signals stay connected
@@ -2863,6 +2867,22 @@ class WeavingSpaceDialog(QDialog):
                self.opt_retain, self.opt_clip, self.opt_icons,
                self.opt_outlines):
       cb.toggled.connect(self._queue_live)
+    # "CREATE AS NEW GROUP" IS NOT ONE OF THOSE, and its absence from
+    # that list is deliberate: it changes WHERE a run lands and
+    # nothing about what the run draws, so queueing a live run from it
+    # would build a second map from a tick. What it must do is tell
+    # the chooser, which promises where the next run lands and asked
+    # only the other door that arms it -- so a box ticked here left
+    # the chooser naming a group the run would not use, accepted and
+    # displayed and then ignored (ledger row 36).
+    # A BOUND METHOD, not a lambda: Qt drops the connection when this
+    # dialog's C++ half dies and keeps a lambda calling into it. The
+    # widget is a child and would die with us anyway, so this is
+    # habit rather than necessity -- but it is the habit three
+    # segmentation faults were bought with on 2026-08-29. PyQt hands a
+    # slot only as many arguments as it accepts, so the `toggled`
+    # boolean is simply not passed on.
+    self.opt_new_group.toggled.connect(self._refresh_group_combo)
 
   def _fit_to_design(self):
     """Size the dialog to the Design tab's actual (visible) content, so
@@ -7028,6 +7048,79 @@ class WeavingSpaceDialog(QDialog):
         _dump("STATE", "queued-restamp-failed",
               traceback.format_exc(limit=3))
     QTimer.singleShot(0, stamp)
+
+  def _elements_claimed_twice(self, group):
+    """Which elements more than one layer in a group says it is.
+
+    Args:
+      group: the output group to walk, or None.
+
+    Returns:
+      A set of tile ids claimed by two or more layers. Empty for the
+      ordinary case, which is every group the plugin made and nobody
+      has copied a layer in.
+
+    QGIS's own Duplicate Layer copies custom properties, so a copy of
+    an output layer carries its element's id and answers to it. The
+    paired no-data layer carries the same id by design, so the two
+    kinds are counted apart -- an element and its twin are not two
+    claimants.
+
+    ONE OWNER, because two doors ask it: adoption, which meets a group
+    it has never seen, and the LANDING, which has just replaced the
+    layer it knew about and leaves any copy standing. Asking it twice
+    in two shapes is how the two doors come to disagree, which is this
+    project's commonest defect and the reason row 18 exists at all --
+    the guard was written at one door and not the other.
+    """
+    if group is None:
+      return set()
+    project = QgsProject.instance()
+    seen, twice = {"element": set(), "no_data": set()}, set()
+    for child in group.children():
+      layer = child.layer() if hasattr(child, "layer") else None
+      if layer is None or project.mapLayer(layer.id()) is None:
+        continue
+      tid = layer.customProperty("weavingspace_tile_id")
+      if not tid:
+        continue
+      kind = "no_data" if layer.customProperty("weavingspace_no_data") \
+          else "element"
+      if str(tid) in seen[kind]:
+        twice.add(str(tid))
+      else:
+        seen[kind].add(str(tid))
+    return twice
+
+  def _say_a_layer_was_duplicated(self, twice):
+    """Tell the user which elements two layers both claim.
+
+    Args:
+      twice: the set `_elements_claimed_twice` returned.
+
+    Returns:
+      None, and nothing said where the set is empty.
+
+    NOTHING IS DELETED ON A GUESS, which is what this sentence is for.
+    The two layers are indistinguishable -- the properties were
+    copied, and a GeoPackage-backed copy shares even its source -- so
+    removing one would destroy something somebody may have made on
+    purpose; keeping a copy of yesterday's map is a reasonable thing
+    to do. What the plugin owes is to SAY so, since the one left
+    behind sits over the new map otherwise.
+
+    THE SAME WORDS AT BOTH DOORS, which is why this is a method. The
+    wording is reviewed text; composing it twice would put two
+    versions of one sentence into the queue and let them drift.
+    """
+    if not twice:
+      return
+    self._report_quietly(
+      f"More than one layer here says it is element "
+      f"{', '.join(sorted(twice))} of this map, which usually means "
+      f"a layer was duplicated. The plugin will replace the upper "
+      f"one; move or remove the other, or its tiles will stay on "
+      f"top of the new map.")
 
   def _adopt_category_colours(self, layer, tile_id):
     """Read stamped customization back off an adopted output layer.
@@ -14895,6 +14988,14 @@ class WeavingSpaceDialog(QDialog):
         if note is not None:
           self._report_quietly(note)
           self._pending_colour_note = None
+        # ...and whether a layer in this group is a COPY of one of the
+        # elements, which the landing asked once the old layers had
+        # gone. Taken and cleared at the point of use, like every
+        # other remembered intent here.
+        twice = getattr(self, "_pending_duplicate_note", None)
+        if twice:
+          self._say_a_layer_was_duplicated(twice)
+        self._pending_duplicate_note = None
         # A ramp this row names that the style library does not hold.
         # The renderers have already drawn the map in a substitute
         # (see bridge.ramp_or_default); this is the half the user can
@@ -15249,7 +15350,7 @@ class WeavingSpaceDialog(QDialog):
     # Elements claimed by more than one layer in this group, collected
     # as they are met and reported once at the end; see the note where
     # they are found.
-    twice = set()
+    twice = self._elements_claimed_twice(group)
     for child in group.children():
       layer = child.layer() if hasattr(child, "layer") else None
       if layer is None or project.mapLayer(layer.id()) is None:
@@ -15294,14 +15395,14 @@ class WeavingSpaceDialog(QDialog):
       # owes is to SAY so, since the one left behind will sit over
       # the new map otherwise.
       if tid and layer.customProperty("weavingspace_no_data"):
-        if str(tid) in self._no_data_layer_ids:
-          twice.add(str(tid))
-        else:
+        # FIRST IN PANEL ORDER WINS, and which elements are claimed
+        # twice is asked of `_elements_claimed_twice` above rather
+        # than accumulated here, so the landing door asks the same
+        # question in the same words.
+        if str(tid) not in self._no_data_layer_ids:
           self._no_data_layer_ids[str(tid)] = layer.id()
       elif tid:
-        if str(tid) in self._element_layer_ids:
-          twice.add(str(tid))
-        else:
+        if str(tid) not in self._element_layer_ids:
           self._element_layer_ids[str(tid)] = layer.id()
         # a project saved with hand-picked colours brings them back
         self._adopt_category_colours(layer, str(tid))
@@ -15347,17 +15448,11 @@ class WeavingSpaceDialog(QDialog):
         self._remember_our_table(layer)
       elif layer.customProperty("weavingspace_outline"):
         self._outline_layer_id = layer.id()
-    if twice:
-      # SAID ONCE, NAMING THE ELEMENTS, and never as a modal: this
-      # runs at construction, before the user has done anything, and
-      # a box in front of a dialog that is still opening is not a
-      # message anybody asked for.
-      self._report_quietly(
-        f"More than one layer here says it is element "
-        f"{', '.join(sorted(twice))} of this map, which usually means "
-        f"a layer was duplicated. The plugin will replace the upper "
-        f"one; move or remove the other, or its tiles will stay on "
-        f"top of the new map.")
+    # SAID ONCE, NAMING THE ELEMENTS, and never as a modal: this runs
+    # at construction, before the user has done anything, and a box in
+    # front of a dialog that is still opening is not a message anybody
+    # asked for.
+    self._say_a_layer_was_duplicated(twice)
     if self._element_layer_ids or self._outline_layer_id:
       self._group_name = group.name()
     # THE MARKER IS DROPPED HERE AND ONLY HERE. Everything between the
@@ -15632,7 +15727,19 @@ class WeavingSpaceDialog(QDialog):
       # present group's name back while the run still built a new one,
       # so the control ruling 1 added to make the rule visible was
       # itself saying something untrue.
-      if self._new_group_chosen:
+      # BOTH DOORS ARM IT, and this asked one of them until
+      # 2026-08-29. `_new_group_chosen` is set when somebody picks
+      # "create new" IN THIS CHOOSER; the CHECKBOX on Map options arms
+      # exactly the same thing, and the landing asks both --
+      # `force_new` reads `opt_new_group.isChecked()` outright. So
+      # with the box ticked the chooser went on naming the group the
+      # run would not land in: a control accepted, displayed, and then
+      # ignored, which is the very fault the chooser was added to end.
+      # THE TWO ARE STILL DISTINCT EVERYWHERE ELSE, deliberately. An
+      # early build conflated them and put a file-overwrite warning in
+      # front of an ordinary journey; what they share is only this
+      # question -- where does the next run land.
+      if self._new_group_chosen or self.opt_new_group.isChecked():
         chosen = combo.count() - 1
       # "Create new" is the honest answer when this dialog is not
       # working on any of the groups listed -- a fresh session, or one
@@ -20283,6 +20390,33 @@ class WeavingSpaceDialog(QDialog):
     # happened the first time, and is why the coverage notice waits
     # too. The done callback sends it once the dust has settled.
     self._pending_colour_note = colour_clash
+
+    # A DUPLICATED LAYER IS SAID HERE TOO, and this door had no such
+    # question until 2026-08-29. The guard was written at ADOPTION,
+    # where a group is met for the first time, and a landing reaches
+    # the same state by a different road: the run removes the layers
+    # `_element_layer_ids` named and a COPY of one of them is not in
+    # that record, so it survives -- last run's tiling, sitting over
+    # the new map, under an identical name, never updated again, with
+    # nothing said. Measured 2026-08-29 by duplicating a layer the way
+    # QGIS's own Duplicate Layer does and re-tiling: the copy still in
+    # the project claiming element `a`, the original gone, the row
+    # pointing at the new layer, and the message store empty.
+    # ASKED AFTER THE OLD LAYERS ARE GONE, so what remains really is a
+    # second claimant rather than the layer this run has just
+    # replaced -- which is the whole reason it sits at the end of the
+    # landing rather than the start.
+    # A GUARD ADDED TO ONE DOOR BELONGS AT EVERY DOOR INTO THE SAME
+    # ROOM, which this file already says three times over; the
+    # question and the sentence have one owner apiece so the two doors
+    # cannot come to disagree about either.
+    # STASHED, NOT SAID, for exactly the reason the colour note above
+    # is: this runs inside `_on_generated`, whose `finally` clears the
+    # note line, so a sentence pushed here is wiped a moment later.
+    # The first attempt at this repair spoke here and the probe read
+    # silence -- the code says so three lines up, and I put it in the
+    # one place it had warned about.
+    self._pending_duplicate_note = self._elements_claimed_twice(group)
 
     if self.iface is not None:
       # WHAT THE RUN DID, and no more. Until 2026-08-27 this added

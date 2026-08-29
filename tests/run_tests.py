@@ -28624,6 +28624,177 @@ def test_a_donor_comes_home_when_the_map_is_opened():
       opener.close()
 
 
+def test_a_duplicated_layer_is_named_at_the_landing_as_well():
+  """The guard for a copied output layer belongs at BOTH doors.
+
+  QGIS's own Duplicate Layer copies custom properties, so a copy of an
+  element layer answers to that element too. Adoption has said so
+  since 2026-08-27: it keeps the first in panel order and tells the
+  user, because the two layers are indistinguishable and deleting one
+  on a guess would destroy something somebody may have made on
+  purpose.
+
+  THE LANDING REACHES THE SAME STATE BY ANOTHER ROAD, and had no such
+  question. A run removes the layers `_element_layer_ids` names, and a
+  copy is not in that record -- so it survives: last run's tiling,
+  sitting over the new map, under an identical name, never updated
+  again, with nothing said. Measured 2026-08-29 by duplicating a layer
+  and re-tiling.
+
+  THE QUESTION AND THE SENTENCE HAVE ONE OWNER APIECE, which is what
+  this asserts as much as the notice: the two doors must not come to
+  disagree about which elements are claimed twice, and the wording is
+  reviewed text that must not exist in two versions.
+
+  AND THE NOTICE IS STASHED RATHER THAN SPOKEN AT THE LANDING. That
+  code runs inside `_on_generated`, whose `finally` clears the note
+  line, so a sentence pushed there is wiped a moment later -- which
+  the first attempt at this repair did, three lines below a comment
+  saying so about its neighbour.
+
+  Regression: a duplicated output layer survived a re-tile with nothing said, because the guard was written at the adoption door and not at the landing door. Found by the panel-acts hunt of 2026-08-28, ledger row 18. [hunt]
+  """
+  from qgis.core import QgsVectorLayer
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    dlg.spacing_spin.setValue(700.0)
+    _generate_and_wait(dlg)
+    assert dlg._element_layer_ids, "PREMISE: nothing was drawn"
+    tid = sorted(dlg._element_layer_ids)[0]
+    original = project.mapLayer(dlg._element_layer_ids[tid])
+    assert original is not None, "PREMISE: the element has no layer"
+
+    # The way QGIS's own Duplicate Layer does it: same source, the
+    # custom properties copied, and INSIDE THE GROUP beside the
+    # original -- which is where both guards look. A copy added to the
+    # project root is invisible to them, and a fixture that puts it
+    # there cannot exhibit the case.
+    copy = QgsVectorLayer(original.source(), original.name() + " copy",
+                          original.dataProvider().name())
+    for key in original.customPropertyKeys():
+      copy.setCustomProperty(key, original.customProperty(key))
+    root = project.layerTreeRoot()
+    node = root.findLayer(original.id())
+    assert node is not None, "PREMISE: the element is not in the tree"
+    holder = node.parent()
+    project.addMapLayer(copy, False)
+    holder.insertLayer(0, copy)
+    _tick(300)
+    copy_id = copy.id()          # read BEFORE the re-tile destroys layers
+    assert dlg._elements_claimed_twice(holder) == {tid}, (
+      f"PREMISE: the copy is not seen as a second claimant of {tid!r}, "
+      f"so nothing below is about a duplicated layer")
+
+    BAR_MESSAGES.clear()
+    dlg.spacing_spin.setValue(620.0)          # a real re-tile
+    _generate_and_wait(dlg)
+    _settle(dlg, seconds=60)
+    _tick(600)
+    said = " ".join(str(text) for _kind, text in BAR_MESSAGES)
+    note = getattr(dlg, "live_note", None)
+    if note is not None:
+      said = f"{said} {note.text() or ''}"
+
+    assert project.mapLayer(copy_id) is not None, (
+      "PREMISE: the run removed the copy, so there is nothing left "
+      "sitting over the new map and nothing to say")
+    assert "duplicated" in said, (
+      f"a copy of element {tid!r} survived the run and sits over the "
+      f"new map, never updated again, and the plugin said nothing "
+      f"about it: {said[:200]!r}")
+    assert tid in said, \
+      f"the notice does not name which element is claimed twice: {said[:200]!r}"
+  finally:
+    dlg.close()
+
+
+def test_the_group_chooser_describes_the_landing_that_will_happen():
+  """The chooser promises where the next run lands, so both doors count.
+
+  Two things arm a new group: picking "Create new" in this chooser,
+  which sets `_new_group_chosen`, and the "Create as new group"
+  checkbox on Map options. The LANDING asks both -- `force_new` reads
+  the checkbox outright -- and the chooser asked only the first, so
+  ticking the box left it naming the group the run would not land in:
+  a control accepted, displayed and then ignored, which is the very
+  fault the chooser was added to end.
+
+  AND THE BOX REACHED NOTHING AT ALL. It is deliberately absent from
+  the list of switches that queue a live run, because it changes WHERE
+  a map lands and nothing about what the map draws -- so a tick must
+  not build a second map. That left it connected to nothing, and the
+  chooser was never told.
+
+  BOTH ANSWERS ARE ASSERTED, and the untick matters as much as the
+  tick: a chooser that said "Create new" and stayed there would be the
+  same defect facing the other way.
+
+  AND IT MUST STILL NOT ARM A RUN. The one thing the box must not do
+  is queue a tiling, so that is asserted here too -- otherwise the
+  cheapest repair for this defect is to drop the box into the list
+  that refreshes everything, and a second map would appear from a
+  tick.
+
+  Regression: with "Create as new group" ticked the group chooser went on naming the group the next run would not land in, because it knew one of the two doors that arm a new group. Found by the newcomer hunt of 2026-08-28, ledger row 36. [hunt]
+  """
+  from weavingspace_qgis.dialog import NEW_GROUP_LABEL, WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    _generate_and_wait(dlg)
+    assert dlg._element_layer_ids, "PREMISE: nothing was drawn"
+    combo = dlg.group_combo
+    named = combo.currentText()
+    assert named != NEW_GROUP_LABEL, (
+      f"PREMISE: the chooser already reads {named!r} before the box is "
+      f"ticked, so nothing below can show it following one")
+    assert not dlg._new_group_chosen, \
+      "PREMISE: the other door is already armed"
+
+    before_ids = dict(dlg._element_layer_ids)
+    dlg.opt_new_group.setChecked(True)
+    _tick(600)
+    assert combo.currentText() == NEW_GROUP_LABEL, (
+      f"the box is ticked and the chooser still reads "
+      f"{combo.currentText()!r}: it names the group this run will NOT "
+      f"land in, which is a control accepted, displayed and ignored")
+    assert not dlg._new_group_chosen, (
+      "ticking the box set `_new_group_chosen`, which conflates two "
+      "records an early build already conflated once -- they share "
+      "only the question of where the next run lands")
+    # THE HARM, NOT THE NEAREST OBSERVABLE. The first draft of this
+    # asserted that the live timer was not running, and it failed on
+    # correct software: the timer is armed by ordinary layer churn and
+    # the gate against live update being off lives in the TICK, not in
+    # the timer, so an armed timer means nothing about whether a run
+    # is coming. What must be true is that no map was built.
+    assert dlg._task is None, "ticking the box started a run"
+    assert dlg._element_layer_ids == before_ids, (
+      f"ticking the box built a second map: the elements went from "
+      f"{sorted(before_ids)} to {sorted(dlg._element_layer_ids)}. It "
+      f"changes WHERE a map lands and nothing about what it draws")
+
+    dlg.opt_new_group.setChecked(False)
+    _tick(600)
+    assert combo.currentText() == named, (
+      f"unticking left the chooser on {combo.currentText()!r} where it "
+      f"named {named!r} before: the same defect facing the other way")
+  finally:
+    dlg.close()
+
+
 def test_numbers_stored_as_text_can_be_classified():
   """A column of numbers is a column of numbers, whatever its type says.
 
@@ -72813,6 +72984,10 @@ def main():
         test_nothing_long_lived_is_connected_to_a_bare_lambda)
   check("numbers stored as text can be classified",
         test_numbers_stored_as_text_can_be_classified)
+  check("the group chooser describes the landing that will happen",
+        test_the_group_chooser_describes_the_landing_that_will_happen)
+  check("a duplicated layer is named at the landing as well",
+        test_a_duplicated_layer_is_named_at_the_landing_as_well)
   check("a blend mode set in QGIS survives a re-tile",
         test_a_blend_mode_set_in_qgis_survives_a_re_tile)
   check("a column called no data does not miscount the map",

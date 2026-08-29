@@ -426,10 +426,13 @@ MUTATIONS = [
            "reported success while every element's variable was lost "
            "and Generate drew nothing and said nothing"),
   dict(name="a-duplicate-does-not-displace-the-original", file=DIALOG,
+       # RE-ANCHORED 2026-08-29: which elements are claimed twice is
+       # asked of `_elements_claimed_twice` now, so the landing door
+       # can ask it in the same words -- the accumulation this stood
+       # on has gone and the FIRST-IN-PANEL-ORDER guard, which is what
+       # the entry is about, is the `not in` below.
        old="""      elif tid:
-        if str(tid) in self._element_layer_ids:
-          twice.add(str(tid))
-        else:
+        if str(tid) not in self._element_layer_ids:
           self._element_layer_ids[str(tid)] = layer.id()""",
        new="""      elif tid:
         self._element_layer_ids[str(tid)] = layer.id()""",
@@ -440,10 +443,17 @@ MUTATIONS = [
            "real element layer standing over the new map, under an "
            "identical name, never updated again"),
   dict(name="a-paired-layer-is-not-its-element", file=DIALOG,
+       # RE-ANCHORED 2026-08-29 for the same reason as its neighbour.
+       # The discrimination is what the entry is about and is
+       # untouched: a twin carries its element's id BY DESIGN, so
+       # counting the two kinds together makes every paired layer a
+       # second claimant of its own element.
        old="""      if tid and layer.customProperty("weavingspace_no_data"):
-        if str(tid) in self._no_data_layer_ids:
-          twice.add(str(tid))
-        else:
+        # FIRST IN PANEL ORDER WINS, and which elements are claimed
+        # twice is asked of `_elements_claimed_twice` above rather
+        # than accumulated here, so the landing door asks the same
+        # question in the same words.
+        if str(tid) not in self._no_data_layer_ids:
           self._no_data_layer_ids[str(tid)] = layer.id()
       elif tid:""",
        new="""      if tid:""",
@@ -7904,6 +7914,55 @@ MUTATIONS = [
            "the widget, and the choice is gone in silence -- two "
            "elements showing one column then part company the moment "
            "somebody moves the donor"),
+  dict(name="the-landing-names-a-duplicated-layer", file=DIALOG,
+       # Back to a landing that says nothing. Adoption still speaks,
+       # so a reopened project is told -- and the run that leaves the
+       # copy sitting over the new map is silent, which is the door
+       # the guard was missing from.
+       old="""    self._pending_duplicate_note = self._elements_claimed_twice(group)""",
+       new="""    self._pending_duplicate_note = None  # mutation: say nothing""",
+       test="test_a_duplicated_layer_is_named_at_the_landing_as_well",
+       why="a copy of an element layer being NAMED at the landing as "
+           "well as at adoption: the run removes the layers it knows "
+           "about and a copy is not among them, so it survives as last "
+           "run's tiling over the new map, under an identical name, "
+           "never updated again"),
+  dict(name="a-stashed-duplicate-notice-is-delivered", file=DIALOG,
+       # The other half. The landing stashes it correctly and nobody
+       # ever says it -- which is what happens if the delivery is
+       # dropped, and is exactly what the first draft of this repair
+       # did by speaking inside `_on_generated` instead.
+       old="""        twice = getattr(self, "_pending_duplicate_note", None)
+        if twice:
+          self._say_a_layer_was_duplicated(twice)""",
+       new="""        twice = None  # mutation: stashed and never delivered""",
+       test="test_a_duplicated_layer_is_named_at_the_landing_as_well",
+       why="a notice the landing stashed actually reaching somebody: "
+           "`_on_generated`'s own finally clears the note line, so the "
+           "sentence has to be sent once the dust has settled or it is "
+           "written and wiped"),
+  dict(name="the-chooser-hears-both-new-group-doors", file=DIALOG,
+       # Back to asking one of the two doors. Picking "Create new" in
+       # the chooser still works; the CHECKBOX on Map options goes
+       # unheard, so the chooser names the group the run will not land
+       # in -- accepted, displayed, ignored.
+       old="""      if self._new_group_chosen or self.opt_new_group.isChecked():""",
+       new="""      if self._new_group_chosen:""",
+       test="test_the_group_chooser_describes_the_landing_that_will_happen",
+       why="the chooser promising where the next run LANDS: two things "
+           "arm a new group and the landing asks both, so a chooser "
+           "that asks one describes a landing that will not happen -- "
+           "the very fault the chooser was added to end"),
+  dict(name="the-new-group-box-tells-the-chooser", file=DIALOG,
+       # The other half: the condition above is right and nothing ever
+       # re-runs it, because the box is connected to nothing at all.
+       old="""    self.opt_new_group.toggled.connect(self._refresh_group_combo)""",
+       new="""    pass  # mutation: the box tells nobody""",
+       test="test_the_group_chooser_describes_the_landing_that_will_happen",
+       why="a control that reaches something: the box is deliberately "
+           "kept out of the switches that queue a live run, since it "
+           "changes where a map lands and not what it draws -- which "
+           "left it wired to nothing, so the chooser was never told"),
   dict(name="a-column-is-as-wide-as-what-it-shows", file=DIALOG,
        # Back to the widths as constants in pixels. Nothing moves at
        # the 9pt font offscreen supplies, which is why this shipped:
