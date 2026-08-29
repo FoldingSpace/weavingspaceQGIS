@@ -10588,7 +10588,18 @@ class WeavingSpaceDialog(QDialog):
       # Measured 2026-08-19 through the editor's own floor box, and
       # found by a hunt pointed at what the morning's own signature
       # fix had broken.
-      if which in ("floor", "ceiling") and not self.live_check.isChecked():
+      # AND THE GATE THAT TELLS ASKS WHETHER A RUN WILL FOLLOW, not
+      # whether a checkbox is ticked. The live path declines for
+      # reasons of its own -- "Create as new group" is armed, the
+      # region cannot be counted, there is no unit yet -- and with the
+      # box ticked and any of those true, a limit was accepted in
+      # TOTAL SILENCE and the map did not move, which reads exactly
+      # like the control not working. Measured 2026-08-28 with three
+      # arms: live off says it, live on with a run following stays
+      # quiet, and live on with create-as-new said nothing at all
+      # (`livepath`).
+      if which in ("floor", "ceiling") \
+          and not self._a_live_run_will_follow():
         if self._limits_exclude_anything(
             self._assignment_for(tile_id) or {}):
           self._report_quietly(
@@ -13730,6 +13741,46 @@ class WeavingSpaceDialog(QDialog):
     # used to keep in step is kept in step by Save writing the
     # tables, the styles and the record together.
     return True
+
+  def _a_live_run_will_follow(self) -> bool:
+    """Will a live run answer the edit somebody has just made?
+
+    Returns:
+      True where live update is on AND none of the standing reasons
+      the live path declines is in force. False otherwise, which means
+      the map will not move until somebody presses Generate -- and is
+      what any notice about "the next Generate" has to be asked.
+
+    WHY IT IS A SECOND READING OF ONE QUESTION, said plainly because
+    this project has paid for two implementations of one fact more
+    than once. `_maybe_live_generate` must ask its own gates in its
+    own order, one at a time, because several of them are about the
+    moment (a run in flight, a signature that has not moved) rather
+    than about the state; and a notice cannot run it to find out,
+    since running it is the thing being predicted. So this asks the
+    STANDING reasons only -- the ones true before the timer fires and
+    still true after it -- and says so here rather than pretending to
+    be the whole gate:
+      * live update off, which the notice already asked;
+      * "Create as new group", which the live path refuses outright;
+      * no layer or no unit, so there is nothing to draw;
+      * a region whose data cannot be observed or counted.
+    A reason that is about the MOMENT is deliberately absent: a run in
+    flight will land and answer the edit, and a signature that has not
+    moved means the map already shows it.
+    IF THE LIVE PATH GAINS A STANDING GATE, IT BELONGS HERE TOO, and
+    the way to notice is that this comment and that method's own gate
+    list are the pair. Measured 2026-08-28: with the box ticked and
+    create-as-new armed, a floor was accepted in silence and nothing
+    was drawn.
+    """
+    if not self.live_check.isChecked():
+      return False
+    if self.opt_new_group.isChecked():
+      return False
+    if self.layer_combo.currentLayer() is None or self._unit is None:
+      return False
+    return not self._data_is_unobservable()
 
   def _a_queued_run_would_redraw(self) -> bool:
     """Is a live run waiting that would put a different map on screen?

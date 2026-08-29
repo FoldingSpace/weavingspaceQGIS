@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-418 defect(s) with a regression test.
+419 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -115,6 +115,8 @@ there is no separate list to remember.
   guarded by `test_a_limit_edit_that_draws_nothing_new_still_says_so`
 - **2026-08-19. Measured through the dialog on Reds: five classes from #fff5f0 to #67000d became five identical greys.**  
   guarded by `test_a_limit_keeps_the_colours_the_ramp_gives`
+- **a floor typed while live update was ticked but no run could follow was accepted in silence. Found by the livepath hunt of 2026-08-28.**  
+  guarded by `test_a_limit_says_so_whenever_no_run_will_follow`
 - **2026-08-19, found by a hunt reading the saved project with zipfile. A floor of 38 under a pin at 40 leaves NO value between them on this column, which is what makes the pin undrawable.**  
   guarded by `test_a_limit_that_refuses_a_pin_retires_the_pin_and_says_so`
 - **pressing Load with live update at its default re-tiled the opened map into memory a second later, so the GeoPackage-backed layers were removed and the project reopened empty. Found by the races hunt of 2026-08-28, which ruled out all four debounce windows before finding the cause was a default the suite never drives.**  
@@ -887,8 +889,8 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
+- a bug hunt pointed in a named direction: 122
 - the mutation campaign: 122
-- a bug hunt pointed in a named direction: 121
 - not written down at the time: 88
 - reported by a user: 29
 - reading the code: 15

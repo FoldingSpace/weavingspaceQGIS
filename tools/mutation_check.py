@@ -6145,8 +6145,13 @@ MUTATIONS = [
        # not on either sentence: what is at stake is that the question
        # asked here is the SAME one `_restyle_only` asks, and mutating
        # a sentence would prove the wording instead.
-       old='      if which in ("floor", "ceiling") and not self.live_check.isChecked():',
-       new='      if which in ("floor", "ceiling") and value is not None \\\n          and not self.live_check.isChecked() \\\n          and self._limits_exclude_anything(\\\n            self._assignment_for(tile_id) or {}):',
+       # RE-ANCHORED 2026-08-28, when the gate stopped asking whether
+       # live update is TICKED and started asking whether a run will
+       # follow. The mutation is the same one: narrow the gate back to
+       # "a limit that excludes something", which is the shape that
+       # left every widening edit silent.
+       old='      if which in ("floor", "ceiling") \\\n          and not self._a_live_run_will_follow():',
+       new='      if which in ("floor", "ceiling") and value is not None \\\n          and not self._a_live_run_will_follow() \\\n          and self._limits_exclude_anything(\\\n            self._assignment_for(tile_id) or {}):',
        test="test_a_limit_edit_that_draws_nothing_new_still_says_so",
        why="`_restyle_only` refuses EVERY limit edit, since the "
            "geometry signature carries the floor and ceiling as "
@@ -7609,6 +7614,21 @@ MUTATIONS = [
            "which group a dataset owns, whether a landing may write "
            "over a group, and whether a resume finds a layer already "
            "open"),
+  dict(name="a-limit-asks-whether-a-run-will-follow",
+       file=DIALOG,
+       # Back to asking the checkbox: with live update ticked and
+       # "Create as new group" also ticked, the live path declines and
+       # the limit is taken in silence, which the middle arm of the
+       # test proves is not merely noisy but absent.
+       old="""      if which in ("floor", "ceiling") \\
+          and not self._a_live_run_will_follow():""",
+       new="""      if which in ("floor", "ceiling") \\
+          and not self.live_check.isChecked():""",
+       test="test_a_limit_says_so_whenever_no_run_will_follow",
+       why="a person being told that their limit waits for a Generate "
+           "whenever it does -- the gate that TELLS and the gate that "
+           "ACTS asking one question, which this file has already "
+           "paid for twice at this very notice"),
   dict(name="a-text-column-is-counted-on-the-region",
        file=DIALOG,
        # Back through the scratch layer for every column, which is

@@ -27663,6 +27663,109 @@ def test_a_save_as_tells_the_group_where_the_map_went():
       dlg.close()
 
 
+def test_a_limit_says_so_whenever_no_run_will_follow():
+  """The gate that tells asks what the gate that acts asks.
+
+  A floor or a ceiling moves tiles onto the paired layer, which a
+  restyle can neither make nor unmake, so the map does not move until
+  a run happens -- and the person has to be told when that means
+  waiting. The notice asked whether live update was TICKED; the live
+  path declines for reasons of its own, and "Create as new group" is
+  one of them. With both ticked, a limit was accepted in total
+  silence and nothing was drawn, which reads exactly like the control
+  not working.
+
+  THREE ARMS, and the middle one is the control in both directions:
+  live update off must speak, live update on with a run following must
+  stay QUIET (or the notice becomes noise on every ordinary edit), and
+  live update on with create-as-new must speak.
+
+  THE NOTICE IS SAMPLED, not read at the end: the note line is
+  transient and a later notice replaces it, which is how the first
+  probe for this read silence in every arm including its control.
+
+  Regression: a floor typed while live update was ticked but no run could follow was accepted in silence. Found by the livepath hunt of 2026-08-28. [hunt]
+  """
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+  project = QgsProject.instance()
+
+  def a_floor_typed(live, new_group):
+    """Set a floor through the editor and collect what was said."""
+    project.clear()
+    dlg, layer, _tid = _categorical_dialog()
+    try:
+      dlg.live_check.setChecked(live)
+      _generate_and_wait(dlg)
+      # A NUMERIC element: a quantitative style never stands on text,
+      # so the categorical one opens no quant editor at all.
+      tile_id = next(t for t in sorted(dlg._element_layer_ids)
+                     if (dlg._assignment_for(t) or {}).get("mode")
+                     == "Graduated")
+      dlg.opt_new_group.setChecked(new_group)
+      field = (dlg._assignment_for(tile_id) or {}).get("var")
+      opened = {}
+
+      def catch(self):
+        opened["editor"] = self
+        return 0
+
+      real = CategoryColourDialog.exec
+      CategoryColourDialog.exec = catch
+      try:
+        dlg._edit_quant_colours(tile_id, field,
+                                dlg._assignment_for(tile_id))
+      finally:
+        CategoryColourDialog.exec = real
+      editor = opened.get("editor")
+      assert editor is not None, "PREMISE: no colour editor opened"
+      box = list(editor._limit_boxes.get("floor") or [None])[0]
+      assert box is not None, "PREMISE: the editor offers no floor box"
+
+      values = sorted(v for v in layer.uniqueValues(
+        layer.fields().indexOf(field)) if v is not None)
+      # A value the box does NOT already hold and that is not the
+      # computed edge either, or nothing fires and nothing is wanted.
+      here = box.value()
+      floor = next((float(v) for v in values
+                    if abs(float(v) - here) > 1e-9
+                    and float(v) > float(values[0])), None)
+      assert floor is not None, "PREMISE: no value differs from the box"
+      _hush(dlg)
+      box.setValue(floor)
+      assert abs(box.value() - floor) < 1e-9, \
+        f"PREMISE: the box refused {floor} and holds {box.value()}"
+      seen = []
+      for _ in range(15):
+        _tick(100)
+        text = " ".join(t for _k, t in BAR_MESSAGES)
+        note = getattr(dlg, "live_note", None)
+        whole = f"{text} {note.text() if note is not None else ''}"
+        if whole.strip():
+          seen.append(whole)
+      return any("limits" in text for text in seen), len(seen)
+    finally:
+      dlg.close()
+
+  spoke, samples = a_floor_typed(live=False, new_group=False)
+  assert spoke, (
+    f"PREMISE: with live update OFF the limit sentence is not said at "
+    f"all ({samples} notices seen), so this test cannot tell silence "
+    f"from a wording change")
+
+  spoke, _samples = a_floor_typed(live=True, new_group=False)
+  assert not spoke, (
+    "with live update on and a run following, the limit notice fired "
+    "anyway: a sentence about waiting on the next Generate, said when "
+    "the map is about to move, is the noise people learn to ignore")
+
+  spoke, samples = a_floor_typed(live=True, new_group=True)
+  assert spoke, (
+    f"with live update ticked and \"Create as new group\" also ticked, "
+    f"no run follows and the limit was accepted in silence "
+    f"({samples} other notices seen): the gate that tells asked about "
+    f"the checkbox where the gate that acts asks about the run")
+
+
 def test_a_text_column_is_counted_before_the_many_categories_question():
   """The question is asked of the column most likely to need it.
 
@@ -71798,6 +71901,8 @@ def main():
         test_a_file_that_will_not_open_says_which_way_it_failed)
   check("a text column is counted before the many-categories question",
         test_a_text_column_is_counted_before_the_many_categories_question)
+  check("a limit says so whenever no run will follow",
+        test_a_limit_says_so_whenever_no_run_will_follow)
   check("choosing your own group keeps the region and the variables",
         test_choosing_your_own_group_keeps_the_region_and_the_variables)
   check("the icon notice reads the same ground in either crs",
