@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-406 defect(s) with a regression test.
+407 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -163,6 +163,8 @@ there is no separate list to remember.
   guarded by `test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis`
 - **a tiling still in flight when the project was replaced landed its layers into the incoming project, replacing that project's own output with memory layers tiled from the previous project's region -- and reported it as a successful run. `_forget_the_last_project` did not cancel the task and `_on_generated` never asked which project it was for.**  
   guarded by `test_a_run_in_flight_does_not_land_in_the_project_that_replaced_it`
+- **a Save As told the file where the map had gone and never told the group, so returning to the map reverted the output box to the file it was saved away from and the next Save overwrote the older version. Found by the colourpicks hunt of 2026-08-28.**  
+  guarded by `test_a_save_as_tells_the_group_where_the_map_went`
 - **saving into a GeoPackage holding somebody else's map deleted their element tables and their embedded region copy, one line after a question promising to leave the rest of the file alone. Found by the shared-file hunt of 2026-08-28.**  
   guarded by `test_a_save_leaves_another_maps_tables_alone`
 - **typing a scale factor between -1 and 1 was mangled by the step-over-zero handler firing per keystroke, so a mirrored design was silently un-mirrored and every element drew on the wrong side of the map.**  
@@ -864,7 +866,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 122
-- a bug hunt pointed in a named direction: 109
+- a bug hunt pointed in a named direction: 110
 - not written down at the time: 88
 - reported by a user: 29
 - reading the code: 15

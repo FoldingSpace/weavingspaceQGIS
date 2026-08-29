@@ -27574,6 +27574,95 @@ def test_the_moved_data_notice_is_about_the_map_being_saved():
       dlg.close()
 
 
+def test_a_save_as_tells_the_group_where_the_map_went():
+  """Save to a second file, and the map remembers the second file.
+
+  `output_path` is the one edge a Save legitimately decides -- a
+  landing does not choose where the file goes and a Save does -- and
+  until 2026-08-28 only the FILE was told. The group's own record kept
+  the path it was landed with, so a Save AS wrote the new file and
+  left the group naming the old one. Come back to that map through the
+  group chooser and the box reverts to the file you saved AWAY from:
+  the next Save overwrites the older version with newer work while the
+  file just written goes stale, and nothing says so.
+
+  TWO AXES, because a repair here can overreach as easily as
+  underreach. The box must name the file the map was last saved to,
+  AND the design restored beside it must still be the one the layers
+  were drawn at -- a stamp that captured the live controls instead of
+  moving one edge would pass the first and fail the second.
+
+  THE HARM IS MEASURED WHERE IT LANDS: the save made after coming back
+  is required to leave the earlier file holding exactly what it held.
+  The two designs are drawn at different spacings and the test asserts
+  they differ, so a write into the older file cannot hide.
+
+  Regression: a Save As told the file where the map had gone and never told the group, so returning to the map reverted the output box to the file it was saved away from and the next Save overwrote the older version. Found by the colourpicks hunt of 2026-08-28. [hunt]
+  """
+  with _temp_dir() as folder:
+    monday = os.path.join(folder, "monday.gpkg")
+    tuesday = os.path.join(folder, "tuesday.gpkg")
+    dlg, _layer, _tid = _categorical_dialog()
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.spacing_spin.setValue(600.0)
+      _generate_and_wait(dlg)
+      assert dlg._element_layer_ids, "PREMISE: nothing was drawn"
+      dlg.gpkg_widget.setFilePath(monday)
+      assert press_save(dlg, monday), "PREMISE: the first save failed"
+      first = gpkg_contents(monday)
+      assert first["tables"], "PREMISE: the first save wrote no tables"
+
+      # Carry on working, then save AS to a second file. A save that
+      # writes the same path twice cannot show a two-store split.
+      dlg.spacing_spin.setValue(520.0)
+      _tick(1200)
+      _generate_and_wait(dlg)
+      dlg.gpkg_widget.setFilePath(tuesday)
+      assert press_save(dlg, tuesday), "PREMISE: the save-as failed"
+      assert os.path.basename(dlg.gpkg_widget.filePath()) == "tuesday.gpkg", \
+        "PREMISE: the Save As did not leave the box on the new file"
+      second = gpkg_contents(tuesday)
+      assert second["tables"] != first["tables"], (
+        f"PREMISE: the two saves hold the same tiles "
+        f"({first['tables']} against {second['tables']}), so a write "
+        f"into the older file would be invisible to this test")
+
+      # ...and back to this map the way a person does it.
+      wanted = -1
+      for index in range(dlg.group_combo.count()):
+        if dlg.group_combo.itemData(index) is not None:
+          wanted = index
+      assert wanted >= 0, "PREMISE: the chooser offers no group to return to"
+      dlg.group_combo.setCurrentIndex(wanted)
+      dlg.group_combo.activated.emit(wanted)      # what a click sends
+      _tick(900)
+
+      came_back_to = os.path.basename(dlg.gpkg_widget.filePath() or "")
+      assert came_back_to == "tuesday.gpkg", (
+        f"coming back to the map left the Save box on "
+        f"{came_back_to or '(empty)'!r} rather than on the file it was "
+        f"last saved to, so the next Save writes over the older version")
+      assert abs(dlg.spacing_spin.value() - 520.0) < 0.5, (
+        f"the return restored a spacing of {dlg.spacing_spin.value()} "
+        f"where the layers were drawn at 520: the group's record was "
+        f"re-derived from the live controls rather than carried")
+
+      # ---- AND THE OLDER FILE IS LEFT ALONE
+      assert press_save(dlg), \
+        "PREMISE: the save after coming back did not happen"
+      said = _said_about_a_save(dlg)
+      assert "tuesday" in said, (
+        f"the save after coming back reported {said!r} rather than "
+        f"naming the file the map was last saved to")
+      assert gpkg_contents(monday)["tables"] == first["tables"], (
+        f"the save made after returning to the map wrote over the "
+        f"EARLIER file: it held {first['tables']} and now holds "
+        f"{gpkg_contents(monday)['tables']}")
+    finally:
+      dlg.close()
+
+
 def test_a_no_data_twin_never_travels_without_its_element():
   """A file must not hold a twin belonging to nothing.
 
@@ -70782,6 +70871,8 @@ def main():
         test_both_resume_doors_keep_the_file_the_map_was_saved_to)
   check("a no-data twin never travels without its element",
         test_a_no_data_twin_never_travels_without_its_element)
+  check("a Save As tells the group where the map went",
+        test_a_save_as_tells_the_group_where_the_map_went)
   check("choosing your own group keeps the region and the variables",
         test_choosing_your_own_group_keeps_the_region_and_the_variables)
   check("the icon notice reads the same ground in either crs",

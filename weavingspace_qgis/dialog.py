@@ -16511,8 +16511,9 @@ class WeavingSpaceDialog(QDialog):
     # file would point a resume at a stranger's map -- which is what
     # `_apply_working_state` says at the line that reads it back.
     resumable = self._capture_working_state()
-    carried = self._read_working_state(self._group_of_our_layers(
-      QgsProject.instance().layerTreeRoot())) or {}
+    our_group = self._group_of_our_layers(
+      QgsProject.instance().layerTreeRoot())
+    carried = self._read_working_state(our_group) or {}
     for key in ("design", "region", "region_crs"):
       if key in carried:
         resumable[key] = carried[key]
@@ -16573,8 +16574,34 @@ class WeavingSpaceDialog(QDialog):
         rebuilt.append(merged)
       resumable["elements"] = rebuilt
     resumable["region_embedded"] = self._embed_or_drop_the_source(path, ours)
-    if not bridge.write_working_state(
-        path, self._file_safe_state(resumable)):
+    wrote_the_record = bridge.write_working_state(
+      path, self._file_safe_state(resumable))
+    # AND THE GROUP LEARNS WHERE ITS MAP WENT, which is the other half
+    # of the sentence forty lines above: `output_path` is the one edge
+    # this act legitimately decides, and until 2026-08-28 only the
+    # FILE was told. The group's record kept the path it was landed
+    # with, because `_stamp_working_state` carries the edges forward
+    # and nothing here handed it a new one -- so a Save AS wrote
+    # tuesday.gpkg and left the group saying monday.gpkg. Come back to
+    # the map through the group chooser and `_apply_working_state`
+    # sets the box from that record: the chooser reverts to the file
+    # you saved AWAY from, and the next Save writes newer work over
+    # the older version while the file just written goes stale.
+    # Measured 2026-08-28 by driving the chooser's own `activated`
+    # signal and reading the widget rather than any record.
+    # IT IS HANDED OVER AS A LAUNCH STATE because that is the one
+    # mechanism a writer standing away from a landing may use to move
+    # an edge, and it moves ONLY that edge: the design and the region
+    # go on being carried from the record already on the group, since
+    # a Save knows where the file went and knows nothing new about
+    # what was drawn.
+    # IT IS DONE WHETHER OR NOT THE FILE'S OWN RECORD WROTE. The map
+    # is in the new file either way, so the box must go on naming it;
+    # a group left pointing at the old file after a partial save is
+    # the same overwrite by another road.
+    self._stamp_working_state(our_group,
+                              launch_state={"output_path": path})
+    if not wrote_the_record:
       self._report_quietly(
         f"The map was saved to {os.path.basename(path)}, but its "
         f"design could not be written into the file, so opening it "

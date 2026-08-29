@@ -1060,12 +1060,14 @@ MUTATIONS = [
        # making `write_working_state` answer False -- the branch had
        # no driver at all before, so this entry could only ever have
        # been red or vacuous.
-       old="""    if not bridge.write_working_state(
-        path, self._file_safe_state(resumable)):
+       # RE-ANCHORED 2026-08-28, when the save was given a second
+       # thing to do with that answer -- the group's own stamp, which
+       # happens either way -- so the call and the report stopped
+       # being contiguous. The mutation is unchanged in what it means:
+       # the answer is read and nothing is done with it.
+       old="""    if not wrote_the_record:
       self._report_quietly(""",
-       new="""    bridge.write_working_state(
-        path, self._file_safe_state(resumable))
-    if False:  # mutation: drop the answer on the floor
+       new="""    if False:  # mutation: drop the answer on the floor
       self._report_quietly(""",
        test="test_a_generate_draws_and_only_a_save_writes",
        why="`write_working_state`'s own Returns block promises that a "
@@ -6862,10 +6864,13 @@ MUTATIONS = [
        # rather than deleting: `False and not write(...)` never
        # evaluates the call, so the tables arrive and the record does
        # not -- which is exactly the half-saved file this guards.
-       old="""    if not bridge.write_working_state(
-        path, self._file_safe_state(resumable)):""",
-       new="""    if False and not bridge.write_working_state(
-        path, self._file_safe_state(resumable)):""",
+       # RE-ANCHORED 2026-08-28 for the same reason as its sibling,
+       # and it still has to remove the WRITE rather than the report:
+       # answering True leaves the save silent about a record it never
+       # wrote, which is the half-saved file this guards.
+       old="""    wrote_the_record = bridge.write_working_state(
+      path, self._file_safe_state(resumable))""",
+       new="""    wrote_the_record = True  # mutation: the record is never written""",
        test="test_a_saved_map_can_be_opened_and_carried_on",
        why="without it a finished map can be looked at and not carried "
            "on with: the file holds tables and styles and nothing "
@@ -7584,6 +7589,22 @@ MUTATIONS = [
            "which group a dataset owns, whether a landing may write "
            "over a group, and whether a resume finds a layer already "
            "open"),
+  dict(name="a-save-tells-the-group-where-the-map-went",
+       file=DIALOG,
+       # Restores the behaviour exactly as it shipped: the group is
+       # still stamped, so nothing looks missing, and the stamp is
+       # handed no launch state -- which is what makes it carry the
+       # OLD `output_path` forward, `output_path` being one of the two
+       # edges only a landing may otherwise move. A Save As then
+       # leaves the group naming the file it was saved away from.
+       old="""    self._stamp_working_state(our_group,
+                              launch_state={"output_path": path})""",
+       new="""    self._stamp_working_state(our_group)""",
+       test="test_a_save_as_tells_the_group_where_the_map_went",
+       why="coming back to a map through the group chooser finding the "
+           "Save box on the file it was saved AWAY from, so the next "
+           "press overwrites the older version with newer work while "
+           "the file just written goes stale, with nothing said"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a
