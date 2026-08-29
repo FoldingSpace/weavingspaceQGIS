@@ -661,13 +661,98 @@ entry that is done. Their reasoning lives in CLAUDE.md, where it
 binds, and what they cost and found is in the ledger for 2026-08-27,
 rows 26 to 30.)
 
-## 0.24.5 — deferred here from 0.24.4
+## 0.24.5 — three tabs asked for, and what was deferred here from 0.24.4
 
 Moved on the maintainer's decision of 2026-08-27, in the act of
 cutting 0.24.4's candidate. None of it is abandoned and none of it
 was blocking the version: three are measurements rather than
 defect-finding, and the fourth is a study whose answer is written
 at its own entry.
+
+**THREE TABS ASKED FOR ON 2026-08-29, and they are wants with no code
+yet rather than work deferred from 0.24.4.** Each changes the shape of
+the interface, so each gets `/grill-me` before anything is written --
+this project's own rule, and the sessions that took it produced
+designs that stuck.
+
+**A MESSAGES TAB: everything the plugin has said, in one place.** A
+reverse-chronological, timestamped, scrolling log of what the plugin
+issues -- the message bar's notices, the text of every modal AND THE
+ANSWER GIVEN TO IT, the QGIS warnings it raises. It need not survive
+the session, and it carries a Clear button.
+
+WHY IT IS MORE THAN A CONVENIENCE, and the argument is in this
+project's own record. The plugin already speaks into TWO stores that
+nothing brings together: the message bar, and modal dialogues. Reading
+one and concluding silence is a fault the suite has met so often it is
+numbered -- harness fault eleven -- and the same split has cost real
+diagnoses, because a run refused through a QMessageBox leaves the bar
+empty and is indistinguishable from a run that was never launched. A
+user has no `MODALS` list to read. This tab is that union, offered to
+the person rather than to the test harness.
+
+RECORDING THE ANSWER MATTERS AS MUCH AS THE QUESTION. Half this
+plugin's modals change what happens -- whether a file was overwritten,
+whether a design was recomposed to fewer elements, whether a large run
+was allowed to proceed -- so a log holding the question without the
+answer describes a decision nobody can reconstruct.
+
+WHAT NEEDS DECIDING: whether the plugin's own message-bar helper
+becomes the single door everything passes through (it very nearly is
+already), and what happens to a message issued while the tab does not
+yet exist. Session-scoped storage is settled by the maintainer's ask.
+
+**A LEGEND DESIGN TAB, and a two-way question at the end of it that
+needs research before any of it is built.** A chooser of legend
+styles, defaulting to NONE -- defer to QGIS, which is this project's
+standing preference and the honest default for somebody who has not
+asked for anything. Examples to draw on include the ones the
+weavingspace library itself makes. A preview box shows the chosen
+style, and the relevant controls adjust it.
+
+THE EXPORT HALF IS THE STRAIGHTFORWARD HALF: a file selector and
+buttons that write the legend to SVG, or to PDF WITH TRANSPARENCY,
+either of which imports into a graphics package for the
+post-processing that finishing a map for publication usually needs.
+
+THE PART TO RESEARCH FIRST, because it decides whether the rest is
+built at all: whether the legend can instead be written into a QGIS
+PRINT LAYOUT the user picks from a dropdown -- and, harder, whether
+tweaks made afterwards IN that layout can come back and update the
+plugin's own configuration, wherever the two can both represent the
+same thing. Nobody here knows yet how far QGIS's layout legend can be
+driven that way.
+
+AND THE SHAPE OF THAT QUESTION IS ONE THIS PROJECT KNOWS WELL. Two
+stores holding one fact, mended in one, is the single commonest defect
+in this repository's ledger. So the research has to answer not only
+"can it be done" but "what happens to a tweak the plugin cannot
+represent" -- and the answer must never be to lose it silently. A
+legend the user has refined in a layout is their work, and the QGIS
+boundary is where remembering is an obligation rather than a design
+question.
+
+**A TOPOLOGY TAB: visual and quantitative interaction with what the
+library already computes, and then past it.** `topology.py` is the
+richest thing in the vendored library that the plugin does not
+currently expose at all. It carries `Topology`, `Tile`, `Vertex` and
+`Edge`; it can enumerate potential symmetries, generate a tiling's
+DUAL and hand back its tiles; and it offers real MANIPULATIONS rather
+than only description -- `zigzag_edge`, `rotate_edge`, `scale_edge`,
+`push_vertex`, `nudge_vertex`, `insert_vertex_at`,
+`merge_edges_at_vertex`, `transform_geometry`.
+
+Those manipulations are why this is a tab rather than a viewer: a
+person could take hold of an edge or a vertex and watch the tiling
+answer. Upstream's own plotting is the starting point and not the
+destination; the maintainer's ask is explicitly to go BEYOND what
+upstream offers, and creative interactive visualization is where that
+starts rather than where it ends.
+
+WHAT COMES FIRST is an inventory: what each of those operations
+actually does to a unit, which of them compose, and which produce a
+tiling the rest of the plugin can still draw. That is a measurement
+session, not a design one, and it is cheap.
 
 **FOR STUDY: warn when a test asserts a string that also appears in
 shipped source.** Added 2026-08-16, deliberately as a question rather

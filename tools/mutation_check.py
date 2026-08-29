@@ -7995,6 +7995,20 @@ MUTATIONS = [
            "renderer at the moment of the pick -- the row is the only "
            "witness. This test carried no entry at all until "
            "2026-08-29, its own having been retired by the triage"),
+  dict(name="numeric-text-may-not-merge-two-values", file=BRIDGE,
+       # Back to "does every value parse", which `float(" 3")` answers
+       # yes to. A column holding "3", " 3" and "3 " then reads as
+       # numbers and is drawn as ONE, silently merging distinctions
+       # the table makes and a legend would show.
+       old="""  return seen > 0 and len(texts) == len(numbers)""",
+       new="""  return seen > 0""",
+       test="test_awkward_attribute_values_keep_their_meaning",
+       why="the numeric-text ruling not tidying somebody's data: it "
+           "was made so a quoted CSV column could be classed as "
+           "numbers, never so that two values a reader can tell apart "
+           "become one. Found by the FIRST FULL SUITE after the ruling "
+           "was built -- no fixture aimed at the ruling had whitespace "
+           "in it, so no targeted run could reach it"),
   dict(name="the-save-loop-turns-the-event-loop", file=DIALOG,
        # Back to a loop that never turns. The pump BEFORE the loop
        # survives, deliberately -- so an entry satisfied by "did it
@@ -8171,13 +8185,18 @@ MUTATIONS = [
        # The other half, and the one that would make the widening
        # dangerous: accept a column that is mostly numbers, and the
        # graduated renderer drops whatever is not, in silence.
+       # RE-ANCHORED 2026-08-29: the predicate gained a second half
+       # (no two distinct texts may collapse onto one number), so the
+       # tail this stood on moved. What the entry is about is
+       # untouched -- refusing a column that is only MOSTLY numbers.
        old="""    except (TypeError, ValueError):
       return False
     seen += 1
-  return seen > 0""",
+    numbers.add(number)""",
        new="""    except (TypeError, ValueError):
       continue  # mutation: mostly numbers is close enough
     seen += 1
+    numbers.add(0.0)
   return seen > 0""",
        test="test_numbers_stored_as_text_can_be_classified",
        why="a column with a word in it staying categorical: 'mostly "

@@ -2303,6 +2303,25 @@ Confirmed with the user via an explicit design review:
   about, arriving through the door opened to relax it. Both answers
   are asserted in one test, because a reader meeting either alone
   would take it for the whole rule.
+  AND THERE IS A SECOND HALF, FOUND BY THE FIRST FULL SUITE AFTER THIS
+  WAS BUILT: no two distinct TEXTS may collapse onto one number.
+  Python reads `float(" 3")` as 3.0, so a column holding "3", " 3" and
+  "3 " -- three values a legend shows as three classes, and which
+  `test_awkward_attribute_values_keep_their_meaning` exists to keep
+  apart, since "tidying is a silent edit of somebody's data" -- passed
+  the parse test and was then drawn as ONE. The ruling was made so a
+  quoted CSV column could be classed as numbers; it was never made to
+  merge values a reader can tell apart. So the question is not "does
+  every value parse" but "does every value parse to a number of its
+  OWN", which also refuses "3" beside "3.0" without needing a rule of
+  its own.
+  NO TARGETED RUN COULD HAVE FOUND IT, and that is the transferable
+  part: every fixture written FOR the ruling held clean numbers,
+  because that is what the ruling is about. The case that broke it
+  lived in a test about hostile data that nobody would have thought to
+  run. A green subset is not a green suite, and this is that rule
+  arriving from the direction of a NEW FEATURE rather than a
+  regression.
   AND IT IS CACHED, keyed by layer, column, fingerprint and data
   version exactly as `_classification_values` is. `_field_is_numeric`
   is asked once per field for the variable lists and once per element
@@ -4901,3 +4920,31 @@ here, and the decision to add one is the maintainer's. Recorded
   orphaned in one edit. The gate named them, they were re-indented,
   and every one was RE-PROVED rather than assumed -- an anchor that
   matches again can still be aimed at nothing.
+
+- **THE EIGHTEENTH WATCHER FAULT: A WORK LINE THAT CANNOT SHOW A DEAD
+  WORKER.** (2026-08-29.) The five-minute beat reported running work
+  through `ps | ... | head -2`, so with a release parent and THREE
+  test shards it showed the parent and ONE shard. It was accurate and
+  useless: this project has already been caught by a total climbing
+  healthily while one shard had died at startup, and a watcher capped
+  at one worker cannot report that however carefully it is read. It
+  prints every worker with its own elapsed and cpu now, so a shard
+  sitting at 0:00 beside siblings at minutes is visible at a glance.
+  ASK OF ANY WATCHER WHETHER ITS OUTPUT CAN EXPRESS THE FAILURE, not
+  merely whether it is correct about what it shows.
+
+- **AND THE FIFTEENTH, COPIED FORWARD WITHOUT ITS REASON.** The same
+  beat carried `owed=$(grep -c ... || echo "?")`, which is the exact
+  fault this file has recorded since 2026-08-20: `grep -c` PRINTS `0`
+  and EXITS 1 when nothing matches, so the fallback APPENDS to a
+  perfectly good answer instead of replacing it. The beat duly
+  reported "0\n? owed" the moment the owed list emptied -- and what
+  emptied it was the edit recording that the work was done.
+  IT CAME BACK BECAUSE THE LINE WAS COPIED AND THE REASON WAS NOT.
+  That is the argument for writing the reason AT the line rather than
+  only in this file: a rule in a binding document does not travel into
+  the next throwaway script, and the fifteenth fault is the one this
+  project has now paid for twice.
+  Both are fixed in a NEW file rather than by editing the running one,
+  because bash reads a script incrementally from a byte offset and
+  editing one mid-loop can make it execute garbage.

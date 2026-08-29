@@ -4223,13 +4223,27 @@ def test_awkward_attribute_values_keep_their_meaning():
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   from weavingspace_qgis import compat
+  # THE THIRD TERM IS HOW THE PLUGIN MAY READ THE COLUMN, and it was
+  # added on 2026-08-29 when the maintainer's numeric-text ruling
+  # reached this test. A column of "1", "2", "10", "100" is what a
+  # quoted CSV gives, and the ruling is that it may now be classed as
+  # NUMBERS rather than handing somebody three thousand and one
+  # categories -- so "no categorized layer was produced" stopped being
+  # a failure for that case and became the ruling working.
+  # THE PROMISE IS UNCHANGED AND IS STILL TESTED: whichever way the
+  # column is read, no two distinct values may merge. So a numeric
+  # case is ALSO driven through Categorized by hand, which is where
+  # that promise can be asked at all.
   cases = [
-    ("numbers in a text column", ["1", "2", "10", "100", "2", "10"], 4),
-    ("stray whitespace", ["3", " 3", "3 ", "4", "4", "3"], 4),
-    ("an empty string beside NULL", ["a", "", None, "b", "", "a"], 3),
+    ("numbers in a text column", ["1", "2", "10", "100", "2", "10"], 4,
+     "numeric"),
+    ("stray whitespace", ["3", " 3", "3 ", "4", "4", "3"], 4,
+     "categorical"),
+    ("an empty string beside NULL", ["a", "", None, "b", "", "a"], 3,
+     "categorical"),
   ]
   trouble = []
-  for label, values, expected in cases:
+  for label, values, expected, reading in cases:
     project = QgsProject.instance()
     for existing in list(project.mapLayers().values()):
       project.removeMapLayer(existing.id())
@@ -4258,6 +4272,32 @@ def test_awkward_attribute_values_keep_their_meaning():
       _tick(300)
       dlg.table.cellWidget(1, 1).setCurrentText("v")
       _tick(150)
+      # ...AND THE READING THE PLUGIN CHOSE IS ITSELF ASSERTED, both
+      # ways round, because a reader meeting one would take it for the
+      # whole rule: a quoted-number column must be offered as numbers
+      # and a column carrying whitespace distinctions must not.
+      mode = dlg.table.cellWidget(1, 2)
+      chose = mode.currentText()
+      if reading == "numeric" and chose == "Categorized":
+        trouble.append(
+          f"{label}: the plugin still reads a column of quoted "
+          f"numbers as categories, which is the three-thousand-and-one "
+          f"classes the ruling of 2026-08-29 was made about")
+        continue
+      if reading == "categorical" and chose != "Categorized":
+        trouble.append(
+          f"{label}: the plugin reads this as {chose!r}. Its values "
+          f"differ only by text that a number cannot carry, so a "
+          f"numeric reading MERGES them -- which is the silent edit "
+          f"of somebody's data this test forbids")
+        continue
+      # A numeric column is then driven through Categorized by hand,
+      # since that is the only reading in which "every distinct value
+      # keeps its own class" is a question at all.
+      if reading == "numeric":
+        mode.setCurrentText("Categorized")
+        mode.activated.emit(mode.currentIndex())
+        _tick(200)
       dlg.spacing_spin.setValue(400)
       dlg._generate()
       if not _settle(dlg, seconds=60):

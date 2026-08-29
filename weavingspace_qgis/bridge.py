@@ -1600,17 +1600,45 @@ def every_value_reads_as_a_number(values) -> bool:
   ALLOWED through: an infinity in a column is one of the four kinds
   of absence this plugin already draws and names, so it is not a
   reason to call the column text.
+
+  AND NO TWO DISTINCT TEXTS MAY COLLAPSE ONTO ONE NUMBER, which is
+  the half that keeps the ruling from tidying somebody's data. Python
+  reads `float(" 3")` as 3.0, so a column holding "3", " 3" and "3 "
+  -- three values a legend shows as three classes and a reader can go
+  back to the data to understand -- would answer True here and then
+  be drawn as ONE number, silently merging distinctions the table
+  makes. That is the exact edit `test_awkward_attribute_values_keep_
+  their_meaning` exists to forbid ("tidying is a silent edit of
+  somebody's data"), and it caught this on the first full suite after
+  the ruling was built; the targeted runs could not, because no
+  fixture aimed at the ruling had whitespace in it.
+  So the question is not "does every value parse" but "does every
+  value parse to a number of its OWN". Where two do not, the column
+  keeps a distinction only a categorical reading can carry, and this
+  answers False. `"3"` beside `"3.0"` is refused for the same reason
+  and by the same rule, without needing a rule of its own.
   """
   seen = 0
+  numbers = set()
+  texts = set()
   for value in values:
     if value is None or value == NULL or value == "":
       continue
     try:
-      float(value)
+      number = float(value)
     except (TypeError, ValueError):
       return False
     seen += 1
-  return seen > 0
+    numbers.add(number)
+    texts.add(str(value))
+  # NaN never equals itself, so a column holding one would make these
+  # two counts disagree for a reason that has nothing to do with
+  # merging. Counting it once, as its text, keeps the comparison
+  # about what it is about.
+  if any(n != n for n in numbers):
+    numbers = {n for n in numbers if n == n}
+    numbers.add("nan")
+  return seen > 0 and len(texts) == len(numbers)
 
 
 def distinct_numeric_count(values, limit: int | None = None) -> int:
