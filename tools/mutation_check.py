@@ -7609,6 +7609,29 @@ MUTATIONS = [
            "which group a dataset owns, whether a landing may write "
            "over a group, and whether a resume finds a layer already "
            "open"),
+  dict(name="the-legend-is-printed-from-the-ladder-that-is-drawn",
+       file=BRIDGE,
+       # WHAT THIS PROVES AND WHAT IT DOES NOT, said plainly because
+       # the two are different claims. It deletes the widening, and
+       # the test fails at its CONTROL -- the unpinned legend, which
+       # goes degenerate at once. That proves the test notices this
+       # helper at all.
+       # The ORDER -- below the pins rather than above them, which is
+       # the defect of 2026-08-28 -- is guarded by the test's PINNED
+       # assertion and by nothing here: `mutation_check` applies
+       # exactly one replacement, and moving a call is a deletion and
+       # an insertion. Anchoring a span from the pins block down to
+       # the call would cover both and would break on any edit
+       # between them, which is how seven entries were orphaned in one
+       # day. So the honest record is this entry plus that assertion.
+       old="""  _widen_degenerate_labels(renderer)""",
+       new="""  pass  # mutation: the labels are never widened""",
+       test="test_a_pinned_ladder_prints_a_legend_you_can_read",
+       why="a legend that does not tell a reader the palest part of "
+           "their map holds zero: the widening is the fix for a "
+           "mixed-magnitude column, and a pinned ladder is exactly "
+           "where the classes it describes are inserted after it",
+       ),
   dict(name="a-modifier-comes-home-from-an-excursion",
        file=DIALOG,
        # Back to a bare setRange, which is what shipped: the clamp

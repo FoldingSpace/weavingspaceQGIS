@@ -27663,6 +27663,60 @@ def test_a_save_as_tells_the_group_where_the_map_went():
       dlg.close()
 
 
+def test_a_pinned_ladder_prints_a_legend_you_can_read():
+  """The legend describes the ladder that is drawn, pins included.
+
+  `_widen_degenerate_labels` exists because a column mixing 1e-9 with
+  1e9 puts a real class between numbers that both print as "0" at the
+  precision QGIS picks, so a reader concludes the palest part of their
+  map holds zero. It ran ABOVE the call that INSERTS the pinned
+  classes, so it described a ladder nobody sees.
+
+  MEASURED, and the numbers are the test: the same column with no pin
+  reads "0.000000001 - 0.0000006", and with a pin at 7.75e-06 it read
+  "0 - 0" beside "0 - 2.35".
+
+  THE CONTROL IS THE UNPINNED LADDER, asserted first: without it a
+  legible pinned legend would say nothing, since the widening might
+  simply never have been needed.
+
+  Regression: a pinned class printed "0 - 0" on a column spanning magnitudes, because the label widening ran above the call that inserts the pinned classes. Found by the legend hunt of 2026-08-28. [hunt]
+  """
+  from weavingspace_qgis import bridge
+  # Chosen for the failure mode rather than for realism: tiny values
+  # among huge ones is what makes a label degenerate, and a uniformly
+  # tiny column was cured on 2026-08-10.
+  layer = _numeric_layer([1e-9, 3e-9, 7.75e-06, 0.004, 1.2, 55.0,
+                          1200.0, 4.4e5, 9e8, 1e9, 2e-8, 6e-7,
+                          0.02, 3.5, 700.0, 8.8e6])
+  QgsProject.instance().addMapLayer(layer)
+
+  def labels(pinned):
+    renderer = bridge.make_graduated_renderer(
+      layer, "v", "Reds", "Quantiles", 5, False, pinned=pinned)
+    assert renderer is not None, "PREMISE: no renderer was built"
+    entries = renderer.ranges()     # bound before reading
+    return [entry.label() for entry in entries]
+
+  def unreadable(texts):
+    return [text for text in texts
+            if text.split(" - ")[0].strip() == text.split(" - ")[-1].strip()]
+
+  plain = labels(None)
+  assert len(plain) > 1, f"PREMISE: the column gave one class only: {plain}"
+  assert not unreadable(plain), (
+    f"PREMISE: the unpinned legend is already unreadable ({plain}), so "
+    f"this test measures the widening rather than the pin")
+
+  pinned = labels({"low": 7.75e-06, "low_pinned": True})
+  assert len(pinned) == len(plain), (
+    f"PREMISE: the pin changed the class count ({plain} -> {pinned})")
+  assert not unreadable(pinned), (
+    f"a pinned ladder prints {unreadable(pinned)} on a column running "
+    f"1e-9 to 1e9: the legend says the palest part of the map holds "
+    f"zero. Whole legend: {pinned}")
+
+
 def test_a_modifier_survives_a_family_excursion():
   """A number you set is still there when you come back to it.
 
@@ -71594,6 +71648,8 @@ def main():
         test_the_save_box_comes_home_when_the_project_reopens)
   check("a modifier survives a family excursion",
         test_a_modifier_survives_a_family_excursion)
+  check("a pinned ladder prints a legend you can read",
+        test_a_pinned_ladder_prints_a_legend_you_can_read)
   check("choosing your own group keeps the region and the variables",
         test_choosing_your_own_group_keeps_the_region_and_the_variables)
   check("the icon notice reads the same ground in either crs",

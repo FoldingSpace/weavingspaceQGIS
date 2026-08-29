@@ -3345,7 +3345,6 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
   # the actual breaks known, so the honest precision comes from the
   # NARROWEST class the classifier really cut; QGIS's own formatter
   # still writes every label, exactly as the block above argues.
-  _widen_degenerate_labels(renderer)
   if pins and copied is None:
     # THE LADDER'S OUTER EDGE IS THE LIMIT WHERE THERE IS ONE, not the
     # smallest value that survived it. `finite_values` has already been
@@ -3385,6 +3384,17 @@ def make_graduated_renderer(layer: QgsVectorLayer, field: str,
       if ceiling is not None:
         edges[-1] = (edges[-1][0], float(ceiling))
       set_class_bounds(renderer, edges, outline, method)
+  # ...AND THE LABELS ARE PRINTED FROM THE LADDER THAT IS DRAWN,
+  # which is why this sits BELOW the pins rather than above them.
+  # `_apply_pinned_bounds` and the limit block INSERT and move
+  # classes, so a widening done before them describes a ladder
+  # nobody sees. Measured 2026-08-28 on a column mixing 1e-9 with
+  # 1e9: with no pin the legend read '0.000000001 - 0.0000006',
+  # and with a pin at 7.75e-06 the same column read '0 - 0' beside
+  # '0 - 2.35' -- a legend telling a reader the palest part of
+  # their map holds zero, which is the sentence this helper was
+  # written to prevent, arriving through the door the pins opened.
+  _widen_degenerate_labels(renderer)
   # A single class spans the whole ramp and QGIS colours it from the
   # ramp's START (measured, QGIS 4.0.3: one class on Reds comes back
   # #fff5f0, the ramp's 0.0 endpoint) -- for a sequential ramp that is
