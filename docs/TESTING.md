@@ -48,6 +48,70 @@ itself:
 
     PYTHONPATH="$PWD" PYTHONUNBUFFERED=1 "$QGIS_PY" my_probe.py
 
+## A CLAIM HAS A DIRECTION, AND CHECKING IT IS NOT OPTIONAL
+
+2026-08-28. A hunt reported that a Save drops a no-data twin's table
+while its element's survives. Driving the same panel act -- delete one
+element's row from the group, press Save -- gave the OPPOSITE: the
+element's table went and the twin stayed, leaving a set of
+missing-value areas belonging to an element the map does not have.
+
+Same mechanism, same harm class, reversed. What was fixed and recorded
+is the direction that was MEASURED, and the claim's own direction is
+noted in the ledger as not reproduced.
+
+This file already says a HARM named by reading is a hypothesis, and
+CLAUDE.md says that of one fact written twice you ask which writer had
+a reason. This is the same rule pointed at a report: **of one claim,
+ask which way round it runs, and drive it before believing either
+half.** It costs one probe and it is the difference between fixing a
+defect and moving the half that was already correct.
+
+## A MEASUREMENT THAT DOES NOT RESOLVE IS NOT A MEASUREMENT
+
+Same day, and it nearly put a false number into the source. A hunt
+measured a Save going from 22.4s to 16.2s at 128 elements, and from
+134s to 90s at 256, by dropping an OGR open the code discards anyway.
+The change was made and both figures were written at the site as its
+justification.
+
+Measured here, on this machine, the effect did not exist: 4.12s against
+3.72s at 64 elements, and at 128 the supposedly faster arm came back
+SLOWER, 15.73s against 14.72s. Single samples on a machine that had been
+running QGIS all evening tell you nothing in either direction.
+
+**THE CHANGE STAYED AND THE CLAIM WENT.** It is defensible on what is
+actually true of it -- it does not build an object that is discarded by
+construction -- and the docstring now says what was and was not
+established, with the hunt's figures attributed to the hunt. A
+performance justification you have not reproduced is somebody else's
+measurement wearing your commit message.
+
+The habit: when you change something FOR a number, reproduce the number
+first, on the machine you are on, with both arms in one run. If it does
+not resolve, say so and find another reason to want the change -- or
+drop it.
+
+## A FIXTURE THAT CANNOT SHARE A SOURCE CANNOT SHOW A SOURCE COLLISION
+
+Same day, three probes deep into one claim. The group chooser was
+reported to land on the OUTLINES layer, which is built on the region's
+own source, and so empty the region combo. Two probes came back clean
+on both arms.
+
+The fixture was the reason. `make_region_layer` is a MEMORY layer, and
+a memory URI is not something anything else can be built on -- so the
+two layers never shared a source string and the collision the claim is
+about could not arise. On the packaged Auckland GeoPackage it
+reproduced immediately, with a control arm (outlines off) staying
+clean.
+
+This is the fixture-that-cannot-exhibit-the-case trap in its plainest
+clothes, and the question that finds it quickly is: **what does this
+defect need two things to SHARE, and can my fixture make them share
+it?** Where the answer is a path, a file or a provider, the synthetic
+grid is the wrong fixture whatever else it has going for it.
+
 ## A red suite can mean the software got SLOWER, and reading it as a hang costs the diagnosis
 
 2026-08-16. Every CI suite leg went red at once -- three Linux

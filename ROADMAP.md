@@ -312,8 +312,41 @@ assistant's. It does not block a candidate -- a candidate is for
 feedback -- but it does block the build that gets promoted, since
 `metadata.txt` ships and changing it retires a receipt.
 
-**AND THE ROUND OF 2026-08-28, which is the largest this project has
-run.** Twenty-three hunts kept at eight at a time and replenished as
+**THE ROUND OF 2026-08-28 RAN A THIRD WAVE, and it is now much the
+largest this project has run.** Fifty-five hunts in all. Twenty-three
+further claims came out of the third wave; TEN are closed with a
+registered test and a proved catalogue entry (ledger rows 37 to 46),
+and FIFTEEN are listed, one line each, under "Claimed by a hunt ... not
+yet verified here" in `docs/process/defects-2026-08-28.md`. That list
+is the work this version owes.
+
+WHAT THE THIRD WAVE GIVES A USER. A Save into a GeoPackage holding
+somebody else's map no longer deletes their element tables and their
+embedded copy of the data. Opening the map you have just saved no
+longer loses it to a live re-tile that leaves the project empty on
+reopen. Choosing your own map's group no longer empties the region
+chooser and every element's variable, which it did whenever the
+outlines layer was on. The dependency consent box names every
+distribution it will fetch rather than six fewer, and a support package
+lost to a dropped connection is no longer discarded in silence while
+setup reports success. The notice that says the data has moved since a
+map was drawn now speaks about the map being saved rather than about
+whichever dataset the chooser holds, works for a map opened with Load,
+and can see an ordinary value edit -- which is the case it was written
+for and could not report. In icon mode a geographic layer is no longer
+told that every element reaches none of its areas. And a saved file
+never holds a no-data twin belonging to an element the map does not
+have.
+
+FOUR OF THOSE TEN WERE DEFECTS IN THE SAME EVENING'S OWN REPAIRS, which
+is the rate this project's record predicts and does not improve with
+practice.
+
+AND `tools/probe_kit.py` CAME OUT OF IT: the forty lines every probe
+was re-typing, written once, with the instrument faults that recur here
+prevented at the line. The reasoning is in docs/TESTING.md.
+
+**AND THE ROUND OF 2026-08-28, whose first two waves are below.** Twenty-three hunts kept at eight at a time and replenished as
 each reported, with the consistency sweep rebuilt beside them as a
 committed tool. Twenty-four confirmed defects, the ledger in
 `docs/process/defects-2026-08-28.md`, the directions and what each
@@ -334,8 +367,9 @@ A class bound survives a keystroke that types nothing. And a
 256-element design draws in about two seconds where it froze QGIS for
 thirty-eight.
 
-WHAT IS STILL OWED FROM IT, and each is a defect confirmed by a hunt
-and reproduced here rather than a guess: the design view's landing
+WHAT IS STILL OWED FROM THE FIRST TWO WAVES, each a defect confirmed by
+a hunt and reproduced here rather than a guess (the third wave's owed
+list is in the ledger, named above): the design view's landing
 repaint fires before the new layer exists; a floor or ceiling and the
 colours after it are destroyed by a save-and-reopen before Generate,
 because those stamps only happen as a side effect of a restyle that a

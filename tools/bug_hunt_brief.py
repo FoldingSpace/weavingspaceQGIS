@@ -83,6 +83,43 @@ arrived twice from hunts that could not see each other, which is
 some evidence they are reading the code's real fault lines rather
 than each inventing its own.
 
+ROUND TEN, 2026-08-28, is the largest and the first whose EFFORT was
+measured per hunt rather than per round: fifty-five hunts across
+three waves, and these figures are yours to work against.
+
+Effort per hunt stayed FLAT over two and a half hours -- three to
+fourteen hypotheses logged, no upward drift as the ground was picked
+over -- and what held it flat was the aiming, each wave pointed at
+newer code including the round's own repairs. About 131,000 tokens
+per claim, against the 573,967-for-one this project once spent on a
+round aimed at old ground. The cheapest ground was the round's own
+repairs at 78,000 per claim; old code was dearest at 156,000. Every
+hunt that confirmed NOTHING launched in the first hundred minutes,
+and three of the four were among the highest-effort of the night --
+they were the directions aimed at settled ground.
+
+TWO THINGS FOLLOW FOR YOU. Hunts logging three to five hypotheses
+found as much as those logging ten, at similar cost: on your first
+finding confirmed by a second route, write it up and stop rather
+than hunting on. And the expensive half is not you -- it is the
+VERIFICATION QUEUE in the maintainer's context, which is where that
+round's bottleneck sat all night. A claim you cannot walk to a
+measured harm costs more than it is worth.
+
+USE `tools/probe_kit.py` RATHER THAN WRITING SETUP. It is the forty
+lines every probe re-types, and it exists because that round produced
+four instrument faults in one evening -- a modal shim never installed
+(so a probe hung offscreen on a real QMessageBox), a message store
+read after the helper that blanks it, a temporary directory collected
+out from under an open GeoPackage, and a fixture that forced the
+defect into its own control arm. Each is prevented at the line.
+
+AND CHECK YOUR CLAIM'S DIRECTION. That round had one reported the
+wrong way round -- a twin said to be dropped while its element
+survived, where the opposite was true -- and two that did not
+reproduce at all. A report that can look bad is the only kind worth
+reading.
+
 Round three, 2026-08-15, six hunts all pointed at ONE pair of
 features (pinned class bounds and copy-to): 43 logged hypotheses,
 twelve confirmed, seven ruled out. SEVEN reproduced independently

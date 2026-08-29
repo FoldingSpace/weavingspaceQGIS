@@ -12,7 +12,98 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-08-28 (evening), after ROUND TEN -- the largest
+Last updated 2026-08-28 (late), after ROUND TEN'S THIRD WAVE -- and the
+wave that changed what this file says about COST rather than about
+direction.
+
+THIRD WAVE: FIFTEEN HUNTS, TWENTY-THREE CLAIMS, and the first round
+whose effort was measured per hunt rather than per round. Every claim
+was reproduced here by a route its hunt did not use before anything was
+repaired; ten defects were closed with a registered test and a proved
+catalogue entry, and fifteen claims remain in a written owed list.
+
+WHAT THE NUMBERS SAY, and they are the answer to "are defects getting
+harder to find":
+
+- **Effort per hunt is FLAT across two and a half hours.** Three to
+  fourteen hypotheses logged, no upward drift as the ground is picked
+  over. What holds it flat is the AIMING: each wave was pointed at
+  newer code, including the round's own repairs.
+- **131k tokens per claim**, against the 573,967-for-one this file
+  records for a round aimed at old ground in August. Per hunt, 205k
+  and 32 to 129 tool calls.
+- **The cheapest ground is the round's own repairs**: 78k per claim,
+  against 144k for the fortnight's new machinery and 156k for old code.
+- **Every zero-yield hunt launched in the first hundred minutes**, and
+  three of the four were among the highest-effort of the night:
+  `sweep`, `weaves`, `boundary`, `stochastic` -- the directions aimed
+  at settled ground. Thirty-eight hypotheses between them, nothing
+  confirmed.
+- Hunts logging three to five hypotheses (`deps`, `pathspellings`,
+  `chooserclaim`) found as much as those logging ten, at similar cost.
+  The brief should say: on the first finding confirmed by a second
+  route, write it up and stop.
+
+AND THE HUNTS ARE NOT THE EXPENSIVE HALF. At 131k per claim they are
+cheap against what a claim costs to VERIFY and REPAIR, which runs in
+the maintainer's context and is where this round's bottleneck was
+throughout. Running more hunts does not raise throughput; it lengthens
+that queue, which this file has said since August and which was
+demonstrated again by a night that ended with fifteen claims owed.
+
+THE PROBE KIT CAME OUT OF THIS WAVE. `tools/probe_kit.py` is the forty
+lines every probe was re-typing, and it exists because the wave
+produced four instrument faults in one evening -- a modal shim never
+installed, a message store read after the helper that blanks it, a
+temporary directory collected out from under an open GeoPackage, and a
+fixture that forced the defect into its own control arm. Every one was
+already written down somewhere, and every one was made by somebody who
+had read the entry describing it. Full reasoning in docs/TESTING.md.
+
+| Direction | Confirmed | The lesson |
+| --- | ---: | --- |
+| the repairs, fourth and fifth passes | 4 | nine rounds for nine. The moved-data notice written that evening was wrong THREE ways, and the first repair for it was worse than the defect -- so a repair's own repair needs the same suspicion, and the guard has to assert both answers where a rule has two |
+| dependencies and consent (1st) | 2 | when a dialogue ENUMERATES, diff the enumeration against a recording of what the code actually requests, driven through the shipped entry point. A whole family of downloads sat outside a hard rule that had a registered test, because the test asserted the box names what it was HANDED |
+| the file underneath you (1st) | 1 | when a guard's docstring says "ours" and its code says `startswith`, the covering test is usually satisfied by a fixture name that never tested the claim; pick fixture names from the plugin's own namespace |
+| the chooser as a claim (1st) | 1 | when a guard is added to one door, find the siblings by grepping the WALK rather than the method -- three copies of one four-line walk existed and the fix reached two; and a walk that skips "the layer already in force" makes an order-dependent fault deterministic |
+| class sources across boundaries | 1 | when a token has two spellings (`file:` and `layer:`), drive BOTH through every crossing, and ask which crossing has no healer rather than which store is stale |
+| the legend a reader sees (1st) | 1 | when a fix is inserted into a PIPELINE, enumerate what runs after it and whether any of it redoes the thing fixed; and read the RENDERED legend, which costs nothing extra and is the artefact the claim is about |
+| the three absences | 2 | the paired-artefact rule has a second half: grep not only every reader keyed on the twin's identity but every WRITER that iterates the element record and therefore cannot see a twin at all |
+| after the map is made (layouts, 1st) | 1 | when a landing CARRIES a value across, read the dependency's own panel and carry its neighbours -- opacity was fixed twice and blend mode sits three rows below it in the same box |
+| many real areas (1st) | 1 | hold the WORK fixed and vary only the dimension you are hunting; and where a threshold is reachable only at scale, ask what the fixtures make unreachable |
+| the project menu (1st) | 2 | a clear site's survivor keyed by a name every project reuses is STALE rather than empty, which is worse than missing, because "empty" is the branch every recovery path was written for |
+| broken and hostile files (1st) | 2 | a hunt aimed at FILES found its defect in the DOOR: when a feature adds a second way to acquire a map, grep for every guard whose precondition only a RUN sets, because the new door sets none of them |
+| the sentences about saving | 3 | the productive question was not "is this sentence true" but "what does the sentence's own COUNT ask, and does anything else in the same loop ask something different" -- a count taken from a NAME beside four decisions taken from a STAMP |
+| undo and redo (1st) | 1 | a guard whose precondition is a LOSSY digest is only as good as what the digest omits, and a counterfactual pair that corrupts the data identically and differs by one keystroke makes the guard's own machinery supply the positive control |
+| path spellings (cross-platform, 2nd) | 1 | the unswept pair was not a path against a path but a SIGNATURE TUPLE against a signature tuple with a raw path inside it, so grepping for path-shaped operands could not reach it |
+| icon mode across the new surfaces (2nd) | 1 | when a check moves from COUNTING to GEOMETRY, the first thing to test is a region whose CRS the pipeline changes -- the guard shipped beside it used projected data and could not |
+| the modifiers (1st) | 1 | the record path was clean end to end; the loss was in the one store with no record at all, a widget whose RANGE is owned by a sibling control. Grep `setRange` on anything a person types into |
+| the live path re-asked | 1 | a notice suppressed on "the user has live update on" is suppressed on a PROXY rather than on the fact: the telling gate and the acting gate must ask the same question, and the acting gate had grown twelve exits since the telling gate was written |
+| hand-picked colours through the new doors | 1 | when an act is granted an EXCEPTION to a carry rule, check it grants the exception to every store of that fact; and drive Save AS, because a save that writes the same path twice cannot show a two-store split |
+| the ceilings through persistence (1st) | 1 | the stores were all clean at 256 and the defect was in the ACT: a performance round aimed at Generate leaves Save and Load unmeasured, and they are the two acts that reopen a file whose size their own loop is growing |
+
+AND A CLAIM'S DIRECTION WAS WRONG AGAIN, which this file already warns
+about and which cost nothing this time because it was checked. The
+`absences` hunt reported a no-data twin being dropped while its element
+survived; driving the same panel act gave the OPPOSITE -- the element's
+table dropped and the twin left orphaned -- and the opposite is what
+was fixed and recorded. Of one fact written twice, ask which of the two
+writers had a reason; of one claim, ask which way round it runs.
+
+AND TWO CLAIMS DID NOT REPRODUCE HERE AT ALL, recorded because this
+table is only worth reading if it can look bad. The `projectacts` claim
+that opening another project and pressing Save renames that project's
+tables after the one you left did not reproduce on either of two
+routes, including one that kept a single dialog across the project
+change; it stays in the owed list as unverified rather than as
+confirmed. And the `bigsave` saving from dropping a discarded OGR open
+-- 22.4s to 16.2s at 128 elements on the hunt's machine -- could not be
+resolved here at all: 4.12s against 3.72s at 64, and at 128 the
+supposedly faster arm came back SLOWER. The change was kept on the
+ground that it does not build an object nobody keeps, and the source
+says so rather than quoting a number nobody here established.
+
+Before that, 2026-08-28 (evening), after ROUND TEN -- the largest
 round this project has run, and the one that changes what this file
 says about which directions pay.
 

@@ -4398,6 +4398,83 @@ here, and the decision to add one is the maintainer's. Recorded
   of replacements is a real question about campaign machinery and is
   recorded in ROADMAP.md rather than decided in passing.
 
+- **A REPAIR'S OWN REPAIR NEEDS THE SAME SUSPICION, AND THE FIRST ONE
+  CAN BE WORSE THAN THE DEFECT.** (2026-08-28, the moved-data notice,
+  wrong three ways in one evening and every one of them mine.) It kept
+  ONE reading in a session-wide slot and compared it against whichever
+  dataset the region chooser held, so returning to an earlier map
+  through the group chooser told somebody their file disagreed with
+  itself when nothing had been touched. THE FIRST FIX FOR THAT TRADED A
+  FALSE ALARM FOR A MISSED ONE: carrying the layer id ALONGSIDE one
+  reading silenced the notice on a map whose data really had moved. The
+  readings are keyed BY DATASET now, which is the shape this file
+  already states twice -- a fact about a subject belongs keyed by that
+  subject -- arriving for the third time in two days.
+  AND A NOTICE CANNOT BE TESTED BY SILENCE. The quiet arm passes just
+  as well when the sentence has been deleted outright, so the guard
+  asserts BOTH answers in one test: quiet where nothing moved, speaking
+  where it did. Where a rule has two answers, a reader meeting one
+  takes it for the whole rule.
+- **A GUARD WHOSE PRECONDITION IS A LOSSY DIGEST IS ONLY AS GOOD AS
+  WHAT THE DIGEST OMITS.** (Same day.) The same notice read
+  `_layer_fingerprint` -- the feature count, the extent, the field
+  names, the CRS -- none of which an ordinary VALUE EDIT moves. So the
+  case it was written for, and quoted in its own commit message
+  ({7,17,27,37} beside a map drawn from {0,1,2,3}), was the one case it
+  could not report: a keystroke unrelated to whether the data had moved
+  decided whether anybody was told. It carries a per-dataset edit count
+  beside the fingerprint now. THE COUNTERFACTUAL PAIR IS THE TECHNIQUE
+  WORTH COPYING -- two journeys corrupting the data identically,
+  differing by one keystroke, so the guard's own machinery supplies the
+  positive control.
+- **OWNERSHIP IS NOT A NAME PREFIX, AND AN ELEMENT ID IS A LETTER EVERY
+  MAP SHARES.** (Same day.) The stale-table drop scoped itself to "this
+  map's own elements" and decided that by `tiles_<id>`, so saving into
+  a GeoPackage holding a colleague's map DELETED their `tiles_a_*` and
+  `tiles_b_*` while leaving their `tiles_zz_*` and their own tables --
+  one line after a question promising to "leave the rest of the file
+  alone", and against the method's own Returns block. It is asked of
+  the FILE now, through one helper both the question and the drop
+  share.
+  AND THE ANSWER IS TAKEN BEFORE THE WRITE. Ownership is partly "have
+  we saved here in this session", which the very press about to happen
+  makes true of any file at all -- so asking afterwards answers yes for
+  a stranger's GeoPackage. When a guard reads state the act is about to
+  change, take the reading first and pass it in.
+- **A GATE THAT READS RAW SOURCE TEXT CAN BE MOVED BY A COMMENT.**
+  (Same day.) `test_pypi_provisioning_is_reached_only_through_consent`
+  holds a hard rule by indexing three markers in `plugin.py` and
+  requiring their ORDER. A note added above the consent call, mentioning
+  `provision_from_pypi` to explain what it fetches, put the download's
+  index before the dialogue's and failed the gate with the code
+  perfectly correct. It tokenizes and strips comments now.
+  THE FAMILY IS THE ROADMAP GATE'S, from the other side: there a
+  sentence QUOTING the phrase could satisfy the gate; here a sentence
+  mentioning a marker could break it. When a gate reads prose for a
+  decision, decide what counts as prose.
+- **A CONSENT DIALOGUE THAT ENUMERATES MUST BE DIFFED AGAINST WHAT THE
+  CODE ASKS FOR.** (Same day, and it is a HARD RULE breached since the
+  initial commit.) The box named the missing scientific packages;
+  `provision_from_pypi` also fetches the pure-python support
+  distributions the main ones import at runtime -- its own docstring
+  says so -- so somebody who read "Missing or too old: geopandas" and
+  approved had SEVEN distributions fetched from pypi.org, against
+  metadata.txt's promise that the plugin "shows exactly what it would
+  fetch and asks first". The box is handed the full list now, computed
+  by the same question the loop asks.
+  ITS REGISTERED TEST COULD NOT SEE IT, which is the transferable half:
+  the test asserted the box names what it was HANDED. A dialogue's
+  promise is about what the software DOES, so the comparison has to
+  reach the code's own requests -- recorded by stubbing the seam where
+  the decision is taken, not the network.
+- **AND AN UNBOUND RETURN IS A FAILURE NOBODY HEARS.** The same loop
+  called `_fetch_dist` and discarded its `(fetched, reason)`, so a
+  support package lost to a dropped connection left `LAST_FAILURES`
+  empty, provisioning reporting success, and the user meeting "No
+  module named 'dateutil'" with nothing to say why. The reason
+  machinery written for exactly that case was bypassed by one unbound
+  call, three lines from the loop that binds it correctly.
+
 - **A SITE NAMED BY READING IS A HYPOTHESIS, AND IT READS EXACTLY LIKE
   ONE SOMEBODY PROVED.** (2026-08-20, the same defect.) Where that
   refusal lived was worked out from the source, written into the
