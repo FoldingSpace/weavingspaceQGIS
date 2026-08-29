@@ -6385,6 +6385,42 @@ class WeavingSpaceDialog(QDialog):
     # window is capped at MAX_WINDOW_WIDTH and the preview absorbs
     # the difference down to its floor.
     needed += max(chrome, fallback) + SCROLLBAR_SLACK
+    # ...AND THE CEILING BINDS THE MINIMUM, NOT ONLY THE RESIZE. This
+    # is where the repair of the morning was still wrong, and Windows
+    # said so within the hour: the `resize` below was capped at
+    # MAX_WINDOW_WIDTH all along, but a MINIMUM width is honoured by
+    # Qt through the window's own size hint, so a table asking for
+    # more than the budget forces the window past the cap whatever the
+    # resize does. On this Mac the nine columns happened to fit under
+    # it; on a Windows runner the same columns want more and the
+    # window came out 1729px against a 1480px budget -- reported by
+    # three tests at once, in English, German and Arabic, all quoting
+    # the same number, which is what a single cause looks like.
+    # A WIDTH IN PIXELS IS A CLAIM ABOUT A FONT, and this file gained
+    # that lesson this very morning from the other direction. Writing
+    # it down did not stop me shipping the same assumption in the
+    # repair it describes.
+    # SO THE COLUMNS GIVE, BECAUSE THE MAINTAINER CHOSE THE CEILING.
+    # "Widen the columns; ceiling near 1480" makes the budget the
+    # harder constraint, and past it a cell elides where before the
+    # window would have grown off the side of somebody's screen. That
+    # is the honest trade rather than a silent one: an elided label is
+    # visible and a window wider than the display is not.
+    # WHAT THE REST OF THE LAYOUT DEMANDS, asked of the window's own
+    # minimum rather than of live widget widths. The first attempt
+    # took `self.width() - self.table.width()`, which is not a
+    # meaningful subtraction before a layout pass -- measured at 20pt,
+    # the cap it produced left the window's minimum at 1514px, still
+    # over the budget, so the repair did not repair anything. This
+    # subtraction is self-consistent: the window's minimum is the
+    # rest of the layout PLUS the table's minimum, so bounding the
+    # table by the budget less the rest bounds the window by the
+    # budget.
+    rest = max(0, self.minimumSizeHint().width()
+               - self.table.minimumWidth())
+    room = MAX_WINDOW_WIDTH - rest
+    if room > 0:
+      needed = min(needed, room)
     self.table.setMinimumWidth(needed)
     shortfall = needed - self.table.width()
     if shortfall > 0 and self.width() < MAX_WINDOW_WIDTH:

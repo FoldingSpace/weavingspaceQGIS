@@ -7995,6 +7995,23 @@ MUTATIONS = [
            "renderer at the moment of the pick -- the row is the only "
            "witness. This test carried no entry at all until "
            "2026-08-29, its own having been retired by the triage"),
+  dict(name="the-window-ceiling-binds-the-table-minimum", file=DIALOG,
+       # Back to a minimum taken from what the columns want. Qt
+       # honours a minimum through the window's own size hint, so the
+       # window is forced past the budget however the resize below is
+       # capped -- 1729px against 1480px on the Windows runner, in
+       # three tests and two locales, all quoting one number.
+       old="""    rest = max(0, self.minimumSizeHint().width()
+               - self.table.minimumWidth())
+    room = MAX_WINDOW_WIDTH - rest
+    if room > 0:
+      needed = min(needed, room)""",
+       new="""    pass  # mutation: the ceiling binds the resize alone""",
+       test="test_the_ceiling_holds_when_the_columns_want_more_than_it",
+       why="a window that fits the narrowest screen still in use, "
+           "which is the first clause of the layout rule and the one "
+           "a person cannot work around: a window wider than the "
+           "display cannot be made narrower by whoever is using it"),
   dict(name="numeric-text-may-not-merge-two-values", file=BRIDGE,
        # Back to "does every value parse", which `float(" 3")` answers
        # yes to. A column holding "3", " 3" and "3 " then reads as

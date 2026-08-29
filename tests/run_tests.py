@@ -25508,6 +25508,77 @@ def test_the_table_headers_read_as_designed():
   dlg.close()
 
 
+def test_the_ceiling_holds_when_the_columns_want_more_than_it():
+  """The budget must bind where the columns overflow it.
+
+  The assignment table's columns grow to what their content needs
+  (2026-08-29), and the window is capped at MAX_WINDOW_WIDTH. The
+  `resize` was capped all along; the table's MINIMUM width was not,
+  and Qt honours a minimum through the window's own size hint -- so a
+  table asking for more than the budget forced the window past the
+  ceiling whatever the resize said. Windows reported 1729px against
+  1480px in three tests and two locales within the hour, every one
+  quoting the same number, which is what a single cause looks like
+  wearing three names.
+
+  THE COLUMNS ARE WIDENED BY HAND RATHER THAN BY A FONT, and that is
+  the point of this test rather than a shortcut. A font was tried
+  first and could not reach the case here at any size: on this
+  machine the window's minimum is SMALLER than the table's at every
+  font tried, so the table is not what drives the window and the cap
+  has nothing to bind. That is precisely why the fault needed a
+  Windows runner to show, and precisely why a guard that waits for
+  the environment to produce wide columns guards nothing. Setting the
+  widths directly asks the arithmetic the question the platform asks
+  it.
+
+  Regression: the assignment table's columns were allowed to set a minimum wider than the window's whole budget, so on a platform whose fonts are wider than this one's the window opened at 1729px against a 1480px ceiling. Found by the Windows leg of CI, 2026-08-29, an hour after the columns were taught to grow. [second-machine]
+  """
+  from weavingspace_qgis.dialog import MAX_WINDOW_WIDTH, WeavingSpaceDialog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(400)
+
+    visible = [column for column in range(dlg.table.columnCount())
+               if not dlg.table.isColumnHidden(column)]
+    assert visible, "PREMISE: the table shows no columns at all"
+    # WIDER THAN ANY SCREEN, so the cap is unambiguously the binding
+    # constraint. A platform with wide fonts asks a smaller version of
+    # exactly this question.
+    for column in visible:
+      dlg.table.setColumnWidth(column, 400)
+    raw = sum(dlg.table.columnWidth(column) for column in visible)
+    assert raw > MAX_WINDOW_WIDTH, (
+      f"PREMISE: the columns were set to {raw}px in total, which is "
+      f"still inside the {MAX_WINDOW_WIDTH}px budget, so nothing "
+      f"below is about a cap that has to bind")
+
+    dlg._fit_table_width()
+    _tick(200)
+    rest = dlg.minimumSizeHint().width() - dlg.table.minimumWidth()
+    width = dlg.minimumSizeHint().width()
+    if rest >= MAX_WINDOW_WIDTH:
+      # Nothing the table gives up can help. Said out loud rather than
+      # passed over: this test cannot speak about that case.
+      return
+    assert width <= MAX_WINDOW_WIDTH, (
+      f"the columns asked for {raw}px and the window's minimum came "
+      f"to {width}px, past the {MAX_WINDOW_WIDTH}px budget, while the "
+      f"rest of the layout needed only {rest}px -- so there was room "
+      f"to stay inside the ceiling and the cap did not bind. A window "
+      f"wider than the screen cannot be made narrower by the person "
+      f"using it")
+  finally:
+    dlg.close()
+    project.clear()
+    _tick(150)
+
+
 def test_the_window_fits_the_narrowest_screen():
   """The layout rule, asserted end to end on the assembled window.
 
@@ -53399,6 +53470,21 @@ def test_the_size_guard_warns_where_it_used_to_refuse():
     dlg.layer_combo.setLayer(region)
     _tick(400)
     dlg.live_check.setChecked(True)
+    # THE AMBIENT RUN IS WAITED OUT AND THE TIMER STOPPED BEFORE
+    # ANYTHING IS STAGED, and without that this measured the weather.
+    # Ticking a dialog with live update on arms an automatic first
+    # map, so `_task` a moment later may belong to THAT run and not to
+    # the staged unit at all -- and the note may hold whatever it
+    # wrote. Both cells below then answer about something else.
+    # It passed here for years and failed the moment the whole suite
+    # ran under the coverage recorder, which is slow enough to move
+    # the automatic run into the window. A test that only passes when
+    # the machine is fast enough is not measuring what it names.
+    _settle(dlg, seconds=60)
+    dlg._live_timer.stop()
+    assert dlg._task is None, \
+      "PREMISE: a run is in flight before the staged one, so neither " \
+      "cell below is about the design being staged"
     dlg._unit = flat
     dlg.live_note.setText("")
     dlg._maybe_live_generate()
@@ -53407,6 +53493,12 @@ def test_the_size_guard_warns_where_it_used_to_refuse():
     cell("the live gate pauses on a design that cannot be drawn",
          dlg._task is None,
          "it launched a run for a unit that does not tile the plane")
+    # AND THE NOTE IS THE GATE'S OWN, WHICH IS WHY IT IS CLEARED
+    # ABOVE. Requiring it to be non-empty is the whole point of the
+    # cell -- a live refusal that says nothing is the pausing-in-
+    # silence fault this project has paid for twice -- and until
+    # 2026-08-29 the branch wrote no note at all, so this could only
+    # ever pass on text some earlier act had left in the label.
     cell("and its note carries no tile count at all",
          "tiles" not in note.lower() and bool(note),
          f"the note reads {note!r}, where a sentinel read as a number "
@@ -73407,6 +73499,8 @@ def main():
         test_the_table_headers_read_as_designed)
   check("the window fits the narrowest screen",
         test_the_window_fits_the_narrowest_screen)
+  check("the ceiling holds when the columns want more than it",
+        test_the_ceiling_holds_when_the_columns_want_more_than_it)
   check("a customized element reads Custom in the ramp cell",
         test_a_customized_element_reads_custom)
   check("Custom follows the field and the class source",

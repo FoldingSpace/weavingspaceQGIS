@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-429 defect(s) with a regression test.
+430 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -632,6 +632,8 @@ there is no separate list to remember.
   guarded by `test_pypi_provisioning_is_reached_only_through_consent`
 - **none yet -- written with the filter, because a log filter that widens is invisible until it costs something.**  
   guarded by `test_quietening_the_log_does_not_hide_anything`
+- **the assignment table's columns were allowed to set a minimum wider than the window's whole budget, so on a platform whose fonts are wider than this one's the window opened at 1729px against a 1480px ceiling. Found by the Windows leg of CI, 2026-08-29, an hour after the columns were taught to grow.**  
+  guarded by `test_the_ceiling_holds_when_the_columns_want_more_than_it`
 - **a remote mutation run reported a clean zero against a tag its checkout could not see.**  
   guarded by `test_the_new_code_guard_refuses_a_baseline_it_cannot_find`
 
@@ -914,7 +916,7 @@ there is no separate list to remember.
 - not written down at the time: 88
 - reported by a user: 30
 - reading the code: 15
-- running the suite somewhere other than the machine it was written on: 8
+- running the suite somewhere other than the machine it was written on: 9
 - the functional suite, run whole: 7
 - race and stress testing: 6
 - a family audit of the claims the software makes: 5
