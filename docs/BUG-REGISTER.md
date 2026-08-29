@@ -229,6 +229,8 @@ there is no separate list to remember.
   guarded by `test_every_number_box_holds_a_value_finer_than_its_step`
 - **the missing-values notice counted NULLs only, so with two NULLs and four infinities among 144 areas it said "2 of 144" while the map drew nine no-data tiles across seven areas -- and on a column whose only unplaceable values were infinities it said nothing whatever. `_element_has_missing_values` had the same one-line scan, so the colour editor withheld its No data row on such a column. Both are the fifth and sixth readers of a predicate widened that morning.**  
   guarded by `test_every_reader_of_unplaceable_agrees_with_the_split`
+- **a manual Generate answered by the restyle fast path, and a live restyle performed at the source-gone gate, both returned without repainting the design preview -- so at rest it showed the previous act's colours while the table and the map agreed on the new ones. Found by the preview hunt of round nine (2026-08-26); the same harm as ledger row 21 at the two doors its fix did not reach. [mutation] Regression: a dock edit that made an element start DEFERRING returned in front of the same refresh, so the design view painted the plugin's old colour -- one the map does not contain -- for the rest of the session. Found by the preview-against-map hunt of 2026-08-28, ledger row 6.**  
+  guarded by `test_every_restyle_door_repaints_the_preview`
 - **in icon mode an element with no icon for some areas was never reported, because the coverage count asks whether any element drew them. And then the count that replaced the silence read `_element_layer_ids` alone, so every gap in the column made every element look short by the number of gaps -- a notice naming all four elements while saying the others still drew those areas, which refutes itself. Measured 2026-08-16 on a 36-area region with one NULL: both halves sum to 36 of 36 on every element.**  
   guarded by `test_icon_mode_says_when_an_element_has_no_icon_for_an_area`
 - **2026-08-19. Ten rectangles alternating 200 and 4,000 units wide, icon mode at 2,000: four areas reached by no tile, every one of them covered.**  
@@ -479,8 +481,6 @@ there is no separate list to remember.
   guarded by `test_every_declared_offset_is_pinned`
 - **controls added via a shared row helper were never checked for reachability, so removing the helper call hid two of them.**  
   guarded by `test_every_design_control_is_reachable`
-- **a manual Generate answered by the restyle fast path, and a live restyle performed at the source-gone gate, both returned without repainting the design preview -- so at rest it showed the previous act's colours while the table and the map agreed on the new ones. Found by the preview hunt of round nine (2026-08-26); the same harm as ledger row 21 at the two doors its fix did not reach.**  
-  guarded by `test_every_restyle_door_repaints_the_preview`
 - **only the existence of installed palettes was checked, never the colours they run between.**  
   guarded by `test_installed_palettes_span_their_declared_colours`
 - **keeping a previous result protected its group and not its GeoPackage, so a run wrote over the file the kept group draws from.**  
@@ -899,8 +899,8 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- a bug hunt pointed in a named direction: 125
-- the mutation campaign: 122
+- a bug hunt pointed in a named direction: 126
+- the mutation campaign: 121
 - not written down at the time: 88
 - reported by a user: 30
 - reading the code: 15

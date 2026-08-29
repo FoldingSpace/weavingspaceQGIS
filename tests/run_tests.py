@@ -68766,13 +68766,30 @@ def test_a_pick_survives_a_switch_inside_the_debounce():
 
 
 def test_every_restyle_door_repaints_the_preview():
-  """The restyle-then-refresh pair travels to all four doors.
+  """The restyle-then-refresh pair travels to every door.
 
   Two doors carried it (`_apply_style_change`, and the live gate's
   ordinary restyled exit, row 21); two did not. The oracle is the
   preview widget's own resting store, per element.
 
+  AND A THIRD DOOR IS THE ONE WHERE THE PLUGIN STOPS DECIDING. A dock
+  edit that installs a renderer the plugin cannot NAME makes the
+  element defer, and that exit returned in front of every refresh --
+  so the design view kept the plugin's old colour for the rest of the
+  session and no later act healed it. Deferral means the plugin no
+  longer chooses that element's symbology; it has never meant the
+  preview may go on showing a colour the map does not contain, and
+  somebody judging whether their elements read as distinct judges it
+  from that picture.
+
+  IT WAS REPAIRED ON 2026-08-28 AND UNGUARDED UNTIL 2026-08-29, found
+  by putting the mutation on the line the repair added and watching it
+  SURVIVE. A fix nobody has watched fail is a fix nobody should count,
+  and this door is the reason the docstring above says "every" where
+  it used to say "all four".
+
   Regression: a manual Generate answered by the restyle fast path, and a live restyle performed at the source-gone gate, both returned without repainting the design preview -- so at rest it showed the previous act's colours while the table and the map agreed on the new ones. Found by the preview hunt of round nine (2026-08-26); the same harm as ledger row 21 at the two doors its fix did not reach. [mutation]
+  Regression: a dock edit that made an element start DEFERRING returned in front of the same refresh, so the design view painted the plugin's old colour -- one the map does not contain -- for the rest of the session. Found by the preview-against-map hunt of 2026-08-28, ledger row 6. [hunt]
   """
   import shutil
   import tempfile
@@ -68882,6 +68899,59 @@ def test_every_restyle_door_repaints_the_preview():
     project.clear()
     shutil.rmtree(folder, ignore_errors=True)
 
+  # door three: a dock edit the plugin cannot NAME, so the element
+  # starts deferring. A rule-based renderer is the plainest such edit
+  # -- `bridge.expressible_style` answers None for it -- and it is
+  # installed the way the styling dock installs one, with setRenderer
+  # and the signal that follows.
+  _tick(300)
+  region = make_region_layer(n=4, cell=1000)
+  project.addMapLayer(region)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(region)
+    _tick(400)
+    _generate_and_wait(dlg)
+    _settle(dlg, seconds=60)
+    assert dlg._element_layer_ids, "PREMISE: nothing was drawn"
+    tid = sorted(dlg._element_layer_ids)[0]
+    element = project.mapLayer(dlg._element_layer_ids[tid])
+    assert element is not None, "PREMISE: the element has no layer"
+    before = resting(dlg, tid)
+    assert before == str(dlg._table_id_colours()[tid]).lower(), \
+      "ORACLE PREMISE: the preview does not hold the element's own " \
+      "colour before the dock edit"
+
+    from qgis.core import QgsFillSymbol, QgsRuleBasedRenderer
+    from weavingspace_qgis import bridge
+    # A COLOUR NOTHING HERE WOULD SEED, so a preview that has followed
+    # cannot be mistaken for one that merely happens to agree.
+    symbol = QgsFillSymbol.createSimple({"color": "#ff00ff",
+                                         "outline_style": "no"})
+    rule = QgsRuleBasedRenderer.Rule(symbol)
+    element.setRenderer(QgsRuleBasedRenderer(rule))
+    element.styleChanged.emit()
+    _tick(900)
+    _settle(dlg, seconds=60)
+
+    assert bridge.expressible_style(element.renderer()) is None, (
+      "PREMISE: the plugin can name this renderer, so the element "
+      "never started deferring and this door was not opened")
+    after = str(dlg._table_id_colours()[tid]).lower()
+    assert after != before, (
+      f"PREMISE: the element's own colour did not move ({before}), so "
+      f"nothing below can show the preview failing to follow it")
+    assert resting(dlg, tid) == after, (
+      f"the element is now styled in QGIS and the design view still "
+      f"rests on {resting(dlg, tid)} where the map draws {after}. "
+      f"Deferral stops the plugin DECIDING an element's symbology; it "
+      f"has never meant the preview may show a colour the map does "
+      f"not contain")
+  finally:
+    dlg.close()
+    project.clear()
+    _tick(300)
 
 
 def test_the_return_leg_restores_the_chosen_variable():

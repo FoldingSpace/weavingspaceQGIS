@@ -7049,6 +7049,21 @@ MUTATIONS = [
            "catch up, and without the pair it rested on the previous "
            "design's colours while the table and the map agreed on "
            "the new ones"),
+  dict(name="the-deferring-door-repaints-the-preview", file=DIALOG,
+       # Puts the exit back in front of the refresh, which is how it
+       # stood until 2026-08-28: an element restyled in the dock keeps
+       # the plugin's OLD colour in the design view for the rest of
+       # the session, and no later act heals it.
+       old="""      self._refresh_preview_colours()
+      _dump("DROP", tile_id, "deferring")""",
+       new="""      _dump("DROP", tile_id, "deferring")""",
+       test="test_every_restyle_door_repaints_the_preview",
+       why="the design view following an element the plugin has "
+           "STOPPED deciding: deferral means the plugin no longer "
+           "chooses that element's symbology, and has never meant the "
+           "preview may go on showing a colour the map does not "
+           "contain -- the judgement somebody makes from that picture "
+           "is made wrongly"),
   dict(name="the-source-gone-restyle-repaints-the-preview", file=DIALOG,
        old="""        self._refresh_preview_colours()
         _dump("LIVE-GATE", "restyled-without-the-source")""",
