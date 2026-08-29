@@ -3518,9 +3518,15 @@ MUTATIONS = [
            "the ramp's start is near-white on sequential ramps and "
            "reads as no data (user decision, 2026-08-09)"),
   dict(name="custom-display-never-shows", file=DIALOG,
-       old="        show_custom = bool(picks) or has_source",
-       new="        show_custom = False"
-           "  # mutation: the cell always names a ramp",
+       # RE-ANCHORED 2026-08-28, when the line gained `show_custom or`
+       # so that a DEFERRING row's answer cannot be lowered by the
+       # branch that decides a styled row's. The mutation is the same
+       # one it always was -- a categorized row with picks stops
+       # reading Custom -- and it has to keep the new term, or it
+       # would be testing the deferring clause instead.
+       old="        show_custom = show_custom or bool(picks) or has_source",
+       new="        show_custom = show_custom"
+           "  # mutation: picks never make the cell Custom",
        test="test_a_customized_element_reads_custom",
        why="a categorized row with hand-picks or an imported class "
            "source must read Custom, or the cell names a ramp an "
@@ -7592,6 +7598,22 @@ MUTATIONS = [
            "which group a dataset owns, whether a landing may write "
            "over a group, and whether a resume finds a layer already "
            "open"),
+  dict(name="a-deferring-row-is-custom-wherever-it-is-asked",
+       file=DIALOG,
+       # Puts the question back where it was: decided from the row's
+       # own MODE, which for a deferring row is neither Categorized
+       # nor Graduated, so the else branch clears the swatch
+       # `_refresh_deferring_rows` had just set. Whether the cell then
+       # shows a ramp name over a rule-based map depends on which
+       # refresh ran last, which is how a repair landing one preview
+       # refresh reddened the suite on 2026-08-28.
+       old="""      show_custom = bool(row_tid) and self._element_is_deferring(row_tid)""",
+       new="""      show_custom = False  # mutation: only a named style is Custom""",
+       test="test_a_deferring_row_shows_the_colours_qgis_is_drawing",
+       why="the ramp cell not naming a ramp over a map the plugin does "
+           "not decide, whichever refresh touched the row last -- a "
+           "control lying about the map is what the Custom display "
+           "exists to prevent"),
   dict(name="a-blend-mode-crosses-a-re-tile",
        file=DIALOG,
        # Restores what shipped: the opacity travels and its

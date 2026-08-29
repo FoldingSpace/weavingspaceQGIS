@@ -5996,7 +5996,22 @@ class WeavingSpaceDialog(QDialog):
     # that adopted saved colours shows Custom. (Settled 2026-08-09.)
     ramp_cell = self.table.cellWidget(row, 4)
     if isinstance(ramp_cell, RampCombo):
-      show_custom = False
+      # A DEFERRING ROW IS CUSTOM BY DEFINITION, and asking here is
+      # what stops the answer depending on which refresh ran last.
+      # The cell cannot name a ramp over a map the plugin does not
+      # decide -- that is what the Custom display was built for, and
+      # `_refresh_deferring_rows` sets it on every styleChanged. But
+      # THIS method decides the same cell from the row's own mode,
+      # which for a deferring row is neither Categorized nor
+      # Graduated, so it fell to the else branch and cleared the
+      # swatch that had just been set.
+      # It cost a red suite on 2026-08-28: a repair landed a preview
+      # refresh AFTER the deferring refresh in the same handler, and
+      # the second undid the first -- the cell went back to naming a
+      # ramp over a rule-based map, which is the control lying about
+      # the map that the whole display exists to prevent. Ordering
+      # would have mended that one call site and left the next one.
+      show_custom = bool(row_tid) and self._element_is_deferring(row_tid)
       if mode == "Categorized" and var and row_tid:
         picks = self._category_colours.get(row_tid, {}).get(var)
         # read the live combo where the row has one; _class_choices
@@ -6006,13 +6021,17 @@ class WeavingSpaceDialog(QDialog):
                   else self._class_choices.get(row_tid, ""))
         has_source = bool(choice) and choice not in (self.BROWSE,
                                                      self.SHARED)
-        show_custom = bool(picks) or has_source
+        # `or show_custom`, because a deferring row is Custom
+        # whatever else is true of it; these branches decide
+        # the question for a row the plugin DOES style.
+        show_custom = show_custom or bool(picks) or has_source
       elif mode == "Graduated" and var and row_tid:
         # a graduated row is Custom while positional picks exist or
         # the Ramp Display Range is narrower than the whole ramp
         quant_picks = self._quant_colours.get(row_tid, {}).get(var)
         window = tuple(self._ramp_ranges.get(row_tid, (0, 100)))
-        show_custom = bool(quant_picks) or window != (0, 100)
+        show_custom = (show_custom or bool(quant_picks)
+                       or window != (0, 100))
       # A PINNED row is not Custom: its colours are its ramp's, and
       # only its breaks are hand-set. So it keeps naming the ramp and
       # takes a boxed swatch instead, which is what says "this end is
