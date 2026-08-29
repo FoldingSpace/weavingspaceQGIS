@@ -750,6 +750,46 @@ keeps its styling. The first draft asked inside the arm and the
 ordinary journey -- draw a map from a scheme file, move the file,
 change the spacing -- takes the other route.
 
+## The table's columns, the window's budget, and which wins
+
+The assignment table's columns are sized from what they SHOW, not from
+constants: the widths in the constructor are floors, and
+`_fit_table_width` grows each visible column to the larger of its
+content and its header. The constants alone were measured against the
+9pt font `QT_QPA_PLATFORM=offscreen` supplies, and at a desktop 13pt
+every cell but one elided -- including the chooser whose whole job is
+saying which style a row wears.
+
+**`COLUMN_SUM_BUDGET` is what the columns may occupy between them**,
+and past it the widest give back what they can, never below
+`COLUMN_FLOORS`. That is the layout rule's own priority order, settled
+2026-08-09 and unchanged: the window stays within the narrowest screen
+FIRST, and within that the table does not scroll. Where both cannot
+hold, the window wins -- a scrollbar is a nuisance somebody can work
+around, and a window wider than their display is not.
+
+**So a column is as wide as its content WHERE THERE IS ROOM, which is
+not the same as always.** On Windows 'Style' wants 295px where this
+machine wants 184, and the nine columns want about 1200px inside a
+1480px window that also holds the preview; there, cells elide and the
+window fits. Asserting the stronger promise made it one the software
+cannot keep on the platform most of its users are on.
+
+The budget is bracketed by two measurements rather than chosen: at
+least about 1030, which is what the columns need here before anything
+elides, and at most about 1118, since with the columns wide the rest
+of the layout wants 362px. The slack sits on the safe side because the
+costs are asymmetric -- an elided label can be lived with and a window
+off the side of a screen cannot.
+
+**None of this can be measured from here alone.** In the suite's own
+environment the window's minimum is SMALLER than the table's, so the
+table does not drive the window and the ceiling has nothing to bind.
+Forcing every column to 400px is what puts this machine in the state
+wide fonts put another in, and it is how the guard reaches the case;
+`tools/platform_probe.py` asks the real question on the real platform
+in about fifteen minutes.
+
 ## Invariants — do not break these
 
 1. **The worker thread never touches pyproj/PROJ.** QGIS uses the same

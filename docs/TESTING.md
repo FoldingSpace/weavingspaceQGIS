@@ -3735,3 +3735,31 @@ land in it.
 stage it.** An audit that needs two processes is a good audit; a
 registered test that needs two processes is a test that will be
 quarantined the first time it is slow.
+
+## PROVE THE QUANTITY THE FAILURE MEASURES
+
+A guard can be careful, pass, and be about something else.
+
+The ceiling guard of 2026-08-29 measured `minimumSizeHint().width()`.
+The tests failing on Windows measured `dlg.width()` after `show()`.
+Four different repairs to the window's width each made that guard
+pass, and every one of them was inert or wrong on the platform that
+was red -- the guard could not tell, because a minimum is not a
+preferred size and a window opens at the latter.
+
+Rewriting the guard to measure `dlg.width()` after `show()` did two
+things at once. It reproduced the fault LOCALLY, at 3587px, in a state
+that had been declared unreachable on this machine and needed one line
+to reach -- set every column to 400px, and this machine is in the
+position wide fonts put Windows in. And it made the next repair
+testable here rather than by pushing to a runner and waiting.
+
+**Ask of any guard: is this the number the red run prints?** Where it
+is not, the guard is about something else, however reasonable it
+looks. A guard that passes on four wrong repairs is not a weak guard;
+it is a guard aimed at a different question.
+
+The corollary is the cheaper half: **before saying a case cannot be
+reproduced here, ask what the other machine has more of** -- wider
+fonts, a slower disk, a different locale -- **and set that quantity
+directly.** The fixture that reaches it is usually one line.

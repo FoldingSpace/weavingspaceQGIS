@@ -4975,3 +4975,53 @@ here, and the decision to add one is the maintainer's. Recorded
   Both are fixed in a NEW file rather than by editing the running one,
   because bash reads a script incrementally from a byte offset and
   editing one mid-loop can make it execute garbage.
+
+- **WHEN THREE REPAIRS TO A MECHANISM FAIL, SUSPECT THE PROMISE.**
+  (2026-08-29, and it cost most of an afternoon.) The assignment
+  table's columns were taught to grow to their content, and the same
+  commit asserted that no column ever elides. Both halves were written
+  on this machine, where the columns and the window's 1480px budget
+  never meet. Windows opened at 1729px, then 1790px, then 1729px
+  again.
+  FOUR REPAIRS WENT INTO THE MECHANISM. Bounding the table's minimum
+  by live widget widths, which is not a meaningful subtraction before
+  a layout pass; by the window's minimum less the table's, which is
+  self-consistent and INERT, because A WINDOW OPENS AT ITS sizeHint
+  AND A MINIMUM NEVER BOUNDS A PREFERRED SIZE; by a feedback loop on
+  `sizeHint()`, which is not meaningful before assembly and so never
+  fired; and finally by capping the columns' SUM, which worked.
+  AND THE FIFTH CHANGE WAS THE ONE THAT MATTERED, and it was not to
+  the code. With the sum capped the window FITTED on Windows and the
+  no-elide promise failed instead: 'Style' wants 295px there against
+  184 here, so the columns alone want about 1200px inside a 1480px
+  window that also holds everything else. The two clauses cannot both
+  hold where the fonts are wider, and the maintainer's ruling had
+  already said which wins -- "widen the columns; ceiling near 1480".
+  The assertion now permits eliding exactly where the budget binds.
+  THIS FILE ALREADY SAYS three failed attempts mean the approach is
+  wrong; what this adds is that the approach may be the ASSERTION
+  rather than the code. A promise written on one machine is a claim
+  about that machine's fonts.
+
+- **PROVE THE QUANTITY THE FAILURE MEASURES, NOT ONE THAT SOUNDS
+  EQUIVALENT.** (Same day, and it is why the four repairs above each
+  looked finished.) The guard for the ceiling measured
+  `minimumSizeHint()`; the tests that were failing measure
+  `dlg.width()` after `show()`. It passed on every one of those
+  repairs, so each looked proved. Rewriting it to measure what the
+  failure measures reproduced the fault LOCALLY at 3587px -- in a
+  state I had told the maintainer was unreachable on this machine,
+  and which took one line to reach: force every column to 400px, and
+  this machine is in the position wide fonts put Windows in.
+  ASK OF ANY GUARD: is this the number the red run prints? Where it
+  is not, the guard is about something else, however reasonable it
+  looks.
+
+- **A FINISHED JOB'S LOG IS READABLE WHILE ITS RUN GOES ON.**
+  `gh run view --log-failed` refuses until the whole RUN completes,
+  which on this project means waiting for hour-long siblings; `gh api
+  repos/<owner>/<repo>/actions/jobs/<id>/logs` returns a completed
+  job's output immediately. That is the difference between a
+  fifteen-minute diagnosis and an hour of waiting, and it is what the
+  platform probe's speed is worth in practice. Pass
+  `--allow-escape-sequences` and strip them.
