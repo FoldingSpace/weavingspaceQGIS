@@ -2892,7 +2892,8 @@ MUTATIONS = [
        # holding anything is never recreated.
        # RE-AIMED 2026-08-27 at the save's write, which carries the
        # same argument for the same reason.
-       old="""          bridge.write_gpkg_layer(layer, path, table, first=fresh)""",
+       old="""          bridge.write_gpkg_layer(layer, path, table, first=fresh,
+                                  open_after=False)""",
        new="""          bridge.write_gpkg_layer(layer, path, table, first=True)""",
        test="test_a_generate_spares_the_rest_of_the_users_geopackage",
        why="the plugin never destroying data it did not create. "
@@ -3427,8 +3428,10 @@ MUTATIONS = [
   # and giving them all one name is still how it fails.
   dict(name='gpkg-layer-naming', file=DIALOG,
        # RE-AIMED 2026-08-27 at the save's write.
-       old='          bridge.write_gpkg_layer(layer, path, table, first=fresh)',
-       new='          bridge.write_gpkg_layer(layer, path, "tiles_x", first=fresh)',
+       old='          bridge.write_gpkg_layer(layer, path, table, first=fresh,'
+           '\n                                  open_after=False)',
+       new='          bridge.write_gpkg_layer(layer, path, "tiles_x", first=fresh,'
+           '\n                                  open_after=False)',
        test='test_ui_library_categorical_to_gpkg',
        why='each element getting its own layer inside the GeoPackage'),
   dict(name='categorical-template-ignored', file=DIALOG,

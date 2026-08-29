@@ -16420,7 +16420,14 @@ class WeavingSpaceDialog(QDialog):
           bridge.embed_style(layer)
           continue
         try:
-          bridge.write_gpkg_layer(layer, path, table, first=fresh)
+          # `open_after=False`: the next line repoints THIS layer at
+          # the table, so a layer opened here is discarded by
+          # construction. The reason is that rather than a measured
+          # saving -- an attempt to measure one here did not resolve a
+          # difference at 64 or 128 elements, and the parameter's own
+          # docstring says what was and was not established.
+          bridge.write_gpkg_layer(layer, path, table, first=fresh,
+                                  open_after=False)
         except Exception as e:
           trouble.append(f"{table}: {e}")
           continue

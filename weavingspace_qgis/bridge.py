@@ -4144,7 +4144,7 @@ def element_table_name(tile_id: str, variable, taken=()) -> str:
 
 
 def write_gpkg_layer(layer: QgsVectorLayer, path: str, layer_name: str,
-                     first: bool) -> QgsVectorLayer:
+                     first: bool, open_after: bool = True) -> QgsVectorLayer:
   """Write one layer into a GeoPackage and return the file-backed layer.
 
   Args:
@@ -4157,12 +4157,31 @@ def write_gpkg_layer(layer: QgsVectorLayer, path: str, layer_name: str,
       which RECREATES the file; False replaces just this layer inside
       an existing one. Getting this backwards would silently discard
       the elements written before it.
+    open_after: build and validate the file-backed layer before
+      returning, which is what a caller wanting to USE it needs. Pass
+      False where the caller repoints an EXISTING layer at the table
+      instead, which `compat.point_layer_at` does -- that opens the
+      same table again, so the layer built here is discarded by
+      construction.
+
+      WHAT IS AND IS NOT CLAIMED FOR IT. The justification is that it
+      does not build an object nobody keeps; it is NOT a measured
+      speedup, and saying so matters because the change was made after
+      reading one. The `bigsave` hunt measured 22.4s to 16.2s at 128
+      elements and 134s to 90s at 256 on an idle machine. Trying to
+      reproduce that on 2026-08-28 resolved nothing: 4.12s against
+      3.72s at 64, and 14.72s against 15.73s at 128 -- the second arm
+      SLOWER, which single samples on a loaded machine can produce
+      either way. The hunt's figures stay the hunt's until somebody
+      measures this properly. Save and Load are quadratic in the
+      element count for reasons this parameter does not touch, and
+      that is recorded as owed.
 
   Returns:
     A layer reading from the file (the "ogr" provider, via QGIS's
     "path|layername=x" URI form). The caller should use this in place
-    of the memory layer it passed in, so what the user sees is what
-    is on disk.
+    of the memory layer it passed in, so what the user sees is what is
+    on disk -- or None where `open_after` is False.
 
   Raises:
     RuntimeError: the writer refused; the message carries its reason.
@@ -4200,6 +4219,12 @@ def write_gpkg_layer(layer: QgsVectorLayer, path: str, layer_name: str,
   if code != compat.writer_no_error():
     raise RuntimeError(
       f"Writing {layer_name} to {path} failed: {result}")
+  if not open_after:
+    # The caller is repointing its own layer at this table, so opening
+    # it here builds an object nobody keeps. The write itself has
+    # already been checked above -- `code` is the writer's own verdict
+    # -- so skipping this loses no error the caller would have seen.
+    return None
   out = QgsVectorLayer(f"{path}|layername={layer_name}", layer.name(), "ogr")
   if not out.isValid():
     raise RuntimeError(f"Could not re-open {layer_name} from {path}")
