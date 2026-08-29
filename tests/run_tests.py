@@ -27663,6 +27663,107 @@ def test_a_save_as_tells_the_group_where_the_map_went():
       dlg.close()
 
 
+def test_a_donor_comes_home_when_the_map_is_opened():
+  """"Take my classes from that layer" survives being sent to somebody.
+
+  The choice is held live as `layer:<layer id>`, which is a fact about
+  one session's objects: it survives a project save, because the
+  `.qgz` keeps ids, and it cannot survive a GeoPackage, whose layers
+  are made afresh on opening. So a file carried a token naming a layer
+  that would never exist again, the combo could not offer it, and
+  `_assignments` reads the WIDGET -- the choice was gone in silence.
+
+  IT TRAVELS AS AN ELEMENT NOW, `element:<tile id>`, translated back
+  where the record enters the dialog. Both halves are asserted here
+  because they are two different claims: the FILE must carry the
+  portable spelling, and the dialog must hold the live one, in the
+  record AND in the widget that overwrites it at the next rebuild.
+
+  Regression: a `layer:` class source was dropped in silence by a Load, because the layer id it named belongs to the session that saved the file. Found by the classsource hunt of 2026-08-28. [hunt]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  with _temp_dir() as folder:
+    path = os.path.join(folder, "shared.gpkg")
+    dlg, _layer, donor = _categorical_dialog()
+    follower = None
+    try:
+      dlg.live_check.setChecked(False)
+      _generate_and_wait(dlg)
+      assert dlg._element_layer_ids, "PREMISE: nothing was drawn"
+      follower = next(t for t in sorted(dlg._element_layer_ids)
+                      if t != donor)
+      # The follower shows the donor's own column, which is what a
+      # class source is FOR: one variable, one set of colours.
+      row = dlg._row_for_element(follower)
+      variable = dlg.table.cellWidget(row, 1)
+      variable.setCurrentText("landcover")
+      variable.activated.emit(variable.currentIndex())
+      _tick(400)
+      row = dlg._row_for_element(follower)
+      mode = dlg.table.cellWidget(row, 2)
+      if mode.currentText() != "Categorized":
+        mode.setCurrentText("Categorized")
+        mode.activated.emit(mode.currentIndex())
+        _tick(400)
+      _generate_and_wait(dlg)
+
+      row = dlg._row_for_element(follower)
+      source = dlg.table.cellWidget(row, 7)
+      assert source is not None, "PREMISE: the follower has no class-source cell"
+      token = f"layer:{dlg._element_layer_ids[donor]}"
+      index = source.findData(token)
+      assert index >= 0, (
+        f"PREMISE: the donor's layer is not on offer: "
+        f"{[source.itemData(i) for i in range(source.count())]}")
+      source.setCurrentIndex(index)
+      source.activated.emit(index)          # what a click sends
+      _tick(600)
+      _generate_and_wait(dlg)
+      assert (dlg._assignment_for(follower) or {}).get("class_source"), \
+        "PREMISE: the choice did not reach the row's own assignment"
+
+      dlg.opt_embed_source.setChecked(True)
+      dlg.gpkg_widget.setFilePath(path)
+      assert press_save(dlg, path), "PREMISE: the save failed"
+    finally:
+      dlg.close()
+
+    # ---- WHAT THE FILE CARRIES: an element, not a layer id
+    record = bridge.read_working_state(path)
+    recorded = next((element.get("class_choice")
+                     for element in (record or {}).get("elements") or []
+                     if element.get("id") == follower), None)
+    assert recorded == f"element:{donor}", (
+      f"the file records the donor as {recorded!r}; a layer id names "
+      f"an object that will not exist when somebody opens this file")
+
+    # ---- AND WHAT A RECIPIENT GETS: the donor's layer, here
+    project.clear()
+    opener = WeavingSpaceDialog(iface=_Iface())
+    try:
+      opener.live_check.setChecked(False)
+      opener.resume_widget.setFilePath(path)
+      opener._load_pressed()
+      _settle(opener, seconds=60)
+      assert opener._element_layer_ids, "PREMISE: the Load opened no elements"
+      came_back = (opener._assignment_for(follower) or {}).get("class_source")
+      wanted = f"layer:{opener._element_layer_ids.get(donor)}"
+      assert came_back == wanted, (
+        f"the opened map's follower names {came_back!r} where its "
+        f"donor's layer is {wanted!r}: the choice did not come home")
+      row = opener._row_for_element(follower)
+      assert row is not None, "PREMISE: the follower has no row"
+      combo = opener.table.cellWidget(row, 7)
+      assert combo is not None and combo.currentData() == wanted, (
+        f"the record came home and the WIDGET did not "
+        f"({combo.currentData() if combo else None!r}), so the next "
+        f"rebuild writes the stale answer back over it")
+    finally:
+      opener.close()
+
+
 def test_a_colour_picked_on_a_map_you_did_not_draw_reaches_it():
   """The colour editor repaints whatever map is on screen.
 
@@ -71021,6 +71122,8 @@ def main():
         test_a_save_as_tells_the_group_where_the_map_went)
   check("a colour picked on a map you did not draw reaches it",
         test_a_colour_picked_on_a_map_you_did_not_draw_reaches_it)
+  check("a donor comes home when the map is opened",
+        test_a_donor_comes_home_when_the_map_is_opened)
   check("choosing your own group keeps the region and the variables",
         test_choosing_your_own_group_keeps_the_region_and_the_variables)
   check("the icon notice reads the same ground in either crs",

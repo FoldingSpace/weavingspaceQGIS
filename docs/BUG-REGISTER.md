@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-408 defect(s) with a regression test.
+409 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -89,6 +89,8 @@ there is no separate list to remember.
   guarded by `test_a_disabled_plugin_paints_nothing`
 - **a class break retyped in QGIS, a stroke or legend label set on a categorized element, and a ramp changed in the styling panel all reached the map and the project but never the exported GeoPackage.**  
   guarded by `test_a_dock_edit_of_any_kind_reaches_the_exported_file`
+- **a `layer:` class source was dropped in silence by a Load, because the layer id it named belongs to the session that saved the file. Found by the classsource hunt of 2026-08-28.**  
+  guarded by `test_a_donor_comes_home_when_the_map_is_opened`
 - **a support package whose download failed was discarded in silence and provisioning still reported success, bypassing the reason machinery written for exactly that case. Found by the dependency hunt of 2026-08-28.**  
   guarded by `test_a_failed_support_download_is_recorded`
 - **a bound pinned far outside a column of very small values flattened the box that holds the small one, so a pin of 6e-10 read back as 0.0 and the map was redrawn from zero.**  
@@ -868,7 +870,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 122
-- a bug hunt pointed in a named direction: 111
+- a bug hunt pointed in a named direction: 112
 - not written down at the time: 88
 - reported by a user: 29
 - reading the code: 15

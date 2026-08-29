@@ -7589,6 +7589,23 @@ MUTATIONS = [
            "which group a dataset owns, whether a landing may write "
            "over a group, and whether a resume finds a layer already "
            "open"),
+  dict(name="a-donor-travels-as-an-element",
+       file=DIALOG,
+       # Puts the layer id back into the record. Everything else goes
+       # on working -- the token is right in this session, in the
+       # project and in the group's record -- and the FILE then names
+       # an object that will not exist when somebody opens it.
+       old="""        moved = self._donor_as_an_element(element.get(key))
+        if moved is not None:
+          element[key] = moved""",
+       new="""        pass  # mutation: the donor travels as a layer id""",
+       test="test_a_donor_comes_home_when_the_map_is_opened",
+       why="a shared map keeping \"take my classes from that layer\": "
+           "a layer id belongs to the session that wrote it, so the "
+           "recipient's combo cannot offer it, `_assignments` reads "
+           "the widget, and the choice is gone in silence -- two "
+           "elements showing one column then part company the moment "
+           "somebody moves the donor"),
   dict(name="a-restored-map-is-a-map-the-controls-describe",
        file=DIALOG,
        # Puts the restyle path back out of reach on any map this

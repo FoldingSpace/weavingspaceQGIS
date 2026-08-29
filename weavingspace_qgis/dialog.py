@@ -15582,6 +15582,25 @@ class WeavingSpaceDialog(QDialog):
     elements = [{key: assignment.get(key)
                  for key in WORKING_STATE_ELEMENT}
                 for assignment in self._assignments()]
+    # A DONOR TRAVELS AS AN ELEMENT, NOT AS A LAYER ID. "Take my
+    # classes from that layer" is held live as `layer:<layer id>`,
+    # which is a fact about one session's objects: it survives a
+    # project save because the `.qgz` keeps ids, and it cannot survive
+    # a GeoPackage, whose layers are made afresh on opening. So a file
+    # carried a token naming a layer that would never exist again --
+    # `_populate_class_source_combo` appends a missing `file:` token
+    # and cannot append a missing `layer:` one, the combo fell to
+    # "Automatic colours", and `_assignments` reads the widget.
+    # Measured 2026-08-28 with a control arm: the follower keeps the
+    # colours it inherited, so nothing looks wrong on opening or after
+    # a Generate -- and the next change to the DONOR does not reach
+    # it, which is two elements drawing one column in two sets of
+    # colours, arriving quietly some time after the file was opened.
+    for element in elements:
+      for key in ("class_source", "class_choice"):
+        moved = self._donor_as_an_element(element.get(key))
+        if moved is not None:
+          element[key] = moved
     # BACKFILL WHAT THE MODE HID. `_assignments` reports pins, class
     # colours, category colours and the window as empty for any row
     # not WEARING the mode that displays them -- absence-by-mode, not
@@ -15789,6 +15808,59 @@ class WeavingSpaceDialog(QDialog):
     else:
       group.insertLayer(at, layer)
 
+  def _donor_as_an_element(self, token):
+    """A class-source naming one of our layers, written as its element.
+
+    Args:
+      token: what the class-source combo holds -- ``layer:<layer id>``,
+        ``file:<path>``, "" for automatic colours, or None.
+
+    Returns:
+      ``element:<tile id>`` where the token names an element layer of
+      the map this dialog is working on, and None where it does not --
+      a file, automatic colours, or somebody else's categorized layer,
+      none of which this rewriting is about. None means "leave it
+      alone" rather than "clear it", so a caller writes only where
+      there is something to write.
+
+    A LAYER ID BELONGS TO ONE SESSION'S OBJECTS. It survives a project
+    save, because the `.qgz` keeps ids, and it cannot survive a
+    GeoPackage, whose layers are created afresh when the file is
+    opened -- so a record carrying one points at nothing the moment it
+    is read anywhere else. An element id is stable by construction:
+    `a` is `a` in every session, in the panel and in the table names.
+    """
+    if not token or not str(token).startswith("layer:"):
+      return None
+    wanted = str(token)[6:]
+    for tile_id, layer_id in self._element_layer_ids.items():
+      if layer_id == wanted:
+        return f"element:{tile_id}"
+    return None
+
+  def _donor_from_an_element(self, token):
+    """The live class-source token for a recorded element reference.
+
+    Args:
+      token: a value out of a working-state record: ``element:<tile
+        id>`` where a donor was recorded portably, or anything else.
+
+    Returns:
+      ``layer:<layer id>`` where that element has a layer in this
+      session; "" where it names an element this map does not have,
+      which is the same answer a dangling `layer:` token gets; and
+      None for any other token, meaning "not mine to translate".
+
+    The twin of `_donor_as_an_element`, and the reason both exist: the
+    record is portable and the dialog is not. Everything between these
+    two goes on seeing the `layer:` spelling it always saw.
+    """
+    if not token or not str(token).startswith("element:"):
+      return None
+    tile_id = str(token)[8:]
+    layer_id = self._element_layer_ids.get(tile_id)
+    return f"layer:{layer_id}" if layer_id else ""
+
   def _repoint_donors(self, old_ids, new_ids):
     """Follow "take my classes from that layer" across a re-tile.
 
@@ -15913,6 +15985,39 @@ class WeavingSpaceDialog(QDialog):
     """
     if not isinstance(record, dict):
       return False
+    # THE RECORD IS TRANSLATED ONCE, HERE, WHERE IT ENTERS. A donor is
+    # stored portably as `element:<tile id>` and every reader in this
+    # dialog understands `layer:<layer id>`, so the boundary is this
+    # method -- and it has to be the WHOLE record rather than the copy
+    # `_apply_element_records` reads, because the same list is armed as
+    # `_restoring_assignments` and `_refresh_table` writes ITS
+    # class_choice back into the record on the rebuild below.
+    # Translating in two places would be two implementations of one
+    # fact, which this project has paid for often enough; translating
+    # in one and missing the other is what the first attempt did, and
+    # the untranslated token came back over the translated one.
+    # AND IT IS WHY NO WIDGET MEND IS NEEDED HERE, which is worth
+    # saying because the first repair added one. `_assignments` reads
+    # the COMBO, and `_refresh_table` writes the combo's answer back
+    # over the record at every rebuild -- so mending the record alone
+    # normally lasts one pass. It does not need mending here because
+    # the rebuild reads THIS list: `_restoring_assignments` is armed
+    # from it below, so the combo is built from a token already in
+    # this session's spelling. Measured 2026-08-28 by deleting the
+    # mend and watching the catalogue entry for it SURVIVE, which is
+    # how a redundant line announces itself.
+    elements = record.get("elements")
+    if isinstance(elements, list):
+      mended = []
+      for element in elements:
+        if isinstance(element, dict):
+          element = dict(element)
+          for key in ("class_source", "class_choice"):
+            in_force = self._donor_from_an_element(element.get(key))
+            if in_force is not None:
+              element[key] = in_force
+        mended.append(element)
+      record = {**record, "elements": mended}
     design = record.get("design") or {}
     rows = {key: (attribute, kind)
             for key, attribute, kind in WORKING_STATE_DESIGN}
@@ -16077,6 +16182,10 @@ class WeavingSpaceDialog(QDialog):
         self._opacity_choices[tid] = int(element["opacity"])
       elif not keep_adopted:
         self._opacity_choices.pop(tid, None)
+      # The token is already in this session's spelling: the record
+      # was translated where it entered, at the top of
+      # `_apply_working_state`, so that the rebuild below reads the
+      # same answer this line writes.
       self._class_choices[tid] = element.get("class_choice") or ""
       # THE COUNT ONLY WHERE SOMEBODY CHOSE IT. `k` is 50 on an
       # Unclassed row by the definition of that style rather than by
