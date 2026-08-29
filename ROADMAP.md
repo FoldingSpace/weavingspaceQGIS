@@ -866,6 +866,46 @@ None of this troubles the ruling of 2026-08-26 that the file shows the
 limit of what it contains: a topology is a fact about the DESIGN and
 carries none of anybody's data.
 
+**AND NO, A GEOPACKAGE CANNOT STORE GEOSPATIAL TOPOLOGY, WHICH TURNS
+OUT NOT TO MATTER -- THE TWO THINGS SHARE A WORD AND NOTHING ELSE.**
+(Asked by the maintainer, 2026-08-29; checked against the OGC
+extension registry and GDAL's own GPKG driver documentation rather
+than from memory.) There is no topology extension to GeoPackage,
+adopted or community: the registry lists WKT for CRS, Tiled Gridded
+Coverage and Related Tables as the official three, and a dozen
+community ones for vector tiles, styling, 3D tiles and the rest, with
+nothing for a node/edge/face model. GDAL implements no topology model
+either. GeoPackage is a SIMPLE FEATURES format -- every geometry is an
+independent blob, adjacency is not represented, and nothing enforces
+planarity. PostGIS and SpatiaLite do carry ISO SQL/MM Topo-Geo models;
+GeoPackage deliberately does not.
+
+WHAT IT DOES HAVE, if anybody ever wants it: non-spatial ATTRIBUTE
+tables since GeoPackage 1.2, and the Related Tables Extension (OGC
+adopted, GDAL 3.6+) for many-to-many relationships. So incidence --
+tile to edge, edge to vertex -- could be hand-rolled as ordinary
+tables. Nothing stops it, and nothing reads it either: no consumer, no
+enforcement, no QGIS interface.
+
+WHY IT IS THE WRONG QUESTION HERE. Weavingspace's `Topology` is not
+geospatial topology. It is the COMBINATORIAL AND SYMMETRY structure of
+the repeating UNIT -- transitivity classes, shape groups, the dual --
+and it lives in unit space with twelve tiles where the map on the
+ground has seventy thousand. Geospatial topology would be a claim
+about the OUTPUT: that the stamped polygons share edges exactly, with
+no slivers and no gaps. That claim is one this plugin should not be
+making. It never edits output geometry, so there is nothing to
+enforce; the tiles come from exact construction in the library and are
+then clipped; and with an inset or a weave aspect below 1.0 the map
+DELIBERATELY has gaps, so a planar model would be actively wrong about
+the commonest designs. It would also be enormous -- a structure over
+seventy thousand tiles against 2.4 KB for the unit's.
+
+THE ONE THING TO CARRY FORWARD IS THE NAME. A tab called "Topology"
+will be read by some GIS users as promising the node/edge/face kind,
+and it does not. Whatever it is called, the tab has to say early and
+plainly that it describes the repeating unit and not the map.
+
 WHAT COMES FIRST is still an inventory, and it is cheaper now that the
 two constraints above are known: what each manipulation actually does
 to a unit, which of them compose, and which produce a tiling the rest
