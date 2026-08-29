@@ -1601,6 +1601,11 @@ class WeavingSpaceDialog(QDialog):
     # the geometry of the last completed run, so a later style-only
     # change can be answered without tiling again
     self._last_geometry_sig = None
+    # A NUMBER A FAMILY CANNOT HOLD, kept until one that can comes
+    # round again: `{widget: value}`, written only where `setRange`
+    # would otherwise clamp somebody's own number away. See
+    # `_re_range_remembering`.
+    self._modifier_excursion = {}
     # per-element UI memory, keyed by tile_id so it survives table
     # rebuilds: category counts per (layer id, field), each element's
     # class-source choice, QML files browsed anywhere this session,
@@ -2868,6 +2873,50 @@ class WeavingSpaceDialog(QDialog):
     """Tiling/weave toggle reuses the family-repopulation logic."""
     self._on_n_changed()
 
+  def _re_range_remembering(self, widget, low, high):
+    """Re-range a modifier box without losing the number somebody set.
+
+    Args:
+      widget: the spin box whose range this family decides.
+      low: the smallest value this family accepts.
+      high: the largest.
+
+    Returns:
+      None. Sets the range and puts the person's own number back where
+      the new range can hold it; where it cannot, the number is kept
+      until a family that can hold it comes round again.
+
+    `setRange` CLAMPS IN SILENCE, which is this project's own
+    standing warning about `setValue` arriving through the other door.
+    The families do not agree about these ranges -- a slice offset
+    runs -1 to 1 and a dissection's runs 0 to 1, a hex dissection's
+    inner angle reaches 85 where a square's stops at 70 -- so a visit
+    to a narrower family reset the number and coming back did not
+    restore it. Measured 2026-08-28 with a control arm: -0.5 typed on
+    a slice came back 0.0 after a look at a dissection, while 0.5,
+    which both families hold, came home untouched. The next Generate
+    then drew from the reset number.
+    THE PRECEDENT IS THE SPACING, settled 2026-08-25: a number a
+    person TYPED survives, a number the plugin DERIVED does not. This
+    is that rule reaching the modifier rows, and it is the scheme
+    shelf's shape -- the value is held while it cannot be worn, and
+    returned when it can.
+    SIGNALS ARE BLOCKED while it is put back, because the caller
+    queues one preview at its end and a second rebuild from here is
+    exactly the churn `_on_family_changed` is careful about.
+    """
+    remembered = self._modifier_excursion.get(widget)
+    wanted = widget.value() if remembered is None else remembered
+    widget.setRange(low, high)
+    if low <= wanted <= high:
+      self._modifier_excursion.pop(widget, None)
+      if widget.value() != wanted:
+        widget.blockSignals(True)
+        widget.setValue(wanted)
+        widget.blockSignals(False)
+    else:
+      self._modifier_excursion[widget] = wanted
+
   def _on_family_changed(self):
     """Show exactly the option rows this family understands.
 
@@ -2898,11 +2947,11 @@ class WeavingSpaceDialog(QDialog):
       lab.setVisible(visible)
       widget.setVisible(visible)
     if "dissect" in tiling_type:
-      self.opt_offset.setRange(0, 1)
+      self._re_range_remembering(self.opt_offset, 0, 1)
       lo, hi = ((-50, 85) if "hex" in tiling_type else (-30, 70))
-      self.opt_offset_angle.setRange(lo, hi)
+      self._re_range_remembering(self.opt_offset_angle, lo, hi)
     elif "slice" in tiling_type:
-      self.opt_offset.setRange(-1, 1)
+      self._re_range_remembering(self.opt_offset, -1, 1)
     if is_weave and spec.get("weave_type") in ("twill", "basket"):
       self.opt_over_under.blockSignals(True)
       self.opt_over_under.setText(str(spec.get("n", "2")))

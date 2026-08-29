@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-414 defect(s) with a regression test.
+415 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -119,6 +119,8 @@ there is no separate list to remember.
   guarded by `test_a_load_under_live_update_keeps_the_map_it_opened`
 - **the moved-data notice could never fire for a map opened with Load, because its reading is recorded at a landing and a resume is not one -- so editing the region and pressing Save wrote old tiles beside new data with nothing said. Found by the repairs hunt of 2026-08-28.**  
   guarded by `test_a_map_opened_and_then_edited_says_so_when_it_is_saved`
+- **a negative slice offset was clamped away by a visit to a family whose range is narrower, and did not come back. Found by the modifiers hunt of 2026-08-28.**  
+  guarded by `test_a_modifier_survives_a_family_excursion`
 - **2026-08-19. Found by three hunts at once, one of them in pixels: 4,394 of an element's paint gone, 27.5 per cent of it.**  
   guarded by `test_a_moved_limit_re_splits_the_tiles`
 - **nothing described what a negative scale factor did to the map, so the only guard on the feature was that its spin box could reach negative numbers.**  
@@ -880,7 +882,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 122
-- a bug hunt pointed in a named direction: 117
+- a bug hunt pointed in a named direction: 118
 - not written down at the time: 88
 - reported by a user: 29
 - reading the code: 15

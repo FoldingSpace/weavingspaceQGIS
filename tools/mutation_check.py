@@ -2086,7 +2086,10 @@ MUTATIONS = [
        test="test_ramp_swatches_and_palette_installation",
        why="the plugin's palettes reaching the QGIS style at all"),
   dict(name="family-angle-range", file=DIALOG,
-       old="self.opt_offset_angle.setRange(lo, hi)",
+       # RE-ANCHORED 2026-08-28, when the re-ranging gained the memory
+       # that stops a clamp taking somebody's number. The mutation is
+       # unchanged: the angle keeps whatever range was last in force.
+       old="self._re_range_remembering(self.opt_offset_angle, lo, hi)",
        new="pass  # mutation: whatever range was last in force",
        test="test_family_option_ranges_track_the_family",
        why="a family's inner angle bounded by what that family accepts"),
@@ -7606,6 +7609,22 @@ MUTATIONS = [
            "which group a dataset owns, whether a landing may write "
            "over a group, and whether a resume finds a layer already "
            "open"),
+  dict(name="a-modifier-comes-home-from-an-excursion",
+       file=DIALOG,
+       # Back to a bare setRange, which is what shipped: the clamp
+       # takes the number and nothing gives it back. Anchored on the
+       # RESTORE rather than on the remembering, because remembering
+       # a value nobody puts back is the same as not remembering it.
+       old="""      self._modifier_excursion.pop(widget, None)
+      if widget.value() != wanted:""",
+       new="""      self._modifier_excursion.pop(widget, None)
+      if False:  # mutation: the clamped number is not put back""",
+       test="test_a_modifier_survives_a_family_excursion",
+       why="a number somebody set surviving a look at another family: "
+           "`setRange` clamps in silence, the families disagree about "
+           "these ranges, and the next Generate draws from the reset "
+           "number -- the spacing's own rule that a number a person "
+           "TYPED survives, reaching the modifier rows"),
   dict(name="a-save-waits-for-a-queued-run",
        file=DIALOG,
        # Back to asking `_task` alone, which a queued run does not

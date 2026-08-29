@@ -27663,6 +27663,70 @@ def test_a_save_as_tells_the_group_where_the_map_went():
       dlg.close()
 
 
+def test_a_modifier_survives_a_family_excursion():
+  """A number you set is still there when you come back to it.
+
+  The families do not agree about these ranges: a slice offset runs
+  -1 to 1 and a dissection's runs 0 to 1. `setRange` CLAMPS in
+  silence, so a look at a dissection reset a negative slice offset to
+  zero, coming back did not restore it, and the next Generate drew
+  from the reset number.
+
+  THE CONTROL IS A VALUE BOTH FAMILIES HOLD, made by the same journey.
+  Without it a number that came home would say nothing about the
+  clamp, and a number that did not could be the excursion itself.
+
+  AND THE UNIT IS ASKED, not only the box: what the map is built from
+  is the thing the person loses, and a box and a map can agree with
+  each other while both are wrong about what was typed.
+
+  Regression: a negative slice offset was clamped away by a visit to a family whose range is narrower, and did not come back. Found by the modifiers hunt of 2026-08-28. [hunt]
+  """
+  dlg, _layer, _tid = _categorical_dialog()
+  try:
+    dlg.live_check.setChecked(False)
+    # FIVE ELEMENTS: the two family kinds this is about both exist
+    # only at some counts, and four offers slices and no dissections.
+    index = dlg.n_combo.findData(5)
+    assert index >= 0, "PREMISE: the catalogue offers no five-element design"
+    dlg.n_combo.setCurrentIndex(index)
+    dlg.n_combo.activated.emit(index)
+    _tick(400)
+    names = [dlg.family_combo.itemText(i)
+             for i in range(dlg.family_combo.count())]
+    slices = [name for name in names if "slice" in name]
+    dissections = [name for name in names if "dissect" in name]
+    assert slices and dissections, (
+      f"PREMISE: five elements offer no slice-and-dissection pair: {names}")
+
+    def choose(family):
+      where = dlg.family_combo.findText(family)
+      assert where >= 0, f"PREMISE: no family called {family!r}"
+      dlg.family_combo.setCurrentIndex(where)
+      dlg.family_combo.activated.emit(where)   # what a click sends
+      _tick(400)
+
+    for value, what in ((-0.5, "a negative offset only a slice holds"),
+                        (0.5, "the control, which both families hold")):
+      choose(slices[0])
+      dlg.opt_offset.setValue(value)
+      _tick(200)
+      assert abs(dlg.opt_offset.value() - value) < 1e-9, (
+        f"PREMISE: the slice family would not hold {value} either, so "
+        f"this leg measures nothing ({what})")
+      choose(dissections[0])
+      choose(slices[0])
+      assert abs(dlg.opt_offset.value() - value) < 1e-9, (
+        f"{what}: {value} was set, a look at "
+        f"{dissections[0]!r} clamped it, and coming back left "
+        f"{dlg.opt_offset.value()}")
+      assert abs(dlg._unit_kwargs().get("offset", 0) - value) < 1e-9, (
+        f"{what}: the box came home and the map would be built from "
+        f"{dlg._unit_kwargs().get('offset')!r}")
+  finally:
+    dlg.close()
+
+
 def test_the_save_box_comes_home_when_the_project_reopens():
   """The other door into the record a Save now moves.
 
@@ -71528,6 +71592,8 @@ def main():
         test_a_save_waits_for_a_run_that_is_about_to_start)
   check("the save box comes home when the project reopens",
         test_the_save_box_comes_home_when_the_project_reopens)
+  check("a modifier survives a family excursion",
+        test_a_modifier_survives_a_family_excursion)
   check("choosing your own group keeps the region and the variables",
         test_choosing_your_own_group_keeps_the_region_and_the_variables)
   check("the icon notice reads the same ground in either crs",
