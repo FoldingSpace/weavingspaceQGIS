@@ -473,11 +473,14 @@ MUTATIONS = [
        # ANCHORED WITH THE COMMENT ABOVE IT since 2026-08-27: the
        # in-place skip added a second `embed_style` call, so the bare
        # line matches twice.
+       # RE-ANCHORED 2026-08-29: the save stopped dropping styles as
+       # it went, so the call carries `drop_others=False` now. Same
+       # line, same claim.
        old="""        # would carry a style nothing in it wears
-        bridge.embed_style(layer)""",
+        bridge.embed_style(layer, drop_others=False)""",
        new="""        # would carry a style nothing in it wears
         layer.setOpacity(1.0)  # mutation: tell the FILE otherwise
-        bridge.embed_style(layer)""",
+        bridge.embed_style(layer, drop_others=False)""",
        test="test_a_geopackage_carries_the_no_data_opacity_it_was_given",
        why="embed_style writes what the layer wears at that moment, "
            "so an opacity set afterwards reaches the project and not "
@@ -3213,13 +3216,19 @@ MUTATIONS = [
            "pointing at tables that no longer existed. One press on "
            "the ordinary journey of opening a finished map"),
   dict(name="a-second-save-is-not-a-write-in-place", file=DIALOG,
+       # RE-ANCHORED 2026-08-29, when the loop began gathering which
+       # style to keep on each table so the removals could be done in
+       # one open. The decision under test is the `if` itself and is
+       # untouched.
        old="""        if same_source(layer.source(), f"{path}|layername={table}"):
           written_names.add(table)
-          bridge.embed_style(layer)
+          bridge.embed_style(layer, drop_others=False)
+          styles_to_keep[table] = bridge.style_name_for(layer)
           continue""",
        new="""        if False:  # mutation: write every layer back over itself
           written_names.add(table)
-          bridge.embed_style(layer)
+          bridge.embed_style(layer, drop_others=False)
+          styles_to_keep[table] = bridge.style_name_for(layer)
           continue""",
        test="test_saving_holds_on_every_route",
        why="a map could be SAVED ONCE AND NEVER AGAIN. The first "
@@ -3382,7 +3391,8 @@ MUTATIONS = [
        # ANCHORED WITH THE COMMENT ABOVE IT, as its neighbour is: the
        # in-place skip embeds a style too, so the bare call matches
        # twice.
-       old='        # would carry a style nothing in it wears\n        bridge.embed_style(layer)',
+       # RE-ANCHORED 2026-08-29 for the same reason as its neighbour.
+       old='        # would carry a style nothing in it wears\n        bridge.embed_style(layer, drop_others=False)',
        new='        # would carry a style nothing in it wears\n        pass  # mutation: styles not written into the file',
        test='test_integration_gpkg_style_round_trip',
        why='a GeoPackage carrying its own cartography'),
@@ -7216,8 +7226,20 @@ MUTATIONS = [
            "guard against writing over another dataset's map goes "
            "quiet"),
   dict(name="one-table-carries-one-style-of-ours", file=BRIDGE,
-       old="""  _drop_our_other_styles(layer, name)""",
-       new="""  pass  # mutation: leave every earlier style of ours behind""",
+       # RE-AIMED 2026-08-29 at the one site that now DOES the
+       # removal. The save batches its style drops -- one open of the
+       # GeoPackage instead of one per element -- so an entry over the
+       # per-layer call would SURVIVE, the batch still doing the work:
+       # a redundancy this round's own change created, which is the
+       # question to ask whenever an entry stops catching. The two
+       # were collapsed into one implementation for the same reason,
+       # and this stands on the DELETE both routes reach.
+       old="""        data.ExecuteSQL(
+          "DELETE FROM layer_styles WHERE f_table_name = '%s' "
+          "AND styleName <> '%s' AND description = '%s'"
+          % (str(table).replace("'", "''"), str(name).replace("'", "''"),
+             SEEDED_BY_US.replace("'", "''")))""",
+       new="""        pass  # mutation: leave every earlier style of ours behind""",
        test="test_two_columns_sharing_a_table_leave_one_style_of_ours",
        why="two column names that sanitise to one table name left the "
            "earlier column's saved style in the GeoPackage, so its "

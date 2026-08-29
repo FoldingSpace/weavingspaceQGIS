@@ -16878,6 +16878,16 @@ class WeavingSpaceDialog(QDialog):
     written_names = set()
     trouble = []
     left_out = []
+    # WHICH STYLE TO KEEP ON EACH TABLE, gathered here and acted on
+    # ONCE below. Removing a superseded style opens the GeoPackage,
+    # and opening a GeoPackage costs time proportional to the layers
+    # already in it -- so doing it per element made a save quadratic
+    # in the element count, which was invisible at four and is a
+    # frozen interface at the 256 ceiling raised on 2026-08-27.
+    # Measured 2026-08-29 at 8, 16, 32 and 64 elements: the call count
+    # exactly doubled each time while the seconds ran 0.01, 0.03, 0.10
+    # and 0.42. Same rows removed, one open.
+    styles_to_keep = {}
     for tid in order:
       # A TWIN NEVER TRAVELS WITHOUT ITS ELEMENT. The paired layer
       # holds the areas whose value is absent FOR THIS ELEMENT, so on
@@ -16931,7 +16941,8 @@ class WeavingSpaceDialog(QDialog):
         # current so the stale-table drop spares it, and the record.
         if same_source(layer.source(), f"{path}|layername={table}"):
           written_names.add(table)
-          bridge.embed_style(layer)
+          bridge.embed_style(layer, drop_others=False)
+          styles_to_keep[table] = bridge.style_name_for(layer)
           continue
         try:
           # `open_after=False`: the next line repoints THIS layer at
@@ -16955,7 +16966,14 @@ class WeavingSpaceDialog(QDialog):
         # the style goes in AFTER the repointing, or it would be
         # embedded against the memory layer's own source and the file
         # would carry a style nothing in it wears
-        bridge.embed_style(layer)
+        bridge.embed_style(layer, drop_others=False)
+        styles_to_keep[table] = bridge.style_name_for(layer)
+    # ...AND THE SUPERSEDED STYLES GO IN ONE PASS over the whole file.
+    # Deferring it to here changes nothing about the result -- the same
+    # rows are removed, scoped by this plugin's own description as they
+    # always were -- and nobody can read the file between the loop and
+    # this line, because the save has not finished.
+    bridge.drop_our_other_styles(path, styles_to_keep)
     if trouble:
       self._report_quietly(
         f"Part of the map could not be written: {trouble[0]}")

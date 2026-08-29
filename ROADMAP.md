@@ -363,6 +363,19 @@ measurements:
   interface** -- 134s and 122s at the 256 ceiling, no progress bar,
   a 50 ms heartbeat recording zero beats. Every store was clean; the
   defect is in the act.
+  MEASURED TO ITS EQUATION on 2026-08-29 and PARTLY REPAIRED, with the
+  numbers in the ledger. Every call count is exactly linear: what
+  grows is the cost of each call, because each opens the GeoPackage
+  and opening one costs time proportional to the layers already in it.
+  The one term that is ours -- removing superseded styles -- now opens
+  the file once for the whole map instead of once per element, and its
+  call count went from n to 1. The other three are QGIS's and OGR's
+  own per-layer APIs and have no batch form, so closing the rest means
+  making the save a single OGR session, which is a rewrite of the
+  writer rather than a repair. THAT AND THE FREEZE ARE DECISIONS
+  RATHER THAN WORK OWED: the loop pumps nothing, so a large save is an
+  unresponsive window whatever it costs, and whether Save should report
+  progress is a question about the interface.
 
 **AND A SIXTH RULING OF THE ROUND, THE MAINTAINER'S, ON 2026-08-29: A
 SAVE PRESSED WHILE A RE-TILE IS COMING IS KEPT RATHER THAN REFUSED.**
