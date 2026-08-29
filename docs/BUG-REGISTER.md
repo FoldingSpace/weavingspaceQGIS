@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-426 defect(s) with a regression test.
+428 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -189,6 +189,8 @@ there is no separate list to remember.
   guarded by `test_a_run_in_flight_does_not_land_in_the_project_that_replaced_it`
 - **a Save As told the file where the map had gone and never told the group, so returning to the map reverted the output box to the file it was saved away from and the next Save overwrote the older version. Found by the colourpicks hunt of 2026-08-28.**  
   guarded by `test_a_save_as_tells_the_group_where_the_map_went`
+- **with a map open on a shared GeoPackage, a save after somebody else had changed that file skipped every element whose table they had replaced and then dropped what they HAD written, so an element left the file altogether and both people lost it under the word "Saved". Found by the sharing hunt of 2026-08-28, ledger row 35.**  
+  guarded by `test_a_save_leaves_a_shared_file_somebody_else_has_changed`
 - **saving into a GeoPackage holding somebody else's map deleted their element tables and their embedded region copy, one line after a question promising to leave the rest of the file alone. Found by the shared-file hunt of 2026-08-28.**  
   guarded by `test_a_save_leaves_another_maps_tables_alone`
 - **deleting element layers in the panel and pressing Save reported plain success -- for a partial map, and for an emptied file when the whole group had gone. Found by the sentences and notices hunts of 2026-08-28.**  
@@ -257,6 +259,8 @@ there is no separate list to remember.
   guarded by `test_removing_the_region_layer_is_noticed_in_a_real_project`
 - **opening the plugin on a saved project silently replaced the saved map. The output path was persisted nowhere, so the widget returned empty on reopening -- both the condition that lets live update run and the condition that sends output to memory -- while `_last_path` was restored from the layers. Measured 2026-08-17: four layers of 175/176 features at spacing 317 became memory layers of 78 at the default spacing, and a save-and-reopen brought them back empty.**  
   guarded by `test_reopening_a_saved_project_does_not_replace_its_map`
+- **with two senders' maps open, returning to the first through the group chooser re-tiled it from the SECOND sender's data and would have written that over the first sender's file, because the resume stamped the group with the sender's own unreachable path rather than the source the recovery actually landed on. Found by the sharing hunt of 2026-08-28, ledger row 23.**  
+  guarded by `test_returning_to_one_senders_map_re_tiles_it_from_their_own_data`
 - **swapping the variables of two elements whose columns both had missing values left each holding the other's no-data split, so values were drawn as gaps and gaps as values.**  
   guarded by `test_swapping_two_variables_re_cuts_both_splits`
 - **taking an element back from QGIS by mixing a plain fill there lost the fill to the plugin's own default, and the style the row had followed reverted at the next unrelated change.**  
@@ -903,7 +907,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- a bug hunt pointed in a named direction: 128
+- a bug hunt pointed in a named direction: 130
 - the mutation campaign: 121
 - not written down at the time: 88
 - reported by a user: 30

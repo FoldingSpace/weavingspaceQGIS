@@ -1212,9 +1212,14 @@ MUTATIONS = [
        # than by this entry. Absence is the wrong implementation
        # somebody would plausibly write, and it is the state this
        # branch actually shipped in.
-       old="""        self._recover_the_source(path, record)
+       # RE-ANCHORED 2026-08-29: the call binds its answer now, so
+       # the group can be stamped with the region recovery LANDED ON
+       # rather than the one the sender recorded (ledger row 23). What
+       # this entry is about is untouched -- the call's absence.
+       old="""        landed_on = self._recover_the_source(path, record)
         self._take_over_group(already)""",
-       new="""        self._take_over_group(already)""",
+       new="""        landed_on = None
+        self._take_over_group(already)""",
        test="test_a_file_already_open_resumes_completely",
        why="PRESENCE IS NOT ORDER. The call was added to this branch "
            "on 2026-08-26 and put after the restore, where its twin "
@@ -1229,9 +1234,12 @@ MUTATIONS = [
            "which is ruling 8's cross-dataset leak"),
   dict(name="a-resumed-group-carries-the-design-it-resumed",
        file=DIALOG,
+       # RE-ANCHORED 2026-08-29 for the same reason as its
+       # neighbour; the stamp reads the landing now.
        old="""        self._stamp_working_state(already, launch_state={
           key: value for key, value in
-          (("region", record.get("region")), ("output_path", path))
+          (("region", landed_on or record.get("region")),
+           ("output_path", path))
           if value})""",
        new="""        pass  # mutation: leave the group without its record""",
        test="test_a_file_already_open_resumes_completely",
@@ -7113,10 +7121,14 @@ MUTATIONS = [
            "Generate rewrote the saved GeoPackage with the other "
            "dataset's tiling"),
   dict(name="the-recovery-stays-inside-the-window", file=DIALOG,
+       # RE-ANCHORED 2026-08-29: the call binds its answer now. The
+       # mutation still moves it OUT of the window, which is what
+       # this entry is about, and still leaves the name bound so the
+       # stamp below is not a different mutation as well.
        old="""    self._selecting_a_group = True
     try:
-      self._recover_the_source(path, record)""",
-       new="""    self._recover_the_source(path, record)
+      landed_on = self._recover_the_source(path, record)""",
+       new="""    landed_on = self._recover_the_source(path, record)
     self._selecting_a_group = True
     try:
       pass""",
@@ -7941,6 +7953,91 @@ MUTATIONS = [
            "`_on_generated`'s own finally clears the note line, so the "
            "sentence has to be sent once the dust has settled or it is "
            "written and wiped"),
+  dict(name="the-already-saved-skip-asks-the-file", file=DIALOG,
+       # Back to asking the SOURCE STRING alone, which nobody else
+       # rewriting the file can change. The element is skipped as
+       # already saved, its name counted as written, and the drop
+       # below then removes the table the colleague DID write.
+       old="""      reading = self._table_a_layer_already_reads(tid, path)
+      if reading and reading not in in_the_file:""",
+       new="""      reading = self._table_a_layer_already_reads(tid, path)
+      if False:""",
+       test="test_a_save_leaves_a_shared_file_somebody_else_has_changed",
+       why="a save noticing that the table an element reads has gone "
+           "from the file: a layer whose table was dropped under it "
+           "still answers isValid True and featureCount 40, so the "
+           "source string is the last thing that looks unchanged"),
+  dict(name="a-changed-file-is-never-swept", file=DIALOG,
+       # The other half. The skip notices, the person is told, and the
+       # drop runs anyway -- removing the table somebody else wrote,
+       # because it belongs to an element this map has and was not
+       # among the names this save wrote.
+       old="""    if not vanished:
+      self._drop_tables_this_map_no_longer_has(path, written_names, ours)""",
+       new="""    if True:
+      self._drop_tables_this_map_no_longer_has(path, written_names, ours)""",
+       test="test_a_save_leaves_a_shared_file_somebody_else_has_changed",
+       why="nothing being deleted on a guess once a file has changed "
+           "under us: what looks like our own abandoned table is just "
+           "as likely to be their current one"),
+  dict(name="a-file-that-lost-an-element-says-so", file=DIALOG,
+       # Silent. Nothing is destroyed and nobody is told which element
+       # the file no longer holds, so the map on screen and the map in
+       # the file disagree with nothing to say why.
+       old="""    changed = ""
+    if vanished:""",
+       new="""    changed = ""
+    if False:""",
+       test="test_a_save_leaves_a_shared_file_somebody_else_has_changed",
+       why="the person being told which element the FILE lost, which "
+           "is a different sentence from the one about layers they "
+           "removed themselves"),
+  dict(name="a-resumed-group-is-stamped-with-what-recovery-found",
+       file=DIALOG,
+       # Back to stamping the SENDER'S region. On their machine it is
+       # an ordinary layer; on the recipient's it is a path that does
+       # not exist, so nothing in the project answers to it and the
+       # group can never be pointed back at its own data. With a
+       # second sender's map open, returning to this one re-tiles it
+       # from THEIR data, into this sender's own file.
+       old="""                      (("region", landed_on or record.get("region")),
+                       ("output_path", path)) if value})""",
+       new="""                      (("region", record.get("region")),
+                       ("output_path", path)) if value})""",
+       test="test_returning_to_one_senders_map_re_tiles_it_from_their_own_data",
+       why="a resumed group naming data that exists on THIS machine: "
+           "the record names where the map was drawn and the recovery "
+           "names where the data came back from, and only the second "
+           "is a thing any later lookup can find"),
+  dict(name="the-already-open-resume-stamps-what-it-found", file=DIALOG,
+       # The twin door, and the one a person takes most: opening a
+       # file whose layers are already in the project. Both branches
+       # stamp, so an entry on either alone would report a clean
+       # sweep with the other still wrong.
+       old="""          (("region", landed_on or record.get("region")),
+           ("output_path", path))
+          if value})""",
+       new="""          (("region", record.get("region")),
+           ("output_path", path))
+          if value})""",
+       test="test_returning_to_one_senders_map_re_tiles_it_from_their_own_data",
+       why="the same promise at the door people take most, which is "
+           "re-opening a map whose layers never left the project"),
+  dict(name="a-recovery-from-the-embedded-copy-reports-itself",
+       file=DIALOG,
+       # The source of the fact rather than its use. Recovery lands on
+       # the copy inside the file and says nothing about it, so both
+       # stamps above fall back to the record and the repair is undone
+       # from underneath -- which is why this is anchored separately
+       # from the two that read it.
+       old="""        # THE CASE THE RETURN VALUE EXISTS FOR. This source names THIS
+        # file; the record names the sender's machine. Ledger row 23.
+        return inside.source()""",
+       new="""        return None  # mutation: landed, and said nothing about it""",
+       test="test_returning_to_one_senders_map_re_tiles_it_from_their_own_data",
+       why="the recovery REPORTING which of its three routes answered: "
+           "a group stamped from a silent recovery is stamped with the "
+           "sender's own machine"),
   dict(name="the-chooser-hears-both-new-group-doors", file=DIALOG,
        # Back to asking one of the two doors. Picking "Create new" in
        # the chooser still works; the CHECKBOX on Map options goes

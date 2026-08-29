@@ -17349,9 +17349,15 @@ class WeavingSpaceDialog(QDialog):
     # question -- closing a GeoPackage makes sqlite touch it, so a
     # deleted file can be back at zero bytes by the time we look.
     fresh = (not os.path.exists(path)) or os.path.getsize(path) == 0
+    # ...AND WHAT IT HOLDS, READ ONCE. The skip below asks whether an
+    # element's table is still THERE, and asking per element would
+    # open the GeoPackage once per element -- the quadratic the style
+    # pass was just moved out of this loop for.
+    in_the_file = bridge.gpkg_tables(path)
     written_names = set()
     trouble = []
     left_out = []
+    vanished = []
     # WHICH STYLE TO KEEP ON EACH TABLE, gathered here and acted on
     # ONCE below. Removing a superseded style opens the GeoPackage,
     # and opening a GeoPackage costs time proportional to the layers
@@ -17389,6 +17395,29 @@ class WeavingSpaceDialog(QDialog):
         # a sentence about a map that gave back less than was saved to
         # it, so the sender is the only one who was not told.
         left_out.append(tid)
+        continue
+      # ...AND A TABLE THAT HAS GONE FROM THE FILE IS NOT A TABLE THIS
+      # SAVE CAN WRITE. The skip below treats a layer whose source
+      # already names a table in this file as saved already, and asked
+      # only the SOURCE STRING -- which somebody else rewriting the
+      # file cannot change. So when a colleague saved the shared file
+      # while this map was open, moving one element to another column,
+      # this element was skipped as "already saved" and its name went
+      # into `written_names` as though it had been written; the drop
+      # below then removed the table the colleague HAD written,
+      # because that table belongs to an element this map has and was
+      # not among the names just written. Element b left the file
+      # altogether, both people lost it, and the plugin said "Saved".
+      # Measured 2026-08-29 with two QGIS processes and a rendezvous.
+      # NOTHING CAN BE WRITTEN IN ITS PLACE, which is what decides the
+      # shape of this. The layer whose table has gone still answers
+      # `isValid` True and `featureCount` 40, and yields ZERO features
+      # -- a dependency's cheap answer being a cached one, met here
+      # for the third time -- so writing it would replace a real table
+      # with an empty one, which is worse than the defect.
+      reading = self._table_a_layer_already_reads(tid, path)
+      if reading and reading not in in_the_file:
+        vanished.append(tid)
         continue
       for layer_id, table in (
           (self._element_layer_ids.get(tid), tables[tid]),
@@ -17464,7 +17493,16 @@ class WeavingSpaceDialog(QDialog):
         if layer is not None:
           layer.dataProvider().reloadData()
 
-    self._drop_tables_this_map_no_longer_has(path, written_names, ours)
+    # THE DROP IS THE ONE THING A CHANGED FILE MUST NOT GET. Its
+    # candidates are this session's record and the file's own, and it
+    # removes what this save did not write -- reasoning that holds
+    # only while nobody else has touched the file. Once an element's
+    # table has gone from under us somebody has, so what is stale here
+    # is no longer something this save can know: a table that looks
+    # like our own abandoned one is just as likely to be their current
+    # one. Nothing is deleted on a guess.
+    if not vanished:
+      self._drop_tables_this_map_no_longer_has(path, written_names, ours)
     self._last_path = path
     self._gpkg_tables_written[self._gpkg_key(path)] = set(written_names)
 
@@ -17643,14 +17681,37 @@ class WeavingSpaceDialog(QDialog):
         if len(left_out) == 1 else
         f" Elements {names} are no longer in the project, so the file "
         f"holds {kept} of {len(order)} elements.")
+    # ...AND WHICH ELEMENTS THE FILE ITSELF LOST, which is a
+    # different sentence from the one above it: `absent` is about
+    # layers gone from the PROJECT, where the person did something,
+    # and this is about tables gone from the FILE, where somebody
+    # else did. The two can happen together and each names its own
+    # elements, so neither is folded into the other.
+    # ONE DECISION, TWO SENTENCES, for the reason written above: as an
+    # if/elif it is two decisions and a catalogue entry could only
+    # ever stand on one limb.
+    changed = ""
+    if vanished:
+      names = ", ".join(sorted(vanished))
+      changed = (
+        f" Element {names}'s data is no longer in the file: somebody "
+        f"else has changed it since this map was opened, so that "
+        f"element was not saved and nothing was removed. Open the "
+        f"file again to see what it holds."
+        if len(vanished) == 1 else
+        f" Elements {names} have data no longer in the file: somebody "
+        f"else has changed it since this map was opened, so those "
+        f"elements were not saved and nothing was removed. Open the "
+        f"file again to see what it holds.")
     if moved:
       self._report_quietly(
         f"Saved to {os.path.basename(path)}. The data has changed "
         f"since this map was drawn, so the file holds the map as it "
         f"is and a copy of the data as it is now; press Generate and "
-        f"save again to make them agree.{absent}")
+        f"save again to make them agree.{absent}{changed}")
       return True
-    self._report_quietly(f"Saved to {os.path.basename(path)}.{absent}")
+    self._report_quietly(
+      f"Saved to {os.path.basename(path)}.{absent}{changed}")
     return True
 
   def _table_a_layer_already_reads(self, tile_id, path):
@@ -17960,7 +18021,7 @@ class WeavingSpaceDialog(QDialog):
       # other map, the resumed group left unclaimed.
       self._selecting_a_group = True
       try:
-        self._recover_the_source(path, record)
+        landed_on = self._recover_the_source(path, record)
         self._take_over_group(already)
         # THE FILE IS NAMED so that a region copy this very file
         # carries is recognised as this record's own data; see
@@ -17992,14 +18053,26 @@ class WeavingSpaceDialog(QDialog):
         # saving the project, reopening it and choosing that group
         # gave back its layers and none of its design. Measured here:
         # the twin leaves 1,959 characters on the group and this
-        # branch left none. THE REGION IS THE FILE'S OWN: when
-        # recovery fails the chooser still names the other dataset,
-        # and a capture would stamp the resumed group as that
-        # dataset's -- so choosing it later would re-tile the wrong
-        # data into this file's own path.
+        # branch left none.
+        # THE REGION IS THE ONE RECOVERY LANDED ON, and the record's
+        # only where it landed on nothing. Both halves matter and
+        # they were one until 2026-08-29. Where recovery FAILS the
+        # chooser still names the other dataset, and a capture would
+        # stamp the resumed group as that dataset's -- so choosing it
+        # later would re-tile the wrong data into this file's own
+        # path. Where recovery SUCCEEDS FROM THE COPY INSIDE THE FILE,
+        # the record names the SENDER'S machine: `_point_the_chooser_
+        # at` walks the project for a layer answering to that source,
+        # nothing here can, and the chooser is silently left on
+        # whatever was in force. Open two people's maps and return to
+        # the first through the group chooser and it was re-tiled from
+        # the SECOND sender's data, into the first sender's file --
+        # measured 2026-08-29 with the two regions half a million map
+        # units apart, ledger row 23.
         self._stamp_working_state(already, launch_state={
           key: value for key, value in
-          (("region", record.get("region")), ("output_path", path))
+          (("region", landed_on or record.get("region")),
+           ("output_path", path))
           if value})
         # AND THE PLUGIN MUST NOT OFFER ITS OWN OUTPUT AS A REGION.
         # Construction, project-read and the run landing all update
@@ -18131,7 +18204,7 @@ class WeavingSpaceDialog(QDialog):
     # binding snatch the dialog back to the current dataset's group.
     self._selecting_a_group = True
     try:
-      self._recover_the_source(path, record)
+      landed_on = self._recover_the_source(path, record)
       # ...AND NOW THE GROUP CAN SAY WHOSE MAP IT IS. Renamed before
       # `_take_over_group`, which records the name this dialog works
       # under; renaming a group nobody has seen yet is not the same
@@ -18211,13 +18284,14 @@ class WeavingSpaceDialog(QDialog):
       # announces it, like every other switch away from work.
       self._landed_this_session = recovered
       self._note_the_data_this_map_opened_over(record, path)
-      # ...AND THE GROUP TAKES THE RECORD TOO, stamped with the FILE'S
-      # region rather than whatever the chooser happens to hold when
-      # recovery fails -- see the already-open branch.
+      # ...AND THE GROUP TAKES THE RECORD TOO, stamped with the region
+      # RECOVERY LANDED ON and the file's own only where it landed on
+      # nothing -- see the already-open branch, where the two cases
+      # and what each costs are written out.
       self._stamp_working_state(
         self._group_of_our_layers(QgsProject.instance().layerTreeRoot()),
         launch_state={key: value for key, value in
-                      (("region", record.get("region")),
+                      (("region", landed_on or record.get("region")),
                        ("output_path", path)) if value})
       # THE SAME EXCLUSION THE OTHER BRANCH NEEDS, and for the same
       # reason: this path has just registered element layers, and
@@ -18402,10 +18476,24 @@ class WeavingSpaceDialog(QDialog):
         the source was embedded.
 
     Returns:
-      None. Selects a layer already in the project where one matches,
-      loads the recorded source where it can be reached, falls back to
-      the copy inside the file where one was embedded, and says so
-      when none of the three works.
+      The source string of the layer this landed on, or None where
+      none of the three recoveries worked -- in which case the user
+      has been told. Selects a layer already in the project where one
+      matches, loads the recorded source where it can be reached, and
+      falls back to the copy inside the file where one was embedded.
+
+    WHY IT REPORTS WHAT IT LANDED ON, and it is not the same fact as
+    the record's `region`. Where the data came back from the copy
+    INSIDE the file, the record names the sender's own machine and the
+    layer in force names this file -- and a group stamped with the
+    former belongs, as far as every later reader is concerned, to a
+    dataset that does not exist here. Returning the landing is what
+    lets the two stamps below tell "recovery found the data" from
+    "recovery failed and the chooser is on somebody else's dataset",
+    which is the distinction they were already trying to make.
+    A STRING RATHER THAN THE LAYER, because a caller holding a layer
+    across the rest of a resume is holding something QGIS may free,
+    and this project has met that as a segfault twice.
 
     A LAYER ALREADY OPEN IS PREFERRED over loading a second copy of
     the same file, because two layers on one source is how a project
@@ -18475,8 +18563,14 @@ class WeavingSpaceDialog(QDialog):
           # -- the exclusion above is one and there may be others --
           # so a `setLayer` that did not land must fall through to the
           # fallbacks below rather than return as though it had.
-          if self.layer_combo.currentLayer() is not None:
-            return
+          here = self.layer_combo.currentLayer()
+          if here is not None:
+            # ITS OWN SPELLING, not the record's. They answer to one
+            # another by `same_source` and need not be the same
+            # string -- a project save respells a path -- and what
+            # the group is stamped with should be the one a later
+            # lookup will meet.
+            return here.source()
       # named from the FILE half of the source alone: an OGR source
       # string carries `|layername=<table>`, so the basename of the
       # whole string read "region.gpkg|layername=region" in the
@@ -18487,7 +18581,7 @@ class WeavingSpaceDialog(QDialog):
       if found.isValid():
         project.addMapLayer(found)
         self.layer_combo.setLayer(found)
-        return
+        return found.source()
     if record.get("region_embedded"):
       inside = QgsVectorLayer(
         f"{path}|layername={bridge.REGION_TABLE_NAME}",
@@ -18496,11 +18590,14 @@ class WeavingSpaceDialog(QDialog):
       if inside.isValid():
         project.addMapLayer(inside)
         self.layer_combo.setLayer(inside)
-        return
+        # THE CASE THE RETURN VALUE EXISTS FOR. This source names THIS
+        # file; the record names the sender's machine. Ledger row 23.
+        return inside.source()
     self._report_quietly(
       "The data this map was made from could not be found, so it can "
       "be looked at but not redrawn. Choose the region layer to carry "
       "on.")
+    return None
 
   def _embed_source_into(self, path, source_layer) -> bool:
     """Write the region's own data into the output file, if asked.

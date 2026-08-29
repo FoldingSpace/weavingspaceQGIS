@@ -453,13 +453,54 @@ list is in the ledger, named above): the design view keeps painting an
 element in a colour the map does not contain after a dock edit the
 plugin cannot name, and the landing's last preview
 repaint fires before the new layer exists;
-two maps from two senders, where
-returning to the first re-tiles it from the second's data; a shared
-file somebody else has saved into while your map is open, where your
-Save reports success and leaves the file with no map in it at all;
 and the catalogue triage of the same morning made
 two trades whose compensating test legs cannot fail, one of which is
 already mended.
+
+AND THE TWO FILE-SHARING ROWS CAME OFF IT ON 2026-08-29, both
+audited first, both confirmed open, and both repaired with the harm
+CORRECTED in the course of measuring it.
+
+TWO SENDERS' MAPS (row 23) reproduced exactly: with two received
+files open, returning to the first through the group chooser re-tiled
+it from the SECOND sender's data, and the output path having come
+home correctly is what made it worse, since the next Save would have
+written that over the first sender's own file. The two halves of the
+claim turned out to be one mechanism. A self-contained file records
+the region its SENDER drew from, which on their machine is an
+ordinary layer and on yours is a path that does not exist; the data
+comes back from the copy inside the file, and the group was stamped
+with the RECORD -- so nothing in the recipient's project ever
+answered to it, and the chooser was silently left wherever it was.
+The resume reports which of its three recoveries answered, and the
+group is stamped with what it LANDED ON, falling back to the record
+only where it landed on nothing -- which keeps the reason the code
+was written that way, since a failed recovery must not file the
+group under whatever dataset the chooser happens to hold.
+
+A SHARED FILE SOMEBODY ELSE SAVED INTO (row 35) reproduced too, and
+the harm is sharper than the claim rather than larger. Not a file
+with no map in it, but an ELEMENT that vanishes: a colleague moving
+one element to another column writes `tiles_b_v1` and drops
+`tiles_b_landcover`, your layer goes on naming the dropped table, the
+skip that treats "already reading from this table" as already saved
+asks the SOURCE STRING and nothing else, and the stale-table drop
+then removes what they HAD written. Both people lose that element,
+under the word "Saved". It would empty the file outright only where a
+colleague had changed every element.
+NOTHING CAN BE WRITTEN IN ITS PLACE, which decided the repair's shape
+rather than any preference: a layer whose table was dropped under it
+answers `isValid` True and `featureCount` 40 and yields ZERO features,
+so writing it would replace a real table with an empty one. The save
+writes what it can, REMOVES NOTHING -- once a file has changed under
+us, a table that looks like our own abandoned one is just as likely
+to be their current one -- and says which element the file lost. That
+sentence is IN THE TEXT-REVIEW QUEUE and is the maintainer's to
+approve.
+Measured with two QGIS processes and a rendezvous, because a running
+QGIS serves its own cached pages and the drop is gated on the file
+being the saver's own; the suite stages the same file state instead,
+since what a colleague leaves behind is a state rather than a race.
 
 NINE HAVE COME OFF THAT LIST, named here rather than quietly dropped,
 since this list is what the release gate reads. Deleting the output

@@ -29321,6 +29321,338 @@ def test_a_restyle_never_recuts_a_map_from_somebody_elses_region():
       dlg.close()
 
 
+def test_a_save_leaves_a_shared_file_somebody_else_has_changed():
+  """A colleague saving the shared file must not cost an element.
+
+  The skip in `_save_the_map` treats a layer whose source already
+  names a table in this file as saved already -- correctly, since the
+  second press on any map meets it -- and it asked the SOURCE STRING,
+  which nobody rewriting the file can change. So when somebody else
+  saved the shared GeoPackage while this map was open, moving one
+  element to another column, that element was skipped as though it had
+  been written AND its name went into the written set; the stale-table
+  drop then removed the table the colleague HAD written, since it
+  belongs to an element this map has and was not among the names just
+  written. The element left the file altogether, both people lost it,
+  and the plugin said "Saved". Measured 2026-08-29 with two QGIS
+  processes and a rendezvous, because a running QGIS serves its own
+  cached pages and the drop is gated on the file being the saver's.
+
+  NOTHING CAN BE WRITTEN IN ITS PLACE, which is what decides the shape
+  of the repair rather than any preference. A layer whose table has
+  been dropped under it answers `isValid` True, `dataProvider().
+  isValid()` True and `featureCount()` 40, and yields ZERO features --
+  the cached-answer trap this project already carries from a moved
+  file. Writing it would replace a real table with an empty one.
+
+  SO THE SAVE WRITES WHAT IT CAN, REMOVES NOTHING, AND SAYS SO. The
+  drop's candidates are this session's record and the file's own, and
+  its reasoning holds only while nobody else has touched the file:
+  once a table has gone from under us, a table that looks like our
+  abandoned one is just as likely to be their current one, and nothing
+  here is deleted on a guess.
+
+  BOTH ANSWERS ARE ASSERTED. A notice cannot be tested by silence --
+  the quiet arm passes just as well with the sentence deleted -- so
+  the ordinary second save must stay quiet about a changed file while
+  this one speaks.
+
+  THE CONDITION IS STAGED RATHER THAN RACED. The suite has no second
+  QGIS, and it does not need one: what the colleague leaves behind is
+  a FILE STATE -- our element's table gone, theirs in its place -- and
+  it is staged here through the plugin's own file machinery. Where a
+  case depends on a window, close the window.
+
+  Regression: with a map open on a shared GeoPackage, a save after somebody else had changed that file skipped every element whose table they had replaced and then dropped what they HAD written, so an element left the file altogether and both people lost it under the word "Saved". Found by the sharing hunt of 2026-08-28, ledger row 35. [hunt]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="ws_shared_changed_")
+  path = os.path.join(folder, "shared.gpkg")
+  try:
+    layer = make_region_layer()
+    project.addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(300)
+      dlg.spacing_spin.setValue(700.0)
+      _generate_and_wait(dlg)
+      dlg.gpkg_widget.setFilePath(path)
+      assert press_save(dlg, path), "PREMISE: the first save failed"
+
+      # ---- THE CONTROL: an ordinary second save, nobody else acting
+      BAR_MESSAGES.clear()
+      assert press_save(dlg, path), "CONTROL: the second save was refused"
+      quiet = " ".join(str(text) for _kind, text in BAR_MESSAGES)
+      assert "no longer in the file" not in quiet, (
+        f"an ordinary second save claims somebody else has changed "
+        f"the file: {quiet[:200]!r}")
+      held = set(bridge.gpkg_tables(path))
+      assert any(name.startswith("tiles_") for name in held), \
+        f"CONTROL: an ordinary second save left no map: {sorted(held)}"
+
+      # ---- WHAT A COLLEAGUE LEAVES: our element's table gone, and
+      # theirs in its place under the name their variable gives it.
+      tid = sorted(dlg._element_layer_ids, key=bridge.element_order)[0]
+      element = project.mapLayer(dlg._element_layer_ids[tid])
+      assert element is not None, "PREMISE: the element has no layer"
+      theirs_gone = element.source().split("layername=", 1)[-1].split("|")[0]
+      assert theirs_gone in held, (
+        f"PREMISE: element {tid}'s layer reads {theirs_gone!r}, which "
+        f"the file does not hold, so the save was never in the state "
+        f"this is about")
+      mine = f"tiles_{tid}_theirs"
+      bridge.write_gpkg_layer(layer, path, mine, first=False,
+                              open_after=False)
+      assert bridge.drop_gpkg_layer(path, theirs_gone), \
+        f"PREMISE: {theirs_gone!r} could not be removed from the file"
+      after_them = set(bridge.gpkg_tables(path))
+      assert theirs_gone not in after_them and mine in after_them, (
+        f"PREMISE: the file was not left as a colleague would leave "
+        f"it: {sorted(after_them)}")
+      assert element.source().split("layername=", 1)[-1].split("|")[0] \
+        == theirs_gone, (
+        "PREMISE: the layer stopped naming the table that was removed, "
+        "so the source-string skip this is about cannot fire")
+
+      # ---- ...AND I PRESS SAVE, believing the map is still mine
+      BAR_MESSAGES.clear()
+      assert press_save(dlg, path), \
+        "the save was refused outright, which loses the elements that "\
+        "could still have been written"
+      said = " ".join(str(text) for _kind, text in BAR_MESSAGES)
+      ended = set(bridge.gpkg_tables(path))
+      assert mine in ended, (
+        f"the save removed {mine!r}, which somebody else wrote into "
+        f"this file: once a table has gone from under us, what looks "
+        f"like our own abandoned table is just as likely to be their "
+        f"current one. The file holds {sorted(ended)}")
+      assert "no longer in the file" in said and tid in said, (
+        f"the file lost element {tid}'s data and the plugin said only "
+        f"{said[:200]!r}")
+    finally:
+      dlg.close()
+  finally:
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_returning_to_one_senders_map_re_tiles_it_from_their_own_data():
+  """Two people send you maps; going back to the first keeps its data.
+
+  A self-contained file records the region its SENDER drew from, which
+  on their machine is an ordinary layer and on yours is a path that
+  does not exist -- so the data comes back from the copy inside the
+  file, and the record and the layer in force stop describing the same
+  thing. The group was stamped with the RECORD, so nothing in the
+  recipient's project ever answered to it: `_point_the_chooser_at`
+  walks for a layer matching that source, finds none, and leaves the
+  chooser wherever it was.
+
+  WITH TWO FILES OPEN THAT IS THE OTHER SENDER'S DATA. Returning to
+  the first map through the group chooser took its group, its design
+  and its output path -- and the second sender's region. The next
+  Generate re-tiled the first map from the second's data, and the
+  output path being right is what made it worse: the next Save writes
+  that over the first sender's own file.
+
+  THE ASSERTION IS WHERE THE TILES ARE, not what a layer is called.
+  Both recovered regions come back under one name, so the two regions
+  are put half a million map units apart and the map is asked whose
+  ground it sits on -- a question no naming accident can answer
+  wrongly. The same collision cost the first run of this journey's
+  probe its meaning: A's group name is a PREFIX of B's, so a
+  substring match on the chooser selected B's row and the probe
+  measured the wrong journey entirely.
+
+  AND THE STAMP IS ASSERTED AS WELL AS THE MAP, because they are one
+  mechanism and a reader meeting either alone would take it for the
+  whole rule: what recovery landed on is what the group is stamped
+  with, and only where recovery lands on nothing does the record's
+  own region stand -- which is what stops a failed recovery filing
+  the resumed group under whatever dataset the chooser happens to
+  hold.
+
+  Regression: with two senders' maps open, returning to the first through the group chooser re-tiled it from the SECOND sender's data and would have written that over the first sender's file, because the resume stamped the group with the sender's own unreachable path rather than the source the recovery actually landed on. Found by the sharing hunt of 2026-08-28, ledger row 23. [hunt]
+  """
+  import json
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import (WORKING_STATE_PROPERTY,
+                                        WeavingSpaceDialog, same_source)
+  project = QgsProject.instance()
+  folder = tempfile.mkdtemp(prefix="ws_two_senders_")
+  a_path = os.path.join(folder, "from_alice.gpkg")
+  b_path = os.path.join(folder, "from_bob.gpkg")
+  # HALF A MILLION MAP UNITS APART, which is what makes "whose data is
+  # this map drawn from" answerable from the map itself.
+  a_origin, b_origin = (0, 0), (500000, 500000)
+
+  def send(path, origin, field):
+    """One sender: draw from their own data and save it self-contained.
+
+    Args:
+      path: the GeoPackage this sender writes.
+      origin: where their region sits.
+      field: the column they symbolise.
+
+    Returns:
+      None. Leaves the project empty, which is what a recipient's
+      project holds: neither sender's layers, only the files.
+    """
+    layer = make_region_layer(origin=origin)
+    project.addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(300)
+      dlg.table.cellWidget(1, 1).setCurrentText(field)
+      dlg._update_dynamic_columns()
+      _tick(200)
+      dlg.opt_embed_source.setChecked(True)
+      dlg.spacing_spin.setValue(700.0)
+      _generate_and_wait(dlg)
+      # THE BUTTON READS THE WIDGET, never an argument: `press_save`
+      # drives the control and the control asks the box beside it.
+      dlg.gpkg_widget.setFilePath(path)
+      assert press_save(dlg, path), f"PREMISE: the sender's save failed"
+      assert bridge.REGION_TABLE_NAME in set(bridge.gpkg_tables(path)), (
+        f"PREMISE: {os.path.basename(path)} carries no copy of the "
+        f"data, so the recipient can reach the sender's own path or "
+        f"nothing, and the case is not the one being tested")
+    finally:
+      dlg.close()
+    project.clear()
+    _tick(300)
+
+  def ground(dlg):
+    """Whose ground this dialog's tiles are on.
+
+    Args:
+      dlg: the dialog whose output layers to measure.
+
+    Returns:
+      "A", "B", or a description of anywhere else.
+    """
+    boxes = [layer.extent() for layer in
+             (project.mapLayer(i or "")
+              for i in dlg._element_layer_ids.values())
+             if layer is not None]
+    if not boxes:
+      return "nothing drawn"
+    whole = boxes[0]
+    for box in boxes[1:]:
+      whole.combineExtentWith(box)
+    x, y = whole.center().x(), whole.center().y()
+    if abs(x - a_origin[0]) < 100000 and abs(y - a_origin[1]) < 100000:
+      return "A"
+    if abs(x - b_origin[0]) < 100000 and abs(y - b_origin[1]) < 100000:
+      return "B"
+    return f"neither, at {(round(x), round(y))}"
+
+  def opened(dlg, path):
+    """Open a sent file the way a recipient does."""
+    dlg.resume_widget.setFilePath(path)
+    dlg._load_pressed()
+    _settle(dlg, seconds=60)
+    _tick(400)
+    assert dlg._element_layer_ids, \
+      f"PREMISE: opening {os.path.basename(path)} brought back no map"
+    return dlg._group_name
+
+  try:
+    send(a_path, a_origin, "landcover")
+    send(b_path, b_origin, "v1")
+
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      a_group = opened(dlg, a_path)
+      assert ground(dlg) == "A", \
+        f"PREMISE: A's own file did not come back on A's ground: {ground(dlg)}"
+
+      # ---- THE STAMP, which is the mechanism
+      node = next((g for g in project.layerTreeRoot().findGroups()
+                   if g.name() == a_group), None)
+      assert node is not None, "PREMISE: A's group is not in the layer tree"
+      stamped = json.loads(
+        node.customProperty(WORKING_STATE_PROPERTY) or "{}")
+      here = dlg.layer_combo.currentLayer()
+      assert here is not None, \
+        "PREMISE: opening A's map left the region chooser empty"
+      assert stamped.get("region"), \
+        "A's group carries no region at all, so nothing can find its data"
+      assert same_source(here.source(), stamped["region"]), (
+        f"A's group is stamped with {stamped['region']!r} while its "
+        f"data came back as {here.source()!r}. Nothing in this "
+        f"project answers to the stamp, so the group can never be "
+        f"pointed back at its own data")
+
+      b_group = opened(dlg, b_path)
+      assert b_group != a_group, \
+        "PREMISE: both files landed in one group, so there is no return"
+      assert ground(dlg) == "B", \
+        f"PREMISE: B's file did not come back on B's ground: {ground(dlg)}"
+
+      # ---- THE RETURN, matched with the suite's own helper: A's name
+      # is a PREFIX of B's, so `in` selects the wrong row.
+      wanted = next((i for i in range(dlg.group_combo.count())
+                     if _label_names_group(dlg.group_combo.itemText(i),
+                                           a_group)), -1)
+      assert wanted >= 0, (
+        f"A's group {a_group!r} is not on offer among "
+        f"{[dlg.group_combo.itemText(i) for i in range(dlg.group_combo.count())]}")
+      dlg.group_combo.setCurrentIndex(wanted)
+      dlg.group_combo.activated.emit(wanted)      # what a click sends
+      _tick(900)
+      assert dlg._group_name == a_group, (
+        f"PREMISE: the click landed on {dlg._group_name!r} rather "
+        f"than A's group, so nothing below is about the return")
+
+      back = dlg.layer_combo.currentLayer()
+      assert back is not None and same_source(
+        back.source(), stamped["region"]), (
+        f"back on A's group the data in force is "
+        f"{back.source() if back is not None else None!r}, which is "
+        f"not the data A's map was drawn from")
+      dlg.spacing_spin.setValue(700.0)
+      _generate_and_wait(dlg)
+      _settle(dlg, seconds=60)
+      assert ground(dlg) == "A", (
+        f"returning to A's map re-tiled it from {ground(dlg)}'s data. "
+        f"The output path still reads "
+        f"{os.path.basename(dlg.gpkg_widget.filePath())}, so the next "
+        f"Save writes another sender's map over A's own file")
+
+      # ---- AND THE TWIN BRANCH, which is the door a person takes
+      # most: opening a file whose layers are already in the project.
+      # `_resume_from_gpkg` has two of them and they stamp the group
+      # in two places; without this arm an entry on the other one
+      # could only ever SURVIVE, and would read as a weak test.
+      opened(dlg, a_path)
+      node = next((g for g in project.layerTreeRoot().findGroups()
+                   if g.name() == dlg._group_name), None)
+      assert node is not None, \
+        "PREMISE: the re-opened map is not in any group"
+      again = json.loads(node.customProperty(WORKING_STATE_PROPERTY) or "{}")
+      here = dlg.layer_combo.currentLayer()
+      assert here is not None and again.get("region") and same_source(
+        here.source(), again["region"]), (
+        f"opening the file again stamped its group with "
+        f"{again.get('region')!r} while its data came back as "
+        f"{here.source() if here is not None else None!r}: the door a "
+        f"person takes most is the one still naming a path this "
+        f"machine cannot reach")
+    finally:
+      dlg.close()
+  finally:
+    project.clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_a_follower_goes_on_following_a_map_you_opened():
   """"Take my classes from that layer" has to keep meaning it.
 
@@ -72974,6 +73306,10 @@ def main():
         test_a_colour_picked_on_a_map_you_did_not_draw_reaches_it)
   check("a donor comes home when the map is opened",
         test_a_donor_comes_home_when_the_map_is_opened)
+  check("returning to one sender's map re-tiles it from their own data",
+        test_returning_to_one_senders_map_re_tiles_it_from_their_own_data)
+  check("a save leaves a shared file somebody else has changed",
+        test_a_save_leaves_a_shared_file_somebody_else_has_changed)
   check("a follower goes on following a map you opened",
         test_a_follower_goes_on_following_a_map_you_opened)
   check("a restyle never recuts a map from somebody else's region",
