@@ -488,7 +488,36 @@ waiting for the next Generate is settled and the change being LOST
 never was. The decline has two meanings, so the stamping asks which
 one it is: a second group and a colleague's map are not this map.
 
-**AND ONE QUESTION IS THE MAINTAINER'S RATHER THAN OUTSTANDING WORK.**
+**THE SIX OPEN DECISIONS WERE PUT TO THE MAINTAINER ON 2026-08-29 AND
+ALL SIX WERE SETTLED.** Recorded here because the reasoning is what a
+later session will not have, and because two of them turn into work
+this version now owes.
+
+1. **Numbers stored as text are classifiable** -- BUILT, with a test
+   and two proved entries. The rule is narrowed to its own evidence
+   and `_field_is_numeric` is the one owner; strict, so a column with
+   a word in it stays categorical. Reasoning in CLAUDE.md.
+2. **The window ceiling gives at the columns**, not at the preview
+   floor and not at 1280: trim the over-wide cells and make the layout
+   guard measure at a realistic font rather than the 9pt one every
+   runner supplies. OWED.
+3. **Save becomes responsive now**, and making it a single OGR session
+   is a round of its own rather than part of this candidate. OWED, and
+   the rewrite is under 0.24.5 below.
+4. **The guide's Save sentence is reworded** to say what Save actually
+   asks -- it asks where the file holds a map made from OTHER DATA,
+   which is what the ruling of 2026-08-27 settled. Done in the guide
+   and the Help tab; the wording is in the review queue.
+5. **`check_standards` requires a catalogue anchor to be unique as
+   well as present** -- already true since 2026-08-28, and the ledger
+   paragraph calling it undone has been corrected.
+6. **`mutation_check` does NOT gain a list of replacements.** Anchor
+   the whole decision instead, which cannot be split again by the next
+   alternative somebody adds; where two sites are genuinely distant,
+   retire with the measurement written at the test.
+
+**AND ONE QUESTION WAS THE MAINTAINER'S RATHER THAN OUTSTANDING WORK,
+AND IS NOW DECIDED** (item 1 above; what follows is how it stood).
 A quantitative style never stands on a text field, and the stated
 reason is that a graduated renderer over text comes back with no
 ranges. Measured on QGIS 4.0.3: true of WORDS, false of NUMERIC

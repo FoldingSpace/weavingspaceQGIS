@@ -2280,6 +2280,35 @@ Confirmed with the user via an explicit design review:
      reason at the code; driven 2026-08-27, a cycle SETTLES rather
      than churning.
 
+- **NUMBERS STORED AS TEXT ARE CLASSIFIABLE.** (Maintainer's ruling,
+  2026-08-29, narrowing a rule to its own evidence.) A quantitative
+  style never stands on a text field, and the stated reason was that a
+  graduated renderer over text comes back with no ranges, so every
+  tile falls outside every class and the layer paints nothing.
+  MEASURED ON QGIS 4.0.3, that is true of WORDS and false of NUMERIC
+  STRINGS: a String column running "10" to "120" classifies exactly as
+  its integer twin -- five ranges, the same bounds, twelve of twelve
+  features symbolised. The rule was true of the example that prompted
+  it and wider than its evidence, and it cost a choropleth to anybody
+  whose numbers arrived through a CSV join or a GeoJSON: at three
+  thousand areas, three thousand and one categories.
+  `_field_is_numeric` IS THE ONE OWNER and answers the wider question
+  now, so all eight readers move together -- which is what stops the
+  row and the assignment disagreeing. A column declared numeric
+  answers True as it always did; a column declared text answers True
+  where every one of its values parses.
+  STRICT, AND THAT IS THE HALF THAT KEEPS IT SAFE. "Mostly numbers" is
+  a column with something else in it, and a graduated renderer drops
+  those rows in silence -- the very failure the old rule was written
+  about, arriving through the door opened to relax it. Both answers
+  are asserted in one test, because a reader meeting either alone
+  would take it for the whole rule.
+  AND IT IS CACHED, keyed by layer, column, fingerprint and data
+  version exactly as `_classification_values` is. `_field_is_numeric`
+  is asked once per field for the variable lists and once per element
+  inside `_assignments`, which every keystroke reaches, so an
+  unguarded scan would rebuild the cache-of-one defect of 2026-08-19.
+
 - **A SAVE PRESSED WHILE A RE-TILE IS COMING IS KEPT, NOT REFUSED.**
   (Maintainer's ruling, 2026-08-29, overruling a repair of the day
   before.) With live update on, changing the design arms the live

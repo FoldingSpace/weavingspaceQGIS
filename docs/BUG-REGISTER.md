@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-423 defect(s) with a regression test.
+424 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -243,6 +243,8 @@ there is no separate list to remember.
   guarded by `test_no_data_is_one_more_colour_in_the_element_s_editor`
 - **`_nudge_off_shared_bounds` shrank the upper bound of EVERY finite-width range, including the LAST, whose upper bound is the column's maximum -- so the largest value belonged to no range, QGIS gave it no symbol, and the map drew a hole where the darkest tile should be while the legend still listed a class for it and a lower value wore the darkest colour. Measured 2026-08-16 on [10]*8 + [20, 30] under Quantiles at k=5, and confirmed by rendering onto a coloured ground, where that tile came back as the background.**  
   guarded by `test_no_value_is_ever_orphaned_by_a_classification`
+- **a column of numbers stored as text could not be given a quantitative style, so a CSV join or a GeoJSON produced one colour per value; and between a graduated style built in QGIS's dock and the next Generate the row read "Quant: Quantiles" while the assignment said Categorized, so that Generate destroyed the dock's work. Found by the specification hunt of 2026-08-28.**  
+  guarded by `test_numbers_stored_as_text_can_be_classified`
 - **two elements sharing a categorical column and a ramp gave the same colour to different values, because each sampled the palette against its own category count.**  
   guarded by `test_one_colour_means_one_value_across_elements`
 - **pinning a class bound left the colour editor showing the ladder from before the pin, and the unpinned end's control offering a bound the map no longer had.**  
@@ -897,7 +899,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- a bug hunt pointed in a named direction: 124
+- a bug hunt pointed in a named direction: 125
 - the mutation campaign: 122
 - not written down at the time: 88
 - reported by a user: 30

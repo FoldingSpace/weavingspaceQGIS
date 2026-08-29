@@ -7889,6 +7889,37 @@ MUTATIONS = [
            "the widget, and the choice is gone in silence -- two "
            "elements showing one column then part company the moment "
            "somebody moves the donor"),
+  dict(name="numeric-text-is-classifiable", file=DIALOG,
+       # Back to asking QGIS's declared type alone, which is the rule
+       # as it stood before 2026-08-29. A column of numbers stored as
+       # text is then read as text: one colour per value, and no
+       # choropleth from a CSV join.
+       old="""    return self._text_column_reads_as_numbers(name, idx, layer)""",
+       new="""    return False  # mutation: the declared type is the whole answer""",
+       test="test_numbers_stored_as_text_can_be_classified",
+       why="numbers that arrived as text being drawable as numbers: the "
+           "old rule's stated reason -- a graduated renderer over text "
+           "comes back with no ranges -- is true of WORDS and false of "
+           "numeric strings, so it refused a choropleth to anybody "
+           "whose values came through a join"),
+  dict(name="mostly-numbers-is-not-numbers", file=BRIDGE,
+       # The other half, and the one that would make the widening
+       # dangerous: accept a column that is mostly numbers, and the
+       # graduated renderer drops whatever is not, in silence.
+       old="""    except (TypeError, ValueError):
+      return False
+    seen += 1
+  return seen > 0""",
+       new="""    except (TypeError, ValueError):
+      continue  # mutation: mostly numbers is close enough
+    seen += 1
+  return seen > 0""",
+       test="test_numbers_stored_as_text_can_be_classified",
+       why="a column with a word in it staying categorical: 'mostly "
+           "numbers' is a column with something else in it, and a "
+           "graduated renderer would drop those rows without saying "
+           "so -- the failure the old rule was written about, arriving "
+           "through the door opened to relax it"),
   dict(name="a-long-lived-signal-cannot-take-a-bare-lambda",
        file=DIALOG,
        # Puts the bare lambda back, exactly as it stood before

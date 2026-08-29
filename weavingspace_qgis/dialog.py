@@ -2124,6 +2124,11 @@ class WeavingSpaceDialog(QDialog):
     # chooser is read again at the moment of the write, exactly as the
     # button reads it, so every guard the press would have met is met.
     self._save_pending = False
+    # WHETHER A TEXT COLUMN READS AS NUMBERS, keyed by layer, column,
+    # fingerprint and data version exactly as `_values_cache` is, so an
+    # edit that could change the answer retires the entry and nothing
+    # else does. Why it is cached at all is at the method.
+    self._numeric_text_cache = {}
     # True once the window has been closed. A closed dialog
     # must not write into the project: the timers can be
     # stopped, but the region layer's signals stay connected
@@ -4654,13 +4659,79 @@ class WeavingSpaceDialog(QDialog):
             if f.name() != bridge.GPKG_FID_COLUMN]
 
   def _field_is_numeric(self, name: str) -> bool:
-    """Whether a field holds numbers (drives the Quant/Categorized
-    default in ``_plausible_mode``)."""
+    """Whether a field can be CLASSIFIED as numbers.
+
+    Args:
+      name: a column of the region layer in force.
+
+    Returns:
+      True where the column is declared numeric, and also where it is
+      declared text and every one of its values reads as a number.
+      False otherwise, and False when there is no layer or no such
+      column.
+
+    IT IS THE ONE OWNER of the Quant-or-Categorized question: eight
+    sites read it -- the default a fresh element gets, the correction
+    every consumer of `_assignments` passes through, the two chooser
+    corrections, the variable listings and the distinct-value count --
+    so widening it widens all of them together, which is what stops
+    the row and the assignment disagreeing about one column.
+
+    NUMERIC TEXT IS CLASSIFIABLE, settled by the maintainer on
+    2026-08-29. The rule it replaces said a quantitative style never
+    stands on a text field, and its stated reason -- a graduated
+    renderer over text comes back with no ranges -- was measured true
+    of WORDS and false of NUMERIC STRINGS. The argument and the
+    measurement are at `bridge.every_value_reads_as_a_number`.
+    """
     layer = self.layer_combo.currentLayer()
     if layer is None:
       return False
     idx = layer.fields().indexOf(name)
-    return idx >= 0 and layer.fields().field(idx).isNumeric()
+    if idx < 0:
+      return False
+    if layer.fields().field(idx).isNumeric():
+      return True
+    return self._text_column_reads_as_numbers(name, idx, layer)
+
+  def _text_column_reads_as_numbers(self, name, index, layer) -> bool:
+    """Whether a text column's own values are numbers. Cached.
+
+    Args:
+      name: the column's name, which is part of the cache key.
+      index: its index in the layer's fields, for `uniqueValues`.
+      layer: the region layer in force.
+
+    Returns:
+      True where every value parses as a number, False otherwise and
+      False where the values cannot be read at all.
+
+    CACHED, AND THAT IS NOT AN OPTIMISATION. `_field_is_numeric` is
+    asked once per field when the variable lists are built and once
+    per element inside `_assignments`, which every keystroke reaches
+    -- so an unguarded scan here would rebuild the cache-of-one defect
+    of 2026-08-19, where one keystroke rescanned 3,011 features
+    twenty-three times. The key is the one `_classification_values`
+    already uses: the layer, the column, the fingerprint and the data
+    version, so an edit that could change the answer retires it and
+    nothing else does.
+
+    BOUNDED, because the question is decided long before a whole
+    column is read: two hundred distinct values that all parse settle
+    it, and a column with anything else in it fails at the first one
+    whatever the ceiling. `uniqueValues` asks the provider, which is
+    the cheap way to ask.
+    """
+    key = (layer.id(), name, self._layer_fingerprint(), self._data_version)
+    answer = self._numeric_text_cache.get(key)
+    if answer is None:
+      try:
+        values = layer.uniqueValues(index, 200)
+      except Exception:
+        return False
+      answer = bridge.every_value_reads_as_a_number(values)
+      self._numeric_text_cache[key] = answer
+    return answer
 
   # ---------------------------------------------------------------- preview
 

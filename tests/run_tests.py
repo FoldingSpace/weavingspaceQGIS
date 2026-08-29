@@ -28596,6 +28596,136 @@ def test_a_donor_comes_home_when_the_map_is_opened():
       opener.close()
 
 
+def test_numbers_stored_as_text_can_be_classified():
+  """A column of numbers is a column of numbers, whatever its type says.
+
+  The settled rule was that a quantitative style never stands on a text
+  field, and its stated reason was that a graduated renderer over text
+  comes back with no ranges, so every tile falls outside every class
+  and the layer paints nothing. Measured on QGIS 4.0.3 that is true of
+  WORDS and false of NUMERIC STRINGS: a String column running "10" to
+  "120" classifies exactly as its integer twin. The rule was true of
+  the example that prompted it and wider than its own evidence, and
+  somebody whose numbers arrived through a CSV join or a GeoJSON could
+  not draw a choropleth from them at all -- at three thousand areas
+  they were handed three thousand and one categories.
+  (Maintainer's ruling, 2026-08-29.)
+
+  THREE ARMS, because the rule has three answers and a reader meeting
+  one would take it for the whole thing. Numbers stored as text are
+  classifiable. Words are not. And MOSTLY numbers is not either --
+  "mostly" is a column with something else in it, and a graduated
+  renderer would drop those rows in silence, which is the failure this
+  is meant to avoid rather than cause.
+
+  AND IT DRIVES THE MAP, not only the predicate. A predicate that
+  answers well over a renderer that paints nothing would be exactly
+  the defect the old rule was written about, wearing a tick: so the
+  text column is assigned, generated, and the element's own renderer
+  and tile count are read.
+
+  Regression: a column of numbers stored as text could not be given a quantitative style, so a CSV join or a GeoJSON produced one colour per value; and between a graduated style built in QGIS's dock and the next Generate the row read "Quant: Quantiles" while the assignment said Categorized, so that Generate destroyed the dock's work. Found by the specification hunt of 2026-08-28. [hunt]
+  """
+  from qgis.core import (QgsFeature, QgsField, QgsGeometry, QgsPointXY,
+                         QgsVectorLayer)
+  from qgis.PyQt.QtCore import QMetaType
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+
+  numbers = [str(v) for v in (10, 25, 40, 55, 70, 85, 100, 120)]
+  words = ["forest", "water", "urban", "crops"]
+  mixed = numbers[:6] + ["n/a", "12"]
+  columns = {"as_text": numbers, "as_words": words, "mostly": mixed}
+
+  layer = QgsVectorLayer("Polygon?crs=EPSG:3857", "text numbers", "memory")
+  provider = layer.dataProvider()
+  provider.addAttributes(
+    [QgsField(name, QMetaType.Type.QString) for name in columns])
+  layer.updateFields()
+  made = []
+  for i in range(max(len(v) for v in columns.values())):
+    feature = QgsFeature(layer.fields())
+    x, y = (i % 4) * 1000.0, (i // 4) * 1000.0
+    feature.setGeometry(QgsGeometry.fromPolygonXY([[
+      QgsPointXY(x, y), QgsPointXY(x + 900, y),
+      QgsPointXY(x + 900, y + 900), QgsPointXY(x, y + 900),
+      QgsPointXY(x, y)]]))
+    for name, values in columns.items():
+      feature[name] = values[i % len(values)]
+    made.append(feature)
+  provider.addFeatures(made)
+  layer.updateExtents()
+  project.addMapLayer(layer)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(400)
+
+    assert dlg._field_is_numeric("as_text"), (
+      "a column whose every value is a number was read as text, so "
+      "somebody whose numbers arrived through a CSV join still cannot "
+      "draw a choropleth from them")
+    assert not dlg._field_is_numeric("as_words"), \
+      "a column of words was read as numbers"
+    assert not dlg._field_is_numeric("mostly"), (
+      "a column of numbers WITH A WORD IN IT was read as numbers; a "
+      "graduated renderer would drop those rows in silence, which is "
+      "the failure this rule exists to avoid rather than to cause")
+    assert dlg._plausible_mode("as_text").startswith("Quant"), \
+      f"a fresh element on numeric text defaults to " \
+      f"{dlg._plausible_mode('as_text')!r}"
+    assert dlg._plausible_mode("as_words") == "Categorized", \
+      "a fresh element on words must still default to categories"
+
+    # ---- AND THE ROW AND THE ASSIGNMENT AGREE, which is the half of
+    # this that was a defect rather than a decision: they disagreed,
+    # and the next Generate destroyed whatever the dock had built.
+    row = 1
+    variable = dlg.table.cellWidget(row, 1)
+    variable.setCurrentText("as_text")
+    variable.activated.emit(variable.currentIndex())
+    _tick(400)
+    mode = dlg.table.cellWidget(row, 2)
+    tid = dlg.table.item(row, 0).text()
+    assignment = dlg._assignment_for(tid) or {}
+    assert mode.currentText().startswith("Quant"), \
+      f"the row reads {mode.currentText()!r} on a column of numbers"
+    assert assignment.get("mode") == "Graduated", (
+      f"the row says {mode.currentText()!r} and the assignment says "
+      f"{assignment.get('mode')!r}: the next Generate re-seeds from "
+      f"the assignment, so the two disagreeing is how a style built in "
+      f"QGIS's own dock is destroyed")
+
+    # ---- AND THE MAP IS ACTUALLY DRAWN FROM IT
+    dlg.spacing_spin.setValue(700.0)
+    _generate_and_wait(dlg)
+    assert dlg._element_layer_ids, "PREMISE: nothing was drawn"
+    out = project.mapLayer(dlg._element_layer_ids.get(tid, ""))
+    assert out is not None, "PREMISE: the element has no layer"
+    renderer = out.renderer()
+    assert hasattr(renderer, "ranges"), (
+      f"the element wears a {type(renderer).__name__}, so the "
+      f"quantitative style did not reach the map")
+    held = list(renderer.ranges())
+    assert len(held) > 1, (
+      f"the graduated renderer came back with {len(held)} range(s), "
+      f"which is the very failure the old rule was written about: "
+      f"every tile falls outside every class and the layer paints "
+      f"nothing")
+    assert sum(1 for _f in out.getFeatures()) > 0, \
+      "the element drew no tiles at all"
+    lowest = min(r.lowerValue() for r in held)
+    highest = max(r.upperValue() for r in held)
+    assert lowest <= 10.0 and highest >= 120.0, (
+      f"the ladder runs {lowest} to {highest}, which does not cover "
+      f"the column's own 10 to 120 -- the values were not read as the "
+      f"numbers they are")
+  finally:
+    dlg.close()
+
+
 def test_nothing_long_lived_is_connected_to_a_bare_lambda():
   """A callable that outlives the dialog must be able to ask first.
 
@@ -72583,6 +72713,8 @@ def main():
         test_a_limit_and_the_colours_after_it_survive_a_reopen)
   check("nothing long lived is connected to a bare lambda",
         test_nothing_long_lived_is_connected_to_a_bare_lambda)
+  check("numbers stored as text can be classified",
+        test_numbers_stored_as_text_can_be_classified)
   check("a blend mode set in QGIS survives a re-tile",
         test_a_blend_mode_set_in_qgis_survives_a_re_tile)
   check("a column called no data does not miscount the map",

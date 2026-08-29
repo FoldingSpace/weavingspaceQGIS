@@ -1561,6 +1561,58 @@ def _fill_symbol(colour: str, outline: bool) -> QgsFillSymbol:
   return QgsFillSymbol.createSimple(opts)
 
 
+def every_value_reads_as_a_number(values) -> bool:
+  """Whether a column's values are all numbers, whatever its type says.
+
+  Args:
+    values: any iterable of attribute values -- a QGIS layer's
+      ``uniqueValues`` set is what the dialog passes. Nulls and empty
+      strings are skipped: an absent value is not a claim about what
+      the column holds, and every classified map here already draws
+      absences as their own kind.
+
+  Returns:
+    True where at least one value was seen and every one of them
+    parses as a number. False for an empty column, and False the
+    moment anything does not parse.
+
+  WHY IT IS STRICT. "Mostly numbers" is a column with something else
+  in it, and a graduated renderer would silently drop those rows --
+  which is the failure this predicate exists to avoid rather than
+  cause. Where it answers False the reason is real and a person can
+  see it in their own data.
+
+  WHY IT EXISTS AT ALL. The settled rule that a quantitative style
+  never stands on a text field rests on a measured claim: a graduated
+  renderer over text comes back with no ranges, so every tile falls
+  outside every class and the layer paints nothing. Measured again on
+  QGIS 4.0.3 (2026-08-28, the `spec` hunt), that is true of WORDS and
+  false of NUMERIC STRINGS -- a String column running "10" to "120"
+  classifies exactly as its integer twin, five ranges, same bounds,
+  twelve of twelve features symbolised. So the rule was true of the
+  example that prompted it and wider than its own evidence, and
+  somebody whose numbers arrived through a CSV join or a GeoJSON
+  could not draw a choropleth from them at all: at three thousand
+  areas they were given three thousand and one categories.
+  (Maintainer's ruling, 2026-08-29.)
+
+  `float` rather than a stricter parse, and non-finite values are
+  ALLOWED through: an infinity in a column is one of the four kinds
+  of absence this plugin already draws and names, so it is not a
+  reason to call the column text.
+  """
+  seen = 0
+  for value in values:
+    if value is None or value == NULL or value == "":
+      continue
+    try:
+      float(value)
+    except (TypeError, ValueError):
+      return False
+    seen += 1
+  return seen > 0
+
+
 def distinct_numeric_count(values, limit: int | None = None) -> int:
   """How many distinct finite numbers a column holds.
 
