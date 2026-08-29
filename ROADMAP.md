@@ -816,15 +816,55 @@ AND WHAT GOES IN THE FILE IS NOT THE OBJECT. `topology.py` imports
 there is no save format, and a pickle would be the wrong one anyway --
 version-fragile, and unpickling a file somebody sent you is precisely
 the shape a plugin-repository reviewer looks hardest at, which this
-project has a hard rule about. What CAN travel is the derived and
-inspectable part: `get_dual_tiles()` already returns a GeoDataFrame, so
-the dual is a table a GeoPackage holds natively and a colleague can
-open without the plugin, and the transitivity classes, shape groups and
-symmetry codes are small structured values that belong in the working
--state record beside the design. That also keeps the file honest under
-the ruling of 2026-08-26 -- the file shows the limit of what it
-contains -- since a stored dual is a fact about the DESIGN and carries
-none of anybody's data.
+project has a hard rule about.
+
+**THE FILE ALREADY CARRIES JSON, AND THE MECHANISM IS THE ONE THE
+RECORD USES.** `bridge.write_working_state` opens the GeoPackage with
+`gdal.OpenEx(path, OF_UPDATE)` and calls `SetMetadataItem(
+"WEAVINGSPACE_STATE", json.dumps(record))`, which lands in the
+format's own `gpkg_metadata` table; `read_working_state` takes it back
+out with `GetMetadataItem` and `json.loads`. That is how the whole
+working state travels today, so topology facts need no new machinery
+at all -- they are keys in a dict that is already written.
+
+MEASURED 2026-08-29, on hex-slice 12 at spacing 500. The structured
+half of a topology -- shape groups, the tile, vertex and edge
+transitivity classes, and the counts -- serialises to **2,424 bytes**,
+against about 1,151 for a representative record, so it roughly triples
+what the file carries and the total is 3,589 bytes inside a 106 KB
+GeoPackage. Written through the plugin's own two functions and read
+back from a COLD open, the topology came back identical. The largest
+term is the edge classes at 1,388 bytes, and that is the one that
+scales, since it is per edge rather than per element.
+
+THE DUAL IS THE EXCEPTION AND WANTS A TABLE. `get_dual_tiles()`
+returns a GeoDataFrame, so it belongs in the file as a LAYER the way
+element tables do -- a colleague can then open it without the plugin,
+which a metadata string does not give them. Geometry in a JSON blob
+would be the wrong shape twice over.
+
+AND THE THREE STORES ARE NOT SYMMETRICAL, which is the trap to write
+down before anybody builds this. `_capture_working_state` builds the
+record by iterating `WORKING_STATE_DESIGN` and `WORKING_STATE_ELEMENT`,
+so a topology key does not appear unless capture is taught it;
+`_file_safe_state` is a BLACKLIST that strips only each element's
+`kept` map, so once captured the key travels to the file for free; and
+the restore iterates those same whitelists, so a key the file carries
+is dropped in SILENCE on the way back in unless the whitelist knows it.
+Writing is permissive and reading is strict. That is this project's
+"widen the whitelist in the same commit as the code that reads it",
+said three times already about `_adopt_dock_bounds`, the copy and the
+mode, and it applies here with the extra wrinkle that the file will
+happily hold something nothing can restore.
+
+ONE SMALL THING THAT WILL BITE: edge ids are TUPLES and JSON has no
+tuple, so they come home as lists and every reader has to `tuple()`
+them. A silent type change across a boundary is the shape this
+repository's ledger carries most often.
+
+None of this troubles the ruling of 2026-08-26 that the file shows the
+limit of what it contains: a topology is a fact about the DESIGN and
+carries none of anybody's data.
 
 WHAT COMES FIRST is still an inventory, and it is cheaper now that the
 two constraints above are known: what each manipulation actually does
