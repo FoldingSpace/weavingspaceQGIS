@@ -2208,9 +2208,12 @@ MUTATIONS = [
        # checkbox and onto the FILE, because a control cannot hold a
        # per-file answer without costing somebody their privacy in one
        # direction or their preference in the other.
-       old="""    self._embedded_when_resumed[self._gpkg_key(path)] = bool(
-      record.get("region_embedded"))""",
-       new="""    self._embedded_when_resumed[self._gpkg_key(path)] = False""",
+       # RE-ANCHORED 2026-08-28, when the remembered fact gained the
+       # touch count that keys its override by file.
+       old="""    self._embedded_when_resumed[self._gpkg_key(path)] = (
+      bool(record.get("region_embedded")), self._embed_touches)""",
+       new="""    self._embedded_when_resumed[self._gpkg_key(path)] = (
+      False, self._embed_touches)""",
        test="test_a_recipients_save_keeps_the_source_the_sender_included",
        why="a colleague who opens a self-contained map and saves it "
            "still having a file anybody can redraw"),

@@ -1591,6 +1591,8 @@ class WeavingSpaceDialog(QDialog):
     # which of two Qt handlers runs first
     self._removal_pending = None
     self._last_run_sig = None
+    # The region's fingerprint at the last landing; None until one.
+    self._fingerprint_when_drawn = None
     # the geometry of the last completed run, so a later style-only
     # change can be answered without tiling again
     self._last_geometry_sig = None
@@ -2693,9 +2695,18 @@ class WeavingSpaceDialog(QDialog):
     # from emptying a file they never asked to change while leaving a
     # deliberate untick meaning exactly what it says.
     self._embedded_when_resumed = {}
-    self._embed_box_touched = False
-    self.opt_embed_source.toggled.connect(
-      lambda _on: setattr(self, "_embed_box_touched", True))
+    # HOW MANY TIMES ANYBODY HAS TOUCHED THE BOX, and what that count
+    # was when each file was opened. A plain "has it been touched"
+    # bool was the first repair's own mistake, and it is the mistake
+    # the commit that introduced it had just written into CLAUDE.md:
+    # a fact keyed by subject needs its OVERRIDE keyed by subject as
+    # well, or one tick anywhere in the session strips every
+    # self-contained file opened afterwards. Measured 2026-08-28 by
+    # the hunt aimed at that repair: tick, save your own file, untick,
+    # then open a colleague's map and save -- their embedded copy gone
+    # and the file no longer redrawable.
+    self._embed_touches = 0
+    self.opt_embed_source.toggled.connect(self._note_an_embed_touch)
     # ...and the other end, built from the same widget so the two rows
     # read as one pair. Choosing a file here is NOT the act either: a
     # chooser that loaded the moment it was filled would be the same
@@ -16356,6 +16367,22 @@ class WeavingSpaceDialog(QDialog):
         f"design could not be written into the file, so opening it "
         f"elsewhere will show the map without carrying on with it.")
       return True
+    # AND SAY SO WHERE THE DATA HAS MOVED SINCE THE MAP WAS DRAWN.
+    # The file then holds tiles from the old numbers beside a copy of
+    # the source holding the new ones, which is honest about neither
+    # unless somebody is told. Measured 2026-08-28: a region edited in
+    # QGIS between a Generate and a Save travelled as {7,17,27,37}
+    # beside a map drawn from {0,1,2,3}, and the recipient was told
+    # only that four element layers had opened.
+    moved = (self._fingerprint_when_drawn is not None
+             and self._layer_fingerprint() != self._fingerprint_when_drawn)
+    if moved:
+      self._report_quietly(
+        f"Saved to {os.path.basename(path)}. The data has changed "
+        f"since this map was drawn, so the file holds the map as it "
+        f"is and a copy of the data as it is now; press Generate and "
+        f"save again to make them agree.")
+      return True
     self._report_quietly(f"Saved to {os.path.basename(path)}.")
     return True
 
@@ -16788,6 +16815,29 @@ class WeavingSpaceDialog(QDialog):
       # live update -- a default no user is holding, which is the more
       # useful half of that measurement.
       self._last_run_sig = self._run_signature()
+      # AND A RECOVERY IS STILL NOT A SWITCH. `_landed_this_session`
+      # is set below so that a change of dataset after opening a map
+      # is protected like any other -- but ONLY where this resume
+      # actually found the data the map was made from. Where it did
+      # not, the plugin has just asked the person to choose the region
+      # layer to carry on with, and that choice is a RECOVERY: the
+      # settled clause of 2026-08-21, in as many words. Setting the
+      # flag regardless turned obeying that instruction into a switch,
+      # so the path cleared, the group was let go and Generate built a
+      # second identical group beside the map. Measured 2026-08-28 by
+      # the hunt aimed at the repair that introduced it, with a
+      # counterfactual arm.
+      # RECOVERED MEANS THIS MAP'S OWN SOURCE, not merely that the
+      # chooser holds something: a project that already contains an
+      # unrelated polygon layer leaves the combo non-empty whether the
+      # recovery worked or not, and asking the weaker question let the
+      # defect straight back through. Either the recorded source, or
+      # the copy inside the file where that is what was recovered.
+      chosen = self.layer_combo.currentLayer()
+      here = chosen.source() if chosen is not None else None
+      recovered = bool(here) and (
+        same_source(here, record.get("region") or "")
+        or str(here).startswith(str(path)))
       # A MAP OPENED IS THIS SESSION'S WORK, exactly as a map drawn
       # is. `_landed_this_session` had one writer, the landing, so a
       # resume left it False: `switched_from_work` then read a change
@@ -16803,7 +16853,7 @@ class WeavingSpaceDialog(QDialog):
       # The counterfactual is what named the cause: the identical
       # journey with this flag forced True clears the path and
       # announces it, like every other switch away from work.
-      self._landed_this_session = True
+      self._landed_this_session = recovered
       # ...AND THE GROUP TAKES THE RECORD TOO, stamped with the FILE'S
       # region rather than whatever the chooser happens to hold when
       # recovery fails -- see the already-open branch.
@@ -16931,8 +16981,8 @@ class WeavingSpaceDialog(QDialog):
     # had it silently unticked by opening any file without a copy in
     # it. The fact belongs to the FILE, so it is remembered against
     # the file and the control is left alone.
-    self._embedded_when_resumed[self._gpkg_key(path)] = bool(
-      record.get("region_embedded"))
+    self._embedded_when_resumed[self._gpkg_key(path)] = (
+      bool(record.get("region_embedded")), self._embed_touches)
 
     wanted = record.get("region")
     if wanted:
@@ -17034,6 +17084,26 @@ class WeavingSpaceDialog(QDialog):
       _dump("STATE", "embed-failed", traceback.format_exc(limit=3))
       return False
 
+  def _note_an_embed_touch(self, _on):
+    """Count a deliberate opinion about including the source data.
+
+    Args:
+      _on: the box's new state, which this does not need -- ticking
+        and unticking are both the user having spoken.
+
+    Returns:
+      None. Advances a counter that `_embed_or_drop_the_source` reads
+      against the count recorded when each file was opened.
+
+    WHY A COUNT AND NOT A FLAG. The question is per FILE: has this
+    person expressed a choice SINCE THIS FILE was opened? A single
+    session-wide "touched" bool answers a different question, and
+    answering it cost a colleague's embedded data the first time this
+    was written -- one tick anywhere in the session made every
+    self-contained file opened afterwards strippable.
+    """
+    self._embed_touches += 1
+
   def _embed_or_drop_the_source(self, path) -> bool:
     """Put the region data into the saved file, or take it back out.
 
@@ -17076,8 +17146,9 @@ class WeavingSpaceDialog(QDialog):
     # redraw. The question is asked of THIS file and only while the
     # box is untouched, so a deliberate untick still means what it
     # says.
-    if not self._embed_box_touched and \
-        self._embedded_when_resumed.get(self._gpkg_key(path)):
+    held, touches = self._embedded_when_resumed.get(
+      self._gpkg_key(path), (False, None))
+    if held and touches == self._embed_touches:
       return True
     if bridge.REGION_TABLE_NAME in bridge.gpkg_tables(path):
       bridge.drop_gpkg_layer(path, bridge.REGION_TABLE_NAME)
@@ -18708,6 +18779,13 @@ class WeavingSpaceDialog(QDialog):
     # a change of region layer is a change of dataset, with everything
     # _begin_new_dataset does. Before it, a switch is a first choice.
     self._landed_this_session = True
+    # ...AND WHAT THE DATA LOOKED LIKE WHEN IT WAS DRAWN, so a Save
+    # can tell whether the region has moved since. A Save writes the
+    # map as it stands and embeds the source as it stands, and those
+    # are two different moments the instant somebody edits their layer
+    # after generating: the tiles hold the old numbers, the embedded
+    # copy holds the new ones, and nothing said so.
+    self._fingerprint_when_drawn = self._layer_fingerprint()
     # what this run DREW, not what the table says now (see the note
     # where these are captured, in _generate)
     self._last_run_sig = (run_sig if run_sig is not None
