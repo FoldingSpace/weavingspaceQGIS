@@ -28596,6 +28596,241 @@ def test_a_donor_comes_home_when_the_map_is_opened():
       opener.close()
 
 
+def test_nothing_long_lived_is_connected_to_a_bare_lambda():
+  """A callable that outlives the dialog must be able to ask first.
+
+  Qt disconnects a signal from a BOUND METHOD when the receiving
+  QObject dies. A LAMBDA is an ordinary Python object: Qt keeps it
+  alive and goes on calling it, and reaching `self.anything` through a
+  deleted sip wrapper is a SEGMENTATION FAULT rather than an
+  exception -- so it happens before any handler's own retirement gate
+  can run, and it takes the whole process with it.
+
+  WHAT THAT COST, measured 2026-08-29 and reproducible: twelve tests
+  in one process, the interpreter gone with no verdict at all, which
+  in a sharded suite is a shard that simply stops. In QGIS it is the
+  application closing on somebody who has opened the plugin a few
+  times and then chosen File > New or opened a project -- because
+  `cleared` and `readProject` are PROJECT signals and reach every
+  dialog a session has ever made, and an element layer outlives the
+  dialog that made it.
+
+  IT GUARDS THE SHAPE RATHER THAN THE THREE SITES. A test pinned to
+  the lines that crashed would pass forever while the next person
+  writes the same connection somewhere else -- and they will, because
+  a lambda at a connect site reads as ordinary. The three that were
+  found this way had each been written by somebody who knew the rule.
+
+  THE SCOPE IS EXACTLY THE HAZARD, so it needs no exemption list. A
+  lambda on a WIDGET's signal is safe: the widget is a child of the
+  dialog and dies with it. What is not safe is a signal from
+  something the dialog does not own -- the project, or a layer -- and
+  a timer, which fires into whatever is left.
+
+  Regression: three callables outliving their dialog reached it through a bare lambda, so a destroyed dialog was touched and QGIS died with a segmentation fault. Found while running twelve tests in one process, 2026-08-29. [suite]
+  """
+  import ast as _ast
+  source = open(os.path.join(ROOT, "weavingspace_qgis", "dialog.py"),
+                encoding="utf-8").read()
+  tree = _ast.parse(source)
+
+  def outlives_the_dialog(node):
+    """Whether a `.connect` receiver is something the dialog does not own.
+
+    Args:
+      node: the expression a signal was read from -- the `x` in
+        `x.signal.connect(...)`.
+
+    Returns:
+      True for `QgsProject.instance()` and for a plain `layer`, which
+      are the two kinds that outlive a dialog here. False for a
+      widget, which is a child and dies with its parent.
+    """
+    if isinstance(node, _ast.Call):
+      called = node.func
+      return (isinstance(called, _ast.Attribute)
+              and isinstance(called.value, _ast.Name)
+              and called.value.id == "QgsProject")
+    return isinstance(node, _ast.Name) and node.id in ("layer", "out")
+
+  offenders = []
+  connects = timers = 0
+  for node in _ast.walk(tree):
+    if not isinstance(node, _ast.Call):
+      continue
+    called = node.func
+    if isinstance(called, _ast.Attribute) and called.attr == "connect":
+      signal = called.value
+      if not isinstance(signal, _ast.Attribute):
+        continue
+      if not outlives_the_dialog(signal.value):
+        continue
+      connects += 1
+      if node.args and isinstance(node.args[0], _ast.Lambda):
+        offenders.append(
+          f"line {node.lineno}: a signal on something that outlives "
+          f"this dialog is connected to a bare lambda")
+    elif (isinstance(called, _ast.Attribute)
+          and called.attr == "singleShot"):
+      timers += 1
+      if len(node.args) > 1 and isinstance(node.args[1], _ast.Lambda):
+        offenders.append(
+          f"line {node.lineno}: a timer is queued with a bare lambda")
+
+  # COUNT WHAT WAS LOOKED AT: a walk that finds nothing and a walk
+  # that examined nothing are the same green, which is this project's
+  # oldest and cheapest rule.
+  assert connects >= 3 and timers >= 5, (
+    f"this scan examined {connects} long-lived connection(s) and "
+    f"{timers} timer(s), which is too few to have looked at the "
+    f"dialog at all -- the shapes it matches have probably moved")
+  assert not offenders, (
+    "a callable that outlives its dialog cannot ask whether the "
+    "dialog is still there, so it reaches a deleted C++ object and "
+    "the process dies:\n  " + "\n  ".join(offenders)
+    + "\nGive it a name and let it check `_dialog_is_gone` first.")
+
+
+def test_a_limit_and_the_colours_after_it_survive_a_reopen():
+  """A change the map has not drawn yet must still be recorded.
+
+  A floor or a ceiling moves tiles onto the paired layer, which makes
+  it a GEOMETRY change -- so the restyle path declines it and the map
+  waits for the next Generate. That is settled and it is right: with
+  live update off the map is deliberately not refreshed.
+
+  WHAT WAS NOT RIGHT is that every durable stamp an element carries is
+  written on the restyle's SUCCESS path, so a change that path
+  declines reached this dialog's dicts and nothing else. Set a floor,
+  pick a colour, save the project and open it again: both were gone,
+  while the window that was still open went on showing the work the
+  file no longer had.
+
+  THE CONTROL IS A COLOUR ALONE, which restyles perfectly well and so
+  has always come home. Without it a green arm proves nothing about
+  limits -- the fixture, the editor or the round trip could each be
+  the reason something survived or did not.
+
+  IT READS THE LAYER'S OWN STAMP, not the dialog's dict. The dict is
+  this session's memory and says nothing whatever about what a
+  reopened project would find, which is the question.
+
+  Regression: a floor or ceiling, and every colour picked after it, were destroyed by a save-and-reopen before Generate, because those stamps happen only as a side effect of a restyle that a limit makes decline. Found by the colour-editor hunt of 2026-08-28. [hunt]
+  """
+  from weavingspace_qgis.category_editor import CategoryColourDialog
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+
+  def graduated_element(dlg):
+    """An element wearing a graduated style, which is what a floor needs."""
+    return next(
+      (t for t in sorted(dlg._element_layer_ids)
+       if (dlg._assignment_for(t) or {}).get("mode") == "Graduated"), None)
+
+  def run_one(set_a_limit, qgz):
+    """Draw, change, save the project, reopen, and say what came back.
+
+    Args:
+      set_a_limit: True to set a FLOOR before picking the colour,
+        which is the journey under test; False for the control, where
+        only a colour is picked.
+      qgz: where to write the project.
+
+    Returns:
+      ``(what the dialog held, what the reopened project gives back)``
+      as two dicts of pinned and quant records.
+    """
+    dlg, _layer, _tid = _categorical_dialog()
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.spacing_spin.setValue(700.0)
+      _generate_and_wait(dlg)
+      assert dlg._element_layer_ids, "PREMISE: nothing was drawn"
+      tid = graduated_element(dlg)
+      assert tid is not None, "PREMISE: no graduated element to put a floor on"
+      field = (dlg._assignment_for(tid) or {}).get("var")
+
+      # The editor is caught at its `exec`: it is modal to the plugin,
+      # so a test that let it run would wait for a click.
+      opened = {}
+
+      def catch(self):
+        opened["editor"] = self
+        return 0
+
+      real_exec = CategoryColourDialog.exec
+      CategoryColourDialog.exec = catch
+      try:
+        dlg._edit_quant_colours(tid, field, dlg._assignment_for(tid))
+      finally:
+        CategoryColourDialog.exec = real_exec
+      editor = opened.get("editor")
+      assert editor is not None, "PREMISE: the quantitative editor did not open"
+      try:
+        if set_a_limit:
+          boxes = list(editor._limit_boxes.get("floor") or [])
+          assert boxes, "PREMISE: the editor offers no floor box"
+          computed = editor._default_bound("floor")
+          assert computed is not None, "PREMISE: no computed floor to move off"
+          wanted = round(computed + (abs(computed) or 1.0) * 0.2, 4)
+          boxes[0].setValue(wanted)
+          _tick(900)
+          assert dlg._pinned_bounds.get(tid, {}).get(field, {}).get("floor") \
+              == wanted, (
+            f"PREMISE: the floor did not reach the record "
+            f"({dlg._pinned_bounds.get(tid, {}).get(field)!r}), so this "
+            f"arm cannot show one being lost")
+        dlg._quant_colours.setdefault(tid, {}).setdefault(
+          field, {})[0] = "#ff00ff"
+        dlg._apply_style_change()
+        _tick(900)
+      finally:
+        editor.close()
+      _settle(dlg, seconds=60)
+      held = {"pinned": dlg._pinned_bounds.get(tid, {}).get(field),
+              "quant": dlg._quant_colours.get(tid, {}).get(field)}
+      project.write(qgz)
+    finally:
+      dlg.close()
+    project.clear()
+    _tick(300)
+    project.read(qgz)
+    _tick(800)
+    back = WeavingSpaceDialog(iface=_Iface())
+    try:
+      back.live_check.setChecked(False)
+      _tick(900)
+      came = {"pinned": back._pinned_bounds.get(tid, {}).get(field),
+              "quant": back._quant_colours.get(tid, {}).get(field)}
+    finally:
+      back.close()
+    project.clear()
+    _tick(300)
+    return held, came
+
+  with _temp_dir() as folder:
+    # ---- THE CONTROL: a colour alone, which the restyle path draws
+    held, came = run_one(False, os.path.join(folder, "colour.qgz"))
+    assert held["quant"], "PREMISE: the control never recorded a colour"
+    assert came["quant"], (
+      f"PREMISE: even a plain hand-picked colour did not survive the "
+      f"round trip ({came!r}), so nothing below is about limits")
+
+    # ---- THE ARM: a floor, which it declines
+    held, came = run_one(True, os.path.join(folder, "limit.qgz"))
+    assert held["pinned"] and held["quant"], \
+      "PREMISE: the arm recorded neither a floor nor a colour"
+    assert came["pinned"] == held["pinned"], (
+      f"the floor did not survive a save and reopen: the dialog held "
+      f"{held['pinned']!r} and the reopened project gives back "
+      f"{came['pinned']!r}. A limit is a geometry change, so the map "
+      f"waits for the next Generate -- but the CHANGE must not be lost")
+    assert came["quant"], (
+      f"the colour picked after the floor went with it "
+      f"({came['quant']!r}); everything the editor writes has to reach "
+      f"something durable, not only this session's dicts")
+
+
 def test_a_restyle_never_recuts_a_map_from_somebody_elses_region():
   """Classes come from the region layer, so it must be the map's own.
 
@@ -28692,6 +28927,30 @@ def test_a_restyle_never_recuts_a_map_from_somebody_elses_region():
         f"layer, so this arm is not standing where the defect is")
       was = ladders_of(theirs(path))
       assert was, "PREMISE: their map has no graduated element to recut"
+
+      # ---- AND A COLOUR PICKED ON THEIR MAP IS NOT RECORDED ON IT.
+      # The same guard has a writing side: the restyle path declines
+      # both for a map waiting to catch up and for a map whose data is
+      # not here, and the stamping that follows a decline must tell
+      # those apart -- or a colleague's layers come home carrying our
+      # records. The plugin has already said this map "can be looked
+      # at but not redrawn", so a pick that neither draws nor records
+      # is what that sentence promises.
+      picked = sorted(opener._element_layer_ids)[0]
+      var = (opener._assignment_for(picked) or {}).get("var")
+      if var:
+        opener._quant_colours.setdefault(picked, {}).setdefault(
+          var, {})[0] = "#ff00ff"
+        opener._apply_style_change()
+        _tick(900)
+        stamped_on_theirs = [
+          layer.name() for layer in theirs(path)
+          if "#ff00ff" in (layer.customProperty(
+            "weavingspace_quant_style") or "")]
+        assert not stamped_on_theirs, (
+          f"a colour picked here was stamped onto the colleague's own "
+          f"layers ({stamped_on_theirs}); their map is not ours to "
+          f"record against, and the file carries those stamps home")
 
       _generate_and_wait(opener)
       _settle(opener, seconds=90)
@@ -72320,6 +72579,10 @@ def main():
         test_a_follower_goes_on_following_a_map_you_opened)
   check("a restyle never recuts a map from somebody else's region",
         test_a_restyle_never_recuts_a_map_from_somebody_elses_region)
+  check("a limit and the colours after it survive a reopen",
+        test_a_limit_and_the_colours_after_it_survive_a_reopen)
+  check("nothing long lived is connected to a bare lambda",
+        test_nothing_long_lived_is_connected_to_a_bare_lambda)
   check("a blend mode set in QGIS survives a re-tile",
         test_a_blend_mode_set_in_qgis_survives_a_re_tile)
   check("a column called no data does not miscount the map",

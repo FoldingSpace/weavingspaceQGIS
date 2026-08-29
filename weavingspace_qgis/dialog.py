@@ -1934,8 +1934,20 @@ class WeavingSpaceDialog(QDialog):
     # by the layers' own custom properties rather than by group name,
     # so it cannot be fooled by a project that happens to contain a
     # group called "WeavingSpace tiles".
-    QgsProject.instance().readProject.connect(
-      lambda _doc: self._on_project_read())
+    # A NAMED CLOSURE THAT ASKS FIRST, not a bare lambda. `readProject`
+    # is a PROJECT signal, so it reaches every dialog a session has
+    # ever opened -- and Qt drops a connection to a bound METHOD when
+    # the receiving QObject dies while keeping a lambda alive and
+    # calling it. Reaching `self._on_project_read` through a deleted
+    # sip wrapper is a segmentation fault before the handler's own
+    # gate ever runs, measured 2026-08-29 and reproducible.
+    def _read_if_alive(_doc, dialog=self):
+      """Hand a project read to this dialog only while it exists."""
+      if _dialog_is_gone(dialog):
+        return
+      dialog._on_project_read()
+
+    QgsProject.instance().readProject.connect(_read_if_alive)
     # AND the project's own removal signal, because the layer chooser
     # is not a reliable witness to its own layer leaving. Measured
     # 2026-08-15 across four arrangements: with ONE polygon layer in
@@ -6847,10 +6859,25 @@ class WeavingSpaceDialog(QDialog):
     self._group_restamp_queued = True
 
     def stamp():
+      # RETIREMENT IS ASKED BEFORE ANYTHING IS TOUCHED, and the line
+      # below used to sit above it. `stamp` is a CLOSURE, not a bound
+      # method, so Qt keeps it alive and calls it after this dialog's
+      # C++ half has been destroyed -- and an attribute WRITE on a
+      # deleted sip wrapper is a segmentation fault, not an exception.
+      # Measured 2026-08-29: twelve tests in one process, reproducible,
+      # the interpreter gone with no verdict at all. It is this
+      # project's own row 25 of 2026-08-27 arriving at a second site --
+      # a guard whose whole job is being safe on a dead object may not
+      # touch that object before asking whether it is dead.
+      # THE FLAG IS STILL CLEARED FOR A LIVE DIALOG, below, so a
+      # restamp that declines for any of the ordinary reasons does not
+      # leave the queue armed against the next one.
+      if _dialog_is_gone(self):
+        return
       self._group_restamp_queued = False
       if (self._task is not None or self._selecting_a_group
           or getattr(self, "_applying_style", False)
-          or _dialog_is_gone(self) or _live_dialog() is not self):
+          or _live_dialog() is not self):
         return
       # AND A TABLE WITH NO FIELDS TO OFFER HAS NOTHING TO SAY. When
       # the region layer is removed from the project the table goes
@@ -7463,6 +7490,12 @@ class WeavingSpaceDialog(QDialog):
     New and immediately before File > Open. Nothing is read from the
     project here and nothing is written to it.
 
+    A RETIRED OR DESTROYED DIALOG DROPS OUT AT THE FIRST LINE, which
+    is the question every long-lived handler here puts first and which
+    this one did not. `cleared` is a PROJECT signal, so it reaches
+    every dialog the session has ever opened -- and this one queues a
+    zero-delay timer that touches `self` a moment later.
+
     Returns:
       None. Every record keyed by tile id is emptied in place, so the
       dialog meets the incoming project holding no beliefs about
@@ -7474,6 +7507,9 @@ class WeavingSpaceDialog(QDialog):
     layer state is re-established by the layer chooser's own handler
     when the new project's layers arrive.
     """
+    if _dialog_is_gone(self):
+      _dump("FORGET", "dialog-retired")
+      return
     # `_no_data_layer_ids` BELONGS IN THIS LIST, and its absence was
     # the third of the three clear sites this dialog has -- the one
     # named in the commit that fixed the second and then not checked.
@@ -7586,8 +7622,7 @@ class WeavingSpaceDialog(QDialog):
     # zero-delay single shot queued here fires only after the whole
     # replacement -- adoption included -- has finished: by then a
     # standing flag is a leak, never a window.
-    QTimer.singleShot(0, lambda: setattr(
-      self, "_project_is_being_replaced", False))
+    QTimer.singleShot(0, self._stop_marking_the_project_as_replaced)
     # ...AND THE TABLE, WHICH IS ITSELF A RECORD KEYED BY TILE ID.
     # Every dict above is emptied and the ROWS were left standing, so
     # the next `_refresh_table` read the surviving cell widgets as
@@ -8627,9 +8662,30 @@ class WeavingSpaceDialog(QDialog):
       signal fires, because reacting through a captured wrapper whose
       C++ object died is a crash.
     """
-    layer.styleChanged.connect(
-      lambda lid=layer.id(), tid=str(tile_id):
-        self._on_style_signal(lid, tid))
+    # ASKING BEFORE TOUCHING, for the reason written at the project
+    # read: an element layer outlives the dialog that made it, and a
+    # lambda reaching a deleted wrapper crashes the process rather
+    # than raising.
+    def _style_if_alive(lid=layer.id(), tid=str(tile_id), dialog=self):
+      """Pass a styleChanged on only while the dialog is still there.
+
+      Args:
+        lid: the element layer's id, captured rather than the layer
+          itself, because reacting through a wrapper whose C++ object
+          has died is a crash. Looked up again when the signal fires.
+        tid: the element this layer carries.
+        dialog: the dialog that made the connection, bound as a
+          default so the closure holds it explicitly rather than by
+          reaching into an enclosing scope.
+
+      Returns:
+        None, and nothing at all once the dialog has gone.
+      """
+      if _dialog_is_gone(dialog):
+        return
+      dialog._on_style_signal(lid, tid)
+
+    layer.styleChanged.connect(_style_if_alive)
     # ...AND repaintRequested BESIDE IT, because styleChanged only
     # fires on `setRenderer` and the styling dock does not always call
     # that. Measured on QGIS 4.0.3 (2026-08-20, plugin out of the
@@ -8653,9 +8709,26 @@ class WeavingSpaceDialog(QDialog):
     # and a drag in the dock can fire it per tick; the set coalesces
     # and the timer drains through the one handler everything else
     # uses.
-    layer.repaintRequested.connect(
-      lambda *args, lid=layer.id(), tid=str(tile_id):
-        self._queue_repaint_reconcile(lid, tid))
+    def _repaint_if_alive(*_args, lid=layer.id(), tid=str(tile_id),
+                          dialog=self):
+      """Pass a repaint on only while the dialog is still there.
+
+      Args:
+        *_args: whatever `repaintRequested` sends, which this does not
+          use and which differs across QGIS versions.
+        lid: the element layer's id, for the reason written at the
+          styleChanged closure above.
+        tid: the element this layer carries.
+        dialog: the dialog that made the connection.
+
+      Returns:
+        None, and nothing at all once the dialog has gone.
+      """
+      if _dialog_is_gone(dialog):
+        return
+      dialog._queue_repaint_reconcile(lid, tid)
+
+    layer.repaintRequested.connect(_repaint_if_alive)
 
   def _on_style_signal(self, layer_id, tile_id):
     """The styleChanged entry point, stamped so its echo is known.
@@ -11855,7 +11928,25 @@ class WeavingSpaceDialog(QDialog):
     # order is kept because it costs nothing -- the restyle reads the
     # dialog's records, never the preview -- and because reversing it
     # would be a change nobody has measured a reason for.
-    self._restyle_only()
+    # ...AND WHAT THE RESTYLE DECLINED TO DRAW IS STILL RECORDED.
+    # Every stamp an element carries home is written on the restyle's
+    # SUCCESS path, so a change that path declines reaches the dialog's
+    # dicts and nothing durable at all. A limit is the ordinary way in:
+    # a floor or a ceiling moves tiles onto the paired layer, which
+    # makes it a GEOMETRY change, so the restyle declines and the map
+    # waits for the next Generate -- which is settled and right. What
+    # was not right is that the floor, and every colour picked after
+    # it, then existed only in this session. Measured 2026-08-29
+    # (ledger row 20) against a control that picks a colour alone: the
+    # control's layer carries its stamp and the reopen gives it back,
+    # while the arm's layer carries NOTHING and a save-and-reopen
+    # loses both the floor and the colour, with the open window still
+    # showing the work the file no longer has.
+    # THAT IS "PRESERVE, DO NOT REPAINT" READ PROPERLY: with live
+    # update off the map is deliberately not refreshed, and what must
+    # hold is that the change is not LOST.
+    if not self._restyle_only():
+      self._stamp_a_change_the_map_has_not_drawn_yet()
     self._refresh_preview_colours()
     # ...and the rows are re-asked, because a style change is exactly
     # how an element STOPS deferring: the user picks a plugin style,
@@ -11864,6 +11955,94 @@ class WeavingSpaceDialog(QDialog):
     # this they stayed inert until the next full run -- a row the
     # plugin had taken back that the user still could not touch.
     self._refresh_deferring_rows()
+
+  def _stop_marking_the_project_as_replaced(self):
+    """Take the replacement marker down once the incoming project is in.
+
+    Returns:
+      None. Sets `_project_is_being_replaced` back to False, and does
+      nothing at all where this dialog has been retired or destroyed.
+
+    WHY IT IS A METHOD AND NOT A LAMBDA, which is the whole reason it
+    exists. It was `QTimer.singleShot(0, lambda: setattr(self, ...))`,
+    and a lambda is an ordinary Python object that Qt keeps alive and
+    goes on calling -- where a BOUND METHOD of a QObject is dropped
+    when that object dies. `_dialog_is_gone`'s own docstring states
+    exactly that distinction; this site was written on the other side
+    of it.
+    WHAT IT COST: a SEGMENTATION FAULT, measured 2026-08-29 and
+    reproducible. `cleared` is a PROJECT signal, so it reaches every
+    dialog a session has ever opened; each queued this lambda holding
+    its own `self`, and one of those selves had been destroyed, so
+    `setattr` ran on a deleted C++ object and took the whole
+    interpreter with it. In a suite that is a shard dying with no
+    verdict at all; in QGIS it is the application closing on somebody
+    who opened the plugin a few times and chose File > New.
+    THE GUARD IS KEPT AS WELL AS THE METHOD, because the two answer
+    different windows: the handler's own gate stops a dead dialog
+    queuing anything, and this one covers a dialog that dies inside
+    the zero-delay hop.
+    """
+    if _dialog_is_gone(self):
+      return
+    self._project_is_being_replaced = False
+
+  def _stamp_a_change_the_map_has_not_drawn_yet(self):
+    """Record a style change the restyle path declined to draw.
+
+    Returns:
+      None. Writes each element's own records onto its output layer,
+      so a change waiting for the next Generate survives the project
+      being saved and reopened. Does nothing where the layers on
+      screen are not the ones these records are about.
+
+    WHY IT CANNOT SIMPLY STAMP WHENEVER THE RESTYLE DECLINES.
+    `_restyle_only` says no for eight different reasons, and only some
+    of them mean "these records belong to this map and the map has yet
+    to catch up". Two of them mean the opposite, and stamping there
+    would write one map's work onto another's layers:
+
+      * "CREATE AS NEW GROUP" is a request for a SECOND result. The
+        map on screen is the first one, and the records being changed
+        are for the map that has not been drawn yet.
+      * A FOREIGN REGION -- a colleague's map opened without their
+        data -- is somebody else's map wearing our records, which is
+        the whole of ledger row 22 arriving from the writing side.
+
+    And two more are simply nothing to do: a run IN FLIGHT will stamp
+    at its landing, which is where the launch snapshot lives, and a
+    dialog with no output layers has nothing to write on.
+
+    SO IT ASKS WHAT IS TRUE rather than inferring it from a refusal.
+    The alternative -- having `_restyle_only` report WHICH gate it
+    stopped at -- would put the same knowledge in two places, and the
+    conditions here are each a fact this dialog can check at any
+    moment, which is what this project prefers to a delta.
+    """
+    project = QgsProject.instance()
+    if self._task is not None or not self._element_layer_ids:
+      return
+    if self.opt_new_group.isChecked():
+      return
+    stamped = ""
+    for _tid, lid in sorted(self._element_layer_ids.items()):
+      out = project.mapLayer(lid or "")
+      if out is not None:
+        stamped = out.customProperty("weavingspace_region") or ""
+        if stamped:
+          break
+    if stamped and not self._region_in_force_is(
+        stamped, self.gpkg_widget.filePath().strip() or None):
+      return
+    for assignment in self._assignments():
+      layer = project.mapLayer(
+        self._element_layer_ids.get(assignment.get("id")) or "")
+      if layer is not None:
+        # The helper decides what to write and what to clear, and it
+        # already leaves a DEFERRING element alone -- neither written
+        # nor cleared -- which is the one distinction that matters
+        # here and is argued at its own site.
+        self._stamp_category_colours(layer, assignment)
 
   def _warn_about_close_colours(self):
     """Say so if hand-picked colours left two elements inseparable.
@@ -13928,6 +14107,8 @@ class WeavingSpaceDialog(QDialog):
     changed their mind about, silently, which is the shape of the
     defect this whole ruling is about.
     """
+    if _dialog_is_gone(self):
+      return                  # ...before anything of ours is touched
     if not self._save_pending:
       return
     if self._closed:

@@ -169,6 +169,11 @@
   "excerpt": "{}: download or unpack failed ({})",
   "where": "weavingspace_qgis/deps.py"
  },
+ "10d4829af2c54b55": {
+  "approved": "2026-08-29",
+  "excerpt": "{} could not be opened as a GeoPackage, so there is no map t",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "111ae8aaaa75e8fb": {
   "approved": "2026-08-08",
   "excerpt": "## Saving and sharing",
@@ -828,6 +833,11 @@
   "approved": "2026-08-20",
   "excerpt": "Element '{}' left {} in QGIS alone, because it cannot tell y",
   "where": "weavingspace_qgis/bridge.py"
+ },
+ "62e00e685a865900": {
+  "approved": "2026-08-29",
+  "excerpt": "The map is about to be redrawn and will be saved afterwards.",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "63c5f97052c09093": {
   "approved": "2026-08-27",
@@ -1562,6 +1572,11 @@
  "b5453e83361a54d5": {
   "approved": "2026-08-16",
   "excerpt": "Trims the pattern to the region outline. The slowest step.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "b60e63b8c7b661b9": {
+  "approved": "2026-08-29",
+  "excerpt": "There is nothing at {}, so there is no map to open. Check wh",
   "where": "weavingspace_qgis/dialog.py"
  },
  "b82031d17558e246": {

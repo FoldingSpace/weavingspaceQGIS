@@ -715,9 +715,12 @@ MUTATIONS = [
            "log. isValid() returns True and lies"),
   dict(name="an-in-place-edit-is-heard-through-its-repaint",
        file=DIALOG,
-       old="""    layer.repaintRequested.connect(
-      lambda *args, lid=layer.id(), tid=str(tile_id):
-        self._queue_repaint_reconcile(lid, tid))""",
+       # RE-ANCHORED 2026-08-29: the connection takes a named closure
+       # that asks whether the dialog still exists before touching it,
+       # because a bare lambda reaching a deleted wrapper crashes the
+       # process. The claim is unchanged -- this is still the one line
+       # by which an in-place edit is heard at all.
+       old="""    layer.repaintRequested.connect(_repaint_if_alive)""",
        new="""    pass  # mutation: only setRenderer edits are heard""",
        test="test_an_in_place_recolour_is_heard_through_its_repaint",
        why="recolouring a class IN PLACE emits no styleChanged and no "
@@ -3606,9 +3609,9 @@ MUTATIONS = [
        # RE-ANCHORED 2026-08-20: styleChanged now routes through
        # _on_style_signal, which stamps the arrival so the repaint
        # hook can tell a heard edit's echo from an in-place edit.
-       old="""    layer.styleChanged.connect(
-      lambda lid=layer.id(), tid=str(tile_id):
-        self._on_style_signal(lid, tid))""",
+       # RE-ANCHORED 2026-08-29, for the reason written at its
+       # repaintRequested twin: the connection is a named closure now.
+       old="""    layer.styleChanged.connect(_style_if_alive)""",
        new="    pass  # mutation: QGIS-side restyles go unnoticed",
        test="test_qgis_side_restyles_reach_the_dialog",
        why="recolouring an element layer in QGIS's styling dock must "
@@ -7126,8 +7129,12 @@ MUTATIONS = [
   # below, and File > New gives it a journey the early return cannot
   # cover.
   dict(name="a-new-project-drops-the-marker", file=DIALOG,
-       old="""    QTimer.singleShot(0, lambda: setattr(
-      self, "_project_is_being_replaced", False))""",
+       # RE-ANCHORED 2026-08-29: the lambda held `self` and fired into
+       # dialogs whose C++ half had been destroyed, which is a
+       # segmentation fault rather than an exception. It is a bound
+       # method that asks first now; the claim -- that the marker is
+       # taken down again -- is exactly what it was.
+       old="""    QTimer.singleShot(0, self._stop_marking_the_project_as_replaced)""",
        new="""    pass""",
        test="test_a_groupless_project_drops_the_replacement_marker",
        why="File > New emits `cleared` and never `readProject`, so no "
@@ -7882,6 +7889,60 @@ MUTATIONS = [
            "the widget, and the choice is gone in silence -- two "
            "elements showing one column then part company the moment "
            "somebody moves the donor"),
+  dict(name="a-long-lived-signal-cannot-take-a-bare-lambda",
+       file=DIALOG,
+       # Puts the bare lambda back, exactly as it stood before
+       # 2026-08-29. Everything goes on working -- the signal is
+       # delivered, the handler runs, every behavioural test passes --
+       # right up until a dialog is destroyed with the connection
+       # still live, at which point the process dies rather than
+       # raising. Only the shape test can see it, which is why the
+       # shape test exists.
+       old="""    layer.styleChanged.connect(_style_if_alive)""",
+       new="""    layer.styleChanged.connect(
+      lambda lid=layer.id(), tid=str(tile_id):
+        self._on_style_signal(lid, tid))""",
+       test="test_nothing_long_lived_is_connected_to_a_bare_lambda",
+       why="a callable outliving its dialog being able to ASK whether "
+           "that dialog is still there: Qt drops a bound method when "
+           "its QObject dies and keeps a lambda, and reaching a "
+           "deleted sip wrapper is a segmentation fault before any "
+           "handler's own gate can run -- a shard that stops with no "
+           "verdict, or QGIS closing on somebody who chose File > New"),
+  dict(name="a-declined-restyle-still-records-the-change",
+       file=DIALOG,
+       # Back to stamping only on the restyle's success path. The
+       # dialog's own dicts still hold the floor and the colour, so
+       # the open window looks perfectly right; nothing durable does,
+       # and the reopen finds neither.
+       old="""    if not self._restyle_only():
+      self._stamp_a_change_the_map_has_not_drawn_yet()""",
+       new="""    self._restyle_only()""",
+       test="test_a_limit_and_the_colours_after_it_survive_a_reopen",
+       why="a limit, and every colour picked after it, surviving a save "
+           "and reopen: a limit is a geometry change so the map waits "
+           "for the next Generate, which is settled -- but preserve, "
+           "do not repaint means the CHANGE is not lost, and every "
+           "stamp an element carries home was written on a path that "
+           "declines exactly here"),
+  dict(name="a-declined-restyle-stamps-only-its-own-map",
+       file=DIALOG,
+       # The other half, and the one that would send a change to the
+       # wrong map: with the guard gone, a colleague's map opened
+       # without their data -- where the restyle also declines -- is
+       # stamped with OUR records, which is ledger row 22 arriving
+       # from the writing side.
+       old="""    if stamped and not self._region_in_force_is(
+        stamped, self.gpkg_widget.filePath().strip() or None):
+      return
+    for assignment in self._assignments():""",
+       new="""    for assignment in self._assignments():""",
+       test="test_a_restyle_never_recuts_a_map_from_somebody_elses_region",
+       why="a change recorded against the map it is ABOUT: the restyle "
+           "declines both for a map waiting to catch up and for "
+           "somebody else's map opened without its data, and stamping "
+           "on the second writes our floor and our colours onto their "
+           "layers"),
   dict(name="a-restyle-asks-whose-region-it-is",
        file=DIALOG,
        # Back to re-seeding from whatever the chooser holds. The map

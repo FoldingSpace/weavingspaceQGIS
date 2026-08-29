@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-421 defect(s) with a regression test.
+423 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -113,6 +113,8 @@ there is no separate list to remember.
   guarded by `test_a_group_is_bound_to_its_dataset_however_the_path_is_spelt`
 - **a renderer or filter set on an element's no-data layer in QGIS was destroyed by the next Generate, silently, while the same work on the element beside it survived and was reported. Found independently by two hunts on 2026-08-16; confirmed by reading layer_styles out of the exported GeoPackage, where tiles_a carried the hand-set colour and tiles_a_no_data carried the default.**  
   guarded by `test_a_hand_styled_no_data_layer_survives_a_re_tile`
+- **a floor or ceiling, and every colour picked after it, were destroyed by a save-and-reopen before Generate, because those stamps happen only as a side effect of a restyle that a limit makes decline. Found by the colour-editor hunt of 2026-08-28.**  
+  guarded by `test_a_limit_and_the_colours_after_it_survive_a_reopen`
 - **2026-08-19, found by a hunt pointed at what that day's own signature fix had broken -- a floor set wide of the data changed nothing and said nothing.**  
   guarded by `test_a_limit_edit_that_draws_nothing_new_still_says_so`
 - **2026-08-19. Measured through the dialog on Reds: five classes from #fff5f0 to #67000d became five identical greys.**  
@@ -633,6 +635,8 @@ there is no separate list to remember.
   guarded by `test_create_new_makes_one_group_and_not_one_per_run`
 - **a sharded coverage recorder lost a whole shard at startup to a race between three processes removing one file.**  
   guarded by `test_nothing_asks_whether_a_file_exists_before_removing_it`
+- **three callables outliving their dialog reached it through a bare lambda, so a destroyed dialog was touched and QGIS died with a segmentation fault. Found while running twelve tests in one process, 2026-08-29.**  
+  guarded by `test_nothing_long_lived_is_connected_to_a_bare_lambda`
 - **2026-08-19. The tenth candidate's dossier and receipt were written as the ninth's, over the published ninth's own files.**  
   guarded by `test_the_tenth_candidate_is_named_the_tenth`
 
@@ -893,14 +897,14 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- a bug hunt pointed in a named direction: 123
+- a bug hunt pointed in a named direction: 124
 - the mutation campaign: 122
 - not written down at the time: 88
 - reported by a user: 30
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8
+- the functional suite, run whole: 7
 - race and stress testing: 6
-- the functional suite, run whole: 6
 - a family audit of the claims the software makes: 5
 - a multi-step session test: 5
 - driving the UI and rebuilding the same map from the library directly: 5
