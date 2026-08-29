@@ -25710,6 +25710,24 @@ def test_the_window_fits_the_narrowest_screen():
     # -- measured 2026-08-29, which is why setting a font is not a
     # substitute for a platform. That half rests on the ceiling being
     # derived from the measurement rather than on a check.
+    # ...AND THE PROMISE IS "AS WIDE AS ITS CONTENT WHERE THERE IS
+    # ROOM", which is not the same as "always". Both halves of this
+    # were written on 2026-08-29 -- the columns growing, and this
+    # assertion -- on a machine where the columns and the window's
+    # budget never meet, and they cannot both hold everywhere. Windows
+    # wants 295px for 'Style' where this machine wants 184, and around
+    # 1200px for the columns alone; the window's budget is 1480 and
+    # the rest of the layout takes its share of that.
+    # THE MAINTAINER'S OWN RULING DECIDES IT: "widen the columns;
+    # ceiling near 1480". The ceiling wins, so where the column budget
+    # is binding a cell may elide -- visible, and something a person
+    # can live with -- rather than the window opening off the side of
+    # a screen, which they cannot. Asserting otherwise made this a
+    # promise the software cannot keep on the platform most of its
+    # users are on.
+    from weavingspace_qgis.dialog import COLUMN_SUM_BUDGET
+    total = sum(dlg.table.columnWidth(column) for column in shown)
+    binding = total >= COLUMN_SUM_BUDGET
     thin = []
     for column in range(dlg.table.columnCount()):
       if dlg.table.isColumnHidden(column):
@@ -25720,9 +25738,12 @@ def test_the_window_fits_the_narrowest_screen():
         thin.append(
           f"{dlg.table.horizontalHeaderItem(column).text()!r} is "
           f"{dlg.table.columnWidth(column)}px and needs {wants}px")
-    assert not thin, (
-      "a column is narrower than what it has to show, so its cells "
-      "elide: " + "; ".join(thin))
+    assert not thin or binding, (
+      f"a column is narrower than what it has to show, so its cells "
+      f"elide, AND the column budget is not binding -- the columns "
+      f"total {total}px against a budget of {COLUMN_SUM_BUDGET}px, so "
+      f"there was room to widen them and they were not widened: "
+      + "; ".join(thin))
   finally:
     dlg.close()
 
