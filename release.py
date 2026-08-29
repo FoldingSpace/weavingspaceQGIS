@@ -1662,6 +1662,12 @@ def main():
          "run is a thing a reader must be told rather than left to "
          "infer from a short log.")
   parser.add_argument(
+    "--candidate", type=int, metavar="N",
+    help="with --rc, build this candidate NUMBER rather than the next "
+         "unused one. For a number spent by something this tree cannot "
+         "see: build.py refuses anything at or below a number already "
+         "borne by an artefact or a tag here, so it only ever skips.")
+  parser.add_argument(
     "--rc", action="store_true",
     help="build a numbered release candidate for hands-on testing and "
          "stop. Runs the same correctness gates, skips the publication "
@@ -2008,8 +2014,15 @@ def main():
     # from somebody making a map with it. Stopping here is the point:
     # a candidate that quietly did the publication steps would leave
     # the tree looking released when it is not.
-    run("build release candidate",
-        [sys.executable, "build.py", "--rc"], dict(os.environ))
+    # THE NUMBER MAY BE SAID OUT LOUD, and build.py refuses to go
+    # backwards whatever is passed. `dist/` is per worktree and a
+    # candidate's name is global, so a candidate built elsewhere and
+    # never tagged is invisible here -- which on 2026-08-29 produced a
+    # second `0.24.4rc1` beside a published one.
+    candidate_argv = [sys.executable, "build.py", "--rc"]
+    if args.candidate is not None:
+      candidate_argv += ["--candidate", str(args.candidate)]
+    run("build release candidate", candidate_argv, dict(os.environ))
     # Name the candidate that was just built, then write its dossier:
     # the page the reviewer actually reads.
     label = candidate_just_built(version)

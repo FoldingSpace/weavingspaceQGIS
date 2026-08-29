@@ -86,7 +86,52 @@ def candidate_numbers(version):
             if found:
                 used.append(int(found.group(1)))
                 break
-    return used
+    return used + published_candidate_numbers(version)
+
+
+def published_candidate_numbers(version):
+    """Every candidate number of one version that a TAG already bears.
+
+    Args:
+      version: the declared version, e.g. "0.24.4".
+
+    Returns:
+      A list of integers from local git tags named `v<version>rc<N>`,
+      or an empty list where git cannot be asked. Never raises: this
+      is consulted in order to avoid reusing a name, and a check that
+      explodes is worse than one that declines.
+
+    WHY IT EXISTS. `dist/` is PER WORKTREE and a candidate's name is
+    GLOBAL. On 2026-08-29 a candidate was built in a fresh worktree
+    whose `dist/` held nothing, and was duly named `0.24.4rc1` --
+    while `v0.24.4rc1` had been a published pre-release since the day
+    before. One name, two trees, which is the exact harm the sibling
+    above says it exists to prevent: "a number is spent the moment
+    anything bearing it exists, and it stays spent." A tag is the most
+    durable thing that can bear one, and it was the one store nobody
+    asked.
+
+    LOCAL TAGS ONLY, and the limit is stated rather than hidden: a tag
+    that has never been fetched cannot be counted here, and this will
+    not reach the network to find out. `release.py` fetches before it
+    names a candidate and says so when it cannot, and
+    `publish_candidate.py` refuses a tag that is already taken --
+    which is the backstop that held while this was wrong.
+    """
+    try:
+        import subprocess
+        done = subprocess.run(
+            ["git", "tag", "--list", f"v{version}rc*"],
+            capture_output=True, text=True,
+            cwd=os.path.dirname(os.path.abspath(__file__)))
+        if done.returncode != 0:
+            return []
+        pattern = rf"^v{re.escape(version)}rc(\d+)$"
+        return [int(m.group(1)) for m in
+                (re.match(pattern, line.strip())
+                 for line in done.stdout.splitlines()) if m]
+    except Exception:
+        return []
 
 
 def latest_candidate(version):
@@ -266,11 +311,43 @@ def main():
         "--no-install", action="store_true",
         help="with --rc, do not update the copies already installed "
              "in QGIS profiles on this machine")
+    parser.add_argument(
+        "--candidate", type=int, metavar="N",
+        help="build this candidate NUMBER rather than the next unused "
+             "one. For a number spent by something this tree cannot "
+             "see -- a candidate built in another worktree and never "
+             "tagged, whose zip is gone. It only ever SKIPS: a number "
+             "at or below one already spent is refused, because a gap "
+             "confuses nobody and a reused name confuses everybody.")
     args = parser.parse_args()
 
     if args.rc:
         version = declared_version()
-        label = f"{version}rc{next_candidate(version)}"
+        # THE MAINTAINER MAY SKIP AHEAD AND MAY NOT GO BACK. What this
+        # tree can see is `dist/` and the tags it has fetched; a
+        # candidate built elsewhere and never tagged is invisible to
+        # both, and on 2026-08-29 exactly that produced a second
+        # `0.24.4rc1` beside a published one. So the number can be
+        # said out loud -- and is still checked against everything
+        # that IS visible, since the failure this guards against is
+        # reuse rather than arithmetic.
+        automatic = next_candidate(version)
+        if args.candidate is None:
+            number = automatic
+        elif args.candidate < automatic:
+            raise SystemExit(
+                f"refusing to build {version}rc{args.candidate}: "
+                f"{sorted(set(candidate_numbers(version)))} are already "
+                f"spent by an artefact or a tag here, so the next free "
+                f"number is {automatic}. A candidate number is spent by "
+                f"anything bearing it, and it stays spent.")
+        else:
+            number = args.candidate
+            if number > automatic:
+                print(f"skipping to rc{number}: rc{automatic} would be "
+                      f"next from what this tree can see, and you have "
+                      f"said something else bears it")
+        label = f"{version}rc{number}"
         out = write_zip(
             os.path.join(DIST, f"weavingspace_qgis-{label}.zip"), label)
         size = os.path.getsize(out) / 1e6

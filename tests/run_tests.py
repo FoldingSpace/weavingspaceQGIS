@@ -18991,6 +18991,35 @@ def test_a_candidate_number_is_never_reused():
          "w").close()
     assert build.next_candidate("9.9.9") == 2, \
       "a different version's candidate moved this version's numbering"
+
+    # ...AND A PUBLISHED TAG SPENDS A NUMBER THAT NO ARTEFACT HERE
+    # BEARS, which is the half that was missing until 2026-08-29.
+    # `dist/` is PER WORKTREE and a candidate's name is GLOBAL: a
+    # candidate built in another worktree, whose `dist/` this one
+    # cannot see, left `v0.24.4rc1` published on GitHub while a fresh
+    # worktree duly named its own build `0.24.4rc1` too. One name,
+    # two trees -- the exact harm this whole function exists to
+    # prevent, arriving through the one store nobody asked.
+    # THE TAGS ARE READ THROUGH A STUB rather than by making one:
+    # `git tag` in a test is a write to the repository the suite is
+    # running inside, and a test that tags is a test that leaves
+    # something behind.
+    real = build.published_candidate_numbers
+    try:
+      build.published_candidate_numbers = lambda version: (
+        [5] if version == "9.9.9" else [])
+      assert build.next_candidate("9.9.9") == 6, (
+        "a number borne by a published tag was handed out again: "
+        "dist/ is per worktree and a candidate's name is not, so a "
+        "build in a fresh checkout takes the name of one somebody "
+        "has already installed")
+      # ...and a tag for ANOTHER version still says nothing here.
+      build.published_candidate_numbers = lambda version: (
+        [9] if version == "8.8.8" else [])
+      assert build.next_candidate("9.9.9") == 2, \
+        "another version's tag moved this version's numbering"
+    finally:
+      build.published_candidate_numbers = real
   finally:
     build.DIST = original
     shutil.rmtree(folder, ignore_errors=True)
