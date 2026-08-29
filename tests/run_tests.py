@@ -27663,6 +27663,64 @@ def test_a_save_as_tells_the_group_where_the_map_went():
       dlg.close()
 
 
+def test_the_save_box_comes_home_when_the_project_reopens():
+  """The other door into the record a Save now moves.
+
+  Generate, choose a file, Save, save the project, open it again: the
+  Save box came back EMPTY, and a press was then refused -- "Choose a
+  file in the box beside Save first" -- while every layer in the map
+  was reading from that very file. Measured on `f407fbc`, and closed
+  by the repair that made a Save tell the GROUP where its map went:
+  the record carries `output_path`, and adoption restores it.
+
+  IT IS A TEST BECAUSE THE FIX WAS WRITTEN FOR ANOTHER DOOR. The
+  Save As repair is guarded through the group chooser; this is the
+  project-reopen door, which reaches the same record by a different
+  route and had its own report from the projectacts hunt. A guard
+  added at one door belongs at every door into the same room, and so
+  does the test.
+
+  Regression: after saving a map, saving the project and reopening it, the Save box came back empty and a press was refused while the map read from that file. Found by the projectacts hunt of 2026-08-28. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  with _temp_dir() as folder:
+    gpkg = os.path.join(folder, "map.gpkg")
+    qgz = os.path.join(folder, "session.qgz")
+    dlg, _layer, _tid = _categorical_dialog()
+    try:
+      dlg.live_check.setChecked(False)
+      _generate_and_wait(dlg)
+      assert dlg._element_layer_ids, "PREMISE: nothing was drawn"
+      dlg.gpkg_widget.setFilePath(gpkg)
+      assert press_save(dlg, gpkg), "PREMISE: the save failed"
+      assert project.write(qgz), "PREMISE: the project would not write"
+    finally:
+      dlg.close()
+
+    project.clear()
+    _tick(300)
+    assert project.read(qgz), "PREMISE: the project would not read back"
+    _tick(900)
+    opened = WeavingSpaceDialog(iface=_Iface())
+    try:
+      opened.live_check.setChecked(False)
+      _tick(900)
+      assert opened._element_layer_ids, \
+        "PREMISE: the reopened project adopted no element layers"
+      came_back = (opened.gpkg_widget.filePath() or "").strip()
+      assert os.path.basename(came_back) == "map.gpkg", (
+        f"the Save box came back as {came_back or '(empty)'!r} while "
+        f"the map reads from {gpkg!r}: the next press has nowhere to "
+        f"go and says so")
+      # ...and the press itself, because a box holding a path proves
+      # nothing if the press behind it is still refused.
+      assert press_save(opened, came_back), \
+        "the press after a reopen was refused"
+    finally:
+      opened.close()
+
+
 def test_a_save_waits_for_a_run_that_is_about_to_start():
   """A press inside the live debounce is about the map that is coming.
 
@@ -71468,6 +71526,8 @@ def main():
         test_a_save_says_which_elements_are_not_in_the_project)
   check("a save waits for a run that is about to start",
         test_a_save_waits_for_a_run_that_is_about_to_start)
+  check("the save box comes home when the project reopens",
+        test_the_save_box_comes_home_when_the_project_reopens)
   check("choosing your own group keeps the region and the variables",
         test_choosing_your_own_group_keeps_the_region_and_the_variables)
   check("the icon notice reads the same ground in either crs",

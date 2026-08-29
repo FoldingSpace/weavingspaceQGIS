@@ -7762,6 +7762,13 @@ MUTATIONS = [
        old="""    self._stamp_working_state(our_group,
                               launch_state={"output_path": path})""",
        new="""    self._stamp_working_state(our_group)""",
+       # TWO TESTS STAND ON THIS ONE LINE, at two doors: the group
+       # chooser (named here) and a project reopened, which
+       # `test_the_save_box_comes_home_when_the_project_reopens`
+       # drives. The entry names the chooser because that is the door
+       # the repair was written at; the reopen door is guarded by its
+       # own test rather than by a second entry over the same line,
+       # which could only ever duplicate this verdict.
        test="test_a_save_as_tells_the_group_where_the_map_went",
        why="coming back to a map through the group chooser finding the "
            "Save box on the file it was saved AWAY from, so the next "
