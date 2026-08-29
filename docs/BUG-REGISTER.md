@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-411 defect(s) with a regression test.
+412 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -175,6 +175,8 @@ there is no separate list to remember.
   guarded by `test_a_save_as_tells_the_group_where_the_map_went`
 - **saving into a GeoPackage holding somebody else's map deleted their element tables and their embedded region copy, one line after a question promising to leave the rest of the file alone. Found by the shared-file hunt of 2026-08-28.**  
   guarded by `test_a_save_leaves_another_maps_tables_alone`
+- **deleting element layers in the panel and pressing Save reported plain success -- for a partial map, and for an emptied file when the whole group had gone. Found by the sentences and notices hunts of 2026-08-28.**  
+  guarded by `test_a_save_says_which_elements_are_not_in_the_project`
 - **typing a scale factor between -1 and 1 was mangled by the step-over-zero handler firing per keystroke, so a mirrored design was silently un-mirrored and every element drew on the wrong side of the map.**  
   guarded by `test_a_scale_between_minus_one_and_one_can_be_typed`
 - **negative scale factors were allowed on 2026-08-16 so that a pattern can be mirrored, which put ZERO inside the control's range for the first time. The library does not refuse a zero scale: `transform_scale(0, ...)` returns a unit collapsed to no area, and the failure surfaces much later inside `Tiling.__init__` as `numpy.linalg.LinAlgError: Singular matrix` -- reaching the user as a raw "Tiling failed" line about a matrix they never asked about.**  
@@ -874,7 +876,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 122
-- a bug hunt pointed in a named direction: 114
+- a bug hunt pointed in a named direction: 115
 - not written down at the time: 88
 - reported by a user: 29
 - reading the code: 15

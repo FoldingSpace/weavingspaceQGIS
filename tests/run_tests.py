@@ -27663,6 +27663,73 @@ def test_a_save_as_tells_the_group_where_the_map_went():
       dlg.close()
 
 
+def test_a_save_says_which_elements_are_not_in_the_project():
+  """What the file holds, said to the person who wrote it.
+
+  Deleting one element's layer in the layers panel and pressing Save
+  writes a file holding the rest -- the pair is skipped so the file
+  cannot contradict itself, which is the settled shrank-design
+  behaviour applied to a pair. The plugin knew that and said "Saved".
+  The RECIPIENT is told the file gave back less than was saved to it,
+  so the sender was the only person not told.
+
+  AND DELETING THE WHOLE GROUP IS THE SAME QUESTION AT ITS LIMIT. The
+  guard asked what this dialog REMEMBERS drawing, which survives the
+  layers themselves, so every element was skipped, the stale-table
+  drop removed what the file held, and the press reported success over
+  an emptied file. It asks whether any remembered id resolves now.
+
+  Regression: deleting element layers in the panel and pressing Save reported plain success -- for a partial map, and for an emptied file when the whole group had gone. Found by the sentences and notices hunts of 2026-08-28. [hunt]
+  """
+  project = QgsProject.instance()
+  with _temp_dir() as folder:
+    path = os.path.join(folder, "map.gpkg")
+    dlg, _layer, _tid = _categorical_dialog()
+    try:
+      dlg.live_check.setChecked(False)
+      _generate_and_wait(dlg)
+      assert dlg._element_layer_ids, "PREMISE: nothing was drawn"
+      drawn = len(dlg._element_layer_ids)
+      dlg.gpkg_widget.setFilePath(path)
+      assert press_save(dlg, path), "PREMISE: the first save failed"
+      whole = gpkg_contents(path)
+      assert len([t for t in whole["tables"] if t.startswith("tiles_")]), \
+        "PREMISE: the first save wrote no element tables"
+
+      # ---- ONE ELEMENT'S LAYER GOES
+      gone = sorted(dlg._element_layer_ids)[0]
+      project.removeMapLayer(dlg._element_layer_ids[gone])
+      _tick(600)
+      assert press_save(dlg, path), \
+        "PREMISE: the save after the deletion did not happen"
+      said = _said_about_a_save(dlg)
+      assert gone in said and "no longer in the project" in said, (
+        f"element {gone!r} was left out of the file and the person "
+        f"who saved it was told {said!r}")
+      assert f"{drawn - 1} of {drawn}" in said, (
+        f"the sentence does not say how much of the map the file "
+        f"holds: {said!r}")
+
+      # ---- AND THEN THE WHOLE GROUP
+      for tile_id in list(dlg._element_layer_ids):
+        layer_id = dlg._element_layer_ids.get(tile_id)
+        if layer_id and project.mapLayer(layer_id) is not None:
+          project.removeMapLayer(layer_id)
+      _tick(600)
+      before = gpkg_contents(path)
+      assert not press_save(dlg, path, expect=False), \
+        "a Save with no layers left wrote something"
+      said = _said_about_a_save(dlg)
+      assert "no longer in the project" in said, (
+        f"the refusal does not say why: {said!r}")
+      after = gpkg_contents(path)
+      assert after["tables"] == before["tables"], (
+        f"the refused save emptied the file anyway: "
+        f"{before['tables']} became {after['tables']}")
+    finally:
+      dlg.close()
+
+
 def test_a_column_called_no_data_does_not_miscount_the_map():
   """A table name is not the thing that says what a table is.
 
@@ -71331,6 +71398,8 @@ def main():
         test_a_blend_mode_set_in_qgis_survives_a_re_tile)
   check("a column called no data does not miscount the map",
         test_a_column_called_no_data_does_not_miscount_the_map)
+  check("a save says which elements are not in the project",
+        test_a_save_says_which_elements_are_not_in_the_project)
   check("choosing your own group keeps the region and the variables",
         test_choosing_your_own_group_keeps_the_region_and_the_variables)
   check("the icon notice reads the same ground in either crs",

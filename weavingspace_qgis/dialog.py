@@ -16483,6 +16483,21 @@ class WeavingSpaceDialog(QDialog):
       self._report_quietly(
         "There is no map to save yet. Press Generate first.")
       return False
+    # ...AND REMEMBERING AN ELEMENT IS NOT HAVING ONE. The guard above
+    # asks what this dialog REMEMBERS drawing, which survives the
+    # layers themselves: delete the output group in the layers panel
+    # and every id is still here while nothing resolves, so the write
+    # loop skipped every element, the stale-table drop removed what
+    # the file held, and the plugin said "Saved" over an empty file.
+    # Measured 2026-08-28. A person who deletes the group and presses
+    # Save has asked for something the plugin cannot do, and the
+    # honest answer is to say so rather than to empty their file.
+    if not any(project.mapLayer(layer_id or "") is not None
+               for layer_id in self._element_layer_ids.values()):
+      self._report_quietly(
+        "This map's layers are no longer in the project, so there is "
+        "nothing to save. Press Generate to draw it again.")
+      return False
     if not self._may_overwrite(path):
       return False
     # ASKED BEFORE ANYTHING IS WRITTEN, and that order is the whole of
@@ -16542,6 +16557,7 @@ class WeavingSpaceDialog(QDialog):
     fresh = (not os.path.exists(path)) or os.path.getsize(path) == 0
     written_names = set()
     trouble = []
+    left_out = []
     for tid in order:
       # A TWIN NEVER TRAVELS WITHOUT ITS ELEMENT. The paired layer
       # holds the areas whose value is absent FOR THIS ELEMENT, so on
@@ -16561,6 +16577,14 @@ class WeavingSpaceDialog(QDialog):
       # says every reader keyed on an element's identity gains a
       # second answer, read here from the writing side.
       if project.mapLayer(self._element_layer_ids.get(tid) or "") is None:
+        # AND THE PERSON IS TOLD WHICH ONES, below. Skipping keeps the
+        # FILE consistent, which is what row 46 was about; it leaves
+        # the map itself short of an element the design still has, and
+        # a plain "Saved" over that is the plugin knowing something
+        # about somebody's file and not saying it. The recipient meets
+        # a sentence about a map that gave back less than was saved to
+        # it, so the sender is the only one who was not told.
+        left_out.append(tid)
         continue
       for layer_id, table in (
           (self._element_layer_ids.get(tid), tables[tid]),
@@ -16775,14 +16799,30 @@ class WeavingSpaceDialog(QDialog):
                   else self._fingerprint_when_drawn.get(in_force.id()))
     moved = (when_drawn is not None
              and self._a_reading_of_the_data(in_force) != when_drawn)
+    # ...AND WHICH ELEMENTS DID NOT TRAVEL, in the same breath as the
+    # success rather than in a sentence of its own. Deleting one
+    # element's layer in the panel and pressing Save writes a file
+    # holding the rest, which is right -- the pair is skipped so the
+    # file cannot contradict itself -- and the plugin knew something
+    # about that file and said only "Saved". Measured 2026-08-28: the
+    # RECIPIENT is told the file gave back less than was saved to it,
+    # so the sender was the only person not told.
+    absent = ""
+    if left_out:
+      names = ", ".join(sorted(left_out))
+      absent = (
+        f" Element{'s' if len(left_out) > 1 else ''} {names} "
+        f"{'are' if len(left_out) > 1 else 'is'} no longer in the "
+        f"project, so the file holds {len(order) - len(left_out)} of "
+        f"{len(order)} elements.")
     if moved:
       self._report_quietly(
         f"Saved to {os.path.basename(path)}. The data has changed "
         f"since this map was drawn, so the file holds the map as it "
         f"is and a copy of the data as it is now; press Generate and "
-        f"save again to make them agree.")
+        f"save again to make them agree.{absent}")
       return True
-    self._report_quietly(f"Saved to {os.path.basename(path)}.")
+    self._report_quietly(f"Saved to {os.path.basename(path)}.{absent}")
     return True
 
   def _table_a_layer_already_reads(self, tile_id, path):

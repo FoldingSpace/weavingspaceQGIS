@@ -2412,10 +2412,13 @@ MUTATIONS = [
            "excluded from the chooser, so the chooser comes up empty "
            "and the whole design goes with it"),
   dict(name="a-twin-never-travels-without-its-element", file=DIALOG,
-       old="""      if project.mapLayer(self._element_layer_ids.get(tid) or "") is None:
+       # RE-ANCHORED 2026-08-28, when the skip gained the line that
+       # REMEMBERS what it skipped so the person can be told. The
+       # mutation is unchanged: the pair is written even though the
+       # element's layer has gone.
+       old="""        left_out.append(tid)
         continue""",
-       new="""      if False:
-        continue""",
+       new="""        left_out.append(tid)  # mutation: written anyway""",
        test="test_a_no_data_twin_never_travels_without_its_element",
        why="a saved file never holding a no-data twin whose own "
            "element table is not there -- without it, deleting one "
@@ -7603,6 +7606,34 @@ MUTATIONS = [
            "which group a dataset owns, whether a landing may write "
            "over a group, and whether a resume finds a layer already "
            "open"),
+  dict(name="a-save-names-the-elements-it-left-out",
+       file=DIALOG,
+       # Back to plain success. The file is the same either way -- the
+       # pair is still skipped, so it cannot contradict itself -- and
+       # the person who wrote it is not told that a part of their map
+       # is not in it, while the person who OPENS it is.
+       old="""    absent = ""
+    if left_out:""",
+       new="""    absent = ""
+    if False:  # mutation: say nothing about what did not travel""",
+       test="test_a_save_says_which_elements_are_not_in_the_project",
+       why="the sender being told what the recipient will be told: a "
+           "file holding three of four elements is a fine thing to "
+           "write and a bad thing to write in silence"),
+  dict(name="a-save-asks-whether-any-layer-is-still-there",
+       file=DIALOG,
+       # Back to asking what the dialog REMEMBERS drawing, which
+       # survives the layers: delete the output group and every id is
+       # still here while nothing resolves, so the write loop skips
+       # everything, the drop removes what the file held, and the
+       # press reports success over an emptied file.
+       old="""    if not any(project.mapLayer(layer_id or "") is not None
+               for layer_id in self._element_layer_ids.values()):""",
+       new="""    if False:  # mutation: remembering an element is having one""",
+       test="test_a_save_says_which_elements_are_not_in_the_project",
+       why="a Save pressed after the output group has been deleted "
+           "saying so, rather than emptying the file it was pointed "
+           "at and reporting that it saved"),
   dict(name="an-element-is-counted-by-its-stamp",
        file=DIALOG,
        # Back to the table NAME, which is what shipped. Everything
