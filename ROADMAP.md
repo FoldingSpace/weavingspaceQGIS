@@ -613,13 +613,35 @@ graduated style built in QGIS's dock and the next Generate, the row
 reads "Quant: Quantiles" while the assignment says Categorized, and
 that Generate destroys the dock's work.
 
-**WORK IS OUTSTANDING IN CODE, and it is the list two paragraphs
-above.** This section said the opposite until the round of 2026-08-28,
-and the phrase is withdrawn deliberately rather than left to be
-satisfied by a heading: the release gate refuses a candidate while a
-version's section lists work, and it is right to, because every item
-on that list is a defect confirmed by a hunt and reproduced here. When
-they land or are moved, the declaration comes back.
+**NOTHING OUTSTANDING IN CODE, and the declaration is back on the
+terms the withdrawn one set.** This section said the opposite from the
+round of 2026-08-28 until 2026-08-29, and the phrase was withdrawn
+deliberately rather than left to be satisfied by a heading: the
+release gate refuses a candidate while a version's section lists work,
+and it is right to, because every item on that list was a defect
+confirmed by a hunt and reproduced here. The withdrawal named its own
+condition -- when they land or are moved, the declaration comes back
+-- and they have landed. Rows 18, 36, 23 and 35 were closed that
+morning, each audited before it was built; the window and Save's
+responsiveness were built from the maintainer's own decisions; and the
+catalogue triage's second bad trade was paid back with a leg that can
+fail and an entry for each path.
+
+ONE THING IS WATCHED RATHER THAN OWED AND IS NOT COVERED BY THIS. The
+landing's last preview repaint firing before the new layer exists did
+not reproduce -- every repaint through a whole landing saw all of its
+layers -- and it is left open because one clean journey is not a proof
+about all of them. It is not on the owed list because nothing here has
+been able to make it happen, which is a different claim from its being
+fixed.
+
+AND THE CHANGELOG LINE IS WRITTEN AND APPROVED, on 2026-08-29, so the
+paragraph above about it describes a thing now done: the maintainer
+ruled on every sentence of the round's user-facing text one at a time
+-- correcting two of them, and catching in the shared-file notice a
+contradiction the software's own author had not seen, where "the data
+is no longer there" sat beside "nothing was removed" without saying
+that the two were about different people.
 
 Everything the version carried BEFORE that round is done or
 deliberately moved: the two that need a person rather than an

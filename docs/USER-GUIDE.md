@@ -272,9 +272,9 @@ layer, and until you press Save the map lives only with the project.
 Nothing is opened until you press *Load*, on the row beneath, which
 brings a saved map back into the dialog so you can carry on with it.
 Save prompts you to confirm if the file selected holds a
-map made from unrelated data. If somebody else has changed that file
+map made from unrelated data. If somebody else has changed the file
 since you opened the map, Save writes what it can, leaves their work
-where it is, and tells you which element the file no longer holds.
+where it is, and tells you which element it could not save.
 
 Regenerating replaces the previous group and keeps whatever styling
 you have refined by hand; an element's symbology is rebuilt only when

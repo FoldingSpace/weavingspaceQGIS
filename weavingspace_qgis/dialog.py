@@ -17736,16 +17736,32 @@ class WeavingSpaceDialog(QDialog):
     changed = ""
     if vanished:
       names = ", ".join(sorted(vanished))
+      # EVERY REFERENT IS A NOUN. The first draft said "somebody else
+      # has changed IT ... so THAT ELEMENT was not saved", and the
+      # maintainer's reading of it on 2026-08-29 is the reason this
+      # one does not: "it" reads as the element's data as readily as
+      # the file, and "that element" has drifted from the name it
+      # points at by the time anybody reaches it. The plural keeps
+      # "those elements" only because they sit in the same sentence as
+      # the list they name. The instruction to open the file again was
+      # cut as the maintainer's ruling on the same reading.
+      # THE TWO HALVES WERE ABOUT DIFFERENT ACTORS AND DID NOT SAY SO.
+      # An earlier draft paired "the data has gone from the file" with
+      # "nothing was removed", which the maintainer read as a
+      # contradiction on 2026-08-29 -- and it was worse than that: the
+      # file may well hold an element of this name, drawn from the
+      # column the OTHER person moved it to. What has gone is the
+      # table THIS map was drawing. So the sentence says what could
+      # not be saved and why, and the non-removal clause was cut
+      # rather than explained.
       changed = (
-        f" Element {names}'s data is no longer in the file: somebody "
-        f"else has changed it since this map was opened, so that "
-        f"element was not saved and nothing was removed. Open the "
-        f"file again to see what it holds."
+        f" Somebody else has changed this file since the map was "
+        f"opened, so element {names} could not be saved: the tiles it "
+        f"draws are no longer in the file."
         if len(vanished) == 1 else
-        f" Elements {names} have data no longer in the file: somebody "
-        f"else has changed it since this map was opened, so those "
-        f"elements were not saved and nothing was removed. Open the "
-        f"file again to see what it holds.")
+        f" Somebody else has changed this file since the map was "
+        f"opened, so elements {names} could not be saved: the tiles "
+        f"they draw are no longer in the file.")
     if moved:
       self._report_quietly(
         f"Saved to {os.path.basename(path)}. The data has changed "

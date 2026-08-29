@@ -484,6 +484,11 @@
   "excerpt": "Drawing a map and saving one are separate acts. Nothing is w",
   "where": "docs/USER-GUIDE.md"
  },
+ "3aa50123d28c8efc": {
+  "approved": "2026-08-29",
+  "excerpt": "Somebody else has changed this file since the map was opened",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "3b8726b210fd02dc": {
   "approved": "2026-08-17",
   "excerpt": "Element '{}' follows the styling you set in QGIS:",
@@ -492,6 +497,11 @@
  "3c06de43f48834b6": {
   "approved": "2026-08-09",
   "excerpt": "Stretch the pattern up-down.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "3c686e45aaf6f5eb": {
+  "approved": "2026-08-29",
+  "excerpt": "Saved to {}. The data has changed since this map was drawn, ",
   "where": "weavingspace_qgis/dialog.py"
  },
  "3da4643e9a6cffe9": {
@@ -643,6 +653,11 @@
   "approved": "2026-08-08",
   "excerpt": "laying out the tiling\u2026 %p%",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "4c818152b972f4f1": {
+  "approved": "2026-08-29",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
  },
  "4c8f314d4f4d6193": {
   "approved": "2026-08-26",
@@ -1604,6 +1619,11 @@
   "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
   "where": "weavingspace_qgis/metadata.txt"
  },
+ "b8b04a9cb98df43f": {
+  "approved": "2026-08-29",
+  "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",
+  "where": "weavingspace_qgis/help_content.py"
+ },
  "ba284fbfdcfc8431": {
   "approved": "2026-08-15",
   "excerpt": "The region layer was removed from the project, so the map no",
@@ -1934,6 +1954,11 @@
   "excerpt": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8",
   "where": "docs/index.html"
  },
+ "e268c01e7b3cbad9": {
+  "approved": "2026-08-29",
+  "excerpt": "Drawing a map and saving one are separate acts. Nothing is w",
+  "where": "docs/USER-GUIDE.md"
+ },
  "e28d4124937d4ab7": {
   "approved": "2026-08-08",
   "excerpt": "restyled {} (no re-tiling needed)",
@@ -2038,6 +2063,11 @@
   "approved": "2026-08-27",
   "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
   "where": "weavingspace_qgis/metadata.txt"
+ },
+ "ec7e9a7c03725d4c": {
+  "approved": "2026-08-29",
+  "excerpt": "Somebody else has changed this file since the map was opened",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "ed4b581d5ef2dbfc": {
   "approved": "2026-08-19",

@@ -29524,7 +29524,7 @@ def test_a_save_leaves_a_shared_file_somebody_else_has_changed():
       BAR_MESSAGES.clear()
       assert press_save(dlg, path), "CONTROL: the second save was refused"
       quiet = " ".join(str(text) for _kind, text in BAR_MESSAGES)
-      assert "no longer in the file" not in quiet, (
+      assert "changed this file" not in quiet, (
         f"an ordinary second save claims somebody else has changed "
         f"the file: {quiet[:200]!r}")
       held = set(bridge.gpkg_tables(path))
@@ -29567,7 +29567,13 @@ def test_a_save_leaves_a_shared_file_somebody_else_has_changed():
         f"this file: once a table has gone from under us, what looks "
         f"like our own abandoned table is just as likely to be their "
         f"current one. The file holds {sorted(ended)}")
-      assert "no longer in the file" in said and tid in said, (
+      # ASKED OF WHAT THE SENTENCE MUST SAY, not of how it says it.
+      # The wording was settled by the maintainer on 2026-08-29 and
+      # this assertion was keyed to the draft it replaced, which is
+      # how a reviewed rewording turns into a red suite. The two
+      # facts a person cannot do without are that somebody else
+      # changed the file and WHICH element is missing from it.
+      assert "changed this file" in said and tid in said, (
         f"the file lost element {tid}'s data and the plugin said only "
         f"{said[:200]!r}")
     finally:

@@ -83,16 +83,17 @@ changelog=0.24.4 Saving a map is now something you do rather than
     the first one's file. Saving into a file somebody else had
     changed since you opened it could take an element out of it and
     say only that it had saved; it now writes what it can, leaves
-    their work where it is, and tells you which element the file no
-    longer holds.
-    Also: with Create as new group ticked, the group chooser named
-    the group the next map would not land in. A Save pressed while
-    the map was about to be redrawn saved the map you had just
-    changed away from, and is now kept and done once the new one has
-    landed. Assignment table columns cut their text short at ordinary
-    desktop font sizes. Saving a large map left the window looking as
-    though it had hung. And the plugin could close QGIS outright
-    after being opened several times in one session.
+    their work where it is, and tells you which element it could not
+    save.
+    And what else it puts right: the plugin could close QGIS outright
+    after being opened several times in one session. Saving a large
+    map left the window looking as though it had hung, and now says
+    what it is doing. Assignment table columns cut their text short
+    at ordinary desktop font sizes. With Create as new group ticked,
+    the group chooser named the group the next map would not land in.
+    And a Save pressed while the map was about to be redrawn saved
+    the map you had just changed away from; it is now kept and done
+    once the new map has landed.
     0.24.3 You decide how your data is classed: which values are
     drawn at all, where the first and last classes end, and what
     becomes of the areas left out.
