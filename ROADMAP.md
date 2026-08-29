@@ -749,10 +749,92 @@ destination; the maintainer's ask is explicitly to go BEYOND what
 upstream offers, and creative interactive visualization is where that
 starts rather than where it ends.
 
-WHAT COMES FIRST is an inventory: what each of those operations
-actually does to a unit, which of them compose, and which produce a
-tiling the rest of the plugin can still draw. That is a measurement
-session, not a design one, and it is cheap.
+THE MATERIAL, given by the maintainer on 2026-08-29, is upstream's own
+two working notebooks:
+`examples/topology-working.ipynb` and `examples/symmetry-working.ipynb`
+in `DOSull/weavingspace`. The first builds a unit
+(`TileUnit(tiling_type="chavey", code="K")`), plots it, and hands it to
+`Topology(tile, True)`; the second is the sharper of the two for our
+purposes, since it drives `Symmetries(polygon)` over six deliberately
+awkward shapes, reads `symmetry_group` and `symmetries` off each,
+DRAWS every symmetry onto the shape with `Transform.draw(ax, radius=,
+mirror_length=, w=)`, and then matches one polygon onto another with
+`ShapeMatcher(p).get_polygon_matches(q)`. Its finding is worth carrying
+into any interface we build: a reflection can only appear alongside a
+rotation WITHIN a shape, while matching one shape to ANOTHER admits
+reflections for shapes that have no internal symmetry at all. Those are
+two different questions and a tab that shows both must say which it is
+answering. Everything both notebooks use is already in our vendor at
+0.0.7.89, so none of it waits on upstream.
+
+**AND THE MAINTAINER'S DESIGN NOTE -- build the topology when the
+tiling is built, and store it in the transportable GeoPackage -- MEETS
+TWO MEASUREMENTS, taken 2026-08-29 before any of it is designed.**
+Recording them here because they change what the note can mean, and
+because a decision is only as good as the measurement under it.
+
+FIRST, IT IS NOT CHEAP. `Topology.__init__` does everything eagerly --
+eight setup passes and `generate_dual()`, with no lazy half to
+discount. Timed three times each on catalogue designs through the
+plugin's own `make_unit`, over two runs on a machine of differing
+business: archimedean 4.8.8 at 0.32-0.61s, hex-slice 12 at 1.90-3.05s,
+hex-slice 6 at 2.08-4.38s, square-colouring 5 at 3.25-3.98s. THE
+SPREAD IS THE MACHINE and the claim is about the ORDER rather than any
+one figure -- seconds, reliably, on every design tried. The cost also
+tracks the SHAPE rather than the element count, since n=5 is the
+slowest of those and n=12 is not, so it cannot be bounded by the
+element spinner. Against that, building the unit itself is 0.01-0.05s
+at every count up to 256, and the live debounce is 900 ms.
+Building a topology on every Generate would therefore be the dominant
+cost of drawing a map, and building one on every live tick would make
+the live path useless. What the note is really asking for is that the
+topology belong to the DESIGN rather than to a button, which it can:
+computed once per design change, off the main thread as the tiling
+already is, and thrown away when the design moves.
+
+SECOND, AND HARDER: `Topology` REQUIRES A GAP-FREE TILING, and most of
+what this plugin draws has gaps. Measured on a plain weave at spacing
+500: aspect 1.0 builds a topology, and 0.95, 0.9 and 0.75 all raise
+`ValueError: Vertex ... Tiles: [] is not in list`, aspect 0.5 raising a
+different unpacking error. The plugin's own default aspect is 0.75, and
+opening the weave up is what aspect is FOR. The same fault reaches
+tilings through the inset controls: laves 3.3.4.3.4 builds at inset 0
+and raises at 5, 25 and 50 map units alike. So the tab is available for
+an undecorated unit and unavailable for the ordinary settings a person
+reaches for, which is a scope decision rather than a bug to fix here.
+Three honest ways out, and choosing between them is the first design
+question: compute the topology on the unit BEFORE modifiers and say so
+on screen, since the topology of the shapes is arguably what somebody
+wants anyway; disable the tab with a reason when the design has gaps;
+or take it upstream, since a tiling with deliberate gaps is a
+reasonable thing to ask a topology about and only upstream can widen
+that. The third belongs in "Two conversations to have" below if it is
+taken.
+
+AND WHAT GOES IN THE FILE IS NOT THE OBJECT. `topology.py` imports
+`pickle`, but only to deep-copy itself inside `transform_geometry`;
+there is no save format, and a pickle would be the wrong one anyway --
+version-fragile, and unpickling a file somebody sent you is precisely
+the shape a plugin-repository reviewer looks hardest at, which this
+project has a hard rule about. What CAN travel is the derived and
+inspectable part: `get_dual_tiles()` already returns a GeoDataFrame, so
+the dual is a table a GeoPackage holds natively and a colleague can
+open without the plugin, and the transitivity classes, shape groups and
+symmetry codes are small structured values that belong in the working
+-state record beside the design. That also keeps the file honest under
+the ruling of 2026-08-26 -- the file shows the limit of what it
+contains -- since a stored dual is a fact about the DESIGN and carries
+none of anybody's data.
+
+WHAT COMES FIRST is still an inventory, and it is cheaper now that the
+two constraints above are known: what each manipulation actually does
+to a unit, which of them compose, and which produce a tiling the rest
+of the plugin can still draw. Note that `zigzag_edge` reaches
+`interpolate.InterpolatedUnivariateSpline`, and scipy is optional in
+the vendored library and is NOT provisioned by `deps.py` -- so that one
+manipulation raises a clear ImportError today and would need scipy
+added to the dependency list, which is a change to the consent
+dialogue's enumeration and therefore not a small decision.
 
 **FOR STUDY: warn when a test asserts a string that also appears in
 shipped source.** Added 2026-08-16, deliberately as a question rather
