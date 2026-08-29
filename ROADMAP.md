@@ -682,6 +682,32 @@ failure proves the SET is live, which is exactly the weaker claim the
 one-replacement rule exists to refuse. Worth an hour of thought and a
 grilling before any code.
 
+**SAVE AS A SINGLE OGR SESSION.** (Maintainer's decision, 2026-08-29,
+splitting this off rather than folding it into 0.24.4's candidate.)
+Save is super-linear in the element count and the reason is measured:
+every call count is exactly LINEAR, and what grows is the cost of each
+call, because each opens the GeoPackage and opening one costs time
+proportional to the layers already in it. One of the four terms was
+ours and is fixed -- removing superseded styles opens the file once
+for the whole map now, its call count went from n to 1. The other
+three are `write_gpkg_layer`, `save_style_to_database` and
+`point_layer_at`: QGIS's and OGR's own per-layer APIs, with no batch
+form, and 2.2s of the 2.6s wall at 64 elements.
+
+Closing the rest means writing every layer in ONE OGR session rather
+than one per layer. That is a rewrite of the writer, not a repair: it
+changes what the file contains in ways the whole suite would have to
+re-answer, and the risk lands on the one thing that must not break --
+what a colleague receives. It wants its own round, its own hunts and
+its own full suite, which is exactly why it is here rather than in the
+version whose candidate is being cut.
+
+WHAT IS ALREADY DONE FOR IT, so the round starts from a measurement
+rather than a suspicion: the equation, the four terms, and the method
+that produced them -- compare call COUNTS at four element counts
+rather than seconds at two -- are in `docs/process/defects-2026-08-28.md`
+under the quadratic, with the instrument in the session scratch.
+
 **Two mutation measurements, neither of them defect-finding.** The
 expensive stratum, which nothing has ever measured -- 1,172 of the
 1,488 reachable mutants, and the cheap stratum's 59% says nothing

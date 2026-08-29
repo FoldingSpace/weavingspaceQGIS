@@ -48,6 +48,56 @@ itself:
 
     PYTHONPATH="$PWD" PYTHONUNBUFFERED=1 "$QGIS_PY" my_probe.py
 
+## A SURVIVOR CAN BE REPORTING A JOURNEY, NOT A WEAK TEST
+
+2026-08-29. An entry over the stamping guard SURVIVED, and the test it
+named was sharp and its assertions were live. What it was reporting
+was simpler: that test presses Generate, and the code the entry stands
+on is only reached by a STYLE CHANGE, so the journey never went near
+it. Giving the test one more leg -- pick a colour on the map in
+question, require the colleague's layers to carry no record of it --
+made the entry catch first time.
+
+This file already carries "when an entry survives, ask whether the
+behaviour has two implementations before asking whether the test is
+weak". What this adds is the third possibility, and it is the
+commonest of the three in a suite this size: the test is fine, nothing
+is redundant, and the DOOR the entry stands at is one the test does
+not open. The tell is that the entry's site and the test's acts have
+no path between them -- which is a question about the product, not
+about the assertions, and reading the test again will never answer it.
+
+## A GUARD CAN CHECK WHAT A COLUMN NEEDS AND NOT WHAT A WINDOW DOES
+
+2026-08-29, and it is the sharpest thing about measuring a layout
+here. Every runner and every CI job sets `QT_QPA_PLATFORM=offscreen`,
+which supplies Sans Serif at 9pt; a desktop supplies the system font
+at 13pt. The obvious repair for a guard that measures the wrong font
+is to SET the font -- and it half works, which is worse than not
+working at all.
+
+`QApplication.setFont` reproduces the metrics a WIDGET asks for:
+`sizeHintForColumn` moves, the header hints move, and a column's own
+requirement can be checked anywhere. It does NOT reproduce the window
+assembly: the dialog's minimum size hint reads 1279px at both 9pt and
+13pt, offscreen printing "does not support propagateSizeHints", while
+cocoa gives 1334. So half the layout rule is checkable everywhere and
+the other half is checkable nowhere any runner can go.
+
+**SAY WHICH HALF A GUARD HOLDS, AT THE GUARD.** The window's ceiling
+now rests on a measurement written at the constant rather than on a
+check, and the test says that in as many words -- because a layout
+test that asserts three properties and can only see two reads as
+though it saw three.
+
+AND THE FIGURE I QUOTED CAME FROM THE HARNESS FONT. The same day I
+offered "the Colour ramp cell is 172px for a 64px swatch and a name"
+as evidence of slack. At 9pt it has 8px spare; at 13pt it is 10px
+short, and the table as a whole is 149px short rather than 22px over.
+A measurement taken under the harness is a measurement about the
+harness, and quoting one as though it were about the product is the
+same fault as reading a stale log -- with the date replaced by a font.
+
 ## AN ATTRIBUTE THAT IS A VIEW CANNOT BE WATCHED BY REBINDING IT
 
 2026-08-28. A probe replaced `dialog._category_colours` with a dict

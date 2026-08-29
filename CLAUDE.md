@@ -4704,6 +4704,59 @@ here, and the decision to add one is the maintainer's. Recorded
   -- and both still owed a GUARD at their own door, because a claim
   that has stopped reproducing is not a claim that is tested.
 
+- **A CALLABLE THAT OUTLIVES ITS DIALOG MUST ASK BEFORE IT TOUCHES
+  IT, AND A LAMBDA IS NOT A BOUND METHOD.** (2026-08-29, a
+  reproducible SEGMENTATION FAULT.) Qt drops a connection to a bound
+  METHOD when the receiving QObject dies. A LAMBDA is an ordinary
+  Python object: Qt keeps it alive and goes on calling it, and
+  reaching `self.anything` through a deleted sip wrapper crashes the
+  process rather than raising -- so it happens BEFORE any handler's
+  own retirement gate can run. `cleared` and `readProject` are PROJECT
+  signals and reach every dialog a session has ever opened; an element
+  layer outlives the dialog that made it.
+  THREE SITES, ONE SHAPE, and each was written by somebody who knew
+  the rule: a handler with no gate at all that queued
+  `singleShot(0, lambda: setattr(self, ...))`; a closure that DID
+  guard and wrote to `self` on the line above the guard; and two layer
+  signals plus the project read connected to bare lambdas. The second
+  is this file's own row 25 of 2026-08-27 met again -- A GUARD WHOSE
+  WHOLE JOB IS BEING SAFE ON A DEAD OBJECT MAY NOT TOUCH THAT OBJECT
+  BEFORE ASKING WHETHER IT IS DEAD.
+  WHAT IT COST is worth stating because it is not a wrong map: in a
+  sharded suite it is a shard that stops with no verdict at all, and
+  in QGIS it is the application closing on somebody who has opened the
+  plugin a few times and then chosen File > New. It was found by
+  running twelve tests in one process, not by any single test.
+  GUARDED BY THE SHAPE. `test_nothing_long_lived_is_connected_to_a_
+  bare_lambda` parses `dialog.py` and refuses a bare lambda on any
+  signal from something the dialog does not own, or on any timer. Its
+  scope is exactly the hazard, so it needs no exemptions: a lambda on
+  a WIDGET's own signal is safe, the widget being a child that dies
+  with its parent.
+
+- **A WIDTH IN PIXELS IS A CLAIM ABOUT A FONT, AND SETTING A FONT IS
+  NOT SWITCHING A PLATFORM.** (2026-08-29, and the second half is the
+  part that will catch somebody again.) The assignment table's nine
+  column widths were constants measured against the 9pt Sans Serif
+  that `QT_QPA_PLATFORM=offscreen` supplies -- which every runner and
+  every CI job sets. At a desktop 13pt the same columns need 1096px
+  against the 947 they were pinned to, so every cell but one elided:
+  "Quant: Equal inter..." on the chooser whose whole job is saying
+  which style a row wears. They grow to their content now.
+  I READ THE SLACK AT THE WRONG FONT AND SAID SO OUT LOUD, which is
+  why this is here: the Colour ramp cell has 8px spare at 9pt and is
+  10px SHORT at 13pt, and I offered "narrow the columns" as though
+  there were room. A figure taken from the harness font is a figure
+  about the harness.
+  AND A FONT IS NOT A PLATFORM. Setting `QApplication.setFont` under
+  offscreen reproduces the column metrics and NOT the window
+  assembly: the dialog's minimum size hint reads 1279 at both 9pt and
+  13pt, while cocoa gives 1334. So a guard can check what a COLUMN
+  needs anywhere, and no guard here or on CI can see the window's own
+  overshoot at all -- which is why the ceiling was re-derived from the
+  measurement rather than defended by a check, and why the test says
+  so instead of implying otherwise.
+
 - **A RESTORE IS A LANDING, FOR EVERYTHING THAT ASKS WHETHER THE
   CONTROLS DESCRIBE THE MAP.** (2026-08-28.) `_last_geometry_sig` is
   how `_restyle_only` knows the tiles on screen are the tiles these

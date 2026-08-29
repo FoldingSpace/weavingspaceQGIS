@@ -12,7 +12,42 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-08-29, after the VERIFICATION SESSION that followed
+Last updated 2026-08-29 (late), after the verification session below
+and the DECISION session that followed it -- six open questions put to
+the maintainer one at a time, all six settled, and two of them turning
+into work the version now owes.
+
+WHAT A DECISION SESSION COSTS AND FINDS, since this record has never
+carried it. Six questions, about two hours, and the two findings worth
+keeping are both about the QUESTIONS rather than the answers:
+
+- **ONE OF THE SIX WAS ALREADY DONE.** Whether `check_standards`
+  should require a catalogue anchor to be unique as well as present
+  was put as open, decided yes, and found already true since
+  2026-08-28 -- with a test and a carve-out for computed placeholders.
+  One ledger paragraph said it was recorded rather than done and
+  another, forty lines below, said it had been done that night. A
+  document that records a question as open after it has been answered
+  invites somebody to answer it twice, and here somebody did.
+- **AND ONE PREMISE WAS MINE AND WAS WRONG.** The window question was
+  put as "narrow the columns; the Colour ramp cell is 172px for a 64px
+  swatch and a name". Measured per column at a desktop font, the table
+  needs 1096px against 947 -- a deficit of 149, not slack -- so the
+  answer that was chosen could not be built. Re-measuring, saying so,
+  and putting the question again with the real numbers cost one probe.
+  A DECISION IS ONLY AS GOOD AS THE MEASUREMENT UNDER IT, and the
+  measurement has to be taken before the question is asked, not after
+  the answer arrives.
+
+AND THE SESSION FOUND A CRASH BETWEEN TWO REPAIRS. Running twelve
+tests in one process to check a repair's neighbours segfaulted,
+reproducibly, at the same point twice: three callables outliving their
+dialog reached it through bare lambdas, and an attribute read on a
+deleted sip wrapper is a crash rather than an exception. NO SINGLE
+TEST COULD HAVE FOUND IT -- each of the twelve passes alone -- which
+is the whole-suite argument arriving in a neighbour run of a dozen.
+
+Before that, after the VERIFICATION SESSION that followed
 round ten's third wave -- the first time this project has taken an
 owed list to the end rather than to the next round.
 
