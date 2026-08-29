@@ -25589,8 +25589,17 @@ def test_the_ceiling_holds_when_the_columns_want_more_than_it():
 
     dlg._fit_table_width()
     _tick(200)
-    rest = dlg.minimumSizeHint().width() - dlg.table.minimumWidth()
-    width = dlg.minimumSizeHint().width()
+    # THE ASSEMBLED WINDOW'S OWN WIDTH, AFTER `show()`, which is what
+    # the layout tests measure and what a person meets. The first
+    # version of this guard read `minimumSizeHint()` instead, passed,
+    # and let a repair through that did nothing on Windows: a window
+    # opens at its sizeHint and a MINIMUM never bounds a preferred
+    # size, so the quantity I proved was not the quantity that was
+    # wrong. Measure what the failure measures.
+    dlg.show()
+    _tick(200)
+    width = dlg.width()
+    rest = width - dlg.table.width()
     if rest >= MAX_WINDOW_WIDTH:
       # Nothing the table gives up can help. Said out loud rather than
       # passed over: this test cannot speak about that case.

@@ -8001,12 +8001,16 @@ MUTATIONS = [
        # window is forced past the budget however the resize below is
        # capped -- 1729px against 1480px on the Windows runner, in
        # three tests and two locales, all quoting one number.
-       old="""    rest = max(0, self.minimumSizeHint().width()
-               - self.table.minimumWidth())
-    room = MAX_WINDOW_WIDTH - rest
-    if room > 0:
-      needed = min(needed, room)""",
-       new="""    pass  # mutation: the ceiling binds the resize alone""",
+       # RE-ANCHORED 2026-08-29, onto the bound that actually works.
+       # Three earlier ones bounded the table's MINIMUM by three
+       # different pieces of arithmetic and Windows opened at 1729px,
+       # 1790px and 1729px: a window opens at its sizeHint, the
+       # table's sizeHint follows its COLUMNS, and a minimum never
+       # bounds a preferred size.
+       old="""    over = total - COLUMN_SUM_BUDGET
+    if over > 0:""",
+       new="""    over = total - COLUMN_SUM_BUDGET
+    if False:""",
        test="test_the_ceiling_holds_when_the_columns_want_more_than_it",
        why="a window that fits the narrowest screen still in use, "
            "which is the first clause of the layout rule and the one "

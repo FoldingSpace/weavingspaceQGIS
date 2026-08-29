@@ -691,12 +691,44 @@ def _ramp_icon(name: str, reverse: bool = False):
 # it replaces.
 MAX_WINDOW_WIDTH = 1480
 
+# THE WIDTH EACH COLUMN MAY NEVER GO BELOW, which is the width the
+# constructor gives it. `_fit_table_width` grows a column to what its
+# content needs and, where the window would then be wider than the
+# budget, takes the overflow back off the widest -- but never past
+# these, because a column squeezed under its own floor elides its
+# HEADER, which is the fault the growing was added to cure. One
+# owner, so the floor and the starting width cannot drift apart.
+COLUMN_FLOORS = {0: 50, 1: 160, 2: 152, 3: 55, 4: 172, 5: 58, 6: 68,
+                 7: 150}
+
 # Extra pixels reserved beside the scrollbar. Qt's own metric and the
 # bar it draws disagree by four pixels on this platform, and a table
 # short by even one grows a horizontal scrollbar -- the one thing the
 # layout rule forbids, because columns past it go unfound. Cheap
 # insurance: the window is capped anyway and the preview gives up the
 # difference. (2026-08-10.)
+# THE NARROWEST THE ASSIGNMENT TABLE MAY BE BOUND TO, whatever the
+# budget arithmetic says. Below this the table is not a table any
+# more, and a window that is over budget because the REST of the
+# layout wants more than the whole screen is not something the table
+# can fix by disappearing.
+# WHAT THE NINE COLUMNS MAY OCCUPY BETWEEN THEM, and the number is
+# bracketed by two measurements rather than chosen. It must be at
+# least about 1030, which is what all nine columns need at this
+# machine's own font before anything elides -- 480 of allowance left
+# 1000 and duly elided 'Style' and 'Colour ramp', which is the fault
+# the growing was written to cure. And it must be small enough that
+# the window still fits: with the columns wide the rest of the layout
+# wants 362px, so 1118 is the ceiling. 400 puts the allowance between
+# them at 1080, which clears both by about fifty pixels.
+# THE COST OF BEING WRONG IS ASYMMETRIC, which is why the slack sits
+# where it does: too generous and a window opens off the side of
+# somebody's screen, which they cannot undo; too mean and a label
+# elides, which they can see and live with.
+COLUMN_SUM_BUDGET = MAX_WINDOW_WIDTH - 400
+
+TABLE_WIDTH_FLOOR = 400
+
 SCROLLBAR_SLACK = 6
 PREVIEW_FLOOR = 260
 
@@ -2655,6 +2687,8 @@ class WeavingSpaceDialog(QDialog):
     # returns width the table needs to show every column without
     # scrolling sideways, which nobody notices it doing.
     self.table.verticalHeader().setVisible(False)
+    for column, width in COLUMN_FLOORS.items():
+      self.table.setColumnWidth(column, width)
     self.table.setColumnWidth(0, 50)
     self.table.setColumnWidth(1, 160)
     self.table.setColumnWidth(2, 152)
@@ -6406,21 +6440,71 @@ class WeavingSpaceDialog(QDialog):
     # window would have grown off the side of somebody's screen. That
     # is the honest trade rather than a silent one: an elided label is
     # visible and a window wider than the display is not.
-    # WHAT THE REST OF THE LAYOUT DEMANDS, asked of the window's own
-    # minimum rather than of live widget widths. The first attempt
-    # took `self.width() - self.table.width()`, which is not a
-    # meaningful subtraction before a layout pass -- measured at 20pt,
-    # the cap it produced left the window's minimum at 1514px, still
-    # over the budget, so the repair did not repair anything. This
-    # subtraction is self-consistent: the window's minimum is the
-    # rest of the layout PLUS the table's minimum, so bounding the
-    # table by the budget less the rest bounds the window by the
-    # budget.
-    rest = max(0, self.minimumSizeHint().width()
-               - self.table.minimumWidth())
-    room = MAX_WINDOW_WIDTH - rest
-    if room > 0:
-      needed = min(needed, room)
+    #
+    # A MINIMUM IS HONOURED BY THE LAYOUT, which is what makes "the
+    # table does not scroll" a property rather than a hope -- and is
+    # therefore what drags the window off the side of a screen when
+    # the columns want more than the whole budget. Windows opened at
+    # 1729px against 1480px for exactly this, in three tests and two
+    # locales, once the columns were taught to grow. TWO REPAIRS
+    # BEFORE THIS ONE WERE AIMED AT THE WRONG QUANTITY: one bounded
+    # the minimum by arithmetic that assumed window = table + rest,
+    # which is false here (at 20pt the table is 1804 inside a 1514
+    # window, because it scrolls); the other asked `sizeHint()` in a
+    # loop, which is not meaningful before the window is assembled and
+    # so never fired.
+    # THE ALLOWANCE IS ASKED, NOT ASSUMED. A fixed one cannot be right
+    # on a platform whose fonts differ: 176px covers this machine at
+    # 9pt and 362px is what the same layout needs once the columns are
+    # wide, so a constant is either too generous or too mean depending
+    # on where it was measured. The window's own minimum less the
+    # table's IS the rest of the layout, self-consistently, because
+    # the first is the second plus the table's.
+    # AND IT ALWAYS CAPS. Where the rest alone exceeds the budget the
+    # subtraction goes negative and an unguarded `min` would hand the
+    # table a nonsense width, so the bound has a floor -- below which
+    # the columns are unreadable anyway and the window is over budget
+    # whatever the table does. The earlier version simply declined to
+    # cap in that case, which is how it came to be inert.
+    # THE COLUMNS THEMSELVES ARE WHAT BOUNDS THE WINDOW, and it took
+    # four attempts to act on that. A window opens at its sizeHint;
+    # the table's sizeHint follows its COLUMNS; so a minimum, however
+    # carefully computed, never bounds the width a person meets. Three
+    # earlier repairs bounded the minimum by three different pieces of
+    # arithmetic and Windows opened at 1729px, then 1790px, then
+    # 1729px again. Measured here by forcing the columns wide: the
+    # window came to 3587px with every one of those bounds in place,
+    # and to 3587px with none.
+    # SO THE SUM IS CAPPED. `COLUMN_SUM_BUDGET` is the width the nine
+    # columns may occupy between them; past it the widest give back
+    # what they can, never below their floors, and the table scrolls.
+    # The layout rule's own priority order settles that trade: the
+    # window fits the narrowest screen FIRST and the table avoids
+    # scrolling second, because a scrollbar is a nuisance somebody can
+    # work around and a window wider than the display is not.
+    # IT DOES NOT UNDO THE GROWING. At this machine's fonts the
+    # columns want 807px at 9pt and 904px at 13pt, both inside the
+    # budget, so the desktop-font repair the growing was written for
+    # is untouched; only a platform whose fonts push past it gives
+    # anything back.
+    visible = [column for column in range(self.table.columnCount())
+               if not self.table.isColumnHidden(column)]
+    total = sum(self.table.columnWidth(column) for column in visible)
+    over = total - COLUMN_SUM_BUDGET
+    if over > 0:
+      for column in sorted(visible, key=self.table.columnWidth,
+                           reverse=True):
+        if over <= 0:
+          break
+        floor = COLUMN_FLOORS.get(column, 60)
+        give = min(max(0, self.table.columnWidth(column) - floor), over)
+        if give:
+          self.table.setColumnWidth(column,
+                                    self.table.columnWidth(column) - give)
+          over -= give
+      needed = sum(self.table.columnWidth(column)
+                   for column in visible)
+      needed += max(chrome, fallback) + SCROLLBAR_SLACK
     self.table.setMinimumWidth(needed)
     shortfall = needed - self.table.width()
     if shortfall > 0 and self.width() < MAX_WINDOW_WIDTH:
