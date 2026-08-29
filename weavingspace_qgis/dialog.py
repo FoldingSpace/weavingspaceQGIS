@@ -13444,6 +13444,45 @@ class WeavingSpaceDialog(QDialog):
       return False
     if not self._element_layer_ids:
       return False
+    # ...AND THE CLASSES ARE CUT FROM THE REGION IN FORCE, so a map
+    # whose own data is not the data in the chooser must not be
+    # re-seeded here. Every break, every category and every colour on
+    # this path comes from the region layer -- not from the tiles --
+    # so a restyle against a foreign layer paints somebody else's map
+    # with our numbers, and the tiles are left looking untouched
+    # because they are.
+    # MEASURED 2026-08-29 (ledger row 22): open a colleague's map
+    # whose data you do not have, with a polygon layer of your own
+    # already in the project. The recovery cannot find their region,
+    # says so, and leaves the chooser on YOURS -- and one Generate
+    # then took this path and recut every ladder. Element a's top
+    # class went from 3.0-3.0 to 2.0-2.0 and c's from 4.0-9.0 to
+    # 2.0-4.0, so their high values fell outside every class, and the
+    # Save that followed wrote those styles back into their file with
+    # nothing asked. A wrong map that looks like a right one, and one
+    # that travels home.
+    # ONLY WHERE THE MAP SAYS WHOSE IT IS. An output layer stamped
+    # with no region is output made before the stamp existed, and
+    # refusing on that silence would take the fast path away from
+    # every map drawn by an older version. Absence is not a
+    # disagreement -- this file's own rule about what an absent key
+    # MEANS.
+    # AND A FULL RUN IS THE RIGHT FALLBACK rather than a refusal: the
+    # person has been told to choose a region layer to carry on, and
+    # if they have chosen one then re-tiling from it is exactly what
+    # they asked for -- protected, where it lands, by the landing's
+    # own refusal to write over a group whose stamps name another
+    # dataset.
+    stamped = ""
+    for _tid, lid in sorted(self._element_layer_ids.items()):
+      out = project.mapLayer(lid or "")
+      if out is not None:
+        stamped = out.customProperty("weavingspace_region") or ""
+        if stamped:
+          break
+    if stamped and not self._region_in_force_is(
+        stamped, self.gpkg_widget.filePath().strip() or None):
+      return False
     layers = {tid: project.mapLayer(lid)
               for tid, lid in self._element_layer_ids.items()}
     if any(layer is None for layer in layers.values()):
@@ -16363,6 +16402,42 @@ class WeavingSpaceDialog(QDialog):
     self._last_geometry_sig = self._geometry_signature()
     return True
 
+  def _region_in_force_is(self, recorded, carrier=None) -> bool:
+    """Is the region chooser holding the data a map was made FROM?
+
+    Args:
+      recorded: the region this map records -- a working state's
+        "region", or an output layer's `weavingspace_region` stamp.
+      carrier: a GeoPackage that may hold a COPY of that region
+        inside it, where the caller knows of one. A file saved with
+        the source embedded travels with the data, and a recipient
+        who does not have the sender's layer recovers onto that copy:
+        the layer in force is then the file itself, which is this
+        record's own data under another name.
+
+    Returns:
+      True where the chooser holds that data, False where it holds
+      something else or nothing at all. An empty `recorded` answers
+      False, so a caller that must not refuse on silence checks for
+      the record before asking.
+
+    ONE OWNER, because two callers ask it and a second implementation
+    is how this project's commonest defect arrives: the restore of a
+    saved record, which must not carry one dataset's value-laden work
+    onto another, and the restyle path, which must not recut a map's
+    classes from a region that is not the one it was drawn from.
+    """
+    layer = self.layer_combo.currentLayer()
+    here = layer.source() if layer is not None else None
+    if not here or not recorded:
+      return False
+    if same_source(here, recorded):
+      return True
+    if carrier:
+      return same_source(
+        here, f"{carrier}|layername={bridge.REGION_TABLE_NAME}")
+    return False
+
   def _apply_element_records(self, record, keep_adopted=False,
                              from_file=None):
     """Write a record's per-element choices into the dialog's own dicts.
@@ -16443,10 +16518,8 @@ class WeavingSpaceDialog(QDialog):
     # this one: the copy was written from the very layer these pins and
     # value strings were made against.
     if here and not same_data:
-      carrier = from_file or record.get("output_path")
-      if carrier:
-        same_data = same_source(
-          here, f"{carrier}|layername={bridge.REGION_TABLE_NAME}")
+      same_data = self._region_in_force_is(
+        record.get("region"), from_file or record.get("output_path"))
     for element in elements:
       if not isinstance(element, dict):
         continue

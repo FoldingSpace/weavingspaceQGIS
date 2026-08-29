@@ -7882,6 +7882,22 @@ MUTATIONS = [
            "the widget, and the choice is gone in silence -- two "
            "elements showing one column then part company the moment "
            "somebody moves the donor"),
+  dict(name="a-restyle-asks-whose-region-it-is",
+       file=DIALOG,
+       # Back to re-seeding from whatever the chooser holds. The map
+       # keeps its tiles -- the fast path does not touch them -- so
+       # the only thing that moves is every class bound, cut from
+       # another dataset entirely, and the map looks untouched.
+       old="""    if stamped and not self._region_in_force_is(
+        stamped, self.gpkg_widget.filePath().strip() or None):
+      return False""",
+       new="""    if False:  # mutation: any region will do to recut the classes""",
+       test="test_a_restyle_never_recuts_a_map_from_somebody_elses_region",
+       why="a colleague's map keeping the classification it was drawn "
+           "with: every break on this path comes from the region layer "
+           "in force, so repainting a map whose data is not in the "
+           "chooser puts our numbers on their tiles -- and a Save "
+           "after it sends that home"),
   dict(name="a-carried-region-is-this-records-own-data",
        file=DIALOG,
        # BOTH ROUTES AT ONE LINE, deliberately. `from_file` answers at
@@ -7892,8 +7908,18 @@ MUTATIONS = [
        # the triage of 2026-08-28 asks for where a fact has more than
        # one writer -- and it cannot be split again by whatever
        # alternative somebody adds next.
-       old="""      carrier = from_file or record.get("output_path")""",
-       new="""      carrier = None  # mutation: the file's own copy is a stranger""",
+       # RE-ANCHORED 2026-08-29, hours after it was written: the
+       # comparison was extracted into `_region_in_force_is` so the
+       # restyle path could ask the same question, and one rule with
+       # two implementations is what this whole entry is about. The
+       # widening is now one call, and turning the branch off kills
+       # both routes into it at a single line.
+       old="""    if here and not same_data:
+      same_data = self._region_in_force_is(
+        record.get("region"), from_file or record.get("output_path"))""",
+       new="""    if False:  # mutation: the file's own copy is a stranger
+      same_data = self._region_in_force_is(
+        record.get("region"), from_file or record.get("output_path"))""",
        test="test_a_follower_goes_on_following_a_map_you_opened",
        why="a self-contained map going on meaning what it said: the "
            "recipient recovers onto the copy inside the file, so a "

@@ -28596,6 +28596,143 @@ def test_a_donor_comes_home_when_the_map_is_opened():
       opener.close()
 
 
+def test_a_restyle_never_recuts_a_map_from_somebody_elses_region():
+  """Classes come from the region layer, so it must be the map's own.
+
+  Everything the restyle path re-seeds -- every break, every category
+  and every colour -- is cut from the region layer IN FORCE, not from
+  the tiles. So repainting a map whose own data is not the data in the
+  chooser puts our numbers on somebody else's map, and it looks
+  untouched afterwards because the tiles genuinely are.
+
+  THE JOURNEY IS AN ORDINARY ONE. A colleague sends a GeoPackage whose
+  region you do not have. You have a polygon layer of your own open,
+  because you were working. Load says it cannot find their data and
+  leaves the chooser on YOURS -- correctly, and it says so. One
+  Generate then took the fast path and recut every ladder: measured
+  2026-08-29, element a's top class 3.0-3.0 became 2.0-2.0 and c's
+  4.0-9.0 became 2.0-4.0, so their high values fell outside every
+  class, and the Save that followed wrote those styles back into their
+  file.
+
+  THE FALLBACK IS A FULL RUN, NOT A REFUSAL, and that is why the
+  control arm is here. Declining the fast path must not cost the fast
+  path: an ordinary style change on a map whose region IS in the
+  chooser has to go on being answered without re-tiling, which is what
+  it exists for.
+
+  Regression: opening a colleague's map without their data and pressing Generate recut every class from whichever region layer happened to be in the chooser, so their tiles wore breaks cut from another dataset and one Save sent them home. Found by the first-minutes hunt of 2026-08-28; the claim named the Load and the harm was measured at the Generate after it. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+
+  def ladders_of(layers):
+    """Each graduated layer's class bounds, keyed by table name.
+
+    Args:
+      layers: the layers to read.
+
+    Returns:
+      A dict of table name -> [(low, high)]. Keyed by TABLE rather
+      than by tile id, because the dialog's own element ids come to
+      name a different map once a run forks a second group -- and a
+      reading whose subject moves is worse than no reading.
+    """
+    out = {}
+    for layer in layers:
+      renderer = layer.renderer()
+      if not hasattr(renderer, "ranges"):
+        continue
+      held = list(renderer.ranges())
+      table = layer.source().partition("|layername=")[2] or layer.name()
+      out[table] = [(round(r.lowerValue(), 3), round(r.upperValue(), 3))
+                    for r in held]
+    return out
+
+  def theirs(path):
+    """The layers still reading from the colleague's file."""
+    return [layer for layer in project.mapLayers().values()
+            if path in (layer.source() or "")]
+
+  with _temp_dir() as folder:
+    path = os.path.join(folder, "from_a_colleague.gpkg")
+    sender, _layer, _tid = _categorical_dialog()
+    try:
+      sender.live_check.setChecked(False)
+      sender.spacing_spin.setValue(700.0)
+      _generate_and_wait(sender)
+      assert sender._element_layer_ids, "PREMISE: the sender drew nothing"
+      # NOT EMBEDDED: this is the journey where the recipient cannot
+      # reach the sender's data at all, which is what leaves the
+      # chooser holding whatever it held.
+      sender.opt_embed_source.setChecked(False)
+      sender.gpkg_widget.setFilePath(path)
+      assert press_save(sender, path), "PREMISE: the sender's save failed"
+    finally:
+      sender.close()
+    project.clear()
+    _tick(300)
+
+    # ---- THE ARM: their map, my layer, one Generate
+    mine = make_region_layer(n=3, cell=400, origin=(50000, 50000))
+    mine.setName("my own parcels")
+    project.addMapLayer(mine)
+    _tick(200)
+    opener = WeavingSpaceDialog(iface=_Iface())
+    try:
+      opener.live_check.setChecked(False)
+      opener.resume_widget.setFilePath(path)
+      opener._load_pressed()
+      _settle(opener, seconds=90)
+      assert opener._element_layer_ids, "PREMISE: the Load opened no map"
+      in_force = opener.layer_combo.currentLayer()
+      assert in_force is not None and in_force.name() == "my own parcels", (
+        f"PREMISE: the chooser holds "
+        f"{in_force.name() if in_force else None!r} rather than my own "
+        f"layer, so this arm is not standing where the defect is")
+      was = ladders_of(theirs(path))
+      assert was, "PREMISE: their map has no graduated element to recut"
+
+      _generate_and_wait(opener)
+      _settle(opener, seconds=90)
+      now = ladders_of(theirs(path))
+      moved = {table: (was[table], now[table])
+               for table in was if table in now and now[table] != was[table]}
+      assert not moved, (
+        f"the colleague's own tiles were recut from a region layer they "
+        f"were never drawn from: " + "; ".join(
+          f"{table} {before} became {after}"
+          for table, (before, after) in sorted(moved.items())))
+    finally:
+      opener.close()
+    project.clear()
+    _tick(300)
+
+    # ---- THE CONTROL: declining that must not cost the fast path
+    dlg, _layer, tid = _categorical_dialog()
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.spacing_spin.setValue(700.0)
+      _generate_and_wait(dlg)
+      assert dlg._element_layer_ids, "PREMISE: the control drew nothing"
+      before_ids = dict(dlg._element_layer_ids)
+      row = dlg._row_for_element(sorted(before_ids)[0])
+      ramp = dlg.table.cellWidget(row, 4)
+      assert ramp is not None, "PREMISE: no ramp cell to change"
+      wanted = next(ramp.itemText(i) for i in range(ramp.count())
+                    if ramp.itemText(i) not in ("", ramp.currentText()))
+      ramp.setCurrentText(wanted)
+      ramp.activated.emit(ramp.findText(wanted))   # what a click sends
+      _tick(900)
+      _settle(dlg, seconds=60)
+      assert dlg._element_layer_ids == before_ids, (
+        "an ordinary ramp change re-tiled instead of repainting: the "
+        "guard has taken the fast path away from every map, which is "
+        "the whole cost this repair must not have")
+    finally:
+      dlg.close()
+
+
 def test_a_follower_goes_on_following_a_map_you_opened():
   """"Take my classes from that layer" has to keep meaning it.
 
@@ -72181,6 +72318,8 @@ def main():
         test_a_donor_comes_home_when_the_map_is_opened)
   check("a follower goes on following a map you opened",
         test_a_follower_goes_on_following_a_map_you_opened)
+  check("a restyle never recuts a map from somebody else's region",
+        test_a_restyle_never_recuts_a_map_from_somebody_elses_region)
   check("a blend mode set in QGIS survives a re-tile",
         test_a_blend_mode_set_in_qgis_survives_a_re_tile)
   check("a column called no data does not miscount the map",

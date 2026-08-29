@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-420 defect(s) with a regression test.
+421 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -173,6 +173,8 @@ there is no separate list to remember.
   guarded by `test_a_reopened_plugin_does_not_mistake_a_no_data_layer_for_its_element`
 - **the guard that refused to write a new group over an existing GeoPackage compared the chosen path against `_last_path`, which records only what THIS dialog instance last wrote, so a reopened project's fresh dialog overwrote yesterday's map without a warning. Measured 2026-08-16: 41/40/41/40 features became 113/112/113/112, no modal, nothing on the note line.**  
   guarded by `test_a_reopened_project_cannot_overwrite_yesterdays_geopackage`
+- **opening a colleague's map without their data and pressing Generate recut every class from whichever region layer happened to be in the chooser, so their tiles wore breaks cut from another dataset and one Save sent them home. Found by the first-minutes hunt of 2026-08-28; the claim named the Load and the harm was measured at the Generate after it.**  
+  guarded by `test_a_restyle_never_recuts_a_map_from_somebody_elses_region`
 - **the restyle path stamped a pin it was about to retire, so a reopened project restored a bound the map ignored; and it decided whether to retire an element's pin at all by whether a different element had raised a legend notice about the same column.**  
   guarded by `test_a_retired_pin_leaves_neither_a_stamp_nor_a_silent_neighbour`
 - **a reversed element's ramp swatch went back to drawing forward at the next rebuild, so the picture a user chose ramps by was the mirror image of the map.**  
@@ -891,7 +893,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- a bug hunt pointed in a named direction: 122
+- a bug hunt pointed in a named direction: 123
 - the mutation campaign: 122
 - not written down at the time: 88
 - reported by a user: 30

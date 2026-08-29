@@ -449,15 +449,14 @@ thirty-eight.
 
 WHAT IS STILL OWED FROM THE FIRST TWO WAVES, each a defect confirmed by
 a hunt and reproduced here rather than a guess (the third wave's owed
-list is in the ledger, named above): the design view's landing
+list is in the ledger, named above): the design view keeps painting an
+element in a colour the map does not contain after a dock edit the
+plugin cannot name, and the landing's last preview
 repaint fires before the new layer exists; a floor or ceiling and the
 colours after it are destroyed by a save-and-reopen before Generate,
 because those stamps only happen as a side effect of a restyle that a
-limit makes decline; pressing Load while your own polygon layer is
-open replaces the sender's map with your data, across three coupled
-sites; the duplicate-layer guard sits at the adoption door and not at
-the landing door; deleting the output group and pressing Save empties
-the file and reports success; two maps from two senders, where
+limit makes decline; the duplicate-layer guard sits at the adoption
+door and not at the landing door; two maps from two senders, where
 returning to the first re-tiles it from the second's data; a shared
 file somebody else has saved into while your map is open, where your
 Save reports success and leaves the file with no map in it at all;
@@ -466,6 +465,21 @@ the group chooser describing a landing that will not happen whenever
 doors that arm it; and the catalogue triage of the same morning made
 two trades whose compensating test legs cannot fail, one of which is
 already mended.
+
+THREE HAVE COME OFF THAT LIST, named here rather than quietly dropped,
+since this list is what the release gate reads. Deleting the output
+group and pressing Save is ledger row 19, closed with row 53. The
+queued-work flags carried into the next project (row 8) landed in
+`8db74ea`, and only the ledger's own OWES column was stale. And
+pressing Load with your own polygon layer open (row 22) closed on
+2026-08-29 with its harm corrected: the map is NOT replaced before you
+touch anything -- driven with a control arm, it survives the Load
+intact and a Save changes nothing. What the chooser holding your layer
+really cost was the NEXT Generate, which took the restyle fast path
+and recut every class from your data onto their tiles, then sent those
+styles home in their file. The fast path asks whose region it is now,
+and declines to a full run, which the landing's own refusal already
+protects.
 
 **AND ONE QUESTION IS THE MAINTAINER'S RATHER THAN OUTSTANDING WORK.**
 A quantitative style never stands on a text field, and the stated
