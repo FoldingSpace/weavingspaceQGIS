@@ -659,15 +659,37 @@ def _ramp_icon(name: str, reverse: bool = False):
 
 
 # The layout rule, settled 2026-08-09 and ordered deliberately: the
-# window never exceeds 1280 logical pixels, the narrowest screen still
-# in use, because a wider window is one nobody can see whole. Within
-# that, the TABLE comes first -- it never scrolls horizontally, since
-# a horizontal scrollbar on a table is invisible in practice and the
-# columns to its right go unfound -- and the preview then gives up
-# width, down to a floor below which it stops being able to show
-# whether shapes read as distinct elements. If those ever conflict,
-# narrow COLUMNS, not the preview past its floor.
-MAX_WINDOW_WIDTH = 1280
+# window never exceeds the ceiling below, because a wider window is
+# one nobody can see whole. Within that, the TABLE comes first -- it
+# never scrolls horizontally, since a horizontal scrollbar on a table
+# is invisible in practice and the columns to its right go unfound --
+# and the preview then gives up width, down to a floor below which it
+# stops being able to show whether shapes read as distinct elements.
+#
+# THE CEILING WAS 1280 AND WAS RE-DERIVED ON 2026-08-29, by the
+# maintainer, on a measurement nothing here could see. Every runner
+# and every CI job sets QT_QPA_PLATFORM=offscreen, which gives Sans
+# Serif at 9pt; a desktop gives the system font at 13pt. Measured on
+# one tree, one dialog, the same nine columns:
+#
+#     offscreen, Sans Serif 9pt      window 1279px
+#     cocoa, .AppleSystemUIFont 13pt window 1334px
+#
+# So the promise held only under a font nobody has. The rule's own
+# remedy -- narrow COLUMNS rather than the preview -- turned out not
+# to be available: asked per column at 13pt, the table needs 1096px
+# for its contents against the 947 it was pinned to, a deficit of 149
+# rather than any slack. Only "Variable" had room; "Style" needed 197
+# and had 152, "Categ colourmap src" needed 180 and had 150. The
+# widths were constants in pixels measured against one font, which is
+# the whole of the fault, so the columns GROW TO THEIR CONTENT now
+# (see `_fit_table_width`) and the ceiling is derived from what that
+# then needs: 1096 of columns, the 260px preview floor, and about 127
+# of chrome measured at cocoa. A number a later maintainer may
+# revisit -- it is a claim about screens as much as about layout --
+# but it is a measured one rather than the pixel-pinned inheritance
+# it replaces.
+MAX_WINDOW_WIDTH = 1480
 
 # Extra pixels reserved beside the scrollbar. Qt's own metric and the
 # bar it draws disagree by four pixels on this platform, and a table
@@ -6296,6 +6318,26 @@ class WeavingSpaceDialog(QDialog):
       shrunk here: columns disappearing hands the space to the
       preview, which is the layout rule's own priority order.
     """
+    # EVERY VISIBLE COLUMN IS GIVEN WHAT IT NEEDS FIRST, and that is
+    # the repair for a fault the pixel constants hid. The widths set
+    # at construction were measured against the 9pt font offscreen
+    # supplies; at a desktop 13pt the same nine columns need 1096px
+    # rather than 947, so every cell but one elided -- "Quant: Equal
+    # inter..." on a chooser whose whole job is saying which style a
+    # row wears. A width in pixels is a claim about a font, and the
+    # font is the user's.
+    # GROW-ONLY, deliberately: the constants stay as floors, so a
+    # column never collapses on a table that happens to be empty, and
+    # nothing churns between rebuilds. `sectionSizeHint` is Qt's own
+    # answer for the HEADER, which is wider than the content in five
+    # of the nine columns and is what a reader actually has to read.
+    for column in range(self.table.columnCount()):
+      if self.table.isColumnHidden(column):
+        continue
+      wants = max(self.table.sizeHintForColumn(column),
+                  self.table.horizontalHeader().sectionSizeHint(column))
+      if wants > self.table.columnWidth(column):
+        self.table.setColumnWidth(column, wants)
     needed = sum(
       self.table.columnWidth(column)
       for column in range(self.table.columnCount())

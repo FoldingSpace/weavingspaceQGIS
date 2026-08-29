@@ -25485,6 +25485,34 @@ def test_the_window_fits_the_narrowest_screen():
     assert dlg.preview.width() >= PREVIEW_FLOOR, \
       f"the preview is down to {dlg.preview.width()}px, below the " \
       f"{PREVIEW_FLOOR}px floor where it stops doing its job"
+
+    # ---- AND NO COLUMN IS NARROWER THAN WHAT IT HAS TO SHOW, which
+    # is the half of this rule a runner can actually see. The widths
+    # were constants in pixels measured against the 9pt font offscreen
+    # supplies; at a desktop 13pt the same nine columns needed 1096px
+    # against the 947 they were pinned to, so every cell but one
+    # elided -- "Quant: Equal inter..." on the chooser whose whole job
+    # is saying which style a row wears. A width in pixels is a claim
+    # about a font, and the font belongs to the user.
+    # THE WINDOW'S OWN OVERSHOOT IS NOT ASSERTED HERE and cannot be:
+    # it appears only under cocoa, where the widget style differs, and
+    # the dialog's minimum size hint reads 1279 at BOTH fonts offscreen
+    # -- measured 2026-08-29, which is why setting a font is not a
+    # substitute for a platform. That half rests on the ceiling being
+    # derived from the measurement rather than on a check.
+    thin = []
+    for column in range(dlg.table.columnCount()):
+      if dlg.table.isColumnHidden(column):
+        continue
+      wants = max(dlg.table.sizeHintForColumn(column),
+                  dlg.table.horizontalHeader().sectionSizeHint(column))
+      if dlg.table.columnWidth(column) < wants:
+        thin.append(
+          f"{dlg.table.horizontalHeaderItem(column).text()!r} is "
+          f"{dlg.table.columnWidth(column)}px and needs {wants}px")
+    assert not thin, (
+      "a column is narrower than what it has to show, so its cells "
+      "elide: " + "; ".join(thin))
   finally:
     dlg.close()
 

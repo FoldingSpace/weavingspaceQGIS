@@ -7889,6 +7889,23 @@ MUTATIONS = [
            "the widget, and the choice is gone in silence -- two "
            "elements showing one column then part company the moment "
            "somebody moves the donor"),
+  dict(name="a-column-is-as-wide-as-what-it-shows", file=DIALOG,
+       # Back to the widths as constants in pixels. Nothing moves at
+       # the 9pt font offscreen supplies, which is why this shipped:
+       # the deficit is 149px at a desktop 13pt and zero at 9pt, so
+       # the guard has to ask what each column NEEDS rather than what
+       # the window measures.
+       old="""      wants = max(self.table.sizeHintForColumn(column),
+                  self.table.horizontalHeader().sectionSizeHint(column))
+      if wants > self.table.columnWidth(column):
+        self.table.setColumnWidth(column, wants)""",
+       new="""      pass  # mutation: a width in pixels is the whole answer""",
+       test="test_the_window_fits_the_narrowest_screen",
+       why="every column being as wide as what it has to show: the "
+           "widths were measured once against one font, so at any "
+           "desktop size the cells elided -- 'Quant: Equal inter...' "
+           "on the chooser whose whole job is saying which style a row "
+           "wears"),
   dict(name="numeric-text-is-classifiable", file=DIALOG,
        # Back to asking QGIS's declared type alone, which is the rule
        # as it stood before 2026-08-29. A column of numbers stored as
