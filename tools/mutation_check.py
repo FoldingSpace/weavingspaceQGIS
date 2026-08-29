@@ -2404,6 +2404,17 @@ MUTATIONS = [
            "layer, which is built on the region's own source and "
            "excluded from the chooser, so the chooser comes up empty "
            "and the whole design goes with it"),
+  dict(name="a-twin-never-travels-without-its-element", file=DIALOG,
+       old="""      if project.mapLayer(self._element_layer_ids.get(tid) or "") is None:
+        continue""",
+       new="""      if False:
+        continue""",
+       test="test_a_no_data_twin_never_travels_without_its_element",
+       why="a saved file never holding a no-data twin whose own "
+           "element table is not there -- without it, deleting one "
+           "element layer from the group and pressing Save leaves a "
+           "set of missing-value areas belonging to an element the "
+           "map does not have, and says nothing"),
   dict(name="cvd-simulation", file=PERCEPTION,
        old="""  if vision == "normal":
     return tuple(float(v) for v in rgb)""",

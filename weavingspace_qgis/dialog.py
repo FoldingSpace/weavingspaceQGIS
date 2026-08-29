@@ -16392,6 +16392,25 @@ class WeavingSpaceDialog(QDialog):
     written_names = set()
     trouble = []
     for tid in order:
+      # A TWIN NEVER TRAVELS WITHOUT ITS ELEMENT. The paired layer
+      # holds the areas whose value is absent FOR THIS ELEMENT, so on
+      # its own it is a set of holes belonging to nothing. Where the
+      # element's layer has gone from the project -- somebody deleted
+      # that one row of the group in the panel -- the loop below wrote
+      # the twin anyway and the stale-table drop then took the element
+      # table that was not written, leaving the file holding
+      # `tiles_a_v1_no_data` with no `tiles_a_v1`. Measured 2026-08-28:
+      # the plugin said "Saved", and a recipient's Load brought back
+      # elements b, c and d beside an ORPHAN twin for a.
+      # Skipping the pair leaves neither in the written names, so the
+      # drop takes both and the file holds a map that is three elements
+      # rather than a map that contradicts itself. That is the settled
+      # shrank-design behaviour, applied to the pair rather than to one
+      # half of it -- the paired-artefact rule of 2026-08-16, which
+      # says every reader keyed on an element's identity gains a
+      # second answer, read here from the writing side.
+      if project.mapLayer(self._element_layer_ids.get(tid) or "") is None:
+        continue
       for layer_id, table in (
           (self._element_layer_ids.get(tid), tables[tid]),
           (self._no_data_layer_ids.get(tid), f"{tables[tid]}_no_data")):

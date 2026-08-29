@@ -27574,6 +27574,87 @@ def test_the_moved_data_notice_is_about_the_map_being_saved():
       dlg.close()
 
 
+def test_a_no_data_twin_never_travels_without_its_element():
+  """A file must not hold a twin belonging to nothing.
+
+  The paired layer holds the areas whose value is absent FOR ONE
+  ELEMENT, so on its own it is a set of holes belonging to nothing.
+  Delete that element's row from the group in the layers panel and
+  press Save, and the writer wrote the twin anyway while the
+  stale-table drop took the element's table -- which was not written,
+  its layer having gone. The file was left holding
+  `tiles_a_v1_no_data` with no `tiles_a_v1`, the plugin said "Saved",
+  and a recipient's Load brought back three elements beside an ORPHAN
+  twin for a fourth the map does not have.
+
+  THE HARM IS MEASURED WHERE IT LANDS -- in what somebody who opens
+  the file gets, rather than in the table listing alone. A file that
+  contradicts itself is only a defect because a reader meets it.
+
+  WHAT THE RIGHT ANSWER IS: the pair goes together. That is the
+  settled shrank-design behaviour applied to the PAIR rather than to
+  one half of it, and it is the paired-artefact rule of 2026-08-16 --
+  every reader keyed on an element's identity gains a second answer --
+  read from the writing side for once.
+
+  Regression: deleting one element layer from the group and pressing Save left the file holding that element's no-data twin with no element table beside it, and a recipient's Load met an orphan twin. Found while verifying the absences hunt of 2026-08-28. [hunt]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  with _temp_dir() as folder:
+    path = os.path.join(folder, "map.gpkg")
+    layer = make_region_layer(n=12)
+    project.addMapLayer(layer)
+    index = layer.fields().indexFromName("v1")
+    target = next(layer.getFeatures())
+    layer.startEditing()
+    assert layer.changeAttributeValue(target.id(), index, None), \
+      "PREMISE: the fixture refused a NULL"
+    assert layer.commitChanges(), "PREMISE: the edit would not commit"
+
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(300)
+      dlg.table.cellWidget(0, 1).setCurrentText("v1")
+      dlg.table.cellWidget(1, 1).setCurrentText("v2")
+      _tick(200)
+      tid = dlg.table.item(0, 0).text()
+      dlg.spacing_spin.setValue(400)
+      _generate_and_wait(dlg)
+      twin_id = dlg._no_data_layer_ids.get(tid)
+      assert twin_id, \
+        "PREMISE: the element with a gap got no twin, so there is no " \
+        "pair for this test to be about"
+      dlg.gpkg_widget.setFilePath(path)
+      assert press_save(dlg, path), "PREMISE: the first save failed"
+      assert any(name.endswith("_no_data")
+                 for name in bridge.gpkg_tables(path)), \
+        "PREMISE: no twin table was written, so none can be orphaned"
+
+      # The panel act: remove that ONE element layer, keeping its twin.
+      project.removeMapLayer(dlg._element_layer_ids[tid])
+      _tick(600)
+      assert project.mapLayer(twin_id) is not None, \
+        "PREMISE: the twin went with its element, so nothing is orphaned"
+      assert press_save(dlg, path), "PREMISE: the second save failed"
+
+      held = [name for name in bridge.gpkg_tables(path)
+              if name.startswith("tiles_")]
+      orphans = [name for name in held
+                 if name.endswith("_no_data")
+                 and name[: -len("_no_data")] not in held]
+      assert not orphans, (
+        f"the file holds {orphans}, a twin whose own element table is "
+        f"not there: a set of missing-value areas belonging to an "
+        f"element the map does not have, and the plugin reported a "
+        f"plain save. The file now holds {sorted(held)}")
+    finally:
+      dlg.close()
+
+
 def test_choosing_your_own_group_keeps_the_region_and_the_variables():
   """Picking your map's own group must not lose the map's design.
 
@@ -70699,6 +70780,8 @@ def main():
         test_a_save_leaves_another_maps_tables_alone)
   check("both resume doors keep the file the map was saved to",
         test_both_resume_doors_keep_the_file_the_map_was_saved_to)
+  check("a no-data twin never travels without its element",
+        test_a_no_data_twin_never_travels_without_its_element)
   check("choosing your own group keeps the region and the variables",
         test_choosing_your_own_group_keeps_the_region_and_the_variables)
   check("the icon notice reads the same ground in either crs",

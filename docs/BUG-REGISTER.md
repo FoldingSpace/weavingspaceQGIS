@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-405 defect(s) with a regression test.
+406 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -119,6 +119,8 @@ there is no separate list to remember.
   guarded by `test_a_new_project_does_not_inherit_the_last_one_s_pins`
 - **a hand-picked No data colour was destroyed by any reopen once another colour on that element had also been picked. Measured 2026-08-16: the .qgz held {"no-data": "#abcdef", "0": "#123456"} and the dialog came back with the class colour alone, offering the default grey over a map still drawing #abcdef, until the next Generate painted the default over it. A plain close-and-reopen was enough; no save or export needed.**  
   guarded by `test_a_no_data_colour_comes_home_beside_a_class_colour`
+- **deleting one element layer from the group and pressing Save left the file holding that element's no-data twin with no element table beside it, and a recipient's Load met an orphan twin. Found while verifying the absences hunt of 2026-08-28.**  
+  guarded by `test_a_no_data_twin_never_travels_without_its_element`
 - **the class-count reduction counted the whole column, so pinning a bound could leave the scheme cutting more classes than the pool between the pins had distinct values, drawing a legend swatch no tile wears.**  
   guarded by `test_a_pin_leaves_no_class_for_a_tile_to_miss`
 - **the class-bound control sized its range from the element's own extremes, so a bound typed deliberately outside the data was truncated to a smaller number and the map was drawn from it, with nothing said.**  
@@ -862,7 +864,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 122
-- a bug hunt pointed in a named direction: 108
+- a bug hunt pointed in a named direction: 109
 - not written down at the time: 88
 - reported by a user: 29
 - reading the code: 15
