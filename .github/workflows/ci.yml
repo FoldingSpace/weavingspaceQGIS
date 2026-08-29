@@ -250,6 +250,25 @@ jobs:
         # keeps it that way.
         run: python3 -u tools/ci_provision.py
 
+      # THE PLATFORM QUESTIONS FIRST, so a second machine's answer
+      # arrives in minutes rather than at the end of an hour. Every
+      # test it runs has a verdict decided by font metrics, locale or
+      # the window manager -- the things this project's development
+      # machine cannot answer for anybody else -- and together they
+      # take seconds. On 2026-08-29 the window's ceiling stopped
+      # binding on any platform with wider fonts than the Mac's, and
+      # Windows reported it seventy-five minutes into its job, in
+      # three tests and two locales all quoting one number. The fix
+      # and the confirmation cost another hour each.
+      # IT DOES NOT REPLACE THE SUITE, which still runs below and
+      # still owns those tests. This is the release gates' own
+      # cheapest-first ordering applied to CI: a fast refusal earns
+      # its place precisely because the expensive measurement follows.
+      # The list of tests lives in the tool, not here, because a list
+      # of names in YAML is a hand-kept list nothing can check.
+      - name: Platform metrics probe
+        run: python3 -u tools/platform_probe.py
+
       - name: Functional suite
         run: python3 -u tests/run_tests.py
 
@@ -536,6 +555,31 @@ jobs:
         run: |
           call "%QGIS_SHIM%" -c "import geopandas, shapely, pandas; print('geopandas', geopandas.__version__, '| shapely', shapely.__version__, '| pandas', pandas.__version__)"
 
+      # THE PLATFORM QUESTIONS FIRST, so a second machine's answer
+      # arrives in minutes rather than at the end of an hour. Every
+      # test it runs has a verdict decided by font metrics, locale or
+      # the window manager -- the things this project's development
+      # machine cannot answer for anybody else -- and together they
+      # take seconds. On 2026-08-29 the window's ceiling stopped
+      # binding on any platform with wider fonts than the Mac's, and
+      # Windows reported it seventy-five minutes into its job, in
+      # three tests and two locales all quoting one number. The fix
+      # and the confirmation cost another hour each.
+      # IT DOES NOT REPLACE THE SUITE, which still runs below and
+      # still owns those tests. This is the release gates' own
+      # cheapest-first ordering applied to CI: a fast refusal earns
+      # its place precisely because the expensive measurement follows.
+      # The list of tests lives in the tool, not here, because a list
+      # of names in YAML is a hand-kept list nothing can check.
+      - name: Platform metrics probe
+        # THE LEG THIS IS REALLY FOR: seventy-five minutes to hear
+        # that a window is too wide, against about fifteen to install
+        # QGIS and be told the same thing.
+        env:
+          QT_QPA_PLATFORM: offscreen
+        shell: cmd
+        run: call "%QGIS_SHIM%" -u tools/platform_probe.py
+
       - name: Functional suite
         # THE SAME SUITE THE MAC RUNS, because a platform that only
         # proves the plugin loads has not been tested -- it has been
@@ -744,6 +788,28 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: |
           "$QGIS_PY" -c "from qgis.core import QgsApplication, QgsStyle; app=QgsApplication([], False); app.initQgis(); st=QgsStyle.defaultStyle(); names=set(st.colorRampNames()); [print(n, 'present' if n in names else 'ABSENT', st.tagsOfSymbol(QgsStyle.ColorrampEntity, n) if n in names else []) for n in ('RdBu','PiYG','PuOr','Spectral','Greys','viridis')]"
+
+      # THE PLATFORM QUESTIONS FIRST, so a second machine's answer
+      # arrives in minutes rather than at the end of an hour. Every
+      # test it runs has a verdict decided by font metrics, locale or
+      # the window manager -- the things this project's development
+      # machine cannot answer for anybody else -- and together they
+      # take seconds. On 2026-08-29 the window's ceiling stopped
+      # binding on any platform with wider fonts than the Mac's, and
+      # Windows reported it seventy-five minutes into its job, in
+      # three tests and two locales all quoting one number. The fix
+      # and the confirmation cost another hour each.
+      # IT DOES NOT REPLACE THE SUITE, which still runs below and
+      # still owns those tests. This is the release gates' own
+      # cheapest-first ordering applied to CI: a fast refusal earns
+      # its place precisely because the expensive measurement follows.
+      # The list of tests lives in the tool, not here, because a list
+      # of names in YAML is a hand-kept list nothing can check.
+      - name: Platform metrics probe
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          "$QGIS_PY" -u tools/platform_probe.py
 
       - name: Functional suite
         timeout-minutes: 180

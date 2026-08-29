@@ -310,6 +310,33 @@ obligations: they exist so nobody pays twice for the same discovery.
   section, an edit no tool may make on their behalf. Delete an entry
   when it lands; a roadmap nobody prunes becomes a diary.
   (User instruction, 2026-08-11.)
+- **THE PLATFORM QUESTIONS RUN FIRST ON EVERY LEG, so a second
+  machine's answer costs minutes rather than an hour.**
+  `tools/platform_probe.py` runs before the functional suite on
+  Windows, macOS and the Linux matrix, and holds the tests whose
+  verdict is decided by something this development machine cannot
+  vary honestly: font metrics, locale, and how a window manager
+  assembles a dialog. Together they take seconds.
+  IT WAS PAID FOR ON 2026-08-29. The assignment table's columns were
+  taught to grow to their content, the window's ceiling stopped
+  binding on any platform whose fonts are wider than this Mac's, and
+  Windows reported it SEVENTY-FIVE MINUTES into its job -- in three
+  tests and two locales, every one quoting 1729px against a 1480px
+  budget. The fix cost another round to confirm. Nothing local could
+  have caught it: in the suite's own environment the window's minimum
+  is SMALLER than the table's, so the cap has nothing to bind and the
+  case is unreachable here at any font.
+  IT DOES NOT REPLACE THE SUITE and nothing may be moved out of the
+  suite into it. This is the release gates' cheapest-first ordering
+  applied to CI: a fast refusal earns its place precisely because the
+  expensive measurement still follows.
+  THE LIST OF TESTS LIVES IN THE TOOL, not in `ci.yml`, because a
+  list of names in YAML is a hand-kept list nothing can check -- and
+  a name in it that no longer exists in the suite is a FAILURE there
+  rather than a skip, since a probe silently running four tests where
+  it names five is the matches-nothing-reports-nothing fault this
+  file already records twice.
+
 - **EVERY CI PLATFORM IS KEPT AS CLOSE TO THE LOCAL SUITE AS
   PRACTICAL.** Linux, Windows and macOS alike: the standard is PARITY
   OF COVERAGE with what this machine runs, not the existence of a job.

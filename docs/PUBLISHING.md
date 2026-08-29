@@ -8,6 +8,22 @@ the third.
 
 ## Two machines at once: Linux CI beside the local gates
 
+**The platform questions are answered first.** Every leg that runs the
+suite -- Windows, macOS and the Linux matrix -- runs
+`tools/platform_probe.py` before it. That is a handful of tests whose
+answers belong to the MACHINE rather than to the code: the window's
+width against its ceiling, the same under a German and an
+right-to-left locale, the table at the largest element count, and the
+tooltip rule. They take seconds, and they fail the job before its hour
+is spent rather than after.
+
+The Windows leg is the one this is really for: about seventy-five
+minutes, of which the suite is nearly all, against roughly fifteen to
+install QGIS and hear the same answer. On 2026-08-29 a window-width
+regression cost one full round to discover and another to confirm the
+fix, which is what the probe exists to stop happening twice.
+
+
 The candidate's gates take about ninety minutes on this Mac; GitHub's
 amd64 runners finish the Linux matrix in about twenty. Run them in
 SERIES and you learn about a Linux fault ninety minutes after you
