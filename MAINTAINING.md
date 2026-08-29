@@ -516,6 +516,66 @@ a record claiming `n=4` beside two elements and a file holding four
 tables. Whenever you add a key to this record, ask which of the two
 moments it is about.
 
+### A save asks the FILE what is already there
+
+A layer whose source already names a table in this file is treated as
+saved already -- correctly, and not as an edge case: it is the SECOND
+press on any map, because the first repoints every layer at the file.
+The data needs no writing because it is already there; what still has
+to happen is the style, the name counted as current so the drop spares
+it, and the record.
+
+Since 2026-08-29 that question is put to the FILE and not to the
+source string alone, because nobody rewriting the file underneath us
+can change a string we are holding. A colleague saving the shared
+GeoPackage while your map is open -- moving one element to another
+column, so their save writes `tiles_b_v1` and drops
+`tiles_b_landcover` -- left your layer naming a table that was gone.
+Every such element was skipped as already saved AND counted as
+written, and the stale-table drop then removed what they HAD written,
+because it belongs to an element this map has and was not among the
+names just written. The element left the file altogether, both people
+lost it, and the plugin said "Saved".
+
+**Nothing can be written in its place, and that is measured rather
+than assumed.** A layer whose table was dropped under it answers
+`isValid` True, `dataProvider().isValid()` True and `featureCount()`
+40 -- and yields ZERO features. Writing it would replace a real table
+with an empty one.
+
+So the save writes what it can, REMOVES NOTHING, and says which
+element the file lost. Once a file has changed under us, our record of
+what is stale is worth nothing: a table that looks like our own
+abandoned one is just as likely to be their current one, and nothing
+here is deleted on a guess. The reading of what the file holds is
+taken ONCE, before the loop, because asking per element opens the
+GeoPackage per element -- the quadratic the style pass was moved out
+of that loop for.
+
+### A save keeps the window painting, and takes its buttons down
+
+Every call the write loop makes is one of QGIS's or OGR's own
+per-layer APIs, and each opens the GeoPackage, so the seconds grow
+with the layers already in the file: 134 of them at the 256-element
+ceiling, with a 50 ms heartbeat recording zero beats. Making the save
+a SINGLE OGR SESSION is the real repair and is a rewrite of the
+writer; it is under 0.24.5 in ROADMAP.md.
+
+What ships in 0.24.4 is the maintainer's decision of 2026-08-29: the
+loop turns the event loop once per element behind a determinate
+progress bar, so the window says what it is doing. The pump sits at
+the TOP of the body, where none of that loop's four `continue`s can
+skip it -- a bar that stops moving on the elements that are skipped
+says the save has hung.
+
+**The pump and the disabling are one decision.** Turning the event
+loop is exactly what would otherwise let somebody press Save or
+Generate into a half-written file, so both controls go down for the
+duration and are restored to what they WERE rather than enabled: a
+save can be pressed while Generate is already refusing for its own
+reasons. The bar comes down in a `finally`, the write raising
+included.
+
 ## What a resume has to say for itself
 
 Opening a saved map is not a passive act, and three records have to
@@ -538,6 +598,28 @@ the region. It is deliberately not the checkbox: the box is a standing
 preference and the fact belongs to a file, so a recipient who never
 touched it does not strip the copy a sender included, and does not
 have their own data copied into their own next file either.
+
+And the GROUP is stamped with the region the recovery LANDED ON,
+which is not the same fact as the region the record names.
+`_recover_the_source` has three routes -- a layer already open, the
+recorded source loaded from disk, and the copy inside the file -- and
+it returns the source it used, or None where none of them worked.
+
+The third route is why this matters. A self-contained file records the
+region its SENDER drew from, which on their machine is an ordinary
+layer and on the recipient's is a path that does not exist. Stamp the
+group with the record and nothing in the recipient's project ever
+answers to it: `_point_the_chooser_at` walks for a matching layer,
+finds none, and leaves the chooser silently where it was. With two
+senders' maps open, returning to the first through the group chooser
+gave it the SECOND sender's data -- and the output path coming home
+correctly is what made it worse, since the next Save would have
+written that over the first sender's file.
+
+The fallback to the record survives for the case it was written for:
+where recovery lands on NOTHING the chooser still names another
+dataset, and capturing that would file the resumed group under a
+dataset it was not made from.
 
 ## Three queues, because a press, a tick and a save are not one fact
 

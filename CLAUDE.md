@@ -4778,3 +4778,126 @@ here, and the decision to add one is the maintainer's. Recorded
   brings them into agreement. A landing is the obvious writer; a
   restore is the quiet one, and a fact only the obvious writer sets is
   a fact that is false on every journey the other one owns.
+
+- **A RECOVERY MUST REPORT WHICH OF ITS ROUTES ANSWERED, AND WHAT IS
+  STAMPED IS WHAT IT LANDED ON.** (2026-08-29, ledger row 23, and the
+  two halves of that claim turned out to be one mechanism.) A
+  self-contained GeoPackage records the region its SENDER drew from,
+  which on their machine is an ordinary layer and on the recipient's
+  is a path that does not exist -- so the data comes back from the
+  copy inside the file, and the record and the layer in force stop
+  describing the same thing. Both resume branches stamped the group
+  with the RECORD, so nothing in the recipient's project ever answered
+  to it: `_point_the_chooser_at` walks for a layer matching that
+  source, finds none, and leaves the chooser silently wherever it was.
+  WITH TWO SENDERS' MAPS OPEN THAT IS THE OTHER SENDER'S DATA.
+  Returning to the first map through the group chooser took its group,
+  its design and its output path -- and the second sender's region, so
+  the next Generate re-tiled it from their data and the output path
+  being RIGHT is what made it worse: the next Save would have written
+  that over the first sender's own file.
+  `_recover_the_source` returns the source it landed on now, and the
+  stamps fall back to the record only where it landed on NOTHING --
+  which keeps the reason the code was written that way, since a failed
+  recovery must not file the resumed group under whatever dataset the
+  chooser happens to hold. Both answers are asserted in one test,
+  because a reader meeting either alone would take it for the whole
+  rule.
+  THE GENERAL FORM: where one fact has a RECORDED value and a
+  RESOLVED one, ask which of them a later lookup will be able to
+  find. A record describes where something came from; only the
+  resolution describes where it IS.
+
+- **"ALREADY THERE" IS A QUESTION FOR THE FILE, NOT FOR A STRING THAT
+  NAMES IT.** (2026-08-29, ledger row 35.) A save treats a layer whose
+  source already names a table in this file as saved already --
+  correctly, since the second press on any map meets it -- and it
+  asked the SOURCE STRING, which nobody rewriting the file can change.
+  So when a colleague saved the shared GeoPackage while this map was
+  open, moving one element to another column, that element was skipped
+  as though it had been written AND its name went into the written
+  set; the stale-table drop then removed the table the colleague HAD
+  written, since it belongs to an element this map has and was not
+  among the names just written. THE ELEMENT LEFT THE FILE ALTOGETHER,
+  both people lost it, and the plugin said "Saved".
+  NOTHING CAN BE WRITTEN IN ITS PLACE, and measuring that is what
+  decided the repair's shape rather than any preference: a layer whose
+  table was dropped under it answers `isValid` True, `dataProvider().
+  isValid()` True and `featureCount()` 40, and yields ZERO features.
+  This is the cached-answer trap of ledger row 32 met for the third
+  time, and writing such a layer would replace a real table with an
+  empty one.
+  SO THE SAVE WRITES WHAT IT CAN, REMOVES NOTHING, AND SAYS SO. The
+  drop's candidates are this session's record and the file's own, and
+  its reasoning holds only while nobody else has touched the file:
+  once a table has gone from under us, a table that looks like our
+  abandoned one is just as likely to be their current one. Nothing is
+  deleted on a guess.
+  IT NEEDED TWO PROCESSES AND A RENDEZVOUS, because a running QGIS
+  serves its own cached pages and the drop is gated on the file being
+  the saver's own -- the first arrangement had the colleague meeting
+  somebody else's file, where their drop returns at its first line and
+  the precondition never existed at all. The SUITE stages the file
+  state instead: what a colleague leaves behind is a state, not a
+  race, and where a case depends on a window the answer is to close
+  the window rather than to measure how often you land in it.
+
+- **A SAVE THAT PUMPS THE EVENT LOOP MUST TAKE ITS BUTTONS DOWN, AND
+  THE TWO ARE ONE DECISION.** (Maintainer's decision 3, 2026-08-29.)
+  Every call the save's write loop makes is one of QGIS's or OGR's own
+  per-layer APIs, and each opens the GeoPackage, so the seconds grow
+  with the layers already in the file: 134 of them at the 256-element
+  ceiling, with a 50 ms heartbeat recording ZERO beats. Making the
+  save a single OGR session is a rewrite of the writer and is 0.24.5's;
+  what a person meets in the meantime is a window that says what it is
+  doing rather than one that looks like a hang.
+  THE PUMP IS AT THE TOP OF THE BODY, where none of that loop's four
+  `continue`s can skip it: a bar that stops moving on the elements
+  that are skipped says the save has hung. And turning the event loop
+  is exactly what would otherwise let somebody press Save or Generate
+  into a half-written file, so both controls go down for the duration
+  and are put back AS THEY WERE FOUND rather than enabled -- a save
+  can be pressed while Generate is already refusing for its own
+  reasons.
+  THE COST IS UNTOUCHED AND THAT IS THE DECISION, not an omission.
+  Responsiveness and cost are different questions, and answering the
+  cheap one first is what stops a rewrite being done in a hurry.
+
+- **`isVisible` IS FALSE IN A WINDOW NOBODY HAS SHOWN, SO IT CANNOT
+  ASK WHETHER SOMETHING IS HIDDEN.** (2026-08-29.) A guard for the
+  save's progress bar asserted `not progress.isVisible()` before and
+  after, and BOTH halves passed with the repair mutated away -- the
+  entry SURVIVED and said so. Offscreen, every widget in an unshown
+  window answers False whatever anybody set; `setVisible` moves the
+  explicit hidden flag, and `isHidden` is a question such a window can
+  answer honestly. This project already carries the same trap about
+  `grab()` and about probing state programmatically; this is it met
+  from the ASKING side, and the catalogue is what found it.
+
+- **A TEST LEG THAT RUNS AFTER THE STATE IT IS ABOUT MEASURES
+  NOTHING.** (2026-08-29, paying back the catalogue triage's second
+  bad trade.) A re-tile leg asserting that a taken-back element is
+  re-seeded ran on the element the arm ABOVE had just reclaimed --
+  whose layer wore the plugin's own renderer, so the landing found
+  nothing to carry and the assertion held whatever the gate said. The
+  repair is an ORDER: put the element back into QGIS's hands, move the
+  spacing FIRST so the restyle path declines, and only then pick the
+  style back, so the layer still holds the dock's renderer when the
+  run lands. Pick first and the restyle re-seeds in place, and the
+  re-tile that follows meets an element that was never deferring.
+  BOTH PREMISES ARE ASSERTED, so the arm cannot go quietly back to
+  measuring nothing. Ask of any leg what STATE it needs and whether
+  the step before it destroys that state.
+
+- **A BACKSLASH-NEWLINE INSIDE A NON-RAW ANCHOR IS A LINE
+  CONTINUATION.** (2026-08-29.) A catalogue entry anchored on a source
+  line ending in `\\` stored it as ONE collapsed line and matched
+  nothing. `r"""..."""` keeps it. The tool refused by name rather than
+  reporting a clean sweep, which is the whole reason `mutation_check`
+  will not judge an absent anchor -- and the same reason
+  `check_standards` fails on one.
+  ITS SIBLING IS THE INDENTATION: wrapping a loop in `try/finally`
+  moves every anchor inside it by two spaces, and EIGHT entries went
+  orphaned in one edit. The gate named them, they were re-indented,
+  and every one was RE-PROVED rather than assumed -- an anchor that
+  matches again can still be aimed at nothing.

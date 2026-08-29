@@ -3658,3 +3658,80 @@ different design. The suite reached that ground only when a machine
 was slow enough to put the press inside the run. **A test that fails
 rarely is a test that reaches something rarely, and what it reaches
 may be a defect rather than a window.**
+
+## AN ORACLE A NEVER-SHOWN WINDOW CANNOT ANSWER
+
+The guard for the save's progress bar asserted `not
+progress.isVisible()` before the save and again after it, and BOTH
+halves passed with the repair mutated away. Offscreen -- which is
+every runner and every CI job here -- a widget in a window nobody has
+called `show()` on answers False to `isVisible` whatever anybody set,
+so the assertion was true of the fixed software, of the broken
+software, and of software that had never had a progress bar at all.
+
+`setVisible` moves the explicit hidden flag, and `isHidden` is a
+question such a window CAN answer. That is the whole repair.
+
+What found it was the catalogue: the entry SURVIVED and said so. What
+would not have found it is reading, because the assertion is
+perfectly sensible-looking and the test passed. This project already
+carries the rule from the drawing side -- `grab()` of a never-shown
+dialog renders unreliable visibility, so probe state programmatically
+-- and this is the same fact met from the ASKING side.
+
+**Before asserting on a widget's appearance, ask whether an unshown
+window can distinguish the two answers.** Geometry, enablement,
+hidden-ness and text all survive; visibility, focus and paint do not.
+
+## A LEG THAT RUNS AFTER THE STATE IT IS ABOUT
+
+A test may drive exactly the right act and still assert nothing,
+because the step before it destroyed the condition. The re-tile leg
+of `test_taking_an_element_back_from_qgis_restyles_at_once` asserted
+that a taken-back element is re-seeded rather than inheriting the
+dock's renderer -- and it ran on the element the arm ABOVE had just
+reclaimed, whose layer therefore wore the plugin's own renderer. The
+landing had nothing rule-based to carry, so the assertion held
+whatever the gate said. The catalogue triage of 2026-08-28 recorded
+it as one of two bad trades at the time it was written, which is the
+right way to leave a known-weak leg: named, not quietly kept.
+
+**The repair was an ORDER, not another assertion.** Put the element
+back into QGIS's hands; move the SPACING FIRST, so the restyle path
+declines and the layer still holds the dock's renderer; only then
+pick the style back; then run. Pick first and the restyle re-seeds in
+place, and the re-tile that follows meets an element that was never
+deferring.
+
+Both premises are asserted out loud -- that the element is deferring
+again, and that its layer still holds the dock's renderer at the
+moment the run starts -- so the arm cannot drift back to measuring
+nothing without saying so.
+
+Ask of any multi-arm test: what STATE does this leg need, and does
+the arm before it consume that state?
+
+## STAGE WHAT A SECOND PROCESS LEAVES, NOT THE SECOND PROCESS
+
+Some defects need another program: a colleague saving the shared
+GeoPackage while your map is open cannot be driven from one process,
+because a running QGIS serves its own cached pages of a file and
+because the stale-table drop is gated on the file being the saver's
+own -- a fresh dialog meeting somebody else's file does not own it,
+so its drop returns at the first line and the precondition never
+exists. The AUDIT for that defect therefore ran a whole second QGIS,
+with a two-file rendezvous, and it was worth every second: the first
+arrangement of it measured a journey where nothing was ever removed.
+
+The SUITE does not do that, and should not. What a colleague leaves
+behind is a FILE STATE -- our element's table gone, theirs in its
+place -- and that state is stageable through the plugin's own file
+machinery in a second. The rule this project already has for windows
+applies to processes too: where a case depends on something you
+cannot schedule, close the window rather than measuring how often you
+land in it.
+
+**Use the expensive instrument to learn what state to stage, then
+stage it.** An audit that needs two processes is a good audit; a
+registered test that needs two processes is a test that will be
+quarantined the first time it is slow.
