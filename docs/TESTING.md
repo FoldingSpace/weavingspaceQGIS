@@ -48,6 +48,29 @@ itself:
 
     PYTHONPATH="$PWD" PYTHONUNBUFFERED=1 "$QGIS_PY" my_probe.py
 
+## AN ATTRIBUTE THAT IS A VIEW CANNOT BE WATCHED BY REBINDING IT
+
+2026-08-28. A probe replaced `dialog._category_colours` with a dict
+subclass that logs every write, to find out who records a follower's
+inherited colours as somebody's hand-picks. It reported nothing at
+all: no writes, and an empty record at the end -- while the probe
+that had measured the defect an hour earlier read the same record
+holding all four colours.
+
+The dict is a VIEW INTO A PER-DATASET BANK (ruling 8, 2026-08-24):
+`_swap_dataset_memory` rebinds the attribute to whichever bank the
+dataset in force owns, so the watcher was dropped at the first swap
+and every later write went to the real dict. An instrument that
+answers "nothing happened" because it was replaced is the silent-log
+fault wearing an attribute's clothes.
+
+**BEFORE WATCHING AN ATTRIBUTE, ASK WHO ELSE ASSIGNS IT.** Where
+something rebinds it -- a bank swap, a project change, a reset -- the
+watch has to go INSIDE the code that writes (a dump behind a flag,
+which this project already prescribes) rather than around the object.
+And read the tell: a watcher that logs zero writes while another
+reading shows the value moving is reporting on itself.
+
 ## THE HARNESS SETTING EVERY RUNNER SETS IS PART OF THE MEASUREMENT
 
 2026-08-28. The suite was launched by hand, three shards, without
