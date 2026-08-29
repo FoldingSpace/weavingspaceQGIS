@@ -16814,16 +16814,23 @@ class WeavingSpaceDialog(QDialog):
     # not a sentence anybody can approve. The maintainer has already
     # said the queue shows them things they cannot judge; this is the
     # half of that which is ours to fix.
+    # ONE DECISION, TWO SENTENCES. Written as an if/elif it was two
+    # decisions, and a catalogue entry could only ever stand on one
+    # limb: mutating the singular branch away let the plural one
+    # answer, so the entry SURVIVED and reported a weak test where
+    # the test was fine. That is the fallback-chain shape the
+    # catalogue triage of this morning found three times, met while
+    # writing a fix for something else.
     absent = ""
-    if len(left_out) == 1:
+    if left_out:
+      names = ", ".join(sorted(left_out))
+      kept = len(order) - len(left_out)
       absent = (
-        f" Element {left_out[0]} is no longer in the project, so the "
-        f"file holds {len(order) - 1} of {len(order)} elements.")
-    elif left_out:
-      absent = (
-        f" Elements {', '.join(sorted(left_out))} are no longer in "
-        f"the project, so the file holds {len(order) - len(left_out)} "
-        f"of {len(order)} elements.")
+        f" Element {names} is no longer in the project, so the file "
+        f"holds {kept} of {len(order)} elements."
+        if len(left_out) == 1 else
+        f" Elements {names} are no longer in the project, so the file "
+        f"holds {kept} of {len(order)} elements.")
     if moved:
       self._report_quietly(
         f"Saved to {os.path.basename(path)}. The data has changed "

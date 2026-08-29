@@ -19,17 +19,17 @@ Sentences you are happy with as they stand need no edit; `--apply` records every
 <!-- id:2620181af17e60e7 -->
 > This map's layers are no longer in the project, so there is nothing to save. Press Generate to draw it again.
 
-**`weavingspace_qgis/dialog.py:16820`** — in `_save_the_map`
+**`weavingspace_qgis/dialog.py:16829`** — in `_save_the_map`
 
 <!-- id:e46d4b8adf3b3e78 -->
 > Element {} is no longer in the project, so the file holds {} of {} elements.
 
-**`weavingspace_qgis/dialog.py:16824`** — in `_save_the_map`
+**`weavingspace_qgis/dialog.py:16832`** — in `_save_the_map`
 
 <!-- id:0ab09ebfa0f67e71 -->
 > Elements {} are no longer in the project, so the file holds {} of {} elements.
 
-**`weavingspace_qgis/dialog.py:16829`** — in `_save_the_map`
+**`weavingspace_qgis/dialog.py:16836`** — in `_save_the_map`
 
 <!-- id:a0836f2df79f1ff8 -->
 > Saved to {}. The data has changed since this map was drawn, so the file holds the map as it is and a copy of the data as it is now; press Generate and save again to make them agree.{}
