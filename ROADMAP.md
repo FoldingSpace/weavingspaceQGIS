@@ -295,7 +295,7 @@ surplus layers were counted. Guarded by
 `test_a_generate_pressed_during_a_run_is_not_swallowed` and the entry
 `a-queued-press-is-a-press-not-a-live-tick`, both proved. The lesson
 is in CLAUDE.md and docs/TESTING.md; the mechanism is in
-MAINTAINING.md under "Two queues".
+MAINTAINING.md under "Three queues".
 WHAT IT COST BESIDES: two existing tests read the moved record as
 their premise and were repaired without changing their subjects, which
 CI found and the targeted runs could not.
