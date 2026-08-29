@@ -12,7 +12,55 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-08-28 (late), after ROUND TEN'S THIRD WAVE -- and the
+Last updated 2026-08-29, after the VERIFICATION SESSION that followed
+round ten's third wave -- the first time this project has taken an
+owed list to the end rather than to the next round.
+
+WHAT A VERIFICATION SESSION COSTS AND RETURNS, measured over sixteen
+claims and twenty commits, because this record has never carried the
+other half of the method's price:
+
+- **FOURTEEN of sixteen owed claims closed**, each verified here by a
+  route its hunt did not use, repaired, guarded by a registered test
+  and proved by a catalogue entry. Two remain: one whose cause is now
+  measured and written down, and the quadratic Save and Load.
+- **THE HARM WAS CORRECTED ON THREE OF THE FOURTEEN, and the door on
+  a fourth.** A claim's mechanism is nearly always right; what it
+  says the mechanism COSTS is where it goes wrong. The class source
+  really is dropped, and the follower keeps the colours it inherited,
+  so nothing looks wrong until somebody moves the DONOR -- a slower
+  and quieter harm than "the recipient's first Generate repaints it".
+  The restyle claim named the Load door and bit hardest on the
+  reopened-plugin door, which its hunt never tried.
+- **TWO CLAIMS WERE CLOSED BY A FIX WRITTEN FOR ANOTHER**, and both
+  were checked on the tree the hunt read rather than assumed: the
+  Save box that came back empty after a reopen, and the follower's
+  colours, which stopped being adopted once the donor token came
+  home. A claim that has stopped reproducing still owes a guard at
+  its own door.
+- **SIX CATALOGUE ENTRIES WERE ORPHANED BY THESE REPAIRS** and one
+  SURVIVED after re-anchoring, because it stood on one limb of an
+  if/elif the repair had created. Expect to re-anchor whatever stands
+  on a line you touch, in the same commit, and expect the standards
+  gate to be the thing that tells you.
+- **THE INSTRUMENT FAULTS WERE THE SAME FAMILY AS EVER**, five of
+  them: one colour across three arms, so an arm compared a colour
+  with itself; a control arm holding a value the fixture's own
+  default cycle produced; a box set to the number it already held; a
+  note line read once instead of sampled; and a dict watched by
+  rebinding an attribute that is a VIEW into a per-dataset bank.
+  Every one was caught by a control arm or a premise assertion, and
+  none by reading.
+
+AND THE SUITE FOUND WHAT THE ROUND'S OWN REPAIRS BROKE. Run whole at
+the session's midpoint: 666 passed, one failed, and the failure was a
+repair from earlier the same evening -- a preview refresh added to a
+handler that undid the deferring row's own swatch. Bisected in four
+runs. That is the fourth defect this round found inside the round's
+own repairs, and the ratio this file has recorded since August did not
+improve with practice.
+
+Before that, 2026-08-28 (late), after ROUND TEN'S THIRD WAVE -- and the
 wave that changed what this file says about COST rather than about
 direction.
 

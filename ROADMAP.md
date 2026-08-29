@@ -314,11 +314,58 @@ feedback -- but it does block the build that gets promoted, since
 
 **THE ROUND OF 2026-08-28 RAN A THIRD WAVE, and it is now much the
 largest this project has run.** Fifty-five hunts in all. Twenty-three
-further claims came out of the third wave; TEN are closed with a
-registered test and a proved catalogue entry (ledger rows 37 to 46),
-and FIFTEEN are listed, one line each, under "Claimed by a hunt ... not
-yet verified here" in `docs/process/defects-2026-08-28.md`. That list
-is the work this version owes.
+further claims came out of the third wave; TEN were closed the same
+evening (ledger rows 37 to 46), and FIFTEEN went onto a written owed
+list in `docs/process/defects-2026-08-28.md`.
+
+**AND THE OWED LIST WAS TAKEN TO THE END ON 2026-08-29**, on the
+maintainer's instruction to keep the claims and fix them rather than
+defer them. FOURTEEN of the sixteen are closed -- rows 47 to 60 --
+each verified here by a route its hunt did not use, repaired, guarded
+by a registered test and proved by a catalogue entry. Twenty commits.
+
+WHAT THAT GIVES A USER, in the order somebody would care. A Save As
+now tells the map where it went, so coming back to it does not revert
+the box to the file you saved away from and overwrite the older
+version. A colour picked in the editor reaches a map you OPENED, or
+one the plugin adopted when you reopened it -- two of the commonest
+journeys there are, where the whole restyle path was unreachable. A
+shared map keeps "take my classes from that layer", which could not
+survive a file at all. A blend mode set in QGIS survives a re-tile.
+Opening a map whose region has a column called "no data" no longer
+tells you half your map is missing. A Save says which elements it
+left out, refuses when the group has been deleted rather than
+emptying the file, and waits for a re-tile that is about to happen
+instead of writing the map you have just changed away from. The Save
+box comes home when the project reopens. A number you type into a
+modifier survives a look at another family. A pinned ladder prints a
+legend you can read on a column spanning magnitudes. Five kinds of
+unopenable file say which way they failed instead of sharing one
+sentence that is true of one of them. A column of names is counted
+before the many-categories question rather than through a float. And
+a limit typed while live update is on but no run can follow says so
+rather than being taken in silence.
+
+WHAT IS STILL OWED FROM THAT LIST -- two claims, both in the ledger
+with their measurements:
+
+- **A follower's inherited colours are adopted as its own at a Load**,
+  so it never follows its donor again. The CAUSE is measured and
+  written down: a map saved with the source embedded travels with a
+  copy inside it, the recipient's recovery lands on that copy, and
+  `same_data` compares its source against the sender's path -- so the
+  file's own value-laden record is neither applied nor cleared. The
+  repair was started and parked rather than half-landed.
+- **Save and Load are quadratic in the element count and freeze the
+  interface** -- 134s and 122s at the 256 ceiling, no progress bar,
+  a 50 ms heartbeat recording zero beats. Every store was clean; the
+  defect is in the act.
+
+AND ONE MEASUREMENT IS THE MAINTAINER'S RATHER THAN OUTSTANDING WORK:
+the assembled window is 1279px under the offscreen font every runner
+uses and **1334px against its own 1280 ceiling under the real macOS
+system font**. At that font the three settled layout priorities of
+2026-08-09 cannot all hold. Which one gives is a decision.
 
 WHAT THE THIRD WAVE GIVES A USER. A Save into a GeoPackage holding
 somebody else's map no longer deletes their element tables and their

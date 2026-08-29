@@ -4622,6 +4622,29 @@ here, and the decision to add one is the maintainer's. Recorded
   correct throughout, and by the catalogue entry
   `a-queued-press-is-a-press-not-a-live-tick`.
 
+- **A CLAIM'S MECHANISM IS USUALLY RIGHT AND ITS HARM USUALLY IS NOT,
+  AND THE DOOR IT NAMES IS WHEREVER THE HUNT WAS STANDING.**
+  (2026-08-29, taking sixteen owed claims to the end.) This file
+  already says a harm named by reading is a hypothesis. What a whole
+  verification session adds is the RATE: of fourteen claims closed,
+  three had their harm corrected and one its door widened, while the
+  mechanism each named was exact.
+  THE HARM IS USUALLY QUIETER AND LATER than the claim says. "The
+  recipient's first Generate repaints the follower" was really "the
+  follower keeps the colours it inherited, and stops following its
+  donor from then on" -- nothing looks wrong at all until somebody
+  moves the donor, which may be days later. A control arm on the
+  LINK rather than on today's colours is what showed it.
+  AND THE DOOR IS WORTH ONE EXTRA ARM. A claim reported at the Load
+  door bit hardest on the reopened-plugin door, which the hunt had no
+  reason to try and which the code's own docstring calls something
+  users do constantly. One arm, and it doubled what the repair was
+  worth.
+  TWO OF THE FOURTEEN WERE CLOSED BY A FIX WRITTEN FOR ANOTHER
+  CLAIM, both checked on the tree the hunt read rather than assumed
+  -- and both still owed a GUARD at their own door, because a claim
+  that has stopped reproducing is not a claim that is tested.
+
 - **A RESTORE IS A LANDING, FOR EVERYTHING THAT ASKS WHETHER THE
   CONTROLS DESCRIBE THE MAP.** (2026-08-28.) `_last_geometry_sig` is
   how `_restyle_only` knows the tiles on screen are the tiles these
