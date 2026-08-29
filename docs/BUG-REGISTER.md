@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-396 defect(s) with a regression test.
+405 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -87,6 +87,8 @@ there is no separate list to remember.
   guarded by `test_a_disabled_plugin_paints_nothing`
 - **a class break retyped in QGIS, a stroke or legend label set on a categorized element, and a ramp changed in the styling panel all reached the map and the project but never the exported GeoPackage.**  
   guarded by `test_a_dock_edit_of_any_kind_reaches_the_exported_file`
+- **a support package whose download failed was discarded in silence and provisioning still reported success, bypassing the reason machinery written for exactly that case. Found by the dependency hunt of 2026-08-28.**  
+  guarded by `test_a_failed_support_download_is_recorded`
 - **a bound pinned far outside a column of very small values flattened the box that holds the small one, so a pin of 6e-10 read back as 0.0 and the map was redrawn from zero.**  
   guarded by `test_a_far_pin_does_not_flatten_the_box_a_small_one_needs`
 - **a forward ramp set in QGIS matched a row that was ticked Reverse, so the plugin saw no change and the next unrelated edit flipped the element end for end in the project and in the exported file.**  
@@ -107,6 +109,8 @@ there is no separate list to remember.
   guarded by `test_a_limit_that_refuses_a_pin_retires_the_pin_and_says_so`
 - **pressing Load with live update at its default re-tiled the opened map into memory a second later, so the GeoPackage-backed layers were removed and the project reopened empty. Found by the races hunt of 2026-08-28, which ruled out all four debounce windows before finding the cause was a default the suite never drives.**  
   guarded by `test_a_load_under_live_update_keeps_the_map_it_opened`
+- **the moved-data notice could never fire for a map opened with Load, because its reading is recorded at a landing and a resume is not one -- so editing the region and pressing Save wrote old tiles beside new data with nothing said. Found by the repairs hunt of 2026-08-28.**  
+  guarded by `test_a_map_opened_and_then_edited_says_so_when_it_is_saved`
 - **2026-08-19. Found by three hunts at once, one of them in pixels: 4,394 of an element's paint gone, 27.5 per cent of it.**  
   guarded by `test_a_moved_limit_re_splits_the_tiles`
 - **nothing described what a negative scale factor did to the map, so the only guard on the feature was that its spin box could reach negative numbers.**  
@@ -157,6 +161,8 @@ there is no separate list to remember.
   guarded by `test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis`
 - **a tiling still in flight when the project was replaced landed its layers into the incoming project, replacing that project's own output with memory layers tiled from the previous project's region -- and reported it as a successful run. `_forget_the_last_project` did not cancel the task and `_on_generated` never asked which project it was for.**  
   guarded by `test_a_run_in_flight_does_not_land_in_the_project_that_replaced_it`
+- **saving into a GeoPackage holding somebody else's map deleted their element tables and their embedded region copy, one line after a question promising to leave the rest of the file alone. Found by the shared-file hunt of 2026-08-28.**  
+  guarded by `test_a_save_leaves_another_maps_tables_alone`
 - **typing a scale factor between -1 and 1 was mangled by the step-over-zero handler firing per keystroke, so a mirrored design was silently un-mirrored and every element drew on the wrong side of the map.**  
   guarded by `test_a_scale_between_minus_one_and_one_can_be_typed`
 - **negative scale factors were allowed on 2026-08-16 so that a pattern can be mirrored, which put ZERO inside the control's range for the first time. The library does not refuse a zero scale: `transform_scale(0, ...)` returns a unit collapsed to no area, and the failure surfaces much later inside `Tiling.__init__` as `numpy.linalg.LinAlgError: Singular matrix` -- reaching the user as a raw "Tiling failed" line about a matrix they never asked about.**  
@@ -165,6 +171,8 @@ there is no separate list to remember.
   guarded by `test_a_second_project_does_not_take_the_first_ones_opacity`
 - **a style pasted onto an element layer while a tiling was in flight was silently destroyed by the run's landing, though the same paste a moment earlier or later survived.**  
   guarded by `test_a_style_pasted_mid_run_survives_the_landing`
+- **the moved-data notice read a fingerprint that cannot see a value edit, so retyping numbers between Generate and Save wrote old tiles beside new data in silence -- the case the notice was written for. Found by the undo hunt of 2026-08-28.**  
+  guarded by `test_a_value_edited_after_the_map_was_drawn_is_reported`
 - **2026-08-19. Found by a hunt reading the saved project with `zipfile` and the exported GeoPackage with `sqlite3`, neither of which involves QGIS: the retyped ranges were in the file's QML and the stamp appeared nowhere.**  
   guarded by `test_an_adopted_ladder_is_stamped_for_a_reopen`
 - **an area whose value was NULL was not drawn at all, leaving a hole in the map that reads as absence rather than as missing data.**  
@@ -175,8 +183,12 @@ there is no separate list to remember.
   guarded by `test_an_unclassed_row_is_not_warned_about_its_fifty_steps`
 - **an element's no-data layer ignored its opacity when the run landed, so a faded element drew opaque patches until something unrelated restyled it.**  
   guarded by `test_both_halves_of_an_element_fade_together`
+- **opening a map whose layers were still in the project took the already-open branch, which never recorded a run signature, so live update re-tiled the opened map into memory and the file's own layers were dropped from the project. Found by the path-spelling hunt of 2026-08-28.**  
+  guarded by `test_both_resume_doors_keep_the_file_the_map_was_saved_to`
 - **a mode change or a variable swap was answered by the restyle path, which cannot cut a no-data split, so the missing-value areas became holes again.**  
   guarded by `test_changing_to_a_graduated_style_cuts_the_split_it_needs`
+- **with the outlines layer switched on, choosing your own map's group emptied the region chooser and every element's variable, because the walk that recovers the region could land on the outlines layer and setLayer on an excluded layer is silent. Found by the chooser hunt of 2026-08-28.**  
+  guarded by `test_choosing_your_own_group_keeps_the_region_and_the_variables`
 - **restyling an element in QGIS's own panel erased its pinned bounds and hand-picked class colours from the saved project, on both the restyle and the re-tile paths, while the dialog went on showing them.**  
   guarded by `test_deferral_does_not_erase_the_work_behind_it`
 - **an opacity set on an element styled in QGIS was thrown away by the next re-tile, and hand styling on that element's missing-value layer was thrown away by the next restyle.**  
@@ -217,6 +229,8 @@ there is no separate list to remember.
   guarded by `test_the_colour_editor_opens_on_a_column_with_no_values`
 - **opening the colour editor on an element whose column holds an infinity raised IndexError inside a Qt slot, so the button did nothing and QGIS showed a Python error; the map drew the three kinds correctly and the window meant to colour them could not open. Found by a hunt on 2026-08-16, the day the kinds went from one to three.**  
   guarded by `test_the_colour_editor_opens_on_an_element_with_infinities`
+- **the consent box named only the missing scientific packages while a provisioning run also fetched six support distributions nobody had been told about. Found by the dependency hunt of 2026-08-28.**  
+  guarded by `test_the_consent_box_names_everything_that_would_be_fetched`
 - **the constant-column notice counted the tiled output rather than the region layer, so a small area dropped at a coarse spacing produced "every area has the same value" beside a legend showing a range.**  
   guarded by `test_the_constant_notice_counts_the_users_areas`
 - **the design preview painted elements in colours the map does not contain -- a deferring element in the plugin's own ramp rather than the colours QGIS draws, and a narrowed display range or a ticked Reverse ignored entirely.**  
@@ -227,8 +241,12 @@ there is no separate list to remember.
   guarded by `test_the_documents_numbers_match_the_code`
 - **in icon mode the coverage sentence named the wrong elements -- one missing from three of a user's areas went unmentioned while one missing from none was named. Found by the icon-mode hunt of 2026-08-28, read off the saved GeoPackage with geopandas as its second route.**  
   guarded by `test_the_icon_notice_names_the_elements_the_map_is_missing`
+- **the icon-coverage notice compared a geographic region against projected tiles, so every icon-mode run on WGS84 data reported every element as reaching none of the areas. Found by the icon-mode hunt of 2026-08-28.**  
+  guarded by `test_the_icon_notice_reads_the_same_ground_in_either_crs`
 - **`distance` converts BOTH its arguments to CIELAB on every call, and the clash search compared every class of one element against every class of another -- so it did 2*k*k conversions where 2*k would do, at about twelve microseconds each. Measured: four categorized elements of 401 classes froze QGIS for 36.75s, of which 35.70s was here, on the GUI thread with the event loop dead; the tiling those colours belonged to took 1.05s. The live path paid it on every tweak.**  
   guarded by `test_the_legibility_check_agrees_with_its_own_distance`
+- **the "data has changed since this map was drawn" notice compared a session-wide fingerprint against whichever dataset the region chooser held, so returning to an earlier map through the group chooser and pressing Save reported that the data had moved when nothing about it had. Found by the repairs hunt of 2026-08-28.**  
+  guarded by `test_the_moved_data_notice_is_about_the_map_being_saved`
 - **the notice that the region layer had been removed depended on which of two Qt handlers ran first, so it was silent on every CI runner while passing locally.**  
   guarded by `test_the_removal_notice_survives_the_chooser_moving_first`
 - **a copied classification was destroyed at the instant of copying, judged against the receiving column rather than reproduced; and pins accepted against the live class count were retired as the run landed, their stamp removed, with the message blaming the user's data.**  
@@ -844,7 +862,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 122
-- a bug hunt pointed in a named direction: 99
+- a bug hunt pointed in a named direction: 108
 - not written down at the time: 88
 - reported by a user: 29
 - reading the code: 15

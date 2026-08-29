@@ -809,10 +809,29 @@ def test_pypi_provisioning_is_reached_only_through_consent():
   assert owner is not None, "no function calls provision_from_pypi"
   # the early return on any answer but approval, textually, because
   # the shape of the guard is the guarantee
-  body = "\n".join(open(os.path.join(ROOT, "weavingspace_qgis",
-                                     "plugin.py"),
-                        encoding="utf-8").read().splitlines()
-                   [owner.lineno - 1:])
+  # COMMENTS ARE STRIPPED BEFORE ANYTHING IS INDEXED. This guard reads
+  # the ORDER of three markers in the source, and a comment naming one
+  # of them moves that order without moving a line of code: a note
+  # above the consent call explaining what `provision_from_pypi` does
+  # put the download's index before the dialogue's and failed this
+  # test on 2026-08-28 with the code perfectly correct. A gate a
+  # sentence can move is one somebody will move by accident -- the
+  # same shape as the roadmap gate that a sentence quoting its phrase
+  # could satisfy, and mended the same way.
+  # The file is TOKENIZED rather than cut at the first `#`, because a
+  # `#` inside a string literal is not a comment.
+  import io
+  import tokenize
+  whole = open(os.path.join(ROOT, "weavingspace_qgis", "plugin.py"),
+               encoding="utf-8").read()
+  lines = whole.splitlines()
+  for token in tokenize.generate_tokens(io.StringIO(whole).readline):
+    if token.type != tokenize.COMMENT:
+      continue
+    row, column = token.start
+    lines[row - 1] = lines[row - 1][:column]
+  body = "\n".join(lines[owner.lineno - 1:])
+
   for marker, missing_means in (
       ("dependency_consent_box", "the dialogue is never built"),
       ("clickedButton() is not approve",
@@ -18310,6 +18329,130 @@ def test_a_constant_column_with_gaps():
   assert layer.subsetString() == "", "a filter was left behind"
 
 
+def test_the_consent_box_names_everything_that_would_be_fetched():
+  """It must name every distribution, not only the ones asked for.
+
+  `provision_from_pypi` fetches the pure-python support packages the
+  main ones import at runtime -- packaging, dateutil, pytz, tzdata,
+  six, certifi -- because a partial install fails later and less
+  clearly. Its own docstring says so. The consent box did not: it
+  listed what the caller handed it, so somebody who read "Missing or
+  too old: geopandas", weighed it, and approved had SEVEN
+  distributions fetched from pypi.org.
+
+  THAT IS A HARD RULE, not a nicety. metadata.txt tells a reader the
+  plugin "shows exactly what it would fetch and asks first", and this
+  is the one dialogue a plugin-repository reviewer looks at hardest.
+
+  THE SUPPORT PACKAGES ARE STAGED ABSENT, because this machine's
+  Python has them all and the loop would otherwise never run -- which
+  is exactly how a first attempt at measuring this reported nothing
+  wrong. The premise is asserted so a future interpreter that ships
+  them cannot turn this into a test of nothing.
+
+  Regression: the consent box named only the missing scientific packages while a provisioning run also fetched six support distributions nobody had been told about. Found by the dependency hunt of 2026-08-28. [hunt]
+  """
+  import importlib.util
+  from weavingspace_qgis.plugin import dependency_consent_box
+  from weavingspace_qgis import deps
+
+  real_find_spec = deps.importlib.util.find_spec
+
+  def absent_support(name, *args, **kwargs):
+    if name in deps.SUPPORT:
+      return None
+    return real_find_spec(name, *args, **kwargs)
+
+  deps.importlib.util.find_spec = absent_support
+  try:
+    also = deps.support_that_would_be_fetched()
+    assert also, (
+      "PREMISE: no support package reads as absent even with find_spec "
+      "staged, so a provisioning run would fetch none and this test "
+      "cannot show anything")
+    asked_for = ["geopandas", "shapely"]
+    box, _approve = dependency_consent_box(None, asked_for + also)
+    said = f"{box.text()}\n{box.informativeText()}"
+    unnamed = [deps.SUPPORT[name] for name in also
+               if name not in said and deps.SUPPORT[name] not in said]
+    assert not unnamed, (
+      f"a provisioning run would fetch {unnamed} from pypi.org and the "
+      f"consent box names none of them, so somebody reading it before "
+      f"approving is not told what is downloaded")
+  finally:
+    deps.importlib.util.find_spec = real_find_spec
+
+
+def test_a_failed_support_download_is_recorded():
+  """A download that failed must not read as one that worked.
+
+  The main loop binds `_fetch_dist`'s (fetched, reason) and files the
+  reason in `LAST_FAILURES`, which is what the setup dialogue and
+  `tools/ci_provision.py` read to say what actually went wrong. The
+  support loop called the same helper and threw the answer away -- so
+  a package lost to a dropped connection left the record empty,
+  provisioning returning success, and the user meeting "No module
+  named 'dateutil'" from the library with nothing to say why.
+
+  THE FETCHER IS STUBBED AT THE SEAM WHERE THE DECISION IS TAKEN
+  rather than at the network, so the test says nothing about urllib
+  and everything about what the plugin does with an answer.
+
+  Regression: a support package whose download failed was discarded in silence and provisioning still reported success, bypassing the reason machinery written for exactly that case. Found by the dependency hunt of 2026-08-28. [hunt]
+  """
+  from weavingspace_qgis import deps
+
+  real_fetch = deps._fetch_dist
+  real_find_spec = deps.importlib.util.find_spec
+  real_forget = deps._forget_modules
+  doomed = next(iter(deps.SUPPORT))
+  attempted = []
+
+  def fake_fetch(dist, candidates, progress=None):
+    """Stand in for the real download, and fail exactly one package.
+
+    Args:
+      dist: the distribution name the provisioner asked for.
+      candidates: the wheel names it would try; unused here, because
+        this stub is about the ANSWER rather than about wheel-tag
+        matching.
+      progress: the optional reporter; unused for the same reason.
+
+    Returns:
+      ``(fetched, reason)`` -- a failure for the one support package
+      this test dooms, and success for everything else, so the
+      surrounding assertions are about one known loss.
+    """
+    attempted.append(dist)
+    if dist == deps.SUPPORT[doomed]:
+      return False, "the network went away"
+    return True, ""
+
+  def absent_support(name, *args, **kwargs):
+    if name in deps.SUPPORT:
+      return None
+    return real_find_spec(name, *args, **kwargs)
+
+  deps._fetch_dist = fake_fetch
+  deps.importlib.util.find_spec = absent_support
+  deps._forget_modules = lambda *a, **k: None
+  try:
+    deps.provision_from_pypi(list(deps.REQUIRED))
+    assert deps.SUPPORT[doomed] in attempted, (
+      f"PREMISE: {doomed} was never even attempted, so nothing here "
+      f"is about a failed download")
+    assert doomed in deps.LAST_FAILURES, (
+      f"{doomed} failed to download and nothing recorded it: "
+      f"LAST_FAILURES holds {dict(deps.LAST_FAILURES)!r}, so the "
+      f"user meets an import error from the library with no reason "
+      f"attached to it")
+  finally:
+    deps._fetch_dist = real_fetch
+    deps.importlib.util.find_spec = real_find_spec
+    deps._forget_modules = real_forget
+    deps.LAST_FAILURES.clear()
+
+
 def test_the_dependency_consent_says_what_it_will_do():
   """The one dialogue that asks to download and unpack code.
 
@@ -27321,6 +27464,606 @@ def test_a_recipients_save_keeps_the_source_the_sender_included():
         f"be redrawn by anybody")
     finally:
       recipient.close()
+
+
+def test_the_moved_data_notice_is_about_the_map_being_saved():
+  """It must speak about THIS map's data, and about no other.
+
+  A Save writes the map as it stands and embeds the source as it
+  stands, and those are two different moments the instant somebody
+  edits their region after generating. The notice exists to say so.
+
+  BOTH ANSWERS ARE ASSERTED HERE because they differ by one thing
+  only, and a reader meeting either alone would take it for the whole
+  rule. A notice cannot be tested by silence: the quiet arm on its own
+  passes just as well when the sentence has been deleted outright.
+
+  WHY IT WAS WRONG. The reading was kept in a single session-wide slot
+  and compared against whatever the region chooser held at the moment
+  of the press -- a fact about ONE map, in a session that holds
+  several. Draw two datasets, come back to the first through the group
+  chooser, and the two stores described different places: the notice
+  fired over a map whose data nobody had touched, telling somebody
+  their file disagreed with itself when it did not. The readings are
+  keyed by layer id now, so another map's can never be the one this
+  comparison lands on.
+
+  AND THE FIRST REPAIR WAS WORSE THAN THE DEFECT, which is why the
+  second arm is here rather than in a test of its own: carrying one
+  layer id ALONGSIDE one reading silenced the notice on a map whose
+  data really had moved, trading a false alarm for a missed one.
+
+  Regression: the "data has changed since this map was drawn" notice compared a session-wide fingerprint against whichever dataset the region chooser held, so returning to an earlier map through the group chooser and pressing Save reported that the data had moved when nothing about it had. Found by the repairs hunt of 2026-08-28. [hunt]
+  """
+  project = QgsProject.instance()
+  with _temp_dir() as folder:
+    a_path = os.path.join(folder, "a.gpkg")
+    b_path = os.path.join(folder, "b.gpkg")
+    dlg, first, _tid = _categorical_dialog()
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.spacing_spin.setValue(600.0)
+      _generate_and_wait(dlg)
+      assert dlg._element_layer_ids, "PREMISE: nothing was drawn for A"
+      dlg.gpkg_widget.setFilePath(a_path)
+      assert press_save(dlg, a_path), "PREMISE: A's first save failed"
+      assert "changed since" not in _said_about_a_save(dlg), (
+        "PREMISE: a save taken straight after drawing already claims "
+        "the data moved, so this test can prove nothing")
+
+      # A SECOND dataset, far enough away that every term of the
+      # fingerprint differs, drawn into its own group and saved.
+      second = make_region_layer(origin=(900000.0, 0.0))
+      second.setName("elsewhere")
+      project.addMapLayer(second)
+      _tick(300)
+      dlg.layer_combo.setLayer(second)
+      _tick(600)
+      assert dlg.layer_combo.currentLayer() is second, \
+        "PREMISE: the region chooser did not move to the second dataset"
+      _generate_and_wait(dlg)
+      assert dlg._element_layer_ids, "PREMISE: nothing was drawn for B"
+      dlg.gpkg_widget.setFilePath(b_path)
+      assert press_save(dlg, b_path), "PREMISE: B's save failed"
+
+      # ...and back to A's map the way a person does it.
+      wanted = next((i for i in range(dlg.group_combo.count())
+                     if "elsewhere" not in dlg.group_combo.itemText(i)
+                     and dlg.group_combo.itemData(i) is not None), -1)
+      assert wanted >= 0, (
+        f"PREMISE: A's group is not on offer among "
+        f"{[dlg.group_combo.itemText(i) for i in range(dlg.group_combo.count())]}")
+      dlg.group_combo.setCurrentIndex(wanted)
+      dlg.group_combo.activated.emit(wanted)     # what a click sends
+      _tick(900)
+      here = dlg.layer_combo.currentLayer()
+      assert here is not None and here.id() == first.id(), (
+        f"PREMISE: choosing A's group left the region chooser on "
+        f"{here.name() if here is not None else None!r}, so the "
+        f"journey this test is about was never staged")
+      dlg.gpkg_widget.setFilePath(a_path)
+      _tick(300)
+
+      # ---- QUIET, because nothing about A's data has been touched
+      assert press_save(dlg, a_path), \
+        "PREMISE: the save after the group switch did not happen"
+      said = _said_about_a_save(dlg)
+      assert "changed since" not in said, (
+        f"saving a map nobody has touched reported that its data had "
+        f"moved: {said!r}. The reading it compared against belongs to "
+        f"the other dataset")
+
+      # ---- AND STILL SPEAKS, because now it really has moved
+      first.startEditing()
+      first.deleteFeature(next(first.getFeatures()).id())
+      assert first.commitChanges(), "PREMISE: the deletion did not commit"
+      _tick(600)
+      assert dlg._layer_fingerprint(first) != \
+        dlg._fingerprint_when_drawn.get(first.id()), (
+          "PREMISE: the edit moved nothing the fingerprint can see, so "
+          "the notice would be right to stay quiet")
+      assert press_save(dlg, a_path), \
+        "PREMISE: the save after the edit did not happen"
+      after = _said_about_a_save(dlg)
+      assert "changed since" in after, (
+        f"the region really was edited between the drawing and the "
+        f"save, and the file now holds tiles from the old numbers "
+        f"beside a copy of the new ones, and the user was told only "
+        f"{after!r}")
+    finally:
+      dlg.close()
+
+
+def test_choosing_your_own_group_keeps_the_region_and_the_variables():
+  """Picking your map's own group must not lose the map's design.
+
+  The group chooser and the adopted-design restore both walk the
+  project for a layer whose source matches the group record's region.
+  The map-unit OUTLINES layer is built on the region's own source --
+  deliberately, since nothing is copied -- and carries
+  `weavingspace_output`, which is what keeps it out of the region
+  chooser. Each fact is right alone; together they handed `setLayer` a
+  layer the combo EXCLUDES, so the chooser came up EMPTY and every
+  element's variable fell to nothing. With "Add map unit outlines
+  layer" ticked, choosing your own map's group lost the whole design.
+
+  AND THE WALK SKIPPED THE LAYER ALREADY IN FORCE, which turns an
+  order-dependent fault into a certainty: with the region itself
+  skipped, the outlines layer was the only match left.
+
+  THE CONTROL ARM IS THE POINT. Both arms drive the identical journey
+  and differ only in the outlines switch, so a failure is attributable
+  to the outlines layer rather than to group switching -- and if this
+  fixture ever stops exhibiting the case, the control says so instead
+  of the test quietly passing.
+
+  IT NEEDS FILE-BACKED DATA. The collision is between two layers
+  sharing a source STRING; a memory layer's URI is not something
+  anything else is built on, so the synthetic grid cannot show it.
+
+  Regression: with the outlines layer switched on, choosing your own map's group emptied the region chooser and every element's variable, because the walk that recovers the region could land on the outlines layer and setLayer on an excluded layer is silent. Found by the chooser hunt of 2026-08-28. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+  data = os.path.join(HERE, "data", "imd-auckland-sa2-2018.gpkg")
+  assert os.path.exists(data), f"PREMISE: packaged data missing: {data}"
+
+  def journey(with_outlines):
+    project.clear()
+    _tick(200)
+    layer = QgsVectorLayer(data, "auckland", "ogr")
+    assert layer.isValid(), "PREMISE: the packaged layer did not open"
+    project.addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(600)
+      assert dlg.layer_combo.currentLayer() is layer, \
+        "PREMISE: the chooser did not settle on the packaged layer"
+      dlg.opt_outlines.setChecked(with_outlines)
+      _map_every_name(dlg, ["imd", "imd", "imd", "imd"])
+      dlg.spacing_spin.setValue(6000.0)
+      _generate_and_wait(dlg)
+      assert dlg._element_layer_ids, "PREMISE: the run drew nothing"
+      before = sorted((row.get("id"), row.get("var"))
+                      for row in (dlg._assignments() or []))
+
+      wanted = -1
+      for index in range(dlg.group_combo.count()):
+        if dlg.group_combo.itemData(index) is not None:
+          wanted = index
+      assert wanted >= 0, "PREMISE: the chooser offers no group to pick"
+      dlg.group_combo.setCurrentIndex(wanted)
+      dlg.group_combo.activated.emit(wanted)    # what a click sends
+      _tick(900)
+
+      here = dlg.layer_combo.currentLayer()
+      after = sorted((row.get("id"), row.get("var"))
+                     for row in (dlg._assignments() or []))
+      return here, before, after
+    finally:
+      dlg.close()
+
+  control_here, control_before, control_after = journey(False)
+  assert control_here is not None and control_before == control_after, (
+    f"PREMISE: the journey loses the design even with the outlines "
+    f"layer OFF ({control_before} -> {control_after}), so this test "
+    f"cannot attribute anything to the outlines layer")
+
+  here, before, after = journey(True)
+  assert here is not None, (
+    "choosing your own map's group left the region chooser EMPTY, so "
+    "the plugin no longer knows what the map was made from and "
+    "Generate will refuse for want of a region")
+  assert before == after, (
+    f"choosing your own map's group lost every element's variable: "
+    f"{before} became {after}, so the design the map was drawn at is "
+    f"gone and the next Generate draws something nobody chose")
+
+
+def test_the_icon_notice_reads_the_same_ground_in_either_crs():
+  """A geographic region must not report every element as missing.
+
+  The icon-coverage notice asks a SPATIAL question: which of the
+  region's areas no tile of an element touches. `bridge.layer_to_gdf`
+  sends a GEOGRAPHIC region to EPSG:3857 before tiling, so the output
+  layers come back in metres while the region still holds degrees --
+  and degrees never intersect metres, so every element counted as
+  missing every area. A person with an ordinary WGS84 download met a
+  sentence naming all four elements as missing all sixteen areas while
+  saying "which other elements still draw": false, self-contradictory,
+  and impossible to act on. That is how a notice teaches people to
+  ignore it.
+
+  THE PREMISE IS ASSERTED, because the whole test is about the case
+  where the two frames DIFFER: if a future pipeline stops reprojecting,
+  this passes for a reason that has nothing to do with the repair, and
+  the premise says so instead.
+
+  WHY THE OLDER GUARD COULD NOT SEE IT: it uses the packaged Auckland
+  data, which is EPSG:2193 and therefore already in the system its own
+  output wears.
+
+  Regression: the icon-coverage notice compared a geographic region against projected tiles, so every icon-mode run on WGS84 data reported every element as reaching none of the areas. Found by the icon-mode hunt of 2026-08-28. [hunt]
+  """
+  from qgis.core import QgsCoordinateReferenceSystem
+  project = QgsProject.instance()
+  project.clear()
+  _tick(200)
+  # Degrees, over ground a WGS84 download actually covers.
+  layer = make_region_layer(n=4, cell=0.02, origin=(174.70, -36.92))
+  layer.setCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
+  project.addMapLayer(layer)
+  _tick(300)
+  dlg = _dialog_for(layer) if "_dialog_for" in globals() else None
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  if dlg is None:
+    dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(500)
+    assert dlg.layer_combo.currentLayer() is layer, \
+      "PREMISE: the chooser did not settle on the geographic layer"
+    dlg.opt_icons.setChecked(True)
+    _map_every_name(dlg, ["v1", "v1", "v1", "v1"])
+    _tick(300)
+    _generate_and_wait(dlg)
+    assert dlg._element_layer_ids, "PREMISE: the icon run drew nothing"
+
+    areas = sum(1 for f in layer.getFeatures()
+                if f.geometry() and not f.geometry().isEmpty())
+    assert areas, "PREMISE: the region has no areas"
+    first = project.mapLayer(sorted(dlg._element_layer_ids.values())[0])
+    assert first is not None and first.crs() != layer.crs(), (
+      f"PREMISE: the output wears {first.crs().authid() if first else None} "
+      f"and the region {layer.crs().authid()}, so the two frames do not "
+      f"differ and this test is not about anything")
+
+    everything = {}
+    for tid, lid in sorted(dlg._element_layer_ids.items()):
+      element = project.mapLayer(lid)
+      twin = project.mapLayer(dlg._no_data_layer_ids.get(tid) or "")
+      everything[tid] = dlg._areas_no_icon_reaches(element, twin)
+    assert not all(count >= areas for count in everything.values()), (
+      f"every element was reported as reaching none of the {areas} "
+      f"areas ({everything}) -- which is what comparing degrees against "
+      f"metres produces, and what the notice would tell a user about a "
+      f"map whose icons are all there")
+  finally:
+    dlg.close()
+
+
+def test_both_resume_doors_keep_the_file_the_map_was_saved_to():
+  """Opening a saved map must not throw the saved map away.
+
+  There are two ways into a resume and they are one line apart in
+  behaviour. The FRESH door rebuilds a map whose layers are not in the
+  project; the ALREADY-OPEN door is taken when they are, which is what
+  "already open here, so its map is the one being worked on" means and
+  is the commoner of the two -- it is what happens when somebody opens
+  the file they have just saved.
+
+  WHAT WENT WRONG AT ONE OF THEM. A resume moves the design controls to
+  what the file says, which arms both debounce timers. Unless it also
+  records that nothing has changed since the map now on screen, the
+  same-signature gate cannot fire and a live tick a second later
+  re-tiles the map into MEMORY layers -- so the GeoPackage-backed ones
+  Save had just made are removed and the project reopens empty. That
+  was mended at the fresh door on 2026-08-28 and not at this one.
+
+  BOTH ARMS ARE HERE because a fix at one door of two is this
+  project's most-repeated shape, and a test that drives only the
+  mended door reports the repair working while the other stays open.
+
+  LIVE UPDATE IS LEFT AT ITS DEFAULT, deliberately: every other resume
+  test unticks it, which is a setting no user is holding, and that is
+  exactly why this was invisible to the suite.
+
+  Regression: opening a map whose layers were still in the project took the already-open branch, which never recorded a run signature, so live update re-tiled the opened map into memory and the file's own layers were dropped from the project. Found by the path-spelling hunt of 2026-08-28. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+
+  def where_the_map_is_read_from(dlg):
+    return sorted({
+      (project.mapLayer(lid).dataProvider().name()
+       if project.mapLayer(lid) is not None else "gone")
+      for lid in dlg._element_layer_ids.values()})
+
+  for door in ("fresh", "already-open"):
+    project.clear()
+    _tick(200)
+    with _temp_dir() as folder:
+      path = os.path.join(folder, "saved.gpkg")
+      dlg, _region, _tid = _categorical_dialog()
+      opener = dlg
+      try:
+        dlg.live_check.setChecked(False)
+        dlg.spacing_spin.setValue(600.0)
+        _generate_and_wait(dlg)
+        assert dlg._element_layer_ids, f"PREMISE: nothing was drawn ({door})"
+        dlg.gpkg_widget.setFilePath(path)
+        assert press_save(dlg, path), f"PREMISE: the save failed ({door})"
+        assert where_the_map_is_read_from(dlg) == ["ogr"], (
+          f"PREMISE: the save left the layers on "
+          f"{where_the_map_is_read_from(dlg)}, so there is no "
+          f"file-backed map for a re-tile to throw away ({door})")
+
+        if door == "fresh":
+          dlg.close()
+          project.clear()
+          _tick(300)
+          opener = WeavingSpaceDialog(iface=_Iface())
+
+        opener.live_check.setChecked(True)     # the default a person holds
+        opener.resume_widget.setFilePath(path)
+        opener._load_pressed()
+        _settle(opener, seconds=60)
+        _tick(1500)                            # past the live debounce
+        _settle(opener, seconds=60)
+        reads = where_the_map_is_read_from(opener)
+        assert reads == ["ogr"], (
+          f"after opening the map through the {door} door, its layers "
+          f"read from {reads} rather than from the GeoPackage they "
+          f"were saved to -- a live tick re-tiled the map that had "
+          f"just been opened, so the file's own layers are gone from "
+          f"the project and it will reopen empty")
+      finally:
+        opener.close()
+        if opener is not dlg:
+          dlg.close()
+
+
+def test_a_save_leaves_another_maps_tables_alone():
+  """Saving beside somebody else's map must not delete it.
+
+  A colleague sends a GeoPackage holding their own WeavingSpace map.
+  You answer yes to saving yours into the same file -- which is consent
+  to ADDING a map, not to removing one, and the question itself
+  promises to "leave the rest of the file alone".
+
+  WHY IT DID NOT. The stale-table drop scoped itself to "this map's own
+  elements" and decided that by the table-name prefix `tiles_<id>`. An
+  element id is a LETTER, and every map in the world has an `a`. So
+  their `tiles_a_*` and `tiles_b_*` were claimed as stale copies of
+  ours and removed, while their `tiles_zz_*` and their own non-plugin
+  tables were left standing -- which is what makes the shape
+  unmistakable, since nothing about the survivors is safer than the
+  casualties except the letter they carry. Their embedded region copy
+  went the same way, so what remained could not be redrawn by anyone.
+
+  THE VICTIM FILE IS BUILT WITH BARE OGR, deliberately: a file the
+  plugin has never touched is the case the promise is about, and
+  building it with the plugin would make the fixture share whatever
+  the code under test uses to recognise its own work.
+
+  Regression: saving into a GeoPackage holding somebody else's map deleted their element tables and their embedded region copy, one line after a question promising to leave the rest of the file alone. Found by the shared-file hunt of 2026-08-28. [hunt]
+  """
+  from osgeo import ogr, osr
+  from qgis.PyQt.QtWidgets import QMessageBox
+  from weavingspace_qgis import bridge
+  with _temp_dir() as folder:
+    path = os.path.join(folder, "shared.gpkg")
+    driver = ogr.GetDriverByName("GPKG")
+    source = driver.CreateDataSource(path)
+    crs = osr.SpatialReference()
+    crs.ImportFromEPSG(3857)
+    # Two letters our map also uses, one it does not, their embedded
+    # copy, and a table of their own that is nothing to do with us.
+    theirs = ("tiles_a_income", "tiles_b_income", "tiles_zz_income",
+              bridge.REGION_TABLE_NAME, "my_own_notes")
+    for name in theirs:
+      layer = source.CreateLayer(name, crs, ogr.wkbPolygon)
+      layer.CreateField(ogr.FieldDefn("income", ogr.OFTReal))
+      feature = ogr.Feature(layer.GetLayerDefn())
+      feature.SetField("income", 42.0)
+      ring = ogr.Geometry(ogr.wkbLinearRing)
+      for x, y in ((0, 0), (10, 0), (10, 10), (0, 10), (0, 0)):
+        ring.AddPoint_2D(float(x), float(y))
+      polygon = ogr.Geometry(ogr.wkbPolygon)
+      polygon.AddGeometry(ring)
+      feature.SetGeometry(polygon)
+      layer.CreateFeature(feature)
+      feature = None
+    source = None
+    assert set(theirs) <= bridge.gpkg_tables(path), \
+      "PREMISE: the colleague's file was not built"
+
+    dlg, _region, _tid = _categorical_dialog()
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.spacing_spin.setValue(600.0)
+      _generate_and_wait(dlg)
+      assert dlg._element_layer_ids, "PREMISE: nothing was drawn"
+      assert "a" in dlg._element_layer_ids, (
+        f"PREMISE: this map has no element 'a', so it cannot collide "
+        f"with theirs; it has {sorted(dlg._element_layer_ids)}")
+      MODAL_ANSWERS["question"] = QMessageBox.StandardButton.Yes
+      dlg.gpkg_widget.setFilePath(path)
+      assert press_save(dlg, path), "PREMISE: the save did not happen"
+
+      after = bridge.gpkg_tables(path)
+      lost = sorted(name for name in theirs if name not in after)
+      assert not lost, (
+        f"saving beside a colleague's map removed {lost} from their "
+        f"file; what is left cannot be redrawn by anybody, and the "
+        f"question they answered promised to leave the rest of the "
+        f"file alone")
+      # ...and ours really is in there beside theirs, or this passes by
+      # refusing to write at all.
+      assert any(name.startswith("tiles_a_") and name not in theirs
+                 for name in after), (
+        f"our own map was not written into the file: {sorted(after)}")
+    finally:
+      MODAL_ANSWERS.pop("question", None)
+      dlg.close()
+
+
+def test_a_value_edited_after_the_map_was_drawn_is_reported():
+  """The commonest edit of all is the one the notice could not see.
+
+  A person retypes some numbers in the attribute table between drawing
+  a map and saving it. The file then holds tiles cut from the old
+  numbers beside a copy of the new ones, which is the state the notice
+  exists to announce -- and the example in its own commit message,
+  {7,17,27,37} travelling beside a map drawn from {0,1,2,3}.
+
+  IT COULD NOT REPORT ITS OWN EXAMPLE. The reading was the layer
+  FINGERPRINT alone: the feature count, the extent rounded to the
+  metre, the field names and the CRS. A value edit moves none of them,
+  so the warning arrived only when something structural happened to
+  move as well. The `undoredo` hunt of 2026-08-28 measured it with a
+  counterfactual pair -- two journeys corrupting the data identically,
+  one of which also deleted a feature -- and only the second was
+  reported, so a keystroke unrelated to whether the data had moved
+  decided whether anybody was told.
+
+  THE PREMISE IS ASSERTED because it is the whole point: this test is
+  only about the second term of the reading if the first term really
+  is blind to the edit. If a future fingerprint learns to see values,
+  this fails and asks to be rewritten rather than passing quietly over
+  ground it no longer covers.
+
+  Regression: the moved-data notice read a fingerprint that cannot see a value edit, so retyping numbers between Generate and Save wrote old tiles beside new data in silence -- the case the notice was written for. Found by the undo hunt of 2026-08-28. [hunt]
+  """
+  with _temp_dir() as folder:
+    path = os.path.join(folder, "map.gpkg")
+    dlg, region, _tid = _categorical_dialog()
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.spacing_spin.setValue(600.0)
+      _generate_and_wait(dlg)
+      assert dlg._element_layer_ids, "PREMISE: nothing was drawn"
+      dlg.gpkg_widget.setFilePath(path)
+      assert press_save(dlg, path), "PREMISE: the first save failed"
+      assert "changed since" not in _said_about_a_save(dlg), \
+        "PREMISE: a save straight after drawing already claims the data moved"
+
+      structural = dlg._layer_fingerprint(region)
+      region.startEditing()
+      field = region.fields().indexOf("v1")
+      assert field >= 0, "PREMISE: no v1 to edit"
+      before = [feature["v1"] for feature in region.getFeatures()]
+      for feature in region.getFeatures():
+        region.changeAttributeValue(
+          feature.id(), field, (feature["v1"] or 0) * 10 + 7)
+      assert region.commitChanges(), "PREMISE: the edit did not commit"
+      _tick(600)
+      after = [feature["v1"] for feature in region.getFeatures()]
+      assert after != before, "PREMISE: the edit changed no values"
+      assert dlg._layer_fingerprint(region) == structural, (
+        f"PREMISE: this edit moved the fingerprint after all "
+        f"({structural} -> {dlg._layer_fingerprint(region)}), so it "
+        f"cannot show that anything but the fingerprint is doing the "
+        f"work here")
+
+      assert press_save(dlg, path), "PREMISE: the second save failed"
+      said = _said_about_a_save(dlg)
+      assert "changed since" in said, (
+        f"every value in the mapped column was retyped between drawing "
+        f"the map and saving it, so the file holds tiles from the old "
+        f"numbers beside a copy of the new ones, and the user was told "
+        f"only {said!r}")
+    finally:
+      dlg.close()
+
+
+def _said_about_a_save(dlg):
+  """What the plugin told the person about the save just pressed.
+
+  Args:
+    dlg: the dialog whose Save was pressed.
+
+  Returns:
+    The message bar and the note line joined, as one string.
+
+  `press_save` blanks both stores before it clicks and keeps what it
+  read in a local, so a caller reading BAR_MESSAGES afterwards sees an
+  empty store whatever happened -- which cost this file's author a
+  false negative while writing the test above. Both stores are read
+  because a refusal can land in either.
+  """
+  bar = " ".join(text for _kind, text in BAR_MESSAGES)
+  note = getattr(dlg, "live_note", None)
+  return f"{bar} {note.text() if note is not None else ''}".strip()
+
+
+def test_a_map_opened_and_then_edited_says_so_when_it_is_saved():
+  """A map you OPENED is a map the notice has to speak about.
+
+  The readings the moved-data notice compares are taken at landings,
+  and a Load is not one -- so a person who opened a saved map, edited
+  their region and pressed Save was told nothing whatever, on the
+  journey a shared file makes most likely. The file then held tiles
+  cut from the old numbers beside a copy of the new ones, which is
+  honest about neither.
+
+  THE QUIET ARM IS THE CONTROL rather than the subject: it passes
+  perfectly well with the fix removed, since nothing recorded means
+  nothing to disagree with. What discriminates is the second press.
+
+  WHAT THIS DOES NOT CLAIM. The reading is taken at the Load, so the
+  question it answers is "has this data moved since you opened the
+  map". Whether the sender's data had already moved before the file
+  reached you is not knowable here, and the plugin stays quiet about
+  it rather than guessing.
+
+  Regression: the moved-data notice could never fire for a map opened with Load, because its reading is recorded at a landing and a resume is not one -- so editing the region and pressing Save wrote old tiles beside new data with nothing said. Found by the repairs hunt of 2026-08-28. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  with _temp_dir() as folder:
+    path = os.path.join(folder, "shared.gpkg")
+    sender, region, _tid = _categorical_dialog()
+    try:
+      sender.live_check.setChecked(False)
+      sender.spacing_spin.setValue(600.0)
+      _generate_and_wait(sender)
+      assert sender._element_layer_ids, "PREMISE: the sender drew nothing"
+      sender.gpkg_widget.setFilePath(path)
+      assert press_save(sender, path), "PREMISE: the sender's save failed"
+    finally:
+      sender.close()
+    _tick(300)
+
+    # The region layer stays in the project, which is what makes the
+    # recovery find it by reference -- an ordinary journey, opening a
+    # map you saved earlier over data you still have.
+    opener = WeavingSpaceDialog(iface=_Iface())
+    try:
+      opener.live_check.setChecked(False)
+      opener.resume_widget.setFilePath(path)
+      opener._load_pressed()
+      _settle(opener, seconds=60)
+      assert opener._element_layer_ids, \
+        "PREMISE: the Load brought back no map, so there is none to save"
+      here = opener.layer_combo.currentLayer()
+      assert here is not None and here.id() == region.id(), (
+        f"PREMISE: the resume did not recover the live region layer, so "
+        f"there is nothing to edit; the chooser holds "
+        f"{here.name() if here is not None else None!r}")
+      opener.gpkg_widget.setFilePath(path)
+
+      # ---- the control: nothing has moved since it was opened
+      assert press_save(opener, path), "PREMISE: the first re-save failed"
+      assert "changed since" not in _said_about_a_save(opener), (
+        "PREMISE: a save taken straight after opening already claims "
+        "the data moved, so the arm below proves nothing")
+
+      # ---- and now it has
+      region.startEditing()
+      region.deleteFeature(next(region.getFeatures()).id())
+      assert region.commitChanges(), "PREMISE: the deletion did not commit"
+      _tick(600)
+      assert press_save(opener, path), "PREMISE: the second re-save failed"
+      said = _said_about_a_save(opener)
+      assert "changed since" in said, (
+        f"the region was edited between opening the map and saving it, "
+        f"so the file now holds tiles cut from the old numbers beside a "
+        f"copy of the new ones, and the user was told only {said!r}")
+    finally:
+      opener.close()
 
 
 def test_a_group_is_bound_to_its_dataset_however_the_path_is_spelt():
@@ -69946,6 +70689,24 @@ def main():
         test_a_group_is_bound_to_its_dataset_however_the_path_is_spelt)
   check("a recipient's save keeps the source the sender included",
         test_a_recipients_save_keeps_the_source_the_sender_included)
+  check("the moved-data notice is about the map being saved",
+        test_the_moved_data_notice_is_about_the_map_being_saved)
+  check("a map opened and then edited says so when it is saved",
+        test_a_map_opened_and_then_edited_says_so_when_it_is_saved)
+  check("a value edited after the map was drawn is reported",
+        test_a_value_edited_after_the_map_was_drawn_is_reported)
+  check("a save leaves another map's tables alone",
+        test_a_save_leaves_another_maps_tables_alone)
+  check("both resume doors keep the file the map was saved to",
+        test_both_resume_doors_keep_the_file_the_map_was_saved_to)
+  check("choosing your own group keeps the region and the variables",
+        test_choosing_your_own_group_keeps_the_region_and_the_variables)
+  check("the icon notice reads the same ground in either crs",
+        test_the_icon_notice_reads_the_same_ground_in_either_crs)
+  check("the consent box names everything that would be fetched",
+        test_the_consent_box_names_everything_that_would_be_fetched)
+  check("a failed support download is recorded",
+        test_a_failed_support_download_is_recorded)
   check("a bound box keeps its number when Qt reads the display back",
         test_a_bound_box_keeps_its_number_when_qt_reads_the_display_back)
   check("a colour put back in QGIS is the colour that is kept",

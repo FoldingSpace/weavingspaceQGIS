@@ -14,6 +14,40 @@ The suite lives in `tests/run_tests.py` (behaviour), `tests/visual_tests.py`
 `tools/` (coverage, mutation, standards, secrets). Everything runs
 under QGIS's own Python; `release.py` gates on all of it.
 
+## A PROBE HAS A KIT NOW, AND ITS TRAPS ARE IN IT
+
+2026-08-28. `tools/probe_kit.py` is the forty lines every probe was
+re-typing -- QGIS up, an empty project, a dialog, a held temporary
+directory, the modal shim, both message stores, a sqlite reader that
+does not hold the file open.
+
+IT IS A CORRECTNESS TOOL RATHER THAN A CONVENIENCE, and the numbers
+are why. An audit on 2026-08-15 counted 373 one-shot probe scripts in
+one session, median 79 lines, roughly forty of them the same setup --
+and eleven hand-written wrappers all setting `QGIS_PREFIX_PATH` to a
+doubled path, so those hunts probed a QGIS with no colour ramps and
+none of them knew. A shared harness is wrong once instead of eleven
+times. The round of 2026-08-28 then produced four more of the same
+kind in one evening, every one of them mine and every one already
+written down somewhere in this file: a modal shim never installed, so
+a probe hung offscreen on a real QMessageBox; a message store read
+after the helper that blanks it; a `_temp_dir()` context manager
+garbage-collected out from under an open GeoPackage; and a fixture
+that cleared the very record its control arm depended on, forcing the
+defect into both arms.
+
+WHAT IT DOES NOT DO is decide anything for you. `probe.dialog()`
+switches live update OFF and says at its own docstring that this is a
+decision to revisit, because the product's default is ON and a whole
+family of resume tests was found driving a setting no user holds.
+`moved()` and `unchanged()` are there to make a premise cheap to
+assert, which is the one habit that catches the rest.
+
+Run a probe with the checkout on the path, or the kit cannot import
+itself:
+
+    PYTHONPATH="$PWD" PYTHONUNBUFFERED=1 "$QGIS_PY" my_probe.py
+
 ## A red suite can mean the software got SLOWER, and reading it as a hang costs the diagnosis
 
 2026-08-16. Every CI suite leg went red at once -- three Linux

@@ -1591,8 +1591,13 @@ class WeavingSpaceDialog(QDialog):
     # which of two Qt handlers runs first
     self._removal_pending = None
     self._last_run_sig = None
-    # The region's fingerprint at the last landing; None until one.
-    self._fingerprint_when_drawn = None
+    # What each dataset LOOKED LIKE when a map was last drawn from it,
+    # keyed by layer id: {layer id: fingerprint}. Keyed rather than a
+    # single slot because the fact belongs to a map and a session holds
+    # several -- see the note at the landing that writes it. Empty
+    # until a run lands, and never persisted: it is a reading of a
+    # moment rather than part of any design.
+    self._fingerprint_when_drawn = {}
     # the geometry of the last completed run, so a later style-only
     # change can be answered without tiling again
     self._last_geometry_sig = None
@@ -1997,6 +2002,14 @@ class WeavingSpaceDialog(QDialog):
     # signatures below include it, so an edit made in QGIS while this
     # dialog is open cannot be mistaken for "nothing has changed".
     self._data_version = 0
+    # How many edits have been HEARD on each dataset, keyed by layer
+    # id. `_data_version` answers the same question for the session as
+    # a whole, which is right for the signatures and wrong for any
+    # question about ONE map: a counter that rises when somebody edits
+    # another dataset would report every map as moved. Only the
+    # watched layer's signals are connected, so a bump is always
+    # attributable to the layer in force.
+    self._edits_by_layer = {}
     self._watched_layer = None
     # The watched layer's id, kept beside the object because it is
     # what survives the object being destroyed. See _layers_removed.
@@ -3804,8 +3817,106 @@ class WeavingSpaceDialog(QDialog):
       pass
     return settled
 
-  def _layer_fingerprint(self):
+  def _a_reading_of_the_data(self, layer):
+    """What a dataset looks like now, for comparing against later.
+
+    Args:
+      layer: the dataset to read.
+
+    Returns:
+      A comparable pair: what the layer CONTAINS structurally, and how
+      many edits this dialog has heard on it.
+
+    WHY TWO TERMS, and the second is the one that was missing. The
+    fingerprint reads the feature count, the extent, the field names
+    and the CRS — none of which an ordinary VALUE EDIT moves. So the
+    moved-data notice, whose own commit message cites {7,17,27,37}
+    travelling beside a map drawn from {0,1,2,3}, could not report the
+    case it was written for: measured 2026-08-28 by the `undoredo`
+    hunt, which corrupted the data identically on two journeys and got
+    a warning only on the one that also deleted a feature. A keystroke
+    unrelated to whether the data moved decided whether anybody was
+    told.
+    THE EDIT COUNT IS PER DATASET rather than the session's own
+    `_data_version`, which rises when any watched layer is edited and
+    would report a map as moved because somebody edited a different
+    one.
+    WHAT IT STILL CANNOT SEE is an edit made straight through the data
+    provider, which emits nothing this dialog hears. That is the limit
+    `_layer_fingerprint` already documents at length and a decision of
+    2026-08-13 rather than an oversight; the alternative is scanning
+    the values, and the honest place to reconsider it is there.
+    """
+    return (self._layer_fingerprint(layer),
+            self._edits_by_layer.get(layer.id(), 0))
+
+  def _note_the_data_this_map_opened_over(self, record, path):
+    """Record what the region looked like as a saved map was opened.
+
+    Args:
+      record: the working state read out of the file, whose "region"
+        names the dataset the map was drawn from.
+      path: the GeoPackage being opened, so a source pointing INTO
+        that file — the embedded copy — is recognised as this map's
+        own data rather than as somebody else's layer.
+
+    Returns:
+      None. It writes one entry into `_fingerprint_when_drawn`, or
+      nothing at all where the region in force is not this map's.
+
+    WHY A RESUME NEEDS THIS AT ALL. Those readings are taken at
+    landings, and a Load is not one — so the moved-data notice could
+    never speak about a map that was OPENED rather than drawn. Somebody
+    opens a saved map, edits their region, presses Save, and the file
+    ends up holding tiles cut from the old numbers beside a copy of the
+    new ones with nothing said, which is the exact state the notice
+    exists to announce and the journey a shared file makes likeliest.
+    Measured 2026-08-28 by the `repairs4` hunt, reading the file's
+    tiles and its embedded copy back with bare OGR: {0,1,2,3,4,6,9}
+    beside {7,8,9,10,11,13,16}.
+
+    IT IS CALLED FROM BOTH RESUME BRANCHES, the fresh load and the
+    already-open one, because they are two doors into the same room
+    and this project has paid for a guard at one of them before. The
+    first repair put it at the fresh-load door alone, and the test
+    written beside it went red — the ordinary journey, opening a map
+    whose layers are still in the project, takes the other door.
+
+    WHAT IT CAN AND CANNOT SAY, since the reading is taken NOW rather
+    than when the tiles were cut. It answers "has this data moved since
+    you opened the map", which is what a Save after a Load is about. It
+    cannot answer whether the sender's data had already moved before
+    the file reached you — nothing here knows when those tiles were
+    drawn — so it stays quiet about that rather than guessing.
+    """
+    chosen = self.layer_combo.currentLayer()
+    if chosen is None:
+      return
+    here = chosen.source()
+    # The same test the resume already applies to decide whether the
+    # source came back at all: the recorded dataset, or the copy inside
+    # the file where that is what was recovered. A chooser left on
+    # somebody else's layer is not this map's data and gets no entry,
+    # which is what keeps one map's reading off another map.
+    if not here:
+      return
+    if not (same_source(here, record.get("region") or "")
+            or str(here).startswith(str(path))):
+      return
+    self._fingerprint_when_drawn[chosen.id()] = self._a_reading_of_the_data(chosen)
+
+  def _layer_fingerprint(self, layer=None):
     """What the region layer CONTAINS, cheaply enough to ask often.
+
+    Args:
+      layer: the layer to read. Defaults to whatever the region chooser
+        holds, which is what both signatures want, since they ask about
+        the design the user is editing NOW. Pass one explicitly where
+        the question is about a PARTICULAR map's dataset rather than
+        about the current one — the moved-data notice at Save does,
+        because a chooser that has moved on would otherwise have the
+        notice comparing two different datasets and calling the
+        difference a change (measured 2026-08-28).
 
     Returns:
       A comparable tuple — feature count, extent rounded to the metre,
@@ -3842,7 +3953,8 @@ class WeavingSpaceDialog(QDialog):
     is far below the size of anything these tiles are drawn at.
     """
     from . import compat
-    layer = self.layer_combo.currentLayer()
+    if layer is None:
+      layer = self.layer_combo.currentLayer()
     if layer is None:
       return None
     if not compat.layer_data_is_available(layer):
@@ -3952,6 +4064,21 @@ class WeavingSpaceDialog(QDialog):
     if _dialog_is_gone(self) or _live_dialog() is not self:
       return
     self._data_version += 1
+    # ...AND AGAINST THE DATASET IT HAPPENED TO, which is what makes it
+    # usable by anything asking about one map rather than about the
+    # session. The watched layer is the only one whose signals reach
+    # here, so this attribution needs no argument from the signal.
+    # Its C++ half can be gone by the time a queued signal arrives --
+    # removing a layer is what fires several of these -- and asking a
+    # dead wrapper for its id raises, so the reading is guarded.
+    watched = self._watched_layer
+    if watched is not None:
+      try:
+        edited = watched.id()
+      except RuntimeError:
+        edited = None
+      if edited:
+        self._edits_by_layer[edited] = self._edits_by_layer.get(edited, 0) + 1
     # Follow the edit as well as recording it. This is the only place
     # a field being renamed, dropped or retyped is heard: the layer
     # COMBO does not change when a user edits the layer it is already
@@ -14803,6 +14930,65 @@ class WeavingSpaceDialog(QDialog):
     base = os.path.basename(stem)
     return base or None
 
+  def _point_the_chooser_at(self, source):
+    """Select the region layer a saved record names, where we can.
+
+    Args:
+      source: the record's "region" -- a layer source string, or None
+        or empty where the record does not name one, in which case
+        nothing happens.
+
+    Returns:
+      None. The chooser is left where it was unless a layer this
+      dialog is ALLOWED to select answers to that source.
+
+    THREE COPIES OF THIS WALK EXISTED and the guards had reached one.
+    `_recover_the_source` carries both of them and says why; the group
+    chooser and the adopted-design restore carried neither, and a hunt
+    found it on 2026-08-28 by asking what else answers to a region's
+    source string.
+
+    OUR OWN OUTPUT ANSWERS TO IT. The map-unit outlines layer is built
+    on the REGION'S OWN SOURCE -- deliberately, since nothing is
+    copied -- and carries `weavingspace_output`, which is what keeps it
+    out of the region chooser. Each fact is right alone. Together they
+    made this walk hand `setLayer` a layer the combo EXCLUDES, so the
+    chooser came up EMPTY: with "Add map unit outlines layer" ticked,
+    picking your own map's group lost the region and every element's
+    variable fell to nothing. Measured 2026-08-28 with a control arm --
+    outlines off, the same journey is clean -- on file-backed data,
+    which is the only kind that can show it, since the collision is two
+    layers sharing a source string and a memory layer's URI is not one
+    anything else is built on.
+    AND THE WALK SKIPPED "THE LAYER ALREADY IN FORCE", which turns an
+    order-dependent fault into a certainty: with the region itself
+    skipped, the outlines layer was the only match left.
+
+    SO IT CHECKS THAT THE ASSIGNMENT TOOK, rather than assuming it.
+    `setLayer` on an excluded layer is silent, and a walk that breaks
+    on a set that did not happen leaves the chooser empty and reports
+    nothing -- which is the fault this method exists to end.
+    """
+    if not source:
+      return
+    for layer in QgsProject.instance().mapLayers().values():
+      # Never our own output. It answers to the region's source and is
+      # not a region.
+      try:
+        if layer.customProperty("weavingspace_output"):
+          continue
+        same = same_source(layer.source(), source)
+      except Exception:
+        continue
+      if not same or layer is self.layer_combo.currentLayer():
+        continue
+      self.layer_combo.setLayer(layer)
+      if self.layer_combo.currentLayer() is layer:
+        return
+      # It did not take -- the combo refuses layers it excludes -- so
+      # keep looking rather than breaking on a set that never happened.
+    return
+
   def _refresh_group_combo(self):
     """Rebuild the output-group chooser from the project as it stands.
 
@@ -14960,16 +15146,7 @@ class WeavingSpaceDialog(QDialog):
     record = self._read_working_state(group)
     self._selecting_a_group = True
     try:
-      wanted = (record or {}).get("region")
-      if wanted:
-        for layer in QgsProject.instance().mapLayers().values():
-          try:
-            same = same_source(layer.source(), wanted)
-          except Exception:
-            continue
-          if same and layer is not self.layer_combo.currentLayer():
-            self.layer_combo.setLayer(layer)
-            break
+      self._point_the_chooser_at((record or {}).get("region"))
       self._take_over_group(group)
       if record:
         self._apply_working_state(record)
@@ -15036,16 +15213,7 @@ class WeavingSpaceDialog(QDialog):
       return
     self._selecting_a_group = True
     try:
-      wanted = record.get("region")
-      if wanted:
-        for layer in QgsProject.instance().mapLayers().values():
-          try:
-            same = same_source(layer.source(), wanted)
-          except Exception:
-            continue
-          if same and layer is not self.layer_combo.currentLayer():
-            self.layer_combo.setLayer(layer)
-            break
+      self._point_the_chooser_at(record.get("region"))
       self._apply_working_state(record, keep_adopted=True)
     finally:
       self._selecting_a_group = False
@@ -16166,6 +16334,14 @@ class WeavingSpaceDialog(QDialog):
       return False
     if not self._may_overwrite(path):
       return False
+    # ASKED BEFORE ANYTHING IS WRITTEN, and that order is the whole of
+    # it. Ownership is partly "have we saved here in this session",
+    # which this very press is about to make true of any file at all --
+    # so asking after the write would answer yes for a stranger's
+    # GeoPackage and hand the drop below a licence to remove their
+    # tables. The same trap the overwrite question already has, from
+    # the other side.
+    ours = self._this_map_owns_the_file(path)
 
     # WHAT EACH ELEMENT'S TABLE IS CALLED is decided when the map is
     # DRAWN, not here, so that two saves of one map cannot disagree
@@ -16275,7 +16451,7 @@ class WeavingSpaceDialog(QDialog):
         if layer is not None:
           layer.dataProvider().reloadData()
 
-    self._drop_tables_this_map_no_longer_has(path, written_names)
+    self._drop_tables_this_map_no_longer_has(path, written_names, ours)
     self._last_path = path
     self._gpkg_tables_written[self._gpkg_key(path)] = set(written_names)
 
@@ -16370,7 +16546,7 @@ class WeavingSpaceDialog(QDialog):
           merged = dict(element)
         rebuilt.append(merged)
       resumable["elements"] = rebuilt
-    resumable["region_embedded"] = self._embed_or_drop_the_source(path)
+    resumable["region_embedded"] = self._embed_or_drop_the_source(path, ours)
     if not bridge.write_working_state(
         path, self._file_safe_state(resumable)):
       self._report_quietly(
@@ -16385,8 +16561,16 @@ class WeavingSpaceDialog(QDialog):
     # QGIS between a Generate and a Save travelled as {7,17,27,37}
     # beside a map drawn from {0,1,2,3}, and the recipient was told
     # only that four element layers had opened.
-    moved = (self._fingerprint_when_drawn is not None
-             and self._layer_fingerprint() != self._fingerprint_when_drawn)
+    # ASKED OF THIS DATASET'S OWN READING, so it can only ever compare
+    # like with like. A dataset nothing has been drawn from has no
+    # entry and says nothing, which is the honest answer rather than a
+    # guess: the record is keyed by layer id precisely so that another
+    # map's reading can never be the one this comparison lands on.
+    in_force = self.layer_combo.currentLayer()
+    when_drawn = (None if in_force is None
+                  else self._fingerprint_when_drawn.get(in_force.id()))
+    moved = (when_drawn is not None
+             and self._a_reading_of_the_data(in_force) != when_drawn)
     if moved:
       self._report_quietly(
         f"Saved to {os.path.basename(path)}. The data has changed "
@@ -16426,6 +16610,54 @@ class WeavingSpaceDialog(QDialog):
     if not same_destination(file_half, path):
       return None
     return source.split("layername=", 1)[1].split("|", 1)[0] or None
+
+  def _this_map_owns_the_file(self, path) -> bool:
+    """Is this GeoPackage one THIS map has written, or somebody else's?
+
+    Args:
+      path: the file in question. It is assumed to exist and to hold
+        something; an empty or absent file is nobody's and is decided
+        by the caller.
+
+    Returns:
+      True where this dialog has already saved to it in this session,
+      or where it carries a working-state record naming the dataset
+      now in force. False otherwise, which means the file is somebody
+      else's work as far as anything here can tell.
+
+    IT IS ASKED OF THE FILE rather than remembered, which is what makes
+    an ordinary re-save silent after a restart while keeping the
+    question for the case that matters.
+
+    WHY IT IS A METHOD OF ITS OWN, as of 2026-08-28. Two acts need this
+    answer and only one of them was asking it: the overwrite question,
+    and the drop that removes tables an earlier save left behind. The
+    drop instead scoped itself to "this map's own elements" and decided
+    that by the table-name prefix `tiles_<id>` -- and an element id is
+    a LETTER, which every map in the world shares. So saving into a
+    GeoPackage holding a colleague's map deleted their `tiles_a_*` and
+    `tiles_b_*` and left `tiles_zz_*` and their own non-plugin tables
+    standing, one line after a question promising to "leave the rest of
+    the file alone". Measured 2026-08-28 by the `underneath` hunt and
+    again here against a victim file built by bare GDAL, read back with
+    stdlib sqlite3.
+    THE LESSON THIS PROJECT ALREADY HAS: a name a user can choose is a
+    LABEL and never an identity. A table name carries an element id,
+    and an element id identifies an element WITHIN a map, not the map.
+    """
+    if self._gpkg_key(path) in self._gpkg_tables_written:
+      return True
+    record = bridge.read_working_state(path)
+    if isinstance(record, dict):
+      # A file carrying OUR record for THIS dataset is this map's own
+      # file, met again after a restart. `same_source` owns the
+      # comparison because a source is a path plus a layer name and a
+      # project save respells the path half.
+      layer = self.layer_combo.currentLayer()
+      here = layer.source() if layer is not None else None
+      if here and same_source(here, record.get("region")):
+        return True
+    return False
 
   def _may_overwrite(self, path) -> bool:
     """Ask before writing over a file this plugin did not write.
@@ -16467,18 +16699,8 @@ class WeavingSpaceDialog(QDialog):
     from qgis.PyQt.QtWidgets import QMessageBox
     if not os.path.exists(path) or os.path.getsize(path) == 0:
       return True
-    if self._gpkg_key(path) in self._gpkg_tables_written:
+    if self._this_map_owns_the_file(path):
       return True
-    record = bridge.read_working_state(path)
-    if isinstance(record, dict):
-      # ...and a file carrying OUR record for THIS dataset is this
-      # map's own file, met again after a restart. `same_source` owns
-      # the comparison because a source is a path plus a layer name
-      # and a project save respells the path half.
-      layer = self.layer_combo.currentLayer()
-      here = layer.source() if layer is not None else None
-      if here and same_source(here, record.get("region")):
-        return True
     answer = QMessageBox.question(
       self, "WeavingSpace",
       f"{os.path.basename(path)} already exists and was not written "
@@ -16653,6 +16875,23 @@ class WeavingSpaceDialog(QDialog):
         self.gpkg_widget.setFilePath(path)
         self.gpkg_widget.blockSignals(False)
         self._last_path = path
+        # AND NOTHING HAS CHANGED SINCE THE MAP NOW ON SCREEN, for the
+        # reason written at the twin below and with the same one line.
+        # THE REPAIR WENT TO ONE DOOR OF TWO on 2026-08-28: the fresh
+        # branch got it and this one did not, and this is the door a
+        # person takes most -- opening a map whose layers are still in
+        # the project, which is what "already open here" means. A Save
+        # moves the output path, so the signature recorded at the last
+        # landing no longer matches, the same-signature gate cannot
+        # fire, and a live tick a second later re-tiled the opened map
+        # into MEMORY layers: the GeoPackage-backed ones Save had just
+        # made were removed and the project reopened empty. Measured
+        # 2026-08-28 by comparing the two doors on one spelling of one
+        # path -- fresh came back reading `ogr`, this one `memory`.
+        # It needs no respelling to bite, though a respelt path reaches
+        # it too, which is how the `pathspellings` hunt arrived.
+        self._last_run_sig = self._run_signature()
+        self._note_the_data_this_map_opened_over(record, path)
         # THE GROUP TAKES THE RECORD TOO, for the reason written at
         # the twin: the file carries it and the group did not, so
         # saving the project, reopening it and choosing that group
@@ -16865,6 +17104,7 @@ class WeavingSpaceDialog(QDialog):
       # journey with this flag forced True clears the path and
       # announces it, like every other switch away from work.
       self._landed_this_session = recovered
+      self._note_the_data_this_map_opened_over(record, path)
       # ...AND THE GROUP TAKES THE RECORD TOO, stamped with the FILE'S
       # region rather than whatever the chooser happens to hold when
       # recovery fails -- see the already-open branch.
@@ -16916,7 +17156,7 @@ class WeavingSpaceDialog(QDialog):
         f"map is not complete: {', '.join(sorted(refused))}.")
     return True
 
-  def _areas_no_icon_reaches(self, element, paired):
+  def _areas_no_icon_reaches(self, element, paired, region=None):
     """How many of the region's areas no tile of this element touches.
 
     Args:
@@ -16926,6 +17166,10 @@ class WeavingSpaceDialog(QDialog):
         the twin -- counting the element alone reports every element
         on that column short by the number of gaps, which is the
         self-refuting sentence of 2026-08-16.
+      region: the layer this run TILED. Defaults to the chooser's,
+        which is right only while nobody has moved it since the run
+        was launched -- the same reason `weavingspace_region` is taken
+        from `source_layer` at the landing.
 
     Returns:
       The number of region features that no tile of this element
@@ -16938,9 +17182,28 @@ class WeavingSpaceDialog(QDialog):
     Asked through a spatial index over the element's own tiles, so the
     cost is one index build plus one query per area rather than a
     comparison of two totals that are not comparable.
+
+    AND A SPATIAL QUESTION HAS A CRS, which is what arithmetic never
+    had to ask. `bridge.layer_to_gdf` sends a GEOGRAPHIC region to
+    EPSG:3857 before tiling, so the output layers wear metres while the
+    region still wears degrees -- and degrees never intersect metres,
+    so every element counted as missing every area. A person with an
+    ordinary WGS84 download therefore met, on every icon-mode run, a
+    sentence naming all four elements as missing all sixteen areas
+    while saying "which other elements still draw": false,
+    self-contradictory, and impossible to act on. That is how a notice
+    teaches people to ignore it.
+    Measured 2026-08-28 by the `iconmode2` hunt on a 4326 grid, and
+    again outside QGIS with bare OGR, shapely and pyproj: 16 per
+    element untransformed, 0 per element once the region is put into
+    the output's system. It shipped with the spatial rewrite the same
+    evening; the guard written beside it uses the packaged Auckland
+    data, which is EPSG:2193 and therefore cannot show it.
     """
-    from qgis.core import QgsSpatialIndex
-    region = self.layer_combo.currentLayer()
+    from qgis.core import (QgsCoordinateTransform, QgsGeometry,
+                           QgsProject, QgsSpatialIndex)
+    if region is None:
+      region = self.layer_combo.currentLayer()
     if region is None or element is None:
       return 0
     tiles = []
@@ -16962,12 +17225,32 @@ class WeavingSpaceDialog(QDialog):
       feature.setGeometry(geometry)
       index.addFeature(feature)
       holder[number] = geometry
+    # THE REGION IS PUT INTO THE OUTPUT'S SYSTEM before anything is
+    # compared. Where either side has no CRS the plugin tiles in the
+    # layer's own coordinates and no transform is wanted; where they
+    # agree there is nothing to do.
+    move = None
+    try:
+      if (region.crs().isValid() and element.crs().isValid()
+          and region.crs() != element.crs()):
+        move = QgsCoordinateTransform(
+          region.crs(), element.crs(), QgsProject.instance())
+    except Exception:
+      return 0
     missing = 0
     try:
       for area in region.getFeatures():
         shape = area.geometry()
         if shape is None or shape.isEmpty():
           continue
+        if move is not None:
+          # A transform can refuse a geometry outside its domain. The
+          # honest answer then is the one this method already gives
+          # when it cannot ask: nothing, rather than a count somebody
+          # would act on.
+          shape = QgsGeometry(shape)
+          if shape.transform(move) != 0:
+            return 0
         near = index.intersects(shape.boundingBox())
         if not any(holder[n].intersects(shape) for n in near):
           missing += 1
@@ -17174,11 +17457,17 @@ class WeavingSpaceDialog(QDialog):
     """
     self._embed_touches += 1
 
-  def _embed_or_drop_the_source(self, path) -> bool:
+  def _embed_or_drop_the_source(self, path, ours=True) -> bool:
     """Put the region data into the saved file, or take it back out.
 
     Args:
       path: the GeoPackage Save has just written.
+      ours: whether this file was THIS map's before the save began.
+        A file that is somebody else's gets nothing removed from it --
+        `weavingspace_region` there is a table the plugin wrote for
+        THEM, and taking it leaves their map unable to be redrawn by
+        anyone. Taken before the write, because writing makes "we have
+        saved here" true of any file at all.
 
     Returns:
       True when the file now holds a copy of the region layer, False
@@ -17220,16 +17509,27 @@ class WeavingSpaceDialog(QDialog):
       self._gpkg_key(path), (False, None))
     if held and touches == self._embed_touches:
       return True
-    if bridge.REGION_TABLE_NAME in bridge.gpkg_tables(path):
+    # AND NOTHING IS REMOVED FROM A FILE THAT IS NOT THIS MAP'S.
+    # `weavingspace_region` is a table the plugin writes, which is what
+    # ruling 2 of 2026-08-27 scopes the drop to -- but in a GeoPackage
+    # holding somebody ELSE'S map it is a table the plugin wrote for
+    # THEM, and removing it leaves their map unable to be redrawn by
+    # anyone. Measured 2026-08-28: saving into a colleague's file took
+    # their embedded copy out along with two of their element tables.
+    # In a file we do not own, only what we write is ours to touch.
+    if ours and bridge.REGION_TABLE_NAME in bridge.gpkg_tables(path):
       bridge.drop_gpkg_layer(path, bridge.REGION_TABLE_NAME)
     return False
 
-  def _drop_tables_this_map_no_longer_has(self, path, current):
+  def _drop_tables_this_map_no_longer_has(self, path, current, ours):
     """Remove element tables an earlier save left that this map lacks.
 
     Args:
       path: the GeoPackage being saved into.
       current: the table names this save has just written.
+      ours: whether the file was THIS map's before this save began.
+        Taken before anything is written, because the act of writing
+        makes "we have saved here" true of any file whatever.
 
     Returns:
       None. Drops only tables THIS plugin wrote for THESE elements --
@@ -17255,6 +17555,20 @@ class WeavingSpaceDialog(QDialog):
     sweeping every `tiles_*` in the file would make this a claim about
     somebody else's tables rather than about our own.
     """
+    # NOTHING IS DROPPED FROM A FILE THAT IS NOT THIS MAP'S. The scope
+    # below is by element id, and an element id is a LETTER that every
+    # map shares -- so in a GeoPackage holding somebody else's map this
+    # walk claimed their `tiles_a_*` and `tiles_b_*` as stale copies of
+    # ours and removed them, while leaving their `tiles_zz_*` and their
+    # own tables alone. That ran one line after a question promising to
+    # "leave the rest of the file alone", and it made this method's own
+    # Returns block ("never a table the user's own file already
+    # contained") false. Measured 2026-08-28 against a victim file
+    # built with bare GDAL and read back with stdlib sqlite3.
+    # Their map is left whole; ours is still written beside it, which
+    # is what the person asked for when they answered the question.
+    if not ours:
+      return
     key = self._gpkg_key(path)
     written = set(self._gpkg_tables_written.get(key, set()))
     # AND THE FILE'S OWN RECORD IS ASKED, which is the third reader
@@ -18855,7 +19169,27 @@ class WeavingSpaceDialog(QDialog):
     # are two different moments the instant somebody edits their layer
     # after generating: the tiles hold the old numbers, the embedded
     # copy holds the new ones, and nothing said so.
-    self._fingerprint_when_drawn = self._layer_fingerprint()
+    # IT IS KEYED BY THE DATASET IT IS ABOUT, and that is the whole of
+    # what makes it answerable later. The first version was a single
+    # session-wide slot, compared at Save against whatever the region
+    # chooser held then -- a fact about ONE map kept where a session
+    # holds several. Draw two datasets, go back to the first through
+    # the group chooser, and the two stores described different places:
+    # the notice fired on a map whose data nobody had touched, telling
+    # somebody their file disagreed with itself when it did not.
+    # Measured 2026-08-28 by the `repairs4` hunt, reproduced here by a
+    # counterfactual arm, and the first repair for it was worse than
+    # the defect -- carrying the layer id ALONGSIDE one reading made
+    # the notice quiet on a map whose data really had moved, trading a
+    # false alarm for a missed one. A map is not told about by the last
+    # landing anywhere in the session; it is told about by its own
+    # dataset's reading, so that is what is kept.
+    # The reading is taken from the layer this run TILED rather than
+    # from the chooser, which is the rule `weavingspace_region` already
+    # follows a few lines below, and for the same reason.
+    if source_layer is not None:
+      self._fingerprint_when_drawn[source_layer.id()] = (
+        self._a_reading_of_the_data(source_layer))
     # what this run DREW, not what the table says now (see the note
     # where these are captured, in _generate)
     self._last_run_sig = (run_sig if run_sig is not None

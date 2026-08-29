@@ -165,8 +165,15 @@ class WeavingSpacePlugin:
       deps.ensure_pyproj_data()
       return True
 
+    # EVERYTHING THAT WOULD BE FETCHED, not only what was asked for.
+    # `provision_from_pypi` also fetches the pure-python support
+    # packages the main ones import at runtime, and the box named none
+    # of them -- so a person who read it and approved had seven
+    # distributions downloaded where it listed one. The hard rule is
+    # that the box names the packages; this is what makes it true.
     box, approve = dependency_consent_box(
-      self.iface.mainWindow(), missing)
+      self.iface.mainWindow(),
+      list(missing) + deps.support_that_would_be_fetched())
     box.exec()
     if box.clickedButton() is not approve:
       return False

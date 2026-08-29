@@ -437,6 +437,39 @@ def _fetch_dist(dist: str, candidates: list[str], progress=None) -> bool:
   return False, "; ".join(reasons) or f"no candidate versions for {dist}"
 
 
+def support_that_would_be_fetched() -> list[str]:
+  """The support packages a provisioning run would fetch as well.
+
+  Returns:
+    The import names in SUPPORT that this interpreter does not have,
+    in the order they would be fetched. Empty where they are all
+    present, which is the ordinary case on a desktop QGIS.
+
+  IT EXISTS FOR THE CONSENT BOX. `provision_from_pypi` fetches these
+  beside the packages it was asked for -- its own docstring says so,
+  and a partial install fails later and less clearly -- but the box
+  named only what the caller passed it, so somebody who read it, saw
+  "Missing or too old: geopandas", and approved had SEVEN distributions
+  fetched from pypi.org. metadata.txt promises the plugin "shows
+  exactly what it would fetch and asks first", and CLAUDE.md's hard
+  rule is that the box names the packages. Measured 2026-08-28 by the
+  `deps` hunt and reproduced by stubbing `_fetch_dist`, which is the
+  seam where the decision is taken rather than where the network is.
+
+  It asks the same question the loop asks, one line apart, so the two
+  cannot disagree about what "absent" means.
+  """
+  absent = []
+  for import_name in SUPPORT:
+    try:
+      present = importlib.util.find_spec(import_name) is not None
+    except (ImportError, ValueError):
+      present = False
+    if not present:
+      absent.append(import_name)
+  return absent
+
+
 def provision_from_pypi(missing: list[str], progress=None) -> list[str]:
   """Download and extract matching wheels from PyPI for missing packages.
 
@@ -475,7 +508,27 @@ def provision_from_pypi(missing: list[str], progress=None) -> list[str]:
       except (ImportError, ValueError):
         present = False
       if not present:
-        _fetch_dist(dist, SUPPORT_CANDIDATES.get(dist, []), progress)
+        # THE ANSWER IS BOUND, which the loop above does and this one
+        # did not. `_fetch_dist` returns (fetched, reason) and the
+        # reason was thrown away here, so a support package lost to a
+        # dropped connection left `LAST_FAILURES` empty, this function
+        # returning success, and the user meeting "No module named
+        # 'dateutil'" from the library with nothing to say why. The
+        # whole reason machinery written on 2026-08-12 was bypassed by
+        # one unbound call. Measured 2026-08-28 by the `deps` hunt and
+        # reproduced by stubbing `_fetch_dist` itself.
+        # THE RETURN VALUE IS DELIBERATELY UNCHANGED: callers branch on
+        # a list of REQUIRED import names and look them up in that
+        # table, so putting a support name into it would break them.
+        # Whether a failed support package should make provisioning
+        # report failure outright is a contract question and is in the
+        # ledger for the maintainer.
+        fetched, reason = _fetch_dist(
+          dist, SUPPORT_CANDIDATES.get(dist, []), progress)
+        if not fetched:
+          LAST_FAILURES[import_name] = reason
+          if progress:
+            progress(f"{import_name} could not be provisioned: {reason}")
   _forget_modules(provisioned)
   return still_missing
 

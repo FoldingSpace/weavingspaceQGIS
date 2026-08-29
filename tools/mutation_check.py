@@ -2306,6 +2306,104 @@ MUTATIONS = [
        why="a Generate pressed while a run is in flight still drawing "
            "the design it asked for, rather than leaving the previous "
            "run's elements on the map with nothing said"),
+  # THE MOVED-DATA NOTICE, TWO ENTRIES BECAUSE IT HAS TWO AXES. Its
+  # test asserts that the sentence stays QUIET over a map nobody has
+  # touched and still SPEAKS over one whose data really moved, and a
+  # single entry would prove whichever assertion fires first. Each of
+  # these restores one half of the shipped defect.
+  dict(name="the-moved-data-notice-reads-this-datasets-own-reading",
+       file=DIALOG,
+       # Restores the session-wide slot: take the NEWEST reading
+       # whatever dataset it describes, which is what a single
+       # attribute did before 2026-08-28. Draw two datasets, come back
+       # to the first through the group chooser, and the notice fires
+       # over a map whose data nobody has touched.
+       old="""    when_drawn = (None if in_force is None
+                  else self._fingerprint_when_drawn.get(in_force.id()))""",
+       new="""    when_drawn = (None if not self._fingerprint_when_drawn
+                  else list(self._fingerprint_when_drawn.values())[-1])""",
+       test="test_the_moved_data_notice_is_about_the_map_being_saved",
+       why="a save telling somebody their file holds tiles from one "
+           "set of numbers beside a copy of another, when nothing "
+           "about that map's data has been touched -- which sends "
+           "them to re-Generate a map that was already right"),
+  dict(name="a-map-keeps-its-own-reading-when-another-is-drawn",
+       file=DIALOG,
+       # The other half: keep ONE reading rather than one per dataset,
+       # so drawing a second map forgets the first's. The notice then
+       # goes quiet on the journey it exists for -- the region edited
+       # between the drawing and the save -- which is the missed alarm
+       # the first repair for this defect shipped with.
+       old="""      self._fingerprint_when_drawn[source_layer.id()] = (
+        self._a_reading_of_the_data(source_layer))""",
+       new="""      self._fingerprint_when_drawn = {
+        source_layer.id(): self._a_reading_of_the_data(source_layer)}""",
+       test="test_the_moved_data_notice_is_about_the_map_being_saved",
+       why="the warning still arriving for a map whose region was "
+           "edited after it was drawn, in a session where something "
+           "else has been drawn since -- without it the file holds "
+           "old tiles beside new data and nobody is told"),
+  # ANCHORED AT THE HELPER, not at either call site. Two resume
+  # branches call it -- the fresh load and the already-open one -- so
+  # an entry over one of them would report `caught` while the other
+  # went on doing the work, which is this catalogue's own "break every
+  # route at once" rule.
+  dict(name="a-map-you-opened-gets-a-reading-too", file=DIALOG,
+       old="    self._fingerprint_when_drawn[chosen.id()] = "
+           "self._a_reading_of_the_data(chosen)",
+       new="    pass  # mutation: a resume records nothing",
+       test="test_a_map_opened_and_then_edited_says_so_when_it_is_saved",
+       why="somebody who opens a saved map, edits their region and "
+           "presses Save being told that the file now holds tiles cut "
+           "from the old numbers beside a copy of the new ones -- "
+           "without it that journey is silent, and it is the journey a "
+           "shared file makes likeliest"),
+  # Back to the fingerprint alone, which is what the notice shipped
+  # with: structural changes visible, an ordinary value edit invisible.
+  dict(name="a-reading-of-the-data-can-see-a-value-edit", file=DIALOG,
+       old="""    return (self._layer_fingerprint(layer),
+            self._edits_by_layer.get(layer.id(), 0))""",
+       new="""    return (self._layer_fingerprint(layer), 0)""",
+       test="test_a_value_edited_after_the_map_was_drawn_is_reported",
+       why="somebody who retypes numbers between drawing a map and "
+           "saving it being told that the file now holds tiles cut "
+           "from the old ones -- the case the notice was written for, "
+           "and the one a feature count and a bounding box cannot see"),
+  # ANCHORED WITH THE ALREADY-OPEN BRANCH'S OWN INDENTATION, which is
+  # eight spaces where the twin's is six -- so this matches once and
+  # the fresh door goes on doing its job, which is what makes the
+  # verdict about this door rather than about the pair.
+  dict(name="the-already-open-door-records-a-run-signature", file=DIALOG,
+       old="        self._last_run_sig = self._run_signature()",
+       new="        pass  # mutation: the already-open door records nothing",
+       test="test_both_resume_doors_keep_the_file_the_map_was_saved_to",
+       why="opening the map you have just saved leaving it read from "
+           "its GeoPackage -- without it a live tick re-tiles the "
+           "opened map into memory, the file's own layers are dropped "
+           "from the project, and it reopens empty"),
+  dict(name="icon-coverage-asks-in-one-coordinate-system", file=DIALOG,
+       old="""        if move is not None:""",
+       new="""        if False:""",
+       test="test_the_icon_notice_reads_the_same_ground_in_either_crs",
+       why="a person with an ordinary WGS84 layer being told the truth "
+           "about their icons -- without it the region is compared in "
+           "degrees against tiles in metres, nothing intersects, and "
+           "every element is reported as reaching none of the areas"),
+  # ANCHORED AT THE SHARED HELPER, which is the point of having one:
+  # two call sites route through it, so a single mutation closes both
+  # and the verdict cannot be about whichever door the test happened
+  # to drive.
+  dict(name="the-chooser-never-lands-on-our-own-output", file=DIALOG,
+       old="""        if layer.customProperty("weavingspace_output"):
+          continue
+        same = same_source(layer.source(), source)""",
+       new="""        same = same_source(layer.source(), source)""",
+       test="test_choosing_your_own_group_keeps_the_region_and_the_variables",
+       why="choosing your own map's group keeping its region and its "
+           "variables -- without it the walk lands on the outlines "
+           "layer, which is built on the region's own source and "
+           "excluded from the chooser, so the chooser comes up empty "
+           "and the whole design goes with it"),
   dict(name="cvd-simulation", file=PERCEPTION,
        old="""  if vision == "normal":
     return tuple(float(v) for v in rgb)""",
@@ -6629,14 +6727,15 @@ MUTATIONS = [
            "restores a design the user moved on from and replaces the "
            "map they were last working in"),
   dict(name="choosing-a-group-selects-its-dataset", file=DIALOG,
-       old="""          if same and layer is not self.layer_combo.currentLayer():
-            self.layer_combo.setLayer(layer)
-            break
+       # RE-ANCHORED 2026-08-28, when the three copies of the walk it
+       # stood on were routed through one guarded helper. The entry is
+       # about the group MOVING THE DATASET, so it now stands on the
+       # call that does that, in `_on_group_chosen` -- the line above
+       # it is what keeps this from also matching the adopted-design
+       # restore, which takes the same helper.
+       old="""      self._point_the_chooser_at((record or {}).get("region"))
       self._take_over_group(group)""",
-       new="""          if False:  # mutation: the group does not move the dataset
-            self.layer_combo.setLayer(layer)
-            break
-      self._take_over_group(group)""",
+       new="""      self._take_over_group(group)""",
        test="test_the_output_group_chooser_binds_to_the_dataset",
        why="the binding is SYMMETRIC (ruling 2), and this is the half "
            "that is easy to leave out. Without it a group can be "
