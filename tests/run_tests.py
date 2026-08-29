@@ -2010,7 +2010,7 @@ def _generate_and_wait(dlg):
   dlg._on_generated = orig
 
 
-def press_save(dlg, path=None, expect=True):
+def press_save(dlg, path=None, expect=True, settle=True):
   """Press Save where a person would, and say what happened.
 
   Args:
@@ -2024,6 +2024,12 @@ def press_save(dlg, path=None, expect=True):
       declined overwrite, a read-only folder, a map that does not exist
       yet -- in which case the refusal is returned rather than asserted
       and the caller checks what the user was told.
+    settle: True to wait out a press the plugin has DEFERRED because a
+      re-tile is coming, which since 2026-08-29 is what happens inside
+      the live debounce rather than a refusal. The press and the write
+      are one act to a caller, so this is the default. Pass False in a
+      test whose subject is the deferral itself, which wants to read
+      the promise before it is kept.
 
   Returns:
     True when a file with bytes in it is there afterwards, False when
@@ -2067,6 +2073,23 @@ def press_save(dlg, path=None, expect=True):
   if note is not None:
     spoken = f"{spoken} {note.text() or ''}"
   written = "saved to" in spoken.lower()
+
+  # A PRESS INSIDE THE LIVE DEBOUNCE IS KEPT, NOT REFUSED, since the
+  # maintainer's ruling of 2026-08-29: the map is about to be redrawn,
+  # so the plugin says it will be saved afterwards and does it once the
+  # new map has landed. From a caller's side that is still one act --
+  # press Save, get a file -- so this waits for the second half rather
+  # than making every test that presses with live update ON (which is
+  # the DEFAULT, and the setting a whole test family was found holding
+  # wrongly) know about the deferral. Only a test whose subject IS the
+  # deferral passes `settle=False`, and it says so where it does.
+  if settle and not written and "will be saved afterwards" in spoken:
+    _settle(dlg, seconds=90)
+    _tick(2500)
+    spoken = " ".join(text for _kind, text in BAR_MESSAGES)
+    if note is not None:
+      spoken = f"{spoken} {note.text() or ''}"
+    written = "saved to" in spoken.lower()
 
   # ...and the two must agree. A plugin that says it saved and left no
   # file, or that says nothing and wrote anyway, is a defect this
@@ -28087,7 +28110,7 @@ def test_the_save_box_comes_home_when_the_project_reopens():
 
 
 def test_a_save_waits_for_a_run_that_is_about_to_start():
-  """A press inside the live debounce is about the map that is coming.
+  """A press inside the live debounce is KEPT until the map is drawn.
 
   The in-flight guard asks `_task`, and a QUEUED run does not have one
   yet. With live update at its default, a design change arms the live
@@ -28096,7 +28119,18 @@ def test_a_save_waits_for_a_run_that_is_about_to_start():
   success. Measured: saved at 55 tiles an element, the file still held
   55 after the press, and a second later the map drew 190.
 
-  THE CONTROL IS THE ORDINARY SAVE, and it is why this test has two
+  AND THE FIRST ANSWER TO THAT WAS A REFUSAL, which the maintainer
+  overruled on 2026-08-29: most people will not read the sentence, so
+  a refusal that depends on being read is a save that quietly did not
+  happen and somebody closes QGIS believing their map is on disk. The
+  press is remembered and performed once the new map has landed, and
+  the sentence says so rather than asking for a second press.
+
+  SO THE THIRD ARM ASSERTS A PROMISE KEPT, which is a stronger claim
+  than a refusal was: the file must hold the NEW map afterwards, with
+  no second press anywhere in this test.
+
+  THE CONTROL IS THE ORDINARY SAVE, and it is why this test has three
   arms rather than one. The output path is a term of the run signature
   (settled when a run WROTE the file), so merely choosing a file arms
   the timer and moves the signature -- and the first draft of this
@@ -28104,6 +28138,7 @@ def test_a_save_waits_for_a_run_that_is_about_to_start():
   is. Its own probe caught that on its FIRST press.
 
   Regression: a Save pressed while a live re-tile was queued wrote the map that was about to be replaced and reported success. Found by the sentences hunt of 2026-08-28. [hunt]
+  Regression: the repair for that refused the press instead of keeping it, so a save nobody read the refusal for simply did not happen. The maintainer's ruling of 2026-08-29. [user]
   """
   with _temp_dir() as folder:
     path = os.path.join(folder, "map.gpkg")
@@ -28125,29 +28160,67 @@ def test_a_save_waits_for_a_run_that_is_about_to_start():
       first = gpkg_contents(path)["tables"]
       assert first, "PREMISE: the control save wrote no tables"
 
-      # ---- AND A PRESS INSIDE A REAL RE-TILE'S WINDOW
+      # ---- AND A PRESS INSIDE A REAL RE-TILE'S WINDOW IS KEPT
       dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 0.5)
       _tick(50)
       assert dlg._task is None, (
         "PREMISE: the run had already started, so this is the "
         "in-flight journey the older guard already refuses")
-      assert not press_save(dlg, path, expect=False), \
+      assert not press_save(dlg, path, expect=False, settle=False), \
         "the press inside the live window wrote the map it was not about"
       said = _said_about_a_save(dlg)
-      assert "about to be redrawn" in said, (
-        f"the refusal does not say why: {said!r}")
+      assert "will be saved afterwards" in said, (
+        f"the press does not say what is going to happen: {said!r}. A "
+        f"sentence telling somebody to press again is a save that does "
+        f"not happen, because most people will not read it")
+      assert dlg._save_pending, (
+        "the press was neither written nor remembered, so it is lost "
+        "-- which is what the sentence has just promised it is not")
       assert gpkg_contents(path)["tables"] == first, \
-        "the refused press changed the file anyway"
+        "the deferred press wrote the map it was not about anyway"
 
-      # ...and once the queued run has landed, the same press works.
+      # ...AND THE PROMISE IS KEPT, with no second press anywhere here.
       _settle(dlg, seconds=90)
-      assert press_save(dlg, path), \
-        "the save after the queued run landed was refused too"
+      _tick(2000)
+      assert not dlg._save_pending, (
+        "the queued save was still waiting after the run landed and "
+        "everything settled: the promise was made and dropped")
       after = gpkg_contents(path)["tables"]
       assert after != first, (
-        f"the map was re-tiled between the two presses and the file "
-        f"holds the same counts either way ({first} then {after}), so "
-        f"this test cannot tell one map from the other")
+        f"the map was re-tiled and the file still holds the map from "
+        f"before it ({first} then {after}): the press was remembered "
+        f"and never acted on")
+
+      # ---- AND THE ROUTE WHERE THE QUEUED RUN NEVER HAPPENS. The
+      # live tick has ten gates and any of them can decide no run is
+      # coming; the map on screen is then final and the promise is due
+      # just the same. Unticking live update is the plainest of them,
+      # and it does not stop the armed timer -- so the tick fires,
+      # declines at its second gate, and the save must follow.
+      # A SECOND FILE, because the first already holds this map: with
+      # one path there is no reading that tells a save which happened
+      # from one which did not.
+      elsewhere = os.path.join(folder, "elsewhere.gpkg")
+      dlg.gpkg_widget.setFilePath(elsewhere)
+      dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 0.5)
+      _tick(50)
+      assert dlg._task is None and dlg._a_queued_run_would_redraw(), (
+        "PREMISE: no re-tile is queued, so this arm is not standing "
+        "where a press gets deferred at all")
+      assert not press_save(dlg, elsewhere, expect=False, settle=False), \
+        "the press inside the live window wrote before the run"
+      assert dlg._save_pending, "PREMISE: the press was not remembered"
+      dlg.live_check.setChecked(False)
+      _settle(dlg, seconds=90)
+      _tick(2500)
+      assert not dlg._save_pending, (
+        "the queued run was called off and the save was left waiting "
+        "for a landing that will never come: a promise dropped by a "
+        "gate that has nothing to do with saving")
+      held = gpkg_contents(elsewhere)["tables"]
+      assert held, (
+        f"nothing was written to {elsewhere!r} after the tick "
+        f"declined, though the plugin had promised it would be")
     finally:
       dlg.close()
 
@@ -28521,6 +28594,229 @@ def test_a_donor_comes_home_when_the_map_is_opened():
         f"rebuild writes the stale answer back over it")
     finally:
       opener.close()
+
+
+def test_a_follower_goes_on_following_a_map_you_opened():
+  """"Take my classes from that layer" has to keep meaning it.
+
+  A follower draws no colours of its own: it takes them from the
+  donor's layer, which is what makes two elements agree about one
+  column. Nothing in the file records those colours for it, and
+  nothing should -- the link is the record.
+
+  WHY IT STOPPED. A map saved with the source embedded travels with a
+  copy of the region inside the GeoPackage, so a recipient who does
+  not have the sender's layer recovers onto THAT copy. The layer in
+  force is then the file itself, the region the record names is a path
+  on the sender's machine, and `_apply_element_records` compared the
+  two and answered False -- skipping the value-laden block, which
+  means neither applied NOR cleared. The colours adoption had
+  recovered off the layers stayed standing as though a person had
+  picked them, and a hand-pick outranks a template: the follower kept
+  its inherited colours and never followed its donor again.
+
+  NOTHING LOOKS WRONG UNTIL THE DONOR MOVES, which is why every arm
+  here moves it. The colours are right on the day the file is opened;
+  the loss is a link, and a test reading today's colours would pass on
+  a map that had quietly stopped agreeing with itself.
+
+  THREE ARMS AND THREE COLOURS. The first is the CONTROL, in the
+  sending session, where the link has always worked -- without it a
+  silent arm proves nothing, since the fixture or the act could be at
+  fault. The claim named the Load door; the recipient who saves their
+  project, opens it again and picks the map out of the group chooser
+  reaches the same skip through a door that can pass no path in, and a
+  test covering one would have left the other. Each arm picks its own
+  colour, because one colour across three arms is how an arm comes to
+  compare a colour with itself.
+
+  Regression: a follower's inherited colours were adopted as its own hand-picks when a self-contained map was opened, so it stopped following its donor and the two drew one column in two sets of colours. Found by the classsource hunt of 2026-08-28. [hunt]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  project = QgsProject.instance()
+
+  def drawn(dlg, tid):
+    """What one element's layer actually paints, value by value.
+
+    Args:
+      dlg: the dialog holding the map.
+      tid: the element's tile id.
+
+    Returns:
+      A dict of value -> "#rrggbb", empty where there is no
+      categorized renderer to read.
+    """
+    layer = project.mapLayer(dlg._element_layer_ids.get(tid, ""))
+    if layer is None or not hasattr(layer.renderer(), "categories"):
+      return {}
+    # BOUND BEFORE IT IS SUBSCRIPTED: a temporary from `categories()`
+    # frees its contents, which has segfaulted QGIS here once and
+    # returned a plausible wrong colour another time.
+    held = list(layer.renderer().categories())
+    return {str(c.value()): c.symbol().color().name()
+            for c in held if c.symbol() is not None}
+
+  def move_the_donor(dlg, donor, colour):
+    """Hand-pick a colour on the donor and let it reach the map.
+
+    Args:
+      dlg: the dialog.
+      donor: the donor's tile id.
+      colour: the "#rrggbb" to put on one real category.
+
+    Returns:
+      The value that was recoloured, so a caller can read the same key
+      off the follower.
+    """
+    painting = drawn(dlg, donor)
+    # NOT THE CATCH-ALL, whose value is empty and whose colour is the
+    # no-data grey: recolouring that moves no category at all, and the
+    # first draft of this fixture picked it and reported a link that
+    # does not work.
+    real = [v for v in sorted(painting)
+            if v and v not in ("None", "NULL", str(bridge.NO_DATA_KEY))]
+    assert real, f"PREMISE: the donor draws only a catch-all: {painting}"
+    value = real[0]
+    was = painting[value]
+    assert was != colour, (
+      f"PREMISE: the donor already paints {value!r} {colour}, so this "
+      f"arm would compare a colour with itself")
+    dlg._category_colours.setdefault(donor, {}) \
+       .setdefault("landcover", {})[value] = colour
+    dlg._apply_style_change()
+    _tick(900)
+    _generate_and_wait(dlg)
+    assert drawn(dlg, donor).get(value) == colour, (
+      f"PREMISE: the pick never reached the donor's own map, which "
+      f"draws {drawn(dlg, donor).get(value)!r} for {value!r}")
+    return value
+
+  with _temp_dir() as folder:
+    path = os.path.join(folder, "shared.gpkg")
+    qgz = os.path.join(folder, "recipient.qgz")
+    dlg, _layer, donor = _categorical_dialog()
+    follower = None
+    try:
+      dlg.live_check.setChecked(False)
+      _generate_and_wait(dlg)
+      assert dlg._element_layer_ids, "PREMISE: nothing was drawn"
+      follower = next(t for t in sorted(dlg._element_layer_ids)
+                      if t != donor)
+      row = dlg._row_for_element(follower)
+      variable = dlg.table.cellWidget(row, 1)
+      variable.setCurrentText("landcover")
+      variable.activated.emit(variable.currentIndex())
+      _tick(400)
+      row = dlg._row_for_element(follower)
+      mode = dlg.table.cellWidget(row, 2)
+      if mode.currentText() != "Categorized":
+        mode.setCurrentText("Categorized")
+        mode.activated.emit(mode.currentIndex())
+        _tick(400)
+      _generate_and_wait(dlg)
+
+      row = dlg._row_for_element(follower)
+      source = dlg.table.cellWidget(row, 7)
+      token = f"layer:{dlg._element_layer_ids[donor]}"
+      index = source.findData(token)
+      assert index >= 0, (
+        f"PREMISE: the donor's layer is not on offer: "
+        f"{[source.itemData(i) for i in range(source.count())]}")
+      source.setCurrentIndex(index)
+      source.activated.emit(index)          # what a click sends
+      _tick(600)
+      _generate_and_wait(dlg)
+
+      # ---- THE CONTROL: does the link work at all, in this session?
+      before = drawn(dlg, follower)
+      value = move_the_donor(dlg, donor, "#ff00ff")
+      assert drawn(dlg, follower).get(value) == "#ff00ff", (
+        f"PREMISE: the follower does not follow its donor even here, "
+        f"drawing {drawn(dlg, follower).get(value)!r} where the donor "
+        f"draws #ff00ff -- so no arm below can show a link being lost "
+        f"(it drew {before.get(value)!r} before the move)")
+
+      dlg.opt_embed_source.setChecked(True)
+      dlg.gpkg_widget.setFilePath(path)
+      assert press_save(dlg, path), "PREMISE: the save failed"
+      assert bridge.REGION_TABLE_NAME in set(bridge.gpkg_tables(path)), (
+        "PREMISE: the source was not embedded, so a recipient would "
+        "not recover onto the copy this test is about")
+    finally:
+      dlg.close()
+
+    # THE FILE SAYS NOTHING ABOUT THE FOLLOWER'S COLOURS, which is the
+    # whole point of a class source and is what makes the harm
+    # possible: only the link can bring them back.
+    record = bridge.read_working_state(path)
+    carried = next((element.get("category_colours")
+                    for element in (record or {}).get("elements") or []
+                    if element.get("id") == follower), None)
+    assert not carried, (
+      f"PREMISE: the file records colours for the follower "
+      f"({carried!r}), so this test is not about a follower")
+
+    # ---- ARM ONE: the recipient opens it with Load
+    project.clear()
+    _tick(300)
+    opener = WeavingSpaceDialog(iface=_Iface())
+    try:
+      opener.live_check.setChecked(False)
+      opener.resume_widget.setFilePath(path)
+      opener._load_pressed()
+      _settle(opener, seconds=60)
+      assert opener._element_layer_ids, "PREMISE: the Load opened no map"
+      in_force = opener.layer_combo.currentLayer()
+      assert in_force is not None and bridge.REGION_TABLE_NAME in \
+          in_force.source(), (
+        f"PREMISE: the recovery did not land on the copy inside the "
+        f"file ({in_force.source() if in_force else None!r}), so this "
+        f"arm is not standing at the door under test")
+      assert not opener._category_colours.get(follower), (
+        f"the follower came home owning colours it never picked: "
+        f"{opener._category_colours.get(follower)!r}. They are the "
+        f"donor's, adopted off the layer, and a hand-pick outranks a "
+        f"template -- so the link is already dead")
+      moved_to = move_the_donor(opener, donor, "#00c8ff")
+      assert drawn(opener, follower).get(moved_to) == "#00c8ff", (
+        f"the opened map's follower draws "
+        f"{drawn(opener, follower).get(moved_to)!r} where its donor "
+        f"now draws #00c8ff: it has stopped following")
+      project.write(qgz)
+    finally:
+      opener.close()
+
+    # ---- ARM TWO: and again through the group chooser, where nothing
+    # can name the file. The record's own output_path is what answers.
+    project.clear()
+    _tick(300)
+    project.read(qgz)
+    _tick(600)
+    second = WeavingSpaceDialog(iface=_Iface())
+    try:
+      second.live_check.setChecked(False)
+      _tick(600)
+      combo = second.group_combo
+      picked = next((i for i in range(combo.count())
+                     if combo.itemData(i)), None)
+      assert picked is not None, (
+        f"PREMISE: the reopened project offers no group to choose: "
+        f"{[combo.itemText(i) for i in range(combo.count())]}")
+      combo.setCurrentIndex(picked)
+      combo.activated.emit(picked)          # what a click sends
+      _tick(900)
+      assert not second._category_colours.get(follower), (
+        f"choosing the group gave the follower colours of its own "
+        f"({second._category_colours.get(follower)!r}); the Load door "
+        f"was mended and this one was not")
+      moved_to = move_the_donor(second, donor, "#22aa22")
+      assert drawn(second, follower).get(moved_to) == "#22aa22", (
+        f"the chosen group's follower draws "
+        f"{drawn(second, follower).get(moved_to)!r} where its donor "
+        f"now draws #22aa22: it has stopped following")
+    finally:
+      second.close()
 
 
 def test_a_colour_picked_on_a_map_you_did_not_draw_reaches_it():
@@ -71883,6 +72179,8 @@ def main():
         test_a_colour_picked_on_a_map_you_did_not_draw_reaches_it)
   check("a donor comes home when the map is opened",
         test_a_donor_comes_home_when_the_map_is_opened)
+  check("a follower goes on following a map you opened",
+        test_a_follower_goes_on_following_a_map_you_opened)
   check("a blend mode set in QGIS survives a re-tile",
         test_a_blend_mode_set_in_qgis_survives_a_re_tile)
   check("a column called no data does not miscount the map",

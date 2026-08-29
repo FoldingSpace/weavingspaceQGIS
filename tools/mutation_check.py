@@ -2114,9 +2114,14 @@ MUTATIONS = [
        # records this exact mutant as causing an extra tiling run
        # after every Generate, which is how it is known not to be
        # equivalent.
-       old="""    self._live_timer.timeout.connect(self._maybe_live_generate)
+       # RE-ANCHORED 2026-08-29, when a SECOND connection was made to
+       # the same timeout for the queued save and took the neighbour
+       # this entry bound to. The subject is unchanged -- the
+       # constructor's own initialisation -- and the line above is
+       # still what tells the three sites apart.
+       old="""    self._live_timer.timeout.connect(self._honour_a_queued_save)
     self._live_pending = False""",
-       new="""    self._live_timer.timeout.connect(self._maybe_live_generate)
+       new="""    self._live_timer.timeout.connect(self._honour_a_queued_save)
     self._live_pending = True""",
        test="test_a_finished_run_leaves_nothing_armed",
        why="an ordinary Generate not arming a live rebuild nobody "
@@ -7707,6 +7712,38 @@ MUTATIONS = [
            "that is about to be replaced, and reporting success for "
            "it -- the same reasoning the in-flight guard already "
            "carries, applied to the run that has not started yet"),
+  dict(name="a-queued-save-is-actually-written",
+       file=DIALOG,
+       # The promise is consumed and never kept: the flag clears, so
+       # nothing looks stranded, and the file is never written. Aimed
+       # at the WRITE rather than at the whole block deliberately --
+       # mutating the clear as well fires the test's earlier assertion
+       # about `_save_pending` and the file axis is never reached,
+       # which is the masking this catalogue is meant to avoid.
+       old="""    self._save_pending = False
+    self._save_the_map()""",
+       new="""    self._save_pending = False
+    pass  # mutation: the promise is consumed and never kept""",
+       test="test_a_save_waits_for_a_run_that_is_about_to_start",
+       why="a Save pressed while a re-tile is coming actually reaching "
+           "the disk: the sentence promises the map will be saved "
+           "afterwards, and a promise nobody keeps is worse than the "
+           "refusal it replaced, because the person has been told it "
+           "is in hand"),
+  dict(name="a-declined-tick-still-honours-a-queued-save",
+       file=DIALOG,
+       # The live tick's own connection, removed. The ordinary route
+       # -- the queued run lands -- still works, so three of the four
+       # arms pass; what dies is the route where the tick DECLINES and
+       # no landing is ever coming, which is the gated-path fault the
+       # queued PRESS already cost this project once.
+       old="""    self._live_timer.timeout.connect(self._honour_a_queued_save)""",
+       new="""    pass  # mutation: only a landing honours a queued save""",
+       test="test_a_save_waits_for_a_run_that_is_about_to_start",
+       why="a queued save surviving a run that never happens: the live "
+           "path has ten gates, any of them can decide no map is "
+           "coming, and a promise consumed only by a LANDING is one a "
+           "gate with nothing to do with saving can drop in silence"),
   dict(name="a-queued-run-that-only-moves-the-path-is-not-a-redraw",
        file=DIALOG,
        # The other half, and the one that cost this guard its first
@@ -7823,6 +7860,25 @@ MUTATIONS = [
            "the widget, and the choice is gone in silence -- two "
            "elements showing one column then part company the moment "
            "somebody moves the donor"),
+  dict(name="a-carried-region-is-this-records-own-data",
+       file=DIALOG,
+       # BOTH ROUTES AT ONE LINE, deliberately. `from_file` answers at
+       # the two resume doors and `output_path` at the group chooser,
+       # where nothing can pass a path in; an entry over either alone
+       # would survive, because the other still reaches the comparison.
+       # Emptying the carrier kills the whole decision, which is what
+       # the triage of 2026-08-28 asks for where a fact has more than
+       # one writer -- and it cannot be split again by whatever
+       # alternative somebody adds next.
+       old="""      carrier = from_file or record.get("output_path")""",
+       new="""      carrier = None  # mutation: the file's own copy is a stranger""",
+       test="test_a_follower_goes_on_following_a_map_you_opened",
+       why="a self-contained map going on meaning what it said: the "
+           "recipient recovers onto the copy inside the file, so a "
+           "comparison against the sender's own path answers False and "
+           "the value-laden block is skipped -- neither applied nor "
+           "cleared, which leaves a follower owning the colours it "
+           "merely inherited and never following its donor again"),
   dict(name="a-restored-map-is-a-map-the-controls-describe",
        file=DIALOG,
        # Puts the restyle path back out of reach on any map this

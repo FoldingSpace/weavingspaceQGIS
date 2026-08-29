@@ -2064,6 +2064,18 @@ class WeavingSpaceDialog(QDialog):
     self._live_timer.setSingleShot(True)
     self._live_timer.setInterval(LIVE_DEBOUNCE_MS)
     self._live_timer.timeout.connect(self._maybe_live_generate)
+    # ...AND A SAVE QUEUED BEHIND THAT TICK IS HONOURED WHEREVER IT
+    # DECLINES. A SECOND CONNECTION rather than a line inside the
+    # handler, deliberately: `_maybe_live_generate` has ten named
+    # exits, and a tail added to it would run on none of them. Qt calls
+    # slots in the order they were connected, so this runs after the
+    # tick has either started a run -- in which case it returns and the
+    # landing honours the save -- or declined, in which case the map on
+    # screen is final and the save is due. Connected AFTER, because
+    # work added to a signal handler must not precede the work already
+    # there: an exception in a Qt slot is swallowed and takes the rest
+    # of the handler with it.
+    self._live_timer.timeout.connect(self._honour_a_queued_save)
     self._live_pending = False
     # A Generate PRESSED while a run is in flight, which is a
     # different fact from a live tick deferred the same way and must
@@ -2079,6 +2091,27 @@ class WeavingSpaceDialog(QDialog):
     # dialog adopts the group by. One flag gating two different
     # things, which this project has paid for before.
     self._press_pending = False
+    # A SAVE PRESSED WHILE A RUN IS COMING, which is a third fact again
+    # and shares neither flag. Until 2026-08-29 such a press was
+    # REFUSED in words, on the reasoning that a press this dialog
+    # remembers is a promise about a map nobody has seen yet. The
+    # maintainer overruled that the same day, and the reason is the one
+    # this project keeps meeting from the other side: MOST PEOPLE WILL
+    # NOT READ THE SENTENCE. A refusal that depends on being read is a
+    # save that silently did not happen, so the press is kept and
+    # honoured once the new map has landed, and the sentence says that
+    # is what will happen rather than asking for a second press.
+    # IT IS CONSUMED BY TAKING AND CLEARING IT AT THE POINT OF USE,
+    # which is what `_press_pending` had to be taught: every other
+    # remembered intent here is consumed that way and cannot lose
+    # anything, while a flag handed to a GATED path is dropped by a
+    # gate that has nothing to do with the act being deferred.
+    # `_honour_a_queued_save` is asked from three places for that
+    # reason -- the landing, the live tick's own decline, and the
+    # re-pressed Generate -- and it holds nothing but the intent: the
+    # chooser is read again at the moment of the write, exactly as the
+    # button reads it, so every guard the press would have met is met.
+    self._save_pending = False
     # True once the window has been closed. A closed dialog
     # must not write into the project: the timers can be
     # stopped, but the region layer's signals stay connected
@@ -4751,6 +4784,7 @@ class WeavingSpaceDialog(QDialog):
           pass                  # the Qt object is already gone
     self._live_pending = False
     self._press_pending = False   # a closed window presses nothing
+    self._save_pending = False    # ...and saves nothing either
     # And the dialog is CLOSED, which the timers alone could not say.
     # Stopping them stopped the beat already armed; it did nothing
     # about the region layer's own signals, which stay connected to a
@@ -7531,6 +7565,12 @@ class WeavingSpaceDialog(QDialog):
     # standing lesson about a call put back in the wrong place.
     self._press_pending = False
     self._live_pending = False
+    # A NEW FLAG INHERITS THE CLEAR SITE ITS PREDECESSOR HAD AND NO
+    # OTHER, which is this file's own standing lesson about what a
+    # clear site LEAVES. A save queued against the project being
+    # replaced would write the outgoing project's map into the
+    # incoming one's file.
+    self._save_pending = False
     # ...and say so until adoption has read the incoming project. The
     # clear alone is not enough because the TABLE survives it and
     # refills these records before adoption is asked; this marker is
@@ -13820,6 +13860,46 @@ class WeavingSpaceDialog(QDialog):
     here = self.gpkg_widget.filePath().strip() or None
     return any(term != here for term in differing)
 
+  def _honour_a_queued_save(self):
+    """Write the map a Save press was deferred over, once it is drawn.
+
+    Returns:
+      None. Does nothing at all unless a press is waiting AND the
+      plugin is at rest: no run in flight, no press or tick queued
+      behind this one, and no live timer still armed. Where all of
+      those hold, the intent is TAKEN AND CLEARED before the write, so
+      that a save which refuses for a reason of its own cannot leave
+      the promise standing to fire again.
+
+    WHY IT IS ASKED FROM THREE PLACES, and why none of them is enough
+    alone. `_finish_run` covers the ordinary case, where the queued run
+    lands and the map the press was about now exists. The LIVE TIMER's
+    own second connection covers the tick that DECLINES -- ten gates,
+    any of which can decide no run will happen, after which the map on
+    screen is final and the save is due. And the landing arms this on a
+    timer AFTER the re-pressed Generate, which has eight refusals of
+    its own. Between them there is no route where a run neither happens
+    nor declines, except the window closing, which clears the flag.
+
+    THE WIDGET IS READ AGAIN, not remembered. The press asked to save
+    THIS MAP, and where it goes is whatever the chooser says at the
+    moment of the write -- so every guard the button meets is met,
+    including the overwrite question and the refusal for an empty box.
+    Holding the path instead would write to a file the person had since
+    changed their mind about, silently, which is the shape of the
+    defect this whole ruling is about.
+    """
+    if not self._save_pending:
+      return
+    if self._closed:
+      self._save_pending = False
+      return
+    if (self._task is not None or self._press_pending
+        or self._live_pending or self._live_timer.isActive()):
+      return                  # another run is still coming; wait for it
+    self._save_pending = False
+    self._save_the_map()
+
   def _run_signature(self):
     """Everything that affects the output, as one comparable tuple;
     live update skips regenerating when this equals the last run's
@@ -16121,7 +16201,8 @@ class WeavingSpaceDialog(QDialog):
       for element in (record.get("elements") or [])]
     return safe
 
-  def _apply_working_state(self, record, keep_adopted=False) -> bool:
+  def _apply_working_state(self, record, keep_adopted=False,
+                           from_file=None) -> bool:
     """Put a group's recorded map back into the dialog.
 
     Args:
@@ -16134,6 +16215,13 @@ class WeavingSpaceDialog(QDialog):
         where clearing on silence is what stops one group's answer
         riding onto another (ledger row 1). Passed through to
         `_apply_element_records`.
+      from_file: the GeoPackage this record was just read out of, where
+        a caller knows it. Only the resume doors do; everywhere else it
+        is None and the record's own `output_path` answers instead. It
+        exists because a file may carry a COPY of the region inside it,
+        and a recipient recovering onto that copy is standing on this
+        record's own data under another name -- see
+        `_apply_element_records`, where the comparison lives.
 
     Returns:
       True when the dialog was moved, False when there was nothing
@@ -16239,7 +16327,7 @@ class WeavingSpaceDialog(QDialog):
     finally:
       blocked(False)
 
-    self._apply_element_records(record, keep_adopted)
+    self._apply_element_records(record, keep_adopted, from_file)
     # The table is rebuilt ONCE, here, reading the record rather than
     # the rows it is about to replace. See `_restoring_assignments`.
     self._restoring_assignments = record.get("elements") or None
@@ -16275,7 +16363,8 @@ class WeavingSpaceDialog(QDialog):
     self._last_geometry_sig = self._geometry_signature()
     return True
 
-  def _apply_element_records(self, record, keep_adopted=False):
+  def _apply_element_records(self, record, keep_adopted=False,
+                             from_file=None):
     """Write a record's per-element choices into the dialog's own dicts.
 
     Args:
@@ -16284,6 +16373,10 @@ class WeavingSpaceDialog(QDialog):
       keep_adopted: when True, a key the record is silent about never
         pops the dialog's dict -- the adoption-door contract, argued
         at `_apply_working_state`. Assignments still apply.
+      from_file: the GeoPackage this record came out of, where the
+        caller knows it. Used only to recognise the region copy that
+        file carries; None everywhere else, and the record's own
+        `output_path` stands in.
 
     Returns:
       None. Fills the element-keyed dicts `_refresh_table` restores
@@ -16319,6 +16412,41 @@ class WeavingSpaceDialog(QDialog):
     # Windows-only reds, one comparison. A string that carries a path
     # inside it is a path, wherever the two halves came from.
     same_data = bool(here) and same_source(here, record.get("region"))
+    # AND THE COPY A FILE CARRIES IS THAT FILE'S OWN DATA, under
+    # another name. Ticking "Include the source data" puts the region
+    # into the GeoPackage as `weavingspace_region`, and a recipient who
+    # does not have the sender's layer recovers onto THAT copy -- so
+    # the source of the layer in force is the file itself and the
+    # region the record names is a path on somebody else's machine.
+    # The comparison above answers False, and `if not same_data:
+    # continue` below then skips the value-laden block, which means
+    # NEITHER APPLIED NOR CLEARED: the sender's pins and hand-picks do
+    # not come home, and whatever adoption recovered off the layers
+    # stands as though a person had picked it.
+    # MEASURED 2026-08-29, donor and follower on one column, the file
+    # saved with the source embedded. The record carries no colours for
+    # the follower -- correctly, since it owns none and takes them from
+    # its donor -- and after the Load the follower held four picks of
+    # its own, `_adopt_row_symbology` having recovered every colour a
+    # named ramp cannot explain. So moving the donor moved nothing: the
+    # two went on drawing one column in two sets of colours, and
+    # nothing looks wrong until somebody moves the donor, which may be
+    # days later.
+    # BOTH DOORS, and the claim named one. The Load door is where it
+    # was reported; the recipient who saves their project, opens it
+    # again and picks the map out of the group chooser reaches the same
+    # skip, and nothing there can pass a path in -- so the record's own
+    # `output_path` answers, which after a resume names the file that
+    # was opened. Driven both ways before the repair and after.
+    # RULING 8 IS UNTOUCHED. This is one file's own record meeting the
+    # data that file brought, not another dataset's record reaching
+    # this one: the copy was written from the very layer these pins and
+    # value strings were made against.
+    if here and not same_data:
+      carrier = from_file or record.get("output_path")
+      if carrier:
+        same_data = same_source(
+          here, f"{carrier}|layername={bridge.REGION_TABLE_NAME}")
     for element in elements:
       if not isinstance(element, dict):
         continue
@@ -16671,14 +16799,24 @@ class WeavingSpaceDialog(QDialog):
     # element, the file still held 55 after the press, and a second
     # later the map drew 190. The press asked for the design they had
     # just chosen and the file got the one before it.
-    # REFUSED IN WORDS, LIKE ITS TWIN, rather than deferred. A press
-    # this dialog remembers and honours later is a promise about a map
-    # nobody has seen yet -- the shape the queued-press defect was
-    # about -- and the run lands in under a second.
+    # QUEUED AND HONOURED, NOT REFUSED, which reverses the first
+    # answer. It was refused in words, like its twin, on the reasoning
+    # that a press this dialog remembers is a promise about a map
+    # nobody has seen yet. The maintainer overruled that on 2026-08-29
+    # for a reason no measurement here would have produced: MOST
+    # PEOPLE WILL NOT READ THE SENTENCE, so a refusal that depends on
+    # being read is a save that quietly did not happen, and somebody
+    # closes QGIS believing their map is on disk. The press is kept,
+    # the sentence says what will happen rather than asking for a
+    # second press, and `_honour_a_queued_save` writes the file once
+    # the new map has landed.
+    # IT RETURNS FALSE BECAUSE THIS PRESS WROTE NOTHING, which is the
+    # honest answer to a caller asking whether a file was written. The
+    # person is told the other half in words.
     if self._a_queued_run_would_redraw():
+      self._save_pending = True
       self._report_quietly(
-        "The map is about to be redrawn. Save it once the new one "
-        "has landed.")
+        "The map is about to be redrawn and will be saved afterwards.")
       return False
     if not self._may_overwrite(path):
       return False
@@ -17332,7 +17470,10 @@ class WeavingSpaceDialog(QDialog):
       try:
         self._recover_the_source(path, record)
         self._take_over_group(already)
-        self._apply_working_state(record)
+        # THE FILE IS NAMED so that a region copy this very file
+        # carries is recognised as this record's own data; see
+        # `_apply_element_records`.
+        self._apply_working_state(record, from_file=path)
         self.gpkg_widget.blockSignals(True)
         self.gpkg_widget.setFilePath(path)
         self.gpkg_widget.blockSignals(False)
@@ -17509,7 +17650,8 @@ class WeavingSpaceDialog(QDialog):
         group.setName(named)
         self._group_name = named
       self._take_over_group(group)
-      self._apply_working_state(record)
+      # THE FILE IS NAMED, for the reason written at the twin above.
+      self._apply_working_state(record, from_file=path)
       # THE FILE BEING RESUMED IS THE OUTPUT FILE, whatever the record
       # says. The record carries the path the map was WRITTEN to, and
       # restoring that is right when the group is chosen inside its
@@ -18663,6 +18805,17 @@ class WeavingSpaceDialog(QDialog):
     elif self._live_pending:
       self._live_pending = False
       self._live_timer.start()
+    # AND A SAVE QUEUED BEHIND ALL OF THAT, unconditionally and LAST.
+    # Armed on a timer rather than called, so it runs after whichever
+    # of the two arms above has had its turn: a re-pressed Generate is
+    # already queued at singleShot(0), Qt keeps that order, and
+    # `_generate` either launches -- in which case this returns,
+    # because a task is in flight, and the next landing asks again --
+    # or refuses at one of its eight gates, in which case no landing is
+    # coming and the save is due now. Unconditional because the guard
+    # inside it is the one that decides; a condition here would be a
+    # second copy of that decision, and this project has paid for those.
+    QTimer.singleShot(0, self._honour_a_queued_save)
 
   def _add_output_layers(self, gdf, family, source_layer, assignments,
                          path, run_sig=None, geometry_sig=None,

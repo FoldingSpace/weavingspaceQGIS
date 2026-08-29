@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-419 defect(s) with a regression test.
+420 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -101,6 +101,8 @@ there is no separate list to remember.
   guarded by `test_a_far_pin_does_not_flatten_the_box_a_small_one_needs`
 - **five kinds of unopenable file were given one sentence claiming the file carried no saved map, including a path that did not exist. Found by the brokenfiles hunt of 2026-08-28.**  
   guarded by `test_a_file_that_will_not_open_says_which_way_it_failed`
+- **a follower's inherited colours were adopted as its own hand-picks when a self-contained map was opened, so it stopped following its donor and the two drew one column in two sets of colours. Found by the classsource hunt of 2026-08-28.**  
+  guarded by `test_a_follower_goes_on_following_a_map_you_opened`
 - **a forward ramp set in QGIS matched a row that was ticked Reverse, so the plugin saw no change and the next unrelated edit flipped the element end for end in the project and in the exported file.**  
   guarded by `test_a_forward_ramp_does_not_match_a_reversed_row`
 - **the no-data layer's style was embedded in the GeoPackage before its opacity was set, so an exported map drew those areas opaque.**  
@@ -185,8 +187,6 @@ there is no separate list to remember.
   guarded by `test_a_save_leaves_another_maps_tables_alone`
 - **deleting element layers in the panel and pressing Save reported plain success -- for a partial map, and for an emptied file when the whole group had gone. Found by the sentences and notices hunts of 2026-08-28.**  
   guarded by `test_a_save_says_which_elements_are_not_in_the_project`
-- **a Save pressed while a live re-tile was queued wrote the map that was about to be replaced and reported success. Found by the sentences hunt of 2026-08-28.**  
-  guarded by `test_a_save_waits_for_a_run_that_is_about_to_start`
 - **typing a scale factor between -1 and 1 was mangled by the step-over-zero handler firing per keystroke, so a mirrored design was silently un-mirrored and every element drew on the wrong side of the map.**  
   guarded by `test_a_scale_between_minus_one_and_one_can_be_typed`
 - **negative scale factors were allowed on 2026-08-16 so that a pattern can be mirrored, which put ZERO inside the control's range for the first time. The library does not refuse a zero scale: `transform_scale(0, ...)` returns a unit collapsed to no area, and the failure surfaces much later inside `Tiling.__init__` as `numpy.linalg.LinAlgError: Singular matrix` -- reaching the user as a raw "Tiling failed" line about a matrix they never asked about.**  
@@ -852,6 +852,8 @@ there is no separate list to remember.
   guarded by `test_a_renderer_the_row_cannot_name_defers_to_qgis`
 - **values retyped in QGIS left the map drawing the classification computed from the old values, with classes running past everything the layer now held.**  
   guarded by `test_a_retyped_column_reclassifies_the_map`
+- **a Save pressed while a live re-tile was queued wrote the map that was about to be replaced and reported success. Found by the sentences hunt of 2026-08-28. [hunt] Regression: the repair for that refused the press instead of keeping it, so a save nobody read the refusal for simply did not happen. The maintainer's ruling of 2026-08-29.**  
+  guarded by `test_a_save_waits_for_a_run_that_is_about_to_start`
 - **2026-08-19. A style pasted between element layers in QGIS carried the boundaries but not the pins, so the receiving element could neither show them nor keep them.**  
   guarded by `test_a_style_pasted_between_elements_carries_its_pins`
 - **a subset string set by the user on an element layer was discarded at every regeneration, silently, while the hand styling beside it survived.**  
@@ -892,7 +894,7 @@ there is no separate list to remember.
 - a bug hunt pointed in a named direction: 122
 - the mutation campaign: 122
 - not written down at the time: 88
-- reported by a user: 29
+- reported by a user: 30
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 8
 - race and stress testing: 6

@@ -2280,6 +2280,36 @@ Confirmed with the user via an explicit design review:
      reason at the code; driven 2026-08-27, a cycle SETTLES rather
      than churning.
 
+- **A SAVE PRESSED WHILE A RE-TILE IS COMING IS KEPT, NOT REFUSED.**
+  (Maintainer's ruling, 2026-08-29, overruling a repair of the day
+  before.) With live update on, changing the design arms the live
+  timer, and a press inside that window used to write the map on
+  screen -- the one the person had just changed away from. Ledger row
+  54 closed that by REFUSING the press in words, on the reasoning that
+  a press the dialog remembers is a promise about a map nobody has
+  seen yet, and that the run lands in under a second.
+  THE MAINTAINER'S REASON IS ONE NO MEASUREMENT HERE WOULD HAVE
+  PRODUCED, and it generalises past this control: **most people will
+  not read the sentence.** A refusal that depends on being read is a
+  save that quietly did not happen, and the person closes QGIS
+  believing their map is on disk. So the press is KEPT, the notice
+  says the map will be saved after it is redrawn rather than asking
+  for a second press, and `_honour_a_queued_save` performs it once the
+  new map has landed.
+  ASK OF ANY REFUSAL WHAT IT COSTS THE PERSON WHO DOES NOT READ IT.
+  Where the answer is work lost, the refusal is the wrong shape and
+  the act belongs deferred and completed; where it is a WRONG MAP
+  drawn, a refusal is still right. The in-flight refusal is unchanged
+  for exactly that reason -- what is on screen mid-run is the PREVIOUS
+  map, so writing it answers a different question from the one the
+  press asked, silently, over the file they have just named.
+  THE MECHANISM IS THE THIRD DEFERRED KIND, and it obeys the rule the
+  queued-press entry ends with: consumed by taking and clearing the
+  intent at the point of use, never handed to a gated path, and asked
+  from three places because a landing alone cannot cover a run that
+  DECLINES -- the live tick has ten gates and `_generate` eight.
+  Account in MAINTAINING.md under "Three queues".
+
 - **AND THE SECOND ONE FOUND A COLLISION BETWEEN TWO SETTLED RULES.**
   (2026-08-27, the run over the three rulings.)
   `test_a_ramp_you_are_offered_is_the_ramp_you_get` went red on its

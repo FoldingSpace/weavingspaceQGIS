@@ -346,20 +346,40 @@ before the many-categories question rather than through a float. And
 a limit typed while live update is on but no run can follow says so
 rather than being taken in silence.
 
-WHAT IS STILL OWED FROM THAT LIST -- two claims, both in the ledger
-with their measurements:
+AND THE FIFTEENTH CLOSED ON 2026-08-29 (ledger row 61): **a follower's
+inherited colours were adopted as its own when a self-contained map was
+opened**, so it stopped following its donor and the two drew one column
+in two sets of colours. A file saved with the source embedded carries a
+copy of the region, the recipient's recovery lands on that copy, and
+the comparison against the sender's own path answered False -- skipping
+the record's value-laden half, which means neither applied nor cleared.
+The claim named the Load door; the group chooser after a project reopen
+was equally open, and a repair at one would have left the other.
 
-- **A follower's inherited colours are adopted as its own at a Load**,
-  so it never follows its donor again. The CAUSE is measured and
-  written down: a map saved with the source embedded travels with a
-  copy inside it, the recipient's recovery lands on that copy, and
-  `same_data` compares its source against the sender's path -- so the
-  file's own value-laden record is neither applied nor cleared. The
-  repair was started and parked rather than half-landed.
+WHAT IS STILL OWED FROM THAT LIST -- one claim, in the ledger with its
+measurements:
+
 - **Save and Load are quadratic in the element count and freeze the
   interface** -- 134s and 122s at the 256 ceiling, no progress bar,
   a 50 ms heartbeat recording zero beats. Every store was clean; the
   defect is in the act.
+
+**AND A SIXTH RULING OF THE ROUND, THE MAINTAINER'S, ON 2026-08-29: A
+SAVE PRESSED WHILE A RE-TILE IS COMING IS KEPT RATHER THAN REFUSED.**
+Ledger row 54 had closed a real defect -- a press inside the live
+debounce wrote the map the person had just changed away from -- by
+refusing the press in words. The maintainer overruled that on a ground
+no measurement here would have produced: most people will not read the
+sentence, so a refusal that depends on being read is a save that
+quietly did not happen. The press is kept, the notice says the map will
+be saved after it is redrawn, and a third deferred kind honours it once
+the new map has landed -- asked from three places, because a landing
+alone cannot cover a run that declines.
+IT ALSO REPAIRED TWO REGRESSIONS ROW 54 HAD SHIPPED (row 62), both
+registered tests that press Save with live update at its default and
+both measured red at `d809027` before any of the day's edits: the
+targeted runs that verified row 54 never ran them. What a user gets is
+in the changelog line owed below.
 
 AND ONE MEASUREMENT IS THE MAINTAINER'S RATHER THAN OUTSTANDING WORK:
 the assembled window is 1279px under the offscreen font every runner

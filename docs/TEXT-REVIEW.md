@@ -14,17 +14,17 @@ Sentences you are happy with as they stand need no edit; `--apply` records every
 
 ## Sentences
 
-**`weavingspace_qgis/dialog.py:16609`** — in `_save_the_map`
+**`weavingspace_qgis/dialog.py:16819`** — in `_save_the_map`
 
-<!-- id:48cc415d61b3987f -->
-> The map is about to be redrawn. Save it once the new one has landed.
+<!-- id:62e00e685a865900 -->
+> The map is about to be redrawn and will be saved afterwards.
 
-**`weavingspace_qgis/dialog.py:17141`** — in `_resume_from_gpkg`
+**`weavingspace_qgis/dialog.py:17350`** — in `_resume_from_gpkg`
 
 <!-- id:b60e63b8c7b661b9 -->
 > There is nothing at {}, so there is no map to open. Check whether the file has been moved or renamed.
 
-**`weavingspace_qgis/dialog.py:17147`** — in `_resume_from_gpkg`
+**`weavingspace_qgis/dialog.py:17356`** — in `_resume_from_gpkg`
 
 <!-- id:10d4829af2c54b55 -->
 > {} could not be opened as a GeoPackage, so there is no map to read from it.

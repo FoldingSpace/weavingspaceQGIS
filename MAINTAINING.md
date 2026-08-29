@@ -539,7 +539,7 @@ preference and the fact belongs to a file, so a recipient who never
 touched it does not strip the copy a sender included, and does not
 have their own data copied into their own next file either.
 
-## Two queues, because a press and a live tick are not one fact
+## Three queues, because a press, a tick and a save are not one fact
 
 One run at a time is settled, so anything asking for a run while one is
 in flight is REMEMBERED and honoured when that run lands. What was
@@ -568,6 +568,35 @@ that has nothing to do with the act being deferred. Every other
 remembered-intent record here is consumed by taking and clearing it at
 the point of use, which cannot lose anything; this one handed it to a
 gated path.
+
+**AND THE THIRD KIND ARRIVED THE NEXT DAY**, which is why that rule is
+written where it is. `_save_pending` is a Save pressed while a re-tile
+is COMING -- the live timer armed, no task yet -- and until 2026-08-29
+such a press was refused in words. The maintainer overruled that: most
+people will not read the sentence, so a refusal that depends on being
+read is a save that quietly did not happen and somebody closes QGIS
+believing their map is on disk. The press is kept, the notice says the
+map will be saved after it is redrawn, and `_honour_a_queued_save`
+writes the file.
+
+IT IS CONSUMED AT THE POINT OF USE, taking and clearing the intent
+before the write, and it is asked from THREE places because no one of
+them covers the ground: `_finish_run`, for the ordinary case where the
+queued run lands; the live timer's OWN second connection, for the tick
+that declines at any of its ten gates, after which no landing is
+coming at all; and a timer armed at the end of the landing, which runs
+after the re-pressed Generate and so covers that method's eight
+refusals too. A second `connect` rather than a line inside
+`_maybe_live_generate`, because that method has ten exits and a tail
+added to it would run on none of them -- and connected after the
+handler already there, since an exception in a Qt slot is swallowed
+and takes the rest of the slot with it.
+
+WHAT IT HOLDS IS NOTHING. The chooser is read again at the moment of
+the write, exactly as the button reads it, so every guard the press
+would have met is met -- the overwrite question, the empty box, the
+map that is no longer in the project. Remembering the path instead
+would write to a file the person had since changed their mind about.
 
 ## Leaving a dataset stamps what you leave
 
