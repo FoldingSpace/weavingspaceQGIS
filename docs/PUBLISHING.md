@@ -948,6 +948,29 @@ what a reviewer installed.
 bearing a number spends it — zip, dossier, receipt — so deleting one
 does not hand its number back.
 
+**Naming.** EVERY ARTEFACT CARRIES ITS VERSION, in `dist/` and on the
+release page alike. Candidates always did —
+`weavingspace_qgis-<version>rc<n>.zip` — and the release path did not,
+attaching a bare `weavingspace_qgis.zip`; the convention existed and
+had been applied to half the process. The prose that names the
+download follows the artefact rather than the artefact being held
+still for the prose, so README.md, docs/index.html and the attachment
+line `tools/release_notes.py` composes all move with it, through text
+review like any other sentence a user meets. Releases already
+published keep the asset names they went out with: rewriting those
+would break links people already hold.
+
+**And no CHECK writes into `dist/`.** `check_before_push` replays the
+`standards` job, one of whose steps runs `build.py` — so the push gate
+was rebuilding an artefact into the directory that holds the gated
+ones, from whatever tree it happened to be run against. A packaging
+check only asks whether the archive still forms, which a temporary
+directory answers just as well. What made this worth a rule rather
+than a tidy-up: on 2026-08-29 the newest file in a `dist/` holding
+three versioned candidates and their receipts was an unversioned zip
+an hour younger than the published candidate and three bytes different
+from it.
+
 
 ## Release bodies wrap; the changelog does not
 

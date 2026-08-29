@@ -3763,3 +3763,36 @@ The corollary is the cheaper half: **before saying a case cannot be
 reproduced here, ask what the other machine has more of** -- wider
 fonts, a slower disk, a different locale -- **and set that quantity
 directly.** The fixture that reaches it is usually one line.
+
+## BUILD THE FIXTURE THROUGH THE PRODUCT'S OWN DOOR
+
+2026-08-29, and it produced two probes with OPPOSITE answers, both
+mine, before the variable neither was controlling turned up.
+
+Asked whether the vendored `Topology` works on weaves, the first probe
+built units by handing the catalogue's raw spec straight to
+`WeaveUnit(**spec)`. Twill and basket died IN THE CONSTRUCTOR --
+`catalog.TILINGS_BY_N` stores a weave's passing pattern as the string
+a person types, `1,2,2,1`, and `catalog.make_unit` is what parses it
+through `get_over_under` -- so two of the four were reported as
+unsupported by the library when they had never been built at all. A
+fixture that cannot be constructed has measured nothing.
+
+Rebuilt through `catalog.make_unit`, which is the door the dialog
+itself uses, ALL FOUR failed instead -- and that reversal was the
+useful signal rather than the answer. The two probes differed in more
+than the door: `make_unit` also supplies `aspect=0.75`, the plugin's
+own default, where the direct call took the library's. Sweeping that
+one parameter settled it in a minute: aspect 1.0 carries a topology
+and 0.95, 0.9 and 0.75 do not, because `Topology` requires a GAP-FREE
+tiling and opening a weave up is exactly what aspect does. The same
+answer arrives on the tiling side through the inset controls.
+
+**TWO HABITS.** Build fixtures through the function the PRODUCT calls,
+not through the library underneath it, because the product is where
+the arguments are parsed and the defaults are chosen -- and those
+defaults are frequently the thing under test without anybody saying
+so. And when two of your own probes disagree, do not pick the
+likelier: find what differs between them and vary it alone. Here the
+disagreement was worth more than either verdict, since it named a
+constraint neither probe had been looking for.

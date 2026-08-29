@@ -516,6 +516,37 @@ a record claiming `n=4` beside two elements and a file holding four
 tables. Whenever you add a key to this record, ask which of the two
 moments it is about.
 
+**AND THE THREE STORES ARE NOT SYMMETRICAL, which decides what happens
+when you add a key.** Writing is permissive and reading is strict:
+
+    _capture_working_state   iterates WORKING_STATE_DESIGN and
+                             WORKING_STATE_ELEMENT -- a key not named
+                             there is never captured at all
+    _file_safe_state         a BLACKLIST: it copies the record and
+                             removes each element's `kept` map, so
+                             anything captured travels to the file
+    the restore              iterates those same whitelists -- a key
+                             the file carries is dropped IN SILENCE
+
+So a new key needs adding in two places, will reach the GeoPackage
+whether or not anybody meant it to, and fails as a file that
+faithfully holds something nothing can restore. This is the "widen the
+whitelist in the same commit as the code that reads it" rule -- said
+three times already, about `_adopt_dock_bounds`, the copy and `mode` --
+with the wrinkle that the file needs no widening and will not warn you.
+
+**The record is also the door for anything DERIVED from the design.**
+It is JSON in the GeoPackage's own `gpkg_metadata` table, written by
+`bridge.write_working_state` through GDAL's `SetMetadataItem` under
+`WEAVINGSPACE_STATE`. Measured 2026-08-29 against a possible topology
+tab: the structured half of a twelve-element design's topology is
+2,424 bytes against about 1,151 for a representative record, and it
+round-trips identically from a cold open. GEOMETRY DOES NOT BELONG
+THERE -- a dual tiling is a GeoDataFrame and wants a layer, which a
+colleague can open without the plugin at all. And anything travelling
+as a tuple comes home as a list, JSON having no tuple, so every reader
+has to put it back.
+
 ### A save asks the FILE what is already there
 
 A layer whose source already names a table in this file is treated as

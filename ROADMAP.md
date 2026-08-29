@@ -1073,12 +1073,42 @@ be somewhere.
 WHAT COMES FIRST is still an inventory, and it is cheaper now that the
 two constraints above are known: what each manipulation actually does
 to a unit, which of them compose, and which produce a tiling the rest
-of the plugin can still draw. Note that `zigzag_edge` reaches
-`interpolate.InterpolatedUnivariateSpline`, and scipy is optional in
-the vendored library and is NOT provisioned by `deps.py` -- so that one
-manipulation raises a clear ImportError today and would need scipy
-added to the dependency list, which is a change to the consent
-dialogue's enumeration and therefore not a small decision.
+of the plugin can still draw.
+
+**AND FIND OR WRITE AN ALTERNATIVE TO PULLING IN THE WHOLE OF SCIPY.**
+(Maintainer's instruction, 2026-08-29.) `zigzag_edge` is the one
+manipulation that reaches outside numpy, and it does so at exactly ONE
+line -- `topology.py:1418`, inside `zigzag_between_points`:
+
+    spline = interpolate.InterpolatedUnivariateSpline(x, y, k = 2)
+
+scipy is optional in the vendored library and is NOT in `deps.py`, so
+that call raises a clear ImportError today. Adding scipy would be a
+poor trade: it is a large download for one interpolating spline, and
+it would have to be named in the dependency consent dialogue, whose
+enumeration is a hard rule and was itself a defect this month when it
+under-reported what was fetched.
+
+WHAT MAKES AN ALTERNATIVE PLAUSIBLE is that the requirement is small
+and exactly specified. `k=2` is a quadratic interpolating spline
+through known points, numpy is ALREADY a dependency, and there is a
+single caller. So the options are to write the quadratic spline in
+numpy, or to reach for a simpler smooth interpolation that produces an
+acceptable zigzag, or to ask upstream whether they would take such a
+change.
+
+AND IT HAS AN OBVIOUS HOME. `tools/vendor_weavingspace.py` already
+carries a patch family whose whole purpose is "make matplotlib and
+scipy optional", each patch asserting on an exact upstream anchor. A
+numpy replacement for this one call is a NEW MEMBER OF THAT FAMILY
+rather than a new mechanism, which also means it survives a re-vendor
+by construction or names itself when upstream moves the line.
+
+WHAT WOULD HAVE TO BE TRUE before taking it: the replacement draws a
+zigzag a person cannot tell from the spline's, which is a VISUAL
+question and therefore this project's own `visual_pair` shape --
+render both and compare interior pixels -- rather than a numerical
+tolerance argued in the abstract.
 
 **FOR STUDY: warn when a test asserts a string that also appears in
 shipped source.** Added 2026-08-16, deliberately as a question rather

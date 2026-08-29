@@ -89,6 +89,53 @@ obligations: they exist so nobody pays twice for the same discovery.
   a push is neither. (Revised 2026-08-07; the earlier form of this
   rule forbade publishing anywhere at all, which held until the
   repository existed.)
+- **EVERY ARTEFACT CARRIES ITS VERSION IN ITS NAME, in `dist/` and on
+  GitHub alike, and NO CHECK MAY WRITE INTO `dist/`.** (Maintainer's
+  rule, 2026-08-29, on finding the newest file in `dist/` was an
+  unversioned zip.) Two halves, and the first is the one that bites.
+  `check_before_push` replays CI's `standards` job, one step of which
+  is "The plugin still packages"; that runs `build.py`, which writes
+  `dist/weavingspace_qgis.zip` into whatever worktree it is invoked
+  from. So the PUSH GATE mutates the artefact directory, from an
+  ungated tree, every time anybody runs it. Measured that day: an
+  unversioned 649,327-byte zip sitting an HOUR NEWER than the gated
+  `weavingspace_qgis-0.24.4rc5.zip` at 649,330 -- not the same bytes
+  -- beside three versioned candidates and their receipts. Sorted by
+  date, which is what a person does in a file browser, the first thing
+  in a directory of gated artefacts was the one with no version, no
+  receipt and no gate behind it.
+  THE CANDIDATE PATH WAS ALREADY RIGHT, WHICH IS THE TELL: every
+  pre-release attaches `weavingspace_qgis-<version>rc<n>.zip`, and
+  only the RELEASE path attached an unversioned one. The convention
+  existed and had been applied to half the process.
+  AND THE README FOLLOWS THE ARTEFACT, not the other way round. The
+  unversioned name was defended here on the ground that README tells
+  people to download it; the maintainer's answer was that the README
+  can and should change. A gated artefact's name is a fact about which
+  tree it came from, and prose is the cheaper of the two to move.
+  This is the same family as "a candidate number is spent by anything
+  bearing it": one name over two trees confuses everybody, and an
+  artefact with no name at all is that hazard with the label removed.
+- **EVERYTHING FOR THIS PROJECT LIVES INSIDE THE PROJECT DIRECTORY.**
+  (Maintainer's rule, 2026-08-29: "nothing associated with this
+  project should be outside of the weavingspace-qgis-plugin ... the
+  claude scratch is shared by everyone".) Worktrees included -- they
+  may live anywhere git allows, and that is not a reason to scatter
+  them through a shared folder. Five had accumulated there and a dozen
+  more under `/private/tmp`.
+  RETIRE A WORKTREE WHEN ITS WORK IS MERGED OR ABANDONED, and know
+  that REMOVING A WORKTREE DOES NOT DELETE ITS BRANCH -- which is what
+  makes retirement safe here, since `check_roadmap --merge` looks for
+  `for-<version>/*` BRANCHES and would fail if one went missing. Check
+  that after any clean-up rather than trusting it.
+  AND MOVING THE LIVE ONE IS USUALLY THE WRONG SHAPE: the tidiest end
+  is to check its branch out in the project directory itself and
+  retire the outside folder, which puts everything in one place
+  instead of relocating a second copy. Anything gitignored --
+  `dev/`, `dist/`, `reports/` -- has to be carried across first, and
+  every colliding file backed up rather than overwritten, because
+  those directories are exactly where the things git is not protecting
+  live.
 - **User-facing documentation is clear and concise.** Say what the
   control does and what the user should know about it, then stop. The
   guide and help tab are reference material somebody reads while
@@ -1024,6 +1071,27 @@ about not paying twice for the same information. Measured on the
 
 ## How we decide things
 
+- **BEFORE PUTTING A DECISION TO THE MAINTAINER, CHECK IT IS A
+  DECISION THEY HAVE TO MAKE.** (2026-08-29, and it cost them two
+  exchanges.) They asked that the window not take up the whole screen.
+  That was written up as re-opening the settled layout rule of
+  2026-08-09, needing a fourth priority ordered among three, and
+  ending in a question put back to them: how much shorter than the
+  screen? Their answer was that they had not meant anything about
+  screen height and just did not want it filling the screen. The ask
+  was a ceiling on GROWTH, today's size was fine, and no number was
+  owed at all.
+  THE FAULT IS NOT THE WRONG ANSWER, IT IS INVENTING A QUESTION. A
+  request elaborated into a ruling acquires open questions that belong
+  to the elaboration rather than to the request, and handing those
+  back reads as diligence while actually asking somebody to do work
+  the reading created. This file already says a decision is only as
+  good as the measurement under it; the other half is that a QUESTION
+  is only as good as the request under it.
+  THE CHEAP CHECK: state the ask back in the plainest form that could
+  be acted on, and see whether anything is still missing. Where the
+  plain form is buildable, build it. Reserve the grilling for
+  decisions that genuinely fork.
 - **Reach for `/grill-me` when a decision carries weight.** Anything
   that changes the UI's shape, the output contract, what gets stored
   in a file, or a rule other work will lean on deserves the
