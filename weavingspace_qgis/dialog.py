@@ -18722,6 +18722,7 @@ class WeavingSpaceDialog(QDialog):
     # styling dock) before touching any layers
     old_renderers = {}
     old_layer_opacity = {}
+    old_layer_blend = {}
     old_no_data_opacity = {}
     old_no_data_renderers = {}
     old_no_data_subsets = {}
@@ -18749,6 +18750,23 @@ class WeavingSpaceDialog(QDialog):
         # opacity lives on the layer, not the renderer, so it has to
         # be carried across separately when an element is kept as-is
         old_layer_opacity[tid] = old_layer.opacity()
+        # ...AND SO DO ITS NEIGHBOURS IN THE SAME BOX. QGIS's Layer
+        # Rendering group holds opacity, the layer's blend mode and
+        # the FEATURE blend mode together, and only the first was
+        # carried -- so a person who set an element to Multiply, which
+        # is exactly the cartographic thing that box is for, lost it
+        # at the next spacing change, against the standing promise
+        # that hand styling survives unless the assignment changed.
+        # Measured 2026-08-28 with opacity as the control arm: the
+        # opacity came through at 0.4 and the blend mode came back
+        # SourceOver, on a new layer.
+        # UNCONDITIONALLY, unlike the opacity above, and that
+        # asymmetry is deliberate: the dialog SETS opacity from its
+        # own cell, so it has to decide whose number wins, while
+        # nothing here ever sets a blend mode. Whatever is on the old
+        # layer is the user's by construction.
+        old_layer_blend[tid] = (old_layer.blendMode(),
+                                old_layer.featureBlendMode())
       # ...AND THE PAIRED LAYER'S OWN, which a user can set in Layer
       # Properties exactly as they set its element's. The element's
       # was carried across and the twin's was not, so fading an
@@ -19176,6 +19194,22 @@ class WeavingSpaceDialog(QDialog):
       # is what is asked here. (Maintainer's ruling, 2026-08-26.)
       if a.get("class_source") in unreadable:
         self._own_the_colours_of_an_unreadable_source(out, a)
+      # AND THE BLEND MODES COME ACROSS ON EVERY ROUTE, which is why
+      # this sits here rather than beside the opacity carry above. The
+      # opacity belongs to the branch that keeps a renderer, because
+      # the dialog SETS opacity from its own cell and has to decide
+      # whose number wins. Nothing here has ever set a blend mode, so
+      # whatever the old layer wore is the user's by construction --
+      # on the re-seeded route as much as on the kept one, and losing
+      # it there would be the same defect wearing the other arm.
+      # Multiply on an element is exactly what that box is for, and it
+      # was thrown away at every spacing change against the promise
+      # that hand styling survives unless the assignment changed
+      # (`layouts`, 2026-08-28; opacity was the control arm).
+      if old_layer_blend.get(tid) is not None:
+        layer_blend, feature_blend = old_layer_blend[tid]
+        out.setBlendMode(layer_blend)
+        out.setFeatureBlendMode(feature_blend)
       element_fills[tid] = bridge.renderer_fill_colours(out)
       out.setCustomProperty("weavingspace_output", True)
       # Hand-picked category colours travel with the layer, so a saved

@@ -27663,6 +27663,89 @@ def test_a_save_as_tells_the_group_where_the_map_went():
       dlg.close()
 
 
+def test_a_blend_mode_set_in_qgis_survives_a_re_tile():
+  """The rest of QGIS's Layer Rendering box, not only the opacity.
+
+  Hand styling survives unless the element's assignment changed, and
+  the landing keeps that promise by carrying the old layer's opacity
+  across a re-tile. Opacity has three neighbours in the same box --
+  the layer's blend mode and the feature blend mode -- and none of
+  them travelled, so an element set to Multiply, which is exactly the
+  cartographic thing that box is for, came back SourceOver at the next
+  spacing change.
+
+  TWO ARMS, because the carry has two routes. An element whose
+  assignment has NOT changed keeps its renderer; one whose assignment
+  HAS changed is re-seeded, and a blend mode must survive both -- the
+  plugin never sets one, so whatever the layer wears is the user's
+  whichever route the element takes.
+
+  THE OPACITY IS THE CONTROL. It was already carried, so an arm that
+  loses the blend mode while keeping the opacity is measuring the
+  blend mode; an arm that loses both is measuring the carry.
+
+  Regression: a blend mode set in QGIS was discarded at every re-tile, against the promise that hand styling survives. Found by the layouts hunt of 2026-08-28. [hunt]
+  """
+  from qgis.PyQt.QtGui import QPainter
+  project = QgsProject.instance()
+  wanted = QPainter.CompositionMode.CompositionMode_Multiply
+  feature_wanted = QPainter.CompositionMode.CompositionMode_Darken
+  dlg, _layer, kept = _categorical_dialog()
+  try:
+    dlg.live_check.setChecked(False)
+    _generate_and_wait(dlg)
+    assert dlg._element_layer_ids, "PREMISE: nothing was drawn"
+    reseeded = next(t for t in sorted(dlg._element_layer_ids) if t != kept)
+    was = {}
+    for tid in (kept, reseeded):
+      layer = project.mapLayer(dlg._element_layer_ids[tid])
+      assert layer is not None, f"PREMISE: element {tid} has no layer"
+      # Read the ids NOW: a re-tile replaces these layers, and asking
+      # a deleted C++ object anything raises.
+      was[tid] = layer.id()
+      layer.setBlendMode(wanted)
+      layer.setFeatureBlendMode(feature_wanted)
+      layer.setOpacity(0.4)
+    _tick(300)
+
+    # The second element's assignment MOVES, so it takes the re-seeded
+    # route while the first keeps its renderer.
+    row = dlg._row_for_element(reseeded)
+    ramp = dlg.table.cellWidget(row, 4)
+    if ramp is not None and hasattr(ramp, "count") and ramp.count() > 1:
+      index = (ramp.currentIndex() + 3) % ramp.count()
+      ramp.setCurrentIndex(index)
+      ramp.activated.emit(index)
+      _tick(300)
+
+    # A RE-TILE rather than a restyle: the same design would take the
+    # fast path and keep the very layers this test is about.
+    dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 0.8)
+    _tick(1200)
+    _generate_and_wait(dlg)
+
+    for tid in (kept, reseeded):
+      layer = project.mapLayer(dlg._element_layer_ids[tid])
+      assert layer is not None, f"element {tid} has no layer after the run"
+      assert layer.id() != was[tid], (
+        f"PREMISE: element {tid} kept its layer, so nothing was "
+        f"carried and this test proves nothing")
+      assert abs(layer.opacity() - 0.4) < 0.01, (
+        f"the CONTROL failed on element {tid}: opacity came back "
+        f"{layer.opacity()}, so this test measures the carry rather "
+        f"than the blend mode")
+      assert layer.blendMode() == wanted, (
+        f"element {tid} came back on {layer.blendMode()} where the "
+        f"user had set Multiply; a re-tile threw away hand styling "
+        f"the promise says it keeps")
+      assert layer.featureBlendMode() == feature_wanted, (
+        f"element {tid}'s FEATURE blend mode came back "
+        f"{layer.featureBlendMode()}; it sits in the same box as the "
+        f"two that are carried")
+  finally:
+    dlg.close()
+
+
 def test_a_donor_comes_home_when_the_map_is_opened():
   """"Take my classes from that layer" survives being sent to somebody.
 
@@ -71124,6 +71207,8 @@ def main():
         test_a_colour_picked_on_a_map_you_did_not_draw_reaches_it)
   check("a donor comes home when the map is opened",
         test_a_donor_comes_home_when_the_map_is_opened)
+  check("a blend mode set in QGIS survives a re-tile",
+        test_a_blend_mode_set_in_qgis_survives_a_re_tile)
   check("choosing your own group keeps the region and the variables",
         test_choosing_your_own_group_keeps_the_region_and_the_variables)
   check("the icon notice reads the same ground in either crs",

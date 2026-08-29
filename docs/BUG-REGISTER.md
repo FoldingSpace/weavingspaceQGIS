@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-409 defect(s) with a regression test.
+410 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -47,6 +47,8 @@ there is no separate list to remember.
 
 ## Found by a bug hunt pointed in a named direction
 
+- **a blend mode set in QGIS was discarded at every re-tile, against the promise that hand styling survives. Found by the layouts hunt of 2026-08-28.**  
+  guarded by `test_a_blend_mode_set_in_qgis_survives_a_re_tile`
 - **pressing Return in a class-bound box silently replaced the stored bound with a rounding of its own abbreviated display, on any column above about 1e5 or below about 1e-4. Shipped in v0.24.3; found by the magnitude hunt of 2026-08-28.**  
   guarded by `test_a_bound_box_keeps_its_number_when_qt_reads_the_display_back`
 - **the colour editor printed class bounds with a hard-coded decimal point beside spin boxes that parse through the locale, so under a comma-decimal locale copying a printed bound pinned a number a thousand times too large and stamped it on the layer.**  
@@ -870,7 +872,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 122
-- a bug hunt pointed in a named direction: 112
+- a bug hunt pointed in a named direction: 113
 - not written down at the time: 88
 - reported by a user: 29
 - reading the code: 15

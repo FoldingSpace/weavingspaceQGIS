@@ -7378,12 +7378,15 @@ MUTATIONS = [
            "comparisons; three Windows-only reds turned on it"),
   dict(name="an-unreadable-source-hands-its-colours-to-the-element",
        file=DIALOG,
+       # RE-ANCHORED 2026-08-28, when the blend-mode carry landed
+       # between this call and `element_fills`, which the old anchor
+       # spanned. Bound to the line ABOVE instead -- the question
+       # itself -- since that is what decides, and a neighbour can
+       # move again.
        old="""      if a.get("class_source") in unreadable:
-        self._own_the_colours_of_an_unreadable_source(out, a)
-      element_fills[tid] = bridge.renderer_fill_colours(out)""",
-       new="""      if False:
-        self._own_the_colours_of_an_unreadable_source(out, a)
-      element_fills[tid] = bridge.renderer_fill_colours(out)""",
+        self._own_the_colours_of_an_unreadable_source(out, a)""",
+       new="""      if False:  # mutation: the kept colours are never owned
+        self._own_the_colours_of_an_unreadable_source(out, a)""",
        test="test_a_kept_scheme_is_held_rather_than_owned",
        why="a renderer alone keeps the colours until the next run, "
            "restyle or reopen and no further -- the record is what "
@@ -7589,6 +7592,25 @@ MUTATIONS = [
            "which group a dataset owns, whether a landing may write "
            "over a group, and whether a resume finds a layer already "
            "open"),
+  dict(name="a-blend-mode-crosses-a-re-tile",
+       file=DIALOG,
+       # Restores what shipped: the opacity travels and its
+       # neighbours in the same box do not, so an element set to
+       # Multiply comes back SourceOver at the next spacing change.
+       # Anchored at the RESTORE rather than at the capture, because
+       # the capture's dict would then simply go unread and the
+       # mutation would be inert on a route the test does not drive.
+       old="""      if old_layer_blend.get(tid) is not None:
+        layer_blend, feature_blend = old_layer_blend[tid]
+        out.setBlendMode(layer_blend)
+        out.setFeatureBlendMode(feature_blend)""",
+       new="""      pass  # mutation: only the opacity crosses a re-tile""",
+       test="test_a_blend_mode_set_in_qgis_survives_a_re_tile",
+       why="hand styling surviving a re-tile means the whole Layer "
+           "Rendering box and not the one property somebody fixed "
+           "twice: a blend mode is a cartographic choice, it is the "
+           "reason that box exists, and nothing in the plugin ever "
+           "sets one -- so whatever the layer wears is the user's"),
   dict(name="a-donor-travels-as-an-element",
        file=DIALOG,
        # Puts the layer id back into the record. Everything else goes
