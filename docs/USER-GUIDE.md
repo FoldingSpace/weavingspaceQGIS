@@ -271,7 +271,8 @@ outlines stay in the project, since they are drawn from your own
 layer, and until you press Save the map lives only with the project.
 Nothing is opened until you press *Load*, on the row beneath, which
 brings a saved map back into the dialog so you can carry on with it.
-Save asks first where the file holds a map made from other data.
+Save prompts you to confirm if the file selected holds a
+map made from unrelated data.
 
 Regenerating replaces the previous group and keeps whatever styling
 you have refined by hand; an element's symbology is rebuilt only when

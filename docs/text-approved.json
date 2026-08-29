@@ -479,6 +479,11 @@
   "excerpt": "Where Save will write the map. Nothing is written until you ",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "3a363526ee19e836": {
+  "approved": "2026-08-29",
+  "excerpt": "Drawing a map and saving one are separate acts. Nothing is w",
+  "where": "docs/USER-GUIDE.md"
+ },
  "3b8726b210fd02dc": {
   "approved": "2026-08-17",
   "excerpt": "Element '{}' follows the styling you set in QGIS:",
@@ -1388,6 +1393,11 @@
   "approved": "2026-08-08",
   "excerpt": "## A way of working",
   "where": "docs/USER-GUIDE.md"
+ },
+ "9e95908be9910ec5": {
+  "approved": "2026-08-29",
+  "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",
+  "where": "weavingspace_qgis/help_content.py"
  },
  "a0836f2df79f1ff8": {
   "approved": "2026-08-28",
