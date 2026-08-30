@@ -793,19 +793,52 @@ the one the sessions that produced designs that stuck all followed.
    -- and that last one reads both only because ledger row 36 was
    fixed this morning, where the chooser went on describing a landing
    that would not happen because it knew the flag and not the box.
-   SO THE QUESTION TO SETTLE is whether the standing behaviour is
-   wanted at all. Ruling 1 of 2026-08-25 made the GROUP the unit of
-   work and gave the chooser the job of saying where a run lands,
-   observing that the group "was already being chosen on every run by
-   a rule the user could neither see nor override" -- and a standing
-   checkbox is a second such rule, visible but easy to leave ticked.
-   Retiring it makes the chooser the only door and deletes the
-   asymmetry; keeping it means the five-one-one split has to be made
-   one question with one owner, as the two doors of row 36 now are.
-   WHAT MUST NOT HAPPEN is retiring it quietly: somebody comparing
-   several attempts in a row is relying on the standing behaviour, and
-   that is a real use rather than a hypothetical one -- it is the
-   session the whole group-as-unit ruling came from.
+   **AND THE MAINTAINER SETTLED IT THE SAME DAY: THE CHOOSER IS THE
+   ONLY DOOR.** The checkbox goes. Their reasoning is about the
+   interface rather than the mechanism -- it is TOO FAR AWAY IN THE UI
+   from the chooser for the boundary between "once" and "always" ever
+   to read clearly, and a boundary that will never be clear is one
+   nobody should have to hold in their head. That composes with ruling
+   1 of 2026-08-25, which made the group the unit of work and gave the
+   chooser the job of saying where a run lands: a standing checkbox
+   two panels away was a second rule about the same fact.
+   THE STANDING "ALWAYS NEW" BEHAVIOUR GOES WITH IT, deliberately.
+   Asking for a second map becomes an act you perform when you want
+   one, which is what the chooser already means.
+
+   WHAT THE IMPLEMENTATION ACTUALLY FACES, read on 2026-08-29 so that
+   tomorrow starts from a map rather than a survey. It is smaller in
+   the product than the site count suggests and larger in the suite.
+
+   THE LANDING ALREADY HONOURS THE CHOOSER. `force_new` at
+   `dialog.py:19798` is a four-term or, and `self._new_group_chosen`
+   is already one of them -- so removing the checkbox term is a
+   DELETION rather than a rewiring, and the comment beneath it already
+   says the flag is "spent the moment it is read". One-shot semantics
+   are built and documented; nothing new has to be invented.
+   THE FOUR CHECKBOX-ONLY SITES EACH CARRY THEIR OWN REASON, and every
+   reason is about the INTENT rather than about the control -- the
+   live gate at 5023 ("it asks for a SECOND map to compare against,
+   and building one unattended on every keystroke is not what anybody
+   means by it"), the restamp guard at 12351, `_restyle_only` at 13935
+   ("repainting the first one cannot provide" a second result), and
+   `_a_live_run_will_follow` at 14363. Each becomes a
+   `_new_group_chosen` read and each comment survives with its noun
+   changed. `14700` already reads the flag.
+   THE SUITE IS THE WORK: 24 sites in `tests/run_tests.py`, 11
+   catalogue anchors in `tools/mutation_check.py`, and 2 committed
+   probes. Most are `dlg.opt_new_group.setChecked(True)` and convert
+   mechanically to choosing "create new" in the group combo; the ones
+   that must be re-decided BY HAND are those whose subject is the
+   control itself, which is the shape the Save conversion of
+   2026-08-27 already worked out and wrote up in docs/TESTING.md.
+   Remember the `CONTROL_CHECKBOXES` table at `tests/run_tests.py:3094`,
+   which pins the label, and expect the catalogue anchors to orphan.
+   AND THE PROSE IS REVIEWED TEXT: `docs/USER-GUIDE.md:282` and
+   `help_content.py:52` both describe the box, CLAUDE.md names it in
+   three settled-decision paragraphs, and `bridge.py:4683` has it in a
+   docstring. The two user-facing ones go through
+   `tools/text_review.py` and the wording is the maintainer's.
 
 ONE THING IS WATCHED RATHER THAN OWED AND IS NOT COVERED BY THIS. The
 landing's last preview repaint firing before the new layer exists did
