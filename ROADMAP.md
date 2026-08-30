@@ -735,6 +735,44 @@ the one the sessions that produced designs that stuck all followed.
    ALREADY-PUBLISHED RELEASES KEEP THEIR UNVERSIONED ASSETS. That is
    history rather than a thing to mend, and rewriting old release
    assets would break links people already have.
+4. **THE DESIGN TAB'S LAYOUT, AND TWO LABELS THAT SPEAK IN COMPASS
+   POINTS.** (Maintainer, 2026-08-29.) Below the element control
+   nothing should run FULL WIDTH -- the inputs are comically wide.
+   *Tiling or weave*, *Family*, *Spacing* and *Auto* all belong on ONE
+   line. Under Transformations the boxes should be reasonably narrow
+   rather than what they are. And **EW becomes "Left-Right" and NS
+   becomes "Up-Down"**, through the documents and materials as well as
+   the interface, excepting only names that come from upstream.
+   WHY EVERYTHING IS WIDE, and it is one cause rather than a dozen
+   sites: every one of these is added with `QFormLayout.addRow`, whose
+   FIELD COLUMN STRETCHES to whatever width is going. `form.addRow`
+   builds Region layer, QGIS Layer Group, Number of elements, Tiling
+   or weave, Family and Spacing; `pair()` does the same for each
+   Transformations row. So the repair is about how the rows are built,
+   not about setting a width on each control.
+   THE RENAME IS TWO STRINGS AND NO REFACTOR. `dialog.py:2637` reads
+   `pair("Scale EW / NS", ...)` and `:2643` `pair("Skew EW / NS (°)",
+   ...)`, and those are the ONLY user-facing occurrences -- nothing in
+   the guide, the help tab or the README spells it either as an
+   abbreviation or as "east-west". The attribute names `mod_scale_x`
+   and `mod_scale_y` are ours and internal, and the library's own
+   parameter names are untouched, so nothing but the labels moves.
+   AND THE TOOLTIPS ALREADY AGREE WITH THE MAINTAINER RATHER THAN WITH
+   THE LABELS: they say "Stretch the pattern right-left", "Slant the
+   pattern up-down". The label was the last place compass points
+   survived, and it contradicted the sentence attached to it. Note the
+   tooltips say "right-left" where the ruling says "Left-Right", so
+   harmonising those is a reviewed-text change and the maintainer's to
+   approve rather than a silent tidy.
+   TWO CONNECTIONS WORTH NOT LOSING. Narrower fields mean the Design
+   tab ASKS FOR LESS WIDTH, so doing this before item 2 may make the
+   window ceiling nearly free rather than a fight. And the assignment
+   table's `COLUMN_SUM_BUDGET` is `MAX_WINDOW_WIDTH - 400`, where the
+   400 is a MEASURED allowance for everything that is not the table
+   (MAINTAINING.md brackets the budget between about 1030 and 1118 on
+   that basis) -- so changing what the rest of the layout needs
+   invalidates that bracket, and the two must be re-derived together
+   rather than one moved on its own.
 
 ONE THING IS WATCHED RATHER THAN OWED AND IS NOT COVERED BY THIS. The
 landing's last preview repaint firing before the new layer exists did
