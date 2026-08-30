@@ -723,6 +723,61 @@ dataset) rather than from the chooser, which already holds the new
 one. A run in flight is left to its landing, whose launch snapshot
 must win.
 
+## Two doors arm a new group, and they are about to become one
+
+`force_new` decides whether a run builds its own group instead of
+landing in the one on screen, and until 0.24.4 closes it two separate
+controls can arm it.
+
+`_new_group_chosen` is set by the group chooser's "create new" entry
+and is ONE-SHOT: the next run builds its own group, the flag is spent
+the moment the landing reads it, and selecting any real group clears
+it. `opt_new_group`, the "Create as new group" checkbox on Map
+options, is a STANDING preference read afresh at every landing, so
+while it is ticked every run makes a new group.
+
+**The readers do not agree about which to ask**, which is this
+project's commonest defect shape sitting in the open: five sites read
+only the checkbox (the live gate, the restamp guard, `_restyle_only`,
+`_a_live_run_will_follow`, and `force_new` itself), one reads only the
+flag (the button path's restyle fast path), and one reads both -- and
+that one only since ledger row 36 of 2026-08-28, where the chooser
+went on describing a landing that would not happen because it knew the
+flag and not the box.
+
+**THE CHECKBOX IS BEING RETIRED** on the maintainer's decision of
+2026-08-29, leaving the chooser as the only door, on the ground that a
+control two panels away from the chooser can never make the boundary
+between "once" and "always" read clearly. The standing behaviour goes
+with it. Until that lands, a guard added to one door belongs at the
+other -- and note that `force_new` already reads the flag as one of
+its four terms, so the retirement is a deletion there rather than a
+rewiring. Details and the full site list are in ROADMAP.md under
+0.24.4.
+
+## Why the Design tab's controls run full width
+
+They are added with `QFormLayout.addRow`, and a form layout's FIELD
+COLUMN STRETCHES to whatever width is going. Nothing sets those widths
+and nothing needs to: the row builder decides. So the region chooser,
+the group chooser, the element control, the family combo, the spacing
+box and every Transformations pair grow with the window, which is why
+they read as comically wide once the dialog is at its usual 1180px or
+more.
+
+That is one cause rather than a dozen sites, and it matters when
+changing the layout: the repair is in how the rows are BUILT -- laying
+several controls along one line, or bounding them -- rather than in
+setting a width on each control. The maintainer asked for exactly that
+on 2026-08-29 and it is 0.24.4's work.
+
+**And it is coupled to the assignment table's budget.**
+`COLUMN_SUM_BUDGET` is `MAX_WINDOW_WIDTH - 400`, where the 400 is a
+measured allowance for everything that is not the table, and the
+budget is bracketed between about 1030 and 1118 on that basis. Narrow
+the Design tab and that allowance changes, so the two are re-derived
+together or not at all.
+
 ## What an output group is called
 
 `WeavingSpace tiles — <dataset>`, made in `_get_or_make_group` from

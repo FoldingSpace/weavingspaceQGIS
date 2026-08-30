@@ -4795,6 +4795,31 @@ here, and the decision to add one is the maintainer's. Recorded
   correct throughout, and by the catalogue entry
   `a-queued-press-is-a-press-not-a-live-tick`.
 
+- **A REPORT ABOUT A VERSION OR A BEHAVIOUR IS FIRST A QUESTION ABOUT
+  WHICH BUILD IS INSTALLED.** (2026-08-29.) The maintainer reported
+  that the title bar "no longer shows the rc version properly". The
+  plugin was right at every step: `_plugin_version()` reads `version=`
+  out of the INSTALLED `metadata.txt`, `build.py` substitutes the
+  candidate label into the copy inside the archive, and the published
+  `0.24.4rc5` zip genuinely carries `version=0.24.4rc5`. What was
+  wrong was the copy on the machine -- of two QGIS profiles, `default`
+  held the candidate (whole plugin written at the candidate's own
+  build time) and `testing` held a plain `0.24.4` written wholesale
+  an hour and a half later. The title bar was faithfully reporting a
+  build that was not the candidate.
+  ASK WHAT IS INSTALLED BEFORE READING ANY CODE. One loop over
+  `build.installed_copies()` printing each profile's `version=` line
+  and its mtime answers it in seconds, and it is the same rule as
+  measuring the session that is broken rather than building a seventh
+  reproduction -- arriving at an INSTALL rather than at a dump.
+  AND TWO HYPOTHESES OF MINE WERE WRONG BEFORE THAT ONE, both caught
+  by checking rather than by reasoning. `build.py` INSTALLS ONLY UNDER
+  `--rc`: the install block sits inside `if args.rc:` and returns
+  before the plain path, so the packaging check cannot have overwritten
+  a profile, and the gate's own log confirmed it printed no `updated`
+  line. The profiles are also not symlinks or hard links into the
+  working tree. WHAT WROTE THAT PROFILE IS STILL UNIDENTIFIED and is
+  recorded as open rather than guessed at a third time.
 - **A CLAIM'S MECHANISM IS USUALLY RIGHT AND ITS HARM USUALLY IS NOT,
   AND THE DOOR IT NAMES IS WHEREVER THE HUNT WAS STANDING.**
   (2026-08-29, taking sixteen owed claims to the end.) This file
